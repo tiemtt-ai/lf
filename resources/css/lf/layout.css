@@ -1,0 +1,21 @@
+.lf-header,
+.lf-footer {
+    padding: 20px 32px;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.lf-footer {
+    border-top: 1px solid #e5e7eb;
+    border-bottom: none;
+}
+
+.lf-main {
+    min-height: calc(100vh - 140px);
+    padding: 48px 32px;
+}
+
+.lf-container {
+    max-width: 1120px;
+    margin: 0 auto;
+}
