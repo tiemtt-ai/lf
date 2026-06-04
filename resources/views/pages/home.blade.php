@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'LearnForge')
+@section('title', 'LF')
 
 @section('content')
     <section class="lf-hero">
