@@ -1,5 +1,5 @@
 <footer class="lf-footer">
     <div class="lf-container">
-        © {{ date('Y') }} LearnForge
+        © {{ date('Y') }} LF
     </div>
 </footer>

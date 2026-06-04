@@ -18,3 +18,32 @@
     color: #4b5563;
     margin: 0;
 }
+
+.lf-profile-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 720px;
+}
+
+.lf-profile-row {
+    display: flex;
+    padding: 16px 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.lf-profile-row:last-child {
+    border-bottom: none;
+}
+
+.lf-profile-label {
+    width: 180px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.lf-profile-value {
+    flex: 1;
+    color: #111827;
+}

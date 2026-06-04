@@ -1,3 +1,7 @@
 @import './lf/base.css';
 @import './lf/layout.css';
 @import './lf/components.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

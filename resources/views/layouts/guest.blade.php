@@ -3,17 +3,15 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'LF')</title>
+    <title>@yield('title', 'LearnForge')</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
-@include('partials.topbar')
-
-<main class="lf-main">
-    @yield('content')
-</main>
-
-@include('partials.footer')
+<div class="lf-auth-page">
+    <div class="lf-auth-card">
+        {{ $slot }}
+    </div>
+</div>
 </body>
 </html>

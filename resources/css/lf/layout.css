@@ -19,3 +19,71 @@
     max-width: 1120px;
     margin: 0 auto;
 }
+
+.lf-dashboard {
+    display: flex;
+    min-height: 100vh;
+}
+
+.lf-sidebar {
+    width: 240px;
+    background: #111827;
+    color: white;
+    padding: 24px;
+}
+
+.lf-sidebar-brand {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 32px;
+}
+
+.lf-sidebar-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.lf-sidebar-menu a {
+    color: white;
+}
+
+.lf-dashboard-content {
+    flex: 1;
+    background: #f8fafc;
+}
+
+.lf-dashboard-header {
+    height: 72px;
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 0 32px;
+}
+
+.lf-dashboard-main {
+    padding: 32px;
+}
+
+.lf-auth-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    background: #f8fafc;
+}
+
+.lf-auth-card {
+    width: 100%;
+    max-width: 420px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
