@@ -1,6 +1,5 @@
 <?php
 
-use App\Support\TenantContext;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -12,23 +11,6 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('pages.home');
-});
-
-/*
-|--------------------------------------------------------------------------
-| Tenant Test
-|--------------------------------------------------------------------------
-*/
-
-Route::middleware(['tenant'])->group(function () {
-    Route::get('/tenant-test', function () {
-        return response()->json([
-            'customer_id'   => TenantContext::customerId(),
-            'customer_name' => TenantContext::customer()?->name,
-            'theme_key'     => TenantContext::themeKey(),
-            'layout_key'    => TenantContext::layoutKey(),
-        ]);
-    });
 });
 
 /*
@@ -67,6 +49,48 @@ Route::middleware([
 
     Route::delete('/profile', [ProfileController::class, 'destroy'])
         ->name('profile.destroy');
+});
+
+/*
+|--------------------------------------------------------------------------
+| LF User Access Areas
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware([
+    'tenant',
+    'auth',
+    'verified',
+    'tenant.user',
+    'role:customer_admin',
+])->prefix('admin')->group(function () {
+    Route::get('/', function () {
+        return 'LF Admin Area';
+    })->name('admin.dashboard');
+});
+
+Route::middleware([
+    'tenant',
+    'auth',
+    'verified',
+    'tenant.user',
+    'role:teacher',
+])->prefix('teacher')->group(function () {
+    Route::get('/', function () {
+        return 'LF Teacher Area';
+    })->name('teacher.dashboard');
+});
+
+Route::middleware([
+    'tenant',
+    'auth',
+    'verified',
+    'tenant.user',
+    'role:student',
+])->prefix('student')->group(function () {
+    Route::get('/', function () {
+        return 'LF Student Area';
+    })->name('student.dashboard');
 });
 
 require __DIR__.'/auth.php';
