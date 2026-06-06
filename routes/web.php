@@ -1,26 +1,48 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\CustomerRegisterController;
-use App\Support\TenantContext;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\CustomerRegisterController;
+use App\Http\Controllers\ProfileController;
+use App\Support\TenantContext;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PublicSiteController;
 
 /*
 |--------------------------------------------------------------------------
-| Public
+| Root Domain Public Pages
+|--------------------------------------------------------------------------
+| Domain gốc: localhost / learnforge.vn
+| Chỉ dùng cho landing, giới thiệu, pricing, register customer.
+| Không dùng cho login/logout/user dashboard.
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', function () {
-    return view('pages.home');
-});
+Route::get('/', [PublicSiteController::class, 'home'])
+    ->name('public.home');
+
+Route::get('/features', [PublicSiteController::class, 'features'])
+    ->name('public.features');
+
+Route::get('/pricing', [PublicSiteController::class, 'pricing'])
+    ->name('public.pricing');
+
+Route::get('/services', [PublicSiteController::class, 'services'])
+    ->name('public.services');
+
+Route::get('/about', [PublicSiteController::class, 'about'])
+    ->name('public.about');
 
 Route::get('/register-customer', [CustomerRegisterController::class, 'show'])
     ->name('customer.register');
 
 Route::post('/register-customer', [CustomerRegisterController::class, 'store'])
     ->name('customer.register.store');
+
+/*
+|--------------------------------------------------------------------------
+| Tenant Test
+|--------------------------------------------------------------------------
+*/
 
 Route::middleware(['tenant'])->get('/tenant-test', function () {
     $customer = TenantContext::customer();
@@ -32,7 +54,42 @@ Route::middleware(['tenant'])->get('/tenant-test', function () {
         'theme_key' => $customer?->theme_key,
         'layout_key' => $customer?->layout_key,
     ];
+})->name('tenant.test');
+
+/*
+|--------------------------------------------------------------------------
+| Tenant Auth Routes
+|--------------------------------------------------------------------------
+| Login/logout/register/password reset chỉ hoạt động trên tenant domain:
+| visang1.localhost:8000/login
+| kaha.learnforge.vn/login
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/login', function () {
+    abort(404);
 });
+
+Route::post('/login', function () {
+    abort(404);
+});
+
+Route::post('/logout', function () {
+    abort(404);
+});
+
+Route::get('/register', function () {
+    abort(404);
+});
+
+Route::get('/forgot-password', function () {
+    abort(404);
+});
+
+Route::middleware(['tenant'])->group(function () {
+    require __DIR__ . '/auth.php';
+});
+
 /*
 |--------------------------------------------------------------------------
 | Authenticated Tenant Routes
@@ -46,7 +103,12 @@ Route::middleware([
     'tenant.user',
 ])->group(function () {
     Route::get('/dashboard', function () {
-        return view('dashboard');
+        return redirect()->route(match (auth()->user()->role) {
+            'customer_admin' => 'admin.dashboard',
+            'teacher' => 'teacher.dashboard',
+            'student' => 'student.dashboard',
+            default => 'public.home',
+        });
     })->name('dashboard');
 });
 
@@ -73,7 +135,7 @@ Route::middleware([
 
 /*
 |--------------------------------------------------------------------------
-| LF User Access Areas
+| Admin Area
 |--------------------------------------------------------------------------
 */
 
@@ -107,6 +169,12 @@ Route::middleware([
         ->name('admin.users.toggle-status');
 });
 
+/*
+|--------------------------------------------------------------------------
+| Teacher Area
+|--------------------------------------------------------------------------
+*/
+
 Route::middleware([
     'tenant',
     'auth',
@@ -119,6 +187,12 @@ Route::middleware([
     })->name('teacher.dashboard');
 });
 
+/*
+|--------------------------------------------------------------------------
+| Student Area
+|--------------------------------------------------------------------------
+*/
+
 Route::middleware([
     'tenant',
     'auth',
@@ -130,5 +204,3 @@ Route::middleware([
         return view('student.dashboard');
     })->name('student.dashboard');
 });
-
-require __DIR__.'/auth.php';

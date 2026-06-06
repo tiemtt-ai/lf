@@ -1,45 +1,128 @@
-<h1>Create User</h1>
+@extends('layouts.tenant')
 
-@if ($errors->any())
-    <div style="color: red;">
-        @foreach ($errors->all() as $error)
-            <div>{{ $error }}</div>
-        @endforeach
+@section('title', 'Create User')
+@section('page_title', 'Create User')
+
+@section('content')
+
+    <div class="lf-container">
+
+        <h1>Create User</h1>
+
+        @if ($errors->any())
+            <div style="
+            background:#fee2e2;
+            color:#991b1b;
+            padding:12px 16px;
+            border-radius:8px;
+            margin-bottom:20px;
+        ">
+                <ul style="margin:0;padding-left:20px;">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        <div class="lf-profile-card">
+
+            <form method="POST"
+                  action="{{ route('admin.users.store') }}">
+
+                @csrf
+
+                <div class="lf-form-group">
+
+                    <label class="lf-form-label">
+                        Name
+                    </label>
+
+                    <input type="text"
+                           name="name"
+                           class="lf-form-control"
+                           value="{{ old('name') }}">
+
+                </div>
+
+                <div class="lf-form-group">
+
+                    <label class="lf-form-label">
+                        Email
+                    </label>
+
+                    <input type="email"
+                           name="email"
+                           class="lf-form-control"
+                           value="{{ old('email') }}">
+
+                </div>
+
+                <div class="lf-form-group">
+
+                    <label class="lf-form-label">
+                        Role
+                    </label>
+
+                    <select name="role"
+                            class="lf-form-control">
+
+                        <option value="teacher"
+                                {{ old('role') == 'teacher' ? 'selected' : '' }}>
+                            Teacher
+                        </option>
+
+                        <option value="student"
+                                {{ old('role') == 'student' ? 'selected' : '' }}>
+                            Student
+                        </option>
+
+                    </select>
+
+                </div>
+
+                <div class="lf-form-group">
+
+                    <label class="lf-form-label">
+                        Password
+                    </label>
+
+                    <input type="password"
+                           name="password"
+                           class="lf-form-control">
+
+                </div>
+
+                <div class="lf-form-group">
+
+                    <label class="lf-form-label">
+                        Confirm Password
+                    </label>
+
+                    <input type="password"
+                           name="password_confirmation"
+                           class="lf-form-control">
+
+                </div>
+
+                <div style="margin-top:24px;">
+
+                    <button type="submit"
+                            class="lf-btn-primary">
+                        Create User
+                    </button>
+
+                    <a href="{{ route('admin.users.index') }}"
+                       style="margin-left:12px;">
+                        Cancel
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
     </div>
-@endif
 
-<form method="POST" action="{{ route('admin.users.store') }}">
-    @csrf
-
-    <div>
-        <label>Name</label><br>
-        <input type="text" name="name" value="{{ old('name') }}">
-    </div>
-
-    <div>
-        <label>Email</label><br>
-        <input type="email" name="email" value="{{ old('email') }}">
-    </div>
-
-    <div>
-        <label>Role</label><br>
-        <select name="role">
-            <option value="teacher">Teacher</option>
-            <option value="student">Student</option>
-        </select>
-    </div>
-
-    <div>
-        <label>Password</label><br>
-        <input type="password" name="password">
-    </div>
-
-    <div>
-        <label>Confirm Password</label><br>
-        <input type="password" name="password_confirmation">
-    </div>
-
-    <br>
-
-    <button type="submit">Create</button>
-</form>
+@endsection

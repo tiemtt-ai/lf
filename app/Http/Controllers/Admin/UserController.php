@@ -10,14 +10,30 @@ use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $role = $request->role ?? 'customer_admin';
+
+        $validRoles = [
+            'customer_admin',
+            'teacher',
+            'student',
+        ];
+
+        if (! in_array($role, $validRoles)) {
+            $role = 'customer_admin';
+        }
+
         $users = DB::table('users')
             ->where('customer_id', TenantContext::customerId())
-            ->orderBy('id', 'desc')
+            ->where('role', $role)
+            ->orderBy('name')
             ->get();
 
-        return view('admin.users.index', compact('users'));
+        return view('admin.users.index', [
+            'users' => $users,
+            'role' => $role,
+        ]);
     }
 
     public function create()

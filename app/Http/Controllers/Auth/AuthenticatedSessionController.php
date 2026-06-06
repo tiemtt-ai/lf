@@ -4,24 +4,16 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Support\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
-use App\Support\TenantContext;
 
 class AuthenticatedSessionController extends Controller
 {
-    /**
-     * Display the login view.
-     */
     public function create(): View
     {
-        /*
-        |--------------------------------------------------------------------------
-        | Domain gốc không được login
-        |--------------------------------------------------------------------------
-        */
         if (TenantContext::customerId() === null) {
             abort(404);
         }
@@ -29,9 +21,6 @@ class AuthenticatedSessionController extends Controller
         return view('auth.login');
     }
 
-    /**
-     * Handle an incoming authentication request.
-     */
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
@@ -40,15 +29,18 @@ class AuthenticatedSessionController extends Controller
 
         $user = $request->user();
 
-        /*
-        |--------------------------------------------------------------------------
-        | Tenant Check
-        |--------------------------------------------------------------------------
-        */
-        if (
-            TenantContext::customerId() !== null &&
-            $user->customer_id != TenantContext::customerId()
-        ) {
+        if ($user->status !== 'active') {
+            Auth::logout();
+
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()->withErrors([
+                'email' => 'User is not active.',
+            ]);
+        }
+
+        if ($user->customer_id != TenantContext::customerId()) {
             Auth::logout();
 
             $request->session()->invalidate();
@@ -60,24 +52,24 @@ class AuthenticatedSessionController extends Controller
         }
 
         return match ($user->role) {
-            'customer_admin' => redirect()->intended('/admin'),
-            'teacher'        => redirect()->intended('/teacher'),
-            'student'        => redirect()->intended('/student'),
-            default          => redirect()->intended('/dashboard'),
+            'customer_admin' => redirect()->route('admin.dashboard'),
+            'teacher'        => redirect()->route('teacher.dashboard'),
+            'student'        => redirect()->route('student.dashboard'),
+            default          => redirect()->route('dashboard'),
         };
     }
 
-    /**
-     * Destroy an authenticated session.
-     */
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
-
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        if (TenantContext::customerId() !== null) {
+            return redirect()->route('login');
+        }
+
+        return redirect()->route('public.home');
     }
 }

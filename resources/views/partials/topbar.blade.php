@@ -1,26 +1,21 @@
-<header class="lf-header">
-    <div class="lf-container" style="display:flex;justify-content:space-between;align-items:center;">
-        <a href="{{ url('/') }}" class="lf-brand">LF</a>
+<header class="lf-topbar">
+    <div class="lf-topbar-inner">
 
-        <nav style="display:flex;gap:16px;align-items:center;">
-            <a href="{{ url('/') }}">Home</a>
+        <a class="lf-logo" href="{{ route('public.home') }}">
+            LearnForge
+        </a>
 
-            @auth
-                <a href="{{ route('dashboard') }}">Dashboard</a>
-                <a href="{{ route('profile.edit') }}">Profile</a>
+        <nav class="lf-menu">
+            <a href="{{ route('public.home') }}">Home</a>
+            <a href="{{ route('public.features') }}">Features</a>
+            <a href="{{ route('public.pricing') }}">Pricing</a>
+            <a href="{{ route('public.services') }}">Services</a>
+            <a href="{{ route('public.about') }}">About</a>
 
-                <span>{{ Auth::user()->name }}</span>
-
-                <form method="POST" action="{{ route('logout') }}" style="display:inline;">
-                    @csrf
-                    <button type="submit" style="background:none;border:0;cursor:pointer;padding:0;font:inherit;">
-                        Logout
-                    </button>
-                </form>
-            @else
-                <a href="{{ route('login') }}">Login</a>
-                <a href="{{ route('register') }}">Register</a>
-            @endauth
+            <a class="lf-menu-button" href="{{ route('customer.register') }}">
+                Register Customer
+            </a>
         </nav>
+
     </div>
 </header>

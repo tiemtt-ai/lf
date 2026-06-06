@@ -1,14 +1,70 @@
-.lf-brand {
+/* =========================
+   Brand / Logo
+========================= */
+
+.lf-brand,
+.lf-logo {
     font-size: 22px;
     font-weight: 700;
+    color: #111827;
+    text-decoration: none;
 }
+
+/* =========================
+   Public Website Menu
+========================= */
+
+.lf-menu {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.lf-menu a {
+    color: #374151;
+    text-decoration: none;
+    font-size: 15px;
+    transition: color .2s ease;
+}
+
+.lf-menu a:hover {
+    color: #2563eb;
+}
+
+/* =========================
+   Buttons
+========================= */
+
+.lf-menu-button,
+.lf-btn-primary {
+    display: inline-block;
+    background: #2563eb;
+    color: #ffffff !important;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: none;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .2s ease;
+}
+
+.lf-menu-button:hover,
+.lf-btn-primary:hover {
+    background: #1d4ed8;
+}
+
+/* =========================
+   Public Hero
+========================= */
 
 .lf-hero {
     padding: 80px 0;
+    text-align: center;
 }
 
 .lf-hero-title {
     font-size: 48px;
+    font-weight: 700;
     line-height: 1.1;
     margin: 0 0 16px;
 }
@@ -19,8 +75,86 @@
     margin: 0;
 }
 
+/* =========================
+   Tabs
+========================= */
+
+.lf-tabs {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.lf-tab {
+    padding: 10px 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #374151;
+    background: #ffffff;
+}
+
+.lf-tab.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+}
+
+/* =========================
+   Table
+========================= */
+
+.lf-table-wrapper {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.lf-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.lf-table th {
+    background: #f8fafc;
+    text-align: left;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.lf-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+/* =========================
+   Badge
+========================= */
+
+.lf-badge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    display: inline-block;
+}
+
+.lf-badge-success {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.lf-badge-danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* =========================
+   Profile
+========================= */
+
 .lf-profile-card {
-    background: white;
+    background: #ffffff;
     border: 1px solid #e5e7eb;
     border-radius: 16px;
     padding: 24px;
