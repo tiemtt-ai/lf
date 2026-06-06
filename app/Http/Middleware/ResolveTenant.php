@@ -14,7 +14,7 @@ class ResolveTenant
     {
         $host = $request->getHost();
 
-        $baseDomain = config('app.base_domain', 'learnforge.vn');
+        $baseDomain = config('app.base_domain', 'localhost');
 
         $customer = DB::table('saas_customers')
             ->where('custom_domain', $host)

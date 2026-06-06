@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
+use App\Support\TenantContext;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -16,6 +17,15 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(): View
     {
+        /*
+        |--------------------------------------------------------------------------
+        | Domain gốc không được login
+        |--------------------------------------------------------------------------
+        */
+        if (TenantContext::customerId() === null) {
+            abort(404);
+        }
+
         return view('auth.login');
     }
 
@@ -29,6 +39,25 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
 
         $user = $request->user();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Tenant Check
+        |--------------------------------------------------------------------------
+        */
+        if (
+            TenantContext::customerId() !== null &&
+            $user->customer_id != TenantContext::customerId()
+        ) {
+            Auth::logout();
+
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()->withErrors([
+                'email' => 'This account does not belong to this tenant.',
+            ]);
+        }
 
         return match ($user->role) {
             'customer_admin' => redirect()->intended('/admin'),
