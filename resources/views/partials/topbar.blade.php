@@ -6,13 +6,17 @@
         </a>
 
         <nav class="lf-menu">
-            <a href="{{ route('public.home') }}">Home</a>
-            <a href="{{ route('public.features') }}">Features</a>
-            <a href="{{ route('public.pricing') }}">Pricing</a>
-            <a href="{{ route('public.services') }}">Services</a>
-            <a href="{{ route('public.about') }}">About</a>
+            <a href="{{ config('app.url') }}">Home</a>
 
-            <a class="lf-menu-button" href="{{ route('customer.register') }}">
+            <a href="{{ config('app.url') . '/features' }}">Features</a>
+
+            <a href="{{ config('app.url') . '/pricing' }}">Pricing</a>
+
+            <a href="{{ config('app.url') . '/services' }}">Services</a>
+
+            <a href="{{ config('app.url') . '/about' }}">About</a>
+
+            <a href="{{ config('app.url') . '/register-customer' }}">
                 Register Tenant
             </a>
         </nav>
