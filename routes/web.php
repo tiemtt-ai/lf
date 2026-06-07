@@ -3,17 +3,17 @@
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\CustomerRegisterController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublicSiteController;
 use App\Support\TenantContext;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\PublicSiteController;
 
 /*
 |--------------------------------------------------------------------------
 | Root Domain Public Pages
 |--------------------------------------------------------------------------
 | Domain gốc: localhost / learnforge.vn
-| Chỉ dùng cho landing, giới thiệu, pricing, register customer.
-| Không dùng cho login/logout/user dashboard.
+| Chỉ dùng cho landing, features, pricing, services, about, register customer.
+| Không dùng cho login/logout/dashboard/admin/teacher/student.
 |--------------------------------------------------------------------------
 */
 
@@ -42,17 +42,24 @@ Route::post('/register-customer', [CustomerRegisterController::class, 'store'])
 |--------------------------------------------------------------------------
 | Tenant Test
 |--------------------------------------------------------------------------
+| Chỉ dùng để kiểm tra tenant resolve trong giai đoạn foundation.
+| Sau khi stable có thể xóa hoặc chỉ bật local/dev.
+|--------------------------------------------------------------------------
 */
 
 Route::middleware(['tenant'])->get('/tenant-test', function () {
     $customer = TenantContext::customer();
 
+    if (!$customer) {
+        abort(404);
+    }
+
     return [
         'host' => request()->getHost(),
         'customer_id' => TenantContext::customerId(),
         'slug' => $customer?->slug,
-        'theme_key' => $customer?->theme_key,
-        'layout_key' => $customer?->layout_key,
+        'theme_key' => TenantContext::themeKey(),
+        'layout_key' => TenantContext::layoutKey(),
     ];
 })->name('tenant.test');
 
@@ -60,31 +67,10 @@ Route::middleware(['tenant'])->get('/tenant-test', function () {
 |--------------------------------------------------------------------------
 | Tenant Auth Routes
 |--------------------------------------------------------------------------
-| Login/logout/register/password reset chỉ hoạt động trên tenant domain:
-| visang1.localhost:8000/login
-| kaha.learnforge.vn/login
+| Login/logout/password reset chỉ hoạt động khi resolve được tenant.
+| Public tenant register đang tắt; user được tạo bởi customer_admin.
 |--------------------------------------------------------------------------
 */
-
-Route::get('/login', function () {
-    abort(404);
-});
-
-Route::post('/login', function () {
-    abort(404);
-});
-
-Route::post('/logout', function () {
-    abort(404);
-});
-
-Route::get('/register', function () {
-    abort(404);
-});
-
-Route::get('/forgot-password', function () {
-    abort(404);
-});
 
 Route::middleware(['tenant'])->group(function () {
     require __DIR__ . '/auth.php';
@@ -110,19 +96,7 @@ Route::middleware([
             default => 'public.home',
         });
     })->name('dashboard');
-});
 
-/*
-|--------------------------------------------------------------------------
-| Profile
-|--------------------------------------------------------------------------
-*/
-
-Route::middleware([
-    'tenant',
-    'auth',
-    'tenant.user',
-])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])
         ->name('profile.edit');
 
@@ -145,28 +119,28 @@ Route::middleware([
     'verified',
     'tenant.user',
     'role:customer_admin',
-])->prefix('admin')->group(function () {
+])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', function () {
         return view('admin.dashboard');
-    })->name('admin.dashboard');
+    })->name('dashboard');
 
     Route::get('/users', [UserController::class, 'index'])
-        ->name('admin.users.index');
+        ->name('users.index');
 
     Route::get('/users/create', [UserController::class, 'create'])
-        ->name('admin.users.create');
+        ->name('users.create');
 
     Route::post('/users', [UserController::class, 'store'])
-        ->name('admin.users.store');
+        ->name('users.store');
 
     Route::get('/users/{id}/edit', [UserController::class, 'edit'])
-        ->name('admin.users.edit');
+        ->name('users.edit');
 
     Route::put('/users/{id}', [UserController::class, 'update'])
-        ->name('admin.users.update');
+        ->name('users.update');
 
     Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])
-        ->name('admin.users.toggle-status');
+        ->name('users.toggle-status');
 });
 
 /*
@@ -181,10 +155,10 @@ Route::middleware([
     'verified',
     'tenant.user',
     'role:teacher',
-])->prefix('teacher')->group(function () {
+])->prefix('teacher')->name('teacher.')->group(function () {
     Route::get('/', function () {
         return view('teacher.dashboard');
-    })->name('teacher.dashboard');
+    })->name('dashboard');
 });
 
 /*
@@ -199,8 +173,8 @@ Route::middleware([
     'verified',
     'tenant.user',
     'role:student',
-])->prefix('student')->group(function () {
+])->prefix('student')->name('student.')->group(function () {
     Route::get('/', function () {
         return view('student.dashboard');
-    })->name('student.dashboard');
+    })->name('dashboard');
 });

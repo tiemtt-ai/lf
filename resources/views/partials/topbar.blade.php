@@ -2,7 +2,7 @@
     <div class="lf-topbar-inner">
 
         <a class="lf-logo" href="{{ route('public.home') }}">
-            LearnForge
+            Master Korean | API Test
         </a>
 
         <nav class="lf-menu">
@@ -13,7 +13,7 @@
             <a href="{{ route('public.about') }}">About</a>
 
             <a class="lf-menu-button" href="{{ route('customer.register') }}">
-                Register Customer
+                Register Tenant
             </a>
         </nav>
 

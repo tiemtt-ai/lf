@@ -10,7 +10,7 @@
         <h2>Welcome</h2>
 
         <p>
-            Welcome to the LearnForge Administration Dashboard.
+            Xin chào tiemtt!
         </p>
 
         <div class="lf-profile-card">

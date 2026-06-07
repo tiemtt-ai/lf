@@ -13,25 +13,24 @@ class ResolveTenant
     public function handle(Request $request, Closure $next): Response
     {
         $host = $request->getHost();
-
         $baseDomain = config('app.base_domain', 'localhost');
 
-        $customer = DB::table('saas_customers')
-            ->where('custom_domain', $host)
-            ->where('status', 'active')
-            ->first();
+        $customer = null;
 
-        if (!$customer && str_ends_with($host, '.' . $baseDomain)) {
-            $subdomain = str_replace('.' . $baseDomain, '', $host);
-
+        if ($host !== $baseDomain && $host !== 'www.' . $baseDomain) {
             $customer = DB::table('saas_customers')
-                ->where('subdomain', $subdomain)
+                ->where('custom_domain', $host)
                 ->where('status', 'active')
                 ->first();
-        }
 
-        if (!$customer) {
-            abort(404, 'Tenant not found');
+            if (!$customer && str_ends_with($host, '.' . $baseDomain)) {
+                $subdomain = str_replace('.' . $baseDomain, '', $host);
+
+                $customer = DB::table('saas_customers')
+                    ->where('subdomain', $subdomain)
+                    ->where('status', 'active')
+                    ->first();
+            }
         }
 
         TenantContext::set($customer);

@@ -2,15 +2,15 @@
     <div class="container py-4 text-center">
 
         <p class="mb-1 fw-semibold">
-            LearnForge
+            Master Korean | API Test
         </p>
 
         <p class="text-muted mb-0">
-            AI-Native Learning Management Platform
+            API Test Management Platform
         </p>
 
         <small class="text-muted">
-            © {{ date('Y') }} LearnForge. All rights reserved.
+            © {{ date('Y') }} API Test. All rights reserved.
         </small>
 
     </div>

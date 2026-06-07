@@ -1,14 +1,14 @@
 @extends('layouts.public')
 
-@section('title', 'About LearnForge')
+@section('title', 'About Master Korean | API Test')
 
 @section('content')
     <div class="container py-5">
 
-        <h1>About LearnForge</h1>
+        <h1>About Master Korean | API Test</h1>
 
         <p>
-            LearnForge is an AI-native SaaS platform designed for education.
+            Master Korean | API Test nền tảng dùng cho IT Team check/test API của hệ sinh thái Masterkorean.
         </p>
 
         <p>
@@ -17,8 +17,7 @@
         </p>
 
         <p>
-            LearnForge supports schools, training centers, teachers
-            and enterprises through a scalable multi-tenant architecture.
+            Master Korean | API Test giải pháp của bạn.
         </p>
 
     </div>

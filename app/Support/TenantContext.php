@@ -30,4 +30,9 @@ class TenantContext
     {
         return self::$customer?->layout_key ?? 'default';
     }
+
+    public static function slug(): ?string
+    {
+        return self::$customer?->slug;
+    }
 }

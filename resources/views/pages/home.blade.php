@@ -6,20 +6,19 @@
     <div class="container py-5 text-center">
 
         <h1 class="mb-3">
-            LF
+            Master Korean | API Test
         </h1>
 
         <p class="lead">
-            AI-Native Learning Management Platform
+            API Test Management Platform
         </p>
 
         <p>
-            LF helps schools, training centers, teachers and organizations
-            create modern learning experiences powered by AI.
+            Hỗ trợ IT Team trong qua trình test các API liên quan các hệ thống MK V2, Admin site, Question Bank, MK Jobs, MK Live, MK B2B, Mobile App, Chatbot.
         </p>
 
         <a href="{{ route('customer.register') }}" class="btn btn-primary">
-            Register Customer
+            Register Tenant
         </a>
 
     </div>
