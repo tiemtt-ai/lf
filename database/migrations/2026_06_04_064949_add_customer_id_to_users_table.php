@@ -18,7 +18,7 @@ return new class extends Migration
                 ->constrained('saas_customers')
                 ->nullOnDelete();
 
-            $table->string('role')->default('admin')->after('password');
+            $table->string('role')->default('student')->after('password');
             $table->string('status')->default('active')->after('role');
         });
     }
