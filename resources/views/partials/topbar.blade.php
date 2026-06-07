@@ -16,7 +16,7 @@
 
             <a href="{{ config('app.url') . '/about' }}">About</a>
 
-            <a href="{{ config('app.url') . '/register-customer' }}">
+            <a class="lf-menu-button" href="{{ config('app.url') . '/register-customer' }}">
                 Register Tenant
             </a>
         </nav>
