@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\TenantContext;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,8 @@ class NewPasswordController extends Controller
      */
     public function create(Request $request): View
     {
+        abort_if(TenantContext::customerId() === null, 404);
+
         return view('auth.reset-password', ['request' => $request]);
     }
 
@@ -37,11 +40,16 @@ class NewPasswordController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        // Here we will attempt to reset the user's password. If it is successful we
-        // will update the password on an actual user model and persist it to the
-        // database. Otherwise we will parse the error and return the response.
+        $customerId = TenantContext::customerId();
+
+        abort_if($customerId === null, 404);
+
         $status = Password::reset(
-            $request->only('email', 'password', 'password_confirmation', 'token'),
+            [
+                ...$request->only('email', 'password', 'password_confirmation', 'token'),
+                'customer_id' => $customerId,
+                'status' => 'active',
+            ],
             function (User $user) use ($request) {
                 $user->forceFill([
                     'password' => Hash::make($request->password),
@@ -52,9 +60,10 @@ class NewPasswordController extends Controller
             }
         );
 
-        // If the password was successfully reset, we will redirect the user back to
-        // the application's home authenticated view. If there is an error we can
-        // redirect them back to where they came from with their error message.
+        if ($status === Password::INVALID_USER) {
+            $status = Password::INVALID_TOKEN;
+        }
+
         return $status == Password::PASSWORD_RESET
                     ? redirect()->route('login')->with('status', __($status))
                     : back()->withInput($request->only('email'))
