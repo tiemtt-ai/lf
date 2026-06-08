@@ -62,6 +62,64 @@
                 <div class="lf-form-group">
 
                     <label class="lf-form-label">
+                        Phone
+                    </label>
+
+                    <input type="text"
+                           name="phone"
+                           class="lf-form-control"
+                           value="{{ old('phone', $user->phone) }}">
+
+                </div>
+
+                <div class="lf-form-group">
+
+                    <label class="lf-form-label">
+                        Date of Birth
+                    </label>
+
+                    <input type="date"
+                           name="date_of_birth"
+                           class="lf-form-control"
+                           value="{{ old('date_of_birth', $user->date_of_birth) }}">
+
+                </div>
+
+                <div class="lf-form-group">
+
+                    <label class="lf-form-label">
+                        Gender
+                    </label>
+
+                    <select name="gender"
+                            class="lf-form-control">
+
+                        <option value="">
+                            Select Gender
+                        </option>
+
+                        <option value="male"
+                                @selected(old('gender', $user->gender) == 'male')>
+                            Male
+                        </option>
+
+                        <option value="female"
+                                @selected(old('gender', $user->gender) == 'female')>
+                            Female
+                        </option>
+
+                        <option value="other"
+                                @selected(old('gender', $user->gender) == 'other')>
+                            Other
+                        </option>
+
+                    </select>
+
+                </div>
+
+                <div class="lf-form-group">
+
+                    <label class="lf-form-label">
                         Role
                     </label>
 

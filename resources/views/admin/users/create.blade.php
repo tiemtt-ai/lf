@@ -61,6 +61,64 @@
                 <div class="lf-form-group">
 
                     <label class="lf-form-label">
+                        Phone
+                    </label>
+
+                    <input type="text"
+                           name="phone"
+                           class="lf-form-control"
+                           value="{{ old('phone') }}">
+
+                </div>
+
+                <div class="lf-form-group">
+
+                    <label class="lf-form-label">
+                        Date of Birth
+                    </label>
+
+                    <input type="date"
+                           name="date_of_birth"
+                           class="lf-form-control"
+                           value="{{ old('date_of_birth') }}">
+
+                </div>
+
+                <div class="lf-form-group">
+
+                    <label class="lf-form-label">
+                        Gender
+                    </label>
+
+                    <select name="gender"
+                            class="lf-form-control">
+
+                        <option value="">
+                            Select Gender
+                        </option>
+
+                        <option value="male"
+                                {{ old('gender') == 'male' ? 'selected' : '' }}>
+                            Male
+                        </option>
+
+                        <option value="female"
+                                {{ old('gender') == 'female' ? 'selected' : '' }}>
+                            Female
+                        </option>
+
+                        <option value="other"
+                                {{ old('gender') == 'other' ? 'selected' : '' }}>
+                            Other
+                        </option>
+
+                    </select>
+
+                </div>
+
+                <div class="lf-form-group">
+
+                    <label class="lf-form-label">
                         Role
                     </label>
 

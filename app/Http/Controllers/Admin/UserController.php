@@ -46,6 +46,9 @@ class UserController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'date_of_birth' => ['nullable', 'date'],
+            'gender' => ['nullable', 'in:male,female,other'],
             'password' => ['required', 'confirmed', 'min:8'],
             'role' => ['required', 'in:teacher,student'],
         ]);
@@ -54,6 +57,9 @@ class UserController extends Controller
             'customer_id' => TenantContext::customerId(),
             'name' => $request->name,
             'email' => $request->email,
+            'phone' => $request->phone,
+            'date_of_birth' => $request->date_of_birth,
+            'gender' => $request->gender,
             'password' => Hash::make($request->password),
             'role' => $request->role,
             'status' => 'active',
@@ -91,6 +97,9 @@ class UserController extends Controller
         $request->validate([
             'name' => ['required'],
             'email' => ['required', 'email'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'date_of_birth' => ['nullable', 'date'],
+            'gender' => ['nullable', 'in:male,female,other'],
             'role' => ['required', 'in:customer_admin,teacher,student'],
         ]);
 
@@ -106,6 +115,9 @@ class UserController extends Controller
             ->update([
                 'name' => $request->name,
                 'email' => $request->email,
+                'phone' => $request->phone,
+                'date_of_birth' => $request->date_of_birth,
+                'gender' => $request->gender,
                 'role' => $request->role,
                 'updated_at' => now(),
             ]);
