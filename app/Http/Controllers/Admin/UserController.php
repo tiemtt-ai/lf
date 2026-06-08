@@ -74,7 +74,7 @@ class UserController extends Controller
             ->where('id', $id)
             ->first();
 
-        abort_if(!$user, 404);
+        abort_if(! $user, 404);
 
         return view('admin.users.edit', compact('user'));
     }
@@ -86,7 +86,7 @@ class UserController extends Controller
             ->where('id', $id)
             ->first();
 
-        abort_if(!$user, 404);
+        abort_if(! $user, 404);
 
         $request->validate([
             'name' => ['required'],
@@ -94,8 +94,15 @@ class UserController extends Controller
             'role' => ['required', 'in:customer_admin,teacher,student'],
         ]);
 
+        if ($request->role !== 'customer_admin' && $this->isLastActiveCustomerAdmin($user)) {
+            return back()
+                ->withErrors(['role' => 'This tenant must have at least one active customer admin.'])
+                ->withInput();
+        }
+
         DB::table('users')
             ->where('id', $id)
+            ->where('customer_id', TenantContext::customerId())
             ->update([
                 'name' => $request->name,
                 'email' => $request->email,
@@ -115,14 +122,20 @@ class UserController extends Controller
             ->where('id', $id)
             ->first();
 
-        abort_if(!$user, 404);
+        abort_if(! $user, 404);
 
         $newStatus = $user->status === 'active'
             ? 'inactive'
             : 'active';
 
+        if ($newStatus === 'inactive' && $this->isLastActiveCustomerAdmin($user)) {
+            return back()
+                ->withErrors(['status' => 'This tenant must have at least one active customer admin.']);
+        }
+
         DB::table('users')
             ->where('id', $id)
+            ->where('customer_id', TenantContext::customerId())
             ->update([
                 'status' => $newStatus,
                 'updated_at' => now(),
@@ -130,5 +143,18 @@ class UserController extends Controller
 
         return back()
             ->with('success', 'Status updated.');
+    }
+
+    private function isLastActiveCustomerAdmin(object $user): bool
+    {
+        if ($user->role !== 'customer_admin' || $user->status !== 'active') {
+            return false;
+        }
+
+        return DB::table('users')
+            ->where('customer_id', TenantContext::customerId())
+            ->where('role', 'customer_admin')
+            ->where('status', 'active')
+            ->count() <= 1;
     }
 }

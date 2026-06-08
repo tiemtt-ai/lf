@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Support\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 
@@ -47,14 +49,41 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
+        $customerId = TenantContext::customerId();
+
+        if ($this->isLastActiveCustomerAdmin($user, $customerId)) {
+            return back()->withErrors([
+                'password' => 'This tenant must have at least one active customer admin.',
+            ], 'userDeletion');
+        }
 
         Auth::logout();
 
-        $user->delete();
+        DB::table('users')
+            ->where('id', $user->id)
+            ->where('customer_id', $customerId)
+            ->delete();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
         return Redirect::to('/');
+    }
+
+    private function isLastActiveCustomerAdmin($user, ?int $customerId): bool
+    {
+        if (
+            ! $customerId ||
+            $user->role !== 'customer_admin' ||
+            $user->status !== 'active'
+        ) {
+            return false;
+        }
+
+        return DB::table('users')
+            ->where('customer_id', $customerId)
+            ->where('role', 'customer_admin')
+            ->where('status', 'active')
+            ->count() <= 1;
     }
 }
