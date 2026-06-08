@@ -21,6 +21,22 @@
             </div>
         @endif
 
+        @if ($errors->any())
+            <div style="
+            background:#fee2e2;
+            color:#991b1b;
+            padding:12px 16px;
+            border-radius:8px;
+            margin-bottom:20px;
+        ">
+                <ul style="margin:0;padding-left:20px;">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <div class="lf-tabs">
 
             <a href="{{ route('admin.users.index', ['role' => 'customer_admin']) }}"
