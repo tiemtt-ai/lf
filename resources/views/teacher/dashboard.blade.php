@@ -1,12 +1,10 @@
-<h1>LF Teacher Area</h1>
+@extends('layouts.tenant')
 
-<p>
-    Welcome Teacher
-</p>
+@section('title', 'Teacher Dashboard')
 
-<form method="POST" action="{{ route('logout') }}">
-    @csrf
-    <button type="submit">
-        Logout
-    </button>
-</form>
+@section('content')
+    <div class="lf-page-header">
+        <h1>Teacher Dashboard</h1>
+        <p>Welcome Teacher</p>
+    </div>
+@endsection

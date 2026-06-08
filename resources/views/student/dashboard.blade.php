@@ -1,12 +1,10 @@
-<h1>LF Student Area</h1>
+@extends('layouts.tenant')
 
-<p>
-    Welcome Student
-</p>
+@section('title', 'Student Dashboard')
 
-<form method="POST" action="{{ route('logout') }}">
-    @csrf
-    <button type="submit">
-        Logout
-    </button>
-</form>
+@section('content')
+    <div class="lf-page-header">
+        <h1>Student Dashboard</h1>
+        <p>Welcome Student</p>
+    </div>
+@endsection
