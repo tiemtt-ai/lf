@@ -87,7 +87,7 @@ class UserAuditSecurityTest extends TestCase
         $this->assertAudit($customerId, $admin->id, $target->id, 'user.role_changed');
     }
 
-    public function test_create_status_and_profile_delete_actions_are_audited_without_secrets(): void
+    public function test_create_and_status_actions_are_audited_and_shared_profile_deletion_is_unavailable(): void
     {
         $customerId = $this->createTenant('tenant-a');
         $admin = $this->createUser($customerId, 'admin@example.test', 'customer_admin');
@@ -122,11 +122,19 @@ class UserAuditSecurityTest extends TestCase
 
         $this->actingAs($student)
             ->delete('https://tenant-a.localhost/profile', ['password' => 'password123'])
-            ->assertRedirect('/');
+            ->assertNotFound();
 
-        $this->assertDatabaseMissing('users', ['id' => $student->id]);
-        $this->assertAudit($customerId, $student->id, $student->id, 'user.deleted');
-        $this->assertAudit($customerId, $student->id, $student->id, 'profile.deleted');
+        $this->assertDatabaseHas('users', ['id' => $student->id]);
+        $this->assertDatabaseMissing('saas_audit_logs', [
+            'actor_id' => $student->id,
+            'target_user_id' => $student->id,
+            'action' => 'user.deleted',
+        ]);
+        $this->assertDatabaseMissing('saas_audit_logs', [
+            'actor_id' => $student->id,
+            'target_user_id' => $student->id,
+            'action' => 'profile.deleted',
+        ]);
     }
 
     public function test_tenant_test_route_is_removed(): void

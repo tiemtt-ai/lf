@@ -48,7 +48,7 @@ class TenantRegistrationSecurityTest extends TestCase
         $this->assertNull($user->email_verified_at);
     }
 
-    public function test_last_active_admin_cannot_be_demoted_disabled_or_deleted(): void
+    public function test_last_active_admin_cannot_be_demoted_or_disabled_and_shared_profile_deletion_is_unavailable(): void
     {
         $customerId = DB::table('saas_customers')->insertGetId([
             'name' => 'Acme Academy',
@@ -87,7 +87,7 @@ class TenantRegistrationSecurityTest extends TestCase
 
         $this->actingAs($admin)
             ->delete('https://acme.localhost/profile', ['password' => 'password123'])
-            ->assertSessionHasErrors('password', null, 'userDeletion');
+            ->assertNotFound();
 
         $this->assertDatabaseHas('users', ['id' => $admin->id]);
     }
