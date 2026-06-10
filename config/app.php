@@ -125,4 +125,6 @@ return [
 
     'base_domain' => env('APP_BASE_DOMAIN', 'localhost'),
 
+    'tenant_scheme' => env('APP_TENANT_SCHEME', 'https'),
+
 ];

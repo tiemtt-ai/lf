@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -25,6 +26,17 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
+            'customer_id' => fn () => DB::table('saas_customers')->insertGetId([
+                'name' => fake()->company(),
+                'slug' => $slug = fake()->unique()->slug(),
+                'subdomain' => $slug,
+                'custom_domain' => null,
+                'theme_key' => 'default',
+                'layout_key' => 'default',
+                'status' => 'active',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]),
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),

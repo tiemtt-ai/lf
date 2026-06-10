@@ -1,11 +1,12 @@
 <?php
 
+use App\Http\Middleware\RequireRootDomain;
+use App\Http\Middleware\RequireTenantUser;
+use App\Http\Middleware\ResolveTenant;
+use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use App\Http\Middleware\ResolveTenant;
-use App\Http\Middleware\RequireTenantUser;
-use App\Http\Middleware\RoleMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -16,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
+            'root.domain' => RequireRootDomain::class,
             'tenant' => ResolveTenant::class,
             'tenant.user' => RequireTenantUser::class,
             'role' => RoleMiddleware::class,

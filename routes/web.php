@@ -4,7 +4,6 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\CustomerRegisterController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicSiteController;
-use App\Support\TenantContext;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -32,36 +31,14 @@ Route::get('/services', [PublicSiteController::class, 'services'])
 Route::get('/about', [PublicSiteController::class, 'about'])
     ->name('public.about');
 
-Route::get('/register-customer', [CustomerRegisterController::class, 'show'])
-    ->name('customer.register');
+Route::middleware('root.domain')->group(function () {
+    Route::get('/register-customer', [CustomerRegisterController::class, 'show'])
+        ->name('customer.register');
 
-Route::post('/register-customer', [CustomerRegisterController::class, 'store'])
-    ->name('customer.register.store');
-
-/*
-|--------------------------------------------------------------------------
-| Tenant Test
-|--------------------------------------------------------------------------
-| Chỉ dùng để kiểm tra tenant resolve trong giai đoạn foundation.
-| Sau khi stable có thể xóa hoặc chỉ bật local/dev.
-|--------------------------------------------------------------------------
-*/
-
-Route::middleware(['tenant'])->get('/tenant-test', function () {
-    $customer = TenantContext::customer();
-
-    if (!$customer) {
-        abort(404);
-    }
-
-    return [
-        'host' => request()->getHost(),
-        'customer_id' => TenantContext::customerId(),
-        'slug' => $customer?->slug,
-        'theme_key' => TenantContext::themeKey(),
-        'layout_key' => TenantContext::layoutKey(),
-    ];
-})->name('tenant.test');
+    Route::post('/register-customer', [CustomerRegisterController::class, 'store'])
+        ->middleware('throttle:5,1')
+        ->name('customer.register.store');
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -73,7 +50,7 @@ Route::middleware(['tenant'])->get('/tenant-test', function () {
 */
 
 Route::middleware(['tenant'])->group(function () {
-    require __DIR__ . '/auth.php';
+    require __DIR__.'/auth.php';
 });
 
 /*
