@@ -9,7 +9,13 @@
 
         <h1>Edit User</h1>
 
-        @if ($errors->any())
+        @if (session('success'))
+            <div style="background:#dcfce7;color:#166534;padding:12px 16px;border-radius:8px;margin-bottom:20px;max-width:720px;">
+                {{ session('success') }}
+            </div>
+        @endif
+
+        @if ($errors->default->any())
             <div style="
             background:#fee2e2;
             color:#991b1b;
@@ -18,7 +24,7 @@
             margin-bottom:20px;
         ">
                 <ul style="margin:0;padding-left:20px;">
-                    @foreach ($errors->all() as $error)
+                    @foreach ($errors->default->all() as $error)
                         <li>{{ $error }}</li>
                     @endforeach
                 </ul>
@@ -157,11 +163,75 @@
                         Cancel
                     </a>
 
+                    <button type="button"
+                            class="lf-btn-secondary"
+                            style="margin-left:12px;"
+                            x-data
+                            x-on:click="$dispatch('open-modal', 'change-user-password')">
+                        {{ (int) $user->id === (int) auth()->id()
+                            ? 'Change My Password'
+                            : 'Change User Password' }}
+                    </button>
+
                 </div>
 
             </form>
 
         </div>
+
+        <x-modal name="change-user-password" :show="$errors->resetPassword->any()" focusable>
+            <div class="lf-modal-card">
+                <h2>
+                    {{ (int) $user->id === (int) auth()->id()
+                        ? 'Change My Password'
+                        : 'Change User Password' }}
+                </h2>
+
+                @if ($errors->resetPassword->any())
+                    <div class="lf-alert-danger">
+                        <ul>
+                            @foreach ($errors->resetPassword->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                <form method="POST" action="{{ route('admin.users.update', $user->id) }}">
+                    @csrf
+                    @method('PUT')
+                    <input type="hidden" name="password_reset" value="1">
+
+                    @if ((int) $user->id === (int) auth()->id())
+                        <div class="lf-form-group">
+                            <label class="lf-form-label">Current Password</label>
+                            <input type="password" name="current_password" class="lf-form-control"
+                                   autocomplete="current-password" required>
+                        </div>
+                    @endif
+
+                    <div class="lf-form-group">
+                        <label class="lf-form-label">New Password</label>
+                        <input type="password" name="password" class="lf-form-control"
+                               autocomplete="new-password" required>
+                    </div>
+
+                    <div class="lf-form-group">
+                        <label class="lf-form-label">Confirm New Password</label>
+                        <input type="password" name="password_confirmation" class="lf-form-control"
+                               autocomplete="new-password" required>
+                    </div>
+
+                    <div class="lf-modal-actions">
+                        <button type="button" class="lf-btn-secondary"
+                                x-on:click="$dispatch('close-modal', 'change-user-password')">
+                            Cancel
+                        </button>
+                        <button type="submit" class="lf-btn-primary">Save Password</button>
+                    </div>
+                </form>
+            </div>
+        </x-modal>
 
     </div>
 

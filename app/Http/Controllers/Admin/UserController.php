@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 class UserController extends Controller
 {
@@ -105,6 +106,10 @@ class UserController extends Controller
 
     public function update(Request $request, $id)
     {
+        if ($request->boolean('password_reset')) {
+            return $this->resetPassword($request, $id);
+        }
+
         $request->validate([
             'name' => ['required'],
             'email' => [
@@ -140,20 +145,21 @@ class UserController extends Controller
 
             $before = $this->auditFields($user);
             $emailChanged = $request->email !== $user->email;
+            $attributes = [
+                'name' => $request->name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'date_of_birth' => $request->date_of_birth,
+                'gender' => $request->gender,
+                'role' => $request->role,
+                'email_verified_at' => $emailChanged ? null : $user->email_verified_at,
+                'updated_at' => now(),
+            ];
 
             DB::table('users')
                 ->where('id', $id)
                 ->where('customer_id', $customerId)
-                ->update([
-                    'name' => $request->name,
-                    'email' => $request->email,
-                    'phone' => $request->phone,
-                    'date_of_birth' => $request->date_of_birth,
-                    'gender' => $request->gender,
-                    'role' => $request->role,
-                    'email_verified_at' => $emailChanged ? null : $user->email_verified_at,
-                    'updated_at' => now(),
-                ]);
+                ->update($attributes);
 
             $updatedUser = DB::table('users')
                 ->where('id', $id)
@@ -201,8 +207,82 @@ class UserController extends Controller
         }
 
         return redirect()
-            ->route('admin.users.index')
+            ->route('admin.users.edit', $id)
             ->with('success', 'User updated successfully.');
+    }
+
+    private function resetPassword(Request $request, $id)
+    {
+        $customerId = TenantContext::customerId();
+        $user = DB::table('users')
+            ->where('customer_id', $customerId)
+            ->where('id', $id)
+            ->first();
+
+        abort_if(! $user, 404);
+
+        $isOwnAccount = (int) $user->id === (int) auth()->id();
+        $passwordRules = ['required', 'confirmed', Password::defaults()];
+
+        if ($isOwnAccount) {
+            $passwordRules[] = function (string $attribute, mixed $value, \Closure $fail) use ($user): void {
+                if (Hash::check($value, $user->password)) {
+                    $fail('The new password must be different from the current password.');
+                }
+            };
+        }
+
+        $rules = [
+            'password' => $passwordRules,
+        ];
+
+        if ($isOwnAccount) {
+            $rules['current_password'] = ['required', 'current_password'];
+        }
+
+        $validated = $request->validateWithBag('resetPassword', $rules);
+
+        DB::transaction(function () use ($request, $validated, $id, $customerId, $isOwnAccount): void {
+            $this->lockTenant($customerId);
+
+            $user = DB::table('users')
+                ->where('customer_id', $customerId)
+                ->where('id', $id)
+                ->lockForUpdate()
+                ->first();
+
+            abort_if(! $user, 404);
+
+            abort_if($isOwnAccount !== ((int) $user->id === (int) auth()->id()), 403);
+
+            $before = $this->auditFields($user);
+
+            DB::table('users')
+                ->where('id', $id)
+                ->where('customer_id', $customerId)
+                ->update([
+                    'password' => Hash::make($validated['password']),
+                    'updated_at' => now(),
+                ]);
+
+            $updatedUser = DB::table('users')
+                ->where('id', $id)
+                ->where('customer_id', $customerId)
+                ->first();
+
+            AuditLog::record(
+                $request,
+                $customerId,
+                'user.password_reset',
+                (int) $id,
+                $before,
+                $this->auditFields($updatedUser)
+            );
+        });
+
+        return redirect()
+            ->route('admin.users.edit', $id)
+            ->with('success', 'Password updated successfully.');
     }
 
     public function toggleStatus(Request $request, $id)

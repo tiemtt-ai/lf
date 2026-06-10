@@ -1,13 +1,13 @@
 @extends('layouts.tenant')
 
-@section('title', 'Teacher Profile')
+@section('title', 'Admin Profile')
 @section('page_title', 'Profile')
 
 @section('content')
 
     <div class="lf-container">
 
-        <h1>Teacher Profile</h1>
+        <h1>Admin Profile</h1>
 
         @if (session('profile_success'))
             <div style="background:#dcfce7;color:#166534;padding:12px 16px;border-radius:8px;margin-bottom:20px;">
@@ -16,8 +16,8 @@
         @endif
 
         @if ($errors->default->any())
-            <div style="background:#fee2e2;color:#991b1b;padding:12px 16px;border-radius:8px;margin-bottom:20px;">
-                <ul style="margin:0;padding-left:20px;">
+            <div class="lf-alert-danger" style="max-width:720px;">
+                <ul>
                     @foreach ($errors->default->all() as $error)
                         <li>{{ $error }}</li>
                     @endforeach
@@ -29,7 +29,7 @@
 
             <h2>Profile Information</h2>
 
-            <form method="POST" action="{{ route('teacher.profile.update') }}">
+            <form method="POST" action="{{ route('admin.profile.update') }}">
                 @csrf
                 @method('PATCH')
 
@@ -69,7 +69,7 @@
 
                 <div class="lf-form-group">
                     <label class="lf-form-label">Role</label>
-                    <input type="text" class="lf-form-control" value="Teacher" disabled>
+                    <input type="text" class="lf-form-control" value="Customer Admin" disabled>
                 </div>
 
                 <div style="margin-top:24px;">
@@ -92,9 +92,73 @@
             </div>
         @endif
 
-        @include('profile.partials.password-modal', [
-            'action' => route('teacher.profile.password.update'),
-        ])
+        <x-modal name="change-password" :show="$errors->updatePassword->any()" focusable>
+            <div class="lf-modal-card">
+                <h2>Change Password</h2>
+
+                @if ($errors->updatePassword->any())
+                    <div class="lf-alert-danger">
+                        <ul>
+                            @foreach ($errors->updatePassword->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                <form method="POST" action="{{ route('admin.profile.password.update') }}">
+                    @csrf
+                    @method('PATCH')
+
+                    <div class="lf-form-group">
+                        <label for="admin_current_password" class="lf-form-label">
+                            Current Password
+                        </label>
+                        <input id="admin_current_password"
+                               type="password"
+                               name="current_password"
+                               class="lf-form-control"
+                               autocomplete="current-password"
+                               required>
+                    </div>
+
+                    <div class="lf-form-group">
+                        <label for="admin_new_password" class="lf-form-label">
+                            New Password
+                        </label>
+                        <input id="admin_new_password"
+                               type="password"
+                               name="password"
+                               class="lf-form-control"
+                               autocomplete="new-password"
+                               required>
+                    </div>
+
+                    <div class="lf-form-group">
+                        <label for="admin_password_confirmation" class="lf-form-label">
+                            Confirm New Password
+                        </label>
+                        <input id="admin_password_confirmation"
+                               type="password"
+                               name="password_confirmation"
+                               class="lf-form-control"
+                               autocomplete="new-password"
+                               required>
+                    </div>
+
+                    <div class="lf-modal-actions">
+                        <button type="button"
+                                class="lf-btn-secondary"
+                                x-on:click="$dispatch('close-modal', 'change-password')">
+                            Cancel
+                        </button>
+                        <button type="submit" class="lf-btn-primary">
+                            Change Password
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </x-modal>
 
     </div>
 

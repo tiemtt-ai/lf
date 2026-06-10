@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\CustomerRegisterController;
 use App\Http\Controllers\PublicSiteController;
@@ -92,6 +93,15 @@ Route::middleware([
     Route::get('/', function () {
         return view('admin.dashboard');
     })->name('dashboard');
+
+    Route::get('/profile', [AdminProfileController::class, 'edit'])
+        ->name('profile.edit');
+
+    Route::patch('/profile', [AdminProfileController::class, 'update'])
+        ->name('profile.update');
+
+    Route::patch('/profile/password', [AdminProfileController::class, 'updatePassword'])
+        ->name('profile.password.update');
 
     Route::get('/users', [UserController::class, 'index'])
         ->name('users.index');

@@ -75,7 +75,8 @@ class UserAuditSecurityTest extends TestCase
                 'email' => 'updated@example.test',
                 'role' => 'student',
             ])
-            ->assertRedirect('https://tenant-a.localhost/admin/users');
+            ->assertRedirect('https://tenant-a.localhost/admin/users/'.$target->id.'/edit')
+            ->assertSessionHas('success', 'User updated successfully.');
 
         $target->refresh();
         $this->assertSame('updated@example.test', $target->email);
@@ -85,6 +86,137 @@ class UserAuditSecurityTest extends TestCase
 
         $this->assertAudit($customerId, $admin->id, $target->id, 'user.updated');
         $this->assertAudit($customerId, $admin->id, $target->id, 'user.role_changed');
+    }
+
+    public function test_admin_can_reset_passwords_for_other_user_roles_without_current_password(): void
+    {
+        $customerId = $this->createTenant('tenant-a');
+        $admin = $this->createUser($customerId, 'admin@example.test', 'customer_admin');
+
+        foreach (['customer_admin', 'teacher', 'student'] as $role) {
+            $target = $this->createUser($customerId, $role.'@example.test', $role);
+            $newPassword = 'new-'.$role.'-password';
+
+            $this->actingAs($admin)
+                ->put('https://tenant-a.localhost/admin/users/'.$target->id, [
+                    'password_reset' => '1',
+                    'password' => $newPassword,
+                    'password_confirmation' => $newPassword,
+                ])
+                ->assertRedirect('https://tenant-a.localhost/admin/users/'.$target->id.'/edit')
+                ->assertSessionHas('success', 'Password updated successfully.');
+
+            $this->assertTrue(Hash::check($newPassword, $target->fresh()->password));
+        }
+    }
+
+    public function test_admin_must_confirm_current_password_when_editing_own_account(): void
+    {
+        $customerId = $this->createTenant('tenant-a');
+        $admin = $this->createUser($customerId, 'admin@example.test', 'customer_admin');
+
+        $response = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/users/'.$admin->id.'/edit')
+            ->assertOk()
+            ->assertSeeText('Change My Password')
+            ->assertSee('name="current_password"', false)
+            ->assertSee('name="password"', false)
+            ->assertSee('name="password_confirmation"', false);
+
+        $content = $response->getContent();
+
+        $this->assertLessThan(
+            strpos($content, 'name="password"'),
+            strpos($content, 'name="current_password"')
+        );
+
+        $wrongPasswordResponse = $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/users/'.$admin->id.'/edit')
+            ->put('https://tenant-a.localhost/admin/users/'.$admin->id, [
+                'password_reset' => '1',
+                'current_password' => 'wrong-password',
+                'password' => 'new-password-456',
+                'password_confirmation' => 'new-password-456',
+            ])
+            ->assertSessionHasErrors('current_password', null, 'resetPassword');
+
+        $this->followRedirects($wrongPasswordResponse)
+            ->assertOk()
+            ->assertSee('style="display: block;"', false);
+
+        $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/users/'.$admin->id.'/edit')
+            ->put('https://tenant-a.localhost/admin/users/'.$admin->id, [
+                'password_reset' => '1',
+                'current_password' => 'password123',
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+            ])
+            ->assertSessionHasErrors('password', null, 'resetPassword');
+
+        $this->actingAs($admin)
+            ->put('https://tenant-a.localhost/admin/users/'.$admin->id, [
+                'password_reset' => '1',
+                'current_password' => 'password123',
+                'password' => 'new-password-456',
+                'password_confirmation' => 'new-password-456',
+            ])
+            ->assertRedirect('https://tenant-a.localhost/admin/users/'.$admin->id.'/edit')
+            ->assertSessionHas('success', 'Password updated successfully.');
+
+        $this->assertTrue(Hash::check('new-password-456', $admin->fresh()->password));
+    }
+
+    public function test_admin_user_password_reset_requires_confirmation(): void
+    {
+        $customerId = $this->createTenant('tenant-a');
+        $admin = $this->createUser($customerId, 'admin@example.test', 'customer_admin');
+        $target = $this->createUser($customerId, 'teacher@example.test', 'teacher');
+        $originalPassword = $target->password;
+
+        $response = $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/users/'.$target->id.'/edit')
+            ->put('https://tenant-a.localhost/admin/users/'.$target->id, [
+                'password_reset' => '1',
+                'password' => 'new-password-456',
+                'password_confirmation' => 'different-password',
+            ])
+            ->assertRedirect('https://tenant-a.localhost/admin/users/'.$target->id.'/edit')
+            ->assertSessionHasErrors('password', null, 'resetPassword');
+
+        $this->assertSame($originalPassword, $target->fresh()->password);
+
+        $this->followRedirects($response)
+            ->assertOk()
+            ->assertSee('style="display: block;"', false);
+    }
+
+    public function test_admin_user_password_modal_is_rendered_and_cross_tenant_target_is_rejected(): void
+    {
+        $customerId = $this->createTenant('tenant-a');
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'admin@example.test', 'customer_admin');
+        $target = $this->createUser($customerId, 'teacher@example.test', 'teacher');
+        $otherTarget = $this->createUser($otherCustomerId, 'other@example.test', 'student');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/users/'.$target->id.'/edit')
+            ->assertOk()
+            ->assertSeeText('Change User Password')
+            ->assertSee('change-user-password')
+            ->assertSee('name="password_reset"', false)
+            ->assertDontSee('name="current_password"', false)
+            ->assertSee('name="password_confirmation"', false);
+
+        $this->actingAs($admin)
+            ->put('https://tenant-a.localhost/admin/users/'.$otherTarget->id, [
+                'password_reset' => '1',
+                'password' => 'new-password-456',
+                'password_confirmation' => 'new-password-456',
+            ])
+            ->assertNotFound();
+
+        $this->assertTrue(Hash::check('password123', $otherTarget->fresh()->password));
     }
 
     public function test_create_and_status_actions_are_audited_and_shared_profile_deletion_is_unavailable(): void

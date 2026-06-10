@@ -34,6 +34,9 @@ class RoleProfileTest extends TestCase
             ->assertOk()
             ->assertSeeText('Profile Information')
             ->assertSeeText('Change Password')
+            ->assertSee('open-modal')
+            ->assertSee('name="current_password"', false)
+            ->assertSee('name="password_confirmation"', false)
             ->assertSeeText('Name')
             ->assertSeeText('Email')
             ->assertSeeText('Phone')
@@ -102,6 +105,7 @@ class RoleProfileTest extends TestCase
     {
         $customerId = $this->createTenant();
         $teacher = $this->createUser($customerId, 'teacher');
+        $student = $this->createUser($customerId, 'student');
 
         $this->actingAs($teacher)
             ->patch('https://tenant-a.localhost/teacher/profile/password', [
@@ -112,6 +116,16 @@ class RoleProfileTest extends TestCase
             ->assertRedirect('https://tenant-a.localhost/teacher/profile');
 
         $this->assertTrue(Hash::check('new-password-456', $teacher->fresh()->password));
+
+        $this->actingAs($student)
+            ->patch('https://tenant-a.localhost/student/profile/password', [
+                'current_password' => 'password123',
+                'password' => 'student-password-456',
+                'password_confirmation' => 'student-password-456',
+            ])
+            ->assertRedirect('https://tenant-a.localhost/student/profile');
+
+        $this->assertTrue(Hash::check('student-password-456', $student->fresh()->password));
     }
 
     public function test_password_change_rejects_wrong_current_password_mismatch_and_reuse(): void
