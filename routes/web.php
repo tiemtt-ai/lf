@@ -134,6 +134,9 @@ Route::middleware([
 
     Route::patch('/profile', [RoleProfileController::class, 'updateTeacher'])
         ->name('profile.update');
+
+    Route::patch('/profile/password', [RoleProfileController::class, 'updateTeacherPassword'])
+        ->name('profile.password.update');
 });
 
 /*
@@ -158,4 +161,7 @@ Route::middleware([
 
     Route::patch('/profile', [RoleProfileController::class, 'updateStudent'])
         ->name('profile.update');
+
+    Route::patch('/profile/password', [RoleProfileController::class, 'updateStudentPassword'])
+        ->name('profile.password.update');
 });

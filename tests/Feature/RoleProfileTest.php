@@ -32,6 +32,8 @@ class RoleProfileTest extends TestCase
         $this->actingAs($teacher)
             ->get('https://tenant-a.localhost/teacher/profile')
             ->assertOk()
+            ->assertSeeText('Profile Information')
+            ->assertSeeText('Change Password')
             ->assertSeeText('Name')
             ->assertSeeText('Email')
             ->assertSeeText('Phone')
@@ -70,8 +72,6 @@ class RoleProfileTest extends TestCase
                 'date_of_birth' => '1990-01-02',
                 'gender' => 'other',
                 'role' => 'student',
-                'password' => '',
-                'password_confirmation' => '',
                 'id' => $otherTeacher->id,
             ])
             ->assertRedirect('https://tenant-a.localhost/teacher/profile');
@@ -92,12 +92,87 @@ class RoleProfileTest extends TestCase
                 'date_of_birth' => null,
                 'gender' => null,
                 'role' => 'teacher',
-                'password' => '',
-                'password_confirmation' => '',
             ])
             ->assertRedirect('https://tenant-a.localhost/student/profile');
 
         $this->assertSame('student', $student->fresh()->role);
+    }
+
+    public function test_password_can_be_changed_with_the_correct_current_password(): void
+    {
+        $customerId = $this->createTenant();
+        $teacher = $this->createUser($customerId, 'teacher');
+
+        $this->actingAs($teacher)
+            ->patch('https://tenant-a.localhost/teacher/profile/password', [
+                'current_password' => 'password123',
+                'password' => 'new-password-456',
+                'password_confirmation' => 'new-password-456',
+            ])
+            ->assertRedirect('https://tenant-a.localhost/teacher/profile');
+
+        $this->assertTrue(Hash::check('new-password-456', $teacher->fresh()->password));
+    }
+
+    public function test_password_change_rejects_wrong_current_password_mismatch_and_reuse(): void
+    {
+        $customerId = $this->createTenant();
+        $teacher = $this->createUser($customerId, 'teacher');
+
+        $this->actingAs($teacher)
+            ->from('https://tenant-a.localhost/teacher/profile')
+            ->patch('https://tenant-a.localhost/teacher/profile/password', [
+                'current_password' => 'wrong-password',
+                'password' => 'new-password-456',
+                'password_confirmation' => 'new-password-456',
+            ])
+            ->assertRedirect('https://tenant-a.localhost/teacher/profile')
+            ->assertSessionHasErrors('current_password', null, 'updatePassword');
+
+        $this->actingAs($teacher)
+            ->from('https://tenant-a.localhost/teacher/profile')
+            ->patch('https://tenant-a.localhost/teacher/profile/password', [
+                'current_password' => 'password123',
+                'password' => 'new-password-456',
+                'password_confirmation' => 'different-password',
+            ])
+            ->assertRedirect('https://tenant-a.localhost/teacher/profile')
+            ->assertSessionHasErrors('password', null, 'updatePassword');
+
+        $this->actingAs($teacher)
+            ->from('https://tenant-a.localhost/teacher/profile')
+            ->patch('https://tenant-a.localhost/teacher/profile/password', [
+                'current_password' => 'password123',
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+            ])
+            ->assertRedirect('https://tenant-a.localhost/teacher/profile')
+            ->assertSessionHasErrors('password', null, 'updatePassword');
+
+        $this->assertTrue(Hash::check('password123', $teacher->fresh()->password));
+    }
+
+    public function test_teacher_and_student_cannot_access_each_others_password_route(): void
+    {
+        $customerId = $this->createTenant();
+        $teacher = $this->createUser($customerId, 'teacher');
+        $student = $this->createUser($customerId, 'student');
+        $passwordData = [
+            'current_password' => 'password123',
+            'password' => 'new-password-456',
+            'password_confirmation' => 'new-password-456',
+        ];
+
+        $this->actingAs($teacher)
+            ->patch('https://tenant-a.localhost/student/profile/password', $passwordData)
+            ->assertForbidden();
+
+        $this->actingAs($student)
+            ->patch('https://tenant-a.localhost/teacher/profile/password', $passwordData)
+            ->assertForbidden();
+
+        $this->assertTrue(Hash::check('password123', $teacher->fresh()->password));
+        $this->assertTrue(Hash::check('password123', $student->fresh()->password));
     }
 
     private function createTenant(): int

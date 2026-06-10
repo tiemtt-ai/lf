@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class RoleProfileController extends Controller
@@ -22,6 +23,11 @@ class RoleProfileController extends Controller
         return $this->update($request, 'teacher', 'teacher.profile.edit');
     }
 
+    public function updateTeacherPassword(Request $request): RedirectResponse
+    {
+        return $this->updatePassword($request, 'teacher', 'teacher.profile.edit');
+    }
+
     public function editStudent(): View
     {
         return $this->edit('student', 'student.profile.edit');
@@ -30,6 +36,11 @@ class RoleProfileController extends Controller
     public function updateStudent(Request $request): RedirectResponse
     {
         return $this->update($request, 'student', 'student.profile.edit');
+    }
+
+    public function updateStudentPassword(Request $request): RedirectResponse
+    {
+        return $this->updatePassword($request, 'student', 'student.profile.edit');
     }
 
     private function edit(string $role, string $view): View
@@ -65,7 +76,6 @@ class RoleProfileController extends Controller
             'phone' => ['nullable', 'string', 'max:30'],
             'date_of_birth' => ['nullable', 'date'],
             'gender' => ['nullable', 'in:male,female,other'],
-            'password' => ['nullable', 'confirmed', 'min:8'],
         ]);
 
         DB::transaction(function () use ($validated, $userId, $customerId, $role): void {
@@ -90,10 +100,6 @@ class RoleProfileController extends Controller
                 'updated_at' => now(),
             ];
 
-            if (! empty($validated['password'])) {
-                $attributes['password'] = Hash::make($validated['password']);
-            }
-
             DB::table('users')
                 ->where('id', $userId)
                 ->where('customer_id', $customerId)
@@ -103,6 +109,60 @@ class RoleProfileController extends Controller
 
         return redirect()
             ->route($route)
-            ->with('success', 'Profile updated successfully.');
+            ->with('profile_success', 'Profile updated successfully.');
+    }
+
+    private function updatePassword(Request $request, string $role, string $route): RedirectResponse
+    {
+        $userId = auth()->id();
+        $customerId = TenantContext::customerId();
+
+        abort_if(! $userId || ! $customerId, 404);
+
+        $user = DB::table('users')
+            ->where('id', $userId)
+            ->where('customer_id', $customerId)
+            ->where('role', $role)
+            ->first();
+
+        abort_if(! $user, 404);
+
+        $validated = $request->validateWithBag('updatePassword', [
+            'current_password' => ['required', 'current_password'],
+            'password' => [
+                'required',
+                Password::defaults(),
+                'confirmed',
+                function (string $attribute, mixed $value, \Closure $fail) use ($user): void {
+                    if (Hash::check($value, $user->password)) {
+                        $fail('The new password must be different from the current password.');
+                    }
+                },
+            ],
+        ]);
+
+        DB::transaction(function () use ($validated, $userId, $customerId, $role): void {
+            $user = DB::table('users')
+                ->where('id', $userId)
+                ->where('customer_id', $customerId)
+                ->where('role', $role)
+                ->lockForUpdate()
+                ->first();
+
+            abort_if(! $user, 404);
+
+            DB::table('users')
+                ->where('id', $userId)
+                ->where('customer_id', $customerId)
+                ->where('role', $role)
+                ->update([
+                    'password' => Hash::make($validated['password']),
+                    'updated_at' => now(),
+                ]);
+        });
+
+        return redirect()
+            ->route($route)
+            ->with('password_success', 'Password changed successfully.');
     }
 }
