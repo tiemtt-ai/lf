@@ -2,8 +2,8 @@
 
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\CustomerRegisterController;
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicSiteController;
+use App\Http\Controllers\RoleProfileController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -74,14 +74,6 @@ Route::middleware([
         });
     })->name('dashboard');
 
-    Route::get('/profile', [ProfileController::class, 'edit'])
-        ->name('profile.edit');
-
-    Route::patch('/profile', [ProfileController::class, 'update'])
-        ->name('profile.update');
-
-    Route::delete('/profile', [ProfileController::class, 'destroy'])
-        ->name('profile.destroy');
 });
 
 /*
@@ -136,6 +128,12 @@ Route::middleware([
     Route::get('/', function () {
         return view('teacher.dashboard');
     })->name('dashboard');
+
+    Route::get('/profile', [RoleProfileController::class, 'editTeacher'])
+        ->name('profile.edit');
+
+    Route::patch('/profile', [RoleProfileController::class, 'updateTeacher'])
+        ->name('profile.update');
 });
 
 /*
@@ -154,4 +152,10 @@ Route::middleware([
     Route::get('/', function () {
         return view('student.dashboard');
     })->name('dashboard');
+
+    Route::get('/profile', [RoleProfileController::class, 'editStudent'])
+        ->name('profile.edit');
+
+    Route::patch('/profile', [RoleProfileController::class, 'updateStudent'])
+        ->name('profile.update');
 });

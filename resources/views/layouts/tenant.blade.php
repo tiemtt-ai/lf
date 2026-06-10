@@ -37,12 +37,20 @@
                     Dashboard
                 </a>
 
+                <a href="{{ route('teacher.profile.edit') }}">
+                    Profile
+                </a>
+
             @endif
 
             @if(auth()->user()?->role === 'student')
 
                 <a href="{{ route('student.dashboard') }}">
                     Dashboard
+                </a>
+
+                <a href="{{ route('student.profile.edit') }}">
+                    Profile
                 </a>
 
             @endif
