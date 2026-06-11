@@ -8,6 +8,6 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="@yield('body_class')">
-@yield('tenant_shell')
+@yield('app_shell')
 </body>
 </html>

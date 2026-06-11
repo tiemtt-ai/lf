@@ -1,8 +1,8 @@
-@extends('layouts.tenant')
+@extends('layouts.app')
 
 @section('body_class', 'lf-student-page')
 
-@section('tenant_shell')
+@section('app_shell')
     <div class="lf-student-portal">
         <header class="lf-student-header">
             <a class="lf-student-brand" href="{{ route('student.dashboard') }}">

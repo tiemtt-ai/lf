@@ -1,8 +1,8 @@
-@extends('layouts.tenant')
+@extends('layouts.app')
 
 @section('body_class', 'lf-backend-page')
 
-@section('tenant_shell')
+@section('app_shell')
     <div class="lf-dashboard">
         <aside class="lf-sidebar">
             <div class="lf-sidebar-brand">
