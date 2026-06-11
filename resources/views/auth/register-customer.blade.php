@@ -1,58 +1,51 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <title>Đăng ký LF</title>
-</head>
-<body>
-<h1>Đăng ký khách hàng LF</h1>
+<x-auth-layout>
+    <h1>Đăng ký khách hàng LF</h1>
 
-@if ($errors->any())
-    <div style="color:red">
-        @foreach ($errors->all() as $error)
-            <div>{{ $error }}</div>
-        @endforeach
-    </div>
-@endif
+    @if ($errors->any())
+        <div class="lf-alert-danger">
+            @foreach ($errors->all() as $error)
+                <div>{{ $error }}</div>
+            @endforeach
+        </div>
+    @endif
 
-<form method="POST" action="{{ route('customer.register.store') }}">
-    @csrf
+    <form method="POST" action="{{ route('customer.register.store') }}">
+        @csrf
 
-    <div>
-        <label>Tên trung tâm / tổ chức</label><br>
-        <input type="text" name="customer_name" value="{{ old('customer_name') }}">
-    </div>
+        <div class="lf-form-group">
+            <label class="lf-form-label">Tên trung tâm / tổ chức</label>
+            <input type="text" name="customer_name" class="lf-form-control"
+                   value="{{ old('customer_name') }}">
+        </div>
 
-    <div>
-        <label>Slug / subdomain</label><br>
-        <input type="text" name="slug" value="{{ old('slug') }}">
-    </div>
+        <div class="lf-form-group">
+            <label class="lf-form-label">Slug / subdomain</label>
+            <input type="text" name="slug" class="lf-form-control"
+                   value="{{ old('slug') }}">
+        </div>
 
-    <hr>
+        <div class="lf-form-group">
+            <label class="lf-form-label">Tên admin</label>
+            <input type="text" name="name" class="lf-form-control"
+                   value="{{ old('name') }}">
+        </div>
 
-    <div>
-        <label>Tên admin</label><br>
-        <input type="text" name="name" value="{{ old('name') }}">
-    </div>
+        <div class="lf-form-group">
+            <label class="lf-form-label">Email admin</label>
+            <input type="email" name="email" class="lf-form-control"
+                   value="{{ old('email') }}">
+        </div>
 
-    <div>
-        <label>Email admin</label><br>
-        <input type="email" name="email" value="{{ old('email') }}">
-    </div>
+        <div class="lf-form-group">
+            <label class="lf-form-label">Mật khẩu</label>
+            <input type="password" name="password" class="lf-form-control">
+        </div>
 
-    <div>
-        <label>Mật khẩu</label><br>
-        <input type="password" name="password">
-    </div>
+        <div class="lf-form-group">
+            <label class="lf-form-label">Nhập lại mật khẩu</label>
+            <input type="password" name="password_confirmation" class="lf-form-control">
+        </div>
 
-    <div>
-        <label>Nhập lại mật khẩu</label><br>
-        <input type="password" name="password_confirmation">
-    </div>
-
-    <br>
-
-    <button type="submit">Tạo tài khoản</button>
-</form>
-</body>
-</html>
+        <button type="submit" class="lf-btn-primary">Tạo tài khoản</button>
+    </form>
+</x-auth-layout>

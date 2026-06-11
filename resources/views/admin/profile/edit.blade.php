@@ -1,4 +1,4 @@
-@extends('layouts.tenant')
+@extends('layouts.backend')
 
 @section('title', 'Admin Profile')
 @section('page_title', 'Profile')

@@ -1,4 +1,4 @@
-@extends('layouts.tenant')
+@extends('layouts.backend')
 
 @section('title', 'Edit User')
 @section('page_title', 'Edit User')

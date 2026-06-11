@@ -1,4 +1,4 @@
-@extends('layouts.tenant')
+@extends('layouts.student')
 
 @section('title', 'Student Profile')
 @section('page_title', 'Profile')

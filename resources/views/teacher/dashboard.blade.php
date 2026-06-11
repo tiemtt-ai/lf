@@ -1,6 +1,7 @@
-@extends('layouts.tenant')
+@extends('layouts.backend')
 
 @section('title', 'Teacher Dashboard')
+@section('page_title', 'Teacher Dashboard')
 
 @section('content')
     <div class="lf-page-header">

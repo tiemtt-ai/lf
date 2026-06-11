@@ -57,6 +57,11 @@
     color: white;
 }
 
+.lf-sidebar-menu .lf-menu-disabled {
+    color: #94a3b8;
+    cursor: default;
+}
+
 .lf-dashboard-content {
     flex: 1;
     background: #f8fafc;
@@ -74,6 +79,68 @@
 
 .lf-dashboard-main {
     padding: 32px;
+}
+
+.lf-portal-account {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.lf-portal-account form {
+    margin: 0;
+}
+
+.lf-student-portal {
+    min-height: 100vh;
+    background: #f8fafc;
+}
+
+.lf-student-header {
+    min-height: 72px;
+    padding: 16px 32px;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+}
+
+.lf-student-brand {
+    color: #111827;
+    font-size: 20px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.lf-student-menu {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.lf-student-menu a {
+    color: #374151;
+    text-decoration: none;
+}
+
+.lf-student-menu .lf-menu-disabled {
+    color: #9ca3af;
+    cursor: default;
+}
+
+.lf-student-main {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px 32px;
+}
+
+.lf-student-page-title {
+    margin-bottom: 24px;
+    color: #111827;
+    font-size: 24px;
+    font-weight: 700;
 }
 
 .lf-auth-page {
