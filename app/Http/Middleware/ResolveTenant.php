@@ -17,14 +17,14 @@ class ResolveTenant
 
         $customer = null;
 
-        if ($host !== $baseDomain && $host !== 'www.' . $baseDomain) {
+        if ($host !== $baseDomain && $host !== 'www.'.$baseDomain) {
             $customer = DB::table('saas_customers')
                 ->where('custom_domain', $host)
                 ->where('status', 'active')
                 ->first();
 
-            if (!$customer && str_ends_with($host, '.' . $baseDomain)) {
-                $subdomain = str_replace('.' . $baseDomain, '', $host);
+            if (! $customer && str_ends_with($host, '.'.$baseDomain)) {
+                $subdomain = str_replace('.'.$baseDomain, '', $host);
 
                 $customer = DB::table('saas_customers')
                     ->where('subdomain', $subdomain)

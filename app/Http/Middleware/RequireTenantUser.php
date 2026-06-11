@@ -13,13 +13,13 @@ class RequireTenantUser
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return redirect()->route('login');
         }
 
         $tenant = TenantContext::customer();
 
-        if (!$tenant) {
+        if (! $tenant) {
             abort(404, 'Tenant not found.');
         }
 

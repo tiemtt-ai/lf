@@ -12,11 +12,11 @@ class RoleMiddleware
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return redirect()->route('login');
         }
 
-        if (!$user->role || !in_array($user->role, $roles, true)) {
+        if (! $user->role || ! in_array($user->role, $roles, true)) {
             abort(403, 'You do not have permission to access this page.');
         }
 
