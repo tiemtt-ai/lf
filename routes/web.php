@@ -65,6 +65,7 @@ Route::middleware([
     'auth',
     'verified',
     'tenant.user',
+    'role:customer_admin,teacher,student',
 ])->group(function () {
     Route::get('/dashboard', function () {
         return redirect()->route(match (auth()->user()->role) {
