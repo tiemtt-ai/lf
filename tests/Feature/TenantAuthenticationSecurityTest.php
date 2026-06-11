@@ -53,23 +53,21 @@ class TenantAuthenticationSecurityTest extends TestCase
         $this->assertAuthenticatedAs($activeUser);
     }
 
-    public function test_password_routes_require_active_verified_tenant_user_but_logout_does_not(): void
+    public function test_unused_breeze_auth_routes_are_removed_but_logout_remains_available(): void
     {
         $tenantId = $this->createTenant('tenant-a');
         $user = $this->createUser($tenantId, 'admin@example.test', 'active');
 
-        $this->actingAs($user)
-            ->get('https://tenant-a.localhost/confirm-password')
-            ->assertOk();
+        $this->get('https://tenant-a.localhost/register')->assertNotFound();
+        $this->post('https://tenant-a.localhost/register')->assertNotFound();
+        $this->actingAs($user)->get('https://tenant-a.localhost/confirm-password')->assertNotFound();
+        $this->actingAs($user)->post('https://tenant-a.localhost/confirm-password')->assertNotFound();
+        $this->actingAs($user)->put('https://tenant-a.localhost/password')->assertNotFound();
 
         $user->forceFill(['status' => 'inactive'])->save();
         Auth::forgetUser();
 
         $this->actingAs($user->fresh())
-            ->get('https://tenant-a.localhost/confirm-password')
-            ->assertForbidden();
-
-        $this->actingAs($user)
             ->post('https://tenant-a.localhost/logout')
             ->assertRedirect('https://tenant-a.localhost/login');
         $this->assertGuest();
