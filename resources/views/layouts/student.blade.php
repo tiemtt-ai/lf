@@ -6,7 +6,7 @@
     <div class="lf-student-portal">
         <header class="lf-student-header">
             <a class="lf-student-brand" href="{{ route('student.dashboard') }}">
-                LearnForge Learning
+                Front end
             </a>
 
             <nav class="lf-student-menu" aria-label="Student navigation">
