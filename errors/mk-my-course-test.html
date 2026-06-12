@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Khóa học của tôi - Master Korean</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            min-width: 1180px;
+            min-height: 100%;
+            color: #747474;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #fff;
+        }
+
+        button {
+            font: inherit;
+        }
+
+        .top-strip {
+            height: 63px;
+            border-top: 1px solid #e2ebdc;
+            border-bottom: 1px solid #ededed;
+            background: #fff;
+        }
+
+        .top-strip-inner,
+        .main-header-inner {
+            width: 1825px;
+            max-width: calc(100% - 110px);
+            height: 100%;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+        }
+
+        .network-links {
+            display: flex;
+            align-items: center;
+            gap: 55px;
+        }
+
+        .network-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #4b5ccf;
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            white-space: nowrap;
+        }
+
+        .network-item .green {
+            color: #5bcf08;
+        }
+
+        .network-item .tag {
+            padding: 2px 4px 3px;
+            color: #fff;
+            background: #59dc16;
+            font-size: 22px;
+            line-height: 1;
+        }
+
+        .mini-mark,
+        .brand-mark {
+            position: relative;
+            display: inline-block;
+            width: 29px;
+            height: 22px;
+            flex: 0 0 auto;
+        }
+
+        .mini-mark::before,
+        .brand-mark::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 1px;
+            width: 12px;
+            height: 20px;
+            border-radius: 2px 0 0 2px;
+            background: #4c5dd0;
+            clip-path: polygon(0 0, 100% 42%, 100% 100%, 0 100%);
+        }
+
+        .mini-mark::after,
+        .brand-mark::after {
+            content: "";
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 13px;
+            height: 22px;
+            background: #65d400;
+            clip-path: polygon(100% 0, 100% 100%, 0 50%);
+        }
+
+        .account-links {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            color: #242424;
+            font-size: 21px;
+        }
+
+        .account-links span {
+            white-space: nowrap;
+        }
+
+        .main-header {
+            height: 103px;
+            border-bottom: 1px solid #eaf0ff;
+            box-shadow: 0 5px 10px rgba(71, 96, 210, 0.1);
+            background: #fff;
+        }
+
+        .logo {
+            width: 235px;
+            display: flex;
+            align-items: center;
+            gap: 17px;
+            color: #3d55ce;
+        }
+
+        .brand-mark {
+            width: 51px;
+            height: 45px;
+        }
+
+        .brand-mark::before {
+            width: 24px;
+            height: 42px;
+        }
+
+        .brand-mark::after {
+            width: 25px;
+            height: 44px;
+        }
+
+        .logo-text {
+            font-size: 27px;
+            font-weight: 700;
+            line-height: .86;
+            letter-spacing: -1.5px;
+        }
+
+        .main-nav {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 55px;
+            color: #777;
+            font-size: 23px;
+        }
+
+        .main-nav span {
+            white-space: nowrap;
+        }
+
+        .header-icons {
+            display: flex;
+            gap: 28px;
+            margin-left: 55px;
+            color: #858585;
+            font-size: 31px;
+        }
+
+        .page {
+            width: 1825px;
+            max-width: calc(100% - 110px);
+            margin: 92px auto 0;
+            display: grid;
+            grid-template-columns: 415px minmax(0, 1fr);
+            gap: 45px;
+        }
+
+        .profile-card {
+            min-height: 568px;
+            padding: 48px 25px 24px;
+            color: #fff;
+            border-radius: 12px;
+            background: #4c60ce;
+        }
+
+        .profile-card h2 {
+            margin: 0 0 26px;
+            font-size: 35px;
+            font-weight: 500;
+        }
+
+        .profile-row {
+            display: flex;
+            align-items: flex-start;
+            min-height: 54px;
+            font-size: 25px;
+            line-height: 1.5;
+        }
+
+        .profile-row.split {
+            justify-content: space-between;
+        }
+
+        .profile-row .group {
+            display: flex;
+            align-items: center;
+        }
+
+        .profile-icon {
+            width: 45px;
+            color: #dbe3ff;
+            font-size: 29px;
+            line-height: 1.25;
+            text-align: center;
+            flex: 0 0 auto;
+        }
+
+        .profile-address {
+            margin-bottom: 17px;
+        }
+
+        .profile-actions {
+            display: grid;
+            gap: 16px;
+        }
+
+        .profile-actions button {
+            height: 54px;
+            color: #fff;
+            border: 2px solid rgba(255, 255, 255, .9);
+            border-radius: 12px;
+            background: transparent;
+            font-size: 21px;
+            cursor: default;
+        }
+
+        .sidebar-menu {
+            margin-top: 16px;
+            display: grid;
+            gap: 15px;
+        }
+
+        .sidebar-item {
+            height: 70px;
+            padding: 0 58px;
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            color: #4360d3;
+            border-radius: 22px;
+            background: #e1f6ff;
+            font-size: 24px;
+            white-space: nowrap;
+        }
+
+        .sidebar-item.active {
+            color: #fff;
+            background: #597df0;
+        }
+
+        .menu-icon {
+            width: 48px;
+            height: 50px;
+            display: grid;
+            place-items: center;
+            color: #fff;
+            border-radius: 12px;
+            background: #83d2fa;
+            font-size: 31px;
+            line-height: 1;
+        }
+
+        .sidebar-item.active .menu-icon {
+            background: transparent;
+        }
+
+        .content {
+            padding-top: 8px;
+        }
+
+        .content h1 {
+            margin: 0;
+            color: #465fd0;
+            font-size: 38px;
+            font-weight: 500;
+            letter-spacing: -1px;
+        }
+
+        .green-line {
+            width: 122px;
+            height: 6px;
+            margin-top: 21px;
+            border-radius: 5px;
+            background: #59cb00;
+        }
+
+        .tabs {
+            margin-top: 31px;
+            display: flex;
+            align-items: center;
+            gap: 22px;
+        }
+
+        .tab {
+            height: 62px;
+            padding: 0 16px 0 12px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            color: #777;
+            border: 0;
+            border-radius: 12px;
+            background: #f4f4f4;
+            font-size: 25px;
+            white-space: nowrap;
+        }
+
+        .tab.active {
+            color: #465fd0;
+            background: #f3f6ff;
+            box-shadow: 0 4px 15px rgba(66, 90, 180, .1);
+        }
+
+        .tab-icon {
+            color: #8c9294;
+            font-size: 31px;
+            line-height: 1;
+        }
+
+        .empty-state {
+            margin-top: 66px;
+            margin-left: 525px;
+            color: #777;
+            font-size: 25px;
+        }
+
+        .floating-tools {
+            position: fixed;
+            right: 47px;
+            bottom: 183px;
+            z-index: 10;
+            display: grid;
+            gap: 17px;
+            justify-items: center;
+        }
+
+        .float-button {
+            width: 85px;
+            height: 85px;
+            display: grid;
+            place-items: center;
+            border: 0;
+            border-radius: 50%;
+            color: #fff;
+            box-shadow: 0 3px 13px rgba(0, 0, 0, .13);
+            font-weight: 700;
+        }
+
+        .robot-button {
+            position: relative;
+            border-radius: 16px;
+            background: #fff;
+        }
+
+        .robot-face {
+            position: relative;
+            width: 59px;
+            height: 42px;
+            border: 7px solid #d9e8fa;
+            border-radius: 21px;
+            background: #4d72dd;
+        }
+
+        .robot-face::before {
+            content: "••";
+            position: absolute;
+            inset: 2px 0 0;
+            color: #072e76;
+            font-size: 25px;
+            letter-spacing: 7px;
+            text-align: center;
+        }
+
+        .robot-face::after {
+            content: "";
+            position: absolute;
+            right: -17px;
+            bottom: -18px;
+            width: 31px;
+            height: 20px;
+            border-right: 6px solid #073e94;
+            border-bottom: 6px solid #073e94;
+            border-radius: 0 0 13px;
+        }
+
+        .ai-button {
+            border: 4px solid #74d7f1;
+            background: linear-gradient(135deg, #35a9e8, #2fe0bd);
+            font-size: 17px;
+        }
+
+        .ai-button span {
+            display: grid;
+            place-items: center;
+            width: 48px;
+            height: 61px;
+            border: 3px solid rgba(255, 255, 255, .85);
+            border-top-color: transparent;
+            border-radius: 24px;
+        }
+
+        .messenger-button {
+            background: #0786f9;
+        }
+
+        .messenger-mark {
+            position: relative;
+            width: 57px;
+            height: 47px;
+            border-radius: 50%;
+            background: #fff;
+        }
+
+        .messenger-mark::after {
+            content: "";
+            position: absolute;
+            left: 13px;
+            top: 15px;
+            width: 32px;
+            height: 17px;
+            background: #0786f9;
+            clip-path: polygon(0 65%, 40% 0, 58% 42%, 100% 12%, 61% 100%, 43% 60%);
+        }
+
+        @media (max-width: 1450px) {
+            .main-nav {
+                gap: 25px;
+                font-size: 20px;
+            }
+
+            .network-links {
+                gap: 30px;
+            }
+
+            .page {
+                grid-template-columns: 390px minmax(0, 1fr);
+            }
+
+            .empty-state {
+                margin-left: 380px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="top-strip">
+            <div class="top-strip-inner">
+                <div class="network-links">
+                    <div class="network-item"><span class="mini-mark"></span><span>mk</span><span class="tag">live</span></div>
+                    <div class="network-item"><span class="mini-mark"></span><span>mk</span><span class="green">jobs</span></div>
+                    <div class="network-item"><span class="mini-mark"></span><span>mk</span><span class="green">exam</span></div>
+                    <div class="network-item"><span class="mini-mark"></span><span>mk</span><span class="green">blog</span></div>
+                </div>
+                <div class="account-links">
+                    <span>◎ admin⌄</span>
+                    <span>◉ VI⌄</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-header">
+            <div class="main-header-inner">
+                <div class="logo">
+                    <span class="brand-mark"></span>
+                    <span class="logo-text">master<br>korean</span>
+                </div>
+                <nav class="main-nav" aria-label="Điều hướng chính">
+                    <span>Khóa học⌄</span>
+                    <span>Đề thi</span>
+                    <span>Giáo trình</span>
+                    <span>Giảng viên</span>
+                    <span>Cộng đồng</span>
+                    <span>Level Test</span>
+                    <span>Visang Video⌄</span>
+                </nav>
+                <div class="header-icons" aria-hidden="true">
+                    <span>⌕</span>
+                    <span>♧</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="page">
+        <aside>
+            <section class="profile-card">
+                <h2>admin</h2>
+
+                <div class="profile-row split">
+                    <span class="group"><span class="profile-icon">▦</span>02/11/1998</span>
+                    <span class="group"><span class="profile-icon">⚥</span>Nữ</span>
+                </div>
+                <div class="profile-row"><span class="profile-icon">♙</span>admin</div>
+                <div class="profile-row"><span class="profile-icon">✉</span>visang@gmail.com</div>
+                <div class="profile-row"><span class="profile-icon">⌕</span>02436886333</div>
+                <div class="profile-row profile-address">
+                    <span class="profile-icon">♧</span>
+                    <span>Floor 2, FLC Landmark<br>Tower, Le Duc Tho Str</span>
+                </div>
+
+                <div class="profile-actions">
+                    <button type="button">☑ &nbsp; Chỉnh sửa thông tin</button>
+                    <button type="button">⟳ &nbsp; Đăng xuất</button>
+                </div>
+            </section>
+
+            <nav class="sidebar-menu" aria-label="Menu tài khoản">
+                <div class="sidebar-item active"><span class="menu-icon">▯</span>Khóa học</div>
+                <div class="sidebar-item"><span class="menu-icon">▯</span>Đề thi</div>
+                <div class="sidebar-item"><span class="menu-icon">▱</span>Giới thiệu bạn bè</div>
+                <div class="sidebar-item"><span class="menu-icon">▣</span>Cài đặt chứng chỉ</div>
+            </nav>
+        </aside>
+
+        <section class="content">
+            <h1>Khóa học của tôi</h1>
+            <div class="green-line"></div>
+
+            <div class="tabs">
+                <button class="tab active" type="button"><span class="tab-icon">▤</span>Dashboard</button>
+                <button class="tab" type="button"><span class="tab-icon">▥</span>Lable 1</button>
+                <button class="tab" type="button"><span class="tab-icon">▥</span>Lable 2</button>
+                <button class="tab" type="button"><span class="tab-icon">☆</span>Lable 3</button>
+            </div>
+
+            <div class="empty-state">No data</div>
+        </section>
+    </main>
+
+    <div class="floating-tools" aria-label="Công cụ hỗ trợ">
+        <button class="float-button robot-button" type="button" aria-label="Chatbot">
+            <span class="robot-face"></span>
+        </button>
+        <button class="float-button ai-button" type="button" aria-label="Trợ lý AI">
+            <span>AI<br>♩</span>
+        </button>
+        <button class="float-button messenger-button" type="button" aria-label="Messenger">
+            <span class="messenger-mark"></span>
+        </button>
+    </div>
+</body>
+</html>
