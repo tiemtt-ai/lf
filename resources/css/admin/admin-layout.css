@@ -356,7 +356,7 @@
 .admin-footer-apps {
     display: grid;
     grid-template-columns: 109px 109px 24px 108px;
-    grid-template-rows: repeat(2, 33px);
+    grid-template-rows: repeat(2, 28px);
     align-items: center;
     justify-content: end;
     gap: 12px 16px;
