@@ -143,6 +143,7 @@
 
         @include('profile.partials.password-modal', [
             'action' => route('student.profile.password.update'),
+            'variant' => 'student',
         ])
     </div>
 @endsection
