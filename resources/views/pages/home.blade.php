@@ -1,25 +1,49 @@
 @extends('layouts.public')
 
-@section('title', 'LF')
+@section('title', 'LearnForge')
 
 @section('content')
-    <div class="container py-5 text-center">
+    <section class="public-hero">
+        <div class="public-container">
+            <div class="public-hero-content">
+                <span class="public-eyebrow">AI-Native Learning Platform</span>
+                <h1>Build and operate digital learning at scale.</h1>
+                <p class="public-hero-lead">
+                    LearnForge combines learning management, assessments, analytics and AI capabilities
+                    in one multi-tenant platform.
+                </p>
+                <div class="public-hero-actions">
+                    <a class="public-button" href="{{ route('customer.register') }}">Register Tenant</a>
+                    <a class="public-button is-secondary" href="{{ route('public.features') }}">Explore Features</a>
+                </div>
+            </div>
+        </div>
+    </section>
 
-        <h1 class="mb-3">
-            Master Korean | API Test
-        </h1>
+    <section class="public-section">
+        <div class="public-container">
+            <div class="public-section-heading">
+                <h2>One platform for every learning role</h2>
+                <p>Dedicated portals and workflows for customer administrators, teachers and students.</p>
+            </div>
 
-        <p class="lead">
-            API Test Management Platform
-        </p>
-
-        <p>
-            Hỗ trợ IT Team trong qua trình test các API liên quan các hệ thống MK V2, Admin site, Question Bank, MK Jobs, MK Live, MK B2B, Mobile App, Chatbot.
-        </p>
-
-        <a href="{{ route('customer.register') }}" class="btn btn-primary">
-            Register Tenant
-        </a>
-
-    </div>
+            <div class="public-card-grid">
+                <article class="public-card">
+                    <span class="public-card-number">01</span>
+                    <h3>Customer Admin</h3>
+                    <p>Manage users, courses, assessments, reports and tenant settings.</p>
+                </article>
+                <article class="public-card">
+                    <span class="public-card-number">02</span>
+                    <h3>Teacher</h3>
+                    <p>Deliver courses, manage learners and monitor learning performance.</p>
+                </article>
+                <article class="public-card">
+                    <span class="public-card-number">03</span>
+                    <h3>Student</h3>
+                    <p>Access lessons, assessments, progress tracking and AI learning support.</p>
+                </article>
+            </div>
+        </div>
+    </section>
 @endsection

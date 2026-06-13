@@ -1,17 +1,15 @@
-<footer class="border-top bg-light mt-5">
-    <div class="container py-4 text-center">
+<footer class="public-footer">
+    <div class="public-container public-footer-inner">
+        <div>
+            <p class="public-footer-brand">LearnForge</p>
+            <p>AI-Native Multi-Tenant LMS SaaS Platform</p>
+            <p>© {{ date('Y') }} LearnForge. All rights reserved.</p>
+        </div>
 
-        <p class="mb-1 fw-semibold">
-            Master Korean | API Test
-        </p>
-
-        <p class="text-muted mb-0">
-            API Test Management Platform
-        </p>
-
-        <small class="text-muted">
-            © {{ date('Y') }} API Test. All rights reserved.
-        </small>
-
+        <nav class="public-footer-links" aria-label="Footer navigation">
+            <a href="{{ route('public.features') }}">Features</a>
+            <a href="{{ route('public.pricing') }}">Pricing</a>
+            <a href="{{ route('public.about') }}">About</a>
+        </nav>
     </div>
 </footer>

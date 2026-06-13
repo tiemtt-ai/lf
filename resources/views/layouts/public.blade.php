@@ -8,11 +8,11 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body>
+<body class="public-page">
 
 @include('partials.topbar')
 
-<main class="lf-main py-4">
+<main class="public-main">
     @yield('content')
 </main>
 

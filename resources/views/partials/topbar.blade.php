@@ -1,25 +1,22 @@
-<header class="lf-topbar">
-    <div class="lf-topbar-inner">
-
-        <a class="lf-logo" href="{{ route('public.home') }}">
-            Master Korean | API Test
+<header class="public-header">
+    <div class="public-container public-header-inner">
+        <a class="public-brand" href="{{ route('public.home') }}">
+            <span class="public-brand-mark">LF</span>
+            <span>LearnForge</span>
         </a>
 
-        <nav class="lf-menu">
-            <a href="{{ config('app.url') }}">Home</a>
-
-            <a href="{{ config('app.url') . '/features' }}">Features</a>
-
-            <a href="{{ config('app.url') . '/pricing' }}">Pricing</a>
-
-            <a href="{{ config('app.url') . '/services' }}">Services</a>
-
-            <a href="{{ config('app.url') . '/about' }}">About</a>
-
-            <a class="lf-menu-button" href="{{ config('app.url') . '/register-customer' }}">
-                Register Tenant
-            </a>
+        <nav class="public-nav" aria-label="Public navigation">
+            <a class="public-nav-link {{ request()->routeIs('public.home') ? 'is-active' : '' }}"
+               href="{{ route('public.home') }}">Home</a>
+            <a class="public-nav-link {{ request()->routeIs('public.features') ? 'is-active' : '' }}"
+               href="{{ route('public.features') }}">Features</a>
+            <a class="public-nav-link {{ request()->routeIs('public.pricing') ? 'is-active' : '' }}"
+               href="{{ route('public.pricing') }}">Pricing</a>
+            <a class="public-nav-link {{ request()->routeIs('public.services') ? 'is-active' : '' }}"
+               href="{{ route('public.services') }}">Services</a>
+            <a class="public-nav-link {{ request()->routeIs('public.about') ? 'is-active' : '' }}"
+               href="{{ route('public.about') }}">About</a>
+            <a class="public-nav-cta" href="{{ route('customer.register') }}">Register Tenant</a>
         </nav>
-
     </div>
 </header>

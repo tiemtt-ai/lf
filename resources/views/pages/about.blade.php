@@ -1,24 +1,30 @@
 @extends('layouts.public')
 
-@section('title', 'About Master Korean | API Test')
+@section('title', 'About LearnForge')
 
 @section('content')
-    <div class="container py-5">
+    <header class="public-page-heading">
+        <div class="public-container">
+            <span class="public-eyebrow">About</span>
+            <h1>Learning infrastructure built for long-term growth.</h1>
+            <p>LearnForge is an AI-native, multi-tenant learning platform designed for schools, training centers and organizations.</p>
+        </div>
+    </header>
 
-        <h1>About Master Korean | API Test</h1>
-
-        <p>
-            Master Korean | API Test nền tảng dùng cho IT Team check/test API của hệ sinh thái Masterkorean.
-        </p>
-
-        <p>
-            The platform combines learning management, assessments,
-            analytics and AI-powered learning experiences into a single system.
-        </p>
-
-        <p>
-            Master Korean | API Test giải pháp của bạn.
-        </p>
-
-    </div>
+    <section class="public-section">
+        <div class="public-container public-content">
+            <p>
+                LearnForge brings course management, assessments, live learning, analytics and AI-powered
+                experiences into a single maintainable platform.
+            </p>
+            <p>
+                Every business record belongs to a customer. Tenant isolation and customer ownership remain
+                central to how the platform is designed and operated.
+            </p>
+            <p>
+                The product follows a simple, monolithic and Blade-first architecture so teams can ship useful
+                learning capabilities without unnecessary complexity.
+            </p>
+        </div>
+    </section>
 @endsection

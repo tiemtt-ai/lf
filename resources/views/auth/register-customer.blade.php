@@ -1,51 +1,69 @@
-<x-auth-layout>
-    <h1>Đăng ký khách hàng LF</h1>
+@extends('layouts.public')
 
-    @if ($errors->any())
-        <div class="lf-alert-danger">
-            @foreach ($errors->all() as $error)
-                <div>{{ $error }}</div>
-            @endforeach
+@section('title', 'Register Tenant - LearnForge')
+
+@section('content')
+    <section class="public-register">
+        <div class="public-container">
+            <div class="public-register-card">
+                <h1>Register a LearnForge tenant</h1>
+                <p class="public-register-intro">
+                    Create your organization and its first customer administrator account.
+                </p>
+
+                @if ($errors->any())
+                    <div class="public-alert-danger">
+                        <ul>
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                <form method="POST" action="{{ route('customer.register.store') }}">
+                    @csrf
+
+                    <div class="public-form-grid">
+                        <div class="public-form-group is-full">
+                            <label class="public-form-label" for="customer_name">Organization name</label>
+                            <input id="customer_name" type="text" name="customer_name" class="public-form-control"
+                                   value="{{ old('customer_name') }}" required>
+                        </div>
+
+                        <div class="public-form-group is-full">
+                            <label class="public-form-label" for="slug">Slug / subdomain</label>
+                            <input id="slug" type="text" name="slug" class="public-form-control"
+                                   value="{{ old('slug') }}" placeholder="your-organization" required>
+                        </div>
+
+                        <div class="public-form-group">
+                            <label class="public-form-label" for="name">Administrator name</label>
+                            <input id="name" type="text" name="name" class="public-form-control"
+                                   value="{{ old('name') }}" required>
+                        </div>
+
+                        <div class="public-form-group">
+                            <label class="public-form-label" for="email">Administrator email</label>
+                            <input id="email" type="email" name="email" class="public-form-control"
+                                   value="{{ old('email') }}" required>
+                        </div>
+
+                        <div class="public-form-group">
+                            <label class="public-form-label" for="password">Password</label>
+                            <input id="password" type="password" name="password" class="public-form-control" required>
+                        </div>
+
+                        <div class="public-form-group">
+                            <label class="public-form-label" for="password_confirmation">Confirm password</label>
+                            <input id="password_confirmation" type="password" name="password_confirmation"
+                                   class="public-form-control" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="public-button">Create tenant</button>
+                </form>
+            </div>
         </div>
-    @endif
-
-    <form method="POST" action="{{ route('customer.register.store') }}">
-        @csrf
-
-        <div class="lf-form-group">
-            <label class="lf-form-label">Tên trung tâm / tổ chức</label>
-            <input type="text" name="customer_name" class="lf-form-control"
-                   value="{{ old('customer_name') }}">
-        </div>
-
-        <div class="lf-form-group">
-            <label class="lf-form-label">Slug / subdomain</label>
-            <input type="text" name="slug" class="lf-form-control"
-                   value="{{ old('slug') }}">
-        </div>
-
-        <div class="lf-form-group">
-            <label class="lf-form-label">Tên admin</label>
-            <input type="text" name="name" class="lf-form-control"
-                   value="{{ old('name') }}">
-        </div>
-
-        <div class="lf-form-group">
-            <label class="lf-form-label">Email admin</label>
-            <input type="email" name="email" class="lf-form-control"
-                   value="{{ old('email') }}">
-        </div>
-
-        <div class="lf-form-group">
-            <label class="lf-form-label">Mật khẩu</label>
-            <input type="password" name="password" class="lf-form-control">
-        </div>
-
-        <div class="lf-form-group">
-            <label class="lf-form-label">Nhập lại mật khẩu</label>
-            <input type="password" name="password_confirmation" class="lf-form-control">
-        </div>
-
-        <button type="submit" class="lf-btn-primary">Tạo tài khoản</button>
-    </form>
-</x-auth-layout>
+    </section>
+@endsection
