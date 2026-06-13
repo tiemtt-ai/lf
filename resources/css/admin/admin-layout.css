@@ -29,12 +29,14 @@
 
 .layout-header-top {
     top: 0;
+    z-index: 40;
     height: 40px;
     border-bottom: 1px solid #eeeeee;
 }
 
 .layout-header-nav {
     top: 40px;
+    z-index: 30;
     height: 68px;
     border-bottom: 1px solid #eeeeee;
     box-shadow: 0 8px 18px rgba(72, 92, 199, .08);
@@ -124,6 +126,7 @@
     position: absolute;
     top: 25px;
     right: 0;
+    z-index: 50;
     min-width: 180px;
     padding: 10px;
     border: 1px solid #eeeeee;
