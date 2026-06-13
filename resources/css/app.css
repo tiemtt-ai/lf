@@ -4,6 +4,7 @@
 @import './admin/admin-layout.css';
 @import './admin/admin-components.css';
 @import './admin/admin-pages.css';
+@import './auth/login.css';
 
 @tailwind base;
 @tailwind components;
