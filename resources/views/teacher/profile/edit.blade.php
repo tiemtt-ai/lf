@@ -4,62 +4,58 @@
 @section('page_title', 'Profile')
 
 @section('content')
+    @if (session('profile_success'))
+        <div class="admin-alert admin-alert-success">
+            {{ session('profile_success') }}
+        </div>
+    @endif
 
-    <div class="lf-container">
+    @if ($errors->default->any())
+        <div class="admin-alert admin-alert-danger">
+            <ul>
+                @foreach ($errors->default->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
-        <h1>Teacher Profile</h1>
+    <div class="admin-card admin-form-card teacher-profile-card">
+        <h2 class="teacher-profile-card-title">Profile Information</h2>
+        <p class="teacher-profile-card-copy">Manage your teacher account information and security.</p>
 
-        @if (session('profile_success'))
-            <div style="background:#dcfce7;color:#166534;padding:12px 16px;border-radius:8px;margin-bottom:20px;">
-                {{ session('profile_success') }}
+        <form method="POST" action="{{ route('teacher.profile.update') }}">
+            @csrf
+            @method('PATCH')
+
+            <div class="lf-form-group">
+                <label class="lf-form-label" for="teacher-name">Name</label>
+                <input id="teacher-name" type="text" name="name" class="lf-form-control"
+                       value="{{ old('name', $user->name) }}" required>
             </div>
-        @endif
 
-        @if ($errors->default->any())
-            <div style="background:#fee2e2;color:#991b1b;padding:12px 16px;border-radius:8px;margin-bottom:20px;">
-                <ul style="margin:0;padding-left:20px;">
-                    @foreach ($errors->default->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
+            <div class="lf-form-group">
+                <label class="lf-form-label" for="teacher-email">Email</label>
+                <input id="teacher-email" type="email" name="email" class="lf-form-control"
+                       value="{{ old('email', $user->email) }}" required>
             </div>
-        @endif
 
-        <div class="lf-profile-card">
-
-            <h2>Profile Information</h2>
-
-            <form method="POST" action="{{ route('teacher.profile.update') }}">
-                @csrf
-                @method('PATCH')
-
+            <div class="teacher-profile-fields">
                 <div class="lf-form-group">
-                    <label class="lf-form-label">Name</label>
-                    <input type="text" name="name" class="lf-form-control"
-                           value="{{ old('name', $user->name) }}" required>
-                </div>
-
-                <div class="lf-form-group">
-                    <label class="lf-form-label">Email</label>
-                    <input type="email" name="email" class="lf-form-control"
-                           value="{{ old('email', $user->email) }}" required>
-                </div>
-
-                <div class="lf-form-group">
-                    <label class="lf-form-label">Phone</label>
-                    <input type="text" name="phone" class="lf-form-control"
+                    <label class="lf-form-label" for="teacher-phone">Phone</label>
+                    <input id="teacher-phone" type="text" name="phone" class="lf-form-control"
                            value="{{ old('phone', $user->phone) }}">
                 </div>
 
                 <div class="lf-form-group">
-                    <label class="lf-form-label">Date of Birth</label>
-                    <input type="date" name="date_of_birth" class="lf-form-control"
+                    <label class="lf-form-label" for="teacher-date-of-birth">Date of Birth</label>
+                    <input id="teacher-date-of-birth" type="date" name="date_of_birth" class="lf-form-control"
                            value="{{ old('date_of_birth', $user->date_of_birth) }}">
                 </div>
 
                 <div class="lf-form-group">
-                    <label class="lf-form-label">Gender</label>
-                    <select name="gender" class="lf-form-control">
+                    <label class="lf-form-label" for="teacher-gender">Gender</label>
+                    <select id="teacher-gender" name="gender" class="lf-form-control">
                         <option value="">Select Gender</option>
                         <option value="male" @selected(old('gender', $user->gender) === 'male')>Male</option>
                         <option value="female" @selected(old('gender', $user->gender) === 'female')>Female</option>
@@ -68,34 +64,28 @@
                 </div>
 
                 <div class="lf-form-group">
-                    <label class="lf-form-label">Role</label>
-                    <input type="text" class="lf-form-control" value="Teacher" disabled>
+                    <label class="lf-form-label" for="teacher-role">Role</label>
+                    <input id="teacher-role" type="text" class="lf-form-control" value="Teacher" disabled>
                 </div>
-
-                <div style="margin-top:24px;">
-                    <button type="submit" class="lf-btn-primary">Save Changes</button>
-                </div>
-            </form>
-
-        </div>
-
-        <div style="margin-top:24px;">
-            <button type="button" class="lf-btn-secondary" x-data
-                    x-on:click="$dispatch('open-modal', 'change-password')">
-                Change Password
-            </button>
-        </div>
-
-        @if (session('password_success'))
-            <div style="background:#dcfce7;color:#166534;padding:12px 16px;border-radius:8px;margin-top:20px;max-width:720px;">
-                {{ session('password_success') }}
             </div>
-        @endif
 
-        @include('profile.partials.password-modal', [
-            'action' => route('teacher.profile.password.update'),
-        ])
-
+            <div class="admin-form-actions">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <button type="button" class="btn btn-secondary" x-data
+                        x-on:click="$dispatch('open-modal', 'change-password')">
+                    Change Password
+                </button>
+            </div>
+        </form>
     </div>
 
+    @if (session('password_success'))
+        <div class="admin-alert admin-alert-success teacher-password-success">
+            {{ session('password_success') }}
+        </div>
+    @endif
+
+    @include('profile.partials.password-modal', [
+        'action' => route('teacher.profile.password.update'),
+    ])
 @endsection

@@ -29,7 +29,7 @@ class RoleProfileTest extends TestCase
         $teacher = $this->createUser($customerId, 'teacher');
         $student = $this->createUser($customerId, 'student');
 
-        $this->actingAs($teacher)
+        $teacherProfileResponse = $this->actingAs($teacher)
             ->get('https://tenant-a.localhost/teacher/profile')
             ->assertOk()
             ->assertSeeText('Profile Information')
@@ -44,6 +44,23 @@ class RoleProfileTest extends TestCase
             ->assertSeeText('Gender')
             ->assertSeeText('Role')
             ->assertSee('value="Teacher"', false);
+
+        $teacherProfileResponse
+            ->assertSee('href="https://tenant-a.localhost/teacher"', false)
+            ->assertSee('href="https://tenant-a.localhost/teacher/profile"', false)
+            ->assertDontSee('href="https://tenant-a.localhost/admin"', false)
+            ->assertSeeText('My Courses')
+            ->assertSeeText('Live Classes')
+            ->assertSeeText('AI Assistant')
+            ->assertSee('class="admin-sidebar-menu is-teacher"', false);
+
+        $this->actingAs($teacher)
+            ->get('https://tenant-a.localhost/teacher')
+            ->assertOk()
+            ->assertSeeText('Pending Gradings')
+            ->assertSeeText('Upcoming Live Classes')
+            ->assertSee('href="https://tenant-a.localhost/teacher/profile"', false)
+            ->assertDontSee('href="https://tenant-a.localhost/admin"', false);
 
         $this->actingAs($teacher)
             ->get('https://tenant-a.localhost/student/profile')

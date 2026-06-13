@@ -4,18 +4,35 @@
 
 @section('app_shell')
     @php
-        $adminUser = auth()->user();
-        $adminMenu = [
-            ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'active' => 'admin.dashboard', 'icon' => 'document', 'visible' => true],
-            ['label' => 'Users', 'route' => 'admin.users.index', 'active' => 'admin.users.*', 'icon' => 'document', 'visible' => true],
-            ['label' => 'Courses', 'route' => null, 'active' => null, 'icon' => 'wide', 'visible' => true],
-            ['label' => 'Assessments', 'route' => null, 'active' => null, 'icon' => 'wide', 'visible' => true],
-            ['label' => 'Live Classes', 'route' => null, 'active' => null, 'icon' => 'wide', 'visible' => false],
-            ['label' => 'Media', 'route' => null, 'active' => null, 'icon' => 'wide', 'visible' => false],
-            ['label' => 'Reports', 'route' => null, 'active' => null, 'icon' => 'wide', 'visible' => false],
-            ['label' => 'AI', 'route' => null, 'active' => null, 'icon' => 'wide', 'visible' => false],
-            ['label' => 'Settings', 'route' => 'admin.profile.edit', 'active' => 'admin.profile.*', 'icon' => 'wide', 'visible' => true],
-        ];
+        $portalUser = auth()->user();
+        $isTeacher = $portalUser?->role === 'teacher';
+        $dashboardRoute = $isTeacher ? 'teacher.dashboard' : 'admin.dashboard';
+        $navigationLabel = $isTeacher ? 'Teacher navigation' : 'Customer admin navigation';
+        $primaryMenu = $isTeacher
+            ? ['My Courses', 'Assessments', 'Live Classes', 'Students', 'Reports', 'AI Assistant']
+            : ['Khoá học', 'Đề thi', 'Giáo trình', 'Giảng viên', 'Cộng đồng', 'Level Test', 'Visang Video'];
+        $portalMenu = $isTeacher
+            ? [
+                ['label' => 'Dashboard', 'route' => 'teacher.dashboard', 'active' => 'teacher.dashboard', 'visible' => true],
+                ['label' => 'My Courses', 'route' => null, 'active' => null, 'visible' => true],
+                ['label' => 'Assessments', 'route' => null, 'active' => null, 'visible' => true],
+                ['label' => 'Live Classes', 'route' => null, 'active' => null, 'visible' => true],
+                ['label' => 'Students', 'route' => null, 'active' => null, 'visible' => true],
+                ['label' => 'Reports', 'route' => null, 'active' => null, 'visible' => true],
+                ['label' => 'AI Assistant', 'route' => null, 'active' => null, 'visible' => true],
+                ['label' => 'Profile', 'route' => 'teacher.profile.edit', 'active' => 'teacher.profile.*', 'visible' => true],
+            ]
+            : [
+                ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'active' => 'admin.dashboard', 'visible' => true],
+                ['label' => 'Users', 'route' => 'admin.users.index', 'active' => 'admin.users.*', 'visible' => true],
+                ['label' => 'Courses', 'route' => null, 'active' => null, 'visible' => true],
+                ['label' => 'Assessments', 'route' => null, 'active' => null, 'visible' => true],
+                ['label' => 'Live Classes', 'route' => null, 'active' => null, 'visible' => false],
+                ['label' => 'Media', 'route' => null, 'active' => null, 'visible' => false],
+                ['label' => 'Reports', 'route' => null, 'active' => null, 'visible' => false],
+                ['label' => 'AI', 'route' => null, 'active' => null, 'visible' => false],
+                ['label' => 'Settings', 'route' => 'admin.profile.edit', 'active' => 'admin.profile.*', 'visible' => true],
+            ];
     @endphp
 
     <header class="layout-header layout-header-top">
@@ -30,12 +47,12 @@
                 <div class="admin-account-menu" x-data="{ open: false }" x-on:click.outside="open = false">
                     <button class="admin-account-trigger" type="button" x-on:click="open = ! open" aria-label="Account menu">
                         <img src="{{ asset('assets/admin/account.svg') }}" alt="">
-                        {{ $adminUser->name ?? 'admin' }}
+                        {{ $portalUser->name ?? 'user' }}
                         <span class="admin-chevron" aria-hidden="true"></span>
                     </button>
 
                     <div class="admin-account-dropdown" x-show="open" x-cloak>
-                        <p>{{ $adminUser->email ?? 'admin@example.com' }}</p>
+                        <p>{{ $portalUser->email ?? 'user@example.com' }}</p>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit">Logout</button>
@@ -54,18 +71,14 @@
 
     <nav class="layout-header layout-header-nav" aria-label="Primary navigation">
         <div class="admin-container">
-            <a href="{{ route('admin.dashboard') }}">
+            <a href="{{ route($dashboardRoute) }}">
                 <img class="admin-brand-logo" src="{{ asset('assets/admin/brand-logo.png') }}" alt="LearnForge">
             </a>
 
             <div class="admin-primary-menu" aria-hidden="true">
-                <span>Khoá học <i class="admin-chevron"></i></span>
-                <span>Đề thi</span>
-                <span>Giáo trình</span>
-                <span>Giảng viên</span>
-                <span>Cộng đồng</span>
-                <span>Level Test</span>
-                <span>Visang Video <i class="admin-chevron"></i></span>
+                @foreach ($primaryMenu as $item)
+                    <span>{{ $item }}</span>
+                @endforeach
             </div>
 
             <div class="admin-nav-actions">
@@ -77,8 +90,11 @@
     <main class="layout-content">
         <div class="admin-container admin-content-wrap">
             <aside class="layout-sidebar">
-                <nav class="admin-sidebar-menu" aria-label="Customer admin navigation">
-                    @foreach ($adminMenu as $item)
+                <nav @class([
+                    'admin-sidebar-menu',
+                    'is-teacher' => $isTeacher,
+                ]) aria-label="{{ $navigationLabel }}">
+                    @foreach ($portalMenu as $item)
                         @continue(! $item['visible'])
 
                         @php
