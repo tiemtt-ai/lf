@@ -90,12 +90,10 @@
 
                         @if ($item['route'])
                             <a class="{{ $classes }}" href="{{ route($item['route']) }}">
-                                <span class="admin-sidebar-icon {{ $item['icon'] === 'wide' ? 'is-wide' : '' }}"></span>
                                 {{ $item['label'] }}
                             </a>
                         @else
                             <span class="{{ $classes }}" aria-disabled="true">
-                                <span class="admin-sidebar-icon {{ $item['icon'] === 'wide' ? 'is-wide' : '' }}"></span>
                                 {{ $item['label'] }}
                             </span>
                         @endif
@@ -156,6 +154,8 @@
         <div class="admin-floating-button is-ai">
             <img src="{{ asset('assets/admin/ai-assistant.png') }}" alt="">
         </div>
-        <div class="admin-floating-button is-message">⌁</div>
+        <div class="admin-floating-button is-message">
+            <img src="{{ asset('assets/admin/download.svg') }}" alt="Download">
+        </div>
     </div>
 @endsection
