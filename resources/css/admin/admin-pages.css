@@ -1,0 +1,50 @@
+.admin-dashboard-welcome {
+    margin: 0 0 20px;
+    font-size: 16px;
+}
+
+.admin-profile-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.admin-profile-summary dt {
+    color: #777777;
+    font-size: 14px;
+}
+
+.admin-profile-summary dd {
+    margin: 5px 0 0;
+}
+
+.admin-user-toolbar {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.admin-table-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-link-button {
+    padding: 0;
+    border: 0;
+    color: var(--admin-primary);
+    background: transparent;
+    font: inherit;
+    cursor: pointer;
+}
+
+.admin-form-card {
+    max-width: 720px;
+}
+
+@media (max-width: 900px) {
+    .admin-profile-summary {
+        grid-template-columns: 1fr;
+    }
+}

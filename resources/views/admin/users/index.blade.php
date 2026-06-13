@@ -1,143 +1,88 @@
 @extends('layouts.backend')
 
 @section('title', 'User Management')
-@section('page_title', 'User Management')
+@section('page_title', 'Users')
 
 @section('content')
-
-    <div class="lf-container">
-
-        <h1>User Management</h1>
-
-        @if (session('success'))
-            <div style="
-            background:#dcfce7;
-            color:#166534;
-            padding:12px 16px;
-            border-radius:8px;
-            margin-bottom:20px;
-        ">
-                {{ session('success') }}
-            </div>
-        @endif
-
-        @if ($errors->any())
-            <div style="
-            background:#fee2e2;
-            color:#991b1b;
-            padding:12px 16px;
-            border-radius:8px;
-            margin-bottom:20px;
-        ">
-                <ul style="margin:0;padding-left:20px;">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
-
-        <div class="lf-tabs">
-
-            <a href="{{ route('admin.users.index', ['role' => 'customer_admin']) }}"
-               class="lf-tab {{ $role == 'customer_admin' ? 'active' : '' }}">
-                Admin
-            </a>
-
-            <a href="{{ route('admin.users.index', ['role' => 'teacher']) }}"
-               class="lf-tab {{ $role == 'teacher' ? 'active' : '' }}">
-                Teacher
-            </a>
-
-            <a href="{{ route('admin.users.index', ['role' => 'student']) }}"
-               class="lf-tab {{ $role == 'student' ? 'active' : '' }}">
-                Student
-            </a>
-
+    @if (session('success'))
+        <div class="admin-alert admin-alert-success">
+            {{ session('success') }}
         </div>
+    @endif
 
-        <div style="margin-bottom:20px;">
-            <a href="{{ route('admin.users.create') }}"
-               class="lf-btn-primary">
-                Create User
-            </a>
+    @if ($errors->any())
+        <div class="admin-alert admin-alert-danger">
+            <ul>
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
         </div>
+    @endif
 
-        <div class="lf-table-wrapper">
-
-            <table class="lf-table">
-
-                <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Status</th>
-                    <th width="180">Action</th>
-                </tr>
-                </thead>
-
-                <tbody>
-
-                @forelse ($users as $user)
-
-                    <tr>
-                        <td>{{ $user->id }}</td>
-
-                        <td>{{ $user->name }}</td>
-
-                        <td>{{ $user->email }}</td>
-
-                        <td>{{ $user->phone ?? '-' }}</td>
-
-                        <td>
-                            @if($user->status == 'active')
-                                <span class="lf-badge lf-badge-success">
-                                Active
-                            </span>
-                            @else
-                                <span class="lf-badge lf-badge-danger">
-                                Inactive
-                            </span>
-                            @endif
-                        </td>
-
-                        <td>
-                            <a href="{{ route('admin.users.edit', $user->id) }}">
-                                Edit
-                            </a>
-
-                            <form method="POST"
-                                  action="{{ route('admin.users.toggle-status', $user->id) }}"
-                                  style="display:inline-block;margin-left:10px;">
-                                @csrf
-
-                                <button type="submit">
-                                    {{ $user->status == 'active'
-                                        ? 'Disable'
-                                        : 'Enable' }}
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-
-                @empty
-
-                    <tr>
-                        <td colspan="6" style="text-align:center;">
-                            No users found.
-                        </td>
-                    </tr>
-
-                @endforelse
-
-                </tbody>
-
-            </table>
-
-        </div>
-
+    <div class="admin-tabs">
+        <a href="{{ route('admin.users.index', ['role' => 'customer_admin']) }}"
+           class="admin-tab {{ $role === 'customer_admin' ? 'is-active' : '' }}">
+            Admin
+        </a>
+        <a href="{{ route('admin.users.index', ['role' => 'teacher']) }}"
+           class="admin-tab {{ $role === 'teacher' ? 'is-active' : '' }}">
+            Teacher
+        </a>
+        <a href="{{ route('admin.users.index', ['role' => 'student']) }}"
+           class="admin-tab {{ $role === 'student' ? 'is-active' : '' }}">
+            Student
+        </a>
     </div>
 
+    <div class="admin-user-toolbar">
+        <a href="{{ route('admin.users.create') }}" class="btn btn-primary">
+            Create User
+        </a>
+    </div>
+
+    <div class="admin-table-wrap">
+        <table class="table">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th width="180">Action</th>
+            </tr>
+            </thead>
+            <tbody>
+            @forelse ($users as $user)
+                <tr>
+                    <td>{{ $user->id }}</td>
+                    <td>{{ $user->name }}</td>
+                    <td>{{ $user->email }}</td>
+                    <td>{{ $user->phone ?? '-' }}</td>
+                    <td>
+                        <span class="badge {{ $user->status === 'active' ? 'badge-success' : 'badge-danger' }}">
+                            {{ $user->status === 'active' ? 'Active' : 'Inactive' }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="admin-table-actions">
+                            <a href="{{ route('admin.users.edit', $user->id) }}">Edit</a>
+                            <form method="POST" action="{{ route('admin.users.toggle-status', $user->id) }}">
+                                @csrf
+                                <button class="admin-link-button" type="submit">
+                                    {{ $user->status === 'active' ? 'Disable' : 'Enable' }}
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="6" style="text-align: center">No users found.</td>
+                </tr>
+            @endforelse
+            </tbody>
+        </table>
+    </div>
 @endsection

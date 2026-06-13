@@ -414,6 +414,123 @@ Nhưng cũng không over-engineering ở hiện tại.
 
 ---
 
+# Principle 16
+
+Simple User Experience, Deep Learning Data
+
+Người dùng thao tác trên LearnForge phải thật đơn giản.
+
+Điều này áp dụng cho:
+
+* Tenant / Customer Admin
+* Teacher
+* Student
+
+LearnForge không ép người dùng hiểu cấu trúc kỹ thuật phức tạp như:
+
+* database
+* media pipeline
+* tracking model
+* AI context
+* billing logic
+* system workflow
+
+Người dùng chỉ nên nhìn thấy những thao tác rõ ràng, tự nhiên và đúng vai trò.
+
+Ví dụ:
+
+Customer Admin:
+
+```text
+Tạo khóa học
+Gán giáo viên
+Add học viên
+Xem báo cáo
+```
+
+Teacher:
+
+```text
+Tạo bài học
+Gắn video
+Tạo quiz
+Chấm bài
+Theo dõi học viên
+```
+
+Student:
+
+```text
+Vào khóa học
+Xem bài học
+Làm bài tập
+Hỏi AI Tutor
+Xem tiến độ
+```
+
+Nhưng bên dưới giao diện đơn giản đó, hệ thống phải ghi nhận và tổ chức dữ liệu thật đầy đủ.
+
+LearnForge phải lưu đủ dữ liệu cho:
+
+* Course Structure
+* Lesson Activity
+* Media Usage
+* Learning Progress
+* Assessment Result
+* User Behavior
+* Tracking Events
+* AI Context
+* Usage Analytics
+* Billing Inputs
+
+Nguyên tắc cốt lõi:
+
+```text
+Simple UX
+
+↓
+
+Deep Data
+
+↓
+
+AI Ready
+```
+
+Người dùng thao tác càng đơn giản càng tốt.
+
+Nhưng dữ liệu phía sau phải đủ sâu để phục vụ:
+
+* Tracking
+* Analytics
+* AI Tutor
+* AI Grading
+* Personalization
+* Learning Insights
+* Risk Detection
+* Billing
+* Enterprise Reporting
+
+LearnForge phải tách rõ:
+
+```text
+User Experience
+```
+
+và
+
+```text
+System Intelligence
+```
+
+User Experience phải đơn giản.
+
+System Intelligence phải triệt để.
+
+Đây là nguyên tắc quan trọng giúp LearnForge vừa dễ dùng cho người vận hành, vừa đủ mạnh để trở thành AI-Native Learning Intelligence Platform.
+
+---
+
 # LearnForge Intelligence Loop
 
 Đây là vòng lặp cốt lõi của toàn bộ nền tảng.

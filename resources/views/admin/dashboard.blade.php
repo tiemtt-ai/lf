@@ -1,62 +1,31 @@
 @extends('layouts.backend')
 
 @section('title', 'Admin Dashboard')
-@section('page_title', 'Admin Dashboard')
+@section('page_title', 'Dashboard')
 
 @section('content')
+    <p class="admin-dashboard-welcome">
+        Xin chào {{ auth()->user()->name }}!
+    </p>
 
-    <div class="lf-container">
-
-        <h2>Welcome</h2>
-
-        <p>
-            Xin chào tiemtt!
-        </p>
-
-        <div class="lf-profile-card">
-
-            <div class="lf-profile-row">
-                <div class="lf-profile-label">
-                    Name
-                </div>
-
-                <div class="lf-profile-value">
-                    {{ auth()->user()->name }}
-                </div>
+    <div class="admin-card">
+        <dl class="admin-profile-summary">
+            <div>
+                <dt>Name</dt>
+                <dd>{{ auth()->user()->name }}</dd>
             </div>
-
-            <div class="lf-profile-row">
-                <div class="lf-profile-label">
-                    Email
-                </div>
-
-                <div class="lf-profile-value">
-                    {{ auth()->user()->email }}
-                </div>
+            <div>
+                <dt>Email</dt>
+                <dd>{{ auth()->user()->email }}</dd>
             </div>
-
-            <div class="lf-profile-row">
-                <div class="lf-profile-label">
-                    Role
-                </div>
-
-                <div class="lf-profile-value">
-                    {{ auth()->user()->role }}
-                </div>
+            <div>
+                <dt>Role</dt>
+                <dd>{{ auth()->user()->role }}</dd>
             </div>
-
-            <div class="lf-profile-row">
-                <div class="lf-profile-label">
-                    Customer ID
-                </div>
-
-                <div class="lf-profile-value">
-                    {{ auth()->user()->customer_id }}
-                </div>
+            <div>
+                <dt>Customer ID</dt>
+                <dd>{{ auth()->user()->customer_id }}</dd>
             </div>
-
-        </div>
-
+        </dl>
     </div>
-
 @endsection
