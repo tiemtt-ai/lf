@@ -251,8 +251,8 @@
 
 .admin-footer-top {
     display: flex;
-    justify-content: space-between;
-    gap: 60px;
+    /*justify-content: space-between;*/
+    gap: 150px;
 }
 
 .admin-footer-company {
@@ -280,6 +280,20 @@
     font-weight: 400;
 }
 
+.admin-footer-contact {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.admin-footer-contact img {
+    width: auto;
+    height: auto;
+    display: block;
+    object-fit: contain;
+    flex: 0 0 auto;
+}
+
 .admin-footer-company p {
     margin: 8px 0;
     color: rgba(255, 255, 255, .6);
@@ -296,21 +310,64 @@
 .admin-footer-bottom {
     margin-top: 30px;
     padding-top: 25px;
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(330px, 1.35fr) auto minmax(420px, 1.45fr);
     align-items: center;
-    gap: 20px;
+    gap: 42px;
     border-top: 1px solid rgba(255, 255, 255, .15);
     color: rgba(255, 255, 255, .6);
     font-size: 12px;
 }
 
-.admin-footer-bottom p {
+.admin-footer-legal p {
     margin: 0;
 }
 
-.admin-footer-bottom p + p {
+.admin-footer-legal p + p {
     margin-top: 10px;
+}
+
+.admin-footer-certificates {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+}
+
+.admin-footer-certificates img,
+.admin-footer-apps img {
+    display: block;
+    object-fit: contain;
+}
+
+.admin-footer-bct {
+    width: 148px;
+    height: 56px;
+}
+
+.admin-footer-aws {
+    width: 92px;
+    height: 92px;
+}
+
+.admin-footer-apps {
+    display: grid;
+    grid-template-columns: 109px 109px 24px 108px;
+    grid-template-rows: repeat(2, 33px);
+    align-items: center;
+    justify-content: end;
+    gap: 12px 16px;
+}
+
+.admin-footer-apps img {
+    max-width: 100%;
+    max-height: 33px;
+    justify-self: center;
+}
+
+.admin-footer-apps .admin-footer-store {
+    width: 108px;
+    height: 33px;
 }
 
 .admin-floating {
@@ -408,5 +465,15 @@
     .admin-footer-top {
         flex-wrap: wrap;
         gap: 30px;
+    }
+
+    .admin-footer-bottom {
+        grid-template-columns: 1fr;
+        gap: 25px;
+    }
+
+    .admin-footer-certificates,
+    .admin-footer-apps {
+        justify-content: start;
     }
 }

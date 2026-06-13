@@ -118,8 +118,14 @@
                     </div>
                     <h4>Công ty TNHH Giáo dục Visang Việt Nam</h4>
                     <p>Địa chỉ: Tầng 2, FLC Landmark Tower, đường Lê Đức Thọ, phường Từ Liêm, thành phố Hà Nội, Việt Nam</p>
-                    <h4 style="margin-top: 30px">☎ 0243-6886-333 / 0912-801-848</h4>
-                    <h4>✉ visang@masterkorean.vn</h4>
+                    <h4 class="admin-footer-contact" style="margin-top: 30px">
+                        <img src="{{ asset('assets/admin/footer/phone.png') }}" alt="">
+                        0243-6886-333 / 0912-801-848
+                    </h4>
+                    <h4 class="admin-footer-contact">
+                        <img src="{{ asset('assets/admin/footer/mail.png') }}" alt="">
+                        visang@masterkorean.vn
+                    </h4>
                 </div>
 
                 <div class="admin-footer-column">
@@ -139,9 +145,29 @@
             </div>
 
             <div class="admin-footer-bottom">
-                <div>
+                <div class="admin-footer-legal">
                     <p>Copyright © VISANG Education Group Vietnam Company</p>
                     <p>MST: 0109066143 do Sở KH & ĐT thành phố Hà Nội cấp ngày 14/01/2020 Người đại diện: Mr. Lee Young Geun</p>
+                </div>
+
+                <div class="admin-footer-certificates">
+                    <img class="admin-footer-bct" src="{{ asset('assets/admin/footer/bct.png') }}"
+                         alt="Đã thông báo Bộ Công Thương">
+                    <img class="admin-footer-aws" src="{{ asset('assets/admin/footer/aws.png') }}"
+                         alt="AWS Qualified Software">
+                </div>
+
+                <div class="admin-footer-apps">
+                    <img src="{{ asset('assets/admin/footer/mk-live.png') }}" alt="MK Live">
+                    <img src="{{ asset('assets/admin/footer/mk-jobs.png') }}" alt="MK Jobs">
+                    <img src="{{ asset('assets/admin/footer/youtube.png') }}" alt="YouTube">
+                    <img class="admin-footer-store" src="{{ asset('assets/admin/footer/google-play.png') }}"
+                         alt="Google Play">
+                    <img src="{{ asset('assets/admin/footer/exam.png') }}" alt="Exam">
+                    <img src="{{ asset('assets/admin/footer/mk-blog.png') }}" alt="MK Blog">
+                    <img src="{{ asset('assets/admin/footer/facebook.png') }}" alt="Facebook">
+                    <img class="admin-footer-store" src="{{ asset('assets/admin/footer/app-store.png') }}"
+                         alt="App Store">
                 </div>
             </div>
         </div>
