@@ -7,37 +7,54 @@
         $portalUser = auth()->user();
         $isTeacher = $portalUser?->role === 'teacher';
         $dashboardRoute = $isTeacher ? 'teacher.dashboard' : 'admin.dashboard';
-        $navigationLabel = $isTeacher ? 'Teacher navigation' : 'Customer admin navigation';
+        $navigationLabel = $isTeacher
+            ? __('lf.LF_navigation_label_teacher_navigation')
+            : __('lf.LF_navigation_label_admin_navigation');
         $primaryMenu = $isTeacher
-            ? ['My Courses', 'Assessments', 'Live Classes', 'Students', 'Reports', 'AI Assistant']
-            : ['Khoá học', 'Đề thi', 'Giáo trình', 'Giảng viên', 'Cộng đồng', 'Level Test', 'Visang Video'];
-        $portalMenu = $isTeacher
             ? [
-                ['label' => 'Dashboard', 'route' => 'teacher.dashboard', 'active' => 'teacher.dashboard', 'visible' => true],
-                ['label' => 'My Courses', 'route' => null, 'active' => null, 'visible' => true],
-                ['label' => 'Assessments', 'route' => null, 'active' => null, 'visible' => true],
-                ['label' => 'Live Classes', 'route' => null, 'active' => null, 'visible' => true],
-                ['label' => 'Students', 'route' => null, 'active' => null, 'visible' => true],
-                ['label' => 'Reports', 'route' => null, 'active' => null, 'visible' => true],
-                ['label' => 'AI Assistant', 'route' => null, 'active' => null, 'visible' => true],
-                ['label' => 'Profile', 'route' => 'teacher.profile.edit', 'active' => 'teacher.profile.*', 'visible' => true],
+                __('lf.LF_navigation_menu_student_my_courses'),
+                __('lf.LF_navigation_menu_public_assessments'),
+                __('lf.LF_navigation_menu_teacher_live_classes'),
+                __('lf.LF_navigation_menu_teacher_students'),
+                __('lf.LF_navigation_menu_teacher_reports'),
+                __('lf.LF_navigation_menu_teacher_ai_assistant'),
             ]
             : [
-                ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'active' => 'admin.dashboard', 'visible' => true],
-                ['label' => 'Users', 'route' => 'admin.users.index', 'active' => 'admin.users.*', 'visible' => true],
-                ['label' => 'Courses', 'route' => null, 'active' => null, 'visible' => true],
-                ['label' => 'Assessments', 'route' => null, 'active' => null, 'visible' => true],
-                ['label' => 'Live Classes', 'route' => null, 'active' => null, 'visible' => false],
-                ['label' => 'Media', 'route' => null, 'active' => null, 'visible' => false],
-                ['label' => 'Reports', 'route' => null, 'active' => null, 'visible' => false],
-                ['label' => 'AI', 'route' => null, 'active' => null, 'visible' => false],
-                ['label' => 'Settings', 'route' => 'admin.profile.edit', 'active' => 'admin.profile.*', 'visible' => true],
+                __('lf.LF_navigation_menu_public_courses'),
+                __('lf.LF_navigation_menu_admin_exams'),
+                __('lf.LF_navigation_menu_admin_curriculum'),
+                __('lf.LF_navigation_menu_public_teachers'),
+                __('lf.LF_navigation_menu_admin_community'),
+                __('lf.LF_navigation_menu_admin_level_test'),
+                __('lf.LF_navigation_menu_admin_visang_video'),
+            ];
+        $portalMenu = $isTeacher
+            ? [
+                ['label' => __('lf.LF_navigation_menu_teacher_dashboard'), 'route' => 'teacher.dashboard', 'active' => 'teacher.dashboard', 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_student_my_courses'), 'route' => null, 'active' => null, 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_public_assessments'), 'route' => null, 'active' => null, 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_teacher_live_classes'), 'route' => null, 'active' => null, 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_teacher_students'), 'route' => null, 'active' => null, 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_teacher_reports'), 'route' => null, 'active' => null, 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_teacher_ai_assistant'), 'route' => null, 'active' => null, 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_student_profile'), 'route' => 'teacher.profile.edit', 'active' => 'teacher.profile.*', 'visible' => true],
+            ]
+            : [
+                ['label' => __('lf.LF_navigation_menu_admin_dashboard'), 'route' => 'admin.dashboard', 'active' => 'admin.dashboard', 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_admin_users'), 'route' => 'admin.users.index', 'active' => 'admin.users.*', 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_public_courses'), 'route' => null, 'active' => null, 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_public_assessments'), 'route' => null, 'active' => null, 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_teacher_live_classes'), 'route' => null, 'active' => null, 'visible' => false],
+                ['label' => __('lf.LF_navigation_menu_admin_media'), 'route' => null, 'active' => null, 'visible' => false],
+                ['label' => __('lf.LF_navigation_menu_teacher_reports'), 'route' => null, 'active' => null, 'visible' => false],
+                ['label' => __('lf.LF_navigation_menu_admin_ai'), 'route' => null, 'active' => null, 'visible' => false],
+                ['label' => __('lf.LF_navigation_menu_admin_settings'), 'route' => 'admin.profile.edit', 'active' => 'admin.profile.*', 'visible' => true],
             ];
     @endphp
 
     <header class="layout-header layout-header-top">
         <div class="admin-container">
-            <div class="admin-partner-logos" aria-label="Partner brands">
+            <div class="admin-partner-logos" aria-label="{{ __('lf.LF_common_navigation_common_partner_brands') }}">
                 @foreach (range(1, 4) as $partner)
                     <img src="{{ asset("assets/admin/partner-{$partner}.png") }}" alt="">
                 @endforeach
@@ -45,7 +62,7 @@
 
             <div class="admin-account-actions">
                 <div class="admin-account-menu" x-data="{ open: false }" x-on:click.outside="open = false">
-                    <button class="admin-account-trigger" type="button" x-on:click="open = ! open" aria-label="Account menu">
+                    <button class="admin-account-trigger" type="button" x-on:click="open = ! open" aria-label="{{ __('lf.LF_common_navigation_common_account_menu') }}">
                         <img src="{{ asset('assets/admin/account.svg') }}" alt="">
                         {{ $portalUser->name ?? 'user' }}
                         <span class="admin-chevron" aria-hidden="true"></span>
@@ -55,34 +72,41 @@
                         <p>{{ $portalUser->email ?? 'user@example.com' }}</p>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
-                            <button type="submit">Logout</button>
+                            <button type="submit">{{ __('lf.LF_navigation_menu_student_logout') }}</button>
                         </form>
                     </div>
                 </div>
 
-                <div class="admin-language">
-                    <img src="{{ asset('assets/admin/language.png') }}" alt="">
-                    VI
-                    <span class="admin-chevron" aria-hidden="true"></span>
-                </div>
+                @include('partials.language-switcher', ['attributes' => new \Illuminate\View\ComponentAttributeBag([
+                    'class' => 'admin-language',
+                ])])
             </div>
         </div>
     </header>
 
-    <nav class="layout-header layout-header-nav" aria-label="Primary navigation">
+    <nav class="layout-header layout-header-nav" aria-label="{{ __('lf.LF_common_navigation_common_primary') }}">
         <div class="admin-container">
             <a href="{{ route($dashboardRoute) }}">
                 <img class="admin-brand-logo" src="{{ asset('assets/admin/brand-logo.png') }}" alt="LearnForge">
             </a>
 
-            <div class="admin-primary-menu" aria-hidden="true">
+            {{--<div class="admin-primary-menu" aria-hidden="true">
                 @foreach ($primaryMenu as $item)
                     <span>{{ $item }}</span>
                 @endforeach
+            </div>--}}
+            <div class="auth-primary-menu" aria-hidden="true">
+                <span>{{ __('lf.LF_navigation_menu_public_courses') }} <i class="auth-chevron"></i></span>
+                <span>{{ __('lf.LF_navigation_menu_admin_exams') }}</span>
+                <span>{{ __('lf.LF_navigation_menu_admin_curriculum') }}</span>
+                <span>{{ __('lf.LF_navigation_menu_public_teachers') }}</span>
+                <span>{{ __('lf.LF_navigation_menu_admin_community') }}</span>
+                <span>{{ __('lf.LF_navigation_menu_admin_level_test') }}</span>
+                <span>{{ __('lf.LF_navigation_menu_admin_visang_video') }} <i class="auth-chevron"></i></span>
             </div>
 
             <div class="admin-nav-actions">
-                <img src="{{ asset('assets/admin/search.png') }}" alt="Search">
+                <img src="{{ asset('assets/admin/search.png') }}" alt="{{ __('lf.LF_common_button_search') }}">
             </div>
         </div>
     </nav>
@@ -118,7 +142,7 @@
             </aside>
 
             <section class="admin-page-content">
-                <h1 class="admin-page-title">@yield('page_title', 'Dashboard')</h1>
+                <h1 class="admin-page-title">@yield('page_title', __('lf.LF_common_title_common_dashboard'))</h1>
                 <hr class="admin-divider">
                 @yield('content')
             </section>
@@ -132,8 +156,8 @@
                     <div class="admin-footer-logo">
                         <img src="{{ asset('assets/admin/brand-logo.png') }}" alt="LearnForge">
                     </div>
-                    <h4>Công ty TNHH Giáo dục Visang Việt Nam</h4>
-                    <p>Địa chỉ: Tầng 2, FLC Landmark Tower, đường Lê Đức Thọ, phường Từ Liêm, thành phố Hà Nội, Việt Nam</p>
+                    <h4>{{ __('lf.LF_common_footer_common_company') }}</h4>
+                    <p>{{ __('lf.LF_common_footer_common_address') }}</p>
                     <h4 class="admin-footer-contact" style="margin-top: 30px">
                         <img src="{{ asset('assets/admin/footer/phone.png') }}" alt="">
                         0243-6886-333 / 0912-801-848
@@ -145,30 +169,30 @@
                 </div>
 
                 <div class="admin-footer-column">
-                    <h3>Về công ty</h3>
-                    <a href="#">Giới thiệu</a>
-                    <a href="#">Tài liệu pháp lý</a>
-                    <a href="#">Khóa học</a>
-                    <a href="#">Giảng viên</a>
+                    <h3>{{ __('lf.LF_common_footer_common_about_company') }}</h3>
+                    <a href="#">{{ __('lf.LF_common_footer_common_introduction') }}</a>
+                    <a href="#">{{ __('lf.LF_common_footer_common_legal_documents') }}</a>
+                    <a href="#">{{ __('lf.LF_navigation_menu_public_courses') }}</a>
+                    <a href="#">{{ __('lf.LF_navigation_menu_public_teachers') }}</a>
                 </div>
 
                 <div class="admin-footer-column">
-                    <h3>Hỗ trợ</h3>
-                    <a href="#">Hỏi đáp</a>
-                    <a href="#">Quy chế hoạt động</a>
-                    <a href="#">Chính sách bảo mật</a>
+                    <h3>{{ __('lf.LF_common_footer_common_support') }}</h3>
+                    <a href="#">{{ __('lf.LF_common_footer_common_faq') }}</a>
+                    <a href="#">{{ __('lf.LF_common_footer_common_operating_rules') }}</a>
+                    <a href="#">{{ __('lf.LF_common_footer_common_privacy_policy') }}</a>
                 </div>
             </div>
 
             <div class="admin-footer-bottom">
                 <div class="admin-footer-legal">
-                    <p>Copyright © VISANG Education Group Vietnam Company</p>
-                    <p>MST: 0109066143 do Sở KH & ĐT thành phố Hà Nội cấp ngày 14/01/2020 Người đại diện: Mr. Lee Young Geun</p>
+                    <p>{{ __('lf.LF_common_footer_common_copyright') }}</p>
+                    <p>{{ __('lf.LF_common_footer_common_legal_notice') }}</p>
                 </div>
 
                 <div class="admin-footer-certificates">
                     <img class="admin-footer-bct" src="{{ asset('assets/admin/footer/bct.png') }}"
-                         alt="Đã thông báo Bộ Công Thương">
+                         alt="{{ __('lf.LF_common_image_common_trade_notice') }}">
                     <img class="admin-footer-aws" src="{{ asset('assets/admin/footer/aws.png') }}"
                          alt="AWS Qualified Software">
                 </div>
@@ -197,7 +221,7 @@
             <img src="{{ asset('assets/admin/ai-assistant.png') }}" alt="">
         </div>
         <div class="admin-floating-button is-message">
-            <img src="{{ asset('assets/admin/download.svg') }}" alt="Download">
+            <img src="{{ asset('assets/admin/download.svg') }}" alt="{{ __('lf.LF_common_image_common_download') }}">
         </div>
     </div>
 @endsection

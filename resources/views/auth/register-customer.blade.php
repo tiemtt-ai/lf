@@ -1,14 +1,14 @@
 @extends('layouts.public')
 
-@section('title', 'Register Tenant - LearnForge')
+@section('title', __('lf.LF_auth_register_title'))
 
 @section('content')
     <section class="public-register">
         <div class="public-container">
             <div class="public-register-card">
-                <h1>Register a LearnForge tenant</h1>
+                <h1>{{ __('lf.LF_auth_register_title') }}</h1>
                 <p class="public-register-intro">
-                    Create your organization and its first customer administrator account.
+                    {{ __('lf.LF_auth_register_description') }}
                 </p>
 
                 @if ($errors->any())
@@ -26,42 +26,42 @@
 
                     <div class="public-form-grid">
                         <div class="public-form-group is-full">
-                            <label class="public-form-label" for="customer_name">Organization name</label>
+                            <label class="public-form-label" for="customer_name">{{ __('lf.LF_auth_register_organization') }}</label>
                             <input id="customer_name" type="text" name="customer_name" class="public-form-control"
                                    value="{{ old('customer_name') }}" required>
                         </div>
 
                         <div class="public-form-group is-full">
-                            <label class="public-form-label" for="slug">Slug / subdomain</label>
+                            <label class="public-form-label" for="slug">{{ __('lf.LF_auth_register_slug') }}</label>
                             <input id="slug" type="text" name="slug" class="public-form-control"
-                                   value="{{ old('slug') }}" placeholder="your-organization" required>
+                                   value="{{ old('slug') }}" placeholder="{{ __('lf.LF_auth_register_slug_placeholder') }}" required>
                         </div>
 
                         <div class="public-form-group">
-                            <label class="public-form-label" for="name">Administrator name</label>
+                            <label class="public-form-label" for="name">{{ __('lf.LF_auth_register_admin_name') }}</label>
                             <input id="name" type="text" name="name" class="public-form-control"
                                    value="{{ old('name') }}" required>
                         </div>
 
                         <div class="public-form-group">
-                            <label class="public-form-label" for="email">Administrator email</label>
+                            <label class="public-form-label" for="email">{{ __('lf.LF_auth_register_admin_email') }}</label>
                             <input id="email" type="email" name="email" class="public-form-control"
                                    value="{{ old('email') }}" required>
                         </div>
 
                         <div class="public-form-group">
-                            <label class="public-form-label" for="password">Password</label>
+                            <label class="public-form-label" for="password">{{ __('lf.LF_common_label_password') }}</label>
                             <input id="password" type="password" name="password" class="public-form-control" required>
                         </div>
 
                         <div class="public-form-group">
-                            <label class="public-form-label" for="password_confirmation">Confirm password</label>
+                            <label class="public-form-label" for="password_confirmation">{{ __('lf.LF_common_label_confirm_password') }}</label>
                             <input id="password_confirmation" type="password" name="password_confirmation"
                                    class="public-form-control" required>
                         </div>
                     </div>
 
-                    <button type="submit" class="public-button">Create tenant</button>
+                    <button type="submit" class="public-button">{{ __('lf.LF_auth_register_create') }}</button>
                 </form>
             </div>
         </div>

@@ -1,12 +1,12 @@
 @extends('layouts.tenant')
 
-@section('title', 'Hồ sơ học viên | LearnForge')
+@section('title', __('lf.LF_profile_title_student_profile').' | '.__('lf.LF_common_brand_name'))
 
 @section('content')
     <div class="student-profile-shell">
         <header class="student-page-heading">
-            <h1>Hồ sơ cá nhân</h1>
-            <p>Cập nhật thông tin tài khoản và cài đặt bảo mật của bạn.</p>
+            <h1>{{ __('lf.LF_profile_title_student_profile') }}</h1>
+            <p>{{ __('lf.LF_profile_message_student_profile') }}</p>
         </header>
 
         @if (session('profile_success'))
@@ -31,10 +31,10 @@
             <section class="student-card student-profile-card">
                 <div class="student-profile-card-heading">
                     <div>
-                        <p class="student-profile-card-label">Thông tin cá nhân</p>
-                        <h2>Thông tin học viên</h2>
+                        <p class="student-profile-card-label">{{ __('lf.LF_profile_section_student_personal_information') }}</p>
+                        <h2>{{ __('lf.LF_profile_title_student_information') }}</h2>
                     </div>
-                    <span class="student-profile-status">Đang hoạt động</span>
+                    <span class="student-profile-status">{{ __('lf.LF_common_status_common_active') }}</span>
                 </div>
 
                 <form method="POST" action="{{ route('student.profile.update') }}">
@@ -43,52 +43,52 @@
 
                     <div class="student-form-grid">
                         <div class="student-form-group student-form-span">
-                            <label class="student-form-label" for="student-name">Họ và tên</label>
+                            <label class="student-form-label" for="student-name">{{ __('lf.LF_profile_label_student_full_name') }}</label>
                             <input id="student-name" type="text" name="name" class="student-form-control"
                                    value="{{ old('name', $user->name) }}" required>
                         </div>
 
                         <div class="student-form-group">
-                            <label class="student-form-label" for="student-email">Email</label>
+                            <label class="student-form-label" for="student-email">{{ __('lf.LF_common_label_email') }}</label>
                             <input id="student-email" type="email" name="email" class="student-form-control"
                                    value="{{ old('email', $user->email) }}" required>
                         </div>
 
                         <div class="student-form-group">
-                            <label class="student-form-label" for="student-phone">Số điện thoại</label>
+                            <label class="student-form-label" for="student-phone">{{ __('lf.LF_common_label_phone') }}</label>
                             <input id="student-phone" type="text" name="phone" class="student-form-control"
                                    value="{{ old('phone', $user->phone) }}">
                         </div>
 
                         <div class="student-form-group">
-                            <label class="student-form-label" for="student-date-of-birth">Ngày sinh</label>
+                            <label class="student-form-label" for="student-date-of-birth">{{ __('lf.LF_common_label_date_of_birth') }}</label>
                             <input id="student-date-of-birth" type="date" name="date_of_birth"
                                    class="student-form-control" value="{{ old('date_of_birth', $user->date_of_birth) }}">
                         </div>
 
                         <div class="student-form-group">
-                            <label class="student-form-label" for="student-gender">Giới tính</label>
+                            <label class="student-form-label" for="student-gender">{{ __('lf.LF_common_label_gender') }}</label>
                             <select id="student-gender" name="gender" class="student-form-control">
-                                <option value="">Chọn giới tính</option>
-                                <option value="male" @selected(old('gender', $user->gender) === 'male')>Nam</option>
-                                <option value="female" @selected(old('gender', $user->gender) === 'female')>Nữ</option>
-                                <option value="other" @selected(old('gender', $user->gender) === 'other')>Khác</option>
+                                <option value="">{{ __('lf.LF_common_gender_common_select') }}</option>
+                                <option value="male" @selected(old('gender', $user->gender) === 'male')>{{ __('lf.LF_common_gender_common_male') }}</option>
+                                <option value="female" @selected(old('gender', $user->gender) === 'female')>{{ __('lf.LF_common_gender_common_female') }}</option>
+                                <option value="other" @selected(old('gender', $user->gender) === 'other')>{{ __('lf.LF_common_gender_common_other') }}</option>
                             </select>
                         </div>
 
                         <div class="student-form-group student-form-span">
-                            <label class="student-form-label" for="student-role">Vai trò</label>
-                            <input id="student-role" type="text" class="student-form-control" value="Học viên" disabled>
+                            <label class="student-form-label" for="student-role">{{ __('lf.LF_common_label_role') }}</label>
+                            <input id="student-role" type="text" class="student-form-control" value="{{ __('lf.LF_common_role_student_student') }}" disabled>
                         </div>
                     </div>
 
                     <div class="student-form-actions">
-                        <button type="submit" class="student-button">Lưu thay đổi</button>
+                        <button type="submit" class="student-button">{{ __('lf.LF_common_button_save_changes') }}</button>
                     </div>
                 </form>
             </section>
 
-            <aside class="student-profile-sidebar" aria-label="Cài đặt hồ sơ">
+            <aside class="student-profile-sidebar" aria-label="{{ __('lf.LF_profile_label_student_settings') }}">
                 <section class="student-card student-profile-side-card">
                     <span class="student-profile-side-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -97,12 +97,12 @@
                         </svg>
                     </span>
                     <div class="student-profile-side-copy">
-                        <h2>Bảo mật tài khoản</h2>
-                        <p>Cập nhật mật khẩu định kỳ để bảo vệ tài khoản học tập của bạn.</p>
+                        <h2>{{ __('lf.LF_profile_section_student_security') }}</h2>
+                        <p>{{ __('lf.LF_profile_message_student_security') }}</p>
                     </div>
                     <button type="button" class="student-button is-outline" x-data
                             x-on:click="$dispatch('open-modal', 'change-password')">
-                        Đổi mật khẩu
+                        {{ __('lf.LF_common_button_common_change_password') }}
                     </button>
                 </section>
 
@@ -114,28 +114,28 @@
                         </svg>
                     </span>
                     <div class="student-profile-side-copy">
-                        <h2>Ngôn ngữ</h2>
-                        <p>Ngôn ngữ giao diện hiện tại</p>
+                        <h2>{{ __('lf.LF_profile_label_student_language') }}</h2>
+                        <p>{{ __('lf.LF_profile_message_student_language') }}</p>
                     </div>
                     <div class="student-profile-setting-value">
-                        <span>VI</span>
-                        Tiếng Việt
+                        <span>{{ __('lf.LF_common_label_common_language_code') }}</span>
+                        {{ __('lf.LF_profile_value_student_vietnamese') }}
                     </div>
                 </section>
 
                 <section class="student-card student-profile-side-card">
                     <div class="student-profile-progress-heading">
                         <div>
-                            <p class="student-profile-card-label">Tiến độ hồ sơ</p>
-                            <h2>Hồ sơ của bạn</h2>
+                            <p class="student-profile-card-label">{{ __('lf.LF_profile_section_student_progress') }}</p>
+                            <h2>{{ __('lf.LF_profile_title_student_your_profile') }}</h2>
                         </div>
                         <strong>80%</strong>
                     </div>
-                    <div class="student-profile-progress-track" aria-label="Tiến độ hồ sơ 80%">
+                    <div class="student-profile-progress-track" aria-label="{{ __('lf.LF_profile_label_student_progress_aria') }}">
                         <span></span>
                     </div>
                     <p class="student-profile-progress-copy">
-                        Bổ sung đầy đủ thông tin để nhận trải nghiệm học tập phù hợp hơn.
+                        {{ __('lf.LF_profile_message_student_progress') }}
                     </p>
                 </section>
             </aside>

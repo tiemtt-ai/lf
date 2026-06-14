@@ -32,33 +32,33 @@ class RoleProfileTest extends TestCase
         $teacherProfileResponse = $this->actingAs($teacher)
             ->get('https://tenant-a.localhost/teacher/profile')
             ->assertOk()
-            ->assertSeeText('Profile Information')
-            ->assertSeeText('Change Password')
+            ->assertSeeText(__('lf.LF_profile_title_common_information'))
+            ->assertSeeText(__('lf.LF_common_button_common_change_password'))
             ->assertSee('open-modal')
             ->assertSee('name="current_password"', false)
             ->assertSee('name="password_confirmation"', false)
-            ->assertSeeText('Name')
-            ->assertSeeText('Email')
-            ->assertSeeText('Phone')
-            ->assertSeeText('Date of Birth')
-            ->assertSeeText('Gender')
-            ->assertSeeText('Role')
-            ->assertSee('value="Teacher"', false);
+            ->assertSeeText(__('lf.LF_common_label_name'))
+            ->assertSeeText(__('lf.LF_common_label_email'))
+            ->assertSeeText(__('lf.LF_common_label_phone'))
+            ->assertSeeText(__('lf.LF_common_label_date_of_birth'))
+            ->assertSeeText(__('lf.LF_common_label_gender'))
+            ->assertSeeText(__('lf.LF_common_label_role'))
+            ->assertSee('value="'.__('lf.LF_common_role_teacher_teacher').'"', false);
 
         $teacherProfileResponse
             ->assertSee('href="https://tenant-a.localhost/teacher"', false)
             ->assertSee('href="https://tenant-a.localhost/teacher/profile"', false)
             ->assertDontSee('href="https://tenant-a.localhost/admin"', false)
-            ->assertSeeText('My Courses')
-            ->assertSeeText('Live Classes')
-            ->assertSeeText('AI Assistant')
+            ->assertSeeText(__('lf.LF_navigation_menu_student_my_courses'))
+            ->assertSeeText(__('lf.LF_navigation_menu_teacher_live_classes'))
+            ->assertSeeText(__('lf.LF_navigation_menu_teacher_ai_assistant'))
             ->assertSee('class="admin-sidebar-menu is-teacher"', false);
 
         $this->actingAs($teacher)
             ->get('https://tenant-a.localhost/teacher')
             ->assertOk()
-            ->assertSeeText('Pending Gradings')
-            ->assertSeeText('Upcoming Live Classes')
+            ->assertSeeText(__('lf.LF_teacher_title_teacher_pending_gradings'))
+            ->assertSeeText(__('lf.LF_teacher_title_teacher_upcoming_classes'))
             ->assertSee('href="https://tenant-a.localhost/teacher/profile"', false)
             ->assertDontSee('href="https://tenant-a.localhost/admin"', false);
 
@@ -69,7 +69,7 @@ class RoleProfileTest extends TestCase
         $this->actingAs($student)
             ->get('https://tenant-a.localhost/profile')
             ->assertOk()
-            ->assertSee('value="Student"', false);
+            ->assertSee('value="'.__('lf.LF_common_role_student_student').'"', false);
 
         $this->actingAs($student)
             ->get('https://tenant-a.localhost/teacher/profile')

@@ -1,13 +1,13 @@
 @extends('layouts.public')
 
-@section('title', 'LearnForge Features')
+@section('title', __('lf.LF_home_title_public_features_page'))
 
 @section('content')
     <header class="public-page-heading">
         <div class="public-container">
-            <span class="public-eyebrow">Features</span>
-            <h1>Core capabilities for modern learning operations.</h1>
-            <p>Manage the full learning lifecycle while keeping tenant data isolated and ready for analytics and AI.</p>
+            <span class="public-eyebrow">{{ __('lf.LF_common_title_public_features') }}</span>
+            <h1>{{ __('lf.LF_home_message_public_features_title') }}</h1>
+            <p>{{ __('lf.LF_home_message_public_features_description') }}</p>
         </div>
     </header>
 
@@ -15,15 +15,15 @@
         <div class="public-container">
             <div class="public-card-grid">
                 @foreach ([
-                    ['Course Management', 'Organize courses, lessons and learning materials.'],
-                    ['Assessment Engine', 'Create and manage exams, quizzes and evaluations.'],
-                    ['AI Learning Assistant', 'Support learners with AI-native guidance and insights.'],
-                    ['Media Learning', 'Deliver video, document and media-based learning.'],
-                    ['Role Portals', 'Focused workspaces for admins, teachers and students.'],
-                    ['Learning Analytics', 'Track activity, progress and learning outcomes.'],
-                    ['Live Classes', 'Coordinate synchronous learning experiences.'],
-                    ['Multi-Tenant SaaS', 'Isolate customer data on shared infrastructure.'],
-                    ['Reports', 'Turn learning data into operational information.'],
+                    [__('lf.LF_home_card_public_course_management_title'), __('lf.LF_home_card_public_course_management_description')],
+                    [__('lf.LF_home_card_public_assessment_engine_title'), __('lf.LF_home_card_public_assessment_engine_description')],
+                    [__('lf.LF_home_card_public_ai_learning_title'), __('lf.LF_home_card_public_ai_learning_description')],
+                    [__('lf.LF_home_card_public_media_learning_title'), __('lf.LF_home_card_public_media_learning_description')],
+                    [__('lf.LF_home_card_public_role_portals_title'), __('lf.LF_home_card_public_role_portals_description')],
+                    [__('lf.LF_home_card_public_learning_analytics_title'), __('lf.LF_home_card_public_learning_analytics_description')],
+                    [__('lf.LF_home_card_public_live_classes_title'), __('lf.LF_home_card_public_live_classes_description')],
+                    [__('lf.LF_home_card_public_multi_tenant_title'), __('lf.LF_home_card_public_multi_tenant_description')],
+                    [__('lf.LF_home_card_public_reports_title'), __('lf.LF_home_card_public_reports_description')],
                 ] as $index => [$title, $description])
                     <article class="public-card">
                         <span class="public-card-number">{{ str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) }}</span>

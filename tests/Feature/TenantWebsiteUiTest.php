@@ -29,20 +29,20 @@ class TenantWebsiteUiTest extends TestCase
 
         $this->get('https://tenant-a.localhost/')
             ->assertOk()
-            ->assertSeeText('Home')
-            ->assertSeeText('Courses')
-            ->assertSeeText('Assessments')
-            ->assertSeeText('Services')
-            ->assertSeeText('Teachers')
-            ->assertSeeText('About')
-            ->assertSeeText('Contact')
-            ->assertSeeText('Login')
-            ->assertSeeText('Featured Courses')
-            ->assertSeeText('Featured Services')
-            ->assertSeeText('News')
-            ->assertSeeText('Contact / CTA')
-            ->assertDontSeeText('Learning History')
-            ->assertSeeText('Login to Register / Login to Purchase');
+            ->assertSeeText(__('lf.LF_navigation_menu_public_home'))
+            ->assertSeeText(__('lf.LF_navigation_menu_public_courses'))
+            ->assertSeeText(__('lf.LF_navigation_menu_public_assessments'))
+            ->assertSeeText(__('lf.LF_navigation_menu_public_services'))
+            ->assertSeeText(__('lf.LF_navigation_menu_public_teachers'))
+            ->assertSeeText(__('lf.LF_navigation_menu_public_about'))
+            ->assertSeeText(__('lf.LF_navigation_menu_public_contact'))
+            ->assertSeeText(__('lf.LF_navigation_menu_guest_login'))
+            ->assertSeeText(__('lf.LF_home_public_featured_courses'))
+            ->assertSeeText(__('lf.LF_home_public_featured_services'))
+            ->assertSeeText(__('lf.LF_home_public_news'))
+            ->assertSeeText(__('lf.LF_home_public_contact_cta'))
+            ->assertDontSeeText(__('lf.LF_navigation_menu_student_learning_history'))
+            ->assertSeeText(__('lf.LF_course_card_guest_login_register_purchase'));
     }
 
     public function test_verified_student_sees_public_and_personalized_content_on_the_same_homepage(): void
@@ -53,19 +53,19 @@ class TenantWebsiteUiTest extends TestCase
         $this->actingAs($student)
             ->get('https://tenant-a.localhost/')
             ->assertOk()
-            ->assertSeeText('Featured Courses')
-            ->assertSeeText('Featured Services')
-            ->assertSeeText('Teachers')
-            ->assertSeeText('News')
-            ->assertSeeText('My Courses')
-            ->assertSeeText('Learning History')
-            ->assertSeeText('AI Tutor')
-            ->assertSeeText('Profile')
-            ->assertSeeText('Logout')
-            ->assertSeeText('Continue Learning')
-            ->assertSeeText('Upcoming Activities')
-            ->assertSeeText('Pending Assessments')
-            ->assertSeeText('AI Recommendations')
+            ->assertSeeText(__('lf.LF_home_public_featured_courses'))
+            ->assertSeeText(__('lf.LF_home_public_featured_services'))
+            ->assertSeeText(__('lf.LF_navigation_menu_public_teachers'))
+            ->assertSeeText(__('lf.LF_home_public_news'))
+            ->assertSeeText(__('lf.LF_navigation_menu_student_my_courses'))
+            ->assertSeeText(__('lf.LF_navigation_menu_student_learning_history'))
+            ->assertSeeText(__('lf.LF_navigation_menu_student_ai_tutor'))
+            ->assertSeeText(__('lf.LF_navigation_menu_student_profile'))
+            ->assertSeeText(__('lf.LF_navigation_menu_student_logout'))
+            ->assertSeeText(__('lf.LF_home_student_continue_learning'))
+            ->assertSeeText(__('lf.LF_home_student_upcoming_activities'))
+            ->assertSeeText(__('lf.LF_home_student_pending_assessments'))
+            ->assertSeeText(__('lf.LF_home_student_ai_recommendations'))
             ->assertSee('href="https://tenant-a.localhost/profile"', false)
             ->assertSee('action="https://tenant-a.localhost/logout"', false);
     }
@@ -101,18 +101,18 @@ class TenantWebsiteUiTest extends TestCase
 
         $this->get('https://tenant-a.localhost/courses')
             ->assertOk()
-            ->assertSeeText('Login to Register / Login to Purchase');
+            ->assertSeeText(__('lf.LF_course_card_guest_login_register_purchase'));
 
         $this->actingAs($student)
             ->get('https://tenant-a.localhost/courses')
             ->assertOk()
-            ->assertSeeText('Continue Learning')
-            ->assertSeeText('View Progress')
-            ->assertSeeText('Take Assessments')
-            ->assertSeeText('Register')
-            ->assertSeeText('Purchase')
-            ->assertSeeText('Add To Favorites')
-            ->assertSeeText('Remove Favorite');
+            ->assertSeeText(__('lf.LF_course_card_student_continue_learning'))
+            ->assertSeeText(__('lf.LF_course_card_student_view_progress'))
+            ->assertSeeText(__('lf.LF_course_card_student_take_assessments'))
+            ->assertSeeText(__('lf.LF_course_card_student_register'))
+            ->assertSeeText(__('lf.LF_course_card_student_purchase'))
+            ->assertSeeText(__('lf.LF_course_card_student_add_to_favorites'))
+            ->assertSeeText(__('lf.LF_course_card_student_remove_favorite'));
     }
 
     private function createTenant(): int

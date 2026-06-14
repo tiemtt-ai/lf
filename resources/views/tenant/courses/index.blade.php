@@ -1,12 +1,12 @@
 @extends('layouts.tenant')
 
-@section('title', 'Courses | '.($tenant?->name ?? 'LearnForge'))
+@section('title', __('lf.LF_course_title_public_courses').' | '.($tenant?->name ?? __('lf.LF_common_brand_name')))
 
 @section('content')
     <header class="student-page-heading tenant-page-heading">
-        <p class="student-eyebrow">Course Catalog</p>
-        <h1>Courses</h1>
-        <p>Compare course details, teachers, curriculum and pricing before you register.</p>
+        <p class="student-eyebrow">{{ __('lf.LF_course_title_public_catalog') }}</p>
+        <h1>{{ __('lf.LF_course_title_public_courses') }}</h1>
+        <p>{{ __('lf.LF_course_message_public_catalog_description') }}</p>
     </header>
 
     <div class="tenant-course-grid">

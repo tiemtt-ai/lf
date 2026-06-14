@@ -95,6 +95,11 @@
     cursor: pointer;
 }
 
+.admin-language {
+    min-width: 28px;
+    font-weight: 400;
+}
+
 .admin-account-trigger img,
 .admin-language img {
     height: 16px;

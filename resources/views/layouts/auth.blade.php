@@ -3,14 +3,14 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Đăng nhập - Master Korean</title>
+    <title>{{ __('lf.LF_auth_login_title') }} - Master Korean</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="auth-page">
 <header class="auth-header auth-header-top">
     <div class="auth-container">
-        <div class="auth-partner-logos" aria-label="Partner brands">
+        <div class="auth-partner-logos" aria-label="{{ __('lf.LF_common_navigation_common_partner_brands') }}">
             @foreach (range(1, 4) as $partner)
                 <img src="{{ asset("assets/admin/partner-{$partner}.png") }}" alt="">
             @endforeach
@@ -19,32 +19,30 @@
         <div class="auth-top-actions">
             <a class="auth-top-action" href="{{ auth()->check() ? route('dashboard') : route('login') }}">
                 <img src="{{ asset('assets/admin/account.svg') }}" alt="">
-                Tài khoản
+                {{ __('lf.LF_auth_account_common_label') }}
             </a>
-            <div class="auth-top-action">
-                <img src="{{ asset('assets/admin/language.png') }}" alt="">
-                VI
-                <span class="auth-chevron" aria-hidden="true"></span>
-            </div>
+            @include('partials.language-switcher', ['attributes' => new \Illuminate\View\ComponentAttributeBag([
+                'class' => 'auth-top-action',
+            ])])
         </div>
     </div>
 </header>
 
-<nav class="auth-header auth-header-nav" aria-label="Public navigation">
+<nav class="auth-header auth-header-nav" aria-label="{{ __('lf.LF_common_navigation_public_label') }}">
     <div class="auth-container">
         <img class="auth-brand-logo" src="{{ asset('assets/admin/brand-logo.png') }}" alt="Master Korean">
 
         <div class="auth-primary-menu" aria-hidden="true">
-            <span>Khoá học <i class="auth-chevron"></i></span>
-            <span>Đề thi</span>
-            <span>Giáo trình</span>
-            <span>Giảng viên</span>
-            <span>Cộng đồng</span>
-            <span>Level Test</span>
-            <span>Visang Video <i class="auth-chevron"></i></span>
+            <span>{{ __('lf.LF_navigation_menu_public_courses') }} <i class="auth-chevron"></i></span>
+            <span>{{ __('lf.LF_navigation_menu_admin_exams') }}</span>
+            <span>{{ __('lf.LF_navigation_menu_admin_curriculum') }}</span>
+            <span>{{ __('lf.LF_navigation_menu_public_teachers') }}</span>
+            <span>{{ __('lf.LF_navigation_menu_admin_community') }}</span>
+            <span>{{ __('lf.LF_navigation_menu_admin_level_test') }}</span>
+            <span>{{ __('lf.LF_navigation_menu_admin_visang_video') }} <i class="auth-chevron"></i></span>
         </div>
 
-        <img class="auth-search" src="{{ asset('assets/admin/search.png') }}" alt="Search">
+        <img class="auth-search" src="{{ asset('assets/admin/search.png') }}" alt="{{ __('lf.LF_common_button_search') }}">
     </div>
 </nav>
 
@@ -59,8 +57,8 @@
                 <div class="admin-footer-logo">
                     <img src="{{ asset('assets/admin/brand-logo.png') }}" alt="Master Korean">
                 </div>
-                <h4>Công ty TNHH Giáo dục Visang Việt Nam</h4>
-                <p>Địa chỉ: Tầng 2, FLC Landmark Tower, đường Lê Đức Thọ, phường Từ Liêm, thành phố Hà Nội, Việt Nam</p>
+                <h4>{{ __('lf.LF_common_footer_common_company') }}</h4>
+                <p>{{ __('lf.LF_common_footer_common_address') }}</p>
                 <h4 class="admin-footer-contact" style="margin-top: 30px">
                     <img src="{{ asset('assets/admin/footer/phone.png') }}" alt="">
                     0243-6886-333 / 0912-801-848
@@ -72,30 +70,30 @@
             </div>
 
             <div class="admin-footer-column">
-                <h3>Về công ty</h3>
-                <a href="#">Giới thiệu</a>
-                <a href="#">Tài liệu pháp lý</a>
-                <a href="#">Khóa học</a>
-                <a href="#">Giảng viên</a>
+                <h3>{{ __('lf.LF_common_footer_common_about_company') }}</h3>
+                <a href="#">{{ __('lf.LF_common_footer_common_introduction') }}</a>
+                <a href="#">{{ __('lf.LF_common_footer_common_legal_documents') }}</a>
+                <a href="#">{{ __('lf.LF_navigation_menu_public_courses') }}</a>
+                <a href="#">{{ __('lf.LF_navigation_menu_public_teachers') }}</a>
             </div>
 
             <div class="admin-footer-column">
-                <h3>Hỗ trợ</h3>
-                <a href="#">Hỏi đáp</a>
-                <a href="#">Quy chế hoạt động</a>
-                <a href="#">Chính sách bảo mật</a>
+                <h3>{{ __('lf.LF_common_footer_common_support') }}</h3>
+                <a href="#">{{ __('lf.LF_common_footer_common_faq') }}</a>
+                <a href="#">{{ __('lf.LF_common_footer_common_operating_rules') }}</a>
+                <a href="#">{{ __('lf.LF_common_footer_common_privacy_policy') }}</a>
             </div>
         </div>
 
         <div class="admin-footer-bottom">
             <div class="admin-footer-legal">
-                <p>Copyright © VISANG Education Group Vietnam Company</p>
-                <p>MST: 0109066143 do Sở KH & ĐT thành phố Hà Nội cấp ngày 14/01/2020 Người đại diện: Mr. Lee Young Geun</p>
+                <p>{{ __('lf.LF_common_footer_common_copyright') }}</p>
+                <p>{{ __('lf.LF_common_footer_common_legal_notice') }}</p>
             </div>
 
             <div class="admin-footer-certificates">
                 <img class="admin-footer-bct" src="{{ asset('assets/admin/footer/bct.png') }}"
-                     alt="Đã thông báo Bộ Công Thương">
+                     alt="{{ __('lf.LF_common_image_common_trade_notice') }}">
                 <img class="admin-footer-aws" src="{{ asset('assets/admin/footer/aws.png') }}"
                      alt="AWS Qualified Software">
             </div>

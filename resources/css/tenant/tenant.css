@@ -185,6 +185,19 @@
     gap: 8px;
 }
 
+.student-language-switcher {
+    min-width: 42px;
+    min-height: 42px;
+    padding: 0 10px;
+    border: 1px solid var(--student-border);
+    border-radius: 999px;
+    color: var(--student-primary);
+    background: #ffffff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
 .student-icon-button,
 .student-account-trigger,
 .student-mobile-trigger {

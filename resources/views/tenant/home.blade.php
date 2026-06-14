@@ -7,15 +7,15 @@
         <div class="student-hero-content">
             <p class="student-eyebrow">
                 <span class="student-eyebrow-dot"></span>
-                {{ $studentMode ? 'Welcome back, '.auth()->user()->name : 'Learn. Grow. Achieve.' }}
+                {{ $studentMode ? __('lf.LF_home_student_banner_welcome', ['name' => auth()->user()->name]) : __('lf.LF_home_public_banner_eyebrow') }}
             </p>
-            <h1>{{ $studentMode ? 'Your learning, connected to everything we offer.' : 'Build skills that move you forward.' }}</h1>
+            <h1>{{ $studentMode ? __('lf.LF_home_student_banner_title') : __('lf.LF_home_public_banner_title') }}</h1>
             <p class="student-hero-copy">
-                Explore courses, assessments and expert services from {{ $tenant->name }}.
+                {{ __('lf.LF_home_public_banner_description', ['tenant' => $tenant->name]) }}
             </p>
             <div class="student-hero-actions">
-                <a class="student-button" href="{{ route('tenant.courses.index') }}">Explore Courses</a>
-                <a class="student-button is-light" href="{{ route('public.services') }}">View Services</a>
+                <a class="student-button" href="{{ route('tenant.courses.index') }}">{{ __('lf.LF_home_public_explore_courses') }}</a>
+                <a class="student-button is-light" href="{{ route('public.services') }}">{{ __('lf.LF_home_public_view_services') }}</a>
             </div>
         </div>
     </section>
@@ -24,34 +24,34 @@
         <section class="tenant-personalized-section" aria-labelledby="personalized-heading">
             <div class="student-section-header">
                 <div>
-                    <p class="student-eyebrow">Personalized for you</p>
-                    <h2 class="student-section-title" id="personalized-heading">Continue Learning</h2>
+                    <p class="student-eyebrow">{{ __('lf.LF_home_student_personalized') }}</p>
+                    <h2 class="student-section-title" id="personalized-heading">{{ __('lf.LF_home_student_continue_learning') }}</h2>
                 </div>
-                <a class="student-text-link" href="{{ route('student.courses.index') }}">My Courses</a>
+                <a class="student-text-link" href="{{ route('student.courses.index') }}">{{ __('lf.LF_navigation_menu_student_my_courses') }}</a>
             </div>
 
             <div class="student-stat-grid">
                 <article class="student-card student-stat-card">
-                    <div><p class="student-stat-value">72%</p><p class="student-stat-label">Continue Learning</p></div>
+                    <div><p class="student-stat-value">72%</p><p class="student-stat-label">{{ __('lf.LF_home_student_continue_learning') }}</p></div>
                 </article>
                 <article class="student-card student-stat-card">
-                    <div><p class="student-stat-value">3</p><p class="student-stat-label">My Courses</p></div>
+                    <div><p class="student-stat-value">3</p><p class="student-stat-label">{{ __('lf.LF_navigation_menu_student_my_courses') }}</p></div>
                 </article>
                 <article class="student-card student-stat-card">
-                    <div><p class="student-stat-value">2</p><p class="student-stat-label">Upcoming Activities</p></div>
+                    <div><p class="student-stat-value">2</p><p class="student-stat-label">{{ __('lf.LF_home_student_upcoming_activities') }}</p></div>
                 </article>
                 <article class="student-card student-stat-card">
-                    <div><p class="student-stat-value">1</p><p class="student-stat-label">Pending Assessments</p></div>
+                    <div><p class="student-stat-value">1</p><p class="student-stat-label">{{ __('lf.LF_home_student_pending_assessments') }}</p></div>
                 </article>
             </div>
 
             <article class="student-card tenant-ai-recommendation">
                 <div>
-                    <p class="student-profile-card-label">AI Recommendations</p>
-                    <h3>Review workplace vocabulary before your next lesson.</h3>
-                    <p>Your recent activity suggests a short vocabulary review will help reinforce this week’s course.</p>
+                    <p class="student-profile-card-label">{{ __('lf.LF_home_student_ai_recommendations') }}</p>
+                    <h3>{{ __('lf.LF_home_student_ai_title') }}</h3>
+                    <p>{{ __('lf.LF_home_student_ai_description') }}</p>
                 </div>
-                <a class="student-button is-outline" href="{{ route('student.ai-tutor') }}">Ask AI Tutor</a>
+                <a class="student-button is-outline" href="{{ route('student.ai-tutor') }}">{{ __('lf.LF_home_student_ask_ai_tutor') }}</a>
             </article>
         </section>
     @endif
@@ -59,10 +59,10 @@
     <section class="student-card student-section tenant-section">
         <div class="student-section-header">
             <div>
-                <p class="student-profile-card-label">Featured Courses</p>
-                <h2 class="student-section-title">Learn with a clear path</h2>
+                <p class="student-profile-card-label">{{ __('lf.LF_home_public_featured_courses') }}</p>
+                <h2 class="student-section-title">{{ __('lf.LF_home_public_courses_title') }}</h2>
             </div>
-            <a class="student-text-link" href="{{ route('tenant.courses.index') }}">View all courses</a>
+            <a class="student-text-link" href="{{ route('tenant.courses.index') }}">{{ __('lf.LF_home_public_view_all_courses') }}</a>
         </div>
         <div class="tenant-course-grid">
             @foreach ($courses as $course)
@@ -73,30 +73,30 @@
 
     <section class="tenant-feature-grid">
         <article class="student-card student-section">
-            <p class="student-profile-card-label">Featured Services</p>
-            <h2 class="student-section-title">Coaching and workshops</h2>
-            <p class="student-section-copy">Register for mentoring, live workshops and learning support services.</p>
-            <a class="student-text-link" href="{{ route('public.services') }}">Explore services</a>
+            <p class="student-profile-card-label">{{ __('lf.LF_home_public_featured_services') }}</p>
+            <h2 class="student-section-title">{{ __('lf.LF_home_public_services_title') }}</h2>
+            <p class="student-section-copy">{{ __('lf.LF_home_public_services_description') }}</p>
+            <a class="student-text-link" href="{{ route('public.services') }}">{{ __('lf.LF_home_public_explore_services') }}</a>
         </article>
         <article class="student-card student-section">
-            <p class="student-profile-card-label">Teachers</p>
-            <h2 class="student-section-title">Learn from experienced educators</h2>
-            <p class="student-section-copy">Meet teachers with practical expertise and learner-focused methods.</p>
-            <a class="student-text-link" href="{{ route('tenant.teachers') }}">Meet our teachers</a>
+            <p class="student-profile-card-label">{{ __('lf.LF_navigation_menu_public_teachers') }}</p>
+            <h2 class="student-section-title">{{ __('lf.LF_home_public_teachers_title') }}</h2>
+            <p class="student-section-copy">{{ __('lf.LF_home_public_teachers_description') }}</p>
+            <a class="student-text-link" href="{{ route('tenant.teachers') }}">{{ __('lf.LF_home_public_meet_teachers') }}</a>
         </article>
         <article class="student-card student-section">
-            <p class="student-profile-card-label">News</p>
-            <h2 class="student-section-title">New learning events this month</h2>
-            <p class="student-section-copy">Join live practice sessions and discover newly published courses.</p>
+            <p class="student-profile-card-label">{{ __('lf.LF_home_public_news') }}</p>
+            <h2 class="student-section-title">{{ __('lf.LF_home_public_news_title') }}</h2>
+            <p class="student-section-copy">{{ __('lf.LF_home_public_news_description') }}</p>
         </article>
     </section>
 
     <section class="student-card tenant-contact-cta">
         <div>
-            <p class="student-profile-card-label">Contact / CTA</p>
-            <h2>Not sure where to start?</h2>
-            <p>Talk with our team about the right course or service for your goals.</p>
+            <p class="student-profile-card-label">{{ __('lf.LF_home_public_contact_cta') }}</p>
+            <h2>{{ __('lf.LF_home_public_contact_title') }}</h2>
+            <p>{{ __('lf.LF_home_public_contact_description') }}</p>
         </div>
-        <a class="student-button" href="{{ route('tenant.contact') }}">Contact Us</a>
+        <a class="student-button" href="{{ route('tenant.contact') }}">{{ __('lf.LF_home_public_contact_us') }}</a>
     </section>
 @endsection

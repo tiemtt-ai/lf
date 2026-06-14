@@ -24,6 +24,13 @@ Route::get('/features', [PublicSiteController::class, 'features'])
 Route::get('/pricing', [PublicSiteController::class, 'pricing'])
     ->name('public.pricing');
 
+Route::post('/language/{locale}', function (string $locale) {
+    session(['locale' => $locale]);
+
+    return redirect()->back();
+})->whereIn('locale', ['vi', 'en'])
+    ->name('language.update');
+
 Route::middleware('root.domain')->group(function () {
     Route::get('/register-customer', [CustomerRegisterController::class, 'show'])
         ->name('customer.register');

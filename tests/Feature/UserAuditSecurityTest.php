@@ -118,7 +118,7 @@ class UserAuditSecurityTest extends TestCase
         $response = $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/users/'.$admin->id.'/edit')
             ->assertOk()
-            ->assertSeeText('Change My Password')
+            ->assertSeeText(__('lf.LF_profile_button_admin_change_my_password'))
             ->assertSee('name="current_password"', false)
             ->assertSee('name="password"', false)
             ->assertSee('name="password_confirmation"', false);
@@ -202,7 +202,7 @@ class UserAuditSecurityTest extends TestCase
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/users/'.$target->id.'/edit')
             ->assertOk()
-            ->assertSeeText('Change User Password')
+            ->assertSeeText(__('lf.LF_profile_button_admin_change_user_password'))
             ->assertSee('change-user-password')
             ->assertSee('name="password_reset"', false)
             ->assertDontSee('name="current_password"', false)

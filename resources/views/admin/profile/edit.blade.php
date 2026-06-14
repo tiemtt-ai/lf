@@ -1,7 +1,7 @@
 @extends('layouts.backend')
 
-@section('title', 'Settings')
-@section('page_title', 'Settings')
+@section('title', __('lf.LF_profile_title_admin_settings'))
+@section('page_title', __('lf.LF_profile_title_admin_settings'))
 
 @section('content')
     @php
@@ -25,7 +25,7 @@
         </div>
     @endif
 
-    <h2 class="sr-only">Profile Information</h2>
+    <h2 class="sr-only">{{ __('lf.LF_profile_title_common_information') }}</h2>
 
     <form method="POST" action="{{ route('admin.profile.update') }}">
         @csrf
@@ -34,39 +34,39 @@
         <table class="admin-form-grid">
             <tbody>
             <tr>
-                <td class="admin-form-label">Username</td>
+                <td class="admin-form-label">{{ __('lf.LF_profile_label_admin_username') }}</td>
                 <td>{{ $user->name }}</td>
-                <td class="admin-form-label">Ngày đăng ký:</td>
+                <td class="admin-form-label">{{ __('lf.LF_profile_label_admin_registration_date') }}</td>
                 <td>{{ $user->created_at ? \Illuminate\Support\Carbon::parse($user->created_at)->format('d/m/Y') : '01/01/1970' }}</td>
             </tr>
             <tr>
                 <td class="admin-form-label">
-                    <label for="admin_name">Tên</label>
+                    <label for="admin_name">{{ __('lf.LF_profile_label_admin_name') }}</label>
                 </td>
                 <td colspan="3">
                     <input id="admin_name" type="text" name="name" class="form-control"
-                           value="{{ old('name', $user->name) }}" placeholder="Name" required>
+                           value="{{ old('name', $user->name) }}" placeholder="{{ __('lf.LF_common_label_name') }}" required>
                 </td>
             </tr>
             <tr>
-                <td class="admin-form-label">Giới tính</td>
+                <td class="admin-form-label">{{ __('lf.LF_profile_label_admin_gender') }}</td>
                 <td colspan="3">
                     <div class="admin-radio-group">
                         <input id="admin_male" type="radio" name="gender" value="male"
                                @checked(old('gender', $user->gender) === 'male')>
-                        <label for="admin_male">Nam</label>
+                        <label for="admin_male">{{ __('lf.LF_common_gender_common_male') }}</label>
                         <input id="admin_female" type="radio" name="gender" value="female"
                                @checked(old('gender', $user->gender) === 'female')>
-                        <label for="admin_female">Nữ</label>
+                        <label for="admin_female">{{ __('lf.LF_common_gender_common_female') }}</label>
                         <input id="admin_other" type="radio" name="gender" value="other"
                                @checked(old('gender', $user->gender) === 'other')>
-                        <label for="admin_other">Khác</label>
+                        <label for="admin_other">{{ __('lf.LF_common_gender_common_other') }}</label>
                     </div>
                 </td>
             </tr>
             <tr>
                 <td class="admin-form-label">
-                    <label for="admin_phone">Số điện thoại</label>
+                    <label for="admin_phone">{{ __('lf.LF_profile_label_admin_phone') }}</label>
                 </td>
                 <td colspan="3">
                     <input id="admin_phone" type="text" name="phone" class="form-control"
@@ -75,7 +75,7 @@
             </tr>
             <tr>
                 <td class="admin-form-label">
-                    Email
+                    {{ __('lf.LF_common_label_email') }}
                 </td>
                 <td colspan="3">
                     {{ old('email', $user->email) }}
@@ -84,7 +84,7 @@
             </tr>
             <tr>
                 <td class="admin-form-label">
-                    Ngày sinh
+                    {{ __('lf.LF_profile_label_admin_birth_date') }}
                 </td>
                 <td colspan="3"
                     x-data="{
@@ -95,24 +95,24 @@
                     <input type="hidden" name="date_of_birth"
                            x-bind:value="day && month && year ? `${year}-${month}-${day}` : ''">
                     <div class="admin-birth-fields">
-                        <select class="form-control" x-model="day" aria-label="Day">
-                            <option value="">Ngày</option>
+                        <select class="form-control" x-model="day" aria-label="{{ __('lf.LF_common_label_day') }}">
+                            <option value="">{{ __('lf.LF_common_label_day') }}</option>
                             @foreach (range(1, 31) as $day)
                                 <option value="{{ str_pad((string) $day, 2, '0', STR_PAD_LEFT) }}">
                                     {{ $day }}
                                 </option>
                             @endforeach
                         </select>
-                        <select class="form-control" x-model="month" aria-label="Month">
-                            <option value="">Tháng</option>
+                        <select class="form-control" x-model="month" aria-label="{{ __('lf.LF_common_label_month') }}">
+                            <option value="">{{ __('lf.LF_common_label_month') }}</option>
                             @foreach (range(1, 12) as $month)
                                 <option value="{{ str_pad((string) $month, 2, '0', STR_PAD_LEFT) }}">
                                     {{ $month }}
                                 </option>
                             @endforeach
                         </select>
-                        <select class="form-control" x-model="year" aria-label="Year">
-                            <option value="">Năm</option>
+                        <select class="form-control" x-model="year" aria-label="{{ __('lf.LF_common_label_year') }}">
+                            <option value="">{{ __('lf.LF_common_label_year') }}</option>
                             @foreach (range((int) now()->format('Y'), 1940) as $year)
                                 <option value="{{ $year }}">{{ $year }}</option>
                             @endforeach
@@ -121,18 +121,18 @@
                 </td>
             </tr>
             <tr>
-                <td class="admin-form-label">Mật khẩu</td>
+                <td class="admin-form-label">{{ __('lf.LF_profile_label_admin_password') }}</td>
                 <td colspan="3">
                     <button type="button" class="btn btn-secondary" x-data
                             x-on:click="$dispatch('open-modal', 'change-password')">
-                        Change Password
+                        {{ __('lf.LF_common_button_common_change_password') }}
                     </button>
                 </td>
             </tr>
             <tr>
                 <td class="admin-form-label"></td>
                 <td colspan="3">
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="submit" class="btn btn-primary">{{ __('lf.LF_common_button_save_changes') }}</button>
                 </td>
             </tr>
             </tbody>
@@ -147,7 +147,7 @@
 
     <x-modal name="change-password" :show="$errors->updatePassword->any()" focusable>
         <div class="lf-modal-card">
-            <h2>Change Password</h2>
+            <h2>{{ __('lf.LF_profile_title_common_change_password') }}</h2>
 
             @if ($errors->updatePassword->any())
                 <div class="lf-alert-danger">
@@ -164,19 +164,19 @@
                 @method('PATCH')
 
                 <div class="lf-form-group">
-                    <label for="admin_current_password" class="lf-form-label">Current Password</label>
+                    <label for="admin_current_password" class="lf-form-label">{{ __('lf.LF_common_label_current_password') }}</label>
                     <input id="admin_current_password" type="password" name="current_password"
                            class="lf-form-control" autocomplete="current-password" required>
                 </div>
 
                 <div class="lf-form-group">
-                    <label for="admin_new_password" class="lf-form-label">New Password</label>
+                    <label for="admin_new_password" class="lf-form-label">{{ __('lf.LF_common_label_new_password') }}</label>
                     <input id="admin_new_password" type="password" name="password"
                            class="lf-form-control" autocomplete="new-password" required>
                 </div>
 
                 <div class="lf-form-group">
-                    <label for="admin_password_confirmation" class="lf-form-label">Confirm New Password</label>
+                    <label for="admin_password_confirmation" class="lf-form-label">{{ __('lf.LF_common_label_confirm_new_password') }}</label>
                     <input id="admin_password_confirmation" type="password" name="password_confirmation"
                            class="lf-form-control" autocomplete="new-password" required>
                 </div>
@@ -184,9 +184,9 @@
                 <div class="lf-modal-actions">
                     <button type="button" class="btn btn-secondary"
                             x-on:click="$dispatch('close-modal', 'change-password')">
-                        Cancel
+                        {{ __('lf.LF_common_button_cancel') }}
                     </button>
-                    <button type="submit" class="btn btn-primary">Change Password</button>
+                    <button type="submit" class="btn btn-primary">{{ __('lf.LF_common_button_common_change_password') }}</button>
                 </div>
             </form>
         </div>

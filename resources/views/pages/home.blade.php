@@ -1,20 +1,19 @@
 @extends('layouts.public')
 
-@section('title', 'LearnForge')
+@section('title', __('lf.LF_common_brand_name'))
 
 @section('content')
     <section class="public-hero">
         <div class="public-container">
             <div class="public-hero-content">
-                <span class="public-eyebrow">AI-Native Learning Platform</span>
-                <h1>Build and operate digital learning at scale.</h1>
+                <span class="public-eyebrow">{{ __('lf.LF_home_public_eyebrow') }}</span>
+                <h1>{{ __('lf.LF_home_public_title') }}</h1>
                 <p class="public-hero-lead">
-                    LearnForge combines learning management, assessments, analytics and AI capabilities
-                    in one multi-tenant platform.
+                    {{ __('lf.LF_home_public_description') }}
                 </p>
                 <div class="public-hero-actions">
-                    <a class="public-button" href="{{ route('customer.register') }}">Register Tenant</a>
-                    <a class="public-button is-secondary" href="{{ route('public.features') }}">Explore Features</a>
+                    <a class="public-button" href="{{ route('customer.register') }}">{{ __('lf.LF_home_public_register_tenant') }}</a>
+                    <a class="public-button is-secondary" href="{{ route('public.features') }}">{{ __('lf.LF_home_public_explore_features') }}</a>
                 </div>
             </div>
         </div>
@@ -23,25 +22,25 @@
     <section class="public-section">
         <div class="public-container">
             <div class="public-section-heading">
-                <h2>One platform for every learning role</h2>
-                <p>Dedicated back offices for operators and one tenant website for visitors and students.</p>
+                <h2>{{ __('lf.LF_home_public_roles_title') }}</h2>
+                <p>{{ __('lf.LF_home_public_roles_description') }}</p>
             </div>
 
             <div class="public-card-grid">
                 <article class="public-card">
                     <span class="public-card-number">01</span>
-                    <h3>Customer Admin</h3>
-                    <p>Manage users, courses, assessments, reports and tenant settings.</p>
+                    <h3>{{ __('lf.LF_common_role_admin_customer_admin') }}</h3>
+                    <p>{{ __('lf.LF_home_public_admin_description') }}</p>
                 </article>
                 <article class="public-card">
                     <span class="public-card-number">02</span>
-                    <h3>Teacher</h3>
-                    <p>Deliver courses, manage learners and monitor learning performance.</p>
+                    <h3>{{ __('lf.LF_common_role_teacher_teacher') }}</h3>
+                    <p>{{ __('lf.LF_home_public_teacher_description') }}</p>
                 </article>
                 <article class="public-card">
                     <span class="public-card-number">03</span>
-                    <h3>Student</h3>
-                    <p>Access lessons, assessments, progress tracking and AI learning support.</p>
+                    <h3>{{ __('lf.LF_common_role_student_student') }}</h3>
+                    <p>{{ __('lf.LF_home_public_student_description') }}</p>
                 </article>
             </div>
         </div>

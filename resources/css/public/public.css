@@ -89,6 +89,23 @@
     content: "";
 }
 
+.public-language-switcher {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0 10px;
+    border: 1px solid var(--public-border);
+    border-radius: 999px;
+    color: var(--public-primary);
+    background: #ffffff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.public-language-switcher:hover {
+    border-color: var(--public-primary);
+}
+
 .public-nav-cta,
 .public-button {
     min-height: 44px;
@@ -446,6 +463,11 @@
     .public-nav-cta {
         min-height: 38px;
         white-space: nowrap;
+    }
+
+    .public-language-switcher {
+        min-width: 38px;
+        min-height: 38px;
     }
 
     .public-card-grid,
