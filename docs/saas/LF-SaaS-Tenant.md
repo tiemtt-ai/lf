@@ -104,6 +104,86 @@ Corporate Training Center
 
 ---
 
+# Tenant Website Architecture
+
+Mỗi tenant sở hữu một website riêng.
+
+Website Tenant cung cấp ba chế độ trải nghiệm:
+
+```text
+Public Mode
+
+Student Mode
+
+Back Office Mode
+```
+
+---
+
+# Public Mode
+
+Dành cho Visitor trước khi login.
+
+Bao gồm:
+
+```text
+Homepage
+
+Course Catalog
+
+Service Catalog
+
+Teachers
+
+News
+
+Contact
+```
+
+---
+
+# Student Mode
+
+Student sử dụng chính Website Tenant sau khi login.
+
+Không chuyển Student sang portal riêng.
+
+Website Tenant hiển thị thêm:
+
+```text
+My Courses
+
+Learning History
+
+AI Tutor
+
+Student Profile
+```
+
+---
+
+# Back Office Mode
+
+Customer Admin và Teacher sử dụng khu vực vận hành riêng.
+
+```text
+customer_admin
+
+↓
+
+/admin
+```
+
+```text
+teacher
+
+↓
+
+/teacher
+```
+
+---
+
 # Multi-Tenant Strategy
 
 LearnForge sử dụng:
@@ -656,7 +736,7 @@ Validate Tenant Ownership
 
 ↓
 
-Portal Access
+Role-Based Experience
 ```
 
 ---

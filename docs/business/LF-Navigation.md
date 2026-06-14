@@ -75,7 +75,7 @@ Authentication
 
 ↓
 
-Portal
+Role Experience
 
 ↓
 
@@ -101,9 +101,15 @@ Cho khách chưa đăng nhập.
 ```text
 /
 
-/about
+/courses
 
-/pricing
+/assessments
+
+/services
+
+/teachers
+
+/about
 
 /contact
 
@@ -119,9 +125,15 @@ Cho khách chưa đăng nhập.
 ```text
 Home
 
-About
+Courses
 
-Pricing
+Assessments
+
+Services
+
+Teachers
+
+About
 
 Contact
 
@@ -145,7 +157,7 @@ Login
 
 ↓
 
-Portal
+Personalized Tenant Website
 ```
 
 ---
@@ -217,7 +229,7 @@ student
 
 ↓
 
-/student
+/
 ```
 
 ---
@@ -620,22 +632,22 @@ Analyze Students
 
 # Layer 5
 
-Student Portal
+Student Experience
 
 ---
 
 # Entry Point
 
 ```text
-/student
+/
 ```
 
 ---
 
-# Student Dashboard
+# Tenant Website After Login
 
 ```text
-/student
+/
 ```
 
 ---
@@ -643,13 +655,23 @@ Student Portal
 # Main Menu
 
 ```text
-Dashboard
+Home
 
-My Courses
+Courses
 
 Assessments
 
-Live Classes
+Services
+
+Teachers
+
+About
+
+Contact
+
+My Courses
+
+Learning History
 
 AI Tutor
 
@@ -661,7 +683,7 @@ Profile
 # My Courses
 
 ```text
-/student/courses
+/my-courses
 ```
 
 ---
@@ -669,9 +691,13 @@ Profile
 # Features
 
 ```text
-Current Courses
+Enrolled Courses
+
+In Progress Courses
 
 Completed Courses
+
+Favorite Courses
 ```
 
 ---
@@ -679,21 +705,33 @@ Completed Courses
 # Course Detail
 
 ```text
-/student/courses/{id}
+/courses/{id}
 ```
 
 ---
 
-# Features
+# Course Not Enrolled
 
 ```text
-Lessons
+View Detail
 
-Media
+Register
 
-Assignments
+Purchase
+```
+
+---
+
+# Course Enrolled
+
+```text
+Continue Learning
 
 Progress
+
+Assessments
+
+Certificate
 ```
 
 ---
@@ -701,7 +739,7 @@ Progress
 # Assessments
 
 ```text
-/student/assessments
+/assessments
 ```
 
 ---
@@ -721,7 +759,7 @@ Review Attempts
 # Live Classes
 
 ```text
-/student/liveclasses
+/liveclasses
 ```
 
 ---
@@ -741,7 +779,7 @@ Replay
 # AI Tutor
 
 ```text
-/student/ai
+/ai-tutor
 ```
 
 ---
@@ -763,7 +801,7 @@ Recommendations
 # Profile
 
 ```text
-/student/profile
+/profile
 ```
 
 ---
@@ -776,6 +814,38 @@ Personal Info
 Learning Statistics
 
 Preferences
+```
+
+---
+
+# Student Homepage
+
+Trang chủ sau login vẫn giữ:
+
+```text
+Banner
+
+Featured Courses
+
+Featured Services
+
+Teachers
+
+News
+```
+
+và hiển thị thêm nội dung cá nhân hóa:
+
+```text
+Continue Learning
+
+My Courses
+
+Upcoming Activities
+
+Pending Assessments
+
+AI Recommendations
 ```
 
 ---
@@ -1022,13 +1092,15 @@ Navigation phải Tenant-Aware.
 
 ## Rule 4
 
-AI phải xuất hiện ở mọi Portal.
+AI phải xuất hiện trong mọi Role Experience.
 
 ---
 
 ## Rule 5
 
-Dashboard là điểm bắt đầu của mọi Role.
+Admin và Teacher bắt đầu tại Dashboard.
+
+Student bắt đầu tại Tenant Website.
 
 ---
 
@@ -1045,7 +1117,7 @@ Admin Portal
 
 Teacher Portal
 
-Student Portal
+Student Experience
 ```
 
 ---

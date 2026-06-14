@@ -262,6 +262,114 @@ Lưu trữ lịch sử.
 
 ---
 
+# Course Commerce Model
+
+LearnForge hỗ trợ:
+
+```text
+Free Courses
+
+Paid Courses
+
+Services
+```
+
+---
+
+# Public Course Access
+
+Visitor và Student chưa đăng ký có thể:
+
+```text
+View Course Detail
+
+View Teacher
+
+View Curriculum
+
+View Pricing
+```
+
+---
+
+# Student Course Access
+
+Nếu chưa đăng ký:
+
+```text
+Register
+
+Purchase
+
+Add To Favorites
+```
+
+Nếu đã đăng ký:
+
+```text
+Start Learning
+
+Continue Learning
+
+View Progress
+
+Take Assessments
+```
+
+---
+
+# Favorite Courses
+
+Favorite không đồng nghĩa với Enrollment.
+
+Student có thể:
+
+```text
+Add Favorite
+
+Remove Favorite
+```
+
+trước khi đăng ký khóa học.
+
+Favorite Courses được quản lý riêng và không trộn vào Enrollment.
+
+---
+
+# My Courses
+
+Bao gồm:
+
+```text
+Enrolled Courses
+
+In Progress Courses
+
+Completed Courses
+
+Favorite Courses
+
+Purchased Services
+```
+
+---
+
+# Learning History
+
+Bao gồm:
+
+```text
+Lesson Access
+
+Video Watch
+
+Assessment Attempts
+
+Completion History
+```
+
+---
+
 # Course Structure
 
 Một Course gồm nhiều Lesson.
@@ -826,6 +934,14 @@ Enrollments
 # Planned Scope
 
 ```text
+Course Commerce
+
+Wishlist
+
+Course Catalog
+
+Services
+
 Certificates
 
 Learning Paths

@@ -64,7 +64,7 @@ Validate Role
 
 ↓
 
-Redirect To Portal
+Redirect To Role Experience
 ```
 
 ---
@@ -90,7 +90,7 @@ Role Authorization
 
 ↓
 
-Portal Access Control
+Role Experience Access Control
 ```
 
 ---
@@ -421,11 +421,15 @@ Responsibilities:
 
 # Student
 
-Portal:
+Experience:
 
 ```text
-/student
+Tenant Website
 ```
+
+Student không có portal riêng.
+
+Student học trên Tenant Website sau login.
 
 Responsibilities:
 
@@ -450,12 +454,48 @@ switch ($user->role) {
         return redirect('/teacher');
 
     case 'student':
-        return redirect('/student');
+        return redirect('/');
 
     default:
         abort(403);
 }
 ```
+
+---
+
+# Student Authentication Experience
+
+Sau khi login, Student quay về:
+
+```text
+/
+```
+
+Website Tenant hiển thị Personalized Student Mode với:
+
+```text
+My Courses
+
+Learning History
+
+AI Tutor
+
+Student Profile
+```
+
+Không tạo:
+
+```text
+/student-login
+```
+
+Không sử dụng:
+
+```text
+/student
+```
+
+làm entry chính cho Student.
 
 ---
 

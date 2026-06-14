@@ -531,6 +531,42 @@ System Intelligence phải triệt để.
 
 ---
 
+# Principle 17
+
+One Website Experience
+
+Student không bị chuyển từ Website A sang Portal B sau khi đăng nhập.
+
+Flow đúng:
+
+```text
+Website Tenant
+
+↓
+
+Login
+
+↓
+
+Personalized Website Tenant
+```
+
+Nguyên tắc:
+
+```text
+One Tenant
+
+One Website
+
+Multiple Experiences
+```
+
+Admin và Teacher sử dụng Back Office.
+
+Student sử dụng Tenant Website.
+
+---
+
 # LearnForge Intelligence Loop
 
 Đây là vòng lặp cốt lõi của toàn bộ nền tảng.
