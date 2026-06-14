@@ -28,12 +28,25 @@ class LocaleSwitcherTest extends TestCase
         $this->createTenant();
 
         $this->assertSame('vi', config('app.locale'));
+        $this->assertSame('en', config('app.fallback_locale'));
 
         $this->get('https://tenant-a.localhost/')
             ->assertOk()
             ->assertSee('<html lang="vi">', false)
             ->assertSeeText(__('lf.LF_navigation_menu_public_home'))
             ->assertSeeText('EN');
+    }
+
+    public function test_main_public_homepage_defaults_to_vietnamese_without_session_locale(): void
+    {
+        $this->assertNull(session('locale'));
+
+        $this->get('https://localhost/')
+            ->assertOk()
+            ->assertSessionMissing('locale')
+            ->assertSee('<html lang="vi">', false)
+            ->assertSeeText(__('lf.LF_home_public_title'))
+            ->assertSee('action="https://localhost/language/en"', false);
     }
 
     public function test_locale_can_switch_to_english_and_back_to_vietnamese(): void
