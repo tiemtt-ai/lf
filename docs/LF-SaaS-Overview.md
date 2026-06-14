@@ -127,9 +127,10 @@ Ví dụ:
 
 Khách hàng sử dụng nền tảng để:
 
-* kinh doanh khóa học
+* kinh doanh khóa học và dịch vụ
 * đào tạo học viên
 * quản lý giáo viên
+* vận hành Tenant Website
 
 ---
 
@@ -666,6 +667,10 @@ Authentication
 Role System
 
 Customer Registration
+
+Tenant Website
+
+Student Experience
 ```
 
 ---

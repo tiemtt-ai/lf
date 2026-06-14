@@ -310,14 +310,12 @@ Duy nhất:
 
 # Design Rule
 
-Không sử dụng:
+Không sử dụng login endpoint riêng theo role.
 
 ```text
-/admin-login
+One Login Endpoint
 
-/teacher-login
-
-/student-login
+/login
 ```
 
 ---
@@ -483,19 +481,7 @@ AI Tutor
 Student Profile
 ```
 
-Không tạo:
-
-```text
-/student-login
-```
-
-Không sử dụng:
-
-```text
-/student
-```
-
-làm entry chính cho Student.
+Không tạo login endpoint hoặc portal riêng theo role cho Student.
 
 ---
 

@@ -634,6 +634,10 @@ Analyze Students
 
 Student Experience
 
+Student Experience là Personalized Tenant Website sau khi login.
+
+Student không chuyển sang một portal riêng.
+
 ---
 
 # Entry Point

@@ -319,11 +319,15 @@ Học tập.
 
 ---
 
-## Portal
+## Student Experience
 
 ```text
-/student
+Tenant Website
 ```
+
+Student sử dụng Personalized Tenant Website sau login.
+
+Student không có portal riêng.
 
 ---
 
@@ -333,12 +337,16 @@ Học tập.
 * làm bài thi
 * xem kết quả
 * sử dụng AI Tutor
+* xem lịch sử học tập
 
 ---
 
 ## Scope
 
-Dữ liệu cá nhân và các khóa học đã đăng ký.
+* dữ liệu cá nhân
+* khóa học đã đăng ký
+* lịch sử học tập
+* AI Tutor
 
 ---
 

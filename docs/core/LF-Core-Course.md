@@ -264,6 +264,9 @@ Lưu trữ lịch sử.
 
 # Course Commerce Model
 
+Course vừa là sản phẩm được giới thiệu và bán trên Tenant Website,
+vừa là đơn vị học tập sau khi Student đăng ký.
+
 LearnForge hỗ trợ:
 
 ```text
@@ -277,6 +280,8 @@ Services
 ---
 
 # Public Course Access
+
+Course Detail được hiển thị công khai trên Tenant Website.
 
 Visitor và Student chưa đăng ký có thể:
 

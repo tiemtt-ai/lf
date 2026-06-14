@@ -561,6 +561,8 @@ One Website
 Multiple Experiences
 ```
 
+Public Experience và Student Experience cùng tồn tại trên một Tenant Website.
+
 Admin và Teacher sử dụng Back Office.
 
 Student sử dụng Tenant Website.

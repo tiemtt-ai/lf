@@ -74,6 +74,50 @@ Learning Intelligence
 
 ---
 
+# Tenant Storefront And Course Commerce
+
+Mỗi tenant có một Tenant Website để:
+
+```text
+Giới thiệu thương hiệu
+
+Marketing khóa học và dịch vụ
+
+Bán khóa học và dịch vụ
+
+Cho phép Student đăng ký hoặc mua khóa học
+
+Cung cấp Personalized Learning Experience sau login
+```
+
+Khách hàng không chỉ sử dụng LearnForge như một LMS nội bộ.
+
+Khách hàng còn có storefront và Course Commerce Experience để tiếp cận,
+chuyển đổi và phục vụ người học trên cùng Tenant Website.
+
+LearnForge không phải Website Builder.
+
+Tenant Website là một phần của SaaS Learning Commerce Experience,
+được thiết kế để kết nối:
+
+```text
+Marketing
+
+Course Commerce
+
+Enrollment
+
+Learning
+
+Tracking
+
+AI Personalization
+```
+
+Student là end-user và customer của tenant.
+
+---
+
 # What Customers Actually Buy
 
 Khách hàng không mua:

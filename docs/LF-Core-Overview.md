@@ -97,11 +97,14 @@ Nếu không có core_ thì LearnForge không thể hoạt động như một LM
 Quản lý:
 
 * Course
+* Course Commerce
 * Lesson
 * Live Class
 * Enrollment
 * Assessment
 * Certificate
+
+core_ phục vụ cả Course Commerce trên Tenant Website và Learning Experience sau khi Student đăng ký.
 
 ---
 
@@ -132,6 +135,14 @@ Create Lesson
 ↓
 
 Publish Course
+
+↓
+
+Tenant Website
+
+↓
+
+Student Register / Purchase
 
 ↓
 

@@ -189,7 +189,9 @@ Admin UI
 
 Teacher UI
 
-Student UI
+Tenant Website
+
+Student Personalized Experience
 
 Public Website
 ```
@@ -206,8 +208,14 @@ Public Website
 /admin
 
 /teacher
+```
 
-/student
+Student sau login sử dụng:
+
+```text
+/
+
+Personalized Tenant Website
 ```
 
 ---
@@ -647,7 +655,31 @@ Verify Role
 
 ↓
 
-Portal Access
+Role Experience Access
+```
+
+Role Experience:
+
+```text
+customer_admin
+
+↓
+
+/admin
+
+teacher
+
+↓
+
+/teacher
+
+student
+
+↓
+
+/
+
+Personalized Tenant Website
 ```
 
 ---

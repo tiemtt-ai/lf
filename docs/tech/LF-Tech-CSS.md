@@ -852,9 +852,10 @@ Nó là một Design System thống nhất.
 
 Mọi giao diện trong:
 
-* Admin
-* Teacher
-* Student
+* Admin Back Office
+* Teacher Back Office
+* Tenant Website
+* Student Personalized Experience
 * Public Website
 
 đều phải tuân thủ cùng một chuẩn CSS nhằm đảm bảo:

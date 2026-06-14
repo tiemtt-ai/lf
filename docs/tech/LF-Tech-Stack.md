@@ -206,11 +206,13 @@ Multi Tenant
 
 API
 
-Admin Portal
+Admin Back Office
 
-Teacher Portal
+Teacher Back Office
 
-Student Portal
+Tenant Website
+
+Student Personalized Experience
 ```
 
 ---
@@ -384,11 +386,13 @@ Server Side Rendering
 ```text
 Public Pages
 
+Tenant Website Pages
+
 Admin Pages
 
 Teacher Pages
 
-Student Pages
+Student Personalized Pages
 ```
 
 ---

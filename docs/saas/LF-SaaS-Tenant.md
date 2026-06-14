@@ -124,6 +124,8 @@ Back Office Mode
 
 Dành cho Visitor trước khi login.
 
+Đây là website marketing và storefront để giới thiệu, bán khóa học và dịch vụ.
+
 Bao gồm:
 
 ```text
@@ -147,6 +149,8 @@ Contact
 Student sử dụng chính Website Tenant sau khi login.
 
 Không chuyển Student sang portal riêng.
+
+Student Mode là Personalized Tenant Website.
 
 Website Tenant hiển thị thêm:
 
