@@ -123,6 +123,33 @@ class LocaleSwitcherTest extends TestCase
             ->assertSee('action="https://tenant-a.localhost/language/en"', false);
     }
 
+    public function test_switching_locale_preserves_auth_and_does_not_bypass_protected_routes(): void
+    {
+        $customerId = $this->createTenant();
+        $student = $this->createUser($customerId, 'student');
+
+        $this->actingAs($student)
+            ->from('https://tenant-a.localhost/my-courses')
+            ->post('https://tenant-a.localhost/language/en')
+            ->assertRedirect('https://tenant-a.localhost/my-courses')
+            ->assertSessionHas('locale', 'en');
+
+        $this->assertAuthenticatedAs($student);
+
+        $this->get('https://tenant-a.localhost/my-courses')
+            ->assertOk()
+            ->assertSee('<html lang="en">', false);
+
+        $this->post('https://tenant-a.localhost/logout');
+
+        $this->from('https://tenant-a.localhost/')
+            ->post('https://tenant-a.localhost/language/vi')
+            ->assertRedirect('https://tenant-a.localhost/');
+
+        $this->get('https://tenant-a.localhost/my-courses')
+            ->assertRedirect('https://tenant-a.localhost/login');
+    }
+
     private function createTenant(): int
     {
         return DB::table('saas_customers')->insertGetId([

@@ -51,11 +51,19 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
+        if (! in_array($user->role, ['customer_admin', 'teacher', 'student'], true)) {
+            Auth::logout();
+
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            abort(403, 'You do not have permission to access this application.');
+        }
+
         return match ($user->role) {
             'customer_admin' => redirect()->route('admin.dashboard'),
             'teacher' => redirect()->route('teacher.dashboard'),
             'student' => redirect('/'),
-            default => redirect()->route('dashboard'),
         };
     }
 

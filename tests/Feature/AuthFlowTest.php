@@ -54,6 +54,19 @@ class AuthFlowTest extends TestCase
         }
     }
 
+    public function test_unknown_role_is_rejected_after_authentication(): void
+    {
+        $customerId = $this->createTenant();
+        $user = $this->createUser($customerId, 'future_role', verified: true);
+
+        $this->post('https://tenant-a.localhost/login', [
+            'email' => $user->email,
+            'password' => 'password123',
+        ])->assertForbidden();
+
+        $this->assertGuest();
+    }
+
     public function test_password_reset_views_and_token_flow_work_for_current_tenant(): void
     {
         $customerId = $this->createTenant();

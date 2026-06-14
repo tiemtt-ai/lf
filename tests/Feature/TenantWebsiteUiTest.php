@@ -43,6 +43,10 @@ class TenantWebsiteUiTest extends TestCase
             ->assertSeeText(__('lf.LF_home_public_contact_cta'))
             ->assertDontSeeText(__('lf.LF_navigation_menu_student_learning_history'))
             ->assertSeeText(__('lf.LF_course_card_guest_login_register_purchase'));
+
+        foreach (['/courses', '/assessments', '/services', '/teachers', '/about', '/contact'] as $path) {
+            $this->get('https://tenant-a.localhost'.$path)->assertOk();
+        }
     }
 
     public function test_verified_student_sees_public_and_personalized_content_on_the_same_homepage(): void
@@ -73,13 +77,16 @@ class TenantWebsiteUiTest extends TestCase
     public function test_student_personalized_routes_are_role_protected(): void
     {
         $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
         $teacher = $this->createUser($customerId, 'teacher');
         $student = $this->createUser($customerId, 'student');
 
         $paths = ['/my-courses', '/learning-history', '/ai-tutor', '/profile'];
 
-        $this->get('https://tenant-a.localhost/my-courses')
-            ->assertRedirect('https://tenant-a.localhost/login');
+        foreach ($paths as $path) {
+            $this->get('https://tenant-a.localhost'.$path)
+                ->assertRedirect('https://tenant-a.localhost/login');
+        }
 
         foreach ($paths as $path) {
             $this->actingAs($teacher)
@@ -92,6 +99,22 @@ class TenantWebsiteUiTest extends TestCase
                 ->get('https://tenant-a.localhost'.$path)
                 ->assertOk();
         }
+
+        $this->actingAs($student)
+            ->get('https://tenant-a.localhost/admin')
+            ->assertForbidden();
+
+        $this->actingAs($student)
+            ->get('https://tenant-a.localhost/teacher')
+            ->assertForbidden();
+
+        $this->actingAs($teacher)
+            ->get('https://tenant-a.localhost/admin')
+            ->assertForbidden();
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/teacher')
+            ->assertForbidden();
     }
 
     public function test_course_actions_distinguish_guest_available_enrolled_and_favorite_states(): void

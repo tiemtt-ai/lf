@@ -53,6 +53,45 @@ class TenantAuthenticationSecurityTest extends TestCase
         $this->assertAuthenticatedAs($activeUser);
     }
 
+    public function test_authenticated_user_cannot_access_another_tenant(): void
+    {
+        $tenantA = $this->createTenant('tenant-a');
+        $this->createTenant('tenant-b');
+        $user = $this->createUser($tenantA, 'admin@example.test', 'active');
+
+        $this->actingAs($user)
+            ->get('https://tenant-b.localhost/admin')
+            ->assertForbidden();
+    }
+
+    public function test_admin_user_list_does_not_expose_another_tenant(): void
+    {
+        $tenantA = $this->createTenant('tenant-a');
+        $tenantB = $this->createTenant('tenant-b');
+        $admin = $this->createUser($tenantA, 'admin-a@example.test', 'active');
+        $this->createUser($tenantB, 'admin-b@example.test', 'active');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/users')
+            ->assertOk()
+            ->assertSeeText('admin-a@example.test')
+            ->assertDontSeeText('admin-b@example.test');
+    }
+
+    public function test_broadcast_auth_uses_the_tenant_authentication_stack(): void
+    {
+        $tenantA = $this->createTenant('tenant-a');
+        $this->createTenant('tenant-b');
+        $user = $this->createUser($tenantA, 'admin@example.test', 'active');
+
+        $this->post('https://tenant-a.localhost/broadcasting/auth')
+            ->assertRedirect('https://tenant-a.localhost/login');
+
+        $this->actingAs($user)
+            ->post('https://tenant-b.localhost/broadcasting/auth')
+            ->assertForbidden();
+    }
+
     public function test_unused_breeze_auth_routes_are_removed_but_logout_remains_available(): void
     {
         $tenantId = $this->createTenant('tenant-a');

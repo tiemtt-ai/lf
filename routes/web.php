@@ -28,7 +28,8 @@ Route::post('/language/{locale}', function (string $locale) {
     session(['locale' => $locale]);
 
     return redirect()->back();
-})->whereIn('locale', ['vi', 'en'])
+})->middleware('tenant')
+    ->whereIn('locale', ['vi', 'en'])
     ->name('language.update');
 
 Route::middleware('root.domain')->group(function () {
@@ -97,7 +98,7 @@ Route::middleware([
             'customer_admin' => 'admin.dashboard',
             'teacher' => 'teacher.dashboard',
             'student' => 'public.home',
-            default => 'public.home',
+            default => abort(403, 'You do not have permission to access this application.'),
         });
     })->name('dashboard');
 

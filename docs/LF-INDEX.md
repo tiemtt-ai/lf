@@ -125,9 +125,44 @@ docs/business/
 
 ---
 
+## Governance Documents
+
+Location:
+
+```text
+docs/governance/
+```
+
+| Document                                 | Purpose                                                   |
+| ---------------------------------------- | --------------------------------------------------------- |
+| governance/LF-Architecture-Guardrails.md | Mandatory architecture rules and non-negotiable constraints |
+| governance/LF-Regression-Audit.md        | Mandatory regression checklist after major changes       |
+
+---
+
 # Documentation Routing Guide
 
 Load only the documents required for the current task.
+
+---
+
+## Governance / Safety Check
+
+Read:
+
+* governance/LF-Architecture-Guardrails.md
+* governance/LF-Regression-Audit.md
+
+Use when:
+
+* major refactor
+* auth changes
+* tenant changes
+* role/permission changes
+* route/middleware changes
+* navigation/UI changes
+* i18n changes
+* before large commits
 
 ---
 
@@ -398,6 +433,9 @@ When working on LearnForge:
 5. Preserve tenant isolation.
 6. Preserve customer_id-based data ownership.
 7. Follow LF-OS principles before implementing new features.
+8. Always check LF-Architecture-Guardrails.md before making structural changes.
+9. Run LF-Regression-Audit.md after major changes.
+10. If module docs conflict with Guardrails, stop and report the conflict.
 
 ---
 
