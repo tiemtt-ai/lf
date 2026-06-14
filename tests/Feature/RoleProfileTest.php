@@ -63,11 +63,11 @@ class RoleProfileTest extends TestCase
             ->assertDontSee('href="https://tenant-a.localhost/admin"', false);
 
         $this->actingAs($teacher)
-            ->get('https://tenant-a.localhost/student/profile')
+            ->get('https://tenant-a.localhost/profile')
             ->assertForbidden();
 
         $this->actingAs($student)
-            ->get('https://tenant-a.localhost/student/profile')
+            ->get('https://tenant-a.localhost/profile')
             ->assertOk()
             ->assertSee('value="Student"', false);
 
@@ -105,7 +105,7 @@ class RoleProfileTest extends TestCase
         $this->assertNotSame('Updated Teacher', $otherTeacher->name);
 
         $this->actingAs($student)
-            ->patch('https://tenant-a.localhost/student/profile', [
+            ->patch('https://tenant-a.localhost/profile', [
                 'name' => 'Updated Student',
                 'email' => $student->email,
                 'phone' => null,
@@ -113,7 +113,7 @@ class RoleProfileTest extends TestCase
                 'gender' => null,
                 'role' => 'teacher',
             ])
-            ->assertRedirect('https://tenant-a.localhost/student/profile');
+            ->assertRedirect('https://tenant-a.localhost/profile');
 
         $this->assertSame('student', $student->fresh()->role);
     }
@@ -135,12 +135,12 @@ class RoleProfileTest extends TestCase
         $this->assertTrue(Hash::check('new-password-456', $teacher->fresh()->password));
 
         $this->actingAs($student)
-            ->patch('https://tenant-a.localhost/student/profile/password', [
+            ->patch('https://tenant-a.localhost/profile/password', [
                 'current_password' => 'password123',
                 'password' => 'student-password-456',
                 'password_confirmation' => 'student-password-456',
             ])
-            ->assertRedirect('https://tenant-a.localhost/student/profile');
+            ->assertRedirect('https://tenant-a.localhost/profile');
 
         $this->assertTrue(Hash::check('student-password-456', $student->fresh()->password));
     }
@@ -195,7 +195,7 @@ class RoleProfileTest extends TestCase
         ];
 
         $this->actingAs($teacher)
-            ->patch('https://tenant-a.localhost/student/profile/password', $passwordData)
+            ->patch('https://tenant-a.localhost/profile/password', $passwordData)
             ->assertForbidden();
 
         $this->actingAs($student)

@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\CustomerRegisterController;
 use App\Http\Controllers\PublicSiteController;
 use App\Http\Controllers\RoleProfileController;
+use App\Http\Controllers\TenantWebsiteController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -13,24 +14,15 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 | Domain gốc: localhost / learnforge.vn
 | Chỉ dùng cho landing, features, pricing, services, about, register customer.
-| Không dùng cho login/logout/dashboard/admin/teacher/student.
+| Không dùng cho login/logout/dashboard hoặc các back office theo role.
 |--------------------------------------------------------------------------
 */
-
-Route::get('/', [PublicSiteController::class, 'home'])
-    ->name('public.home');
 
 Route::get('/features', [PublicSiteController::class, 'features'])
     ->name('public.features');
 
 Route::get('/pricing', [PublicSiteController::class, 'pricing'])
     ->name('public.pricing');
-
-Route::get('/services', [PublicSiteController::class, 'services'])
-    ->name('public.services');
-
-Route::get('/about', [PublicSiteController::class, 'about'])
-    ->name('public.about');
 
 Route::middleware('root.domain')->group(function () {
     Route::get('/register-customer', [CustomerRegisterController::class, 'show'])
@@ -51,6 +43,32 @@ Route::middleware('root.domain')->group(function () {
 */
 
 Route::middleware(['tenant'])->group(function () {
+    Route::get('/', [TenantWebsiteController::class, 'home'])
+        ->name('public.home');
+
+    Route::get('/courses', [TenantWebsiteController::class, 'courses'])
+        ->name('tenant.courses.index');
+
+    Route::get('/courses/{slug}', [TenantWebsiteController::class, 'course'])
+        ->name('tenant.courses.show');
+
+    Route::get('/assessments', [TenantWebsiteController::class, 'assessments'])
+        ->name('tenant.assessments');
+
+    Route::get('/services', [TenantWebsiteController::class, 'services'])
+        ->name('public.services');
+
+    Route::get('/teachers', [TenantWebsiteController::class, 'teachers'])
+        ->name('tenant.teachers');
+
+    Route::get('/about', [TenantWebsiteController::class, 'about'])
+        ->name('public.about');
+
+    Route::get('/contact', [TenantWebsiteController::class, 'contact'])
+        ->name('tenant.contact');
+
+    Route::delete('/profile', fn () => abort(404));
+
     require __DIR__.'/auth.php';
 });
 
@@ -71,7 +89,7 @@ Route::middleware([
         return redirect()->route(match (auth()->user()->role) {
             'customer_admin' => 'admin.dashboard',
             'teacher' => 'teacher.dashboard',
-            'student' => 'student.dashboard',
+            'student' => 'public.home',
             default => 'public.home',
         });
     })->name('dashboard');
@@ -152,7 +170,7 @@ Route::middleware([
 
 /*
 |--------------------------------------------------------------------------
-| Student Area
+| Student Personalized Experience
 |--------------------------------------------------------------------------
 */
 
@@ -162,17 +180,22 @@ Route::middleware([
     'verified',
     'tenant.user',
     'role:student',
-])->prefix('student')->name('student.')->group(function () {
-    Route::get('/', function () {
-        return view('student.dashboard');
-    })->name('dashboard');
+])->group(function () {
+    Route::get('/my-courses', [TenantWebsiteController::class, 'myCourses'])
+        ->name('student.courses.index');
+
+    Route::get('/learning-history', [TenantWebsiteController::class, 'learningHistory'])
+        ->name('student.learning-history');
+
+    Route::get('/ai-tutor', [TenantWebsiteController::class, 'aiTutor'])
+        ->name('student.ai-tutor');
 
     Route::get('/profile', [RoleProfileController::class, 'editStudent'])
-        ->name('profile.edit');
+        ->name('student.profile.edit');
 
     Route::patch('/profile', [RoleProfileController::class, 'updateStudent'])
-        ->name('profile.update');
+        ->name('student.profile.update');
 
     Route::patch('/profile/password', [RoleProfileController::class, 'updateStudentPassword'])
-        ->name('profile.password.update');
+        ->name('student.profile.password.update');
 });

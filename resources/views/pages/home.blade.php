@@ -24,7 +24,7 @@
         <div class="public-container">
             <div class="public-section-heading">
                 <h2>One platform for every learning role</h2>
-                <p>Dedicated portals and workflows for customer administrators, teachers and students.</p>
+                <p>Dedicated back offices for operators and one tenant website for visitors and students.</p>
             </div>
 
             <div class="public-card-grid">

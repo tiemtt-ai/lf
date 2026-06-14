@@ -30,7 +30,7 @@ class RoleProfileController extends Controller
 
     public function editStudent(): View
     {
-        return $this->edit('student', 'student.profile.edit');
+        return $this->edit('student', 'tenant.profile.edit');
     }
 
     public function updateStudent(Request $request): RedirectResponse

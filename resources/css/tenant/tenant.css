@@ -1,3 +1,4 @@
+/* Shared tenant website and personalized student experience. */
 .lf-student-page {
     --student-primary: #625bf6;
     --student-primary-dark: #4941d9;
@@ -1774,5 +1775,150 @@
     .lf-student-page *::after {
         scroll-behavior: auto !important;
         transition-duration: .01ms !important;
+    }
+}
+
+.tenant-banner {
+    margin-bottom: 34px;
+}
+
+.tenant-personalized-section,
+.tenant-section,
+.tenant-feature-grid,
+.tenant-contact-cta {
+    margin-bottom: 28px;
+}
+
+.tenant-ai-recommendation,
+.tenant-contact-cta {
+    margin-top: 20px;
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.tenant-ai-recommendation h3,
+.tenant-contact-cta h2 {
+    margin: 6px 0 8px;
+}
+
+.tenant-ai-recommendation p,
+.tenant-contact-cta p {
+    margin: 0;
+    color: var(--student-text-soft);
+    line-height: 1.6;
+}
+
+.tenant-course-grid,
+.tenant-feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.tenant-course-card {
+    padding: 22px;
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+}
+
+.tenant-course-card .student-course-cover {
+    width: 52px;
+    height: 52px;
+    margin-bottom: 18px;
+    flex: 0 0 auto;
+    color: var(--student-surface);
+    font-size: 22px;
+    font-weight: 800;
+}
+
+.tenant-course-card .student-course-progress {
+    margin-top: 16px;
+}
+
+.tenant-course-actions {
+    margin-top: auto;
+    padding-top: 18px;
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.tenant-course-actions .student-button {
+    text-align: center;
+}
+
+.tenant-link-button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.tenant-page-heading {
+    margin-bottom: 28px;
+}
+
+.tenant-page-heading h1,
+.tenant-course-detail h1 {
+    margin: 0 0 10px;
+    font-size: clamp(34px, 5vw, 52px);
+}
+
+.tenant-page-heading p:last-child {
+    max-width: 720px;
+    color: var(--student-text-soft);
+    line-height: 1.7;
+}
+
+.tenant-course-detail {
+    padding: 34px;
+}
+
+.tenant-detail-grid {
+    margin-top: 28px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.tenant-detail-grid div {
+    padding: 18px;
+    display: grid;
+    gap: 6px;
+    border-radius: var(--student-radius-sm);
+    background: var(--student-surface-soft);
+}
+
+.tenant-detail-grid span,
+.tenant-access-note {
+    color: var(--student-text-soft);
+}
+
+.tenant-access-note {
+    margin: 24px 0 0;
+    font-size: 13px;
+}
+
+@media (max-width: 1080px) {
+    .tenant-course-grid,
+    .tenant-feature-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .tenant-ai-recommendation,
+    .tenant-contact-cta {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .tenant-detail-grid {
+        grid-template-columns: 1fr;
     }
 }

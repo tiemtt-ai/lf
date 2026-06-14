@@ -27,24 +27,27 @@ class AuthFlowTest extends TestCase
         ]);
     }
 
-    public function test_login_and_dashboard_redirect_each_role_to_its_portal(): void
+    public function test_login_and_dashboard_redirect_each_role_to_its_experience(): void
     {
         $customerId = $this->createTenant();
 
         foreach ([
             'customer_admin' => '/admin',
             'teacher' => '/teacher',
-            'student' => '/student',
-        ] as $role => $portal) {
+            'student' => '/',
+        ] as $role => $destination) {
             $user = $this->createUser($customerId, $role, verified: true);
+            $destinationUrl = $destination === '/'
+                ? 'https://tenant-a.localhost'
+                : 'https://tenant-a.localhost'.$destination;
 
             $this->post('https://tenant-a.localhost/login', [
                 'email' => $user->email,
                 'password' => 'password123',
-            ])->assertRedirect('https://tenant-a.localhost'.$portal);
+            ])->assertRedirect($destinationUrl);
 
             $this->get('https://tenant-a.localhost/dashboard')
-                ->assertRedirect('https://tenant-a.localhost'.$portal);
+                ->assertRedirect($destinationUrl);
 
             $this->post('https://tenant-a.localhost/logout')
                 ->assertRedirect('https://tenant-a.localhost/login');

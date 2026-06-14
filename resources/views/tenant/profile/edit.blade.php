@@ -1,4 +1,4 @@
-@extends('layouts.student')
+@extends('layouts.tenant')
 
 @section('title', 'Hồ sơ học viên | LearnForge')
 

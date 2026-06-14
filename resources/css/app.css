@@ -6,7 +6,7 @@
 @import './admin/admin-pages.css';
 @import './auth/login.css';
 @import './public/public.css';
-@import './student/student.css';
+@import './tenant/tenant.css';
 
 @tailwind base;
 @tailwind components;
