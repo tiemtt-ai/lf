@@ -66,27 +66,19 @@
 }
 
 .public-nav-link {
-    padding: 28px 0 24px;
+    padding: 9px 12px;
     position: relative;
+    border-radius: 999px;
     color: #475467;
     font-size: 15px;
     font-weight: 500;
+    transition: color .2s ease, background .2s ease;
 }
 
 .public-nav-link:hover,
 .public-nav-link.is-active {
     color: var(--public-primary);
-}
-
-.public-nav-link.is-active::after {
-    right: 0;
-    bottom: 17px;
-    left: 0;
-    height: 3px;
-    position: absolute;
-    border-radius: 3px;
-    background: var(--public-accent);
-    content: "";
+    background: #edf0ff;
 }
 
 .public-language-switcher {
@@ -452,12 +444,8 @@
     }
 
     .public-nav-link {
-        padding: 8px 0 12px;
+        padding: 8px 12px;
         white-space: nowrap;
-    }
-
-    .public-nav-link.is-active::after {
-        bottom: 4px;
     }
 
     .public-nav-cta {

@@ -94,7 +94,7 @@
     flex: 1;
 }
 
-.btn,
+.lf-admin-page .btn,
 .lf-admin-page .lf-btn-primary,
 .lf-admin-page .lf-btn-secondary {
     padding: 8px 16px;
@@ -111,14 +111,14 @@
     cursor: pointer;
 }
 
-.btn-primary,
+.lf-admin-page .btn-primary,
 .lf-admin-page .lf-btn-primary {
     border-color: var(--admin-active);
     color: #ffffff !important;
     background: var(--admin-active);
 }
 
-.btn-secondary:hover,
+.lf-admin-page .btn-secondary:hover,
 .lf-admin-page .lf-btn-secondary:hover {
     background: #f8f9fa;
 }
@@ -173,19 +173,19 @@
     background: var(--admin-active);
 }
 
-.table {
+.lf-admin-page .table {
     width: 100%;
     border-collapse: collapse;
 }
 
-.table th {
+.lf-admin-page .table th {
     padding: 14px 16px;
     border-bottom: 1px solid #e5e7eb;
     background: #f8fafc;
     text-align: left;
 }
 
-.table td {
+.lf-admin-page .table td {
     padding: 14px 16px;
     border-bottom: 1px solid #f3f4f6;
 }
@@ -197,19 +197,19 @@
     background: #ffffff;
 }
 
-.badge {
+.lf-admin-page .badge {
     padding: 4px 10px;
     display: inline-block;
     border-radius: 999px;
     font-size: 12px;
 }
 
-.badge-success {
+.lf-admin-page .badge-success {
     color: #166534;
     background: #dcfce7;
 }
 
-.badge-danger {
+.lf-admin-page .badge-danger {
     color: #991b1b;
     background: #fee2e2;
 }

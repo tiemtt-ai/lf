@@ -34,7 +34,8 @@ class LocaleSwitcherTest extends TestCase
             ->assertOk()
             ->assertSee('<html lang="vi">', false)
             ->assertSeeText(__('lf.LF_navigation_menu_public_home'))
-            ->assertSeeText('EN');
+            ->assertSee('<span class="language-switcher-code">VI</span>', false)
+            ->assertSee('action="https://tenant-a.localhost/language/en"', false);
     }
 
     public function test_main_public_homepage_defaults_to_vietnamese_without_session_locale(): void
@@ -60,8 +61,10 @@ class LocaleSwitcherTest extends TestCase
 
         $this->get('https://tenant-a.localhost/')
             ->assertOk()
+            ->assertSee('<html lang="en">', false)
             ->assertSeeText('Home')
-            ->assertSeeText('VI');
+            ->assertSee('<span class="language-switcher-code">EN</span>', false)
+            ->assertSee('action="https://tenant-a.localhost/language/vi"', false);
 
         $this->from('https://tenant-a.localhost/')
             ->post('https://tenant-a.localhost/language/vi')
@@ -70,8 +73,10 @@ class LocaleSwitcherTest extends TestCase
 
         $this->get('https://tenant-a.localhost/')
             ->assertOk()
+            ->assertSee('<html lang="vi">', false)
             ->assertSeeText('Trang chủ')
-            ->assertSeeText('EN');
+            ->assertSee('<span class="language-switcher-code">VI</span>', false)
+            ->assertSee('action="https://tenant-a.localhost/language/en"', false);
     }
 
     public function test_invalid_locale_is_not_accepted(): void
