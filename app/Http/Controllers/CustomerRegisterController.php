@@ -44,12 +44,10 @@ class CustomerRegisterController extends Controller
                 'subdomain' => $slug,
                 'custom_domain' => null,
                 'phone' => $validated['phone'],
+                'organization_type' => $validated['organization_type'],
                 'theme_key' => 'default',
                 'layout_key' => 'default',
                 'status' => 'active',
-                'metadata' => json_encode([
-                    'organization_type' => $validated['organization_type'],
-                ]),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

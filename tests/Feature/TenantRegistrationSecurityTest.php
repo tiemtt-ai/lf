@@ -47,7 +47,8 @@ class TenantRegistrationSecurityTest extends TestCase
 
         $this->assertSame('active', $customer->status);
         $this->assertSame('0900000000', $customer->phone);
-        $this->assertSame('training_center', json_decode($customer->metadata, true)['organization_type']);
+        $this->assertSame('training_center', $customer->organization_type);
+        $this->assertNull($customer->metadata);
         $this->assertSame($customer->id, $user->customer_id);
         $this->assertSame('0900000000', $user->phone);
         $this->assertNull($user->email_verified_at);
