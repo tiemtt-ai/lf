@@ -6,6 +6,7 @@ use App\Http\Controllers\CustomerRegisterController;
 use App\Http\Controllers\PublicSiteController;
 use App\Http\Controllers\RoleProfileController;
 use App\Http\Controllers\TenantWebsiteController;
+use App\Support\TenantContext;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -118,7 +119,9 @@ Route::middleware([
     'role:customer_admin',
 ])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', function () {
-        return view('admin.dashboard');
+        return view('admin.dashboard', [
+            'tenant' => TenantContext::customer(),
+        ]);
     })->name('dashboard');
 
     Route::get('/profile', [AdminProfileController::class, 'edit'])

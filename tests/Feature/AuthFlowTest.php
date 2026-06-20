@@ -67,6 +67,41 @@ class AuthFlowTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_admin_dashboard_shows_current_tenant_and_admin_information(): void
+    {
+        $customerId = $this->createTenant([
+            'name' => 'Acme Academy',
+            'slug' => 'acme',
+            'subdomain' => 'acme',
+            'organization_type' => 'school',
+            'email' => 'hello@acme.test',
+            'phone' => '0280000000',
+            'status' => 'active',
+        ]);
+        $admin = $this->createUser($customerId, 'customer_admin', verified: true, overrides: [
+            'name' => 'Acme Admin',
+            'email' => 'admin@acme.test',
+            'phone' => '0900000000',
+        ]);
+
+        $this->actingAs($admin)
+            ->get('https://acme.localhost/admin')
+            ->assertOk()
+            ->assertSeeText('Thông tin tenant')
+            ->assertSeeText('Acme Academy')
+            ->assertSeeText('acme')
+            ->assertSeeText('Trường học')
+            ->assertSeeText('hello@acme.test')
+            ->assertSeeText('0280000000')
+            ->assertSeeText('active')
+            ->assertSeeText('Tài khoản quản trị')
+            ->assertSeeText('Acme Admin')
+            ->assertSeeText('admin@acme.test')
+            ->assertSeeText('0900000000')
+            ->assertSeeText('customer_admin')
+            ->assertDontSeeText('Customer ID');
+    }
+
     public function test_password_reset_views_and_token_flow_work_for_current_tenant(): void
     {
         $customerId = $this->createTenant();
@@ -122,21 +157,21 @@ class AuthFlowTest extends TestCase
         $this->assertNotNull($user->fresh()->email_verified_at);
     }
 
-    private function createTenant(): int
+    private function createTenant(array $overrides = []): int
     {
-        return DB::table('saas_customers')->insertGetId([
+        return DB::table('saas_customers')->insertGetId(array_merge([
             'name' => 'Tenant A',
             'slug' => 'tenant-a',
             'subdomain' => 'tenant-a',
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
-        ]);
+        ], $overrides));
     }
 
-    private function createUser(int $customerId, string $role, bool $verified): User
+    private function createUser(int $customerId, string $role, bool $verified, array $overrides = []): User
     {
-        return User::forceCreate([
+        return User::forceCreate(array_merge([
             'customer_id' => $customerId,
             'name' => ucfirst(str_replace('_', ' ', $role)),
             'email' => $role.'@example.test',
@@ -144,6 +179,6 @@ class AuthFlowTest extends TestCase
             'role' => $role,
             'status' => 'active',
             'email_verified_at' => $verified ? now() : null,
-        ]);
+        ], $overrides));
     }
 }
