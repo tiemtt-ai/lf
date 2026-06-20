@@ -39,8 +39,13 @@
 
                         <div class="public-form-group is-full">
                             <label class="public-form-label" for="organization_type">{{ __('lf.LF_auth_register_organization_type') }}</label>
-                            <input id="organization_type" type="text" name="organization_type" class="public-form-control"
-                                   value="{{ old('organization_type') }}" required>
+                            <select id="organization_type" name="organization_type" class="public-form-control" required>
+                                <option value="" @selected(old('organization_type') === null)>{{ __('lf.LF_auth_register_organization_type_placeholder') }}</option>
+                                <option value="training_center" @selected(old('organization_type') === 'training_center')>{{ __('lf.LF_auth_register_organization_type_training_center') }}</option>
+                                <option value="school" @selected(old('organization_type') === 'school')>{{ __('lf.LF_auth_register_organization_type_school') }}</option>
+                                <option value="corporate" @selected(old('organization_type') === 'corporate')>{{ __('lf.LF_auth_register_organization_type_corporate') }}</option>
+                                <option value="individual" @selected(old('organization_type') === 'individual')>{{ __('lf.LF_auth_register_organization_type_individual') }}</option>
+                            </select>
                         </div>
 
                         <div class="public-form-group">

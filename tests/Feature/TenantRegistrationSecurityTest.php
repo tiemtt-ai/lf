@@ -31,7 +31,7 @@ class TenantRegistrationSecurityTest extends TestCase
         $response = $this->post('https://localhost/register-customer', [
             'customer_name' => 'Acme Academy',
             'slug' => 'acme',
-            'organization_type' => 'Training Center',
+            'organization_type' => 'training_center',
             'name' => 'Acme Admin',
             'email' => 'admin@acme.test',
             'phone' => '0900000000',
@@ -47,10 +47,26 @@ class TenantRegistrationSecurityTest extends TestCase
 
         $this->assertSame('active', $customer->status);
         $this->assertSame('0900000000', $customer->phone);
-        $this->assertSame('Training Center', json_decode($customer->metadata, true)['organization_type']);
+        $this->assertSame('training_center', json_decode($customer->metadata, true)['organization_type']);
         $this->assertSame($customer->id, $user->customer_id);
         $this->assertSame('0900000000', $user->phone);
         $this->assertNull($user->email_verified_at);
+    }
+
+    public function test_customer_registration_rejects_unknown_organization_type(): void
+    {
+        $this->post('https://localhost/register-customer', [
+            'customer_name' => 'Acme Academy',
+            'slug' => 'acme',
+            'organization_type' => 'other',
+            'name' => 'Acme Admin',
+            'email' => 'admin@acme.test',
+            'phone' => '0900000000',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertSessionHasErrors('organization_type');
+
+        $this->assertDatabaseMissing('saas_customers', ['slug' => 'acme']);
     }
 
     public function test_last_active_admin_cannot_be_demoted_or_disabled_and_shared_profile_deletion_is_unavailable(): void

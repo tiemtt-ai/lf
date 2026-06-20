@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class CustomerRegisterController extends Controller
 {
@@ -22,7 +23,12 @@ class CustomerRegisterController extends Controller
         $validated = $request->validate([
             'customer_name' => ['required', 'string', 'max:255'],
             'slug' => ['required', 'string', 'max:50', 'alpha_dash', 'unique:saas_customers,slug'],
-            'organization_type' => ['required', 'string', 'max:100'],
+            'organization_type' => ['required', Rule::in([
+                'training_center',
+                'school',
+                'corporate',
+                'individual',
+            ])],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['required', 'string', 'max:30'],
