@@ -37,6 +37,12 @@
                                    value="{{ old('slug') }}" placeholder="{{ __('lf.LF_auth_register_slug_placeholder') }}" required>
                         </div>
 
+                        <div class="public-form-group is-full">
+                            <label class="public-form-label" for="organization_type">{{ __('lf.LF_auth_register_organization_type') }}</label>
+                            <input id="organization_type" type="text" name="organization_type" class="public-form-control"
+                                   value="{{ old('organization_type') }}" required>
+                        </div>
+
                         <div class="public-form-group">
                             <label class="public-form-label" for="name">{{ __('lf.LF_auth_register_admin_name') }}</label>
                             <input id="name" type="text" name="name" class="public-form-control"
@@ -47,6 +53,12 @@
                             <label class="public-form-label" for="email">{{ __('lf.LF_auth_register_admin_email') }}</label>
                             <input id="email" type="email" name="email" class="public-form-control"
                                    value="{{ old('email') }}" required>
+                        </div>
+
+                        <div class="public-form-group is-full">
+                            <label class="public-form-label" for="phone">{{ __('lf.LF_auth_register_admin_phone') }}</label>
+                            <input id="phone" type="text" name="phone" class="public-form-control"
+                                   value="{{ old('phone') }}" required>
                         </div>
 
                         <div class="public-form-group">

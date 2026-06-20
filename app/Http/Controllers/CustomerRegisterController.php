@@ -19,34 +19,41 @@ class CustomerRegisterController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'customer_name' => ['required', 'string', 'max:255'],
             'slug' => ['required', 'string', 'max:50', 'alpha_dash', 'unique:saas_customers,slug'],
+            'organization_type' => ['required', 'string', 'max:100'],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['required', 'string', 'max:30'],
             'password' => ['required', 'confirmed', 'min:8'],
         ]);
 
-        $registration = DB::transaction(function () use ($request) {
-            $slug = Str::lower($request->slug);
+        $registration = DB::transaction(function () use ($request, $validated) {
+            $slug = Str::lower($validated['slug']);
 
             $customerId = DB::table('saas_customers')->insertGetId([
-                'name' => $request->customer_name,
+                'name' => $validated['customer_name'],
                 'slug' => $slug,
                 'subdomain' => $slug,
                 'custom_domain' => null,
+                'phone' => $validated['phone'],
                 'theme_key' => 'default',
                 'layout_key' => 'default',
                 'status' => 'active',
+                'metadata' => json_encode([
+                    'organization_type' => $validated['organization_type'],
+                ]),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
 
             $userId = DB::table('users')->insertGetId([
                 'customer_id' => $customerId,
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'],
+                'password' => Hash::make($validated['password']),
                 'role' => 'customer_admin',
                 'status' => 'active',
                 'email_verified_at' => null,

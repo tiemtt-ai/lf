@@ -116,8 +116,10 @@ return [
     'LF_auth_register_organization' => 'Organization name',
     'LF_auth_register_slug' => 'Slug / subdomain',
     'LF_auth_register_slug_placeholder' => 'your-organization',
+    'LF_auth_register_organization_type' => 'Organization type',
     'LF_auth_register_admin_name' => 'Administrator name',
     'LF_auth_register_admin_email' => 'Administrator email',
+    'LF_auth_register_admin_phone' => 'Phone',
     'LF_auth_register_create' => 'Create tenant',
     'LF_auth_account_common_label' => 'Account',
 

@@ -31,8 +31,10 @@ class TenantRegistrationSecurityTest extends TestCase
         $response = $this->post('https://localhost/register-customer', [
             'customer_name' => 'Acme Academy',
             'slug' => 'acme',
+            'organization_type' => 'Training Center',
             'name' => 'Acme Admin',
             'email' => 'admin@acme.test',
+            'phone' => '0900000000',
             'password' => 'password123',
             'password_confirmation' => 'password123',
         ]);
@@ -44,7 +46,10 @@ class TenantRegistrationSecurityTest extends TestCase
         $user = User::where('email', 'admin@acme.test')->firstOrFail();
 
         $this->assertSame('active', $customer->status);
+        $this->assertSame('0900000000', $customer->phone);
+        $this->assertSame('Training Center', json_decode($customer->metadata, true)['organization_type']);
         $this->assertSame($customer->id, $user->customer_id);
+        $this->assertSame('0900000000', $user->phone);
         $this->assertNull($user->email_verified_at);
     }
 

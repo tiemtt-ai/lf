@@ -116,8 +116,10 @@ return [
     'LF_auth_register_organization' => 'Tên tổ chức',
     'LF_auth_register_slug' => 'Slug / subdomain',
     'LF_auth_register_slug_placeholder' => 'to-chuc-cua-ban',
+    'LF_auth_register_organization_type' => 'Loại tổ chức',
     'LF_auth_register_admin_name' => 'Tên quản trị viên',
     'LF_auth_register_admin_email' => 'Email quản trị viên',
+    'LF_auth_register_admin_phone' => 'Số điện thoại',
     'LF_auth_register_create' => 'Tạo tenant',
     'LF_auth_account_common_label' => 'Tài khoản',
 
