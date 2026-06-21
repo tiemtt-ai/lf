@@ -481,13 +481,27 @@
         gap: 25px;
     }
 
+    .admin-footer-bottom > * {
+        min-width: 0;
+        max-width: 100%;
+    }
+
     .admin-footer-certificates,
     .admin-footer-apps {
         justify-content: start;
     }
+
+    .admin-footer-certificates {
+        flex-wrap: wrap;
+    }
 }
 
 @media (max-width: 600px) {
+    .admin-footer-apps {
+        grid-template-columns: repeat(2, minmax(0, 109px));
+        justify-content: start;
+    }
+
     .admin-sidebar-menu.is-teacher {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
