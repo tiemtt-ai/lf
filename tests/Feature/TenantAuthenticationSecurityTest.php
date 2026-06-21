@@ -112,6 +112,39 @@ class TenantAuthenticationSecurityTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_logout_is_post_only_and_ui_does_not_render_get_logout_links(): void
+    {
+        $tenantId = $this->createTenant('tenant-a');
+        $admin = $this->createUser($tenantId, 'admin@example.test', 'active');
+        $teacher = $this->createUser($tenantId, 'teacher@example.test', 'active', 'teacher');
+        $student = $this->createUser($tenantId, 'student@example.test', 'active', 'student');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/logout')
+            ->assertStatus(405);
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin')
+            ->assertOk()
+            ->assertSee('method="POST" action="https://tenant-a.localhost/logout"', false)
+            ->assertDontSee('href="https://tenant-a.localhost/logout"', false)
+            ->assertDontSee('href="/logout"', false);
+
+        $this->actingAs($teacher)
+            ->get('https://tenant-a.localhost/teacher')
+            ->assertOk()
+            ->assertSee('method="POST" action="https://tenant-a.localhost/logout"', false)
+            ->assertDontSee('href="https://tenant-a.localhost/logout"', false)
+            ->assertDontSee('href="/logout"', false);
+
+        $this->actingAs($student)
+            ->get('https://tenant-a.localhost/')
+            ->assertOk()
+            ->assertSee('method="POST" action="https://tenant-a.localhost/logout"', false)
+            ->assertDontSee('href="https://tenant-a.localhost/logout"', false)
+            ->assertDontSee('href="/logout"', false);
+    }
+
     public function test_factory_users_always_belong_to_a_tenant(): void
     {
         $user = User::factory()->create();
@@ -141,14 +174,14 @@ class TenantAuthenticationSecurityTest extends TestCase
         ]);
     }
 
-    private function createUser(int $customerId, string $email, string $status): User
+    private function createUser(int $customerId, string $email, string $status, string $role = 'customer_admin'): User
     {
         return User::forceCreate([
             'customer_id' => $customerId,
             'name' => $email,
             'email' => $email,
             'password' => Hash::make('password123'),
-            'role' => 'customer_admin',
+            'role' => $role,
             'status' => $status,
             'email_verified_at' => now(),
         ]);

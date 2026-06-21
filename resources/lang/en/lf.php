@@ -104,6 +104,7 @@ return [
     'LF_auth_login_google' => 'Login with Google',
     'LF_auth_login_show_password' => 'Show password',
     'LF_auth_login_hide_password' => 'Hide password',
+    'LF_auth_message_password_changed_login_again' => 'Your password has been changed. Please log in again.',
     'LF_auth_forgot_title' => 'Forgot password',
     'LF_auth_forgot_description' => 'Enter your registered email address. We will send you a password reset link.',
     'LF_auth_forgot_email_placeholder' => 'Enter email address',

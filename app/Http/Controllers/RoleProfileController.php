@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Support\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -25,7 +26,7 @@ class RoleProfileController extends Controller
 
     public function updateTeacherPassword(Request $request): RedirectResponse
     {
-        return $this->updatePassword($request, 'teacher', 'teacher.profile.edit');
+        return $this->updatePassword($request, 'teacher');
     }
 
     public function editStudent(): View
@@ -40,7 +41,7 @@ class RoleProfileController extends Controller
 
     public function updateStudentPassword(Request $request): RedirectResponse
     {
-        return $this->updatePassword($request, 'student', 'student.profile.edit');
+        return $this->updatePassword($request, 'student');
     }
 
     private function edit(string $role, string $view): View
@@ -112,7 +113,7 @@ class RoleProfileController extends Controller
             ->with('profile_success', 'Profile updated successfully.');
     }
 
-    private function updatePassword(Request $request, string $role, string $route): RedirectResponse
+    private function updatePassword(Request $request, string $role): RedirectResponse
     {
         $userId = auth()->id();
         $customerId = TenantContext::customerId();
@@ -161,8 +162,12 @@ class RoleProfileController extends Controller
                 ]);
         });
 
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
         return redirect()
-            ->route($route)
-            ->with('password_success', 'Password changed successfully.');
+            ->route('login')
+            ->with('status', __('lf.LF_auth_message_password_changed_login_again'));
     }
 }

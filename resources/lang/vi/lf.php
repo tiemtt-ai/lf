@@ -104,6 +104,7 @@ return [
     'LF_auth_login_google' => 'Đăng nhập với Google',
     'LF_auth_login_show_password' => 'Hiện mật khẩu',
     'LF_auth_login_hide_password' => 'Ẩn mật khẩu',
+    'LF_auth_message_password_changed_login_again' => 'Mật khẩu đã được thay đổi. Vui lòng đăng nhập lại.',
     'LF_auth_forgot_title' => 'Quên mật khẩu',
     'LF_auth_forgot_description' => 'Nhập địa chỉ email đã đăng ký. Chúng tôi sẽ gửi cho bạn liên kết để đặt lại mật khẩu.',
     'LF_auth_forgot_email_placeholder' => 'Nhập địa chỉ email',

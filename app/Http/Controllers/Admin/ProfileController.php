@@ -7,6 +7,7 @@ use App\Support\TenantContext;
 use Closure;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
@@ -107,9 +108,13 @@ class ProfileController extends Controller
                 ]);
         });
 
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
         return redirect()
-            ->route('admin.my-account.edit')
-            ->with('password_success', __('lf.LF_admin_message_my_account_password_updated'));
+            ->route('login')
+            ->with('status', __('lf.LF_auth_message_password_changed_login_again'));
     }
 
     private function admin(): object

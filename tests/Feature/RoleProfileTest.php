@@ -121,8 +121,11 @@ class RoleProfileTest extends TestCase
     public function test_password_can_be_changed_with_the_correct_current_password(): void
     {
         $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
         $teacher = $this->createUser($customerId, 'teacher');
         $student = $this->createUser($customerId, 'student');
+        $otherTeacher = $this->createUser($customerId, 'teacher');
+        $crossTenantStudent = $this->createUser($otherCustomerId, 'student');
 
         $this->actingAs($teacher)
             ->patch('https://tenant-a.localhost/teacher/profile/password', [
@@ -130,9 +133,24 @@ class RoleProfileTest extends TestCase
                 'password' => 'new-password-456',
                 'password_confirmation' => 'new-password-456',
             ])
-            ->assertRedirect('https://tenant-a.localhost/teacher/profile');
+            ->assertRedirect('https://tenant-a.localhost/login')
+            ->assertSessionHas('status', __('lf.LF_auth_message_password_changed_login_again'));
 
+        $this->assertGuest();
         $this->assertTrue(Hash::check('new-password-456', $teacher->fresh()->password));
+        $this->assertTrue(Hash::check('password123', $otherTeacher->fresh()->password));
+
+        $this->post('https://tenant-a.localhost/login', [
+            'email' => $teacher->email,
+            'password' => 'password123',
+        ])->assertSessionHasErrors('email');
+        $this->assertGuest();
+
+        $this->post('https://tenant-a.localhost/login', [
+            'email' => $teacher->email,
+            'password' => 'new-password-456',
+        ])->assertRedirect('https://tenant-a.localhost/teacher');
+        $this->assertAuthenticatedAs($teacher->fresh());
 
         $this->actingAs($student)
             ->patch('https://tenant-a.localhost/profile/password', [
@@ -140,9 +158,24 @@ class RoleProfileTest extends TestCase
                 'password' => 'student-password-456',
                 'password_confirmation' => 'student-password-456',
             ])
-            ->assertRedirect('https://tenant-a.localhost/profile');
+            ->assertRedirect('https://tenant-a.localhost/login')
+            ->assertSessionHas('status', __('lf.LF_auth_message_password_changed_login_again'));
 
+        $this->assertGuest();
         $this->assertTrue(Hash::check('student-password-456', $student->fresh()->password));
+        $this->assertTrue(Hash::check('password123', $crossTenantStudent->fresh()->password));
+
+        $this->post('https://tenant-a.localhost/login', [
+            'email' => $student->email,
+            'password' => 'password123',
+        ])->assertSessionHasErrors('email');
+        $this->assertGuest();
+
+        $this->post('https://tenant-a.localhost/login', [
+            'email' => $student->email,
+            'password' => 'student-password-456',
+        ])->assertRedirect('https://tenant-a.localhost');
+        $this->assertAuthenticatedAs($student->fresh());
     }
 
     public function test_password_change_rejects_wrong_current_password_mismatch_and_reuse(): void
@@ -206,12 +239,12 @@ class RoleProfileTest extends TestCase
         $this->assertTrue(Hash::check('password123', $student->fresh()->password));
     }
 
-    private function createTenant(): int
+    private function createTenant(string $slug = 'tenant-a'): int
     {
         return DB::table('saas_customers')->insertGetId([
-            'name' => 'Tenant A',
-            'slug' => 'tenant-a',
-            'subdomain' => 'tenant-a',
+            'name' => $slug,
+            'slug' => $slug,
+            'subdomain' => $slug,
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),

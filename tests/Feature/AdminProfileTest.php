@@ -26,6 +26,15 @@ class AdminProfileTest extends TestCase
     public function test_admin_profile_uses_password_modal_and_can_change_own_password(): void
     {
         $admin = $this->createAdmin();
+        $otherAdmin = User::forceCreate([
+            'customer_id' => $admin->customer_id,
+            'name' => 'Other Admin',
+            'email' => 'other-admin@example.test',
+            'password' => Hash::make('password123'),
+            'role' => 'customer_admin',
+            'status' => 'active',
+            'email_verified_at' => now(),
+        ]);
 
         $response = $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/my-account')
@@ -56,9 +65,24 @@ class AdminProfileTest extends TestCase
                 'password' => 'new-password-456',
                 'password_confirmation' => 'new-password-456',
             ])
-            ->assertRedirect('https://tenant-a.localhost/admin/my-account');
+            ->assertRedirect('https://tenant-a.localhost/login')
+            ->assertSessionHas('status', __('lf.LF_auth_message_password_changed_login_again'));
 
+        $this->assertGuest();
         $this->assertTrue(Hash::check('new-password-456', $admin->fresh()->password));
+        $this->assertTrue(Hash::check('password123', $otherAdmin->fresh()->password));
+
+        $this->post('https://tenant-a.localhost/login', [
+            'email' => 'admin@example.test',
+            'password' => 'password123',
+        ])->assertSessionHasErrors('email');
+        $this->assertGuest();
+
+        $this->post('https://tenant-a.localhost/login', [
+            'email' => 'admin@example.test',
+            'password' => 'new-password-456',
+        ])->assertRedirect('https://tenant-a.localhost/admin');
+        $this->assertAuthenticatedAs($admin->fresh());
     }
 
     public function test_admin_password_change_rejects_wrong_current_password_mismatch_and_reuse(): void
