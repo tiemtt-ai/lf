@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', __('lf.LF_common_brand_name'))</title>
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @yield('vite')
 </head>
 <body class="@yield('body_class')">
 @yield('app_shell')

@@ -1,5 +1,8 @@
 @import './lf/base.css';
 @import './lf/components.css';
+@import './admin/admin-layout.css';
+@import './admin/admin-components.css';
+@import './admin/admin-pages.css';
 
 @tailwind base;
 @tailwind components;

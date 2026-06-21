@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ __('lf.LF_auth_login_title') }} - Master Korean</title>
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/auth.css', 'resources/js/app.js'])
 </head>
 <body class="auth-page">
 <header class="auth-header auth-header-top">
@@ -51,25 +51,25 @@
 </main>
 
 <footer class="layout-footer">
-    <div class="admin-footer-wrap">
-        <div class="admin-footer-top">
-            <div class="admin-footer-column admin-footer-company">
-                <div class="admin-footer-logo">
+    <div class="auth-footer-wrap">
+        <div class="auth-footer-top">
+            <div class="auth-footer-column auth-footer-company">
+                <div class="auth-footer-logo">
                     <img src="{{ asset('assets/admin/brand-logo.png') }}" alt="Master Korean">
                 </div>
                 <h4>{{ __('lf.LF_common_footer_common_company') }}</h4>
                 <p>{{ __('lf.LF_common_footer_common_address') }}</p>
-                <h4 class="admin-footer-contact" style="margin-top: 30px">
+                <h4 class="auth-footer-contact" style="margin-top: 30px">
                     <img src="{{ asset('assets/admin/footer/phone.png') }}" alt="">
                     0243-6886-333 / 0912-801-848
                 </h4>
-                <h4 class="admin-footer-contact">
+                <h4 class="auth-footer-contact">
                     <img src="{{ asset('assets/admin/footer/mail.png') }}" alt="">
                     visang@masterkorean.vn
                 </h4>
             </div>
 
-            <div class="admin-footer-column">
+            <div class="auth-footer-column">
                 <h3>{{ __('lf.LF_common_footer_common_about_company') }}</h3>
                 <a href="#">{{ __('lf.LF_common_footer_common_introduction') }}</a>
                 <a href="#">{{ __('lf.LF_common_footer_common_legal_documents') }}</a>
@@ -77,7 +77,7 @@
                 <a href="#">{{ __('lf.LF_navigation_menu_public_teachers') }}</a>
             </div>
 
-            <div class="admin-footer-column">
+            <div class="auth-footer-column">
                 <h3>{{ __('lf.LF_common_footer_common_support') }}</h3>
                 <a href="#">{{ __('lf.LF_common_footer_common_faq') }}</a>
                 <a href="#">{{ __('lf.LF_common_footer_common_operating_rules') }}</a>
@@ -85,29 +85,29 @@
             </div>
         </div>
 
-        <div class="admin-footer-bottom">
-            <div class="admin-footer-legal">
+        <div class="auth-footer-bottom">
+            <div class="auth-footer-legal">
                 <p>{{ __('lf.LF_common_footer_common_copyright') }}</p>
                 <p>{{ __('lf.LF_common_footer_common_legal_notice') }}</p>
             </div>
 
-            <div class="admin-footer-certificates">
-                <img class="admin-footer-bct" src="{{ asset('assets/admin/footer/bct.png') }}"
+            <div class="auth-footer-certificates">
+                <img class="auth-footer-bct" src="{{ asset('assets/admin/footer/bct.png') }}"
                      alt="{{ __('lf.LF_common_image_common_trade_notice') }}">
-                <img class="admin-footer-aws" src="{{ asset('assets/admin/footer/aws.png') }}"
+                <img class="auth-footer-aws" src="{{ asset('assets/admin/footer/aws.png') }}"
                      alt="AWS Qualified Software">
             </div>
 
-            <div class="admin-footer-apps">
+            <div class="auth-footer-apps">
                 <img src="{{ asset('assets/admin/footer/mk-live.png') }}" alt="MK Live">
                 <img src="{{ asset('assets/admin/footer/mk-jobs.png') }}" alt="MK Jobs">
                 <img src="{{ asset('assets/admin/footer/youtube.png') }}" alt="YouTube">
-                <img class="admin-footer-store" src="{{ asset('assets/admin/footer/google-play.png') }}"
+                <img class="auth-footer-store" src="{{ asset('assets/admin/footer/google-play.png') }}"
                      alt="Google Play">
                 <img src="{{ asset('assets/admin/footer/exam.png') }}" alt="Exam">
                 <img src="{{ asset('assets/admin/footer/mk-blog.png') }}" alt="MK Blog">
                 <img src="{{ asset('assets/admin/footer/facebook.png') }}" alt="Facebook">
-                <img class="admin-footer-store" src="{{ asset('assets/admin/footer/app-store.png') }}"
+                <img class="auth-footer-store" src="{{ asset('assets/admin/footer/app-store.png') }}"
                      alt="App Store">
             </div>
         </div>

@@ -6,7 +6,8 @@
 
     <title>@yield('title', __('lf.LF_common_title_public_default'))</title>
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/tenant-site.css', 'resources/js/app.js'])
+    @stack('tenant_theme')
 </head>
 <body class="public-page">
 

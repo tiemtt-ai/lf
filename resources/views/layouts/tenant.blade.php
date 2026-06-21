@@ -1,5 +1,10 @@
 @extends('layouts.app')
 
+@section('vite')
+    @vite(['resources/css/tenant-site.css', 'resources/js/app.js'])
+    @stack('tenant_theme')
+@endsection
+
 @section('body_class', 'lf-student-page')
 
 @section('app_shell')

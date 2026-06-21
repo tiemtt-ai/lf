@@ -1,0 +1,27 @@
+/* Tenant website theme layer. Keep this scoped to public/student experiences. */
+.public-page,
+.lf-student-page {
+    --lf-primary: #485cc7;
+    --lf-secondary: #7acc00;
+    --lf-bg: #ffffff;
+    --lf-text: #172033;
+    --lf-radius: 8px;
+}
+
+.public-page {
+    --public-primary: var(--lf-primary);
+    --public-accent: var(--lf-secondary);
+    --public-text: var(--lf-text);
+}
+
+.lf-student-page {
+    --lf-primary: #625bf6;
+    --lf-secondary: #18a999;
+    --lf-bg: #f7f8fc;
+    --lf-radius: 18px;
+    --student-primary: var(--lf-primary);
+    --student-secondary: var(--lf-secondary);
+    --student-surface-soft: var(--lf-bg);
+    --student-text: var(--lf-text);
+    --student-radius-md: var(--lf-radius);
+}

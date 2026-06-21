@@ -10,7 +10,7 @@
             aria-label="{{ __('lf.LF_common_language_switch') }}: {{ __('lf.LF_common_language_'.$targetLocale) }}">
         <img class="language-switcher-icon" src="{{ asset('assets/admin/language.png') }}" alt="">
         <span class="language-switcher-code">{{ $currentLocale }}</span>
-        <span class="auth-chevron" aria-hidden="true"></span>
+        <span class="language-switcher-chevron" aria-hidden="true"></span>
     </button>
 </form>
 

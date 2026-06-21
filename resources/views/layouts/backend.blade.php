@@ -1,5 +1,9 @@
 @extends('layouts.app')
 
+@section('vite')
+    @vite(['resources/css/backend.css', 'resources/js/app.js'])
+@endsection
+
 @section('body_class', 'lf-admin-page')
 
 @section('app_shell')
@@ -95,14 +99,14 @@
                     <span>{{ $item }}</span>
                 @endforeach
             </div>--}}
-            <div class="auth-primary-menu" aria-hidden="true">
-                <span>{{ __('lf.LF_navigation_menu_public_courses') }} <i class="auth-chevron"></i></span>
+            <div class="admin-primary-menu" aria-hidden="true">
+                <span>{{ __('lf.LF_navigation_menu_public_courses') }} <i class="admin-chevron"></i></span>
                 <span>{{ __('lf.LF_navigation_menu_admin_exams') }}</span>
                 <span>{{ __('lf.LF_navigation_menu_admin_curriculum') }}</span>
                 <span>{{ __('lf.LF_navigation_menu_public_teachers') }}</span>
                 <span>{{ __('lf.LF_navigation_menu_admin_community') }}</span>
                 <span>{{ __('lf.LF_navigation_menu_admin_level_test') }}</span>
-                <span>{{ __('lf.LF_navigation_menu_admin_visang_video') }} <i class="auth-chevron"></i></span>
+                <span>{{ __('lf.LF_navigation_menu_admin_visang_video') }} <i class="admin-chevron"></i></span>
             </div>
 
             <div class="admin-nav-actions">

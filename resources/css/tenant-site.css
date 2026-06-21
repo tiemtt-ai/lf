@@ -1,5 +1,8 @@
 @import './lf/base.css';
 @import './lf/components.css';
+@import './public/public.css';
+@import './tenant/tenant.css';
+@import './tenant/theme-default.css';
 
 @tailwind base;
 @tailwind components;
