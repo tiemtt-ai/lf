@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\OrganizationController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\CustomerRegisterController;
@@ -124,14 +125,20 @@ Route::middleware([
         ]);
     })->name('dashboard');
 
-    Route::get('/profile', [AdminProfileController::class, 'edit'])
-        ->name('profile.edit');
+    Route::get('/organization', [OrganizationController::class, 'edit'])
+        ->name('organization.edit');
 
-    Route::patch('/profile', [AdminProfileController::class, 'update'])
-        ->name('profile.update');
+    Route::patch('/organization', [OrganizationController::class, 'update'])
+        ->name('organization.update');
 
-    Route::patch('/profile/password', [AdminProfileController::class, 'updatePassword'])
-        ->name('profile.password.update');
+    Route::get('/my-account', [AdminProfileController::class, 'edit'])
+        ->name('my-account.edit');
+
+    Route::patch('/my-account', [AdminProfileController::class, 'update'])
+        ->name('my-account.update');
+
+    Route::patch('/my-account/password', [AdminProfileController::class, 'updatePassword'])
+        ->name('my-account.password.update');
 
     Route::get('/users', [UserController::class, 'index'])
         ->name('users.index');

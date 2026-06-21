@@ -6,15 +6,7 @@
 @section('content')
     @php
         $admin = auth()->user();
-        $organizationType = $tenant?->organization_type;
         $emptyValue = '-';
-        $organizationTypeLabel = match ($organizationType) {
-            'training_center' => __('lf.LF_auth_register_organization_type_training_center'),
-            'school' => __('lf.LF_auth_register_organization_type_school'),
-            'corporate' => __('lf.LF_auth_register_organization_type_corporate'),
-            'individual' => __('lf.LF_auth_register_organization_type_individual'),
-            default => $emptyValue,
-        };
     @endphp
 
     <p class="admin-dashboard-welcome">
@@ -35,10 +27,6 @@
                     <dd>{{ $tenant?->subdomain ?? $tenant?->slug ?? $emptyValue }}</dd>
                 </div>
                 <div>
-                    <dt>{{ __('lf.LF_auth_register_organization_type') }}</dt>
-                    <dd>{{ $organizationTypeLabel }}</dd>
-                </div>
-                <div>
                     <dt>{{ __('lf.LF_admin_label_tenant_email') }}</dt>
                     <dd>{{ $tenant?->email ?? $emptyValue }}</dd>
                 </div>
@@ -54,19 +42,19 @@
         </section>
 
         <section class="admin-card">
-            <h2 class="admin-dashboard-section-title">{{ __('lf.LF_admin_title_admin_account') }}</h2>
+            <h2 class="admin-dashboard-section-title">{{ __('lf.LF_admin_title_current_user') }}</h2>
 
             <dl class="admin-profile-summary">
                 <div>
-                    <dt>{{ __('lf.LF_admin_label_admin_name') }}</dt>
+                    <dt>{{ __('lf.LF_admin_label_current_user_name') }}</dt>
                     <dd>{{ $admin->name ?? $emptyValue }}</dd>
                 </div>
                 <div>
-                    <dt>{{ __('lf.LF_admin_label_admin_email') }}</dt>
+                    <dt>{{ __('lf.LF_admin_label_current_user_email') }}</dt>
                     <dd>{{ $admin->email ?? $emptyValue }}</dd>
                 </div>
                 <div>
-                    <dt>{{ __('lf.LF_admin_label_admin_phone') }}</dt>
+                    <dt>{{ __('lf.LF_admin_label_current_user_phone') }}</dt>
                     <dd>{{ $admin->phone ?? $emptyValue }}</dd>
                 </div>
                 <div>

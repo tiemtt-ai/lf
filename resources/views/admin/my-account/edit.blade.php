@@ -1,7 +1,7 @@
 @extends('layouts.backend')
 
-@section('title', __('lf.LF_profile_title_admin_settings'))
-@section('page_title', __('lf.LF_profile_title_admin_settings'))
+@section('title', __('lf.LF_profile_title_admin_my_account'))
+@section('page_title', __('lf.LF_profile_title_admin_my_account'))
 
 @section('content')
     @php
@@ -27,7 +27,7 @@
 
     <h2 class="sr-only">{{ __('lf.LF_profile_title_common_information') }}</h2>
 
-    <form method="POST" action="{{ route('admin.profile.update') }}">
+    <form method="POST" action="{{ route('admin.my-account.update') }}">
         @csrf
         @method('PATCH')
 
@@ -78,8 +78,7 @@
                     {{ __('lf.LF_common_label_email') }}
                 </td>
                 <td colspan="3">
-                    {{ old('email', $user->email) }}
-                    <input type="hidden" name="email" value="{{ old('email', $user->email) }}">
+                    {{ $user->email }}
                 </td>
             </tr>
             <tr>
@@ -159,7 +158,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('admin.profile.password.update') }}">
+            <form method="POST" action="{{ route('admin.my-account.password.update') }}">
                 @csrf
                 @method('PATCH')
 

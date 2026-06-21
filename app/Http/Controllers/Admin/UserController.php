@@ -55,7 +55,7 @@ class UserController extends Controller
             'date_of_birth' => ['nullable', 'date'],
             'gender' => ['nullable', 'in:male,female,other'],
             'password' => ['required', 'confirmed', 'min:8'],
-            'role' => ['required', 'in:teacher,student'],
+            'role' => ['required', 'in:customer_admin,teacher,student'],
         ]);
 
         $customerId = TenantContext::customerId();

@@ -9,7 +9,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
@@ -17,28 +16,26 @@ class ProfileController extends Controller
 {
     public function edit(): View
     {
-        return view('admin.profile.edit', [
+        return view('admin.my-account.edit', [
             'user' => $this->admin(),
         ]);
     }
 
     public function update(Request $request): RedirectResponse
     {
-        $userId = auth()->id();
+        $user = $request->user();
+        $userId = $user?->id;
         $customerId = TenantContext::customerId();
 
-        abort_if(! $userId || ! $customerId, 404);
+        abort_if(
+            ! $userId
+            || ! $customerId
+            || (int) $user->customer_id !== (int) $customerId,
+            404
+        );
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => [
-                'required',
-                'string',
-                'lowercase',
-                'email',
-                'max:255',
-                Rule::unique('users', 'email')->ignore($userId),
-            ],
             'phone' => ['nullable', 'string', 'max:30'],
             'date_of_birth' => ['nullable', 'date'],
             'gender' => ['nullable', 'in:male,female,other'],
@@ -60,20 +57,16 @@ class ProfileController extends Controller
                 ->where('role', 'customer_admin')
                 ->update([
                     'name' => $validated['name'],
-                    'email' => $validated['email'],
                     'phone' => $validated['phone'] ?? null,
                     'date_of_birth' => $validated['date_of_birth'] ?? null,
                     'gender' => $validated['gender'] ?? null,
-                    'email_verified_at' => $validated['email'] !== $user->email
-                        ? null
-                        : $user->email_verified_at,
                     'updated_at' => now(),
                 ]);
         });
 
         return redirect()
-            ->route('admin.profile.edit')
-            ->with('profile_success', 'Profile updated successfully.');
+            ->route('admin.my-account.edit')
+            ->with('profile_success', __('lf.LF_admin_message_my_account_updated'));
     }
 
     public function updatePassword(Request $request): RedirectResponse
@@ -115,8 +108,8 @@ class ProfileController extends Controller
         });
 
         return redirect()
-            ->route('admin.profile.edit')
-            ->with('password_success', 'Password changed successfully.');
+            ->route('admin.my-account.edit')
+            ->with('password_success', __('lf.LF_admin_message_my_account_password_updated'));
     }
 
     private function admin(): object

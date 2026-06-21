@@ -52,6 +52,7 @@
             <div class="lf-form-group">
                 <label class="lf-form-label" for="role">{{ __('lf.LF_common_label_role') }}</label>
                 <select id="role" name="role" class="lf-form-control">
+                    <option value="customer_admin" @selected(old('role') === 'customer_admin')>{{ __('lf.LF_common_role_admin_customer_admin') }}</option>
                     <option value="teacher" @selected(old('role') === 'teacher')>{{ __('lf.LF_common_role_teacher_teacher') }}</option>
                     <option value="student" @selected(old('role') === 'student')>{{ __('lf.LF_common_role_student_student') }}</option>
                 </select>

@@ -48,11 +48,8 @@
                 ['label' => __('lf.LF_navigation_menu_admin_users'), 'route' => 'admin.users.index', 'active' => 'admin.users.*', 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_public_courses'), 'route' => null, 'active' => null, 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_public_assessments'), 'route' => null, 'active' => null, 'visible' => true],
-                ['label' => __('lf.LF_navigation_menu_teacher_live_classes'), 'route' => null, 'active' => null, 'visible' => false],
-                ['label' => __('lf.LF_navigation_menu_admin_media'), 'route' => null, 'active' => null, 'visible' => false],
-                ['label' => __('lf.LF_navigation_menu_teacher_reports'), 'route' => null, 'active' => null, 'visible' => false],
-                ['label' => __('lf.LF_navigation_menu_admin_ai'), 'route' => null, 'active' => null, 'visible' => false],
-                ['label' => __('lf.LF_navigation_menu_admin_settings'), 'route' => 'admin.profile.edit', 'active' => 'admin.profile.*', 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_admin_organization'), 'route' => 'admin.organization.edit', 'active' => 'admin.organization.*', 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_admin_my_account'), 'route' => 'admin.my-account.edit', 'active' => 'admin.my-account.*', 'visible' => true],
             ];
     @endphp
 
