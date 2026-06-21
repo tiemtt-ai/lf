@@ -569,6 +569,164 @@ Student sử dụng Tenant Website.
 
 ---
 
+# User Interface Governance
+
+LearnForge phải cung cấp trải nghiệm nhất quán trên nhiều loại thiết bị.
+
+Mọi thay đổi liên quan đến:
+
+* UI
+* Layout
+* CSS
+* Responsive Design
+* Navigation
+* Forms
+* Tables
+* Cards
+* Modals
+
+đều phải được kiểm tra trên nhiều kích thước màn hình.
+
+---
+
+# Responsive First
+
+Responsive không phải bước kiểm tra cuối cùng.
+
+Responsive phải được xem là yêu cầu mặc định trong quá trình thiết kế và phát triển giao diện.
+
+Mọi Experience của LearnForge phải hoạt động ổn định trên:
+
+* Mobile
+* Tablet
+* Laptop
+* Desktop
+
+---
+
+# Standard Breakpoints
+
+Required:
+
+```text
+375px   Mobile Small
+
+430px   Mobile Large
+
+768px   Tablet Portrait
+
+1024px  Tablet Landscape
+
+1366px  Laptop
+
+1440px  Desktop
+```
+
+Optional:
+
+```text
+1920px  Large Desktop
+```
+
+---
+
+# Responsive Validation Scope
+
+Mọi thay đổi giao diện phải được kiểm tra cho các Experience hiện có:
+
+```text
+Public Experience
+
+Student Experience
+
+Authentication Experience
+
+Admin Experience
+
+Teacher Experience
+```
+
+---
+
+# Required Components
+
+Tối thiểu phải xác nhận:
+
+* Header
+* Navigation
+* Forms
+* Tables
+* Cards
+* Modals
+* Footer
+* Language Switcher
+
+---
+
+# Invalid UI States
+
+Không được xuất hiện:
+
+* Horizontal Overflow
+* Broken Layout
+* Hidden Navigation
+* Unusable Forms
+* Modal Overflow
+* Text Truncation gây mất chức năng
+* Content vượt viewport
+* Navigation bị che khuất
+
+---
+
+# Responsive QA Requirement
+
+Mọi thay đổi liên quan tới:
+
+* CSS
+* Layout
+* Navigation
+* UI Components
+
+phải thực hiện Responsive QA trước khi hoàn thành.
+
+QA tối thiểu phải báo cáo:
+
+* Breakpoints Tested
+* Experiences Tested
+* Issues Found
+* Fixes Applied
+
+---
+
+# Minimum Verification
+
+Tối thiểu phải kiểm tra:
+
+```text
+375px
+768px
+1366px
+1440px
+```
+
+trước khi xác nhận hoàn thành thay đổi giao diện.
+
+---
+
+# Core Rule
+
+```text
+Build Once
+
+Test Everywhere
+```
+
+Đây là quy tắc phát triển giao diện bắt buộc áp dụng cho toàn bộ LearnForge.
+
+Mọi AI Agent, Developer và Contributor của LearnForge phải tuân thủ quy tắc này khi thay đổi giao diện người dùng.
+
+---
+
 # LearnForge Intelligence Loop
 
 Đây là vòng lặp cốt lõi của toàn bộ nền tảng.
