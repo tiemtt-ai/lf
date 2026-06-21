@@ -161,10 +161,23 @@ class UserAuditSecurityTest extends TestCase
                 'password' => 'new-password-456',
                 'password_confirmation' => 'new-password-456',
             ])
-            ->assertRedirect('https://tenant-a.localhost/admin/users/'.$admin->id.'/edit')
-            ->assertSessionHas('success', 'Password updated successfully.');
+            ->assertRedirect('https://tenant-a.localhost/login')
+            ->assertSessionHas('status', __('lf.LF_auth_message_password_changed_login_again'));
 
+        $this->assertGuest();
         $this->assertTrue(Hash::check('new-password-456', $admin->fresh()->password));
+
+        $this->post('https://tenant-a.localhost/login', [
+            'email' => $admin->email,
+            'password' => 'password123',
+        ])->assertSessionHasErrors('email');
+        $this->assertGuest();
+
+        $this->post('https://tenant-a.localhost/login', [
+            'email' => $admin->email,
+            'password' => 'new-password-456',
+        ])->assertRedirect('https://tenant-a.localhost/admin');
+        $this->assertAuthenticatedAs($admin->fresh());
     }
 
     public function test_admin_user_password_reset_requires_confirmation(): void
@@ -189,6 +202,33 @@ class UserAuditSecurityTest extends TestCase
         $this->followRedirects($response)
             ->assertOk()
             ->assertSee('style="display: block;"', false);
+
+        $this->actingAs($admin)
+            ->put('https://tenant-a.localhost/admin/users/'.$target->id, [
+                'password_reset' => '1',
+                'password' => 'new-password-456',
+                'password_confirmation' => 'new-password-456',
+            ])
+            ->assertRedirect('https://tenant-a.localhost/admin/users/'.$target->id.'/edit')
+            ->assertSessionHas('success', 'Password updated successfully.');
+
+        $this->assertAuthenticatedAs($admin);
+        $this->assertTrue(Hash::check('new-password-456', $target->fresh()->password));
+
+        $this->post('https://tenant-a.localhost/logout')->assertRedirect('https://tenant-a.localhost/login');
+        $this->assertGuest();
+
+        $this->post('https://tenant-a.localhost/login', [
+            'email' => $target->email,
+            'password' => 'password123',
+        ])->assertSessionHasErrors('email');
+        $this->assertGuest();
+
+        $this->post('https://tenant-a.localhost/login', [
+            'email' => $target->email,
+            'password' => 'new-password-456',
+        ])->assertRedirect('https://tenant-a.localhost/teacher');
+        $this->assertAuthenticatedAs($target->fresh());
     }
 
     public function test_admin_user_password_modal_is_rendered_and_cross_tenant_target_is_rejected(): void

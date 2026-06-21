@@ -8,6 +8,7 @@ use App\Support\AuditLog;
 use App\Support\TenantContext;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -279,6 +280,16 @@ class UserController extends Controller
                 $this->auditFields($updatedUser)
             );
         });
+
+        if ($isOwnAccount) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()
+                ->route('login')
+                ->with('status', __('lf.LF_auth_message_password_changed_login_again'));
+        }
 
         return redirect()
             ->route('admin.users.edit', $id)
