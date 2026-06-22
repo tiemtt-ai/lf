@@ -149,9 +149,23 @@
     box-shadow: 0 8px 24px rgba(31, 41, 55, .12);
 }
 
+.auth-card {
+    width: 100%;
+    max-width: 620px;
+    padding: 16px 18px 18px;
+    border-radius: 4px;
+    background: #ffffff;
+    box-shadow: 0 8px 24px rgba(31, 41, 55, .12);
+}
+
 .auth-forgot-card {
     margin-top: 34px;
     padding: 0 18px 18px;
+}
+
+.auth-notice-card {
+    margin-top: 34px;
+    padding-top: 0;
 }
 
 .auth-page-heading {
@@ -179,6 +193,13 @@
     color: #555555;
     font-size: 16px;
     line-height: 1.55;
+}
+
+.auth-description {
+    margin: 0 0 24px;
+    color: #555555;
+    font-size: 16px;
+    line-height: 1.6;
 }
 
 .auth-login-tabs {
@@ -306,6 +327,49 @@
     font: inherit;
     font-size: 20px;
     cursor: pointer;
+}
+
+.auth-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.auth-actions form {
+    margin: 0;
+}
+
+.auth-button {
+    min-height: 52px;
+    padding: 0 28px;
+    border: 0;
+    color: #ffffff;
+    background: var(--auth-primary);
+    font: inherit;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.auth-link-button {
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    color: var(--auth-primary);
+    background: transparent;
+    font: inherit;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.auth-link-button:hover,
+.auth-link-button:focus {
+    text-decoration: underline;
+}
+
+.auth-notice-status {
+    margin-bottom: 20px;
+    line-height: 1.5;
 }
 
 .auth-forgot-row {
@@ -562,6 +626,10 @@
         max-width: 620px;
     }
 
+    .auth-card {
+        max-width: 620px;
+    }
+
     .auth-floating {
         display: none;
     }
@@ -592,6 +660,19 @@
 }
 
 @media (max-width: 600px) {
+    .auth-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .auth-button {
+        width: 100%;
+    }
+
+    .auth-link-button {
+        width: 100%;
+    }
+
     .auth-footer-apps {
         grid-template-columns: repeat(2, minmax(0, 109px));
         justify-content: start;
