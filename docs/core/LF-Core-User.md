@@ -325,9 +325,49 @@ Học tập.
 Tenant Website
 ```
 
-Student sử dụng Personalized Tenant Website sau login.
+Student không sử dụng:
+
+```text
+/student
+```
+
+làm main portal entry.
+
+Student login qua single authentication endpoint:
+
+```text
+/login
+```
+
+Sau login, Student redirect về:
+
+```text
+/
+```
+
+Student sử dụng Tenant Website ở Personalized Student Mode.
 
 Student không có portal riêng.
+
+Không recreate:
+
+```text
+/student
+```
+
+làm primary student portal.
+
+Admin sử dụng:
+
+```text
+/admin
+```
+
+Teacher sử dụng:
+
+```text
+/teacher
+```
 
 ---
 

@@ -477,6 +477,31 @@ Examples:
 
 ---
 
+# AI Agent Entry Point
+
+## Current Stable Baseline
+
+Current stable baseline:
+
+* Laravel 12
+* PHP 8.3+
+* Blade + Livewire 3 + AlpineJS
+* MySQL
+* Redis
+* Laravel Reverb
+* Single `/login`
+* Student redirect: `/`
+* Customer Admin redirect: `/admin`
+* Teacher redirect: `/teacher`
+* Tenant middleware required
+* `tenant.user` middleware required for protected areas
+* `customer_id` required for business data
+* `TenantContext::customerId()` is the tenant source of truth
+* `DB::table()` first
+* Feature Tests required for auth, tenant isolation, role authorization, and happy path
+
+---
+
 # AI Agent Rules
 
 When working on LearnForge:

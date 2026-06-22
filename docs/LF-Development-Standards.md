@@ -21,6 +21,51 @@ Mục tiêu:
 
 ---
 
+# Current Stable Baseline
+
+Current stable baseline:
+
+* Laravel 12
+* PHP 8.3+
+* Blade + Livewire 3 + AlpineJS
+* MySQL
+* Redis
+* Laravel Reverb
+* Single `/login`
+* Student redirect: `/`
+* Customer Admin redirect: `/admin`
+* Teacher redirect: `/teacher`
+* Tenant middleware required
+* `tenant.user` middleware required for protected areas
+* `customer_id` required for business data
+* `TenantContext::customerId()` is the tenant source of truth
+* `DB::table()` first
+* Feature Tests required for auth, tenant isolation, role authorization, and happy path
+
+---
+
+# Before Coding Rules For AI Agents
+
+Before modifying LearnForge code, AI Agents must:
+
+* Inspect existing routes, controllers, views, middleware, migrations, and tests related to the task.
+* Reuse the current architecture before creating new architecture.
+* Prefer modifying existing files over creating duplicate files.
+* Do not recreate existing flows.
+* Do not rename stable roles, routes, middleware, layouts, or tenant/auth concepts unless explicitly requested.
+* Do not create `/admin-login`, `/teacher-login`, or `/student-login`.
+* Do not create `/student` as the primary student portal.
+* Preserve single `/login`.
+* Preserve student redirect to `/`.
+* Preserve customer_admin redirect to `/admin`.
+* Preserve teacher redirect to `/teacher`.
+* Preserve tenant middleware and tenant.user checks.
+* Preserve `customer_id` tenant isolation.
+* Prefer `DB::table()` unless Eloquent is clearly needed.
+* Add or update Feature Tests when behavior changes.
+
+---
+
 # Core Principles
 
 ## Rule 1
