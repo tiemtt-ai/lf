@@ -43,6 +43,21 @@ Read these first when understanding LearnForge architecture.
 
 ---
 
+## Engineering Standards
+
+Location:
+
+```text
+docs/
+```
+
+| Document                    | Purpose                                                                                         |
+| --------------------------- | ----------------------------------------------------------------------------------------------- |
+| LF-Data-Modeling.md         | Database design methodology: domain, table, relationship, business rules, fields, indexes       |
+| LF-Development-Standards.md | Coding, migration, testing, tenant isolation, and implementation standards                      |
+
+---
+
 ## Core Modules
 
 Location:
@@ -163,6 +178,46 @@ Use when:
 * navigation/UI changes
 * i18n changes
 * before large commits
+
+---
+
+## Database Design / Schema Changes
+
+Read:
+
+* LF-OS.md
+* LF-Data-Modeling.md
+* LF-Development-Standards.md
+* relevant domain document
+
+Use when:
+
+* creating new tables
+* changing table structure
+* adding fields
+* designing relationships
+* creating or modifying migrations
+
+---
+
+## Code Implementation
+
+Read:
+
+* LF-Development-Standards.md
+* LF-OS.md
+* relevant domain document
+* relevant tech document if needed
+
+Use when:
+
+* writing Laravel code
+* writing Livewire code
+* changing routes
+* changing controllers
+* changing middleware
+* writing tests
+* modifying existing implementation
 
 ---
 
@@ -436,6 +491,8 @@ When working on LearnForge:
 8. Always check LF-Architecture-Guardrails.md before making structural changes.
 9. Run LF-Regression-Audit.md after major changes.
 10. If module docs conflict with Guardrails, stop and report the conflict.
+11. Before creating or changing database schema, read LF-Data-Modeling.md.
+12. Before writing or changing code, read LF-Development-Standards.md.
 
 ---
 
