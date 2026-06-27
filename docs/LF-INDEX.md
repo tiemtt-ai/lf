@@ -10,9 +10,15 @@ Last Updated: 2026-06
 
 # LearnForge Documentation Index
 
-This document is the primary entry point for all LearnForge documentation.
+This document is the official catalog and routing guide for LearnForge
+documentation.
 
-All AI agents (Codex, ChatGPT, Claude, Gemini, Cursor, Windsurf, etc.) should read this file first before making architecture, database, backend, frontend, infrastructure, or business decisions.
+Start at [docs/README.md](README.md) to learn how the documentation areas are
+used. Then use this index to locate the documents relevant to the current task.
+
+All AI agents (Codex, ChatGPT, Claude, Gemini, Cursor, Windsurf, etc.) should
+consult this catalog before making architecture, database, backend, frontend,
+infrastructure, or business decisions.
 
 ---
 
@@ -30,6 +36,21 @@ Architecture is organized into four major groups:
 ---
 
 # Documentation Structure
+
+## Directory Guides
+
+| Area | Guide |
+| --- | --- |
+| Documentation entry point | [README.md](README.md) |
+| Governance | [governance/README.md](governance/README.md) |
+| Architecture Decision Records | [adr/README.md](adr/README.md) |
+| Core Domains | [core/README.md](core/README.md) |
+| Database Documentation | [database/README.md](database/README.md) |
+| Platform Domains | [platform/README.md](platform/README.md) |
+| SaaS Domains | [saas/README.md](saas/README.md) |
+| Quality and Regression | [quality/README.md](quality/README.md) |
+
+---
 
 ## Foundation Documents
 
@@ -159,8 +180,39 @@ docs/governance/
 | governance/LF-Naming-Convention.md       | Project-wide naming conventions                               |
 | governance/LF-Architecture-Roadmap.md    | Long-term architecture sequence, dependencies, and milestones |
 | governance/LF-Architecture-Review-Checklist.md | Standard review gate for new Domain foundations          |
-| adr/                                     | Architecture Decision Records                                 |
-| governance/LF-Regression-Audit.md        | Mandatory regression checklist after major changes            |
+
+---
+
+## Architecture Decision Records
+
+Location:
+
+```text
+docs/adr/
+```
+
+| Document | Purpose |
+| --- | --- |
+| adr/README.md | ADR usage, naming, and change policy |
+| adr/ADR-0001-Course-Foundation.md | Course Foundation decision |
+| adr/ADR-0002-LiveClass-Foundation.md | LiveClass Foundation decision |
+| adr/ADR-0003-Assessment-Foundation.md | Assessment Foundation decision |
+| adr/ADR-0004-Media-Foundation.md | Media Foundation decision |
+
+---
+
+## Quality Documents
+
+Location:
+
+```text
+docs/quality/
+```
+
+| Document | Purpose |
+| --- | --- |
+| quality/README.md | Quality area usage and boundaries |
+| quality/LF-Regression-Audit.md | Mandatory regression checklist after major changes |
 
 ---
 
@@ -177,8 +229,9 @@ docs/governance/
 9. Architecture Review Checklist
 10. Architecture Decision Records
 
-Regression Audit is additionally required for the major change categories
-defined by the Documentation Routing Guide.
+The [Regression Audit](quality/LF-Regression-Audit.md) is a Quality document
+and is additionally required for the major change categories defined by the
+Documentation Routing Guide.
 
 ---
 
@@ -202,7 +255,7 @@ Read:
 * governance/LF-Architecture-Roadmap.md
 * governance/LF-Architecture-Review-Checklist.md
 * relevant ADR in `adr/`
-* governance/LF-Regression-Audit.md
+* quality/LF-Regression-Audit.md
 
 Use when:
 
@@ -530,19 +583,20 @@ Current stable baseline:
 
 When working on LearnForge:
 
-1. Read this file first.
-2. Follow the Documentation Routing Guide.
-3. Load only relevant documents.
-4. Do not introduce new architecture patterns without reviewing existing documentation.
-5. Preserve tenant isolation.
-6. Preserve customer_id-based data ownership.
-7. Follow LF-OS principles before implementing new features.
-8. Always check LF-Architecture-Guardrails.md before making structural changes.
-9. Treat LF-Architecture-Principles.md as the canonical principle source.
-10. Run LF-Regression-Audit.md after major changes.
-11. If module docs conflict with Principles or Guardrails, stop and report the conflict.
-12. Before creating or changing database schema, read LF-Data-Modeling.md.
-13. Before writing or changing code, read LF-Development-Standards.md.
+1. Start at `docs/README.md`.
+2. Use this file as the documentation catalog and routing guide.
+3. Follow the Documentation Routing Guide.
+4. Load only relevant documents.
+5. Do not introduce new architecture patterns without reviewing existing documentation.
+6. Preserve tenant isolation.
+7. Preserve customer_id-based data ownership.
+8. Follow LF-OS principles before implementing new features.
+9. Always check LF-Architecture-Guardrails.md before making structural changes.
+10. Treat LF-Architecture-Principles.md as the canonical principle source.
+11. Run `quality/LF-Regression-Audit.md` after major changes.
+12. If module docs conflict with Principles or Guardrails, stop and report the conflict.
+13. Before creating or changing database schema, read LF-Data-Modeling.md.
+14. Before writing or changing code, read LF-Development-Standards.md.
 
 ---
 

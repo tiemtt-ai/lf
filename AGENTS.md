@@ -2,13 +2,14 @@
 
 Before modifying LearnForge code:
 
-1. Read docs/LF-INDEX.md
-2. Read docs/governance/LF-Architecture-Guardrails.md
-3. Follow the Documentation Routing Guide in LF-INDEX.md
-4. Load only the documents relevant to the current task
-5. For major refactors or changes involving auth, tenant, navigation, UI, i18n,
+1. Read docs/README.md
+2. Read docs/LF-INDEX.md
+3. Read docs/governance/LF-Architecture-Guardrails.md
+4. Follow the Documentation Routing Guide in LF-INDEX.md
+5. Load only the documents relevant to the current task
+6. For major refactors or changes involving auth, tenant, navigation, UI, i18n,
    permissions, routes, or middleware, also read
-   docs/governance/LF-Regression-Audit.md
+   docs/quality/LF-Regression-Audit.md
 
 Governance rules:
 - LF-Architecture-Guardrails.md has higher priority than module documentation
