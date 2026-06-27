@@ -12,6 +12,7 @@ Before modifying LearnForge code:
    docs/quality/LF-Regression-Audit.md
 
 Governance rules:
+
 - LF-Architecture-Guardrails.md has higher priority than module documentation
   when they conflict.
 - If a proposed change risks violating the Guardrails, stop and report the
@@ -20,7 +21,78 @@ Governance rules:
 LearnForge is a multi-tenant AI-native LMS SaaS.
 
 Preserve:
+
 - tenant isolation
 - customer_id ownership
 - LF-OS principles
 - LF architecture standards
+
+## Architecture Workflow
+
+```text
+Governance
+
+↓
+
+ADR
+
+↓
+
+Domain
+
+↓
+
+Database
+
+↓
+
+Review
+
+↓
+
+Freeze
+
+↓
+
+Migration
+
+↓
+
+Implementation
+
+↓
+
+Testing
+```
+
+## Database Rule
+
+Không tạo migration trước khi:
+
+- Database Docs approved
+- ADR approved nếu thay đổi là Foundation
+- Architecture Review passed
+
+## Documentation Rule
+
+Không tạo:
+
+- report
+- review
+- temporary analysis
+
+trong:
+
+- `docs/governance`
+- `docs/database`
+- `docs/core`
+- `docs/platform`
+- `docs/saas`
+
+Review artifacts phải nằm trong:
+
+```text
+docs/quality
+```
+
+hoặc working directory.

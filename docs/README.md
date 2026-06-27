@@ -52,6 +52,8 @@ Không cần tải toàn bộ tài liệu cho mọi task. Sau khi hiểu Governa
 | `platform/` | Shared Platform Domain và capability |
 | `saas/` | Multi-tenant và commercial platform Domain |
 | `quality/` | QA, regression và implementation conformance |
+| `tech/` | Runtime, framework, infrastructure và frontend technology |
+| `business/` | Product, commercial, UX và navigation context |
 
 Tài liệu phải nằm trong khu vực đúng với vai trò của nó. Không dùng một thư
 mục làm nơi lưu report tạm hoặc tài liệu không rõ ownership.
@@ -67,3 +69,64 @@ mục làm nơi lưu report tạm hoặc tài liệu không rõ ownership.
 4. Nếu tài liệu cấp thấp xung đột Guardrails, dừng và báo cáo.
 5. Khi thêm tài liệu mới, cập nhật README của thư mục và LF-INDEX nếu tài liệu
    là một phần của catalog chính thức.
+
+---
+
+## Owner
+
+Architecture Team
+
+## Primary Consumers
+
+* Developer
+* Reviewer
+* AI Agent
+
+## Documentation Status
+
+Official
+
+Version 1.0
+
+## Documentation Lifecycle
+
+```text
+Draft
+
+↓
+
+Review
+
+↓
+
+Approved
+
+↓
+
+Frozen
+
+↓
+
+Archived
+```
+
+## Directory Policy
+
+This directory is part of the official LearnForge documentation.
+
+Do not place:
+
+* Temporary analysis.
+* AI conversation output.
+* Review notes.
+* Generated reports.
+
+inside this directory.
+
+Use:
+
+```text
+docs/quality
+```
+
+or a working directory.

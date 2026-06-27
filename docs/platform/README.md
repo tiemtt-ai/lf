@@ -49,3 +49,64 @@ Media foundation decision:
 * Link tới ADR và Database docs liên quan.
 * Không ghi business state của consumer thành ownership của Platform Domain.
 * Không đặt table-by-table documentation hoặc quality report trong thư mục này.
+
+---
+
+## Owner
+
+Architecture Team
+
+## Primary Consumers
+
+* Developer
+* Reviewer
+* AI Agent
+
+## Documentation Status
+
+Official
+
+Version 1.0
+
+## Documentation Lifecycle
+
+```text
+Draft
+
+↓
+
+Review
+
+↓
+
+Approved
+
+↓
+
+Frozen
+
+↓
+
+Archived
+```
+
+## Directory Policy
+
+This directory is part of the official LearnForge documentation.
+
+Do not place:
+
+* Temporary analysis.
+* AI conversation output.
+* Review notes.
+* Generated reports.
+
+inside this directory.
+
+Use:
+
+```text
+docs/quality
+```
+
+or a working directory.

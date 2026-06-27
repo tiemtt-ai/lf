@@ -62,3 +62,64 @@ Thư mục này không chứa:
 Quality và regression documentation thuộc
 [docs/quality](../quality/README.md). Table documentation thuộc
 [docs/database](../database/README.md).
+
+---
+
+## Owner
+
+Architecture Team
+
+## Primary Consumers
+
+* Developer
+* Reviewer
+* AI Agent
+
+## Documentation Status
+
+Official
+
+Version 1.0
+
+## Documentation Lifecycle
+
+```text
+Draft
+
+↓
+
+Review
+
+↓
+
+Approved
+
+↓
+
+Frozen
+
+↓
+
+Archived
+```
+
+## Directory Policy
+
+This directory is part of the official LearnForge documentation.
+
+Do not place:
+
+* Temporary analysis.
+* AI conversation output.
+* Review notes.
+* Generated reports.
+
+inside this directory.
+
+Use:
+
+```text
+docs/quality
+```
+
+or a working directory.

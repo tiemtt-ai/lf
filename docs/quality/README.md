@@ -49,3 +49,59 @@ Thư mục này không:
 
 Nếu quality review phát hiện xung đột kiến trúc, report vấn đề và quay lại
 Governance hoặc ADR; không tự định nghĩa kiến trúc mới trong quality report.
+
+---
+
+## Owner
+
+Architecture Team
+
+## Primary Consumers
+
+* Developer
+* Reviewer
+* AI Agent
+
+## Documentation Status
+
+Official
+
+Version 1.0
+
+## Documentation Lifecycle
+
+```text
+Draft
+
+↓
+
+Review
+
+↓
+
+Approved
+
+↓
+
+Frozen
+
+↓
+
+Archived
+```
+
+## Directory Policy
+
+This directory is part of the official LearnForge documentation.
+
+Do not place:
+
+* Temporary analysis.
+* AI conversation output.
+* Unapproved review notes.
+* Raw generated reports.
+
+inside this directory.
+
+Approved Quality, QA and Regression artifacts are allowed. Use a working
+directory for temporary artifacts before review.

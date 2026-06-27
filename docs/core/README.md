@@ -44,3 +44,64 @@ Media, Track và AI là Platform Domains và được hướng dẫn tại
 * Link tới Database docs thay vì lặp lại toàn bộ fields, indexes và constraints.
 * Không đặt table-by-table documentation trong thư mục này.
 * Không dùng Domain overview làm review report hoặc implementation status file.
+
+---
+
+## Owner
+
+Architecture Team
+
+## Primary Consumers
+
+* Developer
+* Reviewer
+* AI Agent
+
+## Documentation Status
+
+Official
+
+Version 1.0
+
+## Documentation Lifecycle
+
+```text
+Draft
+
+↓
+
+Review
+
+↓
+
+Approved
+
+↓
+
+Frozen
+
+↓
+
+Archived
+```
+
+## Directory Policy
+
+This directory is part of the official LearnForge documentation.
+
+Do not place:
+
+* Temporary analysis.
+* AI conversation output.
+* Review notes.
+* Generated reports.
+
+inside this directory.
+
+Use:
+
+```text
+docs/quality
+```
+
+or a working directory.

@@ -84,3 +84,64 @@ Không đặt các loại tài liệu sau trong `database/`:
 
 Các artifact tạm thời phải được loại bỏ sau review hoặc chuyển tới khu vực phù
 hợp. Database folder không phải archive cho quá trình review.
+
+---
+
+## Owner
+
+Architecture Team
+
+## Primary Consumers
+
+* Developer
+* Reviewer
+* AI Agent
+
+## Documentation Status
+
+Official
+
+Version 1.0
+
+## Documentation Lifecycle
+
+```text
+Draft
+
+↓
+
+Review
+
+↓
+
+Approved
+
+↓
+
+Frozen
+
+↓
+
+Archived
+```
+
+## Directory Policy
+
+This directory is part of the official LearnForge documentation.
+
+Do not place:
+
+* Temporary analysis.
+* AI conversation output.
+* Review notes.
+* Generated reports.
+
+inside this directory.
+
+Use:
+
+```text
+docs/quality
+```
+
+or a working directory.
