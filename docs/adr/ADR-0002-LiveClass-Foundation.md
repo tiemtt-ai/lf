@@ -97,7 +97,7 @@ Session là operational instances gắn vào context đó.
 
 ---
 
-## Operational Data Principle
+## Operational Data Decision
 
 LiveClass chỉ sở hữu:
 
@@ -290,6 +290,28 @@ boundaries trong ADR này.
 * Course Progress cần cơ chế recalculation idempotent.
 * Provider sync, threshold, retention, privacy và Room sharing policy vẫn cần
   được chốt trước implementation.
+
+---
+
+## Applied Principles
+
+See:
+
+[LF-Architecture-Principles.md](../governance/LF-Architecture-Principles.md)
+
+* Domain Responsibility Principle
+* Source Of Truth Principle
+* Immutable Principle
+* Snapshot Principle
+* Versioning Principle
+* Evidence Principle
+* Operational Data Principle
+* Tenant Isolation Principle
+* Read Model Principle
+* Append Only Principle
+* AI Consumer Principle
+* Backward Compatibility Principle
+* ADR Principle
 
 ---
 

@@ -66,7 +66,7 @@ Before modifying LearnForge code, AI Agents must:
 
 ---
 
-# Core Principles
+# Core Development Rules
 
 ## Rule 1
 
@@ -226,182 +226,18 @@ deleted_at
 
 ---
 
-## Intentional Denormalization / Read Model Principle
+# Architecture Principles Reference
 
-LearnForge cho phép snapshot, counter, aggregate, cache, last-position,
-metadata và read-model fields khi chúng phục vụ:
+Canonical definitions:
 
-```text
-Dashboard
+[LF-Architecture-Principles.md](governance/LF-Architecture-Principles.md)
 
-Reporting
+Development phải áp dụng toàn bộ 17 principles, đặc biệt Domain Responsibility,
+Source Of Truth, Immutable, Snapshot, Versioning, Evidence, Tenant Isolation,
+Read Model, Append Only, AI Consumer, Backward Compatibility và ADR.
 
-Analytics
-
-AI Recommendation
-
-Search
-
-Performance
-
-Audit Snapshot
-
-Historical Consistency
-```
-
-Mỗi denormalized field phải có:
-
-* Mục đích nghiệp vụ.
-* Source of truth.
-* Rule cập nhật hoặc recalculation.
-* Quy định consumer nào được sử dụng.
-
-Không được:
-
-* Tạo nhiều nguồn sự thật mâu thuẫn.
-* Dùng cache/display data để thay thế audit log.
-* Dùng marketing/display-only data cho Billing, Certificate, Completion hoặc AI.
-* Cho phép user sửa trực tiếp system-generated counters nếu không có nghiệp vụ rõ ràng.
-
-Database review không được mặc định đánh dấu snapshot/counter/aggregate/cache
-là lỗi. Chỉ đánh dấu `Problem` khi field không có source, có thể drift mà không
-có recalculation, mâu thuẫn source of truth hoặc làm sai nghiệp vụ quan trọng.
-
----
-
-## LiveClass Operational Data Principle
-
-LiveClass là Operational Domain và chỉ sinh Room, Session, Attendance,
-Recording, Replay và Chat data.
-
-LiveClass không quyết định:
-
-```text
-Course Completion
-
-Course Progress
-
-Certificate
-```
-
-Course Domain sở hữu:
-
-```text
-core_course_activity_progress
-
-core_course_progress
-
-core_course_completions
-
-certificate eligibility
-```
-
-Mọi LiveClass summary/read-model chỉ là evidence hoặc input cho Course Progress
-recalculation. Không triển khai completion source song song trong
-`core_liveclass_*`.
-
----
-
-## Domain Responsibility Principle
-
-Một Domain chỉ sở hữu dữ liệu và business rules của chính Domain đó.
-
-Không Domain nào được:
-
-* Cập nhật trực tiếp business state của Domain khác.
-* Quyết định completion của Domain khác.
-* Ghi đè source of truth của Domain khác.
-
-Cross-domain effect phải đi qua:
-
-```text
-Evidence
-
-Event
-
-Request
-```
-
-Domain đích tự validate tenant, authorization, business rules và tự quyết định
-state transition.
-
-Examples:
-
-```text
-LiveClass
-↓
-Attendance Evidence
-↓
-Course Domain tự quyết định Progress
-```
-
-LiveClass không được trực tiếp `UPDATE core_course_progress`.
-
-```text
-Assessment
-↓
-Pass/Fail Evidence
-↓
-Certificate Domain tự quyết định issuance
-```
-
-Assessment không được trực tiếp issue Certificate.
-
-```text
-Media / Track
-↓
-Video Watched Evidence
-↓
-Course Progress tự quyết định Lesson completion
-```
-
-Media không được trực tiếp complete Lesson.
-
-```text
-AI
-↓
-Recommendation
-↓
-Course Domain hoặc User quyết định Enrollment
-```
-
-AI không được trực tiếp enroll User.
-
----
-
-## Evaluation Evidence Principle
-
-Evaluation Domain chỉ sinh Attempt, Answer, Score, Feedback, Rubric Result,
-Grading Result và Evaluation Evidence.
-
-Assessment không được:
-
-```text
-Complete Course
-
-Issue Certificate
-
-Promote Student
-
-Update Course Progress
-```
-
-Cross-domain consumers có thể đọc Evidence:
-
-```text
-Assessment Evidence
-
-↓
-
-Course / Certificate / AI / Track
-
-↓
-
-Consumer Domain tự quyết định
-```
-
-Không triển khai direct write từ Assessment vào Course Progress, Certificate
-issuance, promotion hoặc learning state.
+Implementation-specific standards trong tài liệu này không được định nghĩa lại
+principles hoặc tạo business-state authority cạnh tranh.
 
 ---
 

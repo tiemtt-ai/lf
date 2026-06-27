@@ -22,7 +22,7 @@ Mục tiêu:
 
 ---
 
-# Core Principle
+# Core Modeling Rule
 
 Không bắt đầu từ Field.
 
@@ -545,183 +545,36 @@ deleted_at
 
 ---
 
-# Intentional Denormalization / Read Model Principle
+# Architecture Principles Reference
 
-LearnForge cho phép denormalization có chủ đích để phục vụ:
+Canonical definitions:
 
-* Dashboard
-* Reporting
-* Analytics
-* AI Recommendation
-* Search
-* Performance
-* Audit Snapshot
-* Historical Consistency
+[LF-Architecture-Principles.md](governance/LF-Architecture-Principles.md)
 
-Không tự động xem các nhóm field sau là lỗi:
+Data modeling áp dụng đặc biệt:
 
-* snapshot fields
-* counter fields
-* aggregate fields
-* cache fields
-* read-model fields
-* last-position fields
-* title snapshot fields
-* metadata fields
+* Domain Responsibility Principle
+* Source Of Truth Principle
+* Immutable Principle
+* Snapshot Principle
+* Versioning Principle
+* Evidence Principle
+* Platform Domain Principle
+* Operational Data Principle
+* Evaluation Domain Principle
+* Generic Reference Principle
+* Tenant Isolation Principle
+* Read Model Principle
+* Append Only Principle
+* AI Consumer Principle
 
-Các field này được chấp nhận khi:
-
-* Có mục đích nghiệp vụ rõ ràng.
-* Có nguồn dữ liệu gốc rõ ràng.
-* Có rule cập nhật hoặc recalculation.
-* Không tạo nhiều nguồn sự thật mâu thuẫn.
-* Không được dùng thay thế audit log khi nghiệp vụ cần lịch sử chính xác.
-
-Khi review database, chỉ đánh dấu denormalized field là `Problem` nếu:
-
-* Mâu thuẫn với source of truth.
-* Không có source rõ ràng.
-* Có thể làm sai Billing, Certificate, Completion hoặc AI.
-* Bị dùng như dữ liệu thật trong khi chỉ là marketing/display cache.
-
-Mỗi read-model field nên mô tả:
-
-```text
-Purpose
-
-Source Of Truth
-
-Update / Recalculation Rule
-
-Allowed Consumers
-```
+Mỗi cross-domain/read-model design phải ghi rõ owning Domain, source of truth,
+snapshot hoặc evidence contract, update/recalculation rule và allowed
+consumers. Không tạo source of truth song song.
 
 ---
 
-# LiveClass Operational Data Principle
-
-LiveClass là Operational Domain và chỉ sinh:
-
-```text
-Room
-
-Session
-
-Attendance
-
-Recording
-
-Replay
-
-Chat
-```
-
-LiveClass không quyết định Course Completion, Course Progress hoặc
-Certificate. Các source of truth tương ứng thuộc Course Domain:
-
-```text
-core_course_activity_progress
-
-core_course_progress
-
-core_course_completions
-
-certificate eligibility
-```
-
-Attendance percentage, replay percentage, watch position và các operational
-status là evidence/read models. Chúng chỉ được dùng làm input cho Course
-Progress recalculation và không được trở thành nguồn completion song song.
-
----
-
-# Domain Responsibility Principle
-
-Một Domain chỉ sở hữu dữ liệu và business rules của chính Domain đó.
-
-Cross-domain relationship không trao quyền cho Domain nguồn cập nhật trực tiếp
-business state, quyết định completion hoặc ghi đè source of truth của Domain
-đích.
-
-Flow đúng:
-
-```text
-Source Domain
-
-↓
-
-Evidence / Event / Request
-
-↓
-
-Target Domain
-
-↓
-
-Target Domain tự quyết định
-```
-
-Examples:
-
-* LiveClass lưu Attendance; Course Domain đọc evidence và tự tính Progress.
-* Assessment lưu Score/Pass-Fail; Certificate Domain tự quyết định issuance.
-* Media/Track lưu Video Watched evidence; Course Progress tự quyết định Lesson
-  completion.
-* AI lưu Recommendation; Course Domain hoặc User tự quyết định Enrollment.
-
-Khi thiết kế cross-domain field hoặc relationship, phải ghi rõ:
-
-```text
-Owning Domain
-
-Source Of Truth
-
-Evidence / Event / Request Contract
-
-Target Domain Decision
-```
-
-Không được thiết kế trigger, write path hoặc denormalized field làm phát sinh
-source of truth song song ở Domain khác.
-
----
-
-# Evaluation Evidence Principle
-
-Evaluation Domain chỉ sở hữu và sinh:
-
-* Attempt
-* Answer
-* Score
-* Feedback
-* Rubric Result
-* Grading Result
-* Evaluation Evidence
-
-Assessment không sở hữu Course Progress, Course Completion, Certificate
-Eligibility, Promotion hoặc Learning State.
-
-Cross-domain data flow đúng:
-
-```text
-Assessment
-
-↓ Evidence
-
-Course / Certificate / AI / Track
-
-↓
-
-Consumer Domain tự quyết định
-```
-
-Schema Assessment không được chứa field, trigger hoặc relationship biến
-evaluation evidence thành direct write cho Course completion, Certificate
-issuance hoặc Student promotion.
-
----
-
-# Course Template Versioning Principle
+# Course Template Versioning Standard
 
 LearnForge tách:
 
@@ -1148,7 +1001,7 @@ Field chỉ là kết quả cuối cùng của việc hiểu đúng nghiệp v�
 
 ---
 
-# LearnForge Principle
+# Modeling Workflow
 
 ```text
 Understand Business First

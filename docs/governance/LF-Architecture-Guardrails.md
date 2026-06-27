@@ -10,7 +10,12 @@ Last Updated: 2026-06
 
 # Purpose
 
-Tài liệu này định nghĩa các nguyên tắc kiến trúc cốt lõi của LearnForge.
+Tài liệu này định nghĩa các constraint bắt buộc để thực thi kiến trúc
+LearnForge.
+
+Canonical principles nằm tại:
+
+[LF-Architecture-Principles.md](LF-Architecture-Principles.md)
 
 Mọi thay đổi hệ thống phải tuân thủ các nguyên tắc trong tài liệu này.
 
@@ -32,7 +37,7 @@ Không được tự ý thay đổi.
 
 ---
 
-# Core Principle
+# Core Enforcement Rule
 
 Không được phá vỡ các kiến trúc đã được xác nhận ổn định.
 
@@ -508,38 +513,34 @@ Template Version snapshots không phải Runtime Course.
 
 ---
 
-## Intentional Denormalization / Read Model Principle
+# Architecture Principles Reference
 
-LearnForge cho phép denormalization có chủ đích cho Dashboard, Reporting,
-Analytics, AI Recommendation, Search, Performance, Audit Snapshot và
-Historical Consistency.
+Canonical architecture principles:
 
-Snapshot, counter, aggregate, cache, read-model, last-position, title snapshot
-và metadata fields được chấp nhận khi:
+[LF-Architecture-Principles.md](LF-Architecture-Principles.md)
 
-```text
-Purpose rõ ràng
+Guardrails này áp dụng và enforce:
 
-Source of Truth rõ ràng
+* Domain Responsibility Principle
+* Source Of Truth Principle
+* Immutable Principle
+* Snapshot Principle
+* Versioning Principle
+* Evidence Principle
+* Platform Domain Principle
+* Operational Data Principle
+* Evaluation Domain Principle
+* Generic Reference Principle
+* Tenant Isolation Principle
+* Read Model Principle
+* Append Only Principle
+* AI Consumer Principle
+* Backward Compatibility Principle
+* ADR Principle
+* Simplicity Principle
 
-Update / Recalculation Rule rõ ràng
-
-Không tạo nguồn sự thật mâu thuẫn
-```
-
-Display hoặc marketing cache không được dùng làm dữ liệu thật cho:
-
-```text
-Billing
-
-Certificate
-
-Completion
-
-AI
-```
-
-Read-model fields không thay thế audit logs khi cần lịch sử chính xác.
+Định nghĩa principle không được lặp lại trong Guardrails. Các section còn lại
+là constraint cụ thể bắt buộc để thực thi principles.
 
 ---
 
@@ -565,141 +566,6 @@ Read-model fields không thay thế audit logs khi cần lịch sử chính xác
 * Review identity dùng `user_id`, không dùng `student_id`.
 * Foundation giới hạn một active Certificate mapping trên mỗi Product.
 * Certificate threshold dùng `minimum_score_percentage`, không dùng absolute score.
-
----
-
-# LiveClass Operational Data Principle
-
-LiveClass là Operational Domain.
-
-LiveClass chỉ sinh dữ liệu vận hành:
-
-```text
-Room
-
-Session
-
-Attendance
-
-Recording
-
-Replay
-
-Chat
-```
-
-LiveClass không quyết định:
-
-```text
-Course Completion
-
-Course Progress
-
-Certificate
-```
-
-Course Domain mới là nơi tính:
-
-```text
-core_course_activity_progress
-
-core_course_progress
-
-core_course_completions
-
-certificate eligibility
-```
-
-LiveClass data chỉ là evidence/input cho Course Progress recalculation.
-
----
-
-# Domain Responsibility Principle
-
-Một Domain chỉ sở hữu:
-
-* Dữ liệu của chính Domain đó.
-* Business rules của chính Domain đó.
-
-Không Domain nào được:
-
-* Cập nhật trực tiếp business state của Domain khác.
-* Quyết định completion của Domain khác.
-* Ghi đè source of truth của Domain khác.
-
-Nếu cần ảnh hưởng Domain khác, Domain nguồn chỉ sinh:
-
-```text
-Evidence
-
-Event
-
-Request
-```
-
-Domain đích nhận input và tự quyết định business state của chính nó.
-
-Examples:
-
-```text
-LiveClass → Attendance Evidence → Course Domain quyết định Progress
-
-Assessment → Pass/Fail Evidence → Certificate Domain quyết định issuance
-
-Media/Track → Video Watched Evidence → Course Domain quyết định Lesson completion
-
-AI → Recommendation → Course Domain hoặc User quyết định Enrollment
-```
-
-Forbidden examples:
-
-```text
-LiveClass trực tiếp UPDATE core_course_progress
-
-Assessment trực tiếp Issue Certificate
-
-Media trực tiếp Complete Lesson
-
-AI trực tiếp Enroll User
-```
-
----
-
-# Evaluation Evidence Principle
-
-Evaluation Domain chỉ sinh:
-
-```text
-Attempt
-
-Answer
-
-Score
-
-Feedback
-
-Rubric Result
-
-Grading Result
-
-Evaluation Evidence
-```
-
-Các Domain khác có thể đọc Evidence, nhưng Assessment không được:
-
-```text
-Complete Course
-
-Issue Certificate
-
-Promote Student
-
-Update Course Progress
-```
-
-Assessment chỉ sinh Evidence. Course, Certificate, AI và Track Domain nhận
-Evidence rồi tự quyết định hành vi hoặc business state thuộc trách nhiệm của
-chính mình.
 
 ---
 

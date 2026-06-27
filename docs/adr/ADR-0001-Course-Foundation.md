@@ -138,6 +138,24 @@ Only future-phase items remain:
 
 These items do not change the approved Course Foundation architecture.
 
+## Applied Principles
+
+See:
+
+[LF-Architecture-Principles.md](../governance/LF-Architecture-Principles.md)
+
+* Domain Responsibility Principle
+* Source Of Truth Principle
+* Immutable Principle
+* Snapshot Principle
+* Versioning Principle
+* Evidence Principle
+* Tenant Isolation Principle
+* Read Model Principle
+* Backward Compatibility Principle
+* ADR Principle
+* Simplicity Principle
+
 ## 7. Course Domain Readiness
 
 ```text

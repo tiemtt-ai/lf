@@ -108,7 +108,7 @@ Course Activity Progress
 
 ---
 
-## Evaluation Principle
+## Evaluation Ownership Decision
 
 Assessment sở hữu:
 
@@ -354,6 +354,27 @@ ADR mới/amendment.
 * Course/Certificate cần evidence-consumption và recalculation flow idempotent.
 * Max-attempt, regrade, AI audit và automatic/manual final-selection policies
   cần được chốt ở implementation phase.
+
+---
+
+## Applied Principles
+
+See:
+
+[LF-Architecture-Principles.md](../governance/LF-Architecture-Principles.md)
+
+* Domain Responsibility Principle
+* Source Of Truth Principle
+* Immutable Principle
+* Snapshot Principle
+* Versioning Principle
+* Evidence Principle
+* Evaluation Domain Principle
+* Tenant Isolation Principle
+* Read Model Principle
+* AI Consumer Principle
+* Backward Compatibility Principle
+* ADR Principle
 
 ---
 

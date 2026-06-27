@@ -121,7 +121,7 @@ media_access_logs
 
 ---
 
-## Storage Principle
+## Storage Decision
 
 Database không lưu binary.
 
@@ -136,7 +136,7 @@ Business Category không phải storage folder. Không tạo `media_folders`.
 
 ---
 
-## Immutable File Principle
+## Immutable File Decision
 
 Media File binary immutable sau upload.
 
@@ -158,7 +158,7 @@ thực hiện theo policy.
 
 ---
 
-## Variant Principle
+## Variant Decision
 
 ```text
 Original Media File
@@ -201,7 +201,7 @@ Media chỉ quản lý generic usage reference.
 
 ---
 
-## S3 Storage Principle
+## S3 Storage Decision
 
 AWS S3 là default storage.
 
@@ -331,6 +331,27 @@ phê duyệt bằng ADR mới/amendment.
 * Snapshot/version/replacement workflow cần policy riêng khi use case xuất hiện.
 * Signed delivery, purge/legal hold, rendition profiles và transcript revisions
   cần implementation contracts.
+
+---
+
+## Applied Principles
+
+See:
+
+[LF-Architecture-Principles.md](../governance/LF-Architecture-Principles.md)
+
+* Domain Responsibility Principle
+* Source Of Truth Principle
+* Immutable Principle
+* Platform Domain Principle
+* Generic Reference Principle
+* Tenant Isolation Principle
+* Read Model Principle
+* Append Only Principle
+* AI Consumer Principle
+* Backward Compatibility Principle
+* ADR Principle
+* Simplicity Principle
 
 ---
 

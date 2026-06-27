@@ -150,8 +150,39 @@ docs/governance/
 
 | Document                                 | Purpose                                                   |
 | ---------------------------------------- | --------------------------------------------------------- |
+| governance/LF-Architecture-Principles.md | Canonical architecture principles and single source of truth |
+| governance/LF-Domain-Map.md              | System-wide Domain Architecture and ownership map         |
+| governance/LF-Data-Flow.md               | Cross-domain business data flows                          |
 | governance/LF-Architecture-Guardrails.md | Mandatory architecture rules and non-negotiable constraints |
 | governance/LF-Regression-Audit.md        | Mandatory regression checklist after major changes       |
+
+---
+
+# Governance Reading Order
+
+```text
+Governance
+
+↓
+
+Architecture Principles
+
+↓
+
+Domain Map
+
+↓
+
+Data Flow
+
+↓
+
+Architecture Guardrails
+
+↓
+
+Regression Audit
+```
 
 ---
 
@@ -165,6 +196,9 @@ Load only the documents required for the current task.
 
 Read:
 
+* governance/LF-Architecture-Principles.md
+* governance/LF-Domain-Map.md
+* governance/LF-Data-Flow.md
 * governance/LF-Architecture-Guardrails.md
 * governance/LF-Regression-Audit.md
 
@@ -455,25 +489,13 @@ Examples:
 
 ---
 
-# Core Principles
+# Architecture Principles
 
-1. Everything belongs to a customer.
+Canonical source:
 
-   All tenant business data must be scoped by customer_id.
+[governance/LF-Architecture-Principles.md](governance/LF-Architecture-Principles.md)
 
-2. Shared infrastructure, isolated data.
-
-3. Track before intelligence.
-
-   Analytics data must exist before AI can generate intelligence.
-
-4. AI is a core capability.
-
-5. Simple before complex.
-
-6. LearnForge owns platform intelligence.
-
-7. Customer owns infrastructure choices.
+LF-INDEX không định nghĩa lại principles.
 
 ---
 
@@ -514,10 +536,11 @@ When working on LearnForge:
 6. Preserve customer_id-based data ownership.
 7. Follow LF-OS principles before implementing new features.
 8. Always check LF-Architecture-Guardrails.md before making structural changes.
-9. Run LF-Regression-Audit.md after major changes.
-10. If module docs conflict with Guardrails, stop and report the conflict.
-11. Before creating or changing database schema, read LF-Data-Modeling.md.
-12. Before writing or changing code, read LF-Development-Standards.md.
+9. Treat LF-Architecture-Principles.md as the canonical principle source.
+10. Run LF-Regression-Audit.md after major changes.
+11. If module docs conflict with Principles or Guardrails, stop and report the conflict.
+12. Before creating or changing database schema, read LF-Data-Modeling.md.
+13. Before writing or changing code, read LF-Development-Standards.md.
 
 ---
 
