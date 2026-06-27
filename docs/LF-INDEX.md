@@ -148,41 +148,33 @@ Location:
 docs/governance/
 ```
 
-| Document                                 | Purpose                                                   |
-| ---------------------------------------- | --------------------------------------------------------- |
-| governance/LF-Architecture-Principles.md | Canonical architecture principles and single source of truth |
-| governance/LF-Domain-Map.md              | System-wide Domain Architecture and ownership map         |
-| governance/LF-Data-Flow.md               | Cross-domain business data flows                          |
-| governance/LF-Architecture-Guardrails.md | Mandatory architecture rules and non-negotiable constraints |
-| governance/LF-Regression-Audit.md        | Mandatory regression checklist after major changes       |
+| Document                                 | Purpose                                                       |
+| ---------------------------------------- | ------------------------------------------------------------- |
+| governance/LF-Architecture-Principles.md | Canonical architecture principles and single source of truth  |
+| governance/LF-Architecture-Patterns.md   | Approved patterns for recurring architecture problems         |
+| governance/LF-Architecture-Guardrails.md | Mandatory architecture rules and non-negotiable constraints   |
+| governance/LF-Domain-Map.md              | System-wide Domain Architecture and ownership map             |
+| governance/LF-Data-Flow.md               | Cross-domain business data flows                              |
+| governance/LF-Glossary.md                | Canonical definitions, ownership, and terminology             |
+| governance/LF-Naming-Convention.md       | Project-wide naming conventions                               |
+| adr/                                     | Architecture Decision Records                                 |
+| governance/LF-Regression-Audit.md        | Mandatory regression checklist after major changes            |
 
 ---
 
 # Governance Reading Order
 
-```text
-Governance
+1. Architecture Principles
+2. Architecture Patterns
+3. Architecture Guardrails
+4. Domain Map
+5. Data Flow
+6. Glossary
+7. Naming Convention
+8. Architecture Decision Records
 
-↓
-
-Architecture Principles
-
-↓
-
-Domain Map
-
-↓
-
-Data Flow
-
-↓
-
-Architecture Guardrails
-
-↓
-
-Regression Audit
-```
+Regression Audit is additionally required for the major change categories
+defined by the Documentation Routing Guide.
 
 ---
 
@@ -197,9 +189,13 @@ Load only the documents required for the current task.
 Read:
 
 * governance/LF-Architecture-Principles.md
+* governance/LF-Architecture-Patterns.md
+* governance/LF-Architecture-Guardrails.md
 * governance/LF-Domain-Map.md
 * governance/LF-Data-Flow.md
-* governance/LF-Architecture-Guardrails.md
+* governance/LF-Glossary.md
+* governance/LF-Naming-Convention.md
+* relevant ADR in `adr/`
 * governance/LF-Regression-Audit.md
 
 Use when:

@@ -1,0 +1,134 @@
+# LearnForge Glossary
+
+Version: 1.0
+
+Status: Official Governance
+
+Last Updated: 2026-06
+
+---
+
+# Purpose
+
+Tài liệu này là Single Source of Truth cho thuật ngữ của LearnForge.
+
+Một thuật ngữ chỉ có một định nghĩa canonical. Tài liệu Domain, ADR và
+implementation phải sử dụng thuật ngữ theo định nghĩa tại đây. Glossary không
+tạo thêm Domain ownership; ownership luôn phải phù hợp với ADR và
+[LF-Domain-Map](LF-Domain-Map.md).
+
+---
+
+# General Terms
+
+| Term | Definition | Owner Domain | Source of Truth | Related ADR |
+| --- | --- | --- | --- | --- |
+| Domain | Ranh giới nghiệp vụ hoặc năng lực có dữ liệu, business rules và trách nhiệm được xác định rõ. | Governance | Domain Map và ADR của Domain | ADR của từng Domain |
+| Module | Nhóm implementation và tài liệu phục vụ một năng lực; Module không tự có business ownership nếu chưa được xác lập là Domain. | Engineering | Documentation Index và module documentation | N/A |
+| Platform | Toàn bộ môi trường LearnForge cung cấp các Business, Platform, SaaS, Intelligence và Infrastructure Domain. | Governance | Architecture Principles và Domain Map | N/A |
+| Business Domain | Domain sở hữu business state và quyết định nghiệp vụ cốt lõi của một lĩnh vực. | Governance | Domain Map | ADR của từng Business Domain |
+| Platform Domain | Domain cung cấp năng lực dùng chung nhưng không sở hữu business state của Domain tiêu thụ. | Governance | Domain Map | ADR của từng Platform Domain |
+| Infrastructure Domain | Năng lực kỹ thuật dùng chung hỗ trợ vận hành hệ thống và không quyết định business state. | Platform Engineering | Domain Map | N/A |
+| Source Of Truth | Domain hoặc dữ liệu canonical có thẩm quyền cuối cùng đối với một business state. | Governance | Architecture Principles và Domain Map | ADR của Domain sở hữu |
+| Evidence | Dữ liệu do một Domain phát sinh để Domain khác tham khảo; Evidence không trực tiếp thay đổi business state của Domain nhận. | Domain phát sinh | Dữ liệu canonical của Domain phát sinh | ADR của Domain phát sinh |
+| Snapshot | Bản sao bất biến của dữ liệu cần giữ nguyên ngữ cảnh lịch sử tại thời điểm chốt. | Domain tạo Snapshot | Snapshot record của Domain đó | ADR của Domain đó |
+| Version | Một revision có danh tính riêng; khi đã Published thì bất biến và thay đổi tiếp theo phải tạo Version mới. | Domain tạo Version | Version record của Domain đó | ADR của Domain đó |
+| Immutable | Trạng thái không được sửa sau mốc chốt; thay đổi được biểu diễn bằng record, Version hoặc Asset mới. | Governance | Architecture Principles | ADR liên quan |
+| Runtime | Ngữ cảnh thực thi đang hoạt động dựa trên cấu hình hoặc Version đã được chấp thuận; Runtime không thay đổi nguồn Published. | Domain vận hành Runtime | Runtime record của Domain đó | ADR của Domain đó |
+| Read Model | Dữ liệu dẫn xuất được tối ưu cho truy vấn, báo cáo hoặc hiển thị; có thể rebuild và không phải Source Of Truth. | Domain tạo Read Model | Source records dùng để dựng Read Model | ADR của Domain đó |
+
+---
+
+# Course Terms
+
+| Term | Definition | Owner Domain | Source of Truth | Related ADR |
+| --- | --- | --- | --- | --- |
+| Template | Bản authoring có thể chỉnh sửa, mô tả cấu trúc Course trước khi publish. | Course | Course Template | [ADR-0001](../adr/ADR-0001-Course-Foundation.md) |
+| Template Version | Revision bất biến của Template sau khi publish, dùng làm learning structure lịch sử. | Course | Course Template Version | [ADR-0001](../adr/ADR-0001-Course-Foundation.md) |
+| Version Activity | Đơn vị hoạt động học tập thuộc một Template Version và là điểm liên kết canonical cho trải nghiệm học. | Course | Course Version Activity | [ADR-0001](../adr/ADR-0001-Course-Foundation.md) |
+| Product | Offering thương mại chỉ định Course Version được bán hoặc cấp quyền truy cập. | Course | Course Product | [ADR-0001](../adr/ADR-0001-Course-Foundation.md) |
+| Enrollment | Quan hệ tenant-scoped cấp cho learner quyền và ngữ cảnh tham gia một Product hoặc Course Version. | Course | Course Enrollment | [ADR-0001](../adr/ADR-0001-Course-Foundation.md) |
+| Cohort | Nhóm Enrollment dùng chung lịch trình hoặc ngữ cảnh triển khai học tập. | Course | Course Cohort và Cohort Membership | [ADR-0001](../adr/ADR-0001-Course-Foundation.md) |
+| Completion | Quyết định canonical của Course rằng learner đã đáp ứng điều kiện hoàn thành. | Course | Course Completion state | [ADR-0001](../adr/ADR-0001-Course-Foundation.md) |
+| Progress | Trạng thái canonical phản ánh mức tiến triển của learner đối với Course hoặc Version Activity. | Course | Course Activity Progress | [ADR-0001](../adr/ADR-0001-Course-Foundation.md) |
+
+---
+
+# LiveClass Terms
+
+| Term | Definition | Owner Domain | Source of Truth | Related ADR |
+| --- | --- | --- | --- | --- |
+| Room | Cấu hình không gian live có thể tái sử dụng và liên kết với Version Activity. | LiveClass | LiveClass Room | [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md) |
+| Session | Một lần diễn ra cụ thể, có lịch và lifecycle riêng, bên trong Room. | LiveClass | LiveClass Session | [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md) |
+| Attendance | Bằng chứng tham dự của một learner trong một Session; không tự quyết định Course Completion. | LiveClass | LiveClass Attendance | [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md) |
+| Replay | Bằng chứng learner truy cập hoặc xem lại nội dung của Session; không tự quyết định Course Completion. | LiveClass | LiveClass Replay | [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md) |
+| Recording | Reference vận hành từ Session đến Media File chứa bản ghi; binary và delivery thuộc Media. | LiveClass | LiveClass Recording reference; Media File cho asset | [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md), [ADR-0004](../adr/ADR-0004-Media-Foundation.md) |
+
+---
+
+# Assessment Terms
+
+| Term | Definition | Owner Domain | Source of Truth | Related ADR |
+| --- | --- | --- | --- | --- |
+| Question Bank | Không gian authoring và quản trị tập Question có thể tái sử dụng. | Assessment | Assessment Question Bank | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) |
+| Question | Nội dung đánh giá có thể author trong Bank và được snapshot khi đưa vào Assessment đã publish. | Assessment | Assessment Question; Question Snapshot cho lịch sử | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) |
+| Quiz | Cấu hình Assessment có version hoặc snapshot xác định, được learner thực hiện trong một Attempt. | Assessment | Assessment Quiz và published snapshot | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) |
+| Attempt | Một lần learner thực hiện Quiz trong ngữ cảnh evaluation đã được cố định. | Assessment | Assessment Attempt | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) |
+| Answer | Câu trả lời của learner cho Question trong một Attempt. | Assessment | Assessment Answer | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) |
+| Grading | Quá trình áp dụng rules hoặc đánh giá thủ công để tạo Score và Evaluation Evidence. | Assessment | Assessment grading records | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) |
+| Rubric | Bộ tiêu chí chấm điểm; bản dùng để grading phải được snapshot để bảo toàn lịch sử. | Assessment | Assessment Rubric; Rubric Snapshot cho lịch sử | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) |
+| Evaluation Evidence | Kết quả đánh giá như Score hoặc Pass/Fail do Assessment phát sinh để Domain khác tự ra quyết định. | Assessment | Assessment Result | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) |
+
+---
+
+# Media Terms
+
+| Term | Definition | Owner Domain | Source of Truth | Related ADR |
+| --- | --- | --- | --- | --- |
+| Media File | Digital Asset canonical có Content Identity, metadata và storage reference; binary đã lưu là bất biến. | Media | Media File | [ADR-0004](../adr/ADR-0004-Media-Foundation.md) |
+| Variant | Derived Asset được tạo từ Media File gốc, có thể regenerate và không thay thế Original Asset. | Media | Media Variant | [ADR-0004](../adr/ADR-0004-Media-Foundation.md) |
+| Transcript | Nội dung văn bản theo thời gian được dẫn xuất từ audio hoặc video. | Media | Media Transcript | [ADR-0004](../adr/ADR-0004-Media-Foundation.md) |
+| Caption | Nội dung chữ có timing dùng để hiển thị đồng bộ trong quá trình phát Media. | Media | Media Caption | [ADR-0004](../adr/ADR-0004-Media-Foundation.md) |
+| Processing Job | Đơn vị công việc theo dõi lifecycle xử lý Media như transcode, thumbnail hoặc transcript. | Media | Media Processing Job | [ADR-0004](../adr/ADR-0004-Media-Foundation.md) |
+| Usage Mapping | Quan hệ generic ghi nhận một Media File đang được Domain consumer tham chiếu ở đâu; không chuyển ownership của asset. | Media | Media Usage | [ADR-0004](../adr/ADR-0004-Media-Foundation.md) |
+
+---
+
+# Future Terms
+
+Các thuật ngữ trong phần này là định hướng. Ownership hoặc Source of Truth ghi
+`TBD` phải được xác nhận bằng ADR trước khi implementation.
+
+| Term | Definition | Owner Domain | Source of Truth | Related ADR |
+| --- | --- | --- | --- | --- |
+| Track Event | Sự kiện append-only mô tả hành vi hoặc tín hiệu học tập thô từ các Domain nguồn. | Track (Planned) | Track Event (Planned) | Planned |
+| AI Feature | Năng lực AI tiêu thụ dữ liệu được phép để tạo output hỗ trợ, không sở hữu business state của Domain nguồn. | AI (Planned) | AI feature configuration and output (Planned) | Planned |
+| Recommendation | Đề xuất do AI tạo để hỗ trợ người dùng hoặc Domain đích quyết định; bản thân đề xuất không thực thi business action. | AI (Planned) | AI Recommendation (Planned) | Planned |
+| Competency | Năng lực hoặc kỹ năng có thể được định nghĩa, liên kết và đánh giá trong learning architecture tương lai. | TBD | TBD | Planned |
+| Learning Path | Lộ trình có thứ tự hoặc điều kiện kết hợp nhiều learning experiences để đạt mục tiêu. | TBD | TBD | Planned |
+
+---
+
+# Governance
+
+Khi một thuật ngữ mới có ảnh hưởng tới Domain boundary, ownership hoặc Source
+of Truth:
+
+```text
+Propose Definition
+
+↓
+
+Confirm Owner Domain
+
+↓
+
+Create or Update ADR
+
+↓
+
+Update Glossary
+```
+
+Không dùng nhiều tên cho cùng một khái niệm, và không dùng cùng một tên cho
+nhiều khái niệm khác nhau.
