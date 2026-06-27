@@ -65,6 +65,7 @@ tenant isolation và contract ổn định trước khi tầng phụ thuộc đ�
 | LiveClass | [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md) | 1.0 | Completed — Foundation Approved |
 | Assessment | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) | 1.0 | Completed — Foundation Approved |
 | Media | [ADR-0004](../adr/ADR-0004-Media-Foundation.md) | 1.0 | Completed — Foundation Approved |
+| Track | [ADR-0005](../adr/ADR-0005-Track-Foundation.md) | 1.0 | Completed — Foundation Approved |
 
 Các Foundation đã hoàn thành là architecture baseline. Thay đổi làm ảnh hưởng
 Domain boundary, ownership hoặc Source of Truth phải đi qua ADR mới.
@@ -73,25 +74,17 @@ Domain boundary, ownership hoặc Source of Truth phải đi qua ADR mới.
 
 ## 3. Current Phase
 
-### Platform Completion
+### Certificate Foundation
 
-Các Domain tiếp theo:
+Current focus:
 
 | Domain | Status | Architecture Role | Primary Dependency |
 | --- | --- | --- | --- |
-| Track | Planned | Thu nhận Track Event append-only và tạo behavioral summary | Events từ Course, LiveClass, Assessment và Media |
 | Certificate | Foundation Planned | Quyết định eligibility, issuance và verification | Course Completion, Assessment Evidence và Track Summary khi policy yêu cầu |
-| AI | Planned / Strategic Architecture | Tạo Recommendation, Prediction và Assistant output | Track signals, Course context, Assessment Evidence và Media transcript |
 
-Dependency chính:
-
-```text
-Track
-
-↓ signals and summaries
-
-AI
-```
+Track Foundation đã completed và cung cấp behavior summaries theo ADR-0005.
+Certificate vẫn tự quyết định eligibility/issuance; Course, Assessment và Track
+chỉ cung cấp state hoặc Evidence thuộc ownership của mình.
 
 ```text
 Course Completion
@@ -109,9 +102,8 @@ Track Summary when required
 Certificate
 ```
 
-Track phải có event ownership và tenant boundary ổn định trước khi AI phụ thuộc
-quy mô lớn vào behavioral data. Certificate tự quyết định issuance; Course,
-Assessment và Track chỉ cung cấp state hoặc Evidence thuộc ownership của mình.
+AI Foundation là phase kế tiếp sau Certificate và có thể tiêu thụ Track
+signals, Course context, Assessment Evidence và Media transcript.
 
 ---
 
@@ -240,12 +232,13 @@ Tenant Context, Entitlement and Usage for All Domains
 
 ### Milestone 1 — Foundation
 
-Status: Completed for Course, LiveClass, Assessment and Media.
+Status: Completed for Course, LiveClass, Assessment, Media and Track.
 
 Outcome:
 
-* Core Domain boundaries approved.
-* Learning, operational, evaluation và digital asset ownership separated.
+* Core and Learning Intelligence Domain boundaries approved.
+* Learning, operational, evaluation, digital asset và behavior ownership
+  separated.
 * Foundation ADRs approved.
 
 ### Milestone 2 — Platform
@@ -254,7 +247,6 @@ Status: Current / Planned.
 
 Outcome:
 
-* Track foundation approved.
 * Certificate foundation approved.
 * AI foundation and consumer contracts approved.
 * Cross-domain event and evidence contracts stabilized.

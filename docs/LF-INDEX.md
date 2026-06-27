@@ -187,6 +187,7 @@ docs/adr/
 | [ADR-0002](adr/ADR-0002-LiveClass-Foundation.md) | LiveClass Foundation decision |
 | [ADR-0003](adr/ADR-0003-Assessment-Foundation.md) | Assessment Foundation decision |
 | [ADR-0004](adr/ADR-0004-Media-Foundation.md) | Media Foundation decision |
+| [ADR-0005](adr/ADR-0005-Track-Foundation.md) | Track Foundation decision |
 
 ---
 

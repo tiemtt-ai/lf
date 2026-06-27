@@ -20,7 +20,8 @@ database/
 ├── course/
 ├── liveclass/
 ├── assessment/
-└── media/
+├── media/
+└── track/
 ```
 
 Mỗi Domain folder mô tả tables thuộc ownership của Domain đó. Việc đặt file

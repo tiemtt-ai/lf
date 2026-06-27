@@ -576,15 +576,9 @@ Tổng thời gian học Activity.
 Có thể tổng hợp từ:
 
 ```text
-track_video_watch_logs
+track_events
 
-track_audio_listen_logs
-
-track_document_view_logs
-
-track_assessment_activity_logs
-
-track_liveclass_attendance_logs
+track_activity_summaries
 ```
 
 ---

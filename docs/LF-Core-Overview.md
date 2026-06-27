@@ -273,27 +273,24 @@ Người học:
 
 Track:
 
-* Lesson Progress
-* Video Watch
-* Audio Listen
-* Document View
-* Quiz Activity
-* User Activity
+* Append-only Learning Behavior Events
+* Learning Sessions
+* Behavior Summaries
+* AI-ready Feature Records
+* Observed Learning Journeys
 
 ---
 
 # Example Domains
 
 ```text
-track_lesson_progress
+track_events
 
-track_video_watch_logs
+track_learning_sessions
 
-track_audio_listen_logs
+track_activity_summaries
 
-track_document_view_logs
-
-track_user_activity_logs
+track_ai_features
 ```
 
 ---

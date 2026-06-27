@@ -48,6 +48,7 @@ Số ADR không được tái sử dụng hoặc đổi để lấp khoảng tr�
 | [ADR-0002](ADR-0002-LiveClass-Foundation.md) | LiveClass Foundation | Approved |
 | [ADR-0003](ADR-0003-Assessment-Foundation.md) | Assessment Foundation | Approved |
 | [ADR-0004](ADR-0004-Media-Foundation.md) | Media Foundation | Approved |
+| [ADR-0005](ADR-0005-Track-Foundation.md) | Track Foundation | Accepted |
 
 ---
 

@@ -30,7 +30,9 @@ LearnForge
 │   └── Certificate
 │
 ├── Platform Domains
-│   ├── Media
+│   └── Media
+│
+├── Learning Intelligence Domains
 │   └── Track
 │
 ├── SaaS Domains
@@ -145,25 +147,36 @@ và access events.
 **ADR:** [ADR-0004 — Media Foundation](../adr/ADR-0004-Media-Foundation.md)
 — Approved.
 
+---
+
+## 4. Learning Intelligence Domains
+
 ### Track
 
-**Status:** Planned (architecture documented, ADR/freeze pending).
+**Status:** Foundation Approved — Version 1.0.
 
-**Responsibility:** Append-only learning/behavior events, summaries and
-analytics inputs.
+**Responsibility:** Append-only learning behavior events, learning sessions,
+rebuildable behavior summaries, AI-ready feature records, feature snapshots và
+observed learning journeys.
 
-**Source Of Truth:** Track Event history.
+**Source Of Truth:** Track Event observation history. Summary, feature và
+observed path records là derived read models.
 
-**Consumes:** Events from Course, LiveClass, Assessment, Media and User
-activity.
+**Consumes:** Events from Course, LiveClass, Assessment, Media and other
+approved source Domains.
 
-**Produces:** Behavioral summaries, analytics inputs and AI-consumable signals.
+**Produces:** Behavioral summaries, analytics inputs and AI-ready signals.
 
-**ADR:** Planned.
+**Does Not Own:** Course Progress/Completion, Assessment Result, LiveClass
+Attendance, Media Processing State, Certificate Eligibility hoặc AI
+Recommendation.
+
+**ADR:** [ADR-0005 — Track Foundation](../adr/ADR-0005-Track-Foundation.md)
+— Accepted.
 
 ---
 
-## 4. Intelligence Domains
+## 5. Intelligence Domains
 
 ### AI
 
@@ -194,7 +207,7 @@ Insight records only; AI is not source of truth for consumer business state.
 
 ---
 
-## 5. SaaS Domains
+## 6. SaaS Domains
 
 ### Tenant
 
@@ -236,7 +249,7 @@ context.
 
 ---
 
-## 6. Infrastructure Domains
+## 7. Infrastructure Domains
 
 Infrastructure Domains provide system capabilities and do not own learning,
 evaluation or commercial business state outside their scope.
@@ -254,7 +267,7 @@ evaluation or commercial business state outside their scope.
 
 ---
 
-## 7. Domain Dependency
+## 8. Domain Dependency
 
 Arrows describe context/evidence consumption, not ownership transfer.
 
@@ -295,7 +308,7 @@ directly.
 
 ---
 
-## 8. Source Of Truth Matrix
+## 9. Source Of Truth Matrix
 
 | Business State | Source Of Truth Domain |
 |---|---|
@@ -319,7 +332,7 @@ Read models, evidence and caches do not replace these sources of truth.
 
 ---
 
-## 9. ADR Matrix
+## 10. ADR Matrix
 
 | Domain | ADR | Status |
 |---|---|---|
@@ -328,7 +341,7 @@ Read models, evidence and caches do not replace these sources of truth.
 | Assessment | ADR-0003 | Approved |
 | Media | ADR-0004 | Approved |
 | Certificate | Planned | Foundation Planned |
-| Track | Planned | ADR/freeze pending |
+| Track | ADR-0005 | Approved |
 | AI | Planned | Strategic Architecture |
 | Tenant | Planned | Foundation documented |
 | Usage | Planned | Foundation documented |
@@ -337,7 +350,7 @@ Read models, evidence and caches do not replace these sources of truth.
 
 ---
 
-## 10. Roadmap
+## 11. Roadmap
 
 ### Foundation Approved
 
@@ -345,6 +358,7 @@ Read models, evidence and caches do not replace these sources of truth.
 * LiveClass
 * Assessment
 * Media
+* Track
 * Architecture Principles
 
 ### Foundation Documented, ADR Pending
@@ -356,7 +370,6 @@ Read models, evidence and caches do not replace these sources of truth.
 ### Planned
 
 * Certificate
-* Track freeze/ADR
 * AI foundation/ADR
 * Subscription
 * Notification

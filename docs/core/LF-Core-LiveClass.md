@@ -499,12 +499,12 @@ Replay Progress
 Chat
 ```
 
-Track Domain ghi behavior events và analytics logs:
+Track Domain ghi append-only behavior events và rebuildable summaries:
 
 ```text
-track_liveclass_attendance_logs
+track_events
 
-track_liveclass_replay_logs
+track_activity_summaries
 ```
 
 Track không thay thế LiveClass source records và không sở hữu Course

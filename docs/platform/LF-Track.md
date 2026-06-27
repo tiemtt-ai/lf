@@ -2,7 +2,7 @@
 
 Version: 1.0
 
-Status: Official Foundation
+Status: Foundation Approved
 
 Last Updated: 2026-06
 
@@ -10,141 +10,305 @@ Last Updated: 2026-06
 
 # LF Track Architecture
 
-Track Domain là hệ thống ghi nhận hành vi học tập trong LearnForge.
+Track là Learning Intelligence Domain của LearnForge.
 
-Nếu:
-
-Course Domain quản lý nội dung học
-
-và
-
-Assessment Domain quản lý kết quả học
-
-thì
-
-Track Domain quản lý quá trình học.
+Track ghi nhận hành vi học tập dưới dạng event append-only và tạo các read
+model phục vụ Analytics, Dashboard và AI. Track không phải technical logging,
+không phải Course, Assessment, LiveClass, Media hoặc AI Domain.
 
 ---
 
 # Mission
 
-Track Domain tồn tại để trả lời:
-
-"Học viên học như thế nào?"
-
-Thay vì chỉ biết:
+Track trả lời:
 
 ```text
-Completed = Yes
+Learner đã tương tác như thế nào?
+
+Behavior thay đổi theo thời gian ra sao?
+
+Signal nào có thể hỗ trợ Analytics và AI?
 ```
 
-LearnForge muốn biết:
+Track không trả lời thay Owner Domain:
 
 ```text
-Học viên học trong bao lâu
+Course đã completed chưa?
 
-Học vào thời điểm nào
+Assessment result là gì?
 
-Xem video tới đâu
+Attendance có hợp lệ không?
 
-Đọc tài liệu bao nhiêu lần
-
-Làm bài thi mất bao lâu
-
-Có nguy cơ bỏ học không
+Media processing đã hoàn tất chưa?
 ```
 
 ---
 
-# Learning Intelligence Philosophy
+# Domain Responsibility
 
-Course tạo ra:
+Track sở hữu:
 
-```text
-Learning Content
-```
+* Append-only learning behavior events.
+* Learning sessions có ý nghĩa phân tích.
+* Activity và daily behavior summaries.
+* AI-ready feature records.
+* Historical feature snapshots.
+* Observed learning journey/path records.
 
-Assessment tạo ra:
+Track không sở hữu hoặc quyết định:
 
-```text
-Learning Outcome
-```
-
-Track tạo ra:
-
-```text
-Learning Behavior
-```
-
----
-
-# Why Track Matters
-
-Không có Track:
-
-LearnForge chỉ là LMS.
-
-Có Track:
-
-LearnForge trở thành Learning Intelligence Platform.
+* Course Progress hoặc Completion.
+* Assessment Result hoặc final grade.
+* LiveClass Attendance.
+* Media Processing State.
+* Certificate Eligibility hoặc issuance.
+* AI Recommendation.
+* SaaS Usage hoặc Billing state.
 
 ---
 
-# Learning Data Flow
+# Source Of Truth
+
+`track_events` là Source of Truth của observation history do Track tiếp nhận.
+
+Track Event là quan sát về behavior, không phải Source of Truth của business
+state trong Domain phát event. `event_code` được snapshot để bảo toàn lịch sử,
+nhưng không thay thế source record.
 
 ```text
-Course Product + Enrollment
+Source Domain Record
+
+↓ emits event
+
+Track Event
+
+↓ projects
+
+Summary / AI-ready Feature / Observed Path
+```
+
+Summary, feature và observed path là derived read models. Chúng có thể
+recalculate hoặc rebuild từ event history.
+
+---
+
+# Event Sources
+
+Track nhận event từ:
+
+* Course.
+* LiveClass.
+* Assessment.
+* Media.
+* Certificate, AI hoặc SaaS khi event taxonomy được approved.
+
+Source Domain tiếp tục sở hữu business record:
+
+| Event Example | Source Of Truth |
+| --- | --- |
+| `lesson_completed` | Course Progress |
+| `live_joined` | LiveClass Attendance/Session |
+| `assessment_submitted` | Assessment Attempt |
+| `media_stream_started` | Media access/stream context |
+| `certificate_downloaded` | Certificate record |
+
+Track không suy diễn hoặc ghi ngược business state vào source Domain.
+
+---
+
+# Append-Only Principle
+
+Track Event là append-only:
+
+```text
+Observed Event
+
+↓ append
+
+Correction Event
+
+↓ append
+
+Rebuild Read Models
+```
+
+Không update hoặc delete event cũ để thay đổi lịch sử. Correction phải là event
+mới. Purge chỉ được thực hiện theo retention/privacy policy đã approved.
+
+`occurred_at` là event time; `received_at` là ingestion time. Hai thời điểm
+không được dùng thay thế nhau.
+
+---
+
+# Event Reliability
+
+Mỗi event có `event_uuid` bất biến và `idempotency_key` tenant-scoped.
+
+```text
+Retry / Offline Sync
+
+↓ same customer_id + idempotency_key
+
+Ingest Once
+```
+
+Duplicate được bỏ qua hoặc merge trước persistence theo ingestion policy.
+Event đã persist không bị rewrite.
+
+`correlation_id` nhóm nhiều events trong cùng business flow.
+`causation_id` chỉ ra event trực tiếp sinh event hiện tại.
+
+Correction flow:
+
+```text
+Incorrect Event
+
+↓ append
+
+Correction Event
+
+↓ corrected_event_id + correction_reason
+
+Rebuild Affected Projections
+```
+
+Correction không update hoặc delete event cũ.
+
+---
+
+# Learning Session
+
+Track Learning Session là một phiên học tập có ý nghĩa cho Analytics/AI, không
+phải authentication/login session và không thay thế Enrollment.
+
+```text
+User + Optional Enrollment Context
 
 ↓
 
-Template Lesson / Template Activity
+Learning Session
 
-↓
+↓ groups
 
-Media
+Track Events
+```
 
-↓
+Session có thể active, ended hoặc expired. Duration là read-model value từ
+events và không quyết định Course Progress.
 
-Student Activity
+---
+
+# Read Models
+
+Track tạo:
+
+* Activity Summary theo user/enrollment/version activity.
+* Daily Summary theo user/enrollment/product.
+* Current AI-ready Feature.
+* Historical Feature Snapshot.
+* Observed Learning Path.
+
+Mỗi read model phải có source, recalculation rule và allowed consumer rõ ràng.
+Không read model nào được trở thành authority cho Progress, Attendance,
+Assessment Result, Certificate hoặc Billing.
+
+---
+
+# Projection Versioning
+
+Track tách event history khỏi derived projection:
+
+```text
+Event Store
+
+↓ project with projection_version
+
+Projection
+
+↓ derive
+
+AI-ready Feature
+```
+
+Event Store không rebuild hoặc rewrite. Activity Summary, Daily Summary,
+AI-ready Feature và Observed Learning Path có `projection_version`.
+
+Khi công thức thay đổi, Track tạo/rebuild versioned projection rows. Version cũ
+được giữ để compare và rollback; event history không thay đổi.
+
+---
+
+# AI Integration
+
+AI nên đọc Track summaries và AI-ready signals thay vì tự gom raw data trực
+tiếp từ mọi Domain khi Track đã cung cấp projection phù hợp.
+
+```text
+Course / LiveClass / Assessment / Media Events
 
 ↓
 
 Track
 
-↓
-
-Analytics
-
-↓
+↓ summaries and AI-ready signals
 
 AI
 
 ↓
 
-Insight
+Recommendation / Prediction / Assistant Output
 ```
+
+Track sở hữu feature records; AI sở hữu Recommendation/Prediction/Insight của
+AI. Track không quyết định hoặc thực thi AI recommendation.
 
 ---
 
-# Track Domains
+# Analytics And Dashboard
 
-Track Layer gồm:
+Track cung cấp behavior data cho:
+
+* Engagement analytics.
+* Learning-time analysis.
+* Replay and interaction trends.
+* Journey observations.
+* AI feature generation.
+
+Analytics phải tenant-scoped. Aggregate hoặc dashboard không được expose dữ
+liệu cross-tenant và không được dùng như canonical business state.
+
+---
+
+# Tenant Isolation
+
+1. Mọi Track business record phải tenant-scoped bằng `customer_id`.
+2. Cross-domain context phải thuộc cùng tenant.
+
+---
+
+# Privacy
+
+Track lưu behavior cần thiết cho mục đích Analytics và AI đã xác định. Track
+không bắt buộc lưu mãi mọi technical metadata.
 
 ```text
-Lesson Progress
+IP Address
 
-Video Tracking
+User Agent
 
-Audio Tracking
+Device Metadata
 
-Document Tracking
+↓ retention/privacy policy
 
-Assessment Tracking
-
-LiveClass Tracking
-
-User Activity Tracking
+Anonymize / Hash / Purge
 ```
+
+Retention policy quyết định thời hạn và transformation. Privacy operation
+không được rewrite business meaning của event; khi policy yêu cầu purge
+technical metadata, event identity và non-sensitive observation history được
+xử lý theo contract đã approved.
+
+Consent, tenant isolation và data-subject policy vẫn áp dụng.
 
 ---
 
@@ -154,857 +318,77 @@ User Activity Tracking
 track_*
 ```
 
----
-
-# Core Tables
-
-Version 1
+Foundation tables:
 
 ```text
-track_lesson_progress
-
-track_video_watch_logs
-
-track_audio_listen_logs
-
-track_document_view_logs
-
-track_assessment_activity_logs
-
-track_liveclass_attendance_logs
-
-track_liveclass_replay_logs
-
-track_user_activity_logs
+track_event_types
+track_events
+track_learning_sessions
+track_activity_summaries
+track_daily_summaries
+track_ai_features
+track_learning_paths
+track_feature_snapshots
 ```
 
----
-
-# Core Principle
-
-Track không quản lý nghiệp vụ.
-
-Track chỉ ghi nhận hành vi.
-
----
-
-Sai:
-
-```text
-Course Status
-```
-
----
-
-Đúng:
-
-```text
-User Watched Lesson
-```
-
----
-
-# Ownership Rules
-
-Mọi dữ liệu Track phải thuộc:
-
-```text
-customer_id
-```
-
----
-
-Và luôn gắn với:
-
-```text
-user_id
-```
-
----
-
-# Tracking Hierarchy
-
-```text
-User
-
-↓
-
-Activity
-
-↓
-
-Tracking Event
-
-↓
-
-Analytics
-
-↓
-
-AI Insight
-```
-
----
-
-# Lesson Progress Tracking
-
-## Purpose
-
-Theo dõi tiến độ học bài.
-
----
-
-# Database
-
-```text
-track_lesson_progress
-```
-
----
-
-# Examples
-
-```text
-Lesson Started
-
-Lesson Completed
-
-Lesson Reopened
-```
-
----
-
-# Example Record
-
-```text
-user_id = 100
-
-product_id = 10
-
-template_lesson_id = 25
-
-progress = 80%
-```
-
----
-
-# Progress Model
-
-```text
-Not Started
-
-↓
-
-In Progress
-
-↓
-
-Completed
-```
-
----
-
-# Video Tracking
-
-## Purpose
-
-Theo dõi hành vi xem video.
-
----
-
-# Database
-
-```text
-track_video_watch_logs
-```
-
----
-
-# Examples
-
-```text
-Play
-
-Pause
-
-Seek
-
-Resume
-
-Completed
-```
-
----
-
-# Tracked Metrics
-
-```text
-Watch Duration
-
-Completion Rate
-
-Replay Count
-
-Average Watch Time
-```
-
----
-
-# Example
-
-```text
-Video Length
-
-100 minutes
-
-↓
-
-Watched
-
-78 minutes
-
-↓
-
-Completion
-
-78%
-```
-
----
-
-# Audio Tracking
-
-## Purpose
-
-Theo dõi hành vi nghe audio.
-
----
-
-# Database
-
-```text
-track_audio_listen_logs
-```
-
----
-
-# Examples
-
-```text
-Listening Lesson
-
-Pronunciation Practice
-
-Podcast Learning
-```
-
----
-
-# Metrics
-
-```text
-Listen Duration
-
-Completion Rate
-
-Replay Count
-```
-
----
-
-# Document Tracking
-
-## Purpose
-
-Theo dõi hành vi đọc tài liệu.
-
----
-
-# Database
-
-```text
-track_document_view_logs
-```
-
----
-
-# Examples
-
-```text
-PDF Opened
-
-PDF Closed
-
-Page Viewed
-
-Download
-```
-
----
-
-# Metrics
-
-```text
-View Duration
-
-Pages Viewed
-
-Download Count
-```
-
----
-
-# Assessment Tracking
-
-## Purpose
-
-Theo dõi hành vi làm bài.
-
----
-
-# Database
-
-```text
-track_assessment_activity_logs
-```
-
----
-
-# Examples
-
-```text
-Quiz Started
-
-Question Viewed
-
-Answer Submitted
-
-Quiz Finished
-```
-
----
-
-# Metrics
-
-```text
-Attempt Duration
-
-Question Time
-
-Completion Rate
-
-Pass Rate
-```
-
----
-
-# Live Class Tracking
-
-## Purpose
-
-Theo dõi hoạt động lớp học trực tuyến.
-
----
-
-# Attendance Tracking
-
-Database:
-
-```text
-track_liveclass_attendance_logs
-```
-
----
-
-# Replay Tracking
-
-Database:
-
-```text
-track_liveclass_replay_logs
-```
-
----
-
-# Metrics
-
-```text
-Attendance Rate
-
-Replay Usage
-
-Participation Rate
-
-Session Duration
-```
-
----
-
-# User Activity Tracking
-
-## Purpose
-
-Theo dõi hoạt động tổng quát.
-
----
-
-# Database
-
-```text
-track_user_activity_logs
-```
-
----
-
-# Examples
-
-```text
-Login
-
-Logout
-
-Course Access
-
-Lesson Access
+Table documentation:
+[docs/database/track](../database/track/).
 
-AI Request
-```
-
----
-
-# Event-Based Architecture
-
-Track sử dụng mô hình:
-
-```text
-Event Driven Tracking
-```
-
----
-
-# Example
-
-```text
-Video Played
-
-↓
-
-Tracking Event
-
-↓
-
-Track Database
-```
-
----
-
-# Benefits
-
-* scalable
-* analytics ready
-* AI ready
-
----
-
-# Tracking Granularity
-
-LearnForge hỗ trợ nhiều mức độ chi tiết.
-
----
-
-# Level 1
-
-Summary Tracking
-
-Ví dụ:
-
-```text
-Lesson Completed
-```
-
----
-
-# Level 2
-
-Behavior Tracking
-
-Ví dụ:
-
-```text
-Watch Duration
-```
-
----
-
-# Level 3
-
-Event Tracking
-
-Ví dụ:
-
-```text
-Play
-
-Pause
-
-Seek
-```
-
----
-
-# Learning Analytics
-
-Track là nguồn dữ liệu cho Analytics.
-
----
-
-# Examples
-
-```text
-Course Completion Rate
-
-Student Engagement
-
-Attendance Rate
-
-Learning Time
-```
-
----
-
-# Student Engagement
-
-Ví dụ:
-
-```text
-Weekly Active Learners
-
-Monthly Active Learners
-
-Daily Learning Time
-```
-
----
-
-# Risk Detection
-
-Track giúp phát hiện:
-
-```text
-Low Attendance
-
-Low Activity
-
-Incomplete Lessons
-
-Exam Avoidance
-```
-
----
-
-# At-Risk Student Model
-
-Ví dụ:
-
-```text
-Low Attendance
-
-+
-
-Low Progress
-
-+
-
-No Login
-
-↓
-
-Risk Score
-```
-
----
-
-# AI Relationship
-
-Track là nguồn dữ liệu quan trọng nhất cho AI.
-
----
-
-# AI Needs Track
-
-Không có Track:
-
-AI chỉ biết nội dung.
-
-Có Track:
-
-AI hiểu người học.
-
----
-
-# AI Data Sources
-
-```text
-Video Behavior
-
-Learning Time
-
-Quiz Behavior
-
-Attendance
-
-Replay Usage
-```
-
----
-
-# AI Personalization
-
-AI có thể:
-
-```text
-Recommend Lessons
-
-Suggest Reviews
-
-Detect Weak Areas
-
-Predict Dropout Risk
-```
-
----
-
-# AI Learning Insights
-
-Ví dụ:
-
-```text
-Student A
-
-↓
-
-Excellent Listening
-
-Weak Writing
-
-↓
-
-Recommend Writing Practice
-```
-
----
-
-# Teacher Analytics
-
-Ví dụ:
-
-```text
-Course Engagement
-
-Attendance Trend
-
-Replay Dependency
-
-Learning Effectiveness
-```
-
----
-
-# Usage Tracking
-
-Track còn phục vụ SaaS.
-
----
-
-# Examples
-
-```text
-Video Watch Time
-
-Bandwidth Usage
-
-Storage Usage
-
-AI Requests
-```
-
----
-
-# Billing Relationship
-
-Track có thể cung cấp dữ liệu cho:
-
-```text
-Usage
-
-Quota
-
-Billing
-```
-
----
-
-# Privacy Principles
-
-## Rule 1
-
-Chỉ track dữ liệu cần thiết.
-
----
-
-## Rule 2
-
-Tôn trọng tenant isolation.
-
 ---
 
-## Rule 3
+# Principles Applied
 
-Không chia sẻ dữ liệu giữa tenants.
+* Domain Responsibility Principle.
+* Source Of Truth Principle.
+* Evidence Principle.
+* Append Only Principle.
+* Read Model Principle.
+* Tenant Isolation Principle.
+* AI Consumer Principle.
+* Backward Compatibility Principle.
+* Simplicity Principle.
 
 ---
 
-## Rule 4
+# Future Considerations
 
-Analytics phải aggregate trước khi hiển thị.
+Các policy sau có thể phát triển mà không thay đổi Foundation:
 
----
-
-# Design Rules
-
-## Rule 1
-
-Track không chứa business logic.
-
----
-
-## Rule 2
-
-Track không thay thế dữ liệu gốc.
-
----
-
-## Rule 3
-
-Track phải append-only khi có thể.
-
----
-
-## Rule 4
-
-Track phải AI-ready.
-
----
-
-## Rule 5
-
-Mọi event phải gắn:
-
-```text
-customer_id
-
-user_id
-```
-
----
-
-# Current Scope
+* Event taxonomy governance.
+* Learning session boundary.
+* Summary rebuild strategy.
+* AI feature lifecycle.
+* Offline/mobile sync.
+* High-volume partitioning.
 
-Version 1
+Thay đổi Domain Boundary, table foundation hoặc schema contract phải có ADR
+Amendment hoặc ADR mới.
 
-```text
-Lesson Progress
-
-Video Tracking
-
-Audio Tracking
-
-Document Tracking
-
-Assessment Tracking
-
-LiveClass Tracking
-
-User Activity Tracking
-```
-
----
-
-# Future Scope
-
-```text
-Learning Journey
-
-Engagement Score
-
-Risk Score
-
-Learning Pattern Detection
-
-AI Prediction
-
-Competency Tracking
-```
-
 ---
-
-# Relationship With Other Domains
-
-```text
-Course Product + Enrollment
-
-↓
-
-Template Lesson / Template Activity
-
-↓
-
-Media
-
-↓
-
-User Activity
-
-↓
-
-Track
 
-↓
+# Architecture Decision
 
-Analytics
+Track Foundation được approved và freeze tại:
 
-↓
+[ADR-0005 — Track Foundation](../adr/ADR-0005-Track-Foundation.md)
 
-AI
-```
+ADR-0005 là canonical decision cho Learning Intelligence ownership,
+append-only Event Store, event reliability, projection versioning, privacy và
+cross-domain integration.
 
 ---
 
 # Final Statement
 
-Track Domain là hệ thần kinh của LearnForge.
+Track là Learning Intelligence Domain, không phải technical logging hoặc
+learning-state authority.
 
-Nó ghi nhận toàn bộ hành vi học tập thực tế của người học.
+Track giữ event history và các derived behavior projections. Course giữ
+Progress/Completion; Assessment giữ Result; LiveClass giữ Attendance; Media
+giữ Processing State; Certificate giữ Eligibility; AI giữ Recommendation.
 
-Thông qua Track Domain, LearnForge không chỉ biết:
+```text
+Foundation Approved
 
-"Học viên đã học gì?"
-
-mà còn biết:
-
-"Học viên học như thế nào?"
-
-Đây là nền tảng để xây dựng:
-
-* Analytics
-* Personalization
-* AI Tutor
-* Learning Insights
-
-và hiện thực hóa tầm nhìn:
-
-AI-Native Learning Intelligence Platform.
-
----
-
-End of LF-Track
+Version 1.0
+```

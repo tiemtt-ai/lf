@@ -544,22 +544,25 @@ Student:
 
 # User And Tracking
 
-Tracking luôn gắn với:
+User-specific Tracking gắn với:
 
 ```text
 user_id
 ```
+
+System/anonymous event chỉ được để `user_id NULL` khi event taxonomy và privacy
+policy cho phép.
 
 ---
 
 # Examples
 
 ```text
-track_lesson_progress
+track_events
 
-track_video_watch_logs
+track_learning_sessions
 
-track_document_view_logs
+track_activity_summaries
 ```
 
 ---

@@ -10,8 +10,8 @@ Last Updated: 2026-06
 
 # Purpose
 
-Thư mục `platform/` chứa tài liệu cho Platform Domains và shared capabilities
-được nhiều Business Domain sử dụng.
+Thư mục `platform/` chứa tài liệu cho Platform Domains, shared capabilities và
+Learning Intelligence capability hiện được catalog tại đây.
 
 Platform Domain sở hữu dữ liệu và business rules của capability đó, nhưng
 không sở hữu business state của consumer Domain.
@@ -31,10 +31,10 @@ tự thực thi business decision của consumer.
 
 # Current Documents
 
-| Platform Domain | Document | Status |
+| Capability | Document | Status |
 | --- | --- | --- |
 | Media | [LF-Media](LF-Media.md) | Foundation Approved |
-| Track | [LF-Track](LF-Track.md) | Planned |
+| Track (Learning Intelligence Domain) | [LF-Track](LF-Track.md) | Foundation Approved |
 | AI | [LF-AI](LF-AI.md) | Planned / Strategic Architecture |
 
 Media foundation decision:

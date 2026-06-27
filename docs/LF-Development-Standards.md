@@ -198,7 +198,7 @@ core_course_template_versions
 core_course_template_version_lessons
 core_assessment_questions
 media_files
-track_lesson_progress
+track_events
 ```
 
 ---
@@ -306,7 +306,7 @@ Ví dụ:
 core_course_templates
 core_course_template_lessons
 media_files
-track_video_watch_logs
+track_events
 ai_conversations
 ```
 

@@ -369,13 +369,9 @@ Tổng thời gian học đã ghi nhận.
 Dữ liệu này có thể được tổng hợp từ:
 
 ```text
-track_video_watch_logs
+track_events
 
-track_audio_listen_logs
-
-track_document_view_logs
-
-track_user_activity_logs
+track_activity_summaries
 ```
 
 ---

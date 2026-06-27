@@ -630,7 +630,7 @@ core_course_template_lessons
 
 media_files
 
-track_lesson_progress
+track_events
 
 ai_conversations
 ```

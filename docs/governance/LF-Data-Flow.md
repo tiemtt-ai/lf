@@ -217,7 +217,7 @@ Consumer Experience
 
 ---
 
-## 7. Track (Planned)
+## 7. Track (Foundation Approved)
 
 ```text
 Course Activity
@@ -253,6 +253,26 @@ Track
 
 Track stores append-only behavioral events and rebuildable summaries. Track
 does not replace Course, LiveClass, Assessment or Media source records.
+
+```text
+Track Events
+
+↓ group/project
+
+Learning Sessions + Activity/Daily Summaries
+
+↓ derive
+
+AI-ready Features + Historical Snapshots + Observed Paths
+
+↓ consume
+
+Analytics / Dashboard / AI
+```
+
+Correction tạo event mới. Summary, feature và observed path có thể rebuild;
+chúng không quyết định Progress, Result, Attendance, Processing State,
+Certificate Eligibility hoặc AI Recommendation.
 
 ---
 

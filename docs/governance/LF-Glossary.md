@@ -101,7 +101,7 @@ Các thuật ngữ trong phần này là định hướng. Ownership hoặc Sour
 
 | Term | Definition | Owner Domain | Source of Truth | Related ADR |
 | --- | --- | --- | --- | --- |
-| Track Event | Sự kiện append-only mô tả hành vi hoặc tín hiệu học tập thô từ các Domain nguồn. | Track (Planned) | Track Event (Planned) | Planned |
+| Track Event | Sự kiện append-only mô tả hành vi hoặc tín hiệu học tập thô từ các Domain nguồn; không phải business state của Domain nguồn. | Track | Track Event observation history | [ADR-0005](../adr/ADR-0005-Track-Foundation.md) |
 | AI Feature | Năng lực AI tiêu thụ dữ liệu được phép để tạo output hỗ trợ, không sở hữu business state của Domain nguồn. | AI (Planned) | AI feature configuration and output (Planned) | Planned |
 | Recommendation | Đề xuất do AI tạo để hỗ trợ người dùng hoặc Domain đích quyết định; bản thân đề xuất không thực thi business action. | AI (Planned) | AI Recommendation (Planned) | Planned |
 | Competency | Năng lực hoặc kỹ năng có thể được định nghĩa, liên kết và đánh giá trong learning architecture tương lai. | TBD | TBD | Planned |
