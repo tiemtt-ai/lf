@@ -1,6 +1,6 @@
 # LF-Core-LiveClass.md
 
-Version: 1.0
+Version: 2.0
 
 Status: Official Foundation
 
@@ -8,96 +8,201 @@ Last Updated: 2026-06
 
 ---
 
-# LF-Core Live Class Architecture
+# LF-Core LiveClass Architecture
 
-LiveClass Domain quản lý toàn bộ hoạt động học trực tuyến theo thời gian thực.
+LiveClass Domain quản lý hoạt động học đồng bộ và hybrid:
 
-Bao gồm:
-
-* Online Classes
-* Hybrid Classes
+* LiveClass Rooms
+* LiveClass Sessions
 * Attendance
-* Recording
-* Replay
-* Live Analytics
+* Recording references
+* Replay summaries
+* Chat logs
+
+LiveClass sinh dữ liệu vận hành. Nó không kế thừa Course, không tạo Runtime
+Course và không sở hữu learning completion.
 
 ---
 
 # Mission
 
-Cho phép giáo viên và học viên tương tác trực tiếp trong quá trình học tập.
-
-Đồng thời tạo dữ liệu phục vụ:
-
-* Tracking
-* Analytics
-* AI
-* Learning Insights
+Cho phép giáo viên và học viên tương tác trực tiếp, đồng thời tạo operational
+evidence phục vụ Course Progress, Tracking, Analytics và AI.
 
 ---
 
-# Live Learning Philosophy
-
-Course giúp người học:
-
-học nội dung.
-
-Assessment giúp người học:
-
-được đánh giá.
-
-LiveClass giúp người học:
-
-tương tác trực tiếp.
-
----
-
-# Live Class Hierarchy
+# Architecture Flow
 
 ```text
-Course Product
-
-↓
-
 Course Template
 
 ↓
 
-Template Activity
+Template Activity (`activity_type = live_class`)
+
+↓ publish
+
+Course Template Version
 
 ↓
 
-Live Class
+Version Activity (immutable)
 
 ↓
 
-Attendance
+LiveClass Room / Session
 
 ↓
 
-Recording
+Attendance / Recording / Replay / Chat
 
 ↓
 
-Replay
-
-↓
-
-Analytics
+Course Activity Progress
 ```
+
+Working Template chỉ định nghĩa activity. Khi publish, Version Activity đóng
+băng learning context, completion rule và threshold. LiveClass operational data
+chỉ gắn với Course thông qua published Version context.
 
 ---
 
-# Core Objectives
+# Core Architecture Rules
 
-LiveClass phải hỗ trợ:
+## LiveClass Operational Data Principle
 
-* dạy trực tiếp
-* điểm danh
-* ghi hình
-* xem lại
-* theo dõi tương tác
-* AI analytics
+LiveClass là Operational Domain.
+
+LiveClass chỉ sinh:
+
+```text
+Room
+
+Session
+
+Attendance
+
+Recording
+
+Replay
+
+Chat
+```
+
+LiveClass không quyết định Course Completion, Course Progress hoặc Certificate.
+Course Domain sở hữu:
+
+```text
+core_course_activity_progress
+
+core_course_progress
+
+core_course_completions
+
+certificate eligibility
+```
+
+LiveClass data chỉ là evidence/input cho Course Progress recalculation.
+
+## Domain Responsibility Principle
+
+LiveClass chỉ sở hữu operational data và rules của LiveClass.
+
+Khi LiveClass cần ảnh hưởng Course Domain, LiveClass sinh Attendance/Replay
+Evidence, Event hoặc Request. Course Domain tự áp dụng completion rule và tự
+quyết định Progress, Completion hoặc Certificate eligibility.
+
+LiveClass không được cập nhật trực tiếp Course business state hoặc ghi đè
+Course source of truth.
+
+## Rule 1 — No Course Inheritance
+
+LiveClass không kế thừa Course và không tạo lại:
+
+```text
+core_courses
+
+core_course_sections
+
+core_course_lessons
+
+core_course_activities
+```
+
+## Rule 2 — Version Activity Binding
+
+Course-linked operational records phải tham chiếu:
+
+```text
+template_version_id
+
+version_activity_id
+```
+
+`version_activity_id` là link chính giữa LiveClass và Course Domain. Version
+Activity phải có:
+
+```text
+activity_type = live_class
+```
+
+Không dùng working `template_activity_id` làm learning/runtime reference.
+
+## Rule 3 — Enrollment Binding
+
+User-specific operational records phải tham chiếu:
+
+```text
+enrollment_id
+
+user_id
+```
+
+Áp dụng cho:
+
+* Attendance
+* Replay
+
+Enrollment phải `active` khi tạo record. `user_id` phải khớp `student_id` của
+Enrollment. Record được giữ lại sau khi Enrollment hết active để bảo toàn
+learning-cycle history.
+
+## Rule 4 — Progress Ownership
+
+LiveClass không tự quyết định completion.
+
+Canonical activity completion record là:
+
+```text
+core_course_activity_progress
+```
+
+Attendance và Replay chỉ là operational evidence. Course Domain đánh giá
+evidence theo frozen Version Activity completion rule rồi cập nhật/recalculate
+Course Activity Progress.
+
+## Rule 5 — Media Ownership
+
+File recording thuộc Media Domain.
+
+LiveClass Recording chỉ giữ:
+
+```text
+media_file_id
+
+provider_recording_id
+
+provider/source metadata
+```
+
+`media_file_id` là canonical khi file đã được import vào Media. LiveClass không
+lưu binary file, không sở hữu storage lifecycle và không mặc định public media
+URL.
+
+## Rule 6 — Tenant Isolation
+
+Mọi LiveClass business data phải có `customer_id`. Tất cả cross-domain
+references phải thuộc cùng tenant.
 
 ---
 
@@ -107,9 +212,7 @@ LiveClass phải hỗ trợ:
 core_liveclass_*
 ```
 
----
-
-# Proposed Tables
+Core tables:
 
 ```text
 core_liveclass_rooms
@@ -120,74 +223,36 @@ core_liveclass_attendances
 
 core_liveclass_recordings
 
-core_liveclass_chat_logs
-
 core_liveclass_replays
+
+core_liveclass_chat_logs
 ```
 
 ---
 
-# Live Class Rooms
+# LiveClass Rooms
 
-## Purpose
+`core_liveclass_rooms` đại diện cho phòng live của một Version Activity hoặc
+nhóm Session.
 
-Định nghĩa phòng học trực tuyến.
-
----
-
-# Database
-
-```text
-core_liveclass_rooms
-```
-
----
-
-# Examples
-
-```text
-TOPIK Beginner Room
-
-Business English Room
-
-Laravel Training Room
-```
-
----
-
-# Core Fields
+Course context:
 
 ```text
 customer_id
 
 product_id
 
-template_activity_id
+template_version_id
+
+version_activity_id
 
 teacher_id
-
-title
-
-description
-
-provider
-
-meeting_id
-
-meeting_url
-
-status
 ```
 
----
+Một Version Activity có tối đa một Room trong Foundation. Room chứa provider
+abstraction và meeting endpoints, nhưng không chứa progress.
 
-# Provider Support
-
-LearnForge không phụ thuộc vào một nhà cung cấp duy nhất.
-
----
-
-# Supported Providers
+Supported provider examples:
 
 ```text
 Zoom
@@ -201,103 +266,27 @@ Custom RTMP
 Future WebRTC
 ```
 
----
-
-# Design Principle
-
-Provider Abstraction.
-
-LiveClass Domain không phụ thuộc trực tiếp vào Zoom hoặc Meet.
+Provider credentials và signing secrets không thuộc Room record.
 
 ---
 
-# Live Sessions
+# LiveClass Sessions
 
-## Purpose
-
-Một lần học thực tế.
-
----
-
-# Database
+`core_liveclass_sessions` đại diện cho một lần học live cụ thể.
 
 ```text
-core_liveclass_sessions
+Room 1 → N Sessions
 ```
 
----
-
-# Relationship
+Session tách:
 
 ```text
-Room
+scheduled_start_at / scheduled_end_at
 
-1
-
-↓
-
-N
-
-Sessions
+actual_start_at / actual_end_at
 ```
 
----
-
-# Examples
-
-```text
-Session #1
-
-Session #2
-
-Session #3
-```
-
----
-
-# Session Lifecycle
-
-```text
-Scheduled
-
-↓
-
-Started
-
-↓
-
-Ended
-
-↓
-
-Recorded
-
-↓
-
-Replay Available
-```
-
----
-
-# Session Fields
-
-```text
-room_id
-
-start_time
-
-end_time
-
-duration_minutes
-
-status
-
-recording_status
-```
-
----
-
-# Session Status
+Allowed status:
 
 ```text
 scheduled
@@ -307,31 +296,21 @@ live
 ended
 
 cancelled
+
+no_show
 ```
 
----
-
-# Attendance Management
-
-Attendance là một trong những dữ liệu quan trọng nhất.
+Session bị cancel hoặc no-show vẫn được giữ để bảo toàn lịch sử. `ended` không
+đồng nghĩa Activity đã completed.
 
 ---
 
-# Database
+# Attendance
 
-```text
-core_liveclass_attendances
-```
+`core_liveclass_attendances` ghi nhận sự tham gia của một Enrollment trong một
+Session.
 
----
-
-# Purpose
-
-Theo dõi sự tham gia của học viên.
-
----
-
-# Attendance States
+Allowed status:
 
 ```text
 registered
@@ -341,319 +320,186 @@ present
 late
 
 absent
+
+excused
 ```
 
----
-
-# Attendance Sources
-
-## Automatic
-
-Thông qua Zoom / Meet.
-
----
-
-## Manual
-
-Giáo viên điểm danh.
-
----
-
-## Replay Completion
-
-Attendance có thể được bù bằng replay.
-
----
-
-# Replay Attendance Logic
-
-Ví dụ:
+Attendance sources:
 
 ```text
-Live Session
+provider
 
-↓
+manual
 
-Student Absent
-
-↓
-
-Watch Replay
-
-↓
-
-Replay Progress >= Threshold
-
-↓
-
-Attendance Updated
+system
 ```
 
+Một Enrollment có tối đa một Attendance record cho một Session. Attendance có
+thể làm evidence cho `core_course_activity_progress`, nhưng không thay thế
+progress và không bị Replay tự động ghi đè.
+
+Raw join/leave events chi tiết có thể thuộc Track Domain; Attendance giữ
+operational summary đã chuẩn hóa.
+
 ---
 
-# Example Threshold
+# Recording
+
+`core_liveclass_recordings` giữ operational reference của recording phát sinh
+từ Session.
 
 ```text
-80%
-```
-
----
-
-# Business Rule
-
-Tenant có thể cấu hình ngưỡng riêng.
-
----
-
-# Recording Architecture
-
-## Purpose
-
-Lưu video ghi hình của buổi học.
-
----
-
-# Database
-
-```text
-core_liveclass_recordings
-```
-
----
-
-# Flow
-
-```text
-Live Session
+LiveClass Session
 
 ↓
 
-Recording
+LiveClass Recording Reference
 
 ↓
 
-Media Processing
+Media File / Media Processing
 
 ↓
 
 Replay
 ```
 
----
-
-# Recording Sources
+Allowed status:
 
 ```text
-Zoom Recording
+processing
 
-Meet Recording
+ready
 
-Uploaded Recording
+failed
+
+archived
+
+deleted
 ```
 
----
-
-# Replay Architecture
-
-Replay là thành phần cực kỳ quan trọng.
+Provider `recording_url` chỉ là source URL. Khi có `media_file_id`, Media File
+là canonical file reference.
 
 ---
 
-# Database
+# Replay
+
+`core_liveclass_replays` lưu operational replay summary theo Enrollment và
+Recording.
 
 ```text
-core_liveclass_replays
-```
-
----
-
-# Purpose
-
-Cho phép học viên xem lại buổi học.
-
----
-
-# Replay Flow
-
-```text
-Session
-
-↓
-
 Recording
 
 ↓
 
-Replay
+Enrollment Replay
 
-↓
+↓ evidence
 
-Progress Tracking
+Course Activity Progress
 ```
 
----
+Supported behavior:
 
-# Replay Features
+* Resume watching
+* Watch duration
+* Progress percentage
+* Operational replay completion
 
-```text
-Resume Watching
-
-Playback Speed
-
-Progress Tracking
-
-Attendance Recovery
-```
-
----
-
-# Replay Progress
-
-Ví dụ:
-
-```text
-100 Minutes Video
-
-↓
-
-Watch 75 Minutes
-
-↓
-
-Replay Progress = 75%
-```
+Raw play/pause/seek events thuộc Track Domain. `completed` ở Replay không phải
+Course completion; Course Domain vẫn phải áp dụng frozen completion rule.
 
 ---
 
 # Live Chat
 
-Future Module
+`core_liveclass_chat_logs` lưu message trong Session để phục vụ audit, replay,
+teacher review và AI summary.
 
----
-
-# Database
-
-```text
-core_liveclass_chat_logs
-```
-
----
-
-# Purpose
-
-Lưu lịch sử tương tác.
-
----
-
-# Examples
+Allowed message types:
 
 ```text
-Questions
+text
 
-Answers
+question
 
-Teacher Feedback
+answer
 
-Student Discussion
+system
+
+file
 ```
+
+Chat không dùng để tính completion trực tiếp. File đính kèm phải qua Media
+Domain. Chat phải tuân theo tenant retention, privacy và consent policy.
 
 ---
 
-# Live Class And Course Architecture
-
-Relationship:
+# Relationship With Course Domain
 
 ```text
-Course Product
+Course Product + Enrollment
+
+↓ locked
+
+Template Version + Version Activity
 
 ↓
 
-Course Template
+LiveClass Room / Session
 
 ↓
 
-Template Activity
+Attendance / Replay Evidence
 
 ↓
 
-Live Class
+core_course_activity_progress
 ```
 
+Responsibilities:
+
+* Course Version Activity sở hữu immutable learning context và completion rule.
+* LiveClass sở hữu Room, Session và operational evidence.
+* Course Activity Progress sở hữu trạng thái completion cấp Activity.
+* Enrollment phân biệt từng learning cycle.
+* Product và Template Version context phải nhất quán xuyên suốt.
+
 ---
 
-# Live Class And Template Lesson
-
-Future Support
-
----
-
-Ví dụ:
+# Relationship With Media Domain
 
 ```text
-Template Lesson
+LiveClass Session
 
 ↓
 
-Template Activity
+LiveClass Recording Reference
 
-↓
+↓ media_file_id
 
-Live Session
+media_files
 ```
 
----
-
-# Live Class And Media
-
-Recording luôn thuộc Media Domain.
+Media Domain sở hữu file, storage, processing, signed delivery, transcript và
+file retention. LiveClass chỉ giữ reference cùng metadata vận hành.
 
 ---
 
-# Relationship
+# Relationship With Track Domain
 
-```text
-Live Class
-
-↓
-
-Recording
-
-↓
-
-media_videos
-```
-
----
-
-# Design Rule
-
-Không lưu video trực tiếp trong LiveClass Domain.
-
-Media Domain quản lý file.
-
----
-
-# Live Class And Tracking
-
-LiveClass sinh ra dữ liệu Tracking.
-
----
-
-# Examples
+LiveClass sinh operational summaries:
 
 ```text
 Attendance
 
 Replay Progress
 
-Watch Duration
-
-Participation
+Chat
 ```
 
----
-
-# Future Tracking Tables
+Track Domain ghi behavior events và analytics logs:
 
 ```text
 track_liveclass_attendance_logs
@@ -661,119 +507,28 @@ track_liveclass_attendance_logs
 track_liveclass_replay_logs
 ```
 
----
-
-# Live Class And AI
-
-LiveClass là nguồn dữ liệu rất giá trị cho AI.
+Track không thay thế LiveClass source records và không sở hữu Course
+completion.
 
 ---
 
-# AI Data Sources
+# Relationship With AI Domain
 
-```text
-Transcript
+LiveClass có thể cung cấp:
 
-Attendance
+* Transcript references
+* Attendance evidence
+* Replay behavior
+* Questions and participation
 
-Replay Behavior
-
-Questions
-
-Participation
-```
-
----
-
-# AI Teacher Analytics
-
-AI có thể phân tích:
-
-```text
-Attendance Rate
-
-Student Engagement
-
-Replay Rate
-
-Session Completion
-```
-
----
-
-# AI Learning Insights
-
-AI có thể phát hiện:
-
-```text
-Students At Risk
-
-Low Attendance
-
-Low Engagement
-
-Replay Dependency
-```
-
----
-
-# Transcript Pipeline
-
-Future Phase
-
----
-
-```text
-Recording
-
-↓
-
-Speech To Text
-
-↓
-
-Transcript
-
-↓
-
-Knowledge Base
-
-↓
-
-AI Tutor
-```
-
----
-
-# Example
-
-Teacher giảng:
-
-```text
-Thì hiện tại của tiếng Hàn...
-```
-
-↓
-
-Transcript
-
-↓
-
-Chunk
-
-↓
-
-AI Knowledge Base
-
-↓
-
-AI Tutor trả lời theo nội dung bài học
+AI có thể tạo teacher analytics, summaries và learning insights, nhưng AI
+output không ghi đè operational source records hoặc tự quyết định completion.
 
 ---
 
 # Hybrid Learning
 
-LearnForge hỗ trợ:
+LiveClass hỗ trợ:
 
 ```text
 Online
@@ -783,125 +538,12 @@ Offline
 Hybrid
 ```
 
----
-
-# Online
-
-Học trực tuyến.
-
----
-
-# Offline
-
-Học trực tiếp tại lớp.
-
----
-
-# Hybrid
-
-Kết hợp:
-
-* online
-* offline
-* replay
-
----
-
-# Class Schedule
-
-LiveClass hỗ trợ lịch học định kỳ.
-
----
-
-# Examples
-
-```text
-Sat 13:00 - 14:30
-
-Sun 13:00 - 14:30
-```
-
----
-
-# Future Scheduling Features
-
-```text
-Recurring Sessions
-
-Calendar Sync
-
-Google Calendar
-
-Outlook Calendar
-```
-
----
-
-# Notifications
-
-Future Phase
-
----
-
-Ví dụ:
-
-```text
-Class Reminder
-
-Session Started
-
-Replay Available
-```
-
----
-
-# Design Rules
-
-## Rule 1
-
-Mọi LiveClass phải thuộc:
-
-```text
-customer_id
-```
-
----
-
-## Rule 2
-
-Mọi Session phải thuộc Room.
-
----
-
-## Rule 3
-
-Recording thuộc Media Domain.
-
----
-
-## Rule 4
-
-Analytics thuộc Track Domain.
-
----
-
-## Rule 5
-
-AI Logic thuộc AI Domain.
-
----
-
-## Rule 6
-
-Attendance là dữ liệu học tập quan trọng.
-
-Không được bỏ qua.
+Room/Session model cho phép lịch đơn, lịch lặp hoặc hybrid delivery trong các
+phase sau mà không thay đổi Course Foundation binding.
 
 ---
 
 # Current Scope
-
-V1
 
 ```text
 Rooms
@@ -910,80 +552,55 @@ Sessions
 
 Attendance
 
-Recording
+Recording references
 
-Replay
+Replay summaries
+
+Chat logs
 ```
 
 ---
 
-# Planned Scope
+# Future Scope
 
 ```text
-Live Chat
-
 Whiteboard
 
 Breakout Rooms
 
 Calendar Sync
 
-Transcript
+Transcript Pipeline
 
 AI Teacher Analytics
 
 AI Learning Insights
 ```
 
+Future features phải giữ nguyên Version Activity, Enrollment, Media ownership
+và Course Progress boundaries.
+
 ---
 
-# Relationship With Other Domains
+# Architecture Decision
 
-```text
-User
+LiveClass Foundation được phê duyệt tại:
 
-↓
+[ADR-0002 — LiveClass Foundation](../adr/ADR-0002-LiveClass-Foundation.md)
 
-Course Product + Enrollment
-
-↓
-
-Course Template
-
-↓
-
-LiveClass
-
-↓
-
-Media
-
-↓
-
-Tracking
-
-↓
-
-AI
-```
+ADR này là source quyết định cho LiveClass operational ownership, Course
+integration, Media integration và cross-domain responsibility boundaries.
 
 ---
 
 # Final Statement
 
-LiveClass Domain không chỉ là nơi tạo link Zoom.
+LiveClass không kế thừa Course.
 
-Nó là trung tâm của trải nghiệm học tập trực tiếp trong LearnForge.
-
-Thông qua:
-
-* Attendance
-* Recording
-* Replay
-* Tracking
-* AI
-
-LiveClass trở thành nguồn dữ liệu quan trọng giúp LearnForge tiến tới mô hình Learning Intelligence Platform trong tương lai.
+Course Version Activity giữ learning context bất biến. LiveClass sinh dữ liệu
+vận hành. Media sở hữu file recording. Track sở hữu behavior events.
+`core_course_activity_progress` là nơi tổng hợp trạng thái completion cấp
+Activity.
 
 ---
 

@@ -269,6 +269,106 @@ có recalculation, mâu thuẫn source of truth hoặc làm sai nghiệp vụ qu
 
 ---
 
+## LiveClass Operational Data Principle
+
+LiveClass là Operational Domain và chỉ sinh Room, Session, Attendance,
+Recording, Replay và Chat data.
+
+LiveClass không quyết định:
+
+```text
+Course Completion
+
+Course Progress
+
+Certificate
+```
+
+Course Domain sở hữu:
+
+```text
+core_course_activity_progress
+
+core_course_progress
+
+core_course_completions
+
+certificate eligibility
+```
+
+Mọi LiveClass summary/read-model chỉ là evidence hoặc input cho Course Progress
+recalculation. Không triển khai completion source song song trong
+`core_liveclass_*`.
+
+---
+
+## Domain Responsibility Principle
+
+Một Domain chỉ sở hữu dữ liệu và business rules của chính Domain đó.
+
+Không Domain nào được:
+
+* Cập nhật trực tiếp business state của Domain khác.
+* Quyết định completion của Domain khác.
+* Ghi đè source of truth của Domain khác.
+
+Cross-domain effect phải đi qua:
+
+```text
+Evidence
+
+Event
+
+Request
+```
+
+Domain đích tự validate tenant, authorization, business rules và tự quyết định
+state transition.
+
+Examples:
+
+```text
+LiveClass
+↓
+Attendance Evidence
+↓
+Course Domain tự quyết định Progress
+```
+
+LiveClass không được trực tiếp `UPDATE core_course_progress`.
+
+```text
+Assessment
+↓
+Pass/Fail Evidence
+↓
+Certificate Domain tự quyết định issuance
+```
+
+Assessment không được trực tiếp issue Certificate.
+
+```text
+Media / Track
+↓
+Video Watched Evidence
+↓
+Course Progress tự quyết định Lesson completion
+```
+
+Media không được trực tiếp complete Lesson.
+
+```text
+AI
+↓
+Recommendation
+↓
+Course Domain hoặc User quyết định Enrollment
+```
+
+AI không được trực tiếp enroll User.
+
+---
+
 ## Course Template Versioning Standard
 
 ```text

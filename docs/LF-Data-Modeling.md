@@ -598,6 +598,94 @@ Allowed Consumers
 
 ---
 
+# LiveClass Operational Data Principle
+
+LiveClass là Operational Domain và chỉ sinh:
+
+```text
+Room
+
+Session
+
+Attendance
+
+Recording
+
+Replay
+
+Chat
+```
+
+LiveClass không quyết định Course Completion, Course Progress hoặc
+Certificate. Các source of truth tương ứng thuộc Course Domain:
+
+```text
+core_course_activity_progress
+
+core_course_progress
+
+core_course_completions
+
+certificate eligibility
+```
+
+Attendance percentage, replay percentage, watch position và các operational
+status là evidence/read models. Chúng chỉ được dùng làm input cho Course
+Progress recalculation và không được trở thành nguồn completion song song.
+
+---
+
+# Domain Responsibility Principle
+
+Một Domain chỉ sở hữu dữ liệu và business rules của chính Domain đó.
+
+Cross-domain relationship không trao quyền cho Domain nguồn cập nhật trực tiếp
+business state, quyết định completion hoặc ghi đè source of truth của Domain
+đích.
+
+Flow đúng:
+
+```text
+Source Domain
+
+↓
+
+Evidence / Event / Request
+
+↓
+
+Target Domain
+
+↓
+
+Target Domain tự quyết định
+```
+
+Examples:
+
+* LiveClass lưu Attendance; Course Domain đọc evidence và tự tính Progress.
+* Assessment lưu Score/Pass-Fail; Certificate Domain tự quyết định issuance.
+* Media/Track lưu Video Watched evidence; Course Progress tự quyết định Lesson
+  completion.
+* AI lưu Recommendation; Course Domain hoặc User tự quyết định Enrollment.
+
+Khi thiết kế cross-domain field hoặc relationship, phải ghi rõ:
+
+```text
+Owning Domain
+
+Source Of Truth
+
+Evidence / Event / Request Contract
+
+Target Domain Decision
+```
+
+Không được thiết kế trigger, write path hoặc denormalized field làm phát sinh
+source of truth song song ở Domain khác.
+
+---
+
 # Course Template Versioning Principle
 
 LearnForge tách:

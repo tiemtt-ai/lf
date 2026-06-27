@@ -568,6 +568,103 @@ Read-model fields không thay thế audit logs khi cần lịch sử chính xác
 
 ---
 
+# LiveClass Operational Data Principle
+
+LiveClass là Operational Domain.
+
+LiveClass chỉ sinh dữ liệu vận hành:
+
+```text
+Room
+
+Session
+
+Attendance
+
+Recording
+
+Replay
+
+Chat
+```
+
+LiveClass không quyết định:
+
+```text
+Course Completion
+
+Course Progress
+
+Certificate
+```
+
+Course Domain mới là nơi tính:
+
+```text
+core_course_activity_progress
+
+core_course_progress
+
+core_course_completions
+
+certificate eligibility
+```
+
+LiveClass data chỉ là evidence/input cho Course Progress recalculation.
+
+---
+
+# Domain Responsibility Principle
+
+Một Domain chỉ sở hữu:
+
+* Dữ liệu của chính Domain đó.
+* Business rules của chính Domain đó.
+
+Không Domain nào được:
+
+* Cập nhật trực tiếp business state của Domain khác.
+* Quyết định completion của Domain khác.
+* Ghi đè source of truth của Domain khác.
+
+Nếu cần ảnh hưởng Domain khác, Domain nguồn chỉ sinh:
+
+```text
+Evidence
+
+Event
+
+Request
+```
+
+Domain đích nhận input và tự quyết định business state của chính nó.
+
+Examples:
+
+```text
+LiveClass → Attendance Evidence → Course Domain quyết định Progress
+
+Assessment → Pass/Fail Evidence → Certificate Domain quyết định issuance
+
+Media/Track → Video Watched Evidence → Course Domain quyết định Lesson completion
+
+AI → Recommendation → Course Domain hoặc User quyết định Enrollment
+```
+
+Forbidden examples:
+
+```text
+LiveClass trực tiếp UPDATE core_course_progress
+
+Assessment trực tiếp Issue Certificate
+
+Media trực tiếp Complete Lesson
+
+AI trực tiếp Enroll User
+```
+
+---
+
 # Internationalization Guardrails
 
 ## Supported Languages
