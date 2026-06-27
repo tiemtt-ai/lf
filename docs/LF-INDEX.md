@@ -157,6 +157,8 @@ docs/governance/
 | governance/LF-Data-Flow.md               | Cross-domain business data flows                              |
 | governance/LF-Glossary.md                | Canonical definitions, ownership, and terminology             |
 | governance/LF-Naming-Convention.md       | Project-wide naming conventions                               |
+| governance/LF-Architecture-Roadmap.md    | Long-term architecture sequence, dependencies, and milestones |
+| governance/LF-Architecture-Review-Checklist.md | Standard review gate for new Domain foundations          |
 | adr/                                     | Architecture Decision Records                                 |
 | governance/LF-Regression-Audit.md        | Mandatory regression checklist after major changes            |
 
@@ -171,7 +173,9 @@ docs/governance/
 5. Data Flow
 6. Glossary
 7. Naming Convention
-8. Architecture Decision Records
+8. Architecture Roadmap
+9. Architecture Review Checklist
+10. Architecture Decision Records
 
 Regression Audit is additionally required for the major change categories
 defined by the Documentation Routing Guide.
@@ -195,6 +199,8 @@ Read:
 * governance/LF-Data-Flow.md
 * governance/LF-Glossary.md
 * governance/LF-Naming-Convention.md
+* governance/LF-Architecture-Roadmap.md
+* governance/LF-Architecture-Review-Checklist.md
 * relevant ADR in `adr/`
 * governance/LF-Regression-Audit.md
 
