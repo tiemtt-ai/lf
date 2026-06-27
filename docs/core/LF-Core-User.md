@@ -489,11 +489,11 @@ Teacher
 
 ↓
 
-Course Creation
+Course Template Creation
 
 ↓
 
-Course Management
+Course Template / Product Management
 ```
 
 ---
@@ -787,7 +787,11 @@ User
 
 ↓
 
-Course
+Course Product + Enrollment
+
+↓
+
+Course Template
 
 ↓
 

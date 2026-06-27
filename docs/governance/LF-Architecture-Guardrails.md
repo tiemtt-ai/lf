@@ -394,21 +394,27 @@ Admin Back Office
 
 ## Rule 1
 
-Course là:
+Course Definition là:
 
 ```text
-Learning Unit
+Course Template (Working Draft)
 
-+
+↓
 
-Commercial Product
+Course Template Version (Published Immutable Snapshot)
+```
+
+Course Commerce là:
+
+```text
+Course Product
 ```
 
 ---
 
 ## Rule 2
 
-Course phải hỗ trợ:
+Course Product phải hỗ trợ:
 
 ```text
 Public Viewing
@@ -426,7 +432,139 @@ Learning
 
 ## Rule 3
 
+Course Product chỉ tham chiếu published Course Template Version.
+
+Course Product không expose working Template draft.
+
+---
+
+## Rule 4
+
+Enrollment luôn thuộc Course Product và khóa `template_version_id`.
+
+Product đổi Version không được silent-update Enrollment hiện có.
+
+---
+
+## Rule 5
+
+Learning Progress tham chiếu trực tiếp Version Lesson và Version Activity:
+
+```text
+version_lesson_id
+
+version_activity_id
+```
+
+Không dùng working `template_lesson_id` hoặc `template_activity_id` làm progress source.
+
+---
+
+## Rule 6
+
 Favorite không đồng nghĩa Enrollment.
+
+---
+
+## Rule 7
+
+Published Template Version là immutable.
+
+Muốn thay đổi published content phải tạo Version mới.
+
+Version lifecycle:
+
+```text
+draft_snapshot
+
+published
+
+deprecated
+
+archived
+```
+
+Deprecated Version không bán mới nhưng existing Enrollment vẫn tiếp tục học.
+
+Archived Version chỉ lưu trữ/audit và không được Product mới sử dụng.
+
+---
+
+## Rule 8
+
+Không tạo lại:
+
+```text
+core_courses
+
+core_course_sections
+
+core_course_lessons
+
+core_course_activities
+```
+
+Template Version snapshots không phải Runtime Course.
+
+---
+
+## Intentional Denormalization / Read Model Principle
+
+LearnForge cho phép denormalization có chủ đích cho Dashboard, Reporting,
+Analytics, AI Recommendation, Search, Performance, Audit Snapshot và
+Historical Consistency.
+
+Snapshot, counter, aggregate, cache, read-model, last-position, title snapshot
+và metadata fields được chấp nhận khi:
+
+```text
+Purpose rõ ràng
+
+Source of Truth rõ ràng
+
+Update / Recalculation Rule rõ ràng
+
+Không tạo nguồn sự thật mâu thuẫn
+```
+
+Display hoặc marketing cache không được dùng làm dữ liệu thật cho:
+
+```text
+Billing
+
+Certificate
+
+Completion
+
+AI
+```
+
+Read-model fields không thay thế audit logs khi cần lịch sử chính xác.
+
+---
+
+# Certificate Verification Guardrails
+
+* Verification luôn chạy trong tenant context.
+* Không hỗ trợ Global Verification.
+* `core_certificate_verification_logs.customer_id` luôn `NOT NULL`.
+* Failed certificate lookup vẫn phải có tenant owner.
+
+---
+
+# Course Foundation P1 Guardrails
+
+* Một Enrollment là một learning cycle; re-enrollment tạo Enrollment mới.
+* Không dùng permanent unique User/Student–Product để chặn re-enrollment.
+* Progress, Completion và Product-based Certificate luôn tham chiếu
+  `enrollment_id`.
+* Working Template và published Version đều phải có ít nhất một Section.
+* Một Enrollment chỉ có một Cohort membership record; chuyển lớp dùng `UPDATE`,
+  không tạo history và không dùng `is_current`.
+* Notes/Bookmarks chỉ được tạo hoặc cập nhật với Enrollment `active`.
+* Review identity dùng `user_id`, không dùng `student_id`.
+* Foundation giới hạn một active Certificate mapping trên mỗi Product.
+* Certificate threshold dùng `minimum_score_percentage`, không dùng absolute score.
 
 ---
 

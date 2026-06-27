@@ -181,9 +181,11 @@ Biến nội dung học tập thành dữ liệu AI có thể sử dụng.
 # Sources
 
 ```text
-Course
+Course Template
 
-Lesson
+Template Lesson
+
+Template Activity
 
 Document
 
@@ -323,9 +325,13 @@ customer_id
 
 user_id
 
-course_id
+product_id
 
-lesson_id
+template_id
+
+template_lesson_id
+
+template_activity_id
 ```
 
 ---
@@ -607,9 +613,13 @@ user_id
 
 customer_id
 
-course_id
+product_id
 
-lesson_id
+template_id
+
+template_lesson_id
+
+template_activity_id
 ```
 
 ---
@@ -875,9 +885,11 @@ Mọi AI Action phải có log.
 AI hiểu:
 
 ```text
-Course
+Course Product + Enrollment
 
-Lesson
+Course Template
+
+Template Lesson / Template Activity
 
 Learning Context
 ```
@@ -997,7 +1009,11 @@ Multi-Agent AI
 # Relationship With Other Domains
 
 ```text
-Course
+Course Product + Enrollment
+
+↓
+
+Course Template
 
 ↓
 

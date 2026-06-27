@@ -183,8 +183,9 @@ Mọi dữ liệu nghiệp vụ đều phải xác định được:
 
 Điều này áp dụng cho:
 
-* Course
-* Lesson
+* Course Template
+* Course Product
+* Template Lesson
 * Quiz
 * Media
 * Tracking

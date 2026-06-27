@@ -331,7 +331,7 @@ RDS MySQL
 ```text
 Users
 
-Courses
+Course Templates + Course Products
 
 Assessments
 
@@ -473,9 +473,9 @@ Ví dụ:
 ```text
 /customer-1/
 
-    courses/
+    course-templates/
 
-    lessons/
+    template-lessons/
 
     assessments/
 

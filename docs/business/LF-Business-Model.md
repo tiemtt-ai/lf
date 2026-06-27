@@ -739,11 +739,15 @@ AI Intelligence
 # Learning Intelligence Loop
 
 ```text
-Course
+Course Product + Enrollment
 
 ↓
 
-Learning Activity
+Course Template
+
+↓
+
+Template Activity
 
 ↓
 

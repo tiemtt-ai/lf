@@ -1,6 +1,6 @@
 # LF-Core-Course.md
 
-Version: 1.0
+Version: 3.0
 
 Status: Official Foundation
 
@@ -10,89 +10,22 @@ Last Updated: 2026-06
 
 # LF-Core Course Architecture
 
-Course Domain là trung tâm của toàn bộ hệ thống LMS trong LearnForge.
-
-Mọi hoạt động học tập đều xoay quanh:
-
-* Course
-* Lesson
-* Enrollment
-* Learning Progress
-
-Các module khác như:
-
-* Assessment
-* Media
-* Tracking
-* AI
-
-đều gắn với Course Domain.
-
----
-
-# Mission
-
-Mục tiêu của Course Domain là:
-
-Tổ chức kiến thức thành các khóa học có cấu trúc rõ ràng.
-
-Cho phép:
-
-* giáo viên tạo nội dung
-* học viên học tập
-* hệ thống theo dõi tiến độ
-* AI hiểu ngữ cảnh học tập
-
----
-
-# Learning Hierarchy
-
-LearnForge sử dụng cấu trúc phân cấp:
+Kiến trúc Course Domain chính thức:
 
 ```text
 Category
 
 ↓
 
-Course
+Course Template
 
 ↓
 
-Lesson
+Course Template Version
 
 ↓
 
-Learning Activity
-```
-
----
-
-# Why This Structure
-
-Giúp:
-
-* dễ quản lý
-* dễ mở rộng
-* dễ tìm kiếm
-* dễ thống kê
-* dễ gắn AI
-
----
-
-# Course Domain Components
-
-Course Domain gồm:
-
-```text
-Course Category
-
-↓
-
-Course
-
-↓
-
-Lesson
+Course Product
 
 ↓
 
@@ -100,287 +33,161 @@ Enrollment
 
 ↓
 
-Progress
-
-↓
-
-Completion
+Learning Progress
 ```
 
+Course Template là working draft.
+
+Course Template Version là published snapshot immutable.
+
+Course Product bán một Template Version cụ thể.
+
+Enrollment khóa Template Version tại thời điểm mua/ghi danh.
+
 ---
 
-# Course Categories
+# Core Principles
 
-## Purpose
+## Rule 1 — Working Draft
 
-Phân loại khóa học.
+`core_course_templates` và nhóm Template Section/Lesson/Activity là nội dung
+working để giáo viên tiếp tục chỉnh sửa.
 
----
+## Rule 2 — Immutable Publish
 
-## Examples
+Publish Template tạo một Course Template Version cùng Version
+Section/Lesson/Activity snapshots.
+
+Published Version không được sửa learning content.
+
+## Rule 3 — Product Version Binding
+
+Course Product không trỏ tới working Template.
+
+Product Item phải trỏ tới `template_version_id`.
+
+## Rule 4 — Enrollment Freeze
+
+Enrollment lưu `template_version_id` tại thời điểm mua/ghi danh.
+
+Product đổi Version không làm thay đổi Enrollment hiện có.
+
+## Rule 5 — Versioned Progress
+
+Learning Progress tham chiếu:
 
 ```text
-Korean
+version_lesson_id
 
-English
-
-Japanese
-
-Programming
-
-Business
-
-Soft Skills
+version_activity_id
 ```
 
----
+Progress không tham chiếu working Template Lesson/Activity.
 
-## Database Namespace
+## Rule 6 — No Runtime Course
 
-```text
-core_course_categories
-```
-
----
-
-# Courses
-
-## Purpose
-
-Đơn vị học tập chính.
-
----
-
-## Course Examples
-
-```text
-TOPIK Beginner
-
-TOPIK Intermediate
-
-Business English
-
-Laravel For Beginners
-```
-
----
-
-# Course Responsibilities
-
-Một Course chứa:
-
-* thông tin khóa học
-* giáo viên
-* bài học
-* media
-* bài thi
-* học viên
-
----
-
-## Database Namespace
+Không tạo:
 
 ```text
 core_courses
+
+core_course_sections
+
+core_course_lessons
+
+core_course_activities
 ```
+
+Template Version snapshots không phải Course Runtime. Chúng là published,
+immutable revisions của Course Definition.
 
 ---
 
-# Course Ownership
-
-Mọi Course phải thuộc:
+# Working Course Definition
 
 ```text
-customer_id
-```
-
----
-
-Và được tạo bởi:
-
-```text
-teacher_id
-```
-
-hoặc
-
-```text
-customer_admin
-```
-
----
-
-# Course Lifecycle
-
-```text
-Draft
+Course Template
 
 ↓
 
-Published
+Template Section
 
 ↓
 
-Learning
+Template Lesson
 
 ↓
 
-Completed
+Template Activity
+```
+
+Tables:
+
+```text
+core_course_templates
+
+core_course_template_sections
+
+core_course_template_lessons
+
+core_course_template_activities
+```
+
+Working content có thể được giáo viên chỉnh sửa.
+
+Student không học trực tiếp working content.
+
+---
+
+# Published Course Snapshot
+
+```text
+Course Template Version
 
 ↓
 
-Archived
+Version Section
+
+↓
+
+Version Lesson
+
+↓
+
+Version Activity
 ```
 
----
-
-# Draft
-
-Đang xây dựng.
-
-Chưa hiển thị với học viên.
-
----
-
-# Published
-
-Có thể đăng ký.
-
-Có thể học.
-
----
-
-# Completed
-
-Khóa học kết thúc.
-
----
-
-# Archived
-
-Lưu trữ lịch sử.
-
----
-
-# Course Commerce Model
-
-Course vừa là sản phẩm được giới thiệu và bán trên Tenant Website,
-vừa là đơn vị học tập sau khi Student đăng ký.
-
-LearnForge hỗ trợ:
+Tables:
 
 ```text
-Free Courses
+core_course_template_versions
 
-Paid Courses
+core_course_template_version_sections
 
-Services
+core_course_template_version_lessons
+
+core_course_template_version_activities
 ```
 
----
+Published snapshot phục vụ:
 
-# Public Course Access
-
-Course Detail được hiển thị công khai trên Tenant Website.
-
-Visitor và Student chưa đăng ký có thể:
-
-```text
-View Course Detail
-
-View Teacher
-
-View Curriculum
-
-View Pricing
-```
+* Course Product
+* Enrollment
+* Learning Progress
+* Completion
+* Certificate
+* Tracking
+* AI Context
+* Historical audit
 
 ---
 
-# Student Course Access
+# Category
 
-Nếu chưa đăng ký:
-
-```text
-Register
-
-Purchase
-
-Add To Favorites
-```
-
-Nếu đã đăng ký:
+Category phân loại working Course Template.
 
 ```text
-Start Learning
-
-Continue Learning
-
-View Progress
-
-Take Assessments
-```
-
----
-
-# Favorite Courses
-
-Favorite không đồng nghĩa với Enrollment.
-
-Student có thể:
-
-```text
-Add Favorite
-
-Remove Favorite
-```
-
-trước khi đăng ký khóa học.
-
-Favorite Courses được quản lý riêng và không trộn vào Enrollment.
-
----
-
-# My Courses
-
-Bao gồm:
-
-```text
-Enrolled Courses
-
-In Progress Courses
-
-Completed Courses
-
-Favorite Courses
-
-Purchased Services
-```
-
----
-
-# Learning History
-
-Bao gồm:
-
-```text
-Lesson Access
-
-Video Watch
-
-Assessment Attempts
-
-Completion History
-```
-
----
-
-# Course Structure
-
-Một Course gồm nhiều Lesson.
-
-```text
-Course
+Course Category
 
 1
 
@@ -388,118 +195,144 @@ Course
 
 N
 
-Lesson
+Course Templates
+```
+
+Database:
+
+```text
+core_course_categories
 ```
 
 ---
 
-# Lessons
-
-## Purpose
-
-Đơn vị học tập nhỏ nhất trong LMS.
-
----
-
-## Examples
+# Template Version Lifecycle
 
 ```text
-Lesson 1
-
-Introduction
-
-Lesson 2
-
-Basic Grammar
-
-Lesson 3
-
-Practice
-```
-
----
-
-## Database Namespace
-
-```text
-core_lessons
-```
-
----
-
-# Lesson Responsibilities
-
-Một Lesson có thể chứa:
-
-* Video
-* Audio
-* Document
-* Quiz
-* Assignment
-* AI Context
-
----
-
-# Lesson Types
-
-LearnForge hỗ trợ:
-
-```text
-Video Lesson
-
-Document Lesson
-
-Live Lesson
-
-Quiz Lesson
-
-Assignment Lesson
-
-Hybrid Lesson
-```
-
----
-
-# Learning Flow
-
-Học viên thường đi theo:
-
-```text
-Lesson 1
+Edit Working Template
 
 ↓
 
-Lesson 2
+Create draft_snapshot
 
 ↓
 
-Lesson 3
+Snapshot Sections / Lessons / Activities
 
 ↓
 
-Quiz
+Validate Snapshot
 
 ↓
 
-Completion
+Publish Version
+
+↓
+
+Immutable
 ```
+
+Lifecycle:
+
+```text
+draft_snapshot
+
+↓
+
+published
+
+↓
+
+deprecated
+
+↓
+
+archived
+```
+
+* `published`: có thể dùng cho Product sale mới.
+* `deprecated`: không bán mới; existing Enrollment vẫn học.
+* `archived`: chỉ lưu trữ/audit; không dùng cho Product mới.
+
+Nếu cần sửa nội dung:
+
+```text
+Edit Working Template
+
+↓
+
+Publish New Version
+```
+
+Không sửa Version đã publish.
+
+---
+
+# Course Product
+
+Course Product là Commerce layer.
+
+Product chịu trách nhiệm:
+
+* pricing
+* sale campaign
+* visibility
+* registration window
+* access duration
+* certificate option
+* refund policy
+* marketing metadata
+
+Product Item liên kết:
+
+```text
+Course Product
+
+↓
+
+Course Product Item
+
+↓
+
+Course Template Version
+```
+
+Product không expose working Template content.
+
+Product không sao chép Version content.
+
+---
+
+# Product Version Update Policy
+
+Product có thể được cấu hình cho Version mới chỉ bằng policy có kiểm soát.
+
+Các lựa chọn:
+
+```text
+New sales use new Template Version
+
+Existing Enrollments keep locked Version
+```
+
+hoặc:
+
+```text
+Create a new Course Product
+```
+
+Không được silent-update content của Enrollment hiện có.
+
+Product versioning so với tạo Product mới cần owner xác nhận theo từng business model.
 
 ---
 
 # Enrollment
 
-## Purpose
-
-Liên kết học viên với khóa học.
-
----
-
-# Relationship
+Enrollment cấp quyền học Course Product và khóa learning Version.
 
 ```text
 Student
-
-N
 
 ↓
 
@@ -507,500 +340,260 @@ Enrollment
 
 ↓
 
-Course
+Course Product
 
-N
+↓
+
+Course Template Version
 ```
 
----
-
-# Database Namespace
+Required context:
 
 ```text
-core_course_enrollments
+customer_id
+
+student_id
+
+product_id
+
+template_version_id
 ```
 
----
-
-# Enrollment Sources
-
-## Admin Enrollment
-
-Admin thêm học viên.
-
----
-
-## Teacher Enrollment
-
-Giáo viên thêm học viên.
-
----
-
-## Self Enrollment
-
-Tự đăng ký.
-
----
-
-## Paid Enrollment
-
-Mua khóa học.
-
----
-
-# Enrollment Status
-
-```text
-pending
-
-active
-
-completed
-
-cancelled
-```
+Enrollment hết hạn không làm mất Version hoặc Progress history.
 
 ---
 
 # Learning Progress
 
-## Purpose
-
-Theo dõi tiến độ học tập.
-
----
-
-# Progress Sources
-
-* Lesson Completion
-* Video Completion
-* Quiz Completion
-* Assignment Completion
-
----
-
-# Progress Formula
-
-Ví dụ:
-
 ```text
-10 Lessons
+Enrollment
 
 ↓
 
-7 Completed
+Product Progress
 
 ↓
 
-Progress = 70%
-```
-
----
-
-# Completion
-
-## Purpose
-
-Xác định người học đã hoàn thành khóa học hay chưa.
-
----
-
-# Completion Conditions
-
-Ví dụ:
-
-```text
-100% Lesson Completion
-
-+
-
-Required Quiz Passed
-```
-
----
-
-# Certificate Ready
-
-Sau khi hoàn thành:
-
-```text
-Course
+Version Lesson Progress
 
 ↓
 
-Completed
+Version Activity Progress
+```
+
+Progress tables:
+
+```text
+core_course_progress
+
+core_course_lesson_progress
+
+core_course_activity_progress
+```
+
+Canonical references:
+
+```text
+template_version_id
+
+version_section_id
+
+version_lesson_id
+
+version_activity_id
+```
+
+Working `template_lesson_id` và `template_activity_id` không được dùng làm
+learning progress source.
+
+---
+
+# Notes And Bookmarks
+
+Notes và Bookmarks của enrolled learning phải lưu:
+
+```text
+product_id
+
+enrollment_id
+
+template_version_id
+
+version_lesson_id
+
+version_activity_id
+```
+
+Video position, document page và anchor thuộc frozen Version Activity.
+
+---
+
+# Reviews
+
+Review vẫn thuộc:
+
+```text
+Enrollment
 
 ↓
 
-Certificate Eligible
+Course Product
 ```
 
----
+`template_version_id` được lưu để analytics/quality reporting theo Version.
 
-# Teacher Relationship
+Review không thuộc working Course Template.
 
-Teacher có thể:
-
-* tạo khóa học
-* sửa khóa học
-* quản lý học viên
-* xem báo cáo
+Review identity dùng `user_id`, không dùng `student_id`. Student là role; thiết
+kế này cho phép mở rộng Teacher, QA hoặc Internal Review trong phase sau.
 
 ---
 
-# Student Relationship
+# Completion And Certificate
 
-Student có thể:
+Completion thuộc Product/Enrollment/Template Version context.
 
-* đăng ký
-* học tập
-* làm bài thi
-* xem tiến độ
-
----
-
-# Course And Assessment
-
-Assessment luôn thuộc:
+Certificate rules:
 
 ```text
-Course
+Certificate Template
 
 ↓
 
-Lesson (optional)
-```
-
----
-
-# Examples
-
-```text
-Course
+Certificate Template Product Mapping
 
 ↓
 
-Midterm Exam
-
-↓
-
-Final Exam
+Course Product + Template Version
 ```
 
----
+Issued Certificate snapshot:
 
-# Course And Media
+* product identity
+* template version identity
+* version number
+* Course Template title
+* completion rule
+* score/result
+* Certificate Template/rendering data
 
-Media luôn thuộc:
+Thay đổi Template, Version mapping hoặc Product không làm thay đổi certificate đã cấp.
 
-```text
-Course
+Foundation certificate rules:
 
-hoặc
-
-Lesson
-```
-
----
-
-# Examples
-
-```text
-Video
-
-PDF
-
-Audio
-
-Image
-```
+* Một Product có tối đa một active Certificate Template Product Mapping.
+* Phase sau có thể mở rộng nhiều mapping nếu có use case được phê duyệt.
+* `minimum_score_percentage` luôn là phần trăm chuẩn hóa, không phải absolute score.
+* Product-based Certificate luôn tham chiếu `enrollment_id`.
+* Certificate verification luôn chạy trong tenant context.
+* Verification log, kể cả failed lookup, phải có `customer_id NOT NULL`.
 
 ---
 
-# Course And Tracking
+# Media And Assessment
 
-Tracking được sinh ra từ hoạt động học tập.
+Working Template Activity có thể tham chiếu Media, Assessment hoặc Live Class.
 
----
+Khi publish Version Activity:
 
-## Examples
+* Snapshot content reference cần thiết; hoặc
+* Trỏ tới immutable/versioned asset của domain tương ứng.
 
-```text
-Video Watch
-
-Lesson Progress
-
-Document View
-
-Quiz Activity
-```
+Mutable external content không được làm thay đổi silent learning experience của
+Enrollment đã khóa Version.
 
 ---
 
-# Course And AI
+# Tracking And AI
 
-Course là nguồn ngữ cảnh lớn nhất của AI.
-
----
-
-# AI Context
-
-AI phải hiểu:
+Tracking/AI context tối thiểu:
 
 ```text
 customer_id
 
-course_id
-
-lesson_id
-
 user_id
+
+product_id
+
+enrollment_id
+
+template_version_id
+
+version_lesson_id
+
+version_activity_id
 ```
 
----
-
-# AI Capabilities
-
-Từ Course Domain, AI có thể:
-
-* trả lời nội dung khóa học
-* giải thích bài học
-* gợi ý nội dung liên quan
-* hỗ trợ giáo viên
+AI có thể dùng source Template IDs cho lineage/reporting, nhưng learning context
+phải dùng Version IDs.
 
 ---
 
-# Learning Path
+# Intentional Denormalization
 
-Future Feature
-
----
-
-# Purpose
-
-Cho phép kết nối nhiều khóa học.
-
----
-
-## Example
+Published snapshots, counters, aggregates, last-position fields và metadata được
+chấp nhận khi có:
 
 ```text
-TOPIK Beginner
+Purpose
 
-↓
+Source of Truth
 
-TOPIK Intermediate
+Publish / Update / Recalculation Rule
 
-↓
-
-TOPIK Advanced
+Allowed Consumers
 ```
 
----
+Version snapshot là historical source of truth của enrolled learning.
 
-# Prerequisites
-
-Future Feature
-
----
-
-Cho phép:
-
-```text
-Course B
-
-requires
-
-Course A
-```
-
----
-
-# Cohort Learning
-
-Future Feature
-
----
-
-Cho phép:
-
-```text
-Course
-
-↓
-
-Class A
-
-Class B
-
-Class C
-```
-
----
-
-# Live Class Integration
-
-Future Feature
-
----
-
-```text
-Course
-
-↓
-
-Live Class
-
-↓
-
-Replay
-```
-
----
-
-# Gamification
-
-Future Feature
-
----
-
-Ví dụ:
-
-```text
-XP
-
-Badges
-
-Achievements
-
-Streak
-```
+Marketing/display cache không được dùng cho Completion, Certificate, Billing hoặc AI.
 
 ---
 
 # Design Rules
 
-## Rule 1
-
-Mọi Course phải thuộc:
-
-```text
-customer_id
-```
-
----
-
-## Rule 2
-
-Mọi Lesson phải thuộc Course.
+1. Mọi business data phải thuộc `customer_id`.
+2. Working Template và published Template Version phải tách trách nhiệm.
+3. Published Version immutable.
+4. Product Item tham chiếu Template Version.
+5. Enrollment khóa Template Version.
+6. Progress tham chiếu Version Lesson/Activity.
+7. Product update không silent-migrate existing Enrollment.
+8. Certificate mapping có Product + Template Version context.
+9. Source Template IDs chỉ dùng lineage/reporting.
+10. Không tạo lại Runtime Course tables.
+11. Deprecated/archived Version không làm thay đổi existing Enrollment.
 
 ---
 
-## Rule 3
+# Foundation P1 Decisions
 
-Không lưu media trực tiếp trong Course.
-
-Sử dụng Media Domain.
-
----
-
-## Rule 4
-
-Không lưu analytics trong Course.
-
-Sử dụng Tracking Domain.
-
----
-
-## Rule 5
-
-Không lưu AI logic trong Course.
-
-Sử dụng AI Domain.
-
----
-
-# Current Scope
-
-Current Version
-
-```text
-Course Categories
-
-Courses
-
-Lessons
-
-Enrollments
-```
-
----
-
-# Planned Scope
-
-```text
-Course Commerce
-
-Wishlist
-
-Course Catalog
-
-Services
-
-Certificates
-
-Learning Paths
-
-Prerequisites
-
-Gamification
-
-Community
-
-Mentoring
-```
-
----
-
-# Relationship With Other Domains
-
-```text
-User
-
-↓
-
-Course
-
-↓
-
-Media
-
-↓
-
-Assessment
-
-↓
-
-Tracking
-
-↓
-
-AI
-```
-
-Course Domain là trung tâm của toàn bộ chuỗi học tập.
+* Một Enrollment là một learning cycle; học lại tạo Enrollment mới.
+* Không unique vĩnh viễn Student/User–Product; Progress, Completion và
+  Product-based Certificate luôn phân biệt cycle bằng `enrollment_id`.
+* Section bắt buộc. Course nhỏ nhất vẫn có `Section 1`.
+* Một Enrollment chỉ có một active Cohort; chuyển lớp cập nhật membership hiện
+  tại, không lưu membership history và không dùng `is_current`.
+* Notes và Bookmarks chỉ được tạo hoặc cập nhật khi Enrollment `active`; không
+  hỗ trợ preview, guest hoặc anonymous records.
+* Review dùng `user_id`, không dùng `student_id`.
+* Foundation có một active Certificate mapping trên mỗi Product.
+* Certificate threshold dùng `minimum_score_percentage`.
+* Certificate verification luôn tenant-scoped và có owner.
 
 ---
 
 # Final Statement
 
-Course Domain là trái tim của LearnForge LMS.
+Course Template hỗ trợ authoring.
 
-Nó tổ chức kiến thức thành các trải nghiệm học tập có cấu trúc.
+Course Template Version bảo vệ published content.
 
-Mọi dữ liệu Media, Assessment, Tracking và AI đều xoay quanh Course Domain.
+Course Product thương mại hóa một Version.
 
-Một Course Architecture tốt là nền tảng để LearnForge phát triển từ LMS truyền thống thành nền tảng Learning Intelligence trong tương lai.
+Enrollment khóa Version.
+
+Learning Progress ghi nhận hành trình học trên Version immutable đó.
 
 ---
 

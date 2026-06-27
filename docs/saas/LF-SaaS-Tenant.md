@@ -63,7 +63,11 @@ Users
 
 ↓
 
-Courses
+Course Templates + Course Products
+
+↓
+
+Enrollments
 
 ↓
 
@@ -763,7 +767,7 @@ Users
 
 ---
 
-# Tenant And Course
+# Tenant And Course Architecture
 
 Relationship:
 
@@ -776,7 +780,7 @@ Tenant
 
 N
 
-Courses
+Course Templates + Course Products
 ```
 
 ---

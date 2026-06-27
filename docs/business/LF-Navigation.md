@@ -313,13 +313,15 @@ User Detail
 # Sub Pages
 
 ```text
-Course List
+Course Template List
 
-Create Course
+Create Course Template
 
-Edit Course
+Edit Course Template
 
-Course Detail
+Course Template Detail
+
+Course Product Management
 ```
 
 ---
@@ -861,11 +863,11 @@ Course List
 
 ↓
 
-Course Detail
+Course Product Detail
 
 ↓
 
-Lesson
+Template Lesson
 
 ↓
 
@@ -925,11 +927,11 @@ Replay
 # AI Navigation Flow
 
 ```text
-Course
+Course Product + Enrollment
 
 ↓
 
-Lesson
+Template Lesson
 
 ↓
 

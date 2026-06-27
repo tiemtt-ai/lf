@@ -55,7 +55,15 @@ tương tác trực tiếp.
 # Live Class Hierarchy
 
 ```text
-Course
+Course Product
+
+↓
+
+Course Template
+
+↓
+
+Template Activity
 
 ↓
 
@@ -152,7 +160,9 @@ Laravel Training Room
 ```text
 customer_id
 
-course_id
+product_id
+
+template_activity_id
 
 teacher_id
 
@@ -549,25 +559,29 @@ Student Discussion
 
 ---
 
-# Live Class And Course
+# Live Class And Course Architecture
 
 Relationship:
 
 ```text
-Course
-
-1
+Course Product
 
 ↓
 
-N
+Course Template
 
-Live Classes
+↓
+
+Template Activity
+
+↓
+
+Live Class
 ```
 
 ---
 
-# Live Class And Lesson
+# Live Class And Template Lesson
 
 Future Support
 
@@ -576,7 +590,11 @@ Future Support
 Ví dụ:
 
 ```text
-Lesson
+Template Lesson
+
+↓
+
+Template Activity
 
 ↓
 
@@ -926,7 +944,11 @@ User
 
 ↓
 
-Course
+Course Product + Enrollment
+
+↓
+
+Course Template
 
 ↓
 

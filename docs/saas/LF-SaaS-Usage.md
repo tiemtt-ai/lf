@@ -301,7 +301,7 @@ Total Bandwidth
 
 Bandwidth Per User
 
-Bandwidth Per Course
+Bandwidth Per Course Product
 ```
 
 ---
@@ -361,11 +361,11 @@ Admins
 # Metrics
 
 ```text
-Courses
+Course Products
 
 Enrollments
 
-Lessons Completed
+Template Lessons Completed
 
 Assessments Taken
 
@@ -874,7 +874,11 @@ Enterprise Reporting
 # Relationship With Other Domains
 
 ```text
-Course
+Course Product + Enrollment
+
+↓
+
+Course Template
 
 ↓
 

@@ -183,11 +183,11 @@ customer_id = 1
 
 ↓
 
-Courses
+Course Templates + Course Products
 
 ↓
 
-Students
+Enrollments + Students
 
 ↓
 

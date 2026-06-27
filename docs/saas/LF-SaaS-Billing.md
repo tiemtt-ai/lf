@@ -210,7 +210,7 @@ Storage
 
 AI Tokens
 
-Courses
+Course Products
 
 Teachers
 ```

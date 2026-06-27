@@ -165,9 +165,11 @@ customer_id
 Và có thể liên kết với:
 
 ```text
-course_id
+template_id
 
-lesson_id
+template_lesson_id
+
+template_activity_id
 
 teacher_id
 ```
@@ -1012,10 +1014,14 @@ skill levels
 
 ---
 
-# Assessment And Course
+# Assessment And Course Template
 
 ```text
-Course
+Course Template
+
+↓
+
+Template Activity
 
 ↓
 

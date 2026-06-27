@@ -211,6 +211,46 @@ I18N Changes
 # COURSE AUDIT
 
 ```text
+[ ] Course Template là working draft
+
+[ ] Course Template Version là published immutable snapshot
+
+[ ] Course Product Item chỉ tham chiếu Course Template Version
+
+[ ] Không có Runtime Course legacy
+
+[ ] Enrollment thuộc Course Product
+
+[ ] Enrollment khóa template_version_id
+
+[ ] Progress tham chiếu Version Lesson / Version Activity
+
+[ ] Product đổi Version không silent-update Enrollment hiện có
+
+[ ] Version lifecycle là draft_snapshot -> published -> deprecated -> archived
+
+[ ] Deprecated/archived Version không thay đổi Enrollment hiện có
+
+[ ] Mỗi working Template và published Version có ít nhất một Section
+
+[ ] Re-enrollment tạo Enrollment mới cho learning cycle mới
+
+[ ] Progress, Completion và Product-based Certificate tham chiếu enrollment_id
+
+[ ] Một Enrollment chỉ có một active Cohort membership
+
+[ ] Cohort transfer update membership hiện tại, không tạo history
+
+[ ] Notes/Bookmarks create-update chỉ khi Enrollment active
+
+[ ] Review dùng user_id, không dùng student_id
+
+[ ] Mỗi Product có tối đa một active Certificate mapping trong Foundation
+
+[ ] Certificate minimum_score_percentage dùng thang phần trăm
+
+[ ] Certificate verification luôn có tenant context và customer_id NOT NULL
+
 [ ] Public Course Detail
 
 [ ] Register

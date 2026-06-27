@@ -247,7 +247,7 @@ Questions
 Ví dụ:
 
 ```text
-Course
+Course Template
 
 1
 
@@ -255,7 +255,33 @@ Course
 
 N
 
-Lessons
+Template Lessons
+```
+
+Published learning relationship:
+
+```text
+Course Template
+
+1
+
+↓
+
+N
+
+Course Template Versions
+
+↓
+
+Version Sections
+
+↓
+
+Version Lessons
+
+↓
+
+Version Activities
 ```
 
 ### Cross Domain Relationship
@@ -263,7 +289,7 @@ Lessons
 Ví dụ:
 
 ```text
-Course
+Course Product / Course Template Version
 
 ↓
 
@@ -302,7 +328,7 @@ Xác định các quy tắc nghiệp vụ.
 
 ## Examples
 
-### Course
+### Course Template
 
 ```text
 - Phải thuộc customer_id
@@ -474,9 +500,19 @@ score
 ## Relationship Fields
 
 ```text
-course_id
+product_id
 
-lesson_id
+template_id
+
+template_lesson_id
+
+template_version_id
+
+version_section_id
+
+version_lesson_id
+
+version_activity_id
 
 quiz_id
 
@@ -509,6 +545,94 @@ deleted_at
 
 ---
 
+# Intentional Denormalization / Read Model Principle
+
+LearnForge cho phép denormalization có chủ đích để phục vụ:
+
+* Dashboard
+* Reporting
+* Analytics
+* AI Recommendation
+* Search
+* Performance
+* Audit Snapshot
+* Historical Consistency
+
+Không tự động xem các nhóm field sau là lỗi:
+
+* snapshot fields
+* counter fields
+* aggregate fields
+* cache fields
+* read-model fields
+* last-position fields
+* title snapshot fields
+* metadata fields
+
+Các field này được chấp nhận khi:
+
+* Có mục đích nghiệp vụ rõ ràng.
+* Có nguồn dữ liệu gốc rõ ràng.
+* Có rule cập nhật hoặc recalculation.
+* Không tạo nhiều nguồn sự thật mâu thuẫn.
+* Không được dùng thay thế audit log khi nghiệp vụ cần lịch sử chính xác.
+
+Khi review database, chỉ đánh dấu denormalized field là `Problem` nếu:
+
+* Mâu thuẫn với source of truth.
+* Không có source rõ ràng.
+* Có thể làm sai Billing, Certificate, Completion hoặc AI.
+* Bị dùng như dữ liệu thật trong khi chỉ là marketing/display cache.
+
+Mỗi read-model field nên mô tả:
+
+```text
+Purpose
+
+Source Of Truth
+
+Update / Recalculation Rule
+
+Allowed Consumers
+```
+
+---
+
+# Course Template Versioning Principle
+
+LearnForge tách:
+
+```text
+Course Template = working draft
+
+Course Template Version = published immutable snapshot
+```
+
+Database design phải tuân thủ:
+
+* Product Item tham chiếu `template_version_id`.
+* Enrollment khóa `template_version_id`.
+* Lesson Progress tham chiếu `version_lesson_id`.
+* Activity Progress tham chiếu `version_activity_id`.
+* Version Section/Lesson/Activity lưu source Template IDs chỉ để lineage.
+* Published Version không được update learning content.
+* Thay đổi working Template không làm thay đổi dữ liệu học của Enrollment cũ.
+* Version lifecycle dùng `draft_snapshot`, `published`, `deprecated`, `archived`.
+* Deprecated/archived Version không làm thay đổi existing Enrollment.
+* Working Template và published Version đều phải có ít nhất một Section.
+* Một Enrollment là một learning cycle; re-enrollment tạo record mới.
+* Progress, Completion và Product-based Certificate dùng `enrollment_id` để
+  phân biệt learning cycle.
+* Không đặt unique vĩnh viễn trên bộ
+  `(customer_id, user_id/student_id, product_id)`.
+* Notes và Bookmarks yêu cầu Enrollment `active`.
+* Review dùng `user_id`; Student là role, không phải identity field.
+* Certificate verification log luôn có `customer_id NOT NULL`.
+* Foundation Certificate mapping có tối đa một active mapping cho mỗi Product;
+  `minimum_score_percentage` dùng thang phần trăm.
+
+---
+
 # Naming Rules
 
 ---
@@ -524,9 +648,9 @@ domain_entity
 Ví dụ:
 
 ```text
-core_courses
+core_course_templates
 
-core_lessons
+core_course_template_lessons
 
 media_files
 
@@ -550,7 +674,7 @@ Ví dụ:
 ```text
 core_assessment_question_topics
 
-core_course_teacher_assignments
+core_course_template_teachers
 ```
 
 ---
@@ -566,9 +690,17 @@ id
 ## Foreign Key
 
 ```text
-course_id
+product_id
 
-lesson_id
+template_id
+
+template_lesson_id
+
+template_version_id
+
+version_lesson_id
+
+version_activity_id
 
 user_id
 
@@ -692,14 +824,14 @@ Sample Data
 ## Table Name
 
 ```text
-core_courses
+core_course_templates
 ```
 
 ---
 
 ## Purpose
 
-Lưu thông tin khóa học.
+Lưu định nghĩa gốc của khóa học.
 
 ---
 
@@ -714,11 +846,11 @@ Customer
 
 N
 
-Courses
+Course Templates
 ```
 
 ```text
-Teacher
+Category
 
 1
 
@@ -726,11 +858,11 @@ Teacher
 
 N
 
-Courses
+Course Templates
 ```
 
 ```text
-Course
+Course Template
 
 1
 
@@ -738,7 +870,7 @@ Course
 
 N
 
-Lessons
+Template Lessons
 ```
 
 ---
@@ -748,7 +880,7 @@ Lessons
 ```text
 - Phải thuộc customer_id
 
-- Có người phụ trách
+- Có category khi nghiệp vụ yêu cầu
 
 - Có trạng thái nghiệp vụ
 
@@ -775,12 +907,12 @@ BIGINT
 Tenant sở hữu khóa học.
 ```
 
-### teacher_id
+### category_id
 
 ```text
 BIGINT
 
-Giáo viên phụ trách.
+Category của Course Template.
 ```
 
 ### title
@@ -838,7 +970,7 @@ Ngày cập nhật.
 
 (customer_id, status)
 
-(customer_id, teacher_id)
+(customer_id, category_id)
 ```
 
 ---

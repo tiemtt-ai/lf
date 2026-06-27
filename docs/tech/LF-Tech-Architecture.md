@@ -331,11 +331,15 @@ User
 
 ↓
 
-Course
+Course Product + Enrollment
 
 ↓
 
-Lesson
+Course Template
+
+↓
+
+Template Lesson / Template Activity
 
 ↓
 
@@ -749,11 +753,11 @@ Users
 
 ↓
 
-Courses
+Course Templates + Course Products
 
 ↓
 
-Lessons
+Enrollments + Template Lessons
 
 ↓
 

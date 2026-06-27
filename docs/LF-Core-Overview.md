@@ -96,9 +96,9 @@ Nếu không có core_ thì LearnForge không thể hoạt động như một LM
 
 Quản lý:
 
-* Course
+* Course Template
 * Course Commerce
-* Lesson
+* Template Lesson
 * Live Class
 * Enrollment
 * Assessment
@@ -126,15 +126,19 @@ Teacher
 
 ↓
 
-Create Course
+Create Course Template
 
 ↓
 
-Create Lesson
+Create Template Lesson
 
 ↓
 
-Publish Course
+Publish Course Template
+
+↓
+
+Create / Publish Course Product
 
 ↓
 
@@ -518,8 +522,8 @@ media_ phụ thuộc vào core_.
 
 Media phải gắn với:
 
-* course
-* lesson
+* course template
+* template lesson hoặc template activity
 * assessment
 
 ---

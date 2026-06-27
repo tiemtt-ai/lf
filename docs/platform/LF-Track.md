@@ -93,7 +93,11 @@ LearnForge trở thành Learning Intelligence Platform.
 # Learning Data Flow
 
 ```text
-Course
+Course Product + Enrollment
+
+↓
+
+Template Lesson / Template Activity
 
 ↓
 
@@ -275,7 +279,9 @@ Lesson Reopened
 ```text
 user_id = 100
 
-lesson_id = 25
+product_id = 10
+
+template_lesson_id = 25
 
 progress = 80%
 ```
@@ -945,7 +951,11 @@ Competency Tracking
 # Relationship With Other Domains
 
 ```text
-Course
+Course Product + Enrollment
+
+↓
+
+Template Lesson / Template Activity
 
 ↓
 

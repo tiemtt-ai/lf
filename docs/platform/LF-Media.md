@@ -152,9 +152,11 @@ customer_id
 Có thể liên kết với:
 
 ```text id="media006"
-course_id
+template_id
 
-lesson_id
+template_lesson_id
+
+template_activity_id
 
 assessment_id
 
@@ -720,16 +722,16 @@ Signed URL được ưu tiên.
 
 ---
 
-# Media And Course
+# Media And Course Template
 
 Relationship:
 
 ```text id="media041"
-Course
+Course Template
 
 ↓
 
-Lessons
+Template Lessons / Template Activities
 
 ↓
 
@@ -971,7 +973,7 @@ Media Analytics
 # Relationship With Other Domains
 
 ```text id="media053"
-Course
+Course Template
 
 ↓
 

@@ -169,8 +169,13 @@ BIGINT UNSIGNED
 ```php
 customer_id
 user_id
-course_id
-lesson_id
+product_id
+template_id
+template_lesson_id
+template_version_id
+version_section_id
+version_lesson_id
+version_activity_id
 quiz_id
 ```
 
@@ -187,8 +192,10 @@ customer_id
 Ví dụ:
 
 ```text
-core_courses
-core_lessons
+core_course_templates
+core_course_template_lessons
+core_course_template_versions
+core_course_template_version_lessons
 core_assessment_questions
 media_files
 track_lesson_progress
@@ -219,6 +226,98 @@ deleted_at
 
 ---
 
+## Intentional Denormalization / Read Model Principle
+
+LearnForge cho phép snapshot, counter, aggregate, cache, last-position,
+metadata và read-model fields khi chúng phục vụ:
+
+```text
+Dashboard
+
+Reporting
+
+Analytics
+
+AI Recommendation
+
+Search
+
+Performance
+
+Audit Snapshot
+
+Historical Consistency
+```
+
+Mỗi denormalized field phải có:
+
+* Mục đích nghiệp vụ.
+* Source of truth.
+* Rule cập nhật hoặc recalculation.
+* Quy định consumer nào được sử dụng.
+
+Không được:
+
+* Tạo nhiều nguồn sự thật mâu thuẫn.
+* Dùng cache/display data để thay thế audit log.
+* Dùng marketing/display-only data cho Billing, Certificate, Completion hoặc AI.
+* Cho phép user sửa trực tiếp system-generated counters nếu không có nghiệp vụ rõ ràng.
+
+Database review không được mặc định đánh dấu snapshot/counter/aggregate/cache
+là lỗi. Chỉ đánh dấu `Problem` khi field không có source, có thể drift mà không
+có recalculation, mâu thuẫn source of truth hoặc làm sai nghiệp vụ quan trọng.
+
+---
+
+## Course Template Versioning Standard
+
+```text
+Working Template
+
+↓ publish
+
+Immutable Template Version
+
+↓
+
+Product
+
+↓
+
+Enrollment
+
+↓
+
+Progress
+```
+
+Rules:
+
+* Working Template tables dùng `template_*` foreign keys.
+* Published learning tables dùng `template_version_id` và `version_*_id`.
+* Product Item dùng `template_version_id`.
+* Enrollment lưu `template_version_id`.
+* Progress dùng `version_lesson_id` và `version_activity_id`.
+* Source Template IDs trong Version tables chỉ dùng lineage/reporting.
+* Không update published Version learning content.
+* Không silent-migrate Enrollment khi Product đổi Version.
+* Version lifecycle dùng `draft_snapshot`, `published`, `deprecated`, `archived`.
+* Deprecated/archived Version không làm thay đổi existing Enrollment.
+
+Course Foundation constraints:
+
+* Một Enrollment là một learning cycle; re-enrollment tạo Enrollment mới.
+* Không unique vĩnh viễn theo `customer_id`, `user_id`/`student_id`, `product_id`.
+* Progress, Completion và Product-based Certificate phải tham chiếu `enrollment_id`.
+* Section bắt buộc trong working Template và published Version.
+* Notes/Bookmarks chỉ được tạo hoặc cập nhật khi Enrollment `active`.
+* Review dùng `user_id`, không dùng `student_id`.
+* Foundation Certificate mapping giới hạn một active mapping trên mỗi Product.
+* Certificate `minimum_score_percentage` là phần trăm chuẩn hóa.
+* Certificate verification luôn tenant-scoped và `customer_id` phải `NOT NULL`.
+
+---
+
 # Naming Standards
 
 ## Tables
@@ -232,8 +331,8 @@ domain_entity
 Ví dụ:
 
 ```text
-core_courses
-core_lessons
+core_course_templates
+core_course_template_lessons
 media_files
 track_video_watch_logs
 ai_conversations
@@ -314,7 +413,7 @@ TenantContext::customerId()
 Ví dụ:
 
 ```php
-DB::table('core_courses')
+DB::table('core_course_templates')
     ->where('customer_id', TenantContext::customerId())
     ->get();
 ```
@@ -326,7 +425,7 @@ DB::table('core_courses')
 Không được:
 
 ```php
-DB::table('core_courses')->get();
+DB::table('core_course_templates')->get();
 ```
 
 ---
@@ -429,8 +528,11 @@ AI phải hiểu:
 ```text
 customer_id
 user_id
-course_id
-lesson_id
+product_id
+enrollment_id
+template_version_id
+version_lesson_id
+version_activity_id
 ```
 
 nếu có ngữ cảnh học tập.
