@@ -2,7 +2,7 @@
 
 Version: 1.0
 
-Status: Official Foundation
+Status: Foundation Approved
 
 Last Updated: 2026-06
 
@@ -10,1010 +10,501 @@ Last Updated: 2026-06
 
 # LF Media Architecture
 
-Media Domain là lớp quản lý toàn bộ tài nguyên số trong LearnForge.
+Media là Platform Domain dùng chung cho toàn bộ LearnForge.
 
-Bao gồm:
+Media quản lý Digital Assets và hạ tầng liên quan:
 
-* Images
-* Documents
-* Audio
-* Videos
-* Recordings
+* Asset identity and metadata
+* Storage location
+* Processing jobs
+* Variants
 * Transcripts
+* Captions
+* Usage mappings
+* Access audit
 
-Media là cầu nối giữa:
-
-Learning Content
-
-↓
-
-Tracking
-
-↓
-
-AI Intelligence
+Media không phải File Manager, Course Domain, LiveClass Domain, Assessment
+Domain hoặc AI Domain.
 
 ---
 
 # Mission
 
-Quản lý toàn bộ tài nguyên học tập.
-
-Cho phép:
-
-* Upload
-* Storage
-* Processing
-* Delivery
-* Analytics
-* AI Consumption
+Cung cấp một Digital Asset foundation tenant-aware, storage-agnostic và
+reusable cho mọi Domain mà không nhận ownership business state của Domain đó.
 
 ---
 
-# Media Philosophy
+# Platform Domain Principle
 
-Trong LMS truyền thống:
+Media chỉ quản lý:
 
-Media chỉ là file.
+```text
+Digital Asset
 
-Trong LearnForge:
+Metadata
 
-Media là nguồn tri thức.
-
-Một video học tập không chỉ là video.
-
-Nó còn có thể tạo ra:
-
-* Transcript
-* Knowledge Base
-* AI Tutor Context
-* Learning Analytics
-
----
-
-# Media Hierarchy
-
-```text id="media001"
-File
-
-↓
-
-Media Asset
-
-↓
+Storage
 
 Processing
 
-↓
+Variant
 
-Knowledge
+Transcript
 
-↓
-
-AI Intelligence
+Caption
 ```
+
+Media không quyết định:
+
+```text
+Course Progress
+
+Assessment Result
+
+LiveClass Attendance
+
+Certificate
+
+AI Result
+```
+
+Các Domain khác chỉ giữ `media_file_id` hoặc tạo
+`media_file_usages` mapping. Media không diễn giải Lesson, Quiz, Certificate
+hoặc business state của owner.
 
 ---
 
-# Media Domains
+# Architecture
 
-Media Layer gồm:
+```text
+Course / LiveClass / Assessment / AI / Other Domain
 
-```text id="media002"
-Files
+↓ generic usage
 
-Videos
+media_file_usages
 
-Audios
+↓
 
-Documents
+media_files
 
-Images
+↓
 
-Transcripts
+Variants / Processing Jobs / Transcripts / Captions
+
+↓
+
+Storage + Delivery
 ```
 
 ---
 
 # Database Namespace
 
-```text id="media003"
+```text
 media_*
 ```
 
----
+Foundation tables:
 
-# Core Tables
+```text
+media_categories
 
-```text id="media004"
 media_files
 
-media_videos
+media_file_usages
 
-media_audios
+media_variants
 
-media_documents
+media_processing_jobs
 
 media_transcripts
+
+media_captions
+
+media_access_logs
 ```
 
 ---
 
-# Ownership Rules
+# Storage Principle
 
-Mọi Media phải thuộc:
+Default storage:
 
-```text id="media005"
-customer_id
+```text
+AWS S3
 ```
+
+Media database không lưu binary. Database chỉ lưu:
+
+* Metadata
+* Storage disk/bucket/region
+* Canonical storage key
+* Checksum and dimensions
+* Processing state
+* Delivery references
+
+`storage_key` là canonical object locator.
+
+Examples:
+
+```text
+tenants/{customer_id}/courses/...
+
+tenants/{customer_id}/assessment/...
+
+tenants/{customer_id}/liveclass/...
+```
+
+Không tạo:
+
+```text
+media_folders
+```
+
+Business Category không phải storage folder. Prefix/folder-like organization
+trên S3 chỉ là một phần của `storage_key`.
 
 ---
 
-Có thể liên kết với:
+# Immutable File Principle
 
-```text id="media006"
-template_id
+Binary của Media File immutable sau upload.
 
-template_lesson_id
+```text
+Change Content
 
-template_activity_id
+↓
 
-assessment_id
-
-liveclass_id
-
-user_id
+Upload New Media File
 ```
+
+Metadata và processing state có thể cập nhật theo rule. Nội dung binary,
+checksum và canonical storage identity không được silent-replace.
+
+Không hard-delete file còn active Usage. Lifecycle dùng `deleted` hoặc
+`archived`, đồng thời storage retention/purge chạy theo policy riêng.
+
+---
+
+# Content Hash Principle
+
+`checksum` đại diện cho Content Identity.
+
+File name chỉ là metadata và không đại diện cho Content Identity. Nếu nội dung
+thay đổi, phải upload Media File mới; không replace binary cũ.
 
 ---
 
 # Media Files
 
-## Purpose
+`media_files` là bảng trung tâm.
 
-Bảng trung tâm quản lý metadata file.
+Nó trả lời:
 
----
+```text
+Asset thuộc tenant nào?
 
-# Database
+Asset type/mime/size là gì?
 
-```text id="media007"
-media_files
+Binary nằm ở storage key nào?
+
+Processing state hiện tại là gì?
 ```
 
----
+Supported file types:
 
-# Responsibilities
-
-Quản lý:
-
-* file name
-* storage path
-* mime type
-* size
-* owner
-* status
-
----
-
-# Supported Types
-
-```text id="media008"
+```text
 image
-
-document
-
-audio
 
 video
 
+audio
+
+document
+
+subtitle
+
+transcript
+
 archive
+
+other
 ```
 
----
+File lifecycle:
 
-# File Lifecycle
-
-```text id="media009"
-Upload
+```text
+uploading
 
 ↓
 
-Processing
+processing
 
 ↓
 
-Ready
+ready
 
 ↓
 
-Archived
-
-↓
-
-Deleted
+archived / deleted
 ```
 
----
-
-# Media Videos
-
-## Purpose
-
-Quản lý video học tập.
+`cdn_url` và `public_url` là delivery references, không thay authorization.
+Private/signed delivery vẫn là mặc định cho protected content.
 
 ---
 
-# Database
+# Generic Usage Mapping
 
-```text id="media010"
-media_videos
+`media_file_usages` kết nối Media với Domain owner:
+
+```text
+media_file_id
+
+owner_type
+
+owner_id
+
+usage_type
 ```
 
----
+Supported owner examples:
 
-# Examples
+```text
+course_activity
 
-```text id="media011"
-Lesson Video
+assessment_question
 
-Course Trailer
+assessment_answer
 
-Replay Video
+liveclass_recording
 
-Assessment Video
+certificate
+
+avatar
+
+ai_knowledge
+
+marketing
 ```
 
+Không hard foreign key sang Domain khác. Calling Domain phải validate tenant,
+authorization và owner existence. Media chỉ biết generic usage reference.
+
 ---
 
-# Video Metadata
+# Variants
 
-```text id="media012"
-duration
+`media_variants` lưu asset phái sinh:
 
-resolution
+```text
+thumbnail
+
+preview
+
+compressed
+
+720p
+
+1080p
+
+hls
+
+webp
+```
+
+Variant có storage key riêng nhưng không thay thế original Media File identity.
+
+---
+
+# Variant Principle
+
+Variant luôn là Derived Asset, không phải Original Asset.
+
+Variant không được update Original Asset và có thể regenerate từ Original
+Asset.
+
+---
+
+# Processing
+
+`media_processing_jobs` theo dõi:
+
+```text
+transcode
 
 thumbnail
 
-provider
+ocr
 
-storage_path
+speech_to_text
+
+caption
+
+virus_scan
+
+compress
 ```
 
----
+Processing độc lập với business Domain. Job completion không đồng nghĩa Course
+Progress, Assessment Result hoặc LiveClass Attendance.
 
-# Future Metadata
-
-```text id="media013"
-language
-
-subtitle_count
-
-transcript_status
-
-ai_status
-```
+Heavy processing tuân thủ Async First qua queue/worker.
 
 ---
 
-# Media Audios
+# Transcript And Caption
 
-## Purpose
+`media_transcripts` lưu transcript text trong field `text`, không nhét transcript
+vào metadata.
 
-Quản lý audio.
+`media_captions` lưu locale, format và `storage_key` của VTT/SRT/ASS assets.
 
----
-
-# Database
-
-```text id="media014"
-media_audios
-```
+AI Domain có thể đọc transcript để tạo Knowledge/Insight nhưng tự sở hữu AI
+result. Media không quyết định AI output.
 
 ---
 
-# Examples
+# Access Audit
 
-```text id="media015"
-Listening Audio
+`media_access_logs` là append-only audit cho upload, stream, view, download,
+delete và share.
 
-Pronunciation Audio
+Access Log không được dùng trực tiếp để tính:
 
-Speaking Recording
+* Course Progress
+* LiveClass Attendance
+* Assessment completion/result
 
-Podcast Lesson
-```
-
----
-
-# Audio Metadata
-
-```text id="media016"
-duration
-
-bitrate
-
-language
-```
+Learning behavior và progress decisions thuộc Track/Course hoặc owning Domain.
 
 ---
 
-# Media Documents
+# Domain Integrations
 
-## Purpose
+## Course
 
-Quản lý tài liệu học tập.
+Course/Version Activity lưu `media_file_id` hoặc Usage mapping. Course giữ
+learning context, Progress và Completion.
 
----
+## LiveClass
 
-# Database
+LiveClass Recording tham chiếu Media File. Media giữ binary, variants,
+transcript, caption và delivery; LiveClass giữ Session/Attendance/Replay data.
 
-```text id="media017"
-media_documents
-```
+## Assessment
 
----
+Question media, uploaded answers, speaking recordings và essay files tham
+chiếu Media. Assessment giữ Question/Attempt/Answer/Grading evidence.
 
-# Examples
+## AI
 
-```text id="media018"
-PDF
+AI Knowledge có thể dùng Media/Transcript qua Usage mapping. AI Domain giữ
+embedding, summary, recommendation và other intelligence outputs.
 
-Word
+## Certificate And Other Domains
 
-PowerPoint
-
-Excel
-
-Text
-```
+Certificate/avatar/marketing assets dùng generic Usage mapping. Media không
+quyết định issuance, identity authorization hoặc marketing lifecycle.
 
 ---
 
-# Supported Formats
-
-```text id="media019"
-pdf
-
-docx
-
-pptx
-
-xlsx
-
-txt
-
-md
-```
-
----
-
-# Media Images
-
-Hiện tại quản lý thông qua:
-
-```text id="media020"
-media_files
-```
-
----
-
-# Examples
-
-```text id="media021"
-Course Banner
-
-Lesson Image
-
-Question Image
-
-Teacher Avatar
-```
-
----
-
-# Transcript Architecture
-
-Transcript là một trong những thành phần quan trọng nhất của LearnForge.
-
----
-
-# Purpose
-
-Chuyển:
-
-```text id="media022"
-Audio
-
-Video
-```
-
-thành:
-
-```text id="media023"
-Searchable Text
-```
-
----
-
-# Database
-
-```text id="media024"
-media_transcripts
-```
-
----
-
-# Transcript Sources
-
-```text id="media025"
-Lesson Video
-
-Replay Video
-
-Audio Lesson
-
-Speaking Submission
-```
-
----
-
-# Transcript Pipeline
-
-```text id="media026"
-Video
-
-↓
-
-Audio Extraction
-
-↓
-
-Speech To Text
-
-↓
-
-Transcript
-
-↓
-
-AI Processing
-```
-
----
-
-# Example
-
-Teacher nói:
-
-```text id="media027"
-Thì hiện tại trong tiếng Hàn...
-```
-
-↓
-
-Transcript
-
-↓
-
-Database
-
-↓
-
-Knowledge Base
-
----
-
-# Storage Architecture
-
-Media sử dụng Storage Layer riêng.
-
----
-
-# Default Strategy
-
-```text id="media028"
-AWS S3
-```
-
----
-
-# Future Options
-
-```text id="media029"
-Dedicated S3
-
-Cloud Storage
-
-MinIO
-
-Custom Storage
-```
-
----
-
-# BYOC Compatibility
-
-Media Domain phải hỗ trợ:
-
-```text id="media030"
-Shared Storage
-
-Dedicated Storage
-```
-
----
-
-# Upload Pipeline
-
-```text id="media031"
-Upload
-
-↓
-
-Validation
-
-↓
-
-Virus Scan
-
-↓
-
-Storage
-
-↓
-
-Metadata
-
-↓
-
-Processing
-```
-
----
-
-# Processing Pipeline
-
-Media có thể được xử lý sau khi upload.
-
----
-
-# Video Processing
-
-```text id="media032"
-Thumbnail
-
-Transcoding
-
-Subtitle
-
-Transcript
-```
-
----
-
-# Audio Processing
-
-```text id="media033"
-Speech To Text
-
-Noise Reduction
-
-Transcript
-```
-
----
-
-# Document Processing
-
-```text id="media034"
-OCR
-
-Text Extraction
-
-Metadata Extraction
-```
-
----
-
-# Image Processing
-
-```text id="media035"
-OCR
-
-Compression
-
-Thumbnail
-```
-
----
-
-# OCR Architecture
-
-Future Phase
-
----
-
-# Purpose
-
-Đọc nội dung từ:
-
-```text id="media036"
-Image
-
-PDF
-```
-
----
-
-# Output
-
-```text id="media037"
-Extracted Text
-```
-
----
-
-# Media Delivery
-
-## Purpose
-
-Phân phối nội dung đến người học.
-
----
-
-# Examples
-
-```text id="media038"
-Video Streaming
-
-Audio Streaming
-
-PDF Viewing
-
-Image Display
-```
-
----
-
-# CDN Support
-
-Future Phase
-
----
-
-```text id="media039"
-CloudFront
-
-Cloudflare
-
-Custom CDN
-```
-
----
-
-# Media Security
-
-## Rule 1
-
-Mọi media thuộc:
-
-```text id="media040"
-customer_id
-```
-
----
-
-## Rule 2
-
-Không cho tenant khác truy cập.
-
----
-
-## Rule 3
-
-Media URL không được public mặc định.
-
----
-
-## Rule 4
-
-Signed URL được ưu tiên.
-
----
-
-# Media And Course Template
-
-Relationship:
-
-```text id="media041"
-Course Template
-
-↓
-
-Template Lessons / Template Activities
-
-↓
-
-Media
-```
-
----
-
-# Media And Assessment
-
-Ví dụ:
-
-```text id="media042"
-Listening Audio
-
-Question Image
-
-Speaking Prompt
-```
-
----
-
-# Media And LiveClass
-
-Ví dụ:
-
-```text id="media043"
-Replay Recording
-
-Session Recording
-```
-
----
-
-# Media And Tracking
-
-Media tạo ra dữ liệu hành vi.
-
----
-
-# Examples
-
-```text id="media044"
-Video Watch
-
-Audio Listen
-
-Document View
-```
-
----
-
-# Media And AI
-
-Đây là mối quan hệ quan trọng nhất.
-
----
-
-# AI Sources
-
-```text id="media045"
-Video
-
-Audio
-
-Document
-
-Image
-```
-
----
-
-# AI Pipeline
-
-```text id="media046"
-Media
-
-↓
-
-Extract
-
-↓
-
-Transcript
-
-↓
-
-Chunk
-
-↓
-
-Embedding
-
-↓
-
-Knowledge Base
-
-↓
-
-AI Tutor
-```
-
----
-
-# Knowledge Creation
-
-Media là nguồn sinh ra:
-
-```text id="media047"
-ai_knowledge_sources
-
-ai_knowledge_chunks
-```
-
----
-
-# Future AI Features
-
-```text id="media048"
-Auto Summary
-
-Auto Translation
-
-Auto Quiz Generation
-
-Auto Notes
-
-Auto Flashcards
-```
-
----
-
-# Usage Tracking
-
-Media là nguồn usage lớn nhất trong hệ thống.
-
----
-
-# Examples
-
-```text id="media049"
-Storage Usage
-
-Bandwidth Usage
-
-Video Watch Time
-
-Audio Listen Time
-```
-
----
-
-# Billing Relationship
-
-Media ảnh hưởng trực tiếp đến:
-
-```text id="media050"
-Storage Cost
-
-Bandwidth Cost
-
-AI Cost
-```
+# Tenant And Security Rules
+
+1. Mọi Media business record phải có `customer_id`.
+2. Media File, child records và Usage phải cùng tenant.
+3. User Tenant A không được đọc storage/delivery của Tenant B.
+4. Storage key phải tenant-aware.
+5. Visibility không thay authorization.
+6. Protected Media ưu tiên signed delivery.
+7. Owner Domain tự kiểm tra quyền sử dụng asset.
+8. Logs và metadata không lưu credential/signing secret.
 
 ---
 
 # Design Rules
 
-## Rule 1
-
-Media chỉ quản lý tài nguyên.
-
----
-
-## Rule 2
-
-Media không quản lý tiến độ học.
-
-Track Domain quản lý.
-
----
-
-## Rule 3
-
-Media không quản lý AI.
-
-AI Domain quản lý.
-
----
-
-## Rule 4
-
-Media phải hỗ trợ AI Processing từ đầu.
-
----
-
-## Rule 5
-
-Media phải hỗ trợ BYOC Storage.
+1. Media là Platform Domain.
+2. Media chỉ sở hữu Digital Asset data/rules.
+3. Database không lưu binary.
+4. `storage_key` là canonical locator.
+5. Binary immutable; content change tạo file mới.
+6. Không tạo `media_folders`.
+7. Cross-domain relationship dùng `media_file_usages`.
+8. Không hard FK generic owner sang Domain khác.
+9. Variant không phải original file.
+10. Transcript text nằm trong field riêng.
+11. Access Logs chỉ phục vụ audit.
+12. Media không quyết định state của Course, LiveClass, Assessment, Certificate
+    hoặc AI.
 
 ---
 
 # Current Scope
 
-V1
+```text
+Categories
 
-```text id="media051"
 Files
 
-Videos
+Usages
 
-Audios
+Variants
 
-Documents
+Processing Jobs
 
 Transcripts
+
+Captions
+
+Access Logs
 ```
 
 ---
 
-# Planned Scope
+# Future Scope
 
-```text id="media052"
-OCR
+```text
+Advanced DRM
 
-Subtitle
+Multipart Upload Sessions
 
-Translation
+Asset Version Lineage
 
-CDN
+Multiple Transcript Revisions
 
-Advanced Processing
+Advanced Rendition Profiles
 
-Media Analytics
+Lifecycle Automation
+
+Storage Replication
+
+Enterprise BYOC
 ```
 
 ---
 
-# Relationship With Other Domains
+# Architecture Decision
 
-```text id="media053"
-Course Template
+Media Foundation được phê duyệt và freeze tại:
 
-↓
+[ADR-0004 — Media Foundation](../adr/ADR-0004-Media-Foundation.md)
 
-Assessment
-
-↓
-
-LiveClass
-
-↓
-
-Media
-
-↓
-
-Tracking
-
-↓
-
-AI
-```
+ADR này là source quyết định cho Platform Domain ownership, content identity,
+immutable files, variants, S3 storage và generic usage integration.
 
 ---
 
 # Final Statement
 
-Media Domain không chỉ là nơi lưu file.
+Media Foundation là shared Digital Asset Platform của LearnForge.
 
-Nó là nguồn tri thức số của LearnForge.
+Media biết asset, storage, processing và usage mapping. Media không biết hoặc
+quyết định Lesson, Quiz, Attendance, Certificate, Progress hoặc AI Result.
 
-Mọi Video, Audio, Document và Recording đều có thể được chuyển hóa thành:
-
-* Transcript
-* Knowledge Base
-* AI Intelligence
-* Learning Insights
-
-để hỗ trợ mục tiêu dài hạn của LearnForge:
-
-AI-Native Learning Intelligence Platform.
+Media Foundation Version 1.0 đã được phê duyệt. Thay đổi kiến trúc sau freeze
+phải được review bằng ADR mới hoặc amendment được owner chấp thuận.
 
 ---
 
