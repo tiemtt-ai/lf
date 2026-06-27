@@ -686,6 +686,41 @@ source of truth song song ở Domain khác.
 
 ---
 
+# Evaluation Evidence Principle
+
+Evaluation Domain chỉ sở hữu và sinh:
+
+* Attempt
+* Answer
+* Score
+* Feedback
+* Rubric Result
+* Grading Result
+* Evaluation Evidence
+
+Assessment không sở hữu Course Progress, Course Completion, Certificate
+Eligibility, Promotion hoặc Learning State.
+
+Cross-domain data flow đúng:
+
+```text
+Assessment
+
+↓ Evidence
+
+Course / Certificate / AI / Track
+
+↓
+
+Consumer Domain tự quyết định
+```
+
+Schema Assessment không được chứa field, trigger hoặc relationship biến
+evaluation evidence thành direct write cho Course completion, Certificate
+issuance hoặc Student promotion.
+
+---
+
 # Course Template Versioning Principle
 
 LearnForge tách:

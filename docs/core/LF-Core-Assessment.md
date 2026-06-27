@@ -2,7 +2,7 @@
 
 Version: 1.0
 
-Status: Official Foundation
+Status: Foundation Approved
 
 Last Updated: 2026-06
 
@@ -10,497 +10,165 @@ Last Updated: 2026-06
 
 # LF-Core Assessment Architecture
 
-Assessment Domain là hệ thống quản lý đánh giá năng lực học tập của LearnForge.
+Assessment là Evaluation Domain của LearnForge.
 
-Assessment không chỉ là Quiz.
+Assessment quản lý authoring và evaluation evidence:
 
-Assessment bao gồm:
+* Question Banks, Questions, Topics
+* Quizzes, Exams, Assignments
+* Attempts and Answers
+* Grading and Rubrics
+* Score, pass/fail, feedback and rubric results
 
-* Question Bank
-* Quiz
-* Assignment
-* Exam
-* Attempt
-* Answer
-* Grading
-* Rubric
-* Analytics
-* AI Assessment
+Assessment không phải Course Domain và không sở hữu Course Progress, Course
+Completion hoặc Certificate Eligibility.
 
 ---
 
-# Mission
-
-Đo lường kết quả học tập.
-
-Giúp:
-
-* giáo viên đánh giá học viên
-* học viên tự đánh giá
-* AI hiểu năng lực học tập
-* hệ thống tạo learning insight
-
----
-
-# Assessment Hierarchy
+# Architecture Flow
 
 ```text
-Question Bank
+Course Template
 
 ↓
 
-Question
+Template Activity (`activity_type = assessment`)
+
+↓ publish
+
+Template Version
 
 ↓
 
-Quiz
+Version Activity (immutable)
 
 ↓
 
+Assessment Quiz / Assignment / Exam
+
+↓
+
+Attempt / Answer / Grading
+
+↓ evaluation evidence
+
+Course Activity Progress
+
+↓
+
+Certificate Eligibility
+```
+
+---
+
+# Assessment Evaluation Principle
+
+Assessment chỉ sinh:
+
+```text
 Attempt
-
-↓
 
 Answer
 
-↓
+Score
 
-Grading
+Pass / Fail
 
-↓
+Grading Result
 
-Learning Outcome
+Rubric Result
+
+Feedback
+
+Rubric Result
+
+Evaluation Evidence
 ```
 
----
-
-# Assessment Domains
-
-Assessment Engine gồm:
+Assessment không sở hữu:
 
 ```text
-Question Bank
+Course Progress
 
-Topic Management
+Course Completion
 
-Question Management
+Certificate Eligibility
 
-Quiz Management
+Promotion
 
-Attempt Management
-
-Answer Management
-
-Grading Management
-
-Rubric Management
-
-AI Assessment
+Learning State
 ```
+
+Course Domain đọc Evaluation Evidence và tự quyết định Activity
+Progress/Completion. Certificate Domain đọc Evaluation Evidence theo policy
+của mình và tự quyết định Certificate Eligibility/issuance.
+
+Assessment không được cập nhật trực tiếp business state của Domain khác.
 
 ---
 
-# Database Namespace
+# Course Version Binding
 
-Assessment sử dụng:
+Working Template chỉ định nghĩa:
 
 ```text
-core_assessment_*
+activity_type = assessment
 ```
 
----
+Student không làm bài qua working Template Activity.
 
-# Core Tables
-
-```text
-core_assessment_categories
-
-core_assessment_question_banks
-
-core_assessment_questions
-
-core_assessment_question_contents
-
-core_assessment_question_media
-
-core_assessment_question_options
-
-core_assessment_topics
-
-core_assessment_question_topics
-
-core_assessment_quizzes
-
-core_assessment_quiz_sections
-
-core_assessment_quiz_questions
-
-core_assessment_attempts
-
-core_assessment_answers
-
-core_assessment_answer_files
-
-core_assessment_grading_assignments
-
-core_assessment_gradings
-
-core_assessment_rubrics
-
-core_assessment_rubric_items
-```
-
----
-
-# Assessment Ownership
-
-Mọi dữ liệu Assessment phải thuộc:
+Course-linked Quiz phải lưu:
 
 ```text
 customer_id
+
+product_id
+
+template_version_id
+
+version_activity_id
 ```
 
----
-
-Và có thể liên kết với:
-
-```text
-template_id
-
-template_lesson_id
-
-template_activity_id
-
-teacher_id
-```
+Version Activity đóng băng assessment learning context và completion rule.
+`version_activity_id` là link chính giữa Assessment và Course Domain.
 
 ---
 
-# Question Bank
+# Authoring And Snapshot Model
 
-## Purpose
-
-Kho lưu trữ câu hỏi.
-
----
-
-# Responsibilities
-
-Quản lý:
-
-* câu hỏi
-* đáp án
-* media
-* topic
-* độ khó
-
----
-
-# Database
-
-```text
-core_assessment_question_banks
-```
-
----
-
-# Relationship
+Authoring sources:
 
 ```text
 Question Bank
 
-1
+↓
+
+Question
 
 ↓
 
-N
-
-Questions
+Content / Media / Options / Topics
 ```
 
----
-
-# Question Management
-
-## Purpose
-
-Đơn vị đánh giá nhỏ nhất.
-
----
-
-# Database
-
-```text
-core_assessment_questions
-```
-
----
-
-# Question Components
-
-Một Question có thể gồm:
-
-```text
-Title
-
-Content
-
-Media
-
-Options
-
-Correct Answer
-
-Explanation
-```
-
----
-
-# Question Types
-
-LearnForge hỗ trợ:
-
-```text
-single_choice
-
-multiple_choice
-
-true_false
-
-short_answer
-
-essay
-
-speaking
-
-listening
-
-file_upload
-```
-
----
-
-# Single Choice
-
-Ví dụ:
-
-```text
-1 đáp án đúng
-```
-
----
-
-# Multiple Choice
-
-Ví dụ:
-
-```text
-nhiều đáp án đúng
-```
-
----
-
-# Short Answer
-
-Ví dụ:
-
-```text
-trả lời ngắn
-```
-
----
-
-# Essay
-
-Ví dụ:
-
-```text
-viết đoạn văn
-```
-
----
-
-# Speaking
-
-Ví dụ:
-
-```text
-ghi âm trả lời
-```
-
----
-
-# Listening
-
-Ví dụ:
-
-```text
-nghe audio
-
-↓
-
-trả lời câu hỏi
-```
-
----
-
-# File Upload
-
-Ví dụ:
-
-```text
-upload document
-
-upload image
-
-upload audio
-```
-
----
-
-# Question Content
-
-Database:
-
-```text
-core_assessment_question_contents
-```
-
----
-
-# Purpose
-
-Lưu nội dung chính của câu hỏi.
-
----
-
-# Question Media
-
-Database:
-
-```text
-core_assessment_question_media
-```
-
----
-
-# Supported Media
-
-```text
-image
-
-audio
-
-video
-
-document
-```
-
----
-
-# Question Options
-
-Database:
-
-```text
-core_assessment_question_options
-```
-
----
-
-# Purpose
-
-Lưu các lựa chọn trả lời.
-
----
-
-# Topics
-
-## Purpose
-
-Phân loại kiến thức.
-
----
-
-# Database
-
-```text
-core_assessment_topics
-```
-
----
-
-# Examples
-
-```text
-Grammar
-
-Vocabulary
-
-Listening
-
-Writing
-
-Business English
-```
-
----
-
-# Mapping
-
-Database:
-
-```text
-core_assessment_question_topics
-```
-
----
-
-# Relationship
+Question authoring data có thể thay đổi. Khi publish Quiz:
 
 ```text
 Question
 
-N
+↓ snapshot
 
-↓
-
-N
-
-Topic
+Quiz Question
 ```
 
----
+Quiz Question đóng băng:
 
-# Quiz Architecture
+* Prompt/content/media context
+* Options label/text
+* Correct answer
+* Scoring
+* Required/order
 
-Quiz là tập hợp câu hỏi.
-
----
-
-# Database
-
-```text
-core_assessment_quizzes
-```
-
----
-
-# Quiz Examples
-
-```text
-Practice Quiz
-
-Homework Quiz
-
-Midterm Exam
-
-Final Exam
-
-Placement Test
-
-Mock Test
-```
+Published Quiz và snapshots immutable cho existing Attempts.
 
 ---
 
@@ -511,626 +179,260 @@ Quiz
 
 ↓
 
-Sections
+Quiz Sections
 
 ↓
 
-Questions
+Quiz Questions (snapshots)
+```
+
+Foundation supports:
+
+```text
+quiz
+
+exam
+
+assignment
+
+homework
+
+placement_test
+
+mock_test
+```
+
+Grading modes:
+
+```text
+automatic
+
+manual
+
+hybrid
 ```
 
 ---
 
-# Quiz Sections
-
-Database:
+# Attempt And Answer
 
 ```text
-core_assessment_quiz_sections
-```
-
----
-
-# Purpose
-
-Chia bài thi thành nhiều phần.
-
----
-
-# Example
-
-```text
-Listening
-
-Reading
-
-Writing
-```
-
----
-
-# Quiz Questions
-
-Database:
-
-```text
-core_assessment_quiz_questions
-```
-
----
-
-# Purpose
-
-Liên kết:
-
-```text
-Quiz
-
-↓
-
-Questions
-```
-
----
-
-# Attempts
-
-Database:
-
-```text
-core_assessment_attempts
-```
-
----
-
-# Purpose
-
-Một lần làm bài.
-
----
-
-# Relationship
-
-```text
-Student
-
-↓
-
-Quiz
+Enrollment
 
 ↓
 
 Attempt
+
+↓
+
+Answers
+
+↓
+
+Answer Files
 ```
 
----
+Attempt phải tham chiếu `enrollment_id`; Enrollment phải active khi Attempt bắt
+đầu. `user_id`, Product, Template Version và Version Activity phải khớp
+Enrollment/Quiz.
 
-# Attempt Status
+Attempt khóa Quiz policy/structure snapshot tại start. Answer tham chiếu frozen
+Quiz Question và snapshot option label/text đã chọn để bảo toàn audit.
 
-```text
-in_progress
-
-submitted
-
-graded
-
-expired
-```
-
----
-
-# Answers
-
-Database:
-
-```text
-core_assessment_answers
-```
-
----
-
-# Purpose
-
-Lưu câu trả lời.
-
----
-
-# Answer Types
-
-```text
-option
-
-text
-
-audio
-
-file
-```
-
----
-
-# Answer Files
-
-Database:
-
-```text
-core_assessment_answer_files
-```
-
----
-
-# Purpose
-
-Lưu file bài làm.
-
----
-
-# Examples
-
-```text
-essay document
-
-image
-
-audio recording
-```
+Attempt score/pass/fail chỉ là evaluation evidence.
 
 ---
 
 # Grading Architecture
 
-Assessment hỗ trợ:
-
 ```text
-automatic grading
+Attempt / Answer
 
-manual grading
+↓
 
-hybrid grading
+Grading Assignment
+
+↓
+
+Teacher / System / AI Suggestion
+
+↓
+
+Final Assessment Result
 ```
 
----
+Automatic grading dùng cho objective questions theo approved rules.
 
-# Automatic Grading
+Manual grading dùng cho essay, writing, speaking và các response cần judgment.
 
-Ví dụ:
+Hybrid grading:
 
 ```text
-single_choice
+AI Suggestion
 
-multiple_choice
+↓
 
-true_false
+Teacher Review
+
+↓
+
+Final Decision
 ```
 
+AI grading không phải final grade. Teacher/final grader quyết định kết quả cuối.
+Assessment service tổng hợp Answer/Attempt result nhưng không update Course
+Progress trực tiếp.
+
+`confidence_score` chỉ mô tả độ tự tin của AI suggestion, không phải final
+score và không bắt buộc Teacher chấp nhận.
+
 ---
 
-# Manual Grading
-
-Ví dụ:
+# Rubric Architecture
 
 ```text
-essay
+Rubric Template
 
-writing
+↓
 
-speaking
+Rubric Items
+
+↓ snapshot at grading
+
+Rubric Result
 ```
 
+Rubric có thể tái sử dụng và thay đổi ở authoring layer. Mỗi Grading phải
+snapshot criteria/weights và result để lịch sử không drift.
+
+Khi grading bắt đầu, Rubric và toàn bộ Rubric Items được snapshot. Historical
+grading luôn đọc snapshot; Rubric authoring không phải historical grading
+source.
+
 ---
 
-# Hybrid Grading
+# Media Integration
 
-AI gợi ý.
+Media Domain sở hữu file thật cho:
 
-Giáo viên quyết định.
+* Question images/audio/video/attachments
+* Uploaded answers
+* Speaking recordings
+* Essay attachments
+* Evidence files
+
+Assessment chỉ lưu `media_file_id`. Binary, storage, processing, signed
+delivery, transcript và retention thuộc Media Domain.
 
 ---
 
-# Grading Assignments
+# AI Integration
 
-Database:
+AI có thể hỗ trợ:
+
+* Question generation
+* Quiz assembly
+* Rubric suggestion
+* Score suggestion
+* Feedback suggestion
+
+AI suggestion phải audit được và không được ghi đè final human decision.
+Provider/model/prompt-version provenance cần được lưu trong grading metadata.
+
+---
+
+# Track Integration
+
+Track Domain có thể ghi raw events:
 
 ```text
+Quiz Started
+
+Question Viewed
+
+Answer Submitted
+
+Quiz Finished
+```
+
+Assessment giữ evaluation business records. Track không thay thế Attempt,
+Answer hoặc Grading source data.
+
+---
+
+# Database Namespace
+
+```text
+core_assessment_*
+```
+
+Foundation tables:
+
+```text
+core_assessment_categories
+core_assessment_question_banks
+core_assessment_questions
+core_assessment_question_contents
+core_assessment_question_media
+core_assessment_question_options
+core_assessment_topics
+core_assessment_question_topics
+core_assessment_quizzes
+core_assessment_quiz_sections
+core_assessment_quiz_questions
+core_assessment_attempts
+core_assessment_answers
+core_assessment_answer_files
 core_assessment_grading_assignments
-```
-
----
-
-# Purpose
-
-Phân công người chấm.
-
----
-
-# Gradings
-
-Database:
-
-```text
 core_assessment_gradings
-```
-
----
-
-# Purpose
-
-Lưu kết quả chấm.
-
----
-
-# Rubrics
-
-Database:
-
-```text
 core_assessment_rubrics
-```
-
----
-
-# Purpose
-
-Tiêu chí chấm điểm.
-
----
-
-# Rubric Items
-
-Database:
-
-```text
 core_assessment_rubric_items
-```
-
----
-
-# Example
-
-Writing Rubric:
-
-```text
-Grammar
-
-Vocabulary
-
-Structure
-
-Content
-```
-
----
-
-# Four Skill Assessment
-
-LearnForge được thiết kế để hỗ trợ:
-
-```text
-Listening
-
-Speaking
-
-Reading
-
-Writing
-```
-
----
-
-# Listening
-
-Audio
-
-↓
-
-Question
-
-↓
-
-Answer
-
----
-
-# Speaking
-
-Question
-
-↓
-
-Student Recording
-
-↓
-
-Teacher Grading
-
----
-
-# Reading
-
-Passage
-
-↓
-
-Questions
-
----
-
-# Writing
-
-Prompt
-
-↓
-
-Essay
-
-↓
-
-Grading
-
-````
-
----
-
-# AI Question Generation
-
-Future + Phase 2
-
----
-
-# Workflow
-
-```text
-PDF
-
-Word
-
-Image
-
-↓
-
-AI Extraction
-
-↓
-
-Topic Detection
-
-↓
-
-Question Generation
-
-↓
-
-Question Bank
-````
-
----
-
-# AI Generated Content
-
-AI có thể tạo:
-
-```text
-topics
-
-questions
-
-options
-
-answers
-
-explanations
-```
-
----
-
-# AI Quiz Generation
-
-Workflow:
-
-```text
-Question Bank
-
-↓
-
-Difficulty Selection
-
-↓
-
-Quiz Assembly
-```
-
----
-
-# AI Grading
-
-AI hỗ trợ:
-
-```text
-essay
-
-writing
-
-speaking
-```
-
----
-
-# AI Responsibilities
-
-```text
-score suggestion
-
-feedback suggestion
-
-rubric suggestion
-```
-
----
-
-# Final Decision
-
-Giáo viên luôn là người quyết định cuối cùng.
-
----
-
-# Assessment Analytics
-
-Assessment là nguồn dữ liệu quan trọng cho:
-
-```text
-track_
-
-ai_
-```
-
----
-
-# Examples
-
-```text
-pass_rate
-
-average_score
-
-difficulty_index
-
-completion_rate
-```
-
----
-
-# Assessment And AI
-
-Assessment giúp AI hiểu:
-
-```text
-strengths
-
-weaknesses
-
-learning gaps
-
-skill levels
-```
-
----
-
-# Assessment And Course Template
-
-```text
-Course Template
-
-↓
-
-Template Activity
-
-↓
-
-Assessment
-
-↓
-
-Learning Outcome
 ```
 
 ---
 
 # Design Rules
 
-## Rule 1
-
-Mọi Assessment phải thuộc:
-
-```text
-customer_id
-```
-
----
-
-## Rule 2
-
-Question Bank là nguồn dữ liệu gốc.
-
----
-
-## Rule 3
-
-Quiz chỉ tham chiếu Question.
-
-Không sao chép dữ liệu câu hỏi.
+1. Mọi Assessment business data phải có `customer_id`.
+2. Cross-domain references phải cùng tenant.
+3. Assessment là Evaluation Domain, không phải Course Domain.
+4. Student không làm bài qua working Template Activity.
+5. Course integration dùng immutable Version Activity.
+6. Published Quiz/Quiz Question snapshots không được mutate cho existing Attempts.
+7. Attempt thuộc một Enrollment learning cycle.
+8. Answer thuộc Attempt và frozen Quiz Question.
+9. File thật thuộc Media Domain.
+10. AI grading chỉ là suggestion.
+11. Rubric criteria/result phải snapshot khi grading.
+12. Assessment evidence không tự quyết định Course completion/certificate.
+13. Course Activity Progress là source of truth cho activity completion.
+14. Cross-domain effect dùng Evidence/Event/Request; Domain đích tự quyết định.
 
 ---
 
-## Rule 4
+# Architecture Decision
 
-Essay và Speaking luôn hỗ trợ chấm thủ công.
+Assessment Foundation được phê duyệt và freeze tại:
 
----
+[ADR-0003 — Assessment Foundation](../adr/ADR-0003-Assessment-Foundation.md)
 
-## Rule 5
-
-AI chỉ hỗ trợ chấm điểm.
-
-Giáo viên quyết định cuối cùng.
-
----
-
-## Rule 6
-
-Assessment phải hỗ trợ đầy đủ:
-
-```text
-Listening
-
-Speaking
-
-Reading
-
-Writing
-```
-
----
-
-# Future Features
-
-```text
-Adaptive Testing
-
-Question Difficulty Engine
-
-Proctoring
-
-AI Invigilation
-
-Competency Framework
-
-Skill Mapping
-
-Certification Engine
-```
+ADR này là source quyết định cho Evaluation Domain ownership, Question/Quiz
+snapshot strategy, Rubric snapshots, AI grading boundaries và Course/Media
+integration.
 
 ---
 
 # Final Statement
 
-Assessment Engine là nền tảng đo lường năng lực học tập của LearnForge.
+Assessment đo lường learning outcome và sinh evaluation evidence.
 
-Nó kết nối:
+Assessment Foundation Version 1.0 đã được phê duyệt. Mọi thay đổi kiến trúc sau
+freeze phải được review bằng ADR mới hoặc amendment được owner chấp thuận.
 
-Learning Content
-
-*
-
-Learning Outcome
-
-*
-
-Learning Analytics
-
-*
-
-AI Intelligence
-
-để tạo thành một hệ sinh thái đánh giá hiện đại, linh hoạt và AI-Native.
+Course Version Activity giữ learning context bất biến. Enrollment giữ learning
+cycle. Assessment giữ Attempt, Answer, Score và Grading. Media giữ file. Track
+giữ behavior events. Course Domain giữ Progress/Completion, và Certificate
+Domain tự quyết định eligibility.
 
 ---
 

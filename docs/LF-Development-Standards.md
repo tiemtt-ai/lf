@@ -369,6 +369,42 @@ AI không được trực tiếp enroll User.
 
 ---
 
+## Evaluation Evidence Principle
+
+Evaluation Domain chỉ sinh Attempt, Answer, Score, Feedback, Rubric Result,
+Grading Result và Evaluation Evidence.
+
+Assessment không được:
+
+```text
+Complete Course
+
+Issue Certificate
+
+Promote Student
+
+Update Course Progress
+```
+
+Cross-domain consumers có thể đọc Evidence:
+
+```text
+Assessment Evidence
+
+↓
+
+Course / Certificate / AI / Track
+
+↓
+
+Consumer Domain tự quyết định
+```
+
+Không triển khai direct write từ Assessment vào Course Progress, Certificate
+issuance, promotion hoặc learning state.
+
+---
+
 ## Course Template Versioning Standard
 
 ```text

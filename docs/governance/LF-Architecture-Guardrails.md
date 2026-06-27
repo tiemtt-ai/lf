@@ -665,6 +665,44 @@ AI trực tiếp Enroll User
 
 ---
 
+# Evaluation Evidence Principle
+
+Evaluation Domain chỉ sinh:
+
+```text
+Attempt
+
+Answer
+
+Score
+
+Feedback
+
+Rubric Result
+
+Grading Result
+
+Evaluation Evidence
+```
+
+Các Domain khác có thể đọc Evidence, nhưng Assessment không được:
+
+```text
+Complete Course
+
+Issue Certificate
+
+Promote Student
+
+Update Course Progress
+```
+
+Assessment chỉ sinh Evidence. Course, Certificate, AI và Track Domain nhận
+Evidence rồi tự quyết định hành vi hoặc business state thuộc trách nhiệm của
+chính mình.
+
+---
+
 # Internationalization Guardrails
 
 ## Supported Languages
