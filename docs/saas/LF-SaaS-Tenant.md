@@ -2,7 +2,7 @@
 
 Version: 1.0
 
-Status: Official Foundation
+Status: Foundation Approved and Frozen
 
 Last Updated: 2026-06
 
@@ -10,362 +10,107 @@ Last Updated: 2026-06
 
 # LF SaaS Tenant Architecture
 
-Tenant Domain là nền tảng Multi-Tenant của LearnForge.
+Tenant Domain là multi-tenant foundation của LearnForge.
 
-Nó cho phép:
-
-* Một codebase
-* Một platform
-* Nhiều khách hàng
-
-cùng sử dụng hệ thống mà vẫn đảm bảo:
-
-* Data Isolation
-* Security
-* Scalability
-
----
-
-# Mission
-
-Quản lý khách hàng sử dụng LearnForge.
-
-Cho phép mỗi khách hàng có:
-
-* người dùng riêng
-* khóa học riêng
-* dữ liệu riêng
-* AI riêng
-* branding riêng
-
-trên cùng một nền tảng.
-
----
-
-# Core Principle
-
-Everything Belongs To A Customer.
-
----
-
-# SaaS Hierarchy
-
-```text id="tenant001"
-LearnForge
-
-↓
-
-Customer (Tenant)
-
-↓
-
-Users
-
-↓
-
-Course Templates + Course Products
-
-↓
-
-Enrollments
-
-↓
-
-Assessments
-
-↓
-
-Media
-
-↓
-
-Tracking
-
-↓
-
-AI
-```
-
----
-
-# What Is A Tenant?
-
-Một Tenant đại diện cho một tổ chức sử dụng LearnForge.
-
-Ví dụ:
-
-```text id="tenant002"
-KAHA
-
-VISANG
-
-ABC School
-
-XYZ Academy
-
-Corporate Training Center
-```
-
----
-
-# Tenant Website Architecture
-
-Mỗi tenant sở hữu một website riêng.
-
-Website Tenant cung cấp ba chế độ trải nghiệm:
+Tenant xác định Customer identity, request tenant context, settings, domain
+mapping, membership, invitation và tenant-level audit trail.
 
 ```text
-Public Mode
-
-Student Mode
-
-Back Office Mode
-```
-
----
-
-# Public Mode
-
-Dành cho Visitor trước khi login.
-
-Đây là website marketing và storefront để giới thiệu, bán khóa học và dịch vụ.
-
-Bao gồm:
-
-```text
-Homepage
-
-Course Catalog
-
-Service Catalog
-
-Teachers
-
-News
-
-Contact
-```
-
----
-
-# Student Mode
-
-Student sử dụng chính Website Tenant sau khi login.
-
-Không chuyển Student sang portal riêng.
-
-Student Mode là Personalized Tenant Website.
-
-Website Tenant hiển thị thêm:
-
-```text
-My Courses
-
-Learning History
-
-AI Tutor
-
-Student Profile
-```
-
----
-
-# Back Office Mode
-
-Customer Admin và Teacher sử dụng khu vực vận hành riêng.
-
-```text
-customer_admin
+One Codebase
 
 ↓
 
-/admin
+One Platform
+
+↓
+
+Many Isolated Customers
 ```
+
+---
+
+# Domain Responsibility
+
+SaaS Tenant sở hữu:
+
+* Customer/Tenant identity.
+* Tenant settings.
+* Domain/subdomain mapping.
+* Customer membership.
+* Tenant invitation.
+* Tenant-level audit trail.
+
+SaaS Tenant không sở hữu:
+
+* Course Progress hoặc Completion.
+* Assessment Result.
+* LiveClass Attendance.
+* Media Processing State.
+* Track behavior state.
+* AI Recommendation.
+* Billing Invoice.
+* Usage metering.
+* Subscription lifecycle.
+
+---
+
+# Source Of Truth
+
+| State | Source Of Truth |
+| --- | --- |
+| Customer identity/lifecycle | `saas_customers` |
+| Request domain mapping | `saas_customer_domains` |
+| Tenant configuration | `saas_customer_settings` |
+| User–Customer membership | `saas_customer_members` |
+| Invitation lifecycle | `saas_customer_invitations` |
+| Tenant audit history | `saas_audit_logs` |
+| User identity/profile/auth credential | User/Auth Domain |
+
+`customer_id` trên mọi business table tham chiếu `saas_customers.id`.
+
+---
+
+# Architecture
 
 ```text
-teacher
+Incoming Host
 
 ↓
 
-/teacher
-```
-
----
-
-# Multi-Tenant Strategy
-
-LearnForge sử dụng:
-
-```text id="tenant003"
-Shared Database
-
-+
-
-Tenant Isolation
-```
-
----
-
-# Why Shared Database
-
-Giúp:
-
-* triển khai nhanh
-* giảm chi phí
-* dễ bảo trì
-* dễ nâng cấp
-
----
-
-# Tenant Isolation
-
-Mọi dữ liệu được phân tách bằng:
-
-```text id="tenant004"
-customer_id
-```
-
----
-
-# Example
-
-```text id="tenant005"
-customer_id = 1
-```
+saas_customer_domains
 
 ↓
 
-KAHA
-
----
-
-```text id="tenant006"
-customer_id = 2
-```
-
-↓
-
-VISANG
-
----
-
-# Database Namespace
-
-```text id="tenant007"
 saas_customers
+
+↓
+
+TenantContext
+
+↓
+
+Authentication
+
+↓
+
+saas_customer_members
+
+↓
+
+Authorization / Role Experience
 ```
 
----
-
-# Core Table
-
-## saas_customers
-
-Là bảng tenant trung tâm.
+Tenant phải được resolve trước authentication.
 
 ---
 
-# Responsibilities
+# Customer Root
 
-Quản lý:
+`saas_customers` là Tenant root identity và lifecycle record.
 
-* tenant
-* domain
-* branding
-* settings
-* status
+Allowed status:
 
----
-
-# Suggested Fields
-
-```text id="tenant008"
-id
-
-name
-
-slug
-
-subdomain
-
-custom_domain
-
-email
-
-phone
-
-theme_key
-
-layout_key
-
-status
-
-metadata
-
-created_at
-
-updated_at
-```
-
----
-
-# Tenant Lifecycle
-
-```text id="tenant009"
-Register
-
-↓
-
-Provision
-
-↓
-
-Active
-
-↓
-
-Suspended
-
-↓
-
-Archived
-```
-
----
-
-# Register
-
-Khách hàng tạo tenant mới.
-
----
-
-# Provision
-
-Khởi tạo dữ liệu mặc định.
-
----
-
-# Active
-
-Tenant hoạt động bình thường.
-
----
-
-# Suspended
-
-Tạm khóa.
-
----
-
-# Archived
-
-Ngừng hoạt động nhưng giữ dữ liệu.
-
----
-
-# Tenant Status
-
-```text id="tenant010"
+```text
 active
 
 inactive
@@ -375,75 +120,50 @@ suspended
 archived
 ```
 
+Root không chứa Billing, Subscription, Usage hoặc learning state.
+
+`subdomain` và `custom_domain` trên root là compatibility/bootstrap fields.
+`saas_customer_domains` là canonical routing registry. Routing không được tạo
+hai Source Of Truth.
+
 ---
 
-# Tenant Resolution
+# Domain Resolution
 
-Tenant phải được xác định trước mọi request.
+Supported domain types:
 
----
+```text
+subdomain
 
-# Flow
+custom_domain
+```
 
-```text id="tenant011"
+Custom domain phải verified trước khi active routing. Chỉ một primary active
+domain được phép trong một Customer scope.
+
+```text
 Request
+
+↓ Host lookup
+
+Verified Active Domain
 
 ↓
 
-ResolveTenant
+Customer
 
 ↓
 
 TenantContext
-
-↓
-
-Application
 ```
 
----
-
-# Resolution Methods
-
-## Subdomain
-
-Ví dụ:
-
-```text id="tenant012"
-kaha.learnforge.vn
-```
-
----
-
-```text id="tenant013"
-visang.learnforge.vn
-```
-
----
-
-## Custom Domain
-
-Ví dụ:
-
-```text id="tenant014"
-academy.com
-```
-
----
-
-```text id="tenant015"
-learn.company.vn
-```
+Domain visibility không thay authorization.
 
 ---
 
 # Tenant Context
 
-TenantContext là nguồn tenant hiện hành.
-
----
-
-# Responsibilities
+TenantContext cung cấp current Customer identity cho request:
 
 ```php
 TenantContext::customer()
@@ -457,281 +177,110 @@ TenantContext::themeKey()
 TenantContext::layoutKey()
 ```
 
----
-
-# Core Rule
-
-Mọi module phải truy cập tenant thông qua:
-
-```php
-TenantContext::customerId()
-```
+Mọi query business data phải dùng current `customer_id`. Không hardcode tenant
+ID và không fallback sang tenant khác khi resolution thất bại.
 
 ---
 
-Không được:
+# Settings
 
-```php
-hardcode customer_id
-```
+`saas_customer_settings` lưu configuration theo group/key.
 
----
+Settings không phải:
 
-# Tenant Ownership Model
+* Course business rule.
+* Billing/Subscription state.
+* Credential vault.
+* Arbitrary schema replacement.
 
-```text id="tenant016"
-Tenant
-
-1
-
-↓
-
-N
-
-Users
-```
+Sensitive value chỉ được lưu khi encryption, access and rotation policy được
+approved. Provider API key/BYOK secret không được lưu như plain setting.
 
 ---
 
-```text id="tenant017"
-Tenant
+# Membership
 
-1
+`saas_customer_members` là Source Of Truth cho quan hệ User–Customer.
 
-↓
+Foundation roles tuân Guardrails:
 
-N
-
-Courses
-```
-
----
-
-```text id="tenant018"
-Tenant
-
-1
-
-↓
-
-N
-
-Assessments
-```
-
----
-
-```text id="tenant019"
-Tenant
-
-1
-
-↓
-
-N
-
-Media
-```
-
----
-
-```text id="tenant020"
-Tenant
-
-1
-
-↓
-
-N
-
-AI Data
-```
-
----
-
-# Branding Architecture
-
-Mỗi tenant có thể có branding riêng.
-
----
-
-# Supported Settings
-
-```text id="tenant021"
-Logo
-
-Theme
-
-Color Scheme
-
-Language
-
-Homepage Layout
-```
-
----
-
-# Example
-
-```text id="tenant022"
-KAHA
-
-Theme: Korean
-
-Language: ko
-```
-
----
-
-# Tenant Configuration
-
-Mỗi tenant có thể có cấu hình riêng.
-
----
-
-# Examples
-
-```text id="tenant023"
-Default Language
-
-Timezone
-
-Currency
-
-Attendance Rules
-
-Replay Rules
-```
-
----
-
-# Metadata Field
-
-Các thiết lập mở rộng được lưu trong:
-
-```text id="tenant024"
-metadata
-```
-
----
-
-# Tenant Provisioning
-
-Khi tenant mới được tạo:
-
----
-
-# Create Tenant
-
-```text id="tenant025"
-saas_customers
-```
-
----
-
-# Create Admin User
-
-```text id="tenant026"
+```text
 customer_admin
-```
-
----
-
-# Create Default Settings
-
-```text id="tenant027"
-theme
-
-language
-
-layout
-```
-
----
-
-# Create Default Roles
-
-```text id="tenant028"
-admin
 
 teacher
 
 student
 ```
 
----
+`staff` không phải official role và không thuộc Foundation. Role mới cần
+Guardrail/ADR approval.
 
-# Customer Self Registration
+Current `users.customer_id` và `users.role` vẫn phục vụ simple tenant-owned User
+model. Membership không được âm thầm phá compatibility. Multi-customer User
+identity policy phải được owner chốt trước implementation.
 
-Future & Current Hybrid
+Protected route phải validate:
 
----
+```text
+Resolved Tenant
 
-# Flow
++
 
-```text id="tenant029"
-Register Customer
+Authenticated User
 
-↓
++
 
-Create Tenant
+Active Membership
 
-↓
++
 
-Create Admin
-
-↓
-
-Activate Tenant
+Allowed Role
 ```
 
 ---
 
-# Tenant Security
+# Invitation
 
-## Rule 1
+Invitation lưu token hash, không lưu raw token.
 
-Tenant Isolation bắt buộc.
+```text
+Pending Invitation
 
----
+↓ validate tenant/email/token/expiry
 
-## Rule 2
+Accept
 
-Không cho phép truy cập dữ liệu tenant khác.
+↓
 
----
-
-## Rule 3
-
-Mọi truy vấn nghiệp vụ phải lọc:
-
-```text id="tenant030"
-customer_id
+Create or Activate Membership
 ```
 
----
-
-## Rule 4
-
-Mọi AI Request phải tenant-scoped.
+Invitation không tạo Membership trước acceptance. Expired/revoked invitation
+không được accept.
 
 ---
 
-## Rule 5
+# Audit Trail
 
-Mọi Media phải tenant-scoped.
+`saas_audit_logs` là append-only tenant-level audit trail.
+
+Audit Log:
+
+* Không phải business state.
+* Không thay event/evidence của Course, Assessment, Track hoặc Billing.
+* Không update/delete ngoài approved retention/privacy policy.
+* Có thể dùng `customer_id NULL` chỉ cho documented system/global event.
+
+IP Address và User Agent có thể anonymize, hash hoặc purge theo privacy policy.
 
 ---
 
-# Tenant And Authentication
+# Relationship With Auth And User
 
-Authentication luôn phụ thuộc Tenant.
+User Domain sở hữu identity/profile/status. Auth sở hữu authentication flow.
+Tenant sở hữu Customer identity và membership.
 
----
-
-# Flow
-
-```text id="tenant031"
+```text
 Resolve Tenant
 
 ↓
@@ -740,285 +289,101 @@ Authenticate User
 
 ↓
 
-Validate Tenant Ownership
+Validate Active Membership
 
 ↓
 
-Role-Based Experience
+Validate Official Role
 ```
 
+Single `/login` và official redirects/roles không thay đổi.
+
 ---
 
-# Tenant And User
+# Relationship With Core Domains
 
-Relationship:
+Course, Assessment, LiveClass, Media, Track và AI records giữ `customer_id`
+ownership. Tenant Domain cung cấp boundary/context nhưng không quyết định
+learning, operational, evaluation, media hoặc AI state.
 
-```text id="tenant032"
-Tenant
+---
 
-1
+# Relationship With Billing And Usage
 
-↓
+Billing, Usage và Subscription là future/separate SaaS Domains.
 
-N
+Tenant có thể cung cấp Customer identity/context cho các Domain đó, nhưng
+không lưu invoice, metering, entitlement hoặc charge state.
 
-Users
+---
+
+# Database Namespace
+
+```text
+saas_*
 ```
 
----
+Foundation tables:
 
-# Tenant And Course Architecture
-
-Relationship:
-
-```text id="tenant033"
-Tenant
-
-1
-
-↓
-
-N
-
-Course Templates + Course Products
+```text
+saas_customers
+saas_customer_settings
+saas_customer_domains
+saas_customer_members
+saas_customer_invitations
+saas_audit_logs
 ```
 
----
-
-# Tenant And Assessment
-
-Relationship:
-
-```text id="tenant034"
-Tenant
-
-1
-
-↓
-
-N
-
-Assessments
-```
+Table documentation:
+[docs/database/saas](../database/saas/).
 
 ---
 
-# Tenant And Media
+# Principles Applied
 
-Relationship:
+Canonical reference:
+[LF-Architecture-Principles](../governance/LF-Architecture-Principles.md).
 
-```text id="tenant035"
-Tenant
-
-1
-
-↓
-
-N
-
-Media Assets
-```
+* Domain Responsibility Principle.
+* Source Of Truth Principle.
+* Tenant Isolation Principle.
+* Evidence Principle.
+* Append Only Principle.
+* Backward Compatibility Principle.
+* Simplicity Principle.
 
 ---
 
-# Tenant And AI
+# Architecture Decision
 
-Relationship:
+[ADR-0007 — SaaS Tenant Foundation](../adr/ADR-0007-SaaS-Tenant-Foundation.md)
+approves and freezes this Foundation at Version 1.0.
 
-```text id="tenant036"
-Tenant
-
-1
-
-↓
-
-N
-
-Knowledge Sources
-
-AI Conversations
-
-AI Insights
-```
+Changes to Domain Boundary, Tenant Boundary, ownership, Source Of Truth,
+official roles or Foundation tables require an approved ADR Amendment or a new
+ADR.
 
 ---
 
-# BYOC Architecture
-
-## Purpose
-
-Cho phép khách hàng sử dụng cloud riêng.
-
----
-
-# Examples
-
-```text id="tenant037"
-Dedicated AWS
-
-Dedicated S3
-
-Dedicated CloudFront
-```
-
----
-
-# Ownership Model
-
-```text id="tenant038"
-Customer Owns Infrastructure
-```
-
----
-
-```text id="tenant039"
-LearnForge Owns Platform Intelligence
-```
-
----
-
-# BYOK Architecture
-
-## Purpose
-
-Cho phép khách hàng sử dụng AI Key riêng.
-
----
-
-# Examples
-
-```text id="tenant040"
-OpenAI
-
-Claude
-
-Gemini
-
-Azure OpenAI
-```
-
----
-
-# Configuration
-
-Có thể cấu hình ở cấp tenant:
-
-```text id="tenant041"
-provider
-
-model
-
-api_key
-```
-
----
-
-# Future Enterprise Features
-
-```text id="tenant042"
-Dedicated Database
-
-Dedicated Redis
-
-Dedicated Search
-
-Private Networking
-
-SSO
-
-SAML
-```
-
----
-
-# Design Rules
-
-## Rule 1
-
-customer_id là khóa phân tách dữ liệu.
-
----
-
-## Rule 2
-
-Tenant phải được resolve trước authentication.
-
----
-
-## Rule 3
-
-Mọi module đều phải tenant-aware.
-
----
-
-## Rule 4
-
-Không được có dữ liệu nghiệp vụ không thuộc tenant.
-
----
-
-## Rule 5
-
-TenantContext là nguồn dữ liệu tenant duy nhất.
-
----
-
-# Current Scope
-
-Version 1
-
-```text id="tenant043"
-Tenant Resolution
-
-Tenant Context
-
-Subdomain Support
-
-Custom Domain Support
-
-Branding
-
-Settings
-```
-
----
-
-# Planned Scope
-
-```text id="tenant044"
-Subscription
-
-Quota
-
-Billing
-
-BYOC
-
-BYOK
-
-Enterprise Features
-```
+# Future Extensions
+
+* Single-customer versus multi-customer User identity policy.
+* Domain primary uniqueness enforcement and legacy field transition.
+* Custom-domain verification, SSL and takeover protection.
+* Settings schema, encryption and secret-management boundary.
+* Invitation concurrency, re-invite and email-normalization policy.
+* Audit retention, privacy, legal hold and global-event policy.
+* Tenant provisioning/deprovisioning and last-admin protection.
 
 ---
 
 # Final Statement
 
-Tenant Domain là nền móng của toàn bộ LearnForge SaaS.
+SaaS Tenant là owner của Customer identity và tenant boundary, không phải owner
+của learning hoặc commercial state ngoài Tenant scope.
 
-Nó đảm bảo rằng:
+```text
+Foundation Approved and Frozen
 
-* mỗi khách hàng có không gian riêng
-* dữ liệu được cô lập an toàn
-* nền tảng có thể mở rộng đến hàng nghìn tenant
-
-trong khi vẫn duy trì:
-
-* một codebase
-* một platform
-* một hệ thống vận hành thống nhất
-
-Đây là nền tảng để LearnForge phát triển thành AI-Native Multi-Tenant Learning Platform.
-
----
-
-End of LF-SaaS-Tenant
+Version 1.0
+```

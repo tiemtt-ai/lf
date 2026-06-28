@@ -23,6 +23,39 @@ cho phép source Domain cập nhật trực tiếp business state của target D
 
 ---
 
+## 0. Tenant Resolution (Foundation Approved and Frozen — Version 1.0)
+
+```text
+Request Host
+
+↓
+
+Customer Domain Registry
+
+↓
+
+Customer / Tenant Context
+
+↓
+
+Authentication
+
+↓
+
+Active Customer Membership
+
+↓
+
+Authorized Experience
+```
+
+Tenant Domain owns Customer identity, domain mapping, settings, membership,
+invitations and tenant audit trail. User/Auth owns identity and authentication.
+Tenant context scopes every downstream Domain but does not own their business
+state.
+
+---
+
 ## 1. Course Authoring
 
 ```text

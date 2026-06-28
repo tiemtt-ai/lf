@@ -67,6 +67,7 @@ tenant isolation và contract ổn định trước khi tầng phụ thuộc đ�
 | Media | [ADR-0004](../adr/ADR-0004-Media-Foundation.md) | 1.0 | Completed — Foundation Approved |
 | Track | [ADR-0005](../adr/ADR-0005-Track-Foundation.md) | 1.0 | Completed — Foundation Approved |
 | AI | [ADR-0006](../adr/ADR-0006-AI-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
+| Tenant | [ADR-0007](../adr/ADR-0007-SaaS-Tenant-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
 
 Các Foundation đã hoàn thành là architecture baseline. Thay đổi làm ảnh hưởng
 Domain boundary, ownership hoặc Source of Truth phải đi qua ADR mới.
@@ -106,6 +107,10 @@ Certificate
 AI Foundation đã completed theo ADR-0006 và không thay đổi ownership của
 Certificate hoặc source Domains.
 
+Tenant Foundation đã completed theo ADR-0007 và cung cấp Customer identity,
+TenantContext cùng isolation boundary cho mọi Domain mà không sở hữu business
+state của các Domain đó.
+
 ---
 
 ## 4. SaaS Expansion
@@ -114,7 +119,7 @@ Status: Planned.
 
 | Domain | Architecture Focus |
 | --- | --- |
-| Tenant | Tenant identity, context, configuration và isolation boundary |
+| Tenant | Foundation Approved and Frozen — Version 1.0; identity, domain, membership and isolation boundary |
 | Billing | Invoice calculation, charge và billing outcome |
 | Usage | Tenant resource-consumption measurement |
 | Subscription | Plan entitlement, quota, renewal và subscription lifecycle |

@@ -50,6 +50,7 @@ Số ADR không được tái sử dụng hoặc đổi để lấp khoảng tr�
 | [ADR-0004](ADR-0004-Media-Foundation.md) | Media Foundation | Approved |
 | [ADR-0005](ADR-0005-Track-Foundation.md) | Track Foundation | Accepted |
 | [ADR-0006](ADR-0006-AI-Foundation.md) | AI Foundation | Accepted |
+| [ADR-0007](ADR-0007-SaaS-Tenant-Foundation.md) | SaaS Tenant Foundation | Accepted |
 
 ---
 

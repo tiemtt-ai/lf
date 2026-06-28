@@ -118,6 +118,12 @@ ResolveTenant
 ↓
 
 ```text
+saas_customer_domains
+```
+
+↓
+
+```text
 saas_customers
 ```
 

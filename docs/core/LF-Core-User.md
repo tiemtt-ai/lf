@@ -464,6 +464,13 @@ User không sở hữu tenant.
 
 Tenant sở hữu user.
 
+User Domain sở hữu identity/profile/status. SaaS Tenant Domain sở hữu
+User–Customer membership tại `saas_customer_members`.
+
+Current `users.customer_id` và `users.role` vẫn là compatibility contract cho
+simple tenant-owned identity. Multi-customer User policy chưa được Foundation
+approve và không được suy diễn chỉ từ membership table.
+
 ---
 
 # Relationship Model

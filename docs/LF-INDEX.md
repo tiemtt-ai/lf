@@ -189,6 +189,7 @@ docs/adr/
 | [ADR-0004](adr/ADR-0004-Media-Foundation.md) | Media Foundation decision |
 | [ADR-0005](adr/ADR-0005-Track-Foundation.md) | Track Foundation decision |
 | [ADR-0006](adr/ADR-0006-AI-Foundation.md) | AI Foundation decision |
+| [ADR-0007](adr/ADR-0007-SaaS-Tenant-Foundation.md) | SaaS Tenant Foundation decision |
 
 ---
 

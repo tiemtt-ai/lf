@@ -22,7 +22,8 @@ database/
 ├── assessment/
 ├── media/
 ├── track/
-└── ai/
+├── ai/
+└── saas/
 ```
 
 Mỗi Domain folder mô tả tables thuộc ownership của Domain đó. Việc đặt file

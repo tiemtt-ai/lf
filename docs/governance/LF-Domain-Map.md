@@ -218,12 +218,19 @@ Processing State, Certificate, Payment hoặc Track behavior state.
 
 ### Tenant
 
-**Status:** Foundation documented; ADR pending.
+**Status:** Foundation Approved and Frozen — Version 1.0.
 
-**Responsibility:** Customer identity, tenant context, isolation and tenant
-configuration.
+**Responsibility:** Customer identity, tenant context/isolation, settings,
+domain mapping, membership, invitation and tenant audit trail.
 
-**Source Of Truth:** Tenant/Customer ownership and tenant configuration.
+**Source Of Truth:** Customer identity/lifecycle, domain routing registry,
+tenant settings, User–Customer membership and invitation state.
+
+**Does Not Own:** Learning state, Assessment Result, Billing Invoice, Usage
+metering, AI Recommendation hoặc Media Processing State.
+
+**ADR:** [ADR-0007 — SaaS Tenant Foundation](../adr/ADR-0007-SaaS-Tenant-Foundation.md)
+— Accepted.
 
 ### Billing
 
@@ -350,7 +357,7 @@ Read models, evidence and caches do not replace these sources of truth.
 | Certificate | Planned | Foundation Planned |
 | Track | ADR-0005 | Approved |
 | AI | ADR-0006 | Approved |
-| Tenant | Planned | Foundation documented |
+| Tenant | ADR-0007 | Approved |
 | Usage | Planned | Foundation documented |
 | Billing | Planned | Foundation documented |
 | Subscription | Planned | Planned |
@@ -367,11 +374,11 @@ Read models, evidence and caches do not replace these sources of truth.
 * Media
 * Track
 * AI
+* Tenant
 * Architecture Principles
 
 ### Foundation Documented, ADR Pending
 
-* Tenant
 * Usage
 * Billing
 

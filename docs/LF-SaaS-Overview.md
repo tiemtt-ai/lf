@@ -282,6 +282,9 @@ Quản lý khách hàng sử dụng nền tảng.
 * Branding
 * Theme
 * Settings
+* Membership
+* Invitation
+* Tenant Audit
 
 ---
 
@@ -289,6 +292,16 @@ Quản lý khách hàng sử dụng nền tảng.
 
 ```text
 saas_customers
+
+saas_customer_settings
+
+saas_customer_domains
+
+saas_customer_members
+
+saas_customer_invitations
+
+saas_audit_logs
 ```
 
 ---
