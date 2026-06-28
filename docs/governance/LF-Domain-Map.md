@@ -277,14 +277,25 @@ Course Progress, Track Event, AI Model Run hoặc source Domain state.
 
 ### Billing
 
-**Status:** Foundation documented; ADR pending.
+**Status:** Foundation Approved and Frozen — Version 1.0.
 
-**Responsibility:** Pricing, amount-due calculation, Invoice, Payment and
-provider reconciliation.
+**Responsibility:** Invoice, Invoice Item, Payment, Payment Method and Credit
+Note/Refund.
 
-**Source Of Truth:** Billing calculation, Invoice and Payment state.
+**Source Of Truth:** Invoice obligation/lifecycle, Payment transaction/state
+and Credit Note/Refund document.
 
-**Consumes:** Commercial Subscription/Entitlement context and Usage.
+**Consumes:** Customer context, Commercial Subscription/Entitlement context and
+approved Usage Summary.
+
+**Produces:** Official Invoice, payment settlement state, Credit Note/Refund
+and Billing Event/Request when another Domain must decide an effect.
+
+**Does Not Own:** Customer, Plan, Subscription, Entitlement, Usage measurement,
+Course, Assessment, Media, Track hoặc AI state.
+
+**ADR:** [ADR-0010 — SaaS Billing Foundation](../adr/ADR-0010-SaaS-Billing-Foundation.md)
+— Accepted.
 
 ---
 
@@ -365,7 +376,7 @@ directly.
 | Certificate eligibility/issuance | Certificate |
 | Usage measurement | Usage |
 | Plan/Subscription/Entitlement | Commercial |
-| Invoice/Billing state | Billing |
+| Invoice/Payment/Credit Note state | Billing |
 
 Read models, evidence and caches do not replace these sources of truth.
 
@@ -385,7 +396,7 @@ Read models, evidence and caches do not replace these sources of truth.
 | Tenant | ADR-0007 | Approved |
 | Commercial | ADR-0008 | Approved |
 | Usage | ADR-0009 | Approved |
-| Billing | Planned | Foundation documented |
+| Billing | ADR-0010 | Approved |
 
 ---
 
@@ -402,11 +413,12 @@ Read models, evidence and caches do not replace these sources of truth.
 * Tenant
 * Commercial
 * Usage
+* Billing
 * Architecture Principles
 
 ### Foundation Documented, ADR Pending
 
-* Billing
+None.
 
 ### Planned
 

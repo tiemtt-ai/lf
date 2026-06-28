@@ -70,6 +70,7 @@ tenant isolation và contract ổn định trước khi tầng phụ thuộc đ�
 | Tenant | [ADR-0007](../adr/ADR-0007-SaaS-Tenant-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
 | Commercial | [ADR-0008](../adr/ADR-0008-SaaS-Commercial-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
 | Usage | [ADR-0009](../adr/ADR-0009-SaaS-Usage-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
+| Billing | [ADR-0010](../adr/ADR-0010-SaaS-Billing-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
 
 Các Foundation đã hoàn thành là architecture baseline. Thay đổi làm ảnh hưởng
 Domain boundary, ownership hoặc Source of Truth phải đi qua ADR mới.
@@ -121,6 +122,10 @@ SaaS Usage Foundation đã completed theo ADR-0009 và cung cấp append-only
 measurement cùng rebuildable projections mà không sở hữu Commercial, Billing,
 Track hoặc AI state.
 
+SaaS Billing Foundation đã completed theo ADR-0010 và cung cấp immutable
+Financial Evidence cho Invoice, Payment và Credit Note mà không sở hữu
+Commercial hoặc Usage state.
+
 ---
 
 ## 4. SaaS Expansion
@@ -131,7 +136,7 @@ Status: Planned.
 | --- | --- |
 | Tenant | Foundation Approved and Frozen — Version 1.0; identity, domain, membership and isolation boundary |
 | Commercial | Foundation Approved and Frozen — Version 1.0; Plan, Subscription and Entitlement; “Can Use?” |
-| Billing | Invoice calculation, charge và billing outcome |
+| Billing | Foundation Approved and Frozen — Version 1.0; Invoice, Payment and Credit Note/Refund; “Pay” |
 | Usage | Foundation Approved and Frozen — Version 1.0; Usage Event, Counter and Summary; “Used.” |
 | Marketplace | Offering discovery, distribution và ecosystem ownership boundary |
 
@@ -249,7 +254,7 @@ Tenant Context, Entitlement and Usage for All Domains
 ### Milestone 1 — Foundation
 
 Status: Completed for Course, LiveClass, Assessment, Media, Track, AI, Tenant,
-SaaS Commercial and SaaS Usage.
+SaaS Commercial, SaaS Usage and SaaS Billing.
 
 Outcome:
 

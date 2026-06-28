@@ -445,7 +445,7 @@ Billing
 
 # Purpose
 
-Quy đổi việc sử dụng nền tảng thành chi phí.
+Phát hành nghĩa vụ thanh toán, ghi nhận settlement và điều chỉnh/refund.
 
 ---
 
@@ -464,16 +464,23 @@ Có thể bao gồm:
 # Example
 
 ```text
-saas_billing_summaries
-
 saas_invoices
+
+saas_invoice_items
+
+saas_payments
+
+saas_payment_methods
+
+saas_credit_notes
 ```
 
 ---
 
-# Entitlement System
+# Commercial Entitlement Context
 
-Entitlement xác định quyền và giới hạn được cấp cho Customer.
+Commercial Entitlement xác định quyền và giới hạn được cấp cho Customer.
+Billing chỉ đọc context này và không update Entitlement.
 
 ---
 
@@ -717,6 +724,8 @@ Student Experience
 SaaS Commercial Foundation v1.0
 
 SaaS Usage Foundation v1.0
+
+SaaS Billing Foundation v1.0
 ```
 
 ---
@@ -724,8 +733,6 @@ SaaS Usage Foundation v1.0
 # Planned
 
 ```text
-Billing Engine
-
 Enterprise Features
 ```
 

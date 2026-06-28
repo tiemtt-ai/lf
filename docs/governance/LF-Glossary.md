@@ -134,6 +134,19 @@ tạo thêm Domain ownership; ownership luôn phải phù hợp với ADR và
 
 ---
 
+# SaaS Billing Terms
+
+| Term | Definition | Owner Domain | Source of Truth | Related ADR |
+| --- | --- | --- | --- | --- |
+| Invoice | Official tenant-scoped document representing a Customer payment obligation; it does not decide Entitlement. | Billing | `saas_invoices` | [ADR-0010](../adr/ADR-0010-SaaS-Billing-Foundation.md) |
+| Invoice Item | Immutable issued-Invoice line snapshot of description, quantity and price; source references do not make it Usage or Commercial state. | Billing | `saas_invoice_items` | [ADR-0010](../adr/ADR-0010-SaaS-Billing-Foundation.md) |
+| Payment | Tenant-scoped transaction and provider-reconciliation state applied toward an Invoice. | Billing | `saas_payments` | [ADR-0010](../adr/ADR-0010-SaaS-Billing-Foundation.md) |
+| Payment Method | Safe provider reference for a Customer payment instrument; it never stores full payment credentials. | Billing | `saas_payment_methods` | [ADR-0010](../adr/ADR-0010-SaaS-Billing-Foundation.md) |
+| Credit Note | Independent official document adjusting or refunding an Invoice without rewriting the original Invoice. | Billing | `saas_credit_notes` | [ADR-0010](../adr/ADR-0010-SaaS-Billing-Foundation.md) |
+| Refund | Billing outcome represented through a Credit Note and optional Payment reference; it is not Usage correction or Entitlement state. | Billing | Credit Note and Payment reconciliation | [ADR-0010](../adr/ADR-0010-SaaS-Billing-Foundation.md) |
+
+---
+
 # Future Terms
 
 Các thuật ngữ trong phần này là định hướng. Ownership hoặc Source of Truth ghi

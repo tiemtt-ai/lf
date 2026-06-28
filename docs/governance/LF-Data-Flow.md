@@ -135,6 +135,52 @@ are not Usage Events.
 
 ---
 
+## 0.3. SaaS Billing (Foundation Approved and Frozen — Version 1.0)
+
+```text
+Tenant Customer
+
++
+
+Commercial Subscription / Entitlement
+
++
+
+Usage Summary
+
+↓ Billing calculation
+
+Draft Invoice + Items
+
+↓ issue
+
+Official Invoice
+
+↓ settle
+
+Payment
+
+↓ adjust/refund
+
+Credit Note
+```
+
+Billing owns “Pay”: Invoice, Payment and Credit Note/Refund. Billing reads
+Tenant, Commercial and Usage but does not update their Source Of Truth.
+
+```text
+Invoice ≠ Usage
+
+Payment ≠ Entitlement
+
+Refund ≠ Usage Correction
+```
+
+When Billing outcome may affect access, Billing emits an Event/Request and
+Commercial decides Subscription/Entitlement state.
+
+---
+
 ## 1. Course Authoring
 
 ```text
