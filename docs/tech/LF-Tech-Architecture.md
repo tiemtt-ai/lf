@@ -932,6 +932,8 @@ ai_embeddings
 ai_conversations
 
 ai_messages
+
+ai_assistant_sessions
 ```
 
 ---
@@ -939,9 +941,21 @@ ai_messages
 ## Insight Layer
 
 ```text
-ai_learning_insights
+ai_recommendations
 
-ai_teacher_analytics
+ai_insights
+```
+
+---
+
+## Operations And Governance
+
+```text
+ai_model_runs
+
+ai_feedback
+
+ai_prompt_templates
 ```
 
 ---

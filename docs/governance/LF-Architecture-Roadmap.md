@@ -74,13 +74,14 @@ Domain boundary, ownership hoặc Source of Truth phải đi qua ADR mới.
 
 ## 3. Current Phase
 
-### Certificate Foundation
+### Certificate Foundation / AI Foundation Design
 
 Current focus:
 
 | Domain | Status | Architecture Role | Primary Dependency |
 | --- | --- | --- | --- |
 | Certificate | Foundation Planned | Quyết định eligibility, issuance và verification | Course Completion, Assessment Evidence và Track Summary khi policy yêu cầu |
+| AI | Foundation In Design | Knowledge, Assistant, Recommendation, Insight and Decision Support | Track features, Course context, Assessment evidence and Media knowledge |
 
 Track Foundation đã completed và cung cấp behavior summaries theo ADR-0005.
 Certificate vẫn tự quyết định eligibility/issuance; Course, Assessment và Track
@@ -102,8 +103,8 @@ Track Summary when required
 Certificate
 ```
 
-AI Foundation là phase kế tiếp sau Certificate và có thể tiêu thụ Track
-signals, Course context, Assessment Evidence và Media transcript.
+AI Foundation design diễn ra trong current phase nhưng không thay đổi ownership
+của Certificate hoặc source Domains.
 
 ---
 

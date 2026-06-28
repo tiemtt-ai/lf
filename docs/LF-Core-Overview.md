@@ -357,10 +357,10 @@ AI chịu trách nhiệm:
 
 * Knowledge Base
 * AI Tutor
-* AI Analytics
-* AI Grading
+* AI Recommendation
+* AI Grading Suggestion
 * AI Insights
-* Personalization
+* Prompt/Model Run Governance
 
 ---
 
@@ -375,9 +375,11 @@ ai_conversations
 
 ai_messages
 
-ai_learning_insights
+ai_recommendations
 
-ai_teacher_analytics
+ai_insights
+
+ai_model_runs
 ```
 
 ---

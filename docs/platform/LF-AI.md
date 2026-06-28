@@ -2,7 +2,7 @@
 
 Version: 1.0
 
-Status: Strategic Architecture
+Status: Foundation In Design
 
 Last Updated: 2026-06
 
@@ -10,1072 +10,427 @@ Last Updated: 2026-06
 
 # LF AI Architecture
 
-AI Domain là tầng Intelligence Layer của LearnForge.
+AI là Learning Intelligence & Decision Support Domain của LearnForge.
 
-Nếu:
-
-```text
-core_
-```
-
-quản lý việc học
-
-và
-
-```text
-track_
-```
-
-quản lý hành vi học tập
-
-thì
-
-```text
-ai_
-```
-
-chịu trách nhiệm:
-
-Hiểu
-
-↓
-
-Phân tích
-
-↓
-
-Suy luận
-
-↓
-
-Cá nhân hóa
-
-↓
-
-Tối ưu việc học
+AI là Consumer Domain. AI đọc dữ liệu được phép từ các Owner Domain và tạo
+conversation, recommendation, insight hoặc authoring suggestion. AI không sở
+hữu và không cập nhật business state của Domain tiêu thụ output.
 
 ---
 
 # Mission
 
-Biến dữ liệu học tập thành trí tuệ học tập.
-
-AI không tồn tại để trả lời câu hỏi.
-
-AI tồn tại để giúp người học học tốt hơn.
-
----
-
-# LearnForge AI Philosophy
-
-LearnForge không xây dựng:
+Biến approved learning context, behavior và evidence thành hỗ trợ có thể audit
+cho learner, teacher và administrator.
 
 ```text
-ChatGPT inside LMS
-```
-
----
-
-LearnForge xây dựng:
-
-```text
-Learning Intelligence Platform
-```
-
----
-
-# AI Core Objectives
-
-AI phải giúp:
-
-## Student
-
-* học tốt hơn
-* học nhanh hơn
-* học đúng trọng tâm hơn
-
----
-
-## Teacher
-
-* tạo nội dung nhanh hơn
-* đánh giá chính xác hơn
-* hiểu học viên rõ hơn
-
----
-
-## Customer
-
-* hiểu hiệu quả đào tạo
-* tối ưu vận hành
-* tăng chất lượng đào tạo
-
----
-
-# AI Hierarchy
-
-```text
-Learning Data
+Approved Domain Data
 
 ↓
 
-Knowledge
+AI Knowledge + Track Features
 
 ↓
 
-Intelligence
+Model Run
 
 ↓
 
-Insight
+Conversation / Recommendation / Insight / Suggestion
 
 ↓
 
-Personalization
+Human or Owner Domain Decision
+```
+
+---
+
+# AI Roles
+
+* AI Tutor.
+* AI Teaching Assistant.
+* AI Recommendation.
+* AI Insight Engine.
+* AI Dashboard Explanation.
+* AI Authoring Assistant.
+
+Mỗi role phải có prompt scope, allowed context, allowed output và human/Domain
+decision boundary rõ ràng.
+
+---
+
+# Domain Responsibility
+
+AI sở hữu:
+
+* AI Knowledge registrations, chunks và embedding references.
+* AI Conversations, Messages và Assistant Sessions.
+* AI Recommendations và Insights.
+* Model Run audit/provenance.
+* AI Feedback.
+* Prompt Templates và prompt lifecycle.
+
+AI không sở hữu hoặc quyết định:
+
+* Course Progress hoặc Completion.
+* Assessment final Grade/Result.
+* LiveClass Attendance.
+* Media Processing State.
+* Certificate Eligibility hoặc issuance.
+* Payment approval.
+* Enrollment hoặc access entitlement.
+* Track Event hoặc Track Feature Data.
+
+---
+
+# Consumer Domain Principle
+
+AI chỉ tiêu thụ data contract được Owner Domain cho phép.
+
+```text
+Source Domain
+
+↓ approved context / evidence / read model
+
+AI
+
+↓ recommendation / insight / request
+
+Owner Domain or Human
 
 ↓
 
-Better Learning Outcomes
+Final Decision
 ```
+
+AI không trực tiếp complete Course, grade cuối cùng, issue Certificate,
+approve Payment, update Progress hoặc update Attendance.
 
 ---
 
-# AI Architecture Layers
+# Architecture Layers
 
-LearnForge AI gồm 5 tầng.
+## Knowledge
 
 ```text
-Knowledge Layer
+Knowledge Source
+
+↓ extract/chunk
+
+Knowledge Chunk
+
+↓ embed
+
+Embedding Reference
+
+↓ retrieve
+
+RAG Context
+```
+
+Source Domain vẫn sở hữu nội dung gốc. Chunk và embedding là derived data, có
+thể rebuild khi source fingerprint hoặc processing contract thay đổi.
+
+## Conversation
+
+```text
+Conversation
 
 ↓
 
-Conversation Layer
+Assistant Session
 
 ↓
 
-Analytics Layer
+Messages
 
 ↓
 
-Automation Layer
+Model Runs
+```
+
+Conversation state thuộc AI, nhưng message output không phải final business
+decision.
+
+## Intelligence
+
+```text
+Track Features + Course Context + Assessment Evidence + Media Knowledge
 
 ↓
 
-Personalization Layer
-```
-
----
-
-# Layer 1
-
-Knowledge Layer
-
----
-
-# Purpose
-
-Biến nội dung học tập thành dữ liệu AI có thể sử dụng.
-
----
-
-# Sources
-
-```text
-Course Template
-
-Template Lesson
-
-Template Activity
-
-Document
-
-Video
-
-Audio
-
-Transcript
-
-Assessment
-```
-
----
-
-# Database Namespace
-
-```text
-ai_knowledge_*
-```
-
----
-
-# Core Tables
-
-```text
-ai_knowledge_sources
-
-ai_knowledge_chunks
-
-ai_embeddings
-```
-
----
-
-# Knowledge Pipeline
-
-```text
-Content
+Recommendation / Insight
 
 ↓
 
-Extract
-
-↓
-
-Chunk
-
-↓
-
-Embedding
-
-↓
-
-Knowledge Base
+User or Owner Domain Decision
 ```
 
----
+AI sở hữu Recommendation/Insight record và provenance, không sở hữu action
+được đề xuất.
 
-# Example
+## Operations
 
-```text
-PDF
+Model Run lưu provider/model, tokens, latency, status, prompt version và cost
+estimate để audit. Model Run không phải Billing Source of Truth; Usage/Billing
+chỉ tiêu thụ approved measurements qua contract riêng.
 
-↓
+## Governance
 
-Text
-
-↓
-
-Chunks
-
-↓
-
-Vector Embeddings
-
-↓
-
-AI Search
-```
+Prompt Template có lifecycle, version và approval boundary. Published prompt
+immutable; thay đổi tạo version mới. Prompt không chứa credentials hoặc tenant
+secret.
 
 ---
 
-# Layer 2
+# Knowledge Sources
 
-Conversation Layer
+Approved source examples:
 
----
+* Course published Version/Version Activity.
+* Assessment authoring or immutable snapshot theo use case được phép.
+* Media File/Transcript.
+* Track Summary/AI-ready Feature.
+* LiveClass transcript or operational evidence reference.
 
-# Purpose
+Generic source reference không miễn tenant validation, source existence,
+authorization hoặc retention policy.
 
-Cho phép AI tương tác với người dùng.
-
----
-
-# Core Tables
-
-```text
-ai_conversations
-
-ai_messages
-```
+AI Knowledge không thay thế source content. Khi source thay đổi, pipeline đánh
+dấu derived chunks/embeddings stale và rebuild theo policy.
 
 ---
 
-# Supported Roles
+# RAG Principle
 
-```text
-Student
-
-Teacher
-
-Customer Admin
-```
-
----
-
-# Conversation Types
-
-```text
-AI Tutor
-
-AI Teacher Assistant
-
-AI Course Assistant
-
-AI Support Assistant
-```
-
----
-
-# Context-Aware AI
-
-AI luôn phải hiểu:
-
-```text
-customer_id
-
-user_id
-
-product_id
-
-template_id
-
-template_lesson_id
-
-template_activity_id
-```
-
----
-
-# Example
-
-Student hỏi:
-
-```text
-Thì hiện tại tiếng Hàn dùng như thế nào?
-```
-
-AI phải ưu tiên:
-
-* khóa học đang học
-* bài học hiện tại
-* transcript liên quan
-
-thay vì trả lời chung chung.
-
----
-
-# Layer 3
-
-Analytics Layer
-
----
-
-# Purpose
-
-Phân tích dữ liệu học tập.
-
----
-
-# Inputs
-
-```text
-Track Data
-
-Assessment Data
-
-Attendance Data
-
-Replay Data
-```
-
----
-
-# Outputs
-
-```text
-Learning Insights
-
-Teacher Insights
-
-Risk Detection
-
-Recommendations
-```
-
----
-
-# Core Tables
-
-```text
-ai_learning_insights
-
-ai_teacher_analytics
-
-ai_risk_predictions
-```
-
----
-
-# Student Insights
-
-Ví dụ:
-
-```text
-Điểm mạnh:
-Listening
-
-Điểm yếu:
-Writing
-```
-
----
-
-# Teacher Insights
-
-Ví dụ:
-
-```text
-Attendance Rate
-
-78%
-
-Replay Rate
-
-45%
-
-Risk Students
-
-12
-```
-
----
-
-# Layer 4
-
-Automation Layer
-
----
-
-# Purpose
-
-Giảm công việc thủ công.
-
----
-
-# Examples
-
-```text
-AI Question Generation
-
-AI Quiz Creation
-
-AI Rubric Suggestion
-
-AI Grading Suggestion
-
-AI Course Summary
-```
-
----
-
-# Assessment Automation
-
-Ví dụ:
-
-```text
-PDF
-
-↓
-
-AI Extraction
-
-↓
-
-Question Bank
-```
-
----
-
-# AI Grading
-
-Ví dụ:
-
-```text
-Essay
-
-↓
-
-AI Feedback
-
-↓
-
-Teacher Review
-
-↓
-
-Final Grade
-```
-
----
-
-# Principle
-
-AI hỗ trợ.
-
-Giáo viên quyết định cuối cùng.
-
----
-
-# Layer 5
-
-Personalization Layer
-
----
-
-# Purpose
-
-Cá nhân hóa trải nghiệm học tập.
-
----
-
-# Inputs
-
-```text
-Track Data
-
-Assessment Data
-
-Course Data
-
-Behavior Data
-```
-
----
-
-# Outputs
-
-```text
-Lesson Recommendation
-
-Review Recommendation
-
-Practice Recommendation
-
-Learning Path Recommendation
-```
-
----
-
-# Example
-
-```text
-Weak Writing
-
-↓
-
-Recommend Writing Exercises
-```
-
----
-
-# AI Tutor
-
-## Purpose
-
-Gia sư AI cá nhân.
-
----
-
-# Responsibilities
-
-```text
-Answer Questions
-
-Explain Concepts
-
-Generate Examples
-
-Suggest Practice
-```
-
----
-
-# AI Tutor Context
-
-AI Tutor phải hiểu:
-
-```text
-Who
-
-What
-
-Where
-
-When
-```
-
----
-
-Cụ thể:
-
-```text
-user_id
-
-customer_id
-
-product_id
-
-template_id
-
-template_lesson_id
-
-template_activity_id
-```
-
----
-
-# AI Teacher Assistant
-
-## Purpose
-
-Hỗ trợ giáo viên.
-
----
-
-# Features
-
-```text
-Generate Quiz
-
-Generate Homework
-
-Generate Rubrics
-
-Generate Feedback
-
-Analyze Students
-```
-
----
-
-# AI Admin Assistant
-
-## Purpose
-
-Hỗ trợ quản trị viên.
-
----
-
-# Features
-
-```text
-Usage Analytics
-
-Teacher Analytics
-
-Course Analytics
-
-Risk Analytics
-```
-
----
-
-# AI Knowledge Base
-
-Knowledge Base là nền tảng của toàn bộ AI.
-
----
-
-# Sources
-
-```text
-Videos
-
-Documents
-
-Audios
-
-Transcripts
-
-Lessons
-
-Assessments
-```
-
----
-
-# Workflow
-
-```text
-Source
-
-↓
-
-Chunk
-
-↓
-
-Embedding
-
-↓
-
-Search
-
-↓
-
-RAG
-
-↓
-
-Answer
-```
-
----
-
-# RAG Architecture
-
-LearnForge sử dụng:
-
-```text
-Retrieval Augmented Generation
-```
-
----
-
-# Workflow
+Retrieval Augmented Generation:
 
 ```text
 Question
 
 ↓
 
-Retrieve
+Tenant-scoped Retrieval
 
 ↓
 
-Relevant Knowledge
+Authorized Knowledge Chunks
 
 ↓
 
-LLM
+Prompt Template + Context
 
 ↓
 
-Answer
-```
-
----
-
-# AI Provider Layer
-
-LearnForge không phụ thuộc vào một AI Provider.
-
----
-
-# Supported Providers
-
-```text
-OpenAI
-
-Claude
-
-Gemini
-
-Azure OpenAI
-
-OpenRouter
-```
-
----
-
-# Design Principle
-
-Provider Abstraction.
-
----
-
-# BYOK
-
-Bring Your Own Key
-
----
-
-# Supported Modes
-
-```text
-Shared Key
-
-Dedicated Key
-```
-
----
-
-# AI Usage Tracking
-
-Mọi AI Request phải ghi nhận:
-
-```text
-customer_id
-
-user_id
-
-provider
-
-model
-```
-
----
-
-# AI Metrics
-
-```text
-input_tokens
-
-output_tokens
-
-total_tokens
-
-request_cost
-```
-
----
-
-# AI Billing Relationship
-
-AI là một nguồn chi phí SaaS.
-
----
-
-# Examples
-
-```text
-Token Usage
-
-AI Requests
-
-Embedding Cost
-```
-
----
-
-# AI Safety Principles
-
-## Rule 1
-
-Tenant Isolation bắt buộc.
-
----
-
-## Rule 2
-
-Không truy cập dữ liệu tenant khác.
-
----
-
-## Rule 3
-
-Không huấn luyện chéo dữ liệu khách hàng.
-
----
-
-## Rule 4
-
-AI phải có khả năng audit.
-
----
-
-## Rule 5
-
-Mọi AI Action phải có log.
-
----
-
-# AI And Course
-
-AI hiểu:
-
-```text
-Course Product + Enrollment
-
-Course Template
-
-Template Lesson / Template Activity
-
-Learning Context
-```
-
----
-
-# AI And Assessment
-
-AI hỗ trợ:
-
-```text
-Question Generation
-
-Quiz Generation
-
-Grading Suggestion
-
-Feedback Suggestion
-```
-
----
-
-# AI And Track
-
-Track là nguồn dữ liệu quan trọng nhất.
-
----
-
-Không có Track:
-
-```text
-AI biết nội dung
-```
-
----
-
-Có Track:
-
-```text
-AI hiểu người học
-```
-
----
-
-# LearnForge Intelligence Loop
-
-```text
-Learning
+Model Run
 
 ↓
 
-Tracking
-
-↓
-
-AI Analysis
-
-↓
-
-Insight
-
-↓
-
-Recommendation
-
-↓
-
-Better Learning
-
-↓
-
-More Learning Data
-
-↓
-
-Tracking
+Auditable Answer
 ```
+
+Retrieval không được cross-tenant hoặc bypass source authorization.
 
 ---
 
-# Current Scope
+# Track Integration
 
-Version 1
+AI ưu tiên Track summaries, AI-ready features và feature snapshots thay vì tự
+gom raw events khi projection phù hợp đã tồn tại.
 
-```text
-Knowledge Base
-
-AI Tutor
-
-AI Question Generation
-
-AI Grading Suggestion
-
-AI Analytics
-```
-
----
-
-# Future Scope
+Track sở hữu behavior events/features. AI sở hữu Recommendation, Prediction,
+Insight và Assistant output.
 
 ```text
-Adaptive Learning
-
-AI Mentor
-
-Learning Path Optimization
-
-Predictive Analytics
-
-Competency Mapping
-
-Multi-Agent AI
-```
-
----
-
-# Relationship With Other Domains
-
-```text
-Course Product + Enrollment
-
-↓
-
-Course Template
-
-↓
-
-Media
-
-↓
-
 Track
 
-↓
-
-Assessment
-
-↓
+↓ summaries / features
 
 AI
+
+↓ decision support
+
+Human or Owner Domain
 ```
 
-AI là tầng cao nhất trong kiến trúc LearnForge.
+---
+
+# Course Integration
+
+AI learning context dùng:
+
+* `product_id`.
+* `enrollment_id`.
+* `template_version_id`.
+* `version_activity_id`.
+
+AI không dùng working Template IDs làm enrolled learning context. AI Authoring
+Assistant có thể tạo suggestion cho working authoring flow, nhưng teacher hoặc
+Course Domain mới quyết định lưu/publish.
 
 ---
 
-# Strategic Positioning
+# Assessment Integration
 
-LearnForge không cạnh tranh bằng:
+AI có thể tạo:
 
-* Video Hosting
-* Quiz Engine
-* LMS Features
+* Question suggestion.
+* Rubric suggestion.
+* Grading suggestion.
+* Feedback suggestion.
+
+Assessment hoặc authorized human quyết định final result. AI confidence không
+phải final score.
 
 ---
 
-LearnForge cạnh tranh bằng:
+# LiveClass Integration
+
+AI có thể dùng authorized transcript, Track behavior và LiveClass evidence để
+tạo summary/insight. AI không thay đổi Room, Session, Attendance hoặc Replay
+state.
+
+---
+
+# Media Integration
+
+Media sở hữu binary, transcript, caption, processing và delivery. AI chỉ giữ
+knowledge reference/chunk/embedding derived từ authorized Media content.
+
+---
+
+# Recommendation And Insight
+
+Recommendation và Insight là AI-owned decision-support records.
+
+* `accepted` hoặc `dismissed` chỉ là interaction state của AI output.
+* Acceptance không tự enroll User, complete Course hoặc update curriculum.
+* Evidence/provenance phải snapshot đủ để explain và audit.
+* Expired/stale output không được dùng như current business decision.
+
+---
+
+# Model Run Audit
+
+Mọi provider call phải có Model Run:
+
+* Tenant and optional User.
+* Purpose and assistant role.
+* Provider and model.
+* Prompt Template/version/hash.
+* Input/output token counts.
+* Latency and status.
+* Cost estimate.
+* Safety/error metadata.
+* Correlation/provenance.
+
+Không lưu provider API key, BYOK secret hoặc raw credential trong AI tables.
+
+---
+
+# Prompt Governance
+
+Prompt Template rules:
+
+* Global system prompt có `customer_id NULL`; tenant prompt có owner.
+* `code + version` ổn định trong scope.
+* Published prompt immutable.
+* Thay đổi prompt tạo version mới.
+* Deprecated prompt có replacement reference khi phù hợp.
+* Prompt input/output schema phải audit được.
+* Prompt phải xác định allowed role, purpose và context.
+* Prompt không được yêu cầu model thực thi forbidden business action.
+
+---
+
+# Feedback
+
+Feedback có thể target Message, Recommendation, Insight hoặc Model Run.
+Feedback phục vụ quality/evaluation và không trực tiếp sửa output lịch sử hay
+business state.
+
+---
+
+# Tenant, Privacy And Safety
+
+1. Mọi AI business record phải tenant-scoped bằng `customer_id`; chỉ approved
+   global Prompt Template được phép `customer_id NULL`.
+2. Retrieval, prompt context, conversation và output không cross-tenant.
+3. Conversation/message retention và redaction tuân privacy policy.
+4. Sensitive raw prompt/response chỉ lưu khi purpose và retention được phép.
+5. AI output phải có provenance và human/Domain escalation path.
+6. Không train chéo tenant data.
+7. Prompt injection, unsafe output và data exfiltration cần safety policy trước
+   implementation.
+
+---
+
+# Database Namespace
 
 ```text
-Learning Intelligence
+ai_*
 ```
+
+Foundation tables:
+
+```text
+ai_knowledge_sources
+ai_knowledge_chunks
+ai_embeddings
+ai_conversations
+ai_messages
+ai_assistant_sessions
+ai_recommendations
+ai_insights
+ai_model_runs
+ai_feedback
+ai_prompt_templates
+```
+
+Table documentation:
+[docs/database/ai](../database/ai/).
+
+---
+
+# Principles Applied
+
+* Domain Responsibility Principle.
+* Source Of Truth Principle.
+* Evidence Principle.
+* Read Model Principle.
+* AI Consumer Principle.
+* Tenant Isolation Principle.
+* Generic Reference Principle.
+* Backward Compatibility Principle.
+* Simplicity Principle.
+* Prompt Governance.
+
+---
+
+# Open Foundation Decisions
+
+* Provider abstraction and BYOK secret boundary.
+* Prompt approval and tenant override policy.
+* Chunking/re-embedding lifecycle.
+* Vector-store strategy and data residency.
+* Conversation/message retention and redaction.
+* Model safety, human escalation and tool/action governance.
+* Usage/cost attribution contract.
+* Recommendation/Insight expiration and feedback lifecycle.
+* Multimodal input/output policy.
+
+ADR chỉ được tạo sau owner review và P1 update.
 
 ---
 
 # Final Statement
 
-AI Domain là bộ não của LearnForge.
+AI hỗ trợ quyết định; AI không sở hữu business state.
 
-Thông qua việc kết hợp:
+Course giữ Progress/Completion. Assessment giữ Result. LiveClass giữ
+Attendance. Media giữ Processing State. Track giữ Behavior Events/Features.
+Certificate giữ Eligibility/Issuance. Billing giữ commercial state.
 
-* Learning Content
-* Learning Behavior
-* Learning Outcome
-
-AI giúp LearnForge không chỉ quản lý việc học,
-
-mà còn hiểu việc học,
-
-phân tích việc học,
-
-và tối ưu việc học.
-
-Đây là nền tảng để LearnForge phát triển thành:
-
-AI-Native Learning Intelligence Platform.
-
----
-
-End of LF-AI
+```text
+Foundation In Design
+```

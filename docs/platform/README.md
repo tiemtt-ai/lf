@@ -35,7 +35,7 @@ tự thực thi business decision của consumer.
 | --- | --- | --- |
 | Media | [LF-Media](LF-Media.md) | Foundation Approved |
 | Track (Learning Intelligence Domain) | [LF-Track](LF-Track.md) | Foundation Approved |
-| AI | [LF-AI](LF-AI.md) | Planned / Strategic Architecture |
+| AI (Learning Intelligence & Decision Support) | [LF-AI](LF-AI.md) | Foundation In Design |
 
 Media foundation decision:
 [ADR-0004](../adr/ADR-0004-Media-Foundation.md).

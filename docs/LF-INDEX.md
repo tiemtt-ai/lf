@@ -203,6 +203,7 @@ docs/quality/
 | --- | --- |
 | [quality/README.md](quality/README.md) | Quality area usage and boundaries |
 | [quality/LF-Regression-Audit.md](quality/LF-Regression-Audit.md) | Mandatory regression checklist after major changes |
+| [quality/LF-AI-Foundation-Review.md](quality/LF-AI-Foundation-Review.md) | AI Foundation owner review |
 
 ---
 

@@ -180,10 +180,12 @@ Recommendation.
 
 ### AI
 
-**Status:** Planned / Strategic Architecture.
+**Status:** Foundation In Design (owner review and ADR pending).
 
-**Responsibility:** Knowledge consumption, assistant experiences, analysis,
-recommendations and predictions.
+**Type:** Learning Intelligence & Decision Support Domain; Consumer Domain.
+
+**Responsibility:** Authorized knowledge consumption, assistant experiences,
+recommendations, insights, model-run audit, feedback and prompt governance.
 
 **Source Of Truth:** AI-generated Recommendation, Suggestion, Prediction and
 Insight records only; AI is not source of truth for consumer business state.
@@ -194,6 +196,7 @@ Insight records only; AI is not source of truth for consumer business state.
 * Assessment evidence
 * Course context
 * Media/transcripts
+* LiveClass authorized evidence/transcripts
 
 **Produces:**
 
@@ -203,7 +206,10 @@ Insight records only; AI is not source of truth for consumer business state.
 * Suggestion
 * Insight
 
-**ADR:** Planned.
+**Does Not Own:** Progress, Completion, Attendance, Assessment Result, Media
+Processing State, Certificate, Payment hoặc Track behavior state.
+
+**ADR:** Planned after owner review and P1 update.
 
 ---
 
@@ -342,7 +348,7 @@ Read models, evidence and caches do not replace these sources of truth.
 | Media | ADR-0004 | Approved |
 | Certificate | Planned | Foundation Planned |
 | Track | ADR-0005 | Approved |
-| AI | Planned | Strategic Architecture |
+| AI | Planned | Foundation In Design |
 | Tenant | Planned | Foundation documented |
 | Usage | Planned | Foundation documented |
 | Billing | Planned | Foundation documented |
@@ -370,7 +376,7 @@ Read models, evidence and caches do not replace these sources of truth.
 ### Planned
 
 * Certificate
-* AI foundation/ADR
+* AI — Foundation In Design
 * Subscription
 * Notification
 * Logging

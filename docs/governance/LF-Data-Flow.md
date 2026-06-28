@@ -276,7 +276,7 @@ Certificate Eligibility hoặc AI Recommendation.
 
 ---
 
-## 8. AI (Planned)
+## 8. AI (Foundation In Design)
 
 ```text
 Course Context
@@ -302,6 +302,29 @@ Human or Owning Domain Decision
 
 AI output is not the source of truth for Completion, Final Grade, Certificate
 or Enrollment.
+
+```text
+Authorized Knowledge Sources
+
+↓
+
+Chunks + Embedding References
+
+↓
+
+Prompt Template + Model Run
+
+↓
+
+Conversation / Recommendation / Insight / Suggestion
+
+↓
+
+Human or Owner Domain Decision
+```
+
+AI owns its output and execution provenance only. AI does not update Progress,
+Attendance, Assessment Result, Certificate, Payment or Track state.
 
 ---
 
