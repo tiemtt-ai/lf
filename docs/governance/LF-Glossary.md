@@ -99,15 +99,15 @@ tạo thêm Domain ownership; ownership luôn phải phù hợp với ADR và
 | Term | Definition | Owner Domain | Source of Truth | Related ADR |
 | --- | --- | --- | --- | --- |
 | AI-ready Feature | Derived behavior feature do Track chuẩn hóa để AI tiêu thụ; không phải AI output hoặc consumer business state. | Track | `track_ai_features` | [ADR-0005](../adr/ADR-0005-Track-Foundation.md) |
-| Knowledge Source | Registration của một approved source mà AI được phép chunk/retrieve; nội dung gốc vẫn thuộc Owner Domain. | AI | AI Knowledge Source registration | Planned |
-| Knowledge Chunk | Derived text segment phục vụ retrieval/RAG và có thể rebuild từ Knowledge Source. | AI | AI Knowledge Chunk | Planned |
-| Embedding | Derived vector representation/reference của Knowledge Chunk cho semantic retrieval. | AI | AI Embedding metadata/reference | Planned |
-| Conversation | AI-owned interaction container giữa User và một assistant role; không phải business decision. | AI | AI Conversation and Messages | Planned |
-| Assistant Session | Runtime orchestration context cho một AI role; không phải login hoặc Track Learning Session. | AI | AI Assistant Session | Planned |
-| Model Run | Audit/provenance record của một provider/model execution. | AI | AI Model Run | Planned |
-| Prompt Template | Versioned, governed prompt contract cho một AI role/purpose. | AI | AI Prompt Template | Planned |
-| Recommendation | Đề xuất do AI tạo để hỗ trợ User hoặc Owner Domain quyết định; không tự thực thi business action. | AI | AI Recommendation | Planned |
-| Insight | Explainable AI observation/analysis; không thay Source Of Truth của Domain đầu vào. | AI | AI Insight | Planned |
+| Knowledge Source | Registration của một approved source mà AI được phép chunk/retrieve; nội dung gốc vẫn thuộc Owner Domain. | AI | AI Knowledge Source registration | [ADR-0006](../adr/ADR-0006-AI-Foundation.md) |
+| Knowledge Chunk | Derived text segment phục vụ retrieval/RAG và có thể rebuild từ Knowledge Source. | AI | AI Knowledge Chunk | [ADR-0006](../adr/ADR-0006-AI-Foundation.md) |
+| Embedding | Derived vector representation/reference của Knowledge Chunk cho semantic retrieval. | AI | AI Embedding metadata/reference | [ADR-0006](../adr/ADR-0006-AI-Foundation.md) |
+| Conversation | AI-owned interaction container giữa User và một assistant role; không phải business decision. | AI | AI Conversation and Messages | [ADR-0006](../adr/ADR-0006-AI-Foundation.md) |
+| Assistant Session | Runtime orchestration context cho một AI role; không phải login hoặc Track Learning Session. | AI | AI Assistant Session | [ADR-0006](../adr/ADR-0006-AI-Foundation.md) |
+| Model Run | Audit/provenance record của một provider/model execution. | AI | AI Model Run | [ADR-0006](../adr/ADR-0006-AI-Foundation.md) |
+| Prompt Template | Versioned, governed prompt contract cho một AI role/purpose. | AI | AI Prompt Template | [ADR-0006](../adr/ADR-0006-AI-Foundation.md) |
+| Recommendation | Đề xuất do AI tạo để hỗ trợ User hoặc Owner Domain quyết định; không tự thực thi business action. | AI | AI Recommendation | [ADR-0006](../adr/ADR-0006-AI-Foundation.md) |
+| Insight | Explainable AI observation/analysis; không thay Source Of Truth của Domain đầu vào. | AI | AI Insight | [ADR-0006](../adr/ADR-0006-AI-Foundation.md) |
 
 ---
 

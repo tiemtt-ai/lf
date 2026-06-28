@@ -2,7 +2,7 @@
 
 Version: 1.0
 
-Status: Foundation In Design
+Status: Foundation Approved and Frozen
 
 Last Updated: 2026-06
 
@@ -403,13 +403,20 @@ Table documentation:
 * Generic Reference Principle.
 * Backward Compatibility Principle.
 * Simplicity Principle.
-* Prompt Governance.
 
 ---
 
-# Open Foundation Decisions
+# AI Foundation Governance Rule
 
-* Provider abstraction and BYOK secret boundary.
+Prompt Governance là governance rule của AI Foundation, không phải canonical
+Architecture Principle mới. Canonical principles nằm tại
+[LF-Architecture-Principles](../governance/LF-Architecture-Principles.md).
+
+---
+
+# Future Extensions
+
+* Provider abstraction and BYOK secret management.
 * Prompt approval and tenant override policy.
 * Chunking/re-embedding lifecycle.
 * Vector-store strategy and data residency.
@@ -419,7 +426,19 @@ Table documentation:
 * Recommendation/Insight expiration and feedback lifecycle.
 * Multimodal input/output policy.
 
-ADR chỉ được tạo sau owner review và P1 update.
+Thay đổi Domain Boundary, ownership, Source Of Truth hoặc 11-table Foundation
+phải có ADR Amendment hoặc ADR mới.
+
+---
+
+# Architecture Decision
+
+AI Foundation Version 1.0 được approved và freeze tại:
+
+[ADR-0006 — AI Foundation](../adr/ADR-0006-AI-Foundation.md)
+
+ADR-0006 là canonical decision cho Consumer Domain Boundary, Knowledge/RAG,
+Conversation, Recommendation/Insight, Prompt Governance và Model Run Audit.
 
 ---
 
@@ -432,5 +451,7 @@ Attendance. Media giữ Processing State. Track giữ Behavior Events/Features.
 Certificate giữ Eligibility/Issuance. Billing giữ commercial state.
 
 ```text
-Foundation In Design
+Foundation Approved and Frozen
+
+Version 1.0
 ```

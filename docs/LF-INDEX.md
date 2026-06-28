@@ -188,6 +188,7 @@ docs/adr/
 | [ADR-0003](adr/ADR-0003-Assessment-Foundation.md) | Assessment Foundation decision |
 | [ADR-0004](adr/ADR-0004-Media-Foundation.md) | Media Foundation decision |
 | [ADR-0005](adr/ADR-0005-Track-Foundation.md) | Track Foundation decision |
+| [ADR-0006](adr/ADR-0006-AI-Foundation.md) | AI Foundation decision |
 
 ---
 
@@ -203,7 +204,6 @@ docs/quality/
 | --- | --- |
 | [quality/README.md](quality/README.md) | Quality area usage and boundaries |
 | [quality/LF-Regression-Audit.md](quality/LF-Regression-Audit.md) | Mandatory regression checklist after major changes |
-| [quality/LF-AI-Foundation-Review.md](quality/LF-AI-Foundation-Review.md) | AI Foundation owner review |
 
 ---
 

@@ -66,6 +66,7 @@ tenant isolation và contract ổn định trước khi tầng phụ thuộc đ�
 | Assessment | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) | 1.0 | Completed — Foundation Approved |
 | Media | [ADR-0004](../adr/ADR-0004-Media-Foundation.md) | 1.0 | Completed — Foundation Approved |
 | Track | [ADR-0005](../adr/ADR-0005-Track-Foundation.md) | 1.0 | Completed — Foundation Approved |
+| AI | [ADR-0006](../adr/ADR-0006-AI-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
 
 Các Foundation đã hoàn thành là architecture baseline. Thay đổi làm ảnh hưởng
 Domain boundary, ownership hoặc Source of Truth phải đi qua ADR mới.
@@ -74,14 +75,13 @@ Domain boundary, ownership hoặc Source of Truth phải đi qua ADR mới.
 
 ## 3. Current Phase
 
-### Certificate Foundation / AI Foundation Design
+### Certificate Foundation
 
 Current focus:
 
 | Domain | Status | Architecture Role | Primary Dependency |
 | --- | --- | --- | --- |
 | Certificate | Foundation Planned | Quyết định eligibility, issuance và verification | Course Completion, Assessment Evidence và Track Summary khi policy yêu cầu |
-| AI | Foundation In Design | Knowledge, Assistant, Recommendation, Insight and Decision Support | Track features, Course context, Assessment evidence and Media knowledge |
 
 Track Foundation đã completed và cung cấp behavior summaries theo ADR-0005.
 Certificate vẫn tự quyết định eligibility/issuance; Course, Assessment và Track
@@ -103,8 +103,8 @@ Track Summary when required
 Certificate
 ```
 
-AI Foundation design diễn ra trong current phase nhưng không thay đổi ownership
-của Certificate hoặc source Domains.
+AI Foundation đã completed theo ADR-0006 và không thay đổi ownership của
+Certificate hoặc source Domains.
 
 ---
 
@@ -233,11 +233,11 @@ Tenant Context, Entitlement and Usage for All Domains
 
 ### Milestone 1 — Foundation
 
-Status: Completed for Course, LiveClass, Assessment, Media and Track.
+Status: Completed for Course, LiveClass, Assessment, Media, Track and AI.
 
 Outcome:
 
-* Core and Learning Intelligence Domain boundaries approved.
+* Core, Learning Intelligence and Decision Support Domain boundaries approved.
 * Learning, operational, evaluation, digital asset và behavior ownership
   separated.
 * Foundation ADRs approved.
@@ -249,7 +249,6 @@ Status: Current / Planned.
 Outcome:
 
 * Certificate foundation approved.
-* AI foundation and consumer contracts approved.
 * Cross-domain event and evidence contracts stabilized.
 
 ### Milestone 3 — Enterprise

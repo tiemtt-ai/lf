@@ -276,7 +276,7 @@ Certificate Eligibility hoặc AI Recommendation.
 
 ---
 
-## 8. AI (Foundation In Design)
+## 8. AI (Foundation Approved and Frozen)
 
 ```text
 Course Context

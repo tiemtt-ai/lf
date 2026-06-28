@@ -180,7 +180,7 @@ Recommendation.
 
 ### AI
 
-**Status:** Foundation In Design (owner review and ADR pending).
+**Status:** Foundation Approved and Frozen — Version 1.0.
 
 **Type:** Learning Intelligence & Decision Support Domain; Consumer Domain.
 
@@ -209,7 +209,8 @@ Insight records only; AI is not source of truth for consumer business state.
 **Does Not Own:** Progress, Completion, Attendance, Assessment Result, Media
 Processing State, Certificate, Payment hoặc Track behavior state.
 
-**ADR:** Planned after owner review and P1 update.
+**ADR:** [ADR-0006 — AI Foundation](../adr/ADR-0006-AI-Foundation.md)
+— Accepted.
 
 ---
 
@@ -348,7 +349,7 @@ Read models, evidence and caches do not replace these sources of truth.
 | Media | ADR-0004 | Approved |
 | Certificate | Planned | Foundation Planned |
 | Track | ADR-0005 | Approved |
-| AI | Planned | Foundation In Design |
+| AI | ADR-0006 | Approved |
 | Tenant | Planned | Foundation documented |
 | Usage | Planned | Foundation documented |
 | Billing | Planned | Foundation documented |
@@ -365,6 +366,7 @@ Read models, evidence and caches do not replace these sources of truth.
 * Assessment
 * Media
 * Track
+* AI
 * Architecture Principles
 
 ### Foundation Documented, ADR Pending
@@ -376,7 +378,6 @@ Read models, evidence and caches do not replace these sources of truth.
 ### Planned
 
 * Certificate
-* AI — Foundation In Design
 * Subscription
 * Notification
 * Logging
