@@ -111,6 +111,18 @@ tạo thêm Domain ownership; ownership luôn phải phù hợp với ADR và
 
 ---
 
+# SaaS Commercial Terms
+
+| Term | Definition | Owner Domain | Source of Truth | Related ADR |
+| --- | --- | --- | --- | --- |
+| Plan | Global commercial package describing an offering classification; a Plan does not identify a Customer, Usage, price calculation, Invoice or Payment. | Commercial | `saas_plans` | [ADR-0008](../adr/ADR-0008-SaaS-Commercial-Foundation.md) |
+| Plan Feature | Default feature allowance configured for a Plan; it is not current Usage or the final effective Customer right. | Commercial | `saas_plan_features` | [ADR-0008](../adr/ADR-0008-SaaS-Commercial-Foundation.md) |
+| Subscription | Tenant-scoped lifecycle record connecting a Customer to a Plan. | Commercial | `saas_subscriptions` | [ADR-0008](../adr/ADR-0008-SaaS-Commercial-Foundation.md) |
+| Subscription Item | Add-on or package component attached to a Subscription and used as an input to Entitlement resolution. | Commercial | `saas_subscription_items` | [ADR-0008](../adr/ADR-0008-SaaS-Commercial-Foundation.md) |
+| Entitlement | Effective tenant-scoped right answering whether and to what limit a Customer can use a feature; it does not record current Usage. | Commercial | `saas_entitlements` | [ADR-0008](../adr/ADR-0008-SaaS-Commercial-Foundation.md) |
+
+---
+
 # Future Terms
 
 Các thuật ngữ trong phần này là định hướng. Ownership hoặc Source of Truth ghi

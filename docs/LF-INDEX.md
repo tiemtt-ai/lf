@@ -113,8 +113,9 @@ docs/saas/
 | Document | Purpose |
 | --- | --- |
 | [saas/LF-SaaS-Tenant.md](saas/LF-SaaS-Tenant.md) | Multi-tenant architecture |
+| [saas/LF-SaaS-Commercial.md](saas/LF-SaaS-Commercial.md) | Foundation Approved and Frozen — Version 1.0; Plan, Subscription and Entitlement architecture |
 | [saas/LF-SaaS-Usage.md](saas/LF-SaaS-Usage.md) | Usage tracking |
-| [saas/LF-SaaS-Billing.md](saas/LF-SaaS-Billing.md) | Billing and subscriptions |
+| [saas/LF-SaaS-Billing.md](saas/LF-SaaS-Billing.md) | Billing calculation, Invoice and Payment |
 
 ---
 
@@ -190,6 +191,7 @@ docs/adr/
 | [ADR-0005](adr/ADR-0005-Track-Foundation.md) | Track Foundation decision |
 | [ADR-0006](adr/ADR-0006-AI-Foundation.md) | AI Foundation decision |
 | [ADR-0007](adr/ADR-0007-SaaS-Tenant-Foundation.md) | SaaS Tenant Foundation decision |
+| [ADR-0008](adr/ADR-0008-SaaS-Commercial-Foundation.md) | SaaS Commercial Foundation decision |
 
 ---
 
@@ -389,6 +391,7 @@ Read:
 
 * LF-SaaS-Overview.md
 * saas/LF-SaaS-Tenant.md
+* saas/LF-SaaS-Commercial.md
 * saas/LF-SaaS-Usage.md
 * saas/LF-SaaS-Billing.md
 * tech/LF-Tech-Architecture.md

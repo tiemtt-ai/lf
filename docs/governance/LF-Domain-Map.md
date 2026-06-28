@@ -37,9 +37,9 @@ LearnForge
 │
 ├── SaaS Domains
 │   ├── Tenant
+│   ├── Commercial
 │   ├── Billing
-│   ├── Usage
-│   └── Subscription
+│   └── Usage
 │
 ├── Intelligence Domains
 │   └── AI
@@ -232,15 +232,26 @@ metering, AI Recommendation hoặc Media Processing State.
 **ADR:** [ADR-0007 — SaaS Tenant Foundation](../adr/ADR-0007-SaaS-Tenant-Foundation.md)
 — Accepted.
 
-### Billing
+### Commercial
 
-**Status:** Foundation documented; ADR pending.
+**Status:** Foundation Approved and Frozen — Version 1.0.
 
-**Responsibility:** Pricing, invoice calculation, charge and billing outcome.
+**Responsibility:** Global Plan catalog, Plan Feature defaults, Customer
+Subscription lifecycle, Subscription Items and effective Entitlements.
 
-**Source Of Truth:** Billing calculation and invoice state.
+**Source Of Truth:** Plan catalog, Subscription lifecycle and effective
+Customer right — “Can Use?”.
 
-**Consumes:** Subscription/plan and Usage.
+**Consumes:** Customer identity/context from Tenant.
+
+**Produces:** Subscription context and Entitlements for consumer Domains, Usage
+and Billing.
+
+**Does Not Own:** Customer identity, Usage measurement, pricing calculation,
+Invoice, Payment or learning/AI business state.
+
+**ADR:** [ADR-0008 — SaaS Commercial Foundation](../adr/ADR-0008-SaaS-Commercial-Foundation.md)
+— Accepted.
 
 ### Usage
 
@@ -252,14 +263,16 @@ metering, AI Recommendation hoặc Media Processing State.
 
 **Consumes:** Storage, bandwidth, AI and platform-consumption signals.
 
-### Subscription
+### Billing
 
-**Status:** Planned.
+**Status:** Foundation documented; ADR pending.
 
-**Responsibility:** Plan entitlement, subscription lifecycle, quota and renewal
-context.
+**Responsibility:** Pricing, amount-due calculation, Invoice, Payment and
+provider reconciliation.
 
-**Source Of Truth:** Subscription state and active entitlements.
+**Source Of Truth:** Billing calculation, Invoice and Payment state.
+
+**Consumes:** Commercial Subscription/Entitlement context and Usage.
 
 ---
 
@@ -293,7 +306,7 @@ Tenant
   │                  ├── Version/Enrollment Context ──→ LiveClass
   │                  └── Version/Enrollment Context ──→ Assessment
   │
-  └──────────────→ SaaS Domains
+  └──────────────→ Commercial ──→ Consumer Domains
 
 Media (Shared Platform)
   ├──────────────→ Course
@@ -314,7 +327,7 @@ Course Completion ──┐
 Assessment Evidence ├──→ Certificate Decision
 Certificate Rules ──┘
 
-Usage + Subscription ──→ Billing
+Commercial + Usage ──→ Billing
 ```
 
 No arrow permits a source Domain to update the target Domain's business state
@@ -339,7 +352,7 @@ directly.
 | AI Recommendation/Prediction | AI |
 | Certificate eligibility/issuance | Certificate |
 | Usage measurement | Usage |
-| Subscription entitlement | Subscription |
+| Plan/Subscription/Entitlement | Commercial |
 | Invoice/Billing state | Billing |
 
 Read models, evidence and caches do not replace these sources of truth.
@@ -358,9 +371,9 @@ Read models, evidence and caches do not replace these sources of truth.
 | Track | ADR-0005 | Approved |
 | AI | ADR-0006 | Approved |
 | Tenant | ADR-0007 | Approved |
+| Commercial | ADR-0008 | Approved |
 | Usage | Planned | Foundation documented |
 | Billing | Planned | Foundation documented |
-| Subscription | Planned | Planned |
 
 ---
 
@@ -375,6 +388,7 @@ Read models, evidence and caches do not replace these sources of truth.
 * Track
 * AI
 * Tenant
+* Commercial
 * Architecture Principles
 
 ### Foundation Documented, ADR Pending
@@ -385,7 +399,6 @@ Read models, evidence and caches do not replace these sources of truth.
 ### Planned
 
 * Certificate
-* Subscription
 * Notification
 * Logging
 * Search

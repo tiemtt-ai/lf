@@ -56,6 +56,44 @@ state.
 
 ---
 
+## 0.1. SaaS Commercial (Foundation Approved and Frozen — Version 1.0)
+
+```text
+Tenant Customer
+
+↓ selects
+
+Global Plan
+
+↓ creates
+
+Subscription + Subscription Items
+
+↓ resolves
+
+Effective Entitlement
+
+↓ read by
+
+Consumer Domain / Usage / Billing
+```
+
+Commercial owns Plan, Subscription and Entitlement. Commercial answers “Can
+Use?” but does not measure “Used” or calculate “Pay”.
+
+```text
+Commercial Entitlement → Can Use?
+
+Usage Measurement → Used.
+
+Billing Calculation → Pay.
+```
+
+Consumer Domains may read effective Entitlements but cannot update Commercial
+state directly.
+
+---
+
 ## 1. Course Authoring
 
 ```text

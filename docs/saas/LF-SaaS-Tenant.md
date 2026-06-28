@@ -308,12 +308,12 @@ learning, operational, evaluation, media hoặc AI state.
 
 ---
 
-# Relationship With Billing And Usage
+# Relationship With Commercial, Billing And Usage
 
-Billing, Usage và Subscription là future/separate SaaS Domains.
+Commercial, Billing và Usage là separate SaaS Domains.
 
-Tenant có thể cung cấp Customer identity/context cho các Domain đó, nhưng
-không lưu invoice, metering, entitlement hoặc charge state.
+Tenant cung cấp Customer identity/context cho các Domain đó nhưng không lưu
+Plan, Subscription, Entitlement, Invoice, metering hoặc charge state.
 
 ---
 

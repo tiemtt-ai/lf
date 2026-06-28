@@ -47,10 +47,10 @@ Bao gồm:
 
 # Why Usage Matters
 
-Usage là nền tảng của:
+Usage cung cấp measurement cho:
 
 ```text
-Quota
+Entitlement Comparison
 
 Billing
 
@@ -88,7 +88,7 @@ Usage Aggregation
 
 ↓
 
-Quota Check
+Commercial Entitlement Comparison
 
 ↓
 
@@ -583,16 +583,17 @@ AI Tokens
 
 ---
 
-# Usage And Quota
+# Usage And Entitlement
 
-Quota luôn dựa trên Usage.
+Usage là Source Of Truth cho lượng đã dùng. Commercial Entitlement là Source
+Of Truth cho lượng được phép dùng.
 
 ---
 
 # Example
 
 ```text
-Plan
+Commercial Entitlement
 
 100 GB Storage
 ```
@@ -615,23 +616,26 @@ Remaining
 
 ---
 
-# Quota Check Flow
+# Used Versus Allowed Flow
 
 ```text
-Usage
+Commercial Entitlement
+
++
+
+Usage Measurement
 
 ↓
 
-Quota Validation
+Used Versus Allowed Evaluation
 
 ↓
 
-Allow
-
-or
-
-Block
+Commercial Entitlement Decision
 ```
+
+Consumer thực thi decision bằng cách đọc Entitlement. Usage không tự quyết định
+“Can Use?” và không update Entitlement.
 
 ---
 
@@ -858,8 +862,6 @@ AI Usage
 # Planned Scope
 
 ```text
-Quota Engine
-
 Cost Allocation
 
 Chargeback
@@ -898,6 +900,10 @@ AI
 
 ↓
 
+Commercial Entitlement
+
++
+
 Usage
 
 ↓
@@ -917,9 +923,9 @@ Nó cho phép nền tảng biết chính xác:
 * sử dụng bao nhiêu
 * tốn bao nhiêu chi phí
 
-và là nền tảng bắt buộc cho:
+và là measurement input bắt buộc cho:
 
-* Quota
+* Entitlement comparison.
 * Billing
 * Capacity Planning
 * Enterprise Analytics

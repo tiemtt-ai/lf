@@ -250,7 +250,7 @@ Tenant
 
 ↓
 
-Subscription
+Commercial
 
 ↓
 
@@ -308,23 +308,23 @@ saas_audit_logs
 
 # Block 2
 
-Subscription
+Commercial
 
 ---
 
 # Purpose
 
-Quản lý gói dịch vụ.
+Quản lý Plan, Subscription và quyền sử dụng capability.
 
 ---
 
 # Responsibilities
 
-* Plan
-* Package
-* Start Date
-* End Date
-* Renewal
+* Plan Catalog
+* Plan Features
+* Subscription Lifecycle
+* Subscription Items
+* Effective Entitlements
 
 ---
 
@@ -336,6 +336,28 @@ Starter
 Professional
 
 Enterprise
+```
+
+Commercial trả lời:
+
+```text
+Can Use?
+```
+
+Commercial không lưu Usage, Invoice hoặc Payment.
+
+Foundation tables:
+
+```text
+saas_plans
+
+saas_plan_features
+
+saas_subscriptions
+
+saas_subscription_items
+
+saas_entitlements
 ```
 
 ---
@@ -356,7 +378,7 @@ Usage
 
 Không đo được usage thì:
 
-* không tính được quota
+* không so sánh được Usage với Entitlement
 * không tính được billing
 * không tối ưu được hệ thống
 
@@ -445,9 +467,9 @@ saas_invoices
 
 ---
 
-# Quota System
+# Entitlement System
 
-Quota giúp giới hạn việc sử dụng.
+Entitlement xác định quyền và giới hạn được cấp cho Customer.
 
 ---
 
@@ -488,11 +510,13 @@ Teachers
 # Relationship Between Usage And Billing
 
 ```text
+Commercial Entitlement
+
+↓ Can Use?
+
 Usage
 
-↓
-
-Quota Check
+↓ Used.
 
 ↓
 
@@ -543,7 +567,7 @@ Theo dõi:
 
 Cho phép:
 
-* quota
+* entitlement comparison
 * analytics
 * chargeback
 * enterprise reporting
@@ -655,10 +679,11 @@ LF-SaaS
 quản lý:
 
 * khách hàng
-* quota
+* Plan
+* Subscription
+* Entitlement
 * usage
 * billing
-* subscription
 
 ---
 
@@ -684,6 +709,8 @@ Customer Registration
 Tenant Website
 
 Student Experience
+
+SaaS Commercial Foundation v1.0
 ```
 
 ---
@@ -691,10 +718,6 @@ Student Experience
 # Planned
 
 ```text
-Subscription
-
-Quota
-
 Usage Tracking
 
 Billing Engine
