@@ -255,7 +255,7 @@ Invoice, Payment or learning/AI business state.
 
 ### Usage
 
-**Status:** Foundation In Design (owner review and ADR-0009 pending).
+**Status:** Foundation Approved and Frozen — Version 1.0.
 
 **Responsibility:** Tenant resource-consumption measurement, aggregation,
 quota-consumption counters and Usage summaries.
@@ -272,7 +272,8 @@ used-versus-allowed measurement input.
 **Does Not Own:** Customer, Plan, Subscription, Entitlement, Invoice, Payment,
 Course Progress, Track Event, AI Model Run hoặc source Domain state.
 
-**ADR:** ADR-0009 planned after owner approval.
+**ADR:** [ADR-0009 — SaaS Usage Foundation](../adr/ADR-0009-SaaS-Usage-Foundation.md)
+— Accepted.
 
 ### Billing
 
@@ -383,7 +384,7 @@ Read models, evidence and caches do not replace these sources of truth.
 | AI | ADR-0006 | Approved |
 | Tenant | ADR-0007 | Approved |
 | Commercial | ADR-0008 | Approved |
-| Usage | Planned ADR-0009 | Foundation In Design |
+| Usage | ADR-0009 | Approved |
 | Billing | Planned | Foundation documented |
 
 ---
@@ -400,6 +401,7 @@ Read models, evidence and caches do not replace these sources of truth.
 * AI
 * Tenant
 * Commercial
+* Usage
 * Architecture Principles
 
 ### Foundation Documented, ADR Pending
@@ -409,7 +411,6 @@ Read models, evidence and caches do not replace these sources of truth.
 ### Planned
 
 * Certificate
-* Usage — Foundation In Design
 * Notification
 * Logging
 * Search

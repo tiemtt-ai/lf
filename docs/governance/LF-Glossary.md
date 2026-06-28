@@ -127,10 +127,10 @@ tạo thêm Domain ownership; ownership luôn phải phù hợp với ADR và
 
 | Term | Definition | Owner Domain | Source of Truth | Related ADR |
 | --- | --- | --- | --- | --- |
-| Usage Event | Append-only tenant-scoped measurement of consumed platform resources; it does not replace Track Event, AI Model Run or source business state. | Usage | `saas_usage_events` | ADR-0009 Planned |
-| Usage Counter | Rebuildable projection of accumulated Usage by Customer, feature, period and unit. | Usage | Usage Events | ADR-0009 Planned |
-| Usage Summary | Versioned reporting/Billing read model projected from Usage Events; it is not Invoice or Payment state. | Usage | Usage Events | ADR-0009 Planned |
-| Quota Consumption | Measured quantity already consumed; allowed quota/limit remains a Commercial Entitlement. | Usage | Usage Events and derived Counters | ADR-0009 Planned |
+| Usage Event | Append-only tenant-scoped measurement of consumed platform resources; it does not replace Track Event, AI Model Run or source business state. | Usage | `saas_usage_events` | [ADR-0009](../adr/ADR-0009-SaaS-Usage-Foundation.md) |
+| Usage Counter | Rebuildable projection of accumulated Usage by Customer, feature, period and unit. | Usage | Usage Events | [ADR-0009](../adr/ADR-0009-SaaS-Usage-Foundation.md) |
+| Usage Summary | Versioned reporting/Billing read model projected from Usage Events; it is not Invoice or Payment state. | Usage | Usage Events | [ADR-0009](../adr/ADR-0009-SaaS-Usage-Foundation.md) |
+| Quota Consumption | Measured quantity already consumed; allowed quota/limit remains a Commercial Entitlement. | Usage | Usage Events and derived Counters | [ADR-0009](../adr/ADR-0009-SaaS-Usage-Foundation.md) |
 
 ---
 

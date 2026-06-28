@@ -52,6 +52,7 @@ Số ADR không được tái sử dụng hoặc đổi để lấp khoảng tr�
 | [ADR-0006](ADR-0006-AI-Foundation.md) | AI Foundation | Accepted |
 | [ADR-0007](ADR-0007-SaaS-Tenant-Foundation.md) | SaaS Tenant Foundation | Accepted |
 | [ADR-0008](ADR-0008-SaaS-Commercial-Foundation.md) | SaaS Commercial Foundation | Accepted |
+| [ADR-0009](ADR-0009-SaaS-Usage-Foundation.md) | SaaS Usage Foundation | Accepted |
 
 ---
 

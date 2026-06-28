@@ -1,8 +1,8 @@
 # LF-SaaS-Usage.md
 
-Version: 0.1
+Version: 1.0
 
-Status: Foundation In Design
+Status: Foundation Approved and Frozen
 
 Last Updated: 2026-06
 
@@ -191,7 +191,22 @@ Payment hoặc effective Entitlement như canonical state.
 
 ---
 
-# Metric Contract
+# Measurement Contract
+
+Usage chỉ ghi nhận measurement đã được Domain Owner phê duyệt. Usage không tự
+định nghĩa metric.
+
+Mỗi Usage Event phải sử dụng metric taxonomy đã được chuẩn hóa:
+
+```text
+feature_key
+
+usage_type
+
+unit
+```
+
+Usage chỉ là nơi ghi nhận measurement.
 
 Mỗi Usage metric phải có contract ổn định:
 
@@ -223,6 +238,11 @@ liveclass / participant_minutes / minute
 
 `feature_key`, `usage_type` và `unit` dùng lowercase `snake_case`. Không đổi
 nghĩa metric đã publish; metric mới phải dùng key mới hoặc transition contract.
+
+Commercial quyết định “Can Use?”. Billing quyết định “Pay.”. Track quyết định
+và sở hữu Learning Behavior. AI quyết định và sở hữu Model Provenance.
+
+Usage không thay đổi Source Of Truth của các Domain khác.
 
 ---
 
@@ -405,15 +425,26 @@ Canonical reference:
 * Không dùng Usage Event thay Track Event, AI Model Run, Media Processing hoặc
   Audit.
 * Không cho source Domain hoặc Billing update Usage projections trực tiếp.
-* Không tạo migration trước owner review, ADR-0009 và Foundation Freeze.
+* Không tạo migration trước khi Database Docs, ADR-0009 và Architecture Review
+  được approved.
 
 ---
 
-# Open Questions
+# Architecture Decision
+
+[ADR-0009 — SaaS Usage Foundation](../adr/ADR-0009-SaaS-Usage-Foundation.md)
+approves and freezes this Foundation at Version 1.0.
+
+Changes to Domain Boundary, ownership, Source Of Truth, Measurement Contract or
+Foundation tables require an approved ADR Amendment or a new ADR.
+
+---
+
+# Future Extensions
 
 * Event idempotency and duplicate-ingestion contract.
 * Correction/reversal measurement policy.
-* Metric taxonomy governance and unit normalization.
+* Metric taxonomy registry/approval workflow and unit normalization.
 * Period timezone and `period_key` format.
 * Late-arriving event rebuild window.
 * Counter concurrency and rebuild strategy.
@@ -429,9 +460,9 @@ SaaS Usage sở hữu measurement và derived projections của “Used.”. Com
 giữ “Can Use?”; Billing giữ “Pay.”.
 
 ```text
-Foundation In Design
+Foundation Approved and Frozen
 
-Ready for owner review
+Version 1.0
 
-YES
+Ready for implementation: YES
 ```

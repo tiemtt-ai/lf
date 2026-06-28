@@ -114,7 +114,7 @@ docs/saas/
 | --- | --- |
 | [saas/LF-SaaS-Tenant.md](saas/LF-SaaS-Tenant.md) | Multi-tenant architecture |
 | [saas/LF-SaaS-Commercial.md](saas/LF-SaaS-Commercial.md) | Foundation Approved and Frozen — Version 1.0; Plan, Subscription and Entitlement architecture |
-| [saas/LF-SaaS-Usage.md](saas/LF-SaaS-Usage.md) | Foundation In Design — Usage measurement, counters and summaries |
+| [saas/LF-SaaS-Usage.md](saas/LF-SaaS-Usage.md) | Foundation Approved and Frozen — Version 1.0; Usage measurement, counters and summaries |
 | [saas/LF-SaaS-Billing.md](saas/LF-SaaS-Billing.md) | Billing calculation, Invoice and Payment |
 
 ---
@@ -192,6 +192,7 @@ docs/adr/
 | [ADR-0006](adr/ADR-0006-AI-Foundation.md) | AI Foundation decision |
 | [ADR-0007](adr/ADR-0007-SaaS-Tenant-Foundation.md) | SaaS Tenant Foundation decision |
 | [ADR-0008](adr/ADR-0008-SaaS-Commercial-Foundation.md) | SaaS Commercial Foundation decision |
+| [ADR-0009](adr/ADR-0009-SaaS-Usage-Foundation.md) | SaaS Usage Foundation decision |
 
 ---
 
@@ -207,7 +208,6 @@ docs/quality/
 | --- | --- |
 | [quality/README.md](quality/README.md) | Quality area usage and boundaries |
 | [quality/LF-Regression-Audit.md](quality/LF-Regression-Audit.md) | Mandatory regression checklist after major changes |
-| [quality/LF-SaaS-Usage-Foundation-Review.md](quality/LF-SaaS-Usage-Foundation-Review.md) | SaaS Usage Foundation owner review |
 
 ---
 

@@ -715,6 +715,8 @@ Tenant Website
 Student Experience
 
 SaaS Commercial Foundation v1.0
+
+SaaS Usage Foundation v1.0
 ```
 
 ---
@@ -722,8 +724,6 @@ SaaS Commercial Foundation v1.0
 # Planned
 
 ```text
-Usage Foundation (In Design)
-
 Billing Engine
 
 Enterprise Features

@@ -69,3 +69,8 @@ The Foundation field set does not yet include a dedicated immutable event UUID
 or idempotency key. Duplicate-ingestion and correction/reversal policy must be
 approved before migration. Do not infer uniqueness from `correlation_id` or
 generic source reference.
+
+Measurement Contract: Usage does not define metrics. The relevant Domain Owner
+must approve the `feature_key + usage_type + unit` taxonomy before Usage records
+the measurement. Recording a Usage Event does not transfer or modify the source
+Domain's Source Of Truth.

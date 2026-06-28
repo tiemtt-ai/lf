@@ -94,7 +94,7 @@ state directly.
 
 ---
 
-## 0.2. SaaS Usage (Foundation In Design)
+## 0.2. SaaS Usage (Foundation Approved and Frozen — Version 1.0)
 
 ```text
 Approved Source Measurement

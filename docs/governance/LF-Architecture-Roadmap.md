@@ -69,6 +69,7 @@ tenant isolation và contract ổn định trước khi tầng phụ thuộc đ�
 | AI | [ADR-0006](../adr/ADR-0006-AI-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
 | Tenant | [ADR-0007](../adr/ADR-0007-SaaS-Tenant-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
 | Commercial | [ADR-0008](../adr/ADR-0008-SaaS-Commercial-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
+| Usage | [ADR-0009](../adr/ADR-0009-SaaS-Usage-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
 
 Các Foundation đã hoàn thành là architecture baseline. Thay đổi làm ảnh hưởng
 Domain boundary, ownership hoặc Source of Truth phải đi qua ADR mới.
@@ -116,6 +117,10 @@ SaaS Commercial Foundation đã completed theo ADR-0008 và cung cấp Plan,
 Subscription cùng effective Entitlement mà không sở hữu Usage hoặc Billing
 state.
 
+SaaS Usage Foundation đã completed theo ADR-0009 và cung cấp append-only
+measurement cùng rebuildable projections mà không sở hữu Commercial, Billing,
+Track hoặc AI state.
+
 ---
 
 ## 4. SaaS Expansion
@@ -127,7 +132,7 @@ Status: Planned.
 | Tenant | Foundation Approved and Frozen — Version 1.0; identity, domain, membership and isolation boundary |
 | Commercial | Foundation Approved and Frozen — Version 1.0; Plan, Subscription and Entitlement; “Can Use?” |
 | Billing | Invoice calculation, charge và billing outcome |
-| Usage | Foundation In Design — Usage Event, Counter and Summary; “Used.” |
+| Usage | Foundation Approved and Frozen — Version 1.0; Usage Event, Counter and Summary; “Used.” |
 | Marketplace | Offering discovery, distribution và ecosystem ownership boundary |
 
 SaaS expansion phải phục vụ tất cả Domain qua contract tenant-aware, không đưa
@@ -243,8 +248,8 @@ Tenant Context, Entitlement and Usage for All Domains
 
 ### Milestone 1 — Foundation
 
-Status: Completed for Course, LiveClass, Assessment, Media, Track, AI, Tenant
-and SaaS Commercial. SaaS Usage is in Foundation design.
+Status: Completed for Course, LiveClass, Assessment, Media, Track, AI, Tenant,
+SaaS Commercial and SaaS Usage.
 
 Outcome:
 
