@@ -114,7 +114,7 @@ docs/saas/
 | --- | --- |
 | [saas/LF-SaaS-Tenant.md](saas/LF-SaaS-Tenant.md) | Multi-tenant architecture |
 | [saas/LF-SaaS-Commercial.md](saas/LF-SaaS-Commercial.md) | Foundation Approved and Frozen — Version 1.0; Plan, Subscription and Entitlement architecture |
-| [saas/LF-SaaS-Usage.md](saas/LF-SaaS-Usage.md) | Usage tracking |
+| [saas/LF-SaaS-Usage.md](saas/LF-SaaS-Usage.md) | Foundation In Design — Usage measurement, counters and summaries |
 | [saas/LF-SaaS-Billing.md](saas/LF-SaaS-Billing.md) | Billing calculation, Invoice and Payment |
 
 ---
@@ -207,6 +207,7 @@ docs/quality/
 | --- | --- |
 | [quality/README.md](quality/README.md) | Quality area usage and boundaries |
 | [quality/LF-Regression-Audit.md](quality/LF-Regression-Audit.md) | Mandatory regression checklist after major changes |
+| [quality/LF-SaaS-Usage-Foundation-Review.md](quality/LF-SaaS-Usage-Foundation-Review.md) | SaaS Usage Foundation owner review |
 
 ---
 

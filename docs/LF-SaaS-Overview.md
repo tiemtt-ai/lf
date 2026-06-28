@@ -428,7 +428,11 @@ Ví dụ:
 # Example
 
 ```text
-saas_usage_logs
+saas_usage_events
+
+saas_usage_counters
+
+saas_usage_summaries
 ```
 
 ---
@@ -718,7 +722,7 @@ SaaS Commercial Foundation v1.0
 # Planned
 
 ```text
-Usage Tracking
+Usage Foundation (In Design)
 
 Billing Engine
 

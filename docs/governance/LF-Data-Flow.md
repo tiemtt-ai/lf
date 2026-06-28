@@ -94,6 +94,47 @@ state directly.
 
 ---
 
+## 0.2. SaaS Usage (Foundation In Design)
+
+```text
+Approved Source Measurement
+
+↓ append
+
+Usage Event
+
+↓ aggregate
+
+Usage Counter
+
+↓ project
+
+Usage Summary
+
+↓ read
+
+Commercial Comparison / Billing / Reporting
+```
+
+Usage Event is Source Of Truth for “Used.”. Counter and Summary are rebuildable
+read models.
+
+```text
+Commercial → Can Use?
+
+Usage → Used.
+
+Billing → Pay.
+```
+
+Usage reads Customer, Subscription and Entitlement context but does not update
+them. Billing reads Usage but does not update Usage state.
+
+Track Event, AI Model Run and Media Processing are source-Domain records; they
+are not Usage Events.
+
+---
+
 ## 1. Course Authoring
 
 ```text

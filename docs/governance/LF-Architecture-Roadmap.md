@@ -127,7 +127,7 @@ Status: Planned.
 | Tenant | Foundation Approved and Frozen — Version 1.0; identity, domain, membership and isolation boundary |
 | Commercial | Foundation Approved and Frozen — Version 1.0; Plan, Subscription and Entitlement; “Can Use?” |
 | Billing | Invoice calculation, charge và billing outcome |
-| Usage | Tenant resource-consumption measurement |
+| Usage | Foundation In Design — Usage Event, Counter and Summary; “Used.” |
 | Marketplace | Offering discovery, distribution và ecosystem ownership boundary |
 
 SaaS expansion phải phục vụ tất cả Domain qua contract tenant-aware, không đưa
@@ -244,7 +244,7 @@ Tenant Context, Entitlement and Usage for All Domains
 ### Milestone 1 — Foundation
 
 Status: Completed for Course, LiveClass, Assessment, Media, Track, AI, Tenant
-and SaaS Commercial.
+and SaaS Commercial. SaaS Usage is in Foundation design.
 
 Outcome:
 

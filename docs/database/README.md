@@ -24,7 +24,8 @@ database/
 ├── track/
 ├── ai/
 ├── saas/
-└── saas-commercial/
+├── saas-commercial/
+└── saas-usage/
 ```
 
 Mỗi Domain folder mô tả tables thuộc ownership của Domain đó. Việc đặt file

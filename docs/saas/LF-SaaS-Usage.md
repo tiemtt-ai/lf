@@ -1,8 +1,8 @@
 # LF-SaaS-Usage.md
 
-Version: 1.0
+Version: 0.1
 
-Status: Official Foundation
+Status: Foundation In Design
 
 Last Updated: 2026-06
 
@@ -10,110 +10,353 @@ Last Updated: 2026-06
 
 # LF SaaS Usage Architecture
 
-Usage Domain là hệ thống đo lường mức độ sử dụng nền tảng của từng tenant.
-
-Nếu:
-
-Tenant Domain trả lời:
+SaaS Usage là Domain đo lượng tài nguyên LearnForge mà từng Customer đã tiêu
+thụ.
 
 ```text
-Ai đang sử dụng LearnForge?
+Commercial → Can Use?
+
+Usage → Used.
+
+Billing → Pay.
 ```
 
-thì
+Ba quyết định có Source Of Truth riêng. Usage không được thay Commercial hoặc
+Billing quyết định business state.
 
-Usage Domain trả lời:
+---
+
+# Domain Responsibility
+
+Usage sở hữu:
+
+* Usage measurement.
+* Usage aggregation.
+* Quota consumption measurement.
+* Usage counters.
+* Usage summaries.
+
+Usage không sở hữu:
+
+* Customer identity.
+* Plan, Subscription hoặc Entitlement.
+* Allowed quota/limit.
+* Invoice hoặc Payment.
+* Course Progress hoặc Completion.
+* Track Event.
+* AI Model Run.
+* Media Processing State.
+* Audit trail của Domain khác.
+
+“Quota consumption” chỉ là lượng đã dùng. Allowed quota/limit vẫn thuộc
+Commercial Entitlement.
+
+---
+
+# Source Of Truth
+
+| State | Source Of Truth |
+| --- | --- |
+| Raw Usage measurement — “Used.” | `saas_usage_events` |
+| Current accumulated Usage | Derived `saas_usage_counters` |
+| Reporting/Billing projection | Derived `saas_usage_summaries` |
+| Customer identity | Tenant Domain |
+| Subscription and Entitlement — “Can Use?” | Commercial Domain |
+| Invoice and Payment — “Pay.” | Billing Domain |
+| Learning behavior event | Track Domain |
+| AI execution provenance | AI Domain |
+
+Counters và Summaries là rebuildable read models. Chúng không thay thế Usage
+Event Source Of Truth.
+
+---
+
+# Architecture
 
 ```text
-Họ đang sử dụng LearnForge bao nhiêu?
+Approved Source Measurement
+
+↓ append
+
+Usage Event
+
+↓ aggregate
+
+Usage Counter
+
+↓ project
+
+Usage Summary
+
+↓ read
+
+Commercial Comparison / Billing / Reporting
 ```
 
----
-
-# Mission
-
-Đo lường toàn bộ tài nguyên mà tenant sử dụng.
-
-Bao gồm:
-
-* Storage
-* Bandwidth
-* AI
-* Users
-* Courses
-* Learning Activity
-
----
-
-# Why Usage Matters
-
-Usage cung cấp measurement cho:
+Data flow chỉ đi theo hướng:
 
 ```text
-Entitlement Comparison
-
-Billing
-
-Analytics
-
-Capacity Planning
-
-Enterprise Reporting
-```
-
----
-
-# Core Principle
-
-Nếu không đo lường được thì không thể:
-
-* tối ưu
-* dự báo
-* tính phí
-
----
-
-# Usage Hierarchy
-
-```text
-Tenant
+Usage Event
 
 ↓
 
-Usage Events
+Counter
 
 ↓
 
-Usage Aggregation
-
-↓
-
-Commercial Entitlement Comparison
-
-↓
-
-Billing
+Summary
 ```
+
+Counter hoặc Summary không được ghi ngược, sửa hoặc tạo lại Usage Event.
 
 ---
 
-# Usage Categories
+# Usage Event
 
-LearnForge chia Usage thành 6 nhóm.
+`saas_usage_events` ghi immutable resource-consumption measurement.
+
+Examples:
+
+* AI request.
+* AI token.
+* Storage upload/download.
+* Video transcoding.
+* Certificate generated.
+* Email sent.
+* LiveClass minutes.
+* API call.
+
+Usage Event:
+
+* Append-only.
+* Tenant-scoped.
+* Có event time (`occurred_at`) và ingestion time (`created_at`).
+* Có source reference để truy vết.
+* Không chứa Invoice, Payment hoặc Entitlement.
+
+Late event vẫn được append với original `occurred_at`; projection policy quyết
+định Counter/Summary nào cần rebuild.
+
+---
+
+# Usage Counter
+
+`saas_usage_counters` là current accumulated usage theo feature, period và
+unit.
+
+Supported period types:
 
 ```text
-Storage Usage
+daily
 
-Bandwidth Usage
+monthly
 
-User Usage
+yearly
 
-Learning Usage
-
-Media Usage
-
-AI Usage
+lifetime
 ```
+
+Counter:
+
+* Derived hoàn toàn từ Usage Events.
+* Có thể rebuild.
+* Không phải Source Of Truth.
+* Không được Business Domain cập nhật trực tiếp.
+* Không chứa allowed Entitlement value.
+
+Counter update là projection operation của Usage Domain.
+
+---
+
+# Usage Summary
+
+`saas_usage_summaries` là versioned reporting/Billing projection.
+
+Examples:
+
+* Daily Usage Summary.
+* Monthly Usage Summary.
+* Billing-period Usage Snapshot.
+
+Summary:
+
+* Là Read Model.
+* Có `projection_version`.
+* Có thể regenerate từ Usage Events.
+* Không phải Source Of Truth.
+* Được Billing đọc nhưng vẫn thuộc Usage.
+
+`summary_data` chỉ chứa projected measurements. Nó không được chứa Invoice,
+Payment hoặc effective Entitlement như canonical state.
+
+---
+
+# Metric Contract
+
+Mỗi Usage metric phải có contract ổn định:
+
+```text
+feature_key
+
+usage_type
+
+unit
+
+quantity semantics
+
+source contract
+
+aggregation rule
+```
+
+Examples:
+
+```text
+ai_tutor / request / request
+
+ai_tutor / input_token / token
+
+storage / stored_bytes / byte
+
+liveclass / participant_minutes / minute
+```
+
+`feature_key`, `usage_type` và `unit` dùng lowercase `snake_case`. Không đổi
+nghĩa metric đã publish; metric mới phải dùng key mới hoặc transition contract.
+
+---
+
+# Relationship With Tenant
+
+Tenant sở hữu Customer identity và TenantContext. Mọi Usage record thuộc
+`customer_id`.
+
+Usage có thể đọc Customer identity/context nhưng không update Customer status,
+domain, settings hoặc membership.
+
+---
+
+# Relationship With Commercial
+
+Commercial sở hữu Plan, Subscription và Entitlement.
+
+```text
+Commercial Entitlement
+
+↓ allowed
+
+Usage Measurement
+
+↓ used
+
+Used Versus Allowed
+```
+
+Usage chỉ đọc Subscription/Entitlement khi comparison hoặc reporting cần.
+Usage không activate Subscription, không update Entitlement và không quyết
+định “Can Use?”.
+
+---
+
+# Relationship With Billing
+
+Billing đọc approved Usage Summary hoặc measurement contract để tính amount
+due.
+
+```text
+Usage Summary
+
+↓ read
+
+Billing Calculation
+
+↓
+
+Invoice / Payment
+```
+
+Billing không update Usage Event, Counter hoặc Summary. Usage không tính price,
+không tạo Invoice và không ghi Payment.
+
+---
+
+# Relationship With Track
+
+```text
+Track Event
+
+≠
+
+Usage Event
+```
+
+Track Event mô tả learning behavior/observation. Usage Event đo resource
+consumption. Một source action có thể sinh cả hai theo hai contract độc lập,
+nhưng record này không thay thế record kia.
+
+Usage không đọc Track Event như Usage Event nếu chưa có explicit measurement
+mapping.
+
+---
+
+# Relationship With AI
+
+```text
+AI Model Run
+
+≠
+
+Usage Event
+```
+
+AI Model Run là execution provenance của AI Domain. Usage Event là approved
+measurement như request count hoặc token quantity.
+
+Usage có thể tham chiếu Model Run bằng `source_type + source_id` nhưng không
+copy ownership, không sửa Model Run và không dùng estimated AI cost làm Billing
+Source Of Truth.
+
+---
+
+# Relationship With Media And Other Sources
+
+```text
+Media Processing
+
+≠
+
+Usage Event
+```
+
+Media sở hữu processing state. Usage chỉ ghi measurement được phát sinh từ
+processing, storage hoặc delivery contract.
+
+Tương tự, Certificate generated, Email sent, LiveClass minutes và API call chỉ
+trở thành Usage Event khi có approved metric contract; Usage không tiếp quản
+source business state.
+
+---
+
+# Append-Only And Correction
+
+Usage Event không update hoặc delete trong normal lifecycle.
+
+Correction/reversal phải được biểu diễn bằng append-only measurement theo
+policy được owner phê duyệt. Counter và Summary được rebuild từ event history;
+không sửa source history để khớp projection.
+
+Retention/privacy exception cần Governance approval và không được làm Counter
+hoặc Summary trở thành Source Of Truth.
+
+---
+
+# Tenant Isolation
+
+* Mọi Usage Event, Counter và Summary có `customer_id`.
+* Source reference phải thuộc cùng tenant.
+* Correlation không được nối data giữa tenants.
+* Counter/Summary query và rebuild phải tenant-scoped.
+* Billing và reporting consumer không được bypass TenantContext.
 
 ---
 
@@ -123,815 +366,72 @@ AI Usage
 saas_usage_*
 ```
 
----
-
-# Core Tables
-
-Version 1
+Foundation tables:
 
 ```text
-saas_usage_logs
-
-saas_usage_daily_summaries
-
-saas_usage_monthly_summaries
+saas_usage_events
+saas_usage_counters
+saas_usage_summaries
 ```
 
----
-
-# Usage Event Model
-
-Mọi usage đều bắt đầu từ Event.
-
----
-
-# Example
-
-```text
-Video Uploaded
-```
-
-↓
-
-Usage Event
-
-↓
-
-Storage Updated
-
----
-
-```text
-AI Request
-```
-
-↓
-
-Usage Event
-
-↓
-
-Token Usage Updated
-
----
-
-# saas_usage_logs
-
-Là bảng ghi nhận usage gốc.
-
----
-
-# Responsibilities
-
-Lưu:
-
-* tenant
-* loại usage
-* giá trị usage
-* timestamp
-
----
-
-# Suggested Fields
-
-```text
-id
-
-customer_id
-
-usage_type
-
-resource_type
-
-resource_id
-
-quantity
-
-unit
-
-metadata
-
-created_at
-```
-
----
-
-# Core Principle
-
-Không cập nhật trực tiếp Billing.
-
-Usage chỉ ghi nhận sự kiện.
-
----
-
-# Usage Types
-
-## Storage Usage
-
-Theo dõi dung lượng lưu trữ.
-
----
-
-# Sources
-
-```text
-Video
-
-Audio
-
-Document
-
-Images
-
-Recordings
-```
-
----
-
-# Metrics
-
-```text
-Total Storage
-
-Storage Growth
-
-Storage By Type
-```
-
----
-
-# Example
-
-```text
-Video Upload
-
-500 MB
-
-↓
-
-Storage Usage +500 MB
-```
-
----
-
-# Bandwidth Usage
-
-Theo dõi dữ liệu truyền tải.
-
----
-
-# Sources
-
-```text
-Video Streaming
-
-Audio Streaming
-
-Document Download
-
-Replay Viewing
-```
-
----
-
-# Metrics
-
-```text
-Total Bandwidth
-
-Bandwidth Per User
-
-Bandwidth Per Course Product
-```
-
----
-
-# Example
-
-```text
-Student Watch Video
-
-2 GB Streaming
-
-↓
-
-Bandwidth +2 GB
-```
-
----
-
-# User Usage
-
-Theo dõi người dùng hoạt động.
-
----
-
-# Metrics
-
-```text
-Total Users
-
-Active Users
-
-Monthly Active Users
-
-Daily Active Users
-```
-
----
-
-# Examples
-
-```text
-Teachers
-
-Students
-
-Admins
-```
-
----
-
-# Learning Usage
-
-Đo lường hoạt động học tập.
-
----
-
-# Metrics
-
-```text
-Course Products
-
-Enrollments
-
-Template Lessons Completed
-
-Assessments Taken
-
-Live Classes Attended
-```
-
----
-
-# Examples
-
-```text
-Course Access
-
-Lesson Completion
-
-Quiz Submission
-```
-
----
-
-# Media Usage
-
-Đo lường việc sử dụng Media Domain.
-
----
-
-# Metrics
-
-```text
-Video Watch Time
-
-Audio Listen Time
-
-Document Views
-
-Replay Views
-```
-
----
-
-# Sources
-
-```text
-Media Domain
-
-Track Domain
-```
-
----
-
-# AI Usage
-
-Đây là nhóm usage quan trọng nhất.
-
----
-
-# Why
-
-AI là:
-
-* tính năng
-* đồng thời là chi phí
-
----
-
-# Metrics
-
-```text
-AI Requests
-
-Input Tokens
-
-Output Tokens
-
-Embeddings
-
-Estimated Cost
-```
-
----
-
-# Example
-
-```text
-AI Tutor Question
-
-↓
-
-Input Tokens
-
-↓
-
-Output Tokens
-
-↓
-
-Cost Calculation
-```
-
----
-
-# AI Usage Fields
-
-```text
-provider
-
-model
-
-input_tokens
-
-output_tokens
-
-total_tokens
-
-estimated_cost
-```
-
----
-
-# Aggregation Architecture
-
-Không đọc trực tiếp Usage Logs để làm báo cáo.
-
----
-
-# Flow
-
-```text
-Usage Logs
-
-↓
-
-Daily Summary
-
-↓
-
-Monthly Summary
-
-↓
-
-Billing
-```
-
----
-
-# Daily Summaries
+Table documentation:
+[docs/database/saas-usage](../database/saas-usage/).
 
-Database:
-
-```text
-saas_usage_daily_summaries
-```
-
----
-
-# Purpose
-
-Tổng hợp usage theo ngày.
-
----
-
-# Example
-
-```text
-2026-06-10
-
-Storage
-
-500 GB
-
-AI Tokens
-
-2,000,000
-
-Bandwidth
-
-100 GB
-```
-
----
-
-# Monthly Summaries
-
-Database:
-
-```text
-saas_usage_monthly_summaries
-```
-
----
-
-# Purpose
-
-Tổng hợp usage theo tháng.
-
----
-
-# Example
-
-```text
-June 2026
-
-Storage
-
-700 GB
-
-Bandwidth
-
-1.5 TB
-
-AI Tokens
-
-25M
-```
-
----
-
-# Usage And Entitlement
-
-Usage là Source Of Truth cho lượng đã dùng. Commercial Entitlement là Source
-Of Truth cho lượng được phép dùng.
-
----
-
-# Example
-
-```text
-Commercial Entitlement
-
-100 GB Storage
-```
-
----
-
-```text
-Current Usage
-
-82 GB
-```
-
----
-
-```text
-Remaining
-
-18 GB
-```
-
----
-
-# Used Versus Allowed Flow
-
-```text
-Commercial Entitlement
-
-+
-
-Usage Measurement
-
-↓
-
-Used Versus Allowed Evaluation
-
-↓
-
-Commercial Entitlement Decision
-```
-
-Consumer thực thi decision bằng cách đọc Entitlement. Usage không tự quyết định
-“Can Use?” và không update Entitlement.
-
----
-
-# Usage And Billing
-
-Usage là đầu vào của Billing Engine.
-
----
-
-# Examples
-
-```text
-Storage
-
-Bandwidth
-
-AI Tokens
-
-Active Students
-```
-
----
-
-# Usage And Analytics
-
-Usage giúp LearnForge hiểu:
-
-```text
-Growth
-
-Adoption
-
-Engagement
-
-Cost Drivers
-```
-
----
-
-# Enterprise Reporting
-
-Future Feature
-
----
-
-# Examples
-
-```text
-Storage Trend
-
-AI Trend
-
-Learning Activity Trend
-
-Cost Trend
-```
-
----
-
-# Usage And AI
-
-AI cũng cần Usage.
-
----
-
-# Examples
-
-AI có thể phân tích:
-
-```text
-Top Courses
-
-Inactive Users
-
-Cost Drivers
-
-Adoption Trends
-```
-
----
-
-# Event Sources
-
-Usage nhận dữ liệu từ:
-
----
-
-# Course Domain
-
-```text
-Enrollments
-
-Course Access
-```
-
----
-
-# Assessment Domain
-
-```text
-Quiz Attempts
-
-Submissions
-```
-
----
-
-# Media Domain
-
-```text
-Uploads
-
-Storage
-
-Streaming
-```
-
----
-
-# LiveClass Domain
-
-```text
-Attendance
-
-Replay Views
-```
-
----
-
-# AI Domain
-
-```text
-Token Usage
-
-Embeddings
-
-AI Requests
-```
-
----
-
-# Security Rules
-
-## Rule 1
-
-Mọi Usage phải thuộc:
-
-```text
-customer_id
-```
-
----
-
-## Rule 2
-
-Không chia sẻ usage giữa tenants.
-
----
-
-## Rule 3
-
-Usage Logs là immutable.
-
----
-
-## Rule 4
-
-Summaries được sinh từ Logs.
-
----
-
-# Design Rules
-
-## Rule 1
-
-Usage chỉ ghi nhận sự kiện.
-
----
-
-## Rule 2
-
-Usage không chứa business logic.
-
----
-
-## Rule 3
-
-Usage không chứa billing logic.
-
----
-
-## Rule 4
-
-Usage phải audit-friendly.
-
----
-
-## Rule 5
-
-AI Usage phải được track chi tiết.
-
 ---
-
-# Current Scope
-
-Version 1
-
-```text
-Storage Usage
-
-Bandwidth Usage
-
-User Usage
 
-Learning Usage
+# Principles Applied
 
-Media Usage
+Canonical reference:
+[LF-Architecture-Principles](../governance/LF-Architecture-Principles.md).
 
-AI Usage
-```
+* Domain Responsibility Principle.
+* Source Of Truth Principle.
+* Evidence Principle.
+* Generic Reference Principle.
+* Tenant Isolation Principle.
+* Read Model Principle.
+* Append Only Principle.
+* Backward Compatibility Principle.
+* Simplicity Principle.
+* ADR Principle.
 
 ---
 
-# Planned Scope
+# Foundation Constraints
 
-```text
-Cost Allocation
+* Không thêm Plan, Subscription hoặc Entitlement state vào Usage tables.
+* Không thêm pricing, Invoice hoặc Payment state.
+* Không dùng Counter/Summary làm Source Of Truth.
+* Không dùng Usage Event thay Track Event, AI Model Run, Media Processing hoặc
+  Audit.
+* Không cho source Domain hoặc Billing update Usage projections trực tiếp.
+* Không tạo migration trước owner review, ADR-0009 và Foundation Freeze.
 
-Chargeback
-
-Forecasting
-
-Enterprise Reporting
-```
-
 ---
-
-# Relationship With Other Domains
-
-```text
-Course Product + Enrollment
-
-↓
-
-Course Template
-
-↓
-
-Assessment
-
-↓
-
-Media
-
-↓
-
-LiveClass
-
-↓
-
-AI
-
-↓
-
-Commercial Entitlement
-
-+
-
-Usage
 
-↓
+# Open Questions
 
-Billing
-```
+* Event idempotency and duplicate-ingestion contract.
+* Correction/reversal measurement policy.
+* Metric taxonomy governance and unit normalization.
+* Period timezone and `period_key` format.
+* Late-arriving event rebuild window.
+* Counter concurrency and rebuild strategy.
+* Summary schema/version compatibility.
+* Billing-period snapshot and cutoff policy.
+* Retention, privacy and high-volume partitioning.
 
 ---
 
 # Final Statement
 
-Usage Domain là hệ thống đo lường của LearnForge.
+SaaS Usage sở hữu measurement và derived projections của “Used.”. Commercial
+giữ “Can Use?”; Billing giữ “Pay.”.
 
-Nó cho phép nền tảng biết chính xác:
+```text
+Foundation In Design
 
-* khách hàng sử dụng gì
-* sử dụng bao nhiêu
-* tốn bao nhiêu chi phí
+Ready for owner review
 
-và là measurement input bắt buộc cho:
-
-* Entitlement comparison.
-* Billing
-* Capacity Planning
-* Enterprise Analytics
-
-trong kiến trúc SaaS của LearnForge.
-
----
-
-End of LF-SaaS-Usage
+YES
+```

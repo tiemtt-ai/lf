@@ -22,6 +22,8 @@ criteria hay không.
 
 * [LF-Regression-Audit.md](LF-Regression-Audit.md) — checklist regression bắt
   buộc sau các thay đổi lớn được Documentation Routing Guide xác định.
+* [LF-SaaS-Usage-Foundation-Review.md](LF-SaaS-Usage-Foundation-Review.md) —
+  owner review artifact cho SaaS Usage Foundation In Design.
 
 ---
 

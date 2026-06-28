@@ -38,8 +38,8 @@ LearnForge
 ├── SaaS Domains
 │   ├── Tenant
 │   ├── Commercial
-│   ├── Billing
-│   └── Usage
+│   ├── Usage
+│   └── Billing
 │
 ├── Intelligence Domains
 │   └── AI
@@ -255,13 +255,24 @@ Invoice, Payment or learning/AI business state.
 
 ### Usage
 
-**Status:** Foundation documented; ADR pending.
+**Status:** Foundation In Design (owner review and ADR-0009 pending).
 
-**Responsibility:** Tenant resource-consumption measurement.
+**Responsibility:** Tenant resource-consumption measurement, aggregation,
+quota-consumption counters and Usage summaries.
 
-**Source Of Truth:** Usage measurement/aggregation.
+**Source Of Truth:** Append-only Usage Event measurement. Counters and
+Summaries are derived read models.
 
-**Consumes:** Storage, bandwidth, AI and platform-consumption signals.
+**Consumes:** Customer context, Commercial Subscription/Entitlement context and
+approved measurements from AI, Media, LiveClass and other source Domains.
+
+**Produces:** Current Usage counters, reporting/Billing summaries and
+used-versus-allowed measurement input.
+
+**Does Not Own:** Customer, Plan, Subscription, Entitlement, Invoice, Payment,
+Course Progress, Track Event, AI Model Run hoặc source Domain state.
+
+**ADR:** ADR-0009 planned after owner approval.
 
 ### Billing
 
@@ -372,7 +383,7 @@ Read models, evidence and caches do not replace these sources of truth.
 | AI | ADR-0006 | Approved |
 | Tenant | ADR-0007 | Approved |
 | Commercial | ADR-0008 | Approved |
-| Usage | Planned | Foundation documented |
+| Usage | Planned ADR-0009 | Foundation In Design |
 | Billing | Planned | Foundation documented |
 
 ---
@@ -393,12 +404,12 @@ Read models, evidence and caches do not replace these sources of truth.
 
 ### Foundation Documented, ADR Pending
 
-* Usage
 * Billing
 
 ### Planned
 
 * Certificate
+* Usage — Foundation In Design
 * Notification
 * Logging
 * Search

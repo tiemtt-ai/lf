@@ -24,7 +24,7 @@ billing trong boundary đã được phê duyệt.
 | --- | --- | --- |
 | Tenant | [LF-SaaS-Tenant](LF-SaaS-Tenant.md) | Foundation Approved and Frozen — Version 1.0; identity, domains, membership và isolation |
 | Commercial | [LF-SaaS-Commercial](LF-SaaS-Commercial.md) | Foundation Approved and Frozen — Version 1.0; Plan, Subscription, Item and Entitlement |
-| Usage | [LF-SaaS-Usage](LF-SaaS-Usage.md) | Tenant resource-consumption measurement |
+| Usage | [LF-SaaS-Usage](LF-SaaS-Usage.md) | Foundation In Design — Usage measurement, counters and summaries |
 | Billing | [LF-SaaS-Billing](LF-SaaS-Billing.md) | Billing calculation và invoice state |
 
 ---
