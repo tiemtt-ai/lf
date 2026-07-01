@@ -1,23 +1,26 @@
-# DOMAIN ASSESSMENT
+# MIỀN NGHIỆP VỤ ĐÁNH GIÁ
 
-Domain Assessment quản lý việc biên soạn câu hỏi và toàn bộ chu trình đánh giá,
-từ Quiz đã publish đến Attempt, Answer, Grading và Feedback. Domain này tạo ra
-bằng chứng đánh giá, đồng thời để quyết định về Progress, Completion và
-Certificate cho các Domain sở hữu tương ứng.
+Miền nghiệp vụ Đánh giá quản lý việc biên soạn câu hỏi và toàn bộ chu trình
+đánh giá, từ bài kiểm tra đã phát hành đến lần làm bài, câu trả lời, chấm điểm
+và phản hồi. Miền nghiệp vụ này tạo ra bằng chứng đánh giá, đồng thời để các
+quyết định về Tiến độ học tập, Hoàn thành khóa học và Chứng chỉ cho các miền
+nghiệp vụ sở hữu tương ứng.
 
 ---
 
-## Tổng quan Domain
+## Tổng quan Miền nghiệp vụ
 
 - **Trách nhiệm nghiệp vụ:** Đo lường kết quả học tập và lưu giữ bằng chứng đánh
   giá đáng tin cậy.
-- **Phạm vi:** Thư viện câu hỏi, snapshot Quiz, Attempt, Answer, Grading,
-  Rubric, điểm số, kết quả đạt/không đạt và Feedback.
-- **Sở hữu:** Nguồn biên soạn Assessment, snapshot Assessment đã publish, bài
-  làm của học viên và kết quả Grading.
-- **Không sở hữu:** Course Progress hoặc Completion, điều kiện cấp Certificate,
-  file Media, hành vi Track hoặc quyết định cuối cùng thuộc Domain khác.
-- **Domain liên quan:** Course, Certificate, Media, Track, AI, User và Tenant.
+- **Phạm vi:** Thư viện câu hỏi, Bản chụp dữ liệu bài kiểm tra, lần làm bài,
+  câu trả lời, chấm điểm, rubric, điểm số, kết quả đạt/không đạt và phản hồi.
+- **Sở hữu:** Nguồn biên soạn Đánh giá, Bản chụp dữ liệu Đánh giá đã phát hành,
+  bài làm của học viên và kết quả chấm điểm.
+- **Không sở hữu:** Tiến độ học tập hoặc Hoàn thành khóa học, điều kiện cấp
+  Chứng chỉ, tệp Media, hành vi Theo dõi hoặc quyết định cuối cùng thuộc miền
+  nghiệp vụ khác.
+- **Miền nghiệp vụ liên quan:** Khóa học, Chứng chỉ, Media, Theo dõi, AI, Người
+  dùng và Tenant.
 
 ---
 
@@ -25,58 +28,58 @@ Certificate cho các Domain sở hữu tương ứng.
 
 ## 1. Thư viện câu hỏi và hệ thống phân loại
 
-| Table | Mô tả |
+| Bảng | Mô tả |
 |------|------|
-| core_assessment_categories | Cây phân cấp danh mục Assessment |
-| core_assessment_question_banks | Các Question Bank có thể tái sử dụng |
-| core_assessment_questions | Nguồn biên soạn Question |
-| core_assessment_question_contents | Nội dung Question được bản địa hóa |
-| core_assessment_question_media | Media đính kèm Question |
+| core_assessment_categories | Cây phân cấp danh mục Đánh giá |
+| core_assessment_question_banks | Các ngân hàng câu hỏi có thể tái sử dụng |
+| core_assessment_questions | Nguồn biên soạn câu hỏi |
+| core_assessment_question_contents | Nội dung câu hỏi được bản địa hóa |
+| core_assessment_question_media | Media đính kèm câu hỏi |
 | core_assessment_question_options | Các lựa chọn và phương án đúng/sai |
-| core_assessment_topics | Cây phân cấp Topic của Question |
-| core_assessment_question_topics | Quan hệ gán Question với Topic |
+| core_assessment_topics | Cây phân cấp chủ đề của câu hỏi |
+| core_assessment_question_topics | Quan hệ gán câu hỏi với chủ đề |
 
 ---
 
-## 2. Cấu trúc Quiz đã publish
+## 2. Cấu trúc bài kiểm tra đã phát hành
 
-| Table | Mô tả |
+| Bảng | Mô tả |
 |------|------|
-| core_assessment_quizzes | Các đối tượng Assessment đã publish |
-| core_assessment_quiz_sections | Các Section của Quiz |
-| core_assessment_quiz_questions | Snapshot Question trong Quiz đã được đóng băng |
+| core_assessment_quizzes | Các đối tượng Đánh giá đã phát hành |
+| core_assessment_quiz_sections | Các phần của bài kiểm tra |
+| core_assessment_quiz_questions | Bản chụp dữ liệu câu hỏi trong bài kiểm tra đã được đóng băng |
 
 ---
 
-## 3. Attempt và Answer
+## 3. Lần làm bài và câu trả lời
 
-| Table | Mô tả |
+| Bảng | Mô tả |
 |------|------|
-| core_assessment_attempts | Các lần học viên thực hiện Quiz |
-| core_assessment_answers | Các Answer trong một Attempt |
-| core_assessment_answer_files | Media đính kèm Answer |
+| core_assessment_attempts | Các lần học viên thực hiện bài kiểm tra |
+| core_assessment_answers | Các câu trả lời trong một lần làm bài |
+| core_assessment_answer_files | Media đính kèm câu trả lời |
 
 ---
 
 ## 4. Vận hành chấm điểm
 
-| Table | Mô tả |
+| Bảng | Mô tả |
 |------|------|
-| core_assessment_grading_assignments | Phân công công việc Grading |
-| core_assessment_gradings | Bằng chứng Grading và kết quả cuối cùng |
+| core_assessment_grading_assignments | Phân công công việc chấm điểm |
+| core_assessment_gradings | Bằng chứng chấm điểm và kết quả cuối cùng |
 
 ---
 
 ## 5. Rubric
 
-| Table | Mô tả |
+| Bảng | Mô tả |
 |------|------|
 | core_assessment_rubrics | Các Rubric chấm điểm có thể tái sử dụng |
 | core_assessment_rubric_items | Các tiêu chí trong Rubric |
 
 ---
 
-## Sơ đồ quan hệ Domain
+## Sơ đồ quan hệ Miền nghiệp vụ
 
 ```mermaid
 erDiagram
@@ -117,28 +120,29 @@ flowchart LR
 
 ---
 
-## Quan hệ liên Domain
+## Quan hệ liên Miền nghiệp vụ
 
-Assessment → Tenant để bảo đảm cô lập  
-Assessment → User cho tác giả, học viên và người chấm  
-Assessment → Course để lấy Version Activity bất biến và ngữ cảnh Enrollment  
-Assessment → Media để sử dụng asset của Question và Answer  
-Assessment → AI để nhận đề xuất Grading tùy chọn  
-Assessment → Track để phát sinh sự kiện hành vi  
-Assessment → Certificate để cung cấp bằng chứng đánh giá
+Đánh giá → Tenant để bảo đảm cô lập  
+Đánh giá → Người dùng cho tác giả, học viên và người chấm  
+Đánh giá → Khóa học để lấy Phiên bản Hoạt động học tập bất biến và ngữ cảnh Ghi danh  
+Đánh giá → Media để sử dụng tài sản số của câu hỏi và câu trả lời  
+Đánh giá → AI để nhận đề xuất chấm điểm tùy chọn  
+Đánh giá → Theo dõi để phát sinh sự kiện hành vi  
+Đánh giá → Chứng chỉ để cung cấp bằng chứng đánh giá
 
 ---
 
 ## Nguyên tắc thiết kế
 
-- Assessment là nơi có thẩm quyền đối với bằng chứng đánh giá.
-- Quá trình biên soạn Question và snapshot Quiz đã publish có lifecycle riêng.
-- Attempt hiện có luôn giữ nguyên ngữ cảnh Quiz đã được đóng băng.
-- Mỗi Attempt thuộc một chu trình học Enrollment.
-- Answer thuộc Attempt và Question trong Quiz đã được đóng băng.
-- File Media vẫn thuộc quyền sở hữu của Domain Media.
-- Grading bằng AI chỉ là đề xuất, không bao giờ tự trở thành thẩm quyền cuối cùng.
+- Đánh giá là nơi có thẩm quyền đối với bằng chứng đánh giá.
+- Quá trình biên soạn câu hỏi và Bản chụp dữ liệu bài kiểm tra đã phát hành có
+  vòng đời riêng.
+- Lần làm bài hiện có luôn giữ nguyên ngữ cảnh bài kiểm tra đã được đóng băng.
+- Mỗi lần làm bài thuộc một chu trình Ghi danh.
+- Câu trả lời thuộc lần làm bài và câu hỏi trong bài kiểm tra đã được đóng băng.
+- Tệp Media vẫn thuộc quyền sở hữu dữ liệu của Miền nghiệp vụ Media.
+- Chấm điểm bằng AI chỉ là đề xuất, không bao giờ tự trở thành thẩm quyền cuối cùng.
 - Tiêu chí và kết quả Rubric bảo toàn lịch sử chấm điểm.
-- Bằng chứng Assessment không bao giờ trực tiếp thay đổi trạng thái Course hoặc
-  Certificate.
-- Mọi dữ liệu nghiệp vụ Assessment đều được cô lập theo tenant.
+- Bằng chứng Đánh giá không bao giờ trực tiếp thay đổi trạng thái Khóa học hoặc
+  Chứng chỉ.
+- Mọi dữ liệu nghiệp vụ Đánh giá đều được cô lập theo tenant.

@@ -1,55 +1,56 @@
-# DOMAIN LIVECLASS
+# MIỀN NGHIỆP VỤ LIVECLASS
 
-Domain LiveClass quản lý hoạt động học tập đồng bộ và hybrid. Domain này kết
-nối các Activity Course đã publish với Room, Session theo lịch, bằng chứng tham
-gia, Recording, Replay và Chat mà không sở hữu Course Progress hoặc asset
-Media.
+Miền nghiệp vụ LiveClass quản lý hoạt động học tập đồng bộ và kết hợp. Miền
+nghiệp vụ này kết nối các Hoạt động học tập của Khóa học đã phát hành với
+phòng, phiên học theo lịch, bằng chứng tham gia, bản ghi, hoạt động xem lại và
+trò chuyện mà không sở hữu Tiến độ học tập của Khóa học hoặc tài sản Media.
 
 ---
 
-## Tổng quan Domain
+## Tổng quan Miền nghiệp vụ
 
 - **Trách nhiệm nghiệp vụ:** Vận hành trải nghiệm học trực tiếp và tạo bằng
-  chứng Attendance, Replay.
-- **Phạm vi:** Room, Session, Attendance, tham chiếu Recording, tổng hợp Replay
-  và Chat trong Session.
+  chứng tham dự và xem lại.
+- **Phạm vi:** Phòng, phiên học, dữ liệu tham dự, tham chiếu bản ghi, tổng hợp
+  hoạt động xem lại và trò chuyện trong phiên học.
 - **Sở hữu:** Trạng thái vận hành LiveClass và bằng chứng tham gia.
-- **Không sở hữu:** Cấu trúc Course, Progress, Completion, điều kiện cấp
-  Certificate, file Recording, sự kiện Track hoặc quyết định AI.
-- **Domain liên quan:** Course, Media, Track, AI, User và Tenant.
+- **Không sở hữu:** Cấu trúc Khóa học, Tiến độ học tập, Hoàn thành khóa học,
+  điều kiện cấp Chứng chỉ, tệp bản ghi, sự kiện Theo dõi hoặc quyết định AI.
+- **Miền nghiệp vụ liên quan:** Khóa học, Media, Theo dõi, AI, Người dùng và
+  Tenant.
 
 ---
 
 ## Các nhóm cơ sở dữ liệu
 
-## 1. Room và lịch học
+## 1. Phòng và lịch học
 
-| Table | Mô tả |
+| Bảng | Mô tả |
 |------|------|
-| core_liveclass_rooms | Room vận hành cho các Activity trực tiếp đã publish |
+| core_liveclass_rooms | Phòng vận hành cho các Hoạt động học tập trực tiếp đã phát hành |
 | core_liveclass_sessions | Các buổi học trực tiếp đã lên lịch và hoàn tất |
 
 ---
 
 ## 2. Tham gia
 
-| Table | Mô tả |
+| Bảng | Mô tả |
 |------|------|
-| core_liveclass_attendances | Bằng chứng Attendance của học viên |
-| core_liveclass_chat_logs | Lịch sử tương tác trong Session |
+| core_liveclass_attendances | Bằng chứng tham dự của học viên |
+| core_liveclass_chat_logs | Lịch sử tương tác trong phiên học |
 
 ---
 
-## 3. Recording và Replay
+## 3. Bản ghi và hoạt động xem lại
 
-| Table | Mô tả |
+| Bảng | Mô tả |
 |------|------|
-| core_liveclass_recordings | Tham chiếu Recording của Session |
-| core_liveclass_replays | Tổng hợp Replay của học viên |
+| core_liveclass_recordings | Tham chiếu bản ghi của phiên học |
+| core_liveclass_replays | Tổng hợp hoạt động xem lại của học viên |
 
 ---
 
-## Sơ đồ quan hệ Domain
+## Sơ đồ quan hệ Miền nghiệp vụ
 
 ```mermaid
 erDiagram
@@ -82,26 +83,28 @@ flowchart LR
 
 ---
 
-## Quan hệ liên Domain
+## Quan hệ liên Miền nghiệp vụ
 
 LiveClass → Tenant để bảo đảm cô lập  
-LiveClass → User cho giáo viên và học viên  
-LiveClass → Course để lấy ngữ cảnh Product, Version Activity và Enrollment  
-LiveClass → Media cho file Recording, phân phối, Transcript và Caption  
-LiveClass → Track để cung cấp sự kiện hành vi  
-LiveClass → AI để cung cấp các bản tổng hợp và insight được cấp quyền
+LiveClass → Người dùng cho giáo viên và học viên  
+LiveClass → Khóa học để lấy ngữ cảnh Sản phẩm, Phiên bản Hoạt động học tập và Ghi danh  
+LiveClass → Media cho tệp bản ghi, phân phối, bản ghi lời thoại và phụ đề  
+LiveClass → Theo dõi để cung cấp sự kiện hành vi  
+LiveClass → AI để cung cấp các bản tổng hợp và thông tin chuyên sâu được cấp quyền
 
 ---
 
 ## Nguyên tắc thiết kế
 
-- LiveClass là một Domain vận hành.
-- Hoạt động học tại runtime luôn liên kết với Version Activity đã publish.
-- Room và Session là hai khái niệm nghiệp vụ riêng biệt.
-- Attendance và Replay là bằng chứng, không phải Course Completion.
-- Mỗi Enrollment xác định một chu trình học riêng biệt.
-- Binary Recording và quá trình xử lý vẫn do Media sở hữu.
-- Chat không trực tiếp quyết định Completion.
-- Tác động liên Domain sử dụng bằng chứng, sự kiện hoặc request.
-- LiveClass không bao giờ ghi trực tiếp Course Progress.
+- LiveClass là một miền nghiệp vụ vận hành.
+- Hoạt động học tại thời gian chạy luôn liên kết với Phiên bản Hoạt động học
+  tập đã phát hành.
+- Phòng và phiên học là hai khái niệm nghiệp vụ riêng biệt.
+- Dữ liệu tham dự và xem lại là bằng chứng, không phải kết quả Hoàn thành khóa
+  học.
+- Mỗi Ghi danh xác định một chu trình học riêng biệt.
+- Dữ liệu nhị phân của bản ghi và quá trình xử lý vẫn do Media sở hữu.
+- Trò chuyện không trực tiếp quyết định Hoàn thành khóa học.
+- Tác động liên miền nghiệp vụ sử dụng bằng chứng, sự kiện hoặc yêu cầu.
+- LiveClass không bao giờ ghi trực tiếp Tiến độ học tập của Khóa học.
 - Mọi dữ liệu nghiệp vụ LiveClass đều được cô lập theo tenant.

@@ -1,47 +1,47 @@
-# DOMAIN SAAS USAGE
+# MIỀN NGHIỆP VỤ SAAS MỨC SỬ DỤNG
 
-Domain SaaS Usage đo lường lượng tài nguyên LearnForge mà mỗi Customer đã tiêu
-thụ. Domain này lưu giữ các phép đo chỉ ghi nối tiếp và xây dựng Counter hiện
-tại cùng Summary có version phục vụ báo cáo, so sánh quota và Billing mà không
-sở hữu Entitlement hoặc khoản phí.
+Miền nghiệp vụ SaaS Mức sử dụng đo lường lượng tài nguyên LearnForge mà mỗi
+Khách hàng đã tiêu thụ. Miền nghiệp vụ này lưu giữ các phép đo chỉ ghi nối tiếp
+và xây dựng bộ đếm hiện tại cùng bản tổng hợp có Phiên bản phục vụ báo cáo, so
+sánh hạn mức và Thanh toán mà không sở hữu Quyền sử dụng hoặc khoản phí.
 
 ---
 
-## Tổng quan Domain
+## Tổng quan Miền nghiệp vụ
 
 - **Trách nhiệm nghiệp vụ:** Ghi nhận và tổng hợp mức tiêu thụ tài nguyên được
   biểu thị bằng “Đã sử dụng.”.
-- **Phạm vi:** Usage Event, Counter tích lũy và Summary phục vụ báo cáo hoặc
-  Billing.
-- **Sở hữu:** Phép đo Usage thô và Projection dẫn xuất từ Usage.
-- **Không sở hữu:** Customer, Subscription, Entitlement, giới hạn được phép,
-  tính giá, Invoice, Payment, Track Event, AI Model Run hoặc trạng thái của
-  Domain nguồn.
-- **Domain liên quan:** Tenant, Commercial, Billing, AI, Media, LiveClass,
-  Track và các nguồn phép đo đã được phê duyệt khác.
+- **Phạm vi:** Sự kiện Mức sử dụng, bộ đếm tích lũy và bản tổng hợp phục vụ báo
+  cáo hoặc Thanh toán.
+- **Sở hữu:** Phép đo Mức sử dụng thô và mô hình chiếu dẫn xuất từ Mức sử dụng.
+- **Không sở hữu:** Khách hàng, Đăng ký dịch vụ, Quyền sử dụng, giới hạn được
+  phép, tính giá, Hóa đơn, Thanh toán, sự kiện Theo dõi, lần chạy mô hình AI
+  hoặc trạng thái của miền nghiệp vụ nguồn.
+- **Miền nghiệp vụ liên quan:** Tenant, Thương mại, Thanh toán, AI, Media,
+  LiveClass, Theo dõi và các nguồn phép đo đã được phê duyệt khác.
 
 ---
 
 ## Các nhóm cơ sở dữ liệu
 
-## 1. Đo lường Usage
+## 1. Đo lường Mức sử dụng
 
-| Table | Mô tả |
+| Bảng | Mô tả |
 |------|------|
 | saas_usage_events | Phép đo mức tiêu thụ tài nguyên chỉ ghi nối tiếp |
 
 ---
 
-## 2. Projection Usage
+## 2. Mô hình chiếu Mức sử dụng
 
-| Table | Mô tả |
+| Bảng | Mô tả |
 |------|------|
-| saas_usage_counters | Projection mức sử dụng tích lũy hiện tại |
-| saas_usage_summaries | Summary có version cho báo cáo và Billing |
+| saas_usage_counters | Mô hình chiếu mức sử dụng tích lũy hiện tại |
+| saas_usage_summaries | Bản tổng hợp có Phiên bản cho báo cáo và Thanh toán |
 
 ---
 
-## Sơ đồ quan hệ Domain
+## Sơ đồ quan hệ Miền nghiệp vụ
 
 ```mermaid
 erDiagram
@@ -68,26 +68,28 @@ flowchart LR
 
 ---
 
-## Quan hệ liên Domain
+## Quan hệ liên Miền nghiệp vụ
 
-Usage → Tenant để lấy định danh Customer và bảo đảm cô lập  
-Usage → Commercial để lấy ngữ cảnh Subscription và Entitlement  
-Usage → Billing để cung cấp Summary Usage đã được phê duyệt  
-Usage → AI để nhận phép đo thực thi đã được phê duyệt  
-Usage → Media và LiveClass để nhận phép đo tài nguyên đã được phê duyệt  
-Usage → Track chỉ thông qua mapping phép đo rõ ràng
+Mức sử dụng → Tenant để lấy định danh Khách hàng và bảo đảm cô lập  
+Mức sử dụng → Thương mại để lấy ngữ cảnh Đăng ký dịch vụ và Quyền sử dụng  
+Mức sử dụng → Thanh toán để cung cấp bản tổng hợp Mức sử dụng đã được phê duyệt  
+Mức sử dụng → AI để nhận phép đo thực thi đã được phê duyệt  
+Mức sử dụng → Media và LiveClass để nhận phép đo tài nguyên đã được phê duyệt  
+Mức sử dụng → Theo dõi chỉ thông qua ánh xạ phép đo rõ ràng
 
 ---
 
 ## Nguyên tắc thiết kế
 
-- Usage chỉ trả lời “Đã sử dụng.”.
-- Usage Event là Source Of Truth của phép đo.
-- Usage Event chỉ được ghi nối tiếp.
-- Counter và Summary là các Projection có thể tái tạo.
-- Projection không bao giờ ghi ngược vào lịch sử phép đo.
-- Contract Metric phải rõ ràng và ổn định.
-- Quota được phép vẫn thuộc quyền sở hữu của Commercial Entitlement.
-- Tính giá, Invoice và Payment vẫn thuộc quyền sở hữu của Billing.
-- Usage Event không thay thế Track Event hoặc record của Domain nguồn.
-- Mọi phép đo Usage đều được cô lập theo tenant.
+- Mức sử dụng chỉ trả lời “Đã sử dụng.”.
+- Sự kiện Mức sử dụng là Nguồn dữ liệu chuẩn của phép đo.
+- Sự kiện Mức sử dụng chỉ được ghi nối tiếp.
+- Bộ đếm và bản tổng hợp là các mô hình chiếu có thể tái tạo.
+- Mô hình chiếu không bao giờ ghi ngược vào lịch sử phép đo.
+- Hợp đồng chỉ số phải rõ ràng và ổn định.
+- Hạn mức được phép vẫn thuộc quyền sở hữu dữ liệu của Quyền sử dụng Thương mại.
+- Tính giá, Hóa đơn và Thanh toán vẫn thuộc quyền sở hữu của Miền nghiệp vụ
+  Thanh toán.
+- Sự kiện Mức sử dụng không thay thế sự kiện Theo dõi hoặc bản ghi của miền
+  nghiệp vụ nguồn.
+- Mọi phép đo Mức sử dụng đều được cô lập theo tenant.

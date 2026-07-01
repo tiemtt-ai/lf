@@ -1,66 +1,68 @@
-# DOMAIN MEDIA
+# MIỀN NGHIỆP VỤ MEDIA
 
-Domain Media là nền tảng Digital Asset dùng chung của LearnForge. Domain này
-quản lý định danh asset, tham chiếu lưu trữ, xử lý, asset dẫn xuất, Transcript,
-Caption, mapping sử dụng và lịch sử truy cập, trong khi các Domain tiêu thụ vẫn
-giữ thẩm quyền đối với trạng thái nghiệp vụ của mình.
+Miền nghiệp vụ Media là nền tảng tài sản số dùng chung của LearnForge. Miền
+nghiệp vụ này quản lý định danh tài sản, tham chiếu lưu trữ, xử lý, tài sản dẫn
+xuất, bản ghi lời thoại, phụ đề, ánh xạ sử dụng và lịch sử truy cập, trong khi
+các miền nghiệp vụ tiêu thụ vẫn giữ thẩm quyền đối với trạng thái nghiệp vụ của
+mình.
 
 ---
 
-## Tổng quan Domain
+## Tổng quan Miền nghiệp vụ
 
-- **Trách nhiệm nghiệp vụ:** Cung cấp Digital Asset an toàn, nhận biết tenant
+- **Trách nhiệm nghiệp vụ:** Cung cấp tài sản số an toàn, nhận biết tenant
   và có thể tái sử dụng trên toàn LearnForge.
-- **Phạm vi:** Phân loại asset, metadata lưu trữ, xử lý, Variant, Transcript,
-  Caption, mapping sử dụng và lịch sử truy cập.
+- **Phạm vi:** Phân loại tài sản, metadata lưu trữ, xử lý, biến thể, bản ghi lời
+  thoại, phụ đề, ánh xạ sử dụng và lịch sử truy cập.
 - **Sở hữu:** Định danh Media, metadata, vị trí lưu trữ, trạng thái xử lý và
-  record của asset dẫn xuất.
-- **Không sở hữu:** Course Progress, kết quả Assessment, Attendance,
-  Certificate, đầu ra AI hoặc quyết định phân quyền của Domain tiêu thụ.
-- **Domain liên quan:** Course, LiveClass, Assessment, Certificate, AI, Track,
-  User và Tenant.
+  bản ghi của tài sản dẫn xuất.
+- **Không sở hữu:** Tiến độ học tập của Khóa học, kết quả Đánh giá, dữ liệu tham
+  dự, Chứng chỉ, đầu ra AI hoặc quyết định phân quyền của miền nghiệp vụ tiêu
+  thụ.
+- **Miền nghiệp vụ liên quan:** Khóa học, LiveClass, Đánh giá, Chứng chỉ, AI,
+  Theo dõi, Người dùng và Tenant.
 
 ---
 
 ## Các nhóm cơ sở dữ liệu
 
-## 1. Catalog Asset
+## 1. Danh mục tài sản
 
-| Table | Mô tả |
+| Bảng | Mô tả |
 |------|------|
-| media_categories | Danh mục nghiệp vụ cho Digital Asset |
-| media_files | Record Digital Asset chuẩn |
+| media_categories | Danh mục nghiệp vụ cho tài sản số |
+| media_files | Bản ghi tài sản số chuẩn |
 
 ---
 
-## 2. Sử dụng theo Domain
+## 2. Sử dụng theo Miền nghiệp vụ
 
-| Table | Mô tả |
+| Bảng | Mô tả |
 |------|------|
-| media_file_usages | Tham chiếu từ asset đến record của Domain tiêu thụ |
+| media_file_usages | Tham chiếu từ tài sản đến bản ghi của miền nghiệp vụ tiêu thụ |
 
 ---
 
-## 3. Xử lý và asset dẫn xuất
+## 3. Xử lý và tài sản dẫn xuất
 
-| Table | Mô tả |
+| Bảng | Mô tả |
 |------|------|
-| media_processing_jobs | Lifecycle của tác vụ xử lý Media |
-| media_variants | Các phiên bản hiển thị của asset dẫn xuất |
-| media_transcripts | Nội dung Transcript dẫn xuất |
-| media_captions | Asset Caption và phụ đề có thông tin thời gian |
+| media_processing_jobs | Vòng đời của tác vụ xử lý Media |
+| media_variants | Các biến thể hiển thị của tài sản dẫn xuất |
+| media_transcripts | Nội dung bản ghi lời thoại dẫn xuất |
+| media_captions | Tài sản phụ đề có thông tin thời gian |
 
 ---
 
 ## 4. Lịch sử truy cập
 
-| Table | Mô tả |
+| Bảng | Mô tả |
 |------|------|
-| media_access_logs | Lịch sử truy cập asset chỉ ghi nối tiếp |
+| media_access_logs | Lịch sử truy cập tài sản chỉ ghi nối tiếp |
 
 ---
 
-## Sơ đồ quan hệ Domain
+## Sơ đồ quan hệ Miền nghiệp vụ
 
 ```mermaid
 erDiagram
@@ -92,28 +94,29 @@ flowchart LR
 
 ---
 
-## Quan hệ liên Domain
+## Quan hệ liên Miền nghiệp vụ
 
 Media → Tenant để bảo đảm cô lập và ranh giới lưu trữ  
-Media → User cho người upload và truy cập  
-Media → Course cho asset học tập và Catalog  
-Media → LiveClass cho asset Recording  
-Media → Assessment cho asset của Question và Answer  
-Media → Certificate cho asset Certificate đã render  
-Media → AI để cung cấp tri thức và Transcript được cấp quyền  
-Media → Track để cung cấp sự kiện hành vi truy cập đã được phê duyệt
+Media → Người dùng cho người tải lên và truy cập  
+Media → Khóa học cho tài sản học tập và danh mục  
+Media → LiveClass cho tài sản bản ghi  
+Media → Đánh giá cho tài sản của câu hỏi và câu trả lời  
+Media → Chứng chỉ cho tài sản Chứng chỉ đã kết xuất  
+Media → AI để cung cấp tri thức và bản ghi lời thoại được cấp quyền  
+Media → Theo dõi để cung cấp sự kiện hành vi truy cập đã được phê duyệt
 
 ---
 
 ## Nguyên tắc thiết kế
 
-- Media là Platform Domain dùng chung.
-- Media lưu metadata và tham chiếu lưu trữ, không lưu nội dung binary.
-- Nội dung binary đã lưu là bất biến; nội dung thay đổi sẽ tạo asset mới.
-- Domain tiêu thụ tham chiếu asset mà không chuyển quyền sở hữu nghiệp vụ.
-- Mapping sử dụng generic giúp tránh phụ thuộc chặt vào Domain cụ thể.
-- Variant không bao giờ thay thế asset gốc.
+- Media là miền nghiệp vụ nền tảng dùng chung.
+- Media lưu metadata và tham chiếu lưu trữ, không lưu nội dung nhị phân.
+- Nội dung nhị phân đã lưu là bất biến; nội dung thay đổi sẽ tạo tài sản mới.
+- Miền nghiệp vụ tiêu thụ tham chiếu tài sản mà không chuyển quyền sở hữu dữ
+  liệu nghiệp vụ.
+- Ánh xạ sử dụng tổng quát giúp tránh phụ thuộc chặt vào miền nghiệp vụ cụ thể.
+- Biến thể không bao giờ thay thế tài sản gốc.
 - Trạng thái xử lý chỉ thuộc Media.
-- Access Log là bằng chứng kiểm tra, không phải trạng thái phân quyền.
+- Nhật ký truy cập là bằng chứng kiểm tra, không phải trạng thái phân quyền.
 - Hoạt động phân phối và lưu trữ luôn được cô lập theo tenant.
-- Media không bao giờ quyết định kết quả nghiệp vụ của Domain tiêu thụ.
+- Media không bao giờ quyết định kết quả nghiệp vụ của miền nghiệp vụ tiêu thụ.
