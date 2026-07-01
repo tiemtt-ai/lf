@@ -488,6 +488,11 @@ Foundation certificate rules:
 * Certificate verification luôn chạy trong tenant context.
 * Verification log, kể cả failed lookup, phải có `customer_id NOT NULL`.
 
+Certificate Domain architecture and historical evidence rules are canonical at:
+
+* [LF-Core-Certificate](LF-Core-Certificate.md).
+* [ADR-0011 — Certificate Foundation](../adr/ADR-0011-Certificate-Foundation.md).
+
 ---
 
 # Media And Assessment

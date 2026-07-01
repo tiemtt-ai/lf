@@ -31,6 +31,7 @@ schema thuộc [docs/database](../database/README.md).
 | Course | [LF-Core-Course](LF-Core-Course.md) | [ADR-0001](../adr/ADR-0001-Course-Foundation.md) | [course/](../database/course/) |
 | LiveClass | [LF-Core-LiveClass](LF-Core-LiveClass.md) | [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md) | [liveclass/](../database/liveclass/) |
 | Assessment | [LF-Core-Assessment](LF-Core-Assessment.md) | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) | [assessment/](../database/assessment/) |
+| Certificate | [LF-Core-Certificate](LF-Core-Certificate.md) | [ADR-0011](../adr/ADR-0011-Certificate-Foundation.md) | [course/ Certificate tables](../database/course/) |
 
 Media, Track và AI là Platform Domains và được hướng dẫn tại
 [docs/platform](../platform/README.md).

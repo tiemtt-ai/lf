@@ -54,6 +54,7 @@ Số ADR không được tái sử dụng hoặc đổi để lấp khoảng tr�
 | [ADR-0008](ADR-0008-SaaS-Commercial-Foundation.md) | SaaS Commercial Foundation | Accepted |
 | [ADR-0009](ADR-0009-SaaS-Usage-Foundation.md) | SaaS Usage Foundation | Accepted |
 | [ADR-0010](ADR-0010-SaaS-Billing-Foundation.md) | SaaS Billing Foundation | Accepted |
+| [ADR-0011](ADR-0011-Certificate-Foundation.md) | Certificate Foundation | Accepted |
 
 ---
 

@@ -71,6 +71,7 @@ tenant isolation và contract ổn định trước khi tầng phụ thuộc đ�
 | Commercial | [ADR-0008](../adr/ADR-0008-SaaS-Commercial-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
 | Usage | [ADR-0009](../adr/ADR-0009-SaaS-Usage-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
 | Billing | [ADR-0010](../adr/ADR-0010-SaaS-Billing-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
+| Certificate | [ADR-0011](../adr/ADR-0011-Certificate-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
 
 Các Foundation đã hoàn thành là architecture baseline. Thay đổi làm ảnh hưởng
 Domain boundary, ownership hoặc Source of Truth phải đi qua ADR mới.
@@ -79,17 +80,20 @@ Domain boundary, ownership hoặc Source of Truth phải đi qua ADR mới.
 
 ## 3. Current Phase
 
-### Certificate Foundation
+### Certificate Foundation — Completed
 
 Current focus:
 
 | Domain | Status | Architecture Role | Primary Dependency |
 | --- | --- | --- | --- |
-| Certificate | Foundation Planned | Quyết định eligibility, issuance và verification | Course Completion, Assessment Evidence và Track Summary khi policy yêu cầu |
+| Certificate | Foundation Approved and Frozen — Version 1.0 | Quyết định eligibility, issuance và verification | Course Completion, Assessment Evidence và Track Summary khi policy yêu cầu |
 
 Track Foundation đã completed và cung cấp behavior summaries theo ADR-0005.
 Certificate vẫn tự quyết định eligibility/issuance; Course, Assessment và Track
 chỉ cung cấp state hoặc Evidence thuộc ownership của mình.
+
+Certificate Foundation đã completed theo ADR-0011. Issued Certificate là
+Historical Business Evidence; Verification/Download Logs là Audit Evidence.
 
 ```text
 Course Completion
@@ -253,8 +257,8 @@ Tenant Context, Entitlement and Usage for All Domains
 
 ### Milestone 1 — Foundation
 
-Status: Completed for Course, LiveClass, Assessment, Media, Track, AI, Tenant,
-SaaS Commercial, SaaS Usage and SaaS Billing.
+Status: Completed for Course, LiveClass, Assessment, Media, Track, AI,
+Certificate, Tenant, SaaS Commercial, SaaS Usage and SaaS Billing.
 
 Outcome:
 

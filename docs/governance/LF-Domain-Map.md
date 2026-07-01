@@ -111,7 +111,7 @@ Certificate, Track và AI consumers.
 
 ### Certificate
 
-**Status:** Foundation Planned.
+**Status:** Foundation Approved and Frozen — Version 1.0.
 
 **Responsibility:** Certificate eligibility policy, issuance, immutable issued
 record và verification.
@@ -124,7 +124,8 @@ context và Certificate rules.
 
 **Produces:** Issued Certificate and verification evidence.
 
-**ADR:** Planned.
+**ADR:** [ADR-0011 — Certificate Foundation](../adr/ADR-0011-Certificate-Foundation.md)
+— Accepted.
 
 ---
 
@@ -390,7 +391,7 @@ Read models, evidence and caches do not replace these sources of truth.
 | LiveClass | ADR-0002 | Approved |
 | Assessment | ADR-0003 | Approved |
 | Media | ADR-0004 | Approved |
-| Certificate | Planned | Foundation Planned |
+| Certificate | ADR-0011 | Approved |
 | Track | ADR-0005 | Approved |
 | AI | ADR-0006 | Approved |
 | Tenant | ADR-0007 | Approved |
@@ -414,6 +415,7 @@ Read models, evidence and caches do not replace these sources of truth.
 * Commercial
 * Usage
 * Billing
+* Certificate
 * Architecture Principles
 
 ### Foundation Documented, ADR Pending
@@ -422,7 +424,6 @@ None.
 
 ### Planned
 
-* Certificate
 * Notification
 * Logging
 * Search

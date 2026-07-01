@@ -147,6 +147,18 @@ tạo thêm Domain ownership; ownership luôn phải phù hợp với ADR và
 
 ---
 
+# Certificate Terms
+
+| Term | Definition | Owner Domain | Source of Truth | Related ADR |
+| --- | --- | --- | --- | --- |
+| Certificate Template | Tenant-scoped layout, branding, content and rendering configuration used to issue a Certificate. | Certificate | `core_certificate_templates` | [ADR-0011](../adr/ADR-0011-Certificate-Foundation.md) |
+| Certificate Template Product Mapping | Product and published Template Version binding containing Certificate eligibility, issuance and validity rules. | Certificate | `core_certificate_template_products` | [ADR-0011](../adr/ADR-0011-Certificate-Foundation.md) |
+| Issued Certificate | Historical Business Evidence containing credential identity, source lineage, lifecycle and issuance-time snapshots. | Certificate | `core_certificate_issued_certificates` | [ADR-0011](../adr/ADR-0011-Certificate-Foundation.md) |
+| Certificate Verification | Tenant-scoped evaluation of an Issued Certificate verification code, status and validity. | Certificate | Issued Certificate; Verification Log records audit result | [ADR-0011](../adr/ADR-0011-Certificate-Foundation.md) |
+| Certificate Audit Evidence | Append-only verification and download/activity history that does not change Issued Certificate state. | Certificate | Verification and Download Logs | [ADR-0011](../adr/ADR-0011-Certificate-Foundation.md) |
+
+---
+
 # Future Terms
 
 Các thuật ngữ trong phần này là định hướng. Ownership hoặc Source of Truth ghi

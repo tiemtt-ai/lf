@@ -486,7 +486,7 @@ Attendance, Assessment Result, Certificate, Payment or Track state.
 
 ---
 
-## 9. Certificate
+## 9. Certificate (Foundation Approved and Frozen — Version 1.0)
 
 ```text
 Course Completion
@@ -510,10 +510,18 @@ Issued Certificate
 ↓
 
 Verification
+
+↓
+
+Download Audit
 ```
 
 Certificate Domain owns eligibility/issuance/verification. Course and
 Assessment provide inputs but do not issue Certificate directly.
+
+Issued Certificate is Historical Business Evidence. Verification and Download
+Logs are append-only Audit Evidence. Revocation preserves history through
+`revoked` state; issued Certificate is not deleted.
 
 ---
 

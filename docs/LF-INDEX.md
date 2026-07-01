@@ -83,6 +83,7 @@ docs/core/
 | [core/LF-Core-Course.md](core/LF-Core-Course.md) | Course management |
 | [core/LF-Core-Assessment.md](core/LF-Core-Assessment.md) | Assessment engine |
 | [core/LF-Core-LiveClass.md](core/LF-Core-LiveClass.md) | Live class engine |
+| [core/LF-Core-Certificate.md](core/LF-Core-Certificate.md) | Foundation Approved and Frozen — Version 1.0; Certificate evidence and verification |
 
 ---
 
@@ -194,6 +195,7 @@ docs/adr/
 | [ADR-0008](adr/ADR-0008-SaaS-Commercial-Foundation.md) | SaaS Commercial Foundation decision |
 | [ADR-0009](adr/ADR-0009-SaaS-Usage-Foundation.md) | SaaS Usage Foundation decision |
 | [ADR-0010](adr/ADR-0010-SaaS-Billing-Foundation.md) | SaaS Billing Foundation decision |
+| [ADR-0011](adr/ADR-0011-Certificate-Foundation.md) | Certificate Foundation decision |
 
 ---
 

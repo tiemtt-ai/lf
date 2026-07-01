@@ -2,7 +2,7 @@
 
 Version: 2.0
 
-Status: Proposed Final
+Status: Foundation Approved and Frozen
 
 Last Updated: 2026-06
 

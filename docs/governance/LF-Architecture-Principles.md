@@ -417,6 +417,7 @@ giữ đủ structured data cho audit, analytics, AI và enterprise reporting.
 * [ADR-0008 — SaaS Commercial Foundation](../adr/ADR-0008-SaaS-Commercial-Foundation.md)
 * [ADR-0009 — SaaS Usage Foundation](../adr/ADR-0009-SaaS-Usage-Foundation.md)
 * [ADR-0010 — SaaS Billing Foundation](../adr/ADR-0010-SaaS-Billing-Foundation.md)
+* [ADR-0011 — Certificate Foundation](../adr/ADR-0011-Certificate-Foundation.md)
 
 ---
 

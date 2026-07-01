@@ -2,7 +2,7 @@
 
 Version: 1.0
 
-Status: Official Foundation
+Status: Foundation Approved and Frozen
 
 Last Updated: 2026-06
 
