@@ -16,11 +16,11 @@ chuyên sâu, nguồn gốc thực thi, phản hồi và quản trị prompt mà
   thực thi mô hình, đề xuất, thông tin chuyên sâu, phản hồi và prompt.
 - **Sở hữu:** Đăng ký AI và tri thức dẫn xuất, tương tác AI, đầu ra AI và nguồn
   gốc thực thi AI.
-- **Không sở hữu:** Tiến độ học tập hoặc Hoàn thành khóa học, kết quả Đánh giá,
-  dữ liệu tham dự, xử lý Media, Chứng chỉ, Thanh toán, Quyền sử dụng hoặc hành
-  vi Theo dõi.
-- **Miền nghiệp vụ liên quan:** Khóa học, Đánh giá, LiveClass, Media, Theo dõi,
-  Tenant, Thương mại, Mức sử dụng và Thanh toán.
+- **Không sở hữu:** Progress hoặc Hoàn thành khóa học, kết quả Assessment,
+  dữ liệu tham dự, xử lý Media, Certificate, Thanh toán, Entitlement hoặc hành
+  vi Track.
+- **Miền nghiệp vụ liên quan:** Course, Assessment, LiveClass, Media, Track,
+  Tenant, Commercial, Usage và Billing.
 
 ---
 
@@ -50,7 +50,7 @@ chuyên sâu, nguồn gốc thực thi, phản hồi và quản trị prompt mà
 
 | Bảng | Mô tả |
 |------|------|
-| ai_prompt_templates | Các Prompt Template (Mẫu) được quản trị |
+| ai_prompt_templates | Các Prompt Template được quản trị |
 | ai_model_runs | Kiểm tra và nguồn gốc thực thi mô hình |
 
 ---
@@ -108,13 +108,13 @@ flowchart LR
 ## Quan hệ liên Miền nghiệp vụ
 
 AI → Tenant để bảo đảm cô lập và cung cấp ngữ cảnh được cấp quyền  
-AI → Khóa học để lấy ngữ cảnh học tập đã phát hành  
-AI → Đánh giá để lấy bằng chứng đánh giá  
+AI → Course để lấy ngữ cảnh học tập đã phát hành  
+AI → Assessment để lấy bằng chứng đánh giá  
 AI → LiveClass để lấy bằng chứng vận hành được cấp quyền  
 AI → Media để sử dụng tài sản số và bản ghi lời thoại  
-AI → Theo dõi để lấy tổng hợp hành vi và các đặc trưng sẵn sàng cho AI  
-AI → Thương mại để kiểm tra Quyền sử dụng đối với tính năng  
-AI → Mức sử dụng để ghi nhận các phép đo mức tiêu thụ tài nguyên đã được phê duyệt
+AI → Track để lấy tổng hợp hành vi và các đặc trưng sẵn sàng cho AI  
+AI → Commercial để kiểm tra Entitlement đối với tính năng  
+AI → Usage để ghi nhận các phép đo mức tiêu thụ tài nguyên đã được phê duyệt
 
 ---
 
@@ -126,7 +126,7 @@ AI → Mức sử dụng để ghi nhận các phép đo mức tiêu thụ tài 
 - Việc đăng ký tri thức không chuyển quyền sở hữu nội dung nguồn.
 - Chunk và embedding là dữ liệu dẫn xuất có thể tái tạo.
 - Mọi lần thực thi mô hình đều có thể kiểm tra thông qua thông tin nguồn gốc.
-- Prompt Template (Mẫu) được quản trị và quản lý theo phiên bản.
+- Prompt Template được quản trị và quản lý theo phiên bản.
 - Đề xuất và thông tin chuyên sâu phải có khả năng giải thích.
 - Đầu ra AI không bao giờ trực tiếp hoàn thành, chấm điểm, cấp phát, thanh toán
   hoặc cấp quyền.

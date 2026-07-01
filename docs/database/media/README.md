@@ -16,11 +16,11 @@ mình.
   thoại, phụ đề, ánh xạ sử dụng và lịch sử truy cập.
 - **Sở hữu:** Định danh Media, metadata, vị trí lưu trữ, trạng thái xử lý và
   bản ghi của tài sản dẫn xuất.
-- **Không sở hữu:** Tiến độ học tập của Khóa học, kết quả Đánh giá, dữ liệu tham
-  dự, Chứng chỉ, đầu ra AI hoặc quyết định phân quyền của miền nghiệp vụ tiêu
+- **Không sở hữu:** Progress của Course, kết quả Assessment, dữ liệu tham
+  dự, Certificate, đầu ra AI hoặc quyết định phân quyền của miền nghiệp vụ tiêu
   thụ.
-- **Miền nghiệp vụ liên quan:** Khóa học, LiveClass, Đánh giá, Chứng chỉ, AI,
-  Theo dõi, Người dùng và Tenant.
+- **Miền nghiệp vụ liên quan:** Course, LiveClass, Assessment, Certificate, AI,
+  Track, User và Tenant.
 
 ---
 
@@ -97,13 +97,13 @@ flowchart LR
 ## Quan hệ liên Miền nghiệp vụ
 
 Media → Tenant để bảo đảm cô lập và ranh giới lưu trữ  
-Media → Người dùng cho người tải lên và truy cập  
-Media → Khóa học cho tài sản học tập và danh mục  
+Media → User cho người tải lên và truy cập  
+Media → Course cho tài sản học tập và danh mục  
 Media → LiveClass cho tài sản bản ghi  
-Media → Đánh giá cho tài sản của câu hỏi và câu trả lời  
-Media → Chứng chỉ cho tài sản Chứng chỉ đã kết xuất  
+Media → Assessment cho tài sản của câu hỏi và câu trả lời  
+Media → Certificate cho tài sản Certificate đã kết xuất  
 Media → AI để cung cấp tri thức và bản ghi lời thoại được cấp quyền  
-Media → Theo dõi để cung cấp sự kiện hành vi truy cập đã được phê duyệt
+Media → Track để cung cấp Event hành vi truy cập đã được phê duyệt
 
 ---
 
