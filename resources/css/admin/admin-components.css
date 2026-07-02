@@ -59,6 +59,11 @@
     line-height: 1.5;
 }
 
+.lf-admin-page textarea.lf-form-control {
+    height: auto;
+    resize: vertical;
+}
+
 .lf-admin-page .lf-form-group {
     margin-bottom: 18px;
 }
