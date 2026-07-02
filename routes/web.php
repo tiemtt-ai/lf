@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\OrganizationController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\CourseCategoryController;
+use App\Http\Controllers\CourseTemplateController;
 use App\Http\Controllers\CustomerRegisterController;
 use App\Http\Controllers\PublicSiteController;
 use App\Http\Controllers\RoleProfileController;
@@ -176,6 +177,24 @@ Route::middleware([
 
     Route::post('/course-categories/{id}/toggle-status', [CourseCategoryController::class, 'toggleStatus'])
         ->name('course-categories.toggle-status');
+
+    Route::get('/course-templates', [CourseTemplateController::class, 'index'])
+        ->name('course-templates.index');
+
+    Route::get('/course-templates/create', [CourseTemplateController::class, 'create'])
+        ->name('course-templates.create');
+
+    Route::post('/course-templates', [CourseTemplateController::class, 'store'])
+        ->name('course-templates.store');
+
+    Route::get('/course-templates/{id}/edit', [CourseTemplateController::class, 'edit'])
+        ->name('course-templates.edit');
+
+    Route::put('/course-templates/{id}', [CourseTemplateController::class, 'update'])
+        ->name('course-templates.update');
+
+    Route::delete('/course-templates/{id}', [CourseTemplateController::class, 'destroy'])
+        ->name('course-templates.destroy');
 });
 
 /*
@@ -221,6 +240,24 @@ Route::middleware([
 
     Route::post('/course-categories/{id}/toggle-status', [CourseCategoryController::class, 'toggleStatus'])
         ->name('course-categories.toggle-status');
+
+    Route::get('/course-templates', [CourseTemplateController::class, 'index'])
+        ->name('course-templates.index');
+
+    Route::get('/course-templates/create', [CourseTemplateController::class, 'create'])
+        ->name('course-templates.create');
+
+    Route::post('/course-templates', [CourseTemplateController::class, 'store'])
+        ->name('course-templates.store');
+
+    Route::get('/course-templates/{id}/edit', [CourseTemplateController::class, 'edit'])
+        ->name('course-templates.edit');
+
+    Route::put('/course-templates/{id}', [CourseTemplateController::class, 'update'])
+        ->name('course-templates.update');
+
+    Route::delete('/course-templates/{id}', [CourseTemplateController::class, 'destroy'])
+        ->name('course-templates.destroy');
 });
 
 /*

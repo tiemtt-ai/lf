@@ -37,6 +37,7 @@
                 ['label' => __('lf.LF_navigation_menu_teacher_dashboard'), 'route' => 'teacher.dashboard', 'active' => 'teacher.dashboard', 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_student_my_courses'), 'route' => null, 'active' => null, 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_common_product_categories'), 'route' => 'teacher.course-categories.index', 'active' => 'teacher.course-categories.*', 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_common_course_templates'), 'route' => 'teacher.course-templates.index', 'active' => 'teacher.course-templates.*', 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_teacher_live_classes'), 'route' => null, 'active' => null, 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_teacher_students'), 'route' => null, 'active' => null, 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_teacher_reports'), 'route' => null, 'active' => null, 'visible' => true],
@@ -47,6 +48,7 @@
                 ['label' => __('lf.LF_navigation_menu_admin_dashboard'), 'route' => 'admin.dashboard', 'active' => 'admin.dashboard', 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_admin_users'), 'route' => 'admin.users.index', 'active' => 'admin.users.*', 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_common_product_categories'), 'route' => 'admin.course-categories.index', 'active' => 'admin.course-categories.*', 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_common_course_templates'), 'route' => 'admin.course-templates.index', 'active' => 'admin.course-templates.*', 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_admin_organization'), 'route' => 'admin.organization.edit', 'active' => 'admin.organization.*', 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_admin_my_account'), 'route' => 'admin.my-account.edit', 'active' => 'admin.my-account.*', 'visible' => true],
             ];

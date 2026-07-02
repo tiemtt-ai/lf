@@ -74,6 +74,25 @@
     font-weight: 500;
 }
 
+.admin-form-section {
+    margin: 0 0 26px;
+    padding: 0 0 8px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-form-section:last-of-type {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.admin-form-section-title {
+    margin: 0 0 18px;
+    color: var(--admin-primary);
+    font-size: 16px;
+    font-weight: 600;
+}
+
 .admin-radio-group {
     display: flex;
     align-items: center;
