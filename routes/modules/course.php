@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CourseCategoryController;
 use App\Http\Controllers\CourseTemplateController;
+use App\Http\Controllers\CourseTemplateLessonController;
 use App\Http\Controllers\CourseTemplateSectionController;
 use Illuminate\Support\Facades\Route;
 
@@ -70,3 +71,33 @@ Route::delete(
     '/course-templates/{templateId}/sections/{sectionId}',
     [CourseTemplateSectionController::class, 'destroy']
 )->name('course-templates.sections.destroy');
+
+Route::get(
+    '/course-templates/{templateId}/sections/{sectionId}/lessons',
+    [CourseTemplateLessonController::class, 'index']
+)->name('course-templates.sections.lessons.index');
+
+Route::get(
+    '/course-templates/{templateId}/sections/{sectionId}/lessons/create',
+    [CourseTemplateLessonController::class, 'create']
+)->name('course-templates.sections.lessons.create');
+
+Route::post(
+    '/course-templates/{templateId}/sections/{sectionId}/lessons',
+    [CourseTemplateLessonController::class, 'store']
+)->name('course-templates.sections.lessons.store');
+
+Route::get(
+    '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}/edit',
+    [CourseTemplateLessonController::class, 'edit']
+)->name('course-templates.sections.lessons.edit');
+
+Route::put(
+    '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}',
+    [CourseTemplateLessonController::class, 'update']
+)->name('course-templates.sections.lessons.update');
+
+Route::delete(
+    '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}',
+    [CourseTemplateLessonController::class, 'destroy']
+)->name('course-templates.sections.lessons.destroy');

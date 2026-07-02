@@ -36,11 +36,17 @@
                 </thead>
                 <tbody>
                 @forelse ($sections as $section)
+                    @php
+                        $sectionLessons = $lessonsBySection->get(
+                            $section->id,
+                            collect()
+                        );
+                    @endphp
                     <tr>
                         <td>{{ $section->sort_order }}</td>
                         <td>{{ $section->title }}</td>
                         <td>{{ $section->parent_title ?? '—' }}</td>
-                        <td>{{ $section->total_lessons }}</td>
+                        <td>{{ $sectionLessons->count() }}</td>
                         <td>
                             <span @class([
                                 'badge',
@@ -98,6 +104,112 @@
                                     </div>
                                 </div>
                             </x-modal>
+                        </td>
+                    </tr>
+                    <tr class="course-template-lesson-row">
+                        <td colspan="6">
+                            <section id="course-template-section-{{ $section->id }}-lessons"
+                                     class="course-template-lesson-panel"
+                                     aria-labelledby="course-template-section-{{ $section->id }}-lessons-title">
+                                <div class="course-template-lesson-toolbar">
+                                    <div>
+                                        <h4 id="course-template-section-{{ $section->id }}-lessons-title">
+                                            {{ __('lf.LF_course_template_lesson_common_list_title') }}
+                                        </h4>
+                                        <span>
+                                            {{ trans_choice(
+                                                'lf.LF_course_template_lesson_common_count',
+                                                $sectionLessons->count(),
+                                                ['count' => $sectionLessons->count()]
+                                            ) }}
+                                        </span>
+                                    </div>
+                                    <a href="{{ route(
+                                        $lessonRoutePrefix.'.create',
+                                        [$template->id, $section->id]
+                                    ) }}"
+                                       class="btn btn-primary">
+                                        {{ __('lf.LF_course_template_lesson_common_add_action') }}
+                                    </a>
+                                </div>
+
+                                <div class="course-template-lesson-list">
+                                    @forelse ($sectionLessons as $lesson)
+                                        <article class="course-template-lesson-item">
+                                            <div>
+                                                <strong>{{ $lesson->title }}</strong>
+                                                <span>
+                                                    {{ __('lf.LF_course_template_lesson_common_order_value', [
+                                                        'order' => $lesson->sort_order,
+                                                    ]) }}
+                                                    ·
+                                                    {{ __('lf.LF_course_template_lesson_common_'.$lesson->status) }}
+                                                </span>
+                                            </div>
+                                            <div class="admin-table-actions">
+                                                <a href="{{ route(
+                                                    $lessonRoutePrefix.'.edit',
+                                                    [
+                                                        $template->id,
+                                                        $section->id,
+                                                        $lesson->id,
+                                                    ]
+                                                ) }}">
+                                                    {{ __('lf.LF_course_template_lesson_common_edit') }}
+                                                </a>
+                                                <button type="button"
+                                                        class="admin-link-button"
+                                                        x-data
+                                                        x-on:click="$dispatch(
+                                                            'open-modal',
+                                                            'delete-course-template-lesson-{{ $lesson->id }}'
+                                                        )">
+                                                    {{ __('lf.LF_common_button_delete') }}
+                                                </button>
+                                            </div>
+
+                                            <x-modal name="delete-course-template-lesson-{{ $lesson->id }}"
+                                                     focusable>
+                                                <div class="lf-modal-card">
+                                                    <h2>
+                                                        {{ __('lf.LF_course_template_lesson_common_delete_confirm') }}
+                                                    </h2>
+                                                    <div class="lf-modal-actions">
+                                                        <button type="button"
+                                                                class="btn"
+                                                                x-on:click="$dispatch(
+                                                                    'close-modal',
+                                                                    'delete-course-template-lesson-{{ $lesson->id }}'
+                                                                )">
+                                                            {{ __('lf.LF_course_template_lesson_common_delete_no') }}
+                                                        </button>
+                                                        <form method="POST"
+                                                              action="{{ route(
+                                                                  $lessonRoutePrefix.'.destroy',
+                                                                  [
+                                                                      $template->id,
+                                                                      $section->id,
+                                                                      $lesson->id,
+                                                                  ]
+                                                              ) }}">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit"
+                                                                    class="btn btn-primary">
+                                                                {{ __('lf.LF_course_template_lesson_common_delete_yes') }}
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </x-modal>
+                                        </article>
+                                    @empty
+                                        <p class="course-template-lesson-empty">
+                                            {{ __('lf.LF_course_template_lesson_common_empty') }}
+                                        </p>
+                                    @endforelse
+                                </div>
+                            </section>
                         </td>
                     </tr>
                 @empty

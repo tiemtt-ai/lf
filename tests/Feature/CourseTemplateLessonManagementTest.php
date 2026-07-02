@@ -1,0 +1,844 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\User;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use Tests\TestCase;
+
+class CourseTemplateLessonManagementTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config([
+            'app.url' => 'https://localhost',
+            'app.base_domain' => 'localhost',
+            'app.tenant_scheme' => 'https',
+        ]);
+    }
+
+    public function test_admin_and_teacher_can_view_lessons_inside_their_template_sections(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'TOPIK Beginner',
+            'topik-beginner'
+        );
+        $sectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Hangul'
+        );
+        $otherTemplateId = $this->createTemplate(
+            $otherCustomerId,
+            'Private Template',
+            'private-template'
+        );
+        $otherSectionId = $this->createSection(
+            $otherCustomerId,
+            $otherTemplateId,
+            'Private Section'
+        );
+        $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'Korean Alphabet'
+        );
+        $this->createLesson(
+            $otherCustomerId,
+            $otherTemplateId,
+            $otherSectionId,
+            'Private Tenant Lesson'
+        );
+
+        foreach ([
+            [$admin, 'admin'],
+            [$teacher, 'teacher'],
+        ] as [$user, $area]) {
+            $this->actingAs($user)
+                ->get(
+                    "https://tenant-a.localhost/{$area}/course-templates/"
+                    ."{$templateId}/edit"
+                )
+                ->assertOk()
+                ->assertSeeText('+ Thêm bài học')
+                ->assertSeeText('Korean Alphabet')
+                ->assertDontSeeText('Private Tenant Lesson');
+        }
+    }
+
+    public function test_admin_can_create_a_lesson_with_documented_fields(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'TOPIK Course',
+            'topik-course'
+        );
+        $sectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Alphabet'
+        );
+
+        $this->actingAs($admin)
+            ->post(
+                $this->lessonCollectionUrl(
+                    'admin',
+                    $templateId,
+                    $sectionId
+                ),
+                $this->validLessonData([
+                    'title' => 'Korean Alphabet',
+                    'slug' => 'korean-alphabet',
+                    'short_description' => 'Learn the alphabet',
+                    'description' => 'Detailed lesson description',
+                    'sort_order' => 2,
+                    'is_preview' => 1,
+                    'learning_objective' => 'Read basic Hangul',
+                    'status' => 'active',
+                ])
+            )
+            ->assertRedirect(
+                'https://tenant-a.localhost/admin/course-templates/'
+                ."{$templateId}/edit"
+                ."#course-template-section-{$sectionId}-lessons"
+            );
+
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'template_section_id' => $sectionId,
+            'title' => 'Korean Alphabet',
+            'slug' => 'korean-alphabet',
+            'short_description' => 'Learn the alphabet',
+            'description' => 'Detailed lesson description',
+            'sort_order' => 2,
+            'is_preview' => 1,
+            'learning_objective' => 'Read basic Hangul',
+            'duration_seconds' => 0,
+            'activity_count' => 0,
+            'unlock_rule' => 'none',
+            'status' => 'active',
+            'created_by' => $admin->id,
+        ]);
+    }
+
+    public function test_teacher_can_create_a_lesson_for_an_own_tenant_section(): void
+    {
+        $customerId = $this->createTenant();
+        $teacher = $this->createUser($customerId, 'teacher');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Teacher Course',
+            'teacher-course'
+        );
+        $sectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Teacher Section'
+        );
+
+        $this->actingAs($teacher)
+            ->post(
+                $this->lessonCollectionUrl(
+                    'teacher',
+                    $templateId,
+                    $sectionId
+                ),
+                $this->validLessonData(['title' => 'Teacher Lesson'])
+            )
+            ->assertRedirect(
+                'https://tenant-a.localhost/teacher/course-templates/'
+                ."{$templateId}/edit"
+                ."#course-template-section-{$sectionId}-lessons"
+            );
+
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'customer_id' => $customerId,
+            'template_section_id' => $sectionId,
+            'title' => 'Teacher Lesson',
+            'created_by' => $teacher->id,
+        ]);
+    }
+
+    public function test_validation_and_conditional_unlock_fields_are_enforced(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Validation Course',
+            'validation-course'
+        );
+        $sectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Validation Section'
+        );
+
+        $this->actingAs($admin)
+            ->post(
+                $this->lessonCollectionUrl(
+                    'admin',
+                    $templateId,
+                    $sectionId
+                ),
+                [
+                    'title' => '',
+                    'sort_order' => -1,
+                    'is_preview' => 'invalid',
+                    'unlock_rule' => 'previous_lesson_completed',
+                    'status' => 'published',
+                ]
+            )
+            ->assertSessionHasErrors([
+                'title',
+                'sort_order',
+                'is_preview',
+                'unlock_after_lesson_id',
+                'status',
+            ]);
+
+        $this->actingAs($admin)
+            ->post(
+                $this->lessonCollectionUrl(
+                    'admin',
+                    $templateId,
+                    $sectionId
+                ),
+                $this->validLessonData([
+                    'unlock_rule' => 'date_based',
+                    'unlock_at' => null,
+                ])
+            )
+            ->assertSessionHasErrors('unlock_at');
+
+        $this->assertDatabaseCount('core_course_template_lessons', 0);
+    }
+
+    public function test_template_max_lessons_is_enforced(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Limited Course',
+            'limited-course',
+            maxLessons: 1
+        );
+        $sectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Limited Section'
+        );
+        $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'Only Lesson'
+        );
+
+        $this->actingAs($admin)
+            ->post(
+                $this->lessonCollectionUrl(
+                    'admin',
+                    $templateId,
+                    $sectionId
+                ),
+                $this->validLessonData(['title' => 'Too Many'])
+            )
+            ->assertSessionHasErrors('title');
+
+        $this->assertDatabaseCount('core_course_template_lessons', 1);
+    }
+
+    public function test_template_section_and_lesson_access_are_tenant_isolated(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $ownTemplateId = $this->createTemplate(
+            $customerId,
+            'Own Template',
+            'own-template'
+        );
+        $ownSectionId = $this->createSection(
+            $customerId,
+            $ownTemplateId,
+            'Own Section'
+        );
+        $secondTemplateId = $this->createTemplate(
+            $customerId,
+            'Second Template',
+            'second-template'
+        );
+        $wrongSectionId = $this->createSection(
+            $customerId,
+            $secondTemplateId,
+            'Wrong Template Section'
+        );
+        $otherTemplateId = $this->createTemplate(
+            $otherCustomerId,
+            'Other Template',
+            'other-template'
+        );
+        $otherSectionId = $this->createSection(
+            $otherCustomerId,
+            $otherTemplateId,
+            'Other Section'
+        );
+        $otherLessonId = $this->createLesson(
+            $otherCustomerId,
+            $otherTemplateId,
+            $otherSectionId,
+            'Other Lesson'
+        );
+
+        foreach ([
+            [$otherTemplateId, $otherSectionId],
+            [$ownTemplateId, $wrongSectionId],
+        ] as [$templateId, $sectionId]) {
+            $this->actingAs($admin)
+                ->post(
+                    $this->lessonCollectionUrl(
+                        'admin',
+                        $templateId,
+                        $sectionId
+                    ),
+                    $this->validLessonData(['title' => 'Invalid Lesson'])
+                )
+                ->assertNotFound();
+        }
+
+        $this->actingAs($admin)
+            ->get(
+                $this->lessonCollectionUrl(
+                    'admin',
+                    $ownTemplateId,
+                    $ownSectionId
+                )."/{$otherLessonId}/edit"
+            )
+            ->assertNotFound();
+
+        $this->assertDatabaseMissing('core_course_template_lessons', [
+            'customer_id' => $customerId,
+            'title' => 'Invalid Lesson',
+        ]);
+    }
+
+    public function test_prerequisite_must_belong_to_the_same_template_and_tenant(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Own Template',
+            'own-template'
+        );
+        $sectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Own Section'
+        );
+        $otherOwnTemplateId = $this->createTemplate(
+            $customerId,
+            'Other Own Template',
+            'other-own-template'
+        );
+        $otherOwnSectionId = $this->createSection(
+            $customerId,
+            $otherOwnTemplateId,
+            'Other Own Section'
+        );
+        $wrongTemplateLessonId = $this->createLesson(
+            $customerId,
+            $otherOwnTemplateId,
+            $otherOwnSectionId,
+            'Wrong Template Lesson'
+        );
+        $otherTemplateId = $this->createTemplate(
+            $otherCustomerId,
+            'Other Tenant Template',
+            'other-tenant-template'
+        );
+        $otherSectionId = $this->createSection(
+            $otherCustomerId,
+            $otherTemplateId,
+            'Other Tenant Section'
+        );
+        $wrongTenantLessonId = $this->createLesson(
+            $otherCustomerId,
+            $otherTemplateId,
+            $otherSectionId,
+            'Wrong Tenant Lesson'
+        );
+
+        foreach (
+            [$wrongTemplateLessonId, $wrongTenantLessonId] as $prerequisiteId
+        ) {
+            $this->actingAs($admin)
+                ->post(
+                    $this->lessonCollectionUrl(
+                        'admin',
+                        $templateId,
+                        $sectionId
+                    ),
+                    $this->validLessonData([
+                        'title' => 'Invalid Prerequisite '.$prerequisiteId,
+                        'unlock_rule' => 'previous_lesson_completed',
+                        'unlock_after_lesson_id' => $prerequisiteId,
+                    ])
+                )
+                ->assertSessionHasErrors('unlock_after_lesson_id');
+        }
+    }
+
+    public function test_unlock_prerequisite_cannot_be_self_or_create_a_cycle(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Dependency Course',
+            'dependency-course'
+        );
+        $sectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Dependency Section'
+        );
+        $firstLessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'First Lesson'
+        );
+        $secondLessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'Second Lesson',
+            unlockAfterLessonId: $firstLessonId
+        );
+
+        $this->actingAs($admin)
+            ->put(
+                $this->lessonCollectionUrl(
+                    'admin',
+                    $templateId,
+                    $sectionId
+                )."/{$firstLessonId}",
+                $this->validLessonData([
+                    'title' => 'First Lesson',
+                    'unlock_rule' => 'previous_lesson_completed',
+                    'unlock_after_lesson_id' => $firstLessonId,
+                ])
+            )
+            ->assertSessionHasErrors('unlock_after_lesson_id');
+
+        $this->actingAs($admin)
+            ->put(
+                $this->lessonCollectionUrl(
+                    'admin',
+                    $templateId,
+                    $sectionId
+                )."/{$firstLessonId}",
+                $this->validLessonData([
+                    'title' => 'First Lesson',
+                    'unlock_rule' => 'previous_lesson_completed',
+                    'unlock_after_lesson_id' => $secondLessonId,
+                ])
+            )
+            ->assertSessionHasErrors('unlock_after_lesson_id');
+
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'id' => $firstLessonId,
+            'unlock_after_lesson_id' => null,
+        ]);
+    }
+
+    public function test_delete_is_blocked_when_another_lesson_uses_the_prerequisite(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Protected Course',
+            'protected-course'
+        );
+        $sectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Protected Section'
+        );
+        $prerequisiteId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'Prerequisite'
+        );
+        $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'Dependent',
+            unlockAfterLessonId: $prerequisiteId
+        );
+
+        $this->actingAs($admin)
+            ->delete(
+                $this->lessonCollectionUrl(
+                    'admin',
+                    $templateId,
+                    $sectionId
+                )."/{$prerequisiteId}"
+            )
+            ->assertSessionHasErrors('lesson');
+
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'id' => $prerequisiteId,
+        ]);
+    }
+
+    public function test_delete_is_blocked_when_the_activities_table_has_a_reference(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Activity Course',
+            'activity-course'
+        );
+        $sectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Activity Section'
+        );
+        $lessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'Referenced Lesson'
+        );
+
+        Schema::create(
+            'core_course_template_activities',
+            function (Blueprint $table): void {
+                $table->id();
+                $table->unsignedBigInteger('customer_id');
+                $table->unsignedBigInteger('template_id');
+                $table->unsignedBigInteger('template_lesson_id');
+            }
+        );
+        DB::table('core_course_template_activities')->insert([
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'template_lesson_id' => $lessonId,
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(
+                $this->lessonCollectionUrl(
+                    'admin',
+                    $templateId,
+                    $sectionId
+                )."/{$lessonId}"
+            )
+            ->assertSessionHasErrors('lesson');
+
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'id' => $lessonId,
+        ]);
+
+        Schema::drop('core_course_template_activities');
+    }
+
+    public function test_delete_confirmation_and_required_indicators_are_rendered(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'UI Course',
+            'ui-course'
+        );
+        $sectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'UI Section'
+        );
+        $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'UI Lesson'
+        );
+
+        $this->actingAs($admin)
+            ->get(
+                'https://tenant-a.localhost/admin/course-templates/'
+                ."{$templateId}/edit"
+            )
+            ->assertOk()
+            ->assertSeeText('+ Thêm bài học')
+            ->assertSeeText('Sửa')
+            ->assertSeeText('Xóa')
+            ->assertSeeText('Bạn có chắc chắn muốn xóa bài học này không?')
+            ->assertSeeText('Có, xóa')
+            ->assertSeeText('Không');
+
+        $response = $this->actingAs($admin)
+            ->get(
+                $this->lessonCollectionUrl(
+                    'admin',
+                    $templateId,
+                    $sectionId
+                ).'/create'
+            )
+            ->assertOk();
+
+        foreach ([
+            'title',
+            'sort_order',
+            'is_preview',
+            'unlock_rule',
+            'status',
+        ] as $field) {
+            $this->assertSame(
+                1,
+                $this->requiredIndicatorCount($response->getContent(), $field)
+            );
+        }
+
+        foreach ([
+            'slug',
+            'short_description',
+            'description',
+            'learning_objective',
+            'unlock_after_lesson_id',
+            'unlock_at',
+        ] as $field) {
+            $this->assertSame(
+                0,
+                $this->requiredIndicatorCount($response->getContent(), $field)
+            );
+        }
+
+        $response
+            ->assertDontSee('name="duration_seconds"', false)
+            ->assertDontSee('name="activity_count"', false);
+    }
+
+    public function test_guest_and_student_cannot_access_lesson_management(): void
+    {
+        $customerId = $this->createTenant();
+        $student = $this->createUser($customerId, 'student');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Restricted Course',
+            'restricted-course'
+        );
+        $sectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Restricted Section'
+        );
+        $url = $this->lessonCollectionUrl(
+            'admin',
+            $templateId,
+            $sectionId
+        ).'/create';
+
+        $this->get($url)->assertRedirect('https://tenant-a.localhost/login');
+        $this->actingAs($student)->get($url)->assertForbidden();
+    }
+
+    public function test_course_template_lesson_module_has_no_eloquent_models(): void
+    {
+        $this->assertFileDoesNotExist(
+            app_path('Models/CoreCourseTemplateLesson.php')
+        );
+        $this->assertFileDoesNotExist(
+            app_path('Models/CourseTemplateLesson.php')
+        );
+    }
+
+    private function createTenant(string $slug = 'tenant-a'): int
+    {
+        return DB::table('saas_customers')->insertGetId([
+            'name' => $slug,
+            'slug' => $slug,
+            'subdomain' => $slug,
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function createUser(int $customerId, string $role): User
+    {
+        return User::forceCreate([
+            'customer_id' => $customerId,
+            'name' => ucfirst(str_replace('_', ' ', $role)),
+            'email' => $role.'-'.$customerId.'-'.uniqid().'@example.test',
+            'password' => Hash::make('password123'),
+            'role' => $role,
+            'status' => 'active',
+            'email_verified_at' => now(),
+        ]);
+    }
+
+    private function createTemplate(
+        int $customerId,
+        string $title,
+        string $slug,
+        ?int $maxLessons = null
+    ): int {
+        $now = now();
+
+        return DB::table('core_course_templates')->insertGetId([
+            'customer_id' => $customerId,
+            'category_id' => null,
+            'title' => $title,
+            'slug' => $slug,
+            'short_description' => null,
+            'description' => null,
+            'publisher_name' => null,
+            'thumbnail_type' => 'image',
+            'thumbnail_image' => null,
+            'thumbnail_video_source' => null,
+            'thumbnail_video_url' => null,
+            'thumbnail_video_media_id' => null,
+            'difficulty_level' => null,
+            'language' => null,
+            'estimated_duration_minutes' => 0,
+            'max_lessons' => $maxLessons,
+            'lesson_count' => 0,
+            'meta_title' => null,
+            'meta_description' => null,
+            'meta_keywords' => null,
+            'working_revision' => 1,
+            'status' => 'draft',
+            'created_by' => null,
+            'last_version_published_at' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function createSection(
+        int $customerId,
+        int $templateId,
+        string $title
+    ): int {
+        return DB::table('core_course_template_sections')->insertGetId([
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'parent_section_id' => null,
+            'code' => null,
+            'title' => $title,
+            'short_title' => null,
+            'description' => null,
+            'thumbnail_file_id' => null,
+            'sort_order' => 1,
+            'is_required' => true,
+            'unlock_rule' => 'immediate',
+            'estimated_duration_minutes' => null,
+            'total_lessons' => 0,
+            'status' => 'active',
+            'metadata' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function createLesson(
+        int $customerId,
+        int $templateId,
+        int $sectionId,
+        string $title,
+        ?int $unlockAfterLessonId = null
+    ): int {
+        return DB::table('core_course_template_lessons')->insertGetId([
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'template_section_id' => $sectionId,
+            'title' => $title,
+            'slug' => strtolower(str_replace(' ', '-', $title)).'-'.uniqid(),
+            'short_description' => null,
+            'description' => null,
+            'sort_order' => 0,
+            'is_preview' => false,
+            'learning_objective' => null,
+            'duration_seconds' => 0,
+            'activity_count' => 0,
+            'unlock_rule' => $unlockAfterLessonId === null
+                ? 'none'
+                : 'previous_lesson_completed',
+            'unlock_after_lesson_id' => $unlockAfterLessonId,
+            'unlock_at' => null,
+            'status' => 'draft',
+            'created_by' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function validLessonData(array $overrides = []): array
+    {
+        return array_merge([
+            'title' => 'Lesson Introduction',
+            'slug' => null,
+            'short_description' => null,
+            'description' => null,
+            'sort_order' => 0,
+            'is_preview' => 0,
+            'learning_objective' => null,
+            'unlock_rule' => 'none',
+            'unlock_after_lesson_id' => null,
+            'unlock_at' => null,
+            'status' => 'draft',
+        ], $overrides);
+    }
+
+    private function lessonCollectionUrl(
+        string $area,
+        int $templateId,
+        int $sectionId
+    ): string {
+        return "https://tenant-a.localhost/{$area}/course-templates/"
+            ."{$templateId}/sections/{$sectionId}/lessons";
+    }
+
+    private function requiredIndicatorCount(string $html, string $field): int
+    {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        $xpath = new \DOMXPath($document);
+        $query = sprintf(
+            '//label[@for="%s"]//span[contains(concat(" ", normalize-space(@class), " "), " lf-required-indicator ")]',
+            $field
+        );
+
+        return $xpath->query($query)->length;
+    }
+}

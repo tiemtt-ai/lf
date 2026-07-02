@@ -29,20 +29,32 @@ return new class extends Migration
             $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamps();
 
-            $table->foreign('customer_id')
+            $table->foreign('customer_id', 'fk_cc_customer')
                 ->references('id')
                 ->on('saas_customers')
                 ->restrictOnDelete();
-            $table->foreign('parent_id')
+            $table->foreign('parent_id', 'fk_cc_parent')
                 ->references('id')
                 ->on('core_course_categories')
                 ->restrictOnDelete();
 
-            $table->index('customer_id');
-            $table->index(['customer_id', 'parent_id']);
-            $table->index(['customer_id', 'status']);
-            $table->index(['customer_id', 'sort_order']);
-            $table->unique(['customer_id', 'slug']);
+            $table->index('customer_id', 'idx_cc_customer');
+            $table->index(
+                ['customer_id', 'parent_id'],
+                'idx_cc_customer_parent'
+            );
+            $table->index(
+                ['customer_id', 'status'],
+                'idx_cc_customer_status'
+            );
+            $table->index(
+                ['customer_id', 'sort_order'],
+                'idx_cc_customer_sort'
+            );
+            $table->unique(
+                ['customer_id', 'slug'],
+                'uk_cc_customer_slug'
+            );
         });
     }
 

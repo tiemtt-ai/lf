@@ -117,6 +117,38 @@ to the same tenant.
   required.
 - Implement documented field types, defaults, indexes, and constraints.
 
+## Database Naming Rules
+
+MySQL limits identifier names (indexes, foreign keys, unique constraints) to
+64 characters.
+
+Never rely on Laravel's default generated names for long table names.
+
+Every migration using long table names must explicitly specify a short name
+for every:
+
+- indexes
+- unique constraints
+- foreign keys
+
+Each explicit name must be no longer than 64 characters and use these
+prefixes:
+
+idx_  → Index
+
+uk_   → Unique Key
+
+fk_   → Foreign Key
+
+Do not use Laravel's auto-generated identifier names for these constraints on
+long table names, even when the current generated name happens to fit.
+
+Examples:
+
+idx_cctl_cust_sec
+uk_cctp_slug
+fk_cctl_section
+
 ## Delete Rules
 
 - Never cascade delete unless documentation explicitly requires it.
@@ -279,4 +311,3 @@ Report:
 ---
 
 End of Document
-

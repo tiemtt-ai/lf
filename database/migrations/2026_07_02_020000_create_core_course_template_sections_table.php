@@ -30,43 +30,43 @@ return new class extends Migration
             $table->json('metadata')->nullable();
             $table->timestamps();
 
-            $table->foreign('customer_id')
+            $table->foreign('customer_id', 'fk_ccts_customer')
                 ->references('id')
                 ->on('saas_customers')
                 ->restrictOnDelete();
-            $table->foreign('template_id')
+            $table->foreign('template_id', 'fk_ccts_template')
                 ->references('id')
                 ->on('core_course_templates')
                 ->restrictOnDelete();
-            $table->foreign('parent_section_id')
+            $table->foreign('parent_section_id', 'fk_ccts_parent')
                 ->references('id')
                 ->on('core_course_template_sections')
                 ->restrictOnDelete();
 
-            $table->index('customer_id', 'idx_template_sections_customer');
+            $table->index('customer_id', 'idx_ccts_customer');
             $table->index(
                 ['customer_id', 'template_id'],
-                'idx_template_sections_template'
+                'idx_ccts_template'
             );
             $table->index(
                 ['customer_id', 'parent_section_id'],
-                'idx_template_sections_parent'
+                'idx_ccts_parent'
             );
             $table->index(
                 ['customer_id', 'template_id', 'parent_section_id', 'sort_order'],
-                'idx_template_sections_sort'
+                'idx_ccts_sort'
             );
             $table->index(
                 ['customer_id', 'template_id', 'status'],
-                'idx_template_sections_status'
+                'idx_ccts_status'
             );
             $table->unique(
                 ['customer_id', 'template_id', 'code'],
-                'uniq_template_section_code'
+                'uk_ccts_code'
             );
             $table->unique(
                 ['customer_id', 'template_id', 'parent_section_id', 'sort_order'],
-                'uniq_template_section_sort'
+                'uk_ccts_sort'
             );
         });
     }

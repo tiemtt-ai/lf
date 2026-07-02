@@ -39,22 +39,40 @@ return new class extends Migration
             $table->timestamp('last_version_published_at')->nullable();
             $table->timestamps();
 
-            $table->foreign('customer_id')
+            $table->foreign('customer_id', 'fk_cct_customer')
                 ->references('id')
                 ->on('saas_customers')
                 ->restrictOnDelete();
-            $table->foreign('category_id')
+            $table->foreign('category_id', 'fk_cct_category')
                 ->references('id')
                 ->on('core_course_categories')
                 ->restrictOnDelete();
 
-            $table->index('customer_id');
-            $table->index(['customer_id', 'category_id']);
-            $table->index(['customer_id', 'status']);
-            $table->index(['customer_id', 'created_by']);
-            $table->index(['customer_id', 'slug']);
-            $table->index(['customer_id', 'language']);
-            $table->unique(['customer_id', 'slug']);
+            $table->index('customer_id', 'idx_cct_customer');
+            $table->index(
+                ['customer_id', 'category_id'],
+                'idx_cct_customer_category'
+            );
+            $table->index(
+                ['customer_id', 'status'],
+                'idx_cct_customer_status'
+            );
+            $table->index(
+                ['customer_id', 'created_by'],
+                'idx_cct_customer_creator'
+            );
+            $table->index(
+                ['customer_id', 'slug'],
+                'idx_cct_customer_slug'
+            );
+            $table->index(
+                ['customer_id', 'language'],
+                'idx_cct_customer_language'
+            );
+            $table->unique(
+                ['customer_id', 'slug'],
+                'uk_cct_customer_slug'
+            );
         });
     }
 

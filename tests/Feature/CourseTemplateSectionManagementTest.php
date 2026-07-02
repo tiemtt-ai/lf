@@ -3,11 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class CourseTemplateSectionManagementTest extends TestCase
@@ -373,16 +371,26 @@ class CourseTemplateSectionManagementTest extends TestCase
             1
         );
 
-        Schema::create('core_course_template_lessons', function (Blueprint $table): void {
-            $table->id();
-            $table->unsignedBigInteger('customer_id');
-            $table->unsignedBigInteger('template_id');
-            $table->unsignedBigInteger('template_section_id');
-        });
         DB::table('core_course_template_lessons')->insert([
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'template_section_id' => $sectionId,
+            'title' => 'Referenced Lesson',
+            'slug' => 'referenced-lesson',
+            'short_description' => null,
+            'description' => null,
+            'sort_order' => 0,
+            'is_preview' => false,
+            'learning_objective' => null,
+            'duration_seconds' => 0,
+            'activity_count' => 0,
+            'unlock_rule' => 'none',
+            'unlock_after_lesson_id' => null,
+            'unlock_at' => null,
+            'status' => 'draft',
+            'created_by' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         $this->actingAs($admin)
@@ -395,8 +403,6 @@ class CourseTemplateSectionManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_template_sections', [
             'id' => $sectionId,
         ]);
-
-        Schema::drop('core_course_template_lessons');
     }
 
     public function test_delete_confirmation_and_required_indicators_are_rendered(): void
