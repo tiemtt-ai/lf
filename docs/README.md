@@ -4,7 +4,7 @@ Version: 1.0
 
 Status: Official Entry Point
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -31,9 +31,10 @@ cụ thể.
 2. [Architecture Decision Records](adr/README.md)
 3. [Core Domains](core/README.md)
 4. [Database Documentation](database/README.md)
-5. [Platform Domains](platform/README.md)
-6. [SaaS Domains](saas/README.md)
-7. [Quality and Regression](quality/README.md)
+5. [Prompt and Implementation Rules](prompts/README.md)
+6. [Platform Domains](platform/README.md)
+7. [SaaS Domains](saas/README.md)
+8. [Quality and Regression](quality/README.md)
 
 Không cần tải toàn bộ tài liệu cho mọi task. Sau khi hiểu Governance, dùng
 [Documentation Routing Guide](LF-INDEX.md#documentation-routing-guide) để chỉ
@@ -49,6 +50,7 @@ Không cần tải toàn bộ tài liệu cho mọi task. Sau khi hiểu Governa
 | `adr/` | Quyết định kiến trúc đã được review và approved |
 | `core/` | Domain overview và business responsibility |
 | `database/` | Schema và table documentation theo Domain |
+| `prompts/` | Reusable CRUD, UI và database implementation rules cho AI agents |
 | `platform/` | Shared Platform Domain và capability |
 | `saas/` | Multi-tenant và commercial platform Domain |
 | `quality/` | QA, regression và implementation conformance |

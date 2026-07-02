@@ -4,7 +4,7 @@ Version: 1.0
 
 Status: Official Foundation
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -964,6 +964,18 @@ title = TOPIK Beginner
 
 status = published
 ```
+
+---
+
+# Related Implementation Rule Documents
+
+Database design is documented in this file.
+
+Actual CRUD/database-backed implementation must also follow:
+
+- [docs/prompts/LF-Implementation-Rules.md](prompts/LF-Implementation-Rules.md)
+
+The implementation must not invent fields, indexes, relationships, or UI behavior outside the documented table and domain design.
 
 ---
 

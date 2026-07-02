@@ -4,7 +4,7 @@ Version: 1.0
 
 Status: Official Foundation
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -488,6 +488,16 @@ Happy Path
 ```php
 Feature Tests
 ```
+
+---
+
+# AI Agent Implementation Rules
+
+Before implementing any CRUD/database-backed module, AI Agents must follow:
+
+- [docs/prompts/LF-Implementation-Rules.md](prompts/LF-Implementation-Rules.md)
+
+This rule document is mandatory unless explicitly overridden by a domain ADR or governance document.
 
 ---
 

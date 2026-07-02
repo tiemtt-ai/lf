@@ -4,7 +4,7 @@ Version: 2.0
 
 Status: Official
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -33,6 +33,7 @@ infrastructure, or business decisions.
 | Architecture Decision Records | [adr/README.md](adr/README.md) |
 | Core Domains | [core/README.md](core/README.md) |
 | Database Documentation | [database/README.md](database/README.md) |
+| Prompt and Implementation Rules | [prompts/README.md](prompts/README.md) |
 | Platform Domains | [platform/README.md](platform/README.md) |
 | SaaS Domains | [saas/README.md](saas/README.md) |
 | Quality and Regression | [quality/README.md](quality/README.md) |
@@ -65,6 +66,16 @@ docs/
 | --- | --- |
 | [LF-Data-Modeling.md](LF-Data-Modeling.md) | Database design methodology |
 | [LF-Development-Standards.md](LF-Development-Standards.md) | Implementation and development standards |
+
+---
+
+# AI Implementation Rules
+
+Before implementing any database-backed feature, AI Agents should read:
+
+1. [docs/prompts/LF-Implementation-Rules.md](prompts/LF-Implementation-Rules.md)
+2. Related Domain README
+3. Target Table Documentation
 
 ---
 
@@ -275,6 +286,7 @@ Read:
 * LF-OS.md
 * LF-Data-Modeling.md
 * LF-Development-Standards.md
+* prompts/LF-Implementation-Rules.md
 * relevant domain document
 
 Use when:
@@ -293,6 +305,7 @@ Read:
 
 * LF-Development-Standards.md
 * LF-OS.md
+* prompts/LF-Implementation-Rules.md
 * relevant domain document
 * relevant tech document if needed
 
