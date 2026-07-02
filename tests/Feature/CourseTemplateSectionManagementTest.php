@@ -416,6 +416,10 @@ class CourseTemplateSectionManagementTest extends TestCase
                 ."{$templateId}/edit"
             )
             ->assertOk()
+            ->assertSeeText('+ Thêm phần học')
+            ->assertSeeText('Danh sách phần học')
+            ->assertSeeText('Sửa phần học')
+            ->assertSeeText('Xóa')
             ->assertSeeText('Bạn có chắc chắn muốn xóa phần học này không?')
             ->assertSeeText('Có, xóa')
             ->assertSeeText('Không');

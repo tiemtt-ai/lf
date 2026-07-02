@@ -58,6 +58,39 @@
     cursor: pointer;
 }
 
+.course-template-section-card {
+    margin-top: 24px;
+}
+
+.course-template-section-header .admin-form-section-title {
+    margin-bottom: 8px;
+}
+
+.course-template-section-header p {
+    margin: 0;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+.course-template-section-action-bar {
+    margin: 20px 0 24px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.course-template-section-list-title {
+    margin: 0 0 12px;
+    color: var(--admin-primary);
+    font-size: 15px;
+    font-weight: 600;
+}
+
 .admin-form-card {
     max-width: 720px;
 }
@@ -146,5 +179,14 @@
     .teacher-profile-card .admin-form-actions {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .course-template-section-action-bar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .course-template-section-action-bar .btn {
+        width: 100%;
     }
 }
