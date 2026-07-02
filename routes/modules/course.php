@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CourseCategoryController;
 use App\Http\Controllers\CourseTemplateController;
+use App\Http\Controllers\CourseTemplateSectionController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/course-categories', [CourseCategoryController::class, 'index'])
@@ -39,3 +40,33 @@ Route::put('/course-templates/{id}', [CourseTemplateController::class, 'update']
 
 Route::delete('/course-templates/{id}', [CourseTemplateController::class, 'destroy'])
     ->name('course-templates.destroy');
+
+Route::get(
+    '/course-templates/{templateId}/sections',
+    [CourseTemplateSectionController::class, 'index']
+)->name('course-templates.sections.index');
+
+Route::get(
+    '/course-templates/{templateId}/sections/create',
+    [CourseTemplateSectionController::class, 'create']
+)->name('course-templates.sections.create');
+
+Route::post(
+    '/course-templates/{templateId}/sections',
+    [CourseTemplateSectionController::class, 'store']
+)->name('course-templates.sections.store');
+
+Route::get(
+    '/course-templates/{templateId}/sections/{sectionId}/edit',
+    [CourseTemplateSectionController::class, 'edit']
+)->name('course-templates.sections.edit');
+
+Route::put(
+    '/course-templates/{templateId}/sections/{sectionId}',
+    [CourseTemplateSectionController::class, 'update']
+)->name('course-templates.sections.update');
+
+Route::delete(
+    '/course-templates/{templateId}/sections/{sectionId}',
+    [CourseTemplateSectionController::class, 'destroy']
+)->name('course-templates.sections.destroy');

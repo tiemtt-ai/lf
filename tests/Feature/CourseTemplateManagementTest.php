@@ -203,7 +203,8 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertSame(0, (int) $template->lesson_count);
         $this->assertSame(1, (int) $template->working_revision);
         $this->assertSame('draft', $template->status);
-        $this->assertFalse(DB::getSchemaBuilder()->hasTable('core_course_template_sections'));
+        $this->assertTrue(DB::getSchemaBuilder()->hasTable('core_course_template_sections'));
+        $this->assertDatabaseCount('core_course_template_sections', 0);
     }
 
     public function test_teacher_can_create_an_independent_draft_template(): void
@@ -228,7 +229,8 @@ class CourseTemplateManagementTest extends TestCase
 
         $this->assertNotNull($template);
         $this->assertSame('draft', $template->status);
-        $this->assertFalse(DB::getSchemaBuilder()->hasTable('core_course_template_sections'));
+        $this->assertTrue(DB::getSchemaBuilder()->hasTable('core_course_template_sections'));
+        $this->assertDatabaseCount('core_course_template_sections', 0);
     }
 
     public function test_validation_and_tenant_scoped_category_selection_are_enforced(): void

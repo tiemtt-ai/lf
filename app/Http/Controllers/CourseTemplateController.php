@@ -87,12 +87,15 @@ class CourseTemplateController extends Controller
     public function edit(Request $request, int $id): View
     {
         $customerId = $this->customerId();
+        $routePrefix = $this->routePrefix($request);
 
         return view('course-templates.edit', [
             'template' => $this->findTemplate($customerId, $id),
             'categories' => $this->categories(),
+            'sections' => $this->sections($customerId, $id),
             'requiredFields' => $this->requiredFields($customerId, $id),
-            'routePrefix' => $this->routePrefix($request),
+            'routePrefix' => $routePrefix,
+            'sectionRoutePrefix' => $routePrefix.'.sections',
         ]);
     }
 
@@ -238,6 +241,27 @@ class CourseTemplateController extends Controller
             ->where('customer_id', $this->customerId())
             ->orderBy('sort_order')
             ->orderBy('name')
+            ->get();
+    }
+
+    private function sections(int $customerId, int $templateId)
+    {
+        return DB::table('core_course_template_sections as sections')
+            ->leftJoin(
+                'core_course_template_sections as parent',
+                function ($join) use ($customerId, $templateId): void {
+                    $join->on('parent.id', '=', 'sections.parent_section_id')
+                        ->where('parent.customer_id', '=', $customerId)
+                        ->where('parent.template_id', '=', $templateId);
+                }
+            )
+            ->where('sections.customer_id', $customerId)
+            ->where('sections.template_id', $templateId)
+            ->orderByRaw('sections.parent_section_id IS NOT NULL')
+            ->orderBy('sections.parent_section_id')
+            ->orderBy('sections.sort_order')
+            ->orderBy('sections.title')
+            ->select('sections.*', 'parent.title as parent_title')
             ->get();
     }
 
