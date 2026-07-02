@@ -1,8 +1,28 @@
 # LearnForge Implementation Rules
 
-This directory contains the single implementation rule document for Developers
-and AI agents:
+This directory contains the implementation rules for Developers and AI agents.
 
-- [LF-Implementation-Rules.md](LF-Implementation-Rules.md)
+- LF-Implementation-Rules.md
 
-Use the reading order in [LF-INDEX.md](../LF-INDEX.md#ai-implementation-rules).
+## Reading Order
+
+1. LF-INDEX.md
+2. LF-Implementation-Rules.md
+3. docs/database/<domain>/README.md
+4. docs/database/<domain>/<table>.md
+
+## Recommended Workflow
+
+Analyze Module
+↓
+Golden CRUD
+↓
+Review
+↓
+Batch CRUD
+↓
+Review
+↓
+Next Batch
+
+Use the reading order defined in LF-INDEX.md.

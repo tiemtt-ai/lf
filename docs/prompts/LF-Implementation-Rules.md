@@ -49,10 +49,33 @@ statuses, and business rules.
 Reuse the existing Laravel, Blade, CSS, route, middleware, and test patterns.
 Do not create unnecessary architecture.
 
-## One Table At A Time
+## Reuse Safely
 
-Implement only the requested table or module. Do not continue to the next table
-automatically.
+Reuse existing CRUD patterns whenever possible.
+
+Always verify:
+
+- table documentation
+- validation
+- tenant isolation
+- parent relationships
+- delete rules
+
+Never assume two tables share identical business rules.
+
+## Module First
+
+When implementing a business module, analyze all requested related tables first.
+
+Classify each table as:
+
+- Simple CRUD
+- Standard CRUD
+- Manual Review Required
+
+Implement only the requested batch.
+
+Do not continue automatically to the next batch.
 
 ## No Eloquent Models
 
@@ -126,6 +149,17 @@ A normal CRUD module includes:
 - Validation
 - Tenant isolation
 - Feature tests
+
+## Golden CRUD
+
+For repeated CRUD work:
+
+1. Create one Golden CRUD.
+2. Review the Golden CRUD.
+3. Reuse it for the remaining requested tables.
+
+Do not apply the Golden CRUD to tables classified as
+"Manual Review Required".
 
 ## Routes
 
@@ -220,7 +254,18 @@ Architecture Guardrails.
 
 ---
 
-# 9. Completion Report
+# 9. Stop Rule
+
+Stop implementation and report if:
+
+- documentation conflicts exist
+- business rules are unclear
+- tenant ownership cannot be verified
+- the table differs significantly from the Golden CRUD
+
+Do not guess.
+
+# 10. Completion Report
 
 Report:
 
