@@ -29,7 +29,7 @@ hàng được cô lập.
 
 | Bảng | Mô tả |
 |------|------|
-| saas_customers | Định danh gốc và vòng đời của Customer |
+| **saas_customers** | Định danh gốc và vòng đời của Customer |
 
 ---
 
@@ -37,8 +37,8 @@ hàng được cô lập.
 
 | Bảng | Mô tả |
 |------|------|
-| saas_customer_domains | Danh mục đăng ký chuẩn cho miền của yêu cầu |
-| saas_customer_settings | Các thiết lập cấu hình tenant |
+| **saas_customer_domains** | Danh mục đăng ký chuẩn cho miền của yêu cầu |
+| **saas_customer_settings** | Các thiết lập cấu hình tenant |
 
 ---
 
@@ -46,8 +46,8 @@ hàng được cô lập.
 
 | Bảng | Mô tả |
 |------|------|
-| saas_customer_members | Tư cách thành viên giữa User và Customer |
-| saas_customer_invitations | Vòng đời lời mời vào tenant |
+| **saas_customer_members** | Tư cách thành viên giữa User và Customer |
+| **saas_customer_invitations** | Vòng đời lời mời vào tenant |
 
 ---
 
@@ -55,7 +55,7 @@ hàng được cô lập.
 
 | Bảng | Mô tả |
 |------|------|
-| saas_audit_logs | Lịch sử kiểm tra tenant chỉ ghi nối tiếp |
+| **saas_audit_logs** | Lịch sử kiểm tra tenant chỉ ghi nối tiếp |
 
 ---
 

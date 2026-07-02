@@ -27,8 +27,8 @@ trò chuyện mà không sở hữu Progress của Course hoặc tài sản Medi
 
 | Bảng | Mô tả |
 |------|------|
-| core_liveclass_rooms | Phòng vận hành cho các Activity trực tiếp đã phát hành |
-| core_liveclass_sessions | Các buổi học trực tiếp đã lên lịch và hoàn tất |
+| **core_liveclass_rooms** | Phòng vận hành cho các Activity trực tiếp đã phát hành |
+| **core_liveclass_sessions** | Các buổi học trực tiếp đã lên lịch và hoàn tất |
 
 ---
 
@@ -36,8 +36,8 @@ trò chuyện mà không sở hữu Progress của Course hoặc tài sản Medi
 
 | Bảng | Mô tả |
 |------|------|
-| core_liveclass_attendances | Bằng chứng tham dự của học viên |
-| core_liveclass_chat_logs | Lịch sử tương tác trong phiên học |
+| **core_liveclass_attendances** | Bằng chứng tham dự của học viên |
+| **core_liveclass_chat_logs** | Lịch sử tương tác trong phiên học |
 
 ---
 
@@ -45,8 +45,8 @@ trò chuyện mà không sở hữu Progress của Course hoặc tài sản Medi
 
 | Bảng | Mô tả |
 |------|------|
-| core_liveclass_recordings | Tham chiếu bản ghi của phiên học |
-| core_liveclass_replays | Tổng hợp hoạt động xem lại của học viên |
+| **core_liveclass_recordings** | Tham chiếu bản ghi của phiên học |
+| **core_liveclass_replays** | Tổng hợp hoạt động xem lại của học viên |
 
 ---
 

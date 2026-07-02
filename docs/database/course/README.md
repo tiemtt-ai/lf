@@ -31,12 +31,12 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 
 | Bảng | Mô tả |
 |------|------|
-| core_course_categories | Danh mục trong Danh mục Course |
-| core_course_templates | Blueprint (Thiết kế gốc) Course có thể chỉnh sửa |
-| core_course_template_teachers | Giáo viên được phân công cho Blueprint (Thiết kế gốc) Course |
-| core_course_template_sections | Phần Course có thể chỉnh sửa |
-| core_course_template_lessons | Bài học có thể chỉnh sửa |
-| core_course_template_activities | Activity có thể chỉnh sửa |
+| **core_course_categories** | Danh mục trong Danh mục Course |
+| **core_course_templates** | Blueprint (Thiết kế gốc) Course có thể chỉnh sửa |
+| **core_course_template_teachers** | Giáo viên được phân công cho Blueprint (Thiết kế gốc) Course |
+| **core_course_template_sections** | Phần Course có thể chỉnh sửa |
+| **core_course_template_lessons** | Bài học có thể chỉnh sửa |
+| **core_course_template_activities** | Activity có thể chỉnh sửa |
 
 ---
 
@@ -44,10 +44,10 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 
 | Bảng | Mô tả |
 |------|------|
-| core_course_template_versions | Snapshot Course đã phát hành và bất biến |
-| core_course_template_version_sections | Snapshot phần đã phát hành |
-| core_course_template_version_lessons | Snapshot bài học đã phát hành |
-| core_course_template_version_activities | Snapshot Activity đã phát hành |
+| **core_course_template_versions** | Snapshot Course đã phát hành và bất biến |
+| **core_course_template_version_sections** | Snapshot phần đã phát hành |
+| **core_course_template_version_lessons** | Snapshot bài học đã phát hành |
+| **core_course_template_version_activities** | Snapshot Activity đã phát hành |
 
 ---
 
@@ -55,9 +55,9 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 
 | Bảng | Mô tả |
 |------|------|
-| core_course_products | Product Course được hiển thị hoặc cấp cho học viên |
-| core_course_product_items | Các Version đã phát hành được đưa vào Product |
-| core_course_product_relations | Quan hệ giữa các Product |
+| **core_course_products** | Product Course được hiển thị hoặc cấp cho học viên |
+| **core_course_product_items** | Các Version đã phát hành được đưa vào Product |
+| **core_course_product_relations** | Quan hệ giữa các Product |
 
 ---
 
@@ -65,9 +65,9 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 
 | Bảng | Mô tả |
 |------|------|
-| core_course_enrollments | Quyền truy cập và chu trình học của học viên |
-| core_course_cohorts | Cohort và nhóm học vận hành thực tế |
-| core_course_cohort_students | Quan hệ thành viên của học viên trong Cohort |
+| **core_course_enrollments** | Quyền truy cập và chu trình học của học viên |
+| **core_course_cohorts** | Cohort và nhóm học vận hành thực tế |
+| **core_course_cohort_students** | Quan hệ thành viên của học viên trong Cohort |
 
 ---
 
@@ -75,10 +75,10 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 
 | Bảng | Mô tả |
 |------|------|
-| core_course_progress | Progress cấp Product |
-| core_course_lesson_progress | Progress cấp Bài học |
-| core_course_activity_progress | Progress cấp Activity |
-| core_course_completions | Kết quả Hoàn thành khóa học chính thức |
+| **core_course_progress** | Progress cấp Product |
+| **core_course_lesson_progress** | Progress cấp Bài học |
+| **core_course_activity_progress** | Progress cấp Activity |
+| **core_course_completions** | Kết quả Hoàn thành khóa học chính thức |
 
 ---
 
@@ -86,10 +86,10 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 
 | Bảng | Mô tả |
 |------|------|
-| core_course_notes | Ghi chú học tập cá nhân |
-| core_course_bookmarks | Vị trí và nội dung học tập đã lưu |
-| core_course_favorites | Product Course được học viên lưu yêu thích |
-| core_course_reviews | Assessment Product dựa trên Enrollment |
+| **core_course_notes** | Ghi chú học tập cá nhân |
+| **core_course_bookmarks** | Vị trí và nội dung học tập đã lưu |
+| **core_course_favorites** | Product Course được học viên lưu yêu thích |
+| **core_course_reviews** | Assessment Product dựa trên Enrollment |
 
 ---
 
@@ -97,8 +97,8 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 
 | Bảng | Mô tả |
 |------|------|
-| core_course_learning_paths | Lộ trình học thuật có thứ tự |
-| core_course_learning_path_items | Các Product được sắp xếp trong Learning Path |
+| **core_course_learning_paths** | Lộ trình học thuật có thứ tự |
+| **core_course_learning_path_items** | Các Product được sắp xếp trong Learning Path |
 
 ---
 
@@ -106,11 +106,11 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 
 | Bảng | Mô tả |
 |------|------|
-| core_certificate_templates | Thiết kế Certificate của tenant |
-| core_certificate_template_products | Quy tắc và ánh xạ Certificate theo Product |
-| core_certificate_issued_certificates | Bằng chứng Certificate đã cấp và bất biến |
-| core_certificate_verification_logs | Lịch sử kiểm tra xác thực Certificate |
-| core_certificate_download_logs | Lịch sử truy cập và tải Certificate |
+| **core_certificate_templates** | Thiết kế Certificate của tenant |
+| **core_certificate_template_products** | Quy tắc và ánh xạ Certificate theo Product |
+| **core_certificate_issued_certificates** | Bằng chứng Certificate đã cấp và bất biến |
+| **core_certificate_verification_logs** | Lịch sử kiểm tra xác thực Certificate |
+| **core_certificate_download_logs** | Lịch sử truy cập và tải Certificate |
 
 ---
 

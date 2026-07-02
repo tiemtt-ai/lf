@@ -30,14 +30,14 @@ nghiệp vụ sở hữu tương ứng.
 
 | Bảng | Mô tả |
 |------|------|
-| core_assessment_categories | Cây phân cấp danh mục Assessment |
-| core_assessment_question_banks | Các ngân hàng câu hỏi có thể tái sử dụng |
-| core_assessment_questions | Nguồn biên soạn câu hỏi |
-| core_assessment_question_contents | Nội dung câu hỏi được bản địa hóa |
-| core_assessment_question_media | Media đính kèm câu hỏi |
-| core_assessment_question_options | Các lựa chọn và phương án đúng/sai |
-| core_assessment_topics | Cây phân cấp chủ đề của câu hỏi |
-| core_assessment_question_topics | Quan hệ gán câu hỏi với chủ đề |
+| **core_assessment_categories** | Cây phân cấp danh mục Assessment |
+| **core_assessment_question_banks** | Các ngân hàng câu hỏi có thể tái sử dụng |
+| **core_assessment_questions** | Nguồn biên soạn câu hỏi |
+| **core_assessment_question_contents** | Nội dung câu hỏi được bản địa hóa |
+| **core_assessment_question_media** | Media đính kèm câu hỏi |
+| **core_assessment_question_options** | Các lựa chọn và phương án đúng/sai |
+| **core_assessment_topics** | Cây phân cấp chủ đề của câu hỏi |
+| **core_assessment_question_topics** | Quan hệ gán câu hỏi với chủ đề |
 
 ---
 
@@ -45,9 +45,9 @@ nghiệp vụ sở hữu tương ứng.
 
 | Bảng | Mô tả |
 |------|------|
-| core_assessment_quizzes | Các đối tượng Assessment đã phát hành |
-| core_assessment_quiz_sections | Các phần của bài kiểm tra |
-| core_assessment_quiz_questions | Snapshot câu hỏi trong bài kiểm tra đã được đóng băng |
+| **core_assessment_quizzes** | Các đối tượng Assessment đã phát hành |
+| **core_assessment_quiz_sections** | Các phần của bài kiểm tra |
+| **core_assessment_quiz_questions** | Snapshot câu hỏi trong bài kiểm tra đã được đóng băng |
 
 ---
 
@@ -55,9 +55,9 @@ nghiệp vụ sở hữu tương ứng.
 
 | Bảng | Mô tả |
 |------|------|
-| core_assessment_attempts | Các lần học viên thực hiện bài kiểm tra |
-| core_assessment_answers | Các câu trả lời trong một lần làm bài |
-| core_assessment_answer_files | Media đính kèm câu trả lời |
+| **core_assessment_attempts** | Các lần học viên thực hiện bài kiểm tra |
+| **core_assessment_answers** | Các câu trả lời trong một lần làm bài |
+| **core_assessment_answer_files** | Media đính kèm câu trả lời |
 
 ---
 
@@ -65,8 +65,8 @@ nghiệp vụ sở hữu tương ứng.
 
 | Bảng | Mô tả |
 |------|------|
-| core_assessment_grading_assignments | Phân công công việc chấm điểm |
-| core_assessment_gradings | Bằng chứng chấm điểm và kết quả cuối cùng |
+| **core_assessment_grading_assignments** | Phân công công việc chấm điểm |
+| **core_assessment_gradings** | Bằng chứng chấm điểm và kết quả cuối cùng |
 
 ---
 
@@ -74,8 +74,8 @@ nghiệp vụ sở hữu tương ứng.
 
 | Bảng | Mô tả |
 |------|------|
-| core_assessment_rubrics | Các Rubric chấm điểm có thể tái sử dụng |
-| core_assessment_rubric_items | Các tiêu chí trong Rubric |
+| **core_assessment_rubrics** | Các Rubric chấm điểm có thể tái sử dụng |
+| **core_assessment_rubric_items** | Các tiêu chí trong Rubric |
 
 ---
 

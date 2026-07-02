@@ -31,8 +31,8 @@ lý có thẩm quyền do các miền nghiệp vụ nguồn nắm giữ.
 
 | Bảng | Mô tả |
 |------|------|
-| track_event_types | Hệ thống phân loại Event học tập được quản trị |
-| track_events | Quan sát hành vi chỉ ghi nối tiếp |
+| **track_event_types** | Hệ thống phân loại Event học tập được quản trị |
+| **track_events** | Quan sát hành vi chỉ ghi nối tiếp |
 
 ---
 
@@ -40,7 +40,7 @@ lý có thẩm quyền do các miền nghiệp vụ nguồn nắm giữ.
 
 | Bảng | Mô tả |
 |------|------|
-| track_learning_sessions | Nhóm phiên học tập phục vụ phân tích |
+| **track_learning_sessions** | Nhóm phiên học tập phục vụ phân tích |
 
 ---
 
@@ -48,9 +48,9 @@ lý có thẩm quyền do các miền nghiệp vụ nguồn nắm giữ.
 
 | Bảng | Mô tả |
 |------|------|
-| track_activity_summaries | Tổng hợp hành vi cấp Activity |
-| track_daily_summaries | Tổng hợp hành vi hằng ngày của học viên |
-| track_learning_paths | Hành trình học tập quan sát được đã tái dựng |
+| **track_activity_summaries** | Tổng hợp hành vi cấp Activity |
+| **track_daily_summaries** | Tổng hợp hành vi hằng ngày của học viên |
+| **track_learning_paths** | Hành trình học tập quan sát được đã tái dựng |
 
 ---
 
@@ -58,8 +58,8 @@ lý có thẩm quyền do các miền nghiệp vụ nguồn nắm giữ.
 
 | Bảng | Mô tả |
 |------|------|
-| track_ai_features | Đặc trưng hành vi hiện tại sẵn sàng cho AI |
-| track_feature_snapshots | Snapshot lịch sử của đặc trưng |
+| **track_ai_features** | Đặc trưng hành vi hiện tại sẵn sàng cho AI |
+| **track_feature_snapshots** | Snapshot lịch sử của đặc trưng |
 
 ---
 

@@ -28,7 +28,7 @@ sánh hạn mức và Billing mà không sở hữu Entitlement hoặc khoản p
 
 | Bảng | Mô tả |
 |------|------|
-| saas_usage_events | Phép đo mức tiêu thụ tài nguyên chỉ ghi nối tiếp |
+| **saas_usage_events** | Phép đo mức tiêu thụ tài nguyên chỉ ghi nối tiếp |
 
 ---
 
@@ -36,8 +36,8 @@ sánh hạn mức và Billing mà không sở hữu Entitlement hoặc khoản p
 
 | Bảng | Mô tả |
 |------|------|
-| saas_usage_counters | Mô hình chiếu mức sử dụng tích lũy hiện tại |
-| saas_usage_summaries | Bản tổng hợp có Version cho báo cáo và Billing |
+| **saas_usage_counters** | Mô hình chiếu mức sử dụng tích lũy hiện tại |
+| **saas_usage_summaries** | Bản tổng hợp có Version cho báo cáo và Billing |
 
 ---
 

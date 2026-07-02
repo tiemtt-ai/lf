@@ -30,8 +30,8 @@ mình.
 
 | Bảng | Mô tả |
 |------|------|
-| media_categories | Danh mục nghiệp vụ cho tài sản số |
-| media_files | Bản ghi tài sản số chuẩn |
+| **media_categories** | Danh mục nghiệp vụ cho tài sản số |
+| **media_files** | Bản ghi tài sản số chuẩn |
 
 ---
 
@@ -39,7 +39,7 @@ mình.
 
 | Bảng | Mô tả |
 |------|------|
-| media_file_usages | Tham chiếu từ tài sản đến bản ghi của miền nghiệp vụ tiêu thụ |
+| **media_file_usages** | Tham chiếu từ tài sản đến bản ghi của miền nghiệp vụ tiêu thụ |
 
 ---
 
@@ -47,10 +47,10 @@ mình.
 
 | Bảng | Mô tả |
 |------|------|
-| media_processing_jobs | Vòng đời của tác vụ xử lý Media |
-| media_variants | Các biến thể hiển thị của tài sản dẫn xuất |
-| media_transcripts | Nội dung bản ghi lời thoại dẫn xuất |
-| media_captions | Tài sản phụ đề có thông tin thời gian |
+| **media_processing_jobs** | Vòng đời của tác vụ xử lý Media |
+| **media_variants** | Các biến thể hiển thị của tài sản dẫn xuất |
+| **media_transcripts** | Nội dung bản ghi lời thoại dẫn xuất |
+| **media_captions** | Tài sản phụ đề có thông tin thời gian |
 
 ---
 
@@ -58,7 +58,7 @@ mình.
 
 | Bảng | Mô tả |
 |------|------|
-| media_access_logs | Lịch sử truy cập tài sản chỉ ghi nối tiếp |
+| **media_access_logs** | Lịch sử truy cập tài sản chỉ ghi nối tiếp |
 
 ---
 

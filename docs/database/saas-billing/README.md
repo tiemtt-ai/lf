@@ -30,8 +30,8 @@ nguồn của các miền nghiệp vụ phía trước.
 
 | Bảng | Mô tả |
 |------|------|
-| saas_invoices | Nghĩa vụ thanh toán chính thức của Customer |
-| saas_invoice_items | Snapshot dòng Hóa đơn bất biến |
+| **saas_invoices** | Nghĩa vụ thanh toán chính thức của Customer |
+| **saas_invoice_items** | Snapshot dòng Hóa đơn bất biến |
 
 ---
 
@@ -39,8 +39,8 @@ nguồn của các miền nghiệp vụ phía trước.
 
 | Bảng | Mô tả |
 |------|------|
-| saas_payment_methods | Tham chiếu an toàn đến Provider thanh toán |
-| saas_payments | Giao dịch và hoạt động đối soát Thanh toán |
+| **saas_payment_methods** | Tham chiếu an toàn đến Provider thanh toán |
+| **saas_payments** | Giao dịch và hoạt động đối soát Thanh toán |
 
 ---
 
@@ -48,7 +48,7 @@ nguồn của các miền nghiệp vụ phía trước.
 
 | Bảng | Mô tả |
 |------|------|
-| saas_credit_notes | Chứng từ điều chỉnh Hóa đơn và hoàn tiền |
+| **saas_credit_notes** | Chứng từ điều chỉnh Hóa đơn và hoàn tiền |
 
 ---
 

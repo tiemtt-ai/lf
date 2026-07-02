@@ -30,9 +30,9 @@ chuyên sâu, nguồn gốc thực thi, phản hồi và quản trị prompt mà
 
 | Bảng | Mô tả |
 |------|------|
-| ai_knowledge_sources | Đăng ký nguồn tri thức đã được phê duyệt |
-| ai_knowledge_chunks | Các phân đoạn tri thức sẵn sàng để truy xuất |
-| ai_embeddings | Metadata của embedding và tham chiếu đến kho vector |
+| **ai_knowledge_sources** | Đăng ký nguồn tri thức đã được phê duyệt |
+| **ai_knowledge_chunks** | Các phân đoạn tri thức sẵn sàng để truy xuất |
+| **ai_embeddings** | Metadata của embedding và tham chiếu đến kho vector |
 
 ---
 
@@ -40,9 +40,9 @@ chuyên sâu, nguồn gốc thực thi, phản hồi và quản trị prompt mà
 
 | Bảng | Mô tả |
 |------|------|
-| ai_conversations | Vùng chứa hội thoại giữa người dùng và trợ lý |
-| ai_messages | Các thông điệp hội thoại theo thứ tự |
-| ai_assistant_sessions | Phiên điều phối trợ lý tại thời gian chạy |
+| **ai_conversations** | Vùng chứa hội thoại giữa người dùng và trợ lý |
+| **ai_messages** | Các thông điệp hội thoại theo thứ tự |
+| **ai_assistant_sessions** | Phiên điều phối trợ lý tại thời gian chạy |
 
 ---
 
@@ -50,8 +50,8 @@ chuyên sâu, nguồn gốc thực thi, phản hồi và quản trị prompt mà
 
 | Bảng | Mô tả |
 |------|------|
-| ai_prompt_templates | Các Prompt Template được quản trị |
-| ai_model_runs | Kiểm tra và nguồn gốc thực thi mô hình |
+| **ai_prompt_templates** | Các Prompt Template được quản trị |
+| **ai_model_runs** | Kiểm tra và nguồn gốc thực thi mô hình |
 
 ---
 
@@ -59,8 +59,8 @@ chuyên sâu, nguồn gốc thực thi, phản hồi và quản trị prompt mà
 
 | Bảng | Mô tả |
 |------|------|
-| ai_recommendations | Các đề xuất AI có thể giải thích |
-| ai_insights | Các quan sát và thông tin chuyên sâu AI có thể giải thích |
+| **ai_recommendations** | Các đề xuất AI có thể giải thích |
+| **ai_insights** | Các quan sát và thông tin chuyên sâu AI có thể giải thích |
 
 ---
 
@@ -68,7 +68,7 @@ chuyên sâu, nguồn gốc thực thi, phản hồi và quản trị prompt mà
 
 | Bảng | Mô tả |
 |------|------|
-| ai_feedback | Phản hồi của người dùng và người đánh giá về đầu ra AI |
+| **ai_feedback** | Phản hồi của người dùng và người đánh giá về đầu ra AI |
 
 ---
 

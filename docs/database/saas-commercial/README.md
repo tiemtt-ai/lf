@@ -29,8 +29,8 @@ miền nghiệp vụ riêng.
 
 | Bảng | Mô tả |
 |------|------|
-| saas_plans | Danh mục Gói dịch vụ thương mại toàn cục |
-| saas_plan_features | Entitlement tính năng mặc định theo Gói dịch vụ |
+| **saas_plans** | Danh mục Gói dịch vụ thương mại toàn cục |
+| **saas_plan_features** | Entitlement tính năng mặc định theo Gói dịch vụ |
 
 ---
 
@@ -38,8 +38,8 @@ miền nghiệp vụ riêng.
 
 | Bảng | Mô tả |
 |------|------|
-| saas_subscriptions | Vòng đời Subscription của Customer |
-| saas_subscription_items | Tiện ích bổ sung và gói thành phần trong Subscription |
+| **saas_subscriptions** | Vòng đời Subscription của Customer |
+| **saas_subscription_items** | Tiện ích bổ sung và gói thành phần trong Subscription |
 
 ---
 
@@ -47,7 +47,7 @@ miền nghiệp vụ riêng.
 
 | Bảng | Mô tả |
 |------|------|
-| saas_entitlements | Entitlement tính năng hiệu lực của Customer |
+| **saas_entitlements** | Entitlement tính năng hiệu lực của Customer |
 
 ---
 
