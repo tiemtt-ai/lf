@@ -3,7 +3,6 @@
 use App\Http\Controllers\Admin\OrganizationController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\CourseTemplateController;
 use App\Http\Controllers\CustomerRegisterController;
 use App\Http\Controllers\PublicSiteController;
 use App\Http\Controllers\RoleProfileController;
@@ -159,6 +158,7 @@ Route::middleware([
     Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])
         ->name('users.toggle-status');
 
+    $registerCourseTemplateLifecycleRoutes = true;
     require __DIR__.'/modules/course.php';
 });
 
@@ -188,6 +188,7 @@ Route::middleware([
     Route::patch('/profile/password', [RoleProfileController::class, 'updateTeacherPassword'])
         ->name('profile.password.update');
 
+    $registerCourseTemplateLifecycleRoutes = false;
     require __DIR__.'/modules/course.php';
 });
 

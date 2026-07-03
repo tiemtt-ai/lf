@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class CourseTemplatePublishingTest extends TestCase
@@ -21,6 +22,17 @@ class CourseTemplatePublishingTest extends TestCase
             'app.base_domain' => 'localhost',
             'app.tenant_scheme' => 'https',
         ]);
+    }
+
+    public function test_course_template_lifecycle_routes_are_registered_for_admin_only(): void
+    {
+        $this->assertTrue(Route::has('admin.course-templates.publish'));
+        $this->assertTrue(Route::has('admin.course-templates.versions.show'));
+        $this->assertTrue(Route::has('admin.course-templates.versions.duplicate-to-draft'));
+
+        $this->assertFalse(Route::has('teacher.course-templates.publish'));
+        $this->assertFalse(Route::has('teacher.course-templates.versions.show'));
+        $this->assertFalse(Route::has('teacher.course-templates.versions.duplicate-to-draft'));
     }
 
     public function test_admin_publish_creates_a_complete_immutable_snapshot(): void
