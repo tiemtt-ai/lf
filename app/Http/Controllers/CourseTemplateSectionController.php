@@ -18,7 +18,7 @@ class CourseTemplateSectionController extends Controller
 
         return redirect()->to(
             route($this->templateRoutePrefix($request).'.edit', $templateId)
-            .'#course-template-sections'
+            .'?tab=structure#course-template-sections'
         );
     }
 
@@ -60,7 +60,12 @@ class CourseTemplateSectionController extends Controller
         );
 
         return redirect()
-            ->route($this->templateRoutePrefix($request).'.edit', $templateId)
+            ->to(
+                route(
+                    $this->templateRoutePrefix($request).'.edit',
+                    $templateId
+                ).'?tab=structure#course-template-sections'
+            )
             ->with('success', __('lf.LF_course_template_section_common_created'));
     }
 
@@ -154,7 +159,12 @@ class CourseTemplateSectionController extends Controller
             ->delete();
 
         return redirect()
-            ->route($this->templateRoutePrefix($request).'.edit', $templateId)
+            ->to(
+                route(
+                    $this->templateRoutePrefix($request).'.edit',
+                    $templateId
+                ).'?tab=structure#course-template-sections'
+            )
             ->with('success', __('lf.LF_course_template_section_common_deleted'));
     }
 

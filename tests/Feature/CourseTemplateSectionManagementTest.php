@@ -93,7 +93,7 @@ class CourseTemplateSectionManagementTest extends TestCase
             )
             ->assertRedirect(
                 'https://tenant-a.localhost/admin/course-templates/'
-                ."{$templateId}/edit"
+                ."{$templateId}/edit?tab=structure#course-template-sections"
             );
 
         $this->assertDatabaseHas('core_course_template_sections', [
@@ -132,7 +132,7 @@ class CourseTemplateSectionManagementTest extends TestCase
             )
             ->assertRedirect(
                 'https://tenant-a.localhost/teacher/course-templates/'
-                ."{$templateId}/edit"
+                ."{$templateId}/edit?tab=structure#course-template-sections"
             );
 
         $this->assertDatabaseHas('core_course_template_sections', [

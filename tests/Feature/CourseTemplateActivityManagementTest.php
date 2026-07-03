@@ -60,6 +60,50 @@ class CourseTemplateActivityManagementTest extends TestCase
         }
     }
 
+    public function test_structure_tab_renders_the_complete_course_outline(): void
+    {
+        [$customerId, $templateId, , $sectionedLessonId] =
+            $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $directLessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'Direct Outline Lesson'
+        );
+        $this->createActivity(
+            $customerId,
+            $templateId,
+            $directLessonId,
+            'Direct Outline Activity'
+        );
+        $this->createActivity(
+            $customerId,
+            $templateId,
+            $sectionedLessonId,
+            'Section Outline Activity'
+        );
+
+        $this->actingAs($admin)
+            ->get(
+                'https://tenant-a.localhost/admin/course-templates/'
+                ."{$templateId}/edit?tab=structure"
+            )
+            ->assertOk()
+            ->assertSeeText('Cấu trúc nội dung khóa học')
+            ->assertSeeText('Bài học trực tiếp')
+            ->assertSeeText('Direct Outline Lesson')
+            ->assertSeeText('Direct Outline Activity')
+            ->assertSeeText('Section default')
+            ->assertSeeText('Lesson default')
+            ->assertSeeText('Section Outline Activity')
+            ->assertSeeText('+ Thêm phần học')
+            ->assertSeeText('+ Thêm bài học')
+            ->assertSeeText('+ Thêm hoạt động')
+            ->assertSeeText('Sửa')
+            ->assertSeeText('Xóa');
+    }
+
     public function test_admin_can_create_update_and_delete_an_activity(): void
     {
         [$customerId, $templateId, $sectionId, $lessonId] =
@@ -87,7 +131,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->assertRedirect(
                 'https://tenant-a.localhost/admin/course-templates/'
                 ."{$templateId}/edit"
-                ."#course-template-lesson-{$lessonId}-activities"
+                ."?tab=structure#course-template-lesson-{$lessonId}-activities"
             );
 
         $activity = DB::table('core_course_template_activities')
@@ -128,7 +172,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->assertRedirect(
                 'https://tenant-a.localhost/admin/course-templates/'
                 ."{$templateId}/edit"
-                ."#course-template-lesson-{$lessonId}-activities"
+                ."?tab=structure#course-template-lesson-{$lessonId}-activities"
             );
 
         $this->assertDatabaseMissing('core_course_template_activities', [
@@ -166,7 +210,7 @@ class CourseTemplateActivityManagementTest extends TestCase
                 ->assertRedirect(
                     "https://tenant-a.localhost/{$area}/course-templates/"
                     ."{$templateId}/edit"
-                    ."#course-template-lesson-{$lessonId}-activities"
+                    ."?tab=structure#course-template-lesson-{$lessonId}-activities"
                 );
 
             $this->assertDatabaseHas('core_course_template_activities', [

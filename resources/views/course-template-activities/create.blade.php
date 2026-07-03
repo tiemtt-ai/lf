@@ -45,7 +45,7 @@
                 <button type="submit" class="btn btn-primary">
                     {{ __('lf.LF_course_template_activity_common_create') }}
                 </button>
-                <a href="{{ route($templateRoutePrefix.'.edit', $template->id) }}#course-template-lesson-{{ $lesson->id }}-activities">
+                <a href="{{ route($templateRoutePrefix.'.edit', $template->id) }}?tab=structure#course-template-lesson-{{ $lesson->id }}-activities">
                     {{ __('lf.LF_common_button_cancel') }}
                 </a>
             </div>

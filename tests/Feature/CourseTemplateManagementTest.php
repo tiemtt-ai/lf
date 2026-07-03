@@ -49,6 +49,54 @@ class CourseTemplateManagementTest extends TestCase
         }
     }
 
+    public function test_template_edit_uses_the_four_authoring_tabs(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Tabbed Template',
+            'tabbed-template'
+        );
+        $tabs = [
+            'information' => 'Thông tin',
+            'structure' => 'Cấu trúc',
+            'teachers' => 'Giáo viên',
+            'versions' => 'Phiên bản',
+        ];
+
+        foreach ([
+            [$admin, 'admin'],
+            [$teacher, 'teacher'],
+        ] as [$user, $area]) {
+            foreach ($tabs as $tab => $label) {
+                $response = $this->actingAs($user)
+                    ->get(
+                        "https://tenant-a.localhost/{$area}/course-templates/"
+                        ."{$templateId}/edit?tab={$tab}"
+                    )
+                    ->assertOk()
+                    ->assertSeeText($label);
+
+                $this->assertActiveAuthoringTab(
+                    $response->getContent(),
+                    $tab,
+                    array_keys($tabs)
+                );
+            }
+        }
+
+        $this->actingAs($admin)
+            ->get(
+                'https://tenant-a.localhost/admin/course-templates/'
+                ."{$templateId}/edit?tab=versions"
+            )
+            ->assertSeeText(
+                'Chức năng phiên bản sẽ được triển khai ở bước tiếp theo.'
+            );
+    }
+
     public function test_create_and_edit_labels_follow_the_validation_required_rules(): void
     {
         $customerId = $this->createTenant();
@@ -532,6 +580,38 @@ class CourseTemplateManagementTest extends TestCase
         );
 
         return $xpath->query($query)->length;
+    }
+
+    private function assertActiveAuthoringTab(
+        string $html,
+        string $activeTab,
+        array $tabs
+    ): void {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        $xpath = new \DOMXPath($document);
+
+        foreach ($tabs as $tab) {
+            $panel = $xpath->query(
+                sprintf('//*[@id="course-template-tab-%s"]', $tab)
+            )->item(0);
+
+            $this->assertNotNull($panel);
+            $this->assertSame(
+                $tab !== $activeTab,
+                $panel->hasAttribute('hidden')
+            );
+        }
+
+        $activeLinks = $xpath->query(
+            '//a[contains(concat(" ", normalize-space(@class), " "),'
+            .' " course-template-tab ") and @aria-current="page"]'
+        );
+
+        $this->assertSame(1, $activeLinks->length);
     }
 
     private function sectionFieldNames(string $html, string $titleId): array

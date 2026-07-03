@@ -40,7 +40,7 @@
                 <button type="submit" class="btn btn-primary">
                     {{ __('lf.LF_common_button_save_changes') }}
                 </button>
-                <a href="{{ route($templateRoutePrefix.'.edit', $template->id) }}#course-template-sections">
+                <a href="{{ route($templateRoutePrefix.'.edit', $template->id) }}?tab=structure#course-template-sections">
                     {{ __('lf.LF_common_button_cancel') }}
                 </a>
             </div>

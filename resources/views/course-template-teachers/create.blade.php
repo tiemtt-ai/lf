@@ -33,7 +33,7 @@
                 <a href="{{ route(
                     $templateRoutePrefix.'.edit',
                     $template->id
-                ) }}#course-template-teachers">
+                ) }}?tab=teachers#course-template-teachers">
                     {{ __('lf.LF_common_button_cancel') }}
                 </a>
             </div>

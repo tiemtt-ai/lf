@@ -25,7 +25,7 @@ class CourseTemplateLessonController extends Controller
 
         return redirect()->to(
             route($this->templateRoutePrefix($request).'.edit', $templateId)
-            ."#course-template-section-{$sectionId}-lessons"
+            .$this->lessonAnchor($sectionId)
         );
     }
 
@@ -647,8 +647,8 @@ class CourseTemplateLessonController extends Controller
     private function lessonAnchor(?int $sectionId): string
     {
         return $sectionId === null
-            ? '#course-template-direct-lessons'
-            : "#course-template-section-{$sectionId}-lessons";
+            ? '?tab=structure#course-template-direct-lessons'
+            : "?tab=structure#course-template-section-{$sectionId}-lessons";
     }
 
     private function templateRoutePrefix(Request $request): string

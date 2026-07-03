@@ -64,7 +64,7 @@ class CourseTemplateTeacherManagementTest extends TestCase
             $this->actingAs($user)
                 ->get(
                     "https://tenant-a.localhost/{$area}/course-templates/"
-                    ."{$templateId}/edit"
+                    ."{$templateId}/edit?tab=teachers"
                 )
                 ->assertOk()
                 ->assertSeeText('Giáo viên phụ trách')
@@ -106,7 +106,7 @@ class CourseTemplateTeacherManagementTest extends TestCase
             ]))
             ->assertRedirect(
                 'https://tenant-a.localhost/admin/course-templates/'
-                ."{$templateId}/edit#course-template-teachers"
+                ."{$templateId}/edit?tab=teachers#course-template-teachers"
             );
 
         $assignment = DB::table('core_course_template_teachers')
@@ -303,7 +303,7 @@ class CourseTemplateTeacherManagementTest extends TestCase
             )
             ->assertRedirect(
                 'https://tenant-a.localhost/admin/course-templates/'
-                ."{$templateId}/edit#course-template-teachers"
+                ."{$templateId}/edit?tab=teachers#course-template-teachers"
             );
 
         $this->assertDatabaseHas('core_course_template_teachers', [

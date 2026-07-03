@@ -114,7 +114,7 @@ class CourseTemplateLessonManagementTest extends TestCase
             ->assertRedirect(
                 'https://tenant-a.localhost/admin/course-templates/'
                 ."{$templateId}/edit"
-                ."#course-template-section-{$sectionId}-lessons"
+                ."?tab=structure#course-template-section-{$sectionId}-lessons"
             );
 
         $this->assertDatabaseHas('core_course_template_lessons', [
@@ -168,7 +168,7 @@ class CourseTemplateLessonManagementTest extends TestCase
                 )
                 ->assertRedirect(
                     "https://tenant-a.localhost/{$area}/course-templates/"
-                    ."{$templateId}/edit#course-template-direct-lessons"
+                    ."{$templateId}/edit?tab=structure#course-template-direct-lessons"
                 );
 
             $this->assertDatabaseHas('core_course_template_lessons', [
@@ -269,7 +269,7 @@ class CourseTemplateLessonManagementTest extends TestCase
             ->assertRedirect(
                 'https://tenant-a.localhost/teacher/course-templates/'
                 ."{$templateId}/edit"
-                ."#course-template-section-{$sectionId}-lessons"
+                ."?tab=structure#course-template-section-{$sectionId}-lessons"
             );
 
         $this->assertDatabaseHas('core_course_template_lessons', [

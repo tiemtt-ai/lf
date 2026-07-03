@@ -213,7 +213,7 @@ class CourseTemplateActivityController extends Controller
 
         return redirect()->to(
             route($this->templateRoutePrefix($request).'.edit', $templateId)
-            ."#course-template-lesson-{$lessonId}-activities"
+            ."?tab=structure#course-template-lesson-{$lessonId}-activities"
         );
     }
 
@@ -287,7 +287,7 @@ class CourseTemplateActivityController extends Controller
                 route(
                     $this->templateRoutePrefix($request).'.edit',
                     $templateId
-                )."#course-template-lesson-{$lessonId}-activities"
+                )."?tab=structure#course-template-lesson-{$lessonId}-activities"
             )
             ->with('success', __('lf.LF_course_template_activity_common_created'));
     }
@@ -432,7 +432,7 @@ class CourseTemplateActivityController extends Controller
                 route(
                     $this->templateRoutePrefix($request).'.edit',
                     $templateId
-                )."#course-template-lesson-{$lessonId}-activities"
+                )."?tab=structure#course-template-lesson-{$lessonId}-activities"
             )
             ->with('success', __('lf.LF_course_template_activity_common_deleted'));
     }

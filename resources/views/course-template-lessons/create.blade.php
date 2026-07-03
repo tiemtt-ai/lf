@@ -9,8 +9,8 @@
             ? [$template->id, $section->id]
             : [$template->id];
         $lessonAnchor = $section
-            ? '#course-template-section-'.$section->id.'-lessons'
-            : '#course-template-direct-lessons';
+            ? '?tab=structure#course-template-section-'.$section->id.'-lessons'
+            : '?tab=structure#course-template-direct-lessons';
     @endphp
 
     @if ($errors->any())

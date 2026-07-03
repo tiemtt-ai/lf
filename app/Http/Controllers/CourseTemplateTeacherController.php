@@ -28,7 +28,7 @@ class CourseTemplateTeacherController extends Controller
 
         return redirect()->to(
             route($this->templateRoutePrefix($request).'.edit', $templateId)
-            .'#course-template-teachers'
+            .'?tab=teachers#course-template-teachers'
         );
     }
 
@@ -79,7 +79,7 @@ class CourseTemplateTeacherController extends Controller
                 route(
                     $this->templateRoutePrefix($request).'.edit',
                     $templateId
-                ).'#course-template-teachers'
+                ).'?tab=teachers#course-template-teachers'
             )
             ->with('success', __(
                 'lf.LF_course_template_teacher_common_created'
@@ -171,7 +171,7 @@ class CourseTemplateTeacherController extends Controller
                 route(
                     $this->templateRoutePrefix($request).'.edit',
                     $templateId
-                ).'#course-template-teachers'
+                ).'?tab=teachers#course-template-teachers'
             )
             ->with('success', __(
                 'lf.LF_course_template_teacher_common_removed'
