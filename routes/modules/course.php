@@ -1,8 +1,8 @@
 <?php
 
 use App\Http\Controllers\CourseCategoryController;
-use App\Http\Controllers\CourseTemplateController;
 use App\Http\Controllers\CourseTemplateActivityController;
+use App\Http\Controllers\CourseTemplateController;
 use App\Http\Controllers\CourseTemplateLessonController;
 use App\Http\Controllers\CourseTemplateSectionController;
 use Illuminate\Support\Facades\Route;
