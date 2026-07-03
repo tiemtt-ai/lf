@@ -103,6 +103,93 @@
     max-width: none;
 }
 
+.course-product-editor {
+    width: 100%;
+    max-width: 1080px;
+}
+
+.course-product-edit-header {
+    margin-bottom: 20px;
+    padding: 22px 24px;
+}
+
+.course-product-back-link {
+    display: inline-flex;
+    margin-bottom: 16px;
+    color: var(--admin-primary);
+    font-weight: 600;
+}
+
+.course-product-edit-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.course-product-edit-title {
+    margin: 0;
+    color: var(--admin-primary);
+    font-size: 26px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.course-product-edit-code {
+    margin: 6px 0 0;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    overflow-wrap: anywhere;
+    text-transform: uppercase;
+}
+
+.course-product-tabs {
+    margin-bottom: 20px;
+    padding: 6px;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    border: 1px solid #dbe3ed;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.course-product-tab {
+    flex: 1 0 max-content;
+    min-width: 0;
+    padding: 11px 14px;
+    border: 0;
+    border-radius: 7px;
+    color: #4b5563;
+    background: transparent;
+    font: inherit;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.course-product-tab:hover,
+.course-product-tab:focus-visible {
+    color: var(--admin-primary);
+    background: #eef3ff;
+}
+
+.course-product-tab.is-active {
+    color: #ffffff;
+    background: var(--admin-active);
+}
+
+.course-product-tab-panel {
+    min-width: 0;
+}
+
+.course-product-tab-panel > .admin-form-card {
+    max-width: none;
+}
+
 .course-template-publish-summary {
     margin: 0;
     display: grid;
@@ -660,6 +747,19 @@
 }
 
 @media (max-width: 600px) {
+    .course-product-edit-header {
+        padding: 18px;
+    }
+
+    .course-product-edit-title-row {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .course-product-edit-title {
+        font-size: 22px;
+    }
+
     .course-template-tabs {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
