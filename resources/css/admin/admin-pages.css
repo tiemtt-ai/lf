@@ -144,6 +144,7 @@
 .course-template-activity-panel {
     margin-top: 12px;
     padding: 12px;
+    border: 1px solid #dbe3ed;
     border-radius: 6px;
     background: #f8fafc;
 }
@@ -155,7 +156,8 @@
 .course-template-activity-toolbar h5 {
     margin: 0 0 4px;
     color: var(--admin-primary);
-    font-size: 13px;
+    font-size: 14px;
+    font-weight: 600;
 }
 
 .course-template-activity-list {

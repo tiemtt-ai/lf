@@ -2,7 +2,7 @@
     $formActivity = $activity ?? null;
     $selectedActivityType = old(
         'activity_type',
-        $formActivity?->activity_type ?? 'text'
+        $formActivity?->activity_type
     );
     $selectedRequired = (string) old(
         'is_required',
@@ -46,6 +46,24 @@
         </h2>
 
         <div class="lf-form-group">
+            <x-form-label for="activity_type"
+                          :value="__('lf.LF_course_template_activity_common_type')"
+                          :required="$isRequired('activity_type')" />
+            <select id="activity_type" name="activity_type"
+                    class="lf-form-control" x-model="activityType" required>
+                <option value="" disabled>
+                    {{ __('lf.LF_course_template_activity_common_select_type') }}
+                </option>
+                @foreach ($activityTypes as $activityType)
+                    <option value="{{ $activityType }}"
+                            @selected($selectedActivityType === $activityType)>
+                        {{ __('lf.LF_course_template_activity_common_type_'.$activityType) }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+
+        <div class="lf-form-group">
             <x-form-label for="title"
                           :value="__('lf.LF_course_template_activity_common_name')"
                           :required="$isRequired('title')" />
@@ -72,30 +90,6 @@
                    value="{{ old('sort_order', $formActivity?->sort_order ?? 0) }}"
                    required>
         </div>
-
-        <div class="lf-form-group">
-            <x-form-label for="activity_type"
-                          :value="__('lf.LF_course_template_activity_common_type')"
-                          :required="$isRequired('activity_type')" />
-            <select id="activity_type" name="activity_type"
-                    class="lf-form-control" x-model="activityType" required>
-                @foreach ([
-                    'text',
-                    'video',
-                    'audio',
-                    'document',
-                    'quiz',
-                    'assignment',
-                    'liveclass',
-                    'external_link',
-                ] as $activityType)
-                    <option value="{{ $activityType }}"
-                            @selected($selectedActivityType === $activityType)>
-                        {{ __('lf.LF_course_template_activity_common_type_'.$activityType) }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
     </section>
 
     <section class="admin-form-section" aria-labelledby="course-template-activity-content-title">
@@ -103,32 +97,38 @@
             {{ __('lf.LF_course_template_activity_group_content') }}
         </h2>
 
-        <div class="lf-form-group">
+        <div class="lf-form-group"
+             x-show='@json($referenceActivityTypes).includes(activityType)'>
             <x-form-label for="activity_ref_type"
                           :value="__('lf.LF_course_template_activity_common_ref_type')"
                           :required="$isRequired('activity_ref_type')" />
             <input id="activity_ref_type" type="text"
                    name="activity_ref_type" class="lf-form-control"
                    value="{{ old('activity_ref_type', $formActivity?->activity_ref_type) }}"
+                   x-bind:disabled='! @json($referenceActivityTypes).includes(activityType)'
                    maxlength="100">
         </div>
 
-        <div class="lf-form-group">
+        <div class="lf-form-group"
+             x-show='@json($referenceActivityTypes).includes(activityType)'>
             <x-form-label for="activity_ref_id"
                           :value="__('lf.LF_course_template_activity_common_ref_id')"
                           :required="$isRequired('activity_ref_id')" />
             <input id="activity_ref_id" type="number" min="1"
                    name="activity_ref_id" class="lf-form-control"
-                   value="{{ old('activity_ref_id', $formActivity?->activity_ref_id) }}">
+                   value="{{ old('activity_ref_id', $formActivity?->activity_ref_id) }}"
+                   x-bind:disabled='! @json($referenceActivityTypes).includes(activityType)'>
         </div>
 
-        <div class="lf-form-group">
+        <div class="lf-form-group" x-show="activityType === 'external_link'">
             <x-form-label for="external_url"
                           :value="__('lf.LF_course_template_activity_common_external_url')"
-                          :required="$isRequired('external_url')" />
+                          :required="true" />
             <input id="external_url" type="url" name="external_url"
                    class="lf-form-control"
                    value="{{ old('external_url', $formActivity?->external_url) }}"
+                   x-bind:disabled="activityType !== 'external_link'"
+                   x-bind:required="activityType === 'external_link'"
                    maxlength="1000">
         </div>
 

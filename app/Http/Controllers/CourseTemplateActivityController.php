@@ -29,6 +29,15 @@ class CourseTemplateActivityController extends Controller
         'assignment',
     ];
 
+    private const REFERENCE_ACTIVITY_TYPES = [
+        'video',
+        'audio',
+        'document',
+        'quiz',
+        'assignment',
+        'liveclass',
+    ];
+
     public function index(
         Request $request,
         int $templateId,
@@ -75,7 +84,9 @@ class CourseTemplateActivityController extends Controller
                 $customerId,
                 $templateId
             ),
+            'activityTypes' => self::ACTIVITY_TYPES,
             'manualDurationTypes' => self::MANUAL_DURATION_TYPES,
+            'referenceActivityTypes' => self::REFERENCE_ACTIVITY_TYPES,
             'routePrefix' => $this->routePrefix($request),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
         ]);
@@ -158,7 +169,9 @@ class CourseTemplateActivityController extends Controller
                 $templateId,
                 $activityId
             ),
+            'activityTypes' => self::ACTIVITY_TYPES,
             'manualDurationTypes' => self::MANUAL_DURATION_TYPES,
+            'referenceActivityTypes' => self::REFERENCE_ACTIVITY_TYPES,
             'routePrefix' => $this->routePrefix($request),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
         ]);
@@ -268,7 +281,13 @@ class CourseTemplateActivityController extends Controller
     ): array {
         $validator = Validator::make(
             $request->all(),
-            $this->validationRules($customerId, $templateId, $activityId)
+            $this->validationRules($customerId, $templateId, $activityId),
+            [],
+            [
+                'activity_type' => __(
+                    'lf.LF_course_template_activity_common_type'
+                ),
+            ]
         );
 
         if ($activityId !== null) {

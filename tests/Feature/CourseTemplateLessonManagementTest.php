@@ -652,6 +652,74 @@ class CourseTemplateLessonManagementTest extends TestCase
             ->assertDontSee('name="activity_count"', false);
     }
 
+    public function test_create_and_edit_forms_expose_only_documented_editable_fields(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Documented Fields Course',
+            'documented-fields-course'
+        );
+        $sectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Documented Fields Section'
+        );
+        $lessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'Documented Fields Lesson'
+        );
+        $collectionUrl = $this->lessonCollectionUrl(
+            'admin',
+            $templateId,
+            $sectionId
+        );
+        $responses = [
+            $this->actingAs($admin)
+                ->get("{$collectionUrl}/create")
+                ->assertOk(),
+            $this->actingAs($admin)
+                ->get("{$collectionUrl}/{$lessonId}/edit")
+                ->assertOk(),
+        ];
+
+        foreach ($responses as $response) {
+            foreach ([
+                'title',
+                'slug',
+                'short_description',
+                'description',
+                'sort_order',
+                'is_preview',
+                'learning_objective',
+                'unlock_rule',
+                'unlock_after_lesson_id',
+                'unlock_at',
+                'status',
+            ] as $field) {
+                $response->assertSee('name="'.$field.'"', false);
+            }
+
+            foreach ([
+                'id',
+                'customer_id',
+                'template_id',
+                'template_section_id',
+                'duration_seconds',
+                'activity_count',
+                'created_by',
+                'updated_by',
+                'created_at',
+                'updated_at',
+            ] as $field) {
+                $response->assertDontSee('name="'.$field.'"', false);
+            }
+        }
+    }
+
     public function test_guest_and_student_cannot_access_lesson_management(): void
     {
         $customerId = $this->createTenant();

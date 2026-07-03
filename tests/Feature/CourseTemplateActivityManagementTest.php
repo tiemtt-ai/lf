@@ -54,7 +54,7 @@ class CourseTemplateActivityManagementTest extends TestCase
                     ."{$templateId}/edit"
                 )
                 ->assertOk()
-                ->assertSeeText('+ Thêm Activity')
+                ->assertSeeText('+ Thêm hoạt động')
                 ->assertSeeText('Alphabet Text')
                 ->assertDontSeeText('Private Tenant Activity');
         }
@@ -513,7 +513,7 @@ class CourseTemplateActivityManagementTest extends TestCase
                 ."{$templateId}/edit"
             )
             ->assertOk()
-            ->assertSeeText('+ Thêm Activity')
+            ->assertSeeText('+ Thêm hoạt động')
             ->assertSeeText('Bạn có chắc chắn muốn xóa Activity này không?')
             ->assertSeeText('Có, xóa')
             ->assertSeeText('Không');
@@ -544,6 +544,91 @@ class CourseTemplateActivityManagementTest extends TestCase
                 $this->requiredIndicatorCount($response->getContent(), $field)
             );
         }
+    }
+
+    public function test_template_edit_shows_the_correct_add_activity_action_for_each_lesson(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] =
+            $this->createHierarchy();
+        $secondLessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'Lesson Two'
+        );
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $response = $this->actingAs($admin)
+            ->get(
+                'https://tenant-a.localhost/admin/course-templates/'
+                ."{$templateId}/edit"
+            )
+            ->assertOk()
+            ->assertSeeText('Hoạt động học tập')
+            ->assertSeeText('+ Thêm hoạt động')
+            ->assertSeeText('Chưa có hoạt động học tập nào.');
+
+        $this->assertLessonHasActivityCreateAction(
+            $response->getContent(),
+            'Lesson default',
+            $this->activityCollectionUrl(
+                'admin',
+                $templateId,
+                $sectionId,
+                $lessonId
+            ).'/create'
+        );
+        $this->assertLessonHasActivityCreateAction(
+            $response->getContent(),
+            'Lesson Two',
+            $this->activityCollectionUrl(
+                'admin',
+                $templateId,
+                $sectionId,
+                $secondLessonId
+            ).'/create'
+        );
+    }
+
+    public function test_create_and_edit_forms_show_the_documented_activity_type_selector(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] =
+            $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $activityId = $this->createActivity(
+            $customerId,
+            $templateId,
+            $lessonId,
+            'Quiz Activity'
+        );
+        DB::table('core_course_template_activities')
+            ->where('id', $activityId)
+            ->update(['activity_type' => 'quiz']);
+        $collectionUrl = $this->activityCollectionUrl(
+            'admin',
+            $templateId,
+            $sectionId,
+            $lessonId
+        );
+
+        $createResponse = $this->actingAs($admin)
+            ->get("{$collectionUrl}/create")
+            ->assertOk()
+            ->assertSeeText('Thông tin Activity')
+            ->assertSeeText('Loại hoạt động');
+
+        $this->assertActivityTypeSelector($createResponse->getContent());
+
+        $editResponse = $this->actingAs($admin)
+            ->get("{$collectionUrl}/{$activityId}/edit")
+            ->assertOk()
+            ->assertSeeText('Thông tin Activity')
+            ->assertSeeText('Loại hoạt động');
+
+        $this->assertActivityTypeSelector(
+            $editResponse->getContent(),
+            'quiz'
+        );
     }
 
     public function test_guest_and_student_cannot_access_activity_management(): void
@@ -792,5 +877,76 @@ class CourseTemplateActivityManagementTest extends TestCase
         );
 
         return $xpath->query($query)->length;
+    }
+
+    private function assertActivityTypeSelector(
+        string $html,
+        ?string $selectedType = null
+    ): void {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        $xpath = new \DOMXPath($document);
+        $selectors = $xpath->query(
+            '//section[.//h2[normalize-space()="Thông tin Activity"]]'
+            .'//select[@id="activity_type" and @name="activity_type"'
+            .' and @required]'
+        );
+
+        $this->assertSame(1, $selectors->length);
+        $this->assertSame(
+            1,
+            $this->requiredIndicatorCount($html, 'activity_type')
+        );
+
+        $optionValues = [];
+        foreach ($xpath->query('.//option[@value!=""]', $selectors->item(0)) as $option) {
+            $optionValues[] = $option->getAttribute('value');
+        }
+
+        $this->assertSame([
+            'text',
+            'video',
+            'audio',
+            'document',
+            'quiz',
+            'assignment',
+            'liveclass',
+            'external_link',
+        ], $optionValues);
+
+        if ($selectedType !== null) {
+            $selectedOptions = $xpath->query(
+                sprintf('.//option[@value="%s" and @selected]', $selectedType),
+                $selectors->item(0)
+            );
+            $this->assertSame(1, $selectedOptions->length);
+        }
+    }
+
+    private function assertLessonHasActivityCreateAction(
+        string $html,
+        string $lessonTitle,
+        string $expectedUrl
+    ): void {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        $xpath = new \DOMXPath($document);
+        $query = sprintf(
+            '//article[contains(concat(" ", normalize-space(@class), " "),'
+            .' " course-template-lesson-item ")][.//strong[normalize-space()="%s"]]'
+            .'//section[contains(concat(" ", normalize-space(@class), " "),'
+            .' " course-template-activity-panel ")]'
+            .'//a[@href="%s" and normalize-space()="+ Thêm hoạt động"]',
+            $lessonTitle,
+            $expectedUrl
+        );
+
+        $this->assertSame(1, $xpath->query($query)->length);
     }
 }

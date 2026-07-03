@@ -371,6 +371,7 @@ return [
     'LF_course_template_activity_common_description' => 'Description',
     'LF_course_template_activity_common_sort_order' => 'Display order',
     'LF_course_template_activity_common_type' => 'Activity type',
+    'LF_course_template_activity_common_select_type' => 'Select an activity type',
     'LF_course_template_activity_common_type_text' => 'Text',
     'LF_course_template_activity_common_type_video' => 'Video',
     'LF_course_template_activity_common_type_audio' => 'Audio',
