@@ -214,16 +214,42 @@
                                     </td>
                                     <td>
                                         @if (request()->user()?->role === 'customer_admin')
-                                            <a class="admin-link-button"
-                                               href="{{ route(
-                                                   'admin.course-templates.versions.show',
-                                                   [
-                                                       'templateId' => $template->id,
-                                                       'versionId' => $version->id,
-                                                   ]
-                                               ) }}">
-                                                {{ __('lf.LF_course_template_history_view') }}
-                                            </a>
+                                            <div class="admin-table-actions course-template-version-actions">
+                                                <a class="admin-link-button"
+                                                   href="{{ route(
+                                                       'admin.course-templates.versions.show',
+                                                       [
+                                                           'templateId' => $template->id,
+                                                           'versionId' => $version->id,
+                                                       ]
+                                                   ) }}">
+                                                    {{ __('lf.LF_course_template_history_view') }}
+                                                </a>
+
+                                                @if (in_array(
+                                                    $version->status,
+                                                    ['published', 'deprecated', 'archived'],
+                                                    true
+                                                ))
+                                                    <form method="POST"
+                                                          action="{{ route(
+                                                              'admin.course-templates.versions.duplicate-to-draft',
+                                                              [
+                                                                  'templateId' => $template->id,
+                                                                  'versionId' => $version->id,
+                                                              ]
+                                                          ) }}"
+                                                          onsubmit="return window.confirm(@js(
+                                                              __('lf.LF_course_template_duplicate_confirmation')
+                                                          ))">
+                                                        @csrf
+                                                        <button type="submit"
+                                                                class="admin-link-button">
+                                                            {{ __('lf.LF_course_template_duplicate_action') }}
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                            </div>
                                         @else
                                             <span class="admin-link-button is-disabled"
                                                   aria-disabled="true">

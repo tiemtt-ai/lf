@@ -166,6 +166,17 @@
     cursor: not-allowed;
 }
 
+.course-template-version-actions {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    min-width: 190px;
+}
+
+.course-template-version-actions form,
+.course-version-toolbar form {
+    margin: 0;
+}
+
 .course-template-version-detail {
     width: 100%;
     max-width: 960px;
@@ -173,6 +184,11 @@
 
 .course-version-toolbar {
     margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
 }
 
 .course-version-toolbar a,

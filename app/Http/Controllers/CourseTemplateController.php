@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\CourseTemplatePublishingService;
+use App\Services\CourseTemplateVersionDuplicatingService;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +15,8 @@ use Illuminate\View\View;
 class CourseTemplateController extends Controller
 {
     public function __construct(
-        private readonly CourseTemplatePublishingService $publishingService
+        private readonly CourseTemplatePublishingService $publishingService,
+        private readonly CourseTemplateVersionDuplicatingService $duplicatingService
     ) {}
 
     public function index(Request $request): View
@@ -241,6 +243,33 @@ class CourseTemplateController extends Controller
                 ->groupBy('version_section_id'),
             'activitiesByLesson' => $activitiesByLesson,
         ]);
+    }
+
+    public function duplicateVersionToDraft(
+        Request $request,
+        int $templateId,
+        int $versionId
+    ) {
+        abort_unless($request->user()?->role === 'customer_admin', 403);
+
+        $customerId = $this->customerId();
+        $this->duplicatingService->duplicateToDraft(
+            $customerId,
+            $templateId,
+            $versionId,
+            (int) $request->user()->id,
+            $request->ip()
+        );
+
+        return redirect()
+            ->route(
+                'admin.course-templates.edit',
+                ['id' => $templateId, 'tab' => 'structure']
+            )
+            ->with(
+                'success',
+                __('lf.LF_course_template_duplicate_success')
+            );
     }
 
     public function update(Request $request, int $id)

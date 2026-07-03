@@ -12,6 +12,29 @@
             ) }}">
                 ← {{ __('lf.LF_course_template_version_detail_back') }}
             </a>
+
+            @if (in_array(
+                $version->status,
+                ['published', 'deprecated', 'archived'],
+                true
+            ))
+                <form method="POST"
+                      action="{{ route(
+                          'admin.course-templates.versions.duplicate-to-draft',
+                          [
+                              'templateId' => $template->id,
+                              'versionId' => $version->id,
+                          ]
+                      ) }}"
+                      onsubmit="return window.confirm(@js(
+                          __('lf.LF_course_template_duplicate_confirmation')
+                      ))">
+                    @csrf
+                    <button type="submit" class="btn btn-secondary">
+                        {{ __('lf.LF_course_template_duplicate_action') }}
+                    </button>
+                </form>
+            @endif
         </div>
 
         <section class="admin-card admin-form-card course-version-summary-card">

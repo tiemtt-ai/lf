@@ -169,6 +169,11 @@ Route::middleware([
         [CourseTemplateController::class, 'showVersion']
     )->name('course-templates.versions.show');
 
+    Route::post(
+        '/course-templates/{templateId}/versions/{versionId}/duplicate-to-draft',
+        [CourseTemplateController::class, 'duplicateVersionToDraft']
+    )->name('course-templates.versions.duplicate-to-draft');
+
     require __DIR__.'/modules/course.php';
 });
 

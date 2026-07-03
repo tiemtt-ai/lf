@@ -342,6 +342,7 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertSeeText('Section Snapshot Lesson')
             ->assertSeeText('Section Snapshot Activity')
             ->assertSeeText('Quay lại lịch sử khóa học')
+            ->assertSeeText('Sao chép vào bản nháp')
             ->assertDontSeeText('Lưu thay đổi')
             ->assertDontSeeText('Xóa');
 
@@ -428,6 +429,451 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_admin_can_duplicate_version_to_the_single_existing_draft(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser(
+            $customerId,
+            'customer_admin',
+            'Duplicate Admin'
+        );
+        $templateId = $this->createTemplate(
+            $customerId,
+            $admin->id,
+            'Restorable Course'
+        );
+        $categoryId = $this->createCategory(
+            $customerId,
+            $admin->id,
+            'Historic Category'
+        );
+
+        DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('id', $templateId)
+            ->update([
+                'category_id' => $categoryId,
+                'thumbnail_video_media_id' => 999999,
+            ]);
+
+        $sectionId = $this->createSection($customerId, $templateId);
+        $directFirstId = $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'Direct First',
+            1,
+            $admin->id
+        );
+        $directLaterId = $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'Direct Later',
+            2,
+            $admin->id
+        );
+        $sectionLessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'Section Lesson',
+            1,
+            $admin->id
+        );
+        $activityFirstId = $this->createActivity(
+            $customerId,
+            $templateId,
+            $directFirstId,
+            'Activity First',
+            1,
+            $admin->id
+        );
+        $activityLaterId = $this->createActivity(
+            $customerId,
+            $templateId,
+            $directFirstId,
+            'Activity Later',
+            2,
+            $admin->id
+        );
+        $this->createActivity(
+            $customerId,
+            $templateId,
+            $sectionLessonId,
+            'Section Activity',
+            1,
+            $admin->id
+        );
+
+        DB::table('core_course_template_lessons')
+            ->where('customer_id', $customerId)
+            ->where('id', $directLaterId)
+            ->update([
+                'unlock_rule' => 'previous_lesson_completed',
+                'unlock_after_lesson_id' => $directFirstId,
+            ]);
+        DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)
+            ->where('id', $activityLaterId)
+            ->update([
+                'unlock_rule' => 'previous_activity_completed',
+                'unlock_after_activity_id' => $activityFirstId,
+            ]);
+
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish"
+        )->assertRedirect();
+
+        $version = DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->first();
+        $this->assertNotNull($version);
+
+        $versionState = $this->versionState(
+            $customerId,
+            $templateId,
+            $version->id
+        );
+        $lastPublishedAt = DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('id', $templateId)
+            ->value('last_version_published_at');
+
+        DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('id', $templateId)
+            ->update([
+                'category_id' => null,
+                'title' => 'Changed Working Draft',
+                'status' => 'active',
+                'working_revision' => 11,
+            ]);
+        DB::table('core_course_categories')
+            ->where('customer_id', $customerId)
+            ->where('id', $categoryId)
+            ->delete();
+
+        $this->clearDraftContent($customerId, $templateId);
+        $staleSectionId = $this->createSection($customerId, $templateId);
+        DB::table('core_course_template_sections')
+            ->where('customer_id', $customerId)
+            ->where('id', $staleSectionId)
+            ->update([
+                'code' => 'STALE',
+                'title' => 'Stale Section',
+            ]);
+        $staleLessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $staleSectionId,
+            'Stale Lesson',
+            1,
+            $admin->id
+        );
+        $this->createActivity(
+            $customerId,
+            $templateId,
+            $staleLessonId,
+            'Stale Activity',
+            1,
+            $admin->id
+        );
+
+        $duplicateUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/versions/{$version->id}/duplicate-to-draft";
+
+        $this->withSession(['locale' => 'en'])
+            ->actingAs($admin)
+            ->get(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=history"
+            )
+            ->assertOk()
+            ->assertSeeText('Duplicate to Draft')
+            ->assertSee(
+                'This will replace the current draft content with this published version. Published versions will not be changed. Continue?',
+                false
+            );
+
+        $this->actingAs($admin)
+            ->post($duplicateUrl)
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure"
+            )
+            ->assertSessionHas(
+                'success',
+                'Published version duplicated to draft successfully.'
+            );
+
+        $template = DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('id', $templateId)
+            ->first();
+
+        $this->assertNotNull($template);
+        $this->assertSame('Restorable Course', $template->title);
+        $this->assertSame('draft', $template->status);
+        $this->assertSame(12, $template->working_revision);
+        $this->assertNull($template->category_id);
+        $this->assertNull($template->thumbnail_video_media_id);
+        $this->assertEquals(
+            $lastPublishedAt,
+            $template->last_version_published_at
+        );
+
+        $this->assertDatabaseMissing('core_course_template_sections', [
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'title' => 'Stale Section',
+        ]);
+        $this->assertDatabaseMissing('core_course_template_lessons', [
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'title' => 'Stale Lesson',
+        ]);
+        $this->assertDatabaseMissing('core_course_template_activities', [
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'title' => 'Stale Activity',
+        ]);
+
+        $directLessons = DB::table('core_course_template_lessons')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->whereNull('template_section_id')
+            ->orderBy('sort_order')
+            ->get();
+        $this->assertSame(
+            ['Direct First', 'Direct Later'],
+            $directLessons->pluck('title')->all()
+        );
+        $this->assertSame(
+            $directLessons[0]->id,
+            $directLessons[1]->unlock_after_lesson_id
+        );
+
+        $section = DB::table('core_course_template_sections')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('title', 'Hangul')
+            ->first();
+        $this->assertNotNull($section);
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'template_section_id' => $section->id,
+            'title' => 'Section Lesson',
+            'sort_order' => 1,
+        ]);
+
+        $restoredDirectFirst = $directLessons->first();
+        $directActivities = DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('template_lesson_id', $restoredDirectFirst->id)
+            ->orderBy('sort_order')
+            ->get();
+        $this->assertSame(
+            ['Activity First', 'Activity Later'],
+            $directActivities->pluck('title')->all()
+        );
+        $this->assertSame(
+            $directActivities[0]->id,
+            $directActivities[1]->unlock_after_activity_id
+        );
+        $this->assertDatabaseHas('core_course_template_activities', [
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'title' => 'Section Activity',
+            'sort_order' => 1,
+        ]);
+
+        $this->assertSame(
+            $versionState,
+            $this->versionState(
+                $customerId,
+                $templateId,
+                $version->id
+            )
+        );
+        $this->assertSame(
+            1,
+            DB::table('core_course_template_versions')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->count()
+        );
+        $this->assertSame(
+            $version->id,
+            DB::table('core_course_template_versions')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->where('is_current', true)
+                ->value('id')
+        );
+        $this->assertSame(
+            1,
+            DB::table('core_course_templates')
+                ->where('customer_id', $customerId)
+                ->where('id', $templateId)
+                ->count()
+        );
+
+        $audit = DB::table('saas_audit_logs')
+            ->where('customer_id', $customerId)
+            ->where(
+                'action',
+                'course_template_version_duplicated_to_draft'
+            )
+            ->first();
+        $this->assertNotNull($audit);
+        $this->assertSame($admin->id, $audit->actor_id);
+        $this->assertSame(
+            $version->id,
+            json_decode($audit->after, true)[
+                'source_template_version_id'
+            ]
+        );
+    }
+
+    public function test_non_admin_users_cannot_duplicate_version_to_draft(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $student = $this->createUser($customerId, 'student');
+        $templateId = $this->createTemplate(
+            $customerId,
+            $admin->id,
+            'Protected Duplicate'
+        );
+
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish"
+        );
+        $versionId = (int) DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->value('id');
+        $url = "https://tenant-a.localhost/admin/course-templates/{$templateId}/versions/{$versionId}/duplicate-to-draft";
+        $draftBefore = $this->draftState($customerId, $templateId);
+
+        $this->actingAs($teacher)->post($url)->assertForbidden();
+        $this->actingAs($student)->post($url)->assertForbidden();
+
+        auth()->logout();
+        $this->post($url)->assertRedirect();
+
+        $this->assertSame(
+            $draftBefore,
+            $this->draftState($customerId, $templateId)
+        );
+        $this->assertDatabaseMissing('saas_audit_logs', [
+            'customer_id' => $customerId,
+            'action' => 'course_template_version_duplicated_to_draft',
+        ]);
+    }
+
+    public function test_duplicate_version_to_draft_is_tenant_isolated(): void
+    {
+        $customerA = $this->createTenant();
+        $customerB = $this->createTenant('tenant-b');
+        $adminA = $this->createUser($customerA, 'customer_admin');
+        $adminB = $this->createUser($customerB, 'customer_admin');
+        $templateB = $this->createTemplate(
+            $customerB,
+            $adminB->id,
+            'Tenant B Duplicate'
+        );
+
+        $this->actingAs($adminB)->post(
+            "https://tenant-b.localhost/admin/course-templates/{$templateB}/publish"
+        );
+        $versionB = (int) DB::table('core_course_template_versions')
+            ->where('customer_id', $customerB)
+            ->where('template_id', $templateB)
+            ->value('id');
+        $draftBefore = $this->draftState($customerB, $templateB);
+
+        $this->actingAs($adminA)
+            ->post(
+                "https://tenant-a.localhost/admin/course-templates/{$templateB}/versions/{$versionB}/duplicate-to-draft"
+            )
+            ->assertNotFound();
+
+        $this->assertSame(
+            $draftBefore,
+            $this->draftState($customerB, $templateB)
+        );
+        $this->assertDatabaseMissing('saas_audit_logs', [
+            'customer_id' => $customerA,
+            'action' => 'course_template_version_duplicated_to_draft',
+        ]);
+    }
+
+    public function test_duplicate_validation_failure_keeps_current_draft_intact(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            $admin->id,
+            'Slug Source'
+        );
+        $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'Original Lesson',
+            1,
+            $admin->id
+        );
+
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish"
+        );
+        $versionId = (int) DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->value('id');
+
+        DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('id', $templateId)
+            ->update([
+                'title' => 'Current Working Draft',
+                'slug' => 'current-working-draft',
+                'working_revision' => 9,
+            ]);
+        $this->createTemplate(
+            $customerId,
+            $admin->id,
+            'Slug Source'
+        );
+        $draftBefore = $this->draftState($customerId, $templateId);
+
+        $this->actingAs($admin)
+            ->from(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=history"
+            )
+            ->post(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/versions/{$versionId}/duplicate-to-draft"
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=history"
+            )
+            ->assertSessionHasErrors('duplicate');
+
+        $this->assertSame(
+            $draftBefore,
+            $this->draftState($customerId, $templateId)
+        );
+        $this->assertDatabaseMissing('saas_audit_logs', [
+            'customer_id' => $customerId,
+            'action' => 'course_template_version_duplicated_to_draft',
+        ]);
+    }
+
     private function createTenant(string $slug = 'tenant-a'): int
     {
         return DB::table('saas_customers')->insertGetId([
@@ -435,6 +881,31 @@ class CourseTemplatePublishingTest extends TestCase
             'slug' => $slug,
             'subdomain' => $slug,
             'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function createCategory(
+        int $customerId,
+        int $createdBy,
+        string $name
+    ): int {
+        return DB::table('core_course_categories')->insertGetId([
+            'customer_id' => $customerId,
+            'parent_id' => null,
+            'name' => $name,
+            'slug' => str($name)->slug()->toString(),
+            'description' => null,
+            'thumbnail_image' => null,
+            'banner_image' => null,
+            'sort_order' => 1,
+            'is_featured' => false,
+            'meta_title' => null,
+            'meta_description' => null,
+            'meta_keywords' => null,
+            'status' => 'active',
+            'created_by' => $createdBy,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -611,5 +1082,76 @@ class CourseTemplatePublishingTest extends TestCase
                 ->map(fn (object $row): array => (array) $row)
                 ->all(),
         ];
+    }
+
+    private function versionState(
+        int $customerId,
+        int $templateId,
+        int $versionId
+    ): array {
+        return [
+            'version' => (array) DB::table(
+                'core_course_template_versions'
+            )
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->where('id', $versionId)
+                ->first(),
+            'sections' => DB::table(
+                'core_course_template_version_sections'
+            )
+                ->where('customer_id', $customerId)
+                ->where('template_version_id', $versionId)
+                ->orderBy('id')
+                ->get()
+                ->map(fn (object $row): array => (array) $row)
+                ->all(),
+            'lessons' => DB::table(
+                'core_course_template_version_lessons'
+            )
+                ->where('customer_id', $customerId)
+                ->where('template_version_id', $versionId)
+                ->orderBy('id')
+                ->get()
+                ->map(fn (object $row): array => (array) $row)
+                ->all(),
+            'activities' => DB::table(
+                'core_course_template_version_activities'
+            )
+                ->where('customer_id', $customerId)
+                ->where('template_version_id', $versionId)
+                ->orderBy('id')
+                ->get()
+                ->map(fn (object $row): array => (array) $row)
+                ->all(),
+        ];
+    }
+
+    private function clearDraftContent(
+        int $customerId,
+        int $templateId
+    ): void {
+        DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->update(['unlock_after_activity_id' => null]);
+        DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->delete();
+
+        DB::table('core_course_template_lessons')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->update(['unlock_after_lesson_id' => null]);
+        DB::table('core_course_template_lessons')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->delete();
+
+        DB::table('core_course_template_sections')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->delete();
     }
 }
