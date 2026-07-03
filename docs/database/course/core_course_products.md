@@ -1,10 +1,10 @@
 # Table: core_course_products
 
-Version: 1.2
+Version: 1.3
 
 Status: Official Foundation
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -98,6 +98,12 @@ core_certificate_template_products
 * Product có thể giới hạn thời gian học và thời gian ôn tập.
 * Product có thể hiển thị số lượng học viên thực tế hoặc số lượng marketing.
 * Product có thể liên kết sản phẩm tặng kèm hoặc sản phẩm liên quan thông qua core_course_product_relations.
+* Product lifecycle dùng `active` để biểu thị Product đang được hiển thị,
+  bán hoặc cấp quyền truy cập theo rule thương mại.
+* `published` thuộc Course Template Version bất biến, không phải Product
+  runtime status.
+* Teacher không có quyền truy cập hoặc quản lý Product trực tiếp trong Phase 3
+  cho đến khi có quan hệ assigned-product chính thức.
 
 ---
 
@@ -541,7 +547,7 @@ TIMESTAMP NULL
 
 Ngày bắt đầu cho phép đăng ký.
 
-NULL = cho phép đăng ký ngay khi Product published.
+NULL = cho phép đăng ký ngay khi Product active.
 
 ### registration_ends_at
 
@@ -578,9 +584,22 @@ VARCHAR(50)
 Giá trị:
 
 * draft
-* published
+* active
 * inactive
 * archived
+
+Ý nghĩa:
+
+* `draft` — Product đang soạn thảo, chưa dùng cho website hoặc enrollment.
+* `active` — Product runtime đang khả dụng theo `visibility`, thời gian hiển
+  thị, thời gian đăng ký và các rule thương mại khác.
+* `inactive` — Product tạm ngưng sử dụng nhưng vẫn giữ dữ liệu lịch sử.
+* `archived` — Product không còn vận hành cho bán mới hoặc hiển thị thường.
+
+Product dùng `active` thay vì `published` vì Product là lớp commerce/display/access
+packaging có thể thay đổi theo giá, chiến dịch, visibility và registration
+window. Course Template Version mới là đối tượng được publish bất biến. Việc
+Product đang active không làm thay đổi hoặc republish Course Template Version.
 
 ---
 
@@ -596,7 +615,11 @@ User tạo Product.
 
 TIMESTAMP NULL
 
-Thời điểm publish Product.
+Thời điểm Product được chuyển sang trạng thái `active` lần đầu hoặc theo rule
+triển khai sau này.
+
+Tên field được giữ vì tương thích với tài liệu Foundation hiện có, nhưng không
+được hiểu là publish Course Template Version.
 
 ### created_at
 
@@ -615,7 +638,7 @@ TIMESTAMP
 Sale Price được áp dụng khi:
 
 ```text
-status = published
+status = active
 
 AND
 
@@ -643,7 +666,7 @@ price
 Student có thể đăng ký khi:
 
 ```text
-status = published
+status = active
 
 AND
 
@@ -764,6 +787,81 @@ UNIQUE(customer_id, product_code)
 
 ---
 
+# Authorization Rules
+
+## Customer Admin
+
+Customer Admin được quản lý toàn bộ Product trong cùng tenant:
+
+* list;
+* view;
+* create;
+* edit;
+* delete/archive theo rule bên dưới;
+* thay đổi Product status.
+
+Tất cả query bắt buộc scope theo:
+
+```php
+TenantContext::customerId()
+```
+
+## Teacher
+
+Teacher authorization hiện tại vẫn đi qua Course Template assignment:
+
+```text
+core_course_template_teachers
+```
+
+Trong Phase 3 Product CRUD, Teacher không có quyền truy cập hoặc quản lý Product
+trực tiếp vì chưa có bảng hoặc quan hệ assigned-product chính thức.
+
+Không suy diễn quyền Product từ Template assignment, Product Items hoặc Product
+Relations. Nếu tương lai cần Teacher quản lý Product được phân công, phải có
+ADR/tài liệu database riêng cho assigned-product relationship trước khi
+implementation.
+
+---
+
+# Delete / Reference Rules
+
+## Delete Strategy
+
+Product không dùng soft delete theo Foundation hiện tại.
+
+Mặc định delete là logical lifecycle bằng cách chuyển:
+
+```text
+status = archived
+```
+
+Hard delete chỉ được cho phép khi Product chưa có bất kỳ dữ liệu tham chiếu
+nghiệp vụ nào và không phá vỡ audit/historical state.
+
+## Existing References
+
+Không được hard delete Product nếu đang hoặc từng được tham chiếu bởi:
+
+* `core_course_product_items`;
+* `core_course_product_relations.product_id`;
+* `core_course_product_relations.related_product_id`;
+* `core_certificate_template_products`;
+* Enrollment, Purchase, Payment, Progress, Completion hoặc Certificate records
+  khi các bảng đó được triển khai trong tương lai.
+
+Các quan hệ phải cùng `customer_id`.
+
+## Foreign Key Recommendation
+
+Khi tạo migration, dùng `RESTRICT` cho các reference từ child tables tới Product
+để tránh xóa nhầm dữ liệu thương mại hoặc lịch sử học tập.
+
+Không cascade delete từ Product sang published Course Template Version hoặc
+Course Template content.
+
+---
+
 # Sample Data
 
 ## Single Course Product
@@ -815,7 +913,7 @@ show_enrollment_count = 1
 
 visibility = public
 
-status = published
+status = active
 ```
 
 ---
@@ -853,7 +951,7 @@ badge_type = best_seller
 
 visibility = public
 
-status = published
+status = active
 ```
 
 ---

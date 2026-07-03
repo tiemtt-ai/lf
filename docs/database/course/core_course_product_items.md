@@ -1,10 +1,10 @@
 # Table: core_course_product_items
 
-Version: 1.0
+Version: 1.1
 
 Status: Official Foundation
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -66,6 +66,10 @@ core_course_product_items
 * Không được tham chiếu working Template draft làm learning content.
 * Product Item không lưu giá bán.
 * Giá bán thuộc Product.
+* Product Item chỉ được quản lý thông qua Product workflow, không phải một
+  module Product độc lập trong Phase 3 first-table implementation.
+* Product Item dùng `active`/`inactive` vì đây là trạng thái liên kết nội dung
+  trong Product runtime, không phải trạng thái publish của Course Template Version.
 
 ---
 
@@ -278,6 +282,48 @@ TIMESTAMP
 # Unique Constraints
 
 UNIQUE(customer_id, product_id, template_version_id)
+
+---
+
+# Delete / Reference Rules
+
+## Parent Product
+
+Product Item phụ thuộc vào:
+
+```text
+core_course_products.id
+```
+
+Product Item phải có cùng `customer_id` với Product.
+
+Khi Product bị archive, Product Items không tự động bị xóa. Product Items có
+thể giữ nguyên để bảo toàn cấu hình commerce/content của Product.
+
+Nếu Product chưa từng có tham chiếu lịch sử và hard delete được phép theo
+`core_course_products`, Product Items có thể bị xóa trong cùng transaction trước
+khi xóa Product.
+
+## Template Version
+
+Product Item tham chiếu:
+
+```text
+core_course_template_versions.id
+```
+
+Published Course Template Version là immutable historical content. Không được
+cascade delete hoặc update Version từ Product Item.
+
+Không được xóa Template Version nếu còn Product Item đang tham chiếu.
+
+## Foreign Key Recommendation
+
+Các foreign key từ Product Item tới Product và Template Version nên dùng
+`RESTRICT`.
+
+Không dùng cascade delete từ Product Item sang Product, Template Version,
+Version Section, Version Lesson hoặc Version Activity.
 
 ---
 

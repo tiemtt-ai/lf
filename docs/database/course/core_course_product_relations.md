@@ -1,10 +1,10 @@
 # Table: core_course_product_relations
 
-Version: 1.0
+Version: 1.1
 
 Status: Official Foundation
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -66,6 +66,8 @@ core_course_product_relations
 * Product Relation không ảnh hưởng đến Enrollment.
 * Product Relation không ảnh hưởng đến Progress.
 * Product Relation chỉ phục vụ Marketing và Sales.
+* Product Relation dùng `active`/`inactive` vì đây là trạng thái hiển thị quan
+  hệ thương mại, không phải trạng thái publish của Course Template Version.
 
 ---
 
@@ -414,11 +416,51 @@ Hiển thị relation_type = recommended.
 
 ```sql
 UNIQUE(
+    customer_id,
     product_id,
     related_product_id,
     relation_type
 )
 ```
+
+---
+
+# Delete / Reference Rules
+
+## Source Product
+
+`product_id` tham chiếu Product nguồn trong cùng `customer_id`.
+
+Không được tạo relation nếu Product nguồn không cùng tenant hoặc không tồn tại.
+
+## Related Product
+
+`related_product_id` tham chiếu Product đích trong cùng `customer_id`.
+
+Không được tạo relation nếu Product đích không cùng tenant hoặc không tồn tại.
+
+## Product Delete / Archive
+
+Khi Product bị archive, Product Relations không bắt buộc bị xóa. Các relation
+có thể được giữ để bảo toàn cấu hình marketing/historical intent và có thể được
+ẩn bằng Product status hoặc Relation status.
+
+Hard delete Product chỉ được phép khi không còn relation nào tham chiếu Product
+đó ở cả hai vai trò:
+
+```text
+product_id
+related_product_id
+```
+
+Nếu hard delete Product được phép theo `core_course_products`, related Product
+Relations có thể bị xóa trong cùng transaction trước khi xóa Product.
+
+## Foreign Key Recommendation
+
+Các foreign key từ Product Relation tới Product nên dùng `RESTRICT`.
+
+Không cascade delete Product từ Product Relation.
 
 ---
 

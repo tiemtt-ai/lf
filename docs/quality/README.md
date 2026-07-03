@@ -28,6 +28,9 @@ criteria hay không.
 * [LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md](LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md)
   — approved architecture review for replacing the one editable Course
   Template draft from an immutable published Version.
+* [LF-Course-Product-Architecture-Review.md](LF-Course-Product-Architecture-Review.md)
+  — approved architecture review for Course Product CRUD documentation and
+  Product-specific implementation readiness.
 
 ---
 
