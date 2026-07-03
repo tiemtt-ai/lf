@@ -49,7 +49,7 @@ class CourseTemplateManagementTest extends TestCase
         }
     }
 
-    public function test_template_edit_uses_the_four_authoring_tabs(): void
+    public function test_template_edit_uses_the_five_authoring_tabs(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -61,9 +61,10 @@ class CourseTemplateManagementTest extends TestCase
         );
         $tabs = [
             'information' => 'Thông tin',
-            'structure' => 'Cấu trúc',
+            'structure' => 'Nội dung',
             'teachers' => 'Giáo viên',
-            'versions' => 'Phiên bản',
+            'publish' => 'Xuất bản',
+            'history' => 'Lịch sử',
         ];
 
         foreach ([
@@ -90,11 +91,21 @@ class CourseTemplateManagementTest extends TestCase
         $this->actingAs($admin)
             ->get(
                 'https://tenant-a.localhost/admin/course-templates/'
-                ."{$templateId}/edit?tab=versions"
+                ."{$templateId}/edit?tab=publish"
             )
-            ->assertSeeText(
-                'Chức năng phiên bản sẽ được triển khai ở bước tiếp theo.'
-            );
+            ->assertSeeText('Bản nháp hiện tại')
+            ->assertSeeText('Bản nháp · Bản chỉnh sửa 1')
+            ->assertSeeText('Phiên bản đã xuất bản hiện tại')
+            ->assertSeeText('Lần xuất bản gần nhất')
+            ->assertSeeText('Xuất bản')
+            ->assertDontSee('course-template-publish-button" disabled', false);
+
+        $this->actingAs($admin)
+            ->get(
+                'https://tenant-a.localhost/admin/course-templates/'
+                ."{$templateId}/edit?tab=history"
+            )
+            ->assertSeeText('Chưa có phiên bản nào được xuất bản.');
 
         $emptyStructure = $this->actingAs($admin)
             ->get(

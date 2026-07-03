@@ -1,211 +1,127 @@
-# core_course_template_version_activities
+# Table: core_course_template_version_activities
 
-Version: 1.0
+Version: 2.0
 
-Status: Official Foundation
+Status: Approved
 
-Last Updated: 2026-06
+Last Updated: 2026-07-03
 
----
-
-## Purpose
-
-Lưu snapshot Activity thuộc một Course Template Version.
-
-Version Activity là đơn vị learning content nhỏ nhất mà Activity Progress tham chiếu.
+Related ADR:
+[ADR-0012 — Course Template Published Version Snapshot Architecture](../../adr/ADR-0012-Course-Template-Published-Version-Snapshot.md)
 
 ---
 
-## Relationships
+# Purpose
+
+Stores immutable published Activity snapshots. Version Activity is the
+smallest frozen Course learning-content unit and the future canonical reference
+for Activity Progress, Tracking and authorized AI learning context.
+
+# Relationships
 
 ```text
-Customer 1 → N Version Activities
-
-Course Template Version 1 → N Version Activities
-
-Version Lesson 1 → N Version Activities
-
-Source Template Activity 1 → N Version Activities
+saas_customers 1 → N version_activities
+core_course_template_versions 1 → N version_activities
+version_lessons 1 → N version_activities
+version_activities 0..1 → N dependent version_activities (unlock prerequisite)
+core_course_template_activities 1 → N version_activities (logical lineage)
+Media / Assessment / LiveClass → version_activities (approved immutable reference contract required)
 ```
 
----
+# Business Rules
 
-## Business Rules
+* Every Version Activity belongs to one tenant, one Template Version and one
+  Version Lesson.
+* Every working Activity is copied at most once into a given Version.
+* Activity order within the Version Lesson is preserved.
+* Completion, preview and unlock rules are frozen at publish time.
+* `unlock_after_version_activity_id` maps the source prerequisite and must
+  belong to the same Version Lesson and tenant.
+* External URL and embed content are explicit snapshot fields, not hidden in
+  generic metadata.
+* `source_template_activity_id` is lineage only.
+* Cross-domain references must point to an immutable/versioned asset or be
+  accompanied by the immutable context required by that Domain contract.
+  Final Media/Assessment/LiveClass contracts remain a future review item.
+* Version Activities become immutable when the parent Version is published.
 
-* Version Activity phải thuộc `customer_id`.
-* Phải có cùng tenant với Template Version và Version Lesson.
-* Snapshot từ `core_course_template_activities`.
-* Immutable sau khi Template Version được publish.
-* Progress tham chiếu `version_activity_id`.
-* `source_template_activity_id` chỉ dùng trace/reporting.
-* Media/Assessment/LiveClass reference phải được snapshot hoặc trỏ tới immutable/versioned asset.
-* Completion rule và threshold được đóng băng theo Version.
+# Fields
 
----
+| Field | Type | Null / Default | Meaning |
+| --- | --- | --- | --- |
+| `id` | BIGINT UNSIGNED | PK, required | Version Activity identity. |
+| `customer_id` | BIGINT UNSIGNED | required | Tenant owner. |
+| `template_version_id` | BIGINT UNSIGNED | required | Parent published Version. |
+| `version_lesson_id` | BIGINT UNSIGNED | required | Parent Version Lesson. |
+| `source_template_activity_id` | BIGINT UNSIGNED | required | Logical lineage to the working Activity copied by publish. |
+| `title_snapshot` | VARCHAR(255) | required | Snapshot Activity title. |
+| `description_snapshot` | TEXT | nullable | Snapshot Activity description. |
+| `sort_order` | INT | required, default 0 | Published order within the Lesson. |
+| `activity_type` | VARCHAR(50) | required | `text`, `video`, `audio`, `document`, `quiz`, `assignment`, `liveclass`, or `external_link`. |
+| `activity_ref_type_snapshot` | VARCHAR(100) | nullable | Snapshot of referenced Domain/entity type. |
+| `activity_ref_id_snapshot` | BIGINT UNSIGNED | nullable | Immutable/versioned target identifier or approved lineage reference. |
+| `external_url_snapshot` | VARCHAR(1000) | nullable | Frozen external URL. |
+| `embed_code_snapshot` | LONGTEXT | nullable | Frozen embed configuration/content. |
+| `duration_seconds` | INT UNSIGNED | required, default 0 | Published Activity duration. |
+| `is_required` | TINYINT(1) | required, default 1 | Published completion requirement. |
+| `completion_rule` | VARCHAR(50) | required, default `view` | `view`, `watch_percent`, `submit`, `pass`, `attend`, or `manual`. |
+| `completion_threshold` | INT UNSIGNED | nullable | Frozen threshold, such as watch percentage or pass percentage. |
+| `is_preview` | TINYINT(1) | required, default 0 | Published preview permission. |
+| `unlock_rule_snapshot` | VARCHAR(50) | required, default `none` | `none`, `previous_activity_completed`, `previous_lesson_completed`, or `date_based`. |
+| `unlock_after_version_activity_id` | BIGINT UNSIGNED | nullable | Published prerequisite Activity in the same Lesson. |
+| `unlock_at_snapshot` | TIMESTAMP | nullable | Published date-based unlock time. |
+| `status_snapshot` | VARCHAR(50) | required | Source Activity status at publish: `draft`, `active`, `inactive`, or `archived`. |
+| `created_by_snapshot` | BIGINT UNSIGNED | nullable | Source author identifier captured for audit. |
+| `metadata` | JSON | nullable | Non-canonical immutable integration context only; not a substitute for defined fields. |
+| `created_at` | TIMESTAMP | nullable | Snapshot creation time. |
+| `updated_at` | TIMESTAMP | nullable | Creation/finalization audit timestamp only. |
 
-## Fields
-
-### id
-
-```text
-BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT
-```
-
-### customer_id
-
-```text
-BIGINT UNSIGNED NOT NULL
-```
-
-### template_version_id
-
-```text
-BIGINT UNSIGNED NOT NULL
-```
-
-### version_lesson_id
-
-```text
-BIGINT UNSIGNED NOT NULL
-```
-
-Liên kết `core_course_template_version_lessons.id`.
-
-### source_template_activity_id
-
-```text
-BIGINT UNSIGNED NULL
-```
-
-Trace tới working Template Activity.
-
-### activity_type
-
-```text
-VARCHAR(50) NOT NULL
-```
-
-### title_snapshot
-
-```text
-VARCHAR(255) NOT NULL
-```
-
-### description_snapshot
-
-```text
-TEXT NULL
-```
-
-### activity_ref_type
-
-```text
-VARCHAR(100) NULL
-```
-
-Snapshot loại Media/Assessment/LiveClass reference.
-
-### activity_ref_id
-
-```text
-BIGINT UNSIGNED NULL
-```
-
-Phải trỏ tới immutable/versioned domain asset nếu nội dung nguồn có thể thay đổi.
-
-### sort_order
-
-```text
-INT UNSIGNED NOT NULL DEFAULT 1
-```
-
-### is_required
-
-```text
-TINYINT(1) NOT NULL DEFAULT 1
-```
-
-### completion_rule
-
-```text
-VARCHAR(50) NOT NULL
-```
-
-### completion_threshold
-
-```text
-DECIMAL(8,2) NULL
-```
-
-### duration_seconds
-
-```text
-INT UNSIGNED NOT NULL DEFAULT 0
-```
-
-### unlock_rule_snapshot
-
-```text
-VARCHAR(50) NOT NULL DEFAULT 'none'
-```
-
-### unlock_after_version_activity_id
-
-```text
-BIGINT UNSIGNED NULL
-```
-
-Predecessor Version Activity trong cùng Version Lesson.
-
-### metadata
-
-```text
-JSON NULL
-```
-
-Snapshot external URL, embed configuration hoặc domain-specific immutable context nếu cần.
-
-### created_at
-
-```text
-TIMESTAMP NULL
-```
-
-### updated_at
-
-```text
-TIMESTAMP NULL
-```
-
----
-
-## Indexes
+# Suggested Indexes
 
 ```sql
-(customer_id)
-
-(customer_id, template_version_id)
-
-(customer_id, version_lesson_id)
-
-(customer_id, source_template_activity_id)
-
-(customer_id, activity_type)
-
-(customer_id, version_lesson_id, sort_order)
+INDEX idx_cctva_customer (customer_id);
+INDEX idx_cctva_version (customer_id, template_version_id);
+INDEX idx_cctva_lesson (customer_id, template_version_id, version_lesson_id);
+INDEX idx_cctva_source (customer_id, source_template_activity_id);
+INDEX idx_cctva_type (customer_id, activity_type);
+INDEX idx_cctva_reference
+    (customer_id, activity_ref_type_snapshot, activity_ref_id_snapshot);
+INDEX idx_cctva_unlock
+    (customer_id, version_lesson_id, unlock_after_version_activity_id);
+INDEX idx_cctva_sort (customer_id, version_lesson_id, sort_order);
+UNIQUE uk_cctva_source
+    (customer_id, template_version_id, source_template_activity_id);
 ```
 
----
+The publish service validates unique `sort_order` within each Version Lesson.
 
-## Unique Constraints
+# Delete And Reference Rules
 
-```sql
-UNIQUE(customer_id, version_lesson_id, sort_order)
-```
+* `customer_id`, `template_version_id`, `version_lesson_id`, and
+  `unlock_after_version_activity_id`: foreign keys with `RESTRICT`.
+* `source_template_activity_id` and `created_by_snapshot`: logical audit
+  values; no cascade is permitted.
+* Generic cross-domain reference fields do not use an unconditional physical
+  foreign key. Publish must validate owner existence and tenant compatibility.
+* Published Version Activities cannot be deleted independently.
+* Deleting or editing working content never changes a Version Activity.
 
----
+# Immutability Rules
 
-## Sample Data
+All Activity content, reference context, order, duration, completion, preview
+and unlock fields are read-only after publication. Corrections require a new
+Template Version. Rollback and duplication are not part of this design.
+
+# Tenant Isolation
+
+Every query includes `customer_id = TenantContext::customerId()`. Parent
+Version, Version Lesson, prerequisite, source Activity and any resolved
+cross-domain reference must belong to the same tenant or follow an explicitly
+approved shared-asset contract.
+
+# Sample Data
+
+Video Activity:
 
 ```text
 id = 9001
@@ -213,20 +129,42 @@ customer_id = 1
 template_version_id = 30
 version_lesson_id = 501
 source_template_activity_id = 20
-activity_type = video
 title_snapshot = Hangul Introduction
-activity_ref_type = media_videos
-activity_ref_id = 700
 sort_order = 1
+activity_type = video
+activity_ref_type_snapshot = media_files
+activity_ref_id_snapshot = 700
+duration_seconds = 900
 is_required = 1
 completion_rule = watch_percent
-completion_threshold = 80.00
-duration_seconds = 900
+completion_threshold = 80
+is_preview = 1
+unlock_rule_snapshot = none
+status_snapshot = active
+created_by_snapshot = 5
+```
+
+External Activity:
+
+```text
+id = 9002
+customer_id = 1
+template_version_id = 30
+version_lesson_id = 501
+source_template_activity_id = 21
+title_snapshot = Extra Practice
+sort_order = 2
+activity_type = external_link
+external_url_snapshot = https://example.com/practice
+duration_seconds = 300
+is_required = 0
+completion_rule = view
+is_preview = 0
+unlock_rule_snapshot = previous_activity_completed
+unlock_after_version_activity_id = 9001
+status_snapshot = active
 ```
 
 ---
 
-## Final Statement
-
-Version Activity là frozen learning unit cho Activity Progress, Notes, Bookmarks,
-Tracking và AI Context.
+End of Document

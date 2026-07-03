@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\OrganizationController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\CourseTemplateController;
 use App\Http\Controllers\CustomerRegisterController;
 use App\Http\Controllers\PublicSiteController;
 use App\Http\Controllers\RoleProfileController;
@@ -157,6 +158,16 @@ Route::middleware([
 
     Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])
         ->name('users.toggle-status');
+
+    Route::post(
+        '/course-templates/{id}/publish',
+        [CourseTemplateController::class, 'publish']
+    )->name('course-templates.publish');
+
+    Route::get(
+        '/course-templates/{templateId}/versions/{versionId}',
+        [CourseTemplateController::class, 'showVersion']
+    )->name('course-templates.versions.show');
 
     require __DIR__.'/modules/course.php';
 });

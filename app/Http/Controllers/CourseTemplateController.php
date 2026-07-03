@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\CourseTemplatePublishingService;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,10 @@ use Illuminate\View\View;
 
 class CourseTemplateController extends Controller
 {
+    public function __construct(
+        private readonly CourseTemplatePublishingService $publishingService
+    ) {}
+
     public function index(Request $request): View
     {
         $customerId = $this->customerId();
@@ -88,9 +93,15 @@ class CourseTemplateController extends Controller
     {
         $customerId = $this->customerId();
         $routePrefix = $this->routePrefix($request);
+        $versions = $this->versions($customerId, $id);
 
         return view('course-templates.edit', [
             'template' => $this->findTemplate($customerId, $id),
+            'versions' => $versions,
+            'latestVersion' => $versions->first(),
+            'currentVersion' => $versions->first(
+                fn (object $version): bool => (bool) $version->is_current
+            ),
             'categories' => $this->categories(),
             'sections' => $this->sections($customerId, $id),
             'directLessons' => $this->directLessons($customerId, $id),
@@ -110,6 +121,125 @@ class CourseTemplateController extends Controller
             'lessonRoutePrefix' => $routePrefix.'.sections.lessons',
             'activityRoutePrefix' => $routePrefix
                 .'.sections.lessons.activities',
+        ]);
+    }
+
+    public function publish(Request $request, int $id)
+    {
+        abort_unless($request->user()?->role === 'customer_admin', 403);
+
+        $customerId = $this->customerId();
+        $this->findTemplate($customerId, $id);
+        $version = $this->publishingService->publish(
+            $customerId,
+            $id,
+            (int) $request->user()->id
+        );
+
+        return redirect()
+            ->route(
+                $this->routePrefix($request).'.edit',
+                ['id' => $id, 'tab' => 'publish']
+            )
+            ->with(
+                'success',
+                __(
+                    'lf.LF_course_template_publish_success',
+                    ['version' => $version->version_number]
+                )
+            );
+    }
+
+    public function showVersion(
+        Request $request,
+        int $templateId,
+        int $versionId
+    ): View {
+        abort_unless($request->user()?->role === 'customer_admin', 403);
+
+        $customerId = $this->customerId();
+        $template = $this->findTemplate($customerId, $templateId);
+        $version = DB::table('core_course_template_versions as versions')
+            ->leftJoin('users as publishers', function ($join) use (
+                $customerId
+            ): void {
+                $join->on('publishers.id', '=', 'versions.published_by')
+                    ->where('publishers.customer_id', '=', $customerId);
+            })
+            ->where('versions.customer_id', $customerId)
+            ->where('versions.template_id', $templateId)
+            ->where('versions.id', $versionId)
+            ->select(
+                'versions.*',
+                'publishers.name as published_by_name'
+            )
+            ->first();
+
+        abort_if(! $version, 404);
+
+        $sections = DB::table(
+            'core_course_template_version_sections as sections'
+        )
+            ->leftJoin(
+                'core_course_template_version_sections as parent',
+                function ($join) use ($customerId, $versionId): void {
+                    $join->on(
+                        'parent.id',
+                        '=',
+                        'sections.parent_version_section_id'
+                    )
+                        ->where('parent.customer_id', '=', $customerId)
+                        ->where(
+                            'parent.template_version_id',
+                            '=',
+                            $versionId
+                        );
+                }
+            )
+            ->where('sections.customer_id', $customerId)
+            ->where('sections.template_version_id', $versionId)
+            ->orderByRaw(
+                'sections.parent_version_section_id IS NOT NULL'
+            )
+            ->orderBy('sections.parent_version_section_id')
+            ->orderBy('sections.sort_order')
+            ->orderBy('sections.id')
+            ->select('sections.*', 'parent.title_snapshot as parent_title')
+            ->get();
+
+        $lessons = DB::table('core_course_template_version_lessons')
+            ->where('customer_id', $customerId)
+            ->where('template_version_id', $versionId)
+            ->orderByRaw('version_section_id IS NOT NULL')
+            ->orderBy('version_section_id')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        $activitiesByLesson = DB::table(
+            'core_course_template_version_activities'
+        )
+            ->where('customer_id', $customerId)
+            ->where('template_version_id', $versionId)
+            ->orderBy('version_lesson_id')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('version_lesson_id');
+
+        return view('course-template-versions.show', [
+            'template' => $template,
+            'version' => $version,
+            'sections' => $sections,
+            'directLessons' => $lessons->filter(
+                fn (object $lesson): bool => $lesson->version_section_id === null
+            ),
+            'lessonsBySection' => $lessons
+                ->filter(
+                    fn (object $lesson): bool => $lesson->version_section_id !== null
+                )
+                ->groupBy('version_section_id'),
+            'activitiesByLesson' => $activitiesByLesson,
         ]);
     }
 
@@ -335,6 +465,25 @@ class CourseTemplateController extends Controller
                 'assignments.*',
                 'teachers.name as teacher_name',
                 'teachers.email as teacher_email'
+            )
+            ->get();
+    }
+
+    private function versions(int $customerId, int $templateId)
+    {
+        return DB::table('core_course_template_versions as versions')
+            ->leftJoin('users as publishers', function ($join) use (
+                $customerId
+            ): void {
+                $join->on('publishers.id', '=', 'versions.published_by')
+                    ->where('publishers.customer_id', '=', $customerId);
+            })
+            ->where('versions.customer_id', $customerId)
+            ->where('versions.template_id', $templateId)
+            ->orderByDesc('versions.version_number')
+            ->select(
+                'versions.*',
+                'publishers.name as published_by_name'
             )
             ->get();
     }

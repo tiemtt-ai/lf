@@ -44,10 +44,10 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 
 | Bảng | Mô tả |
 |------|------|
-| **core_course_template_versions** | Snapshot Course đã phát hành và bất biến |
-| **core_course_template_version_sections** | Snapshot nhóm Lesson tùy chọn |
-| **core_course_template_version_lessons** | Snapshot bài học trực tiếp hoặc thuộc Version Section |
-| **core_course_template_version_activities** | Snapshot Activity đã phát hành |
+| [**core_course_template_versions**](core_course_template_versions.md) | Snapshot Course đã phát hành và bất biến |
+| [**core_course_template_version_sections**](core_course_template_version_sections.md) | Snapshot nhóm Lesson tùy chọn |
+| [**core_course_template_version_lessons**](core_course_template_version_lessons.md) | Snapshot bài học trực tiếp hoặc thuộc Version Section |
+| [**core_course_template_version_activities**](core_course_template_version_activities.md) | Snapshot Activity đã phát hành |
 
 ---
 

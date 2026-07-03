@@ -22,6 +22,9 @@ criteria hay không.
 
 * [LF-Regression-Audit.md](LF-Regression-Audit.md) — checklist regression bắt
   buộc sau các thay đổi lớn được Documentation Routing Guide xác định.
+* [LF-Course-Template-Version-Snapshot-Architecture-Review.md](LF-Course-Template-Version-Snapshot-Architecture-Review.md)
+  — approved architecture conformance review for the Course Template published
+  snapshot documentation.
 
 ---
 

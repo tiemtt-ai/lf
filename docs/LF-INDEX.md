@@ -207,6 +207,7 @@ docs/adr/
 | [ADR-0009](adr/ADR-0009-SaaS-Usage-Foundation.md) | SaaS Usage Foundation decision |
 | [ADR-0010](adr/ADR-0010-SaaS-Billing-Foundation.md) | SaaS Billing Foundation decision |
 | [ADR-0011](adr/ADR-0011-Certificate-Foundation.md) | Certificate Foundation decision |
+| [ADR-0012](adr/ADR-0012-Course-Template-Published-Version-Snapshot.md) | Course Template Published Version Snapshot decision |
 
 ---
 
@@ -222,6 +223,7 @@ docs/quality/
 | --- | --- |
 | [quality/README.md](quality/README.md) | Quality area usage and boundaries |
 | [quality/LF-Regression-Audit.md](quality/LF-Regression-Audit.md) | Mandatory regression checklist after major changes |
+| [quality/LF-Course-Template-Version-Snapshot-Architecture-Review.md](quality/LF-Course-Template-Version-Snapshot-Architecture-Review.md) | Approved Course Template Version snapshot architecture review |
 
 ---
 

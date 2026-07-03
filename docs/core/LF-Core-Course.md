@@ -155,6 +155,11 @@ core_course_template_version_lessons
 core_course_template_version_activities
 ```
 
+The approved field-level snapshot architecture is defined by:
+
+* [ADR-0012 — Course Template Published Version Snapshot](../adr/ADR-0012-Course-Template-Published-Version-Snapshot.md).
+* [Course Template Version database documentation](../database/course/core_course_template_versions.md).
+
 Published snapshot phục vụ:
 
 * Course Product
