@@ -35,13 +35,8 @@
         $portalMenu = $isTeacher
             ? [
                 ['label' => __('lf.LF_navigation_menu_teacher_dashboard'), 'route' => 'teacher.dashboard', 'active' => 'teacher.dashboard', 'visible' => true],
-                ['label' => __('lf.LF_navigation_menu_student_my_courses'), 'route' => null, 'active' => null, 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_common_product_categories'), 'route' => 'teacher.course-categories.index', 'active' => 'teacher.course-categories.*', 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_common_course_templates'), 'route' => 'teacher.course-templates.index', 'active' => 'teacher.course-templates.*', 'visible' => true],
-                ['label' => __('lf.LF_navigation_menu_teacher_live_classes'), 'route' => null, 'active' => null, 'visible' => true],
-                ['label' => __('lf.LF_navigation_menu_teacher_students'), 'route' => null, 'active' => null, 'visible' => true],
-                ['label' => __('lf.LF_navigation_menu_teacher_reports'), 'route' => null, 'active' => null, 'visible' => true],
-                ['label' => __('lf.LF_navigation_menu_teacher_ai_assistant'), 'route' => null, 'active' => null, 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_student_profile'), 'route' => 'teacher.profile.edit', 'active' => 'teacher.profile.*', 'visible' => true],
             ]
             : [
@@ -125,19 +120,13 @@
 
                         @php
                             $isActive = $item['active'] && request()->routeIs($item['active']);
-                            $classes = 'admin-sidebar-link'
-                                .($isActive ? ' is-active' : '')
-                                .($item['route'] ? '' : ' is-disabled');
+                            $classes = 'admin-sidebar-link'.($isActive ? ' is-active' : '');
                         @endphp
 
                         @if ($item['route'])
                             <a class="{{ $classes }}" href="{{ route($item['route']) }}">
                                 {{ $item['label'] }}
                             </a>
-                        @else
-                            <span class="{{ $classes }}" aria-disabled="true">
-                                {{ $item['label'] }}
-                            </span>
                         @endif
                     @endforeach
                 </nav>
