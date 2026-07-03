@@ -159,21 +159,6 @@ Route::middleware([
     Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])
         ->name('users.toggle-status');
 
-    Route::post(
-        '/course-templates/{id}/publish',
-        [CourseTemplateController::class, 'publish']
-    )->name('course-templates.publish');
-
-    Route::get(
-        '/course-templates/{templateId}/versions/{versionId}',
-        [CourseTemplateController::class, 'showVersion']
-    )->name('course-templates.versions.show');
-
-    Route::post(
-        '/course-templates/{templateId}/versions/{versionId}/duplicate-to-draft',
-        [CourseTemplateController::class, 'duplicateVersionToDraft']
-    )->name('course-templates.versions.duplicate-to-draft');
-
     require __DIR__.'/modules/course.php';
 });
 
