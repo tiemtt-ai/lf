@@ -123,8 +123,68 @@
     line-height: 1.5;
 }
 
+.course-template-structure-note {
+    margin-top: 16px;
+    padding: 11px 14px;
+    border: 1px solid #cfdbff;
+    border-radius: 8px;
+    color: #3954a4;
+    background: #eef3ff;
+    font-size: 14px;
+}
+
+.course-template-structure-note p {
+    margin: 0;
+}
+
+.course-template-structure-note p + p {
+    margin-top: 3px;
+}
+
+.course-template-structure-tabs {
+    margin-top: 18px;
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    border-bottom: 1px solid #dbe3ed;
+}
+
+.course-template-structure-tabs button {
+    min-width: 0;
+    padding: 10px 16px;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    color: #64748b;
+    background: transparent;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+}
+
+.course-template-structure-tabs button:hover,
+.course-template-structure-tabs button:focus-visible {
+    color: var(--admin-active);
+    background: #f8fafc;
+}
+
+.course-template-structure-tabs button:focus-visible {
+    outline: 2px solid var(--admin-active);
+    outline-offset: -2px;
+}
+
+.course-template-structure-tabs button.is-active {
+    border-bottom-color: var(--admin-active);
+    color: var(--admin-active);
+}
+
+.course-template-structure-panel {
+    padding-top: 16px;
+}
+
 .course-template-section-action-bar {
-    margin: 20px 0 24px;
+    margin: 0 0 16px;
     padding: 14px 16px;
     display: flex;
     align-items: center;
@@ -150,9 +210,8 @@
 .course-template-outline-section {
     padding: 16px;
     border: 1px solid #dbe3ed;
-    border-left: 4px solid var(--admin-active);
     border-radius: 8px;
-    background: #f8fafc;
+    background: #ffffff;
 }
 
 .course-template-outline-section-header {
@@ -229,8 +288,9 @@
 
 .course-template-lesson-item {
     padding: 12px;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
+    border: 1px solid #dbe3ed;
+    border-radius: 8px;
+    background: #ffffff;
 }
 
 .course-template-activity-panel {
@@ -259,8 +319,8 @@
 
 .course-template-activity-item {
     padding: 10px;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
+    border: 1px solid #dbe3ed;
+    border-radius: 8px;
     background: #ffffff;
 }
 
@@ -372,6 +432,12 @@
     .course-template-section-action-bar {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .course-template-structure-tabs button {
+        flex: 1 1 0;
+        padding-right: 8px;
+        padding-left: 8px;
     }
 
     .course-template-section-action-bar .btn {

@@ -84,13 +84,13 @@ class CourseTemplateActivityManagementTest extends TestCase
             'Section Outline Activity'
         );
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->get(
                 'https://tenant-a.localhost/admin/course-templates/'
                 ."{$templateId}/edit?tab=structure"
             )
             ->assertOk()
-            ->assertSeeText('Cấu trúc nội dung khóa học')
+            ->assertSeeText('Cấu trúc khóa học')
             ->assertSeeText('Bài học trực tiếp')
             ->assertSeeText('Direct Outline Lesson')
             ->assertSeeText('Direct Outline Activity')
@@ -101,7 +101,15 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->assertSeeText('+ Thêm bài học')
             ->assertSeeText('+ Thêm hoạt động')
             ->assertSeeText('Sửa')
-            ->assertSeeText('Xóa');
+            ->assertSeeText('Xóa')
+            ->assertSeeText(
+                'Khóa học này đang sử dụng cả bài học trực tiếp và phần học.'
+            )
+            ->assertSeeText(
+                'Sử dụng các tab trên để quản lý từng loại nội dung.'
+            )
+            ->assertSee('id="course-template-direct-panel"', false)
+            ->assertSee('id="course-template-sections-panel"', false);
     }
 
     public function test_admin_can_create_update_and_delete_an_activity(): void

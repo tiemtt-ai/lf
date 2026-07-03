@@ -182,7 +182,7 @@ class CourseTemplateLessonManagementTest extends TestCase
 
         $this->assertDatabaseCount('core_course_template_sections', 0);
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->get(
                 'https://tenant-a.localhost/admin/course-templates/'
                 ."{$templateId}/edit"
@@ -195,6 +195,12 @@ class CourseTemplateLessonManagementTest extends TestCase
                 "/admin/course-templates/{$templateId}/lessons/create",
                 false
             );
+
+        $response
+            ->assertSeeText('Danh sách bài học')
+            ->assertSeeText('Theo phần học')
+            ->assertSee('x-show="activeStructureTab === \'direct\'"', false)
+            ->assertSee('x-show="activeStructureTab === \'sections\'"', false);
     }
 
     public function test_flat_and_sectioned_lesson_routes_enforce_lesson_location(): void

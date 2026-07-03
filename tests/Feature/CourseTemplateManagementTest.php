@@ -95,6 +95,29 @@ class CourseTemplateManagementTest extends TestCase
             ->assertSeeText(
                 'Chức năng phiên bản sẽ được triển khai ở bước tiếp theo.'
             );
+
+        $emptyStructure = $this->actingAs($admin)
+            ->get(
+                'https://tenant-a.localhost/admin/course-templates/'
+                ."{$templateId}/edit?tab=structure"
+            )
+            ->assertOk()
+            ->assertSeeText('Cấu trúc khóa học')
+            ->assertSeeText('Danh sách bài học')
+            ->assertSeeText('Theo phần học')
+            ->assertSeeText('+ Thêm bài học')
+            ->assertSeeText('+ Thêm phần học')
+            ->assertSeeText('Chưa có bài học trực tiếp.')
+            ->assertSeeText('Chưa có phần học nào.')
+            ->assertDontSeeText(
+                'Khóa học này đang sử dụng cả bài học trực tiếp và phần học.'
+            )
+            ->assertSee('role="tablist"', false)
+            ->assertSee('x-on:click="selectStructureTab(\'direct\')"', false)
+            ->assertSee('x-on:click="selectStructureTab(\'sections\')"', false)
+            ->assertSee('x-show="activeStructureTab === \'direct\'"', false)
+            ->assertSee('x-show="activeStructureTab === \'sections\'"', false)
+            ->assertDontSee('course-template-mode-card', false);
     }
 
     public function test_create_and_edit_labels_follow_the_validation_required_rules(): void

@@ -57,7 +57,7 @@ class CourseTemplateSectionManagementTest extends TestCase
                     ."{$templateId}/edit"
                 )
                 ->assertOk()
-                ->assertSeeText('Cấu trúc nội dung khóa học')
+                ->assertSeeText('Cấu trúc khóa học')
                 ->assertSeeText('Hangul Fundamentals')
                 ->assertDontSeeText('Private Tenant Section');
         }
@@ -423,7 +423,7 @@ class CourseTemplateSectionManagementTest extends TestCase
             )
             ->assertOk()
             ->assertSeeText('+ Thêm phần học')
-            ->assertSeeText('Danh sách phần học')
+            ->assertSeeText('Phần học')
             ->assertSeeText('Sửa phần học')
             ->assertSeeText('Xóa')
             ->assertSeeText('Bạn có chắc chắn muốn xóa phần học này không?')
