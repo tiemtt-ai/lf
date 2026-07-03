@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CourseCategoryController;
+use App\Http\Controllers\CourseProductController;
 use App\Http\Controllers\CourseTemplateActivityController;
 use App\Http\Controllers\CourseTemplateController;
 use App\Http\Controllers\CourseTemplateLessonController;
@@ -25,6 +26,26 @@ Route::put('/course-categories/{id}', [CourseCategoryController::class, 'update'
 
 Route::post('/course-categories/{id}/toggle-status', [CourseCategoryController::class, 'toggleStatus'])
     ->name('course-categories.toggle-status');
+
+if ($registerCourseProductRoutes ?? false) {
+    Route::get('/course-products', [CourseProductController::class, 'index'])
+        ->name('course-products.index');
+
+    Route::get('/course-products/create', [CourseProductController::class, 'create'])
+        ->name('course-products.create');
+
+    Route::post('/course-products', [CourseProductController::class, 'store'])
+        ->name('course-products.store');
+
+    Route::get('/course-products/{id}/edit', [CourseProductController::class, 'edit'])
+        ->name('course-products.edit');
+
+    Route::put('/course-products/{id}', [CourseProductController::class, 'update'])
+        ->name('course-products.update');
+
+    Route::delete('/course-products/{id}', [CourseProductController::class, 'destroy'])
+        ->name('course-products.destroy');
+}
 
 Route::get('/course-templates', [CourseTemplateController::class, 'index'])
     ->name('course-templates.index');

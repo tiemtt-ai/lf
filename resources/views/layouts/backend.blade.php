@@ -44,6 +44,7 @@
                 ['label' => __('lf.LF_navigation_menu_admin_users'), 'route' => 'admin.users.index', 'active' => 'admin.users.*', 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_common_product_categories'), 'route' => 'admin.course-categories.index', 'active' => 'admin.course-categories.*', 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_common_course_templates'), 'route' => 'admin.course-templates.index', 'active' => 'admin.course-templates.*', 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_admin_course_products'), 'route' => 'admin.course-products.index', 'active' => 'admin.course-products.*', 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_admin_organization'), 'route' => 'admin.organization.edit', 'active' => 'admin.organization.*', 'visible' => true],
                 ['label' => __('lf.LF_navigation_menu_admin_my_account'), 'route' => 'admin.my-account.edit', 'active' => 'admin.my-account.*', 'visible' => true],
             ];

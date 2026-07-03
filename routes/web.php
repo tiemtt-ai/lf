@@ -158,6 +158,7 @@ Route::middleware([
     Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])
         ->name('users.toggle-status');
 
+    $registerCourseProductRoutes = true;
     $registerCourseTemplateLifecycleRoutes = true;
     require __DIR__.'/modules/course.php';
 });
@@ -188,6 +189,7 @@ Route::middleware([
     Route::patch('/profile/password', [RoleProfileController::class, 'updateTeacherPassword'])
         ->name('profile.password.update');
 
+    $registerCourseProductRoutes = false;
     $registerCourseTemplateLifecycleRoutes = false;
     require __DIR__.'/modules/course.php';
 });
