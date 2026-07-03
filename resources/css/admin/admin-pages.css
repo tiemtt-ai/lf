@@ -104,7 +104,9 @@
 }
 
 .course-template-lesson-toolbar,
-.course-template-lesson-item {
+.course-template-lesson-summary,
+.course-template-activity-toolbar,
+.course-template-activity-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -137,6 +139,41 @@
     padding: 12px;
     border: 1px solid #e5e7eb;
     border-radius: 6px;
+}
+
+.course-template-activity-panel {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 6px;
+    background: #f8fafc;
+}
+
+.course-template-activity-toolbar {
+    margin-bottom: 10px;
+}
+
+.course-template-activity-toolbar h5 {
+    margin: 0 0 4px;
+    color: var(--admin-primary);
+    font-size: 13px;
+}
+
+.course-template-activity-list {
+    display: grid;
+    gap: 6px;
+}
+
+.course-template-activity-item {
+    padding: 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #ffffff;
+}
+
+.course-template-activity-empty {
+    margin: 0;
+    color: #6b7280;
+    font-size: 13px;
 }
 
 .course-template-lesson-empty {
@@ -244,12 +281,18 @@
     }
 
     .course-template-lesson-toolbar,
-    .course-template-lesson-item {
+    .course-template-lesson-summary,
+    .course-template-activity-toolbar,
+    .course-template-activity-item {
         align-items: stretch;
         flex-direction: column;
     }
 
     .course-template-lesson-toolbar .btn {
+        width: 100%;
+    }
+
+    .course-template-activity-toolbar .btn {
         width: 100%;
     }
 }

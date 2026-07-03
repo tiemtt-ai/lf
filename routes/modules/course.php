@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CourseCategoryController;
 use App\Http\Controllers\CourseTemplateController;
+use App\Http\Controllers\CourseTemplateActivityController;
 use App\Http\Controllers\CourseTemplateLessonController;
 use App\Http\Controllers\CourseTemplateSectionController;
 use Illuminate\Support\Facades\Route;
@@ -101,3 +102,33 @@ Route::delete(
     '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}',
     [CourseTemplateLessonController::class, 'destroy']
 )->name('course-templates.sections.lessons.destroy');
+
+Route::get(
+    '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}/activities',
+    [CourseTemplateActivityController::class, 'index']
+)->name('course-templates.sections.lessons.activities.index');
+
+Route::get(
+    '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}/activities/create',
+    [CourseTemplateActivityController::class, 'create']
+)->name('course-templates.sections.lessons.activities.create');
+
+Route::post(
+    '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}/activities',
+    [CourseTemplateActivityController::class, 'store']
+)->name('course-templates.sections.lessons.activities.store');
+
+Route::get(
+    '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}/activities/{activityId}/edit',
+    [CourseTemplateActivityController::class, 'edit']
+)->name('course-templates.sections.lessons.activities.edit');
+
+Route::put(
+    '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}/activities/{activityId}',
+    [CourseTemplateActivityController::class, 'update']
+)->name('course-templates.sections.lessons.activities.update');
+
+Route::delete(
+    '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}/activities/{activityId}',
+    [CourseTemplateActivityController::class, 'destroy']
+)->name('course-templates.sections.lessons.activities.destroy');

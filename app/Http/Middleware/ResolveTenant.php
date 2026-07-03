@@ -12,26 +12,34 @@ class ResolveTenant
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $host = $request->getHost();
-        $baseDomain = config('app.base_domain', 'localhost');
+        $host = rtrim(strtolower($request->getHost()), '.');
+        $baseDomain = rtrim(strtolower(trim(
+            (string) config('app.base_domain', 'localhost')
+        )), '.');
 
-        $customer = null;
+        TenantContext::set(null);
 
-        if ($host !== $baseDomain && $host !== 'www.'.$baseDomain) {
+        abort_if($baseDomain === '', 404);
+
+        if ($host === $baseDomain || $host === 'www.'.$baseDomain) {
+            return $next($request);
+        }
+
+        $customer = DB::table('saas_customers')
+            ->where('custom_domain', $host)
+            ->where('status', 'active')
+            ->first();
+
+        if (! $customer && str_ends_with($host, '.'.$baseDomain)) {
+            $subdomain = substr($host, 0, -strlen('.'.$baseDomain));
+
             $customer = DB::table('saas_customers')
-                ->where('custom_domain', $host)
+                ->where('subdomain', $subdomain)
                 ->where('status', 'active')
                 ->first();
-
-            if (! $customer && str_ends_with($host, '.'.$baseDomain)) {
-                $subdomain = str_replace('.'.$baseDomain, '', $host);
-
-                $customer = DB::table('saas_customers')
-                    ->where('subdomain', $subdomain)
-                    ->where('status', 'active')
-                    ->first();
-            }
         }
+
+        abort_if(! $customer, 404);
 
         TenantContext::set($customer);
 

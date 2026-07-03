@@ -10,8 +10,10 @@ class RequireRootDomain
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $host = strtolower($request->getHost());
-        $baseDomain = strtolower((string) config('app.base_domain'));
+        $host = rtrim(strtolower($request->getHost()), '.');
+        $baseDomain = rtrim(strtolower(trim(
+            (string) config('app.base_domain')
+        )), '.');
 
         abort_unless(
             $baseDomain !== ''

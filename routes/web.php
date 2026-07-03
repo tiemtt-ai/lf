@@ -20,12 +20,6 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-Route::get('/features', [PublicSiteController::class, 'features'])
-    ->name('public.features');
-
-Route::get('/pricing', [PublicSiteController::class, 'pricing'])
-    ->name('public.pricing');
-
 Route::post('/language/{locale}', function (string $locale) {
     session(['locale' => $locale]);
 
@@ -34,7 +28,13 @@ Route::post('/language/{locale}', function (string $locale) {
     ->whereIn('locale', ['vi', 'en'])
     ->name('language.update');
 
-Route::middleware('root.domain')->group(function () {
+Route::middleware(['tenant', 'root.domain'])->group(function () {
+    Route::get('/features', [PublicSiteController::class, 'features'])
+        ->name('public.features');
+
+    Route::get('/pricing', [PublicSiteController::class, 'pricing'])
+        ->name('public.pricing');
+
     Route::get('/register-customer', [CustomerRegisterController::class, 'show'])
         ->name('customer.register');
 

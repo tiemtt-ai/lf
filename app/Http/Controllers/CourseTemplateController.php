@@ -94,10 +94,13 @@ class CourseTemplateController extends Controller
             'categories' => $this->categories(),
             'sections' => $this->sections($customerId, $id),
             'lessonsBySection' => $this->lessonsBySection($customerId, $id),
+            'activitiesByLesson' => $this->activitiesByLesson($customerId, $id),
             'requiredFields' => $this->requiredFields($customerId, $id),
             'routePrefix' => $routePrefix,
             'sectionRoutePrefix' => $routePrefix.'.sections',
             'lessonRoutePrefix' => $routePrefix.'.sections.lessons',
+            'activityRoutePrefix' => $routePrefix
+                .'.sections.lessons.activities',
         ]);
     }
 
@@ -277,6 +280,18 @@ class CourseTemplateController extends Controller
             ->orderBy('title')
             ->get()
             ->groupBy('template_section_id');
+    }
+
+    private function activitiesByLesson(int $customerId, int $templateId)
+    {
+        return DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->orderBy('template_lesson_id')
+            ->orderBy('sort_order')
+            ->orderBy('title')
+            ->get()
+            ->groupBy('template_lesson_id');
     }
 
     private function findTemplate(int $customerId, int $id): object

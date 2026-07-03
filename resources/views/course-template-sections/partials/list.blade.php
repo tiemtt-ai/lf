@@ -135,38 +135,159 @@
 
                                 <div class="course-template-lesson-list">
                                     @forelse ($sectionLessons as $lesson)
+                                        @php
+                                            $lessonActivities = $activitiesByLesson->get(
+                                                $lesson->id,
+                                                collect()
+                                            );
+                                        @endphp
                                         <article class="course-template-lesson-item">
-                                            <div>
-                                                <strong>{{ $lesson->title }}</strong>
-                                                <span>
-                                                    {{ __('lf.LF_course_template_lesson_common_order_value', [
-                                                        'order' => $lesson->sort_order,
-                                                    ]) }}
-                                                    ·
-                                                    {{ __('lf.LF_course_template_lesson_common_'.$lesson->status) }}
-                                                </span>
+                                            <div class="course-template-lesson-summary">
+                                                <div>
+                                                    <strong>{{ $lesson->title }}</strong>
+                                                    <span>
+                                                        {{ __('lf.LF_course_template_lesson_common_order_value', [
+                                                            'order' => $lesson->sort_order,
+                                                        ]) }}
+                                                        ·
+                                                        {{ __('lf.LF_course_template_lesson_common_'.$lesson->status) }}
+                                                    </span>
+                                                </div>
+                                                <div class="admin-table-actions">
+                                                    <a href="{{ route(
+                                                        $lessonRoutePrefix.'.edit',
+                                                        [
+                                                            $template->id,
+                                                            $section->id,
+                                                            $lesson->id,
+                                                        ]
+                                                    ) }}">
+                                                        {{ __('lf.LF_course_template_lesson_common_edit') }}
+                                                    </a>
+                                                    <button type="button"
+                                                            class="admin-link-button"
+                                                            x-data
+                                                            x-on:click="$dispatch(
+                                                                'open-modal',
+                                                                'delete-course-template-lesson-{{ $lesson->id }}'
+                                                            )">
+                                                        {{ __('lf.LF_common_button_delete') }}
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <div class="admin-table-actions">
-                                                <a href="{{ route(
-                                                    $lessonRoutePrefix.'.edit',
-                                                    [
-                                                        $template->id,
-                                                        $section->id,
-                                                        $lesson->id,
-                                                    ]
-                                                ) }}">
-                                                    {{ __('lf.LF_course_template_lesson_common_edit') }}
-                                                </a>
-                                                <button type="button"
-                                                        class="admin-link-button"
-                                                        x-data
-                                                        x-on:click="$dispatch(
-                                                            'open-modal',
-                                                            'delete-course-template-lesson-{{ $lesson->id }}'
-                                                        )">
-                                                    {{ __('lf.LF_common_button_delete') }}
-                                                </button>
-                                            </div>
+
+                                            <section id="course-template-lesson-{{ $lesson->id }}-activities"
+                                                     class="course-template-activity-panel"
+                                                     aria-labelledby="course-template-lesson-{{ $lesson->id }}-activities-title">
+                                                <div class="course-template-activity-toolbar">
+                                                    <div>
+                                                        <h5 id="course-template-lesson-{{ $lesson->id }}-activities-title">
+                                                            {{ __('lf.LF_course_template_activity_common_list_title') }}
+                                                        </h5>
+                                                        <span>
+                                                            {{ trans_choice(
+                                                                'lf.LF_course_template_activity_common_count',
+                                                                $lessonActivities->count(),
+                                                                ['count' => $lessonActivities->count()]
+                                                            ) }}
+                                                        </span>
+                                                    </div>
+                                                    <a href="{{ route(
+                                                        $activityRoutePrefix.'.create',
+                                                        [
+                                                            $template->id,
+                                                            $section->id,
+                                                            $lesson->id,
+                                                        ]
+                                                    ) }}"
+                                                       class="btn btn-primary">
+                                                        {{ __('lf.LF_course_template_activity_common_add_action') }}
+                                                    </a>
+                                                </div>
+
+                                                <div class="course-template-activity-list">
+                                                    @forelse ($lessonActivities as $activity)
+                                                        <div class="course-template-activity-item">
+                                                            <div>
+                                                                <strong>{{ $activity->title }}</strong>
+                                                                <span>
+                                                                    {{ __('lf.LF_course_template_activity_common_summary', [
+                                                                        'type' => __(
+                                                                            'lf.LF_course_template_activity_common_type_'.$activity->activity_type
+                                                                        ),
+                                                                        'order' => $activity->sort_order,
+                                                                        'status' => __(
+                                                                            'lf.LF_course_template_activity_common_'.$activity->status
+                                                                        ),
+                                                                    ]) }}
+                                                                </span>
+                                                            </div>
+                                                            <div class="admin-table-actions">
+                                                                <a href="{{ route(
+                                                                    $activityRoutePrefix.'.edit',
+                                                                    [
+                                                                        $template->id,
+                                                                        $section->id,
+                                                                        $lesson->id,
+                                                                        $activity->id,
+                                                                    ]
+                                                                ) }}">
+                                                                    {{ __('lf.LF_course_template_activity_common_edit') }}
+                                                                </a>
+                                                                <button type="button"
+                                                                        class="admin-link-button"
+                                                                        x-data
+                                                                        x-on:click="$dispatch(
+                                                                            'open-modal',
+                                                                            'delete-course-template-activity-{{ $activity->id }}'
+                                                                        )">
+                                                                    {{ __('lf.LF_common_button_delete') }}
+                                                                </button>
+                                                            </div>
+
+                                                            <x-modal name="delete-course-template-activity-{{ $activity->id }}"
+                                                                     focusable>
+                                                                <div class="lf-modal-card">
+                                                                    <h2>
+                                                                        {{ __('lf.LF_course_template_activity_common_delete_confirm') }}
+                                                                    </h2>
+                                                                    <div class="lf-modal-actions">
+                                                                        <button type="button"
+                                                                                class="btn"
+                                                                                x-on:click="$dispatch(
+                                                                                    'close-modal',
+                                                                                    'delete-course-template-activity-{{ $activity->id }}'
+                                                                                )">
+                                                                            {{ __('lf.LF_course_template_activity_common_delete_no') }}
+                                                                        </button>
+                                                                        <form method="POST"
+                                                                              action="{{ route(
+                                                                                  $activityRoutePrefix.'.destroy',
+                                                                                  [
+                                                                                      $template->id,
+                                                                                      $section->id,
+                                                                                      $lesson->id,
+                                                                                      $activity->id,
+                                                                                  ]
+                                                                              ) }}">
+                                                                            @csrf
+                                                                            @method('DELETE')
+                                                                            <button type="submit"
+                                                                                    class="btn btn-primary">
+                                                                                {{ __('lf.LF_course_template_activity_common_delete_yes') }}
+                                                                            </button>
+                                                                        </form>
+                                                                    </div>
+                                                                </div>
+                                                            </x-modal>
+                                                        </div>
+                                                    @empty
+                                                        <p class="course-template-activity-empty">
+                                                            {{ __('lf.LF_course_template_activity_common_empty') }}
+                                                        </p>
+                                                    @endforelse
+                                                </div>
+                                            </section>
 
                                             <x-modal name="delete-course-template-lesson-{{ $lesson->id }}"
                                                      focusable>
