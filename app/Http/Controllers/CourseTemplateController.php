@@ -95,8 +95,13 @@ class CourseTemplateController extends Controller
             'sections' => $this->sections($customerId, $id),
             'lessonsBySection' => $this->lessonsBySection($customerId, $id),
             'activitiesByLesson' => $this->activitiesByLesson($customerId, $id),
+            'teacherAssignments' => $this->teacherAssignments(
+                $customerId,
+                $id
+            ),
             'requiredFields' => $this->requiredFields($customerId, $id),
             'routePrefix' => $routePrefix,
+            'teacherRoutePrefix' => $routePrefix.'.teachers',
             'sectionRoutePrefix' => $routePrefix.'.sections',
             'lessonRoutePrefix' => $routePrefix.'.sections.lessons',
             'activityRoutePrefix' => $routePrefix
@@ -292,6 +297,30 @@ class CourseTemplateController extends Controller
             ->orderBy('title')
             ->get()
             ->groupBy('template_lesson_id');
+    }
+
+    private function teacherAssignments(int $customerId, int $templateId)
+    {
+        return DB::table(
+            'core_course_template_teachers as assignments'
+        )
+            ->join('users as teachers', function ($join) use (
+                $customerId
+            ): void {
+                $join->on('teachers.id', '=', 'assignments.teacher_id')
+                    ->where('teachers.customer_id', '=', $customerId)
+                    ->where('teachers.role', '=', 'teacher');
+            })
+            ->where('assignments.customer_id', $customerId)
+            ->where('assignments.template_id', $templateId)
+            ->orderBy('assignments.sort_order')
+            ->orderBy('teachers.name')
+            ->select(
+                'assignments.*',
+                'teachers.name as teacher_name',
+                'teachers.email as teacher_email'
+            )
+            ->get();
     }
 
     private function findTemplate(int $customerId, int $id): object

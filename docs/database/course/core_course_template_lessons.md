@@ -1,10 +1,10 @@
 # Table: core_course_template_lessons
 
-Version: 1.1
+Version: 1.2
 
 Status: Official Foundation
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -37,7 +37,7 @@ core_course_template_lessons
 
 core_course_template_sections
 
-1
+0..1
 
 ↓
 
@@ -63,7 +63,8 @@ core_course_template_activities
 
 * Mọi Template Lesson phải thuộc customer_id.
 * Mọi Template Lesson phải thuộc một Course Template.
-* Mọi Template Lesson phải thuộc một Template Section trong architecture chuẩn.
+* `template_section_id = NULL` nghĩa là Lesson thuộc trực tiếp Template.
+* Nếu có `template_section_id`, Section phải cùng Template và `customer_id`.
 * Template Lesson không chứa Enrollment.
 * Template Lesson không chứa Learning Progress.
 * Template Lesson chỉ định nghĩa cấu trúc bài học.
@@ -99,9 +100,9 @@ Khóa học mẫu.
 ### template_section_id
 
 BIGINT UNSIGNED
-NOT NULL
+NULL
 
-Section chứa Lesson.
+Section tùy chọn chứa Lesson. NULL nghĩa là Lesson thuộc trực tiếp Template.
 
 ---
 
@@ -139,7 +140,7 @@ Mô tả chi tiết.
 
 INT DEFAULT 0
 
-Thứ tự hiển thị trong Section.
+Thứ tự hiển thị trong nhóm trực tiếp của Template hoặc trong Section.
 
 ### is_preview
 

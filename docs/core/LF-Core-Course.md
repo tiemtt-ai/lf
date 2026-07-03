@@ -1,10 +1,10 @@
 # LF-Core-Course.md
 
-Version: 3.0
+Version: 3.1
 
 Status: Official Foundation
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -107,18 +107,11 @@ immutable revisions của Course Definition.
 
 ```text
 Course Template
-
-↓
-
-Template Section
-
-↓
-
-Template Lesson
-
-↓
-
-Template Activity
+├── Template Lesson
+│   └── Template Activity
+└── Template Section
+    └── Template Lesson
+        └── Template Activity
 ```
 
 Tables:
@@ -143,18 +136,11 @@ Student không học trực tiếp working content.
 
 ```text
 Course Template Version
-
-↓
-
-Version Section
-
-↓
-
-Version Lesson
-
-↓
-
-Version Activity
+├── Version Lesson
+│   └── Version Activity
+└── Version Section
+    └── Version Lesson
+        └── Version Activity
 ```
 
 Tables:
@@ -576,7 +562,9 @@ Marketing/display cache không được dùng cho Completion, Certificate, Billi
 * Một Enrollment là một learning cycle; học lại tạo Enrollment mới.
 * Không unique vĩnh viễn Student/User–Product; Progress, Completion và
   Product-based Certificate luôn phân biệt cycle bằng `enrollment_id`.
-* Section bắt buộc. Course nhỏ nhất vẫn có `Section 1`.
+* Section là tùy chọn; Lesson thuộc trực tiếp Template hoặc Section cùng
+  Template và `customer_id`. Publish giữ nguyên cả cấu trúc flat và sectioned,
+  không tạo hidden/default Section.
 * Một Enrollment chỉ có một active Cohort; chuyển lớp cập nhật membership hiện
   tại, không lưu membership history và không dùng `is_current`.
 * Notes và Bookmarks chỉ được tạo hoặc cập nhật khi Enrollment `active`; không

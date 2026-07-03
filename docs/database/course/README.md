@@ -34,8 +34,8 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 | **core_course_categories** | Danh mục trong Danh mục Course |
 | **core_course_templates** | Blueprint (Thiết kế gốc) Course có thể chỉnh sửa |
 | **core_course_template_teachers** | Giáo viên được phân công cho Blueprint (Thiết kế gốc) Course |
-| **core_course_template_sections** | Phần Course có thể chỉnh sửa |
-| **core_course_template_lessons** | Bài học có thể chỉnh sửa |
+| **core_course_template_sections** | Nhóm Lesson tùy chọn có thể chỉnh sửa |
+| **core_course_template_lessons** | Bài học trực tiếp hoặc thuộc Section |
 | **core_course_template_activities** | Activity có thể chỉnh sửa |
 
 ---
@@ -45,8 +45,8 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 | Bảng | Mô tả |
 |------|------|
 | **core_course_template_versions** | Snapshot Course đã phát hành và bất biến |
-| **core_course_template_version_sections** | Snapshot phần đã phát hành |
-| **core_course_template_version_lessons** | Snapshot bài học đã phát hành |
+| **core_course_template_version_sections** | Snapshot nhóm Lesson tùy chọn |
+| **core_course_template_version_lessons** | Snapshot bài học trực tiếp hoặc thuộc Version Section |
 | **core_course_template_version_activities** | Snapshot Activity đã phát hành |
 
 ---
@@ -120,12 +120,14 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 erDiagram
     CATEGORY ||--o{ TEMPLATE : organizes
     TEMPLATE ||--o{ TEMPLATE_SECTION : contains
-    TEMPLATE_SECTION ||--o{ TEMPLATE_LESSON : contains
+    TEMPLATE ||--o{ TEMPLATE_LESSON : contains
+    TEMPLATE_SECTION o|--o{ TEMPLATE_LESSON : optionally_groups
     TEMPLATE_LESSON ||--o{ TEMPLATE_ACTIVITY : contains
 
     TEMPLATE ||--o{ TEMPLATE_VERSION : publishes
     TEMPLATE_VERSION ||--o{ VERSION_SECTION : snapshots
-    VERSION_SECTION ||--o{ VERSION_LESSON : contains
+    TEMPLATE_VERSION ||--o{ VERSION_LESSON : contains
+    VERSION_SECTION o|--o{ VERSION_LESSON : optionally_groups
     VERSION_LESSON ||--o{ VERSION_ACTIVITY : contains
 
     PRODUCT ||--o{ PRODUCT_ITEM : includes
@@ -186,6 +188,8 @@ Certificate → Media để lưu tài sản Certificate đã kết xuất
 ## Nguyên tắc thiết kế
 
 - Template Course là nguồn định nghĩa Course có thể chỉnh sửa.
+- Section là tùy chọn; Lesson thuộc trực tiếp Template hoặc một Section cùng
+  Template và tenant.
 - Việc phát hành tạo ra một Version Template bất biến.
 - Product chứa Version đã phát hành, không bao giờ chứa Template đang
   biên soạn.

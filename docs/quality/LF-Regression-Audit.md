@@ -1,10 +1,10 @@
 # LF-Regression-Audit.md
 
-Version: 1.0
+Version: 1.1
 
 Status: Mandatory
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -231,7 +231,11 @@ I18N Changes
 
 [ ] Deprecated/archived Version không thay đổi Enrollment hiện có
 
-[ ] Mỗi working Template và published Version có ít nhất một Section
+[ ] Section optional; flat và sectioned Blueprint đều publish được
+
+[ ] Lesson có Section luôn cùng Template và customer_id với Section
+
+[ ] Không tạo hidden/default Section hoặc tự động tạo Section 1
 
 [ ] Re-enrollment tạo Enrollment mới cho learning cycle mới
 

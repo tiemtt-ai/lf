@@ -595,7 +595,8 @@ Database design phải tuân thủ:
 * Thay đổi working Template không làm thay đổi dữ liệu học của Enrollment cũ.
 * Version lifecycle dùng `draft_snapshot`, `published`, `deprecated`, `archived`.
 * Deprecated/archived Version không làm thay đổi existing Enrollment.
-* Working Template và published Version đều phải có ít nhất một Section.
+* Section là tùy chọn; working và published Lesson có thể thuộc trực tiếp
+  Template/Version hoặc Section cùng owner.
 * Một Enrollment là một learning cycle; re-enrollment tạo record mới.
 * Progress, Completion và Product-based Certificate dùng `enrollment_id` để
   phân biệt learning cycle.

@@ -1,6 +1,6 @@
 # LearnForge Implementation Rules
 
-Version: 1.0
+Version: 1.1
 
 Status: Official Implementation Rule
 
@@ -37,21 +37,40 @@ LF-INDEX routes the task to additional documentation.
 
 ## Documentation First
 
-Read the current repository files. Never rely on memory from previous tasks.
+Read the current repository files.
+
+Never rely on memory from previous tasks.
+
+Documentation is the source of truth.
+
+---
 
 ## Database First
 
-Database and domain documentation define fields, relationships, indexes,
-statuses, and business rules.
+Database documentation defines:
+
+- fields
+- relationships
+- indexes
+- statuses
+- business rules
+
+Implement the database exactly as documented.
+
+---
 
 ## Keep It Simple
 
-Reuse the existing Laravel, Blade, CSS, route, middleware, and test patterns.
-Do not create unnecessary architecture.
+Reuse the existing Laravel, Blade, CSS, routing, middleware, and testing
+patterns.
+
+Avoid unnecessary abstraction.
+
+---
 
 ## Reuse Safely
 
-Reuse existing CRUD patterns whenever possible.
+Reuse existing CRUD implementations whenever possible.
 
 Always verify:
 
@@ -63,98 +82,192 @@ Always verify:
 
 Never assume two tables share identical business rules.
 
-## Module First
+---
 
-When implementing a business module, analyze all requested related tables first.
+## Business Module First
 
-Classify each table as:
+Understand the business workflow before implementing CRUD.
 
-- Simple CRUD
-- Standard CRUD
-- Manual Review Required
+Database tables exist to support business processes.
 
-Implement only the requested batch.
-
-Do not continue automatically to the next batch.
-
-## No Eloquent Models
-
-Do not create or use Eloquent Models for CRUD modules. Use `DB::table()`.
-
-## Tenant First
-
-Business data and every related query must be scoped to the current
-`customer_id` from `TenantContext::customerId()`.
-
-## Conflict Rule
-
-If documentation, Guardrails, an ADR, or current code conflict, stop and report
-the conflict. Do not silently choose one.
+Do not implement related tables as isolated CRUD screens when they belong to a
+single business workflow.
 
 ---
 
-# 4. Database Rules
+## Module First
+
+When implementing a business module:
+
+1. Analyze all requested tables.
+2. Classify each table:
+  - Simple CRUD
+  - Standard CRUD
+  - Manual Review Required
+3. Implement only the requested batch.
+4. Stop after completing the batch.
+
+---
+
+## No Eloquent Models
+
+Do not create or use Eloquent Models.
+
+Use:
+
+```php
+DB::table()
+```
+
+---
+
+## Tenant First
+
+Every business query must be scoped by:
+
+```php
+TenantContext::customerId()
+```
+
+No cross-tenant access is allowed.
+
+---
+
+## Conflict Rule
+
+If documentation, Guardrails, ADRs, or current implementation conflict:
+
+Stop.
+
+Report the conflict.
+
+Do not silently choose one.
+
+---
+
+# 4. Architecture Change Workflow
+
+This workflow applies only to architecture-level changes.
+
+Routine CRUD implementation that follows approved documentation does **not**
+require a new Architecture Review or Architecture Freeze.
+
+Workflow:
+
+Business Requirement
+
+↓
+
+Architecture Proposal
+
+↓
+
+Documentation Update
+
+↓
+
+Architecture Review
+
+↓
+
+Architecture Freeze
+
+↓
+
+Impact Analysis
+
+↓
+
+Implementation
+
+↓
+
+Testing
+
+↓
+
+Done
+
+Rules:
+
+- Documentation is the single source of truth.
+- Update documentation before updating code.
+- No implementation may begin before Architecture Freeze.
+- After Architecture Freeze, every implementation must follow the approved architecture.
+- If implementation conflicts with approved documentation, stop and report.
+
+---
+
+# 5. Database Rules
 
 ## Documentation Is The Source Of Truth
 
-Implement each table from its exact table documentation.
+Implement every table exactly as documented.
+
+---
 
 ## No Undocumented Fields
 
-Do not add, rename, or remove fields, relationships, indexes, statuses, or
-business rules unless the documentation requires it.
+Do not:
+
+- add
+- rename
+- remove
+
+fields, indexes, relationships, statuses, or business rules unless documentation
+explicitly requires it.
+
+---
 
 ## Relationships
 
-Respect documented relationships. Validate that parent and child records belong
-to the same tenant.
+Respect documented relationships.
+
+Validate that related records belong to the same tenant.
+
+Optional documented relationships (nullable foreign keys) must remain optional.
+
+Do not force optional relationships to become mandatory.
+
+---
 
 ## Migration Rules
 
-- Do not modify old production migrations.
-- If the table already exists, do not create a duplicate migration.
-- Report an existing table and create only documented additive migrations when
-  required.
-- Implement documented field types, defaults, indexes, and constraints.
+- Never modify historical production migrations.
+- Do not create duplicate migrations.
+- Create only documented additive migrations when required.
+- Match documented field types, defaults, indexes, and constraints.
+
+---
 
 ## Database Naming Rules
 
-MySQL limits identifier names (indexes, foreign keys, unique constraints) to
-64 characters.
+MySQL limits identifier names to 64 characters.
 
-Never rely on Laravel's default generated names for long table names.
+Never rely on Laravel auto-generated names for long table names.
 
-Every migration using long table names must explicitly specify a short name
-for every:
+Always explicitly define short names for:
 
 - indexes
 - unique constraints
 - foreign keys
 
-Each explicit name must be no longer than 64 characters and use these
-prefixes:
+Recommended prefixes:
 
-idx_  → Index
+- idx_
+- uk_
+- fk_
 
-uk_   → Unique Key
-
-fk_   → Foreign Key
-
-Do not use Laravel's auto-generated identifier names for these constraints on
-long table names, even when the current generated name happens to fit.
-
-Examples:
-
-idx_cctl_cust_sec
-uk_cctp_slug
-fk_cctl_section
+---
 
 ## Delete Rules
 
 - Never cascade delete unless documentation explicitly requires it.
-- Check existing child and reference records before deleting.
+- Check child/reference records before deleting.
 - Block deletion when references exist.
-- Prefer a documented inactive or archived status for reusable master data.
+- Prefer inactive/archive status for reusable master data.
+
+---
 
 ## Direct Database Access
 
@@ -164,149 +277,243 @@ Use:
 DB::table('table_name')
 ```
 
-Do not use `Model::query()`, `Model::create()`, or `Model::find()`.
+Never use:
+
+- Model::query()
+- Model::create()
+- Model::find()
 
 ---
 
-# 5. CRUD Rules
+# 6. CRUD Rules
 
 ## Standard CRUD Scope
 
 A normal CRUD module includes:
 
-- List, search, and filter
-- Create and store
-- Edit and update
-- Delete or status change
+- List
+- Search / Filter
+- Create
+- Update
+- Delete or Status Change
 - Validation
-- Tenant isolation
-- Feature tests
+- Tenant Isolation
+- Feature Tests
+
+---
 
 ## Golden CRUD
 
 For repeated CRUD work:
 
-1. Create one Golden CRUD.
-2. Review the Golden CRUD.
-3. Reuse it for the remaining requested tables.
+1. Build one Golden CRUD.
+2. Review it.
+3. Reuse it.
 
-Do not apply the Golden CRUD to tables classified as
-"Manual Review Required".
+Golden CRUD defines coding style only.
 
-## Routes
+Business rules always come from the current table documentation.
 
-Use existing route groups, prefixes, names, middleware, and role protection.
-
-## Validation
-
-Validation must follow the documented schema and business rules. Related parent
-records must belong to the current tenant.
-
-## Security And Tenant Isolation
-
-Every read and write query must filter by the current `customer_id`. Editing,
-updating, deleting, or selecting another tenant's records must be impossible.
-
-## Feature Tests
-
-Cover Admin access, Teacher access when applicable, create, update, validation,
-tenant isolation, and delete/reference behavior.
+Do not reuse Golden CRUD for Manual Review tables.
 
 ---
 
-# 6. UI Rules
+## Routes
+
+Reuse existing:
+
+- route groups
+- prefixes
+- middleware
+- naming
+- role protection
+
+Avoid duplicate routes.
+
+---
+
+## Validation
+
+Validation must follow documented business rules.
+
+Parent records must belong to the current tenant.
+
+---
+
+## Security
+
+Every read/write query must filter by:
+
+```php
+customer_id
+```
+
+Editing another tenant's data must be impossible.
+
+---
+
+## Feature Tests
+
+Include at minimum:
+
+- Admin access
+- Teacher access (if applicable)
+- Create
+- Update
+- Validation
+- Tenant isolation
+- Delete/reference rules
+
+---
+
+# 7. UI Rules
 
 ## Reuse Existing UI
 
-Reuse existing layouts, CSS, buttons, cards, tables, form styles, modals, and
-navigation. Do not redesign the whole UI.
+Reuse existing:
+
+- layouts
+- CSS
+- buttons
+- tables
+- cards
+- forms
+- modals
+
+Do not redesign the application.
+
+---
 
 ## Group Related Fields
 
-Group Create/Edit fields by business meaning. Keep dependent fields in the same
-visual group and use a clear Vietnamese group title.
+Group fields by business meaning.
+
+Dependent fields should appear together.
+
+Use clear Vietnamese group titles.
+
+Child tables should be managed inside the parent business screen whenever practical.
+
+Avoid standalone menus for child tables unless they have independent business value.
+
+---
 
 ## Required Field Indicator
 
-Required fields must show a red asterisk after the label. Optional fields must
-not show one. The indicator must follow validation rules.
+Required fields must display a red asterisk.
+
+Optional fields must not.
+
+---
 
 ## Delete Confirmation
 
-Every delete action must ask for confirmation before submitting:
+Every delete action must ask for confirmation.
+
+Example:
 
 ```text
 Bạn có chắc chắn muốn xóa dữ liệu này không?
 ```
 
-Use the existing project modal or `browser confirm()`, whichever is already
-consistent with the project UI. Provide Yes/No actions.
+Use the project's existing confirmation style.
+
+---
 
 ## Friendly Messages
 
-Use Vietnamese user-facing messages. Do not expose SQL errors or technical
-exceptions. Show friendly reference-blocking messages.
+Show Vietnamese business messages.
 
-Use user-friendly labels in the UI. Do not expose database table names outside
-technical or diagnostic screens.
+Never expose SQL or technical exceptions.
+
+Use business labels instead of database names.
+
+---
 
 ## Responsive Design
 
-Forms, tables, modals, and menus must be usable at:
+Follow the current LearnForge responsive design standard.
 
-```text
-375px
-768px
-1366px
-1440px
-```
-
-Avoid horizontal page overflow.
+Do not introduce layout regressions.
 
 ---
 
-# 7. Routing Rules
+# 8. Routing Rules
 
-- Put reusable domain routes in `routes/modules/*`.
-- Avoid duplicate Admin and Teacher route blocks.
-- Let parent groups provide prefixes, name prefixes, and middleware.
-- Preserve existing route names, URLs, HTTP methods, and controller actions.
+- Put reusable routes in `routes/modules/*`
+- Avoid duplicated Admin/Teacher route blocks
+- Let parent groups provide prefixes, middleware, and route names
+- Preserve existing URLs and route names
 
 ---
 
-# 8. Testing Rules
+# 9. Testing Rules
 
-Run automated Feature Tests first.
+Run Feature Tests first.
 
-Browser QA is optional for small CRUD modules unless explicitly requested.
-Run it when UI or layout changes are significant.
+Browser QA is optional unless:
 
-For major changes, also run the verification commands required by the
+- significant UI changes
+- explicitly requested
+
+For major architectural changes, also execute verification required by the
 Architecture Guardrails.
 
 ---
 
-# 9. Stop Rule
+# 10. Stop Rule
 
-Stop implementation and report if:
+Stop implementation immediately if:
 
 - documentation conflicts exist
 - business rules are unclear
 - tenant ownership cannot be verified
-- the table differs significantly from the Golden CRUD
+- implementation differs significantly from Golden CRUD
+- approved documentation and current implementation diverge significantly
+
+Report impacted files before proposing changes.
 
 Do not guess.
 
-# 10. Completion Report
+---
 
-Report:
+# 11. Completion Report
 
-- Files created, modified, and removed
-- Migrations, routes, controllers, views, and menus changed
-- Tests and results
-- Browser QA result if run
+Always report:
+
+- Files created
+- Files modified
+- Files removed
+- Migrations
+- Routes
+- Controllers
+- Views
+- Tests
+- Browser QA (if run)
 - Assumptions
 - Documentation conflicts
+
+Include architecture assumptions.
+
+If none exist, explicitly report:
+
+```text
+No architecture assumptions.
+```
+
+---
+
+# Guiding Principle
+
+When multiple implementation approaches are technically correct,
+prefer the one that is:
+
+- Simpler
+- Easier to maintain
+- Easier for future AI agents to understand
+- Consistent with existing LearnForge implementation
+
+Avoid unnecessary abstraction.
 
 ---
 

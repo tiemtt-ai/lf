@@ -1,10 +1,10 @@
 # core_course_template_version_lessons
 
-Version: 1.0
+Version: 1.1
 
 Status: Official Foundation
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -23,7 +23,7 @@ Customer 1 → N Version Lessons
 
 Course Template Version 1 → N Version Lessons
 
-Version Section 1 → N Version Lessons
+Version Section 0..1 → N Version Lessons
 
 Source Template Lesson 1 → N Version Lessons
 
@@ -35,11 +35,13 @@ Version Lesson 1 → N Version Activities
 ## Business Rules
 
 * Version Lesson phải thuộc `customer_id`.
-* Phải có cùng tenant với Template Version và Version Section.
+* `version_section_id = NULL` nghĩa là Version Lesson thuộc trực tiếp Template Version.
+* Nếu có `version_section_id`, Version Section phải cùng Template Version và `customer_id`.
 * Snapshot từ `core_course_template_lessons`.
 * Immutable sau khi Template Version được publish.
 * `source_template_lesson_id` chỉ dùng trace/reporting.
-* `version_section_id` là bắt buộc trong architecture chuẩn.
+* Publish phải giữ nguyên cấu trúc flat hoặc sectioned của working Lesson và
+  không tạo hidden/default Version Section.
 * Progress, Notes và Bookmarks dùng `version_lesson_id`.
 * Duration và Activity count là published read-model snapshots.
 
@@ -68,10 +70,11 @@ BIGINT UNSIGNED NOT NULL
 ### version_section_id
 
 ```text
-BIGINT UNSIGNED NOT NULL
+BIGINT UNSIGNED NULL
 ```
 
-Liên kết `core_course_template_version_sections.id`.
+Liên kết tùy chọn tới `core_course_template_version_sections.id`. NULL nghĩa là
+Lesson thuộc trực tiếp Template Version.
 
 ### source_template_lesson_id
 
@@ -182,6 +185,9 @@ TIMESTAMP NULL
 ```sql
 UNIQUE(customer_id, template_version_id, version_section_id, sort_order)
 ```
+
+Với `version_section_id = NULL`, application/service layer phải bảo đảm
+`sort_order` không trùng vì MySQL cho phép nhiều giá trị NULL trong unique index.
 
 ---
 

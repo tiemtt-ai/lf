@@ -1,6 +1,8 @@
 # Course Foundation Final Review
 
 Review date: 2026-06-27
+Course Blueprint V2 amendment: 2026-07-03
+Course Blueprint V2 status: Approved
 
 ## 1. Architecture Summary
 
@@ -34,24 +36,22 @@ The learning content hierarchy is:
 
 ```text
 Course Template
-↓
-Template Section
-↓
-Template Lesson
-↓
-Template Activity
+├── Template Lesson
+│   └── Template Activity
+└── Template Section
+    └── Template Lesson
+        └── Template Activity
 ```
 
 Its published immutable hierarchy is:
 
 ```text
 Template Version
-↓
-Version Section
-↓
-Version Lesson
-↓
-Version Activity
+├── Version Lesson
+│   └── Version Activity
+└── Version Section
+    └── Version Lesson
+        └── Version Activity
 ```
 
 ## 3. Versioning Strategy
@@ -106,8 +106,10 @@ mutate a published Version or silently change an existing Enrollment.
 3. Re-enrollment is allowed. Every Enrollment is one learning cycle. Progress,
    Completion and Product-based Certificate records always use `enrollment_id`;
    there is no permanent User/Student–Product unique constraint.
-4. Section is mandatory in both working Template and published Version. The
-   smallest Course still contains `Section 1`.
+4. Course Blueprint V2 makes Section optional. A Lesson with no Section belongs
+   directly to its Template; a Lesson with a Section must use a Section from the
+   same Template and `customer_id`. Publishing supports both flat and sectioned
+   structures and must not create a hidden/default Section or `Section 1`.
 5. Only an `active` Enrollment can create or update Notes and Bookmarks.
    Preview, guest and anonymous Notes/Bookmarks are not supported.
 6. Review uses `user_id`, not `student_id`, because Student is a role and the

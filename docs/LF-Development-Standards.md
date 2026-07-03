@@ -281,7 +281,8 @@ Course Foundation constraints:
 * Một Enrollment là một learning cycle; re-enrollment tạo Enrollment mới.
 * Không unique vĩnh viễn theo `customer_id`, `user_id`/`student_id`, `product_id`.
 * Progress, Completion và Product-based Certificate phải tham chiếu `enrollment_id`.
-* Section bắt buộc trong working Template và published Version.
+* Section là tùy chọn; Lesson thuộc trực tiếp Template hoặc Section cùng
+  Template và `customer_id`.
 * Notes/Bookmarks chỉ được tạo hoặc cập nhật khi Enrollment `active`.
 * Review dùng `user_id`, không dùng `student_id`.
 * Foundation Certificate mapping giới hạn một active mapping trên mỗi Product.

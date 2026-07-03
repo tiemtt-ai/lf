@@ -1,10 +1,10 @@
 # LF-Architecture-Guardrails.md
 
-Version: 1.0
+Version: 1.1
 
 Status: Mandatory
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -559,7 +559,11 @@ là constraint cụ thể bắt buộc để thực thi principles.
 * Không dùng permanent unique User/Student–Product để chặn re-enrollment.
 * Progress, Completion và Product-based Certificate luôn tham chiếu
   `enrollment_id`.
-* Working Template và published Version đều phải có ít nhất một Section.
+* Section là tùy chọn trong working Template và published Version.
+* Lesson không có Section thuộc trực tiếp Template; Lesson có Section phải cùng
+  Template và `customer_id` với Section.
+* Publish phải hỗ trợ cả cấu trúc flat và sectioned, không tạo hidden/default
+  Section hoặc tự động tạo `Section 1`.
 * Một Enrollment chỉ có một Cohort membership record; chuyển lớp dùng `UPDATE`,
   không tạo history và không dùng `is_current`.
 * Notes/Bookmarks chỉ được tạo hoặc cập nhật với Enrollment `active`.

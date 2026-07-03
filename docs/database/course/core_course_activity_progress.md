@@ -275,10 +275,10 @@ users.id
 
 ```text
 BIGINT UNSIGNED
-NOT NULL
+NULL
 ```
 
-Version Section chứa Activity.
+Version Section tùy chọn chứa Activity.
 
 Liên kết logic tới:
 
@@ -286,7 +286,7 @@ Liên kết logic tới:
 core_course_template_version_sections.id
 ```
 
-Section là bắt buộc trong Course architecture.
+NULL khi Version Lesson chứa Activity thuộc trực tiếp Template Version.
 
 ---
 

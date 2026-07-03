@@ -1,10 +1,10 @@
 # core_course_template_version_sections
 
-Version: 1.0
+Version: 1.1
 
 Status: Official Foundation
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -36,8 +36,8 @@ Parent Version Section 1 → N Child Version Sections
 * Phải có cùng tenant với Template Version.
 * Snapshot từ `core_course_template_sections`.
 * Immutable sau khi Template Version được publish.
-* Mỗi Template Version phải có ít nhất một Version Section.
-* Course nhỏ nhất vẫn snapshot `Section 1`.
+* Version Section chỉ được tạo khi working Template có Section tương ứng.
+* Không tạo hidden/default Version Section khi publish flat Lessons.
 * `source_template_section_id` chỉ dùng trace/audit, không phải learning source.
 * Parent phải thuộc cùng Template Version.
 * `total_lessons` là snapshot/read-model lấy từ Version Lessons tại thời điểm publish.

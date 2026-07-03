@@ -1,7 +1,7 @@
 @extends('layouts.backend')
 
-@section('title', __('lf.LF_course_template_common_edit'))
-@section('page_title', __('lf.LF_course_template_common_edit'))
+@section('title', __('lf.LF_course_template_teacher_common_edit_title'))
+@section('page_title', __('lf.LF_course_template_teacher_common_edit_title'))
 
 @section('content')
     @if (session('success'))
@@ -21,24 +21,32 @@
     @endif
 
     <div class="admin-card admin-form-card">
-        <form method="POST" action="{{ route($routePrefix.'.update', $template->id) }}">
+        <p>
+            {{ __('lf.LF_course_template_teacher_common_template') }}:
+            <strong>{{ $template->title }}</strong>
+        </p>
+
+        <form method="POST"
+              action="{{ route(
+                  $routePrefix.'.update',
+                  [$template->id, $assignment->id]
+              ) }}">
             @csrf
             @method('PUT')
 
-            @include('course-templates.partials.form')
+            @include('course-template-teachers.partials.form')
 
             <div class="admin-form-actions">
                 <button type="submit" class="btn btn-primary">
                     {{ __('lf.LF_common_button_save_changes') }}
                 </button>
-                <a href="{{ route($routePrefix.'.index') }}">
+                <a href="{{ route(
+                    $templateRoutePrefix.'.edit',
+                    $template->id
+                ) }}#course-template-teachers">
                     {{ __('lf.LF_common_button_cancel') }}
                 </a>
             </div>
         </form>
     </div>
-
-    @include('course-template-teachers.partials.list')
-
-    @include('course-template-sections.partials.list')
 @endsection

@@ -4,22 +4,15 @@
 
 Lưu working Section (Module / Chapter / Unit) của Course Template draft.
 
-Section là lớp trung gian giữa:
+Section là lớp nhóm Lesson tùy chọn:
 
 ```text
 Course Template
-
-↓
-
-Template Section
-
-↓
-
-Template Lesson
-
-↓
-
-Template Activity
+├── Template Lesson
+│   └── Template Activity
+└── Template Section
+    └── Template Lesson
+        └── Template Activity
 ```
 
 Giúp tổ chức khóa học thành các nhóm nội dung lớn, dễ quản lý, dễ học và dễ mở rộng.
@@ -72,11 +65,11 @@ core_course_template_lessons
 * Mọi Section phải thuộc một Template.
 * Template Section phải có cùng `customer_id` với Course Template.
 * Không được query Template Section ngoài tenant hiện hành.
-* Mọi Template phải có ít nhất một Section.
-* Course nhỏ nhất vẫn phải có `Section 1`.
 * Một Template có thể có nhiều Section.
 * Section dùng để nhóm Lesson.
-* Lesson chỉ thuộc một Section.
+* Lesson có thể không thuộc Section hoặc thuộc tối đa một Section.
+* Nếu Lesson thuộc Section, Lesson và Section phải cùng Template và `customer_id`.
+* Không tạo hidden/default Section và không tự động tạo `Section 1`.
 * Thứ tự hiển thị được quản lý bằng sort_order.
 * Có thể ẩn hoặc hiển thị từng Section.
 * Có thể khóa Section cho đến khi học viên hoàn thành Section trước.
@@ -280,7 +273,7 @@ NOT NULL
 DEFAULT 1
 ```
 
-Section bắt buộc hay không.
+Section có bắt buộc hoàn thành hay không.
 
 ```text
 1 = Required
@@ -551,22 +544,15 @@ TOPIK Beginner
 
 ## Final Statement
 
-Section là lớp tổ chức nội dung cấp cao của Template.
+Section là lớp tổ chức nội dung tùy chọn của Template.
 
 ```text
 Course Template
-
-↓
-
-Template Section
-
-↓
-
-Template Lesson
-
-↓
-
-Template Activity
+├── Template Lesson
+│   └── Template Activity
+└── Template Section
+    └── Template Lesson
+        └── Template Activity
 ```
 
 Giúp khóa học có cấu trúc rõ ràng, dễ quản lý, dễ học và sẵn sàng mở rộng cho các chương trình đào tạo lớn trong tương lai.
