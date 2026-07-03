@@ -31,6 +31,12 @@ criteria hay không.
 * [LF-Course-Product-Architecture-Review.md](LF-Course-Product-Architecture-Review.md)
   — approved architecture review for Course Product CRUD documentation and
   Product-specific implementation readiness.
+* [LF-Course-Product-Items-Architecture-Review.md](LF-Course-Product-Items-Architecture-Review.md)
+  — approved architecture review for Course Product Item attach, list and
+  remove behavior inside Product management.
+* [LF-Course-Product-Relations-Architecture-Review.md](LF-Course-Product-Relations-Architecture-Review.md)
+  — approved architecture review for Course Product Relation attach, list and
+  remove behavior inside Product management.
 
 ---
 

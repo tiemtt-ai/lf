@@ -13,6 +13,16 @@ class CourseProductController extends Controller
 {
     private const STATUSES = ['draft', 'active', 'inactive', 'archived'];
 
+    private const ITEM_STATUSES = ['active', 'inactive'];
+
+    private const RELATION_TYPES = [
+        'gift',
+        'related',
+        'upsell',
+        'cross_sell',
+        'recommended',
+    ];
+
     public function index(Request $request): View
     {
         $this->authorizeAdmin($request);
@@ -101,9 +111,14 @@ class CourseProductController extends Controller
         $this->authorizeAdmin($request);
 
         $customerId = $this->customerId();
+        $product = $this->findProduct($customerId, $id);
 
         return view('course-products.edit', [
-            'product' => $this->findProduct($customerId, $id),
+            'product' => $product,
+            'productItems' => $this->productItems($customerId, $id),
+            'publishedVersions' => $this->publishedVersions($customerId, $id),
+            'productRelations' => $this->productRelations($customerId, $id),
+            'relatedProducts' => $this->relatedProducts($customerId, $id),
             'requiredFields' => $this->requiredFields($customerId, $id),
             'routePrefix' => $this->routePrefix($request),
         ]);
@@ -151,6 +166,126 @@ class CourseProductController extends Controller
         return redirect()
             ->route($this->routePrefix($request).'.index')
             ->with('success', __('lf.LF_course_product_common_archived'));
+    }
+
+    public function storeItem(Request $request, int $productId)
+    {
+        $this->authorizeAdmin($request);
+
+        $customerId = $this->customerId();
+        $this->findProduct($customerId, $productId);
+        $validated = $this->validatedItemData(
+            $request,
+            $customerId,
+            $productId
+        );
+        $now = now();
+
+        DB::table('core_course_product_items')->insert([
+            'customer_id' => $customerId,
+            'product_id' => $productId,
+            'template_version_id' => $validated['template_version_id'],
+            'title_override' => $validated['title_override'] ?? null,
+            'short_description_override' => $validated['short_description_override'] ?? null,
+            'sort_order' => $validated['sort_order'],
+            'is_required' => (bool) $validated['is_required'],
+            'status' => $validated['status'],
+            'created_by' => $request->user()?->id,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        return redirect()
+            ->route($this->routePrefix($request).'.edit', $productId)
+            ->with('success', __('lf.LF_course_product_item_common_attached'));
+    }
+
+    public function destroyItem(Request $request, int $productId, int $itemId)
+    {
+        $this->authorizeAdmin($request);
+
+        $customerId = $this->customerId();
+        $this->findProduct($customerId, $productId);
+        $item = DB::table('core_course_product_items')
+            ->where('customer_id', $customerId)
+            ->where('product_id', $productId)
+            ->where('id', $itemId)
+            ->first();
+
+        abort_if(! $item, 404);
+
+        DB::table('core_course_product_items')
+            ->where('customer_id', $customerId)
+            ->where('product_id', $productId)
+            ->where('id', $itemId)
+            ->delete();
+
+        return redirect()
+            ->route($this->routePrefix($request).'.edit', $productId)
+            ->with('success', __('lf.LF_course_product_item_common_removed'));
+    }
+
+    public function storeRelation(Request $request, int $productId)
+    {
+        $this->authorizeAdmin($request);
+
+        $customerId = $this->customerId();
+        $this->findProduct($customerId, $productId);
+        $validated = $this->validatedRelationData(
+            $request,
+            $customerId,
+            $productId
+        );
+        $now = now();
+
+        DB::table('core_course_product_relations')->insert([
+            'customer_id' => $customerId,
+            'product_id' => $productId,
+            'related_product_id' => $validated['related_product_id'],
+            'relation_type' => $validated['relation_type'],
+            'title_override' => $validated['title_override'] ?? null,
+            'description_override' => $validated['description_override'] ?? null,
+            'sort_order' => $validated['sort_order'],
+            'is_featured' => (bool) $validated['is_featured'],
+            'starts_at' => $validated['starts_at'] ?? null,
+            'ends_at' => $validated['ends_at'] ?? null,
+            'status' => $validated['status'],
+            'created_by' => $request->user()?->id,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        return redirect()
+            ->route($this->routePrefix($request).'.edit', $productId)
+            ->with('success', __('lf.LF_course_product_relation_common_attached'));
+    }
+
+    public function destroyRelation(
+        Request $request,
+        int $productId,
+        int $relationId
+    ) {
+        $this->authorizeAdmin($request);
+
+        $customerId = $this->customerId();
+        $this->findProduct($customerId, $productId);
+        $relation = DB::table('core_course_product_relations')
+            ->where('customer_id', $customerId)
+            ->where('product_id', $productId)
+            ->where('id', $relationId)
+            ->first();
+
+        abort_if(! $relation, 404);
+
+        DB::table('core_course_product_relations')
+            ->where('customer_id', $customerId)
+            ->where('product_id', $productId)
+            ->where('id', $relationId)
+            ->delete();
+
+        return redirect()
+            ->route($this->routePrefix($request).'.edit', $productId)
+            ->with('success', __('lf.LF_course_product_relation_common_removed'));
     }
 
     private function validatedData(
@@ -233,6 +368,137 @@ class CourseProductController extends Controller
         ];
     }
 
+    private function validatedItemData(
+        Request $request,
+        int $customerId,
+        int $productId
+    ): array {
+        $validator = Validator::make($request->all(), [
+            'template_version_id' => ['required', 'integer', 'min:1'],
+            'title_override' => ['nullable', 'string', 'max:255'],
+            'short_description_override' => ['nullable', 'string', 'max:500'],
+            'sort_order' => ['required', 'integer'],
+            'is_required' => ['required', 'boolean'],
+            'status' => ['required', Rule::in(self::ITEM_STATUSES)],
+        ]);
+
+        $validator->after(function ($validator) use (
+            $request,
+            $customerId,
+            $productId
+        ): void {
+            $versionId = (int) $request->input('template_version_id');
+
+            if ($versionId < 1) {
+                return;
+            }
+
+            $version = DB::table('core_course_template_versions')
+                ->where('customer_id', $customerId)
+                ->where('id', $versionId)
+                ->where('status', 'published')
+                ->first();
+
+            if (! $version) {
+                $validator->errors()->add(
+                    'template_version_id',
+                    __('lf.LF_course_product_item_validation_published_version')
+                );
+
+                return;
+            }
+
+            $duplicateExists = DB::table('core_course_product_items')
+                ->where('customer_id', $customerId)
+                ->where('product_id', $productId)
+                ->where('template_version_id', $versionId)
+                ->exists();
+
+            if ($duplicateExists) {
+                $validator->errors()->add(
+                    'template_version_id',
+                    __('lf.LF_course_product_item_validation_duplicate')
+                );
+            }
+        });
+
+        return $validator->validate();
+    }
+
+    private function validatedRelationData(
+        Request $request,
+        int $customerId,
+        int $productId
+    ): array {
+        $validator = Validator::make($request->all(), [
+            'related_product_id' => ['required', 'integer', 'min:1'],
+            'relation_type' => ['required', Rule::in(self::RELATION_TYPES)],
+            'title_override' => ['nullable', 'string', 'max:255'],
+            'description_override' => ['nullable', 'string', 'max:500'],
+            'sort_order' => ['required', 'integer'],
+            'is_featured' => ['required', 'boolean'],
+            'starts_at' => ['nullable', 'date'],
+            'ends_at' => ['nullable', 'date'],
+            'status' => ['required', Rule::in(self::ITEM_STATUSES)],
+        ]);
+
+        $validator->after(function ($validator) use (
+            $request,
+            $customerId,
+            $productId
+        ): void {
+            $relatedProductId = (int) $request->input('related_product_id');
+            $relationType = (string) $request->input('relation_type');
+
+            if ($relatedProductId < 1) {
+                return;
+            }
+
+            if ($relatedProductId === $productId) {
+                $validator->errors()->add(
+                    'related_product_id',
+                    __('lf.LF_course_product_relation_validation_self')
+                );
+
+                return;
+            }
+
+            $relatedProduct = DB::table('core_course_products')
+                ->where('customer_id', $customerId)
+                ->where('id', $relatedProductId)
+                ->first();
+
+            if (! $relatedProduct) {
+                $validator->errors()->add(
+                    'related_product_id',
+                    __('lf.LF_course_product_relation_validation_related_product')
+                );
+
+                return;
+            }
+
+            if (! in_array($relationType, self::RELATION_TYPES, true)) {
+                return;
+            }
+
+            $duplicateExists = DB::table('core_course_product_relations')
+                ->where('customer_id', $customerId)
+                ->where('product_id', $productId)
+                ->where('related_product_id', $relatedProductId)
+                ->where('relation_type', $relationType)
+                ->exists();
+
+            if ($duplicateExists) {
+                $validator->errors()->add(
+                    'related_product_id',
+                    __('lf.LF_course_product_relation_validation_duplicate')
+                );
+            }
+        });
+
+        return $validator->validate();
+    }
+
     private function requiredFields(int $customerId, ?int $productId = null): array
     {
         return array_keys(array_filter(
@@ -294,6 +560,96 @@ class CourseProductController extends Controller
         abort_if(! $product, 404);
 
         return $product;
+    }
+
+    private function productItems(int $customerId, int $productId)
+    {
+        return DB::table('core_course_product_items as items')
+            ->join('core_course_template_versions as versions', function ($join) use (
+                $customerId
+            ): void {
+                $join->on(
+                    'versions.id',
+                    '=',
+                    'items.template_version_id'
+                )
+                    ->where('versions.customer_id', '=', $customerId);
+            })
+            ->where('items.customer_id', $customerId)
+            ->where('items.product_id', $productId)
+            ->orderBy('items.sort_order')
+            ->orderBy('items.id')
+            ->select(
+                'items.*',
+                'versions.version_number',
+                'versions.version_code',
+                'versions.title_snapshot',
+                'versions.status as version_status',
+                'versions.is_current'
+            )
+            ->get();
+    }
+
+    private function publishedVersions(int $customerId, int $productId)
+    {
+        return DB::table('core_course_template_versions as versions')
+            ->leftJoin('core_course_product_items as items', function ($join) use (
+                $customerId,
+                $productId
+            ): void {
+                $join->on('items.template_version_id', '=', 'versions.id')
+                    ->where('items.customer_id', '=', $customerId)
+                    ->where('items.product_id', '=', $productId);
+            })
+            ->where('versions.customer_id', $customerId)
+            ->where('versions.status', 'published')
+            ->whereNull('items.id')
+            ->orderBy('versions.title_snapshot')
+            ->orderBy('versions.version_number')
+            ->select(
+                'versions.id',
+                'versions.title_snapshot',
+                'versions.version_number',
+                'versions.version_code',
+                'versions.is_current'
+            )
+            ->get();
+    }
+
+    private function productRelations(int $customerId, int $productId)
+    {
+        return DB::table('core_course_product_relations as relations')
+            ->join('core_course_products as related_products', function ($join) use (
+                $customerId
+            ): void {
+                $join->on(
+                    'related_products.id',
+                    '=',
+                    'relations.related_product_id'
+                )
+                    ->where('related_products.customer_id', '=', $customerId);
+            })
+            ->where('relations.customer_id', $customerId)
+            ->where('relations.product_id', $productId)
+            ->orderBy('relations.sort_order')
+            ->orderBy('relations.id')
+            ->select(
+                'relations.*',
+                'related_products.title as related_product_title',
+                'related_products.product_code as related_product_code',
+                'related_products.status as related_product_status'
+            )
+            ->get();
+    }
+
+    private function relatedProducts(int $customerId, int $productId)
+    {
+        return DB::table('core_course_products')
+            ->where('customer_id', $customerId)
+            ->where('id', '!=', $productId)
+            ->orderBy('title')
+            ->select('id', 'title', 'product_code', 'status')
+            ->get();
     }
 
     private function customerId(): int

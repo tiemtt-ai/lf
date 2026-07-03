@@ -43,6 +43,26 @@ if ($registerCourseProductRoutes ?? false) {
     Route::put('/course-products/{id}', [CourseProductController::class, 'update'])
         ->name('course-products.update');
 
+    Route::post(
+        '/course-products/{productId}/items',
+        [CourseProductController::class, 'storeItem']
+    )->name('course-products.items.store');
+
+    Route::delete(
+        '/course-products/{productId}/items/{itemId}',
+        [CourseProductController::class, 'destroyItem']
+    )->name('course-products.items.destroy');
+
+    Route::post(
+        '/course-products/{productId}/relations',
+        [CourseProductController::class, 'storeRelation']
+    )->name('course-products.relations.store');
+
+    Route::delete(
+        '/course-products/{productId}/relations/{relationId}',
+        [CourseProductController::class, 'destroyRelation']
+    )->name('course-products.relations.destroy');
+
     Route::delete('/course-products/{id}', [CourseProductController::class, 'destroy'])
         ->name('course-products.destroy');
 }

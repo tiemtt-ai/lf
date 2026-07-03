@@ -39,6 +39,16 @@ class CourseProductManagementTest extends TestCase
         }
 
         foreach ([
+            'store',
+            'destroy',
+        ] as $route) {
+            $this->assertTrue(Route::has("admin.course-products.items.{$route}"));
+            $this->assertFalse(Route::has("teacher.course-products.items.{$route}"));
+            $this->assertTrue(Route::has("admin.course-products.relations.{$route}"));
+            $this->assertFalse(Route::has("teacher.course-products.relations.{$route}"));
+        }
+
+        foreach ([
             'admin.course-product-items.index',
             'admin.course-products.items.index',
             'admin.course-product-relations.index',
@@ -371,15 +381,244 @@ class CourseProductManagementTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_product_crud_does_not_expose_product_items_or_relations(): void
+    public function test_admin_can_attach_published_version_to_product(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK', 'topik');
+        $versionId = $this->createVersion($customerId, $admin->id);
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/items",
+                [
+                    'template_version_id' => $versionId,
+                    'title_override' => 'Commercial TOPIK',
+                    'short_description_override' => 'Override description',
+                    'sort_order' => 5,
+                    'is_required' => 1,
+                    'status' => 'active',
+                ]
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+            );
+
+        $this->assertDatabaseHas('core_course_product_items', [
+            'customer_id' => $customerId,
+            'product_id' => $productId,
+            'template_version_id' => $versionId,
+            'title_override' => 'Commercial TOPIK',
+            'short_description_override' => 'Override description',
+            'sort_order' => 5,
+            'is_required' => 1,
+            'status' => 'active',
+            'created_by' => $admin->id,
+        ]);
+    }
+
+    public function test_admin_can_list_product_items_inside_product_management(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK', 'topik');
+        $versionId = $this->createVersion(
+            $customerId,
+            $admin->id,
+            title: 'TOPIK Beginner'
+        );
+        $this->createProductItem(
+            $customerId,
+            $productId,
+            $versionId,
+            titleOverride: 'TOPIK Sale Page',
+            sortOrder: 3
+        );
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->assertOk()
+            ->assertSeeText('Nội dung trong sản phẩm')
+            ->assertSeeText('TOPIK Beginner')
+            ->assertSeeText('TOPIK Sale Page')
+            ->assertSeeText('Phiên bản 1');
+    }
+
+    public function test_admin_can_remove_product_item_link_only(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK', 'topik');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $itemId = $this->createProductItem($customerId, $productId, $versionId);
+
+        $this->actingAs($admin)
+            ->delete(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/items/{$itemId}"
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+            );
+
+        $this->assertDatabaseMissing('core_course_product_items', [
+            'id' => $itemId,
+            'customer_id' => $customerId,
+        ]);
+        $this->assertDatabaseHas('core_course_products', [
+            'id' => $productId,
+            'customer_id' => $customerId,
+            'title' => 'TOPIK',
+        ]);
+        $this->assertDatabaseHas('core_course_template_versions', [
+            'id' => $versionId,
+            'customer_id' => $customerId,
+            'status' => 'published',
+        ]);
+    }
+
+    public function test_duplicate_product_item_attach_is_rejected(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK', 'topik');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $this->createProductItem($customerId, $productId, $versionId);
+
+        $this->actingAs($admin)
+            ->from("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->post(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/items",
+                $this->validProductItemData([
+                    'template_version_id' => $versionId,
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+            )
+            ->assertSessionHasErrors('template_version_id');
+
+        $this->assertDatabaseCount('core_course_product_items', 1);
+    }
+
+    public function test_draft_or_unpublished_version_is_rejected(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK', 'topik');
+        $versionId = $this->createVersion(
+            $customerId,
+            $admin->id,
+            status: 'draft_snapshot'
+        );
+
+        $this->actingAs($admin)
+            ->from("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->post(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/items",
+                $this->validProductItemData([
+                    'template_version_id' => $versionId,
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+            )
+            ->assertSessionHasErrors('template_version_id');
+
+        $this->assertDatabaseCount('core_course_product_items', 0);
+    }
+
+    public function test_product_item_attach_is_tenant_isolated(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK', 'topik');
+        $otherProductId = $this->createProduct(
+            $otherCustomerId,
+            'Tenant B Product',
+            'tenant-b-product'
+        );
+        $otherVersionId = $this->createVersion($otherCustomerId, $otherAdmin->id);
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-products/{$otherProductId}/items",
+                $this->validProductItemData([
+                    'template_version_id' => $otherVersionId,
+                ])
+            )
+            ->assertNotFound();
+
+        $this->actingAs($admin)
+            ->from("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->post(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/items",
+                $this->validProductItemData([
+                    'template_version_id' => $otherVersionId,
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+            )
+            ->assertSessionHasErrors('template_version_id');
+
+        $this->assertDatabaseCount('core_course_product_items', 0);
+    }
+
+    public function test_teacher_student_and_guest_cannot_access_product_item_routes(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'TOPIK', 'topik');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $itemId = $this->createProductItem($customerId, $productId, $versionId);
+
+        $this->post(
+            "https://tenant-a.localhost/admin/course-products/{$productId}/items",
+            $this->validProductItemData(['template_version_id' => $versionId])
+        )->assertRedirect('https://tenant-a.localhost/login');
+
+        $this->delete(
+            "https://tenant-a.localhost/admin/course-products/{$productId}/items/{$itemId}"
+        )->assertRedirect('https://tenant-a.localhost/login');
+
+        foreach ([$teacher, $student] as $user) {
+            $this->actingAs($user)
+                ->post(
+                    "https://tenant-a.localhost/admin/course-products/{$productId}/items",
+                    $this->validProductItemData([
+                        'template_version_id' => $versionId,
+                    ])
+                )
+                ->assertForbidden();
+
+            $this->actingAs($user)
+                ->delete(
+                    "https://tenant-a.localhost/admin/course-products/{$productId}/items/{$itemId}"
+                )
+                ->assertForbidden();
+        }
+
+        $this->actingAs($teacher)
+            ->post(
+                "https://tenant-a.localhost/teacher/course-products/{$productId}/items",
+                $this->validProductItemData(['template_version_id' => $versionId])
+            )
+            ->assertNotFound();
+    }
+
+    public function test_product_management_does_not_expose_standalone_product_relation_routes(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK', 'topik');
 
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-products')
             ->assertOk()
-            ->assertDontSeeText('Product Items')
             ->assertDontSeeText('Product Relations');
 
         $this->actingAs($admin)
@@ -388,6 +627,296 @@ class CourseProductManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-product-relations')
+            ->assertNotFound();
+    }
+
+    public function test_admin_can_attach_valid_product_relation(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $relatedProductId = $this->createProduct(
+            $customerId,
+            'TOPIK Mock Test',
+            'topik-mock-test'
+        );
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/relations",
+                [
+                    'related_product_id' => $relatedProductId,
+                    'relation_type' => 'gift',
+                    'title_override' => 'Mock test bonus',
+                    'description_override' => 'Use as marketing copy only.',
+                    'sort_order' => 7,
+                    'is_featured' => 1,
+                    'starts_at' => null,
+                    'ends_at' => null,
+                    'status' => 'active',
+                ]
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+            );
+
+        $this->assertDatabaseHas('core_course_product_relations', [
+            'customer_id' => $customerId,
+            'product_id' => $productId,
+            'related_product_id' => $relatedProductId,
+            'relation_type' => 'gift',
+            'title_override' => 'Mock test bonus',
+            'description_override' => 'Use as marketing copy only.',
+            'sort_order' => 7,
+            'is_featured' => 1,
+            'status' => 'active',
+            'created_by' => $admin->id,
+        ]);
+    }
+
+    public function test_admin_can_list_product_relations_inside_product_management(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $relatedProductId = $this->createProduct(
+            $customerId,
+            'TOPIK Intermediate',
+            'topik-intermediate',
+            'TOPIK-INT'
+        );
+        $this->createProductRelation(
+            $customerId,
+            $productId,
+            $relatedProductId,
+            relationType: 'upsell',
+            titleOverride: 'Go Intermediate',
+            sortOrder: 4
+        );
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->assertOk()
+            ->assertSeeText('Quan hệ sản phẩm')
+            ->assertSeeText('TOPIK Intermediate')
+            ->assertSeeText('TOPIK-INT')
+            ->assertSeeText('Nâng cấp')
+            ->assertSeeText('Go Intermediate');
+    }
+
+    public function test_admin_can_remove_product_relation_link_only(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $relatedProductId = $this->createProduct(
+            $customerId,
+            'TOPIK Intermediate',
+            'topik-intermediate'
+        );
+        $relationId = $this->createProductRelation(
+            $customerId,
+            $productId,
+            $relatedProductId
+        );
+
+        $this->actingAs($admin)
+            ->delete(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/relations/{$relationId}"
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+            );
+
+        $this->assertDatabaseMissing('core_course_product_relations', [
+            'id' => $relationId,
+            'customer_id' => $customerId,
+        ]);
+        $this->assertDatabaseHas('core_course_products', [
+            'id' => $productId,
+            'customer_id' => $customerId,
+            'title' => 'TOPIK Beginner',
+        ]);
+        $this->assertDatabaseHas('core_course_products', [
+            'id' => $relatedProductId,
+            'customer_id' => $customerId,
+            'title' => 'TOPIK Intermediate',
+        ]);
+    }
+
+    public function test_duplicate_product_relation_is_rejected(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $relatedProductId = $this->createProduct(
+            $customerId,
+            'TOPIK Intermediate',
+            'topik-intermediate'
+        );
+        $this->createProductRelation(
+            $customerId,
+            $productId,
+            $relatedProductId,
+            relationType: 'related'
+        );
+
+        $this->actingAs($admin)
+            ->from("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->post(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/relations",
+                $this->validProductRelationData([
+                    'related_product_id' => $relatedProductId,
+                    'relation_type' => 'related',
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+            )
+            ->assertSessionHasErrors('related_product_id');
+
+        $this->assertDatabaseCount('core_course_product_relations', 1);
+    }
+
+    public function test_self_relation_is_rejected(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+
+        $this->actingAs($admin)
+            ->from("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->post(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/relations",
+                $this->validProductRelationData([
+                    'related_product_id' => $productId,
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+            )
+            ->assertSessionHasErrors('related_product_id');
+
+        $this->assertDatabaseCount('core_course_product_relations', 0);
+    }
+
+    public function test_invalid_relation_type_is_rejected(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $relatedProductId = $this->createProduct(
+            $customerId,
+            'TOPIK Intermediate',
+            'topik-intermediate'
+        );
+
+        $this->actingAs($admin)
+            ->from("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->post(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/relations",
+                $this->validProductRelationData([
+                    'related_product_id' => $relatedProductId,
+                    'relation_type' => 'checkout_bundle',
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+            )
+            ->assertSessionHasErrors('relation_type');
+
+        $this->assertDatabaseCount('core_course_product_relations', 0);
+    }
+
+    public function test_product_relation_attach_is_tenant_isolated(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $otherProductId = $this->createProduct(
+            $otherCustomerId,
+            'Tenant B Product',
+            'tenant-b-product'
+        );
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-products/{$otherProductId}/relations",
+                $this->validProductRelationData([
+                    'related_product_id' => $otherProductId,
+                ])
+            )
+            ->assertNotFound();
+
+        $this->actingAs($admin)
+            ->from("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->post(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/relations",
+                $this->validProductRelationData([
+                    'related_product_id' => $otherProductId,
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+            )
+            ->assertSessionHasErrors('related_product_id');
+
+        $this->assertDatabaseCount('core_course_product_relations', 0);
+    }
+
+    public function test_teacher_student_and_guest_cannot_access_product_relation_routes(): void
+    {
+        $customerId = $this->createTenant();
+        $teacher = $this->createUser($customerId, 'teacher');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $relatedProductId = $this->createProduct(
+            $customerId,
+            'TOPIK Intermediate',
+            'topik-intermediate'
+        );
+        $relationId = $this->createProductRelation(
+            $customerId,
+            $productId,
+            $relatedProductId
+        );
+
+        $this->post(
+            "https://tenant-a.localhost/admin/course-products/{$productId}/relations",
+            $this->validProductRelationData([
+                'related_product_id' => $relatedProductId,
+            ])
+        )->assertRedirect('https://tenant-a.localhost/login');
+
+        $this->delete(
+            "https://tenant-a.localhost/admin/course-products/{$productId}/relations/{$relationId}"
+        )->assertRedirect('https://tenant-a.localhost/login');
+
+        foreach ([$teacher, $student] as $user) {
+            $this->actingAs($user)
+                ->post(
+                    "https://tenant-a.localhost/admin/course-products/{$productId}/relations",
+                    $this->validProductRelationData([
+                        'related_product_id' => $relatedProductId,
+                    ])
+                )
+                ->assertForbidden();
+
+            $this->actingAs($user)
+                ->delete(
+                    "https://tenant-a.localhost/admin/course-products/{$productId}/relations/{$relationId}"
+                )
+                ->assertForbidden();
+        }
+
+        $this->actingAs($teacher)
+            ->post(
+                "https://tenant-a.localhost/teacher/course-products/{$productId}/relations",
+                $this->validProductRelationData([
+                    'related_product_id' => $relatedProductId,
+                ])
+            )
             ->assertNotFound();
     }
 
@@ -479,6 +1008,141 @@ class CourseProductManagementTest extends TestCase
         ]);
     }
 
+    private function createTemplate(
+        int $customerId,
+        int $userId,
+        string $title = 'TOPIK Template'
+    ): int {
+        $now = now();
+
+        return DB::table('core_course_templates')->insertGetId([
+            'customer_id' => $customerId,
+            'category_id' => null,
+            'title' => $title,
+            'slug' => str($title)->slug()->toString().'-'.uniqid(),
+            'short_description' => null,
+            'description' => null,
+            'publisher_name' => null,
+            'thumbnail_type' => 'image',
+            'thumbnail_image' => null,
+            'thumbnail_video_source' => null,
+            'thumbnail_video_url' => null,
+            'thumbnail_video_media_id' => null,
+            'difficulty_level' => null,
+            'language' => null,
+            'estimated_duration_minutes' => 0,
+            'max_lessons' => null,
+            'lesson_count' => 0,
+            'meta_title' => null,
+            'meta_description' => null,
+            'meta_keywords' => null,
+            'working_revision' => 1,
+            'status' => 'active',
+            'created_by' => $userId,
+            'last_version_published_at' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function createVersion(
+        int $customerId,
+        int $userId,
+        string $title = 'TOPIK Version',
+        string $status = 'published'
+    ): int {
+        $now = now();
+        $templateId = $this->createTemplate($customerId, $userId, $title);
+
+        return DB::table('core_course_template_versions')->insertGetId([
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'version_number' => 1,
+            'version_code' => 'VERSION-'.$templateId,
+            'is_current' => $status === 'published',
+            'source_category_id' => null,
+            'category_name_snapshot' => null,
+            'title_snapshot' => $title,
+            'slug_snapshot' => str($title)->slug()->toString().'-version',
+            'short_description_snapshot' => null,
+            'description_snapshot' => null,
+            'publisher_name_snapshot' => null,
+            'thumbnail_type_snapshot' => 'image',
+            'thumbnail_image_snapshot' => null,
+            'thumbnail_video_source_snapshot' => null,
+            'thumbnail_video_url_snapshot' => null,
+            'thumbnail_video_media_id_snapshot' => null,
+            'difficulty_level_snapshot' => null,
+            'language_snapshot' => null,
+            'estimated_duration_minutes_snapshot' => 0,
+            'max_lessons_snapshot' => null,
+            'lesson_count_snapshot' => 0,
+            'meta_title_snapshot' => null,
+            'meta_description_snapshot' => null,
+            'meta_keywords_snapshot' => null,
+            'source_working_revision' => 1,
+            'status' => $status,
+            'published_at' => $status === 'published' ? $now : null,
+            'published_by' => $userId,
+            'source_template_updated_at' => $now,
+            'metadata' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function createProductItem(
+        int $customerId,
+        int $productId,
+        int $versionId,
+        ?string $titleOverride = null,
+        int $sortOrder = 0
+    ): int {
+        $now = now();
+
+        return DB::table('core_course_product_items')->insertGetId([
+            'customer_id' => $customerId,
+            'product_id' => $productId,
+            'template_version_id' => $versionId,
+            'title_override' => $titleOverride,
+            'short_description_override' => null,
+            'sort_order' => $sortOrder,
+            'is_required' => true,
+            'status' => 'active',
+            'created_by' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function createProductRelation(
+        int $customerId,
+        int $productId,
+        int $relatedProductId,
+        string $relationType = 'related',
+        ?string $titleOverride = null,
+        int $sortOrder = 0
+    ): int {
+        $now = now();
+
+        return DB::table('core_course_product_relations')->insertGetId([
+            'customer_id' => $customerId,
+            'product_id' => $productId,
+            'related_product_id' => $relatedProductId,
+            'relation_type' => $relationType,
+            'title_override' => $titleOverride,
+            'description_override' => null,
+            'sort_order' => $sortOrder,
+            'is_featured' => false,
+            'starts_at' => null,
+            'ends_at' => null,
+            'status' => 'active',
+            'created_by' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
     private function validProductData(array $overrides = []): array
     {
         return array_merge([
@@ -519,6 +1183,33 @@ class CourseProductManagementTest extends TestCase
             'meta_description' => null,
             'meta_keywords' => null,
             'status' => 'draft',
+        ], $overrides);
+    }
+
+    private function validProductItemData(array $overrides = []): array
+    {
+        return array_merge([
+            'template_version_id' => 1,
+            'title_override' => null,
+            'short_description_override' => null,
+            'sort_order' => 0,
+            'is_required' => 1,
+            'status' => 'active',
+        ], $overrides);
+    }
+
+    private function validProductRelationData(array $overrides = []): array
+    {
+        return array_merge([
+            'related_product_id' => 1,
+            'relation_type' => 'related',
+            'title_override' => null,
+            'description_override' => null,
+            'sort_order' => 0,
+            'is_featured' => 0,
+            'starts_at' => null,
+            'ends_at' => null,
+            'status' => 'active',
         ], $overrides);
     }
 }
