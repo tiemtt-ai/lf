@@ -4,6 +4,12 @@
 @section('page_title', __('lf.LF_course_template_activity_common_edit'))
 
 @section('content')
+    @php
+        $activityRouteParameters = $section
+            ? [$template->id, $section->id, $lesson->id, $activity->id]
+            : [$template->id, $lesson->id, $activity->id];
+    @endphp
+
     @if (session('success'))
         <div class="admin-alert admin-alert-success admin-form-card">
             {{ session('success') }}
@@ -24,19 +30,18 @@
         <p>
             {{ __('lf.LF_course_template_activity_common_location') }}:
             <strong>
-                {{ $template->title }} → {{ $section->title }} → {{ $lesson->title }}
+                {{ $template->title }} →
+                @if ($section)
+                    {{ $section->title }} →
+                @endif
+                {{ $lesson->title }}
             </strong>
         </p>
 
         <form method="POST"
               action="{{ route(
                   $routePrefix.'.update',
-                  [
-                      $template->id,
-                      $section->id,
-                      $lesson->id,
-                      $activity->id,
-                  ]
+                  $activityRouteParameters
               ) }}">
             @csrf
             @method('PUT')

@@ -75,6 +75,61 @@ Route::delete(
 )->name('course-templates.teachers.destroy');
 
 Route::get(
+    '/course-templates/{templateId}/lessons/create',
+    [CourseTemplateLessonController::class, 'createDirect']
+)->name('course-templates.lessons.create');
+
+Route::post(
+    '/course-templates/{templateId}/lessons',
+    [CourseTemplateLessonController::class, 'storeDirect']
+)->name('course-templates.lessons.store');
+
+Route::get(
+    '/course-templates/{templateId}/lessons/{lessonId}/edit',
+    [CourseTemplateLessonController::class, 'editDirect']
+)->name('course-templates.lessons.edit');
+
+Route::put(
+    '/course-templates/{templateId}/lessons/{lessonId}',
+    [CourseTemplateLessonController::class, 'updateDirect']
+)->name('course-templates.lessons.update');
+
+Route::delete(
+    '/course-templates/{templateId}/lessons/{lessonId}',
+    [CourseTemplateLessonController::class, 'destroyDirect']
+)->name('course-templates.lessons.destroy');
+
+Route::get(
+    '/course-templates/{templateId}/lessons/{lessonId}/activities',
+    [CourseTemplateActivityController::class, 'indexDirect']
+)->name('course-templates.lessons.activities.index');
+
+Route::get(
+    '/course-templates/{templateId}/lessons/{lessonId}/activities/create',
+    [CourseTemplateActivityController::class, 'createDirect']
+)->name('course-templates.lessons.activities.create');
+
+Route::post(
+    '/course-templates/{templateId}/lessons/{lessonId}/activities',
+    [CourseTemplateActivityController::class, 'storeDirect']
+)->name('course-templates.lessons.activities.store');
+
+Route::get(
+    '/course-templates/{templateId}/lessons/{lessonId}/activities/{activityId}/edit',
+    [CourseTemplateActivityController::class, 'editDirect']
+)->name('course-templates.lessons.activities.edit');
+
+Route::put(
+    '/course-templates/{templateId}/lessons/{lessonId}/activities/{activityId}',
+    [CourseTemplateActivityController::class, 'updateDirect']
+)->name('course-templates.lessons.activities.update');
+
+Route::delete(
+    '/course-templates/{templateId}/lessons/{lessonId}/activities/{activityId}',
+    [CourseTemplateActivityController::class, 'destroyDirect']
+)->name('course-templates.lessons.activities.destroy');
+
+Route::get(
     '/course-templates/{templateId}/sections',
     [CourseTemplateSectionController::class, 'index']
 )->name('course-templates.sections.index');

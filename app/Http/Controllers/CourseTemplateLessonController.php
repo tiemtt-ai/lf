@@ -34,15 +34,111 @@ class CourseTemplateLessonController extends Controller
         int $templateId,
         int $sectionId
     ): View {
+        return $this->createView($request, $templateId, $sectionId);
+    }
+
+    public function createDirect(
+        Request $request,
+        int $templateId
+    ): View {
+        return $this->createView($request, $templateId, null);
+    }
+
+    public function store(
+        Request $request,
+        int $templateId,
+        int $sectionId
+    ) {
+        return $this->storeLesson($request, $templateId, $sectionId);
+    }
+
+    public function storeDirect(Request $request, int $templateId)
+    {
+        return $this->storeLesson($request, $templateId, null);
+    }
+
+    public function edit(
+        Request $request,
+        int $templateId,
+        int $sectionId,
+        int $lessonId
+    ): View {
+        return $this->editView(
+            $request,
+            $templateId,
+            $lessonId,
+            $sectionId
+        );
+    }
+
+    public function editDirect(
+        Request $request,
+        int $templateId,
+        int $lessonId
+    ): View {
+        return $this->editView($request, $templateId, $lessonId, null);
+    }
+
+    public function update(
+        Request $request,
+        int $templateId,
+        int $sectionId,
+        int $lessonId
+    ) {
+        return $this->updateLesson(
+            $request,
+            $templateId,
+            $lessonId,
+            $sectionId
+        );
+    }
+
+    public function updateDirect(
+        Request $request,
+        int $templateId,
+        int $lessonId
+    ) {
+        return $this->updateLesson($request, $templateId, $lessonId, null);
+    }
+
+    public function destroy(
+        Request $request,
+        int $templateId,
+        int $sectionId,
+        int $lessonId
+    ) {
+        return $this->destroyLesson(
+            $request,
+            $templateId,
+            $lessonId,
+            $sectionId
+        );
+    }
+
+    public function destroyDirect(
+        Request $request,
+        int $templateId,
+        int $lessonId
+    ) {
+        return $this->destroyLesson($request, $templateId, $lessonId, null);
+    }
+
+    private function createView(
+        Request $request,
+        int $templateId,
+        ?int $sectionId
+    ): View {
         $customerId = $this->customerId();
 
         return view('course-template-lessons.create', [
             'template' => $this->findTemplate($customerId, $templateId),
-            'section' => $this->findSection(
-                $customerId,
-                $templateId,
-                $sectionId
-            ),
+            'section' => $sectionId === null
+                ? null
+                : $this->findSection(
+                    $customerId,
+                    $templateId,
+                    $sectionId
+                ),
             'prerequisiteLessons' => $this->prerequisiteLessons(
                 $customerId,
                 $templateId
@@ -51,19 +147,23 @@ class CourseTemplateLessonController extends Controller
                 $customerId,
                 $templateId
             ),
-            'routePrefix' => $this->routePrefix($request),
+            'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
         ]);
     }
 
-    public function store(
+    private function storeLesson(
         Request $request,
         int $templateId,
-        int $sectionId
+        ?int $sectionId
     ) {
         $customerId = $this->customerId();
         $this->findTemplate($customerId, $templateId);
-        $this->findSection($customerId, $templateId, $sectionId);
+
+        if ($sectionId !== null) {
+            $this->findSection($customerId, $templateId, $sectionId);
+        }
+
         $validated = $this->validatedData(
             $request,
             $customerId,
@@ -120,26 +220,28 @@ class CourseTemplateLessonController extends Controller
                 route(
                     $this->templateRoutePrefix($request).'.edit',
                     $templateId
-                )."#course-template-section-{$sectionId}-lessons"
+                ).$this->lessonAnchor($sectionId)
             )
             ->with('success', __('lf.LF_course_template_lesson_common_created'));
     }
 
-    public function edit(
+    private function editView(
         Request $request,
         int $templateId,
-        int $sectionId,
-        int $lessonId
+        int $lessonId,
+        ?int $sectionId
     ): View {
         $customerId = $this->customerId();
 
         return view('course-template-lessons.edit', [
             'template' => $this->findTemplate($customerId, $templateId),
-            'section' => $this->findSection(
-                $customerId,
-                $templateId,
-                $sectionId
-            ),
+            'section' => $sectionId === null
+                ? null
+                : $this->findSection(
+                    $customerId,
+                    $templateId,
+                    $sectionId
+                ),
             'lesson' => $this->findLesson(
                 $customerId,
                 $templateId,
@@ -156,20 +258,24 @@ class CourseTemplateLessonController extends Controller
                 $templateId,
                 $lessonId
             ),
-            'routePrefix' => $this->routePrefix($request),
+            'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
         ]);
     }
 
-    public function update(
+    private function updateLesson(
         Request $request,
         int $templateId,
-        int $sectionId,
-        int $lessonId
+        int $lessonId,
+        ?int $sectionId
     ) {
         $customerId = $this->customerId();
         $this->findTemplate($customerId, $templateId);
-        $this->findSection($customerId, $templateId, $sectionId);
+
+        if ($sectionId !== null) {
+            $this->findSection($customerId, $templateId, $sectionId);
+        }
+
         $this->findLesson(
             $customerId,
             $templateId,
@@ -186,7 +292,14 @@ class CourseTemplateLessonController extends Controller
         DB::table('core_course_template_lessons')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
-            ->where('template_section_id', $sectionId)
+            ->when(
+                $sectionId === null,
+                fn ($query) => $query->whereNull('template_section_id'),
+                fn ($query) => $query->where(
+                    'template_section_id',
+                    $sectionId
+                )
+            )
             ->where('id', $lessonId)
             ->update($this->lessonValues($validated, [
                 'updated_at' => now(),
@@ -194,21 +307,29 @@ class CourseTemplateLessonController extends Controller
 
         return redirect()
             ->route(
-                $this->routePrefix($request).'.edit',
-                [$templateId, $sectionId, $lessonId]
+                $this->routePrefix($request, $sectionId).'.edit',
+                $this->lessonRouteParameters(
+                    $templateId,
+                    $lessonId,
+                    $sectionId
+                )
             )
             ->with('success', __('lf.LF_course_template_lesson_common_updated'));
     }
 
-    public function destroy(
+    private function destroyLesson(
         Request $request,
         int $templateId,
-        int $sectionId,
-        int $lessonId
+        int $lessonId,
+        ?int $sectionId
     ) {
         $customerId = $this->customerId();
         $this->findTemplate($customerId, $templateId);
-        $this->findSection($customerId, $templateId, $sectionId);
+
+        if ($sectionId !== null) {
+            $this->findSection($customerId, $templateId, $sectionId);
+        }
+
         $this->findLesson(
             $customerId,
             $templateId,
@@ -227,7 +348,14 @@ class CourseTemplateLessonController extends Controller
         DB::table('core_course_template_lessons')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
-            ->where('template_section_id', $sectionId)
+            ->when(
+                $sectionId === null,
+                fn ($query) => $query->whereNull('template_section_id'),
+                fn ($query) => $query->where(
+                    'template_section_id',
+                    $sectionId
+                )
+            )
             ->where('id', $lessonId)
             ->delete();
 
@@ -236,7 +364,7 @@ class CourseTemplateLessonController extends Controller
                 route(
                     $this->templateRoutePrefix($request).'.edit',
                     $templateId
-                )."#course-template-section-{$sectionId}-lessons"
+                ).$this->lessonAnchor($sectionId)
             )
             ->with('success', __('lf.LF_course_template_lesson_common_deleted'));
     }
@@ -466,13 +594,20 @@ class CourseTemplateLessonController extends Controller
     private function findLesson(
         int $customerId,
         int $templateId,
-        int $sectionId,
+        ?int $sectionId,
         int $lessonId
     ): object {
         $lesson = DB::table('core_course_template_lessons')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
-            ->where('template_section_id', $sectionId)
+            ->when(
+                $sectionId === null,
+                fn ($query) => $query->whereNull('template_section_id'),
+                fn ($query) => $query->where(
+                    'template_section_id',
+                    $sectionId
+                )
+            )
             ->where('id', $lessonId)
             ->first();
 
@@ -490,10 +625,30 @@ class CourseTemplateLessonController extends Controller
         return $customerId;
     }
 
-    private function routePrefix(Request $request): string
+    private function routePrefix(
+        Request $request,
+        ?int $sectionId
+    ): string {
+        return $this->templateRoutePrefix($request).(
+            $sectionId === null ? '.lessons' : '.sections.lessons'
+        );
+    }
+
+    private function lessonRouteParameters(
+        int $templateId,
+        int $lessonId,
+        ?int $sectionId
+    ): array {
+        return $sectionId === null
+            ? [$templateId, $lessonId]
+            : [$templateId, $sectionId, $lessonId];
+    }
+
+    private function lessonAnchor(?int $sectionId): string
     {
-        return $this->templateRoutePrefix($request)
-            .'.sections.lessons';
+        return $sectionId === null
+            ? '#course-template-direct-lessons'
+            : "#course-template-section-{$sectionId}-lessons";
     }
 
     private function templateRoutePrefix(Request $request): string

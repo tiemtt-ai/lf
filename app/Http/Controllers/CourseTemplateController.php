@@ -93,6 +93,7 @@ class CourseTemplateController extends Controller
             'template' => $this->findTemplate($customerId, $id),
             'categories' => $this->categories(),
             'sections' => $this->sections($customerId, $id),
+            'directLessons' => $this->directLessons($customerId, $id),
             'lessonsBySection' => $this->lessonsBySection($customerId, $id),
             'activitiesByLesson' => $this->activitiesByLesson($customerId, $id),
             'teacherAssignments' => $this->teacherAssignments(
@@ -103,6 +104,9 @@ class CourseTemplateController extends Controller
             'routePrefix' => $routePrefix,
             'teacherRoutePrefix' => $routePrefix.'.teachers',
             'sectionRoutePrefix' => $routePrefix.'.sections',
+            'directLessonRoutePrefix' => $routePrefix.'.lessons',
+            'directActivityRoutePrefix' => $routePrefix
+                .'.lessons.activities',
             'lessonRoutePrefix' => $routePrefix.'.sections.lessons',
             'activityRoutePrefix' => $routePrefix
                 .'.sections.lessons.activities',
@@ -280,11 +284,23 @@ class CourseTemplateController extends Controller
         return DB::table('core_course_template_lessons')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
+            ->whereNotNull('template_section_id')
             ->orderBy('template_section_id')
             ->orderBy('sort_order')
             ->orderBy('title')
             ->get()
             ->groupBy('template_section_id');
+    }
+
+    private function directLessons(int $customerId, int $templateId)
+    {
+        return DB::table('core_course_template_lessons')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->whereNull('template_section_id')
+            ->orderBy('sort_order')
+            ->orderBy('title')
+            ->get();
     }
 
     private function activitiesByLesson(int $customerId, int $templateId)

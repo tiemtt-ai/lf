@@ -136,6 +136,85 @@ class CourseTemplateActivityManagementTest extends TestCase
         ]);
     }
 
+    public function test_admin_and_teacher_can_create_activities_for_direct_lessons(): void
+    {
+        [$customerId, $templateId, $lessonId] =
+            $this->createDirectHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+
+        foreach ([
+            [$admin, 'admin', 'Admin Direct Activity'],
+            [$teacher, 'teacher', 'Teacher Direct Activity'],
+        ] as [$user, $area, $title]) {
+            $collectionUrl = $this->directActivityCollectionUrl(
+                $area,
+                $templateId,
+                $lessonId
+            );
+
+            $this->actingAs($user)
+                ->get($collectionUrl.'/create')
+                ->assertOk()
+                ->assertSeeText('Direct Lesson');
+
+            $this->actingAs($user)
+                ->post(
+                    $collectionUrl,
+                    $this->validActivityData(['title' => $title])
+                )
+                ->assertRedirect(
+                    "https://tenant-a.localhost/{$area}/course-templates/"
+                    ."{$templateId}/edit"
+                    ."#course-template-lesson-{$lessonId}-activities"
+                );
+
+            $this->assertDatabaseHas('core_course_template_activities', [
+                'customer_id' => $customerId,
+                'template_id' => $templateId,
+                'template_lesson_id' => $lessonId,
+                'title' => $title,
+                'created_by' => $user->id,
+            ]);
+        }
+
+        $this->assertDatabaseCount('core_course_template_sections', 0);
+    }
+
+    public function test_flat_and_sectioned_activity_routes_enforce_lesson_location(): void
+    {
+        [$customerId, $templateId, $sectionId, $sectionedLessonId] =
+            $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $directLessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'Direct Route Lesson'
+        );
+
+        $this->actingAs($admin)
+            ->get(
+                $this->directActivityCollectionUrl(
+                    'admin',
+                    $templateId,
+                    $sectionedLessonId
+                ).'/create'
+            )
+            ->assertNotFound();
+
+        $this->actingAs($admin)
+            ->get(
+                $this->activityCollectionUrl(
+                    'admin',
+                    $templateId,
+                    $sectionId,
+                    $directLessonId
+                ).'/create'
+            )
+            ->assertNotFound();
+    }
+
     public function test_teacher_can_create_update_and_delete_an_activity(): void
     {
         [$customerId, $templateId, $sectionId, $lessonId] =
@@ -689,6 +768,31 @@ class CourseTemplateActivityManagementTest extends TestCase
         return [$customerId, $templateId, $sectionId, $lessonId];
     }
 
+    private function createDirectHierarchy(): array
+    {
+        $customerId = DB::table('saas_customers')->insertGetId([
+            'name' => 'tenant-a-direct',
+            'slug' => 'tenant-a-direct',
+            'subdomain' => 'tenant-a',
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Direct Template',
+            'direct-template'
+        );
+        $lessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'Direct Lesson'
+        );
+
+        return [$customerId, $templateId, $lessonId];
+    }
+
     private function createUser(int $customerId, string $role): User
     {
         return User::forceCreate([
@@ -766,7 +870,7 @@ class CourseTemplateActivityManagementTest extends TestCase
     private function createLesson(
         int $customerId,
         int $templateId,
-        int $sectionId,
+        ?int $sectionId,
         string $title
     ): int {
         return DB::table('core_course_template_lessons')->insertGetId([
@@ -861,6 +965,15 @@ class CourseTemplateActivityManagementTest extends TestCase
         return "https://tenant-a.localhost/{$area}/course-templates/"
             ."{$templateId}/sections/{$sectionId}/lessons/"
             ."{$lessonId}/activities";
+    }
+
+    private function directActivityCollectionUrl(
+        string $area,
+        int $templateId,
+        int $lessonId
+    ): string {
+        return "https://tenant-a.localhost/{$area}/course-templates/"
+            ."{$templateId}/lessons/{$lessonId}/activities";
     }
 
     private function requiredIndicatorCount(string $html, string $field): int

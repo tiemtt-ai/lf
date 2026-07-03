@@ -44,6 +44,165 @@ class CourseTemplateActivityController extends Controller
         int $sectionId,
         int $lessonId
     ) {
+        return $this->indexForLesson(
+            $request,
+            $templateId,
+            $lessonId,
+            $sectionId
+        );
+    }
+
+    public function indexDirect(
+        Request $request,
+        int $templateId,
+        int $lessonId
+    ) {
+        return $this->indexForLesson($request, $templateId, $lessonId, null);
+    }
+
+    public function create(
+        Request $request,
+        int $templateId,
+        int $sectionId,
+        int $lessonId
+    ): View {
+        return $this->createView(
+            $request,
+            $templateId,
+            $lessonId,
+            $sectionId
+        );
+    }
+
+    public function createDirect(
+        Request $request,
+        int $templateId,
+        int $lessonId
+    ): View {
+        return $this->createView($request, $templateId, $lessonId, null);
+    }
+
+    public function store(
+        Request $request,
+        int $templateId,
+        int $sectionId,
+        int $lessonId
+    ) {
+        return $this->storeActivity(
+            $request,
+            $templateId,
+            $lessonId,
+            $sectionId
+        );
+    }
+
+    public function storeDirect(
+        Request $request,
+        int $templateId,
+        int $lessonId
+    ) {
+        return $this->storeActivity($request, $templateId, $lessonId, null);
+    }
+
+    public function edit(
+        Request $request,
+        int $templateId,
+        int $sectionId,
+        int $lessonId,
+        int $activityId
+    ): View {
+        return $this->editView(
+            $request,
+            $templateId,
+            $lessonId,
+            $activityId,
+            $sectionId
+        );
+    }
+
+    public function editDirect(
+        Request $request,
+        int $templateId,
+        int $lessonId,
+        int $activityId
+    ): View {
+        return $this->editView(
+            $request,
+            $templateId,
+            $lessonId,
+            $activityId,
+            null
+        );
+    }
+
+    public function update(
+        Request $request,
+        int $templateId,
+        int $sectionId,
+        int $lessonId,
+        int $activityId
+    ) {
+        return $this->updateActivity(
+            $request,
+            $templateId,
+            $lessonId,
+            $activityId,
+            $sectionId
+        );
+    }
+
+    public function updateDirect(
+        Request $request,
+        int $templateId,
+        int $lessonId,
+        int $activityId
+    ) {
+        return $this->updateActivity(
+            $request,
+            $templateId,
+            $lessonId,
+            $activityId,
+            null
+        );
+    }
+
+    public function destroy(
+        Request $request,
+        int $templateId,
+        int $sectionId,
+        int $lessonId,
+        int $activityId
+    ) {
+        return $this->destroyActivity(
+            $request,
+            $templateId,
+            $lessonId,
+            $activityId,
+            $sectionId
+        );
+    }
+
+    public function destroyDirect(
+        Request $request,
+        int $templateId,
+        int $lessonId,
+        int $activityId
+    ) {
+        return $this->destroyActivity(
+            $request,
+            $templateId,
+            $lessonId,
+            $activityId,
+            null
+        );
+    }
+
+    private function indexForLesson(
+        Request $request,
+        int $templateId,
+        int $lessonId,
+        ?int $sectionId
+    ) {
         $customerId = $this->customerId();
         $this->findHierarchy(
             $customerId,
@@ -58,11 +217,11 @@ class CourseTemplateActivityController extends Controller
         );
     }
 
-    public function create(
+    private function createView(
         Request $request,
         int $templateId,
-        int $sectionId,
-        int $lessonId
+        int $lessonId,
+        ?int $sectionId
     ): View {
         $customerId = $this->customerId();
         [$template, $section, $lesson] = $this->findHierarchy(
@@ -87,16 +246,16 @@ class CourseTemplateActivityController extends Controller
             'activityTypes' => self::ACTIVITY_TYPES,
             'manualDurationTypes' => self::MANUAL_DURATION_TYPES,
             'referenceActivityTypes' => self::REFERENCE_ACTIVITY_TYPES,
-            'routePrefix' => $this->routePrefix($request),
+            'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
         ]);
     }
 
-    public function store(
+    private function storeActivity(
         Request $request,
         int $templateId,
-        int $sectionId,
-        int $lessonId
+        int $lessonId,
+        ?int $sectionId
     ) {
         $customerId = $this->customerId();
         $this->findHierarchy(
@@ -133,12 +292,12 @@ class CourseTemplateActivityController extends Controller
             ->with('success', __('lf.LF_course_template_activity_common_created'));
     }
 
-    public function edit(
+    private function editView(
         Request $request,
         int $templateId,
-        int $sectionId,
         int $lessonId,
-        int $activityId
+        int $activityId,
+        ?int $sectionId
     ): View {
         $customerId = $this->customerId();
         [$template, $section, $lesson] = $this->findHierarchy(
@@ -172,17 +331,17 @@ class CourseTemplateActivityController extends Controller
             'activityTypes' => self::ACTIVITY_TYPES,
             'manualDurationTypes' => self::MANUAL_DURATION_TYPES,
             'referenceActivityTypes' => self::REFERENCE_ACTIVITY_TYPES,
-            'routePrefix' => $this->routePrefix($request),
+            'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
         ]);
     }
 
-    public function update(
+    private function updateActivity(
         Request $request,
         int $templateId,
-        int $sectionId,
         int $lessonId,
-        int $activityId
+        int $activityId,
+        ?int $sectionId
     ) {
         $customerId = $this->customerId();
         $this->findHierarchy(
@@ -215,18 +374,23 @@ class CourseTemplateActivityController extends Controller
 
         return redirect()
             ->route(
-                $this->routePrefix($request).'.edit',
-                [$templateId, $sectionId, $lessonId, $activityId]
+                $this->routePrefix($request, $sectionId).'.edit',
+                $this->activityRouteParameters(
+                    $templateId,
+                    $lessonId,
+                    $activityId,
+                    $sectionId
+                )
             )
             ->with('success', __('lf.LF_course_template_activity_common_updated'));
     }
 
-    public function destroy(
+    private function destroyActivity(
         Request $request,
         int $templateId,
-        int $sectionId,
         int $lessonId,
-        int $activityId
+        int $activityId,
+        ?int $sectionId
     ) {
         $customerId = $this->customerId();
         $this->findHierarchy(
@@ -510,7 +674,7 @@ class CourseTemplateActivityController extends Controller
     private function findHierarchy(
         int $customerId,
         int $templateId,
-        int $sectionId,
+        ?int $sectionId,
         int $lessonId
     ): array {
         $template = DB::table('core_course_templates')
@@ -520,18 +684,29 @@ class CourseTemplateActivityController extends Controller
 
         abort_if(! $template, 404);
 
-        $section = DB::table('core_course_template_sections')
-            ->where('customer_id', $customerId)
-            ->where('template_id', $templateId)
-            ->where('id', $sectionId)
-            ->first();
+        $section = null;
 
-        abort_if(! $section, 404);
+        if ($sectionId !== null) {
+            $section = DB::table('core_course_template_sections')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->where('id', $sectionId)
+                ->first();
+
+            abort_if(! $section, 404);
+        }
 
         $lesson = DB::table('core_course_template_lessons')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
-            ->where('template_section_id', $sectionId)
+            ->when(
+                $sectionId === null,
+                fn ($query) => $query->whereNull('template_section_id'),
+                fn ($query) => $query->where(
+                    'template_section_id',
+                    $sectionId
+                )
+            )
             ->where('id', $lessonId)
             ->first();
 
@@ -567,10 +742,26 @@ class CourseTemplateActivityController extends Controller
         return $customerId;
     }
 
-    private function routePrefix(Request $request): string
-    {
-        return $this->templateRoutePrefix($request)
-            .'.sections.lessons.activities';
+    private function routePrefix(
+        Request $request,
+        ?int $sectionId
+    ): string {
+        return $this->templateRoutePrefix($request).(
+            $sectionId === null
+                ? '.lessons.activities'
+                : '.sections.lessons.activities'
+        );
+    }
+
+    private function activityRouteParameters(
+        int $templateId,
+        int $lessonId,
+        int $activityId,
+        ?int $sectionId
+    ): array {
+        return $sectionId === null
+            ? [$templateId, $lessonId, $activityId]
+            : [$templateId, $sectionId, $lessonId, $activityId];
     }
 
     private function templateRoutePrefix(Request $request): string

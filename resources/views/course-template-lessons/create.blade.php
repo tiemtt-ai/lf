@@ -4,6 +4,15 @@
 @section('page_title', __('lf.LF_course_template_lesson_common_create'))
 
 @section('content')
+    @php
+        $lessonRouteParameters = $section
+            ? [$template->id, $section->id]
+            : [$template->id];
+        $lessonAnchor = $section
+            ? '#course-template-section-'.$section->id.'-lessons'
+            : '#course-template-direct-lessons';
+    @endphp
+
     @if ($errors->any())
         <div class="admin-alert admin-alert-danger admin-form-card">
             <ul>
@@ -17,13 +26,17 @@
     <div class="admin-card admin-form-card">
         <p>
             {{ __('lf.LF_course_template_lesson_common_location') }}:
-            <strong>{{ $template->title }} → {{ $section->title }}</strong>
+            <strong>
+                {{ $template->title }} →
+                {{ $section?->title
+                    ?? __('lf.LF_course_template_lesson_common_direct_location') }}
+            </strong>
         </p>
 
         <form method="POST"
               action="{{ route(
                   $routePrefix.'.store',
-                  [$template->id, $section->id]
+                  $lessonRouteParameters
               ) }}">
             @csrf
 
@@ -33,7 +46,7 @@
                 <button type="submit" class="btn btn-primary">
                     {{ __('lf.LF_course_template_lesson_common_create') }}
                 </button>
-                <a href="{{ route($templateRoutePrefix.'.edit', $template->id) }}#course-template-section-{{ $section->id }}-lessons">
+                <a href="{{ route($templateRoutePrefix.'.edit', $template->id) }}{{ $lessonAnchor }}">
                     {{ __('lf.LF_common_button_cancel') }}
                 </a>
             </div>

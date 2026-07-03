@@ -136,6 +136,112 @@ class CourseTemplateLessonManagementTest extends TestCase
         ]);
     }
 
+    public function test_admin_and_teacher_can_create_direct_lessons_without_sections(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Flat Course',
+            'flat-course'
+        );
+
+        foreach ([
+            [$admin, 'admin', 'Admin Direct Lesson'],
+            [$teacher, 'teacher', 'Teacher Direct Lesson'],
+        ] as [$user, $area, $title]) {
+            $collectionUrl = $this->directLessonCollectionUrl(
+                $area,
+                $templateId
+            );
+
+            $this->actingAs($user)
+                ->get($collectionUrl.'/create')
+                ->assertOk()
+                ->assertSeeText('Trực tiếp trong Template khóa học');
+
+            $this->actingAs($user)
+                ->post(
+                    $collectionUrl,
+                    $this->validLessonData(['title' => $title])
+                )
+                ->assertRedirect(
+                    "https://tenant-a.localhost/{$area}/course-templates/"
+                    ."{$templateId}/edit#course-template-direct-lessons"
+                );
+
+            $this->assertDatabaseHas('core_course_template_lessons', [
+                'customer_id' => $customerId,
+                'template_id' => $templateId,
+                'template_section_id' => null,
+                'title' => $title,
+                'created_by' => $user->id,
+            ]);
+        }
+
+        $this->assertDatabaseCount('core_course_template_sections', 0);
+
+        $this->actingAs($admin)
+            ->get(
+                'https://tenant-a.localhost/admin/course-templates/'
+                ."{$templateId}/edit"
+            )
+            ->assertOk()
+            ->assertSeeText('Bài học trực tiếp')
+            ->assertSeeText('Admin Direct Lesson')
+            ->assertSeeText('Teacher Direct Lesson')
+            ->assertSee(
+                "/admin/course-templates/{$templateId}/lessons/create",
+                false
+            );
+    }
+
+    public function test_flat_and_sectioned_lesson_routes_enforce_lesson_location(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Mixed Course',
+            'mixed-course'
+        );
+        $sectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Mixed Section'
+        );
+        $directLessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'Direct Lesson'
+        );
+        $sectionedLessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'Sectioned Lesson'
+        );
+
+        $this->actingAs($admin)
+            ->get(
+                $this->directLessonCollectionUrl('admin', $templateId)
+                ."/{$sectionedLessonId}/edit"
+            )
+            ->assertNotFound();
+
+        $this->actingAs($admin)
+            ->get(
+                $this->lessonCollectionUrl(
+                    'admin',
+                    $templateId,
+                    $sectionId
+                )."/{$directLessonId}/edit"
+            )
+            ->assertNotFound();
+    }
+
     public function test_teacher_can_create_a_lesson_for_an_own_tenant_section(): void
     {
         $customerId = $this->createTenant();
@@ -846,7 +952,7 @@ class CourseTemplateLessonManagementTest extends TestCase
     private function createLesson(
         int $customerId,
         int $templateId,
-        int $sectionId,
+        ?int $sectionId,
         string $title,
         ?int $unlockAfterLessonId = null
     ): int {
@@ -899,6 +1005,14 @@ class CourseTemplateLessonManagementTest extends TestCase
     ): string {
         return "https://tenant-a.localhost/{$area}/course-templates/"
             ."{$templateId}/sections/{$sectionId}/lessons";
+    }
+
+    private function directLessonCollectionUrl(
+        string $area,
+        int $templateId
+    ): string {
+        return "https://tenant-a.localhost/{$area}/course-templates/"
+            ."{$templateId}/lessons";
     }
 
     private function requiredIndicatorCount(string $html, string $field): int
