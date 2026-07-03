@@ -9,6 +9,8 @@ Last Updated: 2026-07-03
 Related ADR:
 [ADR-0012 — Course Template Published Version Snapshot Architecture](../../adr/ADR-0012-Course-Template-Published-Version-Snapshot.md)
 
+[ADR-0013 — Course Template Version Duplicate to Draft](../../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md)
+
 ---
 
 # Purpose
@@ -96,7 +98,9 @@ also validate unique root `sort_order` values where
 
 All content, hierarchy, ordering and metadata fields are read-only after the
 parent Version is published. A Section correction requires editing the working
-Template and publishing a new Version.
+Template and publishing a new Version. ADR-0013 may read these rows to
+reconstruct new working Section rows; existing Version Section rows remain
+unchanged.
 
 # Tenant Isolation
 

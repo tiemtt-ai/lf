@@ -259,6 +259,37 @@ Không sửa Version đã publish.
 
 ---
 
+# Duplicate Published Version To Draft
+
+A Course Template has one editable draft and many immutable published
+Versions. A `customer_admin` may select an immutable Version and replace the
+working content of that Version's own Template.
+
+```text
+Selected immutable Version
+
+↓ duplicate
+
+Existing Template working draft
+```
+
+Duplicate:
+
+* keeps the existing Template identity;
+* replaces working Sections, Lessons and Activities transactionally;
+* restores direct and Sectioned Lesson structure, ordering and prerequisites;
+* sets the working Template status to `draft`;
+* increments the existing `working_revision`;
+* does not create or modify a published Version;
+* does not create a Template, Product or second draft;
+* does not change Product, Enrollment, Progress or Completion.
+
+The action belongs to Course Edit → History and Version Detail. Canonical
+behavior is defined by
+[ADR-0013 — Course Template Version Duplicate to Draft](../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md).
+
+---
+
 # Course Product
 
 Course Product là Commerce layer.

@@ -6,6 +6,9 @@ Status: Official Foundation
 
 Last Updated: 2026-06
 
+Related ADR:
+[ADR-0013 — Course Template Version Duplicate to Draft](../../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md)
+
 ---
 
 # Purpose
@@ -86,6 +89,13 @@ core_course_template_versions
 * Publish Template phải tạo một Template Version snapshot mới.
 * Product chỉ được tham chiếu published Template Version.
 * Sửa Template không làm thay đổi Version, Product, Enrollment hoặc Progress hiện có.
+* Một Template chỉ có một working draft.
+* Duplicate một Version về draft cập nhật chính Template hiện có và thay thế
+  working Sections, Lessons và Activities trong một transaction.
+* Sau duplicate, `status = draft` và `working_revision` tăng từ revision hiện
+  tại; không reset về source revision của Version.
+* Duplicate không thay đổi `last_version_published_at`, published Version,
+  Product, Enrollment, Progress hoặc Completion.
 * Template không chứa học viên.
 * Không tồn tại các bảng Course Runtime legacy.
 
@@ -297,6 +307,27 @@ TIMESTAMP
 ### updated_at
 
 TIMESTAMP
+
+---
+
+# Duplicate Version To Draft Rules
+
+The canonical workflow is defined by
+[ADR-0013](../../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md).
+
+Template snapshot fields are copied back to their documented editable
+counterparts. `status` becomes `draft`, `working_revision` increments by one,
+and `updated_at` records the operation. `created_by`, `created_at` and
+`last_version_published_at` remain unchanged.
+
+If `source_category_id` no longer identifies a same-tenant Category,
+`category_id` becomes `NULL`. Missing optional Media identifiers also become
+`NULL`; supported snapshot URL/text fields remain available. Required
+constraint failures roll back the operation without replacing the current
+draft.
+
+No `duplicated_from_version_id`, `duplicated_by` or `duplicated_at` columns are
+introduced. Duplicate provenance belongs to the append-only tenant audit trail.
 
 ---
 

@@ -9,6 +9,8 @@ Last Updated: 2026-07-03
 Related ADR:
 [ADR-0012 — Course Template Published Version Snapshot Architecture](../../adr/ADR-0012-Course-Template-Published-Version-Snapshot.md)
 
+[ADR-0013 — Course Template Version Duplicate to Draft](../../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md)
+
 ---
 
 # Purpose
@@ -129,8 +131,9 @@ non-current Versions.
 After `status = published`, all `*_snapshot`, source revision and published
 structure records are read-only. Only `is_current`, lifecycle `status`, and
 their audit timestamp may change through an approved lifecycle operation.
-Rollback, restore, duplicate and in-place content correction are not part of
-this design.
+Rollback, restore and in-place content correction are not part of this design.
+ADR-0013 permits using an immutable Version as a read-only source to replace
+its Template draft; that operation never edits this Version.
 
 # Tenant Isolation
 

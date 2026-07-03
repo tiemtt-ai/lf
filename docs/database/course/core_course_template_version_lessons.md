@@ -9,6 +9,8 @@ Last Updated: 2026-07-03
 Related ADR:
 [ADR-0012 — Course Template Published Version Snapshot Architecture](../../adr/ADR-0012-Course-Template-Published-Version-Snapshot.md)
 
+[ADR-0013 — Course Template Version Duplicate to Draft](../../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md)
+
 ---
 
 # Purpose
@@ -98,7 +100,9 @@ Lessons (`version_section_id IS NULL`) and for each Version Section.
 
 All Lesson content, location, order, preview, duration and unlock fields are
 read-only after publication. Reordering or moving a working Lesson affects only
-a future Version.
+a future Version. ADR-0013 may read these rows to create new direct or
+Sectioned working Lessons and remap working prerequisites; Version Lesson rows
+remain unchanged.
 
 # Tenant Isolation
 

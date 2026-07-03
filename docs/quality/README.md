@@ -25,6 +25,9 @@ criteria hay không.
 * [LF-Course-Template-Version-Snapshot-Architecture-Review.md](LF-Course-Template-Version-Snapshot-Architecture-Review.md)
   — approved architecture conformance review for the Course Template published
   snapshot documentation.
+* [LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md](LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md)
+  — approved architecture review for replacing the one editable Course
+  Template draft from an immutable published Version.
 
 ---
 

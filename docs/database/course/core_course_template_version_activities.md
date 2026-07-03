@@ -9,6 +9,8 @@ Last Updated: 2026-07-03
 Related ADR:
 [ADR-0012 — Course Template Published Version Snapshot Architecture](../../adr/ADR-0012-Course-Template-Published-Version-Snapshot.md)
 
+[ADR-0013 — Course Template Version Duplicate to Draft](../../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md)
+
 ---
 
 # Purpose
@@ -110,7 +112,9 @@ The publish service validates unique `sort_order` within each Version Lesson.
 
 All Activity content, reference context, order, duration, completion, preview
 and unlock fields are read-only after publication. Corrections require a new
-Template Version. Rollback and duplication are not part of this design.
+Template Version. Rollback and in-place duplication are not part of this
+design. ADR-0013 may read these rows to create new working Activities and remap
+working prerequisites; Version Activity rows remain unchanged.
 
 # Tenant Isolation
 

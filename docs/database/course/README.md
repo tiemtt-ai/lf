@@ -191,6 +191,10 @@ Certificate → Media để lưu tài sản Certificate đã kết xuất
 - Section là tùy chọn; Lesson thuộc trực tiếp Template hoặc một Section cùng
   Template và tenant.
 - Việc phát hành tạo ra một Version Template bất biến.
+- Một Version bất biến có thể được dùng làm nguồn để thay thế working draft
+  của chính Template đó theo
+  [ADR-0013](../../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md);
+  thao tác này không sửa Version hoặc tạo thêm draft.
 - Product chứa Version đã phát hành, không bao giờ chứa Template đang
   biên soạn.
 - Enrollment là một chu trình học và khóa Version tương ứng.
