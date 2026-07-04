@@ -89,15 +89,22 @@ core_course_progress
 * Mọi enrollment phải thuộc `customer_id`.
 * Một enrollment luôn thuộc một `student_id`.
 * Một enrollment luôn gắn với một `product_id`.
-* Một enrollment luôn khóa một `template_version_id` tại thời điểm ghi danh.
-* Template Version phải là published Version mà Product bán tại thời điểm Enrollment.
-* Enrollment và Template Version phải thuộc cùng `customer_id`.
-* Product đổi Version không được âm thầm thay đổi Enrollment hiện có.
+* Một enrollment luôn khóa một `version_id` tại thời điểm ghi danh.
+* `version_id` được resolve từ active/current Product Item của Product tại
+  thời điểm tạo Enrollment.
+* User/Admin không được chọn thủ công `version_id`.
+* Version phải là published Version mà Product bán tại thời điểm Enrollment.
+* Enrollment và Version phải thuộc cùng `customer_id`.
+* `version_id` frozen sau khi tạo Enrollment.
+* Product đổi Version không được âm thầm thay đổi historical Enrollments.
+* Enrollment không được tham chiếu editable Course Template làm learning source.
 * Một Enrollment là một Learning Cycle.
 * Student có thể hoàn thành Product rồi Enrollment lại để bắt đầu cycle mới.
-* Không unique vĩnh viễn theo Student/Product.
+* Re-enrollment được phép; không tạo unique vĩnh viễn theo Student/Product hoặc
+  `(customer_id, student_id, product_id)`.
 * Mỗi Progress, Completion và Product-based Certificate phải tham chiếu `enrollment_id`.
-* Enrollment có thể được tạo từ mua hàng, admin gán thủ công, import, voucher hoặc subscription.
+* Enrollment có thể được tạo từ admin, teacher, self_registration, purchase,
+  promotion, import hoặc api.
 * Enrollment quyết định quyền truy cập học tập.
 * Product quyết định nội dung, giá, thời hạn học và quyền truy cập.
 * Enrollment không lưu tiến độ học chi tiết.
@@ -149,7 +156,7 @@ core_course_products.id
 
 ---
 
-### template_version_id
+### version_id
 
 ```text
 BIGINT UNSIGNED
@@ -165,6 +172,16 @@ core_course_template_versions.id
 ```
 
 Đây là source of truth của learning content cho Enrollment.
+
+`version_id` luôn tham chiếu immutable published Course Version và không bao giờ
+tham chiếu editable Course Template.
+
+`version_id` được resolve từ active/current Product Item của Product tại thời
+điểm tạo Enrollment.
+
+User/Admin không được chọn thủ công `version_id`.
+
+`version_id` không thay đổi sau khi Enrollment được tạo.
 
 ---
 
@@ -191,12 +208,12 @@ student
 
 ---
 
-### source_type
+### source
 
 ```text
 VARCHAR(50)
 NOT NULL
-DEFAULT 'manual'
+DEFAULT 'admin'
 ```
 
 Nguồn tạo enrollment.
@@ -204,21 +221,19 @@ Nguồn tạo enrollment.
 Allowed values:
 
 ```text
-manual
+admin
+
+teacher
+
+self_registration
 
 purchase
 
-admin_assigned
+promotion
 
-teacher_assigned
+import
 
-voucher
-
-subscription
-
-bulk_import
-
-migration
+api
 ```
 
 ---
@@ -239,9 +254,9 @@ order_id
 
 payment_id
 
-voucher_id
+campaign_id
 
-subscription_id
+api_request_id
 
 import_batch_id
 ```
@@ -359,15 +374,13 @@ pending
 
 active
 
-paused
+suspended
 
 completed
 
 expired
 
 cancelled
-
-refunded
 ```
 
 ---
@@ -458,8 +471,8 @@ INDEX idx_course_enrollments_product
 ```
 
 ```sql
-INDEX idx_course_enrollments_template_version
-(customer_id, template_version_id);
+INDEX idx_course_enrollments_version
+(customer_id, version_id);
 ```
 
 ```sql
@@ -513,11 +526,11 @@ customer_id = 1
 
 product_id = 10
 
-template_version_id = 30
+version_id = 30
 
 student_id = 100
 
-source_type = purchase
+source = purchase
 
 source_id = 5001
 
