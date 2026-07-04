@@ -1,6 +1,6 @@
 # LF-Core-Course.md
 
-Version: 3.3
+Version: 3.4
 
 Status: Official Foundation
 
@@ -529,6 +529,118 @@ Enrollment determines:
 * learning lifecycle status.
 
 Enrollment là single source of truth cho learning access.
+
+## Enrollment Creation Policy
+
+Enrollment may be created from:
+
+* Customer Admin;
+* Teacher, if permitted by tenant policy;
+* Product Purchase;
+* Self Registration;
+* Promotion / Campaign;
+* Bulk Import;
+* External API.
+
+Regardless of the creation source, every Enrollment follows the same Version
+resolution process.
+
+### Version Resolution
+
+Official flow:
+
+```text
+Student
+
+↓
+
+Enrollment Request
+
+↓
+
+Resolve Product
+
+↓
+
+Resolve Current Active Product Item
+
+↓
+
+Resolve Published Course Version
+
+↓
+
+Store version_id
+
+↓
+
+Create Enrollment
+```
+
+Enrollment never chooses a Published Version directly.
+
+The assigned Version is always resolved from the Product at the moment the
+Enrollment is created.
+
+### Version Freeze Rule
+
+```text
+Product A
+
+↓
+
+Current Active Version
+
+↓
+
+Version 7
+
+Student A purchases today
+
+↓
+
+Enrollment.version_id = 7
+
+Later
+
+Product A switches to
+
+Version 8
+
+Student A
+
+↓
+
+continues Version 7
+
+Student B
+
+↓
+
+receives Version 8
+```
+
+Changing a Product never changes historical Enrollments.
+
+This guarantees:
+
+* learning consistency;
+* progress consistency;
+* assessment consistency;
+* certificate consistency;
+* tracking consistency;
+* AI context consistency.
+
+### Special Enrollment Rules
+
+1. One Enrollment never changes its assigned `version_id` after creation.
+2. Changing Product configuration never updates historical Enrollments.
+3. Enrollment may optionally belong to one Cohort.
+4. Progress, Assessment, Certificate, Tracking and AI always use the
+   Enrollment's `version_id`.
+5. Enrollment should never reference editable Course Templates.
+6. Enrollment should never be recreated simply because a Product receives a
+   newer Version.
 
 Product and Version relationship:
 
