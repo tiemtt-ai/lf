@@ -128,9 +128,15 @@ core_course_activity_progress
 * Một progress luôn thuộc một `student_id`.
 * Một progress luôn thuộc một `product_id`.
 * Một progress nên gắn với một `enrollment_id`.
+* `core_course_progress.product_id` phải khớp với
+  `core_course_enrollments.product_id`.
 * Một progress luôn thuộc `version_id` đã khóa trên Enrollment.
-* `version_id` phải khớp với `core_course_enrollments.version_id`.
+* `core_course_progress.version_id` phải khớp với
+  `core_course_enrollments.version_id`.
 * `version_id` tham chiếu `core_course_template_versions.id`.
+* Course Progress phải được tạo từ Enrollment context.
+* Runtime code phải derive `product_id` và `version_id` từ Enrollment, không
+  nhận hai field này độc lập từ user input.
 * Progress không tham chiếu working Template Lesson/Activity.
 * Mỗi Course Progress thuộc đúng một Learning Cycle qua `enrollment_id`.
 * Một enrollment chỉ có một course progress.
@@ -201,6 +207,10 @@ Liên kết:
 core_course_products.id
 ```
 
+Phải khớp với `core_course_enrollments.product_id`.
+
+Runtime code phải derive field này từ Enrollment context.
+
 ---
 
 ### version_id
@@ -232,6 +242,10 @@ core_course_template_versions.id
 
 Progress không dùng `template_version_id` vì
 `core_course_enrollments.template_version_id` không còn tồn tại.
+
+Runtime code phải derive field này từ Enrollment context.
+
+Không nhận `version_id` độc lập từ user input khi tạo hoặc cập nhật Progress.
 
 ---
 
