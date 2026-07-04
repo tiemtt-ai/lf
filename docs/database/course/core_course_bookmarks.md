@@ -42,6 +42,8 @@ N
 core_course_bookmarks
 ```
 
+Quan hệ này dùng `user_id` tham chiếu `users.id`.
+
 ```text
 core_course_products
 1
@@ -79,19 +81,30 @@ core_course_bookmarks
 ## Business Rules
 
 * Mọi Bookmark phải thuộc `customer_id`.
-* Bookmark luôn thuộc một `student_id`.
+* Bookmark luôn thuộc một `user_id`.
+* `user_id` tham chiếu `users.id`.
+* Student là role của User, không phải identity field của Bookmark.
+* Dùng `user_id` để thống nhất identity với Course Reviews.
 * Bookmark luôn thuộc một `product_id`.
 * Bookmark luôn thuộc một `enrollment_id`.
 * Chỉ Enrollment có `status = active` mới được Create/Update Bookmark.
 * Không hỗ trợ Preview Bookmarks, Guest Bookmarks hoặc Anonymous Bookmarks.
-* Bookmark phải lưu `template_version_id` của learning content.
+* Bookmark phải lưu `version_id` của learning content.
+* `product_id` phải khớp với `core_course_enrollments.product_id`.
+* `version_id` phải khớp với `core_course_enrollments.version_id`.
+* Runtime code phải derive `product_id` và `version_id` từ Enrollment context,
+  không nhận độc lập từ user input.
+* Runtime context gồm `customer_id`, `enrollment_id`, `user_id`,
+  `product_id`, `version_id`, `version_lesson_id` và optional
+  `version_activity_id`.
 * Bookmark có thể gắn với Version Lesson hoặc Version Activity.
 * Position/page/anchor thuộc frozen Version Activity.
 * Bookmark có thể lưu timestamp video/audio.
 * Bookmark có thể lưu page number của document.
 * Bookmark không cấp quyền học.
-* Bookmark không ảnh hưởng progress.
-* Một học viên có thể bookmark nhiều vị trí trong cùng một activity.
+* Bookmark là personal learning data, không phải Progress.
+* Bookmark không ảnh hưởng Progress.
+* Một user có thể bookmark nhiều vị trí trong cùng một activity.
 * Bookmark dùng cho “Save for later”, “Continue review”, AI recommendation.
 
 ---
@@ -132,7 +145,7 @@ Product mà bookmark thuộc về.
 
 ---
 
-### template_version_id
+### version_id
 
 ```text
 BIGINT UNSIGNED
@@ -158,14 +171,18 @@ Enrollment phải active khi tạo hoặc cập nhật Bookmark.
 
 ---
 
-### student_id
+### user_id
 
 ```text
 BIGINT UNSIGNED
 NOT NULL
 ```
 
-Học viên tạo bookmark.
+User sở hữu/tạo bookmark.
+
+Liên kết `users.id`.
+
+Student là role của User, không phải tên field identity.
 
 ---
 
@@ -334,8 +351,8 @@ INDEX idx_course_bookmarks_customer
 ```
 
 ```sql
-INDEX idx_course_bookmarks_student
-(customer_id, student_id);
+INDEX idx_course_bookmarks_user
+(customer_id, user_id);
 ```
 
 ```sql
@@ -344,8 +361,8 @@ INDEX idx_course_bookmarks_product
 ```
 
 ```sql
-INDEX idx_course_bookmarks_template_version
-(customer_id, template_version_id);
+INDEX idx_course_bookmarks_version
+(customer_id, version_id);
 ```
 
 ```sql
@@ -384,12 +401,12 @@ INDEX idx_course_bookmarks_created
 
 Không nên bắt buộc unique toàn bảng.
 
-Một học viên có thể bookmark nhiều vị trí trong cùng một activity.
+Một user có thể bookmark nhiều vị trí trong cùng một activity.
 
 Nếu muốn tránh duplicate cùng vị trí, có thể dùng application logic theo:
 
 ```text
-student_id
+user_id
 product_id
 version_activity_id
 position_seconds
@@ -409,11 +426,11 @@ customer_id = 1
 
 product_id = 10
 
-template_version_id = 30
+version_id = 30
 
 enrollment_id = 100
 
-student_id = 200
+user_id = 200
 
 version_section_id = 101
 
@@ -445,11 +462,11 @@ customer_id = 1
 
 product_id = 10
 
-template_version_id = 30
+version_id = 30
 
 enrollment_id = 100
 
-student_id = 200
+user_id = 200
 
 version_section_id = 101
 
@@ -474,12 +491,14 @@ status = active
 
 ## Final Statement
 
-`core_course_bookmarks` là bảng đánh dấu nội dung học tập để học viên quay lại sau.
+`core_course_bookmarks` là bảng đánh dấu nội dung học tập cá nhân của User trong Enrollment context.
 
 Vai trò đúng:
 
 ```text
-Student
+User (student role)
+↓
+Enrollment
 ↓
 Product / Template Version / Version Lesson / Version Activity / Position
 ↓

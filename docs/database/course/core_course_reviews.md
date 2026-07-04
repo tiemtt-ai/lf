@@ -117,7 +117,7 @@ core_course_template_versions.id
 
 ↓
 
-core_course_reviews.template_version_id
+core_course_reviews.version_id
 ```
 
 ```text
@@ -136,13 +136,19 @@ core_course_reviews.user_id
 * Mỗi Enrollment chỉ được tạo tối đa một Review.
 * Chỉ User có Enrollment hợp lệ mới được tạo Review.
 * `product_id` phải khớp với Product của Enrollment.
-* `template_version_id` phải khớp với Version đã khóa trên Enrollment.
+* `version_id` phải khớp với Version đã khóa trên Enrollment.
+* `product_id` phải khớp với `core_course_enrollments.product_id`.
+* `version_id` phải khớp với `core_course_enrollments.version_id`.
+* Runtime code phải derive `product_id` và `version_id` từ Enrollment context,
+  không nhận độc lập từ user input.
 * Review dùng `user_id`, không dùng `student_id`.
 * Với learner Review, `user_id` phải khớp với User của Enrollment.
 * User-based naming cho phép mở rộng Teacher, QA và Internal Review.
 * Customer của Review, Product, Enrollment và User phải giống nhau.
 * Review gắn với Course Product, không gắn với Course Template.
 * Không lưu `template_id` trong Review.
+* Review là Course Product feedback dựa trên Enrollment, không phải Assessment evidence.
+* Review không thuộc Assessment Domain.
 * Rating chỉ nhận giá trị nguyên từ 1 đến 5.
 * Title và Comment là tùy chọn.
 * Học viên có thể cập nhật Review của Enrollment.
@@ -223,7 +229,7 @@ Mỗi Enrollment chỉ có tối đa một Review.
 
 ---
 
-### template_version_id
+### version_id
 
 ```text
 BIGINT UNSIGNED
@@ -416,8 +422,8 @@ INDEX idx_course_reviews_enrollment
 ```
 
 ```sql
-INDEX idx_course_reviews_template_version
-(customer_id, template_version_id);
+INDEX idx_course_reviews_version
+(customer_id, version_id);
 ```
 
 ```sql
@@ -454,7 +460,7 @@ product_id = 12
 
 enrollment_id = 301
 
-template_version_id = 30
+version_id = 30
 
 user_id = 88
 
@@ -486,6 +492,9 @@ Một Product có thể có nhiều Review.
 Một Enrollment chỉ có tối đa một Review.
 
 Review là dữ liệu thương mại thuộc Commerce Layer, không phải Learning Content.
+
+Review là Course Product feedback dựa trên Enrollment, không phải Assessment
+evidence và không thuộc Assessment Domain.
 
 Review được sử dụng cho:
 

@@ -36,6 +36,8 @@ N
 core_course_notes
 ```
 
+Quan hệ này dùng `user_id` tham chiếu `users.id`.
+
 ```text
 core_course_products
 1
@@ -73,18 +75,29 @@ core_course_notes
 ## Business Rules
 
 * Mọi Note phải thuộc `customer_id`.
-* Note luôn thuộc một `student_id`.
+* Note luôn thuộc một `user_id`.
+* `user_id` tham chiếu `users.id`.
+* Student là role của User, không phải identity field của Note.
+* Dùng `user_id` để thống nhất identity với Course Reviews.
 * Note luôn thuộc một `product_id`.
 * Note luôn thuộc một `enrollment_id`.
 * Chỉ Enrollment có `status = active` mới được Create/Update Note.
 * Không hỗ trợ Preview Notes, Guest Notes hoặc Anonymous Notes.
-* Note phải lưu `template_version_id` của learning content.
+* Note phải lưu `version_id` của learning content.
+* `product_id` phải khớp với `core_course_enrollments.product_id`.
+* `version_id` phải khớp với `core_course_enrollments.version_id`.
+* Runtime code phải derive `product_id` và `version_id` từ Enrollment context,
+  không nhận độc lập từ user input.
+* Runtime context gồm `customer_id`, `enrollment_id`, `user_id`,
+  `product_id`, `version_id`, `version_lesson_id` và optional
+  `version_activity_id`.
 * Note có thể gắn với Version Lesson hoặc Version Activity.
 * Working Template references chỉ dùng trace/reporting, không phải learning source.
 * Note có thể gắn với timestamp video/audio.
 * Note mặc định là private cho học viên.
 * Teacher/Admin không xem note cá nhân nếu chưa có permission rõ ràng.
-* Note không ảnh hưởng progress.
+* Note là personal learning data, không phải Progress.
+* Note không ảnh hưởng Progress.
 * Note có thể dùng làm dữ liệu AI personalization nếu tenant cho phép.
 
 ---
@@ -125,7 +138,7 @@ Product mà note thuộc về.
 
 ---
 
-### template_version_id
+### version_id
 
 ```text
 BIGINT UNSIGNED
@@ -151,14 +164,18 @@ Enrollment phải active khi tạo hoặc cập nhật Note.
 
 ---
 
-### student_id
+### user_id
 
 ```text
 BIGINT UNSIGNED
 NOT NULL
 ```
 
-Học viên tạo note.
+User sở hữu/tạo note.
+
+Liên kết `users.id`.
+
+Student là role của User, không phải tên field identity.
 
 ---
 
@@ -356,8 +373,8 @@ INDEX idx_course_notes_customer
 ```
 
 ```sql
-INDEX idx_course_notes_student
-(customer_id, student_id);
+INDEX idx_course_notes_user
+(customer_id, user_id);
 ```
 
 ```sql
@@ -366,8 +383,8 @@ INDEX idx_course_notes_product
 ```
 
 ```sql
-INDEX idx_course_notes_template_version
-(customer_id, template_version_id);
+INDEX idx_course_notes_version
+(customer_id, version_id);
 ```
 
 ```sql
@@ -401,7 +418,7 @@ INDEX idx_course_notes_created
 
 Không cần unique constraint.
 
-Một học viên có thể tạo nhiều note trong cùng một lesson/activity.
+Một user có thể tạo nhiều note trong cùng một lesson/activity.
 
 ---
 
@@ -414,11 +431,11 @@ customer_id = 1
 
 product_id = 10
 
-template_version_id = 30
+version_id = 30
 
 enrollment_id = 100
 
-student_id = 200
+user_id = 200
 
 version_section_id = 101
 
@@ -447,12 +464,14 @@ status = active
 
 ## Final Statement
 
-`core_course_notes` là bảng ghi chú học tập cá nhân của Student.
+`core_course_notes` là bảng ghi chú học tập cá nhân của User trong Enrollment context.
 
 Vai trò đúng:
 
 ```text
-Student
+User (student role)
+↓
+Enrollment
 ↓
 Product / Template Version / Version Lesson / Version Activity
 ↓
