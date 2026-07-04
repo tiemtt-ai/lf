@@ -22,6 +22,81 @@ infrastructure, or business decisions.
 
 ---
 
+# Mandatory AI Agent Rules
+
+All AI agents must follow these rules before modifying LearnForge.
+
+## Rule 1 — Follow Documentation Routing
+
+Always start with:
+
+docs/LF-INDEX.md
+
+Do not read every document in the repository.
+
+Follow the Documentation Routing Guide and load only the documents required for the current task.
+
+---
+
+## Rule 2 — Never Guess
+
+If required documentation is:
+
+- missing
+- conflicting
+- ambiguous
+- incomplete
+
+STOP.
+
+Report the conflict.
+
+Do not invent:
+
+- architecture
+- database schema
+- business rules
+- API behavior
+- UI behavior
+
+---
+
+## Rule 3 — Reuse Existing Architecture
+
+Before implementing code, inspect the existing:
+
+- migrations
+- routes
+- controllers
+- services
+- requests
+- middleware
+- views
+- tests
+
+Reuse the existing implementation whenever possible.
+
+Do not create duplicate architecture.
+
+---
+
+## Rule 4 — Respect Stable Foundations
+
+Do not modify approved architecture unless explicitly requested.
+
+Do not silently replace:
+
+- authentication
+- tenant model
+- routing
+- role model
+- published snapshot architecture
+- runtime authority
+
+without documentation approval.
+
+---
+
 # Documentation Structure
 
 ## Directory Guides
@@ -71,11 +146,27 @@ docs/
 
 # AI Implementation Rules
 
-Before implementing any database-backed feature, AI Agents should read:
+Before implementing any feature:
 
-1. [docs/prompts/LF-Implementation-Rules.md](prompts/LF-Implementation-Rules.md)
-2. Related Domain README
-3. Target Table Documentation
+1. Read docs/LF-INDEX.md.
+
+2. Follow the Documentation Routing Guide.
+
+3. Read only the required documents.
+
+4. Inspect the existing implementation.
+
+5. Verify there are no documentation conflicts.
+
+6. Begin implementation.
+
+If documentation conflicts exist:
+
+STOP.
+
+Report the conflict.
+
+Do not guess.
 
 ---
 
@@ -251,9 +342,76 @@ Documentation Routing Guide.
 
 ---
 
-# Documentation Routing Guide
+# Documentation Source Priority
+
+Documentation has different responsibilities.
+
+Governance Documents define mandatory architectural constraints.
+
+Approved ADRs define official architecture decisions.
+
+Domain Documentation defines architecture, ownership, lifecycle and business rules.
+
+Database Documentation defines physical schema, fields, indexes and constraints.
+
+Development Standards define implementation conventions.
+
+Existing Stable Implementation should be reused unless documentation explicitly requires a change.
+
+---
+
+Priority applies only when documents describe different aspects of the system.
+
+If two documents define the same concern differently (for example Domain Documentation and Database Documentation), AI Agents must:
+
+STOP.
+
+Report the conflict.
+
+Do not choose one automatically.
+
+Do not continue implementation until the documentation has been clarified.
+
+---
+
+Documentation Priority
+
+1. Governance Documents
+2. Approved ADRs
+3. Domain Documentation
+4. Database Documentation
+5. Development Standards
+6. Existing Stable Implementation
+
+---
+
+# Mandatory Documentation Routing Guide
 
 Load only the documents required for the current task.
+
+---
+
+## Before Writing Code
+
+Before implementation, AI Agents must complete the following steps.
+
+1. Read the required documents.
+
+2. Inspect the current implementation.
+
+3. Reuse existing architecture.
+
+4. Verify that no documentation conflicts exist.
+
+5. Only then begin implementation.
+
+If any conflict is found:
+
+STOP.
+
+Report the conflict.
+
+Do not implement code until the conflict has been resolved.
 
 ---
 
