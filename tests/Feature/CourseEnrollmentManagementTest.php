@@ -1,0 +1,660 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
+use Tests\TestCase;
+
+class CourseEnrollmentManagementTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config([
+            'app.url' => 'https://localhost',
+            'app.base_domain' => 'localhost',
+            'app.tenant_scheme' => 'https',
+        ]);
+    }
+
+    public function test_admin_course_enrollment_routes_exist_and_teacher_routes_do_not(): void
+    {
+        foreach (['index', 'create', 'store', 'show', 'edit', 'update'] as $route) {
+            $this->assertTrue(Route::has("admin.course-enrollments.{$route}"));
+            $this->assertFalse(Route::has("teacher.course-enrollments.{$route}"));
+        }
+    }
+
+    public function test_customer_admin_can_create_enrollment_with_resolved_version(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $versionId = $this->createVersion($customerId, $admin->id, title: 'TOPIK Beginner');
+        $this->createProductItem($customerId, $productId, $versionId);
+
+        $this->actingAs($admin)
+            ->post(
+                'https://tenant-a.localhost/admin/course-enrollments',
+                $this->validEnrollmentData([
+                    'student_id' => $student->id,
+                    'product_id' => $productId,
+                    'source' => 'admin',
+                    'enrolled_at' => '2026-07-04 09:00:00',
+                    'access_starts_at' => '2026-07-04 09:00:00',
+                    'access_ends_at' => '2026-10-04 23:59:59',
+                    'metadata' => '{"note":"manual admin assignment"}',
+                ])
+            )
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('core_course_enrollments', [
+            'customer_id' => $customerId,
+            'student_id' => $student->id,
+            'product_id' => $productId,
+            'version_id' => $versionId,
+            'source' => 'admin',
+            'status' => 'active',
+            'enrolled_by' => $admin->id,
+        ]);
+        $this->assertSame(
+            1,
+            DB::table('core_course_products')
+                ->where('customer_id', $customerId)
+                ->where('id', $productId)
+                ->value('enrollment_count')
+        );
+    }
+
+    public function test_admin_cannot_submit_version_id_manually(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $otherVersionId = $this->createVersion($customerId, $admin->id, title: 'Other Version');
+        $this->createProductItem($customerId, $productId, $versionId);
+
+        $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/course-enrollments/create')
+            ->post(
+                'https://tenant-a.localhost/admin/course-enrollments',
+                $this->validEnrollmentData([
+                    'student_id' => $student->id,
+                    'product_id' => $productId,
+                    'version_id' => $otherVersionId,
+                ])
+            )
+            ->assertRedirect('https://tenant-a.localhost/admin/course-enrollments/create')
+            ->assertSessionHasErrors('version_id');
+
+        $this->assertDatabaseCount('core_course_enrollments', 0);
+    }
+
+    public function test_product_without_active_product_item_fails(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+
+        $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/course-enrollments/create')
+            ->post(
+                'https://tenant-a.localhost/admin/course-enrollments',
+                $this->validEnrollmentData([
+                    'student_id' => $student->id,
+                    'product_id' => $productId,
+                ])
+            )
+            ->assertRedirect('https://tenant-a.localhost/admin/course-enrollments/create')
+            ->assertSessionHasErrors('product_id');
+
+        $this->assertDatabaseCount('core_course_enrollments', 0);
+    }
+
+    public function test_unpublished_resolved_version_fails(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $versionId = $this->createVersion(
+            $customerId,
+            $admin->id,
+            status: 'draft_snapshot'
+        );
+        $this->createProductItem($customerId, $productId, $versionId);
+
+        $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/course-enrollments/create')
+            ->post(
+                'https://tenant-a.localhost/admin/course-enrollments',
+                $this->validEnrollmentData([
+                    'student_id' => $student->id,
+                    'product_id' => $productId,
+                ])
+            )
+            ->assertRedirect('https://tenant-a.localhost/admin/course-enrollments/create')
+            ->assertSessionHasErrors('product_id');
+
+        $this->assertDatabaseCount('core_course_enrollments', 0);
+    }
+
+    public function test_cross_tenant_student_product_and_non_student_are_rejected(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $otherStudent = $this->createUser($otherCustomerId, 'student');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $otherProductId = $this->createProduct(
+            $otherCustomerId,
+            'Tenant B TOPIK',
+            'tenant-b-topik'
+        );
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $this->createProductItem($customerId, $productId, $versionId);
+
+        $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/course-enrollments/create')
+            ->post(
+                'https://tenant-a.localhost/admin/course-enrollments',
+                $this->validEnrollmentData([
+                    'student_id' => $otherStudent->id,
+                    'product_id' => $productId,
+                ])
+            )
+            ->assertSessionHasErrors('student_id');
+
+        $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/course-enrollments/create')
+            ->post(
+                'https://tenant-a.localhost/admin/course-enrollments',
+                $this->validEnrollmentData([
+                    'student_id' => $student->id,
+                    'product_id' => $otherProductId,
+                ])
+            )
+            ->assertSessionHasErrors('product_id');
+
+        $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/course-enrollments/create')
+            ->post(
+                'https://tenant-a.localhost/admin/course-enrollments',
+                $this->validEnrollmentData([
+                    'student_id' => $teacher->id,
+                    'product_id' => $productId,
+                ])
+            )
+            ->assertSessionHasErrors('student_id');
+
+        $this->assertDatabaseCount('core_course_enrollments', 0);
+    }
+
+    public function test_existing_enrollment_keeps_old_version_after_product_changes(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $studentA = $this->createUser($customerId, 'student');
+        $studentB = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'TOPIK Template');
+        $version7Id = $this->createVersion(
+            $customerId,
+            $admin->id,
+            title: 'TOPIK Template',
+            templateId: $templateId,
+            versionNumber: 7,
+            isCurrent: false
+        );
+        $version8Id = $this->createVersion(
+            $customerId,
+            $admin->id,
+            title: 'TOPIK Template',
+            templateId: $templateId,
+            versionNumber: 8
+        );
+        $itemId = $this->createProductItem($customerId, $productId, $version7Id);
+
+        $this->actingAs($admin)
+            ->post(
+                'https://tenant-a.localhost/admin/course-enrollments',
+                $this->validEnrollmentData([
+                    'student_id' => $studentA->id,
+                    'product_id' => $productId,
+                ])
+            )
+            ->assertRedirect();
+
+        DB::table('core_course_product_items')
+            ->where('customer_id', $customerId)
+            ->where('id', $itemId)
+            ->update(['status' => 'inactive', 'updated_at' => now()]);
+        $this->createProductItem($customerId, $productId, $version8Id);
+
+        $this->actingAs($admin)
+            ->post(
+                'https://tenant-a.localhost/admin/course-enrollments',
+                $this->validEnrollmentData([
+                    'student_id' => $studentB->id,
+                    'product_id' => $productId,
+                ])
+            )
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('core_course_enrollments', [
+            'student_id' => $studentA->id,
+            'product_id' => $productId,
+            'version_id' => $version7Id,
+        ]);
+        $this->assertDatabaseHas('core_course_enrollments', [
+            'student_id' => $studentB->id,
+            'product_id' => $productId,
+            'version_id' => $version8Id,
+        ]);
+    }
+
+    public function test_version_id_cannot_be_updated_after_creation(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $otherVersionId = $this->createVersion($customerId, $admin->id, title: 'Other Version');
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+
+        $this->actingAs($admin)
+            ->from("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")
+            ->put(
+                "https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}",
+                [
+                    'status' => 'suspended',
+                    'access_starts_at' => null,
+                    'access_ends_at' => null,
+                    'metadata' => null,
+                    'version_id' => $otherVersionId,
+                ]
+            )
+            ->assertRedirect("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")
+            ->assertSessionHasErrors('version_id');
+
+        $this->assertDatabaseHas('core_course_enrollments', [
+            'id' => $enrollmentId,
+            'version_id' => $versionId,
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_teacher_student_and_guest_cannot_access_admin_enrollment_management(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+
+        $this->get('https://tenant-a.localhost/admin/course-enrollments')
+            ->assertRedirect('https://tenant-a.localhost/login');
+
+        foreach ([$teacher, $student] as $user) {
+            $this->actingAs($user)
+                ->get('https://tenant-a.localhost/admin/course-enrollments')
+                ->assertForbidden();
+
+            $this->actingAs($user)
+                ->put(
+                    "https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}",
+                    ['status' => 'suspended']
+                )
+                ->assertForbidden();
+        }
+
+        $this->actingAs($teacher)
+            ->get('https://tenant-a.localhost/teacher/course-enrollments')
+            ->assertNotFound();
+    }
+
+    public function test_tenant_isolation_on_list_detail_and_update(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $otherStudent = $this->createUser($otherCustomerId, 'student');
+        $productId = $this->createProduct($customerId, 'Tenant A Product', 'tenant-a-product');
+        $otherProductId = $this->createProduct(
+            $otherCustomerId,
+            'Tenant B Product',
+            'tenant-b-product'
+        );
+        $versionId = $this->createVersion($customerId, $admin->id, title: 'Tenant A Version');
+        $otherVersionId = $this->createVersion($otherCustomerId, $otherStudent->id, title: 'Tenant B Version');
+        $ownEnrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $otherEnrollmentId = $this->createEnrollment(
+            $otherCustomerId,
+            $otherStudent->id,
+            $otherProductId,
+            $otherVersionId
+        );
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-enrollments')
+            ->assertOk()
+            ->assertSeeText('Tenant A Product')
+            ->assertDontSeeText('Tenant B Product');
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-enrollments/{$otherEnrollmentId}")
+            ->assertNotFound();
+
+        $this->actingAs($admin)
+            ->put(
+                "https://tenant-a.localhost/admin/course-enrollments/{$otherEnrollmentId}",
+                ['status' => 'suspended']
+            )
+            ->assertNotFound();
+
+        $this->assertDatabaseHas('core_course_enrollments', [
+            'id' => $ownEnrollmentId,
+            'customer_id' => $customerId,
+        ]);
+        $this->assertDatabaseHas('core_course_enrollments', [
+            'id' => $otherEnrollmentId,
+            'customer_id' => $otherCustomerId,
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_re_enrollment_for_same_student_and_product_is_allowed(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $this->createProductItem($customerId, $productId, $versionId);
+
+        foreach ([1, 2] as $cycle) {
+            $this->actingAs($admin)
+                ->post(
+                    'https://tenant-a.localhost/admin/course-enrollments',
+                    $this->validEnrollmentData([
+                        'student_id' => $student->id,
+                        'product_id' => $productId,
+                        'source_id' => $cycle,
+                    ])
+                )
+                ->assertRedirect();
+        }
+
+        $this->assertSame(
+            2,
+            DB::table('core_course_enrollments')
+                ->where('customer_id', $customerId)
+                ->where('student_id', $student->id)
+                ->where('product_id', $productId)
+                ->count()
+        );
+    }
+
+    public function test_course_enrollment_module_has_no_eloquent_models(): void
+    {
+        $this->assertFileDoesNotExist(app_path('Models/CoreCourseEnrollment.php'));
+        $this->assertFileDoesNotExist(app_path('Models/CourseEnrollment.php'));
+    }
+
+    private function createTenant(string $slug = 'tenant-a'): int
+    {
+        return DB::table('saas_customers')->insertGetId([
+            'name' => $slug,
+            'slug' => $slug,
+            'subdomain' => $slug,
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function createUser(int $customerId, string $role): User
+    {
+        return User::forceCreate([
+            'customer_id' => $customerId,
+            'name' => ucfirst(str_replace('_', ' ', $role)).' '.uniqid(),
+            'email' => $role.'-'.$customerId.'-'.uniqid().'@example.test',
+            'password' => Hash::make('password123'),
+            'role' => $role,
+            'status' => 'active',
+            'email_verified_at' => now(),
+        ]);
+    }
+
+    private function createProduct(
+        int $customerId,
+        string $title,
+        string $slug,
+        string $status = 'active'
+    ): int {
+        $now = now();
+
+        return DB::table('core_course_products')->insertGetId([
+            'customer_id' => $customerId,
+            'product_code' => strtoupper($slug),
+            'product_type' => 'single_course',
+            'title' => $title,
+            'slug' => $slug,
+            'short_description' => null,
+            'description' => null,
+            'thumbnail_type' => 'image',
+            'thumbnail_image' => null,
+            'thumbnail_video_source' => null,
+            'thumbnail_video_url' => null,
+            'thumbnail_video_media_id' => null,
+            'price' => 0,
+            'sale_price' => null,
+            'sale_starts_at' => null,
+            'sale_ends_at' => null,
+            'currency' => 'VND',
+            'enrollment_type' => 'paid',
+            'max_students' => null,
+            'enrollment_count' => 0,
+            'access_duration_days' => null,
+            'review_duration_days' => null,
+            'is_certificate_enabled' => false,
+            'is_refundable' => false,
+            'refund_days' => null,
+            'tags' => null,
+            'badge_type' => null,
+            'show_enrollment_count' => true,
+            'display_enrollment_count' => null,
+            'is_featured' => false,
+            'sort_order' => 0,
+            'visibility' => 'public',
+            'available_from' => null,
+            'available_until' => null,
+            'registration_starts_at' => null,
+            'registration_ends_at' => null,
+            'meta_title' => null,
+            'meta_description' => null,
+            'meta_keywords' => null,
+            'status' => $status,
+            'created_by' => null,
+            'published_at' => $status === 'active' ? $now : null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function createTemplate(
+        int $customerId,
+        int $userId,
+        string $title = 'TOPIK Template'
+    ): int {
+        $now = now();
+
+        return DB::table('core_course_templates')->insertGetId([
+            'customer_id' => $customerId,
+            'category_id' => null,
+            'title' => $title,
+            'slug' => str($title)->slug()->toString().'-'.uniqid(),
+            'short_description' => null,
+            'description' => null,
+            'publisher_name' => null,
+            'thumbnail_type' => 'image',
+            'thumbnail_image' => null,
+            'thumbnail_video_source' => null,
+            'thumbnail_video_url' => null,
+            'thumbnail_video_media_id' => null,
+            'difficulty_level' => null,
+            'language' => null,
+            'estimated_duration_minutes' => 0,
+            'max_lessons' => null,
+            'lesson_count' => 0,
+            'meta_title' => null,
+            'meta_description' => null,
+            'meta_keywords' => null,
+            'working_revision' => 1,
+            'status' => 'active',
+            'created_by' => $userId,
+            'last_version_published_at' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function createVersion(
+        int $customerId,
+        int $userId,
+        string $title = 'TOPIK Version',
+        string $status = 'published',
+        ?int $templateId = null,
+        int $versionNumber = 1,
+        ?bool $isCurrent = null
+    ): int {
+        $now = now();
+        $templateId ??= $this->createTemplate($customerId, $userId, $title);
+
+        return DB::table('core_course_template_versions')->insertGetId([
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'version_number' => $versionNumber,
+            'version_code' => 'VERSION-'.$templateId.'-'.$versionNumber,
+            'is_current' => $isCurrent ?? $status === 'published',
+            'source_category_id' => null,
+            'category_name_snapshot' => null,
+            'title_snapshot' => $title,
+            'slug_snapshot' => str($title)->slug()->toString().'-version',
+            'short_description_snapshot' => null,
+            'description_snapshot' => null,
+            'publisher_name_snapshot' => null,
+            'thumbnail_type_snapshot' => 'image',
+            'thumbnail_image_snapshot' => null,
+            'thumbnail_video_source_snapshot' => null,
+            'thumbnail_video_url_snapshot' => null,
+            'thumbnail_video_media_id_snapshot' => null,
+            'difficulty_level_snapshot' => null,
+            'language_snapshot' => null,
+            'estimated_duration_minutes_snapshot' => 0,
+            'max_lessons_snapshot' => null,
+            'lesson_count_snapshot' => 0,
+            'meta_title_snapshot' => null,
+            'meta_description_snapshot' => null,
+            'meta_keywords_snapshot' => null,
+            'source_working_revision' => 1,
+            'status' => $status,
+            'published_at' => $status === 'published' ? $now : null,
+            'published_by' => $userId,
+            'source_template_updated_at' => $now,
+            'metadata' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function createProductItem(
+        int $customerId,
+        int $productId,
+        int $versionId,
+        string $status = 'active',
+        int $sortOrder = 0
+    ): int {
+        $now = now();
+
+        return DB::table('core_course_product_items')->insertGetId([
+            'customer_id' => $customerId,
+            'product_id' => $productId,
+            'template_version_id' => $versionId,
+            'title_override' => null,
+            'short_description_override' => null,
+            'sort_order' => $sortOrder,
+            'is_required' => true,
+            'status' => $status,
+            'created_by' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function createEnrollment(
+        int $customerId,
+        int $studentId,
+        int $productId,
+        int $versionId,
+        string $status = 'active'
+    ): int {
+        $now = now();
+
+        return DB::table('core_course_enrollments')->insertGetId([
+            'customer_id' => $customerId,
+            'student_id' => $studentId,
+            'product_id' => $productId,
+            'version_id' => $versionId,
+            'source' => 'admin',
+            'source_id' => null,
+            'enrolled_by' => null,
+            'enrolled_at' => $now,
+            'access_starts_at' => null,
+            'access_ends_at' => null,
+            'review_starts_at' => null,
+            'review_ends_at' => null,
+            'status' => $status,
+            'completed_at' => null,
+            'cancelled_at' => null,
+            'expired_at' => null,
+            'metadata' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function validEnrollmentData(array $overrides = []): array
+    {
+        return array_merge([
+            'student_id' => 1,
+            'product_id' => 1,
+            'status' => 'active',
+            'source' => 'admin',
+            'source_id' => null,
+            'enrolled_at' => null,
+            'access_starts_at' => null,
+            'access_ends_at' => null,
+            'review_starts_at' => null,
+            'review_ends_at' => null,
+            'metadata' => null,
+        ], $overrides);
+    }
+}

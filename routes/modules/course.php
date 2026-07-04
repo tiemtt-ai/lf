@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CourseCategoryController;
+use App\Http\Controllers\CourseEnrollmentController;
 use App\Http\Controllers\CourseProductController;
 use App\Http\Controllers\CourseTemplateActivityController;
 use App\Http\Controllers\CourseTemplateController;
@@ -28,6 +29,24 @@ Route::post('/course-categories/{id}/toggle-status', [CourseCategoryController::
     ->name('course-categories.toggle-status');
 
 if ($registerCourseProductRoutes ?? false) {
+    Route::get('/course-enrollments', [CourseEnrollmentController::class, 'index'])
+        ->name('course-enrollments.index');
+
+    Route::get('/course-enrollments/create', [CourseEnrollmentController::class, 'create'])
+        ->name('course-enrollments.create');
+
+    Route::post('/course-enrollments', [CourseEnrollmentController::class, 'store'])
+        ->name('course-enrollments.store');
+
+    Route::get('/course-enrollments/{id}', [CourseEnrollmentController::class, 'show'])
+        ->name('course-enrollments.show');
+
+    Route::get('/course-enrollments/{id}/edit', [CourseEnrollmentController::class, 'edit'])
+        ->name('course-enrollments.edit');
+
+    Route::put('/course-enrollments/{id}', [CourseEnrollmentController::class, 'update'])
+        ->name('course-enrollments.update');
+
     Route::get('/course-products', [CourseProductController::class, 'index'])
         ->name('course-products.index');
 
