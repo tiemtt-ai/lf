@@ -82,27 +82,7 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 
 ---
 
-## 6. Tương tác của học viên
-
-| Bảng | Mô tả |
-|------|------|
-| **core_course_notes** | Ghi chú học tập cá nhân |
-| **core_course_bookmarks** | Vị trí và nội dung học tập đã lưu |
-| **core_course_favorites** | Product Course được học viên lưu yêu thích |
-| **core_course_reviews** | Assessment Product dựa trên Enrollment |
-
----
-
-## 7. Learning Path mang tính học thuật
-
-| Bảng | Mô tả |
-|------|------|
-| **core_course_learning_paths** | Lộ trình học thuật có thứ tự |
-| **core_course_learning_path_items** | Các Product được sắp xếp trong Learning Path |
-
----
-
-## 8. Chính sách và bằng chứng Certificate — Miền nghiệp vụ Certificate
+## 6. Chính sách và bằng chứng Certificate — Miền nghiệp vụ Certificate
 
 | Bảng | Mô tả |
 |------|------|
@@ -111,6 +91,26 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 | **core_certificate_issued_certificates** | Bằng chứng Certificate đã cấp và bất biến |
 | **core_certificate_verification_logs** | Lịch sử kiểm tra xác thực Certificate |
 | **core_certificate_download_logs** | Lịch sử truy cập và tải Certificate |
+
+---
+
+## 7. Tương tác của học viên
+
+| Bảng | Mô tả |
+|------|------|
+| **core_course_notes** | Ghi chú học tập cá nhân |
+| **core_course_bookmarks** | Vị trí và nội dung học tập đã lưu |
+| **core_course_favorites** | Product Course được học viên lưu yêu thích |
+| **core_course_reviews** | Đánh giá Course Product dựa trên Enrollment |
+
+---
+
+## 8. Learning Path mang tính học thuật
+
+| Bảng | Mô tả |
+|------|------|
+| **core_course_learning_paths** | Lộ trình học thuật có thứ tự |
+| **core_course_learning_path_items** | Các Product được sắp xếp trong Learning Path |
 
 ---
 
