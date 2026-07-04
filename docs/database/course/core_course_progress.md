@@ -128,7 +128,9 @@ core_course_activity_progress
 * Một progress luôn thuộc một `student_id`.
 * Một progress luôn thuộc một `product_id`.
 * Một progress nên gắn với một `enrollment_id`.
-* Một progress luôn thuộc `template_version_id` đã khóa trên Enrollment.
+* Một progress luôn thuộc `version_id` đã khóa trên Enrollment.
+* `version_id` phải khớp với `core_course_enrollments.version_id`.
+* `version_id` tham chiếu `core_course_template_versions.id`.
 * Progress không tham chiếu working Template Lesson/Activity.
 * Mỗi Course Progress thuộc đúng một Learning Cycle qua `enrollment_id`.
 * Một enrollment chỉ có một course progress.
@@ -201,7 +203,7 @@ core_course_products.id
 
 ---
 
-### template_version_id
+### version_id
 
 ```text
 BIGINT UNSIGNED
@@ -216,7 +218,20 @@ Liên kết:
 core_course_template_versions.id
 ```
 
-Phải khớp với `core_course_enrollments.template_version_id`.
+Phải khớp với `core_course_enrollments.version_id`.
+
+Relationship bắt buộc:
+
+```text
+Enrollment.version_id
+=
+Course Progress.version_id
+=
+core_course_template_versions.id
+```
+
+Progress không dùng `template_version_id` vì
+`core_course_enrollments.template_version_id` không còn tồn tại.
 
 ---
 
@@ -539,7 +554,7 @@ INDEX idx_course_progress_product
 
 ```sql
 INDEX idx_course_progress_template_version
-(customer_id, template_version_id);
+(customer_id, version_id);
 ```
 
 ```sql
@@ -591,7 +606,7 @@ enrollment_id = 1
 
 product_id = 10
 
-template_version_id = 30
+version_id = 30
 
 student_id = 100
 
