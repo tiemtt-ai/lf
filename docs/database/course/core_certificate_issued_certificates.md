@@ -151,13 +151,17 @@ core_certificate_issued_certificates
 * Mọi issued certificate phải thuộc `customer_id`.
 * Một issued certificate luôn thuộc một `student_id`.
 * Một issued certificate thường gắn với một `product_id`.
-* Product-based certificate phải lưu `template_version_id` đã khóa trên Enrollment.
+* Product-based certificate phải lưu `version_id` đã khóa trên Enrollment.
 * Một issued certificate nên gắn với `completion_id` nếu cấp sau khi hoàn thành Course Product.
 * Product-based certificate bắt buộc gắn với `enrollment_id`.
 * Certificate của mỗi learning cycle được phân biệt bằng `enrollment_id`.
 * Certificate cấp tự động theo Product phải lưu `certificate_template_product_id`.
 * `certificate_template_product_id` chỉ được NULL với manual/non-Product issuance.
 * `certificate_template_product_id` là source mapping của rules tại thời điểm cấp.
+* Certificate Domain sở hữu eligibility và issuance decision.
+* Course Completion không sở hữu Certificate eligibility và không cấp certificate.
+* Certificate Domain đánh giá eligibility bằng cách tiêu thụ Course Completion như Course Domain business state và approved Assessment Evidence khi Certificate rules yêu cầu.
+* Issued Certificate snapshot final eligibility/issuance decision do Certificate Domain thực hiện.
 * Một completion thường chỉ cấp một certificate chính thức.
 * Certificate đã cấp phải có `certificate_number` duy nhất trong tenant.
 * Certificate đã cấp phải có `verification_code` duy nhất trong tenant.
@@ -294,7 +298,7 @@ NULL nếu certificate không thuộc Product cụ thể.
 
 ---
 
-### template_version_id
+### version_id
 
 ```text
 BIGINT UNSIGNED
@@ -962,8 +966,8 @@ INDEX idx_issued_certificates_product
 ```
 
 ```sql
-INDEX idx_issued_certificates_template_version
-(customer_id, template_version_id);
+INDEX idx_issued_certificates_version
+(customer_id, version_id);
 ```
 
 ```sql
@@ -1044,7 +1048,7 @@ enrollment_id = 100
 
 product_id = 5
 
-template_version_id = 30
+version_id = 30
 
 student_id = 200
 
@@ -1112,11 +1116,11 @@ core_course_completions
 
 ↓
 
-certificate_eligible = 1
+Certificate Domain evaluates eligibility from Course Completion and approved Assessment Evidence when required
 
 ↓
 
-Find core_certificate_template_products by product_id + template_version_id
+Find core_certificate_template_products by product_id + version_id
 
 ↓
 

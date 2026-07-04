@@ -106,7 +106,7 @@ core_course_template_versions.id
 
 ↓
 
-core_certificate_template_products.template_version_id
+core_certificate_template_products.version_id
 ```
 
 ---
@@ -115,7 +115,7 @@ core_certificate_template_products.template_version_id
 
 * Mọi mapping phải thuộc `customer_id`.
 * Certificate Template và Course Product phải thuộc cùng `customer_id` với mapping.
-* Mapping phải tham chiếu published `template_version_id` mà Product bán.
+* Mapping phải tham chiếu published `version_id` mà Product bán.
 * Product, Template Version và mapping phải thuộc cùng `customer_id`.
 * Foundation: một Product chỉ có một active Certificate Mapping.
 * Phase sau có thể mở rộng một Product có nhiều active mappings.
@@ -197,7 +197,7 @@ core_course_products.id
 
 ---
 
-### template_version_id
+### version_id
 
 ```text
 BIGINT UNSIGNED
@@ -409,8 +409,8 @@ INDEX idx_certificate_template_products_product
 ```
 
 ```sql
-INDEX idx_certificate_template_products_template_version
-(customer_id, template_version_id);
+INDEX idx_certificate_template_products_version
+(customer_id, version_id);
 ```
 
 ```sql
@@ -429,7 +429,7 @@ INDEX idx_certificate_template_products_active
 
 ```sql
 UNIQUE uniq_certificate_template_products_mapping
-(customer_id, certificate_template_id, product_id, template_version_id);
+(customer_id, certificate_template_id, product_id, version_id);
 ```
 
 Đảm bảo cùng một Template không bị map trùng vào cùng một Product.
@@ -452,7 +452,7 @@ certificate_template_id = 3
 
 product_id = 12
 
-template_version_id = 30
+version_id = 30
 
 completion_required_percentage = 100.00
 
