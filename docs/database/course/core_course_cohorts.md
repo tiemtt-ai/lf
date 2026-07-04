@@ -2,38 +2,54 @@
 
 ## Purpose
 
-Lưu nhóm học / lớp học / batch triển khai thực tế của một Course Product.
+`core_course_cohorts` stores operational learning groups for the Course
+Domain.
 
-Cohort dùng cho các mô hình:
+A Cohort represents a class, batch, group or delivery container used to operate
+learning for students.
 
-```text
-Batch-based Learning
-
-Live Online
-
-Hybrid
-
-Offline Class
-
-Corporate Training
-
-Private Group
-
-Mentoring
-```
-
-Ví dụ:
+Example:
 
 ```text
-Product:
 TOPIK Beginner
 
-Cohorts:
-- TOPIK Beginner July 2026
-- TOPIK Beginner August 2026
-- Samsung Corporate TOPIK 2026
-- TOPIK 1:1 Private Coaching
+↓
+
+Morning Class
+
+Evening Class
+
+Weekend Class
 ```
+
+A Cohort is operational only.
+
+It does not own learning content.
+
+Learning content remains owned by:
+
+```text
+Published Course Version
+```
+
+---
+
+## Policy Decision
+
+Foundation v1 aligns `core_course_cohorts` with the current Course Domain Phase
+4 policy.
+
+Decision:
+
+* `product_id` is nullable.
+* `version_id` is added and nullable.
+* The cohort code field is named `code`.
+* `code` is nullable.
+* Foundation statuses are `draft`, `active`, `completed`, `archived`.
+* Advanced delivery, schedule, meeting and corporate fields are deferred.
+
+This keeps Cohort as an operational grouping layer without making it a learning
+source, runtime authority or student membership table.
 
 ---
 
@@ -55,6 +71,19 @@ N
 core_course_cohorts
 ```
 
+Optional. A Cohort may be organized around a Product.
+
+```text
+core_course_template_versions
+1
+↓
+N
+core_course_cohorts
+```
+
+Optional. A Cohort may be tied to a published Course Version for operational
+planning and reporting.
+
 ```text
 users
 1
@@ -63,7 +92,7 @@ N
 core_course_cohorts
 ```
 
-Teacher chính phụ trách cohort.
+Optional. A Cohort may have one primary teacher.
 
 ```text
 core_course_cohorts
@@ -77,27 +106,26 @@ N
 core_course_enrollments
 ```
 
+Student membership is not stored in `core_course_cohorts`.
+
 ---
 
 ## Business Rules
 
-* Mọi Cohort phải thuộc `customer_id`.
-* Một Cohort luôn thuộc một `product_id`.
-* Một Product có thể có nhiều Cohort.
-* Cohort đại diện cho một nhóm học viên học cùng Product.
-* Cohort có thể có teacher chính.
-* Cohort có thể có lịch học riêng.
-* Cohort có thể có ngày bắt đầu/kết thúc riêng.
-* Cohort có thể dùng cho lớp batch, corporate, private group, mentoring hoặc custom.
-* `cohort_type` mô tả mục đích / mô hình tổ chức lớp.
-* `delivery_mode` mô tả hình thức học.
-* Student phải có enrollment trước hoặc cùng lúc khi được đưa vào Cohort.
-* Một Enrollment chỉ có một active Cohort Membership.
-* Chuyển lớp cập nhật record `core_course_cohort_students` hiện tại.
-* Không lưu Cohort Membership History.
-* Cohort không thay thế Product.
-* Cohort không thay thế Enrollment.
-* Cohort chỉ nhóm các Enrollment/Student lại để quản lý lớp học thực tế.
+* Every Cohort must belong to `customer_id`.
+* A Cohort may optionally belong to `product_id`.
+* A Cohort may optionally belong to `version_id`.
+* A Cohort may optionally have `teacher_id`.
+* `version_id`, when present, references an immutable published Course Version.
+* `version_id` must not reference an editable Course Template.
+* Cohort does not own learning content.
+* Cohort does not grant learning access.
+* Enrollment remains the runtime authority for student learning access.
+* Student membership belongs to `core_course_cohort_students`.
+* Cohort does not own Progress, Assessment, Certificate, Tracking or AI data.
+* Cohort is operational only.
+* A Cohort should be archived instead of hard deleted once operational records
+  or student membership exist.
 
 ---
 
@@ -111,7 +139,7 @@ PRIMARY KEY
 AUTO_INCREMENT
 ```
 
-Khóa chính.
+Primary key.
 
 ---
 
@@ -122,7 +150,13 @@ BIGINT UNSIGNED
 NOT NULL
 ```
 
-Tenant sở hữu Cohort.
+Tenant owner.
+
+Foreign Key →
+
+```text
+saas_customers.id
+```
 
 ---
 
@@ -130,16 +164,37 @@ Tenant sở hữu Cohort.
 
 ```text
 BIGINT UNSIGNED
-NOT NULL
+NULL
 ```
 
-Product mà Cohort triển khai.
+Optional Course Product associated with the Cohort.
 
-Liên kết:
+Foreign Key →
 
 ```text
 core_course_products.id
 ```
+
+---
+
+### version_id
+
+```text
+BIGINT UNSIGNED
+NULL
+```
+
+Optional published Course Version associated with the Cohort.
+
+Foreign Key →
+
+```text
+core_course_template_versions.id
+```
+
+`version_id` always references an immutable published Course Version.
+
+`version_id` never references an editable Course Template.
 
 ---
 
@@ -150,39 +205,18 @@ BIGINT UNSIGNED
 NULL
 ```
 
-Giáo viên chính của Cohort.
+Optional primary teacher responsible for the Cohort.
 
-Liên kết:
+Foreign Key →
 
 ```text
 users.id
 ```
 
-User này thường có role:
+The referenced user should belong to the same tenant and have role:
 
 ```text
 teacher
-```
-
----
-
-### cohort_code
-
-```text
-VARCHAR(100)
-NOT NULL
-```
-
-Mã Cohort để vận hành và tra cứu.
-
-Ví dụ:
-
-```text
-TOPIK-BEG-JUL-2026
-
-TOPIK-BEG-AUG-2026
-
-SAMSUNG-TOPIK-2026
 ```
 
 ---
@@ -194,15 +228,36 @@ VARCHAR(255)
 NOT NULL
 ```
 
-Tên Cohort hiển thị.
+Display name of the Cohort.
 
-Ví dụ:
+Examples:
 
 ```text
-TOPIK Beginner - July 2026
+TOPIK Beginner Morning Class
 
-Samsung TOPIK Corporate Class
+TOPIK Beginner Weekend Class
 ```
+
+---
+
+### code
+
+```text
+VARCHAR(100)
+NULL
+```
+
+Optional operational code for search, filtering or internal administration.
+
+Examples:
+
+```text
+TOPIK-BEG-MORNING
+
+TOPIK-BEG-WEEKEND
+```
+
+Foundation v1 does not require a permanent unique constraint on `code`.
 
 ---
 
@@ -213,265 +268,7 @@ TEXT
 NULL
 ```
 
-Mô tả Cohort.
-
----
-
-### cohort_type
-
-```text
-VARCHAR(50)
-NOT NULL
-DEFAULT 'batch'
-```
-
-Mục đích / mô hình tổ chức lớp.
-
-Allowed values:
-
-```text
-batch
-
-corporate
-
-private_group
-
-exam_prep
-
-bootcamp
-
-mentoring
-
-custom
-```
-
-Ví dụ:
-
-```text
-batch
-```
-
-Lớp học theo đợt khai giảng.
-
-```text
-corporate
-```
-
-Lớp đào tạo cho doanh nghiệp.
-
-```text
-mentoring
-```
-
-Lớp coaching / hướng dẫn 1:1 hoặc nhóm nhỏ.
-
----
-
-### delivery_mode
-
-```text
-VARCHAR(50)
-NOT NULL
-DEFAULT 'self_paced'
-```
-
-Hình thức học chính.
-
-Allowed values:
-
-```text
-self_paced
-
-live_online
-
-offline
-
-hybrid
-```
-
-Ví dụ:
-
-```text
-live_online
-```
-
-Học trực tuyến theo lịch.
-
-```text
-hybrid
-```
-
-Kết hợp online, offline, replay hoặc self-learning.
-
----
-
-### max_students
-
-```text
-INT UNSIGNED
-NULL
-```
-
-Số học viên tối đa.
-
-NULL = không giới hạn.
-
----
-
-### current_students
-
-```text
-INT UNSIGNED
-NOT NULL
-DEFAULT 0
-```
-
-Số học viên hiện tại.
-
-Có thể được cập nhật từ:
-
-```text
-core_course_cohort_students
-```
-
----
-
-### starts_at
-
-```text
-TIMESTAMP NULL
-```
-
-Thời điểm bắt đầu Cohort.
-
----
-
-### ends_at
-
-```text
-TIMESTAMP NULL
-```
-
-Thời điểm kết thúc Cohort.
-
----
-
-### enrollment_starts_at
-
-```text
-TIMESTAMP NULL
-```
-
-Thời điểm bắt đầu cho phép ghi danh vào Cohort.
-
----
-
-### enrollment_ends_at
-
-```text
-TIMESTAMP NULL
-```
-
-Thời điểm kết thúc ghi danh vào Cohort.
-
----
-
-### timezone
-
-```text
-VARCHAR(100)
-NULL
-```
-
-Timezone của Cohort.
-
-Ví dụ:
-
-```text
-Asia/Ho_Chi_Minh
-
-Asia/Seoul
-```
-
-NULL = dùng timezone của tenant.
-
----
-
-### schedule_summary
-
-```text
-VARCHAR(500)
-NULL
-```
-
-Tóm tắt lịch học để hiển thị nhanh.
-
-Ví dụ:
-
-```text
-Tue/Thu 19:00 - 20:30
-
-Sat/Sun 09:00 - 11:00
-```
-
-Chi tiết lịch học nên thuộc LiveClass/Schedule domain riêng.
-
----
-
-### meeting_provider
-
-```text
-VARCHAR(50)
-NULL
-```
-
-Nhà cung cấp học online mặc định.
-
-Allowed examples:
-
-```text
-zoom
-
-google_meet
-
-teams
-
-custom
-```
-
----
-
-### meeting_url
-
-```text
-TEXT
-NULL
-```
-
-Link phòng học mặc định nếu Cohort dùng một phòng cố định.
-
-Nếu mỗi buổi học có link riêng, lưu ở LiveClass Session.
-
----
-
-### corporate_customer_name
-
-```text
-VARCHAR(255)
-NULL
-```
-
-Tên doanh nghiệp nếu Cohort là lớp corporate.
-
-Ví dụ:
-
-```text
-Samsung Vietnam
-
-LG Electronics
-
-Hyundai
-```
+Optional operational description.
 
 ---
 
@@ -483,25 +280,52 @@ NOT NULL
 DEFAULT 'draft'
 ```
 
-Trạng thái Cohort.
+Cohort lifecycle status.
 
 Allowed values:
 
 ```text
 draft
 
-open
-
-full
-
-in_progress
+active
 
 completed
 
-cancelled
-
 archived
 ```
+
+---
+
+### capacity
+
+```text
+INT UNSIGNED
+NULL
+```
+
+Optional maximum number of students for the Cohort.
+
+`NULL` means no capacity limit is currently defined.
+
+---
+
+### start_date
+
+```text
+DATE NULL
+```
+
+Optional planned start date.
+
+---
+
+### end_date
+
+```text
+DATE NULL
+```
+
+Optional planned end date.
 
 ---
 
@@ -511,18 +335,10 @@ archived
 JSON NULL
 ```
 
-Dữ liệu mở rộng.
+Optional extension data.
 
-Ví dụ:
-
-```json
-{
-  "corporate_contract_id": 123,
-  "default_language": "vi",
-  "attendance_required": true,
-  "replay_enabled": true
-}
-```
+Metadata must not become the source of learning authority, learning content,
+Progress, Assessment, Certificate, Tracking or AI context.
 
 ---
 
@@ -532,7 +348,7 @@ Ví dụ:
 TIMESTAMP NULL
 ```
 
-Thời điểm tạo.
+Creation timestamp.
 
 ---
 
@@ -542,7 +358,7 @@ Thời điểm tạo.
 TIMESTAMP NULL
 ```
 
-Thời điểm cập nhật.
+Update timestamp.
 
 ---
 
@@ -554,8 +370,8 @@ INDEX idx_course_cohorts_customer
 ```
 
 ```sql
-INDEX idx_course_cohorts_product
-(customer_id, product_id);
+INDEX idx_course_cohorts_status
+(customer_id, status);
 ```
 
 ```sql
@@ -564,46 +380,56 @@ INDEX idx_course_cohorts_teacher
 ```
 
 ```sql
-INDEX idx_course_cohorts_status
-(customer_id, status);
+INDEX idx_course_cohorts_product
+(customer_id, product_id);
 ```
 
 ```sql
-INDEX idx_course_cohorts_type
-(customer_id, cohort_type);
-```
-
-```sql
-INDEX idx_course_cohorts_delivery_mode
-(customer_id, delivery_mode);
-```
-
-```sql
-INDEX idx_course_cohorts_starts
-(customer_id, starts_at);
-```
-
-```sql
-INDEX idx_course_cohorts_enrollment_dates
-(customer_id, enrollment_starts_at, enrollment_ends_at);
+INDEX idx_course_cohorts_version
+(customer_id, version_id);
 ```
 
 ---
 
 ## Unique Constraints
 
-```sql
-UNIQUE uniq_course_cohorts_code
-(customer_id, cohort_code);
+Foundation v1 defines no permanent unique constraint for
+`core_course_cohorts`.
+
+---
+
+## Deferred Fields
+
+The previous detailed operational schema included fields for richer delivery
+management.
+
+These fields are deferred from Foundation v1:
+
+```text
+cohort_type
+delivery_mode
+max_students
+current_students
+starts_at
+ends_at
+enrollment_starts_at
+enrollment_ends_at
+timezone
+schedule_summary
+meeting_provider
+meeting_url
+corporate_customer_name
 ```
 
-Đảm bảo mã Cohort không trùng trong cùng tenant.
+They may be reintroduced later through an approved policy and database
+documentation update when Live Class, scheduling, corporate training or advanced
+delivery management requires them.
 
 ---
 
 ## Sample Data
 
-### Batch Live Online
+### Product Cohort
 
 ```text
 id = 1
@@ -612,123 +438,70 @@ customer_id = 1
 
 product_id = 10
 
+version_id = 7
+
 teacher_id = 25
 
-cohort_code = TOPIK-BEG-JUL-2026
+name = TOPIK Beginner Morning Class
 
-name = TOPIK Beginner - July 2026
+code = TOPIK-BEG-MORNING
 
-cohort_type = batch
+status = active
 
-delivery_mode = live_online
+capacity = 30
 
-max_students = 30
+start_date = 2026-07-01
 
-current_students = 18
-
-starts_at = 2026-07-01 19:00:00
-
-ends_at = 2026-09-30 20:30:00
-
-enrollment_starts_at = 2026-06-01 00:00:00
-
-enrollment_ends_at = 2026-06-30 23:59:59
-
-timezone = Asia/Ho_Chi_Minh
-
-schedule_summary = Tue/Thu 19:00 - 20:30
-
-meeting_provider = zoom
-
-status = open
+end_date = 2026-09-30
 ```
 
 ---
 
-### Corporate Hybrid
+### Operational Cohort Without Product
 
 ```text
 id = 2
 
 customer_id = 1
 
-product_id = 10
+product_id = NULL
 
-teacher_id = 30
+version_id = NULL
 
-cohort_code = SAMSUNG-TOPIK-2026
+teacher_id = NULL
 
-name = Samsung TOPIK Corporate Class
+name = Weekend Placement Group
 
-cohort_type = corporate
+code = NULL
 
-delivery_mode = hybrid
-
-max_students = 50
-
-current_students = 42
-
-starts_at = 2026-08-01 09:00:00
-
-ends_at = 2026-10-30 18:00:00
-
-timezone = Asia/Ho_Chi_Minh
-
-schedule_summary = Offline workshop + weekly online class
-
-corporate_customer_name = Samsung Vietnam
-
-status = open
+status = draft
 ```
 
 ---
 
 ## Final Statement
 
-`core_course_cohorts` là bảng quản lý lớp học / batch triển khai thực tế của Product.
+`core_course_cohorts` is the operational group table for Course learning
+operations.
 
-Vai trò đúng:
+Correct responsibility:
 
 ```text
-Product
+Course Product / Published Course Version
 
 ↓
 
-Cohort / Batch / Class
+Cohort / Class / Batch
 
 ↓
 
 Cohort Students
-
-↓
-
-Live Class / Hybrid / Corporate Learning
 ```
 
-Trong đó:
+Cohort groups students operationally through
+`core_course_cohort_students`.
 
-```text
-cohort_type = mục đích / mô hình tổ chức lớp
+Cohort does not replace Product, Enrollment or Published Course Version.
 
-delivery_mode = hình thức học
-```
-
-Cohort giúp LF hỗ trợ tốt:
-
-```text
-Live Online
-
-Hybrid
-
-Offline Class
-
-Corporate Training
-
-Batch-based Learning
-
-Private Group
-
-Mentoring
-```
-
-mà không làm Product hoặc Enrollment bị quá tải nghiệp vụ.
+Cohort does not own learning content, Progress, Assessment, Certificate,
+Tracking or AI context.

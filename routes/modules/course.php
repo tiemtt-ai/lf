@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CourseCategoryController;
+use App\Http\Controllers\CourseCohortController;
 use App\Http\Controllers\CourseEnrollmentController;
 use App\Http\Controllers\CourseProductController;
 use App\Http\Controllers\CourseTemplateActivityController;
@@ -29,6 +30,27 @@ Route::post('/course-categories/{id}/toggle-status', [CourseCategoryController::
     ->name('course-categories.toggle-status');
 
 if ($registerCourseProductRoutes ?? false) {
+    Route::get('/course-cohorts', [CourseCohortController::class, 'index'])
+        ->name('course-cohorts.index');
+
+    Route::get('/course-cohorts/create', [CourseCohortController::class, 'create'])
+        ->name('course-cohorts.create');
+
+    Route::post('/course-cohorts', [CourseCohortController::class, 'store'])
+        ->name('course-cohorts.store');
+
+    Route::get('/course-cohorts/{id}', [CourseCohortController::class, 'show'])
+        ->name('course-cohorts.show');
+
+    Route::get('/course-cohorts/{id}/edit', [CourseCohortController::class, 'edit'])
+        ->name('course-cohorts.edit');
+
+    Route::put('/course-cohorts/{id}', [CourseCohortController::class, 'update'])
+        ->name('course-cohorts.update');
+
+    Route::post('/course-cohorts/{id}/archive', [CourseCohortController::class, 'archive'])
+        ->name('course-cohorts.archive');
+
     Route::get('/course-enrollments', [CourseEnrollmentController::class, 'index'])
         ->name('course-enrollments.index');
 
