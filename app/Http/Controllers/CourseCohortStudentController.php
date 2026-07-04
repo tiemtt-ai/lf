@@ -1,0 +1,461 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Support\TenantContext;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+
+class CourseCohortStudentController extends Controller
+{
+    private const STATUSES = [
+        'active',
+        'removed',
+        'completed',
+        'cancelled',
+    ];
+
+    public function index(Request $request): View
+    {
+        $this->authorizeAdmin($request);
+
+        $customerId = $this->customerId();
+        $keyword = trim((string) $request->query('keyword', ''));
+        $status = $request->query('status');
+
+        if (! in_array($status, self::STATUSES, true)) {
+            $status = null;
+        }
+
+        $memberships = DB::table('core_course_cohort_students as memberships')
+            ->join('core_course_cohorts as cohorts', function ($join) use ($customerId): void {
+                $join->on('cohorts.id', '=', 'memberships.cohort_id')
+                    ->where('cohorts.customer_id', '=', $customerId);
+            })
+            ->join('core_course_enrollments as enrollments', function ($join) use ($customerId): void {
+                $join->on('enrollments.id', '=', 'memberships.enrollment_id')
+                    ->where('enrollments.customer_id', '=', $customerId);
+            })
+            ->join('users as students', function ($join) use ($customerId): void {
+                $join->on('students.id', '=', 'memberships.student_id')
+                    ->where('students.customer_id', '=', $customerId);
+            })
+            ->join('core_course_products as products', function ($join) use ($customerId): void {
+                $join->on('products.id', '=', 'memberships.product_id')
+                    ->where('products.customer_id', '=', $customerId);
+            })
+            ->where('memberships.customer_id', $customerId)
+            ->when($keyword !== '', function ($query) use ($keyword): void {
+                $query->where(function ($query) use ($keyword): void {
+                    $query->where('cohorts.name', 'like', '%'.$keyword.'%')
+                        ->orWhere('cohorts.code', 'like', '%'.$keyword.'%')
+                        ->orWhere('students.name', 'like', '%'.$keyword.'%')
+                        ->orWhere('students.email', 'like', '%'.$keyword.'%')
+                        ->orWhere('products.title', 'like', '%'.$keyword.'%')
+                        ->orWhere('products.product_code', 'like', '%'.$keyword.'%');
+                });
+            })
+            ->when($status, function ($query) use ($status): void {
+                $query->where('memberships.status', $status);
+            })
+            ->orderByDesc('memberships.joined_at')
+            ->orderByDesc('memberships.id')
+            ->select(
+                'memberships.*',
+                'cohorts.name as cohort_name',
+                'cohorts.code as cohort_code',
+                'students.name as student_name',
+                'students.email as student_email',
+                'products.title as product_title',
+                'products.product_code'
+            )
+            ->get();
+
+        return view('course-cohort-students.index', [
+            'memberships' => $memberships,
+            'keyword' => $keyword,
+            'status' => $status,
+            'routePrefix' => $this->routePrefix($request),
+        ]);
+    }
+
+    public function create(Request $request): View
+    {
+        $this->authorizeAdmin($request);
+
+        $customerId = $this->customerId();
+
+        return view('course-cohort-students.create', [
+            'cohorts' => $this->cohorts($customerId),
+            'enrollments' => $this->enrollments($customerId),
+            'statuses' => self::STATUSES,
+            'routePrefix' => $this->routePrefix($request),
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $this->authorizeAdmin($request);
+
+        $customerId = $this->customerId();
+        $validated = $this->validatedData($request, $customerId);
+        $cohort = $this->findCohortRecord($customerId, (int) $validated['cohort_id']);
+        $enrollment = $this->findEnrollmentRecord($customerId, (int) $validated['enrollment_id']);
+        $now = now();
+
+        $membershipId = DB::table('core_course_cohort_students')->insertGetId([
+            'customer_id' => $customerId,
+            'cohort_id' => $cohort->id,
+            'enrollment_id' => $enrollment->id,
+            'product_id' => $enrollment->product_id,
+            'student_id' => $enrollment->student_id,
+            'assigned_by' => $request->user()?->id,
+            'joined_at' => $validated['joined_at'],
+            'left_at' => $validated['left_at'] ?? null,
+            'status' => $validated['status'],
+            'transfer_from_cohort_id' => null,
+            'transfer_reason' => $validated['transfer_reason'] ?? null,
+            'note' => $validated['note'] ?? null,
+            'metadata' => $validated['metadata'] ?? null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        return redirect()
+            ->route($this->routePrefix($request).'.show', $membershipId)
+            ->with('success', __('lf.LF_course_cohort_student_common_created'));
+    }
+
+    public function show(Request $request, int $id): View
+    {
+        $this->authorizeAdmin($request);
+
+        return view('course-cohort-students.show', [
+            'membership' => $this->findMembership($this->customerId(), $id),
+            'routePrefix' => $this->routePrefix($request),
+        ]);
+    }
+
+    public function edit(Request $request, int $id): View
+    {
+        $this->authorizeAdmin($request);
+
+        $customerId = $this->customerId();
+
+        return view('course-cohort-students.edit', [
+            'membership' => $this->findMembership($customerId, $id),
+            'cohorts' => $this->cohorts($customerId),
+            'statuses' => self::STATUSES,
+            'routePrefix' => $this->routePrefix($request),
+        ]);
+    }
+
+    public function update(Request $request, int $id)
+    {
+        $this->authorizeAdmin($request);
+
+        $customerId = $this->customerId();
+        $membership = $this->findMembership($customerId, $id);
+        $validated = $this->validatedData($request, $customerId, $membership);
+        $cohort = $this->findCohortRecord($customerId, (int) $validated['cohort_id']);
+
+        DB::table('core_course_cohort_students')
+            ->where('customer_id', $customerId)
+            ->where('id', $id)
+            ->update([
+                'cohort_id' => $cohort->id,
+                'joined_at' => $validated['joined_at'],
+                'left_at' => $validated['left_at'] ?? null,
+                'status' => $validated['status'],
+                'transfer_from_cohort_id' => $cohort->id !== $membership->cohort_id
+                    ? $membership->cohort_id
+                    : $membership->transfer_from_cohort_id,
+                'transfer_reason' => $validated['transfer_reason'] ?? null,
+                'note' => $validated['note'] ?? null,
+                'metadata' => $validated['metadata'] ?? null,
+                'updated_at' => now(),
+            ]);
+
+        return redirect()
+            ->route($this->routePrefix($request).'.show', $id)
+            ->with('success', __('lf.LF_course_cohort_student_common_updated'));
+    }
+
+    public function archive(Request $request, int $id)
+    {
+        $this->authorizeAdmin($request);
+
+        $customerId = $this->customerId();
+        $this->findMembership($customerId, $id);
+
+        DB::table('core_course_cohort_students')
+            ->where('customer_id', $customerId)
+            ->where('id', $id)
+            ->update([
+                'status' => 'removed',
+                'left_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+        return redirect()
+            ->route($this->routePrefix($request).'.show', $id)
+            ->with('success', __('lf.LF_course_cohort_student_common_archived_message'));
+    }
+
+    private function validatedData(Request $request, int $customerId, ?object $membership = null): array
+    {
+        $validator = Validator::make($request->all(), [
+            'cohort_id' => ['required', 'integer', 'min:1'],
+            'enrollment_id' => [$membership ? 'nullable' : 'required', 'integer', 'min:1'],
+            'joined_at' => ['required', 'date'],
+            'left_at' => ['nullable', 'date', 'after_or_equal:joined_at'],
+            'status' => ['required', Rule::in(self::STATUSES)],
+            'transfer_reason' => ['nullable', 'string', 'max:500'],
+            'note' => ['nullable', 'string'],
+            'metadata' => ['nullable', 'json'],
+        ]);
+
+        $validator->after(function ($validator) use ($request, $customerId, $membership): void {
+            $this->rejectManagedInputs($validator, $request, [
+                'customer_id',
+                'product_id',
+                'student_id',
+                'assigned_by',
+                'transfer_from_cohort_id',
+            ]);
+
+            if ($membership) {
+                $this->rejectManagedInputs($validator, $request, ['enrollment_id']);
+            }
+
+            $cohortId = (int) $request->input('cohort_id');
+            $enrollmentId = $membership
+                ? (int) $membership->enrollment_id
+                : (int) $request->input('enrollment_id');
+
+            $cohort = $cohortId > 0 ? $this->findCohortRecord($customerId, $cohortId, false) : null;
+            $enrollment = $enrollmentId > 0
+                ? $this->findEnrollmentRecord($customerId, $enrollmentId, false)
+                : null;
+
+            if ($cohortId > 0 && ! $cohort) {
+                $validator->errors()->add(
+                    'cohort_id',
+                    __('lf.LF_course_cohort_student_validation_cohort')
+                );
+            }
+
+            if ($cohort && $cohort->status === 'archived') {
+                $validator->errors()->add(
+                    'cohort_id',
+                    __('lf.LF_course_cohort_student_validation_archived_cohort')
+                );
+            }
+
+            if ($enrollmentId > 0 && ! $enrollment) {
+                $validator->errors()->add(
+                    'enrollment_id',
+                    __('lf.LF_course_cohort_student_validation_enrollment')
+                );
+            }
+
+            if (! $membership && $enrollment && $this->membershipExists($customerId, $enrollment->id)) {
+                $validator->errors()->add(
+                    'enrollment_id',
+                    __('lf.LF_course_cohort_student_validation_duplicate')
+                );
+            }
+
+            if ($cohort && $enrollment) {
+                if ($cohort->product_id && (int) $cohort->product_id !== (int) $enrollment->product_id) {
+                    $validator->errors()->add(
+                        'enrollment_id',
+                        __('lf.LF_course_cohort_student_validation_product_mismatch')
+                    );
+                }
+
+                if ($cohort->version_id && (int) $cohort->version_id !== (int) $enrollment->version_id) {
+                    $validator->errors()->add(
+                        'enrollment_id',
+                        __('lf.LF_course_cohort_student_validation_version_mismatch')
+                    );
+                }
+
+                if ($this->cohortIsFull($customerId, $cohort, $membership?->id)) {
+                    $validator->errors()->add(
+                        'cohort_id',
+                        __('lf.LF_course_cohort_student_validation_capacity')
+                    );
+                }
+            }
+        });
+
+        return $validator->validate();
+    }
+
+    private function rejectManagedInputs($validator, Request $request, array $fields): void
+    {
+        foreach ($fields as $field) {
+            if ($request->has($field) && $request->input($field) !== null) {
+                $validator->errors()->add(
+                    $field,
+                    __('lf.LF_course_cohort_student_validation_managed')
+                );
+            }
+        }
+    }
+
+    private function findMembership(int $customerId, int $id): object
+    {
+        $membership = DB::table('core_course_cohort_students as memberships')
+            ->join('core_course_cohorts as cohorts', function ($join) use ($customerId): void {
+                $join->on('cohorts.id', '=', 'memberships.cohort_id')
+                    ->where('cohorts.customer_id', '=', $customerId);
+            })
+            ->join('core_course_enrollments as enrollments', function ($join) use ($customerId): void {
+                $join->on('enrollments.id', '=', 'memberships.enrollment_id')
+                    ->where('enrollments.customer_id', '=', $customerId);
+            })
+            ->join('users as students', function ($join) use ($customerId): void {
+                $join->on('students.id', '=', 'memberships.student_id')
+                    ->where('students.customer_id', '=', $customerId);
+            })
+            ->join('core_course_products as products', function ($join) use ($customerId): void {
+                $join->on('products.id', '=', 'memberships.product_id')
+                    ->where('products.customer_id', '=', $customerId);
+            })
+            ->leftJoin('core_course_cohorts as previous_cohorts', function ($join) use ($customerId): void {
+                $join->on('previous_cohorts.id', '=', 'memberships.transfer_from_cohort_id')
+                    ->where('previous_cohorts.customer_id', '=', $customerId);
+            })
+            ->where('memberships.customer_id', $customerId)
+            ->where('memberships.id', $id)
+            ->select(
+                'memberships.*',
+                'cohorts.name as cohort_name',
+                'cohorts.code as cohort_code',
+                'enrollments.version_id',
+                'students.name as student_name',
+                'students.email as student_email',
+                'products.title as product_title',
+                'products.product_code',
+                'previous_cohorts.name as transfer_from_cohort_name'
+            )
+            ->first();
+
+        abort_if(! $membership, 404);
+
+        return $membership;
+    }
+
+    private function findCohortRecord(int $customerId, int $id, bool $abort = true): ?object
+    {
+        $cohort = DB::table('core_course_cohorts')
+            ->where('customer_id', $customerId)
+            ->where('id', $id)
+            ->first();
+
+        abort_if($abort && ! $cohort, 404);
+
+        return $cohort;
+    }
+
+    private function findEnrollmentRecord(int $customerId, int $id, bool $abort = true): ?object
+    {
+        $enrollment = DB::table('core_course_enrollments')
+            ->where('customer_id', $customerId)
+            ->where('id', $id)
+            ->first();
+
+        abort_if($abort && ! $enrollment, 404);
+
+        return $enrollment;
+    }
+
+    private function membershipExists(int $customerId, int $enrollmentId): bool
+    {
+        return DB::table('core_course_cohort_students')
+            ->where('customer_id', $customerId)
+            ->where('enrollment_id', $enrollmentId)
+            ->exists();
+    }
+
+    private function cohortIsFull(int $customerId, object $cohort, ?int $ignoreMembershipId = null): bool
+    {
+        if ($cohort->capacity === null) {
+            return false;
+        }
+
+        $query = DB::table('core_course_cohort_students')
+            ->where('customer_id', $customerId)
+            ->where('cohort_id', $cohort->id)
+            ->where('status', 'active');
+
+        if ($ignoreMembershipId) {
+            $query->where('id', '!=', $ignoreMembershipId);
+        }
+
+        return $query->count() >= (int) $cohort->capacity;
+    }
+
+    private function cohorts(int $customerId)
+    {
+        return DB::table('core_course_cohorts')
+            ->where('customer_id', $customerId)
+            ->where('status', '!=', 'archived')
+            ->orderBy('name')
+            ->select('id', 'name', 'code', 'product_id', 'version_id', 'status', 'capacity')
+            ->get();
+    }
+
+    private function enrollments(int $customerId)
+    {
+        return DB::table('core_course_enrollments as enrollments')
+            ->join('users as students', function ($join) use ($customerId): void {
+                $join->on('students.id', '=', 'enrollments.student_id')
+                    ->where('students.customer_id', '=', $customerId);
+            })
+            ->join('core_course_products as products', function ($join) use ($customerId): void {
+                $join->on('products.id', '=', 'enrollments.product_id')
+                    ->where('products.customer_id', '=', $customerId);
+            })
+            ->where('enrollments.customer_id', $customerId)
+            ->orderBy('students.name')
+            ->orderBy('enrollments.id')
+            ->select(
+                'enrollments.id',
+                'enrollments.product_id',
+                'enrollments.version_id',
+                'students.name as student_name',
+                'students.email as student_email',
+                'products.title as product_title',
+                'products.product_code'
+            )
+            ->get();
+    }
+
+    private function customerId(): int
+    {
+        $customerId = TenantContext::customerId();
+
+        abort_if(! $customerId, 404);
+
+        return $customerId;
+    }
+
+    private function authorizeAdmin(Request $request): void
+    {
+        abort_unless($request->user()?->role === 'customer_admin', 403);
+    }
+
+    private function routePrefix(Request $request): string
+    {
+        return match ($request->user()?->role) {
+            'customer_admin' => 'admin.course-cohort-students',
+            default => abort(403),
+        };
+    }
+}

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CourseCategoryController;
 use App\Http\Controllers\CourseCohortController;
+use App\Http\Controllers\CourseCohortStudentController;
 use App\Http\Controllers\CourseEnrollmentController;
 use App\Http\Controllers\CourseProductController;
 use App\Http\Controllers\CourseTemplateActivityController;
@@ -50,6 +51,27 @@ if ($registerCourseProductRoutes ?? false) {
 
     Route::post('/course-cohorts/{id}/archive', [CourseCohortController::class, 'archive'])
         ->name('course-cohorts.archive');
+
+    Route::get('/course-cohort-students', [CourseCohortStudentController::class, 'index'])
+        ->name('course-cohort-students.index');
+
+    Route::get('/course-cohort-students/create', [CourseCohortStudentController::class, 'create'])
+        ->name('course-cohort-students.create');
+
+    Route::post('/course-cohort-students', [CourseCohortStudentController::class, 'store'])
+        ->name('course-cohort-students.store');
+
+    Route::get('/course-cohort-students/{id}', [CourseCohortStudentController::class, 'show'])
+        ->name('course-cohort-students.show');
+
+    Route::get('/course-cohort-students/{id}/edit', [CourseCohortStudentController::class, 'edit'])
+        ->name('course-cohort-students.edit');
+
+    Route::put('/course-cohort-students/{id}', [CourseCohortStudentController::class, 'update'])
+        ->name('course-cohort-students.update');
+
+    Route::post('/course-cohort-students/{id}/archive', [CourseCohortStudentController::class, 'archive'])
+        ->name('course-cohort-students.archive');
 
     Route::get('/course-enrollments', [CourseEnrollmentController::class, 'index'])
         ->name('course-enrollments.index');
