@@ -417,6 +417,186 @@ class CourseProductManagementTest extends TestCase
         ]);
     }
 
+    public function test_product_cannot_attach_two_active_versions_from_same_template(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK', 'topik');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'TOPIK Template');
+        $oldVersionId = $this->createVersion(
+            $customerId,
+            $admin->id,
+            title: 'TOPIK Template',
+            templateId: $templateId,
+            versionNumber: 4,
+            isCurrent: false
+        );
+        $newVersionId = $this->createVersion(
+            $customerId,
+            $admin->id,
+            title: 'TOPIK Template',
+            templateId: $templateId,
+            versionNumber: 7
+        );
+        $this->createProductItem($customerId, $productId, $oldVersionId);
+
+        $this->actingAs($admin)
+            ->from("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->post(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/items",
+                $this->validProductItemData([
+                    'template_version_id' => $newVersionId,
+                    'status' => 'active',
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+            )
+            ->assertSessionHasErrors('template_version_id');
+
+        $this->assertDatabaseMissing('core_course_product_items', [
+            'customer_id' => $customerId,
+            'product_id' => $productId,
+            'template_version_id' => $newVersionId,
+        ]);
+    }
+
+    public function test_product_can_attach_active_versions_from_different_templates(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK Bundle', 'topik-bundle');
+        $firstVersionId = $this->createVersion(
+            $customerId,
+            $admin->id,
+            title: 'TOPIK Beginner'
+        );
+        $secondVersionId = $this->createVersion(
+            $customerId,
+            $admin->id,
+            title: 'TOPIK Intermediate'
+        );
+        $this->createProductItem($customerId, $productId, $firstVersionId);
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/items",
+                $this->validProductItemData([
+                    'template_version_id' => $secondVersionId,
+                    'status' => 'active',
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+            )
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('core_course_product_items', [
+            'customer_id' => $customerId,
+            'product_id' => $productId,
+            'template_version_id' => $secondVersionId,
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_inactive_old_version_does_not_block_new_active_version_from_same_template(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK', 'topik');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'TOPIK Template');
+        $oldVersionId = $this->createVersion(
+            $customerId,
+            $admin->id,
+            title: 'TOPIK Template',
+            templateId: $templateId,
+            versionNumber: 4,
+            isCurrent: false
+        );
+        $newVersionId = $this->createVersion(
+            $customerId,
+            $admin->id,
+            title: 'TOPIK Template',
+            templateId: $templateId,
+            versionNumber: 7
+        );
+        $this->createProductItem(
+            $customerId,
+            $productId,
+            $oldVersionId,
+            status: 'inactive'
+        );
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/items",
+                $this->validProductItemData([
+                    'template_version_id' => $newVersionId,
+                    'status' => 'active',
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+            )
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('core_course_product_items', [
+            'customer_id' => $customerId,
+            'product_id' => $productId,
+            'template_version_id' => $newVersionId,
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_same_template_active_version_rule_is_tenant_isolated(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK', 'topik');
+        $otherProductId = $this->createProduct(
+            $otherCustomerId,
+            'Tenant B TOPIK',
+            'tenant-b-topik'
+        );
+        $templateId = $this->createTemplate($customerId, $admin->id, 'TOPIK Template');
+        $otherTemplateId = $this->createTemplate($otherCustomerId, $otherAdmin->id, 'TOPIK Template');
+        $versionId = $this->createVersion(
+            $customerId,
+            $admin->id,
+            title: 'TOPIK Template',
+            templateId: $templateId
+        );
+        $otherVersionId = $this->createVersion(
+            $otherCustomerId,
+            $otherAdmin->id,
+            title: 'TOPIK Template',
+            templateId: $otherTemplateId
+        );
+        $this->createProductItem($otherCustomerId, $otherProductId, $otherVersionId);
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/items",
+                $this->validProductItemData([
+                    'template_version_id' => $versionId,
+                    'status' => 'active',
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+            )
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('core_course_product_items', [
+            'customer_id' => $customerId,
+            'product_id' => $productId,
+            'template_version_id' => $versionId,
+            'status' => 'active',
+        ]);
+    }
+
     public function test_admin_can_list_product_items_inside_product_management(): void
     {
         $customerId = $this->createTenant();
@@ -1049,17 +1229,20 @@ class CourseProductManagementTest extends TestCase
         int $customerId,
         int $userId,
         string $title = 'TOPIK Version',
-        string $status = 'published'
+        string $status = 'published',
+        ?int $templateId = null,
+        int $versionNumber = 1,
+        ?bool $isCurrent = null
     ): int {
         $now = now();
-        $templateId = $this->createTemplate($customerId, $userId, $title);
+        $templateId ??= $this->createTemplate($customerId, $userId, $title);
 
         return DB::table('core_course_template_versions')->insertGetId([
             'customer_id' => $customerId,
             'template_id' => $templateId,
-            'version_number' => 1,
-            'version_code' => 'VERSION-'.$templateId,
-            'is_current' => $status === 'published',
+            'version_number' => $versionNumber,
+            'version_code' => 'VERSION-'.$templateId.'-'.$versionNumber,
+            'is_current' => $isCurrent ?? $status === 'published',
             'source_category_id' => null,
             'category_name_snapshot' => null,
             'title_snapshot' => $title,
@@ -1096,7 +1279,8 @@ class CourseProductManagementTest extends TestCase
         int $productId,
         int $versionId,
         ?string $titleOverride = null,
-        int $sortOrder = 0
+        int $sortOrder = 0,
+        string $status = 'active'
     ): int {
         $now = now();
 
@@ -1108,7 +1292,7 @@ class CourseProductManagementTest extends TestCase
             'short_description_override' => null,
             'sort_order' => $sortOrder,
             'is_required' => true,
-            'status' => 'active',
+            'status' => $status,
             'created_by' => null,
             'created_at' => $now,
             'updated_at' => $now,

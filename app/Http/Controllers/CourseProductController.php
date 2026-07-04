@@ -419,6 +419,32 @@ class CourseProductController extends Controller
                     'template_version_id',
                     __('lf.LF_course_product_item_validation_duplicate')
                 );
+
+                return;
+            }
+
+            if ($request->input('status') !== 'active') {
+                return;
+            }
+
+            $activeTemplateExists = DB::table('core_course_product_items as items')
+                ->join('core_course_template_versions as versions', function ($join) use (
+                    $customerId
+                ): void {
+                    $join->on('versions.id', '=', 'items.template_version_id')
+                        ->where('versions.customer_id', '=', $customerId);
+                })
+                ->where('items.customer_id', $customerId)
+                ->where('items.product_id', $productId)
+                ->where('items.status', 'active')
+                ->where('versions.template_id', $version->template_id)
+                ->exists();
+
+            if ($activeTemplateExists) {
+                $validator->errors()->add(
+                    'template_version_id',
+                    __('lf.LF_course_product_item_validation_active_template_version')
+                );
             }
         });
 
