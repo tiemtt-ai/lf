@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +23,15 @@ class CourseTemplatePublishingTest extends TestCase
             'app.base_domain' => 'localhost',
             'app.tenant_scheme' => 'https',
         ]);
+
+        Carbon::setTestNow('2026-07-04 09:00:00');
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     public function test_course_template_lifecycle_routes_are_registered_for_admin_only(): void
@@ -205,6 +215,10 @@ class CourseTemplatePublishingTest extends TestCase
             ->get();
 
         $this->assertSame([1, 2], $versions->pluck('version_number')->all());
+        $this->assertSame(
+            ['VER-20260704-001', 'VER-20260704-002'],
+            $versions->pluck('version_code')->all()
+        );
         $this->assertSame(0, (int) $versions[0]->is_current);
         $this->assertSame(1, (int) $versions[1]->is_current);
         $this->assertSame(
@@ -226,6 +240,43 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertSeeText('Version Admin')
             ->assertSeeText('Đã xuất bản')
             ->assertSeeText('Hiện tại');
+    }
+
+    public function test_template_version_code_sequence_is_tenant_scoped(): void
+    {
+        $customerA = $this->createTenant();
+        $customerB = $this->createTenant('tenant-b');
+        $adminA = $this->createUser($customerA, 'customer_admin');
+        $adminB = $this->createUser($customerB, 'customer_admin');
+        $templateA1 = $this->createTemplate($customerA, $adminA->id, 'Tenant A First');
+        $templateA2 = $this->createTemplate($customerA, $adminA->id, 'Tenant A Second');
+        $templateB = $this->createTemplate($customerB, $adminB->id, 'Tenant B First');
+
+        $this->actingAs($adminA)
+            ->post("https://tenant-a.localhost/admin/course-templates/{$templateA1}/publish")
+            ->assertRedirect();
+        $this->actingAs($adminA)
+            ->post("https://tenant-a.localhost/admin/course-templates/{$templateA2}/publish")
+            ->assertRedirect();
+        $this->actingAs($adminB)
+            ->post("https://tenant-b.localhost/admin/course-templates/{$templateB}/publish")
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('core_course_template_versions', [
+            'customer_id' => $customerA,
+            'template_id' => $templateA1,
+            'version_code' => 'VER-20260704-001',
+        ]);
+        $this->assertDatabaseHas('core_course_template_versions', [
+            'customer_id' => $customerA,
+            'template_id' => $templateA2,
+            'version_code' => 'VER-20260704-002',
+        ]);
+        $this->assertDatabaseHas('core_course_template_versions', [
+            'customer_id' => $customerB,
+            'template_id' => $templateB,
+            'version_code' => 'VER-20260704-001',
+        ]);
     }
 
     public function test_non_admin_users_cannot_publish(): void

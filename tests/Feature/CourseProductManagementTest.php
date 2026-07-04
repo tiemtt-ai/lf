@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +23,15 @@ class CourseProductManagementTest extends TestCase
             'app.base_domain' => 'localhost',
             'app.tenant_scheme' => 'https',
         ]);
+
+        Carbon::setTestNow('2026-07-04 09:00:00');
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     public function test_admin_course_product_routes_exist_and_teacher_routes_do_not(): void
@@ -85,7 +95,6 @@ class CourseProductManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->post('https://tenant-a.localhost/admin/course-products', $this->validProductData([
-                'product_code' => 'TOPIK-BEG-SLF',
                 'product_type' => 'single_course',
                 'title' => 'TOPIK Beginner',
                 'slug' => 'topik-beginner',
@@ -127,7 +136,7 @@ class CourseProductManagementTest extends TestCase
 
         $this->assertDatabaseHas('core_course_products', [
             'customer_id' => $customerId,
-            'product_code' => 'TOPIK-BEG-SLF',
+            'product_code' => 'PRD-20260704-001',
             'product_type' => 'single_course',
             'title' => 'TOPIK Beginner',
             'slug' => 'topik-beginner',
@@ -202,7 +211,7 @@ class CourseProductManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_products', [
             'id' => $productId,
             'customer_id' => $customerId,
-            'product_code' => 'TOPIK-BEG-UPDATED',
+            'product_code' => 'TOPIK-BEGINNER',
             'title' => 'TOPIK Beginner Updated',
             'slug' => 'topik-beginner-updated',
             'status' => 'inactive',
@@ -262,30 +271,38 @@ class CourseProductManagementTest extends TestCase
         ]);
     }
 
-    public function test_slug_and_product_code_are_unique_within_tenant_only(): void
+    public function test_product_code_sequence_is_tenant_scoped_and_ignores_manual_input(): void
     {
         $customerId = $this->createTenant();
         $otherCustomerId = $this->createTenant('tenant-b');
         $admin = $this->createUser($customerId, 'customer_admin');
         $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
-        $this->createProduct($customerId, 'TOPIK', 'topik', 'TOPIK-001');
 
         $this->actingAs($admin)
             ->post(
                 'https://tenant-a.localhost/admin/course-products',
                 $this->validProductData([
-                    'product_code' => 'TOPIK-001',
-                    'title' => 'Duplicate TOPIK',
+                    'product_code' => 'MANUAL-CODE',
+                    'title' => 'TOPIK A',
                     'slug' => 'topik',
                 ])
             )
-            ->assertSessionHasErrors(['product_code', 'slug']);
+            ->assertRedirect('https://tenant-a.localhost/admin/course-products');
+
+        $this->actingAs($admin)
+            ->post(
+                'https://tenant-a.localhost/admin/course-products',
+                $this->validProductData([
+                    'title' => 'TOPIK B',
+                    'slug' => 'topik-b',
+                ])
+            )
+            ->assertRedirect('https://tenant-a.localhost/admin/course-products');
 
         $this->actingAs($otherAdmin)
             ->post(
                 'https://tenant-b.localhost/admin/course-products',
                 $this->validProductData([
-                    'product_code' => 'TOPIK-001',
                     'title' => 'Tenant B TOPIK',
                     'slug' => 'topik',
                 ])
@@ -293,10 +310,38 @@ class CourseProductManagementTest extends TestCase
             ->assertRedirect('https://tenant-b.localhost/admin/course-products');
 
         $this->assertDatabaseHas('core_course_products', [
-            'customer_id' => $otherCustomerId,
-            'product_code' => 'TOPIK-001',
+            'customer_id' => $customerId,
+            'product_code' => 'PRD-20260704-001',
             'slug' => 'topik',
         ]);
+        $this->assertDatabaseHas('core_course_products', [
+            'customer_id' => $customerId,
+            'product_code' => 'PRD-20260704-002',
+            'slug' => 'topik-b',
+        ]);
+        $this->assertDatabaseHas('core_course_products', [
+            'customer_id' => $otherCustomerId,
+            'product_code' => 'PRD-20260704-001',
+            'slug' => 'topik',
+        ]);
+    }
+
+    public function test_product_code_input_is_not_rendered_on_create_or_edit_forms(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK', 'topik');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-products/create')
+            ->assertOk()
+            ->assertDontSee('name="product_code"', false);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->assertOk()
+            ->assertDontSee('name="product_code"', false)
+            ->assertSeeText('TOPIK');
     }
 
     public function test_invalid_status_is_rejected(): void
@@ -326,7 +371,6 @@ class CourseProductManagementTest extends TestCase
                 ->post(
                     'https://tenant-a.localhost/admin/course-products',
                     $this->validProductData([
-                        'product_code' => 'PRODUCT-'.strtoupper($status),
                         'title' => 'Product '.$status,
                         'slug' => 'product-'.$status,
                         'status' => $status,
@@ -1330,7 +1374,6 @@ class CourseProductManagementTest extends TestCase
     private function validProductData(array $overrides = []): array
     {
         return array_merge([
-            'product_code' => 'PROGRAMMING-BASICS',
             'product_type' => 'single_course',
             'title' => 'Programming Basics',
             'slug' => 'programming-basics',

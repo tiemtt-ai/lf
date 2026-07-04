@@ -16,16 +16,18 @@
                required>
     </div>
 
-    <div class="lf-form-group">
-        <label class="lf-form-label" for="code">
-            {{ __('lf.LF_course_cohort_common_code') }}
-        </label>
-        <input id="code"
-               type="text"
-               name="code"
-               class="lf-form-control"
-               value="{{ old('code', $cohort->code ?? '') }}">
-    </div>
+    @if ($cohort?->code)
+        <div class="lf-form-group">
+            <span class="lf-form-label">
+                {{ __('lf.LF_course_cohort_common_code') }}
+            </span>
+            <p class="lf-form-help">{{ $cohort->code }}</p>
+        </div>
+    @else
+        <p class="lf-form-help">
+            {{ __('lf.LF_course_cohort_common_code_auto_help') }}
+        </p>
+    @endif
 
     <div class="lf-form-group">
         <label class="lf-form-label" for="description">

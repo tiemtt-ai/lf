@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\SequentialCodeGenerator;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -105,6 +106,12 @@ class CourseCohortController extends Controller
         $cohortId = DB::table('core_course_cohorts')->insertGetId(
             $this->cohortValues($validated, [
                 'customer_id' => $customerId,
+                'code' => SequentialCodeGenerator::next(
+                    $customerId,
+                    'core_course_cohorts',
+                    'code',
+                    'COH'
+                ),
                 'created_at' => $now,
                 'updated_at' => $now,
             ])
@@ -188,7 +195,6 @@ class CourseCohortController extends Controller
             'version_id' => ['nullable', 'integer', 'min:1'],
             'teacher_id' => ['nullable', 'integer', 'min:1'],
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['nullable', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
             'status' => ['required', Rule::in(self::STATUSES)],
             'capacity' => ['nullable', 'integer', 'min:0'],
@@ -234,7 +240,6 @@ class CourseCohortController extends Controller
             'version_id' => $validated['version_id'] ?? null,
             'teacher_id' => $validated['teacher_id'] ?? null,
             'name' => $validated['name'],
-            'code' => $validated['code'] ?? null,
             'description' => $validated['description'] ?? null,
             'status' => $validated['status'],
             'capacity' => $validated['capacity'] ?? null,

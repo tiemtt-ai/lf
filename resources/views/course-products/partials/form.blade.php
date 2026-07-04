@@ -26,13 +26,18 @@
         {{ __('lf.LF_course_product_group_basic') }}
     </h2>
 
-    <div class="lf-form-group">
-        <x-form-label for="product_code"
-                      :value="__('lf.LF_course_product_common_product_code')"
-                      :required="$isRequired('product_code')" />
-        <input id="product_code" type="text" name="product_code" class="lf-form-control"
-               value="{{ old('product_code', $formProduct?->product_code) }}" required maxlength="100">
-    </div>
+    @if ($formProduct?->product_code)
+        <div class="lf-form-group">
+            <span class="lf-form-label">
+                {{ __('lf.LF_course_product_common_product_code') }}
+            </span>
+            <p class="lf-form-help">{{ $formProduct->product_code }}</p>
+        </div>
+    @else
+        <p class="lf-form-help">
+            {{ __('lf.LF_course_product_common_code_auto_help') }}
+        </p>
+    @endif
 
     <div class="lf-form-group">
         <x-form-label for="product_type"

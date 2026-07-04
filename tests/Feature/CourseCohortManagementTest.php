@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +23,15 @@ class CourseCohortManagementTest extends TestCase
             'app.base_domain' => 'localhost',
             'app.tenant_scheme' => 'https',
         ]);
+
+        Carbon::setTestNow('2026-07-04 09:00:00');
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     public function test_admin_course_cohort_routes_exist_and_teacher_routes_do_not(): void
@@ -56,7 +66,6 @@ class CourseCohortManagementTest extends TestCase
                     'version_id' => $versionId,
                     'teacher_id' => $teacher->id,
                     'name' => 'TOPIK Beginner Morning Class',
-                    'code' => 'TOPIK-BEG-MORNING',
                     'description' => 'Morning operational class.',
                     'status' => 'active',
                     'capacity' => 30,
@@ -73,7 +82,7 @@ class CourseCohortManagementTest extends TestCase
             'version_id' => $versionId,
             'teacher_id' => $teacher->id,
             'name' => 'TOPIK Beginner Morning Class',
-            'code' => 'TOPIK-BEG-MORNING',
+            'code' => 'COH-20260704-001',
             'status' => 'active',
             'capacity' => 30,
         ]);
@@ -96,7 +105,7 @@ class CourseCohortManagementTest extends TestCase
                     'version_id' => $versionId,
                     'teacher_id' => $teacher->id,
                     'name' => 'TOPIK Beginner Weekend Class',
-                    'code' => 'TOPIK-BEG-WEEKEND',
+                    'code' => 'MANUAL-CHANGE',
                     'status' => 'completed',
                     'capacity' => 24,
                     'start_date' => '2026-08-01',
@@ -112,7 +121,7 @@ class CourseCohortManagementTest extends TestCase
             'version_id' => $versionId,
             'teacher_id' => $teacher->id,
             'name' => 'TOPIK Beginner Weekend Class',
-            'code' => 'TOPIK-BEG-WEEKEND',
+            'code' => 'COH-EXISTING',
             'status' => 'completed',
             'capacity' => 24,
         ]);
@@ -241,6 +250,72 @@ class CourseCohortManagementTest extends TestCase
             ->assertSessionHasErrors('version_id');
 
         $this->assertDatabaseCount('core_course_cohorts', 0);
+    }
+
+    public function test_cohort_code_sequence_is_tenant_scoped_and_ignores_manual_input(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->post(
+                'https://tenant-a.localhost/admin/course-cohorts',
+                $this->validCohortData([
+                    'name' => 'Tenant A Morning',
+                    'code' => 'MANUAL-CODE',
+                ])
+            )
+            ->assertRedirect();
+
+        $this->actingAs($admin)
+            ->post(
+                'https://tenant-a.localhost/admin/course-cohorts',
+                $this->validCohortData(['name' => 'Tenant A Evening'])
+            )
+            ->assertRedirect();
+
+        $this->actingAs($otherAdmin)
+            ->post(
+                'https://tenant-b.localhost/admin/course-cohorts',
+                $this->validCohortData(['name' => 'Tenant B Morning'])
+            )
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('core_course_cohorts', [
+            'customer_id' => $customerId,
+            'name' => 'Tenant A Morning',
+            'code' => 'COH-20260704-001',
+        ]);
+        $this->assertDatabaseHas('core_course_cohorts', [
+            'customer_id' => $customerId,
+            'name' => 'Tenant A Evening',
+            'code' => 'COH-20260704-002',
+        ]);
+        $this->assertDatabaseHas('core_course_cohorts', [
+            'customer_id' => $otherCustomerId,
+            'name' => 'Tenant B Morning',
+            'code' => 'COH-20260704-001',
+        ]);
+    }
+
+    public function test_cohort_code_input_is_not_rendered_on_create_or_edit_forms(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohort($customerId);
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-cohorts/create')
+            ->assertOk()
+            ->assertDontSee('name="code"', false);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/edit")
+            ->assertOk()
+            ->assertDontSee('name="code"', false)
+            ->assertSeeText('COH-EXISTING');
     }
 
     public function test_non_teacher_and_unpublished_version_are_rejected(): void
@@ -454,7 +529,7 @@ class CourseCohortManagementTest extends TestCase
             'version_id' => null,
             'teacher_id' => null,
             'name' => $name,
-            'code' => null,
+            'code' => 'COH-EXISTING',
             'description' => null,
             'status' => $status,
             'capacity' => null,
@@ -473,7 +548,6 @@ class CourseCohortManagementTest extends TestCase
             'version_id' => null,
             'teacher_id' => null,
             'name' => 'TOPIK Beginner Morning',
-            'code' => null,
             'description' => null,
             'status' => 'active',
             'capacity' => null,

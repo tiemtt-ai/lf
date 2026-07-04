@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\SequentialCodeGenerator;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -90,6 +91,12 @@ class CourseProductController extends Controller
         DB::table('core_course_products')->insert(
             $this->productValues($validated, [
                 'customer_id' => $customerId,
+                'product_code' => SequentialCodeGenerator::next(
+                    $customerId,
+                    'core_course_products',
+                    'product_code',
+                    'PRD'
+                ),
                 'enrollment_count' => 0,
                 'is_certificate_enabled' => false,
                 'created_by' => $request->user()?->id,
@@ -302,14 +309,6 @@ class CourseProductController extends Controller
     private function validationRules(int $customerId, ?int $productId = null): array
     {
         return [
-            'product_code' => [
-                'required',
-                'string',
-                'max:100',
-                Rule::unique('core_course_products', 'product_code')
-                    ->where(fn ($query) => $query->where('customer_id', $customerId))
-                    ->ignore($productId),
-            ],
             'product_type' => [
                 'required',
                 Rule::in(['single_course', 'bundle']),
@@ -536,7 +535,6 @@ class CourseProductController extends Controller
     private function productValues(array $validated, array $extra = []): array
     {
         return array_merge([
-            'product_code' => $validated['product_code'],
             'product_type' => $validated['product_type'],
             'title' => $validated['title'],
             'slug' => $validated['slug'],

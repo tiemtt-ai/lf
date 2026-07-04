@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\SequentialCodeGenerator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -69,10 +70,11 @@ class CourseTemplatePublishingService
                 'customer_id' => $customerId,
                 'template_id' => $templateId,
                 'version_number' => $versionNumber,
-                'version_code' => sprintf(
-                    'TEMPLATE-%d-V%d',
-                    $templateId,
-                    $versionNumber
+                'version_code' => SequentialCodeGenerator::next(
+                    $customerId,
+                    'core_course_template_versions',
+                    'version_code',
+                    'VER'
                 ),
                 'is_current' => false,
                 'source_category_id' => $template->category_id,
