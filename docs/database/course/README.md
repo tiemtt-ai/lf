@@ -76,7 +76,7 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 | Bảng | Mô tả |
 |------|------|
 | **core_course_progress** | Progress cấp Product |
-| **core_course_lesson_progress** | Progress cấp Bài học |
+| **core_course_lesson_progress** | Progress cấp Bài học |=====> tiemtt xong bảng này
 | **core_course_activity_progress** | Progress cấp Activity |
 | **core_course_completions** | Kết quả Hoàn thành khóa học chính thức |
 

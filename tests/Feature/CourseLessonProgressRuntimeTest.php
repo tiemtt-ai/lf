@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
-class CourseProgressRuntimeTest extends TestCase
+class CourseLessonProgressRuntimeTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -26,77 +26,141 @@ class CourseProgressRuntimeTest extends TestCase
         ]);
     }
 
-    public function test_course_progress_schema_uses_version_id_not_template_version_id(): void
+    public function test_lesson_progress_schema_uses_version_id_not_template_version_id(): void
     {
-        $this->assertTrue(Schema::hasTable('core_course_progress'));
-        $this->assertTrue(Schema::hasColumn('core_course_progress', 'version_id'));
-        $this->assertFalse(Schema::hasColumn('core_course_progress', 'template_version_id'));
+        $this->assertTrue(Schema::hasTable('core_course_lesson_progress'));
+        $this->assertTrue(Schema::hasColumn('core_course_lesson_progress', 'version_id'));
+        $this->assertFalse(Schema::hasColumn('core_course_lesson_progress', 'template_version_id'));
     }
 
-    public function test_runtime_progress_can_be_created_from_enrollment_context(): void
+    public function test_runtime_lesson_progress_can_be_created_from_course_progress_context(): void
     {
-        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
-        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $context = $this->learningContext();
+        $enrollmentId = $this->createEnrollment(
+            $context['customer_id'],
+            $context['student']->id,
+            $context['product_id'],
+            $context['version_id']
+        );
+        $courseProgressId = $this->createProgressFromEnrollment(
+            $context['customer_id'],
+            $enrollmentId
+        );
+        $versionLessonId = $this->createVersionLesson(
+            $context['customer_id'],
+            $context['version_id']
+        );
 
-        $progressId = $this->createProgressFromEnrollment($customerId, $enrollmentId);
+        $lessonProgressId = $this->createLessonProgressFromCourseProgress(
+            $context['customer_id'],
+            $courseProgressId,
+            $versionLessonId,
+            [
+                'product_id' => 999999,
+                'version_id' => 999999,
+                'student_id' => 999999,
+            ]
+        );
 
-        $this->assertDatabaseHas('core_course_progress', [
-            'id' => $progressId,
-            'customer_id' => $customerId,
+        $this->assertDatabaseHas('core_course_lesson_progress', [
+            'id' => $lessonProgressId,
+            'customer_id' => $context['customer_id'],
             'enrollment_id' => $enrollmentId,
-            'student_id' => $student->id,
-            'product_id' => $productId,
-            'version_id' => $versionId,
+            'course_progress_id' => $courseProgressId,
+            'student_id' => $context['student']->id,
+            'product_id' => $context['product_id'],
+            'version_id' => $context['version_id'],
+            'version_lesson_id' => $versionLessonId,
             'status' => 'not_started',
-            'completed_lessons' => 0,
             'completed_activities' => 0,
         ]);
-
-        $this->assertNotNull($admin);
     }
 
-    public function test_progress_requires_valid_enrollment_reference(): void
+    public function test_one_lesson_progress_per_enrollment_cycle_and_version_lesson_but_re_enrollment_is_allowed(): void
     {
-        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $context = $this->learningContext();
+        $versionLessonId = $this->createVersionLesson(
+            $context['customer_id'],
+            $context['version_id']
+        );
+        $firstEnrollmentId = $this->createEnrollment(
+            $context['customer_id'],
+            $context['student']->id,
+            $context['product_id'],
+            $context['version_id']
+        );
+        $secondEnrollmentId = $this->createEnrollment(
+            $context['customer_id'],
+            $context['student']->id,
+            $context['product_id'],
+            $context['version_id']
+        );
+        $firstProgressId = $this->createProgressFromEnrollment(
+            $context['customer_id'],
+            $firstEnrollmentId
+        );
+        $secondProgressId = $this->createProgressFromEnrollment(
+            $context['customer_id'],
+            $secondEnrollmentId
+        );
 
-        $this->expectException(QueryException::class);
-
-        $this->insertProgress([
-            'customer_id' => $customerId,
-            'enrollment_id' => 999999,
-            'student_id' => $student->id,
-            'product_id' => $productId,
-            'version_id' => $versionId,
-        ]);
-
-        $this->assertNotNull($admin);
-    }
-
-    public function test_one_course_progress_per_enrollment_but_re_enrollment_is_allowed(): void
-    {
-        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
-        $firstEnrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
-        $secondEnrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
-        $this->createProgressFromEnrollment($customerId, $firstEnrollmentId);
-        $this->createProgressFromEnrollment($customerId, $secondEnrollmentId);
+        $this->createLessonProgressFromCourseProgress(
+            $context['customer_id'],
+            $firstProgressId,
+            $versionLessonId
+        );
+        $this->createLessonProgressFromCourseProgress(
+            $context['customer_id'],
+            $secondProgressId,
+            $versionLessonId
+        );
 
         $this->assertSame(
             2,
-            DB::table('core_course_progress')
-                ->where('customer_id', $customerId)
-                ->where('student_id', $student->id)
-                ->where('product_id', $productId)
+            DB::table('core_course_lesson_progress')
+                ->where('customer_id', $context['customer_id'])
+                ->where('student_id', $context['student']->id)
+                ->where('version_lesson_id', $versionLessonId)
                 ->count()
         );
 
         $this->expectException(QueryException::class);
 
-        $this->createProgressFromEnrollment($customerId, $firstEnrollmentId);
-
-        $this->assertNotNull($admin);
+        $this->createLessonProgressFromCourseProgress(
+            $context['customer_id'],
+            $firstProgressId,
+            $versionLessonId
+        );
     }
 
-    public function test_no_manual_course_progress_crud_routes_exist(): void
+    public function test_lesson_progress_requires_valid_runtime_references(): void
+    {
+        $context = $this->learningContext();
+        $enrollmentId = $this->createEnrollment(
+            $context['customer_id'],
+            $context['student']->id,
+            $context['product_id'],
+            $context['version_id']
+        );
+        $courseProgressId = $this->createProgressFromEnrollment(
+            $context['customer_id'],
+            $enrollmentId
+        );
+
+        $this->expectException(QueryException::class);
+
+        $this->insertLessonProgress([
+            'customer_id' => $context['customer_id'],
+            'enrollment_id' => $enrollmentId,
+            'course_progress_id' => $courseProgressId,
+            'student_id' => $context['student']->id,
+            'product_id' => $context['product_id'],
+            'version_id' => $context['version_id'],
+            'version_lesson_id' => 999999,
+        ]);
+    }
+
+    public function test_no_manual_lesson_progress_crud_routes_exist(): void
     {
         foreach ([
             'index',
@@ -108,19 +172,19 @@ class CourseProgressRuntimeTest extends TestCase
             'destroy',
             'archive',
         ] as $route) {
-            $this->assertFalse(Route::has("admin.course-progress.{$route}"));
-            $this->assertFalse(Route::has("teacher.course-progress.{$route}"));
-            $this->assertFalse(Route::has("student.course-progress.{$route}"));
+            $this->assertFalse(Route::has("admin.course-lesson-progress.{$route}"));
+            $this->assertFalse(Route::has("teacher.course-lesson-progress.{$route}"));
+            $this->assertFalse(Route::has("student.course-lesson-progress.{$route}"));
         }
     }
 
-    public function test_course_progress_module_has_no_eloquent_models(): void
+    public function test_course_lesson_progress_module_has_no_eloquent_models(): void
     {
-        $this->assertFileDoesNotExist(app_path('Models/CoreCourseProgress.php'));
-        $this->assertFileDoesNotExist(app_path('Models/CourseProgress.php'));
+        $this->assertFileDoesNotExist(app_path('Models/CoreCourseLessonProgress.php'));
+        $this->assertFileDoesNotExist(app_path('Models/CourseLessonProgress.php'));
     }
 
-    public function test_course_progress_does_not_create_out_of_scope_runtime_tables(): void
+    public function test_lesson_progress_does_not_create_out_of_scope_runtime_tables(): void
     {
         $this->assertFalse(Schema::hasTable('core_course_activity_progress'));
         $this->assertFalse(Schema::hasTable('core_course_completion'));
@@ -136,7 +200,35 @@ class CourseProgressRuntimeTest extends TestCase
         $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
         $versionId = $this->createVersion($customerId, $admin->id, 'TOPIK Beginner');
 
-        return [$customerId, $admin, $student, $productId, $versionId];
+        return [
+            'customer_id' => $customerId,
+            'admin' => $admin,
+            'student' => $student,
+            'product_id' => $productId,
+            'version_id' => $versionId,
+        ];
+    }
+
+    private function createLessonProgressFromCourseProgress(
+        int $customerId,
+        int $courseProgressId,
+        int $versionLessonId,
+        array $ignoredUserInput = []
+    ): int {
+        $courseProgress = DB::table('core_course_progress')
+            ->where('customer_id', $customerId)
+            ->where('id', $courseProgressId)
+            ->first();
+
+        return $this->insertLessonProgress(array_merge($ignoredUserInput, [
+            'customer_id' => $customerId,
+            'enrollment_id' => $courseProgress->enrollment_id,
+            'course_progress_id' => $courseProgress->id,
+            'student_id' => $courseProgress->student_id,
+            'product_id' => $courseProgress->product_id,
+            'version_id' => $courseProgress->version_id,
+            'version_lesson_id' => $versionLessonId,
+        ]));
     }
 
     private function createProgressFromEnrollment(int $customerId, int $enrollmentId): int
@@ -153,6 +245,38 @@ class CourseProgressRuntimeTest extends TestCase
             'product_id' => $enrollment->product_id,
             'version_id' => $enrollment->version_id,
         ]);
+    }
+
+    private function insertLessonProgress(array $overrides = []): int
+    {
+        $now = now();
+
+        return DB::table('core_course_lesson_progress')->insertGetId(array_merge([
+            'customer_id' => 1,
+            'enrollment_id' => 1,
+            'course_progress_id' => 1,
+            'student_id' => 1,
+            'product_id' => 1,
+            'version_id' => 1,
+            'version_section_id' => null,
+            'version_lesson_id' => 1,
+            'sort_order' => 1,
+            'progress_percentage' => 0,
+            'completed_activities' => 0,
+            'total_activities' => 0,
+            'required_activities_completed' => 0,
+            'required_activities_total' => 0,
+            'total_learning_seconds' => 0,
+            'first_accessed_at' => null,
+            'last_accessed_at' => null,
+            'started_at' => null,
+            'completed_at' => null,
+            'status' => 'not_started',
+            'recalculated_at' => null,
+            'metadata' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ], $overrides));
     }
 
     private function insertProgress(array $overrides = []): int
@@ -219,10 +343,10 @@ class CourseProgressRuntimeTest extends TestCase
 
         return DB::table('core_course_products')->insertGetId([
             'customer_id' => $customerId,
-            'product_code' => strtoupper($slug),
+            'product_code' => strtoupper($slug).'-'.uniqid(),
             'product_type' => 'single_course',
             'title' => $title,
-            'slug' => $slug,
+            'slug' => $slug.'-'.uniqid(),
             'short_description' => null,
             'description' => null,
             'thumbnail_type' => 'image',
@@ -336,6 +460,34 @@ class CourseProgressRuntimeTest extends TestCase
             'published_by' => $userId,
             'source_template_updated_at' => $now,
             'metadata' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function createVersionLesson(int $customerId, int $versionId): int
+    {
+        $now = now();
+
+        return DB::table('core_course_template_version_lessons')->insertGetId([
+            'customer_id' => $customerId,
+            'template_version_id' => $versionId,
+            'version_section_id' => null,
+            'source_template_lesson_id' => random_int(100000, 999999),
+            'title_snapshot' => 'Lesson 1',
+            'slug_snapshot' => 'lesson-1-'.uniqid(),
+            'short_description_snapshot' => null,
+            'description_snapshot' => null,
+            'sort_order' => 1,
+            'is_preview' => false,
+            'learning_objective_snapshot' => null,
+            'duration_seconds' => 0,
+            'activity_count' => 0,
+            'unlock_rule_snapshot' => 'none',
+            'unlock_after_version_lesson_id' => null,
+            'unlock_at_snapshot' => null,
+            'status_snapshot' => 'published',
+            'created_by_snapshot' => null,
             'created_at' => $now,
             'updated_at' => $now,
         ]);
