@@ -191,7 +191,7 @@ class CourseProductController extends Controller
         DB::table('core_course_product_items')->insert([
             'customer_id' => $customerId,
             'product_id' => $productId,
-            'template_version_id' => $validated['template_version_id'],
+            'version_id' => $validated['version_id'],
             'title_override' => $validated['title_override'] ?? null,
             'short_description_override' => $validated['short_description_override'] ?? null,
             'sort_order' => $validated['sort_order'],
@@ -373,7 +373,7 @@ class CourseProductController extends Controller
         int $productId
     ): array {
         $validator = Validator::make($request->all(), [
-            'template_version_id' => ['required', 'integer', 'min:1'],
+            'version_id' => ['required', 'integer', 'min:1'],
             'title_override' => ['nullable', 'string', 'max:255'],
             'short_description_override' => ['nullable', 'string', 'max:500'],
             'sort_order' => ['required', 'integer'],
@@ -386,7 +386,7 @@ class CourseProductController extends Controller
             $customerId,
             $productId
         ): void {
-            $versionId = (int) $request->input('template_version_id');
+            $versionId = (int) $request->input('version_id');
 
             if ($versionId < 1) {
                 return;
@@ -400,7 +400,7 @@ class CourseProductController extends Controller
 
             if (! $version) {
                 $validator->errors()->add(
-                    'template_version_id',
+                    'version_id',
                     __('lf.LF_course_product_item_validation_published_version')
                 );
 
@@ -410,12 +410,12 @@ class CourseProductController extends Controller
             $duplicateExists = DB::table('core_course_product_items')
                 ->where('customer_id', $customerId)
                 ->where('product_id', $productId)
-                ->where('template_version_id', $versionId)
+                ->where('version_id', $versionId)
                 ->exists();
 
             if ($duplicateExists) {
                 $validator->errors()->add(
-                    'template_version_id',
+                    'version_id',
                     __('lf.LF_course_product_item_validation_duplicate')
                 );
 
@@ -430,7 +430,7 @@ class CourseProductController extends Controller
                 ->join('core_course_template_versions as versions', function ($join) use (
                     $customerId
                 ): void {
-                    $join->on('versions.id', '=', 'items.template_version_id')
+                    $join->on('versions.id', '=', 'items.version_id')
                         ->where('versions.customer_id', '=', $customerId);
                 })
                 ->where('items.customer_id', $customerId)
@@ -441,7 +441,7 @@ class CourseProductController extends Controller
 
             if ($activeTemplateExists) {
                 $validator->errors()->add(
-                    'template_version_id',
+                    'version_id',
                     __('lf.LF_course_product_item_validation_active_template_version')
                 );
             }
@@ -595,7 +595,7 @@ class CourseProductController extends Controller
                 $join->on(
                     'versions.id',
                     '=',
-                    'items.template_version_id'
+                    'items.version_id'
                 )
                     ->where('versions.customer_id', '=', $customerId);
             })
@@ -621,7 +621,7 @@ class CourseProductController extends Controller
                 $customerId,
                 $productId
             ): void {
-                $join->on('items.template_version_id', '=', 'versions.id')
+                $join->on('items.version_id', '=', 'versions.id')
                     ->where('items.customer_id', '=', $customerId)
                     ->where('items.product_id', '=', $productId);
             })

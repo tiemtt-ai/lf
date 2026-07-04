@@ -14,8 +14,8 @@ Liên kết nội dung học tập với Product.
 
 Cho phép một Product chứa:
 
-* Một Course Template Version
-* Nhiều Course Template Versions
+* Một published Course Version
+* Nhiều published Course Versions
 
 Bảng này giúp Product hoạt động như:
 
@@ -57,12 +57,15 @@ core_course_product_items
 * Mọi Product Item phải thuộc customer_id.
 * Mọi Product Item phải thuộc một Product.
 * Một Product có thể có nhiều Product Items.
-* Một Template Version có thể xuất hiện trong nhiều Product.
-* Mọi Product Item phải tham chiếu một published Course Template Version.
-* Product Item phải có cùng `customer_id` với Product và Template Version.
-* Một Product Bundle có thể chứa nhiều Template Version.
-* Product không sao chép Template Version hoặc cấu trúc snapshot.
-* Product Item chỉ tạo quyền truy cập tới Template Version thông qua Product/Enrollment.
+* Một published Course Version có thể xuất hiện trong nhiều Product.
+* Mọi Product Item phải tham chiếu một published Course Version bằng `version_id`.
+* `version_id` tham chiếu `core_course_template_versions.id`.
+* Product Item phải có cùng `customer_id` với Product và published Course Version.
+* Một Product Bundle có thể chứa nhiều published Course Versions.
+* Product không sao chép Course Version hoặc cấu trúc snapshot.
+* Product Item liên kết Course Product với published Course Version.
+* Product Item chỉ tạo quyền truy cập tới published Course Version thông qua Product/Enrollment.
+* Enrollment derive `version_id` từ active Product Item `version_id` tại thời điểm tạo Enrollment.
 * Không được tham chiếu working Template draft làm learning content.
 * Product Item không lưu giá bán.
 * Giá bán thuộc Product.
@@ -86,7 +89,7 @@ TOPIK Beginner
 
 Items
 
-Template Version #30
+Version #30
 ```
 
 ---
@@ -102,11 +105,11 @@ TOPIK Master Bundle
 
 Items
 
-Template Version #30
+Version #30
 
-Template Version #31
+Version #31
 
-Template Version #32
+Version #32
 ```
 
 ---
@@ -147,14 +150,14 @@ core_course_products.id
 
 ---
 
-### template_version_id
+### version_id
 
 ```text
 BIGINT UNSIGNED
 NOT NULL
 ```
 
-Published Course Template Version được Product tham chiếu.
+Published Course Version được Product tham chiếu.
 
 Liên kết:
 
@@ -182,7 +185,7 @@ Lý do:
 
 * Product Item không còn polymorphic.
 * Product chỉ tham chiếu Course Template Version.
-* `template_version_id` là foreign key learning content chính thức.
+* `version_id` là foreign key learning content chính thức.
 
 Không tạo migration hoặc implementation mới dựa trên `item_type/item_id`.
 
@@ -221,6 +224,9 @@ Thứ tự hiển thị trong Product.
 TINYINT(1) DEFAULT 1
 
 Bắt buộc hoàn thành Item này hay không.
+
+Enrollment tạo mới phải lấy `version_id` từ active Product Item tại thời điểm
+cấp quyền học. User/Admin không chọn `version_id` độc lập khi tạo Enrollment.
 
 Ví dụ:
 
@@ -271,7 +277,7 @@ TIMESTAMP
 
 (customer_id, product_id)
 
-(customer_id, template_version_id)
+(customer_id, version_id)
 
 (customer_id, status)
 
@@ -281,7 +287,7 @@ TIMESTAMP
 
 # Unique Constraints
 
-UNIQUE(customer_id, product_id, template_version_id)
+UNIQUE(customer_id, product_id, version_id)
 
 ---
 
@@ -304,7 +310,7 @@ Nếu Product chưa từng có tham chiếu lịch sử và hard delete được
 `core_course_products`, Product Items có thể bị xóa trong cùng transaction trước
 khi xóa Product.
 
-## Template Version
+## Published Course Version
 
 Product Item tham chiếu:
 
@@ -337,7 +343,7 @@ customer_id = 1
 
 product_id = 5
 
-template_version_id = 30
+version_id = 30
 
 sort_order = 1
 
@@ -353,7 +359,7 @@ customer_id = 1
 
 product_id = 6
 
-template_version_id = 30
+version_id = 30
 
 sort_order = 1
 
@@ -367,7 +373,7 @@ customer_id = 1
 
 product_id = 6
 
-template_version_id = 31
+version_id = 31
 
 sort_order = 2
 
@@ -381,7 +387,7 @@ customer_id = 1
 
 product_id = 6
 
-template_version_id = 32
+version_id = 32
 
 sort_order = 3
 
@@ -406,7 +412,8 @@ Bảng này cho phép LearnForge mở rộng từ:
 * Single Course
 * Bundle Course
 
-Product luôn tham chiếu published Course Template Version và không tạo bản sao nội dung.
+Product Item luôn liên kết Course Product với published Course Version và
+không tạo bản sao nội dung.
 
 ---
 

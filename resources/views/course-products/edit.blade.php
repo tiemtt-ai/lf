@@ -130,11 +130,11 @@
                         @csrf
 
                         <div class="lf-form-group">
-                            <x-form-label for="template_version_id"
+                            <x-form-label for="version_id"
                                           :value="__('lf.LF_course_product_item_common_template_version')"
                                           :required="true" />
-                            <select id="template_version_id"
-                                    name="template_version_id"
+                            <select id="version_id"
+                                    name="version_id"
                                     class="lf-form-control"
                                     required>
                                 <option value="">
@@ -142,7 +142,7 @@
                                 </option>
                                 @foreach ($publishedVersions as $version)
                                     <option value="{{ $version->id }}"
-                                            @selected((int) old('template_version_id') === $version->id)>
+                                            @selected((int) old('version_id') === $version->id)>
                                         {{ $version->title_snapshot }}
                                         —
                                         {{ __('lf.LF_course_product_item_common_version_number', ['number' => $version->version_number]) }}

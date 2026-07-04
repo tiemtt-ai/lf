@@ -597,7 +597,7 @@ class CourseEnrollmentManagementTest extends TestCase
         return DB::table('core_course_product_items')->insertGetId([
             'customer_id' => $customerId,
             'product_id' => $productId,
-            'template_version_id' => $versionId,
+            'version_id' => $versionId,
             'title_override' => null,
             'short_description_override' => null,
             'sort_order' => $sortOrder,

@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('customer_id');
             $table->unsignedBigInteger('product_id');
-            $table->unsignedBigInteger('template_version_id');
+            $table->unsignedBigInteger('version_id');
             $table->string('title_override')->nullable();
             $table->string('short_description_override', 500)->nullable();
             $table->integer('sort_order')->default(0);
@@ -29,7 +29,7 @@ return new class extends Migration
                 ->references('id')
                 ->on('core_course_products')
                 ->restrictOnDelete();
-            $table->foreign('template_version_id', 'fk_ccpi_version')
+            $table->foreign('version_id', 'fk_ccpi_version')
                 ->references('id')
                 ->on('core_course_template_versions')
                 ->restrictOnDelete();
@@ -40,7 +40,7 @@ return new class extends Migration
                 'idx_ccpi_product'
             );
             $table->index(
-                ['customer_id', 'template_version_id'],
+                ['customer_id', 'version_id'],
                 'idx_ccpi_version'
             );
             $table->index(
@@ -52,7 +52,7 @@ return new class extends Migration
                 'idx_ccpi_product_sort'
             );
             $table->unique(
-                ['customer_id', 'product_id', 'template_version_id'],
+                ['customer_id', 'product_id', 'version_id'],
                 'uk_ccpi_product_version'
             );
         });

@@ -436,7 +436,7 @@ class CourseProductManagementTest extends TestCase
             ->post(
                 "https://tenant-a.localhost/admin/course-products/{$productId}/items",
                 [
-                    'template_version_id' => $versionId,
+                    'version_id' => $versionId,
                     'title_override' => 'Commercial TOPIK',
                     'short_description_override' => 'Override description',
                     'sort_order' => 5,
@@ -451,7 +451,7 @@ class CourseProductManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_product_items', [
             'customer_id' => $customerId,
             'product_id' => $productId,
-            'template_version_id' => $versionId,
+            'version_id' => $versionId,
             'title_override' => 'Commercial TOPIK',
             'short_description_override' => 'Override description',
             'sort_order' => 5,
@@ -489,19 +489,19 @@ class CourseProductManagementTest extends TestCase
             ->post(
                 "https://tenant-a.localhost/admin/course-products/{$productId}/items",
                 $this->validProductItemData([
-                    'template_version_id' => $newVersionId,
+                    'version_id' => $newVersionId,
                     'status' => 'active',
                 ])
             )
             ->assertRedirect(
                 "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
             )
-            ->assertSessionHasErrors('template_version_id');
+            ->assertSessionHasErrors('version_id');
 
         $this->assertDatabaseMissing('core_course_product_items', [
             'customer_id' => $customerId,
             'product_id' => $productId,
-            'template_version_id' => $newVersionId,
+            'version_id' => $newVersionId,
         ]);
     }
 
@@ -526,7 +526,7 @@ class CourseProductManagementTest extends TestCase
             ->post(
                 "https://tenant-a.localhost/admin/course-products/{$productId}/items",
                 $this->validProductItemData([
-                    'template_version_id' => $secondVersionId,
+                    'version_id' => $secondVersionId,
                     'status' => 'active',
                 ])
             )
@@ -538,7 +538,7 @@ class CourseProductManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_product_items', [
             'customer_id' => $customerId,
             'product_id' => $productId,
-            'template_version_id' => $secondVersionId,
+            'version_id' => $secondVersionId,
             'status' => 'active',
         ]);
     }
@@ -575,7 +575,7 @@ class CourseProductManagementTest extends TestCase
             ->post(
                 "https://tenant-a.localhost/admin/course-products/{$productId}/items",
                 $this->validProductItemData([
-                    'template_version_id' => $newVersionId,
+                    'version_id' => $newVersionId,
                     'status' => 'active',
                 ])
             )
@@ -587,7 +587,7 @@ class CourseProductManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_product_items', [
             'customer_id' => $customerId,
             'product_id' => $productId,
-            'template_version_id' => $newVersionId,
+            'version_id' => $newVersionId,
             'status' => 'active',
         ]);
     }
@@ -624,7 +624,7 @@ class CourseProductManagementTest extends TestCase
             ->post(
                 "https://tenant-a.localhost/admin/course-products/{$productId}/items",
                 $this->validProductItemData([
-                    'template_version_id' => $versionId,
+                    'version_id' => $versionId,
                     'status' => 'active',
                 ])
             )
@@ -636,7 +636,7 @@ class CourseProductManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_product_items', [
             'customer_id' => $customerId,
             'product_id' => $productId,
-            'template_version_id' => $versionId,
+            'version_id' => $versionId,
             'status' => 'active',
         ]);
     }
@@ -713,13 +713,13 @@ class CourseProductManagementTest extends TestCase
             ->post(
                 "https://tenant-a.localhost/admin/course-products/{$productId}/items",
                 $this->validProductItemData([
-                    'template_version_id' => $versionId,
+                    'version_id' => $versionId,
                 ])
             )
             ->assertRedirect(
                 "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
             )
-            ->assertSessionHasErrors('template_version_id');
+            ->assertSessionHasErrors('version_id');
 
         $this->assertDatabaseCount('core_course_product_items', 1);
     }
@@ -740,13 +740,13 @@ class CourseProductManagementTest extends TestCase
             ->post(
                 "https://tenant-a.localhost/admin/course-products/{$productId}/items",
                 $this->validProductItemData([
-                    'template_version_id' => $versionId,
+                    'version_id' => $versionId,
                 ])
             )
             ->assertRedirect(
                 "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
             )
-            ->assertSessionHasErrors('template_version_id');
+            ->assertSessionHasErrors('version_id');
 
         $this->assertDatabaseCount('core_course_product_items', 0);
     }
@@ -769,7 +769,7 @@ class CourseProductManagementTest extends TestCase
             ->post(
                 "https://tenant-a.localhost/admin/course-products/{$otherProductId}/items",
                 $this->validProductItemData([
-                    'template_version_id' => $otherVersionId,
+                    'version_id' => $otherVersionId,
                 ])
             )
             ->assertNotFound();
@@ -779,13 +779,13 @@ class CourseProductManagementTest extends TestCase
             ->post(
                 "https://tenant-a.localhost/admin/course-products/{$productId}/items",
                 $this->validProductItemData([
-                    'template_version_id' => $otherVersionId,
+                    'version_id' => $otherVersionId,
                 ])
             )
             ->assertRedirect(
                 "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
             )
-            ->assertSessionHasErrors('template_version_id');
+            ->assertSessionHasErrors('version_id');
 
         $this->assertDatabaseCount('core_course_product_items', 0);
     }
@@ -802,7 +802,7 @@ class CourseProductManagementTest extends TestCase
 
         $this->post(
             "https://tenant-a.localhost/admin/course-products/{$productId}/items",
-            $this->validProductItemData(['template_version_id' => $versionId])
+            $this->validProductItemData(['version_id' => $versionId])
         )->assertRedirect('https://tenant-a.localhost/login');
 
         $this->delete(
@@ -814,7 +814,7 @@ class CourseProductManagementTest extends TestCase
                 ->post(
                     "https://tenant-a.localhost/admin/course-products/{$productId}/items",
                     $this->validProductItemData([
-                        'template_version_id' => $versionId,
+                        'version_id' => $versionId,
                     ])
                 )
                 ->assertForbidden();
@@ -829,7 +829,7 @@ class CourseProductManagementTest extends TestCase
         $this->actingAs($teacher)
             ->post(
                 "https://tenant-a.localhost/teacher/course-products/{$productId}/items",
-                $this->validProductItemData(['template_version_id' => $versionId])
+                $this->validProductItemData(['version_id' => $versionId])
             )
             ->assertNotFound();
     }
@@ -1331,7 +1331,7 @@ class CourseProductManagementTest extends TestCase
         return DB::table('core_course_product_items')->insertGetId([
             'customer_id' => $customerId,
             'product_id' => $productId,
-            'template_version_id' => $versionId,
+            'version_id' => $versionId,
             'title_override' => $titleOverride,
             'short_description_override' => null,
             'sort_order' => $sortOrder,
@@ -1416,7 +1416,7 @@ class CourseProductManagementTest extends TestCase
     private function validProductItemData(array $overrides = []): array
     {
         return array_merge([
-            'template_version_id' => 1,
+            'version_id' => 1,
             'title_override' => null,
             'short_description_override' => null,
             'sort_order' => 0,

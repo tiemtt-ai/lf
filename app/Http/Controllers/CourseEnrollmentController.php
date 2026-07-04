@@ -328,7 +328,7 @@ class CourseEnrollmentController extends Controller
     {
         return DB::table('core_course_product_items as items')
             ->join('core_course_template_versions as versions', function ($join) use ($customerId): void {
-                $join->on('versions.id', '=', 'items.template_version_id')
+                $join->on('versions.id', '=', 'items.version_id')
                     ->where('versions.customer_id', '=', $customerId);
             })
             ->where('items.customer_id', $customerId)
