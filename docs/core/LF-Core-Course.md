@@ -1,6 +1,6 @@
 # LF-Core-Course.md
 
-Version: 3.1
+Version: 3.3
 
 Status: Official Foundation
 
@@ -64,11 +64,11 @@ Published Version không được sửa learning content.
 
 Course Product không trỏ tới working Template.
 
-Product Item phải trỏ tới `template_version_id`.
+Product Item phải trỏ tới `version_id`.
 
 ## Rule 4 — Enrollment Freeze
 
-Enrollment lưu `template_version_id` tại thời điểm mua/ghi danh.
+Enrollment lưu `version_id` tại thời điểm mua/ghi danh.
 
 Product đổi Version không làm thay đổi Enrollment hiện có.
 
@@ -353,6 +353,30 @@ Product versioning so với tạo Product mới cần owner xác nhận theo t�
 
 Enrollment cấp quyền học Course Product và khóa learning Version.
 
+Enrollment không chỉ là quan hệ Student ↔ Course.
+
+Enrollment đại diện cho:
+
+```text
+Student
+
++
+
+Product
+
++
+
+Published Course Version
+
++
+
+Cohort optional
+
++
+
+Learning Lifecycle
+```
+
 ```text
 Student
 
@@ -378,10 +402,179 @@ student_id
 
 product_id
 
-template_version_id
+version_id
+```
+
+`version_id`
+
+Foreign Key →
+
+```text
+core_course_template_versions.id
+```
+
+`version_id` luôn tham chiếu immutable published Course Version.
+
+`version_id` không bao giờ tham chiếu editable Course Template.
+
+Business rules:
+
+* Enrollment phải thuộc `customer_id`.
+* Enrollment phải thuộc một student user.
+* Enrollment nên lưu `product_id` khi quyền truy cập được cấp thông qua Course
+  Product.
+* Enrollment phải lưu `version_id` của published Course Version được
+  giao cho student.
+* Enrollment không được trỏ trực tiếp tới editable Course Template làm learning
+  source.
+* Khi Product đổi sang active Version mới hơn, existing Enrollments giữ nguyên
+  `version_id` ban đầu.
+* New Enrollments nhận active Product Item Version tại thời điểm access được
+  cấp.
+* Cohort là optional. Không phải Enrollment nào cũng cần Cohort.
+* Enrollment không nên hard delete khi đã có learning progress, assessment
+  attempts, certificate hoặc tracking data downstream.
+* Enrollment là access authority cho learning, progress, certificate
+  eligibility và AI learning context.
+
+Enrollment sources:
+
+```text
+admin
+
+teacher
+
+self_registration
+
+purchase
+
+promotion
+
+import
+
+api
+```
+
+Enrollment lifecycle statuses:
+
+```text
+pending
+
+active
+
+suspended
+
+completed
+
+expired
+
+cancelled
 ```
 
 Enrollment hết hạn không làm mất Version hoặc Progress history.
+
+## Enrollment Relationship
+
+```text
+Student
+
+↓
+
+Enrollment
+
+↓
+
+Product
+
+↓
+
+Published Course Version
+
+↓
+
+Progress
+
+↓
+
+Assessment
+
+↓
+
+Certificate
+
+↓
+
+Tracking
+
+↓
+
+AI
+```
+
+Enrollment là runtime authority của learning.
+
+All learning runtime modules should resolve student access through Enrollment.
+
+Progress, Assessment, Certificate, Tracking và AI Context đều gắn với enrolled
+published Version.
+
+## Enrollment Runtime Authority
+
+Enrollment determines:
+
+* whether a student can access learning;
+* which Product granted access;
+* which published Version is assigned;
+* optional Cohort membership;
+* learning lifecycle status.
+
+Enrollment là single source of truth cho learning access.
+
+Product and Version relationship:
+
+```text
+Course Template
+
+↓
+
+Published Course Version
+
+↓
+
+Course Product
+
+↓
+
+Enrollment
+
+↓
+
+Progress / Assessment / Certificate / Tracking / AI
+```
+
+Example:
+
+```text
+Product A currently sells Version 7.
+
+Student A enrolled today:
+- enrollment.version_id = 7
+
+Later Product A is updated to Version 8.
+
+Student A remains on Version 7.
+Student B enrolled later receives Version 8.
+```
+
+This protects historical learning consistency.
+
+Implementation guidance:
+
+* Do not implement Enrollment as simple `student_id + course_id` only.
+* Do not use editable `template_id` as the source of student learning.
+* Use `product_id` and `version_id` to preserve snapshot-based learning.
+* Validate tenant isolation using `customer_id`.
+* Avoid hard delete if downstream learning records exist.
 
 ---
 
@@ -416,7 +609,7 @@ core_course_activity_progress
 Canonical references:
 
 ```text
-template_version_id
+version_id
 
 version_section_id
 
@@ -439,7 +632,7 @@ product_id
 
 enrollment_id
 
-template_version_id
+version_id
 
 version_lesson_id
 
@@ -462,7 +655,7 @@ Enrollment
 Course Product
 ```
 
-`template_version_id` được lưu để analytics/quality reporting theo Version.
+`version_id` được lưu để analytics/quality reporting theo Version.
 
 Review không thuộc working Course Template.
 
@@ -544,7 +737,7 @@ product_id
 
 enrollment_id
 
-template_version_id
+version_id
 
 version_lesson_id
 
