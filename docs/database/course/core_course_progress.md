@@ -523,7 +523,7 @@ Ví dụ:
 {
   "completion_rule": "required_activities",
   "progress_source": "activity_progress",
-  "certificate_eligible": true
+  "last_recalculated_reason": "activity_progress_updated"
 }
 ```
 

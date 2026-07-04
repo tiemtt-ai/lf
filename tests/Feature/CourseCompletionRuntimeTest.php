@@ -165,10 +165,11 @@ class CourseCompletionRuntimeTest extends TestCase
         $this->assertFileDoesNotExist(app_path('Models/CourseCompletion.php'));
     }
 
-    public function test_completion_does_not_create_out_of_scope_domain_tables(): void
+    public function test_completion_does_not_store_certificate_state_or_create_out_of_scope_domains(): void
     {
-        $this->assertFalse(Schema::hasTable('core_certificate_issued_certificates'));
-        $this->assertFalse(Schema::hasTable('core_certificate_templates'));
+        $this->assertFalse(Schema::hasColumn('core_course_completions', 'certificate_eligible'));
+        $this->assertFalse(Schema::hasColumn('core_course_completions', 'certificate_issued'));
+        $this->assertFalse(Schema::hasColumn('core_course_completions', 'certificate_issued_at'));
         $this->assertFalse(Schema::hasTable('track_events'));
         $this->assertFalse(Schema::hasTable('ai_recommendations'));
     }
