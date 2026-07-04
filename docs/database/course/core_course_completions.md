@@ -12,11 +12,14 @@ Học viên đã hoàn thành Product này chưa?
 Hoàn thành khi nào?
 
 Hoàn thành theo rule nào?
-
-Có đủ điều kiện cấp certificate không?
 ```
 
 `core_course_completions` là bảng ghi nhận completion chính thức, khác với `core_course_progress`.
+
+Course Completion is the Course Domain business state indicating that an
+Enrollment has completed the assigned Course Product and locked Course Version.
+
+Course Completion is the Course Domain source of truth for completion state.
 
 ```text
 core_course_progress
@@ -102,7 +105,7 @@ core_course_progress
 core_course_completions
 ```
 
-Future relationship:
+Future consumer relationship:
 
 ```text
 core_course_completions
@@ -116,6 +119,10 @@ core_course_completions
 core_certificate_issued_certificates
 ```
 
+Certificate Domain may consume Course Completion and approved Assessment Evidence
+to evaluate certificate eligibility and issue certificates according to
+Certificate Domain rules.
+
 ---
 
 ## Business Rules
@@ -123,7 +130,7 @@ core_certificate_issued_certificates
 * Mọi completion phải thuộc `customer_id`.
 * Completion luôn thuộc một `student_id`.
 * Completion luôn thuộc một `product_id`.
-* Completion luôn thuộc `template_version_id` đã khóa trên Enrollment.
+* Completion luôn thuộc `version_id` đã khóa trên Enrollment.
 * Mỗi Completion thuộc đúng một Learning Cycle qua `enrollment_id`.
 * Student có thể có nhiều Completion cho cùng Product nếu có nhiều Enrollments.
 * Completion nên gắn với `enrollment_id`.
@@ -133,9 +140,55 @@ core_certificate_issued_certificates
 * Completion không thay thế progress.
 * Progress có thể thay đổi, completion là bản ghi kết quả hoàn thành.
 * Completion có thể được tạo tự động hoặc được admin/teacher xác nhận thủ công.
-* Nếu Product có certificate, completion có thể dùng để xét điều kiện cấp certificate.
+* Course Completion thuộc Course Domain.
+* Course Completion may consume Course Progress and approved Assessment Evidence.
+* Course Completion là Course Domain source of truth cho completion state.
+* Course Completion không cập nhật Assessment results.
+* Course Completion không issue Certificates.
+* Course Completion không sở hữu Certificate eligibility.
+* Course Completion không sở hữu Tracking state.
+* Course Completion không sở hữu AI state.
+* Certificate Domain may consume Course Completion and approved Assessment Evidence to evaluate certificate eligibility and issue certificates according to Certificate Domain rules.
 * Completion nên giữ lại kể cả khi enrollment hết hạn.
-* Không xóa completion nếu đã dùng để cấp certificate.
+* Không xóa completion nếu đã được Certificate Domain dùng làm issuance evidence.
+
+---
+
+## Runtime Invariants
+
+```text
+core_course_completions.product_id
+=
+core_course_enrollments.product_id
+```
+
+```text
+core_course_completions.version_id
+=
+core_course_enrollments.version_id
+```
+
+```text
+core_course_completions.product_id
+=
+core_course_progress.product_id
+```
+
+```text
+core_course_completions.version_id
+=
+core_course_progress.version_id
+```
+
+```text
+core_course_completions.enrollment_id
+=
+core_course_progress.enrollment_id
+```
+
+Runtime code phải tạo Completion từ Enrollment/Course Progress context.
+
+Không nhận `product_id` hoặc `version_id` độc lập từ user input khi tạo hoặc cập nhật completion.
 
 ---
 
@@ -215,18 +268,28 @@ core_course_products.id
 
 ---
 
-### template_version_id
+### version_id
 
 ```text
 BIGINT UNSIGNED
 NOT NULL
 ```
 
-Published Template Version mà học viên hoàn thành.
+Published Course Version mà học viên hoàn thành.
 
-Liên kết `core_course_template_versions.id`.
+Liên kết:
 
-Phải khớp với Enrollment và Course Progress.
+```text
+core_course_template_versions.id
+```
+
+Phải khớp với:
+
+```text
+core_course_enrollments.version_id
+
+core_course_progress.version_id
+```
 
 ---
 
@@ -506,42 +569,6 @@ api
 
 ---
 
-### certificate_eligible
-
-```text
-TINYINT(1)
-NOT NULL
-DEFAULT 0
-```
-
-Học viên có đủ điều kiện cấp certificate hay không.
-
----
-
-### certificate_issued
-
-```text
-TINYINT(1)
-NOT NULL
-DEFAULT 0
-```
-
-Đã cấp certificate hay chưa.
-
----
-
-### certificate_issued_at
-
-```text
-TIMESTAMP NULL
-```
-
-Thời điểm certificate được cấp.
-
-NULL = chưa cấp.
-
----
-
 ### status
 
 ```text
@@ -611,8 +638,7 @@ Ví dụ:
 ```json
 {
   "product_title_snapshot": "TOPIK Beginner - July 2026",
-  "completion_rule_snapshot": "lesson_and_assessment",
-  "certificate_template_id": 3
+  "completion_rule_snapshot": "lesson_and_assessment"
 }
 ```
 
@@ -661,8 +687,8 @@ INDEX idx_course_completions_product
 ```
 
 ```sql
-INDEX idx_course_completions_template_version
-(customer_id, template_version_id);
+INDEX idx_course_completions_version
+(customer_id, version_id);
 ```
 
 ```sql
@@ -673,16 +699,6 @@ INDEX idx_course_completions_student
 ```sql
 INDEX idx_course_completions_completed_at
 (customer_id, completed_at);
-```
-
-```sql
-INDEX idx_course_completions_certificate_eligible
-(customer_id, certificate_eligible);
-```
-
-```sql
-INDEX idx_course_completions_certificate_issued
-(customer_id, certificate_issued);
 ```
 
 ```sql
@@ -720,7 +736,7 @@ course_progress_id = 50
 
 product_id = 10
 
-template_version_id = 30
+version_id = 30
 
 student_id = 200
 
@@ -758,12 +774,6 @@ completed_by = NULL
 
 completion_source = system
 
-certificate_eligible = 1
-
-certificate_issued = 0
-
-certificate_issued_at = NULL
-
 status = completed
 ```
 
@@ -793,11 +803,10 @@ Completion Rule matched
 ↓
 
 core_course_completions created
-
-↓
-
-Certificate eligibility checked
 ```
+
+Certificate Domain may consume `core_course_completions` later and evaluate
+certificate eligibility/issuance using Certificate Domain rules.
 
 ---
 
@@ -816,11 +825,7 @@ Completion
 
 ↓
 
-Certificate Eligibility
-
-↓
-
-Certificate Issuance
+Certificate Domain Consumption
 ```
 
 Bảng này giúp LF phân biệt rõ:
@@ -830,5 +835,5 @@ Progress = đang học đến đâu
 
 Completion = đã hoàn thành chính thức chưa
 
-Certificate = đã được cấp chứng chỉ chưa
+Certificate = Certificate Domain tự đánh giá eligibility/issuance từ evidence
 ```
