@@ -122,7 +122,6 @@ class CourseProgressRuntimeTest extends TestCase
 
     public function test_course_progress_does_not_create_out_of_scope_runtime_tables(): void
     {
-        $this->assertFalse(Schema::hasTable('core_course_activity_progress'));
         $this->assertFalse(Schema::hasTable('core_course_completion'));
         $this->assertFalse(Schema::hasTable('core_course_certificates'));
         $this->assertFalse(Schema::hasTable('track_events'));

@@ -126,12 +126,13 @@ core_course_activity_progress
 * Một activity progress thuộc một `student_id`.
 * Một activity progress thuộc một `product_id`.
 * Một activity progress nên gắn với một `enrollment_id`.
-* Một activity progress luôn thuộc `template_version_id` của Enrollment.
+* Một activity progress luôn thuộc `version_id` của Enrollment.
 * Progress tham chiếu Version Lesson/Activity, không tham chiếu working Template content.
 * Progress được tách theo Learning Cycle bằng `enrollment_id`.
 * Một activity progress nên gắn với một `course_progress_id`.
 * Một activity progress nên gắn với một `lesson_progress_id`.
-* Một student chỉ có một progress record cho một activity trong cùng một product.
+* Một Enrollment cycle chỉ có một progress record cho một Version Activity.
+* `product_id` và `version_id` phải được lấy từ Enrollment/Course Progress/Lesson Progress context, không nhận độc lập từ user input.
 * Activity progress là dữ liệu tổng hợp cấp activity.
 * Log chi tiết vẫn nằm ở `track_*`.
 * Activity có thể được hoàn thành theo nhiều rule khác nhau:
@@ -145,6 +146,50 @@ core_course_activity_progress
 * Nếu activity là assessment, kết quả chi tiết nằm ở `core_assessment_*`.
 * Nếu activity là media, hành vi chi tiết nằm ở `media_*` và `track_*`.
 * Sau khi enrollment hết hạn, activity progress vẫn được giữ lại.
+
+---
+
+## Runtime Invariants
+
+```text
+core_course_activity_progress.product_id
+=
+core_course_enrollments.product_id
+```
+
+```text
+core_course_activity_progress.version_id
+=
+core_course_enrollments.version_id
+```
+
+```text
+core_course_activity_progress.product_id
+=
+core_course_progress.product_id
+```
+
+```text
+core_course_activity_progress.version_id
+=
+core_course_progress.version_id
+```
+
+`core_course_activity_progress.lesson_progress_id` phải thuộc cùng context:
+
+```text
+enrollment_id
+
+product_id
+
+version_id
+
+version_lesson_id
+```
+
+Runtime code phải tạo Activity Progress từ Enrollment/Course Progress/Lesson Progress context.
+
+Không nhận `product_id` hoặc `version_id` độc lập từ user input khi tạo hoặc cập nhật runtime progress.
 
 ---
 
@@ -241,16 +286,30 @@ core_course_products.id
 
 ---
 
-### template_version_id
+### version_id
 
 ```text
 BIGINT UNSIGNED
 NOT NULL
 ```
 
-Published Template Version đã khóa trên Enrollment.
+Published Course Version đã khóa trên Enrollment.
 
-Liên kết `core_course_template_versions.id`.
+Liên kết:
+
+```text
+core_course_template_versions.id
+```
+
+Giá trị này phải khớp với:
+
+```text
+core_course_enrollments.version_id
+
+core_course_progress.version_id
+
+core_course_lesson_progress.version_id
+```
 
 ---
 
@@ -806,8 +865,8 @@ INDEX idx_course_activity_progress_product
 ```
 
 ```sql
-INDEX idx_course_activity_progress_template_version
-(customer_id, template_version_id);
+INDEX idx_course_activity_progress_version
+(customer_id, version_id);
 ```
 
 ```sql
@@ -856,6 +915,8 @@ UNIQUE uniq_course_activity_progress_enrollment_activity
 
 Đảm bảo một Enrollment cycle chỉ có một progress record cho một Version Activity.
 
+Rule này cho phép re-enrollment vì mỗi Enrollment mới là một Learning Cycle mới.
+
 ---
 
 ## Sample Data
@@ -875,7 +936,7 @@ lesson_progress_id = 1
 
 product_id = 10
 
-template_version_id = 30
+version_id = 30
 
 student_id = 100
 
@@ -937,7 +998,7 @@ lesson_progress_id = 1
 
 product_id = 10
 
-template_version_id = 30
+version_id = 30
 
 student_id = 100
 

@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
-class CourseLessonProgressRuntimeTest extends TestCase
+class CourseActivityProgressRuntimeTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -26,62 +26,58 @@ class CourseLessonProgressRuntimeTest extends TestCase
         ]);
     }
 
-    public function test_lesson_progress_schema_uses_version_id_not_template_version_id(): void
+    public function test_activity_progress_schema_uses_version_id_not_template_version_id(): void
     {
-        $this->assertTrue(Schema::hasTable('core_course_lesson_progress'));
-        $this->assertTrue(Schema::hasColumn('core_course_lesson_progress', 'version_id'));
-        $this->assertFalse(Schema::hasColumn('core_course_lesson_progress', 'template_version_id'));
+        $this->assertTrue(Schema::hasTable('core_course_activity_progress'));
+        $this->assertTrue(Schema::hasColumn('core_course_activity_progress', 'version_id'));
+        $this->assertFalse(Schema::hasColumn('core_course_activity_progress', 'template_version_id'));
     }
 
-    public function test_runtime_lesson_progress_can_be_created_from_course_progress_context(): void
+    public function test_runtime_activity_progress_can_be_created_from_lesson_progress_context(): void
     {
-        $context = $this->learningContext();
-        $enrollmentId = $this->createEnrollment(
-            $context['customer_id'],
-            $context['student']->id,
-            $context['product_id'],
-            $context['version_id']
-        );
-        $courseProgressId = $this->createProgressFromEnrollment(
-            $context['customer_id'],
-            $enrollmentId
-        );
-        $versionLessonId = $this->createVersionLesson(
-            $context['customer_id'],
-            $context['version_id']
-        );
+        $context = $this->runtimeContext();
 
-        $lessonProgressId = $this->createLessonProgressFromCourseProgress(
+        $activityProgressId = $this->createActivityProgressFromLessonProgress(
             $context['customer_id'],
-            $courseProgressId,
-            $versionLessonId,
+            $context['lesson_progress_id'],
+            $context['version_activity_id'],
             [
+                'enrollment_id' => 999999,
+                'course_progress_id' => 999999,
                 'product_id' => 999999,
                 'version_id' => 999999,
                 'student_id' => 999999,
+                'version_lesson_id' => 999999,
             ]
         );
 
-        $this->assertDatabaseHas('core_course_lesson_progress', [
-            'id' => $lessonProgressId,
+        $this->assertDatabaseHas('core_course_activity_progress', [
+            'id' => $activityProgressId,
             'customer_id' => $context['customer_id'],
-            'enrollment_id' => $enrollmentId,
-            'course_progress_id' => $courseProgressId,
+            'enrollment_id' => $context['enrollment_id'],
+            'course_progress_id' => $context['course_progress_id'],
+            'lesson_progress_id' => $context['lesson_progress_id'],
             'student_id' => $context['student']->id,
             'product_id' => $context['product_id'],
             'version_id' => $context['version_id'],
-            'version_lesson_id' => $versionLessonId,
+            'version_lesson_id' => $context['version_lesson_id'],
+            'version_activity_id' => $context['version_activity_id'],
+            'activity_type' => 'video',
             'status' => 'not_started',
-            'completed_activities' => 0,
         ]);
     }
 
-    public function test_one_lesson_progress_per_enrollment_cycle_and_version_lesson_but_re_enrollment_is_allowed(): void
+    public function test_one_activity_progress_per_enrollment_cycle_and_version_activity_but_re_enrollment_is_allowed(): void
     {
         $context = $this->learningContext();
         $versionLessonId = $this->createVersionLesson(
             $context['customer_id'],
             $context['version_id']
+        );
+        $versionActivityId = $this->createVersionActivity(
+            $context['customer_id'],
+            $context['version_id'],
+            $versionLessonId
         );
         $firstEnrollmentId = $this->createEnrollment(
             $context['customer_id'],
@@ -95,45 +91,105 @@ class CourseLessonProgressRuntimeTest extends TestCase
             $context['product_id'],
             $context['version_id']
         );
-        $firstProgressId = $this->createProgressFromEnrollment(
+        $firstCourseProgressId = $this->createProgressFromEnrollment(
             $context['customer_id'],
             $firstEnrollmentId
         );
-        $secondProgressId = $this->createProgressFromEnrollment(
+        $secondCourseProgressId = $this->createProgressFromEnrollment(
             $context['customer_id'],
             $secondEnrollmentId
         );
-
-        $this->createLessonProgressFromCourseProgress(
+        $firstLessonProgressId = $this->createLessonProgressFromCourseProgress(
             $context['customer_id'],
-            $firstProgressId,
+            $firstCourseProgressId,
             $versionLessonId
         );
-        $this->createLessonProgressFromCourseProgress(
+        $secondLessonProgressId = $this->createLessonProgressFromCourseProgress(
             $context['customer_id'],
-            $secondProgressId,
+            $secondCourseProgressId,
             $versionLessonId
+        );
+
+        $this->createActivityProgressFromLessonProgress(
+            $context['customer_id'],
+            $firstLessonProgressId,
+            $versionActivityId
+        );
+        $this->createActivityProgressFromLessonProgress(
+            $context['customer_id'],
+            $secondLessonProgressId,
+            $versionActivityId
         );
 
         $this->assertSame(
             2,
-            DB::table('core_course_lesson_progress')
+            DB::table('core_course_activity_progress')
                 ->where('customer_id', $context['customer_id'])
                 ->where('student_id', $context['student']->id)
-                ->where('version_lesson_id', $versionLessonId)
+                ->where('version_activity_id', $versionActivityId)
                 ->count()
         );
 
         $this->expectException(QueryException::class);
 
-        $this->createLessonProgressFromCourseProgress(
+        $this->createActivityProgressFromLessonProgress(
             $context['customer_id'],
-            $firstProgressId,
-            $versionLessonId
+            $firstLessonProgressId,
+            $versionActivityId
         );
     }
 
-    public function test_lesson_progress_requires_valid_runtime_references(): void
+    public function test_activity_progress_requires_valid_runtime_references(): void
+    {
+        $context = $this->runtimeContext();
+
+        $this->expectException(QueryException::class);
+
+        $this->insertActivityProgress([
+            'customer_id' => $context['customer_id'],
+            'enrollment_id' => $context['enrollment_id'],
+            'course_progress_id' => $context['course_progress_id'],
+            'lesson_progress_id' => $context['lesson_progress_id'],
+            'student_id' => $context['student']->id,
+            'product_id' => $context['product_id'],
+            'version_id' => $context['version_id'],
+            'version_lesson_id' => $context['version_lesson_id'],
+            'version_activity_id' => 999999,
+        ]);
+    }
+
+    public function test_no_manual_activity_progress_crud_routes_exist(): void
+    {
+        foreach ([
+            'index',
+            'create',
+            'store',
+            'show',
+            'edit',
+            'update',
+            'destroy',
+            'archive',
+        ] as $route) {
+            $this->assertFalse(Route::has("admin.course-activity-progress.{$route}"));
+            $this->assertFalse(Route::has("teacher.course-activity-progress.{$route}"));
+            $this->assertFalse(Route::has("student.course-activity-progress.{$route}"));
+        }
+    }
+
+    public function test_course_activity_progress_module_has_no_eloquent_models(): void
+    {
+        $this->assertFileDoesNotExist(app_path('Models/CoreCourseActivityProgress.php'));
+        $this->assertFileDoesNotExist(app_path('Models/CourseActivityProgress.php'));
+    }
+
+    public function test_activity_progress_does_not_create_out_of_scope_runtime_tables(): void
+    {
+        $this->assertFalse(Schema::hasTable('core_course_completion'));
+        $this->assertFalse(Schema::hasTable('core_course_certificates'));
+        $this->assertFalse(Schema::hasTable('track_events'));
+    }
+
+    private function runtimeContext(): array
     {
         $context = $this->learningContext();
         $enrollmentId = $this->createEnrollment(
@@ -146,49 +202,28 @@ class CourseLessonProgressRuntimeTest extends TestCase
             $context['customer_id'],
             $enrollmentId
         );
+        $versionLessonId = $this->createVersionLesson(
+            $context['customer_id'],
+            $context['version_id']
+        );
+        $lessonProgressId = $this->createLessonProgressFromCourseProgress(
+            $context['customer_id'],
+            $courseProgressId,
+            $versionLessonId
+        );
+        $versionActivityId = $this->createVersionActivity(
+            $context['customer_id'],
+            $context['version_id'],
+            $versionLessonId
+        );
 
-        $this->expectException(QueryException::class);
-
-        $this->insertLessonProgress([
-            'customer_id' => $context['customer_id'],
+        return array_merge($context, [
             'enrollment_id' => $enrollmentId,
             'course_progress_id' => $courseProgressId,
-            'student_id' => $context['student']->id,
-            'product_id' => $context['product_id'],
-            'version_id' => $context['version_id'],
-            'version_lesson_id' => 999999,
+            'lesson_progress_id' => $lessonProgressId,
+            'version_lesson_id' => $versionLessonId,
+            'version_activity_id' => $versionActivityId,
         ]);
-    }
-
-    public function test_no_manual_lesson_progress_crud_routes_exist(): void
-    {
-        foreach ([
-            'index',
-            'create',
-            'store',
-            'show',
-            'edit',
-            'update',
-            'destroy',
-            'archive',
-        ] as $route) {
-            $this->assertFalse(Route::has("admin.course-lesson-progress.{$route}"));
-            $this->assertFalse(Route::has("teacher.course-lesson-progress.{$route}"));
-            $this->assertFalse(Route::has("student.course-lesson-progress.{$route}"));
-        }
-    }
-
-    public function test_course_lesson_progress_module_has_no_eloquent_models(): void
-    {
-        $this->assertFileDoesNotExist(app_path('Models/CoreCourseLessonProgress.php'));
-        $this->assertFileDoesNotExist(app_path('Models/CourseLessonProgress.php'));
-    }
-
-    public function test_lesson_progress_does_not_create_out_of_scope_runtime_tables(): void
-    {
-        $this->assertFalse(Schema::hasTable('core_course_completion'));
-        $this->assertFalse(Schema::hasTable('core_course_certificates'));
-        $this->assertFalse(Schema::hasTable('track_events'));
     }
 
     private function learningContext(): array
@@ -208,18 +243,41 @@ class CourseLessonProgressRuntimeTest extends TestCase
         ];
     }
 
+    private function createActivityProgressFromLessonProgress(
+        int $customerId,
+        int $lessonProgressId,
+        int $versionActivityId,
+        array $ignoredUserInput = []
+    ): int {
+        $lessonProgress = DB::table('core_course_lesson_progress')
+            ->where('customer_id', $customerId)
+            ->where('id', $lessonProgressId)
+            ->first();
+
+        return $this->insertActivityProgress(array_merge($ignoredUserInput, [
+            'customer_id' => $customerId,
+            'enrollment_id' => $lessonProgress->enrollment_id,
+            'course_progress_id' => $lessonProgress->course_progress_id,
+            'lesson_progress_id' => $lessonProgress->id,
+            'student_id' => $lessonProgress->student_id,
+            'product_id' => $lessonProgress->product_id,
+            'version_id' => $lessonProgress->version_id,
+            'version_lesson_id' => $lessonProgress->version_lesson_id,
+            'version_activity_id' => $versionActivityId,
+        ]));
+    }
+
     private function createLessonProgressFromCourseProgress(
         int $customerId,
         int $courseProgressId,
-        int $versionLessonId,
-        array $ignoredUserInput = []
+        int $versionLessonId
     ): int {
         $courseProgress = DB::table('core_course_progress')
             ->where('customer_id', $customerId)
             ->where('id', $courseProgressId)
             ->first();
 
-        return $this->insertLessonProgress(array_merge($ignoredUserInput, [
+        return $this->insertLessonProgress([
             'customer_id' => $customerId,
             'enrollment_id' => $courseProgress->enrollment_id,
             'course_progress_id' => $courseProgress->id,
@@ -227,7 +285,7 @@ class CourseLessonProgressRuntimeTest extends TestCase
             'product_id' => $courseProgress->product_id,
             'version_id' => $courseProgress->version_id,
             'version_lesson_id' => $versionLessonId,
-        ]));
+        ]);
     }
 
     private function createProgressFromEnrollment(int $customerId, int $enrollmentId): int
@@ -244,6 +302,47 @@ class CourseLessonProgressRuntimeTest extends TestCase
             'product_id' => $enrollment->product_id,
             'version_id' => $enrollment->version_id,
         ]);
+    }
+
+    private function insertActivityProgress(array $overrides = []): int
+    {
+        $now = now();
+
+        return DB::table('core_course_activity_progress')->insertGetId(array_merge([
+            'customer_id' => 1,
+            'enrollment_id' => 1,
+            'course_progress_id' => 1,
+            'lesson_progress_id' => 1,
+            'student_id' => 1,
+            'product_id' => 1,
+            'version_id' => 1,
+            'version_section_id' => null,
+            'version_lesson_id' => 1,
+            'version_activity_id' => 1,
+            'activity_type' => 'video',
+            'sort_order' => 1,
+            'is_required' => true,
+            'progress_percentage' => 0,
+            'completion_rule' => 'manual',
+            'completion_threshold' => null,
+            'score' => null,
+            'max_score' => null,
+            'passed' => null,
+            'attempt_count' => 0,
+            'total_learning_seconds' => 0,
+            'last_position_seconds' => null,
+            'first_accessed_at' => null,
+            'last_accessed_at' => null,
+            'started_at' => null,
+            'completed_at' => null,
+            'submitted_at' => null,
+            'graded_at' => null,
+            'status' => 'not_started',
+            'recalculated_at' => null,
+            'metadata' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ], $overrides));
     }
 
     private function insertLessonProgress(array $overrides = []): int
@@ -487,6 +586,42 @@ class CourseLessonProgressRuntimeTest extends TestCase
             'unlock_at_snapshot' => null,
             'status_snapshot' => 'published',
             'created_by_snapshot' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function createVersionActivity(
+        int $customerId,
+        int $versionId,
+        int $versionLessonId
+    ): int {
+        $now = now();
+
+        return DB::table('core_course_template_version_activities')->insertGetId([
+            'customer_id' => $customerId,
+            'template_version_id' => $versionId,
+            'version_lesson_id' => $versionLessonId,
+            'source_template_activity_id' => random_int(100000, 999999),
+            'title_snapshot' => 'Lesson 1 Video',
+            'description_snapshot' => null,
+            'sort_order' => 1,
+            'activity_type' => 'video',
+            'activity_ref_type_snapshot' => null,
+            'activity_ref_id_snapshot' => null,
+            'external_url_snapshot' => null,
+            'embed_code_snapshot' => null,
+            'duration_seconds' => 0,
+            'is_required' => true,
+            'completion_rule' => 'watch_percent',
+            'completion_threshold' => 80,
+            'is_preview' => false,
+            'unlock_rule_snapshot' => 'none',
+            'unlock_after_version_activity_id' => null,
+            'unlock_at_snapshot' => null,
+            'status_snapshot' => 'published',
+            'created_by_snapshot' => null,
+            'metadata' => null,
             'created_at' => $now,
             'updated_at' => $now,
         ]);
