@@ -235,6 +235,38 @@
     background: var(--admin-active);
 }
 
+.admin-sidebar-group {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-radius: 16px;
+    background: rgba(230, 247, 255, .65);
+}
+
+.admin-sidebar-group-label {
+    padding: 4px 12px;
+    color: var(--admin-primary);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.admin-sidebar-group.is-active .admin-sidebar-group-label {
+    color: var(--admin-active);
+}
+
+.admin-sidebar-group-links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.admin-sidebar-link-child {
+    min-height: 44px;
+    padding-left: 28px;
+    background: #ffffff;
+}
+
 .admin-sidebar-link.is-disabled {
     cursor: default;
 }
@@ -463,6 +495,15 @@
         grid-template-columns: repeat(3, 1fr);
     }
 
+    .admin-sidebar-group {
+        grid-column: 1 / -1;
+    }
+
+    .admin-sidebar-group-links {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+    }
+
     .admin-sidebar-link {
         padding-left: 14px;
     }
@@ -505,10 +546,19 @@
     .admin-sidebar-menu.is-teacher {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .admin-sidebar-menu.is-teacher .admin-sidebar-group-links {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 420px) {
     .admin-sidebar-menu.is-teacher {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-sidebar-group-links,
+    .admin-sidebar-menu.is-teacher .admin-sidebar-group-links {
         grid-template-columns: 1fr;
     }
 }

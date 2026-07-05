@@ -46,7 +46,18 @@ class AdminProfileTest extends TestCase
             ->assertSee('open-modal')
             ->assertSee('name="current_password"', false)
             ->assertSee('name="password"', false)
-            ->assertSee('name="password_confirmation"', false);
+            ->assertSee('name="password_confirmation"', false)
+            ->assertSeeText(__('lf.LF_navigation_group_admin_account_organization'))
+            ->assertSeeText(__('lf.LF_navigation_menu_admin_organization'))
+            ->assertSeeText(__('lf.LF_navigation_menu_admin_users'))
+            ->assertSeeText(__('lf.LF_navigation_menu_admin_my_account'))
+            ->assertSee('href="https://tenant-a.localhost/admin/organization"', false)
+            ->assertSee('href="https://tenant-a.localhost/admin/users"', false)
+            ->assertSee('href="https://tenant-a.localhost/admin/my-account"', false)
+            ->assertSee(
+                'class="admin-sidebar-link admin-sidebar-link-child is-active" href="https://tenant-a.localhost/admin/my-account"',
+                false
+            );
 
         $content = $response->getContent();
 
