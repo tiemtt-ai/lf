@@ -15,7 +15,9 @@
     @endif
 
     <div class="admin-card admin-form-card">
-        <form method="POST" action="{{ route($routePrefix.'.store') }}">
+        <form method="POST"
+              action="{{ route($routePrefix.'.store') }}"
+              enctype="multipart/form-data">
             @csrf
 
             @include('course-templates.partials.form')

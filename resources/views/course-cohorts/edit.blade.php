@@ -21,7 +21,7 @@
     </div>
 
     <div class="admin-card admin-form-card">
-        <form method="POST" action="{{ route($routePrefix.'.update', $cohort->id) }}">
+        <form method="POST" action="{{ route($routePrefix.'.update', $cohort->id) }}" enctype="multipart/form-data">
             @csrf
             @method('PUT')
 

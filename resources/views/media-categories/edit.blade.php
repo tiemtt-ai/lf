@@ -1,9 +1,15 @@
 @extends('layouts.backend')
 
-@section('title', __('lf.LF_course_product_common_create'))
-@section('page_title', __('lf.LF_course_product_common_create'))
+@section('title', __('lf.LF_media_category_common_edit'))
+@section('page_title', __('lf.LF_media_category_common_edit'))
 
 @section('content')
+    @if (session('success'))
+        <div class="admin-alert admin-alert-success admin-form-card">
+            {{ session('success') }}
+        </div>
+    @endif
+
     @if ($errors->any())
         <div class="admin-alert admin-alert-danger admin-form-card">
             <ul>
@@ -15,18 +21,17 @@
     @endif
 
     <div class="admin-card admin-form-card">
-        <form method="POST"
-              action="{{ route($routePrefix.'.store') }}"
-              enctype="multipart/form-data">
+        <form method="POST" action="{{ route('admin.media-categories.update', $category->id) }}">
             @csrf
+            @method('PUT')
 
-            @include('course-products.partials.form')
+            @include('media-categories.partials.form')
 
             <div class="admin-form-actions">
                 <button type="submit" class="btn btn-primary">
-                    {{ __('lf.LF_course_product_common_create') }}
+                    {{ __('lf.LF_common_button_save_changes') }}
                 </button>
-                <a href="{{ route($routePrefix.'.index') }}">
+                <a href="{{ route('admin.media-categories.index') }}">
                     {{ __('lf.LF_common_button_cancel') }}
                 </a>
             </div>

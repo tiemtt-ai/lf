@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\MediaService;
 use App\Support\SequentialCodeGenerator;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
@@ -18,6 +19,8 @@ class CourseCohortController extends Controller
         'completed',
         'archived',
     ];
+
+    public function __construct(private readonly MediaService $mediaService) {}
 
     public function index(Request $request): View
     {
@@ -117,6 +120,8 @@ class CourseCohortController extends Controller
             ])
         );
 
+        $this->attachUploadedMedia($request, $cohortId);
+
         return redirect()
             ->route($this->routePrefix($request).'.show', $cohortId)
             ->with('success', __('lf.LF_course_cohort_common_created'));
@@ -128,6 +133,7 @@ class CourseCohortController extends Controller
 
         return view('course-cohorts.show', [
             'cohort' => $this->findCohort($this->customerId(), $id),
+            'cohortMedia' => $this->ownerMedia('course_cohort', $id),
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -144,6 +150,7 @@ class CourseCohortController extends Controller
             'versions' => $this->versions($customerId),
             'teachers' => $this->teachers($customerId),
             'statuses' => self::STATUSES,
+            'cohortMedia' => $this->ownerMedia('course_cohort', $id),
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -162,6 +169,8 @@ class CourseCohortController extends Controller
             ->update($this->cohortValues($validated, [
                 'updated_at' => now(),
             ]));
+
+        $this->attachUploadedMedia($request, $id);
 
         return redirect()
             ->route($this->routePrefix($request).'.show', $id)
@@ -201,6 +210,16 @@ class CourseCohortController extends Controller
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'metadata' => ['nullable', 'json'],
+            'cohort_document_file' => [
+                'nullable',
+                'file',
+                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+            ],
+            'cohort_attachment_file' => [
+                'nullable',
+                'file',
+                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+            ],
         ]);
 
         $validator->after(function ($validator) use ($request, $customerId): void {
@@ -338,6 +357,51 @@ class CourseCohortController extends Controller
             ->where('id', $teacherId)
             ->where('role', 'teacher')
             ->exists();
+    }
+
+    private function attachUploadedMedia(Request $request, int $cohortId): void
+    {
+        foreach ([
+            'cohort_document_file' => ['document', 'document'],
+            'cohort_attachment_file' => ['document', 'attachment'],
+        ] as $field => [$fileType, $usageType]) {
+            if (! $request->hasFile($field)) {
+                continue;
+            }
+
+            $mediaFile = $this->mediaService->upload(
+                $request->file($field),
+                [
+                    'file_type' => $fileType,
+                    'module' => 'course',
+                    'entity_type' => 'cohorts',
+                    'entity_id' => $cohortId,
+                    'purpose' => $usageType,
+                    'display_name' => $request->input('name'),
+                ],
+                (int) $request->user()->id
+            );
+
+            $this->mediaService->attachUsage(
+                (int) $mediaFile->id,
+                'course_cohort',
+                $cohortId,
+                $usageType
+            );
+        }
+    }
+
+    private function ownerMedia(string $ownerType, int $ownerId): object
+    {
+        return $this->mediaService
+            ->getOwnerMedia($ownerType, $ownerId)
+            ->map(function (object $media): object {
+                $media->signed_url = $this->mediaService->generateSignedUrl(
+                    (int) $media->id
+                );
+
+                return $media;
+            });
     }
 
     private function customerId(): int

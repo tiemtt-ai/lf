@@ -37,7 +37,8 @@
               action="{{ route(
                   $routePrefix.'.store',
                   $lessonRouteParameters
-              ) }}">
+              ) }}"
+              enctype="multipart/form-data">
             @csrf
 
             @include('course-template-lessons.partials.form')

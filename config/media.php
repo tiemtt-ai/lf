@@ -1,0 +1,54 @@
+<?php
+
+return [
+    'disk' => env('MEDIA_DISK', 'media_local'),
+    'bucket' => env(
+        'MEDIA_STORAGE_BUCKET',
+        env('MEDIA_AWS_BUCKET', env('AWS_BUCKET', 'local-media'))
+    ),
+    'region' => env('MEDIA_AWS_DEFAULT_REGION', env('AWS_DEFAULT_REGION')),
+    'storage_class' => env('MEDIA_AWS_STORAGE_CLASS'),
+    'signed_url_ttl_minutes' => (int) env('MEDIA_SIGNED_URL_TTL_MINUTES', 10),
+    'max_upload_kilobytes' => (int) env('MEDIA_MAX_UPLOAD_KILOBYTES', 102400),
+    'file_types' => [
+        'image',
+        'video',
+        'audio',
+        'document',
+        'subtitle',
+        'transcript',
+        'archive',
+        'other',
+    ],
+    'visibility' => [
+        'private',
+        'organization',
+        'public',
+    ],
+    'owner_types' => [
+        'course_template',
+        'course_product',
+        'course_lesson',
+        'course_activity',
+        'course_cohort',
+        'assessment_question',
+        'assessment_answer',
+        'liveclass_recording',
+        'certificate',
+        'avatar',
+        'ai_knowledge',
+        'marketing',
+    ],
+    'usage_types' => [
+        'cover_image',
+        'thumbnail',
+        'video',
+        'audio',
+        'document',
+        'attachment',
+        'recording',
+        'certificate_pdf',
+        'avatar_image',
+        'source_material',
+    ],
+];

@@ -79,6 +79,39 @@
 
         <section class="admin-form-section">
             <h2 class="admin-form-section-title">
+                Cohort media
+            </h2>
+
+            @if (($cohortMedia ?? collect())->isNotEmpty())
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Name</th>
+                        <th>Action</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach ($cohortMedia as $media)
+                        <tr>
+                            <td>{{ $media->usage_type }}</td>
+                            <td>{{ $media->display_name }}</td>
+                            <td>
+                                <a href="{{ $media->signed_url }}" target="_blank" rel="noopener">
+                                    Open
+                                </a>
+                            </td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            @else
+                <p>-</p>
+            @endif
+        </section>
+
+        <section class="admin-form-section">
+            <h2 class="admin-form-section-title">
                 {{ __('lf.LF_course_cohort_group_context') }}
             </h2>
 

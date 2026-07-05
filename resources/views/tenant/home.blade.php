@@ -1,6 +1,6 @@
 @extends('layouts.tenant')
 
-@section('title', ($tenant?->name ?? 'Tenant').' | LearnForge')
+@section('title', ($tenant?->name ?? 'Tenant').' | LF')
 
 @section('content')
     <section class="student-hero tenant-banner">

@@ -267,8 +267,31 @@ class CourseTemplateTeacherController extends Controller
             ->first();
 
         abort_if(! $template, 404);
+        $this->authorizeTemplateAccess($customerId, $template);
 
         return $template;
+    }
+
+    private function authorizeTemplateAccess(int $customerId, object $template): void
+    {
+        $user = request()->user();
+
+        if ($user?->role === 'customer_admin') {
+            return;
+        }
+
+        $isAssignedTeacher = $user?->role === 'teacher'
+            && (
+                (int) $template->created_by === (int) $user->id
+                || DB::table('core_course_template_teachers')
+                    ->where('customer_id', $customerId)
+                    ->where('template_id', $template->id)
+                    ->where('teacher_id', $user->id)
+                    ->where('status', 'active')
+                    ->exists()
+            );
+
+        abort_unless($isAssignedTeacher, 404);
     }
 
     private function findAssignment(

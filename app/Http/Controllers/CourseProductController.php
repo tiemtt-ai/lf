@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\MediaService;
 use App\Support\SequentialCodeGenerator;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
@@ -23,6 +24,8 @@ class CourseProductController extends Controller
         'cross_sell',
         'recommended',
     ];
+
+    public function __construct(private readonly MediaService $mediaService) {}
 
     public function index(Request $request): View
     {
@@ -77,6 +80,7 @@ class CourseProductController extends Controller
         return view('course-products.create', [
             'requiredFields' => $this->requiredFields($customerId),
             'routePrefix' => $this->routePrefix($request),
+            'coverImageMedia' => null,
         ]);
     }
 
@@ -88,7 +92,7 @@ class CourseProductController extends Controller
         $validated = $this->validatedData($request, $customerId);
         $now = now();
 
-        DB::table('core_course_products')->insert(
+        $productId = DB::table('core_course_products')->insertGetId(
             $this->productValues($validated, [
                 'customer_id' => $customerId,
                 'product_code' => SequentialCodeGenerator::next(
@@ -107,6 +111,8 @@ class CourseProductController extends Controller
                 'updated_at' => $now,
             ])
         );
+
+        $this->attachUploadedMedia($request, $productId);
 
         return redirect()
             ->route($this->routePrefix($request).'.index')
@@ -127,6 +133,11 @@ class CourseProductController extends Controller
             'productRelations' => $this->productRelations($customerId, $id),
             'relatedProducts' => $this->relatedProducts($customerId, $id),
             'requiredFields' => $this->requiredFields($customerId, $id),
+            'coverImageMedia' => $this->singleMedia(
+                'course_product',
+                $id,
+                'cover_image'
+            ),
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -149,6 +160,8 @@ class CourseProductController extends Controller
                         : $product->published_at,
                 'updated_at' => now(),
             ]));
+
+        $this->attachUploadedMedia($request, $id);
 
         return redirect()
             ->route($this->routePrefix($request).'.edit', $id)
@@ -364,6 +377,11 @@ class CourseProductController extends Controller
             'meta_description' => ['nullable', 'string', 'max:500'],
             'meta_keywords' => ['nullable', 'string', 'max:500'],
             'status' => ['required', Rule::in(self::STATUSES)],
+            'cover_image_file' => [
+                'nullable',
+                'file',
+                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+            ],
         ];
     }
 
@@ -674,6 +692,68 @@ class CourseProductController extends Controller
             ->orderBy('title')
             ->select('id', 'title', 'product_code', 'status')
             ->get();
+    }
+
+    private function attachUploadedMedia(Request $request, int $productId): void
+    {
+        if (! $request->hasFile('cover_image_file')) {
+            return;
+        }
+
+        foreach (
+            $this->mediaService->getOwnerMedia(
+                'course_product',
+                $productId,
+                'cover_image'
+            ) as $media
+        ) {
+            $this->mediaService->detachUsage(
+                (int) $media->id,
+                'course_product',
+                $productId,
+                'cover_image'
+            );
+        }
+
+        $mediaFile = $this->mediaService->upload(
+            $request->file('cover_image_file'),
+            [
+                'file_type' => 'image',
+                'module' => 'course',
+                'entity_type' => 'products',
+                'entity_id' => $productId,
+                'purpose' => 'cover',
+                'display_name' => $request->input('title'),
+            ],
+            (int) $request->user()->id
+        );
+
+        $this->mediaService->attachUsage(
+            (int) $mediaFile->id,
+            'course_product',
+            $productId,
+            'cover_image'
+        );
+    }
+
+    private function singleMedia(
+        string $ownerType,
+        int $ownerId,
+        string $usageType
+    ): ?object {
+        $media = $this->mediaService
+            ->getOwnerMedia($ownerType, $ownerId, $usageType)
+            ->first();
+
+        if (! $media) {
+            return null;
+        }
+
+        $media->signed_url = $this->mediaService->generateSignedUrl(
+            (int) $media->id
+        );
+
+        return $media;
     }
 
     private function customerId(): int

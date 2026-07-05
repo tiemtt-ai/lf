@@ -153,6 +153,66 @@
         </div>
     </section>
 
+    <section class="admin-form-section" aria-labelledby="course-template-activity-media-title">
+        <h2 id="course-template-activity-media-title" class="admin-form-section-title">
+            Activity media
+        </h2>
+
+        @if (($activityMedia ?? collect())->isNotEmpty())
+            <div class="admin-table-wrapper">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>File</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($activityMedia as $media)
+                            <tr>
+                                <td>{{ $media->usage_type }}</td>
+                                <td>{{ $media->original_name }}</td>
+                                <td>
+                                    <a href="{{ $media->signed_url }}" target="_blank" rel="noopener">
+                                        Open
+                                    </a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+
+        <div class="lf-form-group">
+            <x-form-label for="activity_video_file" value="Video file" />
+            <input id="activity_video_file" type="file"
+                   name="activity_video_file" class="lf-form-control"
+                   accept="video/*">
+        </div>
+
+        <div class="lf-form-group">
+            <x-form-label for="activity_audio_file" value="Audio file" />
+            <input id="activity_audio_file" type="file"
+                   name="activity_audio_file" class="lf-form-control"
+                   accept="audio/*">
+        </div>
+
+        <div class="lf-form-group">
+            <x-form-label for="activity_document_file" value="Document file" />
+            <input id="activity_document_file" type="file"
+                   name="activity_document_file" class="lf-form-control"
+                   accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,application/pdf">
+        </div>
+
+        <div class="lf-form-group">
+            <x-form-label for="activity_attachment_file" value="Attachment file" />
+            <input id="activity_attachment_file" type="file"
+                   name="activity_attachment_file" class="lf-form-control">
+        </div>
+    </section>
+
     <section class="admin-form-section" aria-labelledby="course-template-activity-completion-title">
         <h2 id="course-template-activity-completion-title" class="admin-form-section-title">
             {{ __('lf.LF_course_template_activity_group_completion') }}

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\CourseTemplatePublishingService;
 use App\Services\CourseTemplateVersionDuplicatingService;
+use App\Services\MediaService;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,8 @@ class CourseTemplateController extends Controller
 {
     public function __construct(
         private readonly CourseTemplatePublishingService $publishingService,
-        private readonly CourseTemplateVersionDuplicatingService $duplicatingService
+        private readonly CourseTemplateVersionDuplicatingService $duplicatingService,
+        private readonly MediaService $mediaService
     ) {}
 
     public function index(Request $request): View
@@ -44,6 +46,22 @@ class CourseTemplateController extends Controller
             ->when($status, function ($query) use ($status): void {
                 $query->where('templates.status', $status);
             })
+            ->when(
+                $request->user()?->role === 'teacher',
+                function ($query) use ($customerId, $request): void {
+                    $query->where(function ($query) use ($customerId, $request): void {
+                        $query->where('templates.created_by', $request->user()->id)
+                            ->orWhereExists(function ($query) use ($customerId, $request): void {
+                                $query->selectRaw('1')
+                                    ->from('core_course_template_teachers as assignments')
+                                    ->whereColumn('assignments.template_id', 'templates.id')
+                                    ->where('assignments.customer_id', $customerId)
+                                    ->where('assignments.teacher_id', $request->user()->id)
+                                    ->where('assignments.status', 'active');
+                            });
+                    });
+                }
+            )
             ->orderByDesc('templates.updated_at')
             ->orderBy('templates.title')
             ->select('templates.*', 'categories.name as category_name')
@@ -64,6 +82,7 @@ class CourseTemplateController extends Controller
         return view('course-templates.create', [
             'categories' => $this->categories(),
             'requiredFields' => $this->requiredFields($customerId),
+            'coverImageMedia' => null,
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -74,7 +93,7 @@ class CourseTemplateController extends Controller
         $validated = $this->validatedData($request, $customerId);
         $now = now();
 
-        DB::table('core_course_templates')->insert(
+        $templateId = DB::table('core_course_templates')->insertGetId(
             $this->templateValues($validated, [
                 'customer_id' => $customerId,
                 'lesson_count' => 0,
@@ -86,6 +105,8 @@ class CourseTemplateController extends Controller
             ])
         );
 
+        $this->attachUploadedMedia($request, $templateId);
+
         return redirect()
             ->route($this->routePrefix($request).'.index')
             ->with('success', __('lf.LF_course_template_common_created'));
@@ -95,10 +116,11 @@ class CourseTemplateController extends Controller
     {
         $customerId = $this->customerId();
         $routePrefix = $this->routePrefix($request);
+        $template = $this->findTemplate($customerId, $id);
         $versions = $this->versions($customerId, $id);
 
         return view('course-templates.edit', [
-            'template' => $this->findTemplate($customerId, $id),
+            'template' => $template,
             'versions' => $versions,
             'latestVersion' => $versions->first(),
             'currentVersion' => $versions->first(
@@ -109,6 +131,11 @@ class CourseTemplateController extends Controller
             'directLessons' => $this->directLessons($customerId, $id),
             'lessonsBySection' => $this->lessonsBySection($customerId, $id),
             'activitiesByLesson' => $this->activitiesByLesson($customerId, $id),
+            'coverImageMedia' => $this->singleMedia(
+                'course_template',
+                $id,
+                'cover_image'
+            ),
             'teacherAssignments' => $this->teacherAssignments(
                 $customerId,
                 $id
@@ -286,6 +313,8 @@ class CourseTemplateController extends Controller
                 'updated_at' => now(),
             ]));
 
+        $this->attachUploadedMedia($request, $id);
+
         return redirect()
             ->route($this->routePrefix($request).'.edit', $id)
             ->with('success', __('lf.LF_course_template_common_updated'));
@@ -371,6 +400,11 @@ class CourseTemplateController extends Controller
             'status' => [
                 'required',
                 Rule::in(['draft', 'active', 'archived']),
+            ],
+            'cover_image_file' => [
+                'nullable',
+                'file',
+                'max:'.(int) config('media.max_upload_kilobytes', 102400),
             ],
         ];
     }
@@ -517,6 +551,68 @@ class CourseTemplateController extends Controller
             ->get();
     }
 
+    private function attachUploadedMedia(Request $request, int $templateId): void
+    {
+        if (! $request->hasFile('cover_image_file')) {
+            return;
+        }
+
+        foreach (
+            $this->mediaService->getOwnerMedia(
+                'course_template',
+                $templateId,
+                'cover_image'
+            ) as $media
+        ) {
+            $this->mediaService->detachUsage(
+                (int) $media->id,
+                'course_template',
+                $templateId,
+                'cover_image'
+            );
+        }
+
+        $mediaFile = $this->mediaService->upload(
+            $request->file('cover_image_file'),
+            [
+                'file_type' => 'image',
+                'module' => 'course',
+                'entity_type' => 'templates',
+                'entity_id' => $templateId,
+                'purpose' => 'cover',
+                'display_name' => $request->input('title'),
+            ],
+            (int) $request->user()->id
+        );
+
+        $this->mediaService->attachUsage(
+            (int) $mediaFile->id,
+            'course_template',
+            $templateId,
+            'cover_image'
+        );
+    }
+
+    private function singleMedia(
+        string $ownerType,
+        int $ownerId,
+        string $usageType
+    ): ?object {
+        $media = $this->mediaService
+            ->getOwnerMedia($ownerType, $ownerId, $usageType)
+            ->first();
+
+        if (! $media) {
+            return null;
+        }
+
+        $media->signed_url = $this->mediaService->generateSignedUrl(
+            (int) $media->id
+        );
+
+        return $media;
+    }
+
     private function findTemplate(int $customerId, int $id): object
     {
         $template = DB::table('core_course_templates')
@@ -525,8 +621,31 @@ class CourseTemplateController extends Controller
             ->first();
 
         abort_if(! $template, 404);
+        $this->authorizeTemplateAccess($customerId, $template);
 
         return $template;
+    }
+
+    private function authorizeTemplateAccess(int $customerId, object $template): void
+    {
+        $user = request()->user();
+
+        if ($user?->role === 'customer_admin') {
+            return;
+        }
+
+        $isAssignedTeacher = $user?->role === 'teacher'
+            && (
+                (int) $template->created_by === (int) $user->id
+                || DB::table('core_course_template_teachers')
+                    ->where('customer_id', $customerId)
+                    ->where('template_id', $template->id)
+                    ->where('teacher_id', $user->id)
+                    ->where('status', 'active')
+                    ->exists()
+            );
+
+        abort_unless($isAssignedTeacher, 404);
     }
 
     private function hasReferences(int $customerId, int $templateId): bool

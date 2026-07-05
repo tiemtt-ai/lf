@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\MediaService;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -14,6 +15,8 @@ use Illuminate\View\View;
 
 class CourseTemplateLessonController extends Controller
 {
+    public function __construct(private readonly MediaService $mediaService) {}
+
     public function index(
         Request $request,
         int $templateId,
@@ -147,6 +150,7 @@ class CourseTemplateLessonController extends Controller
                 $customerId,
                 $templateId
             ),
+            'lessonMedia' => collect(),
             'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
         ]);
@@ -170,13 +174,13 @@ class CourseTemplateLessonController extends Controller
             $templateId
         );
 
-        DB::transaction(function () use (
+        $lessonId = DB::transaction(function () use (
             $request,
             $validated,
             $customerId,
             $templateId,
             $sectionId
-        ): void {
+        ): int {
             $template = DB::table('core_course_templates')
                 ->where('customer_id', $customerId)
                 ->where('id', $templateId)
@@ -201,7 +205,7 @@ class CourseTemplateLessonController extends Controller
 
             $now = now();
 
-            DB::table('core_course_template_lessons')->insert(
+            $lessonId = DB::table('core_course_template_lessons')->insertGetId(
                 $this->lessonValues($validated, [
                     'customer_id' => $customerId,
                     'template_id' => $templateId,
@@ -213,7 +217,11 @@ class CourseTemplateLessonController extends Controller
                     'updated_at' => $now,
                 ])
             );
+
+            return $lessonId;
         });
+
+        $this->attachUploadedMedia($request, $lessonId);
 
         return redirect()
             ->to(
@@ -258,6 +266,7 @@ class CourseTemplateLessonController extends Controller
                 $templateId,
                 $lessonId
             ),
+            'lessonMedia' => $this->ownerMedia('course_lesson', $lessonId),
             'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
         ]);
@@ -304,6 +313,8 @@ class CourseTemplateLessonController extends Controller
             ->update($this->lessonValues($validated, [
                 'updated_at' => now(),
             ]));
+
+        $this->attachUploadedMedia($request, $lessonId);
 
         return redirect()
             ->route(
@@ -464,6 +475,21 @@ class CourseTemplateLessonController extends Controller
                 'required',
                 Rule::in(['draft', 'active', 'inactive', 'archived']),
             ],
+            'media_video_file' => [
+                'nullable',
+                'file',
+                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+            ],
+            'media_audio_file' => [
+                'nullable',
+                'file',
+                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+            ],
+            'media_document_file' => [
+                'nullable',
+                'file',
+                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+            ],
         ];
     }
 
@@ -571,8 +597,31 @@ class CourseTemplateLessonController extends Controller
             ->first();
 
         abort_if(! $template, 404);
+        $this->authorizeTemplateAccess($customerId, $template);
 
         return $template;
+    }
+
+    private function authorizeTemplateAccess(int $customerId, object $template): void
+    {
+        $user = request()->user();
+
+        if ($user?->role === 'customer_admin') {
+            return;
+        }
+
+        $isAssignedTeacher = $user?->role === 'teacher'
+            && (
+                (int) $template->created_by === (int) $user->id
+                || DB::table('core_course_template_teachers')
+                    ->where('customer_id', $customerId)
+                    ->where('template_id', $template->id)
+                    ->where('teacher_id', $user->id)
+                    ->where('status', 'active')
+                    ->exists()
+            );
+
+        abort_unless($isAssignedTeacher, 404);
     }
 
     private function findSection(
@@ -614,6 +663,52 @@ class CourseTemplateLessonController extends Controller
         abort_if(! $lesson, 404);
 
         return $lesson;
+    }
+
+    private function attachUploadedMedia(Request $request, int $lessonId): void
+    {
+        foreach ([
+            'media_video_file' => ['video', 'video'],
+            'media_audio_file' => ['audio', 'audio'],
+            'media_document_file' => ['document', 'document'],
+        ] as $field => [$fileType, $usageType]) {
+            if (! $request->hasFile($field)) {
+                continue;
+            }
+
+            $mediaFile = $this->mediaService->upload(
+                $request->file($field),
+                [
+                    'file_type' => $fileType,
+                    'module' => 'course',
+                    'entity_type' => 'lessons',
+                    'entity_id' => $lessonId,
+                    'purpose' => $usageType,
+                    'display_name' => $request->input('title'),
+                ],
+                (int) $request->user()->id
+            );
+
+            $this->mediaService->attachUsage(
+                (int) $mediaFile->id,
+                'course_lesson',
+                $lessonId,
+                $usageType
+            );
+        }
+    }
+
+    private function ownerMedia(string $ownerType, int $ownerId): object
+    {
+        return $this->mediaService
+            ->getOwnerMedia($ownerType, $ownerId)
+            ->map(function (object $media): object {
+                $media->signed_url = $this->mediaService->generateSignedUrl(
+                    (int) $media->id
+                );
+
+                return $media;
+            });
     }
 
     private function customerId(): int

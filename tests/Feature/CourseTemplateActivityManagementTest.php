@@ -31,6 +31,10 @@ class CourseTemplateActivityManagementTest extends TestCase
             $this->createHierarchy('tenant-b');
         $admin = $this->createUser($customerId, 'customer_admin');
         $teacher = $this->createUser($customerId, 'teacher');
+        DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('id', $templateId)
+            ->update(['created_by' => $teacher->id]);
         $this->createActivity(
             $customerId,
             $templateId,
@@ -194,6 +198,10 @@ class CourseTemplateActivityManagementTest extends TestCase
             $this->createDirectHierarchy();
         $admin = $this->createUser($customerId, 'customer_admin');
         $teacher = $this->createUser($customerId, 'teacher');
+        DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('id', $templateId)
+            ->update(['created_by' => $teacher->id]);
 
         foreach ([
             [$admin, 'admin', 'Admin Direct Activity'],
@@ -272,6 +280,10 @@ class CourseTemplateActivityManagementTest extends TestCase
         [$customerId, $templateId, $sectionId, $lessonId] =
             $this->createHierarchy();
         $teacher = $this->createUser($customerId, 'teacher');
+        DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('id', $templateId)
+            ->update(['created_by' => $teacher->id]);
         $collectionUrl = $this->activityCollectionUrl(
             'teacher',
             $templateId,

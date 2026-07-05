@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\MediaService;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -37,6 +38,8 @@ class CourseTemplateActivityController extends Controller
         'assignment',
         'liveclass',
     ];
+
+    public function __construct(private readonly MediaService $mediaService) {}
 
     public function index(
         Request $request,
@@ -246,6 +249,7 @@ class CourseTemplateActivityController extends Controller
             'activityTypes' => self::ACTIVITY_TYPES,
             'manualDurationTypes' => self::MANUAL_DURATION_TYPES,
             'referenceActivityTypes' => self::REFERENCE_ACTIVITY_TYPES,
+            'activityMedia' => collect(),
             'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
         ]);
@@ -271,7 +275,7 @@ class CourseTemplateActivityController extends Controller
         );
         $now = now();
 
-        DB::table('core_course_template_activities')->insert(
+        $activityId = DB::table('core_course_template_activities')->insertGetId(
             $this->activityValues($validated, [
                 'customer_id' => $customerId,
                 'template_id' => $templateId,
@@ -281,6 +285,8 @@ class CourseTemplateActivityController extends Controller
                 'updated_at' => $now,
             ])
         );
+
+        $this->attachUploadedMedia($request, $activityId);
 
         return redirect()
             ->to(
@@ -331,6 +337,10 @@ class CourseTemplateActivityController extends Controller
             'activityTypes' => self::ACTIVITY_TYPES,
             'manualDurationTypes' => self::MANUAL_DURATION_TYPES,
             'referenceActivityTypes' => self::REFERENCE_ACTIVITY_TYPES,
+            'activityMedia' => $this->ownerMedia(
+                'course_activity',
+                $activityId
+            ),
             'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
         ]);
@@ -371,6 +381,8 @@ class CourseTemplateActivityController extends Controller
             ->update($this->activityValues($validated, [
                 'updated_at' => now(),
             ]));
+
+        $this->attachUploadedMedia($request, $activityId);
 
         return redirect()
             ->route(
@@ -583,6 +595,26 @@ class CourseTemplateActivityController extends Controller
                 'required',
                 Rule::in(['draft', 'active', 'inactive', 'archived']),
             ],
+            'activity_video_file' => [
+                'nullable',
+                'file',
+                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+            ],
+            'activity_audio_file' => [
+                'nullable',
+                'file',
+                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+            ],
+            'activity_document_file' => [
+                'nullable',
+                'file',
+                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+            ],
+            'activity_attachment_file' => [
+                'nullable',
+                'file',
+                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+            ],
         ];
     }
 
@@ -683,6 +715,7 @@ class CourseTemplateActivityController extends Controller
             ->first();
 
         abort_if(! $template, 404);
+        $this->authorizeTemplateAccess($customerId, $template);
 
         $section = null;
 
@@ -731,6 +764,75 @@ class CourseTemplateActivityController extends Controller
         abort_if(! $activity, 404);
 
         return $activity;
+    }
+
+    private function attachUploadedMedia(Request $request, int $activityId): void
+    {
+        foreach ([
+            'activity_video_file' => ['video', 'video'],
+            'activity_audio_file' => ['audio', 'audio'],
+            'activity_document_file' => ['document', 'document'],
+            'activity_attachment_file' => ['document', 'attachment'],
+        ] as $field => [$fileType, $usageType]) {
+            if (! $request->hasFile($field)) {
+                continue;
+            }
+
+            $mediaFile = $this->mediaService->upload(
+                $request->file($field),
+                [
+                    'file_type' => $fileType,
+                    'module' => 'course',
+                    'entity_type' => 'activities',
+                    'entity_id' => $activityId,
+                    'purpose' => $usageType,
+                    'display_name' => $request->input('title'),
+                ],
+                (int) $request->user()->id
+            );
+
+            $this->mediaService->attachUsage(
+                (int) $mediaFile->id,
+                'course_activity',
+                $activityId,
+                $usageType
+            );
+        }
+    }
+
+    private function ownerMedia(string $ownerType, int $ownerId): object
+    {
+        return $this->mediaService
+            ->getOwnerMedia($ownerType, $ownerId)
+            ->map(function (object $media): object {
+                $media->signed_url = $this->mediaService->generateSignedUrl(
+                    (int) $media->id
+                );
+
+                return $media;
+            });
+    }
+
+    private function authorizeTemplateAccess(int $customerId, object $template): void
+    {
+        $user = request()->user();
+
+        if ($user?->role === 'customer_admin') {
+            return;
+        }
+
+        $isAssignedTeacher = $user?->role === 'teacher'
+            && (
+                (int) $template->created_by === (int) $user->id
+                || DB::table('core_course_template_teachers')
+                    ->where('customer_id', $customerId)
+                    ->where('template_id', $template->id)
+                    ->where('teacher_id', $user->id)
+                    ->where('status', 'active')
+                    ->exists()
+            );
+
+        abort_unless($isAssignedTeacher, 404);
     }
 
     private function customerId(): int

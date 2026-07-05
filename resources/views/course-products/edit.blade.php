@@ -92,7 +92,9 @@
                  role="tabpanel"
                  aria-labelledby="course-product-tab-general">
             <div class="admin-card admin-form-card">
-                <form method="POST" action="{{ route($routePrefix.'.update', $product->id) }}">
+                <form method="POST"
+                      action="{{ route($routePrefix.'.update', $product->id) }}"
+                      enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
 

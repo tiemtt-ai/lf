@@ -32,7 +32,9 @@ class CourseTemplateLessonManagementTest extends TestCase
         $templateId = $this->createTemplate(
             $customerId,
             'TOPIK Beginner',
-            'topik-beginner'
+            'topik-beginner',
+            null,
+            $teacher->id
         );
         $sectionId = $this->createSection(
             $customerId,
@@ -144,7 +146,9 @@ class CourseTemplateLessonManagementTest extends TestCase
         $templateId = $this->createTemplate(
             $customerId,
             'Flat Course',
-            'flat-course'
+            'flat-course',
+            null,
+            $teacher->id
         );
 
         foreach ([
@@ -255,7 +259,9 @@ class CourseTemplateLessonManagementTest extends TestCase
         $templateId = $this->createTemplate(
             $customerId,
             'Teacher Course',
-            'teacher-course'
+            'teacher-course',
+            null,
+            $teacher->id
         );
         $sectionId = $this->createSection(
             $customerId,
@@ -895,7 +901,8 @@ class CourseTemplateLessonManagementTest extends TestCase
         int $customerId,
         string $title,
         string $slug,
-        ?int $maxLessons = null
+        ?int $maxLessons = null,
+        ?int $createdBy = null
     ): int {
         $now = now();
 
@@ -922,7 +929,7 @@ class CourseTemplateLessonManagementTest extends TestCase
             'meta_keywords' => null,
             'working_revision' => 1,
             'status' => 'draft',
-            'created_by' => null,
+            'created_by' => $createdBy,
             'last_version_published_at' => null,
             'created_at' => $now,
             'updated_at' => $now,

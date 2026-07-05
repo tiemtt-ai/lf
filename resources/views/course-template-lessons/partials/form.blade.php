@@ -64,6 +64,66 @@
     </div>
 </section>
 
+<section class="admin-form-section" aria-labelledby="course-template-lesson-media-title">
+    <h2 id="course-template-lesson-media-title" class="admin-form-section-title">
+        Lesson media
+    </h2>
+
+    @if (($lessonMedia ?? collect())->isNotEmpty())
+        <div class="admin-table-wrap">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Name</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach ($lessonMedia as $media)
+                    <tr>
+                        <td>{{ $media->usage_type }}</td>
+                        <td>{{ $media->display_name }}</td>
+                        <td>
+                            <a href="{{ $media->signed_url }}" target="_blank" rel="noopener">
+                                Open
+                            </a>
+                        </td>
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+
+    <div class="lf-form-group">
+        <x-form-label for="media_video_file" value="Video" />
+        <input id="media_video_file"
+               type="file"
+               name="media_video_file"
+               class="lf-form-control"
+               accept="video/*">
+    </div>
+
+    <div class="lf-form-group">
+        <x-form-label for="media_audio_file" value="Audio" />
+        <input id="media_audio_file"
+               type="file"
+               name="media_audio_file"
+               class="lf-form-control"
+               accept="audio/*">
+    </div>
+
+    <div class="lf-form-group">
+        <x-form-label for="media_document_file" value="Document" />
+        <input id="media_document_file"
+               type="file"
+               name="media_document_file"
+               class="lf-form-control"
+               accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf">
+    </div>
+</section>
+
 <section class="admin-form-section" aria-labelledby="course-template-lesson-display-title">
     <h2 id="course-template-lesson-display-title" class="admin-form-section-title">
         {{ __('lf.LF_course_template_lesson_group_display') }}

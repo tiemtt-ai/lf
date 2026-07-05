@@ -32,7 +32,8 @@ class CourseTemplateSectionManagementTest extends TestCase
         $templateId = $this->createTemplate(
             $customerId,
             'TOPIK Beginner',
-            'topik-beginner'
+            'topik-beginner',
+            $teacher->id
         );
         $otherTemplateId = $this->createTemplate(
             $otherCustomerId,
@@ -121,7 +122,8 @@ class CourseTemplateSectionManagementTest extends TestCase
         $templateId = $this->createTemplate(
             $customerId,
             'Teacher Course',
-            'teacher-course'
+            'teacher-course',
+            $teacher->id
         );
 
         $this->actingAs($teacher)
@@ -521,7 +523,8 @@ class CourseTemplateSectionManagementTest extends TestCase
     private function createTemplate(
         int $customerId,
         string $title,
-        string $slug
+        string $slug,
+        ?int $createdBy = null
     ): int {
         $now = now();
 
@@ -548,7 +551,7 @@ class CourseTemplateSectionManagementTest extends TestCase
             'meta_keywords' => null,
             'working_revision' => 1,
             'status' => 'draft',
-            'created_by' => null,
+            'created_by' => $createdBy,
             'last_version_published_at' => null,
             'created_at' => $now,
             'updated_at' => $now,

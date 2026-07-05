@@ -43,7 +43,8 @@
               action="{{ route(
                   $routePrefix.'.update',
                   $lessonRouteParameters
-              ) }}">
+              ) }}"
+              enctype="multipart/form-data">
             @csrf
             @method('PUT')
 

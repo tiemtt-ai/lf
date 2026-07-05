@@ -39,7 +39,11 @@ class CourseTemplateTeacherManagementTest extends TestCase
             'teacher',
             'Private Teacher'
         );
-        $templateId = $this->createTemplate($customerId, 'Own Template');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Own Template',
+            $viewer->id
+        );
         $otherTemplateId = $this->createTemplate(
             $otherCustomerId,
             'Private Template'
@@ -148,7 +152,11 @@ class CourseTemplateTeacherManagementTest extends TestCase
             'teacher',
             'Peer Teacher'
         );
-        $templateId = $this->createTemplate($customerId, 'Teacher Template');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Teacher Template',
+            $actor->id
+        );
 
         $this->actingAs($actor)
             ->post(
@@ -416,8 +424,11 @@ class CourseTemplateTeacherManagementTest extends TestCase
         ]);
     }
 
-    private function createTemplate(int $customerId, string $title): int
-    {
+    private function createTemplate(
+        int $customerId,
+        string $title,
+        ?int $createdBy = null
+    ): int {
         return DB::table('core_course_templates')->insertGetId([
             'customer_id' => $customerId,
             'category_id' => null,
@@ -441,7 +452,7 @@ class CourseTemplateTeacherManagementTest extends TestCase
             'meta_keywords' => null,
             'working_revision' => 1,
             'status' => 'draft',
-            'created_by' => null,
+            'created_by' => $createdBy,
             'last_version_published_at' => null,
             'created_at' => now(),
             'updated_at' => now(),

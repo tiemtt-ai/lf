@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\OrganizationController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\CustomerRegisterController;
+use App\Http\Controllers\MediaFileDeliveryController;
 use App\Http\Controllers\PublicSiteController;
 use App\Http\Controllers\RoleProfileController;
 use App\Http\Controllers\TenantWebsiteController;
@@ -53,6 +54,10 @@ Route::middleware(['tenant', 'root.domain'])->group(function () {
 */
 
 Route::middleware(['tenant'])->group(function () {
+    Route::get('/media/files/{mediaFile}/signed', [MediaFileDeliveryController::class, 'show'])
+        ->middleware('signed')
+        ->name('media.files.signed');
+
     Route::get('/', [TenantWebsiteController::class, 'home'])
         ->name('public.home');
 
@@ -161,6 +166,7 @@ Route::middleware([
     $registerCourseProductRoutes = true;
     $registerCourseTemplateLifecycleRoutes = true;
     require __DIR__.'/modules/course.php';
+    require __DIR__.'/modules/media.php';
 });
 
 /*

@@ -29,7 +29,12 @@ class CourseTemplateManagementTest extends TestCase
         $otherCustomerId = $this->createTenant('tenant-b');
         $admin = $this->createUser($customerId, 'customer_admin');
         $teacher = $this->createUser($customerId, 'teacher');
-        $this->createTemplate($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $this->createTemplate(
+            $customerId,
+            'TOPIK Beginner',
+            'topik-beginner',
+            $teacher->id
+        );
         $this->createTemplate(
             $otherCustomerId,
             'Private Tenant Template',
@@ -57,7 +62,8 @@ class CourseTemplateManagementTest extends TestCase
         $templateId = $this->createTemplate(
             $customerId,
             'Tabbed Template',
-            'tabbed-template'
+            'tabbed-template',
+            $teacher->id
         );
         $tabs = [
             'information' => 'Thông tin',
@@ -171,6 +177,7 @@ class CourseTemplateManagementTest extends TestCase
                 'description',
                 'publisher_name',
                 'thumbnail_image',
+                'cover_image_file',
                 'thumbnail_video_source',
                 'thumbnail_video_url',
                 'thumbnail_video_media_id',
@@ -206,6 +213,7 @@ class CourseTemplateManagementTest extends TestCase
                 [
                     'thumbnail_type',
                     'thumbnail_image',
+                    'cover_image_file',
                     'thumbnail_video_source',
                     'thumbnail_video_url',
                     'thumbnail_video_media_id',
@@ -541,7 +549,8 @@ class CourseTemplateManagementTest extends TestCase
     private function createTemplate(
         int $customerId,
         string $title,
-        string $slug
+        string $slug,
+        ?int $createdBy = null
     ): int {
         $now = now();
 
@@ -568,7 +577,7 @@ class CourseTemplateManagementTest extends TestCase
             'meta_keywords' => null,
             'working_revision' => 1,
             'status' => 'draft',
-            'created_by' => null,
+            'created_by' => $createdBy,
             'last_version_published_at' => null,
             'created_at' => $now,
             'updated_at' => $now,

@@ -38,10 +38,10 @@
         <header class="student-header">
             <div class="student-container">
                 <div class="student-header-inner">
-                    <a class="student-brand" href="{{ url('/') }}" aria-label="{{ $tenant?->name ?? 'LearnForge' }}">
+                    <a class="student-brand" href="{{ url('/') }}" aria-label="{{ $tenant?->name ?? 'LF' }}">
                         <span class="student-brand-mark">LF</span>
                         <span class="student-brand-copy">
-                            <span class="student-brand-name">{{ $tenant?->name ?? 'LearnForge' }}</span>
+                            <span class="student-brand-name">{{ $tenant?->name ?? 'LF' }}</span>
                             <span class="student-brand-tenant">
                                 {{ $studentMode ? __('lf.LF_student_title_student_personalized_experience') : __('lf.LF_common_footer_common_platform') }}
                             </span>
@@ -106,7 +106,7 @@
             <div class="student-container student-footer-inner">
                 <div class="student-footer-brand">
                     <span class="student-brand-mark">LF</span>
-                    {{ $tenant?->name ?? 'LearnForge' }}
+                    {{ $tenant?->name ?? 'LF' }}
                 </div>
                 <p>{{ __('lf.LF_home_public_roles_description') }}</p>
                 <div class="student-footer-links">

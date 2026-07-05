@@ -114,6 +114,26 @@
     </div>
 
     <div class="lf-form-group">
+        <x-form-label for="cover_image_file"
+                      value="Cover image upload" />
+        @if ($coverImageMedia ?? null)
+            <div class="lf-form-help">
+                <img src="{{ $coverImageMedia->signed_url }}"
+                     alt="{{ $coverImageMedia->display_name }}"
+                     style="max-width: 180px; height: auto; display: block; margin-bottom: 8px;">
+                <a href="{{ $coverImageMedia->signed_url }}" target="_blank" rel="noopener">
+                    {{ $coverImageMedia->display_name }}
+                </a>
+            </div>
+        @endif
+        <input id="cover_image_file"
+               type="file"
+               name="cover_image_file"
+               class="lf-form-control"
+               accept="image/*">
+    </div>
+
+    <div class="lf-form-group">
         <x-form-label for="thumbnail_video_source"
                       :value="__('lf.LF_course_product_common_thumbnail_video_source')"
                       :required="$isRequired('thumbnail_video_source')" />
