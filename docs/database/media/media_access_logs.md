@@ -17,6 +17,8 @@ Append-only audit log cho thao tác truy cập Media File.
 * `source_type + source_id` là generic context, không hard FK sang Domain khác.
 * Audit only; không dùng log để tính Course Progress, Attendance hoặc Assessment Result.
 * Append-only khi có thể; privacy/retention policy áp dụng cho IP/User-Agent.
+* Log không lưu full signed URL, signing query string, credential hoặc signing
+  secret. Metadata chỉ chứa request/audit context an toàn.
 
 ## Fields
 

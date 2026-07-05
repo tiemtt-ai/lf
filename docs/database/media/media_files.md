@@ -18,7 +18,10 @@ Bảng trung tâm lưu identity, metadata, storage locator và lifecycle của D
 * Không hard-delete khi còn active Usage; dùng lifecycle `deleted`/`archived`.
 * Allowed `file_type`: `image`, `video`, `audio`, `document`, `subtitle`, `transcript`, `archive`, `other`.
 * Allowed `status`: `uploading`, `processing`, `ready`, `failed`, `deleted`, `archived`.
-* `public_url` chỉ dùng khi policy cho phép; URL không thay authorization.
+* Không lưu permanent public URL làm canonical Media data. Protected tenant
+  Media dùng signed delivery khi access.
+* `cdn_url` nếu có chỉ là optional delivery metadata; không phải storage
+  identity và không thay authorization.
 * `file_size_bytes`, duration/dimensions/page count không âm.
 
 ### Content Hash Principle
@@ -47,7 +50,7 @@ Bảng trung tâm lưu identity, metadata, storage locator và lifecycle của D
 | storage_key | VARCHAR(1024) NOT NULL | Canonical object key. |
 | storage_class | VARCHAR(100) NULL | S3/storage class. |
 | cdn_url | TEXT NULL | Delivery/CDN reference. |
-| public_url | TEXT NULL | Public delivery URL nếu policy cho phép. |
+| public_url | TEXT NULL | Deprecated for protected tenant Media; không dùng làm canonical storage hoặc access identity. |
 | checksum | VARCHAR(128) NULL | Content checksum, ưu tiên SHA-256. |
 | file_size_bytes | BIGINT UNSIGNED NOT NULL DEFAULT 0 | Kích thước binary. |
 | duration_seconds | BIGINT UNSIGNED NULL | Thời lượng audio/video. |
@@ -76,10 +79,11 @@ UNIQUE (customer_id, storage_disk, storage_bucket, storage_key);
 
 ## Sample Data
 
-`id=100, customer_id=1, category_id=1, uploaded_by=200, file_type=video, mime_type=video/mp4, original_name=lesson.mp4, display_name=Lesson 1, extension=mp4, storage_disk=s3, storage_bucket=lf-shared, storage_region=ap-southeast-1, storage_key=tenants/1/courses/lesson-1.mp4, checksum=sha256:abc, file_size_bytes=104857600, duration_seconds=900, visibility=private, status=ready`
+`id=100, customer_id=1, category_id=1, uploaded_by=200, file_type=video, mime_type=video/mp4, original_name=lesson.mp4, display_name=Lesson 1, extension=mp4, storage_disk=s3, storage_bucket=lf-shared, storage_region=ap-southeast-1, storage_key=tenants/1/course/activities/9001/video/01JXXX.mp4, checksum=sha256:abc, file_size_bytes=104857600, duration_seconds=900, visibility=private, status=ready`
 
 ## Design Notes
 
 `storage_key` là source of truth cho object location. `checksum` là Content
-Identity; original/display name chỉ là metadata. `cdn_url`/`public_url` là
-delivery references có thể được tái tạo và không phải ownership/progress data.
+Identity; original/display name chỉ là metadata. `cdn_url` là optional delivery
+reference có thể được tái tạo và không phải ownership/progress data. Permanent
+`public_url` không dùng cho protected tenant Media.

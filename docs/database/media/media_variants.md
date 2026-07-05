@@ -17,6 +17,8 @@ Lưu metadata và storage locator của asset phái sinh từ Media File gốc.
 * Allowed `variant_type`: `thumbnail`, `preview`, `compressed`, `720p`, `1080p`, `hls`, `webp`.
 * Allowed `status`: `processing`, `ready`, `failed`, `archived`.
 * Database không lưu binary; `storage_key` định vị output.
+* Variant storage cũng private by default; delivery dùng authorized/signed
+  access giống Media File gốc.
 
 ### Variant Principle
 
@@ -57,7 +59,7 @@ UNIQUE (customer_id, storage_key);
 
 ## Sample Data
 
-`id=300, customer_id=1, media_file_id=100, variant_type=720p, storage_key=tenants/1/variants/lesson-1-720p.mp4, mime_type=video/mp4, width=1280, height=720, bitrate=2500000, file_size_bytes=52428800, status=ready`
+`id=300, customer_id=1, media_file_id=100, variant_type=720p, storage_key=tenants/1/course/activities/9001/video/variants/01JXXX-720p.mp4, mime_type=video/mp4, width=1280, height=720, bitrate=2500000, file_size_bytes=52428800, status=ready`
 
 ## Design Notes
 
