@@ -1,10 +1,10 @@
 # LF-Media.md
 
-Version: 1.0
+Version: 1.1
 
 Status: Foundation Approved
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -25,6 +25,10 @@ Media quản lý Digital Assets và hạ tầng liên quan:
 
 Media không phải File Manager, Course Domain, LiveClass Domain, Assessment
 Domain hoặc AI Domain.
+
+Mỗi Media object thuộc chính xác một Customer. Media object không được shared
+trực tiếp xuyên tenant; cross-tenant reuse nếu có trong tương lai phải tạo
+asset identity riêng theo tenant hoặc được phê duyệt bằng architecture review.
 
 ---
 
@@ -72,6 +76,24 @@ AI Result
 Các Domain khác chỉ giữ `media_file_id` hoặc tạo
 `media_file_usages` mapping. Media không diễn giải Lesson, Quiz, Certificate
 hoặc business state của owner.
+
+---
+
+# Resource Ownership Principle
+
+Media owns storage.
+
+Business modules own business relationships.
+
+Media never decides business state.
+
+Business modules never manage storage directly.
+
+Examples:
+
+* Course quyết định cover image nào đang được dùng. Media chỉ lưu file.
+* Assessment quyết định speaking submission nào được nộp. Media chỉ lưu audio.
+* Certificate quyết định certificate nào được phát hành. Media chỉ lưu PDF.
 
 ---
 
@@ -135,6 +157,10 @@ Default storage:
 AWS S3
 ```
 
+Private storage là mặc định. Media không lưu permanent public URL trong
+database. Delivery URL chỉ là access mechanism tạm thời và không phải asset
+identity.
+
 Media database không lưu binary. Database chỉ lưu:
 
 * Metadata
@@ -146,15 +172,28 @@ Media database không lưu binary. Database chỉ lưu:
 
 `storage_key` là canonical object locator.
 
+Object key phải tenant-aware và không dùng original filename làm object key.
+Recommended convention:
+
+```text
+tenants/{customer_id}/{module}/{entity_type}/{entity_id}/{purpose}/{ulid}.{ext}
+```
+
 Examples:
 
 ```text
-tenants/{customer_id}/courses/...
+tenants/1/course/templates/10/cover/01JXXX.png
 
-tenants/{customer_id}/assessment/...
+tenants/1/course/activities/200/video/01JXXX.mp4
 
-tenants/{customer_id}/liveclass/...
+tenants/1/assessment/questions/55/audio/01JXXX.mp3
+
+tenants/1/assessment/answers/90/speaking/01JXXX.webm
 ```
+
+Bucket name, region, endpoint và storage provider configuration không được
+hardcode trong business Domain. Storage configuration thuộc infrastructure /
+environment layer để hỗ trợ shared S3, dedicated tenant storage và future BYOC.
 
 Không tạo:
 
@@ -184,6 +223,31 @@ checksum và canonical storage identity không được silent-replace.
 
 Không hard-delete file còn active Usage. Lifecycle dùng `deleted` hoặc
 `archived`, đồng thời storage retention/purge chạy theo policy riêng.
+
+Replace/Delete lifecycle:
+
+```text
+Replace Content
+
+↓
+
+Upload New Media File
+
+↓
+
+Move Usage / Domain Reference
+
+↓
+
+Archive Old Media File When Allowed
+```
+
+Delete không được phá owner Domain state. Owner Domain phải quyết định detach /
+remove business reference; Media chỉ quản lý asset lifecycle, audit và storage
+retention/purge.
+
+Orphan cleanup là Media responsibility nhưng phải giữ tenant boundary và không
+được hard-delete object còn active Usage.
 
 ---
 
@@ -250,8 +314,57 @@ ready
 archived / deleted
 ```
 
-`cdn_url` và `public_url` là delivery references, không thay authorization.
-Private/signed delivery vẫn là mặc định cho protected content.
+Upload lifecycle thuộc Media Platform:
+
+```text
+Authorize owner Domain intent
+
+↓
+
+Validate media type and tenant context
+
+↓
+
+Generate tenant-aware storage key
+
+↓
+
+Store private object
+
+↓
+
+Create Media identity and usage reference
+
+↓
+
+Process variants / transcripts / captions when needed
+```
+
+Owner Domain quyết định user có được upload asset cho business object hay
+không. Media quyết định asset identity, storage boundary, processing lifecycle
+và delivery policy.
+
+`cdn_url` nếu có chỉ là delivery reference, không thay authorization.
+Permanent `public_url` không phải canonical Media data và không được dùng làm
+protected content locator. Private/signed delivery là mặc định cho protected
+content.
+
+---
+
+# Signed Delivery Principle
+
+Media access dùng signed delivery khi protected content cần được đọc, xem,
+stream hoặc download.
+
+Signed URL / signed delivery:
+
+* Được tạo khi cần.
+* Có thời hạn ngắn.
+* Phải kiểm tra tenant và authorization trước khi phát hành.
+* Không được lưu như canonical asset identity.
+* Không được log credential, signing secret hoặc full signed query string.
+
+Public bucket/object access không phải default cho tenant media.
 
 ---
 
@@ -415,11 +528,45 @@ quyết định issuance, identity authorization hoặc marketing lifecycle.
 1. Mọi Media business record phải có `customer_id`.
 2. Media File, child records và Usage phải cùng tenant.
 3. User Tenant A không được đọc storage/delivery của Tenant B.
-4. Storage key phải tenant-aware.
-5. Visibility không thay authorization.
-6. Protected Media ưu tiên signed delivery.
-7. Owner Domain tự kiểm tra quyền sử dụng asset.
-8. Logs và metadata không lưu credential/signing secret.
+4. Mỗi storage object phải nằm trong tenant storage boundary.
+5. Storage key phải tenant-aware và bắt đầu bằng `tenants/{customer_id}` hoặc
+   equivalent tenant-isolated BYOC prefix.
+6. Visibility không thay authorization.
+7. Protected Media ưu tiên signed delivery.
+8. Owner Domain tự kiểm tra quyền sử dụng asset.
+9. Logs và metadata không lưu credential/signing secret.
+10. Original filename chỉ là metadata, không phải storage identity.
+11. IAM/storage permissions phải theo least privilege và không cho phép
+    cross-tenant read/write/delete.
+
+---
+
+# AWS Cost And BYOC Direction
+
+Media Platform phải giữ đủ asset ownership và storage identity để hỗ trợ future
+storage usage reporting theo tenant.
+
+Future AWS cost tracking có thể dựa trên:
+
+```text
+Customer ownership
+
+Storage provider / bucket / region
+
+Storage key prefix
+
+Object size and lifecycle state
+
+Processing / delivery events
+```
+
+Cost tracking không được thay đổi ownership business state của Course,
+Assessment, LiveClass, Certificate hoặc AI.
+
+Enterprise BYOC là future-compatible direction. BYOC storage phải giữ cùng Media
+identity model, tenant isolation rules, signed delivery principle và owner
+Domain integration contract. Business Domain không được biết bucket-specific
+implementation details.
 
 ---
 
@@ -429,15 +576,20 @@ quyết định issuance, identity authorization hoặc marketing lifecycle.
 2. Media chỉ sở hữu Digital Asset data/rules.
 3. Database không lưu binary.
 4. `storage_key` là canonical locator.
-5. Binary immutable; content change tạo file mới.
-6. Không tạo `media_folders`.
-7. Cross-domain relationship dùng `media_file_usages`.
-8. Không hard FK generic owner sang Domain khác.
-9. Variant không phải original file.
-10. Transcript text nằm trong field riêng.
-11. Access Logs chỉ phục vụ audit.
-12. Media không quyết định state của Course, LiveClass, Assessment, Certificate
+5. Storage key phải tenant-aware.
+6. Private storage và signed delivery là default cho protected Media.
+7. Không lưu permanent public URL làm canonical Media data.
+8. Binary immutable; content change tạo file mới.
+9. Không tạo `media_folders`.
+10. Cross-domain relationship dùng `media_file_usages`.
+11. Không hard FK generic owner sang Domain khác.
+12. Variant không phải original file.
+13. Transcript text nằm trong field riêng.
+14. Access Logs chỉ phục vụ audit.
+15. Media không quyết định state của Course, LiveClass, Assessment, Certificate
     hoặc AI.
+16. Business modules không quản lý storage trực tiếp.
+17. Media phải future-compatible với tenant storage usage reporting và BYOC.
 
 ---
 
@@ -479,6 +631,8 @@ Advanced Rendition Profiles
 Lifecycle Automation
 
 Storage Replication
+
+Tenant Storage Usage Reporting
 
 Enterprise BYOC
 ```
