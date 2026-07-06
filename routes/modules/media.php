@@ -1,7 +1,14 @@
 <?php
 
 use App\Http\Controllers\MediaCategoryController;
+use App\Http\Controllers\MediaFileController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/media', [MediaFileController::class, 'index'])
+    ->name('media.index');
+
+Route::delete('/media/{id}', [MediaFileController::class, 'destroy'])
+    ->name('media.destroy');
 
 Route::get('/media-categories', [MediaCategoryController::class, 'index'])
     ->name('media-categories.index');
