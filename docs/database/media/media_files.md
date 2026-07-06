@@ -31,6 +31,41 @@ Bảng trung tâm lưu identity, metadata, storage locator và lifecycle của D
 * Nếu nội dung thay đổi phải upload Media File mới.
 * Không replace binary cũ.
 
+### Duplicate Detection
+
+Media Files are the canonical physical files of LearnForge. Every upload entry
+point must use the same duplicate detection strategy, including Media Library,
+Course Category, Course Template, Course Product, Lesson, Assessment, Live
+Class, AI and future modules. Business modules are upload entry points only;
+duplicate detection belongs to the Media Platform.
+
+When a file is uploaded:
+
+1. Calculate the file checksum.
+2. Search existing Media Files within the same tenant by `customer_id` and
+   `checksum`. File size and MIME type may be used as additional validation to
+   avoid checksum collision.
+
+If an identical file already exists:
+
+* Do not upload another physical copy.
+* Do not create another `media_files` record.
+* Create only a new `media_file_usage` record for the current owner.
+
+If no identical file exists:
+
+* Store the physical file.
+* Create a new `media_files` record.
+* Create the corresponding `media_file_usage` record.
+
+Duplicate detection is tenant-scoped only. Files belonging to different tenants
+must never be shared. `media_files` owns the physical file;
+`media_file_usages` owns the relationship between a Media File and business
+modules. Multiple usages may reference the same Media File. Removing one usage
+must not delete the Media File while other usages still exist. Physical file
+deletion is allowed only when the Media File has no remaining usages and the
+platform retention policy allows deletion.
+
 ## Fields
 
 | Field | Type | Meaning |
