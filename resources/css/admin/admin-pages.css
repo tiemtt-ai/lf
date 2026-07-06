@@ -136,7 +136,7 @@
 }
 
 .course-category-modal {
-    max-height: calc(100vh - 72px);
+    max-height: calc(100vh - 152px);
     overflow-y: auto;
 }
 

@@ -8,12 +8,7 @@
 
 <div class="course-category-form">
     <div class="course-category-form-row course-category-form-row-primary">
-        <section class="admin-form-section course-category-form-general"
-                 aria-labelledby="{{ $fieldPrefix }}-general-title">
-            <h2 id="{{ $fieldPrefix }}-general-title" class="admin-form-section-title">
-                {{ __('lf.LF_course_category_group_general') }}
-            </h2>
-
+        <section class="admin-form-section course-category-form-general">
             <div class="lf-form-group">
                 <x-form-label for="{{ $fieldPrefix }}-name"
                               :value="__('lf.LF_course_category_common_name')"
@@ -76,12 +71,7 @@
             </div>
         </section>
 
-        <section class="admin-form-section course-category-form-media"
-                 aria-labelledby="{{ $fieldPrefix }}-media-title">
-            <h2 id="{{ $fieldPrefix }}-media-title" class="admin-form-section-title">
-                {{ __('lf.LF_course_category_group_media') }}
-            </h2>
-
+        <section class="admin-form-section course-category-form-media">
             <div class="lf-form-group">
                 <x-form-label for="{{ $fieldPrefix }}-thumbnail-image-file"
                               :value="__('lf.LF_course_category_common_thumbnail_upload')" />
@@ -174,12 +164,7 @@
     </div>
 
     <div class="course-category-form-row">
-        <section class="admin-form-section course-category-form-description"
-                 aria-labelledby="{{ $fieldPrefix }}-description-title">
-            <h2 id="{{ $fieldPrefix }}-description-title" class="admin-form-section-title">
-                {{ __('lf.LF_course_category_group_description') }}
-            </h2>
-
+        <section class="admin-form-section course-category-form-description">
             <div class="lf-form-group">
                 <x-form-label for="{{ $fieldPrefix }}-description"
                               :value="__('lf.LF_course_category_common_description')" />

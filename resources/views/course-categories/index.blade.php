@@ -66,10 +66,11 @@
         </button>
     </div>
 
-    <x-modal name="create-course-category" max-width="5xl" focusable>
+    <x-modal name="create-course-category"
+             max-width="6xl"
+             :title="__('lf.LF_course_category_common_create')"
+             focusable>
         <div class="lf-modal-card course-category-modal">
-            <h2>{{ __('lf.LF_course_category_common_create') }}</h2>
-
             <form method="POST" action="{{ route($routePrefix.'.store') }}" enctype="multipart/form-data">
                 @csrf
 
@@ -177,10 +178,11 @@
     </div>
 
     @foreach ($categories as $category)
-        <x-modal name="edit-course-category-{{ $category->id }}" max-width="5xl" focusable>
+        <x-modal name="edit-course-category-{{ $category->id }}"
+                 max-width="6xl"
+                 :title="__('lf.LF_course_category_common_edit')"
+                 focusable>
             <div class="lf-modal-card course-category-modal">
-                <h2>{{ __('lf.LF_course_category_common_edit') }}</h2>
-
                 <form method="POST"
                       action="{{ route($routePrefix.'.update', $category->id) }}"
                       enctype="multipart/form-data">

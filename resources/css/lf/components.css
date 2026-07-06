@@ -208,6 +208,48 @@
    Modal
 ========================= */
 
+.lf-modal-header {
+    padding: 22px 24px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #ffffff;
+}
+
+.lf-modal-title {
+    margin: 0;
+    min-width: 0;
+    color: #111827;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.lf-modal-close {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    color: #4b5563;
+    background: #ffffff;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.lf-modal-close:hover,
+.lf-modal-close:focus-visible {
+    color: #111827;
+    background: #f9fafb;
+}
+
 .lf-modal-card {
     padding: 24px;
 }
@@ -221,6 +263,16 @@
     justify-content: flex-end;
     gap: 12px;
     margin-top: 24px;
+}
+
+@media (max-width: 600px) {
+    .lf-modal-header {
+        padding: 18px;
+    }
+
+    .lf-modal-title {
+        font-size: 20px;
+    }
 }
 
 .lf-alert-danger {
