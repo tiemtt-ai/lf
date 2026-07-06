@@ -21,7 +21,7 @@
     @endif
 
     <div class="admin-card admin-form-card">
-        <form method="POST" action="{{ route($routePrefix.'.update', $category->id) }}">
+        <form method="POST" action="{{ route($routePrefix.'.update', $category->id) }}" enctype="multipart/form-data">
             @csrf
             @method('PUT')
 

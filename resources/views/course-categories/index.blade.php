@@ -68,6 +68,7 @@
             <thead>
             <tr>
                 <th>{{ __('lf.LF_common_label_common_id') }}</th>
+                <th>{{ __('lf.LF_course_category_common_thumbnail_image') }}</th>
                 <th>{{ __('lf.LF_course_category_common_name') }}</th>
                 <th>{{ __('lf.LF_course_category_common_parent') }}</th>
                 <th>{{ __('lf.LF_course_category_common_slug') }}</th>
@@ -81,6 +82,19 @@
             @forelse ($categories as $category)
                 <tr>
                     <td>{{ $category->id }}</td>
+                    <td>
+                        @if ($category->thumbnail_media)
+                            <img src="{{ $category->thumbnail_media->signed_url }}"
+                                 alt="{{ $category->thumbnail_media->display_name }}"
+                                 style="width: 48px; height: 48px; object-fit: cover;">
+                        @elseif ($category->thumbnail_image)
+                            <img src="{{ $category->thumbnail_image }}"
+                                 alt="{{ $category->name }}"
+                                 style="width: 48px; height: 48px; object-fit: cover;">
+                        @else
+                            {{ __('lf.LF_course_category_common_no') }}
+                        @endif
+                    </td>
                     <td>{{ $category->name }}</td>
                     <td>{{ $category->parent_name ?? __('lf.LF_course_category_common_root') }}</td>
                     <td>{{ $category->slug }}</td>
@@ -116,7 +130,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8">
+                    <td colspan="9">
                         {{ __('lf.LF_course_category_common_empty') }}
                     </td>
                 </tr>

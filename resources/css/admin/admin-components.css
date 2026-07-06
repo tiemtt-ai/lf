@@ -109,6 +109,30 @@
     font-weight: 500;
 }
 
+.admin-media-preview {
+    margin-bottom: 4px;
+}
+
+.admin-media-action-row {
+    margin: 0 0 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.admin-media-action-row .admin-radio-group {
+    gap: 6px;
+}
+
+.admin-media-action-row .admin-radio-group label {
+    margin-right: 0;
+}
+
+.admin-media-action-divider {
+    color: #6b7280;
+}
+
 .admin-birth-fields {
     display: flex;
     gap: 24px;

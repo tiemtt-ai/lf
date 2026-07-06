@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class CourseCategoryManagementTest extends TestCase
@@ -20,7 +22,12 @@ class CourseCategoryManagementTest extends TestCase
             'app.url' => 'https://localhost',
             'app.base_domain' => 'localhost',
             'app.tenant_scheme' => 'https',
+            'media.disk' => 'media_local',
+            'media.bucket' => 'lf-test-media',
+            'media.region' => 'ap-southeast-1',
         ]);
+
+        Storage::fake('media_local');
     }
 
     public function test_admin_and_teacher_can_view_their_tenant_category_list(): void
@@ -29,20 +36,30 @@ class CourseCategoryManagementTest extends TestCase
         $otherCustomerId = $this->createTenant('tenant-b');
         $admin = $this->createUser($customerId, 'customer_admin');
         $teacher = $this->createUser($customerId, 'teacher');
-        $this->createCategory($customerId, 'Korean', 'korean');
+        $this->createCategory($customerId, 'Admin Category', 'admin-category');
+        $this->createCategory(
+            $customerId,
+            'Teacher Category',
+            'teacher-category',
+            createdBy: $teacher->id
+        );
         $this->createCategory($otherCustomerId, 'Private Tenant Category', 'private-category');
 
-        foreach ([
-            [$admin, 'admin'],
-            [$teacher, 'teacher'],
-        ] as [$user, $area]) {
-            $this->actingAs($user)
-                ->get("https://tenant-a.localhost/{$area}/course-categories")
-                ->assertOk()
-                ->assertSeeText('Korean')
-                ->assertSeeText(__('lf.LF_navigation_menu_common_product_categories'))
-                ->assertDontSeeText('Private Tenant Category');
-        }
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-categories')
+            ->assertOk()
+            ->assertSeeText('Admin Category')
+            ->assertSeeText('Teacher Category')
+            ->assertSeeText(__('lf.LF_navigation_menu_common_product_categories'))
+            ->assertDontSeeText('Private Tenant Category');
+
+        $this->actingAs($teacher)
+            ->get('https://tenant-a.localhost/teacher/course-categories')
+            ->assertOk()
+            ->assertSeeText('Teacher Category')
+            ->assertSeeText(__('lf.LF_navigation_menu_common_product_categories'))
+            ->assertDontSeeText('Admin Category')
+            ->assertDontSeeText('Private Tenant Category');
     }
 
     public function test_admin_can_create_a_category_with_documented_fields(): void
@@ -103,6 +120,149 @@ class CourseCategoryManagementTest extends TestCase
             'name' => 'TOPIK',
             'slug' => 'topik',
             'created_by' => $teacher->id,
+        ]);
+    }
+
+    public function test_customer_admin_can_upload_category_thumbnail(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/course-categories', $this->validCategoryData([
+                'name' => 'Media Korean',
+                'slug' => 'media-korean',
+                'thumbnail_image_file' => UploadedFile::fake()->image(
+                    'category-thumbnail.png',
+                    120,
+                    120
+                ),
+            ]))
+            ->assertRedirect('https://tenant-a.localhost/admin/course-categories');
+
+        $categoryId = (int) DB::table('core_course_categories')
+            ->where('customer_id', $customerId)
+            ->where('slug', 'media-korean')
+            ->value('id');
+
+        $mediaFile = $this->assertActiveMediaUsage(
+            $customerId,
+            $categoryId,
+            'thumbnail'
+        );
+
+        $this->assertStringStartsWith(
+            "tenants/{$customerId}/course/categories/{$categoryId}/thumbnail/",
+            $mediaFile->storage_key
+        );
+        Storage::disk('media_local')->assertExists($mediaFile->storage_key);
+    }
+
+    public function test_customer_admin_can_upload_category_banner(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = $this->createCategory($customerId, 'Media Korean', 'media-korean');
+
+        $this->actingAs($admin)
+            ->put(
+                "https://tenant-a.localhost/admin/course-categories/{$categoryId}",
+                $this->validCategoryData([
+                    'name' => 'Media Korean',
+                    'slug' => 'media-korean',
+                    'banner_image_file' => UploadedFile::fake()->image(
+                        'category-banner.jpg',
+                        1200,
+                        320
+                    ),
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-categories/{$categoryId}/edit"
+            );
+
+        $mediaFile = $this->assertActiveMediaUsage(
+            $customerId,
+            $categoryId,
+            'banner_image'
+        );
+
+        $this->assertStringStartsWith(
+            "tenants/{$customerId}/course/categories/{$categoryId}/banner/",
+            $mediaFile->storage_key
+        );
+        Storage::disk('media_local')->assertExists($mediaFile->storage_key);
+    }
+
+    public function test_teacher_can_upload_images_for_authorized_category(): void
+    {
+        $customerId = $this->createTenant();
+        $teacher = $this->createUser($customerId, 'teacher');
+        $categoryId = $this->createCategory(
+            $customerId,
+            'Teacher Category',
+            'teacher-category',
+            createdBy: $teacher->id
+        );
+
+        $this->actingAs($teacher)
+            ->put(
+                "https://tenant-a.localhost/teacher/course-categories/{$categoryId}",
+                $this->validCategoryData([
+                    'name' => 'Teacher Category',
+                    'slug' => 'teacher-category',
+                    'thumbnail_image_file' => UploadedFile::fake()->image(
+                        'teacher-thumbnail.png',
+                        120,
+                        120
+                    ),
+                    'banner_image_file' => UploadedFile::fake()->image(
+                        'teacher-banner.jpg',
+                        1200,
+                        320
+                    ),
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/teacher/course-categories/{$categoryId}/edit"
+            );
+
+        $this->assertActiveMediaUsage($customerId, $categoryId, 'thumbnail');
+        $this->assertActiveMediaUsage($customerId, $categoryId, 'banner_image');
+    }
+
+    public function test_unauthorized_teacher_receives_403_for_category_image_upload(): void
+    {
+        $customerId = $this->createTenant();
+        $owner = $this->createUser($customerId, 'teacher');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $categoryId = $this->createCategory(
+            $customerId,
+            'Owner Category',
+            'owner-category',
+            createdBy: $owner->id
+        );
+
+        $this->actingAs($teacher)
+            ->put(
+                "https://tenant-a.localhost/teacher/course-categories/{$categoryId}",
+                $this->validCategoryData([
+                    'name' => 'Owner Category',
+                    'slug' => 'owner-category',
+                    'thumbnail_image_file' => UploadedFile::fake()->image(
+                        'blocked-thumbnail.png',
+                        120,
+                        120
+                    ),
+                ])
+            )
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('media_file_usages', [
+            'customer_id' => $customerId,
+            'owner_type' => 'course_category',
+            'owner_id' => $categoryId,
+            'usage_type' => 'thumbnail',
         ]);
     }
 
@@ -316,7 +476,8 @@ class CourseCategoryManagementTest extends TestCase
         string $name,
         string $slug,
         ?int $parentId = null,
-        string $status = 'active'
+        string $status = 'active',
+        ?int $createdBy = null
     ): int {
         return DB::table('core_course_categories')->insertGetId([
             'customer_id' => $customerId,
@@ -332,7 +493,7 @@ class CourseCategoryManagementTest extends TestCase
             'meta_description' => null,
             'meta_keywords' => null,
             'status' => $status,
-            'created_by' => null,
+            'created_by' => $createdBy,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -354,5 +515,26 @@ class CourseCategoryManagementTest extends TestCase
             'meta_keywords' => null,
             'status' => 'active',
         ], $overrides);
+    }
+
+    private function assertActiveMediaUsage(
+        int $customerId,
+        int $categoryId,
+        string $usageType
+    ): object {
+        $usage = DB::table('media_file_usages')
+            ->where('customer_id', $customerId)
+            ->where('owner_type', 'course_category')
+            ->where('owner_id', $categoryId)
+            ->where('usage_type', $usageType)
+            ->where('status', 'active')
+            ->first();
+
+        $this->assertNotNull($usage);
+
+        return DB::table('media_files')
+            ->where('customer_id', $customerId)
+            ->where('id', $usage->media_file_id)
+            ->first();
     }
 }

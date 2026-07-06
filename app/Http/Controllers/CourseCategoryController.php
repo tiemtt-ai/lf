@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\MediaService;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +12,8 @@ use Illuminate\View\View;
 
 class CourseCategoryController extends Controller
 {
+    public function __construct(private readonly MediaService $mediaService) {}
+
     public function index(Request $request): View
     {
         $customerId = $this->customerId();
@@ -36,10 +39,22 @@ class CourseCategoryController extends Controller
             ->when($status, function ($query) use ($status): void {
                 $query->where('categories.status', $status);
             })
+            ->when(
+                $request->user()?->role === 'teacher',
+                fn ($query) => $query->where('categories.created_by', $request->user()->id)
+            )
             ->orderBy('categories.sort_order')
             ->orderBy('categories.name')
             ->select('categories.*', 'parent.name as parent_name')
             ->get();
+
+        $categories->each(function (object $category): void {
+            $category->thumbnail_media = $this->singleMedia(
+                'course_category',
+                (int) $category->id,
+                'thumbnail'
+            );
+        });
 
         return view('course-categories.index', [
             'categories' => $categories,
@@ -54,6 +69,8 @@ class CourseCategoryController extends Controller
         return view('course-categories.create', [
             'parentCategories' => $this->parentCategories(),
             'routePrefix' => $this->routePrefix($request),
+            'thumbnailMedia' => null,
+            'bannerMedia' => null,
         ]);
     }
 
@@ -63,7 +80,7 @@ class CourseCategoryController extends Controller
         $validated = $this->validatedData($request, $customerId);
         $now = now();
 
-        DB::table('core_course_categories')->insert([
+        $categoryId = DB::table('core_course_categories')->insertGetId([
             'customer_id' => $customerId,
             'parent_id' => $validated['parent_id'] ?? null,
             'name' => $validated['name'],
@@ -82,6 +99,8 @@ class CourseCategoryController extends Controller
             'updated_at' => $now,
         ]);
 
+        $this->syncUploadedMedia($request, $categoryId, $validated['name']);
+
         return redirect()
             ->route($this->routePrefix($request).'.index')
             ->with('success', __('lf.LF_course_category_common_created'));
@@ -97,6 +116,16 @@ class CourseCategoryController extends Controller
             'category' => $category,
             'parentCategories' => $this->parentCategories($excludedIds),
             'routePrefix' => $this->routePrefix($request),
+            'thumbnailMedia' => $this->singleMedia(
+                'course_category',
+                $id,
+                'thumbnail'
+            ),
+            'bannerMedia' => $this->singleMedia(
+                'course_category',
+                $id,
+                'banner_image'
+            ),
         ]);
     }
 
@@ -124,6 +153,8 @@ class CourseCategoryController extends Controller
                 'status' => $validated['status'],
                 'updated_at' => now(),
             ]);
+
+        $this->syncUploadedMedia($request, $id, $validated['name']);
 
         return redirect()
             ->route($this->routePrefix($request).'.edit', $id)
@@ -176,6 +207,18 @@ class CourseCategoryController extends Controller
             'description' => ['nullable', 'string'],
             'thumbnail_image' => ['nullable', 'string', 'max:500'],
             'banner_image' => ['nullable', 'string', 'max:500'],
+            'thumbnail_image_file' => [
+                'nullable',
+                'file',
+                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+            ],
+            'banner_image_file' => [
+                'nullable',
+                'file',
+                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+            ],
+            'remove_thumbnail_image_media' => ['nullable', 'boolean'],
+            'remove_banner_image_media' => ['nullable', 'boolean'],
             'sort_order' => ['required', 'integer'],
             'is_featured' => ['required', 'boolean'],
             'meta_title' => ['nullable', 'string', 'max:255'],
@@ -250,8 +293,121 @@ class CourseCategoryController extends Controller
             ->first();
 
         abort_if(! $category, 404);
+        $this->authorizeCategoryAccess($category);
 
         return $category;
+    }
+
+    private function syncUploadedMedia(
+        Request $request,
+        int $categoryId,
+        string $categoryName
+    ): void {
+        foreach (
+            [
+                'thumbnail_image_file' => [
+                    'usage_type' => 'thumbnail',
+                    'purpose' => 'thumbnail',
+                    'remove_field' => 'remove_thumbnail_image_media',
+                ],
+                'banner_image_file' => [
+                    'usage_type' => 'banner_image',
+                    'purpose' => 'banner',
+                    'remove_field' => 'remove_banner_image_media',
+                ],
+            ] as $field => $mediaConfig
+        ) {
+            if (
+                ! $request->hasFile($field)
+                && ! $request->boolean($mediaConfig['remove_field'])
+            ) {
+                continue;
+            }
+
+            $this->detachExistingMedia(
+                $categoryId,
+                $mediaConfig['usage_type']
+            );
+
+            if (! $request->hasFile($field)) {
+                continue;
+            }
+
+            $mediaFile = $this->mediaService->upload(
+                $request->file($field),
+                [
+                    'file_type' => 'image',
+                    'module' => 'course',
+                    'entity_type' => 'categories',
+                    'entity_id' => $categoryId,
+                    'purpose' => $mediaConfig['purpose'],
+                    'display_name' => $categoryName,
+                ],
+                (int) $request->user()->id
+            );
+
+            $this->mediaService->attachUsage(
+                (int) $mediaFile->id,
+                'course_category',
+                $categoryId,
+                $mediaConfig['usage_type']
+            );
+        }
+    }
+
+    private function detachExistingMedia(
+        int $categoryId,
+        string $usageType
+    ): void {
+        foreach (
+            $this->mediaService->getOwnerMedia(
+                'course_category',
+                $categoryId,
+                $usageType
+            ) as $media
+        ) {
+            $this->mediaService->detachUsage(
+                (int) $media->id,
+                'course_category',
+                $categoryId,
+                $usageType
+            );
+        }
+    }
+
+    private function singleMedia(
+        string $ownerType,
+        int $ownerId,
+        string $usageType
+    ): ?object {
+        $media = $this->mediaService
+            ->getOwnerMedia($ownerType, $ownerId, $usageType)
+            ->first();
+
+        if (! $media) {
+            return null;
+        }
+
+        $media->signed_url = $this->mediaService->generateSignedUrl(
+            (int) $media->id
+        );
+
+        return $media;
+    }
+
+    private function authorizeCategoryAccess(object $category): void
+    {
+        $user = request()->user();
+
+        if ($user?->role === 'customer_admin') {
+            return;
+        }
+
+        abort_unless(
+            $user?->role === 'teacher'
+            && (int) $category->created_by === (int) $user->id,
+            403
+        );
     }
 
     private function customerId(): int
