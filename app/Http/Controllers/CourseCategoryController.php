@@ -48,11 +48,23 @@ class CourseCategoryController extends Controller
             ->select('categories.*', 'parent.name as parent_name')
             ->get();
 
-        $categories->each(function (object $category): void {
+        $categories->each(function (object $category) use ($request): void {
             $category->thumbnail_media = $this->singleMedia(
                 'course_category',
                 (int) $category->id,
                 'thumbnail'
+            );
+            $category->banner_media = $this->singleMedia(
+                'course_category',
+                (int) $category->id,
+                'banner_image'
+            );
+            $category->parent_categories = $this->modalParentCategories(
+                $request,
+                array_merge(
+                    [(int) $category->id],
+                    $this->descendantIds($this->customerId(), (int) $category->id)
+                )
             );
         });
 
@@ -60,6 +72,7 @@ class CourseCategoryController extends Controller
             'categories' => $categories,
             'keyword' => $keyword,
             'status' => $status,
+            'parentCategories' => $this->modalParentCategories($request),
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -157,7 +170,7 @@ class CourseCategoryController extends Controller
         $this->syncUploadedMedia($request, $id, $validated['name']);
 
         return redirect()
-            ->route($this->routePrefix($request).'.edit', $id)
+            ->route($this->routePrefix($request).'.index')
             ->with('success', __('lf.LF_course_category_common_updated'));
     }
 
@@ -254,6 +267,20 @@ class CourseCategoryController extends Controller
     {
         return DB::table('core_course_categories')
             ->where('customer_id', $this->customerId())
+            ->when($excludedIds !== [], fn ($query) => $query->whereNotIn('id', $excludedIds))
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function modalParentCategories(Request $request, array $excludedIds = [])
+    {
+        return DB::table('core_course_categories')
+            ->where('customer_id', $this->customerId())
+            ->when(
+                $request->user()?->role === 'teacher',
+                fn ($query) => $query->where('created_by', $request->user()->id)
+            )
             ->when($excludedIds !== [], fn ($query) => $query->whereNotIn('id', $excludedIds))
             ->orderBy('sort_order')
             ->orderBy('name')

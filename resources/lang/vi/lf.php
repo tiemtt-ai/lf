@@ -229,6 +229,8 @@ return [
     'LF_course_category_common_deactivate' => 'Ngừng hoạt động',
     'LF_course_category_common_empty' => 'Chưa có danh mục sản phẩm.',
     'LF_course_category_group_general' => 'Thông tin chung',
+    'LF_course_category_group_media' => 'Media',
+    'LF_course_category_group_description' => 'Mô tả',
     'LF_course_category_group_seo' => 'Tối ưu công cụ tìm kiếm',
     'LF_course_category_common_description' => 'Mô tả',
     'LF_course_category_common_thumbnail_image' => 'Ảnh đại diện',
