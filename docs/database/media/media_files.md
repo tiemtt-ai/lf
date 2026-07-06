@@ -66,6 +66,106 @@ must not delete the Media File while other usages still exist. Physical file
 deletion is allowed only when the Media File has no remaining usages and the
 platform retention policy allows deletion.
 
+# Upload Strategy
+
+## 1. Upload At Point Of Use
+
+The default user experience in LearnForge is that users upload files directly
+from the business form where the file is needed.
+
+Examples:
+
+* Course Category
+* Course Template
+* Course Product
+* Lesson
+* Assessment
+* Live Class
+* Certificate
+* AI
+* Any future business module
+
+Users should not be required to open Media Library before uploading. Business
+forms are upload entry points. Media Library is not a mandatory upload entry
+point.
+
+## 2. Centralized Media Management
+
+Regardless of where a file is uploaded, every uploaded asset becomes a managed
+Media File. Every uploaded file must appear in Media Library automatically.
+
+Media Library is the centralized place for:
+
+* browsing
+* searching
+* filtering
+* auditing
+* managing
+* reusing
+* lifecycle management
+
+Business forms do not create private or hidden uploads.
+
+## 3. Silent Duplicate Detection
+
+Duplicate detection belongs to the Media Platform. It must happen
+automatically without interrupting the user's workflow.
+
+When a file is uploaded:
+
+1. Calculate the checksum.
+2. Search existing Media Files within the same tenant by `customer_id` and
+   `checksum`. File size and MIME type may be used as additional validation.
+
+If an identical file already exists:
+
+* Do not upload another physical copy.
+* Do not create another `media_files` record.
+* Create only a new `media_file_usage` record.
+
+If no identical file exists:
+
+* Store the physical file.
+* Create a new `media_files` record.
+* Create the corresponding `media_file_usage` record.
+
+This behavior must be transparent to users. Users should not need to know
+whether the file already exists.
+
+## 4. Media Ownership
+
+`media_files` owns the physical file. `media_file_usages` owns the relationship
+between Media Files and business records. A single Media File may have multiple
+usages.
+
+Removing one usage must not delete the Media File while other usages still
+exist. Physical file deletion is allowed only when:
+
+* no usages remain
+* retention policy allows deletion
+
+## 5. Choose From Media Library
+
+The default experience is Upload At Point Of Use. Choosing an existing Media
+File is an optional capability. It should only be enabled for business forms
+that have a clear reuse workflow.
+
+Examples:
+
+* Lesson Videos
+* Lesson Documents
+* Marketing Assets
+* Website Banners
+* Shared Images
+
+It should not be enabled by default for every upload field. The goal is to keep
+business forms simple while still supporting asset reuse where appropriate.
+
+## 6. Tenant Isolation
+
+Duplicate detection is tenant-scoped only. Media Files belonging to different
+tenants must never be shared.
+
 ## Fields
 
 | Field | Type | Meaning |
