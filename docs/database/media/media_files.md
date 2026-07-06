@@ -70,8 +70,8 @@ platform retention policy allows deletion.
 
 ## 1. Upload At Point Of Use
 
-The default user experience in LearnForge is that users upload files directly
-from the business form where the file is needed.
+The default user experience in LearnForge is Upload At Point Of Use. Users
+upload files directly from the business form where the asset is needed.
 
 Examples:
 
@@ -83,16 +83,15 @@ Examples:
 * Live Class
 * Certificate
 * AI
-* Any future business module
+* Future modules
 
-Users should not be required to open Media Library before uploading. Business
-forms are upload entry points. Media Library is not a mandatory upload entry
-point.
+Business forms are upload entry points. Users should never be required to open
+Media Library before uploading.
 
 ## 2. Centralized Media Management
 
 Regardless of where a file is uploaded, every uploaded asset becomes a managed
-Media File. Every uploaded file must appear in Media Library automatically.
+Media File. Every uploaded file must automatically appear in Media Library.
 
 Media Library is the centralized place for:
 
@@ -100,43 +99,51 @@ Media Library is the centralized place for:
 * searching
 * filtering
 * auditing
-* managing
-* reusing
 * lifecycle management
+* asset reuse
+* usage inspection
 
-Business forms do not create private or hidden uploads.
+Business modules must never create hidden or private uploads outside Media.
 
 ## 3. Silent Duplicate Detection
 
 Duplicate detection belongs to the Media Platform. It must happen
-automatically without interrupting the user's workflow.
+transparently without interrupting the user's workflow.
 
-When a file is uploaded:
+Whenever a file is uploaded from any entry point:
 
-1. Calculate the checksum.
+1. Calculate the file checksum.
 2. Search existing Media Files within the same tenant by `customer_id` and
    `checksum`. File size and MIME type may be used as additional validation.
 
-If an identical file already exists:
+If an identical Media File already exists:
 
-* Do not upload another physical copy.
+* Do not upload another physical file.
 * Do not create another `media_files` record.
 * Create only a new `media_file_usage` record.
 
-If no identical file exists:
+If no identical Media File exists:
 
 * Store the physical file.
 * Create a new `media_files` record.
 * Create the corresponding `media_file_usage` record.
 
-This behavior must be transparent to users. Users should not need to know
-whether the file already exists.
+Users should not need to know whether the uploaded file already existed.
 
-## 4. Media Ownership
+## 4. Ownership
 
-`media_files` owns the physical file. `media_file_usages` owns the relationship
-between Media Files and business records. A single Media File may have multiple
-usages.
+`media_files` owns:
+
+* physical files
+* storage
+* metadata
+
+`media_file_usages` owns:
+
+* relationships
+* business references
+
+One Media File may have multiple usages.
 
 Removing one usage must not delete the Media File while other usages still
 exist. Physical file deletion is allowed only when:
@@ -144,27 +151,40 @@ exist. Physical file deletion is allowed only when:
 * no usages remain
 * retention policy allows deletion
 
-## 5. Choose From Media Library
+## 5. Upload Modes
 
-The default experience is Upload At Point Of Use. Choosing an existing Media
-File is an optional capability. It should only be enabled for business forms
-that have a clear reuse workflow.
+The default upload mode for LearnForge is Upload At Point Of Use. Choosing an
+existing Media File is not the default behavior.
 
-Examples:
+Media Library selection should only be enabled for business forms that clearly
+benefit from asset reuse.
+
+Typical examples include:
 
 * Lesson Videos
 * Lesson Documents
 * Marketing Assets
 * Website Banners
 * Shared Images
+* Shared PDFs
 
-It should not be enabled by default for every upload field. The goal is to keep
-business forms simple while still supporting asset reuse where appropriate.
+Simple upload fields should remain upload-only.
+
+Examples:
+
+* Category Thumbnail
+* Category Banner
+* Course Thumbnail
+* Teacher Avatar
+* Student Avatar
+
+Future implementations may configure upload behavior per field using an upload
+mode, but this document only defines the policy, not the implementation.
 
 ## 6. Tenant Isolation
 
-Duplicate detection is tenant-scoped only. Media Files belonging to different
-tenants must never be shared.
+Duplicate detection is tenant-scoped. Media Files must never be shared across
+tenants.
 
 ## Fields
 

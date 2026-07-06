@@ -97,6 +97,128 @@ Examples:
 
 ---
 
+# Media Upload Policy
+
+## 1. Upload At Point Of Use
+
+The default user experience in LearnForge is Upload At Point Of Use. Users
+upload files directly from the business form where the asset is needed.
+
+Examples:
+
+* Course Category
+* Course Template
+* Course Product
+* Lesson
+* Assessment
+* Live Class
+* Certificate
+* AI
+* Future modules
+
+Business forms are upload entry points. Users should never be required to open
+Media Library before uploading.
+
+## 2. Media Library Is The Management Center
+
+Regardless of where a file is uploaded, every uploaded asset becomes a managed
+Media File. Every uploaded file must automatically appear in Media Library.
+
+Media Library is the centralized place for:
+
+* browsing
+* searching
+* filtering
+* auditing
+* lifecycle management
+* asset reuse
+* usage inspection
+
+Business modules must never create hidden or private uploads outside Media.
+
+## 3. Silent Duplicate Detection
+
+Duplicate detection belongs to the Media Platform. It must happen
+transparently without interrupting the user's workflow.
+
+Whenever a file is uploaded from any entry point:
+
+1. Calculate the file checksum.
+2. Search existing Media Files within the same tenant by `customer_id` and
+   `checksum`. File size and MIME type may be used as additional validation.
+
+If an identical Media File already exists:
+
+* Do not upload another physical file.
+* Do not create another `media_files` record.
+* Create only a new `media_file_usage` record.
+
+If no identical Media File exists:
+
+* Store the physical file.
+* Create a new `media_files` record.
+* Create the corresponding `media_file_usage` record.
+
+Users should not need to know whether the uploaded file already existed.
+
+## 4. Ownership
+
+`media_files` owns:
+
+* physical files
+* storage
+* metadata
+
+`media_file_usages` owns:
+
+* relationships
+* business references
+
+One Media File may have multiple usages. Removing one usage must not remove the
+Media File while other usages still exist.
+
+Physical deletion is allowed only when:
+
+* no usages remain
+* retention policy allows deletion
+
+## 5. Upload Modes
+
+The default upload mode for LearnForge is Upload At Point Of Use. Choosing an
+existing Media File is not the default behavior.
+
+Media Library selection should only be enabled for business forms that clearly
+benefit from asset reuse.
+
+Typical examples include:
+
+* Lesson Videos
+* Lesson Documents
+* Marketing Assets
+* Website Banners
+* Shared Images
+* Shared PDFs
+
+Simple upload fields should remain upload-only.
+
+Examples:
+
+* Category Thumbnail
+* Category Banner
+* Course Thumbnail
+* Teacher Avatar
+* Student Avatar
+
+Future implementations may configure upload behavior per field using an upload
+mode, but this policy does not define that implementation.
+
+## 6. Tenant Isolation
+
+Duplicate detection is tenant-scoped. Media Files must never be shared across
+tenants.
+
+---
+
 # Architecture
 
 ```text
