@@ -48,8 +48,7 @@ Route::middleware(['tenant', 'root.domain'])->group(function () {
 |--------------------------------------------------------------------------
 | Tenant Auth Routes
 |--------------------------------------------------------------------------
-| Login/logout/password reset chỉ hoạt động khi resolve được tenant.
-| Public tenant register đang tắt; user được tạo bởi customer_admin.
+| Đây là frontend giao diện "người dùng/ học viên" của mỗi Tenant
 |--------------------------------------------------------------------------
 */
 
