@@ -42,6 +42,19 @@ class MediaService
         $extension = $this->normalizedExtension($file);
         $mimeType = (string) $file->getMimeType();
         $this->validateFileContent($validated['file_type'], $mimeType, $extension);
+        $fileSizeBytes = $file->getSize() ?: 0;
+        $checksum = 'sha256:'.hash_file('sha256', $file->getRealPath());
+
+        $duplicate = $this->findDuplicateMediaFile(
+            $customerId,
+            $checksum,
+            $fileSizeBytes,
+            $mimeType
+        );
+
+        if ($duplicate) {
+            return $duplicate;
+        }
 
         $storageDisk = (string) config('media.disk', 'media_local');
         $storageBucket = (string) config('media.bucket');
@@ -80,11 +93,8 @@ class MediaService
                 'storage_class' => config('media.storage_class'),
                 'cdn_url' => null,
                 'public_url' => null,
-                'checksum' => 'sha256:'.hash_file(
-                    'sha256',
-                    $file->getRealPath()
-                ),
-                'file_size_bytes' => $file->getSize() ?: 0,
+                'checksum' => $checksum,
+                'file_size_bytes' => $fileSizeBytes,
                 'duration_seconds' => $validated['duration_seconds'] ?? null,
                 'width' => $validated['width'] ?? null,
                 'height' => $validated['height'] ?? null,
@@ -592,6 +602,22 @@ class MediaService
                 fclose($stream);
             }
         }
+    }
+
+    private function findDuplicateMediaFile(
+        int $customerId,
+        string $checksum,
+        int $fileSizeBytes,
+        string $mimeType
+    ): ?object {
+        return DB::table('media_files')
+            ->where('customer_id', $customerId)
+            ->where('checksum', $checksum)
+            ->where('file_size_bytes', $fileSizeBytes)
+            ->where('mime_type', $mimeType)
+            ->whereNotIn('status', ['deleted', 'failed'])
+            ->orderBy('id')
+            ->first();
     }
 
     private function assertMediaFileBelongsToTenant(

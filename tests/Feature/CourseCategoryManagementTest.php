@@ -194,6 +194,94 @@ class CourseCategoryManagementTest extends TestCase
         Storage::disk('media_local')->assertExists($mediaFile->storage_key);
     }
 
+    public function test_category_thumbnail_upload_reuses_existing_media_file(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/course-categories', $this->validCategoryData([
+                'name' => 'Thumbnail Korean',
+                'slug' => 'thumbnail-korean',
+                'thumbnail_image_file' => $this->uploadedPngFile('thumbnail-a.png'),
+            ]))
+            ->assertRedirect('https://tenant-a.localhost/admin/course-categories');
+
+        $this->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/course-categories', $this->validCategoryData([
+                'name' => 'Thumbnail Japanese',
+                'slug' => 'thumbnail-japanese',
+                'thumbnail_image_file' => $this->uploadedPngFile('thumbnail-b.png'),
+            ]))
+            ->assertRedirect('https://tenant-a.localhost/admin/course-categories');
+
+        $mediaFile = DB::table('media_files')->first();
+
+        $this->assertNotNull($mediaFile);
+        $this->assertSame(1, DB::table('media_files')->count());
+        $this->assertSame(
+            2,
+            DB::table('media_file_usages')
+                ->where('customer_id', $customerId)
+                ->where('media_file_id', $mediaFile->id)
+                ->where('owner_type', 'course_category')
+                ->where('usage_type', 'thumbnail')
+                ->where('status', 'active')
+                ->count()
+        );
+        Storage::disk('media_local')->assertExists($mediaFile->storage_key);
+    }
+
+    public function test_category_banner_upload_reuses_existing_media_file(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $firstCategoryId = $this->createCategory($customerId, 'Banner Korean', 'banner-korean');
+        $secondCategoryId = $this->createCategory($customerId, 'Banner Japanese', 'banner-japanese');
+
+        $this->actingAs($admin)
+            ->put(
+                "https://tenant-a.localhost/admin/course-categories/{$firstCategoryId}",
+                $this->validCategoryData([
+                    'name' => 'Banner Korean',
+                    'slug' => 'banner-korean',
+                    'banner_image_file' => $this->uploadedPngFile('banner-a.png'),
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-categories/{$firstCategoryId}/edit"
+            );
+
+        $this->actingAs($admin)
+            ->put(
+                "https://tenant-a.localhost/admin/course-categories/{$secondCategoryId}",
+                $this->validCategoryData([
+                    'name' => 'Banner Japanese',
+                    'slug' => 'banner-japanese',
+                    'banner_image_file' => $this->uploadedPngFile('banner-b.png'),
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-categories/{$secondCategoryId}/edit"
+            );
+
+        $mediaFile = DB::table('media_files')->first();
+
+        $this->assertNotNull($mediaFile);
+        $this->assertSame(1, DB::table('media_files')->count());
+        $this->assertSame(
+            2,
+            DB::table('media_file_usages')
+                ->where('customer_id', $customerId)
+                ->where('media_file_id', $mediaFile->id)
+                ->where('owner_type', 'course_category')
+                ->where('usage_type', 'banner_image')
+                ->where('status', 'active')
+                ->count()
+        );
+        Storage::disk('media_local')->assertExists($mediaFile->storage_key);
+    }
+
     public function test_teacher_can_upload_images_for_authorized_category(): void
     {
         $customerId = $this->createTenant();
@@ -536,5 +624,15 @@ class CourseCategoryManagementTest extends TestCase
             ->where('customer_id', $customerId)
             ->where('id', $usage->media_file_id)
             ->first();
+    }
+
+    private function uploadedPngFile(string $filename): UploadedFile
+    {
+        return UploadedFile::fake()->createWithContent(
+            $filename,
+            base64_decode(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII='
+            )
+        );
     }
 }

@@ -241,6 +241,118 @@ class MediaFileFoundationTest extends TestCase
         );
     }
 
+    public function test_duplicate_upload_reuses_existing_media_file_in_same_tenant(): void
+    {
+        $customerId = $this->createTenant();
+        $user = $this->createUser($customerId, 'customer_admin');
+        TenantContext::set((object) ['id' => $customerId]);
+        $this->actingAs($user);
+        $service = app(MediaService::class);
+
+        $firstMediaFile = $service->uploadMedia(
+            $this->uploadedTextFile('lesson-notes-a.txt'),
+            [
+                'file_type' => 'document',
+                'module' => 'course',
+                'entity_type' => 'lessons',
+                'entity_id' => 1001,
+                'purpose' => 'document',
+            ],
+            $user->id
+        );
+        $service->attachUsage(
+            $firstMediaFile->id,
+            'course_lesson',
+            1001,
+            'document'
+        );
+
+        $secondMediaFile = $service->uploadMedia(
+            $this->uploadedTextFile('lesson-notes-b.txt'),
+            [
+                'file_type' => 'document',
+                'module' => 'course',
+                'entity_type' => 'lessons',
+                'entity_id' => 1002,
+                'purpose' => 'document',
+            ],
+            $user->id
+        );
+        $service->attachUsage(
+            $secondMediaFile->id,
+            'course_lesson',
+            1002,
+            'document'
+        );
+
+        $this->assertSame($firstMediaFile->id, $secondMediaFile->id);
+        $this->assertSame(1, DB::table('media_files')->count());
+        $this->assertSame(2, DB::table('media_file_usages')->count());
+        $this->assertDatabaseHas('media_file_usages', [
+            'customer_id' => $customerId,
+            'media_file_id' => $firstMediaFile->id,
+            'owner_type' => 'course_lesson',
+            'owner_id' => 1001,
+            'usage_type' => 'document',
+            'status' => 'active',
+        ]);
+        $this->assertDatabaseHas('media_file_usages', [
+            'customer_id' => $customerId,
+            'media_file_id' => $firstMediaFile->id,
+            'owner_type' => 'course_lesson',
+            'owner_id' => 1002,
+            'usage_type' => 'document',
+            'status' => 'active',
+        ]);
+        Storage::disk('media_local')->assertExists($firstMediaFile->storage_key);
+    }
+
+    public function test_duplicate_upload_is_tenant_scoped(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $user = $this->createUser($customerId, 'customer_admin');
+        $otherUser = $this->createUser($otherCustomerId, 'customer_admin');
+        $service = app(MediaService::class);
+
+        TenantContext::set((object) ['id' => $customerId]);
+        $firstMediaFile = $service->uploadMedia(
+            $this->uploadedTextFile('shared-notes.txt'),
+            [
+                'file_type' => 'document',
+                'module' => 'course',
+                'entity_type' => 'lessons',
+                'entity_id' => 1001,
+                'purpose' => 'document',
+            ],
+            $user->id
+        );
+
+        TenantContext::set((object) ['id' => $otherCustomerId]);
+        $secondMediaFile = $service->uploadMedia(
+            $this->uploadedTextFile('shared-notes.txt'),
+            [
+                'file_type' => 'document',
+                'module' => 'course',
+                'entity_type' => 'lessons',
+                'entity_id' => 1001,
+                'purpose' => 'document',
+            ],
+            $otherUser->id
+        );
+
+        $this->assertNotSame($firstMediaFile->id, $secondMediaFile->id);
+        $this->assertSame(2, DB::table('media_files')->count());
+        $this->assertDatabaseHas('media_files', [
+            'id' => $firstMediaFile->id,
+            'customer_id' => $customerId,
+        ]);
+        $this->assertDatabaseHas('media_files', [
+            'id' => $secondMediaFile->id,
+            'customer_id' => $otherCustomerId,
+        ]);
+    }
+
     public function test_signed_url_generation_rechecks_tenant_and_ready_status(): void
     {
         $customerId = $this->createTenant();
@@ -455,6 +567,52 @@ class MediaFileFoundationTest extends TestCase
         $this->assertSame(1, DB::table('media_file_usages')->count());
     }
 
+    public function test_removing_one_usage_keeps_media_file_when_other_usages_exist(): void
+    {
+        $customerId = $this->createTenant();
+        $user = $this->createUser($customerId, 'customer_admin');
+        TenantContext::set((object) ['id' => $customerId]);
+        $this->actingAs($user);
+
+        $mediaFile = $this->uploadTestMedia($user);
+        $service = app(MediaService::class);
+        $service->attachUsage(
+            $mediaFile->id,
+            'course_activity',
+            9001,
+            'video'
+        );
+        $service->attachUsage(
+            $mediaFile->id,
+            'course_activity',
+            9002,
+            'thumbnail'
+        );
+
+        $detached = $service->detachUsage(
+            $mediaFile->id,
+            'course_activity',
+            9001,
+            'video'
+        );
+
+        $this->assertSame('detached', $detached->status);
+        $this->assertTrue($service->isInUse($mediaFile->id));
+        $this->assertDatabaseHas('media_files', [
+            'id' => $mediaFile->id,
+            'customer_id' => $customerId,
+            'status' => 'ready',
+        ]);
+        $this->assertDatabaseHas('media_file_usages', [
+            'customer_id' => $customerId,
+            'media_file_id' => $mediaFile->id,
+            'owner_id' => 9002,
+            'usage_type' => 'thumbnail',
+            'status' => 'active',
+        ]);
+        Storage::disk('media_local')->assertExists($mediaFile->storage_key);
+    }
+
     public function test_is_in_use_returns_true_only_for_active_usage(): void
     {
         $customerId = $this->createTenant();
@@ -616,6 +774,14 @@ class MediaFileFoundationTest extends TestCase
                 'purpose' => 'cover',
             ], $overrides),
             $user->id
+        );
+    }
+
+    private function uploadedTextFile(string $filename): UploadedFile
+    {
+        return UploadedFile::fake()->createWithContent(
+            $filename,
+            'LearnForge shared lesson notes.'
         );
     }
 }

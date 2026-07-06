@@ -250,7 +250,7 @@ class CourseMediaIntegrationTest extends TestCase
             );
 
             $this->assertStringStartsWith(
-                "tenants/{$customerId}/course/cohorts/{$cohortId}/{$usageType}/",
+                "tenants/{$customerId}/course/cohorts/{$cohortId}/",
                 $mediaFile->storage_key
             );
             $this->assertSignedDeliveryUrl($customerId, $mediaFile);
@@ -561,7 +561,7 @@ class CourseMediaIntegrationTest extends TestCase
             );
 
             $this->assertStringStartsWith(
-                "tenants/{$customerId}/course/activities/{$activityId}/{$usageType}/",
+                "tenants/{$customerId}/course/activities/{$activityId}/",
                 $mediaFile->storage_key
             );
         }
