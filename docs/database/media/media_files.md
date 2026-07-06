@@ -153,22 +153,32 @@ exist. Physical file deletion is allowed only when:
 
 ## 5. Upload Modes
 
-The default upload mode for LearnForge is Upload At Point Of Use. Choosing an
-existing Media File is not the default behavior.
+Business forms may configure one of the following upload modes.
 
-Media Library selection should only be enabled for business forms that clearly
-benefit from asset reuse.
+`upload_only`
+
+Default mode. Users upload directly from the business form.
+
+`upload_and_library`
+
+Users may either upload a new file or select an existing Media File from Media
+Library.
+
+The selected mode is determined by the business use case. The default upload
+mode for LearnForge is `upload_only`. Choosing an existing Media File is not
+the default behavior.
+
+Business modules should enable Media Library selection only when asset reuse is
+expected.
 
 Typical examples include:
 
 * Lesson Videos
 * Lesson Documents
 * Marketing Assets
-* Website Banners
 * Shared Images
-* Shared PDFs
 
-Simple upload fields should remain upload-only.
+Simple business assets should remain upload-only.
 
 Examples:
 
