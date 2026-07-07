@@ -490,10 +490,48 @@ name
 
 description
 
+notes
+
 difficulty
 
 score
 ```
+
+### Description and Notes Rule
+
+`description` is user-facing or business-facing descriptive content.
+
+Depending on the entity, `description` may be displayed in:
+
+* UI
+* storefront
+* detail pages
+* reports
+* user-facing screens
+
+`notes` is internal tenant/admin/teacher note content.
+
+`notes` is used for operational comments and is not public-facing by default.
+
+Business entities that are directly managed by Customer Admin or Teacher should
+support `description` and `notes` when they provide real business value.
+
+Do not add `description` and `notes` blindly to every table.
+
+Do not apply this rule by default to:
+
+* mapping/junction tables
+* snapshot/version tables
+* log/event tables
+* tracking tables
+* usage/billing event tables
+* system/internal tables
+* derived read models
+
+Metadata JSON is not a replacement for `description` or `notes`.
+
+Metadata/system JSON fields must not be treated as user-editable form fields by
+default.
 
 ---
 

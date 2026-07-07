@@ -4,7 +4,7 @@ Version: 1.0
 
 Status: Official Foundation
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -437,6 +437,38 @@ LearnForge không ép người dùng hiểu cấu trúc kỹ thuật phức tạ
 * system workflow
 
 Người dùng chỉ nên nhìn thấy những thao tác rõ ràng, tự nhiên và đúng vai trò.
+
+Tenant users such as Customer Admin and Teacher must not be exposed to
+technical or system fields directly.
+
+The following implementation fields must not appear as raw editable inputs on
+Admin or Teacher forms:
+
+* metadata
+* JSON config
+* snapshot payload
+* system payload
+* internal flags
+* AI context
+* source snapshots
+* implementation/internal fields
+
+Users must never be required to edit raw JSON.
+
+If a technical configuration needs to be controlled by users, expose it as a
+clear business field or UI control.
+
+Examples:
+
+```text
+Featured
+Display on homepage
+Badge label
+Sort order
+Visibility
+```
+
+The UI must stay simple. Deep/system data can exist behind the scenes.
 
 Ví dụ:
 
