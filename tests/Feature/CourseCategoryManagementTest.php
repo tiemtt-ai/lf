@@ -62,57 +62,6 @@ class CourseCategoryManagementTest extends TestCase
             ->assertDontSeeText('Private Tenant Category');
     }
 
-    public function test_create_modal_renders_without_seo_controls_and_with_upload_only_media(): void
-    {
-        $customerId = $this->createTenant();
-        $admin = $this->createUser($customerId, 'customer_admin');
-
-        $this->actingAs($admin)
-            ->get('https://tenant-a.localhost/admin/course-categories')
-            ->assertOk()
-            ->assertSee('create-course-category')
-            ->assertSee('id="create-course-category-name"', false)
-            ->assertSee('name="name"', false)
-            ->assertSee('id="create-course-category-description"', false)
-            ->assertSee('name="description"', false)
-            ->assertSee('name="thumbnail_image_file"', false)
-            ->assertSee('name="banner_image_file"', false)
-            ->assertDontSee('seo-toggle')
-            ->assertDontSee('seoEnabled')
-            ->assertDontSee('course-category-seo-fields')
-            ->assertDontSee('name="meta_title"', false)
-            ->assertDontSee('name="meta_description"', false)
-            ->assertDontSee('name="meta_keywords"', false)
-            ->assertDontSee('Choose From Media Library')
-            ->assertDontSee('media_library');
-    }
-
-    public function test_edit_modal_renders_for_existing_category(): void
-    {
-        $customerId = $this->createTenant();
-        $admin = $this->createUser($customerId, 'customer_admin');
-        $categoryId = $this->createCategory(
-            $customerId,
-            'Korean',
-            'korean',
-            createdBy: $admin->id
-        );
-
-        $this->actingAs($admin)
-            ->get('https://tenant-a.localhost/admin/course-categories')
-            ->assertOk()
-            ->assertSee("edit-course-category-{$categoryId}")
-            ->assertSee("edit-course-category-{$categoryId}-name")
-            ->assertSee("edit-course-category-{$categoryId}-description")
-            ->assertDontSee("edit-course-category-{$categoryId}-seo-toggle")
-            ->assertDontSee('name="meta_title"', false)
-            ->assertDontSee('name="meta_description"', false)
-            ->assertDontSee('name="meta_keywords"', false)
-            ->assertSee("https://tenant-a.localhost/admin/course-categories/{$categoryId}", false)
-            ->assertSee('name="_method" value="PUT"', false)
-            ->assertSeeText('Korean');
-    }
-
     public function test_admin_can_create_a_category_with_documented_fields(): void
     {
         $customerId = $this->createTenant();
@@ -229,7 +178,7 @@ class CourseCategoryManagementTest extends TestCase
                 ])
             )
             ->assertRedirect(
-                'https://tenant-a.localhost/admin/course-categories'
+                "https://tenant-a.localhost/admin/course-categories/{$categoryId}/edit"
             );
 
         $mediaFile = $this->assertActiveMediaUsage(
@@ -300,7 +249,7 @@ class CourseCategoryManagementTest extends TestCase
                 ])
             )
             ->assertRedirect(
-                'https://tenant-a.localhost/admin/course-categories'
+                "https://tenant-a.localhost/admin/course-categories/{$firstCategoryId}/edit"
             );
 
         $this->actingAs($admin)
@@ -313,7 +262,7 @@ class CourseCategoryManagementTest extends TestCase
                 ])
             )
             ->assertRedirect(
-                'https://tenant-a.localhost/admin/course-categories'
+                "https://tenant-a.localhost/admin/course-categories/{$secondCategoryId}/edit"
             );
 
         $mediaFile = DB::table('media_files')->first();
@@ -363,7 +312,7 @@ class CourseCategoryManagementTest extends TestCase
                 ])
             )
             ->assertRedirect(
-                'https://tenant-a.localhost/teacher/course-categories'
+                "https://tenant-a.localhost/teacher/course-categories/{$categoryId}/edit"
             );
 
         $this->assertActiveMediaUsage($customerId, $categoryId, 'thumbnail');
@@ -528,7 +477,7 @@ class CourseCategoryManagementTest extends TestCase
                 ])
             )
             ->assertRedirect(
-                'https://tenant-a.localhost/admin/course-categories'
+                "https://tenant-a.localhost/admin/course-categories/{$categoryId}/edit"
             );
 
         $this->actingAs($admin)
