@@ -195,13 +195,13 @@
     </div>
 
     <div class="lf-form-group">
-        <label class="lf-form-label" for="metadata">
-            {{ __('lf.LF_course_cohort_common_metadata') }}
+        <label class="lf-form-label" for="notes">
+            {{ __('lf.LF_course_cohort_common_notes') }}
         </label>
-        <textarea id="metadata"
-                  name="metadata"
+        <textarea id="notes"
+                  name="notes"
                   class="lf-form-control"
-                  rows="3">{{ old('metadata', $cohort->metadata ?? '') }}</textarea>
+                  rows="3">{{ old('notes', $cohort->notes ?? '') }}</textarea>
     </div>
 </section>
 

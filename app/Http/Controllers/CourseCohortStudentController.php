@@ -119,7 +119,7 @@ class CourseCohortStudentController extends Controller
             'transfer_from_cohort_id' => null,
             'transfer_reason' => $validated['transfer_reason'] ?? null,
             'note' => $validated['note'] ?? null,
-            'metadata' => $validated['metadata'] ?? null,
+            'metadata' => null,
             'created_at' => $now,
             'updated_at' => $now,
         ]);
@@ -175,7 +175,6 @@ class CourseCohortStudentController extends Controller
                     : $membership->transfer_from_cohort_id,
                 'transfer_reason' => $validated['transfer_reason'] ?? null,
                 'note' => $validated['note'] ?? null,
-                'metadata' => $validated['metadata'] ?? null,
                 'updated_at' => now(),
             ]);
 
@@ -215,7 +214,6 @@ class CourseCohortStudentController extends Controller
             'status' => ['required', Rule::in(self::STATUSES)],
             'transfer_reason' => ['nullable', 'string', 'max:500'],
             'note' => ['nullable', 'string'],
-            'metadata' => ['nullable', 'json'],
         ]);
 
         $validator->after(function ($validator) use ($request, $customerId, $membership): void {

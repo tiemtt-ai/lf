@@ -60,14 +60,4 @@
                   class="lf-form-control"
                   rows="3">{{ old('note', $membership->note ?? '') }}</textarea>
     </div>
-
-    <div class="lf-form-group">
-        <label class="lf-form-label" for="metadata">
-            {{ __('lf.LF_course_cohort_student_common_metadata') }}
-        </label>
-        <textarea id="metadata"
-                  name="metadata"
-                  class="lf-form-control"
-                  rows="3">{{ old('metadata', $membership->metadata ?? '') }}</textarea>
-    </div>
 </section>

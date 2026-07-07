@@ -86,10 +86,6 @@
                     <th>{{ __('lf.LF_course_cohort_student_common_note') }}</th>
                     <td>{{ $membership->note ?: '-' }}</td>
                 </tr>
-                <tr>
-                    <th>{{ __('lf.LF_course_cohort_student_common_metadata') }}</th>
-                    <td><pre>{{ $membership->metadata ?: '-' }}</pre></td>
-                </tr>
                 </tbody>
             </table>
         </section>

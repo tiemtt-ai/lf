@@ -146,10 +146,11 @@ class CourseEnrollmentController extends Controller
                 'review_starts_at' => $validated['review_starts_at'] ?? null,
                 'review_ends_at' => $validated['review_ends_at'] ?? null,
                 'status' => $validated['status'],
+                'notes' => $validated['notes'] ?? null,
                 'completed_at' => null,
                 'cancelled_at' => null,
                 'expired_at' => null,
-                'metadata' => $validated['metadata'] ?? null,
+                'metadata' => null,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
@@ -173,8 +174,10 @@ class CourseEnrollmentController extends Controller
 
         $customerId = $this->customerId();
 
+        $enrollment = $this->findEnrollment($customerId, $id);
+
         return view('course-enrollments.show', [
-            'enrollment' => $this->findEnrollment($customerId, $id),
+            'enrollment' => $enrollment,
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -185,8 +188,10 @@ class CourseEnrollmentController extends Controller
 
         $customerId = $this->customerId();
 
+        $enrollment = $this->findEnrollment($customerId, $id);
+
         return view('course-enrollments.edit', [
-            'enrollment' => $this->findEnrollment($customerId, $id),
+            'enrollment' => $enrollment,
             'statuses' => self::STATUSES,
             'routePrefix' => $this->routePrefix($request),
         ]);
@@ -207,7 +212,7 @@ class CourseEnrollmentController extends Controller
                 'status' => $validated['status'],
                 'access_starts_at' => $validated['access_starts_at'] ?? null,
                 'access_ends_at' => $validated['access_ends_at'] ?? null,
-                'metadata' => $validated['metadata'] ?? null,
+                'notes' => $validated['notes'] ?? null,
                 'updated_at' => now(),
             ]);
 
@@ -229,7 +234,7 @@ class CourseEnrollmentController extends Controller
             'access_ends_at' => ['nullable', 'date'],
             'review_starts_at' => ['nullable', 'date'],
             'review_ends_at' => ['nullable', 'date'],
-            'metadata' => ['nullable', 'json'],
+            'notes' => ['nullable', 'string'],
         ]);
 
         $validator->after(function ($validator) use ($request, $customerId): void {
@@ -285,7 +290,7 @@ class CourseEnrollmentController extends Controller
             'status' => ['required', Rule::in(self::STATUSES)],
             'access_starts_at' => ['nullable', 'date'],
             'access_ends_at' => ['nullable', 'date'],
-            'metadata' => ['nullable', 'json'],
+            'notes' => ['nullable', 'string'],
         ]);
 
         $validator->after(function ($validator) use ($request): void {

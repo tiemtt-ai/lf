@@ -70,8 +70,8 @@
                     <td>{{ $cohort->description ?: '-' }}</td>
                 </tr>
                 <tr>
-                    <th>{{ __('lf.LF_course_cohort_common_metadata') }}</th>
-                    <td><pre>{{ $cohort->metadata ?: '-' }}</pre></td>
+                    <th>{{ __('lf.LF_course_cohort_common_notes') }}</th>
+                    <td>{{ $cohort->notes ?: '-' }}</td>
                 </tr>
                 </tbody>
             </table>

@@ -51,7 +51,7 @@ class CourseEnrollmentManagementTest extends TestCase
                     'enrolled_at' => '2026-07-04 09:00:00',
                     'access_starts_at' => '2026-07-04 09:00:00',
                     'access_ends_at' => '2026-10-04 23:59:59',
-                    'metadata' => '{"note":"manual admin assignment"}',
+                    'notes' => 'Manual admin assignment.',
                 ])
             )
             ->assertRedirect();
@@ -64,6 +64,8 @@ class CourseEnrollmentManagementTest extends TestCase
             'source' => 'admin',
             'status' => 'active',
             'enrolled_by' => $admin->id,
+            'notes' => 'Manual admin assignment.',
+            'metadata' => null,
         ]);
         $this->assertSame(
             1,
@@ -72,6 +74,78 @@ class CourseEnrollmentManagementTest extends TestCase
                 ->where('id', $productId)
                 ->value('enrollment_count')
         );
+    }
+
+    public function test_enrollment_forms_show_real_notes_and_hide_metadata_json(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $versionId = $this->createVersion($customerId, $admin->id, title: 'TOPIK Beginner');
+        $this->createProductItem($customerId, $productId, $versionId);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+
+        DB::table('core_course_enrollments')
+            ->where('id', $enrollmentId)
+            ->update([
+                'notes' => 'Manual enrollment approved by admin.',
+                'metadata' => '{"notes":"Metadata must stay internal."}',
+            ]);
+
+        foreach ([
+            $this->actingAs($admin)
+                ->get('https://tenant-a.localhost/admin/course-enrollments/create')
+                ->assertOk(),
+            $this->actingAs($admin)
+                ->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")
+                ->assertOk()
+                ->assertSee('Manual enrollment approved by admin.'),
+            $this->actingAs($admin)
+                ->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}")
+                ->assertOk()
+                ->assertSeeText('Manual enrollment approved by admin.'),
+        ] as $response) {
+            $response
+                ->assertSeeText(__('lf.LF_course_enrollment_common_notes'))
+                ->assertDontSeeText('Metadata JSON')
+                ->assertDontSee('Metadata must stay internal.')
+                ->assertDontSee('name="metadata"', false);
+        }
+    }
+
+    public function test_enrollment_update_preserves_internal_metadata(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $versionId = $this->createVersion($customerId, $admin->id, title: 'TOPIK Beginner');
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+
+        DB::table('core_course_enrollments')
+            ->where('id', $enrollmentId)
+            ->update(['metadata' => '{"system":"internal"}']);
+
+        $this->actingAs($admin)
+            ->put(
+                "https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}",
+                [
+                    'status' => 'suspended',
+                    'access_starts_at' => null,
+                    'access_ends_at' => null,
+                    'notes' => 'Visible enrollment note',
+                    'metadata' => '{"system":"user submitted"}',
+                ]
+            )
+            ->assertRedirect("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}");
+
+        $this->assertDatabaseHas('core_course_enrollments', [
+            'id' => $enrollmentId,
+            'status' => 'suspended',
+            'notes' => 'Visible enrollment note',
+            'metadata' => '{"system":"internal"}',
+        ]);
     }
 
     public function test_admin_cannot_submit_version_id_manually(): void
@@ -284,7 +358,7 @@ class CourseEnrollmentManagementTest extends TestCase
                     'status' => 'suspended',
                     'access_starts_at' => null,
                     'access_ends_at' => null,
-                    'metadata' => null,
+                    'notes' => null,
                     'version_id' => $otherVersionId,
                 ]
             )
@@ -635,6 +709,7 @@ class CourseEnrollmentManagementTest extends TestCase
             'completed_at' => null,
             'cancelled_at' => null,
             'expired_at' => null,
+            'notes' => null,
             'metadata' => null,
             'created_at' => $now,
             'updated_at' => $now,
@@ -654,7 +729,7 @@ class CourseEnrollmentManagementTest extends TestCase
             'access_ends_at' => null,
             'review_starts_at' => null,
             'review_ends_at' => null,
-            'metadata' => null,
+            'notes' => null,
         ], $overrides);
     }
 }

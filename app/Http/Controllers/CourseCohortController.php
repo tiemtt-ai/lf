@@ -130,9 +130,10 @@ class CourseCohortController extends Controller
     public function show(Request $request, int $id): View
     {
         $this->authorizeAdmin($request);
+        $cohort = $this->findCohort($this->customerId(), $id);
 
         return view('course-cohorts.show', [
-            'cohort' => $this->findCohort($this->customerId(), $id),
+            'cohort' => $cohort,
             'cohortMedia' => $this->ownerMedia('course_cohort', $id),
             'routePrefix' => $this->routePrefix($request),
         ]);
@@ -143,9 +144,10 @@ class CourseCohortController extends Controller
         $this->authorizeAdmin($request);
 
         $customerId = $this->customerId();
+        $cohort = $this->findCohort($customerId, $id);
 
         return view('course-cohorts.edit', [
-            'cohort' => $this->findCohort($customerId, $id),
+            'cohort' => $cohort,
             'products' => $this->products($customerId),
             'versions' => $this->versions($customerId),
             'teachers' => $this->teachers($customerId),
@@ -209,7 +211,7 @@ class CourseCohortController extends Controller
             'capacity' => ['nullable', 'integer', 'min:0'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'metadata' => ['nullable', 'json'],
+            'notes' => ['nullable', 'string'],
             'cohort_document_file' => [
                 'nullable',
                 'file',
@@ -264,7 +266,7 @@ class CourseCohortController extends Controller
             'capacity' => $validated['capacity'] ?? null,
             'start_date' => $validated['start_date'] ?? null,
             'end_date' => $validated['end_date'] ?? null,
-            'metadata' => $validated['metadata'] ?? null,
+            'notes' => $validated['notes'] ?? null,
         ], $extra);
     }
 

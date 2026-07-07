@@ -272,6 +272,22 @@ Optional operational description.
 
 ---
 
+### notes
+
+```text
+TEXT
+NULL
+```
+
+Optional internal tenant/admin/teacher notes for operational comments about the
+Cohort.
+
+`notes` is not public-facing by default.
+
+`metadata` must not be used as a replacement for Cohort notes.
+
+---
+
 ### status
 
 ```text
@@ -335,10 +351,12 @@ Optional planned end date.
 JSON NULL
 ```
 
-Optional extension data.
+Optional system/internal extension data.
 
 Metadata must not become the source of learning authority, learning content,
 Progress, Assessment, Certificate, Tracking or AI context.
+
+Metadata must not be exposed as a raw user-editable notes field.
 
 ---
 
@@ -453,6 +471,8 @@ capacity = 30
 start_date = 2026-07-01
 
 end_date = 2026-09-30
+
+notes = Bring printed placement tests.
 ```
 
 ---
@@ -475,6 +495,8 @@ name = Weekend Placement Group
 code = NULL
 
 status = draft
+
+notes = NULL
 ```
 
 ---

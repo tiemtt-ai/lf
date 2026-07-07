@@ -385,6 +385,22 @@ cancelled
 
 ---
 
+### notes
+
+```text
+TEXT
+NULL
+```
+
+Optional internal tenant/admin/teacher notes for operational comments about the
+Enrollment learning cycle.
+
+`notes` is not public-facing by default.
+
+`metadata` must not be used as a replacement for Enrollment notes.
+
+---
+
 ### completed_at
 
 ```text
@@ -423,18 +439,19 @@ Có thể trùng với `access_ends_at`, nhưng tách riêng để lưu trạng 
 JSON NULL
 ```
 
-Dữ liệu mở rộng.
+System/internal dữ liệu mở rộng.
 
 Ví dụ:
 
 ```json
 {
-  "note": "Assigned by admin for corporate batch",
   "campaign_code": "SUMMER2026",
   "original_price": 1500000,
   "paid_amount": 1200000
 }
 ```
+
+Metadata không được expose như raw user-editable notes field.
 
 ---
 
@@ -547,6 +564,8 @@ review_starts_at = 2026-09-23 00:00:00
 review_ends_at = 2026-10-22 23:59:59
 
 status = active
+
+notes = Assigned by admin for corporate batch
 
 completed_at = NULL
 ```

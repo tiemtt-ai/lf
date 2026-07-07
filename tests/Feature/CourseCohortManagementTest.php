@@ -71,7 +71,7 @@ class CourseCohortManagementTest extends TestCase
                     'capacity' => 30,
                     'start_date' => '2026-07-01',
                     'end_date' => '2026-09-30',
-                    'metadata' => '{"room":"A101"}',
+                    'notes' => 'Bring printed placement tests.',
                 ])
             )
             ->assertRedirect();
@@ -85,6 +85,8 @@ class CourseCohortManagementTest extends TestCase
             'code' => 'COH-20260704-001',
             'status' => 'active',
             'capacity' => 30,
+            'notes' => 'Bring printed placement tests.',
+            'metadata' => null,
         ]);
     }
 
@@ -110,6 +112,7 @@ class CourseCohortManagementTest extends TestCase
                     'capacity' => 24,
                     'start_date' => '2026-08-01',
                     'end_date' => '2026-10-31',
+                    'notes' => 'Weekend cohort moved to room B.',
                 ])
             )
             ->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}");
@@ -124,6 +127,70 @@ class CourseCohortManagementTest extends TestCase
             'code' => 'COH-EXISTING',
             'status' => 'completed',
             'capacity' => 24,
+            'notes' => 'Weekend cohort moved to room B.',
+        ]);
+    }
+
+    public function test_cohort_forms_show_real_notes_and_hide_metadata_json(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohort($customerId);
+
+        DB::table('core_course_cohorts')
+            ->where('id', $cohortId)
+            ->update([
+                'notes' => 'Bring printed placement tests.',
+                'metadata' => '{"notes":"Metadata must stay internal."}',
+            ]);
+
+        foreach ([
+            $this->actingAs($admin)
+                ->get('https://tenant-a.localhost/admin/course-cohorts/create')
+                ->assertOk(),
+            $this->actingAs($admin)
+                ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/edit")
+                ->assertOk()
+                ->assertSee('Bring printed placement tests.'),
+            $this->actingAs($admin)
+                ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}")
+                ->assertOk()
+                ->assertSeeText('Bring printed placement tests.'),
+        ] as $response) {
+            $response
+                ->assertSeeText(__('lf.LF_course_cohort_common_notes'))
+                ->assertDontSeeText('Metadata JSON')
+                ->assertDontSee('Metadata must stay internal.')
+                ->assertDontSee('name="metadata"', false);
+        }
+    }
+
+    public function test_cohort_update_preserves_internal_metadata(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohort($customerId);
+
+        DB::table('core_course_cohorts')
+            ->where('id', $cohortId)
+            ->update(['metadata' => '{"system":"internal"}']);
+
+        $this->actingAs($admin)
+            ->put(
+                "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}",
+                $this->validCohortData([
+                    'name' => 'Updated Cohort',
+                    'notes' => 'Visible operational note',
+                    'metadata' => '{"system":"user submitted"}',
+                ])
+            )
+            ->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}");
+
+        $this->assertDatabaseHas('core_course_cohorts', [
+            'id' => $cohortId,
+            'name' => 'Updated Cohort',
+            'notes' => 'Visible operational note',
+            'metadata' => '{"system":"internal"}',
         ]);
     }
 
@@ -535,6 +602,7 @@ class CourseCohortManagementTest extends TestCase
             'capacity' => null,
             'start_date' => null,
             'end_date' => null,
+            'notes' => null,
             'metadata' => null,
             'created_at' => $now,
             'updated_at' => $now,
@@ -553,7 +621,7 @@ class CourseCohortManagementTest extends TestCase
             'capacity' => null,
             'start_date' => null,
             'end_date' => null,
-            'metadata' => null,
+            'notes' => null,
         ], $overrides);
     }
 }

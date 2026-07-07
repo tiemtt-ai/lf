@@ -68,8 +68,8 @@
                     <td>{{ $enrollment->access_ends_at ?: '-' }}</td>
                 </tr>
                 <tr>
-                    <th>{{ __('lf.LF_course_enrollment_common_metadata') }}</th>
-                    <td><pre>{{ $enrollment->metadata ?: '-' }}</pre></td>
+                    <th>{{ __('lf.LF_course_enrollment_common_notes') }}</th>
+                    <td>{{ $enrollment->notes ?: '-' }}</td>
                 </tr>
                 </tbody>
             </table>

@@ -53,7 +53,7 @@ class CourseCohortStudentManagementTest extends TestCase
                     'cohort_id' => $cohortId,
                     'enrollment_id' => $enrollmentId,
                     'joined_at' => '2026-07-04 09:00:00',
-                    'metadata' => '{"seat":"A1"}',
+                    'note' => 'Seat A1',
                 ])
             )
             ->assertRedirect();
@@ -66,6 +66,8 @@ class CourseCohortStudentManagementTest extends TestCase
             'student_id' => $student->id,
             'assigned_by' => $admin->id,
             'status' => 'active',
+            'note' => 'Seat A1',
+            'metadata' => null,
         ]);
     }
 
@@ -87,7 +89,6 @@ class CourseCohortStudentManagementTest extends TestCase
                     'status' => 'completed',
                     'transfer_reason' => 'Schedule change',
                     'note' => 'Moved by admin',
-                    'metadata' => '{"room":"B2"}',
                 ])
             )
             ->assertRedirect("https://tenant-a.localhost/admin/course-cohort-students/{$membershipId}");
@@ -100,6 +101,69 @@ class CourseCohortStudentManagementTest extends TestCase
             'transfer_reason' => 'Schedule change',
             'note' => 'Moved by admin',
         ]);
+    }
+
+    public function test_cohort_student_update_preserves_internal_metadata(): void
+    {
+        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId, name: 'Morning');
+        $newCohortId = $this->createCohort($customerId, $productId, $versionId, name: 'Evening');
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $membershipId = $this->createMembership($customerId, $cohortId, $enrollmentId, $productId, $student->id);
+
+        DB::table('core_course_cohort_students')
+            ->where('id', $membershipId)
+            ->update(['metadata' => '{"system":"internal"}']);
+
+        $this->actingAs($admin)
+            ->put(
+                "https://tenant-a.localhost/admin/course-cohort-students/{$membershipId}",
+                $this->validMembershipData([
+                    'cohort_id' => $newCohortId,
+                    'enrollment_id' => null,
+                    'joined_at' => '2026-07-15 10:00:00',
+                    'note' => 'Visible operational note',
+                    'metadata' => '{"system":"user submitted"}',
+                ])
+            )
+            ->assertRedirect("https://tenant-a.localhost/admin/course-cohort-students/{$membershipId}");
+
+        $this->assertDatabaseHas('core_course_cohort_students', [
+            'id' => $membershipId,
+            'note' => 'Visible operational note',
+            'metadata' => '{"system":"internal"}',
+        ]);
+    }
+
+    public function test_cohort_student_forms_show_note_and_hide_metadata_json(): void
+    {
+        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $membershipId = $this->createMembership(
+            $customerId,
+            $cohortId,
+            $enrollmentId,
+            $productId,
+            $student->id
+        );
+
+        foreach ([
+            $this->actingAs($admin)
+                ->get('https://tenant-a.localhost/admin/course-cohort-students/create')
+                ->assertOk(),
+            $this->actingAs($admin)
+                ->get("https://tenant-a.localhost/admin/course-cohort-students/{$membershipId}/edit")
+                ->assertOk(),
+            $this->actingAs($admin)
+                ->get("https://tenant-a.localhost/admin/course-cohort-students/{$membershipId}")
+                ->assertOk(),
+        ] as $response) {
+            $response
+                ->assertSeeText(__('lf.LF_course_cohort_student_common_note'))
+                ->assertDontSeeText('Metadata JSON')
+                ->assertDontSee('name="metadata"', false);
+        }
     }
 
     public function test_customer_admin_can_archive_membership_without_hard_delete(): void
@@ -547,7 +611,6 @@ class CourseCohortStudentManagementTest extends TestCase
             'status' => 'active',
             'transfer_reason' => null,
             'note' => null,
-            'metadata' => null,
         ], $overrides);
     }
 }
