@@ -161,6 +161,35 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringContainsString('content: attr(data-sidebar-label);', $css);
     }
 
+    public function test_backend_grouped_forms_adapt_to_collapsed_sidebar(): void
+    {
+        $componentCss = file_get_contents(
+            base_path('resources/css/admin/admin-components.css')
+        );
+        $pageCss = file_get_contents(
+            base_path('resources/css/admin/admin-pages.css')
+        );
+
+        $this->assertStringContainsString('.backend-form-layout', $componentCss);
+        $this->assertStringContainsString('.admin-form-card > form:has(> .admin-form-section)', $componentCss);
+        $this->assertStringContainsString(
+            ':root.is-backend-sidebar-collapsed .backend-shell .admin-form-card > form:has(> .admin-form-section)',
+            $componentCss
+        );
+        $this->assertStringContainsString(
+            '.backend-shell.is-sidebar-collapsed .admin-form-card > form:has(> .admin-form-section)',
+            $componentCss
+        );
+        $this->assertStringContainsString('grid-template-columns: repeat(2, minmax(0, 1fr));', $componentCss);
+        $this->assertStringContainsString('grid-column: 1 / -1;', $componentCss);
+        $this->assertStringContainsString('@media (max-width: 900px)', $componentCss);
+        $this->assertStringContainsString('.admin-form-card {', $pageCss);
+        $this->assertStringContainsString('max-width: 720px;', $pageCss);
+        $this->assertStringContainsString('.admin-form-card:has(> form > .admin-form-section)', $pageCss);
+        $this->assertStringContainsString('width: 100%;', $pageCss);
+        $this->assertStringContainsString('max-width: none;', $pageCss);
+    }
+
     public function test_account_pages_render_without_left_sidebar_account_group(): void
     {
         $customerId = $this->createTenant();

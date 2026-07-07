@@ -747,6 +747,12 @@
     max-width: 720px;
 }
 
+.admin-form-card:has(> form > .admin-form-section),
+.admin-form-card:has(> .backend-form-layout) {
+    width: 100%;
+    max-width: none;
+}
+
 .teacher-dashboard-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));

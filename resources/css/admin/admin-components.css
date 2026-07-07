@@ -93,6 +93,31 @@
     font-weight: 600;
 }
 
+.backend-form-layout,
+.admin-form-card > form:has(> .admin-form-section) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 24px;
+    align-items: start;
+}
+
+:root.is-backend-sidebar-collapsed .backend-shell .backend-form-layout,
+:root.is-backend-sidebar-collapsed .backend-shell .admin-form-card > form:has(> .admin-form-section),
+.backend-shell.is-sidebar-collapsed .backend-form-layout,
+.backend-shell.is-sidebar-collapsed .admin-form-card > form:has(> .admin-form-section) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.backend-form-layout > .admin-form-section,
+.admin-form-card > form:has(> .admin-form-section) > .admin-form-section {
+    min-width: 0;
+}
+
+.backend-form-layout > .admin-form-actions,
+.admin-form-card > form:has(> .admin-form-section) > .admin-form-actions {
+    grid-column: 1 / -1;
+}
+
 .admin-radio-group {
     display: flex;
     align-items: center;
@@ -278,6 +303,13 @@
 }
 
 @media (max-width: 900px) {
+    :root.is-backend-sidebar-collapsed .backend-shell .backend-form-layout,
+    :root.is-backend-sidebar-collapsed .backend-shell .admin-form-card > form:has(> .admin-form-section),
+    .backend-shell.is-sidebar-collapsed .backend-form-layout,
+    .backend-shell.is-sidebar-collapsed .admin-form-card > form:has(> .admin-form-section) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
     .admin-form-grid,
     .admin-form-grid tbody,
     .admin-form-grid tr,
