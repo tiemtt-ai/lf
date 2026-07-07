@@ -135,24 +135,29 @@ class CourseCategoryController extends Controller
         $this->findCategory($customerId, $id);
         $validated = $this->validatedData($request, $customerId, $id);
 
+        $values = [
+            'parent_id' => $validated['parent_id'] ?? null,
+            'name' => $validated['name'],
+            'slug' => $validated['slug'],
+            'description' => $validated['description'] ?? null,
+            'thumbnail_image' => $validated['thumbnail_image'] ?? null,
+            'banner_image' => $validated['banner_image'] ?? null,
+            'sort_order' => $validated['sort_order'],
+            'is_featured' => (bool) $validated['is_featured'],
+            'status' => $validated['status'],
+            'updated_at' => now(),
+        ];
+
+        foreach (['meta_title', 'meta_description', 'meta_keywords'] as $field) {
+            if ($request->has($field)) {
+                $values[$field] = $validated[$field] ?? null;
+            }
+        }
+
         DB::table('core_course_categories')
             ->where('customer_id', $customerId)
             ->where('id', $id)
-            ->update([
-                'parent_id' => $validated['parent_id'] ?? null,
-                'name' => $validated['name'],
-                'slug' => $validated['slug'],
-                'description' => $validated['description'] ?? null,
-                'thumbnail_image' => $validated['thumbnail_image'] ?? null,
-                'banner_image' => $validated['banner_image'] ?? null,
-                'sort_order' => $validated['sort_order'],
-                'is_featured' => (bool) $validated['is_featured'],
-                'meta_title' => $validated['meta_title'] ?? null,
-                'meta_description' => $validated['meta_description'] ?? null,
-                'meta_keywords' => $validated['meta_keywords'] ?? null,
-                'status' => $validated['status'],
-                'updated_at' => now(),
-            ]);
+            ->update($values);
 
         $this->syncUploadedMedia($request, $id, $validated['name']);
 

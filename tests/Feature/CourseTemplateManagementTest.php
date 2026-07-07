@@ -184,9 +184,6 @@ class CourseTemplateManagementTest extends TestCase
                 'difficulty_level',
                 'language',
                 'max_lessons',
-                'meta_title',
-                'meta_description',
-                'meta_keywords',
             ] as $field) {
                 $this->assertSame(
                     0,
@@ -236,18 +233,16 @@ class CourseTemplateManagementTest extends TestCase
                 )
             );
             $this->assertSame(
-                ['meta_title', 'meta_description', 'meta_keywords'],
-                $this->sectionFieldNames(
-                    $response->getContent(),
-                    'course-template-seo-title'
-                )
-            );
-            $this->assertSame(
                 ['status'],
                 $this->sectionFieldNames(
                     $response->getContent(),
                     'course-template-lifecycle-title'
                 )
+            );
+            $this->assertManualSeoControlsNotRendered(
+                $response->getContent(),
+                'course-template-seo-title',
+                'LF_course_template'
             );
         }
     }
@@ -295,6 +290,51 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertSame('draft', $template->status);
         $this->assertTrue(DB::getSchemaBuilder()->hasTable('core_course_template_sections'));
         $this->assertDatabaseCount('core_course_template_sections', 0);
+    }
+
+    public function test_template_update_without_manual_seo_inputs_preserves_existing_seo_data(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'SEO Template',
+            'seo-template',
+            $admin->id
+        );
+
+        DB::table('core_course_templates')
+            ->where('id', $templateId)
+            ->update([
+                'meta_title' => 'Legacy SEO Title',
+                'meta_description' => 'Legacy SEO description',
+                'meta_keywords' => 'legacy,seo',
+            ]);
+
+        $data = $this->validTemplateData([
+            'title' => 'SEO Template Updated',
+            'slug' => 'seo-template-updated',
+        ]);
+        unset($data['meta_title'], $data['meta_description'], $data['meta_keywords']);
+
+        $this->actingAs($admin)
+            ->put(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}",
+                $data
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit"
+            );
+
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $templateId,
+            'customer_id' => $customerId,
+            'title' => 'SEO Template Updated',
+            'slug' => 'seo-template-updated',
+            'meta_title' => 'Legacy SEO Title',
+            'meta_description' => 'Legacy SEO description',
+            'meta_keywords' => 'legacy,seo',
+        ]);
     }
 
     public function test_teacher_can_create_an_independent_draft_template(): void
@@ -676,5 +716,32 @@ class CourseTemplateManagementTest extends TestCase
         }
 
         return $fields;
+    }
+
+    private function assertManualSeoControlsNotRendered(
+        string $html,
+        string $sectionTitleId,
+        string $translationPrefix
+    ): void {
+        $this->assertStringNotContainsString($sectionTitleId, $html);
+        $this->assertStringNotContainsString('name="meta_title"', $html);
+        $this->assertStringNotContainsString('name="meta_description"', $html);
+        $this->assertStringNotContainsString('name="meta_keywords"', $html);
+        $this->assertStringNotContainsString(
+            __('lf.'.$translationPrefix.'_group_seo'),
+            $html
+        );
+        $this->assertStringNotContainsString(
+            __('lf.'.$translationPrefix.'_common_meta_title'),
+            $html
+        );
+        $this->assertStringNotContainsString(
+            __('lf.'.$translationPrefix.'_common_meta_description'),
+            $html
+        );
+        $this->assertStringNotContainsString(
+            __('lf.'.$translationPrefix.'_common_meta_keywords'),
+            $html
+        );
     }
 }

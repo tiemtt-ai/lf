@@ -150,16 +150,21 @@ class CourseProductController extends Controller
         $product = $this->findProduct($customerId, $id);
         $validated = $this->validatedData($request, $customerId, $id);
 
-        DB::table('core_course_products')
-            ->where('customer_id', $customerId)
-            ->where('id', $id)
-            ->update($this->productValues($validated, [
+        $values = $this->withoutMissingSeoValues(
+            $request,
+            $this->productValues($validated, [
                 'published_at' => $product->published_at === null
                     && $validated['status'] === 'active'
                         ? now()
                         : $product->published_at,
                 'updated_at' => now(),
-            ]));
+            ])
+        );
+
+        DB::table('core_course_products')
+            ->where('customer_id', $customerId)
+            ->where('id', $id)
+            ->update($values);
 
         $this->attachUploadedMedia($request, $id);
 
@@ -590,6 +595,17 @@ class CourseProductController extends Controller
             'meta_keywords' => $validated['meta_keywords'] ?? null,
             'status' => $validated['status'],
         ], $extra);
+    }
+
+    private function withoutMissingSeoValues(Request $request, array $values): array
+    {
+        foreach (['meta_title', 'meta_description', 'meta_keywords'] as $field) {
+            if (! $request->has($field)) {
+                unset($values[$field]);
+            }
+        }
+
+        return $values;
     }
 
     private function findProduct(int $customerId, int $id): object

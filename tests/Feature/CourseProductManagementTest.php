@@ -344,6 +344,68 @@ class CourseProductManagementTest extends TestCase
             ->assertSeeText('TOPIK');
     }
 
+    public function test_product_forms_do_not_render_manual_seo_controls(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK', 'topik');
+
+        foreach ([
+            $this->actingAs($admin)
+                ->get('https://tenant-a.localhost/admin/course-products/create')
+                ->assertOk(),
+            $this->actingAs($admin)
+                ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+                ->assertOk(),
+        ] as $response) {
+            $this->assertManualSeoControlsNotRendered(
+                $response->getContent(),
+                'course-product-seo-title',
+                'LF_course_product'
+            );
+        }
+    }
+
+    public function test_product_update_without_manual_seo_inputs_preserves_existing_seo_data(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'SEO Product', 'seo-product');
+
+        DB::table('core_course_products')
+            ->where('id', $productId)
+            ->update([
+                'meta_title' => 'Legacy SEO Title',
+                'meta_description' => 'Legacy SEO description',
+                'meta_keywords' => 'legacy,seo',
+            ]);
+
+        $data = $this->validProductData([
+            'title' => 'SEO Product Updated',
+            'slug' => 'seo-product-updated',
+        ]);
+        unset($data['meta_title'], $data['meta_description'], $data['meta_keywords']);
+
+        $this->actingAs($admin)
+            ->put(
+                "https://tenant-a.localhost/admin/course-products/{$productId}",
+                $data
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+            );
+
+        $this->assertDatabaseHas('core_course_products', [
+            'id' => $productId,
+            'customer_id' => $customerId,
+            'title' => 'SEO Product Updated',
+            'slug' => 'seo-product-updated',
+            'meta_title' => 'Legacy SEO Title',
+            'meta_description' => 'Legacy SEO description',
+            'meta_keywords' => 'legacy,seo',
+        ]);
+    }
+
     public function test_invalid_status_is_rejected(): void
     {
         $customerId = $this->createTenant();
@@ -1438,5 +1500,32 @@ class CourseProductManagementTest extends TestCase
             'ends_at' => null,
             'status' => 'active',
         ], $overrides);
+    }
+
+    private function assertManualSeoControlsNotRendered(
+        string $html,
+        string $sectionTitleId,
+        string $translationPrefix
+    ): void {
+        $this->assertStringNotContainsString($sectionTitleId, $html);
+        $this->assertStringNotContainsString('name="meta_title"', $html);
+        $this->assertStringNotContainsString('name="meta_description"', $html);
+        $this->assertStringNotContainsString('name="meta_keywords"', $html);
+        $this->assertStringNotContainsString(
+            __('lf.'.$translationPrefix.'_group_seo'),
+            $html
+        );
+        $this->assertStringNotContainsString(
+            __('lf.'.$translationPrefix.'_common_meta_title'),
+            $html
+        );
+        $this->assertStringNotContainsString(
+            __('lf.'.$translationPrefix.'_common_meta_description'),
+            $html
+        );
+        $this->assertStringNotContainsString(
+            __('lf.'.$translationPrefix.'_common_meta_keywords'),
+            $html
+        );
     }
 }

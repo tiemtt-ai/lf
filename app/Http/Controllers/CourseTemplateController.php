@@ -305,13 +305,18 @@ class CourseTemplateController extends Controller
         $template = $this->findTemplate($customerId, $id);
         $validated = $this->validatedData($request, $customerId, $id);
 
+        $values = $this->withoutMissingSeoValues(
+            $request,
+            $this->templateValues($validated, [
+                'working_revision' => (int) $template->working_revision + 1,
+                'updated_at' => now(),
+            ])
+        );
+
         DB::table('core_course_templates')
             ->where('customer_id', $customerId)
             ->where('id', $id)
-            ->update($this->templateValues($validated, [
-                'working_revision' => (int) $template->working_revision + 1,
-                'updated_at' => now(),
-            ]));
+            ->update($values);
 
         $this->attachUploadedMedia($request, $id);
 
@@ -440,6 +445,17 @@ class CourseTemplateController extends Controller
             'meta_keywords' => $validated['meta_keywords'] ?? null,
             'status' => $validated['status'],
         ], $extra);
+    }
+
+    private function withoutMissingSeoValues(Request $request, array $values): array
+    {
+        foreach (['meta_title', 'meta_description', 'meta_keywords'] as $field) {
+            if (! $request->has($field)) {
+                unset($values[$field]);
+            }
+        }
+
+        return $values;
     }
 
     private function categories()

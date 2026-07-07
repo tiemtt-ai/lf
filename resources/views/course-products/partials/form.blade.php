@@ -382,36 +382,6 @@
     </div>
 </section>
 
-<section class="admin-form-section" aria-labelledby="course-product-seo-title">
-    <h2 id="course-product-seo-title" class="admin-form-section-title">
-        {{ __('lf.LF_course_product_group_seo') }}
-    </h2>
-
-    <div class="lf-form-group">
-        <x-form-label for="meta_title"
-                      :value="__('lf.LF_course_product_common_meta_title')"
-                      :required="$isRequired('meta_title')" />
-        <input id="meta_title" type="text" name="meta_title" class="lf-form-control"
-               value="{{ old('meta_title', $formProduct?->meta_title) }}" maxlength="255">
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="meta_description"
-                      :value="__('lf.LF_course_product_common_meta_description')"
-                      :required="$isRequired('meta_description')" />
-        <textarea id="meta_description" name="meta_description" class="lf-form-control"
-                  rows="3" maxlength="500">{{ old('meta_description', $formProduct?->meta_description) }}</textarea>
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="meta_keywords"
-                      :value="__('lf.LF_course_product_common_meta_keywords')"
-                      :required="$isRequired('meta_keywords')" />
-        <input id="meta_keywords" type="text" name="meta_keywords" class="lf-form-control"
-               value="{{ old('meta_keywords', $formProduct?->meta_keywords) }}" maxlength="500">
-    </div>
-</section>
-
 <section class="admin-form-section" aria-labelledby="course-product-lifecycle-title">
     <h2 id="course-product-lifecycle-title" class="admin-form-section-title">
         {{ __('lf.LF_course_product_group_lifecycle') }}

@@ -166,30 +166,3 @@
                accept="image/*">
     </div>
 </section>
-
-<section class="admin-form-section" aria-labelledby="course-category-seo-title">
-    <h2 id="course-category-seo-title" class="admin-form-section-title">
-        {{ __('lf.LF_course_category_group_seo') }}
-    </h2>
-
-    <div class="lf-form-group">
-        <x-form-label for="meta_title"
-                      :value="__('lf.LF_course_category_common_meta_title')" />
-        <input id="meta_title" type="text" name="meta_title" class="lf-form-control"
-               value="{{ old('meta_title', $formCategory?->meta_title) }}" maxlength="255">
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="meta_description"
-                      :value="__('lf.LF_course_category_common_meta_description')" />
-        <textarea id="meta_description" name="meta_description" class="lf-form-control"
-                  rows="3" maxlength="500">{{ old('meta_description', $formCategory?->meta_description) }}</textarea>
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="meta_keywords"
-                      :value="__('lf.LF_course_category_common_meta_keywords')" />
-        <input id="meta_keywords" type="text" name="meta_keywords" class="lf-form-control"
-               value="{{ old('meta_keywords', $formCategory?->meta_keywords) }}" maxlength="500">
-    </div>
-</section>

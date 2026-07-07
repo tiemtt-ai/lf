@@ -100,6 +100,76 @@ class CourseCategoryManagementTest extends TestCase
         ]);
     }
 
+    public function test_category_forms_do_not_render_manual_seo_controls(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $categoryId = $this->createCategory(
+            $customerId,
+            'Teacher Category',
+            'teacher-category',
+            createdBy: $teacher->id
+        );
+
+        foreach ([
+            $this->actingAs($admin)
+                ->get('https://tenant-a.localhost/admin/course-categories/create')
+                ->assertOk(),
+            $this->actingAs($teacher)
+                ->get(
+                    "https://tenant-a.localhost/teacher/course-categories/{$categoryId}/edit"
+                )
+                ->assertOk(),
+        ] as $response) {
+            $this->assertManualSeoControlsNotRendered(
+                $response->getContent(),
+                'course-category-seo-title',
+                'LF_course_category'
+            );
+        }
+    }
+
+    public function test_category_update_without_manual_seo_inputs_preserves_existing_seo_data(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = $this->createCategory($customerId, 'SEO Category', 'seo-category');
+
+        DB::table('core_course_categories')
+            ->where('id', $categoryId)
+            ->update([
+                'meta_title' => 'Legacy SEO Title',
+                'meta_description' => 'Legacy SEO description',
+                'meta_keywords' => 'legacy,seo',
+            ]);
+
+        $data = $this->validCategoryData([
+            'name' => 'SEO Category Updated',
+            'slug' => 'seo-category-updated',
+        ]);
+        unset($data['meta_title'], $data['meta_description'], $data['meta_keywords']);
+
+        $this->actingAs($admin)
+            ->put(
+                "https://tenant-a.localhost/admin/course-categories/{$categoryId}",
+                $data
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-categories/{$categoryId}/edit"
+            );
+
+        $this->assertDatabaseHas('core_course_categories', [
+            'id' => $categoryId,
+            'customer_id' => $customerId,
+            'name' => 'SEO Category Updated',
+            'slug' => 'seo-category-updated',
+            'meta_title' => 'Legacy SEO Title',
+            'meta_description' => 'Legacy SEO description',
+            'meta_keywords' => 'legacy,seo',
+        ]);
+    }
+
     public function test_teacher_can_create_a_child_category(): void
     {
         $customerId = $this->createTenant();
@@ -633,6 +703,33 @@ class CourseCategoryManagementTest extends TestCase
             base64_decode(
                 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII='
             )
+        );
+    }
+
+    private function assertManualSeoControlsNotRendered(
+        string $html,
+        string $sectionTitleId,
+        string $translationPrefix
+    ): void {
+        $this->assertStringNotContainsString($sectionTitleId, $html);
+        $this->assertStringNotContainsString('name="meta_title"', $html);
+        $this->assertStringNotContainsString('name="meta_description"', $html);
+        $this->assertStringNotContainsString('name="meta_keywords"', $html);
+        $this->assertStringNotContainsString(
+            __('lf.'.$translationPrefix.'_group_seo'),
+            $html
+        );
+        $this->assertStringNotContainsString(
+            __('lf.'.$translationPrefix.'_common_meta_title'),
+            $html
+        );
+        $this->assertStringNotContainsString(
+            __('lf.'.$translationPrefix.'_common_meta_description'),
+            $html
+        );
+        $this->assertStringNotContainsString(
+            __('lf.'.$translationPrefix.'_common_meta_keywords'),
+            $html
         );
     }
 }
