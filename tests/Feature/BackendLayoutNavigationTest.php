@@ -180,14 +180,84 @@ class BackendLayoutNavigationTest extends TestCase
             '.backend-shell.is-sidebar-collapsed .admin-form-card > form:has(> .admin-form-section)',
             $componentCss
         );
+        $this->assertStringContainsString('column-count: 2;', $componentCss);
+        $this->assertStringContainsString('column-count: 1;', $componentCss);
+        $this->assertStringContainsString('break-inside: avoid;', $componentCss);
+        $this->assertStringContainsString('column-span: all;', $componentCss);
+        $this->assertStringContainsString('justify-content: flex-end;', $componentCss);
+        $this->assertStringContainsString('margin-bottom: 24px;', $componentCss);
+        $this->assertStringContainsString('.backend-form-columns', $componentCss);
+        $this->assertStringContainsString('.backend-form-column', $componentCss);
         $this->assertStringContainsString('grid-template-columns: repeat(2, minmax(0, 1fr));', $componentCss);
-        $this->assertStringContainsString('grid-column: 1 / -1;', $componentCss);
+        $this->assertStringContainsString('flex-direction: column;', $componentCss);
+        $this->assertStringContainsString('gap: 24px;', $componentCss);
         $this->assertStringContainsString('@media (max-width: 900px)', $componentCss);
         $this->assertStringContainsString('.admin-form-card {', $pageCss);
         $this->assertStringContainsString('max-width: 720px;', $pageCss);
         $this->assertStringContainsString('.admin-form-card:has(> form > .admin-form-section)', $pageCss);
+        $this->assertStringContainsString('.admin-form-card:has(> form > .backend-form-columns)', $pageCss);
         $this->assertStringContainsString('width: 100%;', $pageCss);
         $this->assertStringContainsString('max-width: none;', $pageCss);
+    }
+
+    public function test_backend_adaptive_form_markup_prioritizes_left_column(): void
+    {
+        $templateForm = file_get_contents(
+            base_path('resources/views/course-templates/partials/form.blade.php')
+        );
+        $productForm = file_get_contents(
+            base_path('resources/views/course-products/partials/form.blade.php')
+        );
+
+        $this->assertSame(1, substr_count($templateForm, 'class="backend-form-columns"'));
+        $this->assertSame(2, substr_count($templateForm, 'class="backend-form-column"'));
+        $this->assertStringContainsString(
+            'course-template-basic-title',
+            $this->backendFormColumnHtml($templateForm, 0)
+        );
+        $this->assertStringContainsString(
+            'course-template-metadata-title',
+            $this->backendFormColumnHtml($templateForm, 0)
+        );
+        $this->assertStringContainsString(
+            'course-template-media-title',
+            $this->backendFormColumnHtml($templateForm, 1)
+        );
+        $this->assertStringContainsString(
+            'course-template-lifecycle-title',
+            $this->backendFormColumnHtml($templateForm, 1)
+        );
+
+        $this->assertSame(1, substr_count($productForm, 'class="backend-form-columns"'));
+        $this->assertSame(2, substr_count($productForm, 'class="backend-form-column"'));
+        $this->assertStringContainsString(
+            'course-product-basic-title',
+            $this->backendFormColumnHtml($productForm, 0)
+        );
+        $this->assertStringContainsString(
+            'course-product-commercial-title',
+            $this->backendFormColumnHtml($productForm, 0)
+        );
+        $this->assertStringContainsString(
+            'course-product-access-title',
+            $this->backendFormColumnHtml($productForm, 0)
+        );
+        $this->assertStringContainsString(
+            'course-product-media-title',
+            $this->backendFormColumnHtml($productForm, 1)
+        );
+        $this->assertStringContainsString(
+            'course-product-display-title',
+            $this->backendFormColumnHtml($productForm, 1)
+        );
+        $this->assertStringContainsString(
+            'course-product-visibility-title',
+            $this->backendFormColumnHtml($productForm, 1)
+        );
+        $this->assertStringContainsString(
+            'course-product-lifecycle-title',
+            $this->backendFormColumnHtml($productForm, 1)
+        );
     }
 
     public function test_account_pages_render_without_left_sidebar_account_group(): void
@@ -334,6 +404,27 @@ class BackendLayoutNavigationTest extends TestCase
         preg_match('/<aside id="backend-sidebar".*?<\/aside>/s', $html, $matches);
 
         return $matches[0] ?? '';
+    }
+
+    private function backendFormColumnHtml(string $html, int $index): string
+    {
+        $marker = '<div class="backend-form-column">';
+        $offset = 0;
+        $starts = [];
+
+        while (($position = strpos($html, $marker, $offset)) !== false) {
+            $starts[] = $position;
+            $offset = $position + strlen($marker);
+        }
+
+        if (! isset($starts[$index])) {
+            return '';
+        }
+
+        $start = $starts[$index] + strlen($marker);
+        $end = $starts[$index + 1] ?? strlen($html);
+
+        return substr($html, $start, $end - $start);
     }
 
     private function createUser(int $customerId, string $role): User

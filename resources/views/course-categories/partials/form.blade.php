@@ -5,8 +5,8 @@
     $isFeatured = (bool) old('is_featured', $formCategory?->is_featured ?? false);
 @endphp
 
-<section class="admin-form-section" aria-labelledby="course-category-general-title">
-    <h2 id="course-category-general-title" class="admin-form-section-title">
+<section class="admin-form-section" aria-labelledby="course-category-basic-title">
+    <h2 id="course-category-basic-title" class="admin-form-section-title">
         {{ __('lf.LF_course_category_group_general') }}
     </h2>
 
@@ -70,13 +70,12 @@
             <label for="is_featured">{{ __('lf.LF_course_category_common_featured') }}</label>
         </div>
     </div>
+</section>
 
-    <div class="lf-form-group">
-        <x-form-label for="description"
-                      :value="__('lf.LF_course_category_common_description')" />
-        <textarea id="description" name="description" class="lf-form-control"
-                  rows="4">{{ old('description', $formCategory?->description) }}</textarea>
-    </div>
+<section class="admin-form-section" aria-labelledby="course-category-media-title">
+    <h2 id="course-category-media-title" class="admin-form-section-title">
+        {{ __('lf.LF_course_category_group_media') }}
+    </h2>
 
     <div class="lf-form-group">
         <x-form-label for="thumbnail_image_file"
@@ -164,5 +163,18 @@
                name="banner_image_file"
                class="lf-form-control"
                accept="image/*">
+    </div>
+</section>
+
+<section class="admin-form-section" aria-labelledby="course-category-description-title">
+    <h2 id="course-category-description-title" class="admin-form-section-title">
+        {{ __('lf.LF_course_category_common_description') }}
+    </h2>
+
+    <div class="lf-form-group">
+        <x-form-label for="description"
+                      :value="__('lf.LF_course_category_common_description')" />
+        <textarea id="description" name="description" class="lf-form-control"
+                  rows="4">{{ old('description', $formCategory?->description) }}</textarea>
     </div>
 </section>

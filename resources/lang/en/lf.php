@@ -231,6 +231,7 @@ return [
     'LF_course_category_common_deactivate' => 'Deactivate',
     'LF_course_category_common_empty' => 'No product categories found.',
     'LF_course_category_group_general' => 'General Information',
+    'LF_course_category_group_media' => 'Media',
     'LF_course_category_group_seo' => 'Search Engine Optimization',
     'LF_course_category_common_description' => 'Description',
     'LF_course_category_common_thumbnail_image' => 'Thumbnail image',

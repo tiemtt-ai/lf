@@ -122,8 +122,23 @@ class CourseCategoryManagementTest extends TestCase
                 )
                 ->assertOk(),
         ] as $response) {
+            $content = $response->getContent();
+
+            $this->assertSame(3, substr_count($content, 'class="admin-form-section"'));
+            $this->assertStringContainsString(
+                'aria-labelledby="course-category-basic-title"',
+                $content
+            );
+            $this->assertStringContainsString(
+                'aria-labelledby="course-category-media-title"',
+                $content
+            );
+            $this->assertStringContainsString(
+                'aria-labelledby="course-category-description-title"',
+                $content
+            );
             $this->assertManualSeoControlsNotRendered(
-                $response->getContent(),
+                $content,
                 'course-category-seo-title',
                 'LF_course_category'
             );

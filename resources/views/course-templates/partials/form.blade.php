@@ -7,6 +7,8 @@
     $isRequired = static fn (string $field): bool => in_array($field, $requiredFields, true);
 @endphp
 
+<div class="backend-form-columns">
+    <div class="backend-form-column">
 <section class="admin-form-section" aria-labelledby="course-template-basic-title">
     <h2 id="course-template-basic-title" class="admin-form-section-title">
         {{ __('lf.LF_course_template_group_basic') }}
@@ -67,6 +69,55 @@
            value="{{ old('publisher_name', $formTemplate?->publisher_name) }}" maxlength="255">
 </div>
 </section>
+
+<section class="admin-form-section" aria-labelledby="course-template-metadata-title">
+    <h2 id="course-template-metadata-title" class="admin-form-section-title">
+        {{ __('lf.LF_course_template_group_learning_metadata') }}
+    </h2>
+
+<div class="lf-form-group">
+    <x-form-label for="difficulty_level"
+                  :value="__('lf.LF_course_template_common_difficulty_level')"
+                  :required="$isRequired('difficulty_level')" />
+    <select id="difficulty_level" name="difficulty_level" class="lf-form-control">
+        <option value="">{{ __('lf.LF_course_template_common_no_difficulty') }}</option>
+        @foreach (['beginner', 'intermediate', 'advanced'] as $difficulty)
+            <option value="{{ $difficulty }}" @selected($selectedDifficulty === $difficulty)>
+                {{ __('lf.LF_course_template_common_'.$difficulty) }}
+            </option>
+        @endforeach
+    </select>
+</div>
+
+<div class="lf-form-group">
+    <x-form-label for="language"
+                  :value="__('lf.LF_course_template_common_language')"
+                  :required="$isRequired('language')" />
+    <input id="language" type="text" name="language" class="lf-form-control"
+           value="{{ old('language', $formTemplate?->language) }}" maxlength="20">
+</div>
+
+<div class="lf-form-group">
+    <x-form-label for="estimated_duration_minutes"
+                  :value="__('lf.LF_course_template_common_estimated_duration_minutes')"
+                  :required="$isRequired('estimated_duration_minutes')" />
+    <input id="estimated_duration_minutes" type="number" min="0"
+           name="estimated_duration_minutes" class="lf-form-control"
+           value="{{ old('estimated_duration_minutes', $formTemplate?->estimated_duration_minutes ?? 0) }}"
+           required>
+</div>
+
+<div class="lf-form-group">
+    <x-form-label for="max_lessons"
+                  :value="__('lf.LF_course_template_common_max_lessons')"
+                  :required="$isRequired('max_lessons')" />
+    <input id="max_lessons" type="number" min="0" name="max_lessons" class="lf-form-control"
+           value="{{ old('max_lessons', $formTemplate?->max_lessons) }}">
+</div>
+</section>
+    </div>
+
+    <div class="backend-form-column">
 
 <section class="admin-form-section" aria-labelledby="course-template-media-title">
     <h2 id="course-template-media-title" class="admin-form-section-title">
@@ -150,52 +201,6 @@
 </div>
 </section>
 
-<section class="admin-form-section" aria-labelledby="course-template-metadata-title">
-    <h2 id="course-template-metadata-title" class="admin-form-section-title">
-        {{ __('lf.LF_course_template_group_learning_metadata') }}
-    </h2>
-
-<div class="lf-form-group">
-    <x-form-label for="difficulty_level"
-                  :value="__('lf.LF_course_template_common_difficulty_level')"
-                  :required="$isRequired('difficulty_level')" />
-    <select id="difficulty_level" name="difficulty_level" class="lf-form-control">
-        <option value="">{{ __('lf.LF_course_template_common_no_difficulty') }}</option>
-        @foreach (['beginner', 'intermediate', 'advanced'] as $difficulty)
-            <option value="{{ $difficulty }}" @selected($selectedDifficulty === $difficulty)>
-                {{ __('lf.LF_course_template_common_'.$difficulty) }}
-            </option>
-        @endforeach
-    </select>
-</div>
-
-<div class="lf-form-group">
-    <x-form-label for="language"
-                  :value="__('lf.LF_course_template_common_language')"
-                  :required="$isRequired('language')" />
-    <input id="language" type="text" name="language" class="lf-form-control"
-           value="{{ old('language', $formTemplate?->language) }}" maxlength="20">
-</div>
-
-<div class="lf-form-group">
-    <x-form-label for="estimated_duration_minutes"
-                  :value="__('lf.LF_course_template_common_estimated_duration_minutes')"
-                  :required="$isRequired('estimated_duration_minutes')" />
-    <input id="estimated_duration_minutes" type="number" min="0"
-           name="estimated_duration_minutes" class="lf-form-control"
-           value="{{ old('estimated_duration_minutes', $formTemplate?->estimated_duration_minutes ?? 0) }}"
-           required>
-</div>
-
-<div class="lf-form-group">
-    <x-form-label for="max_lessons"
-                  :value="__('lf.LF_course_template_common_max_lessons')"
-                  :required="$isRequired('max_lessons')" />
-    <input id="max_lessons" type="number" min="0" name="max_lessons" class="lf-form-control"
-           value="{{ old('max_lessons', $formTemplate?->max_lessons) }}">
-</div>
-</section>
-
 <section class="admin-form-section" aria-labelledby="course-template-lifecycle-title">
     <h2 id="course-template-lifecycle-title" class="admin-form-section-title">
         {{ __('lf.LF_course_template_group_lifecycle') }}
@@ -218,3 +223,5 @@
     </select>
 </div>
 </section>
+    </div>
+</div>
