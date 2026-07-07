@@ -7,6 +7,7 @@ use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -132,8 +133,8 @@ class CourseCategoryController extends Controller
     public function update(Request $request, int $id)
     {
         $customerId = $this->customerId();
-        $this->findCategory($customerId, $id);
-        $validated = $this->validatedData($request, $customerId, $id);
+        $category = $this->findCategory($customerId, $id);
+        $validated = $this->validatedData($request, $customerId, $id, $category);
 
         $values = [
             'parent_id' => $validated['parent_id'] ?? null,
@@ -191,9 +192,20 @@ class CourseCategoryController extends Controller
         return back()->with('success', __('lf.LF_course_category_common_status_updated'));
     }
 
-    private function validatedData(Request $request, int $customerId, ?int $categoryId = null): array
-    {
-        $validator = Validator::make($request->all(), [
+    private function validatedData(
+        Request $request,
+        int $customerId,
+        ?int $categoryId = null,
+        ?object $category = null
+    ): array {
+        $input = $request->all();
+        $input['slug'] = $this->systemSlug(
+            (string) $request->input('name', ''),
+            $category,
+            'name'
+        );
+
+        $validator = Validator::make($input, [
             'parent_id' => [
                 'nullable',
                 'integer',
@@ -253,6 +265,24 @@ class CourseCategoryController extends Controller
         }
 
         return $validator->validate();
+    }
+
+    private function systemSlug(
+        string $source,
+        ?object $existingRecord = null,
+        string $sourceField = 'name'
+    ): string {
+        if ($existingRecord === null) {
+            return Str::slug($source);
+        }
+
+        $currentAutoSlug = Str::slug((string) $existingRecord->{$sourceField});
+
+        if ((string) $existingRecord->slug !== $currentAutoSlug) {
+            return (string) $existingRecord->slug;
+        }
+
+        return Str::slug($source);
     }
 
     private function parentCategories(array $excludedIds = [])

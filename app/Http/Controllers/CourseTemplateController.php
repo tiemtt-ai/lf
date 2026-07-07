@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -303,7 +304,7 @@ class CourseTemplateController extends Controller
     {
         $customerId = $this->customerId();
         $template = $this->findTemplate($customerId, $id);
-        $validated = $this->validatedData($request, $customerId, $id);
+        $validated = $this->validatedData($request, $customerId, $id, $template);
 
         $values = $this->withoutMissingSeoValues(
             $request,
@@ -351,10 +352,18 @@ class CourseTemplateController extends Controller
     private function validatedData(
         Request $request,
         int $customerId,
-        ?int $templateId = null
+        ?int $templateId = null,
+        ?object $template = null
     ): array {
+        $input = $request->all();
+        $input['slug'] = $this->systemSlug(
+            (string) $request->input('title', ''),
+            $template,
+            'title'
+        );
+
         return Validator::make(
-            $request->all(),
+            $input,
             $this->validationRules($customerId, $templateId)
         )->validate();
     }
@@ -416,10 +425,10 @@ class CourseTemplateController extends Controller
 
     private function requiredFields(int $customerId, ?int $templateId = null): array
     {
-        return array_keys(array_filter(
+        return array_values(array_diff(array_keys(array_filter(
             $this->validationRules($customerId, $templateId),
             fn (array $rules): bool => in_array('required', $rules, true)
-        ));
+        )), ['slug']));
     }
 
     private function templateValues(array $validated, array $extra = []): array
@@ -445,6 +454,24 @@ class CourseTemplateController extends Controller
             'meta_keywords' => $validated['meta_keywords'] ?? null,
             'status' => $validated['status'],
         ], $extra);
+    }
+
+    private function systemSlug(
+        string $source,
+        ?object $existingRecord = null,
+        string $sourceField = 'title'
+    ): string {
+        if ($existingRecord === null) {
+            return Str::slug($source);
+        }
+
+        $currentAutoSlug = Str::slug((string) $existingRecord->{$sourceField});
+
+        if ((string) $existingRecord->slug !== $currentAutoSlug) {
+            return (string) $existingRecord->slug;
+        }
+
+        return Str::slug($source);
     }
 
     private function withoutMissingSeoValues(Request $request, array $values): array

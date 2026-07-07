@@ -159,7 +159,6 @@ class CourseTemplateManagementTest extends TestCase
         foreach ($responses as $response) {
             foreach ([
                 'title',
-                'slug',
                 'thumbnail_type',
                 'estimated_duration_minutes',
                 'status',
@@ -239,6 +238,11 @@ class CourseTemplateManagementTest extends TestCase
                     'course-template-lifecycle-title'
                 )
             );
+            $this->assertStringContainsString(
+                'name="slug"',
+                $response->getContent()
+            );
+            $this->assertStringContainsString('readonly', $response->getContent());
             $this->assertManualSeoControlsNotRendered(
                 $response->getContent(),
                 'course-template-seo-title',
@@ -379,7 +383,6 @@ class CourseTemplateManagementTest extends TestCase
             ->post('https://tenant-a.localhost/admin/course-templates', [
                 'category_id' => $otherCategoryId,
                 'title' => '',
-                'slug' => '',
                 'thumbnail_type' => 'document',
                 'estimated_duration_minutes' => -1,
                 'status' => 'inactive',
@@ -388,7 +391,6 @@ class CourseTemplateManagementTest extends TestCase
             ->assertSessionHasErrors([
                 'category_id',
                 'title',
-                'slug',
                 'thumbnail_type',
                 'estimated_duration_minutes',
                 'status',
@@ -409,8 +411,7 @@ class CourseTemplateManagementTest extends TestCase
             ->post(
                 'https://tenant-a.localhost/admin/course-templates',
                 $this->validTemplateData([
-                    'title' => 'Duplicate TOPIK',
-                    'slug' => 'topik',
+                    'title' => 'TOPIK',
                 ])
             )
             ->assertSessionHasErrors('slug');
@@ -419,8 +420,7 @@ class CourseTemplateManagementTest extends TestCase
             ->post(
                 'https://tenant-b.localhost/admin/course-templates',
                 $this->validTemplateData([
-                    'title' => 'Tenant B TOPIK',
-                    'slug' => 'topik',
+                    'title' => 'TOPIK',
                 ])
             )
             ->assertRedirect('https://tenant-b.localhost/admin/course-templates');
@@ -629,7 +629,6 @@ class CourseTemplateManagementTest extends TestCase
         return array_merge([
             'category_id' => null,
             'title' => 'Programming Basics',
-            'slug' => 'programming-basics',
             'short_description' => null,
             'description' => null,
             'publisher_name' => null,

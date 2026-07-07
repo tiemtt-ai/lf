@@ -192,6 +192,13 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringContainsString('flex-direction: column;', $componentCss);
         $this->assertStringContainsString('gap: 24px;', $componentCss);
         $this->assertStringContainsString('@media (max-width: 900px)', $componentCss);
+        $this->assertStringContainsString(
+            '.lf-admin-page input.lf-form-control[readonly]',
+            $componentCss
+        );
+        $this->assertStringContainsString('background-color: #f8fafc;', $componentCss);
+        $this->assertStringContainsString('color: #374151;', $componentCss);
+        $this->assertStringContainsString('cursor: default;', $componentCss);
         $this->assertStringContainsString('.admin-form-card {', $pageCss);
         $this->assertStringContainsString('max-width: 720px;', $pageCss);
         $this->assertStringContainsString('.admin-form-card:has(> form > .admin-form-section)', $pageCss);

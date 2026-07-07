@@ -59,6 +59,16 @@
     line-height: 1.5;
 }
 
+.lf-admin-page input.form-control[readonly],
+.lf-admin-page input.lf-form-control[readonly],
+.lf-admin-page textarea.form-control[readonly],
+.lf-admin-page textarea.lf-form-control[readonly] {
+    border-color: #d9dee5;
+    color: #374151;
+    background-color: #f8fafc;
+    cursor: default;
+}
+
 .lf-admin-page textarea.lf-form-control {
     height: auto;
     resize: vertical;

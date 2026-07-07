@@ -137,6 +137,8 @@ class CourseCategoryManagementTest extends TestCase
                 'aria-labelledby="course-category-description-title"',
                 $content
             );
+            $this->assertStringContainsString('name="slug"', $content);
+            $this->assertStringContainsString('readonly', $content);
             $this->assertManualSeoControlsNotRendered(
                 $content,
                 'course-category-seo-title',
@@ -448,7 +450,6 @@ class CourseCategoryManagementTest extends TestCase
             ->from('https://tenant-a.localhost/admin/course-categories/create')
             ->post('https://tenant-a.localhost/admin/course-categories', [
                 'name' => '',
-                'slug' => '',
                 'sort_order' => 'not-an-integer',
                 'is_featured' => 'not-a-boolean',
                 'status' => 'archived',
@@ -456,7 +457,6 @@ class CourseCategoryManagementTest extends TestCase
             ->assertRedirect('https://tenant-a.localhost/admin/course-categories/create')
             ->assertSessionHasErrors([
                 'name',
-                'slug',
                 'sort_order',
                 'is_featured',
                 'status',
@@ -528,15 +528,13 @@ class CourseCategoryManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->post('https://tenant-a.localhost/admin/course-categories', $this->validCategoryData([
-                'name' => 'Duplicate Korean',
-                'slug' => 'korean',
+                'name' => 'Korean',
             ]))
             ->assertSessionHasErrors('slug');
 
         $this->actingAs($otherAdmin)
             ->post('https://tenant-b.localhost/admin/course-categories', $this->validCategoryData([
-                'name' => 'Tenant B Korean',
-                'slug' => 'korean',
+                'name' => 'Korean',
             ]))
             ->assertRedirect('https://tenant-b.localhost/admin/course-categories');
 
@@ -677,7 +675,6 @@ class CourseCategoryManagementTest extends TestCase
         return array_merge([
             'parent_id' => null,
             'name' => 'Programming',
-            'slug' => 'programming',
             'description' => null,
             'thumbnail_image' => null,
             'banner_image' => null,

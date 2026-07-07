@@ -312,7 +312,7 @@ class CourseProductManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_products', [
             'customer_id' => $customerId,
             'product_code' => 'PRD-20260704-001',
-            'slug' => 'topik',
+            'slug' => 'topik-a',
         ]);
         $this->assertDatabaseHas('core_course_products', [
             'customer_id' => $customerId,
@@ -322,7 +322,7 @@ class CourseProductManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_products', [
             'customer_id' => $otherCustomerId,
             'product_code' => 'PRD-20260704-001',
-            'slug' => 'topik',
+            'slug' => 'tenant-b-topik',
         ]);
     }
 
@@ -335,12 +335,16 @@ class CourseProductManagementTest extends TestCase
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-products/create')
             ->assertOk()
-            ->assertDontSee('name="product_code"', false);
+            ->assertDontSee('name="product_code"', false)
+            ->assertSee('name="slug"', false)
+            ->assertSee('readonly', false);
 
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
             ->assertDontSee('name="product_code"', false)
+            ->assertSee('name="slug"', false)
+            ->assertSee('readonly', false)
             ->assertSeeText('TOPIK');
     }
 
@@ -403,6 +407,34 @@ class CourseProductManagementTest extends TestCase
             'meta_title' => 'Legacy SEO Title',
             'meta_description' => 'Legacy SEO description',
             'meta_keywords' => 'legacy,seo',
+        ]);
+    }
+
+    public function test_product_slug_is_generated_and_unique_per_tenant(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
+        $this->createProduct($customerId, 'TOPIK', 'topik');
+
+        $this->actingAs($admin)
+            ->post(
+                'https://tenant-a.localhost/admin/course-products',
+                $this->validProductData(['title' => 'TOPIK'])
+            )
+            ->assertSessionHasErrors('slug');
+
+        $this->actingAs($otherAdmin)
+            ->post(
+                'https://tenant-b.localhost/admin/course-products',
+                $this->validProductData(['title' => 'TOPIK'])
+            )
+            ->assertRedirect('https://tenant-b.localhost/admin/course-products');
+
+        $this->assertDatabaseHas('core_course_products', [
+            'customer_id' => $otherCustomerId,
+            'slug' => 'topik',
         ]);
     }
 
@@ -1438,7 +1470,6 @@ class CourseProductManagementTest extends TestCase
         return array_merge([
             'product_type' => 'single_course',
             'title' => 'Programming Basics',
-            'slug' => 'programming-basics',
             'short_description' => null,
             'description' => null,
             'thumbnail_type' => 'image',

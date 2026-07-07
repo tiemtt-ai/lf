@@ -1,5 +1,11 @@
 @php
     $formProduct = $product ?? null;
+    $slugSource = old('title', $formProduct?->title);
+    $slugFollowsTitle = $formProduct === null
+        || (string) $formProduct->slug === \Illuminate\Support\Str::slug((string) $formProduct->title);
+    $generatedSlug = $slugFollowsTitle
+        ? \Illuminate\Support\Str::slug((string) $slugSource)
+        : old('slug', $formProduct?->slug);
     $selectedProductType = old('product_type', $formProduct?->product_type ?? 'single_course');
     $selectedThumbnailType = old('thumbnail_type', $formProduct?->thumbnail_type ?? 'image');
     $selectedThumbnailVideoSource = old('thumbnail_video_source', $formProduct?->thumbnail_video_source);
@@ -23,7 +29,26 @@
 
 <div class="backend-form-columns">
     <div class="backend-form-column">
-<section class="admin-form-section" aria-labelledby="course-product-basic-title">
+<section class="admin-form-section"
+         aria-labelledby="course-product-basic-title"
+         x-data="{
+             generatedSlug: @js((string) $generatedSlug),
+             slugFollowsTitle: @js($slugFollowsTitle),
+             slugify(value) {
+                 return value.toString()
+                     .normalize('NFD')
+                     .replace(/[\u0300-\u036f]/g, '')
+                     .toLowerCase()
+                     .trim()
+                     .replace(/[^a-z0-9]+/g, '-')
+                     .replace(/^-+|-+$/g, '');
+             },
+             syncSlug(value) {
+                 if (this.slugFollowsTitle) {
+                     this.generatedSlug = this.slugify(value);
+                 }
+             },
+         }">
     <h2 id="course-product-basic-title" class="admin-form-section-title">
         {{ __('lf.LF_course_product_group_basic') }}
     </h2>
@@ -60,15 +85,20 @@
                       :value="__('lf.LF_course_product_common_title_field')"
                       :required="$isRequired('title')" />
         <input id="title" type="text" name="title" class="lf-form-control"
-               value="{{ old('title', $formProduct?->title) }}" required maxlength="255">
+               value="{{ old('title', $formProduct?->title) }}"
+               required
+               maxlength="255"
+               @input="syncSlug($event.target.value)">
     </div>
 
     <div class="lf-form-group">
         <x-form-label for="slug"
-                      :value="__('lf.LF_course_product_common_slug')"
-                      :required="$isRequired('slug')" />
+                      :value="__('lf.LF_course_product_common_slug')" />
         <input id="slug" type="text" name="slug" class="lf-form-control"
-               value="{{ old('slug', $formProduct?->slug) }}" required maxlength="255">
+               value="{{ $generatedSlug }}"
+               maxlength="255"
+               readonly
+               x-model="generatedSlug">
     </div>
 
     <div class="lf-form-group">

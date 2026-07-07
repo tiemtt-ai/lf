@@ -1,11 +1,36 @@
 @php
     $formCategory = $category ?? null;
+    $slugSource = old('name', $formCategory?->name);
+    $slugFollowsName = $formCategory === null
+        || (string) $formCategory->slug === \Illuminate\Support\Str::slug((string) $formCategory->name);
+    $generatedSlug = $slugFollowsName
+        ? \Illuminate\Support\Str::slug((string) $slugSource)
+        : old('slug', $formCategory?->slug);
     $selectedParentId = old('parent_id', $formCategory?->parent_id);
     $selectedStatus = old('status', $formCategory?->status ?? 'active');
     $isFeatured = (bool) old('is_featured', $formCategory?->is_featured ?? false);
 @endphp
 
-<section class="admin-form-section" aria-labelledby="course-category-basic-title">
+<section class="admin-form-section"
+         aria-labelledby="course-category-basic-title"
+         x-data="{
+             generatedSlug: @js((string) $generatedSlug),
+             slugFollowsName: @js($slugFollowsName),
+             slugify(value) {
+                 return value.toString()
+                     .normalize('NFD')
+                     .replace(/[\u0300-\u036f]/g, '')
+                     .toLowerCase()
+                     .trim()
+                     .replace(/[^a-z0-9]+/g, '-')
+                     .replace(/^-+|-+$/g, '');
+             },
+             syncSlug(value) {
+                 if (this.slugFollowsName) {
+                     this.generatedSlug = this.slugify(value);
+                 }
+             },
+         }">
     <h2 id="course-category-basic-title" class="admin-form-section-title">
         {{ __('lf.LF_course_category_group_general') }}
     </h2>
@@ -15,15 +40,20 @@
                       :value="__('lf.LF_course_category_common_name')"
                       required />
         <input id="name" type="text" name="name" class="lf-form-control"
-               value="{{ old('name', $formCategory?->name) }}" required maxlength="255">
+               value="{{ old('name', $formCategory?->name) }}"
+               required
+               maxlength="255"
+               @input="syncSlug($event.target.value)">
     </div>
 
     <div class="lf-form-group">
         <x-form-label for="slug"
-                      :value="__('lf.LF_course_category_common_slug')"
-                      required />
+                      :value="__('lf.LF_course_category_common_slug')" />
         <input id="slug" type="text" name="slug" class="lf-form-control"
-               value="{{ old('slug', $formCategory?->slug) }}" required maxlength="255">
+               value="{{ $generatedSlug }}"
+               maxlength="255"
+               readonly
+               x-model="generatedSlug">
     </div>
 
     <div class="lf-form-group">
