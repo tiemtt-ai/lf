@@ -50,18 +50,6 @@ window.backendSidebar = () => ({
         this.setManualSidebarState(! this.sidebarCollapsed);
     },
 
-    handleSidebarNavigation(event) {
-        if (! this.sidebarCollapsed) {
-            return;
-        }
-
-        this.expandSidebarFromNavigation();
-    },
-
-    handleBreadcrumbNavigation(event) {
-        this.handleSidebarNavigation(event);
-    },
-
     registerSidebarGroup(groupKey, isActive) {
         if (isActive) {
             this.activeSidebarGroups[groupKey] = true;
@@ -71,13 +59,6 @@ window.backendSidebar = () => ({
     },
 
     toggleSidebarGroup(groupKey) {
-        if (this.sidebarCollapsed) {
-            this.setManualSidebarState(false);
-            this.setSidebarGroupOpen(groupKey, true);
-
-            return;
-        }
-
         this.setSidebarGroupOpen(groupKey, ! this.isSidebarGroupOpen(groupKey));
     },
 
@@ -88,14 +69,6 @@ window.backendSidebar = () => ({
 
     isSidebarGroupOpen(groupKey) {
         return this.activeSidebarGroups[groupKey] || this.sidebarGroups[groupKey] === true;
-    },
-
-    expandSidebarFromNavigation() {
-        if (! this.sidebarCollapsed) {
-            return;
-        }
-
-        this.setManualSidebarState(false);
     },
 
     resolveInitialSidebarState(hasStoredPreference, storedPreference) {

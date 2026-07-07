@@ -3,6 +3,8 @@
     --admin-active: #597ef7;
     --admin-accent: #7acc00;
     --admin-sidebar: #e6f7ff;
+    --admin-sidebar-hover: #d8f0ff;
+    --admin-sidebar-hover-text: #4056b8;
     --admin-sidebar-icon: #91d5ff;
     margin: 0;
     color: #212529;
@@ -418,8 +420,11 @@
     flex: 0 0 auto;
 }
 
-.admin-sidebar-link:hover {
-    opacity: .85;
+.admin-sidebar-link:not(.is-active):hover,
+.admin-sidebar-link:not(.is-active):focus-visible {
+    color: var(--admin-sidebar-hover-text);
+    background: var(--admin-sidebar-hover);
+    outline: 0;
 }
 
 .admin-sidebar-link.is-active {
@@ -449,7 +454,14 @@
     font-size: 13px;
     font-weight: 700;
     text-align: left;
-    transition: padding .22s ease;
+    transition: padding .22s ease, background-color .18s ease, color .18s ease;
+}
+
+.admin-sidebar-group:not(.is-active) .admin-sidebar-group-label:hover,
+.admin-sidebar-group:not(.is-active) .admin-sidebar-group-label:focus-visible {
+    color: var(--admin-sidebar-hover-text);
+    background: rgba(216, 240, 255, .7);
+    outline: 0;
 }
 
 .admin-sidebar-group.is-active .admin-sidebar-group-label {

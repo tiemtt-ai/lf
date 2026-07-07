@@ -62,7 +62,7 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertSee('data-sidebar-icon="users"', false)
             ->assertSee('data-sidebar-icon="book-open"', false)
             ->assertSee('data-sidebar-icon="image"', false)
-            ->assertSee('x-on:click="handleSidebarNavigation($event)"', false);
+            ->assertDontSee('x-on:click="handleSidebarNavigation($event)"', false);
 
         $this->actingAs($teacher)
             ->get('https://tenant-a.localhost/teacher')
@@ -71,7 +71,7 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertSee('data-sidebar-icon="home"', false)
             ->assertSee('data-sidebar-icon="folder"', false)
             ->assertSee('data-sidebar-icon="book-open"', false)
-            ->assertSee('x-on:click="handleSidebarNavigation($event)"', false);
+            ->assertDontSee('x-on:click="handleSidebarNavigation($event)"', false);
     }
 
     public function test_account_navigation_moves_from_sidebar_to_user_dropdown_by_role(): void
@@ -196,8 +196,8 @@ class BackendLayoutNavigationTest extends TestCase
                 ->get($url)
                 ->assertOk()
                 ->assertSee('x-data="backendSidebar()"', false)
-                ->assertSee('x-on:click="handleBreadcrumbNavigation($event)"', false)
                 ->assertSee('href="https://tenant-a.localhost/admin/course-categories"', false)
+                ->assertDontSee('x-on:click="handleBreadcrumbNavigation($event)"', false)
                 ->assertDontSee('has-sidebar-auto-collapse', false)
                 ->assertDontSee('data-sidebar-auto-collapse', false)
                 ->assertDontSee('backendSidebar(true)', false)
@@ -243,18 +243,18 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringNotContainsString('this.storePreference(false);', $script);
     }
 
-    public function test_collapsed_sidebar_navigation_click_saves_expanded_state_before_navigation(): void
+    public function test_backend_navigation_clicks_preserve_sidebar_state(): void
     {
         $script = file_get_contents(base_path('resources/js/app.js'));
 
-        $this->assertStringContainsString('handleSidebarNavigation(event)', $script);
-        $this->assertStringContainsString('handleBreadcrumbNavigation(event)', $script);
-        $this->assertStringContainsString('this.handleSidebarNavigation(event);', $script);
-        $this->assertStringContainsString('this.expandSidebarFromNavigation();', $script);
-        $this->assertStringContainsString('expandSidebarFromNavigation()', $script);
-        $this->assertStringContainsString('this.setManualSidebarState(false);', $script);
+        $this->assertStringContainsString('toggleSidebar()', $script);
+        $this->assertStringContainsString('this.setManualSidebarState(! this.sidebarCollapsed);', $script);
         $this->assertStringContainsString("window.localStorage.setItem(this.manualStorageKey, 'true')", $script);
         $this->assertStringContainsString("window.localStorage.setItem(this.storageKey, value ? 'true' : 'false')", $script);
+        $this->assertStringNotContainsString('handleSidebarNavigation', $script);
+        $this->assertStringNotContainsString('handleBreadcrumbNavigation', $script);
+        $this->assertStringNotContainsString('expandSidebarFromNavigation', $script);
+        $this->assertStringNotContainsString('this.setManualSidebarState(false);', $script);
         $this->assertStringNotContainsString('event.preventDefault();', $script);
     }
 
@@ -268,7 +268,7 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringContainsString('isSidebarGroupOpen(groupKey)', $script);
         $this->assertStringContainsString('this.storeSidebarGroups();', $script);
         $this->assertStringContainsString('JSON.stringify(this.sidebarGroups)', $script);
-        $this->assertStringContainsString('this.setManualSidebarState(false);', $script);
+        $this->assertStringContainsString('this.setSidebarGroupOpen(groupKey, ! this.isSidebarGroupOpen(groupKey));', $script);
     }
 
     public function test_public_and_student_layouts_do_not_render_backend_sidebar_toggle(): void

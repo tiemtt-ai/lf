@@ -301,8 +301,7 @@
 
                                         <a class="{{ $childClasses }}" href="{{ route($child['route']) }}"
                                            aria-label="{{ $child['label'] }}"
-                                           title="{{ $child['label'] }}"
-                                           x-on:click="handleSidebarNavigation($event)">
+                                           title="{{ $child['label'] }}">
                                             <span class="admin-sidebar-link-label">{{ $child['label'] }}</span>
                                         </a>
                                     @endforeach
@@ -316,8 +315,7 @@
                                aria-label="{{ $item['label'] }}"
                                data-sidebar-icon="{{ $item['icon'] ?? 'circle' }}"
                                data-sidebar-label="{{ $item['label'] }}"
-                               title="{{ $item['label'] }}"
-                               x-on:click="handleSidebarNavigation($event)">
+                               title="{{ $item['label'] }}">
                                 <x-backend-icon :name="$item['icon'] ?? 'circle'" />
                                 <span class="admin-sidebar-link-label">{{ $item['label'] }}</span>
                             </a>
