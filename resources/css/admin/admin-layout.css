@@ -332,6 +332,14 @@
     transition: grid-template-columns .22s ease;
 }
 
+:root.is-backend-sidebar-initializing .backend-shell .admin-content-wrap,
+:root.is-backend-sidebar-initializing .backend-shell .admin-sidebar-link,
+:root.is-backend-sidebar-initializing .backend-shell .admin-sidebar-group-label,
+:root.is-backend-sidebar-initializing .backend-shell .admin-sidebar-link-label {
+    transition: none;
+}
+
+:root.is-backend-sidebar-collapsed .backend-shell .admin-content-wrap,
 .backend-shell.is-sidebar-collapsed .admin-content-wrap {
     grid-template-columns: 52px minmax(0, 1fr);
 }
@@ -417,12 +425,15 @@
     background: #ffffff;
 }
 
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-menu,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-menu {
     width: 100%;
     align-items: stretch;
     gap: 8px;
 }
 
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-link,
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-link-child,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-link,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-link-child {
     width: 100%;
@@ -433,6 +444,8 @@
     box-sizing: border-box;
 }
 
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-link-label,
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group-label .admin-sidebar-link-label,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-link-label,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-group-label .admin-sidebar-link-label {
     width: 0;
@@ -442,6 +455,7 @@
     white-space: nowrap;
 }
 
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-group {
     width: 100%;
     padding: 0;
@@ -449,6 +463,7 @@
     box-sizing: border-box;
 }
 
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group-label,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-group-label {
     width: 100%;
     min-height: 48px;
@@ -460,19 +475,25 @@
     box-sizing: border-box;
 }
 
+:root.is-backend-sidebar-collapsed .backend-shell .backend-sidebar-icon,
 .backend-shell.is-sidebar-collapsed .backend-sidebar-icon {
     margin: 0;
 }
 
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group-links,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-group-links {
     display: none;
 }
 
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-link,
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group-label,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-link,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-group-label {
     position: relative;
 }
 
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-link::after,
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group-label::after,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-link::after,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-group-label::after {
     position: absolute;
@@ -496,6 +517,10 @@
     white-space: nowrap;
 }
 
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-link:hover::after,
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-link:focus-visible::after,
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group-label:hover::after,
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group-label:focus-visible::after,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-link:hover::after,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-link:focus-visible::after,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-group-label:hover::after,
@@ -504,10 +529,12 @@
     transform: translateY(-50%) translateX(0);
 }
 
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group.is-active,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-group.is-active {
     background: var(--admin-active);
 }
 
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group.is-active .admin-sidebar-group-label,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-group.is-active .admin-sidebar-group-label {
     color: #ffffff;
 }
@@ -735,6 +762,7 @@
         grid-template-columns: 1fr;
     }
 
+    :root.is-backend-sidebar-collapsed .backend-shell .admin-content-wrap,
     .backend-shell.is-sidebar-collapsed .admin-content-wrap {
         grid-template-columns: 1fr;
     }
@@ -757,18 +785,24 @@
         padding-left: 14px;
     }
 
+    :root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-menu,
+    :root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group-links,
     .backend-shell.is-sidebar-collapsed .admin-sidebar-menu,
     .backend-shell.is-sidebar-collapsed .admin-sidebar-group-links {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
     }
 
+    :root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-link,
+    :root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-link-child,
     .backend-shell.is-sidebar-collapsed .admin-sidebar-link,
     .backend-shell.is-sidebar-collapsed .admin-sidebar-link-child {
         padding-left: 14px;
         justify-content: flex-start;
     }
 
+    :root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-link-label,
+    :root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group-label .admin-sidebar-link-label,
     .backend-shell.is-sidebar-collapsed .admin-sidebar-link-label,
     .backend-shell.is-sidebar-collapsed .admin-sidebar-group-label .admin-sidebar-link-label {
         width: auto;
@@ -778,19 +812,24 @@
         white-space: normal;
     }
 
+    :root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group.is-active,
     .backend-shell.is-sidebar-collapsed .admin-sidebar-group.is-active {
         background: rgba(230, 247, 255, .65);
     }
 
+    :root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group.is-active .admin-sidebar-group-label,
     .backend-shell.is-sidebar-collapsed .admin-sidebar-group.is-active .admin-sidebar-group-label {
         color: var(--admin-active);
     }
 
+    :root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group-label,
     .backend-shell.is-sidebar-collapsed .admin-sidebar-group-label {
         padding: 4px 12px;
         justify-content: flex-start;
     }
 
+    :root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-link::after,
+    :root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group-label::after,
     .backend-shell.is-sidebar-collapsed .admin-sidebar-link::after,
     .backend-shell.is-sidebar-collapsed .admin-sidebar-group-label::after {
         display: none;

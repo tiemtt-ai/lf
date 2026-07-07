@@ -40,7 +40,12 @@ class BackendLayoutNavigationTest extends TestCase
                 ->assertSee('class="backend-breadcrumbs"', false)
                 ->assertSee('aria-label="'.__('lf.LF_navigation_label_backend_breadcrumbs').'"', false)
                 ->assertSee('data-sidebar-auto-collapse="false"', false)
-                ->assertSee('x-data="backendSidebar(false)"', false);
+                ->assertSee('x-data="backendSidebar(false)"', false)
+                ->assertSee("const collapsedKey = 'lf.backend.sidebar.collapsed';", false)
+                ->assertSee("const manualKey = 'lf.backend.sidebar.manual';", false)
+                ->assertSee("const pageModeKey = 'lf.backend.sidebar.pageMode';", false)
+                ->assertSee("const currentMode = 'standard';", false)
+                ->assertSee("document.documentElement.classList.add('is-backend-sidebar-initializing');", false);
         }
     }
 
@@ -57,7 +62,9 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertSee('data-sidebar-icon="home"', false)
             ->assertSee('data-sidebar-icon="users"', false)
             ->assertSee('data-sidebar-icon="book-open"', false)
-            ->assertSee('data-sidebar-icon="image"', false);
+            ->assertSee('data-sidebar-icon="image"', false)
+            ->assertSee('x-on:click="handleSidebarNavigation($event)"', false)
+            ->assertSee('x-on:click="expandSidebarFromNavigation"', false);
 
         $this->actingAs($teacher)
             ->get('https://tenant-a.localhost/teacher')
@@ -66,7 +73,9 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertSee('data-sidebar-icon="home"', false)
             ->assertSee('data-sidebar-icon="user-cog"', false)
             ->assertSee('data-sidebar-icon="folder"', false)
-            ->assertSee('data-sidebar-icon="book-open"', false);
+            ->assertSee('data-sidebar-icon="book-open"', false)
+            ->assertSee('admin-sidebar-link-child', false)
+            ->assertSee('x-on:click="handleSidebarNavigation($event)"', false);
     }
 
     public function test_collapsed_sidebar_css_uses_icon_only_mode_and_hides_submenus(): void
@@ -83,6 +92,15 @@ class BackendLayoutNavigationTest extends TestCase
             '.backend-shell.is-sidebar-collapsed .admin-sidebar-group-links',
             $css
         );
+        $this->assertStringContainsString(
+            ':root.is-backend-sidebar-collapsed .backend-shell .admin-content-wrap',
+            $css
+        );
+        $this->assertStringContainsString(
+            ':root.is-backend-sidebar-initializing .backend-shell .admin-content-wrap',
+            $css
+        );
+        $this->assertStringContainsString('transition: none;', $css);
         $this->assertStringContainsString('display: none;', $css);
         $this->assertStringContainsString('content: attr(data-sidebar-label);', $css);
     }
@@ -107,11 +125,12 @@ class BackendLayoutNavigationTest extends TestCase
                 ->assertSee('has-sidebar-auto-collapse', false)
                 ->assertSee('data-sidebar-auto-collapse="true"', false)
                 ->assertSee('x-data="backendSidebar(true)"', false)
+                ->assertSee('x-on:click="handleBreadcrumbNavigation($event)"', false)
                 ->assertSee('href="https://tenant-a.localhost/admin/course-categories"', false);
         }
     }
 
-    public function test_backend_index_pages_auto_expand_sidebar(): void
+    public function test_backend_index_pages_preserve_sidebar_state_without_auto_expand(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -122,18 +141,44 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertSee('class="backend-sidebar-toggle"', false)
             ->assertSee('data-sidebar-auto-collapse="false"', false)
             ->assertSee('x-data="backendSidebar(false)"', false)
+            ->assertSee("const currentMode = 'standard';", false)
             ->assertDontSee('has-sidebar-auto-collapse', false);
     }
 
-    public function test_sidebar_state_script_auto_expands_list_pages_and_collapses_form_pages_once(): void
+    public function test_sidebar_state_script_collapses_workspace_entry_and_preserves_manual_state(): void
     {
         $script = file_get_contents(base_path('resources/js/app.js'));
 
         $this->assertStringContainsString('window.backendSidebar = (autoCollapse)', $script);
-        $this->assertStringContainsString('this.sidebarCollapsed = true;', $script);
-        $this->assertStringContainsString('this.storePreference(true);', $script);
-        $this->assertStringContainsString('this.sidebarCollapsed = false;', $script);
-        $this->assertStringContainsString('this.storePreference(false);', $script);
+        $this->assertStringContainsString("storageKey: 'lf.backend.sidebar.collapsed'", $script);
+        $this->assertStringContainsString("manualStorageKey: 'lf.backend.sidebar.manual'", $script);
+        $this->assertStringContainsString("pageModeStorageKey: 'lf.backend.sidebar.pageMode'", $script);
+        $this->assertStringContainsString("storedManualPreference === 'true'", $script);
+        $this->assertStringContainsString('isEnteringWorkspace', $script);
+        $this->assertStringContainsString('return true;', $script);
+        $this->assertStringContainsString("return storedPreference === 'true';", $script);
+        $this->assertStringContainsString('return autoCollapse;', $script);
+        $this->assertStringContainsString('this.hasManualPreference = true;', $script);
+        $this->assertStringContainsString("window.localStorage.setItem(this.manualStorageKey, 'true')", $script);
+        $this->assertStringNotContainsString('this.sidebarCollapsed = false;', $script);
+        $this->assertStringNotContainsString('this.storePreference(false);', $script);
+        $this->assertStringContainsString("'is-backend-sidebar-collapsed'", $script);
+        $this->assertStringContainsString("'is-backend-sidebar-initializing'", $script);
+    }
+
+    public function test_collapsed_sidebar_navigation_click_saves_expanded_state_before_navigation(): void
+    {
+        $script = file_get_contents(base_path('resources/js/app.js'));
+
+        $this->assertStringContainsString('handleSidebarNavigation(event)', $script);
+        $this->assertStringContainsString('handleBreadcrumbNavigation(event)', $script);
+        $this->assertStringContainsString('this.handleSidebarNavigation(event);', $script);
+        $this->assertStringContainsString('this.expandSidebarFromNavigation();', $script);
+        $this->assertStringContainsString('expandSidebarFromNavigation()', $script);
+        $this->assertStringContainsString('this.setManualSidebarState(false);', $script);
+        $this->assertStringContainsString("window.localStorage.setItem(this.manualStorageKey, 'true')", $script);
+        $this->assertStringContainsString("window.localStorage.setItem(this.storageKey, value ? 'true' : 'false')", $script);
+        $this->assertStringNotContainsString('event.preventDefault();', $script);
     }
 
     public function test_public_and_student_layouts_do_not_render_backend_sidebar_toggle(): void

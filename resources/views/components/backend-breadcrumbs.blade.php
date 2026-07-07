@@ -19,7 +19,8 @@
             @foreach ($breadcrumbs as $breadcrumb)
                 <li class="backend-breadcrumb-item">
                     @if (($breadcrumb['url'] ?? null) && ! ($breadcrumb['current'] ?? false))
-                        <a href="{{ $breadcrumb['url'] }}">
+                        <a href="{{ $breadcrumb['url'] }}"
+                           x-on:click="handleBreadcrumbNavigation($event)">
                             {{ $breadcrumb['label'] }}
                         </a>
                     @else

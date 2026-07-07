@@ -1,6 +1,51 @@
 @extends('layouts.app')
 
 @section('vite')
+    @php
+        $backendSidebarIsWorkspacePage = \Illuminate\Support\Str::of((string) request()->route()?->getName())
+            ->endsWith(['.create', '.edit', '.show', '.detail', '.info']);
+    @endphp
+    <script>
+        (() => {
+            const collapsedKey = 'lf.backend.sidebar.collapsed';
+            const manualKey = 'lf.backend.sidebar.manual';
+            const pageModeKey = 'lf.backend.sidebar.pageMode';
+            const workspaceMode = 'workspace';
+            const currentMode = @js($backendSidebarIsWorkspacePage ? 'workspace' : 'standard');
+            let shouldCollapse = currentMode === workspaceMode;
+            let storedPreference = null;
+            let storedPageMode = null;
+            let isEnteringWorkspace = currentMode === workspaceMode;
+
+            try {
+                window.localStorage.getItem(manualKey);
+                storedPreference = window.localStorage.getItem(collapsedKey);
+                storedPageMode = window.localStorage.getItem(pageModeKey);
+                isEnteringWorkspace = currentMode === workspaceMode && storedPageMode !== workspaceMode;
+
+                if (isEnteringWorkspace) {
+                    shouldCollapse = true;
+                } else if (storedPreference === 'true' || storedPreference === 'false') {
+                    shouldCollapse = storedPreference === 'true';
+                }
+            } catch (error) {
+                shouldCollapse = currentMode === workspaceMode;
+            }
+
+            document.documentElement.classList.add('is-backend-sidebar-initializing');
+            document.documentElement.classList.toggle('is-backend-sidebar-collapsed', shouldCollapse);
+
+            try {
+                if (isEnteringWorkspace || (storedPreference !== 'true' && storedPreference !== 'false' && currentMode === workspaceMode)) {
+                    window.localStorage.setItem(collapsedKey, shouldCollapse ? 'true' : 'false');
+                }
+
+                window.localStorage.setItem(pageModeKey, currentMode);
+            } catch (error) {
+                // Ignore storage failures so the backend layout remains usable.
+            }
+        })();
+    </script>
     @vite(['resources/css/backend.css', 'resources/js/app.js'])
 @endsection
 
@@ -17,7 +62,7 @@
         $pageTitle = trim($__env->yieldContent('page_title', __('lf.LF_common_title_common_dashboard')));
         $currentRouteName = (string) request()->route()?->getName();
         $shouldAutoCollapseSidebar = \Illuminate\Support\Str::of($currentRouteName)
-            ->endsWith(['.create', '.edit', '.show']);
+            ->endsWith(['.create', '.edit', '.show', '.detail', '.info']);
         $primaryMenu = $isTeacher
             ? [
                 __('lf.LF_navigation_menu_student_my_courses'),
@@ -243,7 +288,8 @@
                                 <div class="admin-sidebar-group-label"
                                      data-sidebar-icon="{{ $item['icon'] ?? 'circle' }}"
                                      data-sidebar-label="{{ $item['label'] }}"
-                                     title="{{ $item['label'] }}">
+                                     title="{{ $item['label'] }}"
+                                     x-on:click="expandSidebarFromNavigation">
                                     <x-backend-icon :name="$item['icon'] ?? 'circle'" />
                                     <span class="admin-sidebar-link-label">{{ $item['label'] }}</span>
                                 </div>
@@ -257,7 +303,8 @@
 
                                         <a class="{{ $childClasses }}" href="{{ route($child['route']) }}"
                                            aria-label="{{ $child['label'] }}"
-                                           title="{{ $child['label'] }}">
+                                           title="{{ $child['label'] }}"
+                                           x-on:click="handleSidebarNavigation($event)">
                                             <span class="admin-sidebar-link-label">{{ $child['label'] }}</span>
                                         </a>
                                     @endforeach
@@ -271,7 +318,8 @@
                                aria-label="{{ $item['label'] }}"
                                data-sidebar-icon="{{ $item['icon'] ?? 'circle' }}"
                                data-sidebar-label="{{ $item['label'] }}"
-                               title="{{ $item['label'] }}">
+                               title="{{ $item['label'] }}"
+                               x-on:click="handleSidebarNavigation($event)">
                                 <x-backend-icon :name="$item['icon'] ?? 'circle'" />
                                 <span class="admin-sidebar-link-label">{{ $item['label'] }}</span>
                             </a>
