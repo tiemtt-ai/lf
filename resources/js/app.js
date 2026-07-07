@@ -9,9 +9,12 @@ window.backendSidebar = (autoCollapse) => ({
     storageKey: 'lf.backend.sidebar.collapsed',
     manualStorageKey: 'lf.backend.sidebar.manual',
     pageModeStorageKey: 'lf.backend.sidebar.pageMode',
+    groupStorageKey: 'lf.backend.sidebar.groups',
     workspaceMode: 'workspace',
     standardMode: 'standard',
     hasManualPreference: false,
+    sidebarGroups: {},
+    activeSidebarGroups: {},
 
     init() {
         let storedPreference = null;
@@ -23,10 +26,12 @@ window.backendSidebar = (autoCollapse) => ({
             storedPreference = window.localStorage.getItem(this.storageKey);
             storedManualPreference = window.localStorage.getItem(this.manualStorageKey);
             storedPageMode = window.localStorage.getItem(this.pageModeStorageKey);
+            this.sidebarGroups = JSON.parse(window.localStorage.getItem(this.groupStorageKey) || '{}') || {};
         } catch (error) {
             storedPreference = null;
             storedManualPreference = null;
             storedPageMode = null;
+            this.sidebarGroups = {};
         }
 
         const hasStoredPreference = storedPreference === 'true' || storedPreference === 'false';
@@ -76,6 +81,36 @@ window.backendSidebar = (autoCollapse) => ({
         this.handleSidebarNavigation(event);
     },
 
+    registerSidebarGroup(groupKey, isActive) {
+        if (isActive) {
+            this.activeSidebarGroups[groupKey] = true;
+            this.sidebarGroups[groupKey] = true;
+            this.storeSidebarGroups();
+        } else if (this.sidebarGroups[groupKey] === undefined) {
+            this.sidebarGroups[groupKey] = false;
+        }
+    },
+
+    toggleSidebarGroup(groupKey) {
+        if (this.sidebarCollapsed) {
+            this.setManualSidebarState(false);
+            this.setSidebarGroupOpen(groupKey, true);
+
+            return;
+        }
+
+        this.setSidebarGroupOpen(groupKey, ! this.isSidebarGroupOpen(groupKey));
+    },
+
+    setSidebarGroupOpen(groupKey, isOpen) {
+        this.sidebarGroups[groupKey] = Boolean(isOpen);
+        this.storeSidebarGroups();
+    },
+
+    isSidebarGroupOpen(groupKey) {
+        return this.activeSidebarGroups[groupKey] || this.sidebarGroups[groupKey] === true;
+    },
+
     expandSidebarFromNavigation() {
         if (! this.sidebarCollapsed) {
             return;
@@ -122,6 +157,14 @@ window.backendSidebar = (autoCollapse) => ({
     storePageMode(value) {
         try {
             window.localStorage.setItem(this.pageModeStorageKey, value);
+        } catch (error) {
+            // Ignore storage failures so the backend layout remains usable.
+        }
+    },
+
+    storeSidebarGroups() {
+        try {
+            window.localStorage.setItem(this.groupStorageKey, JSON.stringify(this.sidebarGroups));
         } catch (error) {
             // Ignore storage failures so the backend layout remains usable.
         }

@@ -399,18 +399,42 @@
 }
 
 .admin-sidebar-group-label {
+    width: 100%;
+    border: 0;
     padding: 4px 12px;
     display: flex;
     align-items: center;
     gap: 8px;
     color: var(--admin-primary);
+    background: transparent;
+    cursor: pointer;
     font-size: 13px;
     font-weight: 700;
+    text-align: left;
     transition: padding .22s ease;
 }
 
 .admin-sidebar-group.is-active .admin-sidebar-group-label {
     color: var(--admin-active);
+}
+
+.admin-sidebar-group.is-open .admin-sidebar-group-label {
+    color: var(--admin-active);
+}
+
+.admin-sidebar-group-arrow {
+    width: 8px;
+    height: 8px;
+    margin-left: auto;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    flex: 0 0 auto;
+    transform: rotate(-45deg);
+    transition: transform .18s ease;
+}
+
+.admin-sidebar-group.is-open .admin-sidebar-group-arrow {
+    transform: rotate(45deg);
 }
 
 .admin-sidebar-group-links {
@@ -478,6 +502,11 @@
 :root.is-backend-sidebar-collapsed .backend-shell .backend-sidebar-icon,
 .backend-shell.is-sidebar-collapsed .backend-sidebar-icon {
     margin: 0;
+}
+
+:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group-arrow,
+.backend-shell.is-sidebar-collapsed .admin-sidebar-group-arrow {
+    display: none;
 }
 
 :root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group-links,

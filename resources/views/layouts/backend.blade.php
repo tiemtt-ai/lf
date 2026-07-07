@@ -277,6 +277,7 @@
                                     fn (array $child): bool => $child['active']
                                         && request()->routeIs($child['active'])
                                 );
+                            $groupKey = 'sidebar-group-'.$loop->index;
                             $classes = 'admin-sidebar-link'.($isActive ? ' is-active' : '');
                         @endphp
 
@@ -284,17 +285,23 @@
                             <div @class([
                                 'admin-sidebar-group',
                                 'is-active' => $isGroupActive,
-                            ])>
-                                <div class="admin-sidebar-group-label"
-                                     data-sidebar-icon="{{ $item['icon'] ?? 'circle' }}"
-                                     data-sidebar-label="{{ $item['label'] }}"
-                                     title="{{ $item['label'] }}"
-                                     x-on:click="expandSidebarFromNavigation">
+                            ])
+                                 x-init="registerSidebarGroup('{{ $groupKey }}', @js($isGroupActive))"
+                                 x-bind:class="{ 'is-open': isSidebarGroupOpen('{{ $groupKey }}') }">
+                                <button class="admin-sidebar-group-label"
+                                        type="button"
+                                        data-sidebar-icon="{{ $item['icon'] ?? 'circle' }}"
+                                        data-sidebar-label="{{ $item['label'] }}"
+                                        title="{{ $item['label'] }}"
+                                        x-bind:aria-expanded="isSidebarGroupOpen('{{ $groupKey }}').toString()"
+                                        x-on:click="toggleSidebarGroup('{{ $groupKey }}')">
                                     <x-backend-icon :name="$item['icon'] ?? 'circle'" />
                                     <span class="admin-sidebar-link-label">{{ $item['label'] }}</span>
-                                </div>
+                                    <span class="admin-sidebar-group-arrow" aria-hidden="true"></span>
+                                </button>
 
-                                <div class="admin-sidebar-group-links">
+                                <div class="admin-sidebar-group-links"
+                                     x-show="isSidebarGroupOpen('{{ $groupKey }}')">
                                     @foreach ($children as $child)
                                         @php
                                             $childIsActive = $child['active'] && request()->routeIs($child['active']);

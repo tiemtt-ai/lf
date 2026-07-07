@@ -64,7 +64,8 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertSee('data-sidebar-icon="book-open"', false)
             ->assertSee('data-sidebar-icon="image"', false)
             ->assertSee('x-on:click="handleSidebarNavigation($event)"', false)
-            ->assertSee('x-on:click="expandSidebarFromNavigation"', false);
+            ->assertSee('x-on:click="toggleSidebarGroup(', false)
+            ->assertSee('class="admin-sidebar-group-arrow"', false);
 
         $this->actingAs($teacher)
             ->get('https://tenant-a.localhost/teacher')
@@ -76,6 +77,25 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertSee('data-sidebar-icon="book-open"', false)
             ->assertSee('admin-sidebar-link-child', false)
             ->assertSee('x-on:click="handleSidebarNavigation($event)"', false);
+    }
+
+    public function test_sidebar_group_alpine_attributes_are_on_wrapper_not_visible_text(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $html = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin')
+            ->assertOk()
+            ->assertSee(__('lf.LF_navigation_group_admin_account_organization'))
+            ->assertSee('class="admin-sidebar-group"', false)
+            ->assertSee('x-init="registerSidebarGroup(\'sidebar-group-1\', false)"', false)
+            ->assertSee('x-bind:class="{ \'is-open\': isSidebarGroupOpen(\'sidebar-group-1\') }"', false)
+            ->getContent();
+
+        $this->assertStringNotContainsString(">\n                                 x-init=", $html);
+        $this->assertStringNotContainsString(">\n                                 x-bind:class=", $html);
+        $this->assertStringNotContainsString('&quot;registerSidebarGroup', $html);
     }
 
     public function test_collapsed_sidebar_css_uses_icon_only_mode_and_hides_submenus(): void
@@ -92,6 +112,13 @@ class BackendLayoutNavigationTest extends TestCase
             '.backend-shell.is-sidebar-collapsed .admin-sidebar-group-links',
             $css
         );
+        $this->assertStringContainsString('.admin-sidebar-group-arrow', $css);
+        $this->assertStringContainsString('transform: rotate(-45deg);', $css);
+        $this->assertStringContainsString('transform: rotate(45deg);', $css);
+        $this->assertStringContainsString(
+            '.backend-shell.is-sidebar-collapsed .admin-sidebar-group-arrow',
+            $css
+        );
         $this->assertStringContainsString(
             ':root.is-backend-sidebar-collapsed .backend-shell .admin-content-wrap',
             $css
@@ -103,6 +130,20 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringContainsString('transition: none;', $css);
         $this->assertStringContainsString('display: none;', $css);
         $this->assertStringContainsString('content: attr(data-sidebar-label);', $css);
+    }
+
+    public function test_active_child_expands_parent_sidebar_group(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/my-account')
+            ->assertOk()
+            ->assertSee('admin-sidebar-group is-active', false)
+            ->assertSee('x-init="registerSidebarGroup(\'sidebar-group-1\', true)"', false)
+            ->assertSee('x-bind:aria-expanded="isSidebarGroupOpen(\'sidebar-group-1\').toString()"', false)
+            ->assertSee('admin-sidebar-link admin-sidebar-link-child is-active', false);
     }
 
     public function test_backend_create_and_edit_pages_include_auto_collapse_marker(): void
@@ -153,6 +194,7 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringContainsString("storageKey: 'lf.backend.sidebar.collapsed'", $script);
         $this->assertStringContainsString("manualStorageKey: 'lf.backend.sidebar.manual'", $script);
         $this->assertStringContainsString("pageModeStorageKey: 'lf.backend.sidebar.pageMode'", $script);
+        $this->assertStringContainsString("groupStorageKey: 'lf.backend.sidebar.groups'", $script);
         $this->assertStringContainsString("storedManualPreference === 'true'", $script);
         $this->assertStringContainsString('isEnteringWorkspace', $script);
         $this->assertStringContainsString('return true;', $script);
@@ -179,6 +221,19 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringContainsString("window.localStorage.setItem(this.manualStorageKey, 'true')", $script);
         $this->assertStringContainsString("window.localStorage.setItem(this.storageKey, value ? 'true' : 'false')", $script);
         $this->assertStringNotContainsString('event.preventDefault();', $script);
+    }
+
+    public function test_sidebar_group_script_toggles_and_persists_submenus(): void
+    {
+        $script = file_get_contents(base_path('resources/js/app.js'));
+
+        $this->assertStringContainsString('registerSidebarGroup(groupKey, isActive)', $script);
+        $this->assertStringContainsString('toggleSidebarGroup(groupKey)', $script);
+        $this->assertStringContainsString('setSidebarGroupOpen(groupKey, isOpen)', $script);
+        $this->assertStringContainsString('isSidebarGroupOpen(groupKey)', $script);
+        $this->assertStringContainsString('this.storeSidebarGroups();', $script);
+        $this->assertStringContainsString('JSON.stringify(this.sidebarGroups)', $script);
+        $this->assertStringContainsString('this.setManualSidebarState(false);', $script);
     }
 
     public function test_public_and_student_layouts_do_not_render_backend_sidebar_toggle(): void
