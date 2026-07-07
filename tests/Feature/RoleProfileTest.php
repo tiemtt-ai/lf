@@ -50,12 +50,10 @@ class RoleProfileTest extends TestCase
             ->assertSee('href="https://tenant-a.localhost/teacher/profile"', false)
             ->assertSee('href="https://tenant-a.localhost/teacher/course-categories"', false)
             ->assertSee('href="https://tenant-a.localhost/teacher/course-templates"', false)
-            ->assertSeeText(__('lf.LF_navigation_group_teacher_my_account'))
-            ->assertSeeText(__('lf.LF_navigation_menu_teacher_my_profile'))
-            ->assertSee(
-                'class="admin-sidebar-link admin-sidebar-link-child is-active" href="https://tenant-a.localhost/teacher/profile"',
-                false
-            )
+            ->assertSeeText(__('lf.LF_navigation_menu_admin_my_account'))
+            ->assertSee('class="admin-account-dropdown-links"', false)
+            ->assertDontSeeText(__('lf.LF_navigation_menu_teacher_my_profile'))
+            ->assertDontSee('admin-sidebar-link-child is-active', false)
             ->assertDontSee('href="https://tenant-a.localhost/admin"', false)
             ->assertDontSeeText(__('lf.LF_navigation_menu_student_my_courses'))
             ->assertDontSeeText(__('lf.LF_navigation_menu_teacher_live_classes'))
@@ -69,6 +67,7 @@ class RoleProfileTest extends TestCase
             ->assertSeeText(__('lf.LF_teacher_title_teacher_pending_gradings'))
             ->assertSeeText(__('lf.LF_teacher_title_teacher_upcoming_classes'))
             ->assertSee('href="https://tenant-a.localhost/teacher/profile"', false)
+            ->assertSeeText(__('lf.LF_navigation_menu_admin_my_account'))
             ->assertDontSee('href="https://tenant-a.localhost/admin"', false);
 
         $this->actingAs($teacher)

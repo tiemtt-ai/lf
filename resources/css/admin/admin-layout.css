@@ -259,18 +259,55 @@
     top: 25px;
     right: 0;
     z-index: 50;
-    min-width: 180px;
-    padding: 10px;
+    min-width: 220px;
+    padding: 12px;
     border: 1px solid #eeeeee;
     border-radius: 4px;
     background: #ffffff;
     box-shadow: 0 8px 18px rgba(72, 92, 199, .12);
 }
 
-.admin-account-dropdown p {
-    margin: 0 0 8px;
+.admin-account-dropdown-user {
+    padding: 0 2px 10px;
+    border-bottom: 1px solid #eeeeee;
+}
+
+.admin-account-dropdown-user strong,
+.admin-account-dropdown-user span {
+    display: block;
+}
+
+.admin-account-dropdown-user strong {
+    margin-bottom: 4px;
+    color: #222222;
+    font-size: 13px;
+}
+
+.admin-account-dropdown-user span {
     color: #777777;
     font-size: 12px;
+}
+
+.admin-account-dropdown-links {
+    padding: 8px 0;
+    border-bottom: 1px solid #eeeeee;
+}
+
+.admin-account-dropdown-links a {
+    padding: 8px 6px;
+    display: block;
+    border-radius: 4px;
+    color: var(--admin-primary);
+    font-size: 13px;
+}
+
+.admin-account-dropdown-links a:hover,
+.admin-account-dropdown-links a:focus-visible {
+    background: rgba(230, 247, 255, .65);
+}
+
+.admin-account-dropdown form {
+    margin-top: 10px;
 }
 
 .admin-account-dropdown button {

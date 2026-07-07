@@ -1,49 +1,23 @@
 @extends('layouts.app')
 
 @section('vite')
-    @php
-        $backendSidebarIsWorkspacePage = \Illuminate\Support\Str::of((string) request()->route()?->getName())
-            ->endsWith(['.create', '.edit', '.show', '.detail', '.info']);
-    @endphp
     <script>
         (() => {
             const collapsedKey = 'lf.backend.sidebar.collapsed';
-            const manualKey = 'lf.backend.sidebar.manual';
-            const pageModeKey = 'lf.backend.sidebar.pageMode';
-            const workspaceMode = 'workspace';
-            const currentMode = @js($backendSidebarIsWorkspacePage ? 'workspace' : 'standard');
-            let shouldCollapse = currentMode === workspaceMode;
-            let storedPreference = null;
-            let storedPageMode = null;
-            let isEnteringWorkspace = currentMode === workspaceMode;
+            let shouldCollapse = false;
 
             try {
-                window.localStorage.getItem(manualKey);
-                storedPreference = window.localStorage.getItem(collapsedKey);
-                storedPageMode = window.localStorage.getItem(pageModeKey);
-                isEnteringWorkspace = currentMode === workspaceMode && storedPageMode !== workspaceMode;
+                const storedPreference = window.localStorage.getItem(collapsedKey);
 
-                if (isEnteringWorkspace) {
-                    shouldCollapse = true;
-                } else if (storedPreference === 'true' || storedPreference === 'false') {
+                if (storedPreference === 'true' || storedPreference === 'false') {
                     shouldCollapse = storedPreference === 'true';
                 }
             } catch (error) {
-                shouldCollapse = currentMode === workspaceMode;
+                shouldCollapse = false;
             }
 
             document.documentElement.classList.add('is-backend-sidebar-initializing');
             document.documentElement.classList.toggle('is-backend-sidebar-collapsed', shouldCollapse);
-
-            try {
-                if (isEnteringWorkspace || (storedPreference !== 'true' && storedPreference !== 'false' && currentMode === workspaceMode)) {
-                    window.localStorage.setItem(collapsedKey, shouldCollapse ? 'true' : 'false');
-                }
-
-                window.localStorage.setItem(pageModeKey, currentMode);
-            } catch (error) {
-                // Ignore storage failures so the backend layout remains usable.
-            }
         })();
     </script>
     @vite(['resources/css/backend.css', 'resources/js/app.js'])
@@ -61,8 +35,13 @@
             : __('lf.LF_navigation_label_admin_navigation');
         $pageTitle = trim($__env->yieldContent('page_title', __('lf.LF_common_title_common_dashboard')));
         $currentRouteName = (string) request()->route()?->getName();
-        $shouldAutoCollapseSidebar = \Illuminate\Support\Str::of($currentRouteName)
-            ->endsWith(['.create', '.edit', '.show', '.detail', '.info']);
+        $isWorkspacePage = \Illuminate\Support\Str::of($currentRouteName)->endsWith([
+            '.create',
+            '.edit',
+            '.show',
+            '.detail',
+            '.info',
+        ]);
         $primaryMenu = $isTeacher
             ? [
                 __('lf.LF_navigation_menu_student_my_courses'),
@@ -81,32 +60,23 @@
                 __('lf.LF_navigation_menu_admin_level_test'),
                 __('lf.LF_navigation_menu_admin_visang_video'),
             ];
+        $accountMenuLinks = $isTeacher
+            ? [
+                ['label' => __('lf.LF_navigation_menu_admin_my_account'), 'route' => 'teacher.profile.edit'],
+            ]
+            : [
+                ['label' => __('lf.LF_navigation_menu_admin_organization'), 'route' => 'admin.organization.edit'],
+                ['label' => __('lf.LF_navigation_menu_admin_users'), 'route' => 'admin.users.index'],
+                ['label' => __('lf.LF_navigation_menu_admin_my_account'), 'route' => 'admin.my-account.edit'],
+            ];
         $portalMenu = $isTeacher
             ? [
                 ['label' => __('lf.LF_navigation_menu_teacher_dashboard'), 'route' => 'teacher.dashboard', 'active' => 'teacher.dashboard', 'visible' => true, 'icon' => 'home'],
-                [
-                    'label' => __('lf.LF_navigation_group_teacher_my_account'),
-                    'visible' => true,
-                    'icon' => 'user-cog',
-                    'children' => [
-                        ['label' => __('lf.LF_navigation_menu_teacher_my_profile'), 'route' => 'teacher.profile.edit', 'active' => 'teacher.profile.*', 'visible' => true],
-                    ],
-                ],
                 ['label' => __('lf.LF_navigation_menu_common_product_categories'), 'route' => 'teacher.course-categories.index', 'active' => 'teacher.course-categories.*', 'visible' => true, 'icon' => 'folder'],
                 ['label' => __('lf.LF_navigation_menu_common_course_templates'), 'route' => 'teacher.course-templates.index', 'active' => 'teacher.course-templates.*', 'visible' => true, 'icon' => 'book-open'],
             ]
             : [
                 ['label' => __('lf.LF_navigation_menu_admin_dashboard'), 'route' => 'admin.dashboard', 'active' => 'admin.dashboard', 'visible' => true, 'icon' => 'home'],
-                [
-                    'label' => __('lf.LF_navigation_group_admin_account_organization'),
-                    'visible' => true,
-                    'icon' => 'users',
-                    'children' => [
-                        ['label' => __('lf.LF_navigation_menu_admin_organization'), 'route' => 'admin.organization.edit', 'active' => 'admin.organization.*', 'visible' => true],
-                        ['label' => __('lf.LF_navigation_menu_admin_users'), 'route' => 'admin.users.index', 'active' => 'admin.users.*', 'visible' => true],
-                        ['label' => __('lf.LF_navigation_menu_admin_my_account'), 'route' => 'admin.my-account.edit', 'active' => 'admin.my-account.*', 'visible' => true],
-                    ],
-                ],
                 ['label' => __('lf.LF_navigation_menu_common_product_categories'), 'route' => 'admin.course-categories.index', 'active' => 'admin.course-categories.*', 'visible' => true, 'icon' => 'folder'],
                 ['label' => __('lf.LF_navigation_menu_common_course_templates'), 'route' => 'admin.course-templates.index', 'active' => 'admin.course-templates.*', 'visible' => true, 'icon' => 'book-open'],
                 ['label' => __('lf.LF_navigation_menu_admin_course_products'), 'route' => 'admin.course-products.index', 'active' => 'admin.course-products.*', 'visible' => true, 'icon' => 'shopping-bag'],
@@ -158,7 +128,7 @@
             if ($activeMenuItem) {
                 $menuLabel = $activeMenuItem['label'];
                 $menuUrl = route($activeMenuItem['route']);
-                $showPageCrumb = $pageTitle !== $menuLabel && $shouldAutoCollapseSidebar;
+                $showPageCrumb = $pageTitle !== $menuLabel && $isWorkspacePage;
 
                 $breadcrumbs[] = [
                     'label' => $menuLabel,
@@ -183,13 +153,9 @@
         }
     @endphp
 
-    <div x-data="backendSidebar(@js($shouldAutoCollapseSidebar))"
+    <div x-data="backendSidebar()"
          x-bind:class="{ 'is-sidebar-collapsed': sidebarCollapsed }"
-         @class([
-             'backend-shell',
-             'has-sidebar-auto-collapse' => $shouldAutoCollapseSidebar,
-         ])
-         data-sidebar-auto-collapse="{{ $shouldAutoCollapseSidebar ? 'true' : 'false' }}">
+         class="backend-shell">
     <header class="layout-header layout-header-top">
         <div class="admin-container">
             <div class="admin-partner-logos" aria-label="{{ __('lf.LF_common_navigation_common_partner_brands') }}">
@@ -207,7 +173,17 @@
                     </button>
 
                     <div class="admin-account-dropdown" x-show="open" x-cloak>
-                        <p>{{ $portalUser->email ?? 'user@example.com' }}</p>
+                        <div class="admin-account-dropdown-user">
+                            <strong>{{ $portalUser->name ?? 'user' }}</strong>
+                            <span>{{ $portalUser->email ?? 'user@example.com' }}</span>
+                        </div>
+
+                        <div class="admin-account-dropdown-links">
+                            @foreach ($accountMenuLinks as $link)
+                                <a href="{{ route($link['route']) }}">{{ $link['label'] }}</a>
+                            @endforeach
+                        </div>
+
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit">{{ __('lf.LF_navigation_menu_student_logout') }}</button>

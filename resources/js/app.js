@@ -4,14 +4,11 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
-window.backendSidebar = (autoCollapse) => ({
+window.backendSidebar = () => ({
     sidebarCollapsed: false,
     storageKey: 'lf.backend.sidebar.collapsed',
     manualStorageKey: 'lf.backend.sidebar.manual',
-    pageModeStorageKey: 'lf.backend.sidebar.pageMode',
     groupStorageKey: 'lf.backend.sidebar.groups',
-    workspaceMode: 'workspace',
-    standardMode: 'standard',
     hasManualPreference: false,
     sidebarGroups: {},
     activeSidebarGroups: {},
@@ -19,37 +16,21 @@ window.backendSidebar = (autoCollapse) => ({
     init() {
         let storedPreference = null;
         let storedManualPreference = null;
-        let storedPageMode = null;
-        const currentMode = autoCollapse ? this.workspaceMode : this.standardMode;
 
         try {
             storedPreference = window.localStorage.getItem(this.storageKey);
             storedManualPreference = window.localStorage.getItem(this.manualStorageKey);
-            storedPageMode = window.localStorage.getItem(this.pageModeStorageKey);
             this.sidebarGroups = JSON.parse(window.localStorage.getItem(this.groupStorageKey) || '{}') || {};
         } catch (error) {
             storedPreference = null;
             storedManualPreference = null;
-            storedPageMode = null;
             this.sidebarGroups = {};
         }
 
         const hasStoredPreference = storedPreference === 'true' || storedPreference === 'false';
-        const isEnteringWorkspace = autoCollapse && storedPageMode !== this.workspaceMode;
 
         this.hasManualPreference = storedManualPreference === 'true';
-        this.sidebarCollapsed = this.resolveInitialSidebarState(
-            isEnteringWorkspace,
-            hasStoredPreference,
-            storedPreference,
-            autoCollapse,
-        );
-
-        if (isEnteringWorkspace || (! hasStoredPreference && autoCollapse)) {
-            this.storePreference(this.sidebarCollapsed);
-        }
-
-        this.storePageMode(currentMode);
+        this.sidebarCollapsed = this.resolveInitialSidebarState(hasStoredPreference, storedPreference);
 
         this.$watch('sidebarCollapsed', (value) => {
             if (this.hasManualPreference) {
@@ -117,16 +98,12 @@ window.backendSidebar = (autoCollapse) => ({
         this.setManualSidebarState(false);
     },
 
-    resolveInitialSidebarState(isEnteringWorkspace, hasStoredPreference, storedPreference, autoCollapse) {
-        if (isEnteringWorkspace) {
-            return true;
-        }
-
+    resolveInitialSidebarState(hasStoredPreference, storedPreference) {
         if (hasStoredPreference) {
             return storedPreference === 'true';
         }
 
-        return autoCollapse;
+        return false;
     },
 
     setManualSidebarState(value) {
@@ -147,14 +124,6 @@ window.backendSidebar = (autoCollapse) => ({
         try {
             window.localStorage.setItem(this.manualStorageKey, 'true');
             window.localStorage.setItem(this.storageKey, value ? 'true' : 'false');
-        } catch (error) {
-            // Ignore storage failures so the backend layout remains usable.
-        }
-    },
-
-    storePageMode(value) {
-        try {
-            window.localStorage.setItem(this.pageModeStorageKey, value);
         } catch (error) {
             // Ignore storage failures so the backend layout remains usable.
         }
