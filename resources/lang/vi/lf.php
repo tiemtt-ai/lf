@@ -43,6 +43,8 @@ return [
     'LF_common_navigation_common_partner_brands' => 'Thương hiệu đối tác',
     'LF_common_navigation_common_account_menu' => 'Menu tài khoản',
     'LF_common_navigation_common_open_menu' => 'Mở menu',
+    'LF_navigation_button_backend_sidebar_toggle' => 'Ẩn hiện menu bên',
+    'LF_navigation_label_backend_breadcrumbs' => 'Đường dẫn điều hướng',
     'LF_common_message_common_no_users' => 'Không tìm thấy người dùng.',
     'LF_common_message_common_coming_soon' => 'Sắp ra mắt',
     'LF_common_footer_common_platform' => 'Nền tảng LMS SaaS đa tenant, AI-Native',

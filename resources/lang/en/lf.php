@@ -43,6 +43,8 @@ return [
     'LF_common_navigation_common_partner_brands' => 'Partner brands',
     'LF_common_navigation_common_account_menu' => 'Account menu',
     'LF_common_navigation_common_open_menu' => 'Open menu',
+    'LF_navigation_button_backend_sidebar_toggle' => 'Toggle sidebar',
+    'LF_navigation_label_backend_breadcrumbs' => 'Breadcrumbs',
     'LF_common_message_common_no_users' => 'No users found.',
     'LF_common_message_common_coming_soon' => 'Coming Soon',
     'LF_common_footer_common_platform' => 'AI-Native Multi-Tenant LMS SaaS Platform',

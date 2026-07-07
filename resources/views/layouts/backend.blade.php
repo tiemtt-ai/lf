@@ -14,6 +14,10 @@
         $navigationLabel = $isTeacher
             ? __('lf.LF_navigation_label_teacher_navigation')
             : __('lf.LF_navigation_label_admin_navigation');
+        $pageTitle = trim($__env->yieldContent('page_title', __('lf.LF_common_title_common_dashboard')));
+        $currentRouteName = (string) request()->route()?->getName();
+        $shouldAutoCollapseSidebar = \Illuminate\Support\Str::of($currentRouteName)
+            ->endsWith(['.create', '.edit', '.show']);
         $primaryMenu = $isTeacher
             ? [
                 __('lf.LF_navigation_menu_student_my_courses'),
@@ -34,38 +38,113 @@
             ];
         $portalMenu = $isTeacher
             ? [
-                ['label' => __('lf.LF_navigation_menu_teacher_dashboard'), 'route' => 'teacher.dashboard', 'active' => 'teacher.dashboard', 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_teacher_dashboard'), 'route' => 'teacher.dashboard', 'active' => 'teacher.dashboard', 'visible' => true, 'icon' => 'home'],
                 [
                     'label' => __('lf.LF_navigation_group_teacher_my_account'),
                     'visible' => true,
+                    'icon' => 'user-cog',
                     'children' => [
                         ['label' => __('lf.LF_navigation_menu_teacher_my_profile'), 'route' => 'teacher.profile.edit', 'active' => 'teacher.profile.*', 'visible' => true],
                     ],
                 ],
-                ['label' => __('lf.LF_navigation_menu_common_product_categories'), 'route' => 'teacher.course-categories.index', 'active' => 'teacher.course-categories.*', 'visible' => true],
-                ['label' => __('lf.LF_navigation_menu_common_course_templates'), 'route' => 'teacher.course-templates.index', 'active' => 'teacher.course-templates.*', 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_common_product_categories'), 'route' => 'teacher.course-categories.index', 'active' => 'teacher.course-categories.*', 'visible' => true, 'icon' => 'folder'],
+                ['label' => __('lf.LF_navigation_menu_common_course_templates'), 'route' => 'teacher.course-templates.index', 'active' => 'teacher.course-templates.*', 'visible' => true, 'icon' => 'book-open'],
             ]
             : [
-                ['label' => __('lf.LF_navigation_menu_admin_dashboard'), 'route' => 'admin.dashboard', 'active' => 'admin.dashboard', 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_admin_dashboard'), 'route' => 'admin.dashboard', 'active' => 'admin.dashboard', 'visible' => true, 'icon' => 'home'],
                 [
                     'label' => __('lf.LF_navigation_group_admin_account_organization'),
                     'visible' => true,
+                    'icon' => 'users',
                     'children' => [
                         ['label' => __('lf.LF_navigation_menu_admin_organization'), 'route' => 'admin.organization.edit', 'active' => 'admin.organization.*', 'visible' => true],
                         ['label' => __('lf.LF_navigation_menu_admin_users'), 'route' => 'admin.users.index', 'active' => 'admin.users.*', 'visible' => true],
                         ['label' => __('lf.LF_navigation_menu_admin_my_account'), 'route' => 'admin.my-account.edit', 'active' => 'admin.my-account.*', 'visible' => true],
                     ],
                 ],
-                ['label' => __('lf.LF_navigation_menu_common_product_categories'), 'route' => 'admin.course-categories.index', 'active' => 'admin.course-categories.*', 'visible' => true],
-                ['label' => __('lf.LF_navigation_menu_common_course_templates'), 'route' => 'admin.course-templates.index', 'active' => 'admin.course-templates.*', 'visible' => true],
-                ['label' => __('lf.LF_navigation_menu_admin_course_products'), 'route' => 'admin.course-products.index', 'active' => 'admin.course-products.*', 'visible' => true],
-                ['label' => __('lf.LF_navigation_menu_admin_course_cohorts'), 'route' => 'admin.course-cohorts.index', 'active' => 'admin.course-cohorts.*', 'visible' => true],
-                ['label' => __('lf.LF_navigation_menu_admin_course_cohort_students'), 'route' => 'admin.course-cohort-students.index', 'active' => 'admin.course-cohort-students.*', 'visible' => true],
-                ['label' => __('lf.LF_navigation_menu_admin_course_enrollments'), 'route' => 'admin.course-enrollments.index', 'active' => 'admin.course-enrollments.*', 'visible' => true],
-                ['label' => __('lf.LF_navigation_menu_admin_media'), 'route' => 'admin.media.index', 'active' => 'admin.media.*', 'visible' => true],
+                ['label' => __('lf.LF_navigation_menu_common_product_categories'), 'route' => 'admin.course-categories.index', 'active' => 'admin.course-categories.*', 'visible' => true, 'icon' => 'folder'],
+                ['label' => __('lf.LF_navigation_menu_common_course_templates'), 'route' => 'admin.course-templates.index', 'active' => 'admin.course-templates.*', 'visible' => true, 'icon' => 'book-open'],
+                ['label' => __('lf.LF_navigation_menu_admin_course_products'), 'route' => 'admin.course-products.index', 'active' => 'admin.course-products.*', 'visible' => true, 'icon' => 'shopping-bag'],
+                ['label' => __('lf.LF_navigation_menu_admin_course_cohorts'), 'route' => 'admin.course-cohorts.index', 'active' => 'admin.course-cohorts.*', 'visible' => true, 'icon' => 'video'],
+                ['label' => __('lf.LF_navigation_menu_admin_course_cohort_students'), 'route' => 'admin.course-cohort-students.index', 'active' => 'admin.course-cohort-students.*', 'visible' => true, 'icon' => 'users'],
+                ['label' => __('lf.LF_navigation_menu_admin_course_enrollments'), 'route' => 'admin.course-enrollments.index', 'active' => 'admin.course-enrollments.*', 'visible' => true, 'icon' => 'clipboard-check'],
+                ['label' => __('lf.LF_navigation_menu_admin_media'), 'route' => 'admin.media.index', 'active' => 'admin.media.*', 'visible' => true, 'icon' => 'image'],
             ];
+        $dashboardLabel = $isTeacher
+            ? __('lf.LF_navigation_menu_teacher_dashboard')
+            : __('lf.LF_navigation_menu_admin_dashboard');
+        $breadcrumbs = [[
+            'label' => $dashboardLabel,
+            'url' => route($dashboardRoute),
+            'current' => request()->routeIs($dashboardRoute),
+        ]];
+
+        if (! request()->routeIs($dashboardRoute)) {
+            $activeMenuItem = null;
+
+            foreach ($portalMenu as $item) {
+                if (! $item['visible']) {
+                    continue;
+                }
+
+                $children = collect($item['children'] ?? [])
+                    ->filter(fn (array $child): bool => $child['visible']);
+
+                if ($children->isNotEmpty()) {
+                    $activeChild = $children->first(
+                        fn (array $child): bool => $child['active']
+                            && request()->routeIs($child['active'])
+                    );
+
+                    if ($activeChild) {
+                        $activeMenuItem = $activeChild;
+                        break;
+                    }
+
+                    continue;
+                }
+
+                if (($item['active'] ?? null) && request()->routeIs($item['active'])) {
+                    $activeMenuItem = $item;
+                    break;
+                }
+            }
+
+            if ($activeMenuItem) {
+                $menuLabel = $activeMenuItem['label'];
+                $menuUrl = route($activeMenuItem['route']);
+                $showPageCrumb = $pageTitle !== $menuLabel && $shouldAutoCollapseSidebar;
+
+                $breadcrumbs[] = [
+                    'label' => $menuLabel,
+                    'url' => $showPageCrumb ? $menuUrl : null,
+                    'current' => ! $showPageCrumb,
+                ];
+
+                if ($showPageCrumb) {
+                    $breadcrumbs[] = [
+                        'label' => $pageTitle,
+                        'url' => null,
+                        'current' => true,
+                    ];
+                }
+            } else {
+                $breadcrumbs[] = [
+                    'label' => $pageTitle,
+                    'url' => null,
+                    'current' => true,
+                ];
+            }
+        }
     @endphp
 
+    <div x-data="backendSidebar(@js($shouldAutoCollapseSidebar))"
+         x-bind:class="{ 'is-sidebar-collapsed': sidebarCollapsed }"
+         @class([
+             'backend-shell',
+             'has-sidebar-auto-collapse' => $shouldAutoCollapseSidebar,
+         ])
+         data-sidebar-auto-collapse="{{ $shouldAutoCollapseSidebar ? 'true' : 'false' }}">
     <header class="layout-header layout-header-top">
         <div class="admin-container">
             <div class="admin-partner-logos" aria-label="{{ __('lf.LF_common_navigation_common_partner_brands') }}">
@@ -125,9 +204,15 @@
         </div>
     </nav>
 
+    <div class="layout-breadcrumb-bar">
+        <div class="admin-container">
+            <x-backend-breadcrumbs :breadcrumbs="$breadcrumbs" />
+        </div>
+    </div>
+
     <main class="layout-content">
         <div class="admin-container admin-content-wrap">
-            <aside class="layout-sidebar">
+            <aside id="backend-sidebar" class="layout-sidebar">
                 <nav @class([
                     'admin-sidebar-menu',
                     'is-teacher' => $isTeacher,
@@ -155,8 +240,12 @@
                                 'admin-sidebar-group',
                                 'is-active' => $isGroupActive,
                             ])>
-                                <div class="admin-sidebar-group-label">
-                                    {{ $item['label'] }}
+                                <div class="admin-sidebar-group-label"
+                                     data-sidebar-icon="{{ $item['icon'] ?? 'circle' }}"
+                                     data-sidebar-label="{{ $item['label'] }}"
+                                     title="{{ $item['label'] }}">
+                                    <x-backend-icon :name="$item['icon'] ?? 'circle'" />
+                                    <span class="admin-sidebar-link-label">{{ $item['label'] }}</span>
                                 </div>
 
                                 <div class="admin-sidebar-group-links">
@@ -166,8 +255,10 @@
                                             $childClasses = 'admin-sidebar-link admin-sidebar-link-child'.($childIsActive ? ' is-active' : '');
                                         @endphp
 
-                                        <a class="{{ $childClasses }}" href="{{ route($child['route']) }}">
-                                            {{ $child['label'] }}
+                                        <a class="{{ $childClasses }}" href="{{ route($child['route']) }}"
+                                           aria-label="{{ $child['label'] }}"
+                                           title="{{ $child['label'] }}">
+                                            <span class="admin-sidebar-link-label">{{ $child['label'] }}</span>
                                         </a>
                                     @endforeach
                                 </div>
@@ -176,8 +267,13 @@
                         @endif
 
                         @if ($item['route'])
-                            <a class="{{ $classes }}" href="{{ route($item['route']) }}">
-                                {{ $item['label'] }}
+                            <a class="{{ $classes }}" href="{{ route($item['route']) }}"
+                               aria-label="{{ $item['label'] }}"
+                               data-sidebar-icon="{{ $item['icon'] ?? 'circle' }}"
+                               data-sidebar-label="{{ $item['label'] }}"
+                               title="{{ $item['label'] }}">
+                                <x-backend-icon :name="$item['icon'] ?? 'circle'" />
+                                <span class="admin-sidebar-link-label">{{ $item['label'] }}</span>
                             </a>
                         @endif
                     @endforeach
@@ -266,5 +362,6 @@
         <div class="admin-floating-button is-message">
             <img src="{{ asset('assets/admin/download.svg') }}" alt="{{ __('lf.LF_common_image_common_download') }}">
         </div>
+    </div>
     </div>
 @endsection
