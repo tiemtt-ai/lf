@@ -333,7 +333,7 @@
 }
 
 .backend-shell.is-sidebar-collapsed .admin-content-wrap {
-    grid-template-columns: 72px minmax(0, 1fr);
+    grid-template-columns: 52px minmax(0, 1fr);
 }
 
 .lf-admin-page .layout-sidebar {
@@ -368,6 +368,7 @@
 .backend-sidebar-icon {
     width: 20px;
     height: 20px;
+    display: block;
     flex: 0 0 auto;
 }
 
@@ -417,13 +418,19 @@
 }
 
 .backend-shell.is-sidebar-collapsed .admin-sidebar-menu {
+    width: 100%;
+    align-items: stretch;
     gap: 8px;
 }
 
 .backend-shell.is-sidebar-collapsed .admin-sidebar-link,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-link-child {
-    padding: 8px;
+    width: 100%;
+    min-height: 48px;
+    padding: 0;
+    gap: 0;
     justify-content: center;
+    box-sizing: border-box;
 }
 
 .backend-shell.is-sidebar-collapsed .admin-sidebar-link-label,
@@ -436,16 +443,25 @@
 }
 
 .backend-shell.is-sidebar-collapsed .admin-sidebar-group {
-    padding: 8px;
+    width: 100%;
+    padding: 0;
     align-items: stretch;
+    box-sizing: border-box;
 }
 
 .backend-shell.is-sidebar-collapsed .admin-sidebar-group-label {
-    min-height: 44px;
-    padding: 4px 0;
+    width: 100%;
+    min-height: 48px;
+    padding: 0;
+    gap: 0;
     justify-content: center;
     position: relative;
     border-radius: 12px;
+    box-sizing: border-box;
+}
+
+.backend-shell.is-sidebar-collapsed .backend-sidebar-icon {
+    margin: 0;
 }
 
 .backend-shell.is-sidebar-collapsed .admin-sidebar-group-links {
