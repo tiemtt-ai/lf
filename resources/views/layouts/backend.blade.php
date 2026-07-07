@@ -285,9 +285,24 @@
                             <div @class([
                                 'admin-sidebar-group',
                                 'is-active' => $isGroupActive,
+                                'is-open' => $isGroupActive,
                             ])
+                                 data-sidebar-group-key="{{ $groupKey }}"
                                  x-init="registerSidebarGroup('{{ $groupKey }}', @js($isGroupActive))"
                                  x-bind:class="{ 'is-open': isSidebarGroupOpen('{{ $groupKey }}') }">
+                                <script>
+                                    (() => {
+                                        try {
+                                            const groups = JSON.parse(window.localStorage.getItem('lf.backend.sidebar.groups') || '{}') || {};
+
+                                            if (groups[@js($groupKey)] === true) {
+                                                document.currentScript.parentElement.classList.add('is-open');
+                                            }
+                                        } catch (error) {
+                                            // Ignore storage failures so the backend layout remains usable.
+                                        }
+                                    })();
+                                </script>
                                 <button class="admin-sidebar-group-label"
                                         type="button"
                                         data-sidebar-icon="{{ $item['icon'] ?? 'circle' }}"

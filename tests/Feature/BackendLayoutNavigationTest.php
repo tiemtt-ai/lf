@@ -89,13 +89,16 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertOk()
             ->assertSee(__('lf.LF_navigation_group_admin_account_organization'))
             ->assertSee('class="admin-sidebar-group"', false)
+            ->assertSee('data-sidebar-group-key="sidebar-group-1"', false)
             ->assertSee('x-init="registerSidebarGroup(\'sidebar-group-1\', false)"', false)
             ->assertSee('x-bind:class="{ \'is-open\': isSidebarGroupOpen(\'sidebar-group-1\') }"', false)
+            ->assertSee("groups['sidebar-group-1'] === true", false)
             ->getContent();
 
         $this->assertStringNotContainsString(">\n                                 x-init=", $html);
         $this->assertStringNotContainsString(">\n                                 x-bind:class=", $html);
         $this->assertStringNotContainsString('&quot;registerSidebarGroup', $html);
+        $this->assertStringNotContainsString('admin-sidebar-group is-open"', $html);
     }
 
     public function test_collapsed_sidebar_css_uses_icon_only_mode_and_hides_submenus(): void
@@ -127,6 +130,14 @@ class BackendLayoutNavigationTest extends TestCase
             ':root.is-backend-sidebar-initializing .backend-shell .admin-content-wrap',
             $css
         );
+        $this->assertStringContainsString(
+            ':root.is-backend-sidebar-initializing .backend-shell .admin-sidebar-group-arrow',
+            $css
+        );
+        $this->assertStringContainsString(
+            '.admin-sidebar-group:not(.is-open) .admin-sidebar-group-links',
+            $css
+        );
         $this->assertStringContainsString('transition: none;', $css);
         $this->assertStringContainsString('display: none;', $css);
         $this->assertStringContainsString('content: attr(data-sidebar-label);', $css);
@@ -140,9 +151,10 @@ class BackendLayoutNavigationTest extends TestCase
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/my-account')
             ->assertOk()
-            ->assertSee('admin-sidebar-group is-active', false)
+            ->assertSee('admin-sidebar-group is-active is-open', false)
             ->assertSee('x-init="registerSidebarGroup(\'sidebar-group-1\', true)"', false)
             ->assertSee('x-bind:aria-expanded="isSidebarGroupOpen(\'sidebar-group-1\').toString()"', false)
+            ->assertSee('data-sidebar-group-key="sidebar-group-1"', false)
             ->assertSee('admin-sidebar-link admin-sidebar-link-child is-active', false);
     }
 

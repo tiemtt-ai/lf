@@ -84,8 +84,6 @@ window.backendSidebar = (autoCollapse) => ({
     registerSidebarGroup(groupKey, isActive) {
         if (isActive) {
             this.activeSidebarGroups[groupKey] = true;
-            this.sidebarGroups[groupKey] = true;
-            this.storeSidebarGroups();
         } else if (this.sidebarGroups[groupKey] === undefined) {
             this.sidebarGroups[groupKey] = false;
         }

@@ -335,6 +335,7 @@
 :root.is-backend-sidebar-initializing .backend-shell .admin-content-wrap,
 :root.is-backend-sidebar-initializing .backend-shell .admin-sidebar-link,
 :root.is-backend-sidebar-initializing .backend-shell .admin-sidebar-group-label,
+:root.is-backend-sidebar-initializing .backend-shell .admin-sidebar-group-arrow,
 :root.is-backend-sidebar-initializing .backend-shell .admin-sidebar-link-label {
     transition: none;
 }
@@ -441,6 +442,10 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+
+.admin-sidebar-group:not(.is-open) .admin-sidebar-group-links {
+    display: none;
 }
 
 .admin-sidebar-link-child {
