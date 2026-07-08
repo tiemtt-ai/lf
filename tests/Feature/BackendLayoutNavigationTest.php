@@ -219,19 +219,19 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertSame(1, substr_count($templateForm, 'class="backend-form-columns"'));
         $this->assertSame(2, substr_count($templateForm, 'class="backend-form-column"'));
         $this->assertStringContainsString(
-            'course-template-basic-title',
+            'for="category_id"',
             $this->backendFormColumnHtml($templateForm, 0)
         );
         $this->assertStringContainsString(
-            'course-template-metadata-title',
+            'for="difficulty_level"',
             $this->backendFormColumnHtml($templateForm, 0)
         );
         $this->assertStringContainsString(
-            'course-template-media-title',
+            'for="estimated_duration_minutes"',
             $this->backendFormColumnHtml($templateForm, 1)
         );
         $this->assertStringContainsString(
-            'course-template-lifecycle-title',
+            'for="status"',
             $this->backendFormColumnHtml($templateForm, 1)
         );
 

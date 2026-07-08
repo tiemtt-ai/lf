@@ -155,6 +155,15 @@ class CourseTemplateManagementTest extends TestCase
                 ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
                 ->assertOk(),
         ];
+        $formPartial = file_get_contents(
+            base_path('resources/views/course-templates/partials/form.blade.php')
+        );
+
+        $this->assertStringNotContainsString('admin-form-section', $formPartial);
+        $this->assertStringNotContainsString('course-template-basic-title', $formPartial);
+        $this->assertStringNotContainsString('course-template-metadata-title', $formPartial);
+        $this->assertStringNotContainsString('course-template-media-title', $formPartial);
+        $this->assertStringNotContainsString('course-template-lifecycle-title', $formPartial);
 
         foreach ($responses as $response) {
             foreach ([
@@ -195,47 +204,33 @@ class CourseTemplateManagementTest extends TestCase
                     'category_id',
                     'title',
                     'slug',
-                    'short_description',
-                    'description',
                     'publisher_name',
+                    'difficulty_level',
                 ],
-                $this->sectionFieldNames(
-                    $response->getContent(),
-                    'course-template-basic-title'
-                )
+                $this->backendColumnFieldNames($response->getContent(), 0)
             );
             $this->assertSame(
                 [
+                    'estimated_duration_minutes',
+                    'max_lessons',
                     'thumbnail_type',
                     'thumbnail_image',
                     'cover_image_file',
                     'thumbnail_video_source',
                     'thumbnail_video_url',
                     'thumbnail_video_media_id',
+                    'status',
                 ],
-                $this->sectionFieldNames(
-                    $response->getContent(),
-                    'course-template-media-title'
-                )
+                $this->backendColumnFieldNames($response->getContent(), 1)
             );
-            $this->assertSame(
-                [
-                    'difficulty_level',
-                    'estimated_duration_minutes',
-                    'max_lessons',
-                ],
-                $this->sectionFieldNames(
-                    $response->getContent(),
-                    'course-template-metadata-title'
-                )
-            );
-            $this->assertSame(
-                ['status'],
-                $this->sectionFieldNames(
-                    $response->getContent(),
-                    'course-template-lifecycle-title'
-                )
-            );
+            $this->assertFalse($this->fieldIsInsideBackendColumn(
+                $response->getContent(),
+                'short_description'
+            ));
+            $this->assertFalse($this->fieldIsInsideBackendColumn(
+                $response->getContent(),
+                'description'
+            ));
             $this->assertStringContainsString(
                 'name="slug"',
                 $response->getContent()
@@ -691,7 +686,7 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertSame(1, $activeLinks->length);
     }
 
-    private function sectionFieldNames(string $html, string $titleId): array
+    private function backendColumnFieldNames(string $html, int $index): array
     {
         $previous = libxml_use_internal_errors(true);
         $document = new \DOMDocument;
@@ -699,10 +694,11 @@ class CourseTemplateManagementTest extends TestCase
         libxml_clear_errors();
         libxml_use_internal_errors($previous);
         $xpath = new \DOMXPath($document);
-        $labels = $xpath->query(sprintf(
-            '//section[@aria-labelledby="%s"]//label[@for]',
-            $titleId
-        ));
+        $columnPosition = $index + 1;
+        $labels = $xpath->query(
+            '(//div[contains(concat(" ", normalize-space(@class), " "),'
+            .' " backend-form-column ")])['.$columnPosition.']//label[@for]'
+        );
         $fields = [];
 
         foreach ($labels as $label) {
@@ -710,6 +706,23 @@ class CourseTemplateManagementTest extends TestCase
         }
 
         return $fields;
+    }
+
+    private function fieldIsInsideBackendColumn(string $html, string $field): bool
+    {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        $xpath = new \DOMXPath($document);
+        $ancestors = $xpath->query(
+            '//label[@for="'.$field.'"]/ancestor::div[contains(concat(" ", normalize-space(@class), " "),'
+            .' " backend-form-column ")]'
+        );
+
+        return $ancestors->length > 0;
     }
 
     private function assertManualSeoControlsNotRendered(
