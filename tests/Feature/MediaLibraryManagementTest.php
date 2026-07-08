@@ -99,6 +99,7 @@ class MediaLibraryManagementTest extends TestCase
             ->assertSeeText('Video')
             ->assertSee('expiration=', false)
             ->assertSee('media\\/files\\/', false)
+            ->assertSee('openMediaPreview(', false)
             ->assertSee('preload="none"', false)
             ->assertDontSee('<video controls preload="metadata">', false)
             ->assertDontSee('/storage/tenants/', false)
@@ -127,14 +128,22 @@ class MediaLibraryManagementTest extends TestCase
             ->assertSeeText('Video')
             ->assertSee('expiration=', false)
             ->assertSee('media\\/files\\/'.$mediaFile->id.'\\/signed', false)
-            ->assertSee('openVideoPreview(', false)
+            ->assertSee('openMediaPreview(', false)
+            ->assertSee('media-library-preview-title', false)
             ->assertSee('preload="none"', false)
             ->assertDontSee('<video controls preload="metadata">', false)
             ->assertDontSee('/storage/tenants/', false)
             ->assertDontSee('public_url', false);
 
-        $this->assertSame(0, $this->tableVideoElementCount($response->getContent()));
+        $this->assertSame(0, $this->tableMediaElementCount($response->getContent(), 'video'));
+        $this->assertSame(0, $this->tableMediaElementCount($response->getContent(), 'img'));
         $this->assertSame(1, substr_count($response->getContent(), '<video'));
+        $this->assertStringContainsString('this.$nextTick(() => this.playVideoPreview())', $response->getContent());
+        $this->assertStringContainsString('playVideoPreview()', $response->getContent());
+        $this->assertStringContainsString('player.play()', $response->getContent());
+        $this->assertStringContainsString('player.muted = true', $response->getContent());
+        $this->assertStringContainsString('player.muted = false', $response->getContent());
+        $this->assertStringContainsString('player.pause()', $response->getContent());
         $this->assertStringContainsString('removeAttribute(\'src\')', $response->getContent());
         $this->assertStringContainsString('player.load()', $response->getContent());
 
@@ -179,8 +188,21 @@ class MediaLibraryManagementTest extends TestCase
             ->get('https://tenant-a.localhost/admin/media?tab=images')
             ->assertOk()
             ->assertSeeText('Preview Image')
-            ->assertSee('/media/files/'.$mediaFile->id.'/signed', false)
+            ->assertSeeText(__('lf.LF_media_file_common_preview_action'))
+            ->assertSee('media\\/files\\/'.$mediaFile->id.'\\/signed', false)
+            ->assertSee('openMediaPreview(', false)
+            ->assertSee('loading="lazy"', false)
+            ->assertSee('decoding="async"', false)
+            ->assertSee('width="72"', false)
+            ->assertSee('height="72"', false)
+            ->assertSee('media-library-modal-image', false)
+            ->assertSee('media-library-preview-title', false)
+            ->assertDontSee('target="_blank"', false)
             ->assertDontSee('/storage/tenants/', false);
+
+        $this->assertSame(1, $this->tableMediaElementCount($response->getContent(), 'img'));
+        $this->assertSame(0, $this->tableMediaElementCount($response->getContent(), 'video'));
+        $this->assertStringContainsString('preview.mediaType === \'image\'', $response->getContent());
 
         $signedUrl = app(MediaService::class)->generateSignedUrl((int) $mediaFile->id);
 
@@ -192,7 +214,7 @@ class MediaLibraryManagementTest extends TestCase
             ->assertHeader('content-type', 'image/png');
     }
 
-    private function tableVideoElementCount(string $html): int
+    private function tableMediaElementCount(string $html, string $tagName): int
     {
         $previous = libxml_use_internal_errors(true);
         $document = new \DOMDocument;
@@ -201,7 +223,7 @@ class MediaLibraryManagementTest extends TestCase
         libxml_use_internal_errors($previous);
 
         return (new \DOMXPath($document))
-            ->query('//tbody//video')
+            ->query('//tbody//'.$tagName)
             ->length;
     }
 

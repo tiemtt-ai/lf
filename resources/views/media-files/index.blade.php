@@ -119,17 +119,40 @@
                  name: '',
                  url: '',
                  mimeType: '',
+                 mediaType: '',
              },
-             openVideoPreview(name, url, mimeType) {
-                 this.preview = { name, url, mimeType };
+             openMediaPreview(name, url, mimeType, mediaType) {
+                 this.preview = { name, url, mimeType, mediaType };
                  this.previewOpen = true;
                  this.previewLoaded = true;
+
+                 if (mediaType === 'video') {
+                     this.$nextTick(() => this.playVideoPreview());
+                 }
              },
-             closeVideoPreview() {
+             playVideoPreview() {
+                 const player = this.$refs.videoPreviewPlayer;
+
+                 if (! player) {
+                     return;
+                 }
+
+                 player.muted = false;
+                 const playAttempt = player.play();
+
+                 if (playAttempt !== undefined) {
+                     playAttempt.catch(() => {
+                         player.muted = true;
+                         player.play().catch(() => {});
+                     });
+                 }
+             },
+             closeMediaPreview() {
                  const player = this.$refs.videoPreviewPlayer;
 
                  if (player) {
                      player.pause();
+                     player.muted = false;
                      player.removeAttribute('src');
                      player.querySelectorAll('source').forEach((source) => {
                          source.removeAttribute('src');
@@ -139,10 +162,10 @@
 
                  this.previewOpen = false;
                  this.previewLoaded = false;
-                 this.preview = { name: '', url: '', mimeType: '' };
+                 this.preview = { name: '', url: '', mimeType: '', mediaType: '' };
              },
          }"
-         x-on:keydown.escape.window="closeVideoPreview()">
+         x-on:keydown.escape.window="closeMediaPreview()">
     <div class="admin-table-wrap media-library-table-wrap">
         <table class="table media-library-table">
             <thead>
@@ -164,12 +187,17 @@
                     <td>
                         <div class="media-library-preview">
                             @if ($mediaFile->preview_url)
-                                @if ($mediaFile->file_type === 'video')
-                                    <div class="media-library-video-placeholder">
-                                        <span aria-hidden="true">Video</span>
-                                    </div>
+                                @if ($mediaFile->file_type === 'image')
+                                    <img src="{{ $mediaFile->preview_url }}"
+                                         alt="{{ $mediaFile->display_name }}"
+                                         loading="lazy"
+                                         decoding="async"
+                                         width="72"
+                                         height="72">
                                 @else
-                                    <img src="{{ $mediaFile->preview_url }}" alt="{{ $mediaFile->display_name }}">
+                                    <div class="media-library-preview-placeholder media-library-preview-placeholder-{{ $mediaFile->file_type }}">
+                                        <span aria-hidden="true">{{ str($mediaFile->file_type)->headline() }}</span>
+                                    </div>
                                 @endif
                             @else
                                 <span>{{ str($mediaFile->file_type)->headline() }}</span>
@@ -180,21 +208,16 @@
                         <div class="media-library-file-name">{{ $mediaFile->display_name }}</div>
                         <div class="media-library-file-meta">{{ $mediaFile->original_name }}</div>
                         @if ($mediaFile->preview_url)
-                            @if ($mediaFile->file_type === 'video')
-                                <button type="button"
-                                        class="admin-link-button media-library-preview-action"
-                                        x-on:click="openVideoPreview(
-                                            @js($mediaFile->display_name),
-                                            @js($mediaFile->preview_url),
-                                            @js($mediaFile->mime_type)
-                                        )">
-                                    {{ __('lf.LF_media_file_common_preview_action') }}
-                                </button>
-                            @else
-                                <a href="{{ $mediaFile->preview_url }}" target="_blank" rel="noopener">
-                                    {{ __('lf.LF_media_file_common_view') }}
-                                </a>
-                            @endif
+                            <button type="button"
+                                    class="admin-link-button media-library-preview-action"
+                                    x-on:click="openMediaPreview(
+                                        @js($mediaFile->display_name),
+                                        @js($mediaFile->preview_url),
+                                        @js($mediaFile->mime_type),
+                                        @js($mediaFile->file_type)
+                                    )">
+                                {{ __('lf.LF_media_file_common_preview_action') }}
+                            </button>
                         @endif
                     </td>
                     <td>
@@ -259,32 +282,40 @@
          x-transition.opacity
          role="dialog"
          aria-modal="true"
-         aria-labelledby="media-library-video-preview-title">
+         aria-labelledby="media-library-preview-title">
         <button type="button"
                 class="media-library-modal-backdrop"
                 aria-label="{{ __('lf.LF_common_button_cancel') }}"
-                x-on:click="closeVideoPreview()"></button>
+                x-on:click="closeMediaPreview()"></button>
 
         <div class="media-library-modal-panel">
             <div class="media-library-modal-header">
-                <h2 id="media-library-video-preview-title"
+                <h2 id="media-library-preview-title"
                     x-text="preview.name"></h2>
                 <button type="button"
                         class="admin-link-button"
-                        x-on:click="closeVideoPreview()">
+                        x-on:click="closeMediaPreview()">
                     {{ __('lf.LF_common_button_cancel') }}
                 </button>
             </div>
 
-            <template x-if="previewLoaded">
-                <video x-ref="videoPreviewPlayer"
-                       controls
-                       preload="none"
-                       class="media-library-modal-video">
-                    <source x-bind:src="preview.url"
-                            x-bind:type="preview.mimeType">
-                </video>
-            </template>
+            <div class="media-library-modal-body">
+                <template x-if="previewLoaded && preview.mediaType === 'image'">
+                    <img x-bind:src="preview.url"
+                         x-bind:alt="preview.name"
+                         class="media-library-modal-image">
+                </template>
+
+                <template x-if="previewLoaded && preview.mediaType === 'video'">
+                    <video x-ref="videoPreviewPlayer"
+                           controls
+                           preload="none"
+                           class="media-library-modal-video">
+                        <source x-bind:src="preview.url"
+                                x-bind:type="preview.mimeType">
+                    </video>
+                </template>
+            </div>
         </div>
     </div>
     </div>
