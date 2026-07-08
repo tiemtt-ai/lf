@@ -607,6 +607,7 @@ return [
     'LF_course_template_common_cover_video_type' => 'Video',
     'LF_course_template_common_cover_image' => 'Cover image',
     'LF_course_template_common_intro_video' => 'Intro video',
+    'LF_course_template_common_remove_preview_media' => 'Remove',
     'LF_course_template_preview_media_exclusive' => 'Choose either a preview image or a preview video, not both.',
     'LF_course_template_common_difficulty_level' => 'Difficulty level',
     'LF_course_template_common_no_difficulty' => 'Not specified',

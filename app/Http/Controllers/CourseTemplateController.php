@@ -378,6 +378,7 @@ class CourseTemplateController extends Controller
             'cover_type',
             'cover_image_media_file_id',
             'intro_video_media_file_id',
+            'remove_preview_media',
             'difficulty_level',
             'estimated_duration_minutes',
             'max_lessons',
@@ -430,15 +431,10 @@ class CourseTemplateController extends Controller
         $validator->after(function ($validator) use (
             $input,
             $request,
-            $template,
             $submittedImagePreview,
             $submittedVideoPreview
         ): void {
             $coverType = (string) ($input['cover_type'] ?? '');
-            $hasCoverImageMedia = isset($input['cover_image_media_file_id'])
-                && trim((string) $input['cover_image_media_file_id']) !== '';
-            $hasIntroVideoMedia = isset($input['intro_video_media_file_id'])
-                && trim((string) $input['intro_video_media_file_id']) !== '';
 
             if ($submittedImagePreview && $submittedVideoPreview) {
                 $validator->errors()->add(
@@ -457,16 +453,6 @@ class CourseTemplateController extends Controller
                     );
                 }
 
-                if (! $hasCoverImageMedia
-                    && ! $request->hasFile('cover_image_file')
-                    && ! $template?->cover_image_media_file_id) {
-                    $validator->errors()->add(
-                        'cover_image_file',
-                        __('validation.required', [
-                            'attribute' => 'cover image',
-                        ])
-                    );
-                }
             }
 
             if ($coverType === 'video') {
@@ -479,16 +465,6 @@ class CourseTemplateController extends Controller
                     );
                 }
 
-                if (! $hasIntroVideoMedia
-                    && ! $request->hasFile('intro_video_file')
-                    && ! $template?->intro_video_media_file_id) {
-                    $validator->errors()->add(
-                        'intro_video_file',
-                        __('validation.required', [
-                            'attribute' => 'intro video',
-                        ])
-                    );
-                }
             }
         });
 
@@ -535,6 +511,7 @@ class CourseTemplateController extends Controller
                         ->where('file_type', 'video')
                         ->where('status', 'ready')),
             ],
+            'remove_preview_media' => ['nullable', 'boolean'],
             'difficulty_level' => [
                 'nullable',
                 Rule::in(['beginner', 'intermediate', 'advanced']),
@@ -584,10 +561,14 @@ class CourseTemplateController extends Controller
             'publisher_name' => $validated['publisher_name'] ?? null,
             'cover_type' => $validated['cover_type'],
             'cover_image_media_file_id' => $validated['cover_type'] === 'image'
-                ? ($validated['cover_image_media_file_id'] ?? null)
+                ? (($validated['remove_preview_media'] ?? false)
+                    ? null
+                    : ($validated['cover_image_media_file_id'] ?? null))
                 : null,
             'intro_video_media_file_id' => $validated['cover_type'] === 'video'
-                ? ($validated['intro_video_media_file_id'] ?? null)
+                ? (($validated['remove_preview_media'] ?? false)
+                    ? null
+                    : ($validated['intro_video_media_file_id'] ?? null))
                 : null,
             'difficulty_level' => $validated['difficulty_level'] ?? null,
             'estimated_duration_minutes' => $validated['estimated_duration_minutes'],
@@ -742,10 +723,19 @@ class CourseTemplateController extends Controller
         int $templateId,
         array $validated
     ): void {
+        $removePreviewMedia = (bool) ($validated['remove_preview_media'] ?? false);
+
+        if ($removePreviewMedia) {
+            $this->detachOwnerMedia($templateId, 'cover_image');
+            $this->detachOwnerMedia($templateId, 'video');
+        }
+
         if ($validated['cover_type'] === 'image') {
             $this->detachOwnerMedia($templateId, 'video');
 
-            $mediaFileId = $validated['cover_image_media_file_id'] ?? null;
+            $mediaFileId = $removePreviewMedia
+                ? null
+                : ($validated['cover_image_media_file_id'] ?? null);
 
             if ($request->hasFile('cover_image_file')) {
                 $this->detachOwnerMedia($templateId, 'cover_image');
@@ -782,7 +772,9 @@ class CourseTemplateController extends Controller
 
         $this->detachOwnerMedia($templateId, 'cover_image');
 
-        $mediaFileId = $validated['intro_video_media_file_id'] ?? null;
+        $mediaFileId = $removePreviewMedia
+            ? null
+            : ($validated['intro_video_media_file_id'] ?? null);
 
         if ($request->hasFile('intro_video_file')) {
             $this->detachOwnerMedia($templateId, 'video');

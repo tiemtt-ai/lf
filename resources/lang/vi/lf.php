@@ -607,6 +607,7 @@ return [
     'LF_course_template_common_cover_video_type' => 'Video',
     'LF_course_template_common_cover_image' => 'Ảnh bìa',
     'LF_course_template_common_intro_video' => 'Video giới thiệu',
+    'LF_course_template_common_remove_preview_media' => 'Xóa',
     'LF_course_template_preview_media_exclusive' => 'Chỉ chọn một ảnh hoặc một video giới thiệu, không chọn cả hai.',
     'LF_course_template_common_difficulty_level' => 'Độ khó',
     'LF_course_template_common_no_difficulty' => 'Chưa xác định',

@@ -180,14 +180,12 @@
 
         <div class="lf-form-group">
             <x-form-label for="cover_type"
-                          :value="__('lf.LF_course_template_common_cover_type')"
-                          :required="$isRequired('cover_type')" />
+                          :value="__('lf.LF_course_template_common_cover_type')" />
             <div id="cover_type" class="admin-radio-group">
                 <label>
                     <input type="radio"
                            name="cover_type"
                            value="image"
-                           required
                            x-model="selectedCoverType"
                            @checked($selectedCoverType === 'image')>
                     <span>{{ __('lf.LF_course_template_common_cover_image_type') }}</span>
@@ -196,24 +194,18 @@
                     <input type="radio"
                            name="cover_type"
                            value="video"
-                           required
                            x-model="selectedCoverType"
                            @checked($selectedCoverType === 'video')>
                     <span>{{ __('lf.LF_course_template_common_cover_video_type') }}</span>
                 </label>
             </div>
-        </div>
 
-        <div class="lf-form-group" x-show="selectedCoverType === 'image'">
-            <input type="hidden"
-                   name="cover_image_media_file_id"
-                   value="{{ old('cover_image_media_file_id', $formTemplate?->cover_image_media_file_id) }}"
-                   :disabled="selectedCoverType !== 'image'">
-            <x-form-label for="cover_image_file"
-                          :value="__('lf.LF_course_template_common_cover_image')"
-                          :required="true" />
+            @if (($coverImageMedia ?? null) || ($introVideoMedia ?? null))
+                <input type="hidden" name="remove_preview_media" value="0">
+            @endif
+
             @if ($coverImageMedia ?? null)
-                <div class="course-template-preview-card">
+                <div class="course-template-preview-card" x-show="selectedCoverType === 'image'">
                     <div class="course-template-preview-thumb">
                         <img src="{{ $coverImageMedia->signed_url }}"
                              alt="{{ $coverImageMedia->display_name }}"
@@ -222,11 +214,7 @@
                              width="96"
                              height="72">
                     </div>
-                    <div class="course-template-preview-details">
-                        <span class="course-template-preview-type">
-                            {{ __('lf.LF_course_template_common_cover_image_type') }}
-                        </span>
-                        <strong>{{ $coverImageMedia->display_name }}</strong>
+                    <div class="course-template-preview-actions">
                         <button type="button"
                                 class="admin-link-button"
                                 x-on:click="openTemplatePreview(
@@ -237,35 +225,23 @@
                                 )">
                             {{ __('lf.LF_media_file_common_preview_action') }}
                         </button>
+                        <label class="course-template-preview-remove">
+                            <input type="checkbox"
+                                   name="remove_preview_media"
+                                   value="1">
+                            <span>{{ __('lf.LF_course_template_common_remove_preview_media') }}</span>
+                        </label>
                     </div>
                 </div>
             @endif
-            <input id="cover_image_file"
-                   type="file"
-                   name="cover_image_file"
-                   class="lf-form-control"
-                   accept="image/*"
-                   :disabled="selectedCoverType !== 'image'">
-        </div>
 
-        <div class="lf-form-group" x-show="selectedCoverType === 'video'">
-            <input type="hidden"
-                   name="intro_video_media_file_id"
-                   value="{{ old('intro_video_media_file_id', $formTemplate?->intro_video_media_file_id) }}"
-                   :disabled="selectedCoverType !== 'video'">
-            <x-form-label for="intro_video_file"
-                          :value="__('lf.LF_course_template_common_intro_video')"
-                          :required="true" />
             @if ($introVideoMedia ?? null)
-                <div class="course-template-preview-card">
-                    <div class="course-template-preview-thumb course-template-preview-thumb-video">
-                        <span aria-hidden="true">Video</span>
+                <div class="course-template-preview-card" x-show="selectedCoverType === 'video'">
+                    <div class="course-template-preview-thumb course-template-preview-thumb-video"
+                         aria-label="{{ __('lf.LF_course_template_common_cover_video_type') }}">
+                        <x-backend-icon name="video" class="course-template-preview-icon" />
                     </div>
-                    <div class="course-template-preview-details">
-                        <span class="course-template-preview-type">
-                            {{ __('lf.LF_course_template_common_cover_video_type') }}
-                        </span>
-                        <strong>{{ $introVideoMedia->display_name }}</strong>
+                    <div class="course-template-preview-actions">
                         <button type="button"
                                 class="admin-link-button"
                                 x-on:click="openTemplatePreview(
@@ -276,14 +252,40 @@
                                 )">
                             {{ __('lf.LF_media_file_common_preview_action') }}
                         </button>
+                        <label class="course-template-preview-remove">
+                            <input type="checkbox"
+                                   name="remove_preview_media"
+                                   value="1">
+                            <span>{{ __('lf.LF_course_template_common_remove_preview_media') }}</span>
+                        </label>
                     </div>
                 </div>
             @endif
+
+            <input type="hidden"
+                   name="cover_image_media_file_id"
+                   value="{{ old('cover_image_media_file_id', $formTemplate?->cover_image_media_file_id) }}"
+                   :disabled="selectedCoverType !== 'image'">
+            <input id="cover_image_file"
+                   type="file"
+                   name="cover_image_file"
+                   class="lf-form-control"
+                   accept="image/*"
+                   aria-label="{{ __('lf.LF_course_template_common_cover_image_type') }}"
+                   x-show="selectedCoverType === 'image'"
+                   :disabled="selectedCoverType !== 'image'">
+
+            <input type="hidden"
+                   name="intro_video_media_file_id"
+                   value="{{ old('intro_video_media_file_id', $formTemplate?->intro_video_media_file_id) }}"
+                   :disabled="selectedCoverType !== 'video'">
             <input id="intro_video_file"
                    type="file"
                    name="intro_video_file"
                    class="lf-form-control"
                    accept="video/*"
+                   aria-label="{{ __('lf.LF_course_template_common_cover_video_type') }}"
+                   x-show="selectedCoverType === 'video'"
                    :disabled="selectedCoverType !== 'video'">
         </div>
 

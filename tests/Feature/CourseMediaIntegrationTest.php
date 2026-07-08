@@ -152,7 +152,11 @@ class CourseMediaIntegrationTest extends TestCase
             ->assertSee('openTemplatePreview(', false)
             ->assertSee('loading="lazy"', false)
             ->assertSee('decoding="async"', false)
+            ->assertSee('name="remove_preview_media"', false)
+            ->assertSee(__('lf.LF_course_template_common_remove_preview_media'), false)
             ->assertSee(__('lf.LF_media_file_common_preview_action'), false)
+            ->assertDontSee('course-template-preview-type', false)
+            ->assertDontSee('<strong>Media Template</strong>', false)
             ->assertDontSee('target="_blank"', false)
             ->assertDontSee('/storage/tenants/', false);
 
@@ -227,7 +231,9 @@ class CourseMediaIntegrationTest extends TestCase
             ->assertSee('course-template-preview-card', false)
             ->assertSee('course-template-preview-title', false)
             ->assertSee('openTemplatePreview(', false)
-            ->assertSeeText('Video')
+            ->assertSee('course-template-preview-thumb-video', false)
+            ->assertSee('name="remove_preview_media"', false)
+            ->assertSee(__('lf.LF_course_template_common_remove_preview_media'), false)
             ->assertSee('preload="metadata"', false)
             ->assertSee('this.resetTemplatePreview()', false)
             ->assertSee('this.$refs.templatePreviewVideoSource?.setAttribute(\'src\', url)', false)
@@ -239,6 +245,8 @@ class CourseMediaIntegrationTest extends TestCase
             ->assertSee('this.videoSrc = \'\'', false)
             ->assertSee('player.load()', false)
             ->assertDontSee('<video controls preload="metadata">', false)
+            ->assertDontSee('course-template-preview-type', false)
+            ->assertDontSee('<strong>Video Template</strong>', false)
             ->assertDontSee('target="_blank"', false)
             ->assertDontSee('/storage/tenants/', false);
 
@@ -467,6 +475,148 @@ class CourseMediaIntegrationTest extends TestCase
             1,
             $this->activeTemplatePreviewUsageCount($customerId, $templateId)
         );
+    }
+
+    public function test_admin_can_remove_course_template_cover_image_usage_without_deleting_media_file(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->post(
+                'https://tenant-a.localhost/admin/course-templates',
+                $this->validTemplateData([
+                    'title' => 'Remove Cover Template',
+                    'slug' => 'remove-cover-template',
+                    'cover_image_file' => UploadedFile::fake()->image(
+                        'remove-cover.png',
+                        120,
+                        80
+                    ),
+                ])
+            )
+            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+
+        $templateId = (int) DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('slug', 'remove-cover-template')
+            ->value('id');
+        $coverImage = $this->assertActiveUsage(
+            $customerId,
+            'course_template',
+            $templateId,
+            'cover_image'
+        );
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}",
+                $this->validTemplateData([
+                    '_method' => 'PUT',
+                    'title' => 'Remove Cover Template',
+                    'slug' => 'remove-cover-template',
+                    'cover_type' => 'image',
+                    'cover_image_media_file_id' => $coverImage->id,
+                    'cover_image_file' => null,
+                    'intro_video_file' => null,
+                    'remove_preview_media' => 1,
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit"
+            );
+
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $templateId,
+            'customer_id' => $customerId,
+            'cover_image_media_file_id' => null,
+            'intro_video_media_file_id' => null,
+        ]);
+        $this->assertDatabaseHas('media_file_usages', [
+            'customer_id' => $customerId,
+            'media_file_id' => $coverImage->id,
+            'owner_type' => 'course_template',
+            'owner_id' => $templateId,
+            'usage_type' => 'cover_image',
+            'status' => 'detached',
+        ]);
+        $this->assertSame(
+            0,
+            $this->activeTemplatePreviewUsageCount($customerId, $templateId)
+        );
+        Storage::disk('media_local')->assertExists($coverImage->storage_key);
+    }
+
+    public function test_admin_can_remove_course_template_intro_video_usage_without_deleting_media_file(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->post(
+                'https://tenant-a.localhost/admin/course-templates',
+                $this->validTemplateData([
+                    'title' => 'Remove Video Template',
+                    'slug' => 'remove-video-template',
+                    'cover_type' => 'video',
+                    'cover_image_file' => null,
+                    'intro_video_file' => UploadedFile::fake()->create(
+                        'remove-intro.mp4',
+                        32,
+                        'video/mp4'
+                    ),
+                ])
+            )
+            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+
+        $templateId = (int) DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('slug', 'remove-video-template')
+            ->value('id');
+        $introVideo = $this->assertActiveUsage(
+            $customerId,
+            'course_template',
+            $templateId,
+            'video'
+        );
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}",
+                $this->validTemplateData([
+                    '_method' => 'PUT',
+                    'title' => 'Remove Video Template',
+                    'slug' => 'remove-video-template',
+                    'cover_type' => 'video',
+                    'cover_image_file' => null,
+                    'intro_video_media_file_id' => $introVideo->id,
+                    'intro_video_file' => null,
+                    'remove_preview_media' => 1,
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit"
+            );
+
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $templateId,
+            'customer_id' => $customerId,
+            'cover_image_media_file_id' => null,
+            'intro_video_media_file_id' => null,
+        ]);
+        $this->assertDatabaseHas('media_file_usages', [
+            'customer_id' => $customerId,
+            'media_file_id' => $introVideo->id,
+            'owner_type' => 'course_template',
+            'owner_id' => $templateId,
+            'usage_type' => 'video',
+            'status' => 'detached',
+        ]);
+        $this->assertSame(
+            0,
+            $this->activeTemplatePreviewUsageCount($customerId, $templateId)
+        );
+        Storage::disk('media_local')->assertExists($introVideo->storage_key);
     }
 
     public function test_course_template_rejects_image_and_video_in_same_request(): void

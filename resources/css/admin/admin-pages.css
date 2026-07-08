@@ -297,21 +297,25 @@
     background: #e5e7eb;
 }
 
-.course-template-preview-details {
+.course-template-preview-icon {
+    width: 28px;
+    height: 28px;
+}
+
+.course-template-preview-actions {
     min-width: 0;
-    display: grid;
-    gap: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
 }
 
-.course-template-preview-details strong {
-    overflow-wrap: anywhere;
-}
-
-.course-template-preview-type {
-    color: #64748b;
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
+.course-template-preview-remove {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-weight: 500;
 }
 
 .course-product-editor {

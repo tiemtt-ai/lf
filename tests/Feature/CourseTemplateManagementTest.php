@@ -173,9 +173,6 @@ class CourseTemplateManagementTest extends TestCase
         foreach ($responses as $response) {
             foreach ([
                 'title',
-                'cover_type',
-                'cover_image_file',
-                'intro_video_file',
                 'estimated_duration_minutes',
                 'status',
             ] as $field) {
@@ -191,6 +188,9 @@ class CourseTemplateManagementTest extends TestCase
                 'short_description',
                 'description',
                 'publisher_name',
+                'cover_type',
+                'cover_image_file',
+                'intro_video_file',
                 'cover_image_media_file_id',
                 'intro_video_media_file_id',
                 'difficulty_level',
@@ -218,8 +218,6 @@ class CourseTemplateManagementTest extends TestCase
                     'estimated_duration_minutes',
                     'max_lessons',
                     'cover_type',
-                    'cover_image_file',
-                    'intro_video_file',
                     'status',
                 ],
                 $this->backendColumnFieldNames($response->getContent(), 1)
@@ -291,6 +289,38 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertSame('draft', $template->status);
         $this->assertTrue(DB::getSchemaBuilder()->hasTable('core_course_template_sections'));
         $this->assertDatabaseCount('core_course_template_sections', 0);
+    }
+
+    public function test_preview_media_is_optional_for_course_template(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->post(
+                'https://tenant-a.localhost/admin/course-templates',
+                $this->validTemplateData([
+                    'title' => 'Optional Preview Course',
+                    'slug' => 'optional-preview-course',
+                    'cover_image_file' => null,
+                    'intro_video_file' => null,
+                ])
+            )
+            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+
+        $this->assertDatabaseHas('core_course_templates', [
+            'customer_id' => $customerId,
+            'slug' => 'optional-preview-course',
+            'cover_type' => 'image',
+            'cover_image_media_file_id' => null,
+            'intro_video_media_file_id' => null,
+        ]);
+        $this->assertDatabaseMissing('media_file_usages', [
+            'customer_id' => $customerId,
+            'owner_type' => 'course_template',
+            'usage_type' => 'cover_image',
+            'status' => 'active',
+        ]);
     }
 
     public function test_template_update_without_manual_seo_inputs_preserves_existing_seo_data(): void
