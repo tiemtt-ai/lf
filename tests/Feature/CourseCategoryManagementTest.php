@@ -124,19 +124,12 @@ class CourseCategoryManagementTest extends TestCase
         ] as $response) {
             $content = $response->getContent();
 
-            $this->assertSame(3, substr_count($content, 'class="admin-form-section"'));
-            $this->assertStringContainsString(
-                'aria-labelledby="course-category-basic-title"',
-                $content
-            );
-            $this->assertStringContainsString(
-                'aria-labelledby="course-category-media-title"',
-                $content
-            );
-            $this->assertStringContainsString(
-                'aria-labelledby="course-category-description-title"',
-                $content
-            );
+            $this->assertSame(0, substr_count($content, 'class="admin-form-section"'));
+            $this->assertSame(1, substr_count($content, 'class="backend-form-columns"'));
+            $this->assertSame(2, substr_count($content, 'class="backend-form-column"'));
+            $this->assertStringNotContainsString('course-category-basic-title', $content);
+            $this->assertStringNotContainsString('course-category-media-title', $content);
+            $this->assertStringNotContainsString('course-category-description-title', $content);
             $this->assertStringContainsString('name="slug"', $content);
             $this->assertStringContainsString('readonly', $content);
             $this->assertManualSeoControlsNotRendered(

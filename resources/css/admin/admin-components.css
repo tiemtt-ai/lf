@@ -160,7 +160,7 @@
 .backend-shell.is-sidebar-collapsed .backend-form-column {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    /*gap: 24px;*/
 }
 
 :root.is-backend-sidebar-collapsed .backend-shell .backend-form-column > .admin-form-section,
