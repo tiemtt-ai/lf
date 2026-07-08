@@ -93,7 +93,6 @@ class CourseTemplatePublishingService
                 'thumbnail_video_media_id_snapshot' => $template
                     ->thumbnail_video_media_id,
                 'difficulty_level_snapshot' => $template->difficulty_level,
-                'language_snapshot' => $template->language,
                 'estimated_duration_minutes_snapshot' => $template
                     ->estimated_duration_minutes,
                 'max_lessons_snapshot' => $template->max_lessons,

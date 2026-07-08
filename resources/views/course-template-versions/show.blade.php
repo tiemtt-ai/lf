@@ -109,11 +109,6 @@
                         : __('lf.LF_course_template_common_no_difficulty') }}</dd>
                 </div>
                 <div>
-                    <dt>{{ __('lf.LF_course_template_common_language') }}</dt>
-                    <dd>{{ $version->language_snapshot
-                        ?? __('lf.LF_course_template_publish_not_available') }}</dd>
-                </div>
-                <div>
                     <dt>{{ __('lf.LF_course_template_common_estimated_duration_minutes') }}</dt>
                     <dd>{{ $version->estimated_duration_minutes_snapshot }}</dd>
                 </div>

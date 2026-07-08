@@ -612,7 +612,6 @@ return [
     'LF_course_template_common_beginner' => 'Beginner',
     'LF_course_template_common_intermediate' => 'Intermediate',
     'LF_course_template_common_advanced' => 'Advanced',
-    'LF_course_template_common_language' => 'Language',
     'LF_course_template_common_estimated_duration_minutes' => 'Estimated duration (minutes)',
     'LF_course_template_common_max_lessons' => 'Maximum lessons',
     'LF_course_template_common_meta_title' => 'SEO title',

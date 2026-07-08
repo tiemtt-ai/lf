@@ -123,7 +123,6 @@ counterparts:
 | `thumbnail_video_url_snapshot` | `thumbnail_video_url` |
 | `thumbnail_video_media_id_snapshot` | `thumbnail_video_media_id`, subject to fallback rules |
 | `difficulty_level_snapshot` | `difficulty_level` |
-| `language_snapshot` | `language` |
 | `estimated_duration_minutes_snapshot` | `estimated_duration_minutes` |
 | `max_lessons_snapshot` | `max_lessons` |
 | `lesson_count_snapshot` | `lesson_count` |

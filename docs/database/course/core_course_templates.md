@@ -211,17 +211,6 @@ Giá trị:
 * intermediate
 * advanced
 
-### language
-
-VARCHAR(20) NULL
-
-Ví dụ:
-
-* vi
-* en
-* ko
-* ja
-
 ### estimated_duration_minutes
 
 INT UNSIGNED DEFAULT 0
@@ -343,8 +332,6 @@ introduced. Duplicate provenance belongs to the append-only tenant audit trail.
 
 (customer_id, slug)
 
-(customer_id, language)
-
 ---
 
 # Unique Constraints
@@ -372,8 +359,6 @@ thumbnail_type = video
 thumbnail_video_source = youtube
 
 difficulty_level = beginner
-
-language = ko
 
 estimated_duration_minutes = 2400
 

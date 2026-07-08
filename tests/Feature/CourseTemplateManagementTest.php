@@ -181,7 +181,6 @@ class CourseTemplateManagementTest extends TestCase
                 'thumbnail_video_url',
                 'thumbnail_video_media_id',
                 'difficulty_level',
-                'language',
                 'max_lessons',
             ] as $field) {
                 $this->assertSame(
@@ -222,7 +221,6 @@ class CourseTemplateManagementTest extends TestCase
             $this->assertSame(
                 [
                     'difficulty_level',
-                    'language',
                     'estimated_duration_minutes',
                     'max_lessons',
                 ],
@@ -271,7 +269,6 @@ class CourseTemplateManagementTest extends TestCase
                     'thumbnail_video_source' => 'youtube',
                     'thumbnail_video_url' => 'https://www.youtube.com/watch?v=example',
                     'difficulty_level' => 'beginner',
-                    'language' => 'ko',
                     'estimated_duration_minutes' => 2400,
                     'max_lessons' => 40,
                     'meta_title' => 'TOPIK Beginner',
@@ -608,7 +605,6 @@ class CourseTemplateManagementTest extends TestCase
             'thumbnail_video_url' => null,
             'thumbnail_video_media_id' => null,
             'difficulty_level' => null,
-            'language' => null,
             'estimated_duration_minutes' => 0,
             'max_lessons' => null,
             'lesson_count' => 0,
@@ -638,7 +634,6 @@ class CourseTemplateManagementTest extends TestCase
             'thumbnail_video_url' => null,
             'thumbnail_video_media_id' => null,
             'difficulty_level' => null,
-            'language' => 'vi',
             'estimated_duration_minutes' => 0,
             'max_lessons' => null,
             'meta_title' => null,

@@ -1011,7 +1011,6 @@ class CourseTemplatePublishingTest extends TestCase
             'thumbnail_video_url' => null,
             'thumbnail_video_media_id' => null,
             'difficulty_level' => 'beginner',
-            'language' => 'vi',
             'estimated_duration_minutes' => 90,
             'max_lessons' => 20,
             'lesson_count' => 2,

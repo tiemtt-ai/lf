@@ -29,7 +29,6 @@ return new class extends Migration
             $table->unsignedBigInteger('thumbnail_video_media_id_snapshot')
                 ->nullable();
             $table->string('difficulty_level_snapshot', 50)->nullable();
-            $table->string('language_snapshot', 20)->nullable();
             $table->unsignedInteger('estimated_duration_minutes_snapshot')
                 ->default(0);
             $table->unsignedInteger('max_lessons_snapshot')->nullable();

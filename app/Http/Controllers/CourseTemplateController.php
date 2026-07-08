@@ -401,7 +401,6 @@ class CourseTemplateController extends Controller
                 'nullable',
                 Rule::in(['beginner', 'intermediate', 'advanced']),
             ],
-            'language' => ['nullable', 'string', 'max:20'],
             'estimated_duration_minutes' => [
                 'required',
                 'integer',
@@ -446,7 +445,6 @@ class CourseTemplateController extends Controller
             'thumbnail_video_url' => $validated['thumbnail_video_url'] ?? null,
             'thumbnail_video_media_id' => $validated['thumbnail_video_media_id'] ?? null,
             'difficulty_level' => $validated['difficulty_level'] ?? null,
-            'language' => $validated['language'] ?? null,
             'estimated_duration_minutes' => $validated['estimated_duration_minutes'],
             'max_lessons' => $validated['max_lessons'] ?? null,
             'meta_title' => $validated['meta_title'] ?? null,

@@ -920,7 +920,6 @@ class CourseTemplateLessonManagementTest extends TestCase
             'thumbnail_video_url' => null,
             'thumbnail_video_media_id' => null,
             'difficulty_level' => null,
-            'language' => null,
             'estimated_duration_minutes' => 0,
             'max_lessons' => $maxLessons,
             'lesson_count' => 0,

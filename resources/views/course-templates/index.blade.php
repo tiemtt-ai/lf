@@ -74,7 +74,6 @@
                 <th>{{ __('lf.LF_course_template_common_name') }}</th>
                 <th>{{ __('lf.LF_course_template_common_category') }}</th>
                 <th>{{ __('lf.LF_course_template_common_slug') }}</th>
-                <th>{{ __('lf.LF_course_template_common_language') }}</th>
                 <th>{{ __('lf.LF_course_template_common_status') }}</th>
                 <th>{{ __('lf.LF_common_label_common_action') }}</th>
             </tr>
@@ -86,7 +85,6 @@
                     <td>{{ $template->title }}</td>
                     <td>{{ $template->category_name ?? '—' }}</td>
                     <td>{{ $template->slug }}</td>
-                    <td>{{ $template->language ?? '—' }}</td>
                     <td>
                         <span @class([
                             'badge',

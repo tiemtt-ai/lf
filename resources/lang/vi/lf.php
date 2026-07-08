@@ -612,7 +612,6 @@ return [
     'LF_course_template_common_beginner' => 'Cơ bản',
     'LF_course_template_common_intermediate' => 'Trung cấp',
     'LF_course_template_common_advanced' => 'Nâng cao',
-    'LF_course_template_common_language' => 'Ngôn ngữ',
     'LF_course_template_common_estimated_duration_minutes' => 'Thời lượng dự kiến (phút)',
     'LF_course_template_common_max_lessons' => 'Số bài học tối đa',
     'LF_course_template_common_meta_title' => 'Tiêu đề SEO',

@@ -83,7 +83,6 @@ Foundation, but their implementation is outside this snapshot batch.
 | `thumbnail_video_url_snapshot` | VARCHAR(1000) | nullable | Snapshot video URL. |
 | `thumbnail_video_media_id_snapshot` | BIGINT UNSIGNED | nullable | Media lineage/reference captured at publish time. |
 | `difficulty_level_snapshot` | VARCHAR(50) | nullable | Snapshot difficulty: `beginner`, `intermediate`, or `advanced`. |
-| `language_snapshot` | VARCHAR(20) | nullable | Snapshot content language. |
 | `estimated_duration_minutes_snapshot` | INT UNSIGNED | required, default 0 | Published duration aggregate. |
 | `max_lessons_snapshot` | INT UNSIGNED | nullable | Snapshot authoring limit for audit. |
 | `lesson_count_snapshot` | INT UNSIGNED | required, default 0 | Published Lesson count. |

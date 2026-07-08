@@ -26,7 +26,6 @@ return new class extends Migration
             $table->string('thumbnail_video_url', 1000)->nullable();
             $table->unsignedBigInteger('thumbnail_video_media_id')->nullable();
             $table->string('difficulty_level', 50)->nullable();
-            $table->string('language', 20)->nullable();
             $table->unsignedInteger('estimated_duration_minutes')->default(0);
             $table->unsignedInteger('max_lessons')->nullable();
             $table->unsignedInteger('lesson_count')->default(0);
@@ -64,10 +63,6 @@ return new class extends Migration
             $table->index(
                 ['customer_id', 'slug'],
                 'idx_cct_customer_slug'
-            );
-            $table->index(
-                ['customer_id', 'language'],
-                'idx_cct_customer_language'
             );
             $table->unique(
                 ['customer_id', 'slug'],

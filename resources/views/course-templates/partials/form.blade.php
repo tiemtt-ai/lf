@@ -120,14 +120,6 @@
 </div>
 
 <div class="lf-form-group">
-    <x-form-label for="language"
-                  :value="__('lf.LF_course_template_common_language')"
-                  :required="$isRequired('language')" />
-    <input id="language" type="text" name="language" class="lf-form-control"
-           value="{{ old('language', $formTemplate?->language) }}" maxlength="20">
-</div>
-
-<div class="lf-form-group">
     <x-form-label for="estimated_duration_minutes"
                   :value="__('lf.LF_course_template_common_estimated_duration_minutes')"
                   :required="$isRequired('estimated_duration_minutes')" />

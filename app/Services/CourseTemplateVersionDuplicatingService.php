@@ -96,7 +96,6 @@ class CourseTemplateVersionDuplicatingService
                     ),
                     'difficulty_level' => $version
                         ->difficulty_level_snapshot,
-                    'language' => $version->language_snapshot,
                     'estimated_duration_minutes' => $version
                         ->estimated_duration_minutes_snapshot,
                     'max_lessons' => $version->max_lessons_snapshot,
