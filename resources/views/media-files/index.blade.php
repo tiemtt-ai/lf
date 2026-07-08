@@ -115,6 +115,7 @@
          x-data="{
              previewOpen: false,
              previewLoaded: false,
+             videoSrc: '',
              preview: {
                  name: '',
                  url: '',
@@ -122,13 +123,22 @@
                  mediaType: '',
              },
              openMediaPreview(name, url, mimeType, mediaType) {
-                 this.preview = { name, url, mimeType, mediaType };
-                 this.previewOpen = true;
+                 this.resetMediaPreview();
+                 this.preview = { name, url: mediaType === 'image' ? url : '', mimeType, mediaType };
                  this.previewLoaded = true;
 
                  if (mediaType === 'video') {
-                     this.$nextTick(() => this.playVideoPreview());
+                     this.videoSrc = url;
+                     this.$refs.videoPreviewSource?.setAttribute('src', url);
+                     this.$refs.videoPreviewPlayer?.load();
                  }
+
+                 this.previewOpen = true;
+                 this.$nextTick(() => {
+                     if (mediaType === 'video') {
+                         this.playVideoPreview();
+                     }
+                 });
              },
              playVideoPreview() {
                  const player = this.$refs.videoPreviewPlayer;
@@ -147,7 +157,7 @@
                      });
                  }
              },
-             closeMediaPreview() {
+             resetMediaPreview() {
                  const player = this.$refs.videoPreviewPlayer;
 
                  if (player) {
@@ -160,9 +170,13 @@
                      player.load();
                  }
 
-                 this.previewOpen = false;
                  this.previewLoaded = false;
+                 this.videoSrc = '';
                  this.preview = { name: '', url: '', mimeType: '', mediaType: '' };
+             },
+             closeMediaPreview() {
+                 this.resetMediaPreview();
+                 this.previewOpen = false;
              },
          }"
          x-on:keydown.escape.window="closeMediaPreview()">
@@ -306,15 +320,15 @@
                          class="media-library-modal-image">
                 </template>
 
-                <template x-if="previewLoaded && preview.mediaType === 'video'">
-                    <video x-ref="videoPreviewPlayer"
-                           controls
-                           preload="none"
-                           class="media-library-modal-video">
-                        <source x-bind:src="preview.url"
-                                x-bind:type="preview.mimeType">
-                    </video>
-                </template>
+                <video x-ref="videoPreviewPlayer"
+                       x-show="previewLoaded && preview.mediaType === 'video'"
+                       controls
+                       preload="metadata"
+                       class="media-library-modal-video">
+                    <source x-ref="videoPreviewSource"
+                            x-bind:src="videoSrc"
+                            x-bind:type="preview.mimeType">
+                </video>
             </div>
         </div>
     </div>

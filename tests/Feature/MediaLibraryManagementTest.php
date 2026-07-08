@@ -100,7 +100,7 @@ class MediaLibraryManagementTest extends TestCase
             ->assertSee('expiration=', false)
             ->assertSee('media\\/files\\/', false)
             ->assertSee('openMediaPreview(', false)
-            ->assertSee('preload="none"', false)
+            ->assertSee('preload="metadata"', false)
             ->assertDontSee('<video controls preload="metadata">', false)
             ->assertDontSee('/storage/tenants/', false)
             ->assertDontSeeText('Image Asset');
@@ -130,21 +130,24 @@ class MediaLibraryManagementTest extends TestCase
             ->assertSee('media\\/files\\/'.$mediaFile->id.'\\/signed', false)
             ->assertSee('openMediaPreview(', false)
             ->assertSee('media-library-preview-title', false)
-            ->assertSee('preload="none"', false)
-            ->assertDontSee('<video controls preload="metadata">', false)
+            ->assertSee('preload="metadata"', false)
             ->assertDontSee('/storage/tenants/', false)
             ->assertDontSee('public_url', false);
 
         $this->assertSame(0, $this->tableMediaElementCount($response->getContent(), 'video'));
         $this->assertSame(0, $this->tableMediaElementCount($response->getContent(), 'img'));
         $this->assertSame(1, substr_count($response->getContent(), '<video'));
-        $this->assertStringContainsString('this.$nextTick(() => this.playVideoPreview())', $response->getContent());
+        $this->assertStringContainsString('this.resetMediaPreview()', $response->getContent());
+        $this->assertStringContainsString('this.$refs.videoPreviewSource?.setAttribute(\'src\', url)', $response->getContent());
+        $this->assertStringContainsString('this.$refs.videoPreviewPlayer?.load()', $response->getContent());
+        $this->assertStringContainsString('this.previewOpen = true', $response->getContent());
         $this->assertStringContainsString('playVideoPreview()', $response->getContent());
         $this->assertStringContainsString('player.play()', $response->getContent());
         $this->assertStringContainsString('player.muted = true', $response->getContent());
         $this->assertStringContainsString('player.muted = false', $response->getContent());
         $this->assertStringContainsString('player.pause()', $response->getContent());
         $this->assertStringContainsString('removeAttribute(\'src\')', $response->getContent());
+        $this->assertStringContainsString('this.videoSrc = \'\'', $response->getContent());
         $this->assertStringContainsString('player.load()', $response->getContent());
 
         $signedUrl = app(MediaService::class)->generateSignedUrl((int) $mediaFile->id);

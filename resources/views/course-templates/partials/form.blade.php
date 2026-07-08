@@ -20,6 +20,7 @@
          selectedCoverType: @js($selectedCoverType),
          previewOpen: false,
          previewLoaded: false,
+         videoSrc: '',
          preview: {
              name: '',
              url: '',
@@ -36,13 +37,22 @@
                  .replace(/^-+|-+$/g, '');
          },
          openTemplatePreview(name, url, mimeType, mediaType) {
-             this.preview = { name, url, mimeType, mediaType };
-             this.previewOpen = true;
+             this.resetTemplatePreview();
+             this.preview = { name, url: mediaType === 'image' ? url : '', mimeType, mediaType };
              this.previewLoaded = true;
 
              if (mediaType === 'video') {
-                 this.$nextTick(() => this.playTemplatePreviewVideo());
+                 this.videoSrc = url;
+                 this.$refs.templatePreviewVideoSource?.setAttribute('src', url);
+                 this.$refs.templatePreviewVideoPlayer?.load();
              }
+
+             this.previewOpen = true;
+             this.$nextTick(() => {
+                 if (mediaType === 'video') {
+                     this.playTemplatePreviewVideo();
+                 }
+             });
          },
          playTemplatePreviewVideo() {
              const player = this.$refs.templatePreviewVideoPlayer;
@@ -61,7 +71,7 @@
                  });
              }
          },
-         closeTemplatePreview() {
+         resetTemplatePreview() {
              const player = this.$refs.templatePreviewVideoPlayer;
 
              if (player) {
@@ -74,9 +84,13 @@
                  player.load();
              }
 
-             this.previewOpen = false;
              this.previewLoaded = false;
+             this.videoSrc = '';
              this.preview = { name: '', url: '', mimeType: '', mediaType: '' };
+         },
+         closeTemplatePreview() {
+             this.resetTemplatePreview();
+             this.previewOpen = false;
          },
          syncSlug(value) {
              if (this.slugFollowsTitle) {
@@ -321,15 +335,15 @@
                          class="media-library-modal-image">
                 </template>
 
-                <template x-if="previewLoaded && preview.mediaType === 'video'">
-                    <video x-ref="templatePreviewVideoPlayer"
-                           controls
-                           preload="none"
-                           class="media-library-modal-video">
-                        <source x-bind:src="preview.url"
-                                x-bind:type="preview.mimeType">
-                    </video>
-                </template>
+                <video x-ref="templatePreviewVideoPlayer"
+                       x-show="previewLoaded && preview.mediaType === 'video'"
+                       controls
+                       preload="metadata"
+                       class="media-library-modal-video">
+                    <source x-ref="templatePreviewVideoSource"
+                            x-bind:src="videoSrc"
+                            x-bind:type="preview.mimeType">
+                </video>
             </div>
         </div>
     </div>
