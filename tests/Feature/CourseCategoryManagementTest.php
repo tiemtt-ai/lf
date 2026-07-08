@@ -130,6 +130,25 @@ class CourseCategoryManagementTest extends TestCase
             $this->assertStringNotContainsString('course-category-basic-title', $content);
             $this->assertStringNotContainsString('course-category-media-title', $content);
             $this->assertStringNotContainsString('course-category-description-title', $content);
+            $this->assertSame(
+                [
+                    'parent_id',
+                    'name',
+                    'slug',
+                    'thumbnail_image_file',
+                ],
+                $this->backendColumnFieldNames($content, 0)
+            );
+            $this->assertSame(
+                [
+                    'banner_image_file',
+                    'is_featured',
+                    'sort_order',
+                    'status',
+                ],
+                $this->backendColumnFieldNames($content, 1)
+            );
+            $this->assertFalse($this->fieldIsInsideBackendColumn($content, 'description'));
             $this->assertStringContainsString('name="slug"', $content);
             $this->assertStringContainsString('readonly', $content);
             $this->assertManualSeoControlsNotRendered(
@@ -736,5 +755,45 @@ class CourseCategoryManagementTest extends TestCase
             __('lf.'.$translationPrefix.'_common_meta_keywords'),
             $html
         );
+    }
+
+    private function backendColumnFieldNames(string $html, int $index): array
+    {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        $xpath = new \DOMXPath($document);
+        $columnPosition = $index + 1;
+        $labels = $xpath->query(
+            '(//div[contains(concat(" ", normalize-space(@class), " "),'
+            .' " backend-form-column ")])['.$columnPosition.']//label[@for]'
+        );
+        $fields = [];
+
+        foreach ($labels as $label) {
+            $fields[] = $label->getAttribute('for');
+        }
+
+        return $fields;
+    }
+
+    private function fieldIsInsideBackendColumn(string $html, string $field): bool
+    {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        $xpath = new \DOMXPath($document);
+        $ancestors = $xpath->query(
+            '//label[@for="'.$field.'"]/ancestor::div[contains(concat(" ", normalize-space(@class), " "),'
+            .' " backend-form-column ")]'
+        );
+
+        return $ancestors->length > 0;
     }
 }
