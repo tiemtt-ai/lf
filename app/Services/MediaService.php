@@ -6,6 +6,7 @@ use App\Support\TenantContext;
 use DateTimeInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Validator;
@@ -136,6 +137,17 @@ class MediaService
             (int) config('media.signed_url_ttl_minutes', 10)
         );
 
+        if ($this->shouldUseSignedDeliveryRoute($mediaFile)) {
+            return URL::temporarySignedRoute(
+                'media.files.signed',
+                $expiresAt,
+                [
+                    'mediaFile' => $mediaFile->id,
+                    'expiration' => $expiresAt->getTimestamp(),
+                ]
+            );
+        }
+
         try {
             return Storage::disk($mediaFile->storage_disk)->temporaryUrl(
                 $mediaFile->storage_key,
@@ -145,9 +157,19 @@ class MediaService
             return URL::temporarySignedRoute(
                 'media.files.signed',
                 $expiresAt,
-                ['mediaFile' => $mediaFile->id]
+                [
+                    'mediaFile' => $mediaFile->id,
+                    'expiration' => $expiresAt->getTimestamp(),
+                ]
             );
         }
+    }
+
+    private function shouldUseSignedDeliveryRoute(object $mediaFile): bool
+    {
+        $disk = config('filesystems.disks.'.$mediaFile->storage_disk);
+
+        return ($disk['driver'] ?? null) === 'local';
     }
 
     public function attachUsage(
@@ -337,9 +359,11 @@ class MediaService
 
         if ($this->isInUse($mediaFileId)) {
             throw ValidationException::withMessages([
-                'media_file_id' => 'Media file has active usages.',
+                'media_file_id' => __('lf.LF_media_file_delete_blocked_in_use'),
             ]);
         }
+
+        $this->deleteStorageObject($mediaFile);
 
         DB::table('media_files')
             ->where('customer_id', $customerId)
@@ -353,6 +377,44 @@ class MediaService
             ->where('customer_id', $customerId)
             ->where('id', $mediaFile->id)
             ->first();
+    }
+
+    private function deleteStorageObject(object $mediaFile): void
+    {
+        $disk = Storage::disk($mediaFile->storage_disk);
+
+        try {
+            if (! $disk->exists($mediaFile->storage_key)) {
+                return;
+            }
+
+            if ($disk->delete($mediaFile->storage_key) === false) {
+                Log::warning('Media storage object delete returned false.', [
+                    'media_file_id' => $mediaFile->id,
+                    'customer_id' => $mediaFile->customer_id,
+                    'storage_disk' => $mediaFile->storage_disk,
+                    'storage_key' => $mediaFile->storage_key,
+                ]);
+
+                throw ValidationException::withMessages([
+                    'media_file_id' => __('lf.LF_media_file_delete_storage_failed'),
+                ]);
+            }
+        } catch (ValidationException $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            Log::warning('Media storage object delete failed.', [
+                'media_file_id' => $mediaFile->id,
+                'customer_id' => $mediaFile->customer_id,
+                'storage_disk' => $mediaFile->storage_disk,
+                'storage_key' => $mediaFile->storage_key,
+                'exception' => $exception->getMessage(),
+            ]);
+
+            throw ValidationException::withMessages([
+                'media_file_id' => __('lf.LF_media_file_delete_storage_failed'),
+            ]);
+        }
     }
 
     private function validateUploadAttributes(

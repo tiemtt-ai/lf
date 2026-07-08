@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class CourseTemplateManagementTest extends TestCase
@@ -20,7 +22,10 @@ class CourseTemplateManagementTest extends TestCase
             'app.url' => 'https://localhost',
             'app.base_domain' => 'localhost',
             'app.tenant_scheme' => 'https',
+            'media.disk' => 'media_local',
+            'media.bucket' => 'lf-test-media',
         ]);
+        Storage::fake('media_local');
     }
 
     public function test_admin_and_teacher_can_view_only_their_tenant_templates(): void
@@ -168,7 +173,9 @@ class CourseTemplateManagementTest extends TestCase
         foreach ($responses as $response) {
             foreach ([
                 'title',
-                'thumbnail_type',
+                'cover_type',
+                'cover_image_file',
+                'intro_video_file',
                 'estimated_duration_minutes',
                 'status',
             ] as $field) {
@@ -184,11 +191,8 @@ class CourseTemplateManagementTest extends TestCase
                 'short_description',
                 'description',
                 'publisher_name',
-                'thumbnail_image',
-                'cover_image_file',
-                'thumbnail_video_source',
-                'thumbnail_video_url',
-                'thumbnail_video_media_id',
+                'cover_image_media_file_id',
+                'intro_video_media_file_id',
                 'difficulty_level',
                 'max_lessons',
             ] as $field) {
@@ -213,12 +217,9 @@ class CourseTemplateManagementTest extends TestCase
                 [
                     'estimated_duration_minutes',
                     'max_lessons',
-                    'thumbnail_type',
-                    'thumbnail_image',
+                    'cover_type',
                     'cover_image_file',
-                    'thumbnail_video_source',
-                    'thumbnail_video_url',
-                    'thumbnail_video_media_id',
+                    'intro_video_file',
                     'status',
                 ],
                 $this->backendColumnFieldNames($response->getContent(), 1)
@@ -260,9 +261,13 @@ class CourseTemplateManagementTest extends TestCase
                     'short_description' => 'TOPIK foundation',
                     'description' => 'Detailed TOPIK foundation course.',
                     'publisher_name' => 'Visang',
-                    'thumbnail_type' => 'video',
-                    'thumbnail_video_source' => 'youtube',
-                    'thumbnail_video_url' => 'https://www.youtube.com/watch?v=example',
+                    'cover_type' => 'video',
+                    'cover_image_file' => null,
+                    'intro_video_file' => UploadedFile::fake()->create(
+                        'intro-video.mp4',
+                        32,
+                        'video/mp4'
+                    ),
                     'difficulty_level' => 'beginner',
                     'estimated_duration_minutes' => 2400,
                     'max_lessons' => 40,
@@ -375,7 +380,7 @@ class CourseTemplateManagementTest extends TestCase
             ->post('https://tenant-a.localhost/admin/course-templates', [
                 'category_id' => $otherCategoryId,
                 'title' => '',
-                'thumbnail_type' => 'document',
+                'cover_type' => 'document',
                 'estimated_duration_minutes' => -1,
                 'status' => 'inactive',
             ])
@@ -383,7 +388,7 @@ class CourseTemplateManagementTest extends TestCase
             ->assertSessionHasErrors([
                 'category_id',
                 'title',
-                'thumbnail_type',
+                'cover_type',
                 'estimated_duration_minutes',
                 'status',
             ]);
@@ -594,11 +599,9 @@ class CourseTemplateManagementTest extends TestCase
             'short_description' => null,
             'description' => null,
             'publisher_name' => null,
-            'thumbnail_type' => 'image',
-            'thumbnail_image' => null,
-            'thumbnail_video_source' => null,
-            'thumbnail_video_url' => null,
-            'thumbnail_video_media_id' => null,
+            'cover_type' => 'image',
+            'cover_image_media_file_id' => null,
+            'intro_video_media_file_id' => null,
             'difficulty_level' => null,
             'estimated_duration_minutes' => 0,
             'max_lessons' => null,
@@ -623,11 +626,12 @@ class CourseTemplateManagementTest extends TestCase
             'short_description' => null,
             'description' => null,
             'publisher_name' => null,
-            'thumbnail_type' => 'image',
-            'thumbnail_image' => null,
-            'thumbnail_video_source' => null,
-            'thumbnail_video_url' => null,
-            'thumbnail_video_media_id' => null,
+            'cover_type' => 'image',
+            'cover_image_file' => UploadedFile::fake()->image(
+                'template-cover.png',
+                120,
+                80
+            ),
             'difficulty_level' => null,
             'estimated_duration_minutes' => 0,
             'max_lessons' => null,

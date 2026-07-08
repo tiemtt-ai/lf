@@ -6,6 +6,7 @@ use App\Services\CourseTemplatePublishingService;
 use App\Services\CourseTemplateVersionDuplicatingService;
 use App\Services\MediaService;
 use App\Support\TenantContext;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -84,6 +85,7 @@ class CourseTemplateController extends Controller
             'categories' => $this->categories(),
             'requiredFields' => $this->requiredFields($customerId),
             'coverImageMedia' => null,
+            'introVideoMedia' => null,
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -106,11 +108,21 @@ class CourseTemplateController extends Controller
             ])
         );
 
-        $this->attachUploadedMedia($request, $templateId);
+        $this->syncCoverMedia($request, $templateId, $validated);
 
         return redirect()
             ->route($this->routePrefix($request).'.index')
             ->with('success', __('lf.LF_course_template_common_created'));
+    }
+
+    public function show(Request $request, int $id): RedirectResponse
+    {
+        $this->findTemplate($this->customerId(), $id);
+
+        return redirect()->route(
+            $this->routePrefix($request).'.edit',
+            $id
+        );
     }
 
     public function edit(Request $request, int $id): View
@@ -132,10 +144,11 @@ class CourseTemplateController extends Controller
             'directLessons' => $this->directLessons($customerId, $id),
             'lessonsBySection' => $this->lessonsBySection($customerId, $id),
             'activitiesByLesson' => $this->activitiesByLesson($customerId, $id),
-            'coverImageMedia' => $this->singleMedia(
-                'course_template',
-                $id,
-                'cover_image'
+            'coverImageMedia' => $this->mediaFile(
+                $template->cover_image_media_file_id
+            ),
+            'introVideoMedia' => $this->mediaFile(
+                $template->intro_video_media_file_id
             ),
             'teacherAssignments' => $this->teacherAssignments(
                 $customerId,
@@ -319,7 +332,7 @@ class CourseTemplateController extends Controller
             ->where('id', $id)
             ->update($values);
 
-        $this->attachUploadedMedia($request, $id);
+        $this->syncCoverMedia($request, $id, $validated);
 
         return redirect()
             ->route($this->routePrefix($request).'.edit', $id)
@@ -355,17 +368,131 @@ class CourseTemplateController extends Controller
         ?int $templateId = null,
         ?object $template = null
     ): array {
-        $input = $request->all();
+        $fields = [
+            'category_id',
+            'title',
+            'slug',
+            'short_description',
+            'description',
+            'publisher_name',
+            'cover_type',
+            'cover_image_media_file_id',
+            'intro_video_media_file_id',
+            'difficulty_level',
+            'estimated_duration_minutes',
+            'max_lessons',
+            'meta_title',
+            'meta_description',
+            'meta_keywords',
+            'status',
+        ];
+
+        $input = array_intersect_key(
+            $request->request->all(),
+            array_flip($fields)
+        );
+
+        foreach (['cover_image_file', 'intro_video_file'] as $field) {
+            if ($request->hasFile($field)) {
+                $input[$field] = $request->file($field);
+            }
+        }
+
+        $submittedImagePreview = (
+            isset($input['cover_image_media_file_id'])
+            && trim((string) $input['cover_image_media_file_id']) !== ''
+        ) || $request->hasFile('cover_image_file');
+        $submittedVideoPreview = (
+            isset($input['intro_video_media_file_id'])
+            && trim((string) $input['intro_video_media_file_id']) !== ''
+        ) || $request->hasFile('intro_video_file');
+        $coverType = (string) ($input['cover_type'] ?? '');
+
+        if ($coverType === 'video') {
+            unset($input['cover_image_media_file_id']);
+        }
+
+        if ($coverType === 'image') {
+            unset($input['intro_video_media_file_id']);
+        }
+
         $input['slug'] = $this->systemSlug(
             (string) $request->input('title', ''),
             $template,
             'title'
         );
 
-        return Validator::make(
+        $validator = Validator::make(
             $input,
             $this->validationRules($customerId, $templateId)
-        )->validate();
+        );
+
+        $validator->after(function ($validator) use (
+            $input,
+            $request,
+            $template,
+            $submittedImagePreview,
+            $submittedVideoPreview
+        ): void {
+            $coverType = (string) ($input['cover_type'] ?? '');
+            $hasCoverImageMedia = isset($input['cover_image_media_file_id'])
+                && trim((string) $input['cover_image_media_file_id']) !== '';
+            $hasIntroVideoMedia = isset($input['intro_video_media_file_id'])
+                && trim((string) $input['intro_video_media_file_id']) !== '';
+
+            if ($submittedImagePreview && $submittedVideoPreview) {
+                $validator->errors()->add(
+                    'cover_type',
+                    __('lf.LF_course_template_preview_media_exclusive')
+                );
+            }
+
+            if ($coverType === 'image') {
+                if ($request->hasFile('intro_video_file')) {
+                    $validator->errors()->add(
+                        'intro_video_media_file_id',
+                        __('validation.prohibited', [
+                            'attribute' => 'intro video',
+                        ])
+                    );
+                }
+
+                if (! $hasCoverImageMedia
+                    && ! $request->hasFile('cover_image_file')
+                    && ! $template?->cover_image_media_file_id) {
+                    $validator->errors()->add(
+                        'cover_image_file',
+                        __('validation.required', [
+                            'attribute' => 'cover image',
+                        ])
+                    );
+                }
+            }
+
+            if ($coverType === 'video') {
+                if ($request->hasFile('cover_image_file')) {
+                    $validator->errors()->add(
+                        'cover_image_media_file_id',
+                        __('validation.prohibited', [
+                            'attribute' => 'cover image',
+                        ])
+                    );
+                }
+
+                if (! $hasIntroVideoMedia
+                    && ! $request->hasFile('intro_video_file')
+                    && ! $template?->intro_video_media_file_id) {
+                    $validator->errors()->add(
+                        'intro_video_file',
+                        __('validation.required', [
+                            'attribute' => 'intro video',
+                        ])
+                    );
+                }
+            }
+        });
+
+        return $validator->validate();
     }
 
     private function validationRules(int $customerId, ?int $templateId = null): array
@@ -389,14 +516,25 @@ class CourseTemplateController extends Controller
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['nullable', 'string'],
             'publisher_name' => ['nullable', 'string', 'max:255'],
-            'thumbnail_type' => ['required', Rule::in(['image', 'video'])],
-            'thumbnail_image' => ['nullable', 'string', 'max:500'],
-            'thumbnail_video_source' => [
+            'cover_type' => ['required', Rule::in(['image', 'video'])],
+            'cover_image_media_file_id' => [
                 'nullable',
-                Rule::in(['youtube', 'aws']),
+                'integer',
+                Rule::exists('media_files', 'id')
+                    ->where(fn ($query) => $query
+                        ->where('customer_id', $customerId)
+                        ->where('file_type', 'image')
+                        ->where('status', 'ready')),
             ],
-            'thumbnail_video_url' => ['nullable', 'string', 'max:1000'],
-            'thumbnail_video_media_id' => ['nullable', 'integer', 'min:1'],
+            'intro_video_media_file_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('media_files', 'id')
+                    ->where(fn ($query) => $query
+                        ->where('customer_id', $customerId)
+                        ->where('file_type', 'video')
+                        ->where('status', 'ready')),
+            ],
             'difficulty_level' => [
                 'nullable',
                 Rule::in(['beginner', 'intermediate', 'advanced']),
@@ -415,6 +553,11 @@ class CourseTemplateController extends Controller
                 Rule::in(['draft', 'active', 'archived']),
             ],
             'cover_image_file' => [
+                'nullable',
+                'file',
+                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+            ],
+            'intro_video_file' => [
                 'nullable',
                 'file',
                 'max:'.(int) config('media.max_upload_kilobytes', 102400),
@@ -439,11 +582,13 @@ class CourseTemplateController extends Controller
             'short_description' => $validated['short_description'] ?? null,
             'description' => $validated['description'] ?? null,
             'publisher_name' => $validated['publisher_name'] ?? null,
-            'thumbnail_type' => $validated['thumbnail_type'],
-            'thumbnail_image' => $validated['thumbnail_image'] ?? null,
-            'thumbnail_video_source' => $validated['thumbnail_video_source'] ?? null,
-            'thumbnail_video_url' => $validated['thumbnail_video_url'] ?? null,
-            'thumbnail_video_media_id' => $validated['thumbnail_video_media_id'] ?? null,
+            'cover_type' => $validated['cover_type'],
+            'cover_image_media_file_id' => $validated['cover_type'] === 'image'
+                ? ($validated['cover_image_media_file_id'] ?? null)
+                : null,
+            'intro_video_media_file_id' => $validated['cover_type'] === 'video'
+                ? ($validated['intro_video_media_file_id'] ?? null)
+                : null,
             'difficulty_level' => $validated['difficulty_level'] ?? null,
             'estimated_duration_minutes' => $validated['estimated_duration_minutes'],
             'max_lessons' => $validated['max_lessons'] ?? null,
@@ -592,35 +737,100 @@ class CourseTemplateController extends Controller
             ->get();
     }
 
-    private function attachUploadedMedia(Request $request, int $templateId): void
-    {
-        if (! $request->hasFile('cover_image_file')) {
+    private function syncCoverMedia(
+        Request $request,
+        int $templateId,
+        array $validated
+    ): void {
+        if ($validated['cover_type'] === 'image') {
+            $this->detachOwnerMedia($templateId, 'video');
+
+            $mediaFileId = $validated['cover_image_media_file_id'] ?? null;
+
+            if ($request->hasFile('cover_image_file')) {
+                $this->detachOwnerMedia($templateId, 'cover_image');
+                $mediaFileId = $this->uploadCoverMedia(
+                    $request,
+                    $templateId,
+                    'cover_image_file',
+                    'image',
+                    'cover',
+                    'cover_image'
+                );
+            }
+
+            if ($mediaFileId) {
+                $this->mediaService->attachUsage(
+                    (int) $mediaFileId,
+                    'course_template',
+                    $templateId,
+                    'cover_image'
+                );
+            }
+
+            DB::table('core_course_templates')
+                ->where('customer_id', $this->customerId())
+                ->where('id', $templateId)
+                ->update([
+                    'cover_image_media_file_id' => $mediaFileId,
+                    'intro_video_media_file_id' => null,
+                    'updated_at' => now(),
+                ]);
+
             return;
         }
 
-        foreach (
-            $this->mediaService->getOwnerMedia(
-                'course_template',
+        $this->detachOwnerMedia($templateId, 'cover_image');
+
+        $mediaFileId = $validated['intro_video_media_file_id'] ?? null;
+
+        if ($request->hasFile('intro_video_file')) {
+            $this->detachOwnerMedia($templateId, 'video');
+            $mediaFileId = $this->uploadCoverMedia(
+                $request,
                 $templateId,
-                'cover_image'
-            ) as $media
-        ) {
-            $this->mediaService->detachUsage(
-                (int) $media->id,
-                'course_template',
-                $templateId,
-                'cover_image'
+                'intro_video_file',
+                'video',
+                'intro-video',
+                'video'
             );
         }
 
+        if ($mediaFileId) {
+            $this->mediaService->attachUsage(
+                (int) $mediaFileId,
+                'course_template',
+                $templateId,
+                'video'
+            );
+        }
+
+        DB::table('core_course_templates')
+            ->where('customer_id', $this->customerId())
+            ->where('id', $templateId)
+            ->update([
+                'cover_image_media_file_id' => null,
+                'intro_video_media_file_id' => $mediaFileId,
+                'updated_at' => now(),
+            ]);
+    }
+
+    private function uploadCoverMedia(
+        Request $request,
+        int $templateId,
+        string $field,
+        string $fileType,
+        string $purpose,
+        string $usageType
+    ): int {
         $mediaFile = $this->mediaService->upload(
-            $request->file('cover_image_file'),
+            $request->file($field),
             [
-                'file_type' => 'image',
+                'file_type' => $fileType,
                 'module' => 'course',
                 'entity_type' => 'templates',
                 'entity_id' => $templateId,
-                'purpose' => 'cover',
+                'purpose' => $purpose,
                 'display_name' => $request->input('title'),
             ],
             (int) $request->user()->id
@@ -630,17 +840,39 @@ class CourseTemplateController extends Controller
             (int) $mediaFile->id,
             'course_template',
             $templateId,
-            'cover_image'
+            $usageType
         );
+
+        return (int) $mediaFile->id;
     }
 
-    private function singleMedia(
-        string $ownerType,
-        int $ownerId,
-        string $usageType
-    ): ?object {
-        $media = $this->mediaService
-            ->getOwnerMedia($ownerType, $ownerId, $usageType)
+    private function detachOwnerMedia(int $templateId, string $usageType): void
+    {
+        foreach (
+            $this->mediaService->getOwnerMedia(
+                'course_template',
+                $templateId,
+                $usageType
+            ) as $media
+        ) {
+            $this->mediaService->detachUsage(
+                (int) $media->id,
+                'course_template',
+                $templateId,
+                $usageType
+            );
+        }
+    }
+
+    private function mediaFile(?int $mediaFileId): ?object
+    {
+        if (! $mediaFileId) {
+            return null;
+        }
+
+        $media = DB::table('media_files')
+            ->where('customer_id', $this->customerId())
+            ->where('id', $mediaFileId)
             ->first();
 
         if (! $media) {

@@ -230,7 +230,10 @@ class MediaFileController extends Controller
 
     private function previewUrl(object $mediaFile): ?string
     {
-        if ($mediaFile->file_type !== 'image' || $mediaFile->status !== 'ready') {
+        if (
+            ! in_array($mediaFile->file_type, ['image', 'video'], true)
+            || $mediaFile->status !== 'ready'
+        ) {
             return null;
         }
 

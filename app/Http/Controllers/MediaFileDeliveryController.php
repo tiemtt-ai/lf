@@ -6,11 +6,10 @@ use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MediaFileDeliveryController extends Controller
 {
-    public function show(Request $request, int $mediaFile): StreamedResponse
+    public function show(Request $request, int $mediaFile)
     {
         $customerId = TenantContext::customerId();
 
@@ -23,10 +22,28 @@ class MediaFileDeliveryController extends Controller
 
         abort_if(! $file || $file->status !== 'ready', 404);
 
+        $headers = [
+            'Accept-Ranges' => 'bytes',
+            'Content-Type' => $file->mime_type,
+            'Content-Disposition' => 'inline; filename="'.$file->display_name.'"',
+        ];
+
+        if ($this->isLocalDisk($file->storage_disk)) {
+            return response()->file(
+                Storage::disk($file->storage_disk)->path($file->storage_key),
+                $headers
+            );
+        }
+
         return Storage::disk($file->storage_disk)->response(
             $file->storage_key,
             $file->display_name,
-            ['Content-Type' => $file->mime_type]
+            $headers
         );
+    }
+
+    private function isLocalDisk(string $disk): bool
+    {
+        return config('filesystems.disks.'.$disk.'.driver') === 'local';
     }
 }

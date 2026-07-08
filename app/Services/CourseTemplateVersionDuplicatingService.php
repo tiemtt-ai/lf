@@ -83,16 +83,16 @@ class CourseTemplateVersionDuplicatingService
                         ->short_description_snapshot,
                     'description' => $version->description_snapshot,
                     'publisher_name' => $version->publisher_name_snapshot,
-                    'thumbnail_type' => $version->thumbnail_type_snapshot,
-                    'thumbnail_image' => $version->thumbnail_image_snapshot,
-                    'thumbnail_video_source' => $version
-                        ->thumbnail_video_source_snapshot,
-                    'thumbnail_video_url' => $version
-                        ->thumbnail_video_url_snapshot,
-                    'thumbnail_video_media_id' => $this->referenceId(
+                    'cover_type' => $version->cover_type_snapshot,
+                    'cover_image_media_file_id' => $this->referenceId(
                         $customerId,
-                        $version->thumbnail_video_media_id_snapshot,
-                        ['media_files', 'media_videos']
+                        $version->cover_image_media_file_id_snapshot,
+                        ['media_files']
+                    ),
+                    'intro_video_media_file_id' => $this->referenceId(
+                        $customerId,
+                        $version->intro_video_media_file_id_snapshot,
+                        ['media_files']
                     ),
                     'difficulty_level' => $version
                         ->difficulty_level_snapshot,

@@ -77,11 +77,9 @@ Foundation, but their implementation is outside this snapshot batch.
 | `short_description_snapshot` | VARCHAR(500) | nullable | Snapshot of short description. |
 | `description_snapshot` | LONGTEXT | nullable | Snapshot of detailed description. |
 | `publisher_name_snapshot` | VARCHAR(255) | nullable | Snapshot of content publisher name. |
-| `thumbnail_type_snapshot` | VARCHAR(50) | required | Snapshot value: `image` or `video`. |
-| `thumbnail_image_snapshot` | VARCHAR(500) | nullable | Snapshot image location. |
-| `thumbnail_video_source_snapshot` | VARCHAR(50) | nullable | Snapshot video source such as `youtube` or `aws`. |
-| `thumbnail_video_url_snapshot` | VARCHAR(1000) | nullable | Snapshot video URL. |
-| `thumbnail_video_media_id_snapshot` | BIGINT UNSIGNED | nullable | Media lineage/reference captured at publish time. |
+| `cover_type_snapshot` | VARCHAR(50) | required | Snapshot value: `image` or `video`. |
+| `cover_image_media_file_id_snapshot` | BIGINT UNSIGNED | nullable | Cover image Media File captured at publish time. Required when `cover_type_snapshot = image`; must be `NULL` when `cover_type_snapshot = video`. |
+| `intro_video_media_file_id_snapshot` | BIGINT UNSIGNED | nullable | Intro video Media File captured at publish time. Required when `cover_type_snapshot = video`; must be `NULL` when `cover_type_snapshot = image`. |
 | `difficulty_level_snapshot` | VARCHAR(50) | nullable | Snapshot difficulty: `beginner`, `intermediate`, or `advanced`. |
 | `estimated_duration_minutes_snapshot` | INT UNSIGNED | required, default 0 | Published duration aggregate. |
 | `max_lessons_snapshot` | INT UNSIGNED | nullable | Snapshot authoring limit for audit. |
@@ -153,7 +151,7 @@ source_category_id = 2
 category_name_snapshot = Korean
 title_snapshot = TOPIK Beginner
 slug_snapshot = topik-beginner
-thumbnail_type_snapshot = image
+cover_type_snapshot = image
 estimated_duration_minutes_snapshot = 2400
 lesson_count_snapshot = 32
 source_working_revision = 12

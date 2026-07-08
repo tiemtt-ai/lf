@@ -159,9 +159,9 @@ VARCHAR(255) NULL
 
 ---
 
-## Thumbnail / Trailer
+## Cover Media
 
-### thumbnail_type
+### cover_type
 
 VARCHAR(50)
 
@@ -170,32 +170,25 @@ Giá trị:
 * image
 * video
 
-### thumbnail_image
-
-VARCHAR(500) NULL
-
-Ảnh thumbnail.
-
-### thumbnail_video_source
-
-VARCHAR(50) NULL
-
-Giá trị:
-
-* youtube
-* aws
-
-### thumbnail_video_url
-
-VARCHAR(1000) NULL
-
-Youtube URL hoặc AWS URL.
-
-### thumbnail_video_media_id
+### cover_image_media_file_id
 
 BIGINT UNSIGNED NULL
 
-Liên kết media_files hoặc media_videos.
+FK → `media_files.id`.
+
+Required when `cover_type = image`.
+
+Must be `NULL` when `cover_type = video`.
+
+### intro_video_media_file_id
+
+BIGINT UNSIGNED NULL
+
+FK → `media_files.id`.
+
+Required when `cover_type = video`.
+
+Must be `NULL` when `cover_type = image`.
 
 ---
 
@@ -311,9 +304,8 @@ and `updated_at` records the operation. `created_by`, `created_at` and
 
 If `source_category_id` no longer identifies a same-tenant Category,
 `category_id` becomes `NULL`. Missing optional Media identifiers also become
-`NULL`; supported snapshot URL/text fields remain available. Required
-constraint failures roll back the operation without replacing the current
-draft.
+`NULL`. Required constraint failures roll back the operation without replacing
+the current draft.
 
 No `duplicated_from_version_id`, `duplicated_by` or `duplicated_at` columns are
 introduced. Duplicate provenance belongs to the append-only tenant audit trail.
@@ -354,9 +346,9 @@ slug = topik-beginner-1
 
 publisher_name = Visang
 
-thumbnail_type = video
+cover_type = video
 
-thumbnail_video_source = youtube
+intro_video_media_file_id = 700
 
 difficulty_level = beginner
 

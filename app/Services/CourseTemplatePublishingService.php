@@ -84,14 +84,11 @@ class CourseTemplatePublishingService
                 'short_description_snapshot' => $template->short_description,
                 'description_snapshot' => $template->description,
                 'publisher_name_snapshot' => $template->publisher_name,
-                'thumbnail_type_snapshot' => $template->thumbnail_type,
-                'thumbnail_image_snapshot' => $template->thumbnail_image,
-                'thumbnail_video_source_snapshot' => $template
-                    ->thumbnail_video_source,
-                'thumbnail_video_url_snapshot' => $template
-                    ->thumbnail_video_url,
-                'thumbnail_video_media_id_snapshot' => $template
-                    ->thumbnail_video_media_id,
+                'cover_type_snapshot' => $template->cover_type,
+                'cover_image_media_file_id_snapshot' => $template
+                    ->cover_image_media_file_id,
+                'intro_video_media_file_id_snapshot' => $template
+                    ->intro_video_media_file_id,
                 'difficulty_level_snapshot' => $template->difficulty_level,
                 'estimated_duration_minutes_snapshot' => $template
                     ->estimated_duration_minutes,

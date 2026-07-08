@@ -96,6 +96,68 @@
     overflow-wrap: anywhere;
 }
 
+.media-library-video-placeholder {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    background: #e5e7eb;
+    color: #334155;
+    font-weight: 700;
+}
+
+.media-library-preview-action {
+    margin-top: 6px;
+}
+
+.media-library-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+}
+
+.media-library-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    background: rgb(15 23 42 / 62%);
+}
+
+.media-library-modal-panel {
+    position: relative;
+    width: min(960px, 100%);
+    max-height: calc(100vh - 48px);
+    display: grid;
+    gap: 16px;
+    padding: 18px;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 24px 80px rgb(15 23 42 / 28%);
+}
+
+.media-library-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.media-library-modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    overflow-wrap: anywhere;
+}
+
+.media-library-modal-video {
+    width: 100%;
+    max-height: calc(100vh - 160px);
+    background: #020617;
+    border-radius: 8px;
+}
+
 .media-library-file-meta {
     margin-top: 3px;
     color: #64748b;

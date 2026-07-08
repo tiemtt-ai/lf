@@ -7,6 +7,7 @@ use App\Services\MediaService;
 use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -29,8 +30,17 @@ class MediaLibraryManagementTest extends TestCase
             'media.region' => 'ap-southeast-1',
         ]);
 
+        Carbon::setTestNow('2026-07-08 10:00:00');
         Storage::fake('media_local');
         TenantContext::set(null);
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        TenantContext::set(null);
+
+        parent::tearDown();
     }
 
     public function test_media_library_displays_category_uploads(): void
@@ -85,7 +95,114 @@ class MediaLibraryManagementTest extends TestCase
             ->get('https://tenant-a.localhost/admin/media?tab=videos')
             ->assertOk()
             ->assertSeeText('Video Asset')
+            ->assertSeeText(__('lf.LF_media_file_common_preview_action'))
+            ->assertSeeText('Video')
+            ->assertSee('expiration=', false)
+            ->assertSee('media\\/files\\/', false)
+            ->assertSee('preload="none"', false)
+            ->assertDontSee('<video controls preload="metadata">', false)
+            ->assertDontSee('/storage/tenants/', false)
             ->assertDontSeeText('Image Asset');
+    }
+
+    public function test_video_media_can_be_previewed_through_signed_private_url(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+
+        $mediaFile = $this->uploadUnattachedMedia(
+            $admin,
+            'Preview Video',
+            'video',
+            'preview-video.mp4'
+        );
+
+        $response = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/media?tab=videos')
+            ->assertOk()
+            ->assertSeeText('Preview Video')
+            ->assertSeeText(__('lf.LF_media_file_common_preview_action'))
+            ->assertSeeText('Video')
+            ->assertSee('expiration=', false)
+            ->assertSee('media\\/files\\/'.$mediaFile->id.'\\/signed', false)
+            ->assertSee('openVideoPreview(', false)
+            ->assertSee('preload="none"', false)
+            ->assertDontSee('<video controls preload="metadata">', false)
+            ->assertDontSee('/storage/tenants/', false)
+            ->assertDontSee('public_url', false);
+
+        $this->assertSame(0, $this->tableVideoElementCount($response->getContent()));
+        $this->assertSame(1, substr_count($response->getContent(), '<video'));
+        $this->assertStringContainsString('removeAttribute(\'src\')', $response->getContent());
+        $this->assertStringContainsString('player.load()', $response->getContent());
+
+        $signedUrl = app(MediaService::class)->generateSignedUrl((int) $mediaFile->id);
+
+        $this->assertStringContainsString('expiration=', $signedUrl);
+        $this->assertStringContainsString('/media/files/'.$mediaFile->id.'/signed', $signedUrl);
+        $this->assertStringNotContainsString('/storage/tenants/', $signedUrl);
+        $this->assertStringContainsString((string) $mediaFile->id, $signedUrl);
+
+        $this->get($signedUrl)
+            ->assertOk()
+            ->assertHeader('content-type', 'video/mp4')
+            ->assertHeader('accept-ranges', 'bytes');
+
+        $unsignedResponse = $this->get(
+            "https://tenant-a.localhost/media/files/{$mediaFile->id}/signed"
+        );
+        $this->assertContains($unsignedResponse->getStatusCode(), [403, 404]);
+
+        $wrongTenantResponse = $this->get(
+            str_replace('tenant-a.', 'tenant-b.', $signedUrl)
+        );
+        $this->assertContains($wrongTenantResponse->getStatusCode(), [403, 404]);
+    }
+
+    public function test_image_preview_still_uses_signed_private_media_route(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+
+        $mediaFile = $this->uploadUnattachedMedia(
+            $admin,
+            'Preview Image',
+            'image',
+            'preview-image.png'
+        );
+
+        $response = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/media?tab=images')
+            ->assertOk()
+            ->assertSeeText('Preview Image')
+            ->assertSee('/media/files/'.$mediaFile->id.'/signed', false)
+            ->assertDontSee('/storage/tenants/', false);
+
+        $signedUrl = app(MediaService::class)->generateSignedUrl((int) $mediaFile->id);
+
+        $this->assertStringContainsString('/media/files/'.$mediaFile->id.'/signed', $signedUrl);
+        $this->assertStringNotContainsString('/storage/tenants/', $signedUrl);
+
+        $this->get($signedUrl)
+            ->assertOk()
+            ->assertHeader('content-type', 'image/png');
+    }
+
+    private function tableVideoElementCount(string $html): int
+    {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        return (new \DOMXPath($document))
+            ->query('//tbody//video')
+            ->length;
     }
 
     public function test_media_library_filters_by_owner_and_usage_type(): void
@@ -190,6 +307,7 @@ class MediaLibraryManagementTest extends TestCase
             'customer_id' => $customerId,
             'status' => 'ready',
         ]);
+        Storage::disk('media_local')->assertExists($mediaFile->storage_key);
     }
 
     public function test_can_delete_unused_media_file(): void
@@ -222,12 +340,41 @@ class MediaLibraryManagementTest extends TestCase
             'customer_id' => $customerId,
             'status' => 'deleted',
         ]);
-        Storage::disk('media_local')->assertExists($mediaFile->storage_key);
+        Storage::disk('media_local')->assertMissing($mediaFile->storage_key);
 
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/media')
             ->assertOk()
             ->assertDontSeeText('Unused Image');
+    }
+
+    public function test_delete_unused_media_with_missing_storage_object_does_not_crash(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+
+        $mediaFile = $this->uploadUnattachedMedia(
+            $admin,
+            'Missing Object Video',
+            'video',
+            'missing-object.mp4'
+        );
+
+        Storage::disk('media_local')->delete($mediaFile->storage_key);
+        Storage::disk('media_local')->assertMissing($mediaFile->storage_key);
+
+        $this->actingAs($admin)
+            ->delete("https://tenant-a.localhost/admin/media/{$mediaFile->id}")
+            ->assertRedirect('https://tenant-a.localhost/admin/media')
+            ->assertSessionHas('success', __('lf.LF_media_file_common_deleted'));
+
+        $this->assertDatabaseHas('media_files', [
+            'id' => $mediaFile->id,
+            'customer_id' => $customerId,
+            'status' => 'deleted',
+        ]);
     }
 
     public function test_cannot_delete_media_from_another_tenant(): void
@@ -255,6 +402,7 @@ class MediaLibraryManagementTest extends TestCase
             'customer_id' => $otherCustomerId,
             'status' => 'ready',
         ]);
+        Storage::disk('media_local')->assertExists($otherMediaFile->storage_key);
     }
 
     private function uploadManagedMedia(

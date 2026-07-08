@@ -127,6 +127,13 @@ class CourseMediaIntegrationTest extends TestCase
             $templateId,
             'cover_image'
         );
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $templateId,
+            'customer_id' => $customerId,
+            'cover_type' => 'image',
+            'cover_image_media_file_id' => $mediaFile->id,
+            'intro_video_media_file_id' => null,
+        ]);
 
         $this->assertStringStartsWith(
             "tenants/{$customerId}/course/templates/{$templateId}/cover/",
@@ -138,8 +145,510 @@ class CourseMediaIntegrationTest extends TestCase
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
             ->assertOk()
-            ->assertSeeText('Cover image upload')
+            ->assertSee('name="cover_image_file"', false)
             ->assertSee('expiration=', false);
+    }
+
+    public function test_admin_can_upload_course_template_intro_video(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->post(
+                'https://tenant-a.localhost/admin/course-templates',
+                $this->validTemplateData([
+                    'title' => 'Video Template',
+                    'slug' => 'video-template',
+                    'cover_type' => 'video',
+                    'cover_image_file' => null,
+                    'intro_video_file' => UploadedFile::fake()->create(
+                        'intro-video.mp4',
+                        32,
+                        'video/mp4'
+                    ),
+                ])
+            )
+            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+
+        $templateId = (int) DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('slug', 'video-template')
+            ->value('id');
+
+        $mediaFile = $this->assertActiveUsage(
+            $customerId,
+            'course_template',
+            $templateId,
+            'video'
+        );
+
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $templateId,
+            'customer_id' => $customerId,
+            'cover_type' => 'video',
+            'cover_image_media_file_id' => null,
+            'intro_video_media_file_id' => $mediaFile->id,
+        ]);
+        $this->assertStringStartsWith(
+            "tenants/{$customerId}/course/templates/{$templateId}/intro-video/",
+            $mediaFile->storage_key
+        );
+        Storage::disk('media_local')->assertExists($mediaFile->storage_key);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->assertOk()
+            ->assertSee('name="intro_video_file"', false)
+            ->assertSee('expiration=', false);
+    }
+
+    public function test_admin_can_open_course_template_page_after_cover_media_rename(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->post(
+                'https://tenant-a.localhost/admin/course-templates',
+                $this->validTemplateData([
+                    'title' => 'Show Route Video Template',
+                    'slug' => 'show-route-video-template',
+                    'cover_type' => 'video',
+                    'cover_image_file' => null,
+                    'intro_video_file' => UploadedFile::fake()->create(
+                        'show-route-intro.mp4',
+                        32,
+                        'video/mp4'
+                    ),
+                ])
+            )
+            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+
+        $templateId = (int) DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('slug', 'show-route-video-template')
+            ->value('id');
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}")
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit"
+            );
+
+        $this->actingAs($admin)
+            ->followingRedirects()
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}")
+            ->assertOk()
+            ->assertSee('name="intro_video_file"', false)
+            ->assertSee('expiration=', false);
+    }
+
+    public function test_admin_can_update_course_template_from_image_to_intro_video(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->post(
+                'https://tenant-a.localhost/admin/course-templates',
+                $this->validTemplateData([
+                    'title' => 'Switch Cover Template',
+                    'slug' => 'switch-cover-template',
+                    'cover_image_file' => UploadedFile::fake()->image(
+                        'initial-cover.png',
+                        120,
+                        80
+                    ),
+                ])
+            )
+            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+
+        $templateId = (int) DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('slug', 'switch-cover-template')
+            ->value('id');
+        $coverImage = $this->assertActiveUsage(
+            $customerId,
+            'course_template',
+            $templateId,
+            'cover_image'
+        );
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}",
+                $this->validTemplateData([
+                    '_method' => 'PUT',
+                    'title' => 'Switch Cover Template',
+                    'slug' => 'switch-cover-template',
+                    'cover_type' => 'video',
+                    'cover_image_file' => null,
+                    'intro_video_file' => UploadedFile::fake()->create(
+                        'updated-intro.mp4',
+                        32,
+                        'video/mp4'
+                    ),
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit"
+            );
+
+        $introVideo = $this->assertActiveUsage(
+            $customerId,
+            'course_template',
+            $templateId,
+            'video'
+        );
+
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $templateId,
+            'customer_id' => $customerId,
+            'cover_type' => 'video',
+            'cover_image_media_file_id' => null,
+            'intro_video_media_file_id' => $introVideo->id,
+        ]);
+        $this->assertDatabaseHas('media_file_usages', [
+            'customer_id' => $customerId,
+            'media_file_id' => $coverImage->id,
+            'owner_type' => 'course_template',
+            'owner_id' => $templateId,
+            'usage_type' => 'cover_image',
+            'status' => 'detached',
+        ]);
+        $this->assertDatabaseHas('media_files', [
+            'id' => $coverImage->id,
+            'customer_id' => $customerId,
+            'status' => 'ready',
+        ]);
+        $this->assertSame(
+            1,
+            $this->activeTemplatePreviewUsageCount($customerId, $templateId)
+        );
+        Storage::disk('media_local')->assertExists($coverImage->storage_key);
+    }
+
+    public function test_admin_can_update_course_template_from_intro_video_to_image(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->post(
+                'https://tenant-a.localhost/admin/course-templates',
+                $this->validTemplateData([
+                    'title' => 'Switch Video Template',
+                    'slug' => 'switch-video-template',
+                    'cover_type' => 'video',
+                    'cover_image_file' => null,
+                    'intro_video_file' => UploadedFile::fake()->create(
+                        'initial-intro.mp4',
+                        32,
+                        'video/mp4'
+                    ),
+                ])
+            )
+            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+
+        $templateId = (int) DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('slug', 'switch-video-template')
+            ->value('id');
+        $introVideo = $this->assertActiveUsage(
+            $customerId,
+            'course_template',
+            $templateId,
+            'video'
+        );
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}",
+                $this->validTemplateData([
+                    '_method' => 'PUT',
+                    'title' => 'Switch Video Template',
+                    'slug' => 'switch-video-template',
+                    'cover_type' => 'image',
+                    'cover_image_file' => UploadedFile::fake()->image(
+                        'replacement-cover.png',
+                        120,
+                        80
+                    ),
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit"
+            );
+
+        $coverImage = $this->assertActiveUsage(
+            $customerId,
+            'course_template',
+            $templateId,
+            'cover_image'
+        );
+
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $templateId,
+            'customer_id' => $customerId,
+            'cover_type' => 'image',
+            'cover_image_media_file_id' => $coverImage->id,
+            'intro_video_media_file_id' => null,
+        ]);
+        $this->assertDatabaseHas('media_file_usages', [
+            'customer_id' => $customerId,
+            'media_file_id' => $introVideo->id,
+            'owner_type' => 'course_template',
+            'owner_id' => $templateId,
+            'usage_type' => 'video',
+            'status' => 'detached',
+        ]);
+        $this->assertDatabaseHas('media_files', [
+            'id' => $introVideo->id,
+            'customer_id' => $customerId,
+            'status' => 'ready',
+        ]);
+        $this->assertSame(
+            1,
+            $this->activeTemplatePreviewUsageCount($customerId, $templateId)
+        );
+    }
+
+    public function test_course_template_rejects_image_and_video_in_same_request(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/course-templates/create')
+            ->post(
+                'https://tenant-a.localhost/admin/course-templates',
+                $this->validTemplateData([
+                    'title' => 'Invalid Dual Preview Template',
+                    'slug' => 'invalid-dual-preview-template',
+                    'cover_type' => 'image',
+                    'cover_image_file' => UploadedFile::fake()->image(
+                        'dual-preview-cover.png',
+                        120,
+                        80
+                    ),
+                    'intro_video_file' => UploadedFile::fake()->create(
+                        'dual-preview-intro.mp4',
+                        32,
+                        'video/mp4'
+                    ),
+                ])
+            )
+            ->assertRedirect('https://tenant-a.localhost/admin/course-templates/create')
+            ->assertSessionHasErrors('cover_type');
+
+        $this->assertDatabaseMissing('core_course_templates', [
+            'customer_id' => $customerId,
+            'slug' => 'invalid-dual-preview-template',
+        ]);
+        $this->assertDatabaseMissing('media_file_usages', [
+            'customer_id' => $customerId,
+            'owner_type' => 'course_template',
+        ]);
+    }
+
+    public function test_course_template_rejects_cross_tenant_preview_media_id(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
+        $otherVideoId = $this->createMediaFile(
+            $otherCustomerId,
+            $otherAdmin->id,
+            'video',
+            'tenant-b-intro.mp4',
+            'video/mp4'
+        );
+
+        $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/course-templates/create')
+            ->post(
+                'https://tenant-a.localhost/admin/course-templates',
+                $this->validTemplateData([
+                    'title' => 'Blocked Tenant Preview Template',
+                    'slug' => 'blocked-tenant-preview-template',
+                    'cover_type' => 'video',
+                    'cover_image_file' => null,
+                    'intro_video_media_file_id' => $otherVideoId,
+                ])
+            )
+            ->assertRedirect('https://tenant-a.localhost/admin/course-templates/create')
+            ->assertSessionHasErrors('intro_video_media_file_id');
+
+        $this->assertDatabaseMissing('media_file_usages', [
+            'customer_id' => $customerId,
+            'media_file_id' => $otherVideoId,
+            'owner_type' => 'course_template',
+            'usage_type' => 'video',
+        ]);
+    }
+
+    public function test_browser_style_course_template_intro_video_update_does_not_500(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->post(
+                'https://tenant-a.localhost/admin/course-templates',
+                $this->validTemplateData([
+                    'title' => 'Browser Video Update Template',
+                    'slug' => 'browser-video-update-template',
+                    'cover_image_file' => UploadedFile::fake()->image(
+                        'browser-cover.png',
+                        120,
+                        80
+                    ),
+                ])
+            )
+            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+
+        $templateId = (int) DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('slug', 'browser-video-update-template')
+            ->value('id');
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->assertOk()
+            ->assertSee('name="cover_type"', false)
+            ->assertSee('name="intro_video_file"', false)
+            ->assertSee(':disabled="selectedCoverType !== \'image\'"', false)
+            ->assertSee(':disabled="selectedCoverType !== \'video\'"', false);
+
+        $response = $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}",
+            $this->validTemplateData([
+                '_method' => 'PUT',
+                'title' => 'Browser Video Update Template',
+                'slug' => 'browser-video-update-template',
+                'cover_type' => 'video',
+                'cover_image_file' => null,
+                'intro_video_file' => UploadedFile::fake()->create(
+                    'browser-intro.mp4',
+                    32,
+                    'video/mp4'
+                ),
+            ])
+        );
+
+        $response->assertRedirect(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit"
+        );
+        $this->assertNotSame(500, $response->getStatusCode());
+
+        $introVideo = $this->assertActiveUsage(
+            $customerId,
+            'course_template',
+            $templateId,
+            'video'
+        );
+
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $templateId,
+            'customer_id' => $customerId,
+            'cover_type' => 'video',
+            'cover_image_media_file_id' => null,
+            'intro_video_media_file_id' => $introVideo->id,
+        ]);
+    }
+
+    public function test_admin_can_update_course_template_intro_video_while_staying_video(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->post(
+                'https://tenant-a.localhost/admin/course-templates',
+                $this->validTemplateData([
+                    'title' => 'Replace Video Template',
+                    'slug' => 'replace-video-template',
+                    'cover_type' => 'video',
+                    'cover_image_file' => null,
+                    'intro_video_file' => UploadedFile::fake()->create(
+                        'initial-intro.mp4',
+                        32,
+                        'video/mp4'
+                    ),
+                ])
+            )
+            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+
+        $templateId = (int) DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('slug', 'replace-video-template')
+            ->value('id');
+        $initialVideo = $this->assertActiveUsage(
+            $customerId,
+            'course_template',
+            $templateId,
+            'video'
+        );
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}",
+                $this->validTemplateData([
+                    '_method' => 'PUT',
+                    'title' => 'Replace Video Template',
+                    'slug' => 'replace-video-template',
+                    'cover_type' => 'video',
+                    'cover_image_file' => null,
+                    'intro_video_media_file_id' => $initialVideo->id,
+                    'intro_video_file' => UploadedFile::fake()->create(
+                        'replacement-intro.mp4',
+                        48,
+                        'video/mp4'
+                    ),
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit"
+            );
+
+        $replacementVideo = DB::table('media_file_usages')
+            ->join('media_files', function ($join): void {
+                $join->on(
+                    'media_files.id',
+                    '=',
+                    'media_file_usages.media_file_id'
+                )->on(
+                    'media_files.customer_id',
+                    '=',
+                    'media_file_usages.customer_id'
+                );
+            })
+            ->where('media_file_usages.customer_id', $customerId)
+            ->where('media_file_usages.owner_type', 'course_template')
+            ->where('media_file_usages.owner_id', $templateId)
+            ->where('media_file_usages.usage_type', 'video')
+            ->where('media_file_usages.status', 'active')
+            ->select('media_files.*')
+            ->sole();
+
+        $this->assertNotSame($initialVideo->id, $replacementVideo->id);
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $templateId,
+            'customer_id' => $customerId,
+            'cover_type' => 'video',
+            'cover_image_media_file_id' => null,
+            'intro_video_media_file_id' => $replacementVideo->id,
+        ]);
+        $this->assertDatabaseHas('media_file_usages', [
+            'customer_id' => $customerId,
+            'media_file_id' => $initialVideo->id,
+            'owner_type' => 'course_template',
+            'owner_id' => $templateId,
+            'usage_type' => 'video',
+            'status' => 'detached',
+        ]);
     }
 
     public function test_admin_can_upload_and_view_lesson_video_audio_and_document(): void
@@ -650,6 +1159,59 @@ class CourseMediaIntegrationTest extends TestCase
         $this->assertStringNotContainsString('public_url', $signedUrl);
     }
 
+    private function activeTemplatePreviewUsageCount(
+        int $customerId,
+        int $templateId
+    ): int {
+        return DB::table('media_file_usages')
+            ->where('customer_id', $customerId)
+            ->where('owner_type', 'course_template')
+            ->where('owner_id', $templateId)
+            ->whereIn('usage_type', ['cover_image', 'video'])
+            ->where('status', 'active')
+            ->count();
+    }
+
+    private function createMediaFile(
+        int $customerId,
+        int $uploadedBy,
+        string $fileType,
+        string $originalName,
+        string $mimeType
+    ): int {
+        $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+
+        return DB::table('media_files')->insertGetId([
+            'customer_id' => $customerId,
+            'category_id' => null,
+            'uploaded_by' => $uploadedBy,
+            'file_type' => $fileType,
+            'mime_type' => $mimeType,
+            'original_name' => $originalName,
+            'display_name' => $originalName,
+            'extension' => $extension,
+            'storage_disk' => 'media_local',
+            'storage_bucket' => 'lf-test-media',
+            'storage_region' => 'ap-southeast-1',
+            'storage_key' => "tenants/{$customerId}/course/templates/preview/{$originalName}",
+            'storage_class' => null,
+            'cdn_url' => null,
+            'public_url' => null,
+            'checksum' => 'sha256:'.hash('sha256', $customerId.$originalName),
+            'file_size_bytes' => 32,
+            'duration_seconds' => null,
+            'width' => null,
+            'height' => null,
+            'page_count' => null,
+            'language' => null,
+            'visibility' => 'private',
+            'status' => 'ready',
+            'metadata' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
     private function createTenant(string $slug = 'tenant-a'): int
     {
         return DB::table('saas_customers')->insertGetId([
@@ -742,11 +1304,9 @@ class CourseMediaIntegrationTest extends TestCase
             'short_description' => null,
             'description' => null,
             'publisher_name' => null,
-            'thumbnail_type' => 'image',
-            'thumbnail_image' => null,
-            'thumbnail_video_source' => null,
-            'thumbnail_video_url' => null,
-            'thumbnail_video_media_id' => null,
+            'cover_type' => 'image',
+            'cover_image_media_file_id' => null,
+            'intro_video_media_file_id' => null,
             'difficulty_level' => null,
             'estimated_duration_minutes' => 0,
             'max_lessons' => null,
@@ -860,11 +1420,12 @@ class CourseMediaIntegrationTest extends TestCase
             'short_description' => null,
             'description' => null,
             'publisher_name' => null,
-            'thumbnail_type' => 'image',
-            'thumbnail_image' => null,
-            'thumbnail_video_source' => null,
-            'thumbnail_video_url' => null,
-            'thumbnail_video_media_id' => null,
+            'cover_type' => 'image',
+            'cover_image_file' => UploadedFile::fake()->image(
+                'template-cover.png',
+                120,
+                80
+            ),
             'difficulty_level' => null,
             'estimated_duration_minutes' => 0,
             'max_lessons' => null,

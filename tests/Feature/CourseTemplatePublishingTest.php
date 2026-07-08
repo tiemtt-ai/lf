@@ -516,7 +516,6 @@ class CourseTemplatePublishingTest extends TestCase
             ->where('id', $templateId)
             ->update([
                 'category_id' => $categoryId,
-                'thumbnail_video_media_id' => 999999,
             ]);
 
         $sectionId = $this->createSection($customerId, $templateId);
@@ -678,7 +677,9 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertSame('draft', $template->status);
         $this->assertSame(12, $template->working_revision);
         $this->assertNull($template->category_id);
-        $this->assertNull($template->thumbnail_video_media_id);
+        $this->assertSame('image', $template->cover_type);
+        $this->assertNull($template->cover_image_media_file_id);
+        $this->assertNull($template->intro_video_media_file_id);
         $this->assertEquals(
             $lastPublishedAt,
             $template->last_version_published_at
@@ -1005,11 +1006,9 @@ class CourseTemplatePublishingTest extends TestCase
             'short_description' => 'Published snapshot course',
             'description' => 'Detailed snapshot description.',
             'publisher_name' => 'LearnForge',
-            'thumbnail_type' => 'image',
-            'thumbnail_image' => '/course.jpg',
-            'thumbnail_video_source' => null,
-            'thumbnail_video_url' => null,
-            'thumbnail_video_media_id' => null,
+            'cover_type' => 'image',
+            'cover_image_media_file_id' => null,
+            'intro_video_media_file_id' => null,
             'difficulty_level' => 'beginner',
             'estimated_duration_minutes' => 90,
             'max_lessons' => 20,

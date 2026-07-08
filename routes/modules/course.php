@@ -139,6 +139,9 @@ Route::get('/course-templates/create', [CourseTemplateController::class, 'create
 Route::post('/course-templates', [CourseTemplateController::class, 'store'])
     ->name('course-templates.store');
 
+Route::get('/course-templates/{id}', [CourseTemplateController::class, 'show'])
+    ->name('course-templates.show');
+
 Route::get('/course-templates/{id}/edit', [CourseTemplateController::class, 'edit'])
     ->name('course-templates.edit');
 

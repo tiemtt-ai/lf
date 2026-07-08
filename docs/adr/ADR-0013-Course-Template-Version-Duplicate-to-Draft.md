@@ -117,11 +117,9 @@ counterparts:
 | `short_description_snapshot` | `short_description` |
 | `description_snapshot` | `description` |
 | `publisher_name_snapshot` | `publisher_name` |
-| `thumbnail_type_snapshot` | `thumbnail_type` |
-| `thumbnail_image_snapshot` | `thumbnail_image` |
-| `thumbnail_video_source_snapshot` | `thumbnail_video_source` |
-| `thumbnail_video_url_snapshot` | `thumbnail_video_url` |
-| `thumbnail_video_media_id_snapshot` | `thumbnail_video_media_id`, subject to fallback rules |
+| `cover_type_snapshot` | `cover_type` |
+| `cover_image_media_file_id_snapshot` | `cover_image_media_file_id`, subject to fallback rules |
+| `intro_video_media_file_id_snapshot` | `intro_video_media_file_id`, subject to fallback rules |
 | `difficulty_level_snapshot` | `difficulty_level` |
 | `estimated_duration_minutes_snapshot` | `estimated_duration_minutes` |
 | `max_lessons_snapshot` | `max_lessons` |

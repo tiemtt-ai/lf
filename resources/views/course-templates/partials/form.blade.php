@@ -7,7 +7,7 @@
         ? \Illuminate\Support\Str::slug((string) $slugSource)
         : old('slug', $formTemplate?->slug);
     $selectedCategoryId = old('category_id', $formTemplate?->category_id);
-    $selectedThumbnailType = old('thumbnail_type', $formTemplate?->thumbnail_type ?? 'image');
+    $selectedCoverType = old('cover_type', $formTemplate?->cover_type ?? 'image');
     $selectedDifficulty = old('difficulty_level', $formTemplate?->difficulty_level);
     $selectedStatus = old('status', $formTemplate?->status ?? 'draft');
     $isRequired = static fn (string $field): bool => in_array($field, $requiredFields, true);
@@ -17,7 +17,7 @@
      x-data="{
          generatedSlug: @js((string) $generatedSlug),
          slugFollowsTitle: @js($slugFollowsTitle),
-         selectedThumbnailType: @js($selectedThumbnailType),
+         selectedCoverType: @js($selectedCoverType),
          slugify(value) {
              return value.toString()
                  .normalize('NFD')
@@ -113,83 +113,78 @@
         </div>
 
         <div class="lf-form-group">
-            <x-form-label for="thumbnail_type"
-                          :value="__('lf.LF_course_template_common_thumbnail_type')"
-                          :required="$isRequired('thumbnail_type')" />
-            <select id="thumbnail_type"
-                    name="thumbnail_type"
-                    class="lf-form-control"
-                    required
-                    x-model="selectedThumbnailType">
-                <option value="image" @selected($selectedThumbnailType === 'image')>
-                    {{ __('lf.LF_course_template_common_thumbnail_image_type') }}
-                </option>
-                <option value="video" @selected($selectedThumbnailType === 'video')>
-                    {{ __('lf.LF_course_template_common_thumbnail_video_type') }}
-                </option>
-            </select>
-
-            <div class="lf-form-group" x-show="selectedThumbnailType === 'image'">
-                <x-form-label for="thumbnail_image"
-                              :value="__('lf.LF_course_template_common_thumbnail_image')"
-                              :required="$isRequired('thumbnail_image')" />
-                <input id="thumbnail_image" type="text" name="thumbnail_image" class="lf-form-control"
-                       value="{{ old('thumbnail_image', $formTemplate?->thumbnail_image) }}" maxlength="500">
+            <x-form-label for="cover_type"
+                          :value="__('lf.LF_course_template_common_cover_type')"
+                          :required="$isRequired('cover_type')" />
+            <div id="cover_type" class="admin-radio-group">
+                <label>
+                    <input type="radio"
+                           name="cover_type"
+                           value="image"
+                           required
+                           x-model="selectedCoverType"
+                           @checked($selectedCoverType === 'image')>
+                    <span>{{ __('lf.LF_course_template_common_cover_image_type') }}</span>
+                </label>
+                <label>
+                    <input type="radio"
+                           name="cover_type"
+                           value="video"
+                           required
+                           x-model="selectedCoverType"
+                           @checked($selectedCoverType === 'video')>
+                    <span>{{ __('lf.LF_course_template_common_cover_video_type') }}</span>
+                </label>
             </div>
+        </div>
 
-            <div class="lf-form-group" x-show="selectedThumbnailType === 'image'">
-                <x-form-label for="cover_image_file"
-                              value="Cover image upload" />
-                @if ($coverImageMedia ?? null)
-                    <div class="lf-form-help">
-                        <img src="{{ $coverImageMedia->signed_url }}"
-                             alt="{{ $coverImageMedia->display_name }}"
-                             style="max-width: 180px; height: auto; display: block; margin-bottom: 8px;">
-                        <a href="{{ $coverImageMedia->signed_url }}" target="_blank" rel="noopener">
-                            {{ $coverImageMedia->display_name }}
-                        </a>
-                    </div>
-                @endif
-                <input id="cover_image_file"
-                       type="file"
-                       name="cover_image_file"
-                       class="lf-form-control"
-                       accept="image/*">
-            </div>
+        <div class="lf-form-group" x-show="selectedCoverType === 'image'">
+            <input type="hidden"
+                   name="cover_image_media_file_id"
+                   value="{{ old('cover_image_media_file_id', $formTemplate?->cover_image_media_file_id) }}"
+                   :disabled="selectedCoverType !== 'image'">
+            <x-form-label for="cover_image_file"
+                          :value="__('lf.LF_course_template_common_cover_image')"
+                          :required="true" />
+            @if ($coverImageMedia ?? null)
+                <div class="lf-form-help">
+                    <img src="{{ $coverImageMedia->signed_url }}"
+                         alt="{{ $coverImageMedia->display_name }}"
+                         style="max-width: 180px; height: auto; display: block; margin-bottom: 8px;">
+                    <a href="{{ $coverImageMedia->signed_url }}" target="_blank" rel="noopener">
+                        {{ $coverImageMedia->display_name }}
+                    </a>
+                </div>
+            @endif
+            <input id="cover_image_file"
+                   type="file"
+                   name="cover_image_file"
+                   class="lf-form-control"
+                   accept="image/*"
+                   :disabled="selectedCoverType !== 'image'">
+        </div>
 
-            <div class="lf-form-group" x-show="selectedThumbnailType === 'video'">
-                <x-form-label for="thumbnail_video_source"
-                              :value="__('lf.LF_course_template_common_thumbnail_video_source')"
-                              :required="$isRequired('thumbnail_video_source')" />
-                <select id="thumbnail_video_source" name="thumbnail_video_source" class="lf-form-control">
-                    <option value="">{{ __('lf.LF_course_template_common_no_video_source') }}</option>
-                    <option value="youtube"
-                            @selected(old('thumbnail_video_source', $formTemplate?->thumbnail_video_source) === 'youtube')>
-                        YouTube
-                    </option>
-                    <option value="aws"
-                            @selected(old('thumbnail_video_source', $formTemplate?->thumbnail_video_source) === 'aws')>
-                        AWS
-                    </option>
-                </select>
-            </div>
-
-            <div class="lf-form-group" x-show="selectedThumbnailType === 'video'">
-                <x-form-label for="thumbnail_video_url"
-                              :value="__('lf.LF_course_template_common_thumbnail_video_url')"
-                              :required="$isRequired('thumbnail_video_url')" />
-                <input id="thumbnail_video_url" type="url" name="thumbnail_video_url" class="lf-form-control"
-                       value="{{ old('thumbnail_video_url', $formTemplate?->thumbnail_video_url) }}" maxlength="1000">
-            </div>
-
-            <div class="lf-form-group" x-show="selectedThumbnailType === 'video'">
-                <x-form-label for="thumbnail_video_media_id"
-                              :value="__('lf.LF_course_template_common_thumbnail_video_media_id')"
-                              :required="$isRequired('thumbnail_video_media_id')" />
-                <input id="thumbnail_video_media_id" type="number" min="1"
-                       name="thumbnail_video_media_id" class="lf-form-control"
-                       value="{{ old('thumbnail_video_media_id', $formTemplate?->thumbnail_video_media_id) }}">
-            </div>
+        <div class="lf-form-group" x-show="selectedCoverType === 'video'">
+            <input type="hidden"
+                   name="intro_video_media_file_id"
+                   value="{{ old('intro_video_media_file_id', $formTemplate?->intro_video_media_file_id) }}"
+                   :disabled="selectedCoverType !== 'video'">
+            <x-form-label for="intro_video_file"
+                          :value="__('lf.LF_course_template_common_intro_video')"
+                          :required="true" />
+            @if ($introVideoMedia ?? null)
+                <div class="lf-form-help">
+                    <a href="{{ $introVideoMedia->signed_url }}" target="_blank" rel="noopener">
+                        {{ $introVideoMedia->display_name }}
+                    </a>
+                </div>
+            @endif
+            <input id="intro_video_file"
+                   type="file"
+                   name="intro_video_file"
+                   class="lf-form-control"
+                   accept="video/*"
+                   :disabled="selectedCoverType !== 'video'">
         </div>
 
         <div class="lf-form-group">

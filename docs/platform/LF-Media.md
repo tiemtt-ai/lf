@@ -215,7 +215,7 @@ Examples:
 
 * Category Thumbnail
 * Category Banner
-* Course Thumbnail
+* Course Cover
 * Teacher Avatar
 * Student Avatar
 
