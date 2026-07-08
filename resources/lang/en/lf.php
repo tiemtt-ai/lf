@@ -238,7 +238,7 @@ return [
     'LF_course_category_common_thumbnail_upload' => 'Thumbnail upload',
     'LF_course_category_common_view_image' => 'View Image',
     'LF_course_category_common_view_video' => 'View Video',
-    'LF_course_category_common_remove_image' => 'Remove Image',
+    'LF_course_category_common_remove_image' => 'Remove',
     'LF_course_category_common_banner_image' => 'Banner image',
     'LF_course_category_common_banner_upload' => 'Banner upload',
     'LF_course_category_common_meta_title' => 'SEO title',

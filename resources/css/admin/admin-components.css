@@ -26,6 +26,7 @@
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     background: #ffffff;
+    margin-bottom: 24px;
 }
 
 .admin-form-grid {
@@ -110,6 +111,11 @@
     column-gap: 24px;
 }
 
+.backend-form-shell {
+    width: 100%;
+    min-width: 0;
+}
+
 :root.is-backend-sidebar-collapsed .backend-shell .backend-form-layout,
 :root.is-backend-sidebar-collapsed .backend-shell .admin-form-card > form:has(> .admin-form-section),
 .backend-shell.is-sidebar-collapsed .backend-form-layout,
@@ -144,7 +150,8 @@
     min-width: 0;
 }
 
-.admin-form-card > form:has(> .backend-form-columns) > .admin-form-actions {
+.admin-form-card > form:has(> .backend-form-columns) > .admin-form-actions,
+.admin-form-card > form:has(> .backend-form-shell > .backend-form-columns) > .admin-form-actions {
     width: 100%;
     justify-content: flex-end;
 }
@@ -186,6 +193,69 @@
 
 .admin-media-preview {
     margin-bottom: 4px;
+}
+
+.admin-attached-media-card {
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.admin-attached-media-thumbnail {
+    width: 120px;
+    height: 80px;
+    flex: 0 0 auto;
+    border: 1px solid #dbe3ed;
+    border-radius: 6px;
+    background: #f8fafc;
+    object-fit: cover;
+}
+
+.admin-attached-media-thumbnail.is-wide {
+    width: 180px;
+}
+
+.admin-attached-media-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-media-preview-link {
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    color: var(--admin-primary);
+    background: #ffffff;
+    font: inherit;
+    line-height: 1.2;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.admin-media-preview-link:hover,
+.admin-media-preview-link:focus {
+    color: var(--admin-primary);
+    background: #f8f9fa;
+    text-decoration: none;
+}
+
+.admin-attached-media-remove {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #374151;
+    font-weight: 500;
+}
+
+.admin-attached-media-remove input {
+    width: 14px;
+    height: 14px;
+    margin: 0;
 }
 
 .admin-media-action-row {

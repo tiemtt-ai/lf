@@ -186,8 +186,13 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringContainsString('column-span: all;', $componentCss);
         $this->assertStringContainsString('justify-content: flex-end;', $componentCss);
         $this->assertStringContainsString('margin-bottom: 24px;', $componentCss);
+        $this->assertStringContainsString('.backend-form-shell', $componentCss);
         $this->assertStringContainsString('.backend-form-columns', $componentCss);
         $this->assertStringContainsString('.backend-form-column', $componentCss);
+        $this->assertStringContainsString(
+            '.admin-form-card > form:has(> .backend-form-shell > .backend-form-columns) > .admin-form-actions',
+            $componentCss
+        );
         $this->assertStringContainsString('grid-template-columns: repeat(2, minmax(0, 1fr));', $componentCss);
         $this->assertStringContainsString('flex-direction: column;', $componentCss);
         $this->assertStringContainsString('gap: 24px;', $componentCss);
@@ -203,6 +208,10 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringContainsString('max-width: 720px;', $pageCss);
         $this->assertStringContainsString('.admin-form-card:has(> form > .admin-form-section)', $pageCss);
         $this->assertStringContainsString('.admin-form-card:has(> form > .backend-form-columns)', $pageCss);
+        $this->assertStringContainsString(
+            '.admin-form-card:has(> form > .backend-form-shell > .backend-form-columns)',
+            $pageCss
+        );
         $this->assertStringContainsString('width: 100%;', $pageCss);
         $this->assertStringContainsString('max-width: none;', $pageCss);
     }
