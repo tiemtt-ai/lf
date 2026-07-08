@@ -18,6 +18,14 @@
          generatedSlug: @js((string) $generatedSlug),
          slugFollowsTitle: @js($slugFollowsTitle),
          selectedCoverType: @js($selectedCoverType),
+         previewOpen: false,
+         previewLoaded: false,
+         preview: {
+             name: '',
+             url: '',
+             mimeType: '',
+             mediaType: '',
+         },
          slugify(value) {
              return value.toString()
                  .normalize('NFD')
@@ -27,12 +35,56 @@
                  .replace(/[^a-z0-9]+/g, '-')
                  .replace(/^-+|-+$/g, '');
          },
+         openTemplatePreview(name, url, mimeType, mediaType) {
+             this.preview = { name, url, mimeType, mediaType };
+             this.previewOpen = true;
+             this.previewLoaded = true;
+
+             if (mediaType === 'video') {
+                 this.$nextTick(() => this.playTemplatePreviewVideo());
+             }
+         },
+         playTemplatePreviewVideo() {
+             const player = this.$refs.templatePreviewVideoPlayer;
+
+             if (! player) {
+                 return;
+             }
+
+             player.muted = false;
+             const playAttempt = player.play();
+
+             if (playAttempt !== undefined) {
+                 playAttempt.catch(() => {
+                     player.muted = true;
+                     player.play().catch(() => {});
+                 });
+             }
+         },
+         closeTemplatePreview() {
+             const player = this.$refs.templatePreviewVideoPlayer;
+
+             if (player) {
+                 player.pause();
+                 player.muted = false;
+                 player.removeAttribute('src');
+                 player.querySelectorAll('source').forEach((source) => {
+                     source.removeAttribute('src');
+                 });
+                 player.load();
+             }
+
+             this.previewOpen = false;
+             this.previewLoaded = false;
+             this.preview = { name: '', url: '', mimeType: '', mediaType: '' };
+         },
          syncSlug(value) {
              if (this.slugFollowsTitle) {
                  this.generatedSlug = this.slugify(value);
              }
          },
-     }">
+     }"
+     x-on:keydown.escape.window="closeTemplatePreview()">
     <div class="backend-form-column">
         <div class="lf-form-group">
             <x-form-label for="category_id"
@@ -147,13 +199,31 @@
                           :value="__('lf.LF_course_template_common_cover_image')"
                           :required="true" />
             @if ($coverImageMedia ?? null)
-                <div class="lf-form-help">
-                    <img src="{{ $coverImageMedia->signed_url }}"
-                         alt="{{ $coverImageMedia->display_name }}"
-                         style="max-width: 180px; height: auto; display: block; margin-bottom: 8px;">
-                    <a href="{{ $coverImageMedia->signed_url }}" target="_blank" rel="noopener">
-                        {{ $coverImageMedia->display_name }}
-                    </a>
+                <div class="course-template-preview-card">
+                    <div class="course-template-preview-thumb">
+                        <img src="{{ $coverImageMedia->signed_url }}"
+                             alt="{{ $coverImageMedia->display_name }}"
+                             loading="lazy"
+                             decoding="async"
+                             width="96"
+                             height="72">
+                    </div>
+                    <div class="course-template-preview-details">
+                        <span class="course-template-preview-type">
+                            {{ __('lf.LF_course_template_common_cover_image_type') }}
+                        </span>
+                        <strong>{{ $coverImageMedia->display_name }}</strong>
+                        <button type="button"
+                                class="admin-link-button"
+                                x-on:click="openTemplatePreview(
+                                    @js($coverImageMedia->display_name),
+                                    @js($coverImageMedia->signed_url),
+                                    @js($coverImageMedia->mime_type),
+                                    'image'
+                                )">
+                            {{ __('lf.LF_media_file_common_preview_action') }}
+                        </button>
+                    </div>
                 </div>
             @endif
             <input id="cover_image_file"
@@ -173,10 +243,26 @@
                           :value="__('lf.LF_course_template_common_intro_video')"
                           :required="true" />
             @if ($introVideoMedia ?? null)
-                <div class="lf-form-help">
-                    <a href="{{ $introVideoMedia->signed_url }}" target="_blank" rel="noopener">
-                        {{ $introVideoMedia->display_name }}
-                    </a>
+                <div class="course-template-preview-card">
+                    <div class="course-template-preview-thumb course-template-preview-thumb-video">
+                        <span aria-hidden="true">Video</span>
+                    </div>
+                    <div class="course-template-preview-details">
+                        <span class="course-template-preview-type">
+                            {{ __('lf.LF_course_template_common_cover_video_type') }}
+                        </span>
+                        <strong>{{ $introVideoMedia->display_name }}</strong>
+                        <button type="button"
+                                class="admin-link-button"
+                                x-on:click="openTemplatePreview(
+                                    @js($introVideoMedia->display_name),
+                                    @js($introVideoMedia->signed_url),
+                                    @js($introVideoMedia->mime_type),
+                                    'video'
+                                )">
+                            {{ __('lf.LF_media_file_common_preview_action') }}
+                        </button>
+                    </div>
                 </div>
             @endif
             <input id="intro_video_file"
@@ -202,6 +288,49 @@
                     {{ __('lf.LF_course_template_common_archived') }}
                 </option>
             </select>
+        </div>
+    </div>
+
+    <div class="media-library-modal"
+         x-cloak
+         x-show="previewOpen"
+         x-transition.opacity
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="course-template-preview-title">
+        <button type="button"
+                class="media-library-modal-backdrop"
+                aria-label="{{ __('lf.LF_common_button_cancel') }}"
+                x-on:click="closeTemplatePreview()"></button>
+
+        <div class="media-library-modal-panel">
+            <div class="media-library-modal-header">
+                <h2 id="course-template-preview-title"
+                    x-text="preview.name"></h2>
+                <button type="button"
+                        class="admin-link-button"
+                        x-on:click="closeTemplatePreview()">
+                    {{ __('lf.LF_common_button_cancel') }}
+                </button>
+            </div>
+
+            <div class="media-library-modal-body">
+                <template x-if="previewLoaded && preview.mediaType === 'image'">
+                    <img x-bind:src="preview.url"
+                         x-bind:alt="preview.name"
+                         class="media-library-modal-image">
+                </template>
+
+                <template x-if="previewLoaded && preview.mediaType === 'video'">
+                    <video x-ref="templatePreviewVideoPlayer"
+                           controls
+                           preload="none"
+                           class="media-library-modal-video">
+                        <source x-bind:src="preview.url"
+                                x-bind:type="preview.mimeType">
+                    </video>
+                </template>
+            </div>
         </div>
     </div>
 </div>

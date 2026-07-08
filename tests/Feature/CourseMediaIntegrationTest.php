@@ -142,11 +142,34 @@ class CourseMediaIntegrationTest extends TestCase
         $this->assertNull($mediaFile->public_url);
         $this->assertSignedDeliveryUrl($customerId, $mediaFile);
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
             ->assertOk()
             ->assertSee('name="cover_image_file"', false)
-            ->assertSee('expiration=', false);
+            ->assertSee('expiration=', false)
+            ->assertSee('course-template-preview-card', false)
+            ->assertSee('course-template-preview-title', false)
+            ->assertSee('openTemplatePreview(', false)
+            ->assertSee('loading="lazy"', false)
+            ->assertSee('decoding="async"', false)
+            ->assertSee(__('lf.LF_media_file_common_preview_action'), false)
+            ->assertDontSee('target="_blank"', false)
+            ->assertDontSee('/storage/tenants/', false);
+
+        $this->assertSame(
+            1,
+            $this->htmlElementCount(
+                $response->getContent(),
+                '//*[contains(concat(" ", normalize-space(@class), " "), " course-template-preview-card ")]//img'
+            )
+        );
+        $this->assertSame(
+            0,
+            $this->htmlElementCount(
+                $response->getContent(),
+                '//*[contains(concat(" ", normalize-space(@class), " "), " course-template-preview-card ")]//video'
+            )
+        );
     }
 
     public function test_admin_can_upload_course_template_intro_video(): void
@@ -196,11 +219,39 @@ class CourseMediaIntegrationTest extends TestCase
         );
         Storage::disk('media_local')->assertExists($mediaFile->storage_key);
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
             ->assertOk()
             ->assertSee('name="intro_video_file"', false)
-            ->assertSee('expiration=', false);
+            ->assertSee('expiration=', false)
+            ->assertSee('course-template-preview-card', false)
+            ->assertSee('course-template-preview-title', false)
+            ->assertSee('openTemplatePreview(', false)
+            ->assertSeeText('Video')
+            ->assertSee('preload="none"', false)
+            ->assertSee('this.$nextTick(() => this.playTemplatePreviewVideo())', false)
+            ->assertSee('player.play()', false)
+            ->assertSee('player.pause()', false)
+            ->assertSee('removeAttribute(\'src\')', false)
+            ->assertSee('player.load()', false)
+            ->assertDontSee('<video controls preload="metadata">', false)
+            ->assertDontSee('target="_blank"', false)
+            ->assertDontSee('/storage/tenants/', false);
+
+        $this->assertSame(
+            1,
+            $this->htmlElementCount(
+                $response->getContent(),
+                '//*[contains(concat(" ", normalize-space(@class), " "), " course-template-preview-thumb-video ")]'
+            )
+        );
+        $this->assertSame(
+            0,
+            $this->htmlElementCount(
+                $response->getContent(),
+                '//*[contains(concat(" ", normalize-space(@class), " "), " course-template-preview-card ")]//video'
+            )
+        );
     }
 
     public function test_admin_can_open_course_template_page_after_cover_media_rename(): void
@@ -1170,6 +1221,17 @@ class CourseMediaIntegrationTest extends TestCase
             ->whereIn('usage_type', ['cover_image', 'video'])
             ->where('status', 'active')
             ->count();
+    }
+
+    private function htmlElementCount(string $html, string $xpath): int
+    {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        return (new \DOMXPath($document))->query($xpath)->length;
     }
 
     private function createMediaFile(
