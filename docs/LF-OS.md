@@ -470,6 +470,33 @@ Visibility
 
 The UI must stay simple. Deep/system data can exist behind the scenes.
 
+Media interaction follows the same rule.
+
+Users should see media controls in business language:
+
+```text
+Ảnh đại diện
+Ảnh hoặc video giới thiệu
+Tài liệu bài học
+Video bài học
+```
+
+Users must not be exposed to storage keys, buckets, disks, raw metadata JSON,
+or internal media lifecycle fields.
+
+Media preview must feel like part of the product experience, not a storage
+browser. Images and videos should open in a standard preview modal or popup,
+not in raw browser tabs or public storage URLs.
+
+Media lists and forms must stay lightweight. Video should not be embedded as
+inline players in rows, cards, or edit forms. The interface should show a
+thumbnail, poster, icon, or placeholder and load video only after the user
+chooses Preview.
+
+Removing media from a business object is a business relationship change. It
+detaches the usage mapping and must not delete the underlying Media File unless
+the Media lifecycle explicitly allows deletion.
+
 Ví dụ:
 
 Customer Admin:

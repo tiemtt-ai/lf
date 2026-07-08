@@ -229,6 +229,136 @@ tenants.
 
 ---
 
+# Media Upload / Display / Preview / Delete UI Standard
+
+Media UI trong LearnForge phải che giấu chi tiết kỹ thuật storage và trình bày
+asset bằng ngôn ngữ nghiệp vụ rõ ràng.
+
+## 1. Upload
+
+User-facing forms must expose media upload in simple business language.
+
+Do not expose the following as user-editable fields:
+
+* storage key
+* disk
+* bucket
+* region
+* metadata JSON
+* internal media lifecycle fields
+* internal media ownership fields
+
+Image/video fields must clearly indicate whether the media is required or
+optional.
+
+If only one preview media is allowed, UI must clearly communicate:
+
+```text
+Image or Video
+```
+
+Do not show two independent required controls that imply both image and video
+can be active at the same time.
+
+## 2. List Display
+
+Media lists must stay lightweight.
+
+Image media should render a small thumbnail when a safe signed/private preview
+URL or approved thumbnail URL is available.
+
+Video media should render a poster or generated thumbnail when available. If a
+poster/thumbnail is not available, render a lightweight video icon or
+placeholder.
+
+Do not render inline video players in list rows or cards.
+
+Do not load full-size images or videos in lists.
+
+## 3. Preview
+
+`Xem / Preview` must open a standard modal or popup experience. It must not
+open a new browser tab for normal preview behavior.
+
+Image preview must:
+
+* open inside the modal
+* be centered
+* scale responsively
+* avoid overflowing the viewport
+
+Video preview must:
+
+* open inside the modal
+* start playback after the user clicks Preview
+* keep browser controls visible
+* use signed/private delivery
+* never use a raw public storage URL for protected tenant media
+
+On modal close, video preview must:
+
+* pause playback
+* clear the video `src`
+* call the browser load/reset behavior when needed
+* release browser/network resources
+
+Media preview/download must not require buckets or files to be public.
+
+## 4. Edit Form Display
+
+Existing attached media should be visible on edit/detail forms.
+
+Image attachments should show a thumbnail.
+
+Video attachments should show a poster, icon, or lightweight placeholder. Edit
+forms must not render inline video players by default.
+
+Preview and remove actions must be aligned with the thumbnail, poster, icon, or
+placeholder.
+
+Do not show noisy duplicate labels that repeat the same context without adding
+meaning.
+
+Optional media must not show a required marker.
+
+## 5. Remove / Delete
+
+Removing media from an entity only detaches or updates the usage mapping. It
+must not delete the underlying Media File or physical storage object.
+
+Deleting from Media Library may physically delete the storage object only when
+there are no active usages and the approved lifecycle allows deletion.
+
+If a Media File has active usage, delete must be blocked.
+
+Do not hard-delete media history or usage history unless an approved lifecycle
+explicitly allows it.
+
+## 6. Security
+
+Media access must be tenant-scoped.
+
+Preview and download must use signed/private delivery for protected tenant
+media.
+
+Do not make buckets or files public to support preview behavior.
+
+`storage_key` is an internal locator. It must not be exposed as user-editable
+data.
+
+## 7. Performance
+
+Do not render inline video players in lists or forms.
+
+Load video only after the user clicks Preview.
+
+Clear the video source on modal close.
+
+Avoid browser hangs caused by multiple video elements, full-size media loading,
+or automatic video preloading in lists.
+
+---
+
 # Architecture
 
 ```text

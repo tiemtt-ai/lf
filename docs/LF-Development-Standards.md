@@ -462,6 +462,64 @@ Teacher Layout
 Student Website Experience
 ```
 
+## Media Upload / Display / Preview / Delete UI Standard
+
+Media UI must use simple business language.
+
+Do not expose storage keys, disk, bucket, region, metadata JSON, or internal
+Media fields as user-editable inputs.
+
+Image/video fields must clearly indicate whether the media is required or
+optional. If only one preview media is allowed, the UI must say image or video
+instead of showing two independent required fields.
+
+Media lists must stay lightweight:
+
+* show thumbnails for images
+* show poster/thumbnail for videos when available
+* show a video icon or placeholder when no poster exists
+* do not render inline video players in rows or cards
+* do not load full-size image/video assets in lists
+
+Preview behavior must be consistent:
+
+* `Xem / Preview` opens a standard modal or popup
+* do not open a new browser tab for normal media preview
+* images are centered and responsive inside the modal
+* videos start playback after the user clicks Preview
+* video controls remain visible
+* video uses signed/private delivery, not public raw storage URLs
+* modal close pauses video, clears `src`, and releases browser resources
+
+Edit/detail forms must show existing attached media:
+
+* image attachment shows a thumbnail
+* video attachment shows a poster, icon, or placeholder
+* no inline video player by default
+* Preview and Remove actions align with the thumbnail/placeholder
+* avoid noisy duplicate labels
+* optional media must not show a required marker
+
+Remove/delete behavior:
+
+* removing media from an entity detaches usage mapping only
+* removing media from an entity must not delete the underlying Media File
+* Media Library delete may physically delete storage only when there are no
+  active usages
+* active usage blocks delete
+* do not hard-delete media history or usage history unless an approved
+  lifecycle allows it
+
+Security and performance:
+
+* media access must be tenant-scoped
+* preview/download must use signed/private delivery
+* do not make buckets or files public
+* do not expose `storage_key` as user-editable data
+* load video only on Preview action
+* clear video source on modal close
+* avoid multiple inline video elements that can hang the browser
+
 ---
 
 # Testing Standards
