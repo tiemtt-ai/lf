@@ -83,20 +83,20 @@
         <table class="table">
             <thead>
             <tr>
-                <th>{{ __('lf.LF_common_label_common_id') }}</th>
+                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_enrollment_common_student') }}</th>
                 <th>{{ __('lf.LF_course_enrollment_common_product') }}</th>
                 <th>{{ __('lf.LF_course_enrollment_common_version') }}</th>
                 <th>{{ __('lf.LF_course_enrollment_common_source') }}</th>
                 <th>{{ __('lf.LF_course_enrollment_common_status') }}</th>
                 <th>{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</th>
-                <th>{{ __('lf.LF_common_label_common_action') }}</th>
+                <th>{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
             @forelse ($enrollments as $enrollment)
                 <tr>
-                    <td>{{ $enrollment->id }}</td>
+                    <td class="admin-table-sequence">{{ $enrollments->firstItem() + $loop->index }}</td>
                     <td>
                         {{ $enrollment->student_name }}
                         <br>
@@ -130,11 +130,11 @@
                     <td>{{ $enrollment->enrolled_at }}</td>
                     <td>
                         <div class="admin-table-actions">
-                            <a href="{{ route($routePrefix.'.show', $enrollment->id) }}">
-                                {{ __('lf.LF_common_button_view') }}
+                            <a class="admin-table-action-link" href="{{ route($routePrefix.'.show', $enrollment->id) }}">
+                                {{ __('lf.action_view') }}
                             </a>
-                            <a href="{{ route($routePrefix.'.edit', $enrollment->id) }}">
-                                {{ __('lf.LF_common_button_edit') }}
+                            <a class="admin-table-action-link" href="{{ route($routePrefix.'.edit', $enrollment->id) }}">
+                                {{ __('lf.action_edit') }}
                             </a>
                         </div>
                     </td>
@@ -149,4 +149,10 @@
             </tbody>
         </table>
     </div>
+
+    @if ($enrollments->hasPages())
+        <div class="admin-pagination">
+            {{ $enrollments->links() }}
+        </div>
+    @endif
 @endsection

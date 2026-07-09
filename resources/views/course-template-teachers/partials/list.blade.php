@@ -29,16 +29,18 @@
             <table class="table">
                 <thead>
                 <tr>
+                    <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                     <th>{{ __('lf.LF_course_template_teacher_common_name') }}</th>
                     <th>{{ __('lf.LF_course_template_teacher_common_email') }}</th>
                     <th>{{ __('lf.LF_course_template_teacher_common_role') }}</th>
                     <th>{{ __('lf.LF_course_template_teacher_common_status') }}</th>
-                    <th>{{ __('lf.LF_common_label_common_action') }}</th>
+                    <th>{{ __('lf.table_actions') }}</th>
                 </tr>
                 </thead>
                 <tbody>
                 @foreach ($teacherAssignments as $assignment)
                     <tr>
+                        <td class="admin-table-sequence">{{ $loop->iteration }}</td>
                         <td>{{ $assignment->teacher_name }}</td>
                         <td>{{ $assignment->teacher_email }}</td>
                         <td>
@@ -55,7 +57,7 @@
                         </td>
                         <td>
                             <div class="admin-table-actions">
-                                <a href="{{ route(
+                                <a class="admin-table-action-link" href="{{ route(
                                     $teacherRoutePrefix.'.edit',
                                     [$template->id, $assignment->id]
                                 ) }}">

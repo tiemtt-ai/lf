@@ -43,15 +43,16 @@ class MediaFileController extends Controller
         $mediaFiles = $this->mediaQuery($customerId, $fileType, $ownerType, $usageType)
             ->orderByDesc('media_files.created_at')
             ->orderByDesc('media_files.id')
-            ->get();
+            ->paginate(2)
+            ->withQueryString();
 
-        $usageGroups = $this->usageGroups($customerId, $mediaFiles->pluck('id'));
-        $mediaFiles = $mediaFiles->map(function (object $mediaFile) use ($usageGroups): object {
+        $usageGroups = $this->usageGroups($customerId, $mediaFiles->getCollection()->pluck('id'));
+        $mediaFiles->setCollection($mediaFiles->getCollection()->map(function (object $mediaFile) use ($usageGroups): object {
             $mediaFile->active_usages = $usageGroups->get((int) $mediaFile->id, collect());
             $mediaFile->preview_url = $this->previewUrl($mediaFile);
 
             return $mediaFile;
-        });
+        }));
 
         return view('media-files.index', [
             'mediaFiles' => $mediaFiles,

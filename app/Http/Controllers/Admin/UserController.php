@@ -34,7 +34,8 @@ class UserController extends Controller
             ->where('customer_id', TenantContext::customerId())
             ->where('role', $role)
             ->orderBy('name')
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
         return view('admin.users.index', [
             'users' => $users,

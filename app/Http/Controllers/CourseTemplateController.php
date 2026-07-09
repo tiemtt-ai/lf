@@ -68,7 +68,8 @@ class CourseTemplateController extends Controller
             ->orderByDesc('templates.updated_at')
             ->orderBy('templates.title')
             ->select('templates.*', 'categories.name as category_name')
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
         return view('course-templates.index', [
             'templates' => $templates,

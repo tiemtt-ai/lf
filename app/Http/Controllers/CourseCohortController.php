@@ -74,7 +74,8 @@ class CourseCohortController extends Controller
                 'teachers.name as teacher_name',
                 'teachers.email as teacher_email'
             )
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
         return view('course-cohorts.index', [
             'cohorts' => $cohorts,

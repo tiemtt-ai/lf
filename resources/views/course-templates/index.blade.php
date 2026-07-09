@@ -70,18 +70,18 @@
         <table class="table">
             <thead>
             <tr>
-                <th>{{ __('lf.LF_common_label_common_id') }}</th>
+                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_template_common_name') }}</th>
                 <th>{{ __('lf.LF_course_template_common_category') }}</th>
                 <th>{{ __('lf.LF_course_template_common_slug') }}</th>
                 <th>{{ __('lf.LF_course_template_common_status') }}</th>
-                <th>{{ __('lf.LF_common_label_common_action') }}</th>
+                <th>{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
             @forelse ($templates as $template)
                 <tr>
-                    <td>{{ $template->id }}</td>
+                    <td class="admin-table-sequence">{{ $templates->firstItem() + $loop->index }}</td>
                     <td>{{ $template->title }}</td>
                     <td>{{ $template->category_name ?? '—' }}</td>
                     <td>{{ $template->slug }}</td>
@@ -98,15 +98,15 @@
                     </td>
                     <td>
                         <div class="admin-table-actions">
-                            <a href="{{ route($routePrefix.'.edit', $template->id) }}">
-                                {{ __('lf.LF_common_button_edit') }}
+                            <a class="admin-table-action-link" href="{{ route($routePrefix.'.edit', $template->id) }}">
+                                {{ __('lf.action_edit') }}
                             </a>
                         </div>
                     </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="7">
+                    <td colspan="6">
                         {{ __('lf.LF_course_template_common_empty') }}
                     </td>
                 </tr>
@@ -114,4 +114,10 @@
             </tbody>
         </table>
     </div>
+
+    @if ($templates->hasPages())
+        <div class="admin-pagination">
+            {{ $templates->links() }}
+        </div>
+    @endif
 @endsection

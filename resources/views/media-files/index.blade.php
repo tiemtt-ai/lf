@@ -184,6 +184,7 @@
         <table class="table media-library-table">
             <thead>
             <tr>
+                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_media_file_common_preview') }}</th>
                 <th>{{ __('lf.LF_media_file_common_file_name') }}</th>
                 <th>{{ __('lf.LF_media_file_common_type') }}</th>
@@ -192,12 +193,13 @@
                 <th>{{ __('lf.LF_media_file_common_upload_date') }}</th>
                 <th>{{ __('lf.LF_media_file_common_usage_count') }}</th>
                 <th>{{ __('lf.LF_media_file_common_used_by') }}</th>
-                <th>{{ __('lf.LF_common_label_common_action') }}</th>
+                <th>{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
             @forelse ($mediaFiles as $mediaFile)
                 <tr>
+                    <td class="admin-table-sequence">{{ $mediaFiles->firstItem() + $loop->index }}</td>
                     <td>
                         <div class="media-library-preview-cell">
                             <div class="media-library-preview">
@@ -283,7 +285,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="9" style="text-align: center">
+                    <td colspan="10">
                         {{ __('lf.LF_media_file_common_empty') }}
                     </td>
                 </tr>
@@ -291,6 +293,12 @@
             </tbody>
         </table>
     </div>
+
+    @if ($mediaFiles->hasPages())
+        <div class="admin-pagination">
+            {{ $mediaFiles->links() }}
+        </div>
+    @endif
 
     <div class="media-library-modal"
          x-cloak

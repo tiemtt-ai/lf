@@ -67,19 +67,19 @@
         <table class="table">
             <thead>
             <tr>
-                <th>{{ __('lf.LF_common_label_common_id') }}</th>
+                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_media_category_common_name') }}</th>
                 <th>{{ __('lf.LF_media_category_common_parent') }}</th>
                 <th>{{ __('lf.LF_media_category_common_slug') }}</th>
                 <th>{{ __('lf.LF_media_category_common_sort_order') }}</th>
                 <th>{{ __('lf.LF_media_category_common_status') }}</th>
-                <th>{{ __('lf.LF_common_label_common_action') }}</th>
+                <th>{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
             @forelse ($categories as $category)
                 <tr>
-                    <td>{{ $category->id }}</td>
+                    <td class="admin-table-sequence">{{ $categories->firstItem() + $loop->index }}</td>
                     <td>{{ $category->name }}</td>
                     <td>{{ $category->parent_name ?? __('lf.LF_media_category_common_root') }}</td>
                     <td>{{ $category->slug }}</td>
@@ -93,8 +93,8 @@
                     </td>
                     <td>
                         <div class="admin-table-actions">
-                            <a href="{{ route('admin.media-categories.edit', $category->id) }}">
-                                {{ __('lf.LF_common_button_edit') }}
+                            <a class="admin-table-action-link" href="{{ route('admin.media-categories.edit', $category->id) }}">
+                                {{ __('lf.action_edit') }}
                             </a>
                         </div>
                     </td>
@@ -109,4 +109,10 @@
             </tbody>
         </table>
     </div>
+
+    @if ($categories->hasPages())
+        <div class="admin-pagination">
+            {{ $categories->links() }}
+        </div>
+    @endif
 @endsection

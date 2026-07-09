@@ -45,18 +45,18 @@
         <table class="table">
             <thead>
             <tr>
-                <th>{{ __('lf.LF_common_label_common_id') }}</th>
+                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_common_label_name') }}</th>
                 <th>{{ __('lf.LF_common_label_email') }}</th>
                 <th>{{ __('lf.LF_common_label_phone') }}</th>
                 <th>{{ __('lf.LF_common_label_common_status') }}</th>
-                <th width="180">{{ __('lf.LF_common_label_common_action') }}</th>
+                <th>{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
             @forelse ($users as $user)
                 <tr>
-                    <td>{{ $user->id }}</td>
+                    <td class="admin-table-sequence">{{ $users->firstItem() + $loop->index }}</td>
                     <td>{{ $user->name }}</td>
                     <td>{{ $user->email }}</td>
                     <td>{{ $user->phone ?? '-' }}</td>
@@ -67,16 +67,24 @@
                     </td>
                     <td>
                         <div class="admin-table-actions">
-                            <a href="{{ route('admin.users.edit', $user->id) }}">{{ __('lf.LF_common_button_edit') }}</a>
+                            <a class="admin-table-action-link" href="{{ route('admin.users.edit', $user->id) }}">
+                                {{ __('lf.action_edit') }}
+                            </a>
                         </div>
                     </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" style="text-align: center">{{ __('lf.LF_common_message_common_no_users') }}</td>
+                    <td colspan="6">{{ __('lf.LF_common_message_common_no_users') }}</td>
                 </tr>
             @endforelse
             </tbody>
         </table>
     </div>
+
+    @if ($users->hasPages())
+        <div class="admin-pagination">
+            {{ $users->links() }}
+        </div>
+    @endif
 @endsection

@@ -80,20 +80,20 @@
         <table class="table">
             <thead>
             <tr>
-                <th>{{ __('lf.LF_common_label_common_id') }}</th>
-                <th>{{ __('lf.LF_course_product_common_product_code') }}</th>
+                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
+                <th>{{ __('lf.table_code') }}</th>
                 <th>{{ __('lf.LF_course_product_common_title_field') }}</th>
                 <th>{{ __('lf.LF_course_product_common_product_type') }}</th>
                 <th>{{ __('lf.LF_course_product_common_price') }}</th>
                 <th>{{ __('lf.LF_course_product_common_visibility') }}</th>
                 <th>{{ __('lf.LF_course_product_common_status') }}</th>
-                <th>{{ __('lf.LF_common_label_common_action') }}</th>
+                <th>{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
             @forelse ($products as $product)
                 <tr>
-                    <td>{{ $product->id }}</td>
+                    <td class="admin-table-sequence">{{ $products->firstItem() + $loop->index }}</td>
                     <td>{{ $product->product_code }}</td>
                     <td>{{ $product->title }}</td>
                     <td>{{ __('lf.LF_course_product_common_type_'.$product->product_type) }}</td>
@@ -112,8 +112,8 @@
                     </td>
                     <td>
                         <div class="admin-table-actions">
-                            <a href="{{ route($routePrefix.'.edit', $product->id) }}">
-                                {{ __('lf.LF_common_button_edit') }}
+                            <a class="admin-table-action-link" href="{{ route($routePrefix.'.edit', $product->id) }}">
+                                {{ __('lf.action_edit') }}
                             </a>
                         </div>
                     </td>
@@ -128,4 +128,10 @@
             </tbody>
         </table>
     </div>
+
+    @if ($products->hasPages())
+        <div class="admin-pagination">
+            {{ $products->links() }}
+        </div>
+    @endif
 @endsection

@@ -48,9 +48,10 @@ class CourseCategoryController extends Controller
             ->orderBy('categories.sort_order')
             ->orderBy('categories.name')
             ->select('categories.*', 'parent.name as parent_name')
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
-        $categories->each(function (object $category): void {
+        $categories->getCollection()->each(function (object $category): void {
             $category->thumbnail_media = $this->singleMedia(
                 'course_category',
                 (int) $category->id,

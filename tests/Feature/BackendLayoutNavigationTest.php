@@ -251,6 +251,12 @@ class BackendLayoutNavigationTest extends TestCase
         foreach ($indexFiles as $file) {
             $blade = file_get_contents(base_path($file));
 
+            $this->assertStringContainsString('lf.table_no', $blade, $file);
+            $this->assertStringContainsString('lf.table_actions', $blade, $file);
+            $this->assertStringContainsString('firstItem() + $loop->index', $blade, $file);
+            $this->assertStringContainsString('->links()', $blade, $file);
+            $this->assertStringNotContainsString('LF_common_label_common_id', $blade, $file);
+            $this->assertStringNotContainsString('LF_common_label_common_action', $blade, $file);
             $this->assertStringNotContainsString('toggle-status', $blade, $file);
             $this->assertStringNotContainsString('LF_common_button_disable', $blade, $file);
             $this->assertStringNotContainsString('LF_common_button_enable', $blade, $file);
@@ -267,6 +273,23 @@ class BackendLayoutNavigationTest extends TestCase
 
             $this->assertStringContainsString('LF_common_status_common_active', $blade, $file);
             $this->assertStringContainsString('LF_common_status_common_inactive', $blade, $file);
+        }
+
+        foreach ([
+            'app/Http/Controllers/Admin/UserController.php',
+            'app/Http/Controllers/CourseCategoryController.php',
+            'app/Http/Controllers/CourseCohortController.php',
+            'app/Http/Controllers/CourseCohortStudentController.php',
+            'app/Http/Controllers/CourseEnrollmentController.php',
+            'app/Http/Controllers/CourseProductController.php',
+            'app/Http/Controllers/CourseTemplateController.php',
+            'app/Http/Controllers/MediaCategoryController.php',
+            'app/Http/Controllers/MediaFileController.php',
+        ] as $file) {
+            $controller = file_get_contents(base_path($file));
+
+            $this->assertStringContainsString('->paginate(10)', $controller, $file);
+            $this->assertStringContainsString('->withQueryString()', $controller, $file);
         }
     }
 

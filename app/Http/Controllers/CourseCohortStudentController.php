@@ -72,7 +72,8 @@ class CourseCohortStudentController extends Controller
                 'products.title as product_title',
                 'products.product_code'
             )
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
         return view('course-cohort-students.index', [
             'memberships' => $memberships,

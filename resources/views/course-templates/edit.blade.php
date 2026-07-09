@@ -177,17 +177,21 @@
                         <table class="table course-template-history-table">
                             <thead>
                             <tr>
+                                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
+                                <th>{{ __('lf.table_code') }}</th>
                                 <th>{{ __('lf.LF_course_template_history_version') }}</th>
                                 <th>{{ __('lf.LF_course_template_history_published_at') }}</th>
                                 <th>{{ __('lf.LF_course_template_history_published_by') }}</th>
                                 <th>{{ __('lf.LF_course_template_history_status') }}</th>
                                 <th>{{ __('lf.LF_course_template_history_current') }}</th>
-                                <th>{{ __('lf.LF_common_label_common_action') }}</th>
+                                <th>{{ __('lf.table_actions') }}</th>
                             </tr>
                             </thead>
                             <tbody>
                             @foreach ($versions as $version)
                                 <tr>
+                                    <td class="admin-table-sequence">{{ $loop->iteration }}</td>
+                                    <td>{{ $version->version_code }}</td>
                                     <td>
                                         {{ __('lf.LF_course_template_version_number', [
                                             'version' => $version->version_number,
@@ -217,7 +221,7 @@
                                     <td>
                                         @if (request()->user()?->role === 'customer_admin')
                                             <div class="admin-table-actions course-template-version-actions">
-                                                <a class="admin-link-button"
+                                                <a class="admin-table-action-link"
                                                    href="{{ route(
                                                        'admin.course-templates.versions.show',
                                                        [

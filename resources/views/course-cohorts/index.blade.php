@@ -59,26 +59,22 @@
         <table class="table">
             <thead>
             <tr>
-                <th>{{ __('lf.LF_common_label_common_id') }}</th>
+                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
+                <th>{{ __('lf.table_code') }}</th>
                 <th>{{ __('lf.LF_course_cohort_common_name') }}</th>
                 <th>{{ __('lf.LF_course_cohort_common_product') }}</th>
                 <th>{{ __('lf.LF_course_cohort_common_version') }}</th>
                 <th>{{ __('lf.LF_course_cohort_common_teacher') }}</th>
                 <th>{{ __('lf.LF_course_cohort_common_status') }}</th>
-                <th>{{ __('lf.LF_common_label_common_action') }}</th>
+                <th>{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
             @forelse ($cohorts as $cohort)
                 <tr>
-                    <td>{{ $cohort->id }}</td>
-                    <td>
-                        {{ $cohort->name }}
-                        @if ($cohort->code)
-                            <br>
-                            <small>{{ $cohort->code }}</small>
-                        @endif
-                    </td>
+                    <td class="admin-table-sequence">{{ $cohorts->firstItem() + $loop->index }}</td>
+                    <td>{{ $cohort->code ?? '-' }}</td>
+                    <td>{{ $cohort->name }}</td>
                     <td>
                         @if ($cohort->product_id)
                             {{ $cohort->product_title }}
@@ -122,18 +118,18 @@
                     </td>
                     <td>
                         <div class="admin-table-actions">
-                            <a href="{{ route($routePrefix.'.show', $cohort->id) }}">
-                                {{ __('lf.LF_common_button_view') }}
+                            <a class="admin-table-action-link" href="{{ route($routePrefix.'.show', $cohort->id) }}">
+                                {{ __('lf.action_view') }}
                             </a>
-                            <a href="{{ route($routePrefix.'.edit', $cohort->id) }}">
-                                {{ __('lf.LF_common_button_edit') }}
+                            <a class="admin-table-action-link" href="{{ route($routePrefix.'.edit', $cohort->id) }}">
+                                {{ __('lf.action_edit') }}
                             </a>
                         </div>
                     </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="7">
+                    <td colspan="8">
                         {{ __('lf.LF_course_cohort_common_empty') }}
                     </td>
                 </tr>
@@ -141,4 +137,10 @@
             </tbody>
         </table>
     </div>
+
+    @if ($cohorts->hasPages())
+        <div class="admin-pagination">
+            {{ $cohorts->links() }}
+        </div>
+    @endif
 @endsection

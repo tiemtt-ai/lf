@@ -59,19 +59,19 @@
         <table class="table">
             <thead>
             <tr>
-                <th>{{ __('lf.LF_common_label_common_id') }}</th>
+                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_cohort_student_common_student') }}</th>
                 <th>{{ __('lf.LF_course_cohort_student_common_cohort') }}</th>
                 <th>{{ __('lf.LF_course_cohort_student_common_product') }}</th>
                 <th>{{ __('lf.LF_course_cohort_student_common_status') }}</th>
                 <th>{{ __('lf.LF_course_cohort_student_common_joined_at') }}</th>
-                <th>{{ __('lf.LF_common_label_common_action') }}</th>
+                <th>{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
             @forelse ($memberships as $membership)
                 <tr>
-                    <td>{{ $membership->id }}</td>
+                    <td class="admin-table-sequence">{{ $memberships->firstItem() + $loop->index }}</td>
                     <td>
                         {{ $membership->student_name }}
                         <br>
@@ -103,11 +103,11 @@
                     <td>{{ $membership->joined_at }}</td>
                     <td>
                         <div class="admin-table-actions">
-                            <a href="{{ route($routePrefix.'.show', $membership->id) }}">
-                                {{ __('lf.LF_common_button_view') }}
+                            <a class="admin-table-action-link" href="{{ route($routePrefix.'.show', $membership->id) }}">
+                                {{ __('lf.action_view') }}
                             </a>
-                            <a href="{{ route($routePrefix.'.edit', $membership->id) }}">
-                                {{ __('lf.LF_common_button_edit') }}
+                            <a class="admin-table-action-link" href="{{ route($routePrefix.'.edit', $membership->id) }}">
+                                {{ __('lf.action_edit') }}
                             </a>
                         </div>
                     </td>
@@ -122,4 +122,10 @@
             </tbody>
         </table>
     </div>
+
+    @if ($memberships->hasPages())
+        <div class="admin-pagination">
+            {{ $memberships->links() }}
+        </div>
+    @endif
 @endsection

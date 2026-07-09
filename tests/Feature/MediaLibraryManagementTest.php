@@ -136,8 +136,8 @@ class MediaLibraryManagementTest extends TestCase
 
         $this->assertSame(0, $this->tableMediaElementCount($response->getContent(), 'video'));
         $this->assertSame(0, $this->tableMediaElementCount($response->getContent(), 'img'));
-        $this->assertSame(1, $this->mediaLibraryPreviewActionCount($response->getContent(), 1));
-        $this->assertSame(0, $this->mediaLibraryPreviewActionCount($response->getContent(), 2));
+        $this->assertSame(1, $this->mediaLibraryPreviewActionCount($response->getContent(), 2));
+        $this->assertSame(0, $this->mediaLibraryPreviewActionCount($response->getContent(), 3));
         $this->assertSame(0, $this->mediaLibraryPreviewActionInsideThumbnailCount($response->getContent()));
         $this->assertMediaLibraryPreviewActionCssUsesFlowLayout();
         $this->assertSame(1, substr_count($response->getContent(), '<video'));
@@ -209,8 +209,8 @@ class MediaLibraryManagementTest extends TestCase
 
         $this->assertSame(1, $this->tableMediaElementCount($response->getContent(), 'img'));
         $this->assertSame(0, $this->tableMediaElementCount($response->getContent(), 'video'));
-        $this->assertSame(1, $this->mediaLibraryPreviewActionCount($response->getContent(), 1));
-        $this->assertSame(0, $this->mediaLibraryPreviewActionCount($response->getContent(), 2));
+        $this->assertSame(1, $this->mediaLibraryPreviewActionCount($response->getContent(), 2));
+        $this->assertSame(0, $this->mediaLibraryPreviewActionCount($response->getContent(), 3));
         $this->assertSame(0, $this->mediaLibraryPreviewActionInsideThumbnailCount($response->getContent()));
         $this->assertMediaLibraryPreviewActionCssUsesFlowLayout();
         $this->assertStringContainsString('preview.mediaType === \'image\'', $response->getContent());

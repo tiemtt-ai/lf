@@ -231,19 +231,19 @@
                 <table class="table">
                     <thead>
                     <tr>
-                        <th>{{ __('lf.LF_common_label_common_id') }}</th>
+                        <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                         <th>{{ __('lf.LF_course_product_item_common_template_version') }}</th>
                         <th>{{ __('lf.LF_course_product_item_common_display_title') }}</th>
                         <th>{{ __('lf.LF_course_product_item_common_sort_order') }}</th>
                         <th>{{ __('lf.LF_course_product_item_common_required') }}</th>
                         <th>{{ __('lf.LF_course_product_item_common_status') }}</th>
-                        <th>{{ __('lf.LF_common_label_common_action') }}</th>
+                        <th>{{ __('lf.table_actions') }}</th>
                     </tr>
                     </thead>
                     <tbody>
                     @forelse ($productItems as $item)
                         <tr>
-                            <td>{{ $item->id }}</td>
+                            <td class="admin-table-sequence">{{ $loop->iteration }}</td>
                             <td>
                                 {{ $item->title_snapshot }}
                                 <br>
@@ -442,20 +442,20 @@
                 <table class="table">
                     <thead>
                     <tr>
-                        <th>{{ __('lf.LF_common_label_common_id') }}</th>
+                        <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                         <th>{{ __('lf.LF_course_product_relation_common_related_product') }}</th>
                         <th>{{ __('lf.LF_course_product_relation_common_relation_type') }}</th>
                         <th>{{ __('lf.LF_course_product_relation_common_display_title') }}</th>
                         <th>{{ __('lf.LF_course_product_relation_common_sort_order') }}</th>
                         <th>{{ __('lf.LF_course_product_relation_common_featured') }}</th>
                         <th>{{ __('lf.LF_course_product_relation_common_status') }}</th>
-                        <th>{{ __('lf.LF_common_label_common_action') }}</th>
+                        <th>{{ __('lf.table_actions') }}</th>
                     </tr>
                     </thead>
                     <tbody>
                     @forelse ($productRelations as $relation)
                         <tr>
-                            <td>{{ $relation->id }}</td>
+                            <td class="admin-table-sequence">{{ $loop->iteration }}</td>
                             <td>
                                 {{ $relation->related_product_title }}
                                 <br>

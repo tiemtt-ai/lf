@@ -54,8 +54,12 @@ class CourseCategoryManagementTest extends TestCase
             ->assertDontSeeText(__('lf.LF_course_category_common_thumbnail_image'))
             ->assertDontSeeText('Private Tenant Category');
         $this->assertSame(
+            __('lf.table_no'),
+            $this->tableHeaderText($adminResponse->getContent(), 1)
+        );
+        $this->assertSame(
             __('lf.LF_course_category_common_name'),
-            $this->firstTableHeaderText($adminResponse->getContent())
+            $this->tableHeaderText($adminResponse->getContent(), 2)
         );
 
         $teacherResponse = $this->actingAs($teacher)
@@ -67,8 +71,12 @@ class CourseCategoryManagementTest extends TestCase
             ->assertDontSeeText('Admin Category')
             ->assertDontSeeText('Private Tenant Category');
         $this->assertSame(
+            __('lf.table_no'),
+            $this->tableHeaderText($teacherResponse->getContent(), 1)
+        );
+        $this->assertSame(
             __('lf.LF_course_category_common_name'),
-            $this->firstTableHeaderText($teacherResponse->getContent())
+            $this->tableHeaderText($teacherResponse->getContent(), 2)
         );
     }
 
@@ -651,13 +659,13 @@ class CourseCategoryManagementTest extends TestCase
         ]);
     }
 
-    private function firstTableHeaderText(string $html): string
+    private function tableHeaderText(string $html, int $position): string
     {
         $dom = new \DOMDocument;
         @$dom->loadHTML($html);
 
         $xpath = new \DOMXPath($dom);
-        $header = $xpath->query('//table/thead/tr/th[1]')->item(0);
+        $header = $xpath->query("//table/thead/tr/th[{$position}]")->item(0);
 
         return trim((string) $header?->textContent);
     }

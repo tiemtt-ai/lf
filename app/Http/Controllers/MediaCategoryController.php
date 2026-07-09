@@ -40,7 +40,8 @@ class MediaCategoryController extends Controller
             ->orderBy('categories.sort_order')
             ->orderBy('categories.name')
             ->select('categories.*', 'parent.name as parent_name')
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
         return view('media-categories.index', [
             'categories' => $categories,

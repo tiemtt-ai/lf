@@ -397,6 +397,27 @@
     background: #ffffff;
 }
 
+.lf-admin-page .table .admin-table-sequence {
+    width: 1%;
+    min-width: 56px;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.admin-table-action-link {
+    color: var(--admin-active);
+    text-decoration: none;
+}
+
+.admin-table-action-link:hover,
+.admin-table-action-link:focus {
+    text-decoration: underline;
+}
+
+.admin-pagination {
+    margin-top: 16px;
+}
+
 .lf-admin-page .badge {
     padding: 4px 10px;
     display: inline-block;

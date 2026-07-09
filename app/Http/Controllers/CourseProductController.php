@@ -63,7 +63,8 @@ class CourseProductController extends Controller
             })
             ->orderBy('sort_order')
             ->orderBy('title')
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
         return view('course-products.index', [
             'products' => $products,

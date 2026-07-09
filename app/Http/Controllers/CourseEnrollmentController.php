@@ -88,7 +88,8 @@ class CourseEnrollmentController extends Controller
                 'versions.version_number',
                 'versions.version_code'
             )
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
         return view('course-enrollments.index', [
             'enrollments' => $enrollments,
