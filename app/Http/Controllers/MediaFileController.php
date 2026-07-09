@@ -43,7 +43,7 @@ class MediaFileController extends Controller
         $mediaFiles = $this->mediaQuery($customerId, $fileType, $ownerType, $usageType)
             ->orderByDesc('media_files.created_at')
             ->orderByDesc('media_files.id')
-            ->paginate(2)
+            ->paginate(10)
             ->withQueryString();
 
         $usageGroups = $this->usageGroups($customerId, $mediaFiles->getCollection()->pluck('id'));
