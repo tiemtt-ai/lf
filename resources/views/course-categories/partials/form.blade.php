@@ -130,6 +130,7 @@
                        name="thumbnail_image_file"
                        class="lf-form-control"
                        accept="image/*">
+                <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
             </div>
         </div>
 
@@ -183,6 +184,7 @@
                        name="banner_image_file"
                        class="lf-form-control"
                        accept="image/*">
+                <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
             </div>
 
             <div class="lf-form-group">

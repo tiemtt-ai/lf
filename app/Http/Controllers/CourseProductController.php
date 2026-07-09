@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\MediaService;
 use App\Support\SequentialCodeGenerator;
 use App\Support\TenantContext;
+use App\Support\UploadLimit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -320,7 +321,7 @@ class CourseProductController extends Controller
         ?int $productId = null,
         ?object $product = null
     ): array {
-        $input = $request->all();
+        $input = $this->validationInput($request);
         $input['slug'] = $this->systemSlug(
             (string) $request->input('title', ''),
             $product,
@@ -394,9 +395,62 @@ class CourseProductController extends Controller
             'cover_image_file' => [
                 'nullable',
                 'file',
-                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+                'max:'.UploadLimit::effectiveKilobytes(),
             ],
         ];
+    }
+
+    private function validationInput(Request $request): array
+    {
+        $fields = [
+            'product_type',
+            'title',
+            'slug',
+            'short_description',
+            'description',
+            'thumbnail_type',
+            'thumbnail_image',
+            'thumbnail_video_source',
+            'thumbnail_video_url',
+            'thumbnail_video_media_id',
+            'price',
+            'sale_price',
+            'sale_starts_at',
+            'sale_ends_at',
+            'currency',
+            'enrollment_type',
+            'max_students',
+            'access_duration_days',
+            'review_duration_days',
+            'is_refundable',
+            'refund_days',
+            'tags',
+            'badge_type',
+            'show_enrollment_count',
+            'display_enrollment_count',
+            'is_featured',
+            'sort_order',
+            'visibility',
+            'available_from',
+            'available_until',
+            'registration_starts_at',
+            'registration_ends_at',
+            'meta_title',
+            'meta_description',
+            'meta_keywords',
+            'status',
+        ];
+
+        $input = array_intersect_key(
+            $request->request->all(),
+            array_flip($fields)
+        );
+
+        if ($request->hasFile('cover_image_file')) {
+            $input['cover_image_file'] = $request->file('cover_image_file');
+        }
+
+        return $input;
     }
 
     private function validatedItemData(

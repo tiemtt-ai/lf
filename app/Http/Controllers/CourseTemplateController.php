@@ -6,6 +6,7 @@ use App\Services\CourseTemplatePublishingService;
 use App\Services\CourseTemplateVersionDuplicatingService;
 use App\Services\MediaService;
 use App\Support\TenantContext;
+use App\Support\UploadLimit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -532,12 +533,12 @@ class CourseTemplateController extends Controller
             'cover_image_file' => [
                 'nullable',
                 'file',
-                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+                'max:'.UploadLimit::effectiveKilobytes(),
             ],
             'intro_video_file' => [
                 'nullable',
                 'file',
-                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+                'max:'.UploadLimit::effectiveKilobytes(),
             ],
         ];
     }

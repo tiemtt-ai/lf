@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\TenantContext;
+use App\Support\UploadLimit;
 use DateTimeInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -428,7 +429,7 @@ class MediaService
                 'file' => [
                     'required',
                     'file',
-                    'max:'.(int) config('media.max_upload_kilobytes', 102400),
+                    'max:'.UploadLimit::effectiveKilobytes(),
                 ],
                 'category_id' => [
                     'nullable',

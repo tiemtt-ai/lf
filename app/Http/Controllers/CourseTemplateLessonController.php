@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\MediaService;
 use App\Support\TenantContext;
+use App\Support\UploadLimit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -387,7 +388,7 @@ class CourseTemplateLessonController extends Controller
         ?int $lessonId = null
     ): array {
         $validator = Validator::make(
-            $request->all(),
+            $this->validationInput($request),
             $this->validationRules($customerId, $templateId, $lessonId)
         );
 
@@ -423,6 +424,40 @@ class CourseTemplateLessonController extends Controller
         }
 
         return $validator->validate();
+    }
+
+    private function validationInput(Request $request): array
+    {
+        $fields = [
+            'title',
+            'slug',
+            'short_description',
+            'description',
+            'sort_order',
+            'is_preview',
+            'learning_objective',
+            'unlock_rule',
+            'unlock_after_lesson_id',
+            'unlock_at',
+            'status',
+        ];
+
+        $input = array_intersect_key(
+            $request->request->all(),
+            array_flip($fields)
+        );
+
+        foreach ([
+            'media_video_file',
+            'media_audio_file',
+            'media_document_file',
+        ] as $field) {
+            if ($request->hasFile($field)) {
+                $input[$field] = $request->file($field);
+            }
+        }
+
+        return $input;
     }
 
     private function validationRules(
@@ -478,17 +513,17 @@ class CourseTemplateLessonController extends Controller
             'media_video_file' => [
                 'nullable',
                 'file',
-                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+                'max:'.UploadLimit::effectiveKilobytes(),
             ],
             'media_audio_file' => [
                 'nullable',
                 'file',
-                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+                'max:'.UploadLimit::effectiveKilobytes(),
             ],
             'media_document_file' => [
                 'nullable',
                 'file',
-                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+                'max:'.UploadLimit::effectiveKilobytes(),
             ],
         ];
     }

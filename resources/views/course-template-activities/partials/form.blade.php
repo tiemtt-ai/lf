@@ -190,6 +190,7 @@
             <input id="activity_video_file" type="file"
                    name="activity_video_file" class="lf-form-control"
                    accept="video/*">
+            <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']" />
         </div>
 
         <div class="lf-form-group">
@@ -197,6 +198,7 @@
             <input id="activity_audio_file" type="file"
                    name="activity_audio_file" class="lf-form-control"
                    accept="audio/*">
+            <x-upload-hint :formats="['MP3', 'WAV', 'OGG', 'WEBM', 'M4A', 'AAC']" />
         </div>
 
         <div class="lf-form-group">
@@ -204,12 +206,14 @@
             <input id="activity_document_file" type="file"
                    name="activity_document_file" class="lf-form-control"
                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,application/pdf">
+            <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX', 'TXT']" />
         </div>
 
         <div class="lf-form-group">
             <x-form-label for="activity_attachment_file" value="Attachment file" />
             <input id="activity_attachment_file" type="file"
                    name="activity_attachment_file" class="lf-form-control">
+            <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX', 'TXT']" />
         </div>
     </section>
 

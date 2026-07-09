@@ -274,6 +274,8 @@
                    aria-label="{{ __('lf.LF_course_template_common_cover_image_type') }}"
                    x-show="selectedCoverType === 'image'"
                    :disabled="selectedCoverType !== 'image'">
+            <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']"
+                           x-show="selectedCoverType === 'image'" />
 
             <input type="hidden"
                    name="intro_video_media_file_id"
@@ -287,6 +289,8 @@
                    aria-label="{{ __('lf.LF_course_template_common_cover_video_type') }}"
                    x-show="selectedCoverType === 'video'"
                    :disabled="selectedCoverType !== 'video'">
+            <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']"
+                           x-show="selectedCoverType === 'video'" />
         </div>
 
         <div class="lf-form-group">

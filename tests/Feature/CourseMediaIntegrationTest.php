@@ -93,6 +93,8 @@ class CourseMediaIntegrationTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
             ->assertSeeText('Cover image upload')
+            ->assertSeeText('Định dạng: JPG, PNG, GIF, WEBP, SVG')
+            ->assertSeeText('Tối đa:')
             ->assertSee('expiration=', false);
     }
 
@@ -146,6 +148,8 @@ class CourseMediaIntegrationTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
             ->assertOk()
             ->assertSee('name="cover_image_file"', false)
+            ->assertSeeText('Định dạng: JPG, PNG, GIF, WEBP, SVG')
+            ->assertSeeText('Tối đa:')
             ->assertSee('expiration=', false)
             ->assertSee('course-template-preview-card', false)
             ->assertSee('course-template-preview-title', false)
@@ -227,6 +231,8 @@ class CourseMediaIntegrationTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
             ->assertOk()
             ->assertSee('name="intro_video_file"', false)
+            ->assertSeeText('Định dạng: MP4, WEBM, MOV, AVI')
+            ->assertSeeText('Tối đa:')
             ->assertSee('expiration=', false)
             ->assertSee('course-template-preview-card', false)
             ->assertSee('course-template-preview-title', false)
@@ -920,6 +926,9 @@ class CourseMediaIntegrationTest extends TestCase
             )
             ->assertOk()
             ->assertSeeText('Lesson media')
+            ->assertSeeText('Định dạng: MP4, WEBM, MOV, AVI')
+            ->assertSeeText('Định dạng: MP3, WAV, OGG, WEBM, M4A, AAC')
+            ->assertSeeText('Định dạng: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT')
             ->assertSeeText('video')
             ->assertSeeText('audio')
             ->assertSeeText('document')
@@ -1286,6 +1295,9 @@ class CourseMediaIntegrationTest extends TestCase
             )
             ->assertOk()
             ->assertSeeText('Activity media')
+            ->assertSeeText('Định dạng: MP4, WEBM, MOV, AVI')
+            ->assertSeeText('Định dạng: MP3, WAV, OGG, WEBM, M4A, AAC')
+            ->assertSeeText('Định dạng: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT')
             ->assertSee('expiration=', false);
     }
 

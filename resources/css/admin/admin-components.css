@@ -195,6 +195,13 @@
     margin-bottom: 4px;
 }
 
+.admin-upload-hint {
+    margin-top: 4px;
+    color: #abadb1;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
 .admin-attached-media-card {
     margin-bottom: 8px;
     display: flex;

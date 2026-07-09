@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\MediaService;
 use App\Support\SequentialCodeGenerator;
 use App\Support\TenantContext;
+use App\Support\UploadLimit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -201,7 +202,7 @@ class CourseCohortController extends Controller
 
     private function validatedData(Request $request, int $customerId): array
     {
-        $validator = Validator::make($request->all(), [
+        $validator = Validator::make($this->validationInput($request), [
             'product_id' => ['nullable', 'integer', 'min:1'],
             'version_id' => ['nullable', 'integer', 'min:1'],
             'teacher_id' => ['nullable', 'integer', 'min:1'],
@@ -215,12 +216,12 @@ class CourseCohortController extends Controller
             'cohort_document_file' => [
                 'nullable',
                 'file',
-                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+                'max:'.UploadLimit::effectiveKilobytes(),
             ],
             'cohort_attachment_file' => [
                 'nullable',
                 'file',
-                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+                'max:'.UploadLimit::effectiveKilobytes(),
             ],
         ]);
 
@@ -252,6 +253,35 @@ class CourseCohortController extends Controller
         });
 
         return $validator->validate();
+    }
+
+    private function validationInput(Request $request): array
+    {
+        $fields = [
+            'product_id',
+            'version_id',
+            'teacher_id',
+            'name',
+            'description',
+            'status',
+            'capacity',
+            'start_date',
+            'end_date',
+            'notes',
+        ];
+
+        $input = array_intersect_key(
+            $request->request->all(),
+            array_flip($fields)
+        );
+
+        foreach (['cohort_document_file', 'cohort_attachment_file'] as $field) {
+            if ($request->hasFile($field)) {
+                $input[$field] = $request->file($field);
+            }
+        }
+
+        return $input;
     }
 
     private function cohortValues(array $validated, array $extra = []): array

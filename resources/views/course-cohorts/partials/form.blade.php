@@ -129,6 +129,7 @@
                name="cohort_document_file"
                class="lf-form-control"
                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf">
+        <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX', 'TXT']" />
     </div>
 
     <div class="lf-form-group">
@@ -140,6 +141,7 @@
                name="cohort_attachment_file"
                class="lf-form-control"
                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf">
+        <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX', 'TXT']" />
     </div>
 </section>
 

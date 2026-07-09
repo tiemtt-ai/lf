@@ -120,6 +120,11 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
         $this->assertStringContainsString('name="remove_thumbnail_image_media"', $content);
         $this->assertStringContainsString('name="remove_banner_image_media"', $content);
         $this->assertStringContainsString('course-category-preview-title', $content);
+        $this->assertStringContainsString(
+            'Định dạng: JPG, PNG, GIF, WEBP, SVG',
+            $content
+        );
+        $this->assertStringContainsString('Tối đa:', $content);
         $this->assertStringContainsString('openCategoryImagePreview', $content);
         $this->assertStringContainsString('$el.dataset.previewUrl', $content);
         $this->assertStringContainsString('media-library-modal-image', $content);

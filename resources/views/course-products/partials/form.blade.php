@@ -271,6 +271,7 @@
                name="cover_image_file"
                class="lf-form-control"
                accept="image/*">
+        <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
     </div>
 
     <div class="lf-form-group">

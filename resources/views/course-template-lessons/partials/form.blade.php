@@ -103,6 +103,7 @@
                name="media_video_file"
                class="lf-form-control"
                accept="video/*">
+        <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']" />
     </div>
 
     <div class="lf-form-group">
@@ -112,6 +113,7 @@
                name="media_audio_file"
                class="lf-form-control"
                accept="audio/*">
+        <x-upload-hint :formats="['MP3', 'WAV', 'OGG', 'WEBM', 'M4A', 'AAC']" />
     </div>
 
     <div class="lf-form-group">
@@ -121,6 +123,7 @@
                name="media_document_file"
                class="lf-form-control"
                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf">
+        <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX', 'TXT']" />
     </div>
 </section>
 

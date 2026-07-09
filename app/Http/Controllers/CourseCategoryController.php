@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\MediaService;
 use App\Support\TenantContext;
+use App\Support\UploadLimit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -198,7 +199,7 @@ class CourseCategoryController extends Controller
         ?int $categoryId = null,
         ?object $category = null
     ): array {
-        $input = $request->all();
+        $input = $this->validationInput($request);
         $input['slug'] = $this->systemSlug(
             (string) $request->input('name', ''),
             $category,
@@ -227,12 +228,12 @@ class CourseCategoryController extends Controller
             'thumbnail_image_file' => [
                 'nullable',
                 'file',
-                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+                'max:'.UploadLimit::effectiveKilobytes(),
             ],
             'banner_image_file' => [
                 'nullable',
                 'file',
-                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+                'max:'.UploadLimit::effectiveKilobytes(),
             ],
             'remove_thumbnail_image_media' => ['nullable', 'boolean'],
             'remove_banner_image_media' => ['nullable', 'boolean'],
@@ -265,6 +266,39 @@ class CourseCategoryController extends Controller
         }
 
         return $validator->validate();
+    }
+
+    private function validationInput(Request $request): array
+    {
+        $fields = [
+            'parent_id',
+            'name',
+            'slug',
+            'description',
+            'thumbnail_image',
+            'banner_image',
+            'remove_thumbnail_image_media',
+            'remove_banner_image_media',
+            'sort_order',
+            'is_featured',
+            'meta_title',
+            'meta_description',
+            'meta_keywords',
+            'status',
+        ];
+
+        $input = array_intersect_key(
+            $request->request->all(),
+            array_flip($fields)
+        );
+
+        foreach (['thumbnail_image_file', 'banner_image_file'] as $field) {
+            if ($request->hasFile($field)) {
+                $input[$field] = $request->file($field);
+            }
+        }
+
+        return $input;
     }
 
     private function systemSlug(

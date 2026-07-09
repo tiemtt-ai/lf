@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\MediaService;
 use App\Support\TenantContext;
+use App\Support\UploadLimit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -456,7 +457,7 @@ class CourseTemplateActivityController extends Controller
         ?int $activityId = null
     ): array {
         $validator = Validator::make(
-            $request->all(),
+            $this->validationInput($request),
             $this->validationRules($customerId, $templateId, $activityId),
             [],
             [
@@ -498,6 +499,47 @@ class CourseTemplateActivityController extends Controller
         }
 
         return $validator->validate();
+    }
+
+    private function validationInput(Request $request): array
+    {
+        $fields = [
+            'title',
+            'description',
+            'sort_order',
+            'activity_type',
+            'activity_ref_type',
+            'activity_ref_id',
+            'external_url',
+            'embed_code',
+            'duration_seconds',
+            'is_required',
+            'completion_rule',
+            'completion_threshold',
+            'is_preview',
+            'unlock_rule',
+            'unlock_after_activity_id',
+            'unlock_at',
+            'status',
+        ];
+
+        $input = array_intersect_key(
+            $request->request->all(),
+            array_flip($fields)
+        );
+
+        foreach ([
+            'activity_video_file',
+            'activity_audio_file',
+            'activity_document_file',
+            'activity_attachment_file',
+        ] as $field) {
+            if ($request->hasFile($field)) {
+                $input[$field] = $request->file($field);
+            }
+        }
+
+        return $input;
     }
 
     private function validationRules(
@@ -598,22 +640,22 @@ class CourseTemplateActivityController extends Controller
             'activity_video_file' => [
                 'nullable',
                 'file',
-                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+                'max:'.UploadLimit::effectiveKilobytes(),
             ],
             'activity_audio_file' => [
                 'nullable',
                 'file',
-                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+                'max:'.UploadLimit::effectiveKilobytes(),
             ],
             'activity_document_file' => [
                 'nullable',
                 'file',
-                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+                'max:'.UploadLimit::effectiveKilobytes(),
             ],
             'activity_attachment_file' => [
                 'nullable',
                 'file',
-                'max:'.(int) config('media.max_upload_kilobytes', 102400),
+                'max:'.UploadLimit::effectiveKilobytes(),
             ],
         ];
     }

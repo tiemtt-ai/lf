@@ -800,6 +800,19 @@ class CourseTemplateActivityManagementTest extends TestCase
         );
     }
 
+    public function test_activity_upload_validation_uses_filtered_request_input(): void
+    {
+        $source = file_get_contents(
+            app_path('Http/Controllers/CourseTemplateActivityController.php')
+        );
+
+        $this->assertStringNotContainsString('$request->all()', $source);
+        $this->assertStringContainsString(
+            '$request->request->all()',
+            $source
+        );
+    }
+
     private function createHierarchy(
         string $tenantSlug = 'tenant-a',
         string $suffix = 'default'

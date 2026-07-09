@@ -872,6 +872,19 @@ class CourseTemplateLessonManagementTest extends TestCase
         );
     }
 
+    public function test_lesson_upload_validation_uses_filtered_request_input(): void
+    {
+        $source = file_get_contents(
+            app_path('Http/Controllers/CourseTemplateLessonController.php')
+        );
+
+        $this->assertStringNotContainsString('$request->all()', $source);
+        $this->assertStringContainsString(
+            '$request->request->all()',
+            $source
+        );
+    }
+
     private function createTenant(string $slug = 'tenant-a'): int
     {
         return DB::table('saas_customers')->insertGetId([
