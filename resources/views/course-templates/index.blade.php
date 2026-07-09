@@ -91,22 +91,16 @@
                             'badge-success' => $template->status === 'active',
                             'badge-danger' => $template->status === 'archived',
                         ])>
-                            {{ __('lf.LF_course_template_common_'.$template->status) }}
+                            {{ $template->status === 'active'
+                                ? __('lf.LF_common_status_common_active')
+                                : __('lf.LF_common_status_common_inactive') }}
                         </span>
                     </td>
                     <td>
                         <div class="admin-table-actions">
                             <a href="{{ route($routePrefix.'.edit', $template->id) }}">
-                                {{ __('lf.LF_course_template_common_edit') }}
+                                {{ __('lf.LF_common_button_edit') }}
                             </a>
-                            <form method="POST"
-                                  action="{{ route($routePrefix.'.destroy', $template->id) }}">
-                                @csrf
-                                @method('DELETE')
-                                <button class="admin-link-button" type="submit">
-                                    {{ __('lf.LF_common_button_delete') }}
-                                </button>
-                            </form>
                         </div>
                     </td>
                 </tr>

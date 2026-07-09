@@ -68,12 +68,6 @@
                     <td>
                         <div class="admin-table-actions">
                             <a href="{{ route('admin.users.edit', $user->id) }}">{{ __('lf.LF_common_button_edit') }}</a>
-                            <form method="POST" action="{{ route('admin.users.toggle-status', $user->id) }}">
-                                @csrf
-                                <button class="admin-link-button" type="submit">
-                                    {{ $user->status === 'active' ? __('lf.LF_common_button_disable') : __('lf.LF_common_button_enable') }}
-                                </button>
-                            </form>
                         </div>
                     </td>
                 </tr>

@@ -87,25 +87,15 @@
                     <td>
                         <span class="badge {{ $category->status === 'active' ? 'badge-success' : 'badge-danger' }}">
                             {{ $category->status === 'active'
-                                ? __('lf.LF_media_category_common_active')
-                                : __('lf.LF_media_category_common_archived') }}
+                                ? __('lf.LF_common_status_common_active')
+                                : __('lf.LF_common_status_common_inactive') }}
                         </span>
                     </td>
                     <td>
                         <div class="admin-table-actions">
                             <a href="{{ route('admin.media-categories.edit', $category->id) }}">
-                                {{ __('lf.LF_media_category_common_edit') }}
+                                {{ __('lf.LF_common_button_edit') }}
                             </a>
-                            @if ($category->status !== 'archived')
-                                <form method="POST"
-                                      action="{{ route('admin.media-categories.archive', $category->id) }}">
-                                    @csrf
-                                    <button class="admin-link-button" type="submit"
-                                            onclick="return confirm('{{ __('lf.LF_media_category_common_archive_confirm') }}')">
-                                        {{ __('lf.LF_media_category_common_archive') }}
-                                    </button>
-                                </form>
-                            @endif
                         </div>
                     </td>
                 </tr>

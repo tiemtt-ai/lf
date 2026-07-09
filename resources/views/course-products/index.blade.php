@@ -105,22 +105,16 @@
                             'badge-success' => $product->status === 'active',
                             'badge-danger' => $product->status === 'archived',
                         ])>
-                            {{ __('lf.LF_course_product_common_'.$product->status) }}
+                            {{ $product->status === 'active'
+                                ? __('lf.LF_common_status_common_active')
+                                : __('lf.LF_common_status_common_inactive') }}
                         </span>
                     </td>
                     <td>
                         <div class="admin-table-actions">
                             <a href="{{ route($routePrefix.'.edit', $product->id) }}">
-                                {{ __('lf.LF_course_product_common_edit') }}
+                                {{ __('lf.LF_common_button_edit') }}
                             </a>
-                            <form method="POST"
-                                  action="{{ route($routePrefix.'.destroy', $product->id) }}">
-                                @csrf
-                                @method('DELETE')
-                                <button class="admin-link-button" type="submit">
-                                    {{ __('lf.LF_course_product_common_archive') }}
-                                </button>
-                            </form>
                         </div>
                     </td>
                 </tr>

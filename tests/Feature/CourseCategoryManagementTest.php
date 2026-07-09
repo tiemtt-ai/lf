@@ -45,21 +45,31 @@ class CourseCategoryManagementTest extends TestCase
         );
         $this->createCategory($otherCustomerId, 'Private Tenant Category', 'private-category');
 
-        $this->actingAs($admin)
+        $adminResponse = $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-categories')
             ->assertOk()
             ->assertSeeText('Admin Category')
             ->assertSeeText('Teacher Category')
             ->assertSeeText(__('lf.LF_navigation_menu_common_product_categories'))
+            ->assertDontSeeText(__('lf.LF_course_category_common_thumbnail_image'))
             ->assertDontSeeText('Private Tenant Category');
+        $this->assertSame(
+            __('lf.LF_course_category_common_name'),
+            $this->firstTableHeaderText($adminResponse->getContent())
+        );
 
-        $this->actingAs($teacher)
+        $teacherResponse = $this->actingAs($teacher)
             ->get('https://tenant-a.localhost/teacher/course-categories')
             ->assertOk()
             ->assertSeeText('Teacher Category')
             ->assertSeeText(__('lf.LF_navigation_menu_common_product_categories'))
+            ->assertDontSeeText(__('lf.LF_course_category_common_thumbnail_image'))
             ->assertDontSeeText('Admin Category')
             ->assertDontSeeText('Private Tenant Category');
+        $this->assertSame(
+            __('lf.LF_course_category_common_name'),
+            $this->firstTableHeaderText($teacherResponse->getContent())
+        );
     }
 
     public function test_admin_can_create_a_category_with_documented_fields(): void
@@ -639,6 +649,17 @@ class CourseCategoryManagementTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    private function firstTableHeaderText(string $html): string
+    {
+        $dom = new \DOMDocument;
+        @$dom->loadHTML($html);
+
+        $xpath = new \DOMXPath($dom);
+        $header = $xpath->query('//table/thead/tr/th[1]')->item(0);
+
+        return trim((string) $header?->textContent);
     }
 
     private function createUser(int $customerId, string $role): User

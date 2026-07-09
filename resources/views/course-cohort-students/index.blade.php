@@ -95,14 +95,16 @@
                             'badge-success' => $membership->status === 'active',
                             'badge-danger' => in_array($membership->status, ['removed', 'cancelled'], true),
                         ])>
-                            {{ __('lf.LF_course_cohort_student_common_'.$membership->status) }}
+                            {{ $membership->status === 'active'
+                                ? __('lf.LF_common_status_common_active')
+                                : __('lf.LF_common_status_common_inactive') }}
                         </span>
                     </td>
                     <td>{{ $membership->joined_at }}</td>
                     <td>
                         <div class="admin-table-actions">
                             <a href="{{ route($routePrefix.'.show', $membership->id) }}">
-                                {{ __('lf.LF_course_cohort_student_common_view') }}
+                                {{ __('lf.LF_common_button_view') }}
                             </a>
                             <a href="{{ route($routePrefix.'.edit', $membership->id) }}">
                                 {{ __('lf.LF_common_button_edit') }}

@@ -122,14 +122,16 @@
                             'badge-success' => $enrollment->status === 'active',
                             'badge-danger' => in_array($enrollment->status, ['expired', 'cancelled'], true),
                         ])>
-                            {{ __('lf.LF_course_enrollment_common_'.$enrollment->status) }}
+                            {{ $enrollment->status === 'active'
+                                ? __('lf.LF_common_status_common_active')
+                                : __('lf.LF_common_status_common_inactive') }}
                         </span>
                     </td>
                     <td>{{ $enrollment->enrolled_at }}</td>
                     <td>
                         <div class="admin-table-actions">
                             <a href="{{ route($routePrefix.'.show', $enrollment->id) }}">
-                                {{ __('lf.LF_course_enrollment_common_view') }}
+                                {{ __('lf.LF_common_button_view') }}
                             </a>
                             <a href="{{ route($routePrefix.'.edit', $enrollment->id) }}">
                                 {{ __('lf.LF_common_button_edit') }}

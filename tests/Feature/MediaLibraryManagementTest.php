@@ -136,6 +136,10 @@ class MediaLibraryManagementTest extends TestCase
 
         $this->assertSame(0, $this->tableMediaElementCount($response->getContent(), 'video'));
         $this->assertSame(0, $this->tableMediaElementCount($response->getContent(), 'img'));
+        $this->assertSame(1, $this->mediaLibraryPreviewActionCount($response->getContent(), 1));
+        $this->assertSame(0, $this->mediaLibraryPreviewActionCount($response->getContent(), 2));
+        $this->assertSame(0, $this->mediaLibraryPreviewActionInsideThumbnailCount($response->getContent()));
+        $this->assertMediaLibraryPreviewActionCssUsesFlowLayout();
         $this->assertSame(1, substr_count($response->getContent(), '<video'));
         $this->assertStringContainsString('this.resetMediaPreview()', $response->getContent());
         $this->assertStringContainsString('this.$refs.videoPreviewSource?.setAttribute(\'src\', url)', $response->getContent());
@@ -205,6 +209,10 @@ class MediaLibraryManagementTest extends TestCase
 
         $this->assertSame(1, $this->tableMediaElementCount($response->getContent(), 'img'));
         $this->assertSame(0, $this->tableMediaElementCount($response->getContent(), 'video'));
+        $this->assertSame(1, $this->mediaLibraryPreviewActionCount($response->getContent(), 1));
+        $this->assertSame(0, $this->mediaLibraryPreviewActionCount($response->getContent(), 2));
+        $this->assertSame(0, $this->mediaLibraryPreviewActionInsideThumbnailCount($response->getContent()));
+        $this->assertMediaLibraryPreviewActionCssUsesFlowLayout();
         $this->assertStringContainsString('preview.mediaType === \'image\'', $response->getContent());
 
         $signedUrl = app(MediaService::class)->generateSignedUrl((int) $mediaFile->id);
@@ -228,6 +236,50 @@ class MediaLibraryManagementTest extends TestCase
         return (new \DOMXPath($document))
             ->query('//tbody//'.$tagName)
             ->length;
+    }
+
+    private function mediaLibraryPreviewActionCount(string $html, int $columnIndex): int
+    {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        return (new \DOMXPath($document))
+            ->query(
+                '//tbody/tr/td['.$columnIndex.']'
+                .'//*[contains(concat(" ", normalize-space(@class), " "), " media-library-preview-action ")]'
+            )
+            ->length;
+    }
+
+    private function mediaLibraryPreviewActionInsideThumbnailCount(string $html): int
+    {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        return (new \DOMXPath($document))
+            ->query(
+                '//*[contains(concat(" ", normalize-space(@class), " "), " media-library-preview ")]'
+                .'//*[contains(concat(" ", normalize-space(@class), " "), " media-library-preview-action ")]'
+            )
+            ->length;
+    }
+
+    private function assertMediaLibraryPreviewActionCssUsesFlowLayout(): void
+    {
+        $css = file_get_contents(base_path('resources/css/admin/admin-pages.css'));
+
+        $this->assertStringContainsString('.media-library-preview-cell', $css);
+        $this->assertStringContainsString('flex-direction: column;', $css);
+        $this->assertStringContainsString('align-items: center;', $css);
+        $this->assertStringContainsString('gap: 6px;', $css);
+        $this->assertStringContainsString('.media-library-preview-action', $css);
+        $this->assertStringNotContainsString('.media-library-preview-action {'."\n".'    position: absolute;', $css);
     }
 
     public function test_media_library_filters_by_owner_and_usage_type(): void

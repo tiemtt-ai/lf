@@ -234,6 +234,42 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringContainsString('max-width: none;', $pageCss);
     }
 
+    public function test_backend_index_tables_use_standard_status_and_actions(): void
+    {
+        $indexFiles = [
+            'resources/views/admin/users/index.blade.php',
+            'resources/views/course-categories/index.blade.php',
+            'resources/views/course-cohort-students/index.blade.php',
+            'resources/views/course-cohorts/index.blade.php',
+            'resources/views/course-enrollments/index.blade.php',
+            'resources/views/course-products/index.blade.php',
+            'resources/views/course-templates/index.blade.php',
+            'resources/views/media-categories/index.blade.php',
+            'resources/views/media-files/index.blade.php',
+        ];
+
+        foreach ($indexFiles as $file) {
+            $blade = file_get_contents(base_path($file));
+
+            $this->assertStringNotContainsString('toggle-status', $blade, $file);
+            $this->assertStringNotContainsString('LF_common_button_disable', $blade, $file);
+            $this->assertStringNotContainsString('LF_common_button_enable', $blade, $file);
+            $this->assertStringNotContainsString('LF_course_category_common_deactivate', $blade, $file);
+            $this->assertStringNotContainsString('LF_course_category_common_activate', $blade, $file);
+            $this->assertStringNotContainsString('LF_media_category_common_archive\')', $blade, $file);
+            $this->assertStringNotContainsString('LF_media_category_common_archive_confirm', $blade, $file);
+            $this->assertStringNotContainsString('LF_course_product_common_archive\')', $blade, $file);
+            $this->assertStringNotContainsString('LF_common_button_delete', $blade, $file);
+        }
+
+        foreach (array_diff($indexFiles, ['resources/views/media-files/index.blade.php']) as $file) {
+            $blade = file_get_contents(base_path($file));
+
+            $this->assertStringContainsString('LF_common_status_common_active', $blade, $file);
+            $this->assertStringContainsString('LF_common_status_common_inactive', $blade, $file);
+        }
+    }
+
     public function test_backend_adaptive_form_markup_prioritizes_left_column(): void
     {
         $templateForm = file_get_contents(

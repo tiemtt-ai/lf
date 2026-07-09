@@ -9,6 +9,7 @@ return [
     'LF_common_button_save_changes' => 'Save Changes',
     'LF_common_button_cancel' => 'Cancel',
     'LF_common_button_edit' => 'Edit',
+    'LF_common_button_view' => 'View',
     'LF_common_button_enable' => 'Enable',
     'LF_common_button_disable' => 'Disable',
     'LF_common_button_close' => 'Close',

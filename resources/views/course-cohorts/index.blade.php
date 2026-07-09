@@ -115,13 +115,15 @@
                             'badge-success' => $cohort->status === 'active',
                             'badge-danger' => $cohort->status === 'archived',
                         ])>
-                            {{ __('lf.LF_course_cohort_common_'.$cohort->status) }}
+                            {{ $cohort->status === 'active'
+                                ? __('lf.LF_common_status_common_active')
+                                : __('lf.LF_common_status_common_inactive') }}
                         </span>
                     </td>
                     <td>
                         <div class="admin-table-actions">
                             <a href="{{ route($routePrefix.'.show', $cohort->id) }}">
-                                {{ __('lf.LF_course_cohort_common_view') }}
+                                {{ __('lf.LF_common_button_view') }}
                             </a>
                             <a href="{{ route($routePrefix.'.edit', $cohort->id) }}">
                                 {{ __('lf.LF_common_button_edit') }}

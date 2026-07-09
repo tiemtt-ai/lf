@@ -199,40 +199,42 @@
             @forelse ($mediaFiles as $mediaFile)
                 <tr>
                     <td>
-                        <div class="media-library-preview">
-                            @if ($mediaFile->preview_url)
-                                @if ($mediaFile->file_type === 'image')
-                                    <img src="{{ $mediaFile->preview_url }}"
-                                         alt="{{ $mediaFile->display_name }}"
-                                         loading="lazy"
-                                         decoding="async"
-                                         width="72"
-                                         height="72">
+                        <div class="media-library-preview-cell">
+                            <div class="media-library-preview">
+                                @if ($mediaFile->preview_url)
+                                    @if ($mediaFile->file_type === 'image')
+                                        <img src="{{ $mediaFile->preview_url }}"
+                                             alt="{{ $mediaFile->display_name }}"
+                                             loading="lazy"
+                                             decoding="async"
+                                             width="72"
+                                             height="72">
+                                    @else
+                                        <div class="media-library-preview-placeholder media-library-preview-placeholder-{{ $mediaFile->file_type }}">
+                                            <span aria-hidden="true">{{ str($mediaFile->file_type)->headline() }}</span>
+                                        </div>
+                                    @endif
                                 @else
-                                    <div class="media-library-preview-placeholder media-library-preview-placeholder-{{ $mediaFile->file_type }}">
-                                        <span aria-hidden="true">{{ str($mediaFile->file_type)->headline() }}</span>
-                                    </div>
+                                    <span>{{ str($mediaFile->file_type)->headline() }}</span>
                                 @endif
-                            @else
-                                <span>{{ str($mediaFile->file_type)->headline() }}</span>
+                            </div>
+                            @if ($mediaFile->preview_url)
+                                <button type="button"
+                                        class="admin-link-button media-library-preview-action"
+                                        x-on:click="openMediaPreview(
+                                            @js($mediaFile->display_name),
+                                            @js($mediaFile->preview_url),
+                                            @js($mediaFile->mime_type),
+                                            @js($mediaFile->file_type)
+                                        )">
+                                    {{ __('lf.LF_media_file_common_preview_action') }}
+                                </button>
                             @endif
                         </div>
                     </td>
                     <td>
                         <div class="media-library-file-name">{{ $mediaFile->display_name }}</div>
                         <div class="media-library-file-meta">{{ $mediaFile->original_name }}</div>
-                        @if ($mediaFile->preview_url)
-                            <button type="button"
-                                    class="admin-link-button media-library-preview-action"
-                                    x-on:click="openMediaPreview(
-                                        @js($mediaFile->display_name),
-                                        @js($mediaFile->preview_url),
-                                        @js($mediaFile->mime_type),
-                                        @js($mediaFile->file_type)
-                                    )">
-                                {{ __('lf.LF_media_file_common_preview_action') }}
-                            </button>
-                        @endif
                     </td>
                     <td>
                         <span class="badge">{{ str($mediaFile->file_type)->headline() }}</span>
