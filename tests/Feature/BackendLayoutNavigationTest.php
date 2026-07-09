@@ -161,6 +161,24 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringContainsString('content: attr(data-sidebar-label);', $css);
     }
 
+    public function test_backend_sidebar_uses_shared_sticky_layout_css(): void
+    {
+        $css = file_get_contents(
+            base_path('resources/css/admin/admin-layout.css')
+        );
+
+        $this->assertStringContainsString('.lf-admin-page .layout-sidebar', $css);
+        $this->assertStringContainsString('position: sticky;', $css);
+        $this->assertStringContainsString('top: 156px;', $css);
+        $this->assertStringContainsString('max-height: calc(100vh - 156px);', $css);
+        $this->assertStringContainsString('overflow-y: auto;', $css);
+        $this->assertStringContainsString('overflow-x: hidden;', $css);
+        $this->assertStringContainsString('@media (max-width: 900px)', $css);
+        $this->assertStringContainsString('position: static;', $css);
+        $this->assertStringContainsString('max-height: none;', $css);
+        $this->assertStringContainsString('overflow: visible;', $css);
+    }
+
     public function test_backend_grouped_forms_adapt_to_collapsed_sidebar(): void
     {
         $componentCss = file_get_contents(

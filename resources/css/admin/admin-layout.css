@@ -386,6 +386,11 @@
 
 .lf-admin-page .layout-sidebar {
     min-width: 0;
+    max-height: calc(100vh - 156px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    position: sticky;
+    top: 156px;
 }
 
 .admin-sidebar-menu {
@@ -843,6 +848,13 @@
 
     .admin-content-wrap {
         grid-template-columns: 1fr;
+    }
+
+    .lf-admin-page .layout-sidebar {
+        max-height: none;
+        overflow: visible;
+        position: static;
+        top: auto;
     }
 
     :root.is-backend-sidebar-collapsed .backend-shell .admin-content-wrap,
