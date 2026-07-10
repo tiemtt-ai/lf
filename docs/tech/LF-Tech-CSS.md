@@ -299,6 +299,38 @@ color: var(--lf-primary);
 
 ---
 
+# Backend Text Actions
+
+Official rule: all backend text actions must use `color: var(--admin-primary);`.
+
+Mọi text action trong Admin Back Office và Teacher Back Office phải dùng shared
+class:
+
+```html
+<a class="admin-text-action">Xem</a>
+
+<button class="admin-link-button admin-text-action" type="button">Xóa</button>
+```
+
+Shared color rule:
+
+```css
+.admin-text-action {
+    color: var(--admin-primary);
+}
+```
+
+Rule này áp dụng cho action link và button được trình bày như text link trong
+table, card, media area, form và detail page. Breadcrumb, navigation link,
+normal content link, filled button, status label, badge và heading không phải
+backend text action và không dùng rule này.
+
+Class trình bày như `admin-table-action-link` hoặc `admin-link-button` có thể
+giữ hover, focus, disabled, typography và layout riêng, nhưng không được định
+nghĩa một màu text action khác hoặc tạo override theo từng page.
+
+---
+
 # Typography
 
 ## Font Strategy

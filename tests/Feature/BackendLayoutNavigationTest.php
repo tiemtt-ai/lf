@@ -291,6 +291,63 @@ class BackendLayoutNavigationTest extends TestCase
             $this->assertStringContainsString('->paginate(10)', $controller, $file);
             $this->assertStringContainsString('->withQueryString()', $controller, $file);
         }
+
+        $componentCss = file_get_contents(
+            base_path('resources/css/admin/admin-components.css')
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/\.admin-text-action\s*\{\s*color:\s*var\(--admin-primary\);\s*\}/',
+            $componentCss
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/\.admin-table-action-link\s*\{[^}]*color:/s',
+            $componentCss
+        );
+        $this->assertStringNotContainsString(
+            'backend-breadcrumb-item-active-link-color',
+            file_get_contents(base_path('resources/css/admin/admin-layout.css'))
+        );
+    }
+
+    public function test_backend_text_actions_use_the_shared_primary_color_class(): void
+    {
+        $viewFiles = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator(base_path('resources/views'))
+        );
+        $actionTags = 0;
+
+        foreach ($viewFiles as $file) {
+            if (! $file->isFile() || ! str_ends_with($file->getFilename(), '.blade.php')) {
+                continue;
+            }
+
+            $blade = file_get_contents($file->getPathname());
+            preg_match_all(
+                '/<(?:a|button|span)\b[^>]*\badmin-(?:table-action-link|link-button|media-preview-link)\b[^>]*>/s',
+                $blade,
+                $matches
+            );
+
+            foreach ($matches[0] as $tag) {
+                $actionTags++;
+                $this->assertStringContainsString(
+                    'admin-text-action',
+                    $tag,
+                    $file->getPathname()
+                );
+            }
+        }
+
+        $this->assertGreaterThan(20, $actionTags);
+
+        $cssDocumentation = file_get_contents(base_path('docs/tech/LF-Tech-CSS.md'));
+
+        $this->assertStringContainsString(
+            'all backend text actions must use',
+            strtolower($cssDocumentation)
+        );
+        $this->assertStringContainsString('color: var(--admin-primary);', $cssDocumentation);
     }
 
     public function test_backend_pagination_summary_uses_lf_translations(): void

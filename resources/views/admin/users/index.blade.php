@@ -67,7 +67,7 @@
                     </td>
                     <td>
                         <div class="admin-table-actions">
-                            <a class="admin-table-action-link" href="{{ route('admin.users.edit', $user->id) }}">
+                            <a class="admin-table-action-link admin-text-action" href="{{ route('admin.users.edit', $user->id) }}">
                                 {{ __('lf.action_edit') }}
                             </a>
                         </div>

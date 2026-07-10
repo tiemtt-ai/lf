@@ -55,14 +55,14 @@
                         @endif
                     </div>
                     <div class="admin-table-actions">
-                        <a href="{{ route(
+                        <a class="admin-text-action" href="{{ route(
                             $lessonRoutePrefix.'.edit',
                             $lessonParameters
                         ) }}">
                             {{ __('lf.LF_course_template_lesson_common_edit') }}
                         </a>
                         <button type="button"
-                                class="admin-link-button"
+                                class="admin-link-button admin-text-action"
                                 x-data
                                 x-on:click="$dispatch(
                                     'open-modal',
@@ -101,28 +101,38 @@
                                     'external_link' => '🔗',
                                     default => '📄',
                                 };
+                                $activityViewUrl = match ($activity->view_kind ?? 'readonly') {
+                                    'media', 'external' => $activity->view_url,
+                                    default => route(
+                                        $activityRoutePrefix.'.show',
+                                        $activityParameters
+                                    ),
+                                };
                             @endphp
                             <div class="course-template-activity-item">
                                 <div class="course-template-activity-identity">
                                     <span class="course-template-activity-icon"
                                           aria-hidden="true">{{ $activityIcon }}</span>
-                                    <a href="{{ route(
-                                        $activityRoutePrefix.'.edit',
-                                        $activityParameters
-                                    ) }}"
-                                       class="course-template-activity-title">
+                                    <span class="course-template-activity-title-text">
                                         {{ $activity->title }}
-                                    </a>
+                                    </span>
                                 </div>
                                 <div class="admin-table-actions">
-                                    <a href="{{ route(
+                                    <a class="admin-text-action" href="{{ $activityViewUrl }}"
+                                       @if (in_array($activity->view_kind, ['media', 'external'], true))
+                                           target="_blank"
+                                           rel="noopener noreferrer"
+                                       @endif>
+                                        {{ __('lf.LF_common_button_view') }}
+                                    </a>
+                                    <a class="admin-text-action" href="{{ route(
                                         $activityRoutePrefix.'.edit',
                                         $activityParameters
                                     ) }}">
                                         {{ __('lf.LF_course_template_activity_common_edit') }}
                                     </a>
                                     <button type="button"
-                                            class="admin-link-button"
+                                            class="admin-link-button admin-text-action"
                                             x-data
                                             x-on:click="$dispatch(
                                                 'open-modal',

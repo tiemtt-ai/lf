@@ -221,7 +221,7 @@
                                     <td>
                                         @if (request()->user()?->role === 'customer_admin')
                                             <div class="admin-table-actions course-template-version-actions">
-                                                <a class="admin-table-action-link"
+                                                <a class="admin-table-action-link admin-text-action"
                                                    href="{{ route(
                                                        'admin.course-templates.versions.show',
                                                        [
@@ -250,14 +250,14 @@
                                                           ))">
                                                         @csrf
                                                         <button type="submit"
-                                                                class="admin-link-button">
+                                                                class="admin-link-button admin-text-action">
                                                             {{ __('lf.LF_course_template_duplicate_action') }}
                                                         </button>
                                                     </form>
                                                 @endif
                                             </div>
                                         @else
-                                            <span class="admin-link-button is-disabled"
+                                            <span class="admin-link-button admin-text-action is-disabled"
                                                   aria-disabled="true">
                                                 {{ __('lf.LF_course_template_history_view') }}
                                             </span>

@@ -217,7 +217,7 @@
                     </div>
                     <div class="course-template-preview-actions">
                         <button type="button"
-                                class="admin-link-button"
+                                class="admin-link-button admin-text-action"
                                 x-on:click="openTemplatePreview(
                                     @js($coverImageMedia->display_name),
                                     @js($coverImageMedia->signed_url),
@@ -244,7 +244,7 @@
                     </div>
                     <div class="course-template-preview-actions">
                         <button type="button"
-                                class="admin-link-button"
+                                class="admin-link-button admin-text-action"
                                 x-on:click="openTemplatePreview(
                                     @js($introVideoMedia->display_name),
                                     @js($introVideoMedia->signed_url),
@@ -329,7 +329,7 @@
                 <h2 id="course-template-preview-title"
                     x-text="preview.name"></h2>
                 <button type="button"
-                        class="admin-link-button"
+                        class="admin-link-button admin-text-action"
                         x-on:click="closeTemplatePreview()">
                     {{ __('lf.LF_common_button_cancel') }}
                 </button>

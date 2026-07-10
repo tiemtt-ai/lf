@@ -124,6 +124,37 @@ class CourseTemplateActivityController extends Controller
         );
     }
 
+    public function show(
+        Request $request,
+        int $templateId,
+        int $sectionId,
+        int $lessonId,
+        int $activityId
+    ): View {
+        return $this->showView(
+            $request,
+            $templateId,
+            $lessonId,
+            $activityId,
+            $sectionId
+        );
+    }
+
+    public function showDirect(
+        Request $request,
+        int $templateId,
+        int $lessonId,
+        int $activityId
+    ): View {
+        return $this->showView(
+            $request,
+            $templateId,
+            $lessonId,
+            $activityId,
+            null
+        );
+    }
+
     public function editDirect(
         Request $request,
         int $templateId,
@@ -345,6 +376,53 @@ class CourseTemplateActivityController extends Controller
             'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
         ]);
+    }
+
+    private function showView(
+        Request $request,
+        int $templateId,
+        int $lessonId,
+        int $activityId,
+        ?int $sectionId
+    ): View {
+        $customerId = $this->customerId();
+        [$template, $section, $lesson] = $this->findHierarchy(
+            $customerId,
+            $templateId,
+            $sectionId,
+            $lessonId
+        );
+        $activity = $this->findActivity(
+            $customerId,
+            $templateId,
+            $lessonId,
+            $activityId
+        );
+
+        return view('course-template-activities.show', [
+            'template' => $template,
+            'section' => $section,
+            'lesson' => $lesson,
+            'activity' => $activity,
+            'externalUrl' => $this->safeExternalUrl($activity->external_url),
+            'activityMedia' => $this->ownerMedia(
+                'course_activity',
+                $activityId
+            ),
+            'routePrefix' => $this->routePrefix($request, $sectionId),
+            'templateRoutePrefix' => $this->templateRoutePrefix($request),
+        ]);
+    }
+
+    private function safeExternalUrl(?string $url): ?string
+    {
+        if (! $url || ! filter_var($url, FILTER_VALIDATE_URL)) {
+            return null;
+        }
+
+        return in_array(parse_url($url, PHP_URL_SCHEME), ['http', 'https'], true)
+            ? $url
+            : null;
     }
 
     private function updateActivity(

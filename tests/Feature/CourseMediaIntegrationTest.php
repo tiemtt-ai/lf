@@ -1299,6 +1299,30 @@ class CourseMediaIntegrationTest extends TestCase
             ->assertSeeText('Định dạng: MP3, WAV, OGG, WEBM, M4A, AAC')
             ->assertSeeText('Định dạng: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT')
             ->assertSee('expiration=', false);
+
+        $outline = $this->actingAs($teacher)
+            ->get(
+                "https://tenant-a.localhost/teacher/course-templates/{$templateId}/edit"
+            )
+            ->assertOk();
+        $this->assertSame(
+            1,
+            $this->htmlElementCount(
+                $outline->getContent(),
+                '//div[contains(concat(" ", normalize-space(@class), " "), " course-template-activity-item ")'
+                .' and .//span[normalize-space()="Teacher Media Activity"]]'
+                .'//div[contains(concat(" ", normalize-space(@class), " "), " admin-table-actions ")]'
+                .'//a[normalize-space()="Xem" and @target="_blank" and contains(@href, "expiration=")]'
+            )
+        );
+        $this->assertSame(
+            0,
+            $this->htmlElementCount(
+                $outline->getContent(),
+                '//div[contains(concat(" ", normalize-space(@class), " "), " course-template-activity-item ")]'
+                .'//a[normalize-space()="Teacher Media Activity" or contains(@class, "course-template-activity-title")]'
+            )
+        );
     }
 
     public function test_teacher_cannot_access_product_media_upload_or_lifecycle_routes(): void

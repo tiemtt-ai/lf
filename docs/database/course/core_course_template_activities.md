@@ -85,8 +85,14 @@ core_course_template_activities
 * Product/Enrollment/Progress chỉ sử dụng Version Activity.
 * Sửa working Template Activity không ảnh hưởng Version Activity đã publish.
 * Trong authoring tree, mỗi Activity là một row phẳng trực tiếp dưới Lesson.
-* Activity row chỉ hiển thị icon, title link, Edit và Delete.
-* Title là View action mở Activity; không có View action riêng.
+* Activity row hiển thị icon, title text, View, Edit và Delete.
+* Title là text thuần, không phải link. View và Edit là hai action riêng.
+* Media Activity có active same-tenant Media usage mở signed URL trong tab mới.
+* External-link Activity chỉ mở HTTP(S) URL hợp lệ trong tab mới.
+* Activity khác dùng tenant-scoped readonly detail route; detail không update
+  dữ liệu và không render editable form controls.
+* Khi Media/external target không hợp lệ hoặc không tồn tại, View mở readonly
+  Activity detail.
 * Không hiển thị Activity status hoặc type/status badge trong authoring tree.
 * Empty state chỉ hiển thị `Chưa có hoạt động.`.
 

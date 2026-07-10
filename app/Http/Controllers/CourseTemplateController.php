@@ -646,7 +646,51 @@ class CourseTemplateController extends Controller
             ->orderBy('sort_order')
             ->orderBy('title')
             ->get()
+            ->map(function (object $activity): object {
+                $activity->view_kind = 'readonly';
+                $activity->view_url = null;
+
+                if ($activity->activity_type === 'external_link') {
+                    $activity->view_url = $this->safeExternalUrl(
+                        $activity->external_url
+                    );
+                    $activity->view_kind = $activity->view_url
+                        ? 'external'
+                        : 'none';
+
+                    return $activity;
+                }
+
+                $media = $this->mediaService
+                    ->getOwnerMedia('course_activity', (int) $activity->id)
+                    ->first();
+
+                if ($media) {
+                    $activity->view_url = $this->mediaService
+                        ->generateSignedUrl((int) $media->id);
+                    $activity->view_kind = 'media';
+                } elseif (in_array(
+                    $activity->activity_type,
+                    ['video', 'audio', 'document'],
+                    true
+                )) {
+                    $activity->view_kind = 'none';
+                }
+
+                return $activity;
+            })
             ->groupBy('template_lesson_id');
+    }
+
+    private function safeExternalUrl(?string $url): ?string
+    {
+        if (! $url || ! filter_var($url, FILTER_VALIDATE_URL)) {
+            return null;
+        }
+
+        return in_array(parse_url($url, PHP_URL_SCHEME), ['http', 'https'], true)
+            ? $url
+            : null;
     }
 
     private function teacherAssignments(int $customerId, int $templateId)

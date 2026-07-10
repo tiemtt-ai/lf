@@ -275,7 +275,7 @@
                                       action="{{ route($routePrefix.'.items.destroy', [$product->id, $item->id]) }}">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="admin-link-button" type="submit">
+                                    <button class="admin-link-button admin-text-action" type="submit">
                                         {{ __('lf.LF_course_product_item_common_remove') }}
                                     </button>
                                 </form>
@@ -487,7 +487,7 @@
                                       action="{{ route($routePrefix.'.relations.destroy', [$product->id, $relation->id]) }}">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="admin-link-button" type="submit">
+                                    <button class="admin-link-button admin-text-action" type="submit">
                                         {{ __('lf.LF_course_product_relation_common_remove') }}
                                     </button>
                                 </form>

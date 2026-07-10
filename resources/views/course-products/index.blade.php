@@ -112,7 +112,7 @@
                     </td>
                     <td>
                         <div class="admin-table-actions">
-                            <a class="admin-table-action-link" href="{{ route($routePrefix.'.edit', $product->id) }}">
+                            <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $product->id) }}">
                                 {{ __('lf.action_edit') }}
                             </a>
                         </div>

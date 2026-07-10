@@ -137,18 +137,36 @@ class CourseTemplateActivityManagementTest extends TestCase
             trim($lessonDescription->textContent)
         );
         $activityTitle = $xpath->query(
-            './/a[contains(concat(" ", normalize-space(@class), " "), " course-template-activity-title ")]'
+            './/span[contains(concat(" ", normalize-space(@class), " "), " course-template-activity-title-text ")]'
             .'[normalize-space()="Direct Outline Activity"]',
             $directLesson
         )->item(0);
         $this->assertNotNull($activityTitle);
+        $activityRow = $xpath->query(
+            'ancestor::div[contains(concat(" ", normalize-space(@class), " "), " course-template-activity-item ")]',
+            $activityTitle
+        )->item(0);
+        $this->assertNotNull($activityRow);
+        $viewAction = $xpath->query(
+            './/div[contains(concat(" ", normalize-space(@class), " "), " admin-table-actions ")]//a[normalize-space()="Xem"]',
+            $activityRow
+        )->item(0);
+        $this->assertNotNull($viewAction);
+        $actionLabels = [];
+        foreach ($xpath->query(
+            './/div[contains(concat(" ", normalize-space(@class), " "), " admin-table-actions ")]/*',
+            $activityRow
+        ) as $action) {
+            $actionLabels[] = trim($action->textContent);
+        }
+        $this->assertSame(['Xem', 'Sửa', 'Xóa'], $actionLabels);
         $this->assertSame(
             $this->directActivityCollectionUrl(
                 'admin',
                 $templateId,
                 $directLessonId
-            )."/{$directActivityId}/edit",
-            $activityTitle->getAttribute('href')
+            )."/{$directActivityId}",
+            $viewAction->getAttribute('href')
         );
         $this->assertSame(
             0,
@@ -157,15 +175,7 @@ class CourseTemplateActivityManagementTest extends TestCase
                 $directLesson
             )->length
         );
-        $this->assertSame(
-            0,
-            $xpath->query('.//a[normalize-space()="Xem"]', $directLesson)->length
-        );
-        $activityRow = $xpath->query(
-            'ancestor::div[contains(concat(" ", normalize-space(@class), " "), " course-template-activity-item ")]',
-            $activityTitle
-        )->item(0);
-        $this->assertNotNull($activityRow);
+        $this->assertSame(0, $xpath->query('.//a[normalize-space()="Direct Outline Activity"]', $activityRow)->length);
         $this->assertSame(
             1,
             $xpath->query(
@@ -187,6 +197,79 @@ class CourseTemplateActivityManagementTest extends TestCase
                 $activityRow
             )->length
         );
+
+        $activityBefore = DB::table('core_course_template_activities')
+            ->where('id', $directActivityId)
+            ->first();
+        $showResponse = $this->actingAs($admin)
+            ->get($viewAction->getAttribute('href'))
+            ->assertOk()
+            ->assertSeeText('Direct Outline Activity')
+            ->assertSeeText('Quay lại')
+            ->assertSeeText('Sửa');
+        $showXpath = $this->xpath($showResponse->getContent());
+        $readonlyCard = $showXpath->query(
+            '//div[contains(concat(" ", normalize-space(@class), " "), " admin-card ")]'
+            .'[.//h2[normalize-space()="Direct Outline Activity"]]'
+        )->item(0);
+        $this->assertNotNull($readonlyCard);
+        $this->assertSame(
+            0,
+            $showXpath->query('.//form|.//input|.//select|.//textarea', $readonlyCard)->length
+        );
+        $this->assertEquals(
+            $activityBefore,
+            DB::table('core_course_template_activities')
+                ->where('id', $directActivityId)
+                ->first()
+        );
+    }
+
+    public function test_external_activity_view_action_opens_external_url_in_new_tab(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] =
+            $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $activityId = $this->createActivity(
+            $customerId,
+            $templateId,
+            $lessonId,
+            'External Activity'
+        );
+        DB::table('core_course_template_activities')
+            ->where('id', $activityId)
+            ->update([
+                'activity_type' => 'external_link',
+                'external_url' => 'https://example.com/resource',
+            ]);
+
+        $response = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->assertOk();
+        $xpath = $this->xpath($response->getContent());
+        $row = $xpath->query(
+            '//div[contains(concat(" ", normalize-space(@class), " "), " course-template-activity-item ")]'
+            .'[.//span[normalize-space()="External Activity"]]'
+        )->item(0);
+        $title = $xpath->query('.//span[normalize-space()="External Activity"]', $row)->item(0);
+        $viewAction = $xpath->query('.//a[normalize-space()="Xem"]', $row)->item(0);
+
+        $this->assertNotNull($row);
+        $this->assertNotNull($title);
+        $this->assertNotNull($viewAction);
+        $this->assertFalse($title->hasAttribute('href'));
+        $this->assertSame('https://example.com/resource', $viewAction->getAttribute('href'));
+        $this->assertSame('_blank', $viewAction->getAttribute('target'));
+        $this->assertStringNotContainsString('/edit', $viewAction->getAttribute('href'));
+    }
+
+    public function test_activity_title_has_no_link_specific_styles(): void
+    {
+        $css = file_get_contents(resource_path('css/admin/admin-pages.css'));
+
+        $this->assertStringNotContainsString('.course-template-activity-title {', $css);
+        $this->assertStringNotContainsString('.course-template-activity-title:hover', $css);
+        $this->assertStringNotContainsString('.course-template-activity-title:focus-visible', $css);
     }
 
     public function test_admin_can_create_update_and_delete_an_activity(): void
@@ -543,6 +626,17 @@ class CourseTemplateActivityManagementTest extends TestCase
                     $sectionId,
                     $lessonId
                 )."/{$otherActivityId}/edit"
+            )
+            ->assertNotFound();
+
+        $this->actingAs($admin)
+            ->get(
+                $this->activityCollectionUrl(
+                    'admin',
+                    $otherTemplateId,
+                    $otherSectionId,
+                    $otherLessonId
+                )."/{$otherActivityId}"
             )
             ->assertNotFound();
 

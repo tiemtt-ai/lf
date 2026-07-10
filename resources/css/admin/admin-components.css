@@ -250,7 +250,6 @@
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    color: var(--admin-primary);
     background: #ffffff;
     font: inherit;
     line-height: 1.2;
@@ -419,8 +418,11 @@
 }
 
 .admin-table-action-link {
-    color: var(--admin-active);
     text-decoration: none;
+}
+
+.admin-text-action {
+    color: var(--admin-primary);
 }
 
 .admin-table-action-link:hover,

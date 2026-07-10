@@ -57,7 +57,7 @@
                         </td>
                         <td>
                             <div class="admin-table-actions">
-                                <a class="admin-table-action-link" href="{{ route(
+                                <a class="admin-table-action-link admin-text-action" href="{{ route(
                                     $teacherRoutePrefix.'.edit',
                                     [$template->id, $assignment->id]
                                 ) }}">
@@ -65,7 +65,7 @@
                                 </a>
                                 @if ($assignment->status === 'active')
                                     <button type="button"
-                                            class="admin-link-button"
+                                            class="admin-link-button admin-text-action"
                                             x-data
                                             x-on:click="$dispatch(
                                                 'open-modal',

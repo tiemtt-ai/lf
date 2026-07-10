@@ -118,10 +118,10 @@
                     </td>
                     <td>
                         <div class="admin-table-actions">
-                            <a class="admin-table-action-link" href="{{ route($routePrefix.'.show', $cohort->id) }}">
+                            <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.show', $cohort->id) }}">
                                 {{ __('lf.action_view') }}
                             </a>
-                            <a class="admin-table-action-link" href="{{ route($routePrefix.'.edit', $cohort->id) }}">
+                            <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $cohort->id) }}">
                                 {{ __('lf.action_edit') }}
                             </a>
                         </div>

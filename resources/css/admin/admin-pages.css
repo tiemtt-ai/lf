@@ -222,7 +222,6 @@
 .admin-link-button {
     padding: 0;
     border: 0;
-    color: var(--admin-primary);
     background: transparent;
     font: inherit;
     cursor: pointer;
@@ -848,8 +847,6 @@
 .course-template-lesson-toolbar span,
 .course-template-lesson-item span {
     display: block;
-    color: #6b7280;
-    font-size: 13px;
 }
 
 .course-template-lesson-list {
@@ -876,9 +873,9 @@
 
 .course-template-activity-toolbar h5 {
     margin: 0;
-    color: var(--admin-primary);
-    font-size: 14px;
-    font-weight: 600;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 500;
 }
 
 .course-template-activity-list {
@@ -904,10 +901,9 @@
     font-size: 16px;
 }
 
-.course-template-activity-title {
+.course-template-activity-title-text {
     min-width: 0;
     overflow-wrap: anywhere;
-    font-weight: 600;
 }
 
 .course-template-activity-empty {

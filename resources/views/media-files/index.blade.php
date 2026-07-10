@@ -222,7 +222,7 @@
                             </div>
                             @if ($mediaFile->preview_url)
                                 <button type="button"
-                                        class="admin-link-button media-library-preview-action"
+                                        class="admin-link-button admin-text-action media-library-preview-action"
                                         x-on:click="openMediaPreview(
                                             @js($mediaFile->display_name),
                                             @js($mediaFile->preview_url),
@@ -272,7 +272,7 @@
                                 <form method="POST" action="{{ route('admin.media.destroy', $mediaFile->id) }}">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="admin-link-button" type="submit"
+                                    <button class="admin-link-button admin-text-action" type="submit"
                                             onclick="return confirm('{{ __('lf.LF_media_file_common_delete_confirm') }}')">
                                         {{ __('lf.LF_media_file_common_delete') }}
                                     </button>
@@ -317,7 +317,7 @@
                 <h2 id="media-library-preview-title"
                     x-text="preview.name"></h2>
                 <button type="button"
-                        class="admin-link-button"
+                        class="admin-link-button admin-text-action"
                         x-on:click="closeMediaPreview()">
                     {{ __('lf.LF_common_button_cancel') }}
                 </button>

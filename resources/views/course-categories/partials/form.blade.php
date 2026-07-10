@@ -93,7 +93,7 @@
                              loading="lazy">
                         <div class="admin-attached-media-actions">
                             <button type="button"
-                                    class="admin-media-preview-link"
+                                    class="admin-media-preview-link admin-text-action"
                                     data-preview-name="{{ $thumbnailMedia->display_name }}"
                                     data-preview-url="{{ $thumbnailMedia->signed_url }}"
                                     x-on:click="openCategoryImagePreview($el.dataset.previewName, $el.dataset.previewUrl)">
@@ -116,7 +116,7 @@
                              loading="lazy">
                         <div class="admin-attached-media-actions">
                             <button type="button"
-                                    class="admin-media-preview-link"
+                                    class="admin-media-preview-link admin-text-action"
                                     data-preview-name="{{ $formCategory->name }}"
                                     data-preview-url="{{ $formCategory->thumbnail_image }}"
                                     x-on:click="openCategoryImagePreview($el.dataset.previewName, $el.dataset.previewUrl)">
@@ -147,7 +147,7 @@
                              loading="lazy">
                         <div class="admin-attached-media-actions">
                             <button type="button"
-                                    class="admin-media-preview-link"
+                                    class="admin-media-preview-link admin-text-action"
                                     data-preview-name="{{ $bannerMedia->display_name }}"
                                     data-preview-url="{{ $bannerMedia->signed_url }}"
                                     x-on:click="openCategoryImagePreview($el.dataset.previewName, $el.dataset.previewUrl)">
@@ -170,7 +170,7 @@
                              loading="lazy">
                         <div class="admin-attached-media-actions">
                             <button type="button"
-                                    class="admin-media-preview-link"
+                                    class="admin-media-preview-link admin-text-action"
                                     data-preview-name="{{ $formCategory->name }}"
                                     data-preview-url="{{ $formCategory->banner_image }}"
                                     x-on:click="openCategoryImagePreview($el.dataset.previewName, $el.dataset.previewUrl)">
@@ -244,7 +244,7 @@
             <h2 id="course-category-preview-title"
                 x-text="preview.name"></h2>
             <button type="button"
-                    class="admin-link-button"
+                    class="admin-link-button admin-text-action"
                     x-on:click="closeCategoryImagePreview()">
                 {{ __('lf.LF_common_button_cancel') }}
             </button>

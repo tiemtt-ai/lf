@@ -34,17 +34,17 @@
             </div>
         </div>
         <div class="admin-table-actions">
-            <a href="{{ route($sectionRoutePrefix.'.create', $template->id) }}?parent_section_id={{ $currentSection->id }}">
+            <a class="admin-text-action" href="{{ route($sectionRoutePrefix.'.create', $template->id) }}?parent_section_id={{ $currentSection->id }}">
                 {{ __('lf.LF_course_template_section_common_add_child_action') }}
             </a>
-            <a href="{{ route(
+            <a class="admin-text-action" href="{{ route(
                 $sectionRoutePrefix.'.edit',
                 [$template->id, $currentSection->id]
             ) }}">
                 {{ __('lf.LF_course_template_section_common_edit') }}
             </a>
             <button type="button"
-                    class="admin-link-button"
+                    class="admin-link-button admin-text-action"
                     x-data
                     x-on:click="$dispatch(
                         'open-modal',

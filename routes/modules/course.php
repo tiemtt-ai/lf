@@ -222,6 +222,11 @@ Route::post(
 )->name('course-templates.lessons.activities.store');
 
 Route::get(
+    '/course-templates/{templateId}/lessons/{lessonId}/activities/{activityId}',
+    [CourseTemplateActivityController::class, 'showDirect']
+)->name('course-templates.lessons.activities.show');
+
+Route::get(
     '/course-templates/{templateId}/lessons/{lessonId}/activities/{activityId}/edit',
     [CourseTemplateActivityController::class, 'editDirect']
 )->name('course-templates.lessons.activities.edit');
@@ -310,6 +315,11 @@ Route::post(
     '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}/activities',
     [CourseTemplateActivityController::class, 'store']
 )->name('course-templates.sections.lessons.activities.store');
+
+Route::get(
+    '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}/activities/{activityId}',
+    [CourseTemplateActivityController::class, 'show']
+)->name('course-templates.sections.lessons.activities.show');
 
 Route::get(
     '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}/activities/{activityId}/edit',

@@ -151,8 +151,16 @@ Course Template
 ```
 
 * Activity nằm trực tiếp dưới Lesson, không dùng nested Activity card.
-* Mỗi Activity row chỉ hiển thị icon, title link, Edit và Delete.
-* Activity title là View action; không hiển thị action View riêng.
+* Mỗi Activity row hiển thị icon, title text, View, Edit và Delete theo thứ tự.
+* Activity title là text thuần, không clickable. View là action riêng và không
+  trỏ tới Edit.
+* Activity có attached Media hợp lệ mở tenant-scoped signed URL trong tab mới;
+  external-link Activity mở URL HTTP(S) hợp lệ trong tab mới.
+* Các Activity khác mở readonly Activity detail trong cùng authoring context.
+  Readonly detail không có form control hoặc mutation, nhưng cung cấp Back và
+  Edit riêng cho user đã được authorize.
+* Media/external Activity không có target trực tiếp hợp lệ dùng readonly detail
+  cho action View.
 * Không hiển thị Lesson status, Activity status hoặc Draft/Active label trong tree.
 * Empty Activity state chỉ hiển thị `Chưa có hoạt động.`.
 * Section `allows_lessons = false` không render Lesson heading, count, empty

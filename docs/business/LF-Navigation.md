@@ -326,8 +326,10 @@ Course Product Management
 
 Course Template Edit giữ một compact authoring tree: Section là grouping
 container, Lesson là primary authoring unit và Activity là row trực tiếp dưới
-Lesson. Chỉ Course Template hiển thị Status trong tree. Activity title mở
-Activity; actions còn lại chỉ là Edit và Delete, không có View action riêng.
+Lesson. Chỉ Course Template hiển thị Status trong tree. Activity title là text
+thuần; actions theo thứ tự View, Edit, Delete. View mở readonly detail hoặc
+signed/external target và không bao giờ là Edit. Readonly Activity detail giữ
+tenant/Template authorization và cung cấp Back cùng Edit riêng cho user được phép.
 
 ---
 
