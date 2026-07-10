@@ -125,7 +125,7 @@ class CourseTemplateManagementTest extends TestCase
             )
             ->assertOk()
             ->assertSeeText('Cấu trúc khóa học')
-            ->assertSeeText('Danh sách bài học')
+            ->assertSeeText('Bài học trực tiếp')
             ->assertSeeText('Theo phần học')
             ->assertSeeText('+ Thêm bài học')
             ->assertSeeText('+ Thêm phần học')

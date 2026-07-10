@@ -331,6 +331,27 @@
     background: var(--admin-active);
 }
 
+.lf-admin-page .admin-primary-outline-action {
+    border-color: var(--admin-primary);
+    color: var(--admin-primary);
+    background: transparent;
+    text-decoration: none;
+}
+
+.lf-admin-page .admin-primary-outline-action:hover,
+.lf-admin-page .admin-primary-outline-action:focus,
+.lf-admin-page .admin-primary-outline-action:focus-visible {
+    border-color: var(--admin-primary);
+    color: var(--admin-primary-contrast);
+    background: var(--admin-primary);
+    text-decoration: none;
+}
+
+.lf-admin-page .admin-primary-outline-action:focus-visible {
+    outline: 2px solid var(--admin-primary);
+    outline-offset: 2px;
+}
+
 .lf-admin-page .btn-secondary:hover,
 .lf-admin-page .lf-btn-secondary:hover {
     background: #f8f9fa;

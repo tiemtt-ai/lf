@@ -49,7 +49,7 @@ class CourseTemplateSectionManagementTest extends TestCase
         );
 
         foreach ([[$admin, 'admin'], [$teacher, 'teacher']] as [$user, $area]) {
-            $this->actingAs($user)
+            $response = $this->actingAs($user)
                 ->get(
                     "https://tenant-a.localhost/{$area}/course-templates/"
                     ."{$templateId}/edit"
@@ -58,6 +58,22 @@ class CourseTemplateSectionManagementTest extends TestCase
                 ->assertSeeText('Cấu trúc khóa học')
                 ->assertSeeText('Hangul Fundamentals')
                 ->assertDontSeeText('Private Tenant Section');
+
+            $xpath = $this->xpath($response->getContent());
+            $createAction = $xpath->query(
+                '//div[contains(concat(" ", normalize-space(@class), " "), " course-template-section-action-bar ")]'
+                .'//a[normalize-space()="+ Thêm phần học"]'
+            )->item(0);
+
+            $this->assertNotNull($createAction);
+            $this->assertStringContainsString(
+                'admin-primary-outline-action',
+                $createAction->getAttribute('class')
+            );
+            $this->assertStringNotContainsString(
+                'admin-text-action',
+                $createAction->getAttribute('class')
+            );
         }
     }
 

@@ -1,5 +1,6 @@
 .lf-admin-page {
     --admin-primary: #485cc7;
+    --admin-primary-contrast: #ffffff;
     --admin-active: #597ef7;
     --admin-accent: #7acc00;
     --admin-sidebar: #e6f7ff;

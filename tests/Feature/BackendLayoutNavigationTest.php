@@ -308,6 +308,18 @@ class BackendLayoutNavigationTest extends TestCase
             '/\.admin-text-action:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--admin-primary\);[^}]*outline-offset:\s*2px;/s',
             $componentCss
         );
+        $this->assertMatchesRegularExpression(
+            '/\.lf-admin-page \.admin-primary-outline-action\s*\{[^}]*border-color:\s*var\(--admin-primary\);[^}]*color:\s*var\(--admin-primary\);[^}]*background:\s*transparent;/s',
+            $componentCss
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.lf-admin-page \.admin-primary-outline-action:hover,\s*\.lf-admin-page \.admin-primary-outline-action:focus,\s*\.lf-admin-page \.admin-primary-outline-action:focus-visible\s*\{[^}]*color:\s*var\(--admin-primary-contrast\);[^}]*background:\s*var\(--admin-primary\);/s',
+            $componentCss
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.lf-admin-page \.admin-primary-outline-action:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--admin-primary\);[^}]*outline-offset:\s*2px;/s',
+            $componentCss
+        );
         $this->assertDoesNotMatchRegularExpression(
             '/\.admin-table-action-link\s*\{[^}]*color:/s',
             $componentCss
@@ -388,6 +400,7 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringContainsString('outline: 2px solid var(--admin-primary);', $cssDocumentation);
         $this->assertStringContainsString('flex-wrap: wrap;', $cssDocumentation);
         $this->assertStringContainsString('gap: 12px;', $cssDocumentation);
+        $this->assertStringContainsString('admin-primary-outline-action', $cssDocumentation);
     }
 
     public function test_backend_pagination_summary_uses_lf_translations(): void

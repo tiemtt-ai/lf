@@ -100,7 +100,7 @@
              aria-label="{{ __('lf.LF_course_template_section_common_actions') }}">
             <strong>{{ __('lf.LF_course_template_section_common_area_title') }}</strong>
             <a href="{{ route($sectionRoutePrefix.'.create', $template->id) }}"
-               class="btn btn-primary">
+               class="btn admin-primary-outline-action">
                 {{ __('lf.LF_course_template_section_common_add_action') }}
             </a>
         </div>

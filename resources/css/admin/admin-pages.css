@@ -929,6 +929,7 @@
 .course-template-lesson-empty {
     margin: 0;
     color: #6b7280;
+    font-size: 13px;
 }
 
 .admin-form-card {

@@ -356,6 +356,16 @@ table, card, media area, form và detail page. Breadcrumb, navigation link,
 normal content link, filled button, status label, badge và heading không phải
 backend text action và không dùng rule này.
 
+Top-level creation action dùng shared primary outlined button:
+
+```html
+<a class="btn admin-primary-outline-action">+ Thêm bài học</a>
+```
+
+Chỉ action tạo mới ở cấp cao nhất dùng `admin-primary-outline-action`. Record
+action và nested action như Xem, Sửa, Xóa, Thêm phần học con, Gắn bài học và
+Thêm hoạt động tiếp tục dùng `admin-text-action`.
+
 Class trình bày như `admin-table-action-link` hoặc `admin-link-button` có thể
 giữ disabled, typography và layout riêng, nhưng không được định nghĩa màu,
 hover/focus feedback cạnh tranh hoặc tạo override theo từng page.

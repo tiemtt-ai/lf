@@ -186,25 +186,46 @@ class CourseTemplateLessonManagementTest extends TestCase
 
         $this->assertDatabaseCount('core_course_template_sections', 0);
 
-        $response = $this->actingAs($admin)
-            ->get(
-                'https://tenant-a.localhost/admin/course-templates/'
-                ."{$templateId}/edit"
-            )
-            ->assertOk()
-            ->assertSeeText('Bài học trực tiếp')
-            ->assertSeeText('Admin Direct Lesson')
-            ->assertSeeText('Teacher Direct Lesson')
-            ->assertSee(
-                "/admin/course-templates/{$templateId}/lessons/create",
-                false
-            );
+        foreach ([[$admin, 'admin'], [$teacher, 'teacher']] as [$user, $area]) {
+            $response = $this->actingAs($user)
+                ->get(
+                    "https://tenant-a.localhost/{$area}/course-templates/"
+                    ."{$templateId}/edit"
+                )
+                ->assertOk()
+                ->assertSeeText('Bài học trực tiếp')
+                ->assertSeeText('Admin Direct Lesson')
+                ->assertSeeText('Teacher Direct Lesson')
+                ->assertSee(
+                    "/{$area}/course-templates/{$templateId}/lessons/create",
+                    false
+                )
+                ->assertSeeText('Bài học trực tiếp')
+                ->assertSeeText('Theo phần học')
+                ->assertSee('x-show="activeStructureTab === \'direct\'"', false)
+                ->assertSee('x-show="activeStructureTab === \'sections\'"', false);
 
-        $response
-            ->assertSeeText('Danh sách bài học')
-            ->assertSeeText('Theo phần học')
-            ->assertSee('x-show="activeStructureTab === \'direct\'"', false)
-            ->assertSee('x-show="activeStructureTab === \'sections\'"', false);
+            $previous = libxml_use_internal_errors(true);
+            $document = new \DOMDocument;
+            $document->loadHTML($response->getContent());
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+            $xpath = new \DOMXPath($document);
+            $createAction = $xpath->query(
+                '//section[@id="course-template-direct-lessons"]'
+                .'//a[normalize-space()="+ Thêm bài học"]'
+            )->item(0);
+
+            $this->assertNotNull($createAction);
+            $this->assertStringContainsString(
+                'admin-primary-outline-action',
+                $createAction->getAttribute('class')
+            );
+            $this->assertStringNotContainsString(
+                'admin-text-action',
+                $createAction->getAttribute('class')
+            );
+        }
     }
 
     public function test_section_that_disallows_lessons_hides_action_and_rejects_attachment(): void

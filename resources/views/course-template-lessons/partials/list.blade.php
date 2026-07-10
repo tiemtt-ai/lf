@@ -17,7 +17,10 @@
                 $lessonRoutePrefix.'.create',
                 $lessonBaseParameters
             ) }}"
-               class="admin-text-action">
+               @class([
+                   'admin-text-action' => $section,
+                   'btn admin-primary-outline-action' => ! $section,
+               ])>
                 {{ __($section
                     ? 'lf.LF_course_template_lesson_common_attach_action'
                     : 'lf.LF_course_template_lesson_common_add_action') }}
