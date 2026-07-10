@@ -317,8 +317,39 @@ Shared color rule:
 ```css
 .admin-text-action {
     color: var(--admin-primary);
+    text-decoration: none;
+}
+
+.admin-text-action:hover,
+.admin-text-action:focus,
+.admin-text-action:focus-visible {
+    text-decoration: underline;
+}
+
+.admin-text-action:focus-visible {
+    outline: 2px solid var(--admin-primary);
+    outline-offset: 2px;
 }
 ```
+
+Hover và keyboard focus phải dùng underline cho cả `<a>` và link-style
+`<button>`. Keyboard focus phải có `:focus-visible` indicator rõ ràng và không
+được chỉ dựa vào thay đổi màu. Disabled action giữ nguyên disabled behavior và
+không nhận interactive underline.
+
+Các action liên quan phải nằm trong shared action container, không chèn ký tự
+phân cách hoặc khoảng trắng thủ công:
+
+```css
+.admin-table-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+```
+
+Không dùng `|`, `/`, `•`, `·`, `&nbsp;` hoặc margin theo từng page để phân cách
+action. Action group phải wrap trên màn hình hẹp mà không overlap hoặc phá layout.
 
 Rule này áp dụng cho action link và button được trình bày như text link trong
 table, card, media area, form và detail page. Breadcrumb, navigation link,
@@ -326,8 +357,8 @@ normal content link, filled button, status label, badge và heading không phả
 backend text action và không dùng rule này.
 
 Class trình bày như `admin-table-action-link` hoặc `admin-link-button` có thể
-giữ hover, focus, disabled, typography và layout riêng, nhưng không được định
-nghĩa một màu text action khác hoặc tạo override theo từng page.
+giữ disabled, typography và layout riêng, nhưng không được định nghĩa màu,
+hover/focus feedback cạnh tranh hoặc tạo override theo từng page.
 
 ---
 

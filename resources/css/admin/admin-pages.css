@@ -46,7 +46,8 @@
 .admin-table-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
 .media-library-tabs {
@@ -315,7 +316,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
 }
 
 .course-template-preview-remove {
@@ -501,8 +502,7 @@
     flex-wrap: wrap;
 }
 
-.course-version-toolbar a,
-.course-template-history-card a.admin-link-button {
+.course-version-toolbar a {
     color: var(--admin-primary);
     font-weight: 600;
     text-decoration: none;

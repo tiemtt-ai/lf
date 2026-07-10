@@ -297,7 +297,15 @@ class BackendLayoutNavigationTest extends TestCase
         );
 
         $this->assertMatchesRegularExpression(
-            '/\.admin-text-action\s*\{\s*color:\s*var\(--admin-primary\);\s*\}/',
+            '/\.admin-text-action\s*\{[^}]*color:\s*var\(--admin-primary\);[^}]*\}/s',
+            $componentCss
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.admin-text-action:hover,\s*\.admin-text-action:focus,\s*\.admin-text-action:focus-visible\s*\{[^}]*text-decoration:\s*underline;/s',
+            $componentCss
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.admin-text-action:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--admin-primary\);[^}]*outline-offset:\s*2px;/s',
             $componentCss
         );
         $this->assertDoesNotMatchRegularExpression(
@@ -316,6 +324,7 @@ class BackendLayoutNavigationTest extends TestCase
             new \RecursiveDirectoryIterator(base_path('resources/views'))
         );
         $actionTags = 0;
+        $actionGroups = 0;
 
         foreach ($viewFiles as $file) {
             if (! $file->isFile() || ! str_ends_with($file->getFilename(), '.blade.php')) {
@@ -337,9 +346,36 @@ class BackendLayoutNavigationTest extends TestCase
                     $file->getPathname()
                 );
             }
+
+            preg_match_all(
+                '/<div\b[^>]*\badmin-table-actions\b[^>]*>(.*?)<\/div>/s',
+                $blade,
+                $groups
+            );
+
+            foreach ($groups[1] as $group) {
+                $actionGroups++;
+                $this->assertStringNotContainsString('&nbsp;', $group, $file->getPathname());
+                $this->assertDoesNotMatchRegularExpression(
+                    '/>\s*(?:\||\/|•|·)\s*</',
+                    $group,
+                    $file->getPathname()
+                );
+            }
         }
 
         $this->assertGreaterThan(20, $actionTags);
+        $this->assertGreaterThan(10, $actionGroups);
+
+        $pageCss = file_get_contents(base_path('resources/css/admin/admin-pages.css'));
+        $this->assertMatchesRegularExpression(
+            '/\.admin-table-actions\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;[^}]*gap:\s*12px;/s',
+            $pageCss
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/\.[\w-]+\s+\.admin-text-action/',
+            $pageCss
+        );
 
         $cssDocumentation = file_get_contents(base_path('docs/tech/LF-Tech-CSS.md'));
 
@@ -348,6 +384,10 @@ class BackendLayoutNavigationTest extends TestCase
             strtolower($cssDocumentation)
         );
         $this->assertStringContainsString('color: var(--admin-primary);', $cssDocumentation);
+        $this->assertStringContainsString('text-decoration: underline;', $cssDocumentation);
+        $this->assertStringContainsString('outline: 2px solid var(--admin-primary);', $cssDocumentation);
+        $this->assertStringContainsString('flex-wrap: wrap;', $cssDocumentation);
+        $this->assertStringContainsString('gap: 12px;', $cssDocumentation);
     }
 
     public function test_backend_pagination_summary_uses_lf_translations(): void
