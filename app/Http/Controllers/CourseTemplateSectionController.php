@@ -53,7 +53,6 @@ class CourseTemplateSectionController extends Controller
             $this->sectionValues($validated, [
                 'customer_id' => $customerId,
                 'template_id' => $templateId,
-                'total_lessons' => 0,
                 'created_at' => $now,
                 'updated_at' => $now,
             ])
@@ -81,10 +80,6 @@ class CourseTemplateSectionController extends Controller
             $templateId,
             $sectionId
         );
-        $excludedIds = array_merge(
-            [$sectionId],
-            $this->descendantIds($customerId, $templateId, $sectionId)
-        );
 
         return view('course-template-sections.edit', [
             'template' => $template,
@@ -92,7 +87,10 @@ class CourseTemplateSectionController extends Controller
             'parentSections' => $this->parentSections(
                 $customerId,
                 $templateId,
-                $excludedIds
+                array_merge(
+                    [$sectionId],
+                    $this->descendantIds($customerId, $templateId, $sectionId)
+                )
             ),
             'requiredFields' => $this->requiredFields(
                 $customerId,
@@ -192,25 +190,38 @@ class CourseTemplateSectionController extends Controller
             ): void {
                 $parentId = $request->integer('parent_section_id');
 
-                if ($parentId === 0) {
-                    return;
-                }
-
                 if (
-                    $parentId === $sectionId
-                    || in_array(
-                        $parentId,
-                        $this->descendantIds(
-                            $customerId,
-                            $templateId,
-                            $sectionId
-                        ),
-                        true
+                    $parentId !== 0
+                    && (
+                        $parentId === $sectionId
+                        || in_array(
+                            $parentId,
+                            $this->descendantIds(
+                                $customerId,
+                                $templateId,
+                                $sectionId
+                            ),
+                            true
+                        )
                     )
                 ) {
                     $validator->errors()->add(
                         'parent_section_id',
                         __('lf.LF_course_template_section_common_invalid_parent')
+                    );
+                }
+
+                if (
+                    ! $request->boolean('allows_lessons')
+                    && DB::table('core_course_template_lessons')
+                        ->where('customer_id', $customerId)
+                        ->where('template_id', $templateId)
+                        ->where('template_section_id', $sectionId)
+                        ->exists()
+                ) {
+                    $validator->errors()->add(
+                        'allows_lessons',
+                        __('lf.LF_course_template_section_common_has_lessons')
                     );
                 }
             });
@@ -233,60 +244,14 @@ class CourseTemplateSectionController extends Controller
                         ->where('customer_id', $customerId)
                         ->where('template_id', $templateId)),
             ],
-            'code' => [
-                'nullable',
-                'string',
-                'max:100',
-                Rule::unique('core_course_template_sections', 'code')
-                    ->where(fn ($query) => $query
-                        ->where('customer_id', $customerId)
-                        ->where('template_id', $templateId))
-                    ->ignore($sectionId),
-            ],
             'title' => ['required', 'string', 'max:255'],
-            'short_title' => ['nullable', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
-            'thumbnail_file_id' => ['nullable', 'integer', 'min:1'],
-            'sort_order' => [
+            'allows_lessons' => ['required', 'boolean'],
+            'display_order' => [
                 'required',
                 'integer',
                 'min:0',
-                Rule::unique('core_course_template_sections', 'sort_order')
-                    ->where(function ($query) use (
-                        $customerId,
-                        $templateId
-                    ) {
-                        $query
-                            ->where('customer_id', $customerId)
-                            ->where('template_id', $templateId);
-
-                        $parentId = request()->integer('parent_section_id');
-
-                        return $parentId === 0
-                            ? $query->whereNull('parent_section_id')
-                            : $query->where('parent_section_id', $parentId);
-                    })
-                    ->ignore($sectionId),
             ],
-            'is_required' => ['required', 'boolean'],
-            'unlock_rule' => [
-                'required',
-                Rule::in([
-                    'immediate',
-                    'after_previous_section',
-                    'manual',
-                ]),
-            ],
-            'estimated_duration_minutes' => [
-                'nullable',
-                'integer',
-                'min:0',
-            ],
-            'status' => [
-                'required',
-                Rule::in(['active', 'inactive', 'archived']),
-            ],
-            'metadata' => ['nullable', 'json'],
         ];
     }
 
@@ -305,17 +270,10 @@ class CourseTemplateSectionController extends Controller
     {
         return array_merge([
             'parent_section_id' => $validated['parent_section_id'] ?? null,
-            'code' => $validated['code'] ?? null,
             'title' => $validated['title'],
-            'short_title' => $validated['short_title'] ?? null,
             'description' => $validated['description'] ?? null,
-            'thumbnail_file_id' => $validated['thumbnail_file_id'] ?? null,
-            'sort_order' => $validated['sort_order'],
-            'is_required' => (bool) $validated['is_required'],
-            'unlock_rule' => $validated['unlock_rule'],
-            'estimated_duration_minutes' => $validated['estimated_duration_minutes'] ?? null,
-            'status' => $validated['status'],
-            'metadata' => $validated['metadata'] ?? null,
+            'allows_lessons' => (bool) $validated['allows_lessons'],
+            'display_order' => $validated['display_order'],
         ], $extra);
     }
 
@@ -324,16 +282,40 @@ class CourseTemplateSectionController extends Controller
         int $templateId,
         array $excludedIds = []
     ) {
-        return DB::table('core_course_template_sections')
+        $sections = DB::table('core_course_template_sections')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
             ->when(
                 $excludedIds !== [],
                 fn ($query) => $query->whereNotIn('id', $excludedIds)
             )
-            ->orderBy('sort_order')
+            ->orderBy('parent_section_id')
+            ->orderBy('display_order')
             ->orderBy('title')
             ->get();
+
+        return collect($this->flattenSections($sections));
+    }
+
+    private function flattenSections($sections, ?int $parentId = null, int $depth = 0): array
+    {
+        $flattened = [];
+
+        foreach (
+            $sections->filter(
+                fn (object $section): bool => (int) ($section->parent_section_id ?? 0)
+                    === (int) ($parentId ?? 0)
+            ) as $section
+        ) {
+            $section->depth = $depth;
+            $flattened[] = $section;
+            $flattened = array_merge(
+                $flattened,
+                $this->flattenSections($sections, (int) $section->id, $depth + 1)
+            );
+        }
+
+        return $flattened;
     }
 
     private function descendantIds(
@@ -351,13 +333,13 @@ class CourseTemplateSectionController extends Controller
 
         do {
             $children = $sections
-                ->filter(fn ($section) => in_array(
+                ->filter(fn (object $section): bool => in_array(
                     (int) $section->parent_section_id,
                     $parentIds,
                     true
                 ))
                 ->pluck('id')
-                ->map(fn ($id) => (int) $id)
+                ->map(fn ($id): int => (int) $id)
                 ->diff($descendantIds)
                 ->values()
                 ->all();

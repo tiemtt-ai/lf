@@ -1,10 +1,12 @@
 # Course Template Version Duplicate to Draft Architecture Review
 
-Version: 1.0
+Version: 1.1
 
 Status: Approved Review
 
 Review Date: 2026-07-03
+
+Nested Section Capability Review Date: 2026-07-10
 
 ---
 
@@ -17,7 +19,15 @@ Review Date: 2026-07-03
 | Parent ADRs | [ADR-0001](../adr/ADR-0001-Course-Foundation.md), [ADR-0012](../adr/ADR-0012-Course-Template-Published-Version-Snapshot.md) |
 | Decision ADR | [ADR-0013 — Duplicate Version to Draft](../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md) |
 | Database Docs | Editable Template and immutable Version table documents |
-| Review Version | 1.0 |
+| Review Version | 1.1 |
+
+The 2026-07-10 amendment approves reconstruction of unlimited Section
+hierarchy and the required `allows_lessons` capability while preserving Lesson
+mapping and sibling ordering.
+
+The compact authoring-tree presentation does not change duplicate-to-draft
+reconstruction. Restored status and structural data remain stored even when
+Section/Lesson/Activity status is not displayed in the authoring tree.
 
 # Review Scope
 

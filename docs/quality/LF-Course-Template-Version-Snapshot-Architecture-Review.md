@@ -1,10 +1,12 @@
 # Course Template Published Version Snapshot Architecture Review
 
-Version: 1.0
+Version: 1.1
 
 Status: Approved Review
 
 Review Date: 2026-07-03
+
+Nested Section Capability Review Date: 2026-07-10
 
 ---
 
@@ -17,7 +19,15 @@ Review Date: 2026-07-03
 | Parent ADR | [ADR-0001 — Course Foundation](../adr/ADR-0001-Course-Foundation.md) |
 | Decision ADR | [ADR-0012 — Published Version Snapshot](../adr/ADR-0012-Course-Template-Published-Version-Snapshot.md) |
 | Database Docs | Four `core_course_template_version_*` table documents |
-| Review Version | 1.0 |
+| Review Version | 1.1 |
+
+The 2026-07-10 amendment approves unlimited Section hierarchy and the required
+`allows_lessons` field in working and Version Sections. Publish must preserve
+both fields and reject a Lesson mapping to a Section that disallows Lessons.
+
+The compact authoring-tree presentation hides Section/Lesson/Activity status,
+uses flat Activity rows and omits disallowed Lesson blocks. This is a UI-only
+read model and does not remove or mutate snapshot fields or publish behavior.
 
 # Review Scope
 

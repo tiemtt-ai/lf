@@ -48,10 +48,7 @@ class CourseTemplateSectionManagementTest extends TestCase
             1
         );
 
-        foreach ([
-            [$admin, 'admin'],
-            [$teacher, 'teacher'],
-        ] as [$user, $area]) {
+        foreach ([[$admin, 'admin'], [$teacher, 'teacher']] as [$user, $area]) {
             $this->actingAs($user)
                 ->get(
                     "https://tenant-a.localhost/{$area}/course-templates/"
@@ -64,7 +61,7 @@ class CourseTemplateSectionManagementTest extends TestCase
         }
     }
 
-    public function test_admin_can_create_a_section_with_documented_fields(): void
+    public function test_admin_can_create_a_section_with_the_final_business_fields(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -79,17 +76,9 @@ class CourseTemplateSectionManagementTest extends TestCase
                 'https://tenant-a.localhost/admin/course-templates/'
                 ."{$templateId}/sections",
                 $this->validSectionData([
-                    'code' => 'M01',
                     'title' => 'Hangul Fundamentals',
-                    'short_title' => 'Hangul',
                     'description' => 'Korean alphabet foundation',
-                    'thumbnail_file_id' => 10,
-                    'sort_order' => 2,
-                    'is_required' => 1,
-                    'unlock_rule' => 'immediate',
-                    'estimated_duration_minutes' => 240,
-                    'status' => 'active',
-                    'metadata' => '{"color":"#0EA5E9"}',
+                    'display_order' => 2,
                 ])
             )
             ->assertRedirect(
@@ -101,18 +90,197 @@ class CourseTemplateSectionManagementTest extends TestCase
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'parent_section_id' => null,
-            'code' => 'M01',
             'title' => 'Hangul Fundamentals',
-            'short_title' => 'Hangul',
-            'thumbnail_file_id' => 10,
-            'sort_order' => 2,
-            'is_required' => 1,
-            'unlock_rule' => 'immediate',
-            'estimated_duration_minutes' => 240,
-            'total_lessons' => 0,
-            'status' => 'active',
-            'metadata' => '{"color":"#0EA5E9"}',
+            'description' => 'Korean alphabet foundation',
+            'allows_lessons' => 1,
+            'display_order' => 2,
         ]);
+
+        $sectionId = (int) DB::table('core_course_template_sections')
+            ->where('template_id', $templateId)
+            ->value('id');
+        $this->actingAs($admin)
+            ->put(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/{$sectionId}",
+                $this->validSectionData([
+                    'title' => 'Hangul Fundamentals',
+                    'allows_lessons' => 0,
+                    'display_order' => 2,
+                ])
+            )
+            ->assertRedirect();
+        $this->assertDatabaseHas('core_course_template_sections', [
+            'id' => $sectionId,
+            'allows_lessons' => 0,
+        ]);
+    }
+
+    public function test_admin_can_create_nested_sections_without_depth_limit(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Nested Course',
+            'nested-course'
+        );
+
+        $levelOneId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Section cấp 1',
+            1
+        );
+
+        $this->actingAs($admin)
+            ->post(
+                'https://tenant-a.localhost/admin/course-templates/'
+                ."{$templateId}/sections",
+                $this->validSectionData([
+                    'parent_section_id' => $levelOneId,
+                    'title' => 'Section cấp 2',
+                    'display_order' => 1,
+                ])
+            )
+            ->assertRedirect();
+
+        $levelTwoId = (int) DB::table('core_course_template_sections')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('title', 'Section cấp 2')
+            ->value('id');
+
+        $levelThreeId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Section cấp 3',
+            1,
+            $levelTwoId
+        );
+
+        DB::table('core_course_template_lessons')->insert([
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'template_section_id' => $levelThreeId,
+            'title' => 'Nested Lesson',
+            'slug' => 'nested-lesson',
+            'short_description' => null,
+            'description' => null,
+            'sort_order' => 0,
+            'is_preview' => false,
+            'learning_objective' => null,
+            'duration_seconds' => 0,
+            'activity_count' => 0,
+            'unlock_rule' => 'none',
+            'unlock_after_lesson_id' => null,
+            'unlock_at' => null,
+            'status' => 'draft',
+            'created_by' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->assertDatabaseHas('core_course_template_sections', [
+            'id' => $levelTwoId,
+            'parent_section_id' => $levelOneId,
+        ]);
+        $this->assertDatabaseHas('core_course_template_sections', [
+            'id' => $levelThreeId,
+            'parent_section_id' => $levelTwoId,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(
+                'https://tenant-a.localhost/admin/course-templates/'
+                ."{$templateId}/edit"
+            )
+            ->assertOk()
+            ->assertSeeText('Section cấp 1')
+            ->assertSeeText('Section cấp 2')
+            ->assertSeeText('Section cấp 3')
+            ->assertSeeText('Nested Lesson')
+            ->assertSeeText('+ Thêm phần học con');
+    }
+
+    public function test_lesson_block_follows_allows_lessons_without_hiding_children(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Section Capability Course',
+            'section-capability-course'
+        );
+        $containerId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Container Section',
+            1
+        );
+        DB::table('core_course_template_sections')
+            ->where('id', $containerId)
+            ->update(['allows_lessons' => false]);
+        $lessonSectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Lesson Section',
+            1,
+            $containerId
+        );
+
+        $response = $this->actingAs($admin)
+            ->get(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit"
+            )
+            ->assertOk();
+
+        $xpath = $this->xpath($response->getContent());
+        $container = $xpath->query(
+            "//article[@data-section-id='{$containerId}']"
+        )->item(0);
+        $lessonSection = $xpath->query(
+            "//article[@data-section-id='{$lessonSectionId}']"
+        )->item(0);
+
+        $this->assertNotNull($container);
+        $this->assertNotNull($lessonSection);
+        $this->assertSame(
+            0,
+            $xpath->query(
+                './section[contains(concat(" ", normalize-space(@class), " "), " course-template-lesson-panel ")]',
+                $container
+            )->length
+        );
+        $this->assertStringNotContainsString(
+            'Chưa có bài học',
+            $xpath->query('./header', $container)->item(0)->textContent
+        );
+        foreach (['Bản nháp', 'Hoạt động', 'Không hoạt động', 'Ngừng sử dụng'] as $status) {
+            $this->assertStringNotContainsString(
+                $status,
+                $xpath->query('./header', $container)->item(0)->textContent
+            );
+        }
+        $this->assertSame(
+            1,
+            $xpath->query(
+                './/article[@data-section-id="'.$lessonSectionId.'"]',
+                $container
+            )->length
+        );
+
+        $lessonPanel = $xpath->query(
+            './section[contains(concat(" ", normalize-space(@class), " "), " course-template-lesson-panel ")]',
+            $lessonSection
+        )->item(0);
+        $this->assertNotNull($lessonPanel);
+        $this->assertStringContainsString('Bài học', $lessonPanel->textContent);
+        $this->assertStringContainsString('Chưa có bài học', $lessonPanel->textContent);
+        $this->assertStringContainsString(
+            'Chưa có bài học nào trong phần này.',
+            $lessonPanel->textContent
+        );
+        $this->assertStringContainsString('Gắn bài học', $lessonPanel->textContent);
     }
 
     public function test_teacher_can_create_a_section_for_an_own_tenant_template(): void
@@ -144,7 +312,7 @@ class CourseTemplateSectionManagementTest extends TestCase
         ]);
     }
 
-    public function test_validation_and_root_order_uniqueness_are_enforced(): void
+    public function test_section_validation_only_requires_title_and_display_order(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -153,35 +321,25 @@ class CourseTemplateSectionManagementTest extends TestCase
             'Validation Course',
             'validation-course'
         );
-        $this->createSection($customerId, $templateId, 'Existing', 1, code: 'M01');
 
         $this->actingAs($admin)
             ->post(
                 'https://tenant-a.localhost/admin/course-templates/'
                 ."{$templateId}/sections",
                 [
-                    'code' => 'M01',
-                    'title' => '',
-                    'sort_order' => 1,
-                    'is_required' => 'invalid',
-                    'unlock_rule' => 'invalid',
-                    'estimated_duration_minutes' => -1,
-                    'status' => 'draft',
-                    'metadata' => '{invalid-json}',
+                    'description' => 'Only optional data',
                 ]
             )
             ->assertSessionHasErrors([
-                'code',
                 'title',
-                'sort_order',
-                'is_required',
-                'unlock_rule',
-                'estimated_duration_minutes',
-                'status',
-                'metadata',
+                'allows_lessons',
+                'display_order',
+            ])
+            ->assertSessionDoesntHaveErrors([
+                'description',
             ]);
 
-        $this->assertDatabaseCount('core_course_template_sections', 1);
+        $this->assertDatabaseCount('core_course_template_sections', 0);
     }
 
     public function test_template_and_section_access_are_tenant_isolated(): void
@@ -234,7 +392,7 @@ class CourseTemplateSectionManagementTest extends TestCase
         ]);
     }
 
-    public function test_parent_section_must_belong_to_the_same_template_and_tenant(): void
+    public function test_parent_section_must_belong_to_the_same_template_and_hierarchy_cannot_cycle(): void
     {
         $customerId = $this->createTenant();
         $otherCustomerId = $this->createTenant('tenant-b');
@@ -266,30 +424,6 @@ class CourseTemplateSectionManagementTest extends TestCase
             'Wrong Tenant Parent',
             1
         );
-
-        foreach ([$wrongTemplateParentId, $wrongTenantParentId] as $parentId) {
-            $this->actingAs($admin)
-                ->post(
-                    'https://tenant-a.localhost/admin/course-templates/'
-                    ."{$templateId}/sections",
-                    $this->validSectionData([
-                        'parent_section_id' => $parentId,
-                        'title' => 'Invalid Child '.$parentId,
-                    ])
-                )
-                ->assertSessionHasErrors('parent_section_id');
-        }
-    }
-
-    public function test_section_hierarchy_cannot_be_made_circular(): void
-    {
-        $customerId = $this->createTenant();
-        $admin = $this->createUser($customerId, 'customer_admin');
-        $templateId = $this->createTemplate(
-            $customerId,
-            'Hierarchy Course',
-            'hierarchy-course'
-        );
         $parentId = $this->createSection(
             $customerId,
             $templateId,
@@ -304,6 +438,19 @@ class CourseTemplateSectionManagementTest extends TestCase
             $parentId
         );
 
+        foreach ([$wrongTemplateParentId, $wrongTenantParentId] as $invalidParentId) {
+            $this->actingAs($admin)
+                ->post(
+                    'https://tenant-a.localhost/admin/course-templates/'
+                    ."{$templateId}/sections",
+                    $this->validSectionData([
+                        'parent_section_id' => $invalidParentId,
+                        'title' => 'Invalid Child '.$invalidParentId,
+                    ])
+                )
+                ->assertSessionHasErrors('parent_section_id');
+        }
+
         $this->actingAs($admin)
             ->put(
                 'https://tenant-a.localhost/admin/course-templates/'
@@ -311,7 +458,6 @@ class CourseTemplateSectionManagementTest extends TestCase
                 $this->validSectionData([
                     'parent_section_id' => $childId,
                     'title' => 'Parent',
-                    'sort_order' => 1,
                 ])
             )
             ->assertSessionHasErrors('parent_section_id');
@@ -439,28 +585,14 @@ class CourseTemplateSectionManagementTest extends TestCase
             )
             ->assertOk();
 
-        foreach ([
-            'title',
-            'sort_order',
-            'is_required',
-            'unlock_rule',
-            'status',
-        ] as $field) {
+        foreach (['title', 'allows_lessons', 'display_order'] as $field) {
             $this->assertSame(
                 1,
                 $this->requiredIndicatorCount($response->getContent(), $field)
             );
         }
 
-        foreach ([
-            'parent_section_id',
-            'code',
-            'short_title',
-            'description',
-            'thumbnail_file_id',
-            'estimated_duration_minutes',
-            'metadata',
-        ] as $field) {
+        foreach (['parent_section_id', 'description'] as $field) {
             $this->assertSame(
                 0,
                 $this->requiredIndicatorCount($response->getContent(), $field)
@@ -559,26 +691,17 @@ class CourseTemplateSectionManagementTest extends TestCase
         int $customerId,
         int $templateId,
         string $title,
-        int $sortOrder,
-        ?int $parentSectionId = null,
-        ?string $code = null
+        int $displayOrder,
+        ?int $parentSectionId = null
     ): int {
         return DB::table('core_course_template_sections')->insertGetId([
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'parent_section_id' => $parentSectionId,
-            'code' => $code,
+            'allows_lessons' => true,
             'title' => $title,
-            'short_title' => null,
             'description' => null,
-            'thumbnail_file_id' => null,
-            'sort_order' => $sortOrder,
-            'is_required' => true,
-            'unlock_rule' => 'immediate',
-            'estimated_duration_minutes' => null,
-            'total_lessons' => 0,
-            'status' => 'active',
-            'metadata' => null,
+            'display_order' => $displayOrder,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -588,17 +711,10 @@ class CourseTemplateSectionManagementTest extends TestCase
     {
         return array_merge([
             'parent_section_id' => null,
-            'code' => null,
+            'allows_lessons' => 1,
             'title' => 'Course Introduction',
-            'short_title' => null,
             'description' => null,
-            'thumbnail_file_id' => null,
-            'sort_order' => 1,
-            'is_required' => 1,
-            'unlock_rule' => 'immediate',
-            'estimated_duration_minutes' => null,
-            'status' => 'active',
-            'metadata' => null,
+            'display_order' => 1,
         ], $overrides);
     }
 
@@ -616,5 +732,16 @@ class CourseTemplateSectionManagementTest extends TestCase
         );
 
         return $xpath->query($query)->length;
+    }
+
+    private function xpath(string $html): \DOMXPath
+    {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        return new \DOMXPath($document);
     }
 }

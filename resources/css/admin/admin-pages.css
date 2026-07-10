@@ -603,6 +603,14 @@
     padding: 18px;
 }
 
+.course-version-section-children {
+    margin-top: 16px;
+    padding-left: 18px;
+    border-left: 2px solid #dbe3ed;
+    display: grid;
+    gap: 16px;
+}
+
 .course-version-section > p {
     margin-top: 12px;
 }
@@ -769,6 +777,14 @@
     background: #ffffff;
 }
 
+.course-template-outline-children {
+    margin-top: 16px;
+    padding-left: 18px;
+    border-left: 2px solid #dbe3ed;
+    display: grid;
+    gap: 16px;
+}
+
 .course-template-outline-section-header {
     margin-bottom: 14px;
     display: flex;
@@ -850,10 +866,8 @@
 
 .course-template-activity-panel {
     margin-top: 12px;
-    padding: 12px;
-    border: 1px solid #dbe3ed;
-    border-radius: 6px;
-    background: #f8fafc;
+    padding-top: 10px;
+    border-top: 1px solid #e5e7eb;
 }
 
 .course-template-activity-toolbar {
@@ -861,7 +875,7 @@
 }
 
 .course-template-activity-toolbar h5 {
-    margin: 0 0 4px;
+    margin: 0;
     color: var(--admin-primary);
     font-size: 14px;
     font-weight: 600;
@@ -873,10 +887,27 @@
 }
 
 .course-template-activity-item {
-    padding: 10px;
-    border: 1px solid #dbe3ed;
-    border-radius: 8px;
-    background: #ffffff;
+    min-height: 36px;
+    padding: 6px 0;
+    border-bottom: 1px solid #eef2f7;
+}
+
+.course-template-activity-identity {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+}
+
+.course-template-activity-icon {
+    flex: 0 0 auto;
+    font-size: 16px;
+}
+
+.course-template-activity-title {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-weight: 600;
 }
 
 .course-template-activity-empty {
@@ -1048,10 +1079,13 @@
 
     .course-template-lesson-toolbar,
     .course-template-lesson-summary,
-    .course-template-activity-toolbar,
-    .course-template-activity-item {
+    .course-template-activity-toolbar {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .course-template-activity-item {
+        align-items: center;
     }
 
     .course-template-lesson-toolbar .btn {

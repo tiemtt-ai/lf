@@ -225,31 +225,12 @@ class CourseTemplateController extends Controller
         $sections = DB::table(
             'core_course_template_version_sections as sections'
         )
-            ->leftJoin(
-                'core_course_template_version_sections as parent',
-                function ($join) use ($customerId, $versionId): void {
-                    $join->on(
-                        'parent.id',
-                        '=',
-                        'sections.parent_version_section_id'
-                    )
-                        ->where('parent.customer_id', '=', $customerId)
-                        ->where(
-                            'parent.template_version_id',
-                            '=',
-                            $versionId
-                        );
-                }
-            )
             ->where('sections.customer_id', $customerId)
             ->where('sections.template_version_id', $versionId)
-            ->orderByRaw(
-                'sections.parent_version_section_id IS NOT NULL'
-            )
             ->orderBy('sections.parent_version_section_id')
-            ->orderBy('sections.sort_order')
+            ->orderBy('sections.display_order')
             ->orderBy('sections.id')
-            ->select('sections.*', 'parent.title_snapshot as parent_title')
+            ->select('sections.*')
             ->get();
 
         $lessons = DB::table('core_course_template_version_lessons')
@@ -623,21 +604,12 @@ class CourseTemplateController extends Controller
     private function sections(int $customerId, int $templateId)
     {
         return DB::table('core_course_template_sections as sections')
-            ->leftJoin(
-                'core_course_template_sections as parent',
-                function ($join) use ($customerId, $templateId): void {
-                    $join->on('parent.id', '=', 'sections.parent_section_id')
-                        ->where('parent.customer_id', '=', $customerId)
-                        ->where('parent.template_id', '=', $templateId);
-                }
-            )
             ->where('sections.customer_id', $customerId)
             ->where('sections.template_id', $templateId)
-            ->orderByRaw('sections.parent_section_id IS NOT NULL')
             ->orderBy('sections.parent_section_id')
-            ->orderBy('sections.sort_order')
-            ->orderBy('sections.title')
-            ->select('sections.*', 'parent.title as parent_title')
+            ->orderBy('sections.display_order')
+            ->orderBy('sections.id')
+            ->select('sections.*')
             ->get();
     }
 

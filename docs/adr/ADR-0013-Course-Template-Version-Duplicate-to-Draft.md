@@ -1,12 +1,13 @@
 # ADR-0013 — Course Template Version Duplicate to Draft
 
-Version: 1.1
+Version: 1.2
 
 Status: Approved
 
 Decision Date: 2026-07-03
 
 Scope Amendment Date: 2026-07-10
+Nested Section Amendment Date: 2026-07-10
 
 Extends:
 
@@ -37,9 +38,9 @@ ADR-0012 intentionally deferred duplicate behavior. This ADR approves the
 specific operation that copies one immutable Version back into the sole
 editable draft of the same Template.
 
-The 2026-07-10 scope amendment simplifies Course Template Sections to simple
-optional Lesson containers. Duplicate-to-draft must reconstruct only the
-supported Section fields documented in `core_course_template_sections`.
+The 2026-07-10 nested Section amendment approves unlimited Section hierarchy.
+Duplicate-to-draft must reconstruct only the supported Section fields
+documented in `core_course_template_sections`, including `parent_section_id`.
 
 # Decision
 
@@ -64,6 +65,9 @@ Existing editable Template
 ├── direct Lessons
 │   └── Activities
 └── Sections
+    ├── Sections
+    │   └── Lessons
+    │       └── Activities
     └── Lessons
         └── Activities
 ```
@@ -212,17 +216,17 @@ primary keys.
 
 Reconstruction must:
 
-* preserve simple Section display order;
+* preserve nested Section hierarchy and sibling display order;
 * preserve direct Lessons with `template_section_id = NULL`;
-* preserve Sectioned Lessons through a Version Section → new Template Section
-  map;
+* preserve Sectioned Lessons at any Section level through a Version Section →
+  new Template Section map;
 * preserve Lesson order within each direct or Section group;
 * preserve Activities and their order within each Lesson;
 * remap Lesson prerequisites to newly created Template Lesson IDs;
 * remap Activity prerequisites to newly created Template Activity IDs;
 * preserve documented editable Template, Section, Lesson and Activity fields;
-* recreate Sections only with `title`, nullable `description` and
-  `display_order`.
+* recreate Sections only with nullable `parent_section_id`, required
+  `allows_lessons`, `title`, nullable `description` and `display_order`.
 
 # Transaction And Concurrency Boundary
 
@@ -237,7 +241,7 @@ The implementation must:
 4. Preflight required constraints and reference fallback.
 5. Delete existing working Activities, Lessons and Sections.
 6. Update the existing Template snapshot-mapped fields and draft metadata.
-7. Recreate Sections as simple Lesson containers.
+7. Recreate Sections as nested Lesson containers.
 8. Recreate direct and Sectioned Lessons and map prerequisites.
 9. Recreate Activities and map prerequisites.
 10. Record the append-only tenant audit event.

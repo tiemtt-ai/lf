@@ -75,7 +75,12 @@ class CourseTemplateActivityManagementTest extends TestCase
             null,
             'Direct Outline Lesson'
         );
-        $this->createActivity(
+        DB::table('core_course_template_lessons')
+            ->where('id', $directLessonId)
+            ->update([
+                'short_description' => 'Mô tả ngắn của bài học được hiển thị ngay dưới tiêu đề.',
+            ]);
+        $directActivityId = $this->createActivity(
             $customerId,
             $templateId,
             $directLessonId,
@@ -102,7 +107,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->assertSeeText('Lesson default')
             ->assertSeeText('Section Outline Activity')
             ->assertSeeText('+ Thêm phần học')
-            ->assertSeeText('+ Thêm bài học')
+            ->assertSeeText('Gắn bài học')
             ->assertSeeText('+ Thêm hoạt động')
             ->assertSeeText('Sửa')
             ->assertSeeText('Xóa')
@@ -114,6 +119,74 @@ class CourseTemplateActivityManagementTest extends TestCase
             )
             ->assertSee('id="course-template-direct-panel"', false)
             ->assertSee('id="course-template-sections-panel"', false);
+
+        $xpath = $this->xpath($response->getContent());
+        $directLesson = $xpath->query(
+            '//article[contains(concat(" ", normalize-space(@class), " "), " course-template-lesson-item ")]'
+            .'[.//strong[normalize-space()="Direct Outline Lesson"]]'
+        )->item(0);
+        $this->assertNotNull($directLesson);
+        $lessonDescription = $xpath->query(
+            './/span[contains(concat(" ", normalize-space(@class), " "), " lf-secondary-text ")'
+            .' and contains(concat(" ", normalize-space(@class), " "), " lf-line-clamp-2 ")]',
+            $directLesson
+        )->item(0);
+        $this->assertNotNull($lessonDescription);
+        $this->assertSame(
+            'Mô tả ngắn của bài học được hiển thị ngay dưới tiêu đề.',
+            trim($lessonDescription->textContent)
+        );
+        $activityTitle = $xpath->query(
+            './/a[contains(concat(" ", normalize-space(@class), " "), " course-template-activity-title ")]'
+            .'[normalize-space()="Direct Outline Activity"]',
+            $directLesson
+        )->item(0);
+        $this->assertNotNull($activityTitle);
+        $this->assertSame(
+            $this->directActivityCollectionUrl(
+                'admin',
+                $templateId,
+                $directLessonId
+            )."/{$directActivityId}/edit",
+            $activityTitle->getAttribute('href')
+        );
+        $this->assertSame(
+            0,
+            $xpath->query(
+                './/span[normalize-space()="Bản nháp" or normalize-space()="Hoạt động" or normalize-space()="Không hoạt động" or normalize-space()="Ngừng sử dụng"]',
+                $directLesson
+            )->length
+        );
+        $this->assertSame(
+            0,
+            $xpath->query('.//a[normalize-space()="Xem"]', $directLesson)->length
+        );
+        $activityRow = $xpath->query(
+            'ancestor::div[contains(concat(" ", normalize-space(@class), " "), " course-template-activity-item ")]',
+            $activityTitle
+        )->item(0);
+        $this->assertNotNull($activityRow);
+        $this->assertSame(
+            1,
+            $xpath->query(
+                './/span[contains(concat(" ", normalize-space(@class), " "), " course-template-activity-icon ")]',
+                $activityRow
+            )->length
+        );
+        $this->assertSame(
+            1,
+            $xpath->query(
+                './/div[contains(concat(" ", normalize-space(@class), " "), " admin-table-actions ")]//a[normalize-space()="Sửa"]',
+                $activityRow
+            )->length
+        );
+        $this->assertSame(
+            1,
+            $xpath->query(
+                './/div[contains(concat(" ", normalize-space(@class), " "), " admin-table-actions ")]//button[normalize-space()="Xóa"]',
+                $activityRow
+            )->length
+        );
     }
 
     public function test_admin_can_create_update_and_delete_an_activity(): void
@@ -707,9 +780,10 @@ class CourseTemplateActivityManagementTest extends TestCase
                 ."{$templateId}/edit"
             )
             ->assertOk()
-            ->assertSeeText('Hoạt động học tập')
+            ->assertSeeText('Hoạt động (0)')
             ->assertSeeText('+ Thêm hoạt động')
-            ->assertSeeText('Chưa có hoạt động học tập nào.');
+            ->assertSeeText('Chưa có hoạt động.')
+            ->assertDontSeeText('Chưa có hoạt động học tập nào.');
 
         $this->assertLessonHasActivityCreateAction(
             $response->getContent(),
@@ -924,18 +998,10 @@ class CourseTemplateActivityManagementTest extends TestCase
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'parent_section_id' => null,
-            'code' => null,
+            'allows_lessons' => true,
             'title' => $title,
-            'short_title' => null,
             'description' => null,
-            'thumbnail_file_id' => null,
-            'sort_order' => 1,
-            'is_required' => true,
-            'unlock_rule' => 'immediate',
-            'estimated_duration_minutes' => null,
-            'total_lessons' => 0,
-            'status' => 'active',
-            'metadata' => null,
+            'display_order' => 1,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -1135,5 +1201,16 @@ class CourseTemplateActivityManagementTest extends TestCase
         );
 
         $this->assertSame(1, $xpath->query($query)->length);
+    }
+
+    private function xpath(string $html): \DOMXPath
+    {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        return new \DOMXPath($document);
     }
 }

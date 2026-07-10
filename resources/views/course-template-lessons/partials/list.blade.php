@@ -19,13 +19,17 @@
                 ) }}
             </span>
         </div>
-        <a href="{{ route(
-            $lessonRoutePrefix.'.create',
-            $lessonBaseParameters
-        ) }}"
-           class="btn btn-primary">
-            {{ __('lf.LF_course_template_lesson_common_add_action') }}
-        </a>
+        @if (! $section || $section->allows_lessons)
+            <a href="{{ route(
+                $lessonRoutePrefix.'.create',
+                $lessonBaseParameters
+            ) }}"
+               class="btn btn-primary">
+                {{ __($section
+                    ? 'lf.LF_course_template_lesson_common_attach_action'
+                    : 'lf.LF_course_template_lesson_common_add_action') }}
+            </a>
+        @endif
     </div>
 
     <div class="course-template-lesson-list">
@@ -44,13 +48,11 @@
                 <div class="course-template-lesson-summary">
                     <div>
                         <strong>{{ $lesson->title }}</strong>
-                        <span>
-                            {{ __('lf.LF_course_template_lesson_common_order_value', [
-                                'order' => $lesson->sort_order,
-                            ]) }}
-                            ·
-                            {{ __('lf.LF_course_template_lesson_common_'.$lesson->status) }}
-                        </span>
+                        @if ($lesson->short_description || $lesson->description)
+                            <span class="lf-secondary-text lf-line-clamp-2">
+                                {{ $lesson->short_description ?: $lesson->description }}
+                            </span>
+                        @endif
                     </div>
                     <div class="admin-table-actions">
                         <a href="{{ route(
@@ -75,18 +77,7 @@
                          class="course-template-activity-panel"
                          aria-labelledby="course-template-lesson-{{ $lesson->id }}-activities-title">
                     <div class="course-template-activity-toolbar">
-                        <div>
-                            <h5 id="course-template-lesson-{{ $lesson->id }}-activities-title">
-                                {{ __('lf.LF_course_template_activity_common_list_title') }}
-                            </h5>
-                            <span>
-                                {{ trans_choice(
-                                    'lf.LF_course_template_activity_common_count',
-                                    $lessonActivities->count(),
-                                    ['count' => $lessonActivities->count()]
-                                ) }}
-                            </span>
-                        </div>
+                        <h5 id="course-template-lesson-{{ $lesson->id }}-activities-title">{{ __('lf.LF_course_template_activity_common_list_title') }} ({{ $lessonActivities->count() }})</h5>
                         <a href="{{ route(
                             $activityRoutePrefix.'.create',
                             $lessonParameters
@@ -103,21 +94,25 @@
                                     $lessonParameters,
                                     [$activity->id]
                                 );
+                                $activityIcon = match ($activity->activity_type) {
+                                    'video', 'liveclass' => '🎥',
+                                    'quiz', 'assignment' => '📝',
+                                    'audio' => '🎧',
+                                    'external_link' => '🔗',
+                                    default => '📄',
+                                };
                             @endphp
                             <div class="course-template-activity-item">
-                                <div>
-                                    <strong>{{ $activity->title }}</strong>
-                                    <span>
-                                        {{ __('lf.LF_course_template_activity_common_summary', [
-                                            'type' => __(
-                                                'lf.LF_course_template_activity_common_type_'.$activity->activity_type
-                                            ),
-                                            'order' => $activity->sort_order,
-                                            'status' => __(
-                                                'lf.LF_course_template_activity_common_'.$activity->status
-                                            ),
-                                        ]) }}
-                                    </span>
+                                <div class="course-template-activity-identity">
+                                    <span class="course-template-activity-icon"
+                                          aria-hidden="true">{{ $activityIcon }}</span>
+                                    <a href="{{ route(
+                                        $activityRoutePrefix.'.edit',
+                                        $activityParameters
+                                    ) }}"
+                                       class="course-template-activity-title">
+                                        {{ $activity->title }}
+                                    </a>
                                 </div>
                                 <div class="admin-table-actions">
                                     <a href="{{ route(

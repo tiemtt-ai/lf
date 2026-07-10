@@ -74,7 +74,7 @@ class CourseTemplateLessonManagementTest extends TestCase
                     ."{$templateId}/edit"
                 )
                 ->assertOk()
-                ->assertSeeText('+ Thêm bài học')
+                ->assertSeeText('Gắn bài học')
                 ->assertSeeText('Korean Alphabet')
                 ->assertDontSeeText('Private Tenant Lesson');
         }
@@ -205,6 +205,36 @@ class CourseTemplateLessonManagementTest extends TestCase
             ->assertSeeText('Theo phần học')
             ->assertSee('x-show="activeStructureTab === \'direct\'"', false)
             ->assertSee('x-show="activeStructureTab === \'sections\'"', false);
+    }
+
+    public function test_section_that_disallows_lessons_hides_action_and_rejects_attachment(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Container Course', 'container-course');
+        $sectionId = $this->createSection($customerId, $templateId, 'Container Only');
+
+        DB::table('core_course_template_sections')
+            ->where('id', $sectionId)
+            ->update(['allows_lessons' => false]);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->assertOk()
+            ->assertDontSeeText('Gắn bài học');
+
+        $this->actingAs($admin)
+            ->post(
+                $this->lessonCollectionUrl('admin', $templateId, $sectionId),
+                $this->validLessonData(['title' => 'Rejected Lesson'])
+            )
+            ->assertSessionHasErrors('template_section_id');
+
+        $this->assertDatabaseMissing('core_course_template_lessons', [
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'title' => 'Rejected Lesson',
+        ]);
     }
 
     public function test_flat_and_sectioned_lesson_routes_enforce_lesson_location(): void
@@ -721,7 +751,7 @@ class CourseTemplateLessonManagementTest extends TestCase
                 ."{$templateId}/edit"
             )
             ->assertOk()
-            ->assertSeeText('+ Thêm bài học')
+            ->assertSeeText('Gắn bài học')
             ->assertSeeText('Sửa')
             ->assertSeeText('Xóa')
             ->assertSeeText('Bạn có chắc chắn muốn xóa bài học này không?')
@@ -955,18 +985,10 @@ class CourseTemplateLessonManagementTest extends TestCase
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'parent_section_id' => null,
-            'code' => null,
+            'allows_lessons' => true,
             'title' => $title,
-            'short_title' => null,
             'description' => null,
-            'thumbnail_file_id' => null,
-            'sort_order' => 1,
-            'is_required' => true,
-            'unlock_rule' => 'immediate',
-            'estimated_duration_minutes' => null,
-            'total_lessons' => 0,
-            'status' => 'active',
-            'metadata' => null,
+            'display_order' => 1,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

@@ -172,9 +172,8 @@ class CourseTemplateVersionDuplicatingService
         return DB::table('core_course_template_version_sections')
             ->where('customer_id', $customerId)
             ->where('template_version_id', $versionId)
-            ->orderByRaw('parent_version_section_id IS NOT NULL')
             ->orderBy('parent_version_section_id')
-            ->orderBy('sort_order')
+            ->orderBy('display_order')
             ->orderBy('id')
             ->get();
     }
@@ -216,12 +215,17 @@ class CourseTemplateVersionDuplicatingService
         $activityIds = $activities->pluck('id')->flip();
         $activitiesById = $activities->keyBy('id');
 
-        $this->assertUniqueOrder(
-            $sections,
-            fn (object $section): string => (string) (
-                $section->parent_version_section_id ?? 'root'
-            )
-        );
+        foreach ($sections as $section) {
+            if (
+                $section->parent_version_section_id
+                && ! $sectionIds->has($section->parent_version_section_id)
+            ) {
+                $this->invalidStructure();
+            }
+        }
+
+        $this->assertAcyclicSections($sections);
+
         $this->assertUniqueOrder(
             $lessons,
             fn (object $lesson): string => (string) (
@@ -235,21 +239,18 @@ class CourseTemplateVersionDuplicatingService
             )
         );
 
-        foreach ($sections as $section) {
-            if (
-                $section->parent_version_section_id
-                && ! $sectionIds->has($section->parent_version_section_id)
-            ) {
-                $this->invalidStructure();
-            }
-        }
-
         foreach ($lessons as $lesson) {
             if (
                 $lesson->version_section_id
                 && ! $sectionIds->has($lesson->version_section_id)
             ) {
                 $this->invalidStructure();
+            }
+            if ($lesson->version_section_id) {
+                $section = $sections->firstWhere('id', $lesson->version_section_id);
+                if (! $section || ! $section->allows_lessons) {
+                    $this->invalidStructure();
+                }
             }
 
             if (
@@ -294,7 +295,8 @@ class CourseTemplateVersionDuplicatingService
         $seen = [];
 
         foreach ($records as $record) {
-            $key = $groupKey($record).':'.$record->sort_order;
+            $order = $record->display_order ?? $record->sort_order;
+            $key = $groupKey($record).':'.$order;
 
             if (isset($seen[$key])) {
                 throw ValidationException::withMessages([
@@ -305,6 +307,30 @@ class CourseTemplateVersionDuplicatingService
             }
 
             $seen[$key] = true;
+        }
+    }
+
+    private function assertAcyclicSections(Collection $sections): void
+    {
+        $parents = $sections
+            ->pluck('parent_version_section_id', 'id')
+            ->map(fn ($parentId): ?int => $parentId === null
+                ? null
+                : (int) $parentId)
+            ->all();
+
+        foreach (array_keys($parents) as $sectionId) {
+            $seen = [];
+            $currentId = (int) $sectionId;
+
+            while ($parents[$currentId] ?? null) {
+                if (isset($seen[$currentId])) {
+                    $this->invalidStructure();
+                }
+
+                $seen[$currentId] = true;
+                $currentId = $parents[$currentId];
+            }
         }
     }
 
@@ -352,46 +378,15 @@ class CourseTemplateVersionDuplicatingService
             ->where('template_id', $templateId)
             ->delete();
 
-        $sections = DB::table('core_course_template_sections')
+        DB::table('core_course_template_sections')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
-            ->get(['id', 'parent_section_id']);
+            ->update(['parent_section_id' => null]);
 
-        foreach ($this->deepestFirst($sections) as $sectionId) {
-            DB::table('core_course_template_sections')
-                ->where('customer_id', $customerId)
-                ->where('template_id', $templateId)
-                ->where('id', $sectionId)
-                ->delete();
-        }
-    }
-
-    private function deepestFirst(Collection $sections): array
-    {
-        $parents = $sections->pluck('parent_section_id', 'id')->all();
-        $depths = [];
-
-        foreach (array_keys($parents) as $sectionId) {
-            $seen = [];
-            $depth = 0;
-            $currentId = $sectionId;
-
-            while ($parents[$currentId] ?? null) {
-                if (isset($seen[$currentId])) {
-                    $this->invalidStructure();
-                }
-
-                $seen[$currentId] = true;
-                $currentId = $parents[$currentId];
-                $depth++;
-            }
-
-            $depths[$sectionId] = $depth;
-        }
-
-        arsort($depths);
-
-        return array_keys($depths);
+        DB::table('core_course_template_sections')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->delete();
     }
 
     private function restoreSections(
@@ -409,9 +404,7 @@ class CourseTemplateVersionDuplicatingService
             foreach ($pending as $versionSectionId => $section) {
                 if (
                     $section->parent_version_section_id
-                    && ! isset(
-                        $map[$section->parent_version_section_id]
-                    )
+                    && ! isset($map[$section->parent_version_section_id])
                 ) {
                     continue;
                 }
@@ -421,27 +414,13 @@ class CourseTemplateVersionDuplicatingService
                 )->insertGetId([
                     'customer_id' => $customerId,
                     'template_id' => $templateId,
-                    'parent_section_id' => $section
-                        ->parent_version_section_id
+                    'parent_section_id' => $section->parent_version_section_id
                         ? $map[$section->parent_version_section_id]
                         : null,
-                    'code' => $section->code_snapshot,
+                    'allows_lessons' => (bool) $section->allows_lessons,
                     'title' => $section->title_snapshot,
-                    'short_title' => $section->short_title_snapshot,
                     'description' => $section->description_snapshot,
-                    'thumbnail_file_id' => $this->referenceId(
-                        $customerId,
-                        $section->thumbnail_file_id_snapshot,
-                        ['media_files']
-                    ),
-                    'sort_order' => $section->sort_order,
-                    'is_required' => $section->is_required,
-                    'unlock_rule' => $section->unlock_rule_snapshot,
-                    'estimated_duration_minutes' => $section
-                        ->estimated_duration_minutes,
-                    'total_lessons' => $section->total_lessons,
-                    'status' => $section->status_snapshot,
-                    'metadata' => $section->metadata_snapshot,
+                    'display_order' => $section->display_order,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ]);

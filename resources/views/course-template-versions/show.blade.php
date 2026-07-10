@@ -134,6 +134,12 @@
         </section>
 
         <section class="admin-card admin-form-card">
+            @php
+                $sectionsByParent = $sections->groupBy(
+                    fn (object $section): string => (string) ($section->parent_version_section_id ?? 'root')
+                );
+            @endphp
+
             <h2 class="admin-form-section-title">
                 {{ __('lf.LF_course_template_version_detail_content') }}
             </h2>
@@ -149,44 +155,10 @@
                 </section>
             @endif
 
-            @foreach ($sections as $section)
-                <section class="course-version-group course-version-section">
-                    <div class="course-version-item-heading">
-                        <div>
-                            <p class="course-version-eyebrow">
-                                {{ __('lf.LF_course_template_version_detail_section_order', [
-                                    'order' => $section->sort_order,
-                                ]) }}
-                                @if ($section->parent_title)
-                                    · {{ __('lf.LF_course_template_version_detail_parent', [
-                                        'parent' => $section->parent_title,
-                                    ]) }}
-                                @endif
-                            </p>
-                            <h3>{{ $section->title_snapshot }}</h3>
-                        </div>
-                        <span class="badge">
-                            {{ __('lf.LF_course_template_section_common_'.$section->status_snapshot) }}
-                        </span>
-                    </div>
-
-                    @if ($section->description_snapshot)
-                        <p>{{ $section->description_snapshot }}</p>
-                    @endif
-
-                    <div class="course-version-lessons">
-                        @forelse (
-                            $lessonsBySection->get($section->id, collect())
-                            as $lesson
-                        )
-                            @include('course-template-versions.partials.lesson')
-                        @empty
-                            <p class="course-version-empty">
-                                {{ __('lf.LF_course_template_version_detail_no_lessons') }}
-                            </p>
-                        @endforelse
-                    </div>
-                </section>
+            @foreach ($sectionsByParent->get('root', collect()) as $section)
+                @include('course-template-versions.partials.section-node', [
+                    'depth' => 0,
+                ])
             @endforeach
 
             @if ($directLessons->isEmpty() && $sections->isEmpty())

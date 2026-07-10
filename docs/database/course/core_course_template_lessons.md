@@ -72,6 +72,10 @@ core_course_template_activities
 * Không được tạo số lượng lesson vượt quá max_lessons của Template nếu max_lessons có giá trị.
 * Product/Enrollment/Progress chỉ sử dụng Version Lesson.
 * Sửa working Template Lesson không ảnh hưởng Version Lesson đã publish.
+* Lesson là primary authoring unit trong Course Template editing tree.
+* Authoring tree chỉ hiển thị Lesson title cùng Edit/Delete; không hiển thị
+  Lesson status hoặc Draft/Active label.
+* Activities được liệt kê trực tiếp trong cùng Lesson card.
 
 ---
 

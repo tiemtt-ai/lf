@@ -138,7 +138,7 @@ class CourseTemplateLessonController extends Controller
             'template' => $this->findTemplate($customerId, $templateId),
             'section' => $sectionId === null
                 ? null
-                : $this->findSection(
+                : $this->findLessonContainerSection(
                     $customerId,
                     $templateId,
                     $sectionId
@@ -166,7 +166,7 @@ class CourseTemplateLessonController extends Controller
         $this->findTemplate($customerId, $templateId);
 
         if ($sectionId !== null) {
-            $this->findSection($customerId, $templateId, $sectionId);
+            $this->findLessonContainerSection($customerId, $templateId, $sectionId);
         }
 
         $validated = $this->validatedData(
@@ -189,6 +189,23 @@ class CourseTemplateLessonController extends Controller
                 ->first();
 
             abort_if(! $template, 404);
+
+            if ($sectionId !== null) {
+                $sectionAllowsLessons = DB::table('core_course_template_sections')
+                    ->where('customer_id', $customerId)
+                    ->where('template_id', $templateId)
+                    ->where('id', $sectionId)
+                    ->lockForUpdate()
+                    ->value('allows_lessons');
+
+                if (! $sectionAllowsLessons) {
+                    throw ValidationException::withMessages([
+                        'template_section_id' => __(
+                            'lf.LF_course_template_section_common_lessons_not_allowed'
+                        ),
+                    ]);
+                }
+            }
 
             if (
                 $template->max_lessons !== null
@@ -671,6 +688,24 @@ class CourseTemplateLessonController extends Controller
             ->first();
 
         abort_if(! $section, 404);
+
+        return $section;
+    }
+
+    private function findLessonContainerSection(
+        int $customerId,
+        int $templateId,
+        int $sectionId
+    ): object {
+        $section = $this->findSection($customerId, $templateId, $sectionId);
+
+        if (! $section->allows_lessons) {
+            throw ValidationException::withMessages([
+                'template_section_id' => __(
+                    'lf.LF_course_template_section_common_lessons_not_allowed'
+                ),
+            ]);
+        }
 
         return $section;
     }

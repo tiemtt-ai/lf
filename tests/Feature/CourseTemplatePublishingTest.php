@@ -59,6 +59,13 @@ class CourseTemplatePublishingTest extends TestCase
             'Snapshot Course'
         );
         $sectionId = $this->createSection($customerId, $templateId);
+        $childSectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Batchim',
+            1,
+            $sectionId
+        );
         $directLessonId = $this->createLesson(
             $customerId,
             $templateId,
@@ -75,6 +82,14 @@ class CourseTemplatePublishingTest extends TestCase
             1,
             $admin->id
         );
+        $nestedSectionLessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $childSectionId,
+            'Batchim Practice',
+            1,
+            $admin->id
+        );
         $directActivityId = $this->createActivity(
             $customerId,
             $templateId,
@@ -88,6 +103,14 @@ class CourseTemplatePublishingTest extends TestCase
             $templateId,
             $sectionLessonId,
             'Hangul Practice',
+            1,
+            $admin->id
+        );
+        $nestedSectionActivityId = $this->createActivity(
+            $customerId,
+            $templateId,
+            $nestedSectionLessonId,
+            'Batchim Drill',
             1,
             $admin->id
         );
@@ -116,7 +139,7 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertSame(1, (int) $version->is_current);
         $this->assertSame($admin->id, $version->published_by);
         $this->assertSame('Snapshot Course', $version->title_snapshot);
-        $this->assertSame(2, $version->lesson_count_snapshot);
+        $this->assertSame(3, $version->lesson_count_snapshot);
 
         $versionSection = DB::table(
             'core_course_template_version_sections'
@@ -127,8 +150,24 @@ class CourseTemplatePublishingTest extends TestCase
             ->first();
 
         $this->assertNotNull($versionSection);
-        $this->assertSame(1, $versionSection->sort_order);
+        $this->assertSame(1, $versionSection->display_order);
+        $this->assertSame(1, (int) $versionSection->allows_lessons);
         $this->assertSame('Hangul', $versionSection->title_snapshot);
+
+        $childVersionSection = DB::table(
+            'core_course_template_version_sections'
+        )
+            ->where('customer_id', $customerId)
+            ->where('template_version_id', $version->id)
+            ->where('source_template_section_id', $childSectionId)
+            ->first();
+
+        $this->assertNotNull($childVersionSection);
+        $this->assertSame(
+            $versionSection->id,
+            $childVersionSection->parent_version_section_id
+        );
+        $this->assertSame('Batchim', $childVersionSection->title_snapshot);
 
         $directVersionLesson = DB::table(
             'core_course_template_version_lessons'
@@ -144,6 +183,13 @@ class CourseTemplatePublishingTest extends TestCase
             ->where('template_version_id', $version->id)
             ->where('source_template_lesson_id', $sectionLessonId)
             ->first();
+        $nestedSectionVersionLesson = DB::table(
+            'core_course_template_version_lessons'
+        )
+            ->where('customer_id', $customerId)
+            ->where('template_version_id', $version->id)
+            ->where('source_template_lesson_id', $nestedSectionLessonId)
+            ->first();
 
         $this->assertNotNull($directVersionLesson);
         $this->assertNull($directVersionLesson->version_section_id);
@@ -154,6 +200,12 @@ class CourseTemplatePublishingTest extends TestCase
             $sectionVersionLesson->version_section_id
         );
         $this->assertSame('Hangul Fundamentals', $sectionVersionLesson->title_snapshot);
+        $this->assertNotNull($nestedSectionVersionLesson);
+        $this->assertSame(
+            $childVersionSection->id,
+            $nestedSectionVersionLesson->version_section_id
+        );
+        $this->assertSame('Batchim Practice', $nestedSectionVersionLesson->title_snapshot);
 
         $directVersionActivity = DB::table(
             'core_course_template_version_activities'
@@ -169,6 +221,13 @@ class CourseTemplatePublishingTest extends TestCase
             ->where('template_version_id', $version->id)
             ->where('source_template_activity_id', $sectionActivityId)
             ->first();
+        $nestedSectionVersionActivity = DB::table(
+            'core_course_template_version_activities'
+        )
+            ->where('customer_id', $customerId)
+            ->where('template_version_id', $version->id)
+            ->where('source_template_activity_id', $nestedSectionActivityId)
+            ->first();
 
         $this->assertNotNull($directVersionActivity);
         $this->assertSame(
@@ -182,6 +241,12 @@ class CourseTemplatePublishingTest extends TestCase
             $sectionVersionActivity->version_lesson_id
         );
         $this->assertSame('Hangul Practice', $sectionVersionActivity->title_snapshot);
+        $this->assertNotNull($nestedSectionVersionActivity);
+        $this->assertSame(
+            $nestedSectionVersionLesson->id,
+            $nestedSectionVersionActivity->version_lesson_id
+        );
+        $this->assertSame('Batchim Drill', $nestedSectionVersionActivity->title_snapshot);
 
         $this->assertSame(
             $draftBefore,
@@ -347,6 +412,13 @@ class CourseTemplatePublishingTest extends TestCase
             'Readonly Snapshot'
         );
         $sectionId = $this->createSection($customerId, $templateId);
+        $childSectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Nested Hangul',
+            1,
+            $sectionId
+        );
         $directLessonId = $this->createLesson(
             $customerId,
             $templateId,
@@ -519,6 +591,13 @@ class CourseTemplatePublishingTest extends TestCase
             ]);
 
         $sectionId = $this->createSection($customerId, $templateId);
+        $childSectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Nested Hangul',
+            1,
+            $sectionId
+        );
         $directFirstId = $this->createLesson(
             $customerId,
             $templateId,
@@ -538,7 +617,7 @@ class CourseTemplatePublishingTest extends TestCase
         $sectionLessonId = $this->createLesson(
             $customerId,
             $templateId,
-            $sectionId,
+            $childSectionId,
             'Section Lesson',
             1,
             $admin->id
@@ -623,7 +702,6 @@ class CourseTemplatePublishingTest extends TestCase
             ->where('customer_id', $customerId)
             ->where('id', $staleSectionId)
             ->update([
-                'code' => 'STALE',
                 'title' => 'Stale Section',
             ]);
         $staleLessonId = $this->createLesson(
@@ -722,10 +800,19 @@ class CourseTemplatePublishingTest extends TestCase
             ->where('title', 'Hangul')
             ->first();
         $this->assertNotNull($section);
+        $childSection = DB::table('core_course_template_sections')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('title', 'Nested Hangul')
+            ->first();
+        $this->assertNotNull($childSection);
+        $this->assertSame($section->id, $childSection->parent_section_id);
+        $this->assertSame(1, (int) $section->allows_lessons);
+        $this->assertSame(1, (int) $childSection->allows_lessons);
         $this->assertDatabaseHas('core_course_template_lessons', [
             'customer_id' => $customerId,
             'template_id' => $templateId,
-            'template_section_id' => $section->id,
+            'template_section_id' => $childSection->id,
             'title' => 'Section Lesson',
             'sort_order' => 1,
         ]);
@@ -1025,24 +1112,21 @@ class CourseTemplatePublishingTest extends TestCase
         ]);
     }
 
-    private function createSection(int $customerId, int $templateId): int
-    {
+    private function createSection(
+        int $customerId,
+        int $templateId,
+        string $title = 'Hangul',
+        int $displayOrder = 1,
+        ?int $parentSectionId = null
+    ): int {
         return DB::table('core_course_template_sections')->insertGetId([
             'customer_id' => $customerId,
             'template_id' => $templateId,
-            'parent_section_id' => null,
-            'code' => 'M01',
-            'title' => 'Hangul',
-            'short_title' => 'Hangul',
-            'description' => 'Hangul section.',
-            'thumbnail_file_id' => null,
-            'sort_order' => 1,
-            'is_required' => true,
-            'unlock_rule' => 'immediate',
-            'estimated_duration_minutes' => 60,
-            'total_lessons' => 1,
-            'status' => 'active',
-            'metadata' => json_encode(['color' => '#0EA5E9']),
+            'parent_section_id' => $parentSectionId,
+            'allows_lessons' => true,
+            'title' => $title,
+            'description' => $title.' section.',
+            'display_order' => $displayOrder,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

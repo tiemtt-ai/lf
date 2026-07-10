@@ -1,12 +1,13 @@
 # ADR-0012 — Course Template Published Version Snapshot Architecture
 
-Version: 1.1
+Version: 1.2
 
 Status: Approved
 
 Decision Date: 2026-07-03
 
 Scope Amendment Date: 2026-07-10
+Nested Section Amendment Date: 2026-07-10
 
 Extends:
 [ADR-0001 — Course Foundation](ADR-0001-Course-Foundation.md)
@@ -47,6 +48,9 @@ Template Version
 ├── Version Lesson
 │   └── Version Activity
 └── Version Section
+    ├── Version Section
+    │   └── Version Lesson
+    │       └── Version Activity
     └── Version Lesson
         └── Version Activity
 ```
@@ -56,12 +60,15 @@ and Activity field required to reproduce the published structure. Direct
 Lessons remain direct; Sectioned Lessons map to their corresponding simple
 Version Section. Source IDs are retained only for lineage and reporting.
 
-Course Template Sections are now simple optional Lesson containers. A Section
-has no hierarchy, status, visibility, completion rule, unlock rule, media,
-duration, metadata or cached Lesson-count semantics. Version Section snapshots
-therefore preserve only supported Section business fields:
+Course Template Sections are optional Lesson containers and may be nested
+without a fixed depth limit. A Section has no status, visibility, completion
+rule, unlock rule, media, duration, metadata or cached Lesson-count semantics.
+Version Section snapshots therefore preserve supported Section business
+fields:
 
 ```text
+parent_version_section_id
+allows_lessons
 title_snapshot
 description_snapshot
 display_order
@@ -84,7 +91,7 @@ records inside the transaction. A successful committed Version is
    — published Version identity, Template information snapshot, publication
    attribution, lifecycle and current designation.
 2. `core_course_template_version_sections`
-   — immutable simple Section grouping and display order.
+   — immutable nested Section grouping and display order.
 3. `core_course_template_version_lessons`
    — immutable direct or Sectioned Lesson structure.
 4. `core_course_template_version_activities`
@@ -153,8 +160,9 @@ A publish operation must:
 2. Lock the tenant-owned Template and its Version sequence.
 3. Allocate `MAX(version_number) + 1`, or `1` when none exists.
 4. Create the Version envelope.
-5. Copy Sections as simple Lesson containers.
-6. Copy Lessons, preserving direct/Sectioned location and mapping prerequisites.
+5. Copy Sections, their `allows_lessons` capability and mapped parents.
+6. Copy Lessons, preserving direct/Sectioned location at any Section level and
+   mapping prerequisites.
 7. Copy Activities and map Activity prerequisites.
 8. Validate tenant ownership, ordering and references.
 9. Unset the previous current Version and mark the new Version current.
@@ -174,8 +182,10 @@ relationships. Published child records use `RESTRICT` references to their
 Version parents. No working-record delete or edit may cascade into published
 history.
 
-Version Section rows do not include a parent-section reference because Section
-hierarchy is no longer part of the Course Template Section foundation.
+Version Section rows include `parent_version_section_id` to preserve the
+approved hierarchy and required `allows_lessons` to preserve whether each
+Section accepts Lessons. Other removed Section concepts remain outside the
+snapshot boundary.
 
 # Consequences
 

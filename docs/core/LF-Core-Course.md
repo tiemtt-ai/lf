@@ -110,6 +110,9 @@ Course Template
 ├── Template Lesson
 │   └── Template Activity
 └── Template Section
+    ├── Template Section
+    │   └── Template Lesson
+    │       └── Template Activity
     └── Template Lesson
         └── Template Activity
 ```
@@ -128,6 +131,33 @@ core_course_template_activities
 
 Working content có thể được giáo viên chỉnh sửa.
 
+Mỗi Section bắt buộc khai báo `allows_lessons`. Chỉ Section có giá trị `true`
+được hiển thị thao tác và chấp nhận Lesson; hierarchy không mặc định đồng nghĩa
+với khả năng chứa Lesson.
+
+## Course Authoring Tree UI
+
+Course Template là object duy nhất hiển thị Status trong editing structure.
+Section, Lesson và Activity vẫn giữ business fields cần thiết nhưng không hiển
+thị Status trong authoring tree.
+
+Presentation hierarchy:
+
+```text
+Course Template
+└── Section (optional grouping container)
+    └── Lesson (primary authoring unit)
+        └── Activity rows
+```
+
+* Activity nằm trực tiếp dưới Lesson, không dùng nested Activity card.
+* Mỗi Activity row chỉ hiển thị icon, title link, Edit và Delete.
+* Activity title là View action; không hiển thị action View riêng.
+* Không hiển thị Lesson status, Activity status hoặc Draft/Active label trong tree.
+* Empty Activity state chỉ hiển thị `Chưa có hoạt động.`.
+* Section `allows_lessons = false` không render Lesson heading, count, empty
+  state hoặc action gắn Lesson; child Sections vẫn hiển thị bình thường.
+
 Student không học trực tiếp working content.
 
 ---
@@ -139,6 +169,9 @@ Course Template Version
 ├── Version Lesson
 │   └── Version Activity
 └── Version Section
+    ├── Version Section
+    │   └── Version Lesson
+    │       └── Version Activity
     └── Version Lesson
         └── Version Activity
 ```
@@ -277,7 +310,8 @@ Duplicate:
 
 * keeps the existing Template identity;
 * replaces working Sections, Lessons and Activities transactionally;
-* restores direct and Sectioned Lesson structure, ordering and prerequisites;
+* restores direct, nested Section and Sectioned Lesson structure, ordering and
+  prerequisites;
 * sets the working Template status to `draft`;
 * increments the existing `working_revision`;
 * does not create or modify a published Version;

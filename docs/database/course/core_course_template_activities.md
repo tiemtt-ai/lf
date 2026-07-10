@@ -84,6 +84,11 @@ core_course_template_activities
 * Thứ tự Activity trong Lesson được xác định bằng sort_order.
 * Product/Enrollment/Progress chỉ sử dụng Version Activity.
 * Sửa working Template Activity không ảnh hưởng Version Activity đã publish.
+* Trong authoring tree, mỗi Activity là một row phẳng trực tiếp dưới Lesson.
+* Activity row chỉ hiển thị icon, title link, Edit và Delete.
+* Title là View action mở Activity; không có View action riêng.
+* Không hiển thị Activity status hoặc type/status badge trong authoring tree.
+* Empty state chỉ hiển thị `Chưa có hoạt động.`.
 
 ---
 

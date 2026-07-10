@@ -39,12 +39,6 @@ class CourseTemplatePublishingService
             $activities = $this->sourceActivities($customerId, $templateId);
 
             $this->assertUniqueOrder(
-                $sections,
-                fn (object $section): string => (string) (
-                    $section->parent_section_id ?? 'root'
-                )
-            );
-            $this->assertUniqueOrder(
                 $lessons,
                 fn (object $lesson): string => (string) (
                     $lesson->template_section_id ?? 'direct'
@@ -111,7 +105,6 @@ class CourseTemplatePublishingService
                 $customerId,
                 $versionId,
                 $sections,
-                $lessons,
                 $now
             );
             $lessonMap = $this->snapshotLessons(
@@ -119,6 +112,7 @@ class CourseTemplatePublishingService
                 $versionId,
                 $lessons,
                 $activities,
+                $sections,
                 $sectionMap,
                 $now
             );
@@ -165,9 +159,8 @@ class CourseTemplatePublishingService
         return DB::table('core_course_template_sections')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
-            ->orderByRaw('parent_section_id IS NOT NULL')
             ->orderBy('parent_section_id')
-            ->orderBy('sort_order')
+            ->orderBy('display_order')
             ->orderBy('id')
             ->get();
     }
@@ -203,60 +196,50 @@ class CourseTemplatePublishingService
         int $customerId,
         int $versionId,
         Collection $sections,
-        Collection $lessons,
         $now
     ): array {
         $map = [];
+        $pending = $sections->keyBy('id');
 
-        foreach ($sections as $section) {
-            $map[$section->id] = DB::table(
-                'core_course_template_version_sections'
-            )->insertGetId([
-                'customer_id' => $customerId,
-                'template_version_id' => $versionId,
-                'source_template_section_id' => $section->id,
-                'parent_version_section_id' => null,
-                'code_snapshot' => $section->code,
-                'title_snapshot' => $section->title,
-                'short_title_snapshot' => $section->short_title,
-                'description_snapshot' => $section->description,
-                'thumbnail_file_id_snapshot' => $section->thumbnail_file_id,
-                'sort_order' => $section->sort_order,
-                'is_required' => $section->is_required,
-                'unlock_rule_snapshot' => $section->unlock_rule,
-                'estimated_duration_minutes' => $section
-                    ->estimated_duration_minutes,
-                'total_lessons' => $lessons
-                    ->where('template_section_id', $section->id)
-                    ->count(),
-                'status_snapshot' => $section->status,
-                'metadata_snapshot' => $section->metadata,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-        }
+        while ($pending->isNotEmpty()) {
+            $inserted = 0;
 
-        foreach ($sections as $section) {
-            if (! $section->parent_section_id) {
-                continue;
-            }
+            foreach ($pending as $sectionId => $section) {
+                if (
+                    $section->parent_section_id
+                    && ! isset($map[$section->parent_section_id])
+                ) {
+                    continue;
+                }
 
-            $this->assertMapped(
-                $map,
-                $section->parent_section_id,
-                'publish'
-            );
-
-            DB::table('core_course_template_version_sections')
-                ->where('customer_id', $customerId)
-                ->where('template_version_id', $versionId)
-                ->where('id', $map[$section->id])
-                ->update([
-                    'parent_version_section_id' => $map[
-                        $section->parent_section_id
-                    ],
+                $map[$sectionId] = DB::table(
+                    'core_course_template_version_sections'
+                )->insertGetId([
+                    'customer_id' => $customerId,
+                    'template_version_id' => $versionId,
+                    'source_template_section_id' => $section->id,
+                    'parent_version_section_id' => $section->parent_section_id
+                        ? $map[$section->parent_section_id]
+                        : null,
+                    'allows_lessons' => (bool) $section->allows_lessons,
+                    'title_snapshot' => $section->title,
+                    'description_snapshot' => $section->description,
+                    'display_order' => $section->display_order,
+                    'created_at' => $now,
                     'updated_at' => $now,
                 ]);
+
+                $pending->forget($sectionId);
+                $inserted++;
+            }
+
+            if ($inserted === 0) {
+                throw ValidationException::withMessages([
+                    'publish' => __(
+                        'lf.LF_course_template_publish_invalid_structure'
+                    ),
+                ]);
+            }
         }
 
         return $map;
@@ -267,6 +250,7 @@ class CourseTemplatePublishingService
         int $versionId,
         Collection $lessons,
         Collection $activities,
+        Collection $sections,
         array $sectionMap,
         $now
     ): array {
@@ -279,6 +263,13 @@ class CourseTemplatePublishingService
                     $lesson->template_section_id,
                     'publish'
                 );
+
+                $section = $sections->firstWhere('id', $lesson->template_section_id);
+                if (! $section || ! $section->allows_lessons) {
+                    throw ValidationException::withMessages([
+                        'publish' => __('lf.LF_course_template_publish_invalid_structure'),
+                    ]);
+                }
             }
 
             $map[$lesson->id] = DB::table(
@@ -417,7 +408,8 @@ class CourseTemplatePublishingService
         $seen = [];
 
         foreach ($records as $record) {
-            $key = $groupKey($record).':'.$record->sort_order;
+            $order = $record->display_order ?? $record->sort_order;
+            $key = $groupKey($record).':'.$order;
 
             if (isset($seen[$key])) {
                 throw ValidationException::withMessages([
