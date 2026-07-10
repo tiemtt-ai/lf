@@ -293,6 +293,31 @@ class BackendLayoutNavigationTest extends TestCase
         }
     }
 
+    public function test_backend_pagination_summary_uses_lf_translations(): void
+    {
+        app()->setLocale('vi');
+        $this->assertSame(
+            'Hiển thị 1–10 / 86 bản ghi',
+            __('pagination.showing_results', ['from' => 1, 'to' => 10, 'total' => 86])
+        );
+
+        app()->setLocale('en');
+        $this->assertSame(
+            'Showing 1–10 of 86 records',
+            __('pagination.showing_results', ['from' => 1, 'to' => 10, 'total' => 86])
+        );
+
+        $paginationView = file_get_contents(
+            base_path('resources/views/vendor/pagination/tailwind.blade.php')
+        );
+
+        $this->assertStringContainsString('pagination.showing_results', $paginationView);
+        $this->assertStringNotContainsString("{!! __('Showing') !!}", $paginationView);
+        $this->assertStringNotContainsString("{!! __('to') !!}", $paginationView);
+        $this->assertStringNotContainsString("{!! __('of') !!}", $paginationView);
+        $this->assertStringNotContainsString("{!! __('results') !!}", $paginationView);
+    }
+
     public function test_backend_adaptive_form_markup_prioritizes_left_column(): void
     {
         $templateForm = file_get_contents(
