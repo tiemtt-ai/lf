@@ -141,7 +141,9 @@
                           :value="__('lf.LF_course_template_common_publisher_name')"
                           :required="$isRequired('publisher_name')" />
             <input id="publisher_name" type="text" name="publisher_name" class="lf-form-control"
-                   value="{{ old('publisher_name', $formTemplate?->publisher_name) }}" maxlength="255">
+                   value="{{ old('publisher_name', $formTemplate?->publisher_name) }}"
+                   maxlength="255"
+                   required>
         </div>
 
         <div class="lf-form-group">
@@ -166,8 +168,7 @@
                           :required="$isRequired('estimated_duration_minutes')" />
             <input id="estimated_duration_minutes" type="number" min="0"
                    name="estimated_duration_minutes" class="lf-form-control"
-                   value="{{ old('estimated_duration_minutes', $formTemplate?->estimated_duration_minutes ?? 0) }}"
-                   required>
+                   value="{{ old('estimated_duration_minutes', $formTemplate?->estimated_duration_minutes ?? 0) }}">
         </div>
 
         <div class="lf-form-group">

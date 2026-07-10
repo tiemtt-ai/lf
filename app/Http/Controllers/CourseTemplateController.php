@@ -470,7 +470,11 @@ class CourseTemplateController extends Controller
             }
         });
 
-        return $validator->validate();
+        $validated = $validator->validate();
+        $validated['cover_type'] ??= 'image';
+        $validated['estimated_duration_minutes'] ??= 0;
+
+        return $validated;
     }
 
     private function validationRules(int $customerId, ?int $templateId = null): array
@@ -493,8 +497,8 @@ class CourseTemplateController extends Controller
             ],
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['nullable', 'string'],
-            'publisher_name' => ['nullable', 'string', 'max:255'],
-            'cover_type' => ['required', Rule::in(['image', 'video'])],
+            'publisher_name' => ['required', 'string', 'max:255'],
+            'cover_type' => ['nullable', Rule::in(['image', 'video'])],
             'cover_image_media_file_id' => [
                 'nullable',
                 'integer',
@@ -518,11 +522,7 @@ class CourseTemplateController extends Controller
                 'nullable',
                 Rule::in(['beginner', 'intermediate', 'advanced']),
             ],
-            'estimated_duration_minutes' => [
-                'required',
-                'integer',
-                'min:0',
-            ],
+            'estimated_duration_minutes' => ['nullable', 'integer', 'min:0'],
             'max_lessons' => ['nullable', 'integer', 'min:0'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],

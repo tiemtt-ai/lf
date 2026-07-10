@@ -1647,7 +1647,7 @@ class CourseMediaIntegrationTest extends TestCase
             'slug' => 'programming-basics',
             'short_description' => null,
             'description' => null,
-            'publisher_name' => null,
+            'publisher_name' => 'LearnForge',
             'cover_type' => 'image',
             'cover_image_file' => UploadedFile::fake()->image(
                 'template-cover.png',

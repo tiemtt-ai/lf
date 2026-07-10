@@ -173,7 +173,7 @@ class CourseTemplateManagementTest extends TestCase
         foreach ($responses as $response) {
             foreach ([
                 'title',
-                'estimated_duration_minutes',
+                'publisher_name',
                 'status',
             ] as $field) {
                 $this->assertSame(
@@ -187,13 +187,13 @@ class CourseTemplateManagementTest extends TestCase
                 'category_id',
                 'short_description',
                 'description',
-                'publisher_name',
                 'cover_type',
                 'cover_image_file',
                 'intro_video_file',
                 'cover_image_media_file_id',
                 'intro_video_media_file_id',
                 'difficulty_level',
+                'estimated_duration_minutes',
                 'max_lessons',
             ] as $field) {
                 $this->assertSame(
@@ -241,6 +241,37 @@ class CourseTemplateManagementTest extends TestCase
                 'LF_course_template'
             );
         }
+    }
+
+    public function test_admin_can_create_template_with_only_required_fields(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/course-templates', [
+                'title' => 'Minimal Template',
+                'publisher_name' => 'LearnForge',
+                'status' => 'draft',
+            ])
+            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+
+        $this->assertDatabaseHas('core_course_templates', [
+            'customer_id' => $customerId,
+            'title' => 'Minimal Template',
+            'slug' => 'minimal-template',
+            'publisher_name' => 'LearnForge',
+            'category_id' => null,
+            'cover_type' => 'image',
+            'cover_image_media_file_id' => null,
+            'intro_video_media_file_id' => null,
+            'short_description' => null,
+            'description' => null,
+            'difficulty_level' => null,
+            'estimated_duration_minutes' => 0,
+            'max_lessons' => null,
+            'status' => 'draft',
+        ]);
     }
 
     public function test_admin_can_create_an_independent_draft_template(): void
@@ -410,6 +441,7 @@ class CourseTemplateManagementTest extends TestCase
             ->post('https://tenant-a.localhost/admin/course-templates', [
                 'category_id' => $otherCategoryId,
                 'title' => '',
+                'publisher_name' => '',
                 'cover_type' => 'document',
                 'estimated_duration_minutes' => -1,
                 'status' => 'inactive',
@@ -418,6 +450,7 @@ class CourseTemplateManagementTest extends TestCase
             ->assertSessionHasErrors([
                 'category_id',
                 'title',
+                'publisher_name',
                 'cover_type',
                 'estimated_duration_minutes',
                 'status',
@@ -655,7 +688,7 @@ class CourseTemplateManagementTest extends TestCase
             'title' => 'Programming Basics',
             'short_description' => null,
             'description' => null,
-            'publisher_name' => null,
+            'publisher_name' => 'LearnForge',
             'cover_type' => 'image',
             'cover_image_file' => UploadedFile::fake()->image(
                 'template-cover.png',
