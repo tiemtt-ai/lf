@@ -751,7 +751,7 @@ return [
     'LF_course_template_lesson_common_direct_title' => 'Direct Lessons',
     'LF_course_template_lesson_common_count' => '{0} No lessons|{1} :count lesson|[2,*] :count lessons',
     'LF_course_template_lesson_common_add_action' => '+ Add Lesson',
-    'LF_course_template_lesson_common_attach_action' => 'Attach Lesson',
+    'LF_course_template_lesson_common_attach_action' => '+ Attach Lesson',
     'LF_course_template_lesson_common_create' => 'Add Lesson',
     'LF_course_template_lesson_common_edit' => 'Edit',
     'LF_course_template_lesson_common_location' => 'Content location',

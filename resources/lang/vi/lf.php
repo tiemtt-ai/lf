@@ -751,7 +751,7 @@ return [
     'LF_course_template_lesson_common_direct_title' => 'Bài học trực tiếp',
     'LF_course_template_lesson_common_count' => '{0} Chưa có bài học|[1,*] :count bài học',
     'LF_course_template_lesson_common_add_action' => '+ Thêm bài học',
-    'LF_course_template_lesson_common_attach_action' => 'Gắn bài học',
+    'LF_course_template_lesson_common_attach_action' => '+ Gắn bài học',
     'LF_course_template_lesson_common_create' => 'Thêm bài học',
     'LF_course_template_lesson_common_edit' => 'Sửa',
     'LF_course_template_lesson_common_location' => 'Vị trí nội dung',

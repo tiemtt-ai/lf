@@ -8,31 +8,9 @@
          data-section-id="{{ $currentSection->id }}"
          data-section-depth="{{ $depth }}">
     <header class="course-template-outline-section-header">
-        <div>
-            <p class="course-template-outline-section-meta">
-                {{ __('lf.LF_course_template_section_common_level', [
-                    'level' => $depth + 1,
-                ]) }}
-            </p>
-            <h3 class="course-template-outline-section-title">
-                {{ $currentSection->title }}
-            </h3>
-            <div class="course-template-outline-section-meta">
-                <span>
-                    {{ __('lf.LF_course_template_section_common_sort_order') }}:
-                    {{ $currentSection->display_order }}
-                </span>
-                @if ($currentSection->allows_lessons)
-                    <span>
-                        {{ trans_choice(
-                            'lf.LF_course_template_lesson_common_count',
-                            $sectionLessons->count(),
-                            ['count' => $sectionLessons->count()]
-                        ) }}
-                    </span>
-                @endif
-            </div>
-        </div>
+        <h3 class="course-template-outline-section-title">
+            {{ $currentSection->title }}
+        </h3>
         <div class="admin-table-actions">
             <a class="admin-text-action" href="{{ route($sectionRoutePrefix.'.create', $template->id) }}?parent_section_id={{ $currentSection->id }}">
                 {{ __('lf.LF_course_template_section_common_add_child_action') }}
@@ -41,7 +19,7 @@
                 $sectionRoutePrefix.'.edit',
                 [$template->id, $currentSection->id]
             ) }}">
-                {{ __('lf.LF_course_template_section_common_edit') }}
+                {{ __('lf.LF_common_button_edit') }}
             </a>
             <button type="button"
                     class="admin-link-button admin-text-action"

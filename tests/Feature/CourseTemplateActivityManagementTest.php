@@ -52,15 +52,60 @@ class CourseTemplateActivityManagementTest extends TestCase
             [$admin, 'admin'],
             [$teacher, 'teacher'],
         ] as [$user, $area]) {
-            $this->actingAs($user)
+            $response = $this->actingAs($user)
                 ->get(
                     "https://tenant-a.localhost/{$area}/course-templates/"
                     ."{$templateId}/edit"
                 )
                 ->assertOk()
+                ->assertSeeText('Bài học (1)')
+                ->assertSeeText('+ Gắn bài học')
+                ->assertSeeText('Hoạt động (1)')
                 ->assertSeeText('+ Thêm hoạt động')
                 ->assertSeeText('Alphabet Text')
                 ->assertDontSeeText('Private Tenant Activity');
+
+            $xpath = $this->xpath($response->getContent());
+            $sectionLesson = $xpath->query(
+                '//article[contains(concat(" ", normalize-space(@class), " "), " course-template-outline-section ")]'
+                .'//article[contains(concat(" ", normalize-space(@class), " "), " course-template-lesson-item ")]'
+            )->item(0);
+
+            $this->assertNotNull($sectionLesson);
+            $this->assertSame(
+                ['Sửa', 'Xóa'],
+                array_map(
+                    static fn (\DOMNode $node): string => trim($node->textContent),
+                    iterator_to_array($xpath->query(
+                        './div[contains(concat(" ", normalize-space(@class), " "), " course-template-lesson-summary ")]'
+                        .'//div[contains(concat(" ", normalize-space(@class), " "), " admin-table-actions ")]/*',
+                        $sectionLesson
+                    ))
+                )
+            );
+
+            $activityActions = $xpath->query(
+                './/div[contains(concat(" ", normalize-space(@class), " "), " course-template-activity-item ")]'
+                .'//div[contains(concat(" ", normalize-space(@class), " "), " admin-table-actions ")]/*',
+                $sectionLesson
+            );
+            $this->assertSame(
+                ['Xem', 'Sửa', 'Xóa'],
+                array_map(
+                    static fn (\DOMNode $node): string => trim($node->textContent),
+                    iterator_to_array($activityActions)
+                )
+            );
+
+            foreach ($xpath->query(
+                './/*[self::a or self::button][contains(concat(" ", normalize-space(@class), " "), " admin-text-action ")]',
+                $sectionLesson->parentNode
+            ) as $action) {
+                $this->assertStringContainsString(
+                    'admin-text-action',
+                    $action->getAttribute('class')
+                );
+            }
         }
     }
 

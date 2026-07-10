@@ -9,22 +9,15 @@
          class="course-template-lesson-panel"
          aria-labelledby="{{ $panelId }}-title">
     <div class="course-template-lesson-toolbar">
-        <div>
-            <h4 id="{{ $panelId }}-title">{{ $panelTitle }}</h4>
-            <span>
-                {{ trans_choice(
-                    'lf.LF_course_template_lesson_common_count',
-                    $lessons->count(),
-                    ['count' => $lessons->count()]
-                ) }}
-            </span>
-        </div>
+        <h4 id="{{ $panelId }}-title">
+            {{ $panelTitle }} ({{ $lessons->count() }})
+        </h4>
         @if (! $section || $section->allows_lessons)
             <a href="{{ route(
                 $lessonRoutePrefix.'.create',
                 $lessonBaseParameters
             ) }}"
-               class="btn btn-primary">
+               class="admin-text-action">
                 {{ __($section
                     ? 'lf.LF_course_template_lesson_common_attach_action'
                     : 'lf.LF_course_template_lesson_common_add_action') }}
@@ -82,7 +75,7 @@
                             $activityRoutePrefix.'.create',
                             $lessonParameters
                         ) }}"
-                           class="btn btn-primary">
+                           class="admin-text-action">
                             {{ __('lf.LF_course_template_activity_common_add_action') }}
                         </a>
                     </div>

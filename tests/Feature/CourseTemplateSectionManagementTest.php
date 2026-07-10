@@ -202,6 +202,107 @@ class CourseTemplateSectionManagementTest extends TestCase
             ->assertSeeText('+ Thêm phần học con');
     }
 
+    public function test_admin_and_teacher_render_compact_section_tree_rows_without_metadata(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Tree Layout Course',
+            'tree-layout-course',
+            $teacher->id
+        );
+        $parentId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Chương 1',
+            8
+        );
+        $childId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Nhóm 1',
+            12,
+            $parentId
+        );
+        DB::table('core_course_template_sections')
+            ->whereIn('id', [$parentId, $childId])
+            ->update(['description' => 'Section metadata must remain hidden.']);
+
+        foreach ([[$admin, 'admin'], [$teacher, 'teacher']] as [$user, $area]) {
+            $response = $this->actingAs($user)
+                ->get(
+                    "https://tenant-a.localhost/{$area}/course-templates/"
+                    ."{$templateId}/edit?tab=structure"
+                )
+                ->assertOk()
+                ->assertSeeText('Chương 1')
+                ->assertSeeText('Nhóm 1')
+                ->assertDontSeeText('Section metadata must remain hidden.');
+
+            $xpath = $this->xpath($response->getContent());
+            $parent = $xpath->query("//article[@data-section-id='{$parentId}']")->item(0);
+            $child = $xpath->query("//article[@data-section-id='{$childId}']")->item(0);
+
+            $this->assertNotNull($parent);
+            $this->assertNotNull($child);
+            $this->assertSame('0', $parent->getAttribute('data-section-depth'));
+            $this->assertSame('1', $child->getAttribute('data-section-depth'));
+            $this->assertFalse($parent->hasAttribute('class') && str_contains(
+                $parent->getAttribute('class'),
+                'admin-card'
+            ));
+            $this->assertSame(
+                1,
+                $xpath->query(
+                    './div[contains(concat(" ", normalize-space(@class), " "), " course-template-outline-children ")]'
+                    ."/article[@data-section-id='{$childId}']",
+                    $parent
+                )->length
+            );
+
+            foreach ([$parent, $child] as $sectionNode) {
+                $header = $xpath->query('./header', $sectionNode)->item(0);
+                $this->assertNotNull($header);
+                $this->assertSame(
+                    0,
+                    $xpath->query(
+                        './/*[contains(concat(" ", normalize-space(@class), " "), " course-template-outline-section-meta ")]',
+                        $header
+                    )->length
+                );
+                $this->assertSame(
+                    ['+ Thêm phần học con', 'Sửa', 'Xóa'],
+                    array_map(
+                        static fn (\DOMNode $node): string => trim($node->textContent),
+                        iterator_to_array($xpath->query(
+                            './/div[contains(concat(" ", normalize-space(@class), " "), " admin-table-actions ")]/*',
+                            $header
+                        ))
+                    )
+                );
+                $this->assertSame(
+                    3,
+                    $xpath->query(
+                        './/*[self::a or self::button][contains(concat(" ", normalize-space(@class), " "), " admin-text-action ")]',
+                        $header
+                    )->length
+                );
+            }
+        }
+
+        $css = file_get_contents(base_path('resources/css/admin/admin-pages.css'));
+        $this->assertStringContainsString(
+            '.course-template-outline-children::before',
+            $css
+        );
+        $this->assertStringContainsString(
+            '.course-template-outline-children > .course-template-outline-section::before',
+            $css
+        );
+    }
+
     public function test_lesson_block_follows_allows_lessons_without_hiding_children(): void
     {
         $customerId = $this->createTenant();
@@ -572,7 +673,7 @@ class CourseTemplateSectionManagementTest extends TestCase
             ->assertOk()
             ->assertSeeText('+ Thêm phần học')
             ->assertSeeText('Phần học')
-            ->assertSeeText('Sửa phần học')
+            ->assertSeeText('Sửa')
             ->assertSeeText('Xóa')
             ->assertSeeText('Bạn có chắc chắn muốn xóa phần học này không?')
             ->assertSeeText('Có, xóa')
