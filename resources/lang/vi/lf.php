@@ -697,7 +697,7 @@ return [
     'LF_course_template_section_common_structure_title' => 'Cấu trúc khóa học',
     'LF_course_template_section_common_structure_help' => 'Thêm bài học trực tiếp hoặc tổ chức bài học trong các phần học tùy chọn.',
     'LF_course_template_structure_tabs_label' => 'Cách hiển thị cấu trúc khóa học',
-    'LF_course_template_structure_tab_direct' => 'Danh sách bài học',
+    'LF_course_template_structure_tab_direct' => 'Bài học trực tiếp',
     'LF_course_template_structure_tab_sections' => 'Theo phần học',
     'LF_course_template_mode_mixed_note' => 'Khóa học này đang sử dụng cả bài học trực tiếp và phần học.',
     'LF_course_template_mode_mixed_help' => 'Sử dụng các tab trên để quản lý từng loại nội dung.',

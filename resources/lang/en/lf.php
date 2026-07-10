@@ -697,7 +697,7 @@ return [
     'LF_course_template_section_common_structure_title' => 'Course Structure',
     'LF_course_template_section_common_structure_help' => 'Add lessons directly or organize them into optional sections.',
     'LF_course_template_structure_tabs_label' => 'Course structure views',
-    'LF_course_template_structure_tab_direct' => 'Lesson list',
+    'LF_course_template_structure_tab_direct' => 'Direct Lessons',
     'LF_course_template_structure_tab_sections' => 'By section',
     'LF_course_template_mode_mixed_note' => 'This course uses both direct lessons and sections.',
     'LF_course_template_mode_mixed_help' => 'Use the tabs above to manage each content type.',
