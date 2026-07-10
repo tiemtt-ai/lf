@@ -1,10 +1,27 @@
-# core_course_template_sections
+# Table: core_course_template_sections
 
-## Purpose
+Version: 2.0
 
-Lưu working Section (Module / Chapter / Unit) của Course Template draft.
+Status: Approved
 
-Section là lớp nhóm Lesson tùy chọn:
+Last Updated: 2026-07-10
+
+Related ADR:
+[ADR-0001 — Course Foundation](../../adr/ADR-0001-Course-Foundation.md)
+
+[ADR-0012 — Course Template Published Version Snapshot Architecture](../../adr/ADR-0012-Course-Template-Published-Version-Snapshot.md)
+
+[ADR-0013 — Course Template Version Duplicate to Draft](../../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md)
+
+---
+
+# Purpose
+
+Stores an optional, editable Lesson container for a Course Template draft.
+
+A Course Template may be flat, with Lessons directly under the Template, or
+sectioned, with Lessons grouped by simple Sections. A Section exists only to
+group Lessons and provide a title, optional description and display order.
 
 ```text
 Course Template
@@ -15,75 +32,65 @@ Course Template
         └── Template Activity
 ```
 
-Giúp tổ chức khóa học thành các nhóm nội dung lớn, dễ quản lý, dễ học và dễ mở rộng.
+Section is not a content unit, completion rule, media owner, unlock rule,
+status lifecycle or nested hierarchy.
 
 ---
 
-## Relationships
+# Relationships
 
 ```text
-saas_customers
-
-1
-
-↓
-
-N
-
-core_course_template_sections
-```
-
-```text
-core_course_templates
-
-1
-
-↓
-
-N
-
-core_course_template_sections
-```
-
-```text
-core_course_template_sections
-
-1
-
-↓
-
-N
-
-core_course_template_lessons
+saas_customers 1 → N core_course_template_sections
+core_course_templates 1 → N core_course_template_sections
+core_course_template_sections 1 → N core_course_template_lessons
 ```
 
 ---
 
-## Business Rules
+# Business Rules
 
-* Mọi Section phải thuộc một `customer_id`.
-* Mọi Section phải thuộc một Template.
-* Template Section phải có cùng `customer_id` với Course Template.
-* Không được query Template Section ngoài tenant hiện hành.
-* Một Template có thể có nhiều Section.
-* Section dùng để nhóm Lesson.
-* Lesson có thể không thuộc Section hoặc thuộc tối đa một Section.
-* Nếu Lesson thuộc Section, Lesson và Section phải cùng Template và `customer_id`.
-* Không tạo hidden/default Section và không tự động tạo `Section 1`.
-* Thứ tự hiển thị được quản lý bằng sort_order.
-* Có thể ẩn hoặc hiển thị từng Section.
-* Có thể khóa Section cho đến khi học viên hoàn thành Section trước.
-* Không chứa Activity trực tiếp.
-* Không chứa Media trực tiếp.
-* Activity luôn nằm trong Lesson.
-* Khi publish Template, Section được snapshot sang `core_course_template_version_sections`.
-* Student/Progress không tham chiếu working Template Section.
+* Every Section belongs to one `customer_id`.
+* Every Section belongs to one Course Template.
+* Section `customer_id` must match the owning Course Template.
+* Section queries must always be tenant-scoped.
+* A Course Template may have zero or more Sections.
+* A Section is optional and only groups Lessons.
+* A Lesson may belong directly to the Template or to one Section.
+* If a Lesson belongs to a Section, the Lesson, Section and Template must share
+  the same `customer_id` and `template_id`.
+* Flat Courses create no hidden/default Section and no automatic `Section 1`.
+* Sections are not nested.
+* Sections do not contain Activities directly.
+* Sections do not contain Media directly.
+* Sections do not define status, visibility, required/completion rules, unlock
+  rules, duration, metadata or cached Lesson counts.
+* Section display order is managed by `display_order`.
+* Publishing snapshots supported Section business fields into
+  `core_course_template_version_sections`.
+* Students and Progress never reference working Template Sections.
 
 ---
 
-## Fields
+# Final Field Set
 
-### id
+```text
+id
+customer_id
+template_id
+title
+description
+display_order
+created_at
+updated_at
+```
+
+Do not add replacement fields for removed Section concepts.
+
+---
+
+# Fields
+
+## id
 
 ```text
 BIGINT UNSIGNED
@@ -91,39 +98,37 @@ PRIMARY KEY
 AUTO_INCREMENT
 ```
 
-Khóa chính.
+Section identity.
 
 ---
 
-### customer_id
+## customer_id
 
 ```text
 BIGINT UNSIGNED
 NOT NULL
 ```
 
-Tenant sở hữu Template Section.
+Tenant owner.
 
-Liên kết:
+Foreign key:
 
 ```text
 saas_customers.id
 ```
 
-Giá trị phải khớp với `customer_id` của Course Template.
-
 ---
 
-### template_id
+## template_id
 
 ```text
 BIGINT UNSIGNED
 NOT NULL
 ```
 
-Template sở hữu Section.
+Owning Course Template.
 
-Liên kết:
+Foreign key:
 
 ```text
 core_course_templates.id
@@ -131,120 +136,29 @@ core_course_templates.id
 
 ---
 
-### parent_section_id
-
-```text
-BIGINT UNSIGNED
-NULL
-```
-
-Cho phép Section lồng nhau.
-
-Ví dụ:
-
-```text
-Module 1
-
-└─ Unit 1
-└─ Unit 2
-```
-
-V1 có thể để NULL toàn bộ.
-
-Chuẩn bị cho mở rộng tương lai.
-
----
-
-### code
-
-```text
-VARCHAR(100)
-NULL
-```
-
-Mã nội bộ.
-
-Ví dụ:
-
-```text
-M01
-
-CH01
-
-UNIT01
-```
-
----
-
-### title
+## title
 
 ```text
 VARCHAR(255)
 NOT NULL
 ```
 
-Tên Section.
-
-Ví dụ:
-
-```text
-Introduction
-
-Basic Grammar
-
-Listening Practice
-```
+Section title shown to authors and learners after publish.
 
 ---
 
-### short_title
-
-```text
-VARCHAR(100)
-NULL
-```
-
-Tên rút gọn.
-
-Ví dụ:
-
-```text
-Grammar
-
-Speaking
-```
-
----
-
-### description
+## description
 
 ```text
 TEXT
 NULL
 ```
 
-Mô tả Section.
+Optional Section description.
 
 ---
 
-### thumbnail_file_id
-
-```text
-BIGINT UNSIGNED
-NULL
-```
-
-Ảnh đại diện Section.
-
-Liên kết:
-
-```text
-media_files.id
-```
-
----
-
-### sort_order
+## display_order
 
 ```text
 INT UNSIGNED
@@ -252,152 +166,11 @@ NOT NULL
 DEFAULT 1
 ```
 
-Thứ tự hiển thị.
-
-Ví dụ:
-
-```text
-1
-2
-3
-4
-```
+Display order inside the owning Template.
 
 ---
 
-### is_required
-
-```text
-TINYINT(1)
-NOT NULL
-DEFAULT 1
-```
-
-Section có bắt buộc hoàn thành hay không.
-
-```text
-1 = Required
-
-0 = Optional
-```
-
----
-
-### unlock_rule
-
-```text
-VARCHAR(50)
-NOT NULL
-DEFAULT 'immediate'
-```
-
-Quy tắc mở khóa.
-
-Allowed values:
-
-```text
-immediate
-
-after_previous_section
-
-manual
-```
-
-Ví dụ:
-
-```text
-Section 2 chỉ mở khi hoàn thành Section 1
-```
-
----
-
-### estimated_duration_minutes
-
-```text
-INT UNSIGNED
-NULL
-```
-
-Tổng thời lượng ước tính.
-
-Ví dụ:
-
-```text
-120
-
-300
-
-600
-```
-
----
-
-### total_lessons
-
-```text
-INT UNSIGNED
-NOT NULL
-DEFAULT 0
-```
-
-Cache số lượng Lesson.
-
-Đây là read-model/cache field phục vụ hiển thị và reporting.
-
-Source of truth:
-
-```text
-COUNT(core_course_template_lessons.id)
-
-WHERE template_section_id = core_course_template_sections.id
-```
-
-Phải recalculation khi Template Lesson được thêm, chuyển Section, archive hoặc xóa.
-
-Không dùng field này thay cho truy vấn/audit chi tiết khi cần số liệu chính xác lịch sử.
-
----
-
-### status
-
-```text
-VARCHAR(50)
-NOT NULL
-DEFAULT 'active'
-```
-
-Allowed values:
-
-```text
-active
-
-inactive
-
-archived
-```
-
----
-
-### metadata
-
-```text
-JSON NULL
-```
-
-Thông tin mở rộng.
-
-Ví dụ:
-
-```json
-{
-  "color": "#0EA5E9",
-  "icon": "book-open"
-}
-```
-
----
-
-### created_at
+## created_at
 
 ```text
 TIMESTAMP NULL
@@ -405,7 +178,7 @@ TIMESTAMP NULL
 
 ---
 
-### updated_at
+## updated_at
 
 ```text
 TIMESTAMP NULL
@@ -413,146 +186,115 @@ TIMESTAMP NULL
 
 ---
 
-## Indexes
+# Removed Fields
 
-```sql
-INDEX idx_template_sections_customer
-(customer_id);
+The simplified Section foundation removes these previously documented concepts:
+
+```text
+parent_section_id
+code
+short_title
+thumbnail_file_id
+sort_order
+is_required
+unlock_rule
+estimated_duration_minutes
+total_lessons
+status
+metadata
 ```
 
-```sql
-INDEX idx_template_sections_template
-(customer_id, template_id);
-```
+These fields must not be replaced by new equivalent fields in the Section
+foundation.
+
+---
+
+# Indexes
 
 ```sql
-INDEX idx_template_sections_parent
-(customer_id, parent_section_id);
-```
-
-```sql
-INDEX idx_template_sections_sort
-(customer_id, template_id, parent_section_id, sort_order);
-```
-
-```sql
-INDEX idx_template_sections_status
-(customer_id, template_id, status);
+INDEX idx_ccts_customer (customer_id);
+INDEX idx_ccts_template (customer_id, template_id);
+INDEX idx_ccts_display_order (customer_id, template_id, display_order);
 ```
 
 ---
 
-## Unique Constraints
+# Unique Constraints
 
-```sql
-UNIQUE uniq_template_section_code
-(customer_id, template_id, code);
-```
+No unique business constraint is required for Section titles or display order
+in the foundation.
 
-```sql
-UNIQUE uniq_template_section_sort
-(customer_id, template_id, parent_section_id, sort_order);
-```
-
-Với root Section có `parent_section_id = NULL`, application/service layer phải
-bảo đảm `sort_order` không trùng vì MySQL cho phép nhiều giá trị NULL trong
-unique index.
+Application logic may order by `display_order`, then `id`, to keep rendering
+stable when two Sections share the same display order.
 
 ---
 
-## Sample Data
+# Delete And Reference Rules
 
-### Section 1
+* `customer_id`: foreign key with `RESTRICT`.
+* `template_id`: foreign key with `RESTRICT`.
+* A Section referenced by working Lessons must not be deleted unless those
+  Lessons are moved or deleted first.
+* Working Section changes never cascade into published Version Section rows.
+
+---
+
+# Tenant Isolation
+
+Every query includes:
+
+```text
+customer_id = TenantContext::customerId()
+```
+
+Section lookup, creation, update and deletion must verify that the parent
+Template belongs to the same tenant.
+
+---
+
+# Sample Data
 
 ```text
 id = 1
-
 customer_id = 1
-
 template_id = 1
-
-code = M01
-
 title = Hangul Fundamentals
-
-sort_order = 1
-
-is_required = 1
-
-unlock_rule = immediate
-
-estimated_duration_minutes = 240
-
-total_lessons = 8
-
-status = active
+description = Introductory lessons for Hangul basics.
+display_order = 1
 ```
-
----
-
-### Section 2
 
 ```text
 id = 2
-
 customer_id = 1
-
 template_id = 1
-
-code = M02
-
 title = Basic Grammar
-
-sort_order = 2
-
-is_required = 1
-
-unlock_rule = after_previous_section
-
-estimated_duration_minutes = 360
-
-total_lessons = 12
-
-status = active
+description = NULL
+display_order = 2
 ```
 
 ---
 
-## Sample Structure
+# Sample Structure
 
 ```text
 TOPIK Beginner
-
-├─ Section 1: Hangul Fundamentals
-│
-├─ Lesson 1
-├─ Lesson 2
-├─ Lesson 3
-│
-└─ Lesson 8
-
-├─ Section 2: Basic Grammar
-│
-├─ Lesson 9
-├─ Lesson 10
-├─ Lesson 11
-│
-└─ Lesson 20
+├── Lesson: Course Orientation
+├── Section: Hangul Fundamentals
+│   ├── Lesson: Vowels
+│   └── Lesson: Consonants
+└── Section: Basic Grammar
+    └── Lesson: Sentence Order
 ```
 
 ---
 
-## Final Statement
+# Final Statement
 
-Section là lớp tổ chức nội dung tùy chọn của Template.
+Course Template Section is a simple optional Lesson container.
 
-```text
-Course Template
-├── Template Lesson
-│   └── Template Activity
-└── Template Section
-    └── Template Lesson
-        └── Template Activity
-```
+It exists only to group Lessons in an editable Course Template and to preserve
+that grouping when a Course Template Version is published.
 
-Giúp khóa học có cấu trúc rõ ràng, dễ quản lý, dễ học và sẵn sàng mở rộng cho các chương trình đào tạo lớn trong tương lai.
+---
+
+End of Document

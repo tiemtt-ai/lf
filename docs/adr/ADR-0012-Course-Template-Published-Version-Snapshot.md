@@ -1,10 +1,12 @@
 # ADR-0012 — Course Template Published Version Snapshot Architecture
 
-Version: 1.0
+Version: 1.1
 
 Status: Approved
 
 Decision Date: 2026-07-03
+
+Scope Amendment Date: 2026-07-10
 
 Extends:
 [ADR-0001 — Course Foundation](ADR-0001-Course-Foundation.md)
@@ -49,10 +51,24 @@ Template Version
         └── Version Activity
 ```
 
-The snapshot copies the Course information and every Section, Lesson and
-Activity required to reproduce the published structure. Direct Lessons remain
-direct; Sectioned Lessons map to their corresponding Version Section. Source
-IDs are retained only for lineage and reporting.
+The snapshot copies the Course information and every supported Section, Lesson
+and Activity field required to reproduce the published structure. Direct
+Lessons remain direct; Sectioned Lessons map to their corresponding simple
+Version Section. Source IDs are retained only for lineage and reporting.
+
+Course Template Sections are now simple optional Lesson containers. A Section
+has no hierarchy, status, visibility, completion rule, unlock rule, media,
+duration, metadata or cached Lesson-count semantics. Version Section snapshots
+therefore preserve only supported Section business fields:
+
+```text
+title_snapshot
+description_snapshot
+display_order
+```
+
+plus the required technical identity, tenant, Version, lineage and audit
+fields documented in `core_course_template_version_sections`.
 
 `version_number` starts at `1` for each Template and increments by one. The new
 published Version becomes current, and the previous current Version is unset in
@@ -68,7 +84,7 @@ records inside the transaction. A successful committed Version is
    — published Version identity, Template information snapshot, publication
    attribution, lifecycle and current designation.
 2. `core_course_template_version_sections`
-   — immutable Section hierarchy and ordering.
+   — immutable simple Section grouping and display order.
 3. `core_course_template_version_lessons`
    — immutable direct or Sectioned Lesson structure.
 4. `core_course_template_version_activities`
@@ -85,8 +101,8 @@ Canonical field definitions, constraints and delete rules are in:
 
 * Working authoring rows are intentionally mutable.
 * Published learning must remain reproducible after later edits.
-* Section/Lesson/Activity ordering and unlock relationships must be preserved as
-  one coherent historical graph.
+* Section/Lesson/Activity grouping and ordering must be preserved as one
+  coherent historical graph.
 * Future Product, Enrollment, Progress, Certificate, Tracking and AI consumers
   require a stable published identity.
 * Copying only the Template ID would make historical behavior depend on mutable
@@ -137,10 +153,10 @@ A publish operation must:
 2. Lock the tenant-owned Template and its Version sequence.
 3. Allocate `MAX(version_number) + 1`, or `1` when none exists.
 4. Create the Version envelope.
-5. Copy Sections and map parent Sections.
+5. Copy Sections as simple Lesson containers.
 6. Copy Lessons, preserving direct/Sectioned location and mapping prerequisites.
 7. Copy Activities and map Activity prerequisites.
-8. Validate tenant ownership, counts, ordering and references.
+8. Validate tenant ownership, ordering and references.
 9. Unset the previous current Version and mark the new Version current.
 10. Finalize `status = published`, `published_at` and publication audit fields.
 11. Commit all records together.
@@ -158,6 +174,9 @@ relationships. Published child records use `RESTRICT` references to their
 Version parents. No working-record delete or edit may cascade into published
 history.
 
+Version Section rows do not include a parent-section reference because Section
+hierarchy is no longer part of the Course Template Section foundation.
+
 # Consequences
 
 ## Positive
@@ -171,7 +190,7 @@ history.
 ## Costs And Trade-offs
 
 * Publication duplicates Course definition data by design.
-* Publish requires transactional mapping of hierarchy and prerequisites.
+* Publish requires transactional mapping of Section grouping and prerequisites.
 * Storage grows with each Version.
 * `is_current` is a service-enforced single-current invariant because a simple
   boolean unique key would incorrectly limit non-current Versions.
@@ -216,7 +235,9 @@ Approved
 
 Database Documentation Ready
 
-No Code Or Migration Authorized By This ADR Alone
+Section Snapshot Scope Simplified
+
+Implementation Requires Separate Migration And Code Task
 ```
 
 ---

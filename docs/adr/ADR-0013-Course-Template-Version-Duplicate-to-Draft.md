@@ -1,10 +1,12 @@
 # ADR-0013 — Course Template Version Duplicate to Draft
 
-Version: 1.0
+Version: 1.1
 
 Status: Approved
 
 Decision Date: 2026-07-03
+
+Scope Amendment Date: 2026-07-10
 
 Extends:
 
@@ -34,6 +36,10 @@ also violate the Course Foundation source-of-truth model.
 ADR-0012 intentionally deferred duplicate behavior. This ADR approves the
 specific operation that copies one immutable Version back into the sole
 editable draft of the same Template.
+
+The 2026-07-10 scope amendment simplifies Course Template Sections to simple
+optional Lesson containers. Duplicate-to-draft must reconstruct only the
+supported Section fields documented in `core_course_template_sections`.
 
 # Decision
 
@@ -174,9 +180,9 @@ so no new field is introduced.
 
 ## Media
 
-Copy nullable Template or Section Media identifiers only when the referenced
-asset still exists under an approved same-tenant or shared-asset contract.
-Otherwise set the nullable identifier to `NULL`.
+Copy nullable Template Media identifiers only when the referenced asset still
+exists under an approved same-tenant or shared-asset contract. Otherwise set
+the nullable identifier to `NULL`.
 
 Snapshot text values such as image locations, video source and video URL are
 copied where the editable schema supports them. The immutable Version retains
@@ -206,7 +212,7 @@ primary keys.
 
 Reconstruction must:
 
-* preserve root and child Section order and hierarchy;
+* preserve simple Section display order;
 * preserve direct Lessons with `template_section_id = NULL`;
 * preserve Sectioned Lessons through a Version Section → new Template Section
   map;
@@ -214,10 +220,9 @@ Reconstruction must:
 * preserve Activities and their order within each Lesson;
 * remap Lesson prerequisites to newly created Template Lesson IDs;
 * remap Activity prerequisites to newly created Template Activity IDs;
-* preserve documented editable content, status, completion, preview, duration
-  and unlock fields;
-* recalculate or copy documented aggregate fields consistently with the
-  reconstructed graph.
+* preserve documented editable Template, Section, Lesson and Activity fields;
+* recreate Sections only with `title`, nullable `description` and
+  `display_order`.
 
 # Transaction And Concurrency Boundary
 
@@ -232,7 +237,7 @@ The implementation must:
 4. Preflight required constraints and reference fallback.
 5. Delete existing working Activities, Lessons and Sections.
 6. Update the existing Template snapshot-mapped fields and draft metadata.
-7. Recreate Sections and map parent relationships.
+7. Recreate Sections as simple Lesson containers.
 8. Recreate direct and Sectioned Lessons and map prerequisites.
 9. Recreate Activities and map prerequisites.
 10. Record the append-only tenant audit event.
@@ -261,8 +266,7 @@ occurred_at
 ```
 
 The event is audit context, not Course business state. It must not contain
-snapshot content or sensitive payloads. This decision requires no Course
-schema change.
+snapshot content or sensitive payloads.
 
 # Confirmation And Result
 
@@ -308,7 +312,8 @@ All Version and working-table queries and writes are tenant-scoped.
 * The one-draft source-of-truth model remains intact.
 * Direct and Sectioned Course structures use the same reconstruction workflow.
 * No Product or learner state is affected.
-* No Course schema migration is required.
+* Section schema simplification is authorized by the amended documentation and
+  must be implemented separately with new migrations only.
 
 ## Costs And Risks
 
@@ -353,9 +358,9 @@ Approved
 
 Documentation Frozen
 
-Implementation Authorized
+Implementation Authorized After Documentation Update
 
-No Course Schema Change Required
+Section Schema Simplification Authorized By New Migration Only
 ```
 
 ---
