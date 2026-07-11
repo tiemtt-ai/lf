@@ -873,6 +873,17 @@
     border: 1px solid #dbe3ed;
     border-radius: 8px;
     background: #ffffff;
+    transition: background-color .15s ease;
+}
+
+.course-template-lesson-item:focus-within {
+    background: color-mix(in srgb, var(--admin-primary) 5%, #ffffff);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .course-template-lesson-item:hover {
+        background: color-mix(in srgb, var(--admin-primary) 5%, #ffffff);
+    }
 }
 
 .course-template-activity-panel {
