@@ -445,7 +445,6 @@ class CourseTemplateVersionDuplicatingService
                     ? $sectionMap[$lesson->version_section_id]
                     : null,
                 'title' => $lesson->title_snapshot,
-                'slug' => $lesson->slug_snapshot,
                 'short_description' => $lesson
                     ->short_description_snapshot,
                 'description' => $lesson->description_snapshot,

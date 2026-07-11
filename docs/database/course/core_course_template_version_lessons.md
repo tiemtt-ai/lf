@@ -53,7 +53,6 @@ core_course_template_lessons 1 → N version_lessons (logical lineage)
 | `version_section_id` | BIGINT UNSIGNED | nullable | Optional containing Version Section. |
 | `source_template_lesson_id` | BIGINT UNSIGNED | required | Logical lineage to the working Lesson copied by publish. |
 | `title_snapshot` | VARCHAR(255) | required | Snapshot Lesson title. |
-| `slug_snapshot` | VARCHAR(255) | nullable | Snapshot Lesson slug. |
 | `short_description_snapshot` | VARCHAR(500) | nullable | Snapshot short description. |
 | `description_snapshot` | TEXT | nullable | Snapshot detailed description. |
 | `sort_order` | INT | required, default 0 | Published order within the direct or Section group. |
@@ -117,7 +116,6 @@ template_version_id = 30
 version_section_id = 101
 source_template_lesson_id = 15
 title_snapshot = Korean Alphabet
-slug_snapshot = korean-alphabet
 sort_order = 1
 is_preview = 1
 duration_seconds = 1800

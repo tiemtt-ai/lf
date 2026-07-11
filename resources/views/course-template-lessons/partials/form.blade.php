@@ -1,6 +1,5 @@
 @php
     $formLesson = $lesson ?? null;
-    $generatedSlug = \Illuminate\Support\Str::slug((string) old('title', $formLesson?->title));
     $selectedPreview = (string) old('is_preview', $formLesson?->is_preview ?? 0);
     $selectedUnlockRule = old('unlock_rule', $formLesson?->unlock_rule ?? 'none');
     $selectedPrerequisiteId = old('unlock_after_lesson_id', $formLesson?->unlock_after_lesson_id);
@@ -10,22 +9,16 @@
 
 <div class="course-template-lesson-form"
      x-data="{
-        slug: @js($generatedSlug),
         unlockRule: @js($selectedUnlockRule),
-        slugify(value) { return value.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); },
         changeRule(value) {
             this.unlockRule = value;
             if (value !== 'previous_lesson_completed') this.$refs.prerequisite.value = '';
             if (value !== 'date_based') this.$refs.unlockAt.value = '';
         }
      }">
-    <div class="lf-form-group">
+    <div class="lf-form-group course-template-lesson-form-wide">
         <x-form-label for="title" :value="__('lf.LF_course_template_lesson_common_name')" :required="true" />
-        <input id="title" type="text" name="title" class="lf-form-control" value="{{ old('title', $formLesson?->title) }}" required maxlength="255" @input="slug = slugify($event.target.value)">
-    </div>
-    <div class="lf-form-group">
-        <x-form-label for="slug" :value="__('lf.LF_course_template_lesson_common_slug')" />
-        <input id="slug" type="text" name="slug" class="lf-form-control" readonly x-model="slug">
+        <input id="title" type="text" name="title" class="lf-form-control" value="{{ old('title', $formLesson?->title) }}" required maxlength="255">
     </div>
     <div class="lf-form-group course-template-lesson-form-wide">
         <x-form-label for="short_description" :value="__('lf.LF_course_template_lesson_common_short_description')" />

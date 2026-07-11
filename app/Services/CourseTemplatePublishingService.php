@@ -269,7 +269,6 @@ class CourseTemplatePublishingService
                     : null,
                 'source_template_lesson_id' => $lesson->id,
                 'title_snapshot' => $lesson->title,
-                'slug_snapshot' => $lesson->slug,
                 'short_description_snapshot' => $lesson->short_description,
                 'description_snapshot' => $lesson->description,
                 'sort_order' => $lesson->sort_order,

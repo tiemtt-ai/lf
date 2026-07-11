@@ -118,12 +118,6 @@ VARCHAR(255)
 
 Tên bài học.
 
-### slug
-
-VARCHAR(255) NULL
-
-Slug bài học.
-
 ### short_description
 
 VARCHAR(500) NULL
@@ -244,15 +238,11 @@ TIMESTAMP
 
 (customer_id, template_section_id, sort_order)
 
-(customer_id, slug)
-
 (customer_id, created_by)
 
 ---
 
 # Unique Constraints
-
-UNIQUE(customer_id, template_id, slug)
 
 ---
 
@@ -267,8 +257,6 @@ template_id = 10
 template_section_id = 2
 
 title = Lesson 1 - Korean Alphabet
-
-slug = lesson-1-korean-alphabet
 
 sort_order = 1
 

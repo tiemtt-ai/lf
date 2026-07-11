@@ -1231,7 +1231,6 @@ class CourseTemplateActivityManagementTest extends TestCase
             'template_id' => $templateId,
             'template_section_id' => $sectionId,
             'title' => $title,
-            'slug' => strtolower(str_replace(' ', '-', $title)).'-'.uniqid(),
             'short_description' => null,
             'description' => null,
             'sort_order' => 0,

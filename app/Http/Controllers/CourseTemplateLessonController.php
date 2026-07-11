@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
@@ -454,7 +453,6 @@ class CourseTemplateLessonController extends Controller
     {
         $fields = [
             'title',
-            'slug',
             'short_description',
             'description',
             'sort_order',
@@ -469,7 +467,6 @@ class CourseTemplateLessonController extends Controller
             array_flip($fields)
         );
 
-        $input['slug'] = Str::slug((string) ($input['title'] ?? ''));
         if (($input['unlock_rule'] ?? null) !== 'previous_lesson_completed') {
             unset($input['unlock_after_lesson_id']);
         }
@@ -488,16 +485,6 @@ class CourseTemplateLessonController extends Controller
     ): array {
         return [
             'title' => ['required', 'string', 'max:255'],
-            'slug' => [
-                'nullable',
-                'string',
-                'max:255',
-                Rule::unique('core_course_template_lessons', 'slug')
-                    ->where(fn ($query) => $query
-                        ->where('customer_id', $customerId)
-                        ->where('template_id', $templateId))
-                    ->ignore($lessonId),
-            ],
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['nullable', 'string'],
             'sort_order' => [
@@ -551,7 +538,6 @@ class CourseTemplateLessonController extends Controller
     {
         return array_merge([
             'title' => $validated['title'],
-            'slug' => Str::slug($validated['title']),
             'short_description' => $validated['short_description'] ?? null,
             'description' => $validated['description'] ?? null,
             'sort_order' => $validated['sort_order'],

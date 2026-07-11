@@ -1410,7 +1410,6 @@ class CourseTemplatePublishingTest extends TestCase
             'template_id' => $templateId,
             'template_section_id' => $sectionId,
             'title' => $title,
-            'slug' => str($title)->slug()->toString(),
             'short_description' => 'Lesson summary.',
             'description' => 'Lesson description.',
             'sort_order' => $sortOrder,

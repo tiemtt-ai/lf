@@ -567,7 +567,6 @@ class CourseActivityProgressRuntimeTest extends TestCase
             'version_section_id' => null,
             'source_template_lesson_id' => random_int(100000, 999999),
             'title_snapshot' => 'Lesson 1',
-            'slug_snapshot' => 'lesson-1-'.uniqid(),
             'short_description_snapshot' => null,
             'description_snapshot' => null,
             'sort_order' => 1,

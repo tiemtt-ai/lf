@@ -125,7 +125,6 @@ class CourseTemplateLessonManagementTest extends TestCase
             'template_id' => $templateId,
             'template_section_id' => $sectionId,
             'title' => 'Korean Alphabet',
-            'slug' => 'korean-alphabet',
             'short_description' => 'Learn the alphabet',
             'description' => 'Detailed lesson description',
             'sort_order' => 2,
@@ -917,7 +916,6 @@ class CourseTemplateLessonManagementTest extends TestCase
         }
 
         foreach ([
-            'slug',
             'short_description',
             'description',
             'unlock_after_lesson_id',
@@ -972,7 +970,6 @@ class CourseTemplateLessonManagementTest extends TestCase
         foreach ($responses as $response) {
             foreach ([
                 'title',
-                'slug',
                 'short_description',
                 'description',
                 'sort_order',
@@ -1034,8 +1031,10 @@ class CourseTemplateLessonManagementTest extends TestCase
     {
         $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_lessons', 'learning_objective'));
         $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_lessons', 'status'));
+        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_lessons', 'slug'));
         $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_version_lessons', 'learning_objective_snapshot'));
         $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_version_lessons', 'status_snapshot'));
+        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_version_lessons', 'slug_snapshot'));
 
         $this->assertFileDoesNotExist(
             app_path('Models/CoreCourseTemplateLesson.php')
@@ -1149,7 +1148,6 @@ class CourseTemplateLessonManagementTest extends TestCase
             'template_id' => $templateId,
             'template_section_id' => $sectionId,
             'title' => $title,
-            'slug' => strtolower(str_replace(' ', '-', $title)).'-'.uniqid(),
             'short_description' => null,
             'description' => null,
             'sort_order' => 0,
@@ -1171,7 +1169,6 @@ class CourseTemplateLessonManagementTest extends TestCase
     {
         return array_merge([
             'title' => 'Lesson Introduction',
-            'slug' => null,
             'short_description' => null,
             'description' => null,
             'sort_order' => 0,

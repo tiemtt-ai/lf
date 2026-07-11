@@ -760,7 +760,6 @@ return [
     'LF_course_template_lesson_common_location' => 'Vị trí nội dung',
     'LF_course_template_lesson_common_direct_location' => 'Trực tiếp trong Template khóa học',
     'LF_course_template_lesson_common_name' => 'Tên bài học',
-    'LF_course_template_lesson_common_slug' => 'Slug',
     'LF_course_template_lesson_common_short_description' => 'Mô tả ngắn',
     'LF_course_template_lesson_common_description' => 'Mô tả chi tiết',
     'LF_course_template_lesson_common_sort_order' => 'Thứ tự hiển thị',

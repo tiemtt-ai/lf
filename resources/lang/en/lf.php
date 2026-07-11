@@ -760,7 +760,6 @@ return [
     'LF_course_template_lesson_common_location' => 'Content location',
     'LF_course_template_lesson_common_direct_location' => 'Directly in Course Template',
     'LF_course_template_lesson_common_name' => 'Lesson name',
-    'LF_course_template_lesson_common_slug' => 'Slug',
     'LF_course_template_lesson_common_short_description' => 'Short description',
     'LF_course_template_lesson_common_description' => 'Description',
     'LF_course_template_lesson_common_sort_order' => 'Display order',
