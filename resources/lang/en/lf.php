@@ -828,6 +828,7 @@ return [
     'LF_course_template_activity_common_completion_watch_percent' => 'Watch percentage',
     'LF_course_template_activity_common_completion_submit' => 'Submit',
     'LF_course_template_activity_common_completion_pass' => 'Pass',
+    'LF_course_template_activity_common_completion_join' => 'Join class',
     'LF_course_template_activity_common_completion_attend' => 'Attend',
     'LF_course_template_activity_common_completion_manual' => 'Manual',
     'LF_course_template_activity_common_completion_threshold' => 'Completion threshold',

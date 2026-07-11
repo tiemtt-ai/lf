@@ -65,7 +65,7 @@ Media / Assessment / LiveClass → version_activities (approved immutable refere
 | `assessment_quiz_id_snapshot` | BIGINT UNSIGNED | nullable | Frozen tenant-owned Assessment Quiz identifier. |
 | `duration_seconds` | INT UNSIGNED | required, default 0 | Published Activity duration. |
 | `is_required` | TINYINT(1) | required, default 1 | Published completion requirement. |
-| `completion_rule` | VARCHAR(50) | required, default `view` | `view`, `watch_percent`, `submit`, `pass`, `attend`, or `manual`. |
+| `completion_rule` | VARCHAR(50) | required, default `view` | Type-compatible value: `view`, `watch_percent`, `submit`, `pass`, `join`, or `manual`. |
 | `completion_threshold` | INT UNSIGNED | nullable | Frozen threshold, such as watch percentage or pass percentage. |
 | `is_preview` | TINYINT(1) | required, default 0 | Published preview permission. |
 | `unlock_rule_snapshot` | VARCHAR(50) | required, default `none` | `none`, `previous_activity_completed`, or `date_based`. |

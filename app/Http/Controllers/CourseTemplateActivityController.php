@@ -710,7 +710,7 @@ class CourseTemplateActivityController extends Controller
                     'video', 'audio' => ['view', 'watch_percent', 'manual'],
                     'document', 'embedded_video' => ['view', 'manual'],
                     'quiz' => ['submit', 'pass', 'manual'],
-                    'live_class' => ['manual'],
+                    'live_class' => ['join', 'manual'],
                     default => [],
                 }),
             ],

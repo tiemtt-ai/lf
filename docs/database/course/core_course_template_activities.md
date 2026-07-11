@@ -220,7 +220,10 @@ Giá trị:
 * watch_percent
 * submit
 * pass
+* join
 * manual
+
+`join` chỉ áp dụng cho `live_class`; `live_class` cũng hỗ trợ `manual`.
 
 ### completion_threshold
 
