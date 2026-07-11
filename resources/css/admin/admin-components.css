@@ -157,14 +157,27 @@
 }
 
 .course-template-lesson-form {
+    width: 100%;
+    min-width: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 0 24px;
 }
 
 .course-template-lesson-form-card {
     width: 100%;
     max-width: none;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.course-template-lesson-form-card > form {
+    width: 100%;
+    min-width: 0;
+}
+
+.course-template-lesson-context {
+    margin: 0 0 24px;
 }
 
 .course-template-lesson-form-wide {
@@ -173,6 +186,20 @@
 
 .course-template-lesson-form-card .admin-form-actions {
     margin-top: 6px;
+}
+
+@media (min-width: 901px) {
+    :root.is-backend-sidebar-collapsed .backend-shell .course-template-lesson-form,
+    .backend-shell.is-sidebar-collapsed .course-template-lesson-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    :root.is-backend-sidebar-collapsed .backend-shell .course-template-lesson-form,
+    .backend-shell.is-sidebar-collapsed .course-template-lesson-form {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 .backend-form-column {

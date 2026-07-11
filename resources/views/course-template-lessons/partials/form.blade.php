@@ -54,7 +54,7 @@
             @endforeach
         </select>
     </div>
-    <div class="lf-form-group" x-show="unlockRule === 'previous_lesson_completed'" x-cloak>
+    <div class="lf-form-group course-template-lesson-form-wide" x-show="unlockRule === 'previous_lesson_completed'" x-cloak>
         <x-form-label for="unlock_after_lesson_id" :value="__('lf.LF_course_template_lesson_common_unlock_after_lesson')" />
         <select id="unlock_after_lesson_id" name="unlock_after_lesson_id" class="lf-form-control" x-ref="prerequisite">
             <option value="">{{ __('lf.LF_course_template_lesson_common_no_prerequisite') }}</option>
@@ -63,7 +63,7 @@
             @endforeach
         </select>
     </div>
-    <div class="lf-form-group" x-show="unlockRule === 'date_based'" x-cloak>
+    <div class="lf-form-group course-template-lesson-form-wide" x-show="unlockRule === 'date_based'" x-cloak>
         <x-form-label for="unlock_at" :value="__('lf.LF_course_template_lesson_common_unlock_at')" />
         <input id="unlock_at" type="datetime-local" name="unlock_at" class="lf-form-control" value="{{ $unlockAt }}" x-ref="unlockAt">
     </div>
