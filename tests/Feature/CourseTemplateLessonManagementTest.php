@@ -238,6 +238,76 @@ class CourseTemplateLessonManagementTest extends TestCase
         }
     }
 
+    public function test_lesson_order_is_automatic_and_scoped_by_location(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Scoped Lesson Order',
+            'scoped-lesson-order'
+        );
+        $firstSectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'First Section'
+        );
+        $secondSectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Second Section'
+        );
+        DB::table('core_course_template_lessons')
+            ->where('id', $this->createLesson(
+                $customerId,
+                $templateId,
+                null,
+                'Direct Gap'
+            ))
+            ->update(['sort_order' => 6]);
+        DB::table('core_course_template_lessons')
+            ->where('id', $this->createLesson(
+                $customerId,
+                $templateId,
+                $firstSectionId,
+                'Section Gap'
+            ))
+            ->update(['sort_order' => 9]);
+
+        $directData = $this->validLessonData(['title' => 'Automatic Direct']);
+        unset($directData['sort_order']);
+        $this->actingAs($admin)->post(
+            $this->directLessonCollectionUrl('admin', $templateId),
+            $directData
+        )->assertSessionDoesntHaveErrors();
+
+        foreach ([
+            [$firstSectionId, 'Automatic First Section', 10],
+            [$secondSectionId, 'Automatic Second Section', 1],
+        ] as [$sectionId, $title, $expectedOrder]) {
+            $data = $this->validLessonData(['title' => $title]);
+            unset($data['sort_order']);
+            $this->actingAs($admin)->post(
+                $this->lessonCollectionUrl('admin', $templateId, $sectionId),
+                $data
+            )->assertSessionDoesntHaveErrors();
+
+            $this->assertDatabaseHas('core_course_template_lessons', [
+                'template_id' => $templateId,
+                'template_section_id' => $sectionId,
+                'title' => $title,
+                'sort_order' => $expectedOrder,
+            ]);
+        }
+
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'template_id' => $templateId,
+            'template_section_id' => null,
+            'title' => 'Automatic Direct',
+            'sort_order' => 7,
+        ]);
+    }
+
     public function test_section_that_disallows_lessons_hides_action_and_rejects_attachment(): void
     {
         $customerId = $this->createTenant();
@@ -801,7 +871,6 @@ class CourseTemplateLessonManagementTest extends TestCase
 
         foreach ([
             'title',
-            'sort_order',
             'is_preview',
             'unlock_rule',
             'status',
@@ -819,6 +888,7 @@ class CourseTemplateLessonManagementTest extends TestCase
             'learning_objective',
             'unlock_after_lesson_id',
             'unlock_at',
+            'sort_order',
         ] as $field) {
             $this->assertSame(
                 0,

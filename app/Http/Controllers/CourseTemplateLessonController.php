@@ -221,6 +221,11 @@ class CourseTemplateLessonController extends Controller
                 ]);
             }
 
+            $validated['sort_order'] ??= $this->nextSortOrder(
+                $customerId,
+                $templateId,
+                $sectionId
+            );
             $now = now();
 
             $lessonId = DB::table('core_course_template_lessons')->insertGetId(
@@ -496,7 +501,11 @@ class CourseTemplateLessonController extends Controller
             ],
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['nullable', 'string'],
-            'sort_order' => ['required', 'integer', 'min:0'],
+            'sort_order' => [
+                $lessonId === null ? 'nullable' : 'required',
+                'integer',
+                'min:0',
+            ],
             'is_preview' => ['required', 'boolean'],
             'learning_objective' => ['nullable', 'string'],
             'unlock_rule' => [
@@ -589,8 +598,27 @@ class CourseTemplateLessonController extends Controller
             )
             ->orderBy('template_section_id')
             ->orderBy('sort_order')
-            ->orderBy('title')
+            ->orderBy('id')
             ->get();
+    }
+
+    private function nextSortOrder(
+        int $customerId,
+        int $templateId,
+        ?int $sectionId
+    ): int {
+        return (int) DB::table('core_course_template_lessons')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->when(
+                $sectionId === null,
+                fn ($query) => $query->whereNull('template_section_id'),
+                fn ($query) => $query->where(
+                    'template_section_id',
+                    $sectionId
+                )
+            )
+            ->max('sort_order') + 1;
     }
 
     private function dependencyWouldCycle(

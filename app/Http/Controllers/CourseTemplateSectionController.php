@@ -47,16 +47,35 @@ class CourseTemplateSectionController extends Controller
             $customerId,
             $templateId
         );
-        $now = now();
+        DB::transaction(function () use (
+            $validated,
+            $customerId,
+            $templateId
+        ): void {
+            $template = DB::table('core_course_templates')
+                ->where('customer_id', $customerId)
+                ->where('id', $templateId)
+                ->lockForUpdate()
+                ->first();
 
-        DB::table('core_course_template_sections')->insert(
-            $this->sectionValues($validated, [
-                'customer_id' => $customerId,
-                'template_id' => $templateId,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ])
-        );
+            abort_if(! $template, 404);
+
+            $validated['display_order'] ??= $this->nextDisplayOrder(
+                $customerId,
+                $templateId,
+                $validated['parent_section_id'] ?? null
+            );
+            $now = now();
+
+            DB::table('core_course_template_sections')->insert(
+                $this->sectionValues($validated, [
+                    'customer_id' => $customerId,
+                    'template_id' => $templateId,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ])
+            );
+        });
 
         return redirect()
             ->to(
@@ -248,7 +267,7 @@ class CourseTemplateSectionController extends Controller
             'description' => ['nullable', 'string'],
             'allows_lessons' => ['required', 'boolean'],
             'display_order' => [
-                'required',
+                $sectionId === null ? 'nullable' : 'required',
                 'integer',
                 'min:0',
             ],
@@ -291,10 +310,29 @@ class CourseTemplateSectionController extends Controller
             )
             ->orderBy('parent_section_id')
             ->orderBy('display_order')
-            ->orderBy('title')
+            ->orderBy('id')
             ->get();
 
         return collect($this->flattenSections($sections));
+    }
+
+    private function nextDisplayOrder(
+        int $customerId,
+        int $templateId,
+        ?int $parentSectionId
+    ): int {
+        return (int) DB::table('core_course_template_sections')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->when(
+                $parentSectionId === null,
+                fn ($query) => $query->whereNull('parent_section_id'),
+                fn ($query) => $query->where(
+                    'parent_section_id',
+                    $parentSectionId
+                )
+            )
+            ->max('display_order') + 1;
     }
 
     private function flattenSections($sections, ?int $parentId = null, int $depth = 0): array

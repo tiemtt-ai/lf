@@ -38,19 +38,6 @@ class CourseTemplatePublishingService
             $lessons = $this->sourceLessons($customerId, $templateId);
             $activities = $this->sourceActivities($customerId, $templateId);
 
-            $this->assertUniqueOrder(
-                $lessons,
-                fn (object $lesson): string => (string) (
-                    $lesson->template_section_id ?? 'direct'
-                )
-            );
-            $this->assertUniqueOrder(
-                $activities,
-                fn (object $activity): string => (string) (
-                    $activity->template_lesson_id
-                )
-            );
-
             $versionNumber = (int) DB::table(
                 'core_course_template_versions'
             )
@@ -398,28 +385,6 @@ class CourseTemplatePublishingService
                     ],
                     'updated_at' => $now,
                 ]);
-        }
-    }
-
-    private function assertUniqueOrder(
-        Collection $records,
-        callable $groupKey
-    ): void {
-        $seen = [];
-
-        foreach ($records as $record) {
-            $order = $record->display_order ?? $record->sort_order;
-            $key = $groupKey($record).':'.$order;
-
-            if (isset($seen[$key])) {
-                throw ValidationException::withMessages([
-                    'publish' => __(
-                        'lf.LF_course_template_publish_invalid_order'
-                    ),
-                ]);
-            }
-
-            $seen[$key] = true;
         }
     }
 

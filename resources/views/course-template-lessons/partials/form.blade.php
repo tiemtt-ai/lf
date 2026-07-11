@@ -138,7 +138,8 @@
                       :required="$isRequired('sort_order')" />
         <input id="sort_order" type="number" min="0" name="sort_order"
                class="lf-form-control"
-               value="{{ old('sort_order', $formLesson?->sort_order ?? 0) }}" required>
+               value="{{ old('sort_order', $formLesson?->sort_order) }}"
+               @required($isRequired('sort_order'))>
     </div>
 
     <div class="lf-form-group">

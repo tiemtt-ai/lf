@@ -621,7 +621,7 @@ class CourseTemplateController extends Controller
             ->whereNotNull('template_section_id')
             ->orderBy('template_section_id')
             ->orderBy('sort_order')
-            ->orderBy('title')
+            ->orderBy('id')
             ->get()
             ->groupBy('template_section_id');
     }
@@ -633,7 +633,7 @@ class CourseTemplateController extends Controller
             ->where('template_id', $templateId)
             ->whereNull('template_section_id')
             ->orderBy('sort_order')
-            ->orderBy('title')
+            ->orderBy('id')
             ->get();
     }
 
@@ -644,7 +644,7 @@ class CourseTemplateController extends Controller
             ->where('template_id', $templateId)
             ->orderBy('template_lesson_id')
             ->orderBy('sort_order')
-            ->orderBy('title')
+            ->orderBy('id')
             ->get()
             ->map(function (object $activity): object {
                 $activity->view_kind = 'readonly';

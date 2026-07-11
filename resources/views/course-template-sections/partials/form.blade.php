@@ -68,7 +68,7 @@
                       :required="$isRequired('display_order')" />
         <input id="display_order" type="number" min="0" name="display_order"
                class="lf-form-control"
-               value="{{ old('display_order', $formSection?->display_order ?? 1) }}"
-               required>
+               value="{{ old('display_order', $formSection?->display_order) }}"
+               @required($isRequired('display_order'))>
     </div>
 </section>

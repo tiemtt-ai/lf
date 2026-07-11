@@ -442,6 +442,50 @@ class CourseTemplateActivityManagementTest extends TestCase
         $this->assertDatabaseCount('core_course_template_sections', 0);
     }
 
+    public function test_activity_order_is_automatic_and_scoped_by_lesson(): void
+    {
+        [$customerId, $templateId, $sectionId, $firstLessonId] =
+            $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $secondLessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'Second Scoped Lesson'
+        );
+        $this->createActivity(
+            $customerId,
+            $templateId,
+            $firstLessonId,
+            'Activity Gap',
+            8
+        );
+
+        foreach ([
+            [$firstLessonId, 'Automatic First Activity', 9],
+            [$secondLessonId, 'Automatic Second Activity', 1],
+        ] as [$lessonId, $title, $expectedOrder]) {
+            $data = $this->validActivityData(['title' => $title]);
+            unset($data['sort_order']);
+            $this->actingAs($admin)->post(
+                $this->activityCollectionUrl(
+                    'admin',
+                    $templateId,
+                    $sectionId,
+                    $lessonId
+                ),
+                $data
+            )->assertSessionDoesntHaveErrors();
+
+            $this->assertDatabaseHas('core_course_template_activities', [
+                'template_id' => $templateId,
+                'template_lesson_id' => $lessonId,
+                'title' => $title,
+                'sort_order' => $expectedOrder,
+            ]);
+        }
+    }
+
     public function test_flat_and_sectioned_activity_routes_enforce_lesson_location(): void
     {
         [$customerId, $templateId, $sectionId, $sectionedLessonId] =
@@ -886,7 +930,6 @@ class CourseTemplateActivityManagementTest extends TestCase
 
         foreach ([
             'title',
-            'sort_order',
             'activity_type',
             'is_required',
             'completion_rule',
@@ -899,6 +942,14 @@ class CourseTemplateActivityManagementTest extends TestCase
                 $this->requiredIndicatorCount($response->getContent(), $field)
             );
         }
+
+        $this->assertSame(
+            0,
+            $this->requiredIndicatorCount(
+                $response->getContent(),
+                'sort_order'
+            )
+        );
     }
 
     public function test_template_edit_shows_the_correct_add_activity_action_for_each_lesson(): void

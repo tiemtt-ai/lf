@@ -218,6 +218,103 @@ class CourseTemplateSectionManagementTest extends TestCase
             ->assertSeeText('+ Thêm phần học con');
     }
 
+    public function test_section_order_is_automatic_per_sibling_scope_and_duplicates_remain_valid(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $emptyTemplateId = $this->createTemplate(
+            $customerId,
+            'Empty Section Scope',
+            'empty-section-scope'
+        );
+        $firstData = $this->validSectionData(['title' => 'First Automatic']);
+        unset($firstData['display_order']);
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-templates/{$emptyTemplateId}/sections",
+            $firstData
+        )->assertSessionDoesntHaveErrors();
+        $this->assertDatabaseHas('core_course_template_sections', [
+            'template_id' => $emptyTemplateId,
+            'title' => 'First Automatic',
+            'display_order' => 1,
+        ]);
+
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Ordered Sections',
+            'ordered-sections'
+        );
+        $parentId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Parent',
+            7
+        );
+        $this->createSection($customerId, $templateId, 'Root Gap', 10);
+        $this->createSection(
+            $customerId,
+            $templateId,
+            'Child Gap',
+            4,
+            $parentId
+        );
+
+        $rootData = $this->validSectionData([
+            'title' => 'Automatic Root',
+        ]);
+        unset($rootData['display_order']);
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections",
+            $rootData
+        )->assertSessionDoesntHaveErrors();
+
+        $childData = $this->validSectionData([
+            'title' => 'Automatic Child',
+            'parent_section_id' => $parentId,
+        ]);
+        unset($childData['display_order']);
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections",
+            $childData
+        )->assertSessionDoesntHaveErrors();
+
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections",
+            $this->validSectionData([
+                'title' => 'Duplicate Root',
+                'display_order' => 7,
+            ])
+        )->assertSessionDoesntHaveErrors();
+
+        $this->assertDatabaseHas('core_course_template_sections', [
+            'template_id' => $templateId,
+            'title' => 'Automatic Root',
+            'display_order' => 11,
+        ]);
+        $this->assertDatabaseHas('core_course_template_sections', [
+            'template_id' => $templateId,
+            'parent_section_id' => $parentId,
+            'title' => 'Automatic Child',
+            'display_order' => 5,
+        ]);
+        $this->assertDatabaseHas('core_course_template_sections', [
+            'template_id' => $templateId,
+            'title' => 'Duplicate Root',
+            'display_order' => 7,
+        ]);
+
+        $orderedIds = DB::table('core_course_template_sections')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->whereNull('parent_section_id')
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->pluck('id')
+            ->all();
+
+        $this->assertSame($parentId, $orderedIds[0]);
+    }
+
     public function test_admin_and_teacher_render_compact_section_tree_rows_without_metadata(): void
     {
         $customerId = $this->createTenant();
@@ -429,7 +526,7 @@ class CourseTemplateSectionManagementTest extends TestCase
         ]);
     }
 
-    public function test_section_validation_only_requires_title_and_display_order(): void
+    public function test_section_validation_allows_automatic_display_order(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -450,10 +547,10 @@ class CourseTemplateSectionManagementTest extends TestCase
             ->assertSessionHasErrors([
                 'title',
                 'allows_lessons',
-                'display_order',
             ])
             ->assertSessionDoesntHaveErrors([
                 'description',
+                'display_order',
             ]);
 
         $this->assertDatabaseCount('core_course_template_sections', 0);
@@ -702,14 +799,14 @@ class CourseTemplateSectionManagementTest extends TestCase
             )
             ->assertOk();
 
-        foreach (['title', 'allows_lessons', 'display_order'] as $field) {
+        foreach (['title', 'allows_lessons'] as $field) {
             $this->assertSame(
                 1,
                 $this->requiredIndicatorCount($response->getContent(), $field)
             );
         }
 
-        foreach (['parent_section_id', 'description'] as $field) {
+        foreach (['parent_section_id', 'description', 'display_order'] as $field) {
             $this->assertSame(
                 0,
                 $this->requiredIndicatorCount($response->getContent(), $field)

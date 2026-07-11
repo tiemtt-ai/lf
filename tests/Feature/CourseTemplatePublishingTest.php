@@ -307,6 +307,78 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertSeeText('Hiện tại');
     }
 
+    public function test_publish_allows_documented_duplicate_content_order_values(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser(
+            $customerId,
+            'customer_admin',
+            'Duplicate Order Admin'
+        );
+        $templateId = $this->createTemplate(
+            $customerId,
+            $admin->id,
+            'Duplicate Order Course'
+        );
+        $firstSectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'First Section',
+            1
+        );
+        $this->createSection(
+            $customerId,
+            $templateId,
+            'Second Section',
+            1
+        );
+        $firstLessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $firstSectionId,
+            'First Lesson',
+            1,
+            $admin->id
+        );
+        $this->createLesson(
+            $customerId,
+            $templateId,
+            $firstSectionId,
+            'Second Lesson',
+            1,
+            $admin->id
+        );
+        $this->createActivity(
+            $customerId,
+            $templateId,
+            $firstLessonId,
+            'First Activity',
+            1,
+            $admin->id
+        );
+        $this->createActivity(
+            $customerId,
+            $templateId,
+            $firstLessonId,
+            'Second Activity',
+            1,
+            $admin->id
+        );
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish"
+            )
+            ->assertSessionDoesntHaveErrors()
+            ->assertSessionHas('success', 'Đã xuất bản phiên bản 1.');
+
+        $this->assertDatabaseHas('core_course_template_versions', [
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'status' => 'published',
+        ]);
+    }
+
     public function test_template_version_code_sequence_is_tenant_scoped(): void
     {
         $customerA = $this->createTenant();

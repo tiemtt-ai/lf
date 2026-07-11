@@ -305,18 +305,40 @@ class CourseTemplateActivityController extends Controller
             $customerId,
             $templateId
         );
-        $now = now();
+        $activityId = DB::transaction(function () use (
+            $request,
+            $validated,
+            $customerId,
+            $templateId,
+            $lessonId
+        ): int {
+            $lesson = DB::table('core_course_template_lessons')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->where('id', $lessonId)
+                ->lockForUpdate()
+                ->first();
 
-        $activityId = DB::table('core_course_template_activities')->insertGetId(
-            $this->activityValues($validated, [
+            abort_if(! $lesson, 404);
+
+            $validated['sort_order'] ??= $this->nextSortOrder(
+                $customerId,
+                $templateId,
+                $lessonId
+            );
+            $now = now();
+
+            return DB::table(
+                'core_course_template_activities'
+            )->insertGetId($this->activityValues($validated, [
                 'customer_id' => $customerId,
                 'template_id' => $templateId,
                 'template_lesson_id' => $lessonId,
                 'created_by' => $request->user()?->id,
                 'created_at' => $now,
                 'updated_at' => $now,
-            ])
-        );
+            ]));
+        });
 
         $this->attachUploadedMedia($request, $activityId);
 
@@ -630,7 +652,11 @@ class CourseTemplateActivityController extends Controller
         return [
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'sort_order' => ['required', 'integer', 'min:0'],
+            'sort_order' => [
+                $activityId === null ? 'nullable' : 'required',
+                'integer',
+                'min:0',
+            ],
             'activity_type' => [
                 'required',
                 Rule::in(self::ACTIVITY_TYPES),
@@ -794,8 +820,20 @@ class CourseTemplateActivityController extends Controller
             )
             ->orderBy('template_lesson_id')
             ->orderBy('sort_order')
-            ->orderBy('title')
+            ->orderBy('id')
             ->get();
+    }
+
+    private function nextSortOrder(
+        int $customerId,
+        int $templateId,
+        int $lessonId
+    ): int {
+        return (int) DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('template_lesson_id', $lessonId)
+            ->max('sort_order') + 1;
     }
 
     private function dependencyWouldCycle(
