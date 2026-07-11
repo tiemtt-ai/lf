@@ -1236,7 +1236,6 @@ class CourseTemplateActivityManagementTest extends TestCase
             'description' => null,
             'sort_order' => 0,
             'is_preview' => false,
-            'learning_objective' => null,
             'duration_seconds' => 0,
             'activity_count' => 0,
             'unlock_rule' => 'none',

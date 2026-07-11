@@ -80,7 +80,7 @@ class MediaLibraryManagementTest extends TestCase
         TenantContext::set((object) ['id' => $customerId]);
         $this->uploadManagedMedia($admin, 'Image Asset', 'image', 'image.png', 'course_category', 101, 'thumbnail');
         $this->uploadManagedMedia($admin, 'Video Asset', 'video', 'video.mp4', 'course_activity', 201, 'video');
-        $this->uploadManagedMedia($admin, 'Document Asset', 'document', 'document.pdf', 'course_lesson', 301, 'document');
+        $this->uploadManagedMedia($admin, 'Document Asset', 'document', 'document.pdf', 'course_activity', 301, 'document');
         $this->uploadManagedMedia($admin, 'Audio Asset', 'audio', 'audio.mp3', 'course_activity', 401, 'audio');
 
         $this->actingAs($admin)
@@ -291,7 +291,7 @@ class MediaLibraryManagementTest extends TestCase
         $this->actingAs($admin);
         TenantContext::set((object) ['id' => $customerId]);
         $this->uploadManagedMedia($admin, 'Category Thumbnail', 'image', 'category.png', 'course_category', $categoryId, 'thumbnail');
-        $this->uploadManagedMedia($admin, 'Lesson Document', 'document', 'lesson.pdf', 'course_lesson', 301, 'document');
+        $this->uploadManagedMedia($admin, 'Activity Document', 'document', 'activity.pdf', 'course_activity', 301, 'document');
 
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/media?owner_type=course_category')
@@ -303,7 +303,7 @@ class MediaLibraryManagementTest extends TestCase
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/media?usage_type=document')
             ->assertOk()
-            ->assertSeeText('Lesson Document')
+            ->assertSeeText('Activity Document')
             ->assertDontSeeText('Category Thumbnail');
     }
 

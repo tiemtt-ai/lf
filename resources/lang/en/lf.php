@@ -763,7 +763,6 @@ return [
     'LF_course_template_lesson_common_slug' => 'Slug',
     'LF_course_template_lesson_common_short_description' => 'Short description',
     'LF_course_template_lesson_common_description' => 'Description',
-    'LF_course_template_lesson_common_learning_objective' => 'Learning objective',
     'LF_course_template_lesson_common_sort_order' => 'Display order',
     'LF_course_template_lesson_common_order_value' => 'Order :order',
     'LF_course_template_lesson_common_preview' => 'Allow preview',

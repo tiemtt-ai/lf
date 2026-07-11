@@ -130,11 +130,9 @@ class CourseTemplateLessonManagementTest extends TestCase
             'description' => 'Detailed lesson description',
             'sort_order' => 2,
             'is_preview' => 1,
-            'learning_objective' => null,
             'duration_seconds' => 0,
             'activity_count' => 0,
             'unlock_rule' => 'none',
-            'status' => 'draft',
             'created_by' => $admin->id,
         ]);
     }
@@ -1034,6 +1032,11 @@ class CourseTemplateLessonManagementTest extends TestCase
 
     public function test_course_template_lesson_module_has_no_eloquent_models(): void
     {
+        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_lessons', 'learning_objective'));
+        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_lessons', 'status'));
+        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_version_lessons', 'learning_objective_snapshot'));
+        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_version_lessons', 'status_snapshot'));
+
         $this->assertFileDoesNotExist(
             app_path('Models/CoreCourseTemplateLesson.php')
         );
@@ -1151,7 +1154,6 @@ class CourseTemplateLessonManagementTest extends TestCase
             'description' => null,
             'sort_order' => 0,
             'is_preview' => false,
-            'learning_objective' => null,
             'duration_seconds' => 0,
             'activity_count' => 0,
             'unlock_rule' => $unlockAfterLessonId === null
@@ -1159,7 +1161,6 @@ class CourseTemplateLessonManagementTest extends TestCase
                 : 'previous_lesson_completed',
             'unlock_after_lesson_id' => $unlockAfterLessonId,
             'unlock_at' => null,
-            'status' => 'draft',
             'created_by' => null,
             'created_at' => now(),
             'updated_at' => now(),
@@ -1175,11 +1176,9 @@ class CourseTemplateLessonManagementTest extends TestCase
             'description' => null,
             'sort_order' => 0,
             'is_preview' => 0,
-            'learning_objective' => null,
             'unlock_rule' => 'none',
             'unlock_after_lesson_id' => null,
             'unlock_at' => null,
-            'status' => 'draft',
         ], $overrides);
     }
 

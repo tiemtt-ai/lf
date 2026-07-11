@@ -239,7 +239,6 @@ class CourseTemplateLessonController extends Controller
                     'template_section_id' => $sectionId,
                     'duration_seconds' => 0,
                     'activity_count' => 0,
-                    'status' => 'draft',
                     'created_by' => $request->user()?->id,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -597,6 +596,34 @@ class CourseTemplateLessonController extends Controller
             ->where('template_id', $templateId)
             ->get()->keyBy('id');
 
+        $sectionOrderKeys = [];
+        $children = $sections->groupBy(
+            fn (object $section): int => (int) ($section->parent_section_id ?? 0)
+        );
+        $walk = function (int $parentId, array $parentKey = []) use (
+            &$walk,
+            &$sectionOrderKeys,
+            $children
+        ): void {
+            $siblings = $children->get($parentId, collect())->sortBy(
+                fn (object $section): string => sprintf(
+                    '%010d:%020d',
+                    $section->display_order,
+                    $section->id
+                )
+            );
+            foreach ($siblings as $section) {
+                $key = [...$parentKey, sprintf(
+                    'S%010d:%020d',
+                    $section->display_order,
+                    $section->id
+                )];
+                $sectionOrderKeys[$section->id] = implode('/', $key);
+                $walk((int) $section->id, $key);
+            }
+        };
+        $walk(0);
+
         foreach ($lessons as $lesson) {
             $labels = [];
             $currentId = (int) $lesson->template_section_id;
@@ -609,9 +636,9 @@ class CourseTemplateLessonController extends Controller
             $lesson->option_label = implode(' › ', [...$labels, $lesson->title]);
         }
 
-        return $lessons->sortBy(function (object $lesson) use ($sections): string {
-            $section = $sections[$lesson->template_section_id];
-            return sprintf('%010d:%020d:%010d:%020d', $section->display_order, $section->id, $lesson->sort_order, $lesson->id);
+        return $lessons->sortBy(function (object $lesson) use ($sectionOrderKeys): string {
+            return ($sectionOrderKeys[$lesson->template_section_id] ?? '')
+                .sprintf('/L%010d:%020d', $lesson->sort_order, $lesson->id);
         })->values();
     }
 

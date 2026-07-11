@@ -165,7 +165,6 @@ class MediaFileController extends Controller
             'course_category' => ['core_course_categories', 'name'],
             'course_template' => ['core_course_templates', 'title'],
             'course_product' => ['core_course_products', 'title'],
-            'course_lesson' => ['core_course_template_lessons', 'title'],
             'course_activity' => ['core_course_template_activities', 'title'],
             'course_cohort' => ['core_course_cohorts', 'name'],
         ];

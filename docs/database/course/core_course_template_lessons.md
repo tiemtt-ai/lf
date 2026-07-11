@@ -73,8 +73,8 @@ core_course_template_activities
 * Product/Enrollment/Progress chỉ sử dụng Version Lesson.
 * Sửa working Template Lesson không ảnh hưởng Version Lesson đã publish.
 * Lesson là primary authoring unit trong Course Template editing tree.
-* Authoring tree chỉ hiển thị Lesson title cùng Edit/Delete; không hiển thị
-  Lesson status hoặc Draft/Active label.
+* Lesson không có lifecycle/status riêng; lifecycle thuộc Course Template draft
+  và published Version.
 * Activities được liệt kê trực tiếp trong cùng Lesson card.
 
 ---
@@ -156,12 +156,6 @@ Cho phép học thử.
 
 ## Learning Metadata
 
-### learning_objective
-
-TEXT NULL
-
-Mục tiêu học tập.
-
 ### duration_seconds
 
 INT UNSIGNED DEFAULT 0
@@ -222,21 +216,6 @@ Ngày mở khóa nếu dùng date_based.
 
 ---
 
-## Business
-
-### status
-
-VARCHAR(50)
-
-Giá trị:
-
-* draft
-* active
-* inactive
-* archived
-
----
-
 ## Audit
 
 ### created_by
@@ -262,8 +241,6 @@ TIMESTAMP
 (customer_id, template_id)
 
 (customer_id, template_section_id)
-
-(customer_id, template_id, status)
 
 (customer_id, template_section_id, sort_order)
 
@@ -302,8 +279,6 @@ duration_seconds = 3600
 activity_count = 5
 
 unlock_rule = none
-
-status = active
 
 ---
 

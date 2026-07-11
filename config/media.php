@@ -29,7 +29,6 @@ return [
         'course_template',
         'course_category',
         'course_product',
-        'course_lesson',
         'course_activity',
         'course_cohort',
         'assessment_question',

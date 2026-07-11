@@ -8,9 +8,6 @@
             </p>
             <h4>{{ $lesson->title_snapshot }}</h4>
         </div>
-        <span class="badge">
-            {{ __('lf.LF_course_template_lesson_common_'.$lesson->status_snapshot) }}
-        </span>
     </div>
 
     @if ($lesson->short_description_snapshot)

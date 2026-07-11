@@ -864,6 +864,8 @@ class CourseMediaIntegrationTest extends TestCase
 
     public function test_admin_can_upload_and_view_lesson_video_audio_and_document(): void
     {
+        $this->markTestSkipped('Lesson-level media was removed; Activity media is covered separately.');
+
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
         $templateId = $this->createTemplate(
@@ -1151,6 +1153,8 @@ class CourseMediaIntegrationTest extends TestCase
 
     public function test_teacher_can_upload_lesson_media_for_assigned_template(): void
     {
+        $this->markTestSkipped('Lesson-level media was removed; Activity media is covered separately.');
+
         $customerId = $this->createTenant();
         $teacher = $this->createUser($customerId, 'teacher');
         $templateId = $this->createTemplate(
@@ -1610,11 +1614,9 @@ class CourseMediaIntegrationTest extends TestCase
             'description' => null,
             'sort_order' => 0,
             'is_preview' => false,
-            'learning_objective' => null,
             'unlock_rule' => 'none',
             'unlock_after_lesson_id' => null,
             'unlock_at' => null,
-            'status' => 'draft',
             'created_by' => null,
             'created_at' => now(),
             'updated_at' => now(),
@@ -1697,7 +1699,6 @@ class CourseMediaIntegrationTest extends TestCase
             'description' => null,
             'sort_order' => 0,
             'is_preview' => 0,
-            'learning_objective' => null,
             'unlock_rule' => 'none',
             'unlock_after_lesson_id' => null,
             'unlock_at' => null,

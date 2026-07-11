@@ -23,7 +23,7 @@
         </div>
     @endif
 
-    <div class="admin-card admin-form-card">
+    <div class="admin-card admin-form-card course-template-lesson-form-card">
         <p>
             {{ __('lf.LF_course_template_lesson_common_location') }}:
             <strong>

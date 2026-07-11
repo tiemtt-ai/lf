@@ -58,13 +58,11 @@ core_course_template_lessons 1 → N version_lessons (logical lineage)
 | `description_snapshot` | TEXT | nullable | Snapshot detailed description. |
 | `sort_order` | INT | required, default 0 | Published order within the direct or Section group. |
 | `is_preview` | TINYINT(1) | required, default 0 | Published preview permission. |
-| `learning_objective_snapshot` | TEXT | nullable | Snapshot learning objective. |
 | `duration_seconds` | INT UNSIGNED | required, default 0 | Frozen published duration aggregate. |
 | `activity_count` | INT UNSIGNED | required, default 0 | Frozen Version Activity count. |
 | `unlock_rule_snapshot` | VARCHAR(50) | required, default `none` | Snapshot rule: `none`, `previous_lesson_completed`, or `date_based`. |
 | `unlock_after_version_lesson_id` | BIGINT UNSIGNED | nullable | Published prerequisite Lesson in the same Version. |
 | `unlock_at_snapshot` | TIMESTAMP | nullable | Published date-based unlock time. |
-| `status_snapshot` | VARCHAR(50) | required | Source Lesson status at publish: `draft`, `active`, `inactive`, or `archived`. |
 | `created_by_snapshot` | BIGINT UNSIGNED | nullable | Source author identifier captured for audit. |
 | `created_at` | TIMESTAMP | nullable | Snapshot creation time. |
 | `updated_at` | TIMESTAMP | nullable | Creation/finalization audit timestamp only. |
@@ -122,11 +120,9 @@ title_snapshot = Korean Alphabet
 slug_snapshot = korean-alphabet
 sort_order = 1
 is_preview = 1
-learning_objective_snapshot = Recognize and pronounce basic Hangul.
 duration_seconds = 1800
 activity_count = 4
 unlock_rule_snapshot = none
-status_snapshot = active
 created_by_snapshot = 5
 ```
 
@@ -144,7 +140,6 @@ is_preview = 1
 duration_seconds = 300
 activity_count = 1
 unlock_rule_snapshot = none
-status_snapshot = active
 ```
 
 ---

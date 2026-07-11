@@ -161,7 +161,7 @@ Course Template
   Edit riêng cho user đã được authorize.
 * Media/external Activity không có target trực tiếp hợp lệ dùng readonly detail
   cho action View.
-* Không hiển thị Lesson status, Activity status hoặc Draft/Active label trong tree.
+* Lesson không có lifecycle/status riêng. Activity status không hiển thị trong tree.
 * Empty Activity state chỉ hiển thị `Chưa có hoạt động.`.
 * Section `allows_lessons = false` không render Lesson heading, count, empty
   state hoặc action gắn Lesson; child Sections vẫn hiển thị bình thường.

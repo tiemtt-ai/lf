@@ -763,7 +763,6 @@ return [
     'LF_course_template_lesson_common_slug' => 'Slug',
     'LF_course_template_lesson_common_short_description' => 'Mô tả ngắn',
     'LF_course_template_lesson_common_description' => 'Mô tả chi tiết',
-    'LF_course_template_lesson_common_learning_objective' => 'Mục tiêu học tập',
     'LF_course_template_lesson_common_sort_order' => 'Thứ tự hiển thị',
     'LF_course_template_lesson_common_order_value' => 'Thứ tự :order',
     'LF_course_template_lesson_common_preview' => 'Cho phép học thử',

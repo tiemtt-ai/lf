@@ -274,7 +274,6 @@ class CourseTemplatePublishingService
                 'description_snapshot' => $lesson->description,
                 'sort_order' => $lesson->sort_order,
                 'is_preview' => $lesson->is_preview,
-                'learning_objective_snapshot' => $lesson->learning_objective,
                 'duration_seconds' => $lesson->duration_seconds,
                 'activity_count' => $activities
                     ->where('template_lesson_id', $lesson->id)
@@ -282,7 +281,6 @@ class CourseTemplatePublishingService
                 'unlock_rule_snapshot' => $lesson->unlock_rule,
                 'unlock_after_version_lesson_id' => null,
                 'unlock_at_snapshot' => $lesson->unlock_at,
-                'status_snapshot' => $lesson->status,
                 'created_by_snapshot' => $lesson->created_by,
                 'created_at' => $now,
                 'updated_at' => $now,

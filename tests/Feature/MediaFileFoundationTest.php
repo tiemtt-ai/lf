@@ -262,7 +262,7 @@ class MediaFileFoundationTest extends TestCase
         );
         $service->attachUsage(
             $firstMediaFile->id,
-            'course_lesson',
+            'course_activity',
             1001,
             'document'
         );
@@ -280,7 +280,7 @@ class MediaFileFoundationTest extends TestCase
         );
         $service->attachUsage(
             $secondMediaFile->id,
-            'course_lesson',
+            'course_activity',
             1002,
             'document'
         );
@@ -291,7 +291,7 @@ class MediaFileFoundationTest extends TestCase
         $this->assertDatabaseHas('media_file_usages', [
             'customer_id' => $customerId,
             'media_file_id' => $firstMediaFile->id,
-            'owner_type' => 'course_lesson',
+            'owner_type' => 'course_activity',
             'owner_id' => 1001,
             'usage_type' => 'document',
             'status' => 'active',
@@ -299,7 +299,7 @@ class MediaFileFoundationTest extends TestCase
         $this->assertDatabaseHas('media_file_usages', [
             'customer_id' => $customerId,
             'media_file_id' => $firstMediaFile->id,
-            'owner_type' => 'course_lesson',
+            'owner_type' => 'course_activity',
             'owner_id' => 1002,
             'usage_type' => 'document',
             'status' => 'active',
