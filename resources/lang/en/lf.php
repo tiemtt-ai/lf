@@ -749,6 +749,7 @@ return [
     'LF_course_template_section_group_status' => 'Status',
     'LF_course_template_lesson_common_list_title' => 'Lessons',
     'LF_course_template_lesson_common_direct_title' => 'Direct Lessons',
+    'LF_course_template_lesson_common_direct_total' => 'Total lessons: :count',
     'LF_course_template_lesson_common_count' => '{0} No lessons|{1} :count lesson|[2,*] :count lessons',
     'LF_course_template_lesson_common_add_action' => '+ Add Lesson',
     'LF_course_template_lesson_common_attach_action' => '+ Attach Lesson',

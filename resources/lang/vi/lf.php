@@ -749,6 +749,7 @@ return [
     'LF_course_template_section_group_status' => 'Trạng thái',
     'LF_course_template_lesson_common_list_title' => 'Bài học',
     'LF_course_template_lesson_common_direct_title' => 'Bài học trực tiếp',
+    'LF_course_template_lesson_common_direct_total' => 'Tổng số bài học: :count',
     'LF_course_template_lesson_common_count' => '{0} Chưa có bài học|[1,*] :count bài học',
     'LF_course_template_lesson_common_add_action' => '+ Thêm bài học',
     'LF_course_template_lesson_common_attach_action' => '+ Gắn bài học',

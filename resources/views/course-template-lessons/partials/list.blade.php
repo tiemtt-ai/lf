@@ -17,7 +17,14 @@
                 {{ $panelTitle }} ({{ $lessons->count() }})
             </h4>
         @else
-            <strong id="{{ $panelId }}-title">{{ $panelTitle }}</strong>
+            <div>
+                <strong id="{{ $panelId }}-title">{{ $panelTitle }}</strong>
+                <div class="lf-secondary-text">
+                    {{ __('lf.LF_course_template_lesson_common_direct_total', [
+                        'count' => $lessons->count(),
+                    ]) }}
+                </div>
+            </div>
         @endif
         @if (! $section || $section->allows_lessons)
             <a href="{{ route(

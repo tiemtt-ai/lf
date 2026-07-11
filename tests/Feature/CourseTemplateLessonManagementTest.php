@@ -75,6 +75,7 @@ class CourseTemplateLessonManagementTest extends TestCase
                 )
                 ->assertOk()
                 ->assertSeeText('Gắn bài học')
+                ->assertSeeText('Tổng số bài học: 0')
                 ->assertSeeText('Korean Alphabet')
                 ->assertDontSeeText('Private Tenant Lesson');
         }
@@ -194,6 +195,7 @@ class CourseTemplateLessonManagementTest extends TestCase
                 )
                 ->assertOk()
                 ->assertSeeText('Bài học trực tiếp')
+                ->assertSeeText('Tổng số bài học: 2')
                 ->assertSeeText('Admin Direct Lesson')
                 ->assertSeeText('Teacher Direct Lesson')
                 ->assertSee(
