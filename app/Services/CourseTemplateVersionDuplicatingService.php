@@ -225,19 +225,9 @@ class CourseTemplateVersionDuplicatingService
         }
 
         $this->assertAcyclicSections($sections);
-
-        $this->assertUniqueOrder(
-            $lessons,
-            fn (object $lesson): string => (string) (
-                $lesson->version_section_id ?? 'direct'
-            )
-        );
-        $this->assertUniqueOrder(
-            $activities,
-            fn (object $activity): string => (string) (
-                $activity->version_lesson_id
-            )
-        );
+        $this->assertValidOrderValues($sections, 'display_order');
+        $this->assertValidOrderValues($lessons, 'sort_order');
+        $this->assertValidOrderValues($activities, 'sort_order');
 
         foreach ($lessons as $lesson) {
             if (
@@ -288,17 +278,17 @@ class CourseTemplateVersionDuplicatingService
         }
     }
 
-    private function assertUniqueOrder(
+    private function assertValidOrderValues(
         Collection $records,
-        callable $groupKey
+        string $field
     ): void {
-        $seen = [];
-
         foreach ($records as $record) {
-            $order = $record->display_order ?? $record->sort_order;
-            $key = $groupKey($record).':'.$order;
+            $order = $record->{$field};
 
-            if (isset($seen[$key])) {
+            if (
+                filter_var($order, FILTER_VALIDATE_INT) === false
+                || (int) $order < 0
+            ) {
                 throw ValidationException::withMessages([
                     'duplicate' => __(
                         'lf.LF_course_template_duplicate_invalid_order'
@@ -306,7 +296,6 @@ class CourseTemplateVersionDuplicatingService
                 ]);
             }
 
-            $seen[$key] = true;
         }
     }
 

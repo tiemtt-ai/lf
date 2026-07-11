@@ -307,7 +307,7 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertSeeText('Hiện tại');
     }
 
-    public function test_publish_allows_documented_duplicate_content_order_values(): void
+    public function test_publish_and_duplicate_preserve_documented_duplicate_content_order_values(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser(
@@ -326,11 +326,34 @@ class CourseTemplatePublishingTest extends TestCase
             'First Section',
             1
         );
-        $this->createSection(
+        $secondSectionId = $this->createSection(
             $customerId,
             $templateId,
             'Second Section',
             1
+        );
+        $nestedSectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Nested Section',
+            1,
+            $firstSectionId
+        );
+        $firstDirectId = $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'First Direct Lesson',
+            3,
+            $admin->id
+        );
+        $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'Second Direct Lesson',
+            3,
+            $admin->id
         );
         $firstLessonId = $this->createLesson(
             $customerId,
@@ -348,12 +371,28 @@ class CourseTemplatePublishingTest extends TestCase
             1,
             $admin->id
         );
+        $nestedLessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $nestedSectionId,
+            'Nested Lesson',
+            4,
+            $admin->id
+        );
         $this->createActivity(
             $customerId,
             $templateId,
             $firstLessonId,
             'First Activity',
             1,
+            $admin->id
+        );
+        $this->createActivity(
+            $customerId,
+            $templateId,
+            $nestedLessonId,
+            'Nested Activity',
+            2,
             $admin->id
         );
         $this->createActivity(
@@ -376,6 +415,100 @@ class CourseTemplatePublishingTest extends TestCase
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'status' => 'published',
+        ]);
+
+        $version = DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->first();
+        $versionState = $this->versionState(
+            $customerId,
+            $templateId,
+            $version->id
+        );
+        $this->clearDraftContent($customerId, $templateId);
+        $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'Stale Draft Lesson',
+            99,
+            $admin->id
+        );
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/versions/{$version->id}/duplicate-to-draft"
+            )
+            ->assertSessionDoesntHaveErrors()
+            ->assertSessionHas(
+                'success',
+                'Đã sao chép phiên bản đã xuất bản vào bản nháp.'
+            );
+
+        $directLessons = DB::table('core_course_template_lessons')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->whereNull('template_section_id')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+        $this->assertSame(
+            ['First Direct Lesson', 'Second Direct Lesson'],
+            $directLessons->pluck('title')->all()
+        );
+        $this->assertSame([3, 3], $directLessons->pluck('sort_order')->all());
+
+        $restoredFirstSection = DB::table('core_course_template_sections')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('title', 'First Section')
+            ->first();
+        $restoredSecondSection = DB::table('core_course_template_sections')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('title', 'Second Section')
+            ->first();
+        $restoredNestedSection = DB::table('core_course_template_sections')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('title', 'Nested Section')
+            ->first();
+        $this->assertSame(1, $restoredFirstSection->display_order);
+        $this->assertSame(1, $restoredSecondSection->display_order);
+        $this->assertSame(
+            $restoredFirstSection->id,
+            $restoredNestedSection->parent_section_id
+        );
+
+        $restoredSectionLessons = DB::table('core_course_template_lessons')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('template_section_id', $restoredFirstSection->id)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+        $this->assertSame([1, 1], $restoredSectionLessons->pluck('sort_order')->all());
+        $restoredFirstLesson = $restoredSectionLessons->firstWhere(
+            'title',
+            'First Lesson'
+        );
+        $restoredActivities = DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('template_lesson_id', $restoredFirstLesson->id)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+        $this->assertSame([1, 1], $restoredActivities->pluck('sort_order')->all());
+        $this->assertSame(
+            $versionState,
+            $this->versionState($customerId, $templateId, $version->id)
+        );
+        $this->assertDatabaseMissing('core_course_template_lessons', [
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'title' => 'Stale Draft Lesson',
         ]);
     }
 
@@ -1090,6 +1223,66 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertSame(
             $draftBefore,
             $this->draftState($customerId, $templateId)
+        );
+        $this->assertDatabaseMissing('saas_audit_logs', [
+            'customer_id' => $customerId,
+            'action' => 'course_template_version_duplicated_to_draft',
+        ]);
+    }
+
+    public function test_duplicate_rejects_invalid_snapshot_order_and_rolls_back(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            $admin->id,
+            'Invalid Snapshot Order'
+        );
+        $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'Published Lesson',
+            1,
+            $admin->id
+        );
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish"
+        );
+        $version = DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->first();
+        DB::table('core_course_template_version_lessons')
+            ->where('customer_id', $customerId)
+            ->where('template_version_id', $version->id)
+            ->update(['sort_order' => -1]);
+        DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('id', $templateId)
+            ->update(['title' => 'Current Draft Must Remain']);
+        $draftBefore = $this->draftState($customerId, $templateId);
+
+        $this->actingAs($admin)
+            ->from(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=history"
+            )
+            ->post(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/versions/{$version->id}/duplicate-to-draft"
+            )
+            ->assertSessionHasErrors('duplicate');
+
+        $this->assertSame(
+            $draftBefore,
+            $this->draftState($customerId, $templateId)
+        );
+        $this->assertSame(
+            -1,
+            DB::table('core_course_template_version_lessons')
+                ->where('customer_id', $customerId)
+                ->where('template_version_id', $version->id)
+                ->value('sort_order')
         );
         $this->assertDatabaseMissing('saas_audit_logs', [
             'customer_id' => $customerId,
