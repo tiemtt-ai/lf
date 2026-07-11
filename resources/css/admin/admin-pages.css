@@ -810,6 +810,7 @@
     border: 1px solid #dbe3ed;
     border-radius: 6px;
     background: #f8fafc;
+    transition: background-color .15s ease;
 }
 
 .course-template-outline-section-title {
@@ -876,11 +877,13 @@
     transition: background-color .15s ease;
 }
 
+.course-template-outline-section-header:focus-within,
 .course-template-lesson-item:focus-within {
     background: color-mix(in srgb, var(--admin-primary) 5%, #ffffff);
 }
 
 @media (hover: hover) and (pointer: fine) {
+    .course-template-outline-section-header:hover,
     .course-template-lesson-item:hover {
         background: color-mix(in srgb, var(--admin-primary) 5%, #ffffff);
     }
