@@ -65,9 +65,9 @@
                 ['label' => __('lf.LF_navigation_menu_admin_my_account'), 'route' => 'teacher.profile.edit'],
             ]
             : [
-                ['label' => __('lf.LF_navigation_menu_admin_organization'), 'route' => 'admin.organization.edit'],
-                ['label' => __('lf.LF_navigation_menu_admin_users'), 'route' => 'admin.users.index'],
                 ['label' => __('lf.LF_navigation_menu_admin_my_account'), 'route' => 'admin.my-account.edit'],
+                ['label' => __('lf.LF_navigation_menu_admin_users'), 'route' => 'admin.users.index'],
+                ['label' => __('lf.LF_navigation_menu_admin_organization'), 'route' => 'admin.organization.edit'],
             ];
         $portalMenu = $isTeacher
             ? [
