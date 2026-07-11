@@ -274,6 +274,45 @@ class CourseTemplateLessonManagementTest extends TestCase
             ))
             ->update(['sort_order' => 9]);
 
+        $directCreate = $this->actingAs($admin)->get(
+            $this->directLessonCollectionUrl('admin', $templateId).'/create'
+        );
+        $this->assertSame(
+            '7',
+            $this->xpath($directCreate->getContent())
+                ->query('//input[@name="sort_order"]')
+                ->item(0)
+                ->getAttribute('value')
+        );
+        $firstSectionCreate = $this->actingAs($admin)->get(
+            $this->lessonCollectionUrl(
+                'admin',
+                $templateId,
+                $firstSectionId
+            ).'/create'
+        );
+        $this->assertSame(
+            '10',
+            $this->xpath($firstSectionCreate->getContent())
+                ->query('//input[@name="sort_order"]')
+                ->item(0)
+                ->getAttribute('value')
+        );
+        $secondSectionCreate = $this->actingAs($admin)->get(
+            $this->lessonCollectionUrl(
+                'admin',
+                $templateId,
+                $secondSectionId
+            ).'/create'
+        );
+        $this->assertSame(
+            '1',
+            $this->xpath($secondSectionCreate->getContent())
+                ->query('//input[@name="sort_order"]')
+                ->item(0)
+                ->getAttribute('value')
+        );
+
         $directData = $this->validLessonData(['title' => 'Automatic Direct']);
         unset($directData['sort_order']);
         $this->actingAs($admin)->post(
@@ -1175,5 +1214,16 @@ class CourseTemplateLessonManagementTest extends TestCase
         );
 
         return $xpath->query($query)->length;
+    }
+
+    private function xpath(string $html): \DOMXPath
+    {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        return new \DOMXPath($document);
     }
 }

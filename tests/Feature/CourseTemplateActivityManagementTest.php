@@ -462,6 +462,27 @@ class CourseTemplateActivityManagementTest extends TestCase
         );
 
         foreach ([
+            [$firstLessonId, '9'],
+            [$secondLessonId, '1'],
+        ] as [$lessonId, $expectedOrder]) {
+            $create = $this->actingAs($admin)->get(
+                $this->activityCollectionUrl(
+                    'admin',
+                    $templateId,
+                    $sectionId,
+                    $lessonId
+                ).'/create'
+            );
+            $this->assertSame(
+                $expectedOrder,
+                $this->xpath($create->getContent())
+                    ->query('//input[@name="sort_order"]')
+                    ->item(0)
+                    ->getAttribute('value')
+            );
+        }
+
+        foreach ([
             [$firstLessonId, 'Automatic First Activity', 9],
             [$secondLessonId, 'Automatic Second Activity', 1],
         ] as [$lessonId, $title, $expectedOrder]) {

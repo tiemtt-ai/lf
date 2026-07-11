@@ -282,6 +282,11 @@ class CourseTemplateActivityController extends Controller
             'manualDurationTypes' => self::MANUAL_DURATION_TYPES,
             'referenceActivityTypes' => self::REFERENCE_ACTIVITY_TYPES,
             'activityMedia' => collect(),
+            'suggestedSortOrder' => $this->nextSortOrder(
+                $customerId,
+                $templateId,
+                $lessonId
+            ),
             'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
         ]);

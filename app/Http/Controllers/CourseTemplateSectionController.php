@@ -25,10 +25,25 @@ class CourseTemplateSectionController extends Controller
     public function create(Request $request, int $templateId): View
     {
         $customerId = $this->customerId();
+        $template = $this->findTemplate($customerId, $templateId);
+        $parentSections = $this->parentSections($customerId, $templateId);
+        $requestedParentId = $request->integer('parent_section_id') ?: null;
+        $parentSectionId = $requestedParentId !== null
+            && $parentSections->contains(
+                fn (object $section): bool => (int) $section->id
+                    === $requestedParentId
+            )
+                ? $requestedParentId
+                : null;
 
         return view('course-template-sections.create', [
-            'template' => $this->findTemplate($customerId, $templateId),
-            'parentSections' => $this->parentSections($customerId, $templateId),
+            'template' => $template,
+            'parentSections' => $parentSections,
+            'suggestedDisplayOrder' => $this->nextDisplayOrder(
+                $customerId,
+                $templateId,
+                $parentSectionId
+            ),
             'requiredFields' => $this->requiredFields(
                 $customerId,
                 $templateId

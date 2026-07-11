@@ -152,6 +152,11 @@ class CourseTemplateLessonController extends Controller
                 $templateId
             ),
             'lessonMedia' => collect(),
+            'suggestedSortOrder' => $this->nextSortOrder(
+                $customerId,
+                $templateId,
+                $sectionId
+            ),
             'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
         ]);

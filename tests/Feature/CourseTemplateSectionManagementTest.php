@@ -227,6 +227,16 @@ class CourseTemplateSectionManagementTest extends TestCase
             'Empty Section Scope',
             'empty-section-scope'
         );
+        $emptyCreate = $this->actingAs($admin)->get(
+            "https://tenant-a.localhost/admin/course-templates/{$emptyTemplateId}/sections/create"
+        );
+        $this->assertSame(
+            '1',
+            $this->xpath($emptyCreate->getContent())
+                ->query('//input[@name="display_order"]')
+                ->item(0)
+                ->getAttribute('value')
+        );
         $firstData = $this->validSectionData(['title' => 'First Automatic']);
         unset($firstData['display_order']);
         $this->actingAs($admin)->post(
@@ -257,6 +267,50 @@ class CourseTemplateSectionManagementTest extends TestCase
             'Child Gap',
             4,
             $parentId
+        );
+
+        $rootCreate = $this->actingAs($admin)->get(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/create"
+        );
+        $this->assertSame(
+            '11',
+            $this->xpath($rootCreate->getContent())
+                ->query('//input[@name="display_order"]')
+                ->item(0)
+                ->getAttribute('value')
+        );
+        $childCreate = $this->actingAs($admin)->get(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/create?parent_section_id={$parentId}"
+        );
+        $this->assertSame(
+            '5',
+            $this->xpath($childCreate->getContent())
+                ->query('//input[@name="display_order"]')
+                ->item(0)
+                ->getAttribute('value')
+        );
+        $oldInputCreate = $this->withSession([
+            '_old_input' => ['display_order' => '3'],
+        ])->actingAs($admin)->get(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/create"
+        );
+        $this->assertSame(
+            '3',
+            $this->xpath($oldInputCreate->getContent())
+                ->query('//input[@name="display_order"]')
+                ->item(0)
+                ->getAttribute('value')
+        );
+        $edit = $this->withSession(['_old_input' => []])
+            ->actingAs($admin)->get(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/{$parentId}/edit"
+            );
+        $this->assertSame(
+            '7',
+            $this->xpath($edit->getContent())
+                ->query('//input[@name="display_order"]')
+                ->item(0)
+                ->getAttribute('value')
         );
 
         $rootData = $this->validSectionData([
