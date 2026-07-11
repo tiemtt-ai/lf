@@ -23,6 +23,7 @@
         </div>
     @endif
 
+    <section class="course-template-tab-panel course-template-lesson-form-page">
     <div class="admin-card admin-form-card course-template-lesson-form-card">
         <p class="course-template-lesson-context">
             {{ __('lf.LF_course_template_lesson_common_location') }}:
@@ -53,4 +54,5 @@
             </div>
         </form>
     </div>
+    </section>
 @endsection

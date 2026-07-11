@@ -164,13 +164,6 @@
     gap: 0 24px;
 }
 
-.course-template-lesson-form-card {
-    width: 100%;
-    max-width: none;
-    min-width: 0;
-    box-sizing: border-box;
-}
-
 .course-template-lesson-form-card > form {
     width: 100%;
     min-width: 0;
