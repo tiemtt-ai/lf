@@ -156,16 +156,18 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->assertSeeText('+ Thêm hoạt động')
             ->assertSeeText('Sửa')
             ->assertSeeText('Xóa')
-            ->assertSeeText(
-                'Khóa học này đang sử dụng cả bài học trực tiếp và phần học.'
-            )
-            ->assertSeeText(
-                'Sử dụng các tab trên để quản lý từng loại nội dung.'
-            )
+            ->assertSeeText(__('lf.LF_course_template_mode_mixed_note'))
+            ->assertSeeText(__('lf.LF_course_template_mode_mixed_help'))
             ->assertSee('id="course-template-direct-panel"', false)
             ->assertSee('id="course-template-sections-panel"', false);
 
         $xpath = $this->xpath($response->getContent());
+        $this->assertSame(
+            1,
+            $xpath->query(
+                '//div[contains(concat(" ", normalize-space(@class), " "), " course-template-structure-note ")][@role="status"]'
+            )->length
+        );
         $directLesson = $xpath->query(
             '//article[contains(concat(" ", normalize-space(@class), " "), " course-template-lesson-item ")]'
             .'[.//strong[normalize-space()="Direct Outline Lesson"]]'

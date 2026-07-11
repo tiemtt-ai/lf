@@ -131,9 +131,7 @@ class CourseTemplateManagementTest extends TestCase
             ->assertSeeText('+ Thêm phần học')
             ->assertSeeText('Chưa có bài học trực tiếp.')
             ->assertSeeText('Chưa có phần học nào.')
-            ->assertDontSeeText(
-                'Khóa học này đang sử dụng cả bài học trực tiếp và phần học.'
-            )
+            ->assertDontSeeText(__('lf.LF_course_template_mode_mixed_note'))
             ->assertSee('role="tablist"', false)
             ->assertSee('x-on:click="selectStructureTab(\'direct\')"', false)
             ->assertSee('x-on:click="selectStructureTab(\'sections\')"', false)
