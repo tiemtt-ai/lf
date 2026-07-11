@@ -2,11 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\MediaService;
 use App\Support\TenantContext;
-use App\Support\UploadLimit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
@@ -16,8 +15,6 @@ use Illuminate\View\View;
 
 class CourseTemplateLessonController extends Controller
 {
-    public function __construct(private readonly MediaService $mediaService) {}
-
     public function index(
         Request $request,
         int $templateId,
@@ -145,13 +142,13 @@ class CourseTemplateLessonController extends Controller
                 ),
             'prerequisiteLessons' => $this->prerequisiteLessons(
                 $customerId,
-                $templateId
+                $templateId,
+                $sectionId
             ),
             'requiredFields' => $this->requiredFields(
                 $customerId,
                 $templateId
             ),
-            'lessonMedia' => collect(),
             'suggestedSortOrder' => $this->nextSortOrder(
                 $customerId,
                 $templateId,
@@ -177,7 +174,9 @@ class CourseTemplateLessonController extends Controller
         $validated = $this->validatedData(
             $request,
             $customerId,
-            $templateId
+            $templateId,
+            null,
+            $sectionId
         );
 
         $lessonId = DB::transaction(function () use (
@@ -240,6 +239,7 @@ class CourseTemplateLessonController extends Controller
                     'template_section_id' => $sectionId,
                     'duration_seconds' => 0,
                     'activity_count' => 0,
+                    'status' => 'draft',
                     'created_by' => $request->user()?->id,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -248,8 +248,6 @@ class CourseTemplateLessonController extends Controller
 
             return $lessonId;
         });
-
-        $this->attachUploadedMedia($request, $lessonId);
 
         return redirect()
             ->to(
@@ -287,6 +285,7 @@ class CourseTemplateLessonController extends Controller
             'prerequisiteLessons' => $this->prerequisiteLessons(
                 $customerId,
                 $templateId,
+                $sectionId,
                 $lessonId
             ),
             'requiredFields' => $this->requiredFields(
@@ -294,7 +293,6 @@ class CourseTemplateLessonController extends Controller
                 $templateId,
                 $lessonId
             ),
-            'lessonMedia' => $this->ownerMedia('course_lesson', $lessonId),
             'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
         ]);
@@ -323,7 +321,8 @@ class CourseTemplateLessonController extends Controller
             $request,
             $customerId,
             $templateId,
-            $lessonId
+            $lessonId,
+            $sectionId
         );
 
         DB::table('core_course_template_lessons')
@@ -341,8 +340,6 @@ class CourseTemplateLessonController extends Controller
             ->update($this->lessonValues($validated, [
                 'updated_at' => now(),
             ]));
-
-        $this->attachUploadedMedia($request, $lessonId);
 
         return redirect()
             ->route(
@@ -412,11 +409,12 @@ class CourseTemplateLessonController extends Controller
         Request $request,
         int $customerId,
         int $templateId,
-        ?int $lessonId = null
+        ?int $lessonId = null,
+        ?int $sectionId = null
     ): array {
         $validator = Validator::make(
             $this->validationInput($request),
-            $this->validationRules($customerId, $templateId, $lessonId)
+            $this->validationRules($customerId, $templateId, $lessonId, $sectionId)
         );
 
         if ($lessonId !== null) {
@@ -462,11 +460,9 @@ class CourseTemplateLessonController extends Controller
             'description',
             'sort_order',
             'is_preview',
-            'learning_objective',
             'unlock_rule',
             'unlock_after_lesson_id',
             'unlock_at',
-            'status',
         ];
 
         $input = array_intersect_key(
@@ -474,14 +470,12 @@ class CourseTemplateLessonController extends Controller
             array_flip($fields)
         );
 
-        foreach ([
-            'media_video_file',
-            'media_audio_file',
-            'media_document_file',
-        ] as $field) {
-            if ($request->hasFile($field)) {
-                $input[$field] = $request->file($field);
-            }
+        $input['slug'] = Str::slug((string) ($input['title'] ?? ''));
+        if (($input['unlock_rule'] ?? null) !== 'previous_lesson_completed') {
+            unset($input['unlock_after_lesson_id']);
+        }
+        if (($input['unlock_rule'] ?? null) !== 'date_based') {
+            unset($input['unlock_at']);
         }
 
         return $input;
@@ -490,7 +484,8 @@ class CourseTemplateLessonController extends Controller
     private function validationRules(
         int $customerId,
         int $templateId,
-        ?int $lessonId = null
+        ?int $lessonId = null,
+        ?int $sectionId = null
     ): array {
         return [
             'title' => ['required', 'string', 'max:255'],
@@ -512,7 +507,6 @@ class CourseTemplateLessonController extends Controller
                 'min:0',
             ],
             'is_preview' => ['required', 'boolean'],
-            'learning_objective' => ['nullable', 'string'],
             'unlock_rule' => [
                 'required',
                 Rule::in([
@@ -525,36 +519,20 @@ class CourseTemplateLessonController extends Controller
                 'nullable',
                 'integer',
                 'required_if:unlock_rule,previous_lesson_completed',
-                'prohibited_unless:unlock_rule,previous_lesson_completed',
                 Rule::exists('core_course_template_lessons', 'id')
                     ->where(fn ($query) => $query
                         ->where('customer_id', $customerId)
-                        ->where('template_id', $templateId)),
+                        ->where('template_id', $templateId)
+                        ->when(
+                            $sectionId === null,
+                            fn ($query) => $query->whereNull('template_section_id'),
+                            fn ($query) => $query->whereNotNull('template_section_id')
+                        )),
             ],
             'unlock_at' => [
                 'nullable',
                 'date',
                 'required_if:unlock_rule,date_based',
-                'prohibited_unless:unlock_rule,date_based',
-            ],
-            'status' => [
-                'required',
-                Rule::in(['draft', 'active', 'inactive', 'archived']),
-            ],
-            'media_video_file' => [
-                'nullable',
-                'file',
-                'max:'.UploadLimit::effectiveKilobytes(),
-            ],
-            'media_audio_file' => [
-                'nullable',
-                'file',
-                'max:'.UploadLimit::effectiveKilobytes(),
-            ],
-            'media_document_file' => [
-                'nullable',
-                'file',
-                'max:'.UploadLimit::effectiveKilobytes(),
             ],
         ];
     }
@@ -574,29 +552,33 @@ class CourseTemplateLessonController extends Controller
     {
         return array_merge([
             'title' => $validated['title'],
-            'slug' => $validated['slug'] ?? null,
+            'slug' => Str::slug($validated['title']),
             'short_description' => $validated['short_description'] ?? null,
             'description' => $validated['description'] ?? null,
             'sort_order' => $validated['sort_order'],
             'is_preview' => (bool) $validated['is_preview'],
-            'learning_objective' => $validated['learning_objective'] ?? null,
             'unlock_rule' => $validated['unlock_rule'],
             'unlock_after_lesson_id' => $validated['unlock_after_lesson_id'] ?? null,
             'unlock_at' => isset($validated['unlock_at'])
                 ? Carbon::parse($validated['unlock_at'])->format('Y-m-d H:i:s')
                 : null,
-            'status' => $validated['status'],
         ], $extra);
     }
 
     private function prerequisiteLessons(
         int $customerId,
         int $templateId,
+        ?int $sectionId,
         ?int $excludedLessonId = null
     ) {
-        return DB::table('core_course_template_lessons')
+        $lessons = DB::table('core_course_template_lessons')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
+            ->when(
+                $sectionId === null,
+                fn ($query) => $query->whereNull('template_section_id'),
+                fn ($query) => $query->whereNotNull('template_section_id')
+            )
             ->when(
                 $excludedLessonId !== null,
                 fn ($query) => $query->where('id', '!=', $excludedLessonId)
@@ -605,6 +587,32 @@ class CourseTemplateLessonController extends Controller
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
+
+        if ($sectionId === null) {
+            return $lessons;
+        }
+
+        $sections = DB::table('core_course_template_sections')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->get()->keyBy('id');
+
+        foreach ($lessons as $lesson) {
+            $labels = [];
+            $currentId = (int) $lesson->template_section_id;
+            $visited = [];
+            while ($currentId && isset($sections[$currentId]) && ! isset($visited[$currentId])) {
+                $visited[$currentId] = true;
+                array_unshift($labels, $sections[$currentId]->title);
+                $currentId = (int) ($sections[$currentId]->parent_section_id ?? 0);
+            }
+            $lesson->option_label = implode(' › ', [...$labels, $lesson->title]);
+        }
+
+        return $lessons->sortBy(function (object $lesson) use ($sections): string {
+            $section = $sections[$lesson->template_section_id];
+            return sprintf('%010d:%020d:%010d:%020d', $section->display_order, $section->id, $lesson->sort_order, $lesson->id);
+        })->values();
     }
 
     private function nextSortOrder(
@@ -766,52 +774,6 @@ class CourseTemplateLessonController extends Controller
         abort_if(! $lesson, 404);
 
         return $lesson;
-    }
-
-    private function attachUploadedMedia(Request $request, int $lessonId): void
-    {
-        foreach ([
-            'media_video_file' => ['video', 'video'],
-            'media_audio_file' => ['audio', 'audio'],
-            'media_document_file' => ['document', 'document'],
-        ] as $field => [$fileType, $usageType]) {
-            if (! $request->hasFile($field)) {
-                continue;
-            }
-
-            $mediaFile = $this->mediaService->upload(
-                $request->file($field),
-                [
-                    'file_type' => $fileType,
-                    'module' => 'course',
-                    'entity_type' => 'lessons',
-                    'entity_id' => $lessonId,
-                    'purpose' => $usageType,
-                    'display_name' => $request->input('title'),
-                ],
-                (int) $request->user()->id
-            );
-
-            $this->mediaService->attachUsage(
-                (int) $mediaFile->id,
-                'course_lesson',
-                $lessonId,
-                $usageType
-            );
-        }
-    }
-
-    private function ownerMedia(string $ownerType, int $ownerId): object
-    {
-        return $this->mediaService
-            ->getOwnerMedia($ownerType, $ownerId)
-            ->map(function (object $media): object {
-                $media->signed_url = $this->mediaService->generateSignedUrl(
-                    (int) $media->id
-                );
-
-                return $media;
-            });
     }
 
     private function customerId(): int

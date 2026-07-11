@@ -130,11 +130,11 @@ class CourseTemplateLessonManagementTest extends TestCase
             'description' => 'Detailed lesson description',
             'sort_order' => 2,
             'is_preview' => 1,
-            'learning_objective' => 'Read basic Hangul',
+            'learning_objective' => null,
             'duration_seconds' => 0,
             'activity_count' => 0,
             'unlock_rule' => 'none',
-            'status' => 'active',
+            'status' => 'draft',
             'created_by' => $admin->id,
         ]);
     }
@@ -497,7 +497,6 @@ class CourseTemplateLessonManagementTest extends TestCase
                 'sort_order',
                 'is_preview',
                 'unlock_after_lesson_id',
-                'status',
             ]);
 
         $this->actingAs($admin)
@@ -912,7 +911,6 @@ class CourseTemplateLessonManagementTest extends TestCase
             'title',
             'is_preview',
             'unlock_rule',
-            'status',
         ] as $field) {
             $this->assertSame(
                 1,
@@ -924,7 +922,6 @@ class CourseTemplateLessonManagementTest extends TestCase
             'slug',
             'short_description',
             'description',
-            'learning_objective',
             'unlock_after_lesson_id',
             'unlock_at',
             'sort_order',
@@ -982,11 +979,9 @@ class CourseTemplateLessonManagementTest extends TestCase
                 'description',
                 'sort_order',
                 'is_preview',
-                'learning_objective',
                 'unlock_rule',
                 'unlock_after_lesson_id',
                 'unlock_at',
-                'status',
             ] as $field) {
                 $response->assertSee('name="'.$field.'"', false);
             }
@@ -998,6 +993,11 @@ class CourseTemplateLessonManagementTest extends TestCase
                 'template_section_id',
                 'duration_seconds',
                 'activity_count',
+                'learning_objective',
+                'status',
+                'media_video_file',
+                'media_audio_file',
+                'media_document_file',
                 'created_by',
                 'updated_by',
                 'created_at',
