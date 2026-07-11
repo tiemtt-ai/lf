@@ -823,6 +823,7 @@ return [
     'LF_course_template_activity_common_yes' => 'Có',
     'LF_course_template_activity_common_no' => 'Không',
     'LF_course_template_activity_common_completion_rule' => 'Quy tắc hoàn thành',
+    'LF_course_template_activity_common_select_type_first' => 'Chọn loại hoạt động trước',
     'LF_course_template_activity_common_completion_view' => 'Xem nội dung',
     'LF_course_template_activity_common_completion_watch_percent' => 'Phần trăm đã xem',
     'LF_course_template_activity_common_completion_submit' => 'Nộp bài',

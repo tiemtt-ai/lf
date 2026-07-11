@@ -823,6 +823,7 @@ return [
     'LF_course_template_activity_common_yes' => 'Yes',
     'LF_course_template_activity_common_no' => 'No',
     'LF_course_template_activity_common_completion_rule' => 'Completion rule',
+    'LF_course_template_activity_common_select_type_first' => 'Select an activity type first',
     'LF_course_template_activity_common_completion_view' => 'View',
     'LF_course_template_activity_common_completion_watch_percent' => 'Watch percentage',
     'LF_course_template_activity_common_completion_submit' => 'Submit',
