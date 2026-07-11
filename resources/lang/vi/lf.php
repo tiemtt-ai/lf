@@ -704,6 +704,8 @@ return [
     'LF_course_template_section_common_actions' => 'Thao tác phần học',
     'LF_course_template_section_common_add_action' => '+ Thêm phần học',
     'LF_course_template_section_common_add_child_action' => '+ Thêm phần học con',
+    'LF_course_template_section_common_collapse' => 'Thu gọn phần học: :title',
+    'LF_course_template_section_common_expand' => 'Mở rộng phần học: :title',
     'LF_course_template_section_common_area_title' => 'Phần học',
     'LF_course_template_section_common_level' => 'Phần học cấp :level',
     'LF_course_template_section_common_list_title' => 'Danh sách phần học',

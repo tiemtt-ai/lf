@@ -822,6 +822,14 @@
     overflow-wrap: anywhere;
 }
 
+.course-template-section-toggle .admin-chevron {
+    margin-left: 0;
+}
+
+.course-template-section-toggle .admin-chevron.is-collapsed {
+    transform: rotate(-90deg);
+}
+
 .course-template-outline-empty {
     margin: 0;
     padding: 18px;

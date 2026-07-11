@@ -704,6 +704,8 @@ return [
     'LF_course_template_section_common_actions' => 'Section actions',
     'LF_course_template_section_common_add_action' => '+ Add Section',
     'LF_course_template_section_common_add_child_action' => '+ Add Child Section',
+    'LF_course_template_section_common_collapse' => 'Collapse section: :title',
+    'LF_course_template_section_common_expand' => 'Expand section: :title',
     'LF_course_template_section_common_area_title' => 'Sections',
     'LF_course_template_section_common_level' => 'Level :level section',
     'LF_course_template_section_common_list_title' => 'Section list',

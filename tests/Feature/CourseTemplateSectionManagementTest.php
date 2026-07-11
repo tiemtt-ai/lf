@@ -218,6 +218,110 @@ class CourseTemplateSectionManagementTest extends TestCase
             ->assertSeeText('+ Thêm phần học con');
     }
 
+    public function test_each_section_renders_an_independent_accessible_collapse_branch(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Collapsible Structure',
+            'collapsible-structure'
+        );
+        $firstRootId = $this->createSection(
+            $customerId,
+            $templateId,
+            'First Root',
+            1
+        );
+        $secondRootId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Second Root',
+            2
+        );
+        $childId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Nested Child',
+            1,
+            $firstRootId
+        );
+        $this->createLesson(
+            $customerId,
+            $templateId,
+            $childId,
+            'Nested Branch Lesson'
+        );
+        $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'Unrelated Direct Lesson'
+        );
+
+        $response = $this->actingAs($admin)->get(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure"
+        )->assertOk();
+        $xpath = $this->xpath($response->getContent());
+        $sectionIds = [$firstRootId, $secondRootId, $childId];
+
+        foreach ($sectionIds as $sectionId) {
+            $branchId = "course-template-section-{$sectionId}-branch";
+            $toggle = $xpath->query(
+                '//article[@data-section-id="'.$sectionId.'"]'
+                .'/header//button[contains(concat(" ", normalize-space(@class), " "), " course-template-section-toggle ")]'
+            )->item(0);
+
+            $this->assertNotNull($toggle);
+            $this->assertSame('button', $toggle->getAttribute('type'));
+            $this->assertSame($branchId, $toggle->getAttribute('aria-controls'));
+            $this->assertSame('true', $toggle->getAttribute('aria-expanded'));
+            $this->assertSame(
+                'expanded.toString()',
+                $toggle->getAttribute('x-bind:aria-expanded')
+            );
+            $this->assertSame(
+                1,
+                $xpath->query('//div[@id="'.$branchId.'"][@x-show="expanded"]')->length
+            );
+        }
+
+        $this->assertSame(count($sectionIds), $xpath->query(
+            '//button[contains(concat(" ", normalize-space(@class), " "), " course-template-section-toggle ")]'
+        )->length);
+        $this->assertSame(0, $xpath->query(
+            '//div[@id="course-template-direct-panel"]//button[contains(concat(" ", normalize-space(@class), " "), " course-template-section-toggle ")]'
+        )->length);
+        $response
+            ->assertSeeText('Nested Branch Lesson')
+            ->assertSeeText('Unrelated Direct Lesson')
+            ->assertSeeText('+ Thêm phần học con')
+            ->assertSeeText('Sửa')
+            ->assertSeeText('Xóa');
+    }
+
+    public function test_section_collapse_script_restores_only_valid_scoped_state(): void
+    {
+        $script = file_get_contents(resource_path('js/app.js'));
+
+        $this->assertStringContainsString(
+            'window.courseTemplateSectionCollapse = (tenantId, templateId, sectionId)',
+            $script
+        );
+        $this->assertStringContainsString(
+            'lf.course-template.section.${tenantId}.${templateId}.${sectionId}.expanded',
+            $script
+        );
+        $this->assertStringContainsString(
+            "storedState === 'true' || storedState === 'false'",
+            $script
+        );
+        $this->assertStringContainsString(
+            'this.expanded = ! this.expanded',
+            $script
+        );
+    }
+
     public function test_section_order_is_automatic_per_sibling_scope_and_duplicates_remain_valid(): void
     {
         $customerId = $this->createTenant();
@@ -423,7 +527,8 @@ class CourseTemplateSectionManagementTest extends TestCase
             $this->assertSame(
                 1,
                 $xpath->query(
-                    './div[contains(concat(" ", normalize-space(@class), " "), " course-template-outline-children ")]'
+                    './div[contains(concat(" ", normalize-space(@class), " "), " course-template-section-branch ")]'
+                    .'/div[contains(concat(" ", normalize-space(@class), " "), " course-template-outline-children ")]'
                     ."/article[@data-section-id='{$childId}']",
                     $parent
                 )->length
@@ -444,7 +549,8 @@ class CourseTemplateSectionManagementTest extends TestCase
                     array_map(
                         static fn (\DOMNode $node): string => trim($node->textContent),
                         iterator_to_array($xpath->query(
-                            './/div[contains(concat(" ", normalize-space(@class), " "), " admin-table-actions ")]/*',
+                            './/div[contains(concat(" ", normalize-space(@class), " "), " admin-table-actions ")]/*'
+                            .'[not(contains(concat(" ", normalize-space(@class), " "), " course-template-section-toggle "))]',
                             $header
                         ))
                     )
@@ -452,7 +558,8 @@ class CourseTemplateSectionManagementTest extends TestCase
                 $this->assertSame(
                     3,
                     $xpath->query(
-                        './/*[self::a or self::button][contains(concat(" ", normalize-space(@class), " "), " admin-text-action ")]',
+                        './/*[self::a or self::button][contains(concat(" ", normalize-space(@class), " "), " admin-text-action ")]'
+                        .'[not(contains(concat(" ", normalize-space(@class), " "), " course-template-section-toggle "))]',
                         $header
                     )->length
                 );
@@ -538,7 +645,8 @@ class CourseTemplateSectionManagementTest extends TestCase
         );
 
         $lessonPanel = $xpath->query(
-            './section[contains(concat(" ", normalize-space(@class), " "), " course-template-lesson-panel ")]',
+            './div[contains(concat(" ", normalize-space(@class), " "), " course-template-section-branch ")]'
+            .'/section[contains(concat(" ", normalize-space(@class), " "), " course-template-lesson-panel ")]',
             $lessonSection
         )->item(0);
         $this->assertNotNull($lessonPanel);
@@ -970,6 +1078,35 @@ class CourseTemplateSectionManagementTest extends TestCase
             'title' => $title,
             'description' => null,
             'display_order' => $displayOrder,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function createLesson(
+        int $customerId,
+        int $templateId,
+        ?int $sectionId,
+        string $title
+    ): int {
+        return DB::table('core_course_template_lessons')->insertGetId([
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'template_section_id' => $sectionId,
+            'title' => $title,
+            'slug' => str($title)->slug()->toString().'-'.uniqid(),
+            'short_description' => null,
+            'description' => null,
+            'sort_order' => 1,
+            'is_preview' => false,
+            'learning_objective' => null,
+            'duration_seconds' => 0,
+            'activity_count' => 0,
+            'unlock_rule' => 'none',
+            'unlock_after_lesson_id' => null,
+            'unlock_at' => null,
+            'status' => 'draft',
+            'created_by' => null,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

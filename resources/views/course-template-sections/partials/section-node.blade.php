@@ -6,12 +6,37 @@
 
 <article class="course-template-outline-section"
          data-section-id="{{ $currentSection->id }}"
-         data-section-depth="{{ $depth }}">
+         data-section-depth="{{ $depth }}"
+         x-data="courseTemplateSectionCollapse(
+             @js($template->customer_id),
+             @js($template->id),
+             @js($currentSection->id)
+         )">
     <header class="course-template-outline-section-header">
         <h3 class="course-template-outline-section-title">
             {{ $currentSection->title }}
         </h3>
         <div class="admin-table-actions">
+            <button type="button"
+                    class="admin-link-button admin-text-action course-template-section-toggle"
+                    aria-controls="course-template-section-{{ $currentSection->id }}-branch"
+                    aria-expanded="true"
+                    aria-label="{{ __('lf.LF_course_template_section_common_collapse', [
+                        'title' => $currentSection->title,
+                    ]) }}"
+                    x-bind:aria-expanded="expanded.toString()"
+                    x-bind:aria-label="expanded
+                        ? @js(__('lf.LF_course_template_section_common_collapse', [
+                            'title' => $currentSection->title,
+                        ]))
+                        : @js(__('lf.LF_course_template_section_common_expand', [
+                            'title' => $currentSection->title,
+                        ]))"
+                    x-on:click="toggle()">
+                <span class="admin-chevron"
+                      x-bind:class="{ 'is-collapsed': ! expanded }"
+                      aria-hidden="true"></span>
+            </button>
             <a class="admin-text-action" href="{{ route($sectionRoutePrefix.'.create', $template->id) }}?parent_section_id={{ $currentSection->id }}">
                 {{ __('lf.LF_course_template_section_common_add_child_action') }}
             </a>
@@ -33,28 +58,32 @@
         </div>
     </header>
 
-    @if ($currentSection->allows_lessons)
-        @include('course-template-lessons.partials.list', [
-            'lessons' => $sectionLessons,
-            'section' => $currentSection,
-            'lessonRoutePrefix' => $lessonRoutePrefix,
-            'activityRoutePrefix' => $activityRoutePrefix,
-            'panelId' => 'course-template-section-'.$currentSection->id.'-lessons',
-            'panelTitle' => __('lf.LF_course_template_lesson_common_list_title'),
-            'emptyMessage' => __('lf.LF_course_template_lesson_common_empty'),
-        ])
-    @endif
+    <div id="course-template-section-{{ $currentSection->id }}-branch"
+         class="course-template-section-branch"
+         x-show="expanded">
+        @if ($currentSection->allows_lessons)
+            @include('course-template-lessons.partials.list', [
+                'lessons' => $sectionLessons,
+                'section' => $currentSection,
+                'lessonRoutePrefix' => $lessonRoutePrefix,
+                'activityRoutePrefix' => $activityRoutePrefix,
+                'panelId' => 'course-template-section-'.$currentSection->id.'-lessons',
+                'panelTitle' => __('lf.LF_course_template_lesson_common_list_title'),
+                'emptyMessage' => __('lf.LF_course_template_lesson_common_empty'),
+            ])
+        @endif
 
-    @if ($childSections->isNotEmpty())
-        <div class="course-template-outline-children">
-            @foreach ($childSections as $childSection)
-                @include('course-template-sections.partials.section-node', [
-                    'section' => $childSection,
-                    'depth' => $depth + 1,
-                ])
-            @endforeach
-        </div>
-    @endif
+        @if ($childSections->isNotEmpty())
+            <div class="course-template-outline-children">
+                @foreach ($childSections as $childSection)
+                    @include('course-template-sections.partials.section-node', [
+                        'section' => $childSection,
+                        'depth' => $depth + 1,
+                    ])
+                @endforeach
+            </div>
+        @endif
+    </div>
 
     <x-modal name="delete-course-template-section-{{ $currentSection->id }}"
              focusable>

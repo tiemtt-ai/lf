@@ -111,4 +111,36 @@ window.backendSidebar = () => ({
     },
 });
 
+window.courseTemplateSectionCollapse = (tenantId, templateId, sectionId) => ({
+    expanded: true,
+    storageKey: `lf.course-template.section.${tenantId}.${templateId}.${sectionId}.expanded`,
+
+    init() {
+        let storedState = null;
+
+        try {
+            storedState = window.localStorage.getItem(this.storageKey);
+        } catch (error) {
+            storedState = null;
+        }
+
+        if (storedState === 'true' || storedState === 'false') {
+            this.expanded = storedState === 'true';
+        }
+    },
+
+    toggle() {
+        this.expanded = ! this.expanded;
+
+        try {
+            window.localStorage.setItem(
+                this.storageKey,
+                this.expanded ? 'true' : 'false',
+            );
+        } catch (error) {
+            // Keep the current-page state when storage is unavailable.
+        }
+    },
+});
+
 Alpine.start();

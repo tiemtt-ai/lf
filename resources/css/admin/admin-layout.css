@@ -244,12 +244,12 @@
     align-items: center;
     justify-content: center;
     position: relative;
-    top: -1px;
+    top: -3px;
 }
 
 .admin-chevron::before {
-    width: 5px;
-    height: 5px;
+    width: 7px;
+    height: 7px;
     display: block;
     border-right: 2px solid #777777;
     border-bottom: 2px solid #777777;
