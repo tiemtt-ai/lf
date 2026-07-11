@@ -1240,7 +1240,6 @@ class CourseTemplateActivityManagementTest extends TestCase
             'unlock_rule' => 'none',
             'unlock_after_lesson_id' => null,
             'unlock_at' => null,
-            'status' => 'draft',
             'created_by' => null,
             'created_at' => now(),
             'updated_at' => now(),

@@ -725,6 +725,7 @@ class CoursePersonalEngagementFoundationTest extends TestCase
             'unlock_rule_snapshot' => 'none',
             'unlock_after_version_activity_id' => null,
             'unlock_at_snapshot' => null,
+            'status_snapshot' => 'active',
             'created_by_snapshot' => null,
             'metadata' => null,
             'created_at' => $now,

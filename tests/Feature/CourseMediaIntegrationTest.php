@@ -1609,7 +1609,6 @@ class CourseMediaIntegrationTest extends TestCase
             'template_id' => $templateId,
             'template_section_id' => null,
             'title' => $title,
-            'slug' => $slug,
             'short_description' => null,
             'description' => null,
             'sort_order' => 0,
@@ -1694,7 +1693,6 @@ class CourseMediaIntegrationTest extends TestCase
     {
         return array_merge([
             'title' => 'Lesson Introduction',
-            'slug' => null,
             'short_description' => null,
             'description' => null,
             'sort_order' => 0,
@@ -1702,7 +1700,6 @@ class CourseMediaIntegrationTest extends TestCase
             'unlock_rule' => 'none',
             'unlock_after_lesson_id' => null,
             'unlock_at' => null,
-            'status' => 'draft',
         ], $overrides);
     }
 
