@@ -213,10 +213,18 @@ class CourseTemplateLessonManagementTest extends TestCase
             $xpath = new \DOMXPath($document);
             $createAction = $xpath->query(
                 '//section[@id="course-template-direct-lessons"]'
+                .'//div[contains(concat(" ", normalize-space(@class), " "), " course-template-section-action-bar ")]'
                 .'//a[normalize-space()="+ Thêm bài học"]'
             )->item(0);
 
             $this->assertNotNull($createAction);
+            $this->assertSame(
+                1,
+                $xpath->query(
+                    '//section[@id="course-template-direct-lessons"]'
+                    .'//a[normalize-space()="+ Thêm bài học"]'
+                )->length
+            );
             $this->assertStringContainsString(
                 'admin-primary-outline-action',
                 $createAction->getAttribute('class')

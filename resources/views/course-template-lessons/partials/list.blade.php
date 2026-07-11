@@ -8,10 +8,17 @@
 <section id="{{ $panelId }}"
          class="course-template-lesson-panel"
          aria-labelledby="{{ $panelId }}-title">
-    <div class="course-template-lesson-toolbar">
-        <h4 id="{{ $panelId }}-title">
-            {{ $panelTitle }} ({{ $lessons->count() }})
-        </h4>
+    <div @class([
+        'course-template-lesson-toolbar' => $section,
+        'course-template-section-action-bar' => ! $section,
+    ])>
+        @if ($section)
+            <h4 id="{{ $panelId }}-title">
+                {{ $panelTitle }} ({{ $lessons->count() }})
+            </h4>
+        @else
+            <strong id="{{ $panelId }}-title">{{ $panelTitle }}</strong>
+        @endif
         @if (! $section || $section->allows_lessons)
             <a href="{{ route(
                 $lessonRoutePrefix.'.create',
