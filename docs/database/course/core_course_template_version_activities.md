@@ -59,20 +59,18 @@ Media / Assessment / LiveClass → version_activities (approved immutable refere
 | `title_snapshot` | VARCHAR(255) | required | Snapshot Activity title. |
 | `description_snapshot` | TEXT | nullable | Snapshot Activity description. |
 | `sort_order` | INT | required, default 0 | Published order within the Lesson. |
-| `activity_type` | VARCHAR(50) | required | `text`, `video`, `audio`, `document`, `quiz`, `assignment`, `liveclass`, or `external_link`. |
-| `activity_ref_type_snapshot` | VARCHAR(100) | nullable | Snapshot of referenced Domain/entity type. |
-| `activity_ref_id_snapshot` | BIGINT UNSIGNED | nullable | Immutable/versioned target identifier or approved lineage reference. |
-| `external_url_snapshot` | VARCHAR(1000) | nullable | Frozen external URL. |
-| `embed_code_snapshot` | LONGTEXT | nullable | Frozen embed configuration/content. |
+| `activity_type` | VARCHAR(50) | required | `video`, `embedded_video`, `audio`, `document`, `quiz`, or `live_class`. |
+| `external_video_url_snapshot` | VARCHAR(1000) | nullable | Frozen HTTPS external video URL. |
+| `live_class_url_snapshot` | VARCHAR(1000) | nullable | Frozen HTTPS live-class URL. |
+| `assessment_quiz_id_snapshot` | BIGINT UNSIGNED | nullable | Frozen tenant-owned Assessment Quiz identifier. |
 | `duration_seconds` | INT UNSIGNED | required, default 0 | Published Activity duration. |
 | `is_required` | TINYINT(1) | required, default 1 | Published completion requirement. |
 | `completion_rule` | VARCHAR(50) | required, default `view` | `view`, `watch_percent`, `submit`, `pass`, `attend`, or `manual`. |
 | `completion_threshold` | INT UNSIGNED | nullable | Frozen threshold, such as watch percentage or pass percentage. |
 | `is_preview` | TINYINT(1) | required, default 0 | Published preview permission. |
-| `unlock_rule_snapshot` | VARCHAR(50) | required, default `none` | `none`, `previous_activity_completed`, `previous_lesson_completed`, or `date_based`. |
+| `unlock_rule_snapshot` | VARCHAR(50) | required, default `none` | `none`, `previous_activity_completed`, or `date_based`. |
 | `unlock_after_version_activity_id` | BIGINT UNSIGNED | nullable | Published prerequisite Activity in the same Lesson. |
 | `unlock_at_snapshot` | TIMESTAMP | nullable | Published date-based unlock time. |
-| `status_snapshot` | VARCHAR(50) | required | Source Activity status at publish: `draft`, `active`, `inactive`, or `archived`. |
 | `created_by_snapshot` | BIGINT UNSIGNED | nullable | Source author identifier captured for audit. |
 | `metadata` | JSON | nullable | Non-canonical immutable integration context only; not a substitute for defined fields. |
 | `created_at` | TIMESTAMP | nullable | Snapshot creation time. |
@@ -86,8 +84,6 @@ INDEX idx_cctva_version (customer_id, template_version_id);
 INDEX idx_cctva_lesson (customer_id, template_version_id, version_lesson_id);
 INDEX idx_cctva_source (customer_id, source_template_activity_id);
 INDEX idx_cctva_type (customer_id, activity_type);
-INDEX idx_cctva_reference
-    (customer_id, activity_ref_type_snapshot, activity_ref_id_snapshot);
 INDEX idx_cctva_unlock
     (customer_id, version_lesson_id, unlock_after_version_activity_id);
 INDEX idx_cctva_sort (customer_id, version_lesson_id, sort_order);
@@ -136,19 +132,17 @@ source_template_activity_id = 20
 title_snapshot = Hangul Introduction
 sort_order = 1
 activity_type = video
-activity_ref_type_snapshot = media_files
-activity_ref_id_snapshot = 700
+external_video_url_snapshot = null
 duration_seconds = 900
 is_required = 1
 completion_rule = watch_percent
 completion_threshold = 80
 is_preview = 1
 unlock_rule_snapshot = none
-status_snapshot = active
 created_by_snapshot = 5
 ```
 
-External Activity:
+Embedded Video Activity:
 
 ```text
 id = 9002
@@ -158,15 +152,14 @@ version_lesson_id = 501
 source_template_activity_id = 21
 title_snapshot = Extra Practice
 sort_order = 2
-activity_type = external_link
-external_url_snapshot = https://example.com/practice
+activity_type = embedded_video
+external_video_url_snapshot = https://www.youtube.com/watch?v=example
 duration_seconds = 300
 is_required = 0
 completion_rule = view
 is_preview = 0
 unlock_rule_snapshot = previous_activity_completed
 unlock_after_version_activity_id = 9001
-status_snapshot = active
 ```
 
 ---

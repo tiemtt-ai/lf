@@ -52,9 +52,6 @@
                         ]) }}
                     </span>
                 </div>
-                <span class="badge">
-                    {{ __('lf.LF_course_template_activity_common_'.$activity->status_snapshot) }}
-                </span>
             </article>
         @empty
             <p class="course-version-empty">

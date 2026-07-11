@@ -160,62 +160,36 @@ Loại Activity.
 
 Giá trị:
 
-* text
 * video
+* embedded_video
 * audio
 * document
 * quiz
-* assignment
-* liveclass
-* external_link
+* live_class
 
 ---
 
-## Activity Reference
+## Type-specific Content
 
-### activity_ref_type
-
-VARCHAR(100) NULL
-
-Domain/table mà Activity tham chiếu.
-
-Ví dụ:
-
-* media_videos
-* media_audios
-* media_documents
-* core_assessment_quizzes
-* core_liveclass_rooms
-
-### activity_ref_id
-
-BIGINT UNSIGNED NULL
-
-ID của dữ liệu được tham chiếu.
-
----
-
-## External Content
-
-### external_url
+### external_video_url
 
 VARCHAR(1000) NULL
 
 URL ngoài hệ thống.
 
-Dùng khi activity_type = external_link.
+Dùng khi activity_type = embedded_video. Chỉ URL HTTPS.
 
-### embed_code
+### live_class_url
 
-LONGTEXT NULL
+VARCHAR(1000) NULL
 
-Mã nhúng ngoài hệ thống nếu cần.
+Dùng khi activity_type = live_class. Chỉ URL HTTPS.
 
-Ví dụ:
+### assessment_quiz_id
 
-* YouTube embed
-* Vimeo embed
-* Third-party learning tool embed
+BIGINT UNSIGNED NULL
+
+Tenant-owned Assessment Quiz ID khi activity_type = quiz.
 
 ---
 
@@ -229,11 +203,6 @@ Thời lượng Activity.
 
 System generated nếu Activity tham chiếu Media.
 
-Có thể manual cho:
-
-* text
-* external_link
-* assignment
 
 ### is_required
 
@@ -251,7 +220,6 @@ Giá trị:
 * watch_percent
 * submit
 * pass
-* attend
 * manual
 
 ### completion_threshold
@@ -283,7 +251,6 @@ Giá trị:
 
 * none
 * previous_activity_completed
-* previous_lesson_completed
 * date_based
 
 ### unlock_after_activity_id
@@ -297,21 +264,6 @@ Activity cần hoàn thành trước.
 TIMESTAMP NULL
 
 Ngày mở khóa nếu unlock_rule = date_based.
-
----
-
-## Business
-
-### status
-
-VARCHAR(50)
-
-Giá trị:
-
-* draft
-* active
-* inactive
-* archived
 
 ---
 
@@ -343,11 +295,7 @@ TIMESTAMP
 
 (customer_id, activity_type)
 
-(customer_id, activity_ref_type, activity_ref_id)
-
 (customer_id, template_lesson_id, sort_order)
-
-(customer_id, status)
 
 (customer_id, created_by)
 
@@ -377,9 +325,7 @@ title = Video - Korean Alphabet Introduction
 
 activity_type = video
 
-activity_ref_type = media_videos
-
-activity_ref_id = 101
+external_video_url = null
 
 duration_seconds = 1200
 
@@ -390,8 +336,6 @@ completion_rule = watch_percent
 completion_threshold = 80
 
 sort_order = 1
-
-status = active
 
 ---
 
@@ -409,9 +353,7 @@ title = Quiz - Korean Alphabet Practice
 
 activity_type = quiz
 
-activity_ref_type = core_assessment_quizzes
-
-activity_ref_id = 88
+assessment_quiz_id = 88
 
 duration_seconds = 600
 
@@ -423,11 +365,9 @@ completion_threshold = 70
 
 sort_order = 2
 
-status = active
-
 ---
 
-## External Link Activity
+## Embedded Video Activity
 
 id = 3
 
@@ -437,11 +377,11 @@ template_id = 10
 
 template_lesson_id = 5
 
-title = Extra Practice Link
+title = Extra Practice Video
 
-activity_type = external_link
+activity_type = embedded_video
 
-external_url = https://example.com/practice
+external_video_url = https://www.youtube.com/watch?v=example
 
 duration_seconds = 300
 
@@ -450,8 +390,6 @@ is_required = 0
 completion_rule = view
 
 sort_order = 3
-
-status = active
 
 ---
 

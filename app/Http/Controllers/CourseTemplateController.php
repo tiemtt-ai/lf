@@ -650,9 +650,9 @@ class CourseTemplateController extends Controller
                 $activity->view_kind = 'readonly';
                 $activity->view_url = null;
 
-                if ($activity->activity_type === 'external_link') {
+                if (in_array($activity->activity_type, ['embedded_video', 'live_class'], true)) {
                     $activity->view_url = $this->safeExternalUrl(
-                        $activity->external_url
+                        $activity->external_video_url ?? $activity->live_class_url
                     );
                     $activity->view_kind = $activity->view_url
                         ? 'external'

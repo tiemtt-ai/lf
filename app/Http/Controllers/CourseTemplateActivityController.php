@@ -8,6 +8,7 @@ use App\Support\UploadLimit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -15,29 +16,15 @@ use Illuminate\View\View;
 class CourseTemplateActivityController extends Controller
 {
     private const ACTIVITY_TYPES = [
-        'text',
         'video',
+        'embedded_video',
         'audio',
         'document',
         'quiz',
-        'assignment',
-        'liveclass',
-        'external_link',
+        'live_class',
     ];
 
     private const MANUAL_DURATION_TYPES = [
-        'text',
-        'external_link',
-        'assignment',
-    ];
-
-    private const REFERENCE_ACTIVITY_TYPES = [
-        'video',
-        'audio',
-        'document',
-        'quiz',
-        'assignment',
-        'liveclass',
     ];
 
     public function __construct(private readonly MediaService $mediaService) {}
@@ -280,7 +267,6 @@ class CourseTemplateActivityController extends Controller
             ),
             'activityTypes' => self::ACTIVITY_TYPES,
             'manualDurationTypes' => self::MANUAL_DURATION_TYPES,
-            'referenceActivityTypes' => self::REFERENCE_ACTIVITY_TYPES,
             'activityMedia' => collect(),
             'suggestedSortOrder' => $this->nextSortOrder(
                 $customerId,
@@ -345,6 +331,7 @@ class CourseTemplateActivityController extends Controller
             ]));
         });
 
+        $this->detachInactiveMedia($activityId, $validated['activity_type'], $request);
         $this->attachUploadedMedia($request, $activityId);
 
         return redirect()
@@ -395,7 +382,6 @@ class CourseTemplateActivityController extends Controller
             ),
             'activityTypes' => self::ACTIVITY_TYPES,
             'manualDurationTypes' => self::MANUAL_DURATION_TYPES,
-            'referenceActivityTypes' => self::REFERENCE_ACTIVITY_TYPES,
             'activityMedia' => $this->ownerMedia(
                 'course_activity',
                 $activityId
@@ -431,7 +417,9 @@ class CourseTemplateActivityController extends Controller
             'section' => $section,
             'lesson' => $lesson,
             'activity' => $activity,
-            'externalUrl' => $this->safeExternalUrl($activity->external_url),
+            'externalUrl' => $this->safeExternalUrl(
+                $activity->external_video_url ?? $activity->live_class_url
+            ),
             'activityMedia' => $this->ownerMedia(
                 'course_activity',
                 $activityId
@@ -488,6 +476,7 @@ class CourseTemplateActivityController extends Controller
                 'updated_at' => now(),
             ]));
 
+        $this->detachInactiveMedia($activityId, $validated['activity_type'], $request);
         $this->attachUploadedMedia($request, $activityId);
 
         return redirect()
@@ -613,10 +602,9 @@ class CourseTemplateActivityController extends Controller
             'description',
             'sort_order',
             'activity_type',
-            'activity_ref_type',
-            'activity_ref_id',
-            'external_url',
-            'embed_code',
+            'external_video_url',
+            'live_class_url',
+            'assessment_quiz_id',
             'duration_seconds',
             'is_required',
             'completion_rule',
@@ -625,7 +613,6 @@ class CourseTemplateActivityController extends Controller
             'unlock_rule',
             'unlock_after_activity_id',
             'unlock_at',
-            'status',
         ];
 
         $input = array_intersect_key(
@@ -633,13 +620,31 @@ class CourseTemplateActivityController extends Controller
             array_flip($fields)
         );
 
+        $typeField = [
+            'embedded_video' => 'external_video_url',
+            'live_class' => 'live_class_url',
+            'quiz' => 'assessment_quiz_id',
+        ][$input['activity_type'] ?? ''] ?? null;
+        foreach (['external_video_url', 'live_class_url', 'assessment_quiz_id'] as $field) {
+            if ($field !== $typeField) unset($input[$field]);
+        }
+        if (! in_array($input['completion_rule'] ?? null, ['watch_percent', 'pass'], true)) {
+            unset($input['completion_threshold']);
+        }
+        if (($input['unlock_rule'] ?? null) !== 'previous_activity_completed') unset($input['unlock_after_activity_id']);
+        if (($input['unlock_rule'] ?? null) !== 'date_based') unset($input['unlock_at']);
+
         foreach ([
             'activity_video_file',
             'activity_audio_file',
             'activity_document_file',
-            'activity_attachment_file',
         ] as $field) {
-            if ($request->hasFile($field)) {
+            $expectedType = match ($field) {
+                'activity_video_file' => 'video',
+                'activity_audio_file' => 'audio',
+                'activity_document_file' => 'document',
+            };
+            if ($request->hasFile($field) && ($input['activity_type'] ?? null) === $expectedType) {
                 $input[$field] = $request->file($field);
             }
         }
@@ -658,7 +663,7 @@ class CourseTemplateActivityController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'sort_order' => [
-                $activityId === null ? 'nullable' : 'required',
+                'nullable',
                 'integer',
                 'min:0',
             ],
@@ -666,26 +671,26 @@ class CourseTemplateActivityController extends Controller
                 'required',
                 Rule::in(self::ACTIVITY_TYPES),
             ],
-            'activity_ref_type' => [
-                'nullable',
-                'string',
-                'max:100',
-                'required_with:activity_ref_id',
-            ],
-            'activity_ref_id' => [
-                'nullable',
-                'integer',
-                'min:1',
-                'required_with:activity_ref_type',
-            ],
-            'external_url' => [
+            'external_video_url' => [
                 'nullable',
                 'url',
                 'max:1000',
-                'required_if:activity_type,external_link',
-                'prohibited_unless:activity_type,external_link',
+                'starts_with:https://',
+                'required_if:activity_type,embedded_video',
+                'prohibited_unless:activity_type,embedded_video',
             ],
-            'embed_code' => ['nullable', 'string'],
+            'live_class_url' => ['nullable', 'url', 'max:1000', 'starts_with:https://', 'required_if:activity_type,live_class', 'prohibited_unless:activity_type,live_class'],
+            'assessment_quiz_id' => [
+                'nullable', 'integer', 'min:1',
+                'required_if:activity_type,quiz',
+                'prohibited_unless:activity_type,quiz',
+                function ($attribute, $value, $fail) use ($customerId): void {
+                    if ($value === null) return;
+                    if (! Schema::hasTable('core_assessment_quizzes') || ! DB::table('core_assessment_quizzes')->where('customer_id', $customerId)->where('id', $value)->exists()) {
+                        $fail(__('validation.exists', ['attribute' => $attribute]));
+                    }
+                },
+            ],
             'duration_seconds' => [
                 'nullable',
                 'integer',
@@ -701,19 +706,19 @@ class CourseTemplateActivityController extends Controller
             'is_required' => ['required', 'boolean'],
             'completion_rule' => [
                 'required',
-                Rule::in([
-                    'view',
-                    'watch_percent',
-                    'submit',
-                    'pass',
-                    'attend',
-                    'manual',
-                ]),
+                Rule::in(match ($activityType) {
+                    'video', 'audio' => ['view', 'watch_percent', 'manual'],
+                    'document', 'embedded_video' => ['view', 'manual'],
+                    'quiz' => ['submit', 'pass', 'manual'],
+                    'live_class' => ['manual'],
+                    default => [],
+                }),
             ],
             'completion_threshold' => [
                 'nullable',
                 'integer',
                 'min:0',
+                'max:100',
                 'required_if:completion_rule,watch_percent,pass',
             ],
             'is_preview' => ['required', 'boolean'],
@@ -741,10 +746,6 @@ class CourseTemplateActivityController extends Controller
                 'date',
                 'required_if:unlock_rule,date_based',
                 'prohibited_unless:unlock_rule,date_based',
-            ],
-            'status' => [
-                'required',
-                Rule::in(['draft', 'active', 'inactive', 'archived']),
             ],
             'activity_video_file' => [
                 'nullable',
@@ -784,15 +785,14 @@ class CourseTemplateActivityController extends Controller
         array $validated,
         array $extra = []
     ): array {
-        return array_merge([
+        return array_merge(array_filter([
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
-            'sort_order' => $validated['sort_order'],
+            'sort_order' => $validated['sort_order'] ?? null,
             'activity_type' => $validated['activity_type'],
-            'activity_ref_type' => $validated['activity_ref_type'] ?? null,
-            'activity_ref_id' => $validated['activity_ref_id'] ?? null,
-            'external_url' => $validated['external_url'] ?? null,
-            'embed_code' => $validated['embed_code'] ?? null,
+            'external_video_url' => $validated['external_video_url'] ?? null,
+            'live_class_url' => $validated['live_class_url'] ?? null,
+            'assessment_quiz_id' => $validated['assessment_quiz_id'] ?? null,
             'duration_seconds' => in_array(
                 $validated['activity_type'],
                 self::MANUAL_DURATION_TYPES,
@@ -807,8 +807,7 @@ class CourseTemplateActivityController extends Controller
             'unlock_at' => isset($validated['unlock_at'])
                 ? Carbon::parse($validated['unlock_at'])->format('Y-m-d H:i:s')
                 : null,
-            'status' => $validated['status'],
-        ], $extra);
+        ], fn ($value, $key) => $key !== 'sort_order' || $value !== null, ARRAY_FILTER_USE_BOTH), $extra);
     }
 
     private function prerequisiteActivities(
@@ -935,7 +934,6 @@ class CourseTemplateActivityController extends Controller
             'activity_video_file' => ['video', 'video'],
             'activity_audio_file' => ['audio', 'audio'],
             'activity_document_file' => ['document', 'document'],
-            'activity_attachment_file' => ['document', 'attachment'],
         ] as $field => [$fileType, $usageType]) {
             if (! $request->hasFile($field)) {
                 continue;
@@ -961,6 +959,30 @@ class CourseTemplateActivityController extends Controller
                 $usageType
             );
         }
+    }
+
+    private function detachInactiveMedia(int $activityId, string $activityType, Request $request): void
+    {
+        $activeUsage = in_array($activityType, ['video', 'audio', 'document'], true)
+            ? $activityType
+            : null;
+        $replacingActiveMedia = $activeUsage !== null
+            && $request->hasFile("activity_{$activeUsage}_file");
+
+        DB::table('media_file_usages')
+            ->where('customer_id', $this->customerId())
+            ->where('owner_type', 'course_activity')
+            ->where('owner_id', $activityId)
+            ->where('status', 'active')
+            ->when($activeUsage && ! $replacingActiveMedia, fn ($query) => $query->where('usage_type', '!=', $activeUsage))
+            ->when(! $activeUsage || $replacingActiveMedia, fn ($query) => $query->whereIn('usage_type', ['video', 'audio', 'document']))
+            ->get()
+            ->each(fn (object $usage) => $this->mediaService->detachUsage(
+                (int) $usage->media_file_id,
+                'course_activity',
+                $activityId,
+                $usage->usage_type
+            ));
     }
 
     private function ownerMedia(string $ownerType, int $ownerId): object

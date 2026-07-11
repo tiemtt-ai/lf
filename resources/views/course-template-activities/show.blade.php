@@ -35,9 +35,9 @@
             <dt>{{ __('lf.LF_course_template_activity_common_type') }}</dt>
             <dd>{{ __('lf.LF_course_template_activity_common_type_'.$activity->activity_type) }}</dd>
 
-            @if ($activity->activity_ref_type && $activity->activity_ref_id)
+            @if ($activity->assessment_quiz_id)
                 <dt>{{ __('lf.LF_course_template_activity_common_reference') }}</dt>
-                <dd>{{ $activity->activity_ref_type }} #{{ $activity->activity_ref_id }}</dd>
+                <dd>Assessment Quiz #{{ $activity->assessment_quiz_id }}</dd>
             @endif
 
             @if ($externalUrl)
@@ -50,10 +50,6 @@
                 </dd>
             @endif
 
-            @if ($activity->embed_code)
-                <dt>{{ __('lf.LF_course_template_activity_common_embed_code') }}</dt>
-                <dd><pre>{{ $activity->embed_code }}</pre></dd>
-            @endif
         </dl>
 
         @if ($activityMedia->isNotEmpty())

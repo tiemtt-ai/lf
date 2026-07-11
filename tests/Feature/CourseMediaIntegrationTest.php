@@ -1100,26 +1100,10 @@ class CourseMediaIntegrationTest extends TestCase
                 $this->validActivityData([
                     'title' => 'Teacher Media Activity',
                     'activity_type' => 'video',
-                    'duration_seconds' => null,
                     'activity_video_file' => UploadedFile::fake()->create(
                         'activity-video.mp4',
                         32,
                         'video/mp4'
-                    ),
-                    'activity_audio_file' => UploadedFile::fake()->create(
-                        'activity-audio.mp3',
-                        32,
-                        'audio/mpeg'
-                    ),
-                    'activity_document_file' => UploadedFile::fake()->create(
-                        'activity-document.pdf',
-                        32,
-                        'application/pdf'
-                    ),
-                    'activity_attachment_file' => UploadedFile::fake()->create(
-                        'activity-attachment.pdf',
-                        32,
-                        'application/pdf'
                     ),
                 ])
             )
@@ -1134,7 +1118,7 @@ class CourseMediaIntegrationTest extends TestCase
             ->where('title', 'Teacher Media Activity')
             ->value('id');
 
-        foreach (['video', 'audio', 'document', 'attachment'] as $usageType) {
+        foreach (['video'] as $usageType) {
             $mediaFile = $this->assertActiveUsage(
                 $customerId,
                 'course_activity',
@@ -1153,11 +1137,7 @@ class CourseMediaIntegrationTest extends TestCase
                 "https://tenant-a.localhost/teacher/course-templates/{$templateId}/lessons/{$lessonId}/activities/{$activityId}/edit"
             )
             ->assertOk()
-            ->assertSeeText('Activity media')
-            ->assertSeeText('Định dạng: MP4, WEBM, MOV, AVI')
-            ->assertSeeText('Định dạng: MP3, WAV, OGG, WEBM, M4A, AAC')
-            ->assertSeeText('Định dạng: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT')
-            ->assertSee('expiration=', false);
+            ->assertSeeText('Video file');
 
         $outline = $this->actingAs($teacher)
             ->get(
@@ -1564,12 +1544,10 @@ class CourseMediaIntegrationTest extends TestCase
             'title' => 'Activity Introduction',
             'description' => null,
             'sort_order' => 0,
-            'activity_type' => 'text',
-            'activity_ref_type' => null,
-            'activity_ref_id' => null,
-            'external_url' => null,
-            'embed_code' => null,
-            'duration_seconds' => 0,
+            'activity_type' => 'document',
+            'external_video_url' => null,
+            'live_class_url' => null,
+            'assessment_quiz_id' => null,
             'is_required' => 1,
             'completion_rule' => 'view',
             'completion_threshold' => null,
@@ -1577,7 +1555,6 @@ class CourseMediaIntegrationTest extends TestCase
             'unlock_rule' => 'none',
             'unlock_after_activity_id' => null,
             'unlock_at' => null,
-            'status' => 'draft',
         ], $overrides);
     }
 

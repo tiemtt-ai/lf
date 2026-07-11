@@ -286,8 +286,8 @@ class CourseTemplateActivityManagementTest extends TestCase
         DB::table('core_course_template_activities')
             ->where('id', $activityId)
             ->update([
-                'activity_type' => 'external_link',
-                'external_url' => 'https://example.com/resource',
+                'activity_type' => 'embedded_video',
+                'external_video_url' => 'https://www.youtube.com/watch?v=abc123',
             ]);
 
         $response = $this->actingAs($admin)
@@ -305,7 +305,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         $this->assertNotNull($title);
         $this->assertNotNull($viewAction);
         $this->assertFalse($title->hasAttribute('href'));
-        $this->assertSame('https://example.com/resource', $viewAction->getAttribute('href'));
+        $this->assertSame('https://www.youtube.com/watch?v=abc123', $viewAction->getAttribute('href'));
         $this->assertSame('_blank', $viewAction->getAttribute('target'));
         $this->assertStringNotContainsString('/edit', $viewAction->getAttribute('href'));
     }
@@ -336,12 +336,10 @@ class CourseTemplateActivityManagementTest extends TestCase
                 'title' => 'Reading Text',
                 'description' => 'Read this introduction',
                 'sort_order' => 3,
-                'activity_type' => 'text',
-                'duration_seconds' => 300,
+                'activity_type' => 'document',
                 'is_required' => 1,
                 'completion_rule' => 'view',
                 'is_preview' => 1,
-                'status' => 'active',
             ]))
             ->assertRedirect(
                 'https://tenant-a.localhost/admin/course-templates/'
@@ -356,7 +354,7 @@ class CourseTemplateActivityManagementTest extends TestCase
 
         $this->assertNotNull($activity);
         $this->assertSame($admin->id, (int) $activity->created_by);
-        $this->assertSame(300, (int) $activity->duration_seconds);
+        $this->assertSame(0, (int) $activity->duration_seconds);
 
         $this->actingAs($admin)
             ->put(
@@ -364,9 +362,7 @@ class CourseTemplateActivityManagementTest extends TestCase
                 $this->validActivityData([
                     'title' => 'Updated Reading Text',
                     'sort_order' => 4,
-                    'activity_type' => 'text',
-                    'duration_seconds' => 420,
-                    'status' => 'inactive',
+                    'activity_type' => 'document',
                 ])
             )
             ->assertRedirect(
@@ -378,8 +374,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             'customer_id' => $customerId,
             'title' => 'Updated Reading Text',
             'sort_order' => 4,
-            'duration_seconds' => 420,
-            'status' => 'inactive',
+            'duration_seconds' => 0,
         ]);
 
         $this->actingAs($admin)
@@ -464,27 +459,6 @@ class CourseTemplateActivityManagementTest extends TestCase
         );
 
         foreach ([
-            [$firstLessonId, '9'],
-            [$secondLessonId, '1'],
-        ] as [$lessonId, $expectedOrder]) {
-            $create = $this->actingAs($admin)->get(
-                $this->activityCollectionUrl(
-                    'admin',
-                    $templateId,
-                    $sectionId,
-                    $lessonId
-                ).'/create'
-            );
-            $this->assertSame(
-                $expectedOrder,
-                $this->xpath($create->getContent())
-                    ->query('//input[@name="sort_order"]')
-                    ->item(0)
-                    ->getAttribute('value')
-            );
-        }
-
-        foreach ([
             [$firstLessonId, 'Automatic First Activity', 9],
             [$secondLessonId, 'Automatic Second Activity', 1],
         ] as [$lessonId, $title, $expectedOrder]) {
@@ -562,9 +536,8 @@ class CourseTemplateActivityManagementTest extends TestCase
         $this->actingAs($teacher)
             ->post($collectionUrl, $this->validActivityData([
                 'title' => 'Practice Link',
-                'activity_type' => 'external_link',
-                'external_url' => 'https://example.com/practice',
-                'duration_seconds' => 180,
+                'activity_type' => 'embedded_video',
+                'external_video_url' => 'https://www.youtube.com/watch?v=practice',
             ]))
             ->assertRedirect();
 
@@ -580,9 +553,8 @@ class CourseTemplateActivityManagementTest extends TestCase
                 "{$collectionUrl}/{$activity->id}",
                 $this->validActivityData([
                     'title' => 'Updated Practice Link',
-                    'activity_type' => 'external_link',
-                    'external_url' => 'https://example.com/updated',
-                    'duration_seconds' => 240,
+                    'activity_type' => 'embedded_video',
+                    'external_video_url' => 'https://youtu.be/updated',
                 ])
             )
             ->assertRedirect("{$collectionUrl}/{$activity->id}/edit");
@@ -624,20 +596,18 @@ class CourseTemplateActivityManagementTest extends TestCase
                 'title',
                 'sort_order',
                 'activity_type',
-                'activity_ref_type',
                 'is_required',
                 'completion_rule',
                 'is_preview',
                 'unlock_rule',
-                'status',
             ]);
 
         $this->actingAs($admin)
             ->post($url, $this->validActivityData([
-                'activity_type' => 'external_link',
-                'external_url' => null,
+                'activity_type' => 'embedded_video',
+                'external_video_url' => null,
             ]))
-            ->assertSessionHasErrors('external_url');
+            ->assertSessionHasErrors('external_video_url');
 
         $this->actingAs($admin)
             ->post($url, $this->validActivityData([
@@ -656,7 +626,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         $this->assertDatabaseCount('core_course_template_activities', 0);
     }
 
-    public function test_reference_fields_are_paired_and_documented_types_are_stored(): void
+    public function test_final_activity_content_fields_are_stored(): void
     {
         [$customerId, $templateId, $sectionId, $lessonId] =
             $this->createHierarchy();
@@ -672,9 +642,6 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->post($url, $this->validActivityData([
                 'title' => 'Video Activity',
                 'activity_type' => 'video',
-                'activity_ref_type' => 'media_videos',
-                'activity_ref_id' => 101,
-                'duration_seconds' => null,
                 'completion_rule' => 'watch_percent',
                 'completion_threshold' => 80,
             ]))
@@ -684,8 +651,6 @@ class CourseTemplateActivityManagementTest extends TestCase
             'customer_id' => $customerId,
             'template_lesson_id' => $lessonId,
             'activity_type' => 'video',
-            'activity_ref_type' => 'media_videos',
-            'activity_ref_id' => 101,
             'duration_seconds' => 0,
             'completion_rule' => 'watch_percent',
             'completion_threshold' => 80,
@@ -958,7 +923,6 @@ class CourseTemplateActivityManagementTest extends TestCase
             'completion_rule',
             'is_preview',
             'unlock_rule',
-            'status',
         ] as $field) {
             $this->assertSame(
                 1,
@@ -1044,7 +1008,6 @@ class CourseTemplateActivityManagementTest extends TestCase
         $createResponse = $this->actingAs($admin)
             ->get("{$collectionUrl}/create")
             ->assertOk()
-            ->assertSeeText('Thông tin Activity')
             ->assertSeeText('Loại hoạt động');
 
         $this->assertActivityTypeSelector($createResponse->getContent());
@@ -1052,7 +1015,6 @@ class CourseTemplateActivityManagementTest extends TestCase
         $editResponse = $this->actingAs($admin)
             ->get("{$collectionUrl}/{$activityId}/edit")
             ->assertOk()
-            ->assertSeeText('Thông tin Activity')
             ->assertSeeText('Loại hoạt động');
 
         $this->assertActivityTypeSelector(
@@ -1261,11 +1223,10 @@ class CourseTemplateActivityManagementTest extends TestCase
             'title' => $title,
             'description' => null,
             'sort_order' => $sortOrder,
-            'activity_type' => 'text',
-            'activity_ref_type' => null,
-            'activity_ref_id' => null,
-            'external_url' => null,
-            'embed_code' => null,
+            'activity_type' => 'document',
+            'external_video_url' => null,
+            'live_class_url' => null,
+            'assessment_quiz_id' => null,
             'duration_seconds' => 0,
             'is_required' => true,
             'completion_rule' => 'view',
@@ -1276,7 +1237,6 @@ class CourseTemplateActivityManagementTest extends TestCase
                 : 'previous_activity_completed',
             'unlock_after_activity_id' => $unlockAfterActivityId,
             'unlock_at' => null,
-            'status' => 'draft',
             'created_by' => null,
             'created_at' => now(),
             'updated_at' => now(),
@@ -1289,12 +1249,10 @@ class CourseTemplateActivityManagementTest extends TestCase
             'title' => 'Introduction Activity',
             'description' => null,
             'sort_order' => 0,
-            'activity_type' => 'text',
-            'activity_ref_type' => null,
-            'activity_ref_id' => null,
-            'external_url' => null,
-            'embed_code' => null,
-            'duration_seconds' => 0,
+            'activity_type' => 'document',
+            'external_video_url' => null,
+            'live_class_url' => null,
+            'assessment_quiz_id' => null,
             'is_required' => 1,
             'completion_rule' => 'view',
             'completion_threshold' => null,
@@ -1302,7 +1260,6 @@ class CourseTemplateActivityManagementTest extends TestCase
             'unlock_rule' => 'none',
             'unlock_after_activity_id' => null,
             'unlock_at' => null,
-            'status' => 'draft',
         ], $overrides);
     }
 
@@ -1353,8 +1310,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         libxml_use_internal_errors($previous);
         $xpath = new \DOMXPath($document);
         $selectors = $xpath->query(
-            '//section[.//h2[normalize-space()="Thông tin Activity"]]'
-            .'//select[@id="activity_type" and @name="activity_type"'
+            '//select[@id="activity_type" and @name="activity_type"'
             .' and @required]'
         );
 
@@ -1370,14 +1326,12 @@ class CourseTemplateActivityManagementTest extends TestCase
         }
 
         $this->assertSame([
-            'text',
             'video',
+            'embedded_video',
             'audio',
             'document',
             'quiz',
-            'assignment',
-            'liveclass',
-            'external_link',
+            'live_class',
         ], $optionValues);
 
         if ($selectedType !== null) {

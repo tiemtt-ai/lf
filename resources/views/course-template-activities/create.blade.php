@@ -20,8 +20,9 @@
         </div>
     @endif
 
-    <div class="admin-card admin-form-card">
-        <p>
+    <section class="course-template-tab-panel course-template-activity-form-page">
+    <div class="admin-card admin-form-card course-template-activity-form-card">
+        <p class="course-template-activity-context">
             {{ __('lf.LF_course_template_activity_common_location') }}:
             <strong>
                 {{ $template->title }} →
@@ -52,4 +53,5 @@
             </div>
         </form>
     </div>
+    </section>
 @endsection

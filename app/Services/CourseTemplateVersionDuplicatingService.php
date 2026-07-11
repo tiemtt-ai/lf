@@ -491,12 +491,6 @@ class CourseTemplateVersionDuplicatingService
         $map = [];
 
         foreach ($activities as $activity) {
-            [$referenceType, $referenceId] = $this->activityReference(
-                $customerId,
-                $activity->activity_ref_type_snapshot,
-                $activity->activity_ref_id_snapshot
-            );
-
             $map[$activity->id] = DB::table(
                 'core_course_template_activities'
             )->insertGetId([
@@ -509,10 +503,9 @@ class CourseTemplateVersionDuplicatingService
                 'description' => $activity->description_snapshot,
                 'sort_order' => $activity->sort_order,
                 'activity_type' => $activity->activity_type,
-                'activity_ref_type' => $referenceType,
-                'activity_ref_id' => $referenceId,
-                'external_url' => $activity->external_url_snapshot,
-                'embed_code' => $activity->embed_code_snapshot,
+                'external_video_url' => $activity->external_video_url_snapshot,
+                'live_class_url' => $activity->live_class_url_snapshot,
+                'assessment_quiz_id' => $activity->assessment_quiz_id_snapshot,
                 'duration_seconds' => $activity->duration_seconds,
                 'is_required' => $activity->is_required,
                 'completion_rule' => $activity->completion_rule,
@@ -522,7 +515,6 @@ class CourseTemplateVersionDuplicatingService
                 'unlock_rule' => $activity->unlock_rule_snapshot,
                 'unlock_after_activity_id' => null,
                 'unlock_at' => $activity->unlock_at_snapshot,
-                'status' => $activity->status_snapshot,
                 'created_by' => $activity->created_by_snapshot,
                 'created_at' => $now,
                 'updated_at' => $now,
