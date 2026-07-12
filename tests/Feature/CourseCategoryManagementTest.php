@@ -169,6 +169,17 @@ class CourseCategoryManagementTest extends TestCase
             $this->assertFalse($this->fieldIsInsideBackendColumn($content, 'description'));
             $this->assertStringContainsString('name="slug"', $content);
             $this->assertStringContainsString('readonly', $content);
+            $this->assertStringContainsString('x-model="selectedParentId"', $content);
+            $this->assertStringContainsString('lf-select-placeholder', $content);
+            $this->assertStringContainsString(__('lf.LF_course_category_select_parent'), $content);
+            foreach ([
+                'LF_course_category_placeholder_name',
+                'LF_course_category_placeholder_slug',
+                'LF_course_category_placeholder_description',
+                'LF_course_category_placeholder_sort_order',
+            ] as $translation) {
+                $this->assertStringContainsString('placeholder="'.__('lf.'.$translation).'"', $content);
+            }
             $this->assertManualSeoControlsNotRendered(
                 $content,
                 'course-category-seo-title',
