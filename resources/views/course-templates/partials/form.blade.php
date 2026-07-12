@@ -10,6 +10,8 @@
 <div class="backend-form-columns"
      x-data="{
          selectedVideoSource: @js($selectedVideoSource),
+         selectedCategoryId: @js($selectedCategoryId),
+         selectedDifficulty: @js($selectedDifficulty),
          previewOpen: false,
          previewLoaded: false,
          videoSrc: '',
@@ -82,8 +84,8 @@
             <x-form-label for="category_id"
                           :value="__('lf.LF_course_template_common_category')"
                           :required="$isRequired('category_id')" />
-            <select id="category_id" name="category_id" class="lf-form-control">
-                <option value="" disabled @selected($selectedCategoryId === null || $selectedCategoryId === '')>{{ __('lf.LF_course_template_select_category') }}</option>
+            <select id="category_id" name="category_id" class="lf-form-control" x-model="selectedCategoryId" :class="{ 'lf-select-placeholder': selectedCategoryId === null || selectedCategoryId === '' }">
+                <option value="" @selected($selectedCategoryId === null || $selectedCategoryId === '')>{{ __('lf.LF_course_template_select_category') }}</option>
                 @foreach ($categories as $category)
                     <option value="{{ $category->id }}"
                             @selected((string) $selectedCategoryId === (string) $category->id)>
@@ -125,7 +127,7 @@
 
         <div class="lf-form-group">
             <x-form-label for="intro_video_source" :value="__('lf.LF_course_template_intro_video')" />
-            <select id="intro_video_source" name="intro_video_source" class="lf-form-control" x-model="selectedVideoSource">
+            <select id="intro_video_source" name="intro_video_source" class="lf-form-control" x-model="selectedVideoSource" :class="{ 'lf-select-placeholder': selectedVideoSource === null || selectedVideoSource === '' }">
                 <option value="">{{ __('lf.LF_course_template_select_video_source') }}</option>
                 <option value="upload">{{ __('lf.LF_course_template_video_upload') }}</option>
                 <option value="embed">{{ __('lf.LF_course_template_video_embed') }}</option>
@@ -156,7 +158,7 @@
 
         <div class="lf-form-group"><x-form-label for="estimated_minutes_per_lesson" :value="__('lf.LF_course_template_estimated_minutes_per_lesson')" /><input id="estimated_minutes_per_lesson" type="number" min="1" name="estimated_minutes_per_lesson" class="lf-form-control" value="{{ old('estimated_minutes_per_lesson', $formTemplate?->estimated_minutes_per_lesson) }}" placeholder="{{ __('lf.LF_course_template_placeholder_minutes') }}"></div>
         <div class="lf-form-group"><x-form-label for="estimated_lesson_count" :value="__('lf.LF_course_template_estimated_lesson_count')" /><input id="estimated_lesson_count" type="number" min="1" name="estimated_lesson_count" class="lf-form-control" value="{{ old('estimated_lesson_count', $formTemplate?->estimated_lesson_count) }}" placeholder="{{ __('lf.LF_course_template_placeholder_lesson_count') }}"></div>
-        <div class="lf-form-group"><x-form-label for="difficulty_level" :value="__('lf.LF_course_template_common_difficulty_level')" /><select id="difficulty_level" name="difficulty_level" class="lf-form-control"><option value="" disabled @selected($selectedDifficulty === null || $selectedDifficulty === '')>{{ __('lf.LF_course_template_select_difficulty') }}</option>@foreach (['beginner', 'intermediate', 'advanced'] as $difficulty)<option value="{{ $difficulty }}" @selected($selectedDifficulty === $difficulty)>{{ __('lf.LF_course_template_common_'.$difficulty) }}</option>@endforeach</select></div>
+        <div class="lf-form-group"><x-form-label for="difficulty_level" :value="__('lf.LF_course_template_common_difficulty_level')" /><select id="difficulty_level" name="difficulty_level" class="lf-form-control" x-model="selectedDifficulty" :class="{ 'lf-select-placeholder': selectedDifficulty === null || selectedDifficulty === '' }"><option value="" @selected($selectedDifficulty === null || $selectedDifficulty === '')>{{ __('lf.LF_course_template_select_difficulty') }}</option>@foreach (['beginner', 'intermediate', 'advanced'] as $difficulty)<option value="{{ $difficulty }}" @selected($selectedDifficulty === $difficulty)>{{ __('lf.LF_course_template_common_'.$difficulty) }}</option>@endforeach</select></div>
         <div class="lf-form-group"><x-form-label for="publisher_name" :value="__('lf.LF_course_template_common_publisher_name')" :required="$isRequired('publisher_name')" /><input id="publisher_name" type="text" name="publisher_name" class="lf-form-control" value="{{ old('publisher_name', $formTemplate?->publisher_name) }}" maxlength="255" placeholder="{{ __('lf.LF_course_template_placeholder_publisher') }}" required></div>
 
         <div class="lf-form-group">
