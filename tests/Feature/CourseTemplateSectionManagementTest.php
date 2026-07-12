@@ -953,7 +953,13 @@ class CourseTemplateSectionManagementTest extends TestCase
                 'https://tenant-a.localhost/admin/course-templates/'
                 ."{$templateId}/sections/create"
             )
-            ->assertOk();
+            ->assertOk()
+            ->assertSee('class="course-template-section-form"', false)
+            ->assertDontSee('admin-form-section-title', false)
+            ->assertSee('class="lf-form-group course-template-section-form-wide"', false)
+            ->assertSee('placeholder="Nhập tên phần học"', false)
+            ->assertSee('placeholder="Nhập mô tả phần học"', false)
+            ->assertSee('placeholder="Ví dụ: 1"', false);
 
         foreach (['title', 'allows_lessons'] as $field) {
             $this->assertSame(
@@ -968,6 +974,24 @@ class CourseTemplateSectionManagementTest extends TestCase
                 $this->requiredIndicatorCount($response->getContent(), $field)
             );
         }
+
+        app()->setLocale('en');
+        $this->actingAs($admin)
+            ->get(
+                'https://tenant-a.localhost/admin/course-templates/'
+                ."{$templateId}/sections/create"
+            )
+            ->assertOk()
+            ->assertSee('placeholder="Enter section name"', false)
+            ->assertSee('placeholder="Enter section description"', false)
+            ->assertSee('placeholder="Example: 1"', false);
+
+        $css = file_get_contents(resource_path('css/admin/admin-components.css'));
+        $this->assertStringContainsString(
+            ':root.is-backend-sidebar-collapsed .backend-shell .course-template-section-form',
+            $css
+        );
+        $this->assertStringContainsString('@media (min-width: 901px)', $css);
     }
 
     public function test_guest_and_student_cannot_access_section_management(): void

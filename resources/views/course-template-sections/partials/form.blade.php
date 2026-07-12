@@ -11,11 +11,7 @@
     );
 @endphp
 
-<section class="admin-form-section" aria-labelledby="course-template-section-basic-title">
-    <h2 id="course-template-section-basic-title" class="admin-form-section-title">
-        {{ __('lf.LF_course_template_section_group_basic') }}
-    </h2>
-
+<div class="course-template-section-form">
     <div class="lf-form-group">
         <x-form-label for="parent_section_id"
                       :value="__('lf.LF_course_template_section_common_parent')"
@@ -36,15 +32,17 @@
                       :value="__('lf.LF_course_template_section_common_name')"
                       :required="$isRequired('title')" />
         <input id="title" type="text" name="title" class="lf-form-control"
-               value="{{ old('title', $formSection?->title) }}" required maxlength="255">
+               value="{{ old('title', $formSection?->title) }}"
+               placeholder="{{ __('lf.LF_course_template_section_placeholder_name') }}"
+               required maxlength="255">
     </div>
 
-    <div class="lf-form-group">
+    <div class="lf-form-group course-template-section-form-wide">
         <x-form-label for="description"
                       :value="__('lf.LF_course_template_section_common_description')"
                       :required="$isRequired('description')" />
         <textarea id="description" name="description" class="lf-form-control"
-                  rows="5">{{ old('description', $formSection?->description) }}</textarea>
+                  rows="5" placeholder="{{ __('lf.LF_course_template_section_placeholder_description') }}">{{ old('description', $formSection?->description) }}</textarea>
     </div>
 
     <div class="lf-form-group">
@@ -72,6 +70,7 @@
                    'display_order',
                    $formSection?->display_order ?? $suggestedDisplayOrder ?? null
                ) }}"
+               placeholder="{{ __('lf.LF_course_template_section_placeholder_sort_order') }}"
                @required($isRequired('display_order'))>
     </div>
-</section>
+</div>
