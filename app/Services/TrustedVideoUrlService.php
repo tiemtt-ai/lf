@@ -36,7 +36,7 @@ class TrustedVideoUrlService
             if (! is_string($id) || ! preg_match('/^\d+$/', $id)) {
                 throw new InvalidArgumentException('Invalid Vimeo URL.');
             }
-            return ['url' => 'https://vimeo.com/'.$id, 'provider' => 'vimeo', 'embed_url' => 'https://player.vimeo.com/video/'.$id];
+            return ['id' => $id, 'url' => 'https://vimeo.com/'.$id, 'provider' => 'vimeo', 'embed_url' => 'https://player.vimeo.com/video/'.$id];
         }
 
         throw new InvalidArgumentException('Unsupported video provider.');
@@ -47,7 +47,7 @@ class TrustedVideoUrlService
         if (! $id || ! preg_match('/^[A-Za-z0-9_-]{11}$/', $id)) {
             throw new InvalidArgumentException('Invalid YouTube URL.');
         }
-        return ['url' => 'https://www.youtube.com/watch?v='.$id, 'provider' => 'youtube', 'embed_url' => 'https://www.youtube-nocookie.com/embed/'.$id];
+        return ['id' => $id, 'url' => 'https://www.youtube.com/watch?v='.$id, 'provider' => 'youtube', 'embed_url' => 'https://www.youtube-nocookie.com/embed/'.$id];
     }
 
     public function embedUrl(string $url): string

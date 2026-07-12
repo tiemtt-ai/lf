@@ -17,12 +17,12 @@ class TrustedVideoUrlServiceTest extends TestCase
 
     public static function validUrls(): array
     {
-        $youtube = ['url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'provider' => 'youtube', 'embed_url' => 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ'];
+        $youtube = ['id' => 'dQw4w9WgXcQ', 'url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'provider' => 'youtube', 'embed_url' => 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ'];
         return [
             ['https://www.youtube.com/watch?v=dQw4w9WgXcQ&utm_source=x', $youtube],
             ['https://youtu.be/dQw4w9WgXcQ?t=3', $youtube],
             ['https://www.youtube.com/embed/dQw4w9WgXcQ', $youtube],
-            ['https://vimeo.com/123456789?share=copy', ['url' => 'https://vimeo.com/123456789', 'provider' => 'vimeo', 'embed_url' => 'https://player.vimeo.com/video/123456789']],
+            ['https://vimeo.com/123456789?share=copy', ['id' => '123456789', 'url' => 'https://vimeo.com/123456789', 'provider' => 'vimeo', 'embed_url' => 'https://player.vimeo.com/video/123456789']],
         ];
     }
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\CourseTemplatePublishingService;
 use App\Services\CourseTemplateVersionDuplicatingService;
 use App\Services\MediaService;
+use App\Services\MediaThumbnailPresenter;
 use App\Services\TrustedVideoUrlService;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
@@ -22,6 +23,7 @@ class CourseTemplateController extends Controller
         private readonly CourseTemplatePublishingService $publishingService,
         private readonly CourseTemplateVersionDuplicatingService $duplicatingService,
         private readonly MediaService $mediaService,
+        private readonly MediaThumbnailPresenter $mediaThumbnails,
         private readonly TrustedVideoUrlService $trustedVideoUrls
     ) {}
 
@@ -91,6 +93,9 @@ class CourseTemplateController extends Controller
             'introVideoMedia' => null,
             'introDocumentMedia' => null,
             'introVideoEmbedUrl' => null,
+            'introImageThumbnail' => null,
+            'introVideoThumbnail' => null,
+            'introDocumentThumbnail' => null,
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -137,6 +142,14 @@ class CourseTemplateController extends Controller
         $template = $this->findTemplate($customerId, $id);
         $versions = $this->versions($customerId, $id);
 
+        $introImageMedia = $this->mediaFile($template->intro_image_media_file_id);
+        $introVideoMedia = $this->mediaFile($template->intro_video_media_file_id);
+        $introDocumentMedia = $this->mediaFile($template->intro_document_media_file_id);
+        $introVideoEmbedUrl = $template->intro_video_source === 'embed'
+            && $template->intro_video_embed_url
+                ? $this->trustedVideoUrls->embedUrl($template->intro_video_embed_url)
+                : null;
+
         return view('course-templates.edit', [
             'template' => $template,
             'versions' => $versions,
@@ -149,19 +162,15 @@ class CourseTemplateController extends Controller
             'directLessons' => $this->directLessons($customerId, $id),
             'lessonsBySection' => $this->lessonsBySection($customerId, $id),
             'activitiesByLesson' => $this->activitiesByLesson($customerId, $id),
-            'introImageMedia' => $this->mediaFile(
-                $template->intro_image_media_file_id
-            ),
-            'introVideoMedia' => $this->mediaFile(
-                $template->intro_video_media_file_id
-            ),
-            'introDocumentMedia' => $this->mediaFile(
-                $template->intro_document_media_file_id
-            ),
-            'introVideoEmbedUrl' => $template->intro_video_source === 'embed'
-                && $template->intro_video_embed_url
-                    ? $this->trustedVideoUrls->embedUrl($template->intro_video_embed_url)
-                    : null,
+            'introImageMedia' => $introImageMedia,
+            'introVideoMedia' => $introVideoMedia,
+            'introDocumentMedia' => $introDocumentMedia,
+            'introVideoEmbedUrl' => $introVideoEmbedUrl,
+            'introImageThumbnail' => $this->mediaThumbnails->image($introImageMedia),
+            'introVideoThumbnail' => $template->intro_video_source === 'embed'
+                ? $this->mediaThumbnails->embeddedVideo($template->intro_video_embed_url)
+                : $this->mediaThumbnails->uploadedVideo($introVideoMedia),
+            'introDocumentThumbnail' => $this->mediaThumbnails->document($introDocumentMedia),
             'teacherAssignments' => $this->teacherAssignments(
                 $customerId,
                 $id

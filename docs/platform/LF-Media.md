@@ -834,6 +834,23 @@ implementation details.
 
 # Design Rules
 
+## Media Thumbnail UI Standard
+
+Compact media summaries use the shared `media-thumbnail` Blade component and
+the order `64px thumbnail → View → Remove current`, left aligned with an 8px
+gap. Images use an authorized thumbnail variant when available, otherwise an
+authorized signed/private image URL. Uploaded videos use a ready generated or
+stored poster, otherwise the video icon. Trusted embeds derive provider
+thumbnails only from normalized identity; failure uses the video icon and must
+never load an iframe for thumbnail display. PDFs use an authorized first-page
+preview when available, otherwise the PDF icon. Office files use standardized
+file-type icons unless an approved safe conversion service exists.
+
+Pending, failed, or broken thumbnails fall back to decorative icons. Thumbnail
+processing is asynchronous and must not block upload or rendering. Private
+variants remain tenant-scoped and require authorized delivery. Lists must
+batch resolution to avoid N+1 queries and repeated signed URL generation.
+
 1. Media là Platform Domain.
 2. Media chỉ sở hữu Digital Asset data/rules.
 3. Database không lưu binary.

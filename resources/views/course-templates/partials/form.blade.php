@@ -124,7 +124,7 @@
             <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
             @if ($introImageMedia ?? null)
                 <div class="course-template-preview-card">
-                    <div class="course-template-preview-thumb"><img src="{{ $introImageMedia->signed_url }}" alt="{{ $introImageMedia->display_name }}" loading="lazy" decoding="async"></div>
+                    <x-media-thumbnail :presentation="$introImageThumbnail" :alt="$introImageMedia->display_name" />
                     <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openTemplatePreview(@js($introImageMedia->display_name), @js($introImageMedia->signed_url), @js($introImageMedia->mime_type), 'image')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
                     <label class="course-template-preview-remove" for="remove_intro_image"><input id="remove_intro_image" type="checkbox" name="remove_intro_image" value="1"> {{ __('lf.LF_course_template_remove_current') }}</label>
                 </div>
@@ -144,7 +144,7 @@
             <input type="url" name="intro_video_embed_url" class="lf-form-control" value="{{ old('intro_video_embed_url', $formTemplate?->intro_video_embed_url) }}" placeholder="{{ __('lf.LF_course_template_placeholder_embed_url') }}" x-show="selectedVideoSource === 'embed'" :disabled="selectedVideoSource !== 'embed'">
             @if (($introVideoMedia ?? null) || ($introVideoEmbedUrl ?? null))
                 <div class="course-template-preview-card">
-                    <div class="course-template-preview-thumb course-template-preview-thumb-video"><x-backend-icon name="video" class="course-template-preview-icon" /></div>
+                    <x-media-thumbnail :presentation="$introVideoThumbnail" :alt="__('lf.LF_course_template_intro_video')" />
                     @if ($introVideoMedia ?? null)
                         <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openTemplatePreview(@js($introVideoMedia->display_name), @js($introVideoMedia->signed_url), @js($introVideoMedia->mime_type), 'video')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
                     @else
@@ -162,7 +162,7 @@
             <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'PPT', 'PPTX', 'XLS', 'XLSX']" />
             @if ($introDocumentMedia ?? null)
                 <div class="course-template-preview-card">
-                    <div class="course-template-preview-thumb course-template-preview-thumb-document"><x-backend-icon name="document" class="course-template-preview-icon" /></div>
+                    <x-media-thumbnail :presentation="$introDocumentThumbnail" :alt="__('lf.LF_course_template_intro_document')" />
                     <a class="admin-text-action" href="{{ $introDocumentMedia->signed_url }}" target="_blank" rel="noopener">{{ __('lf.LF_media_file_common_preview_action') }}</a>
                     <label class="course-template-preview-remove" for="remove_intro_document"><input id="remove_intro_document" type="checkbox" name="remove_intro_document" value="1"> {{ __('lf.LF_course_template_remove_current') }}</label>
                 </div>

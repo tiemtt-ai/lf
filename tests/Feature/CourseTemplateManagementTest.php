@@ -172,6 +172,10 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertSame(2, substr_count($formPartial, 'course-template-information-wide'));
         $this->assertSame(3, substr_count($formPartial, 'course-template-information-media'));
         $this->assertStringContainsString('course-template-preview-card', $formPartial);
+        $this->assertSame(3, substr_count($formPartial, '<x-media-thumbnail'));
+        $this->assertSame(1, substr_count($formPartial, ':presentation="$introImageThumbnail"'));
+        $this->assertSame(1, substr_count($formPartial, ':presentation="$introVideoThumbnail"'));
+        $this->assertSame(1, substr_count($formPartial, ':presentation="$introDocumentThumbnail"'));
         $this->assertStringNotContainsString('course-template-preview-info', $formPartial);
         $this->assertStringNotContainsString('course-template-preview-name', $formPartial);
         $this->assertStringNotContainsString('course-template-preview-actions', $formPartial);
@@ -640,6 +644,26 @@ class CourseTemplateManagementTest extends TestCase
     {
         $this->assertFileDoesNotExist(app_path('Models/CoreCourseTemplate.php'));
         $this->assertFileDoesNotExist(app_path('Models/CourseTemplate.php'));
+    }
+
+    public function test_edit_renders_real_trusted_youtube_thumbnail(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'YouTube Course', 'youtube-course', $admin->id);
+        DB::table('core_course_templates')->where('id', $templateId)->update([
+            'intro_video_source' => 'embed',
+            'intro_video_embed_url' => 'https://youtu.be/dQw4w9WgXcQ',
+            'intro_video_provider' => 'youtube',
+        ]);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->assertOk()
+            ->assertSee('data-media-thumbnail-state="provider_video_thumbnail"', false)
+            ->assertSee('https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg', false)
+            ->assertSee('<img class="media-thumbnail-image"', false)
+            ->assertDontSee('<iframe class="media-thumbnail', false);
     }
 
     private function createTenant(string $slug = 'tenant-a'): int
