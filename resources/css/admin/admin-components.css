@@ -200,6 +200,25 @@
     gap: 0 24px;
 }
 
+.course-template-section-form-card {
+    width: 100%;
+    max-width: none;
+}
+
+.course-template-section-form-card > form {
+    width: 100%;
+    min-width: 0;
+}
+
+.course-template-section-context {
+    margin: 0 0 24px;
+    overflow-wrap: anywhere;
+}
+
+.course-template-section-form-card .admin-form-actions {
+    margin-top: 6px;
+}
+
 .course-template-section-form-wide {
     grid-column: 1 / -1;
 }

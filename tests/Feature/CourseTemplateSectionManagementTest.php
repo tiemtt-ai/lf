@@ -954,6 +954,9 @@ class CourseTemplateSectionManagementTest extends TestCase
                 ."{$templateId}/sections/create"
             )
             ->assertOk()
+            ->assertSee('class="course-template-tab-panel course-template-section-form-page"', false)
+            ->assertSee('class="admin-card admin-form-card course-template-section-form-card"', false)
+            ->assertSee('class="course-template-section-context"', false)
             ->assertSee('class="course-template-section-form"', false)
             ->assertDontSee('admin-form-section-title', false)
             ->assertSee('class="lf-form-group course-template-section-form-wide"', false)
@@ -991,6 +994,8 @@ class CourseTemplateSectionManagementTest extends TestCase
             ':root.is-backend-sidebar-collapsed .backend-shell .course-template-section-form',
             $css
         );
+        $this->assertStringContainsString('.course-template-section-form-card {', $css);
+        $this->assertStringContainsString('max-width: none;', $css);
         $this->assertStringContainsString('@media (min-width: 901px)', $css);
     }
 
