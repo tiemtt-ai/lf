@@ -37,6 +37,15 @@ four published snapshot tables.
 
 # Decision
 
+## Publish Integrity Boundary Amendment (2026-07-12)
+
+Publish validates the locked draft Template, Section, Lesson and Activity
+graph before creating Version rows. Invalid ownership, hierarchy, prerequisite,
+ordering, duration aggregate, activity configuration or referenced Media fails
+closed and rolls back the complete transaction. A successful publish updates
+`last_version_published_at` with the exact `published_at` timestamp of the new
+Version in that same transaction.
+
 ## Activity Estimated Duration Amendment (2026-07-12)
 
 Publish freezes `estimated_duration_seconds` as

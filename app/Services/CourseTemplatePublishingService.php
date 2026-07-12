@@ -9,7 +9,10 @@ use Illuminate\Validation\ValidationException;
 
 class CourseTemplatePublishingService
 {
-    public function __construct(private readonly MediaService $mediaService) {}
+    public function __construct(
+        private readonly MediaService $mediaService,
+        private readonly CourseTemplatePublishGraphValidator $graphValidator,
+    ) {}
 
     public function publish(
         int $customerId,
@@ -39,6 +42,7 @@ class CourseTemplatePublishingService
             $sections = $this->sourceSections($customerId, $templateId);
             $lessons = $this->sourceLessons($customerId, $templateId);
             $activities = $this->sourceActivities($customerId, $templateId);
+            $this->graphValidator->validate($customerId, $template, $sections, $lessons, $activities);
 
             $versionNumber = (int) DB::table(
                 'core_course_template_versions'
@@ -139,6 +143,11 @@ class CourseTemplatePublishingService
                     'published_at' => $now,
                     'updated_at' => $now,
                 ]);
+
+            DB::table('core_course_templates')
+                ->where('customer_id', $customerId)
+                ->where('id', $templateId)
+                ->update(['last_version_published_at' => $now]);
 
             return DB::table('core_course_template_versions')
                 ->where('customer_id', $customerId)

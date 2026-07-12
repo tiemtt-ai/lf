@@ -58,7 +58,9 @@ Foundation, but their implementation is outside this snapshot batch.
 * Old Versions are never deleted when a new Version is published.
 * Publishing does not modify any editable Template, Section, Lesson or Activity
   content. Updating the Template read model `last_version_published_at` is
-  allowed after a successful publish.
+  required after a successful publish, using the exact Version `published_at`
+  timestamp inside the same transaction. Publish validates the complete locked
+  draft graph and fails closed before snapshot insertion.
 
 # Fields
 

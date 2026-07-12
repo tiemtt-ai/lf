@@ -252,6 +252,7 @@ class CourseTemplatePublishingTest extends TestCase
         );
         $this->assertSame('Batchim Drill', $nestedSectionVersionActivity->title_snapshot);
 
+        $draftBefore['template']['last_version_published_at'] = $version->published_at;
         $this->assertSame(
             $draftBefore,
             $this->draftState($customerId, $templateId)
@@ -331,6 +332,33 @@ class CourseTemplatePublishingTest extends TestCase
             '//table[contains(@class, "course-template-history-table")]'
             .'//tbody/tr/td[6][normalize-space()="Published"]'
         )->length);
+    }
+
+    public function test_publish_integrity_rejects_invalid_graph_and_preserves_atomic_state(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Integrity Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Integrity Course');
+        $lessonId = $this->createLesson($customerId, $templateId, null, 'Integrity Lesson', 0, $admin->id);
+        $this->createActivity($customerId, $templateId, $lessonId, 'Integrity Activity', 0, $admin->id);
+        $url = "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish";
+
+        $this->actingAs($admin)->post($url)->assertRedirect();
+        $publishedAt = DB::table('core_course_templates')->where('id', $templateId)->value('last_version_published_at');
+        $this->assertNotNull($publishedAt);
+        $this->assertSame(
+            $publishedAt,
+            DB::table('core_course_template_versions')->where('template_id', $templateId)->value('published_at')
+        );
+
+        DB::table('core_course_template_lessons')->where('id', $lessonId)->update(['lesson_type' => 'unsupported']);
+        $this->actingAs($admin)->from(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish"
+        )->post($url)->assertSessionHasErrors('publish');
+
+        $this->assertSame(1, DB::table('core_course_template_versions')->where('template_id', $templateId)->count());
+        $this->assertSame($publishedAt, DB::table('core_course_templates')->where('id', $templateId)->value('last_version_published_at'));
+        $this->assertSame(1, DB::table('core_course_template_versions')->where('template_id', $templateId)->where('is_current', true)->count());
     }
 
     public function test_publish_and_duplicate_preserve_documented_duplicate_content_order_values(): void
@@ -1444,7 +1472,7 @@ class CourseTemplatePublishingTest extends TestCase
             'description' => 'Lesson description.',
             'sort_order' => $sortOrder,
             'is_preview' => $sectionId === null,
-            'duration_seconds' => 600,
+            'duration_seconds' => 0,
             'activity_count' => 1,
             'unlock_rule' => 'none',
             'unlock_after_lesson_id' => null,
