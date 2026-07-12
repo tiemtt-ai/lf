@@ -1024,7 +1024,12 @@ class CourseTemplateActivityManagementTest extends TestCase
         $createResponse = $this->actingAs($admin)
             ->get("{$collectionUrl}/create")
             ->assertOk()
-            ->assertSeeText('Loại hoạt động');
+            ->assertSeeText('Loại hoạt động')
+            ->assertSee('placeholder="Nhập tên hoạt động"', false)
+            ->assertSee('placeholder="Nhập mô tả hoạt động"', false)
+            ->assertSee('placeholder="Ví dụ: 15"', false)
+            ->assertSee('Chọn Activity điều kiện')
+            ->assertSee('placeholder="Ví dụ: 1"', false);
 
         $this->assertActivityTypeSelector($createResponse->getContent());
 
@@ -1037,6 +1042,15 @@ class CourseTemplateActivityManagementTest extends TestCase
             $editResponse->getContent(),
             'quiz'
         );
+
+        app()->setLocale('en');
+        $this->actingAs($admin)
+            ->get("{$collectionUrl}/create")
+            ->assertOk()
+            ->assertSee('placeholder="Enter activity name"', false)
+            ->assertSee('placeholder="Enter activity description"', false)
+            ->assertSee('Select a prerequisite activity')
+            ->assertSee('placeholder="Example: 1"', false);
     }
 
     public function test_guest_and_student_cannot_access_activity_management(): void
