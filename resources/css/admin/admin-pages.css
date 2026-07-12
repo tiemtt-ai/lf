@@ -275,13 +275,17 @@
 
 .course-template-preview-card {
     margin: 0 0 10px;
+    width: 100%;
+    min-width: 0;
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .course-template-preview-thumb {
-    width: 96px;
+    width: 64px;
     aspect-ratio: 4 / 3;
     flex: 0 0 auto;
     display: grid;
@@ -302,21 +306,14 @@
     object-fit: cover;
 }
 
-.course-template-preview-thumb-video {
+.course-template-preview-thumb-video,
+.course-template-preview-thumb-document {
     background: #e5e7eb;
 }
 
 .course-template-preview-icon {
     width: 28px;
     height: 28px;
-}
-
-.course-template-preview-actions {
-    min-width: 0;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 12px;
 }
 
 .course-template-preview-remove {
@@ -326,6 +323,12 @@
     margin: 0;
     font-weight: 500;
 }
+
+.course-template-embed-preview {
+    aspect-ratio: 16 / 9;
+    border: 0;
+}
+
 
 .course-product-editor {
     width: 100%;

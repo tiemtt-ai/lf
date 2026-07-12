@@ -23,7 +23,7 @@
          },
          openTemplatePreview(name, url, mimeType, mediaType) {
              this.resetTemplatePreview();
-             this.preview = { name, url: mediaType === 'image' ? url : '', mimeType, mediaType };
+             this.preview = { name, url: ['image', 'embed'].includes(mediaType) ? url : '', mimeType, mediaType };
              this.previewLoaded = true;
 
              if (mediaType === 'video') {
@@ -117,15 +117,21 @@
     </div>
 
     <div class="backend-form-column">
-        <div class="lf-form-group course-template-information-wide course-template-information-media">
+        <div class="lf-form-group course-template-information-media">
             <x-form-label for="intro_image_file" :value="__('lf.LF_course_template_intro_image')" />
             <input type="hidden" name="intro_image_media_file_id" value="{{ old('intro_image_media_file_id', $formTemplate?->intro_image_media_file_id) }}">
             <input id="intro_image_file" type="file" name="intro_image_file" class="lf-form-control" accept="image/*">
             <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
-            @if ($introImageMedia ?? null)<a href="{{ $introImageMedia->signed_url }}" target="_blank">{{ __('lf.LF_media_file_common_preview_action') }}</a><label><input type="checkbox" name="remove_intro_image" value="1"> {{ __('lf.LF_course_template_remove_current') }}</label>@endif
+            @if ($introImageMedia ?? null)
+                <div class="course-template-preview-card">
+                    <div class="course-template-preview-thumb"><img src="{{ $introImageMedia->signed_url }}" alt="{{ $introImageMedia->display_name }}" loading="lazy" decoding="async"></div>
+                    <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openTemplatePreview(@js($introImageMedia->display_name), @js($introImageMedia->signed_url), @js($introImageMedia->mime_type), 'image')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
+                    <label class="course-template-preview-remove" for="remove_intro_image"><input id="remove_intro_image" type="checkbox" name="remove_intro_image" value="1"> {{ __('lf.LF_course_template_remove_current') }}</label>
+                </div>
+            @endif
         </div>
 
-        <div class="lf-form-group course-template-information-wide course-template-information-media">
+        <div class="lf-form-group course-template-information-media">
             <x-form-label for="intro_video_source" :value="__('lf.LF_course_template_intro_video')" />
             <select id="intro_video_source" name="intro_video_source" class="lf-form-control" x-model="selectedVideoSource" :class="{ 'lf-select-placeholder': selectedVideoSource === null || selectedVideoSource === '' }">
                 <option value="">{{ __('lf.LF_course_template_select_video_source') }}</option>
@@ -136,24 +142,31 @@
             <input type="file" name="intro_video_file" class="lf-form-control" accept="video/*" x-show="selectedVideoSource === 'upload'" :disabled="selectedVideoSource !== 'upload'">
             <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']" x-show="selectedVideoSource === 'upload'" />
             <input type="url" name="intro_video_embed_url" class="lf-form-control" value="{{ old('intro_video_embed_url', $formTemplate?->intro_video_embed_url) }}" placeholder="{{ __('lf.LF_course_template_placeholder_embed_url') }}" x-show="selectedVideoSource === 'embed'" :disabled="selectedVideoSource !== 'embed'">
-            @if ($introVideoEmbedUrl ?? null)
-                <iframe src="{{ $introVideoEmbedUrl }}"
-                        title="{{ __('lf.LF_course_template_intro_video') }}"
-                        loading="lazy"
-                        sandbox="allow-scripts allow-same-origin allow-presentation"
-                        allow="fullscreen; picture-in-picture"
-                        referrerpolicy="strict-origin-when-cross-origin"
-                        allowfullscreen></iframe>
+            @if (($introVideoMedia ?? null) || ($introVideoEmbedUrl ?? null))
+                <div class="course-template-preview-card">
+                    <div class="course-template-preview-thumb course-template-preview-thumb-video"><x-backend-icon name="video" class="course-template-preview-icon" /></div>
+                    @if ($introVideoMedia ?? null)
+                        <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openTemplatePreview(@js($introVideoMedia->display_name), @js($introVideoMedia->signed_url), @js($introVideoMedia->mime_type), 'video')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
+                    @else
+                        <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openTemplatePreview(@js(ucfirst((string) $formTemplate?->intro_video_provider)), @js($introVideoEmbedUrl), 'text/html', 'embed')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
+                    @endif
+                    <label class="course-template-preview-remove" for="remove_intro_video"><input id="remove_intro_video" type="checkbox" name="remove_intro_video" value="1"> {{ __('lf.LF_course_template_remove_current') }}</label>
+                </div>
             @endif
-            @if ($introVideoMedia ?? null)<a href="{{ $introVideoMedia->signed_url }}" target="_blank">{{ __('lf.LF_media_file_common_preview_action') }}</a><label><input type="checkbox" name="remove_intro_video" value="1"> {{ __('lf.LF_course_template_remove_current') }}</label>@endif
         </div>
 
-        <div class="lf-form-group course-template-information-wide course-template-information-media">
+        <div class="lf-form-group course-template-information-media">
             <x-form-label for="intro_document_file" :value="__('lf.LF_course_template_intro_document')" />
             <input type="hidden" name="intro_document_media_file_id" value="{{ old('intro_document_media_file_id', $formTemplate?->intro_document_media_file_id) }}">
             <input id="intro_document_file" type="file" name="intro_document_file" class="lf-form-control">
             <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'PPT', 'PPTX', 'XLS', 'XLSX']" />
-            @if ($introDocumentMedia ?? null)<a href="{{ $introDocumentMedia->signed_url }}" target="_blank">{{ $introDocumentMedia->display_name }}</a><label><input type="checkbox" name="remove_intro_document" value="1"> {{ __('lf.LF_course_template_remove_current') }}</label>@endif
+            @if ($introDocumentMedia ?? null)
+                <div class="course-template-preview-card">
+                    <div class="course-template-preview-thumb course-template-preview-thumb-document"><x-backend-icon name="document" class="course-template-preview-icon" /></div>
+                    <a class="admin-text-action" href="{{ $introDocumentMedia->signed_url }}" target="_blank" rel="noopener">{{ __('lf.LF_media_file_common_preview_action') }}</a>
+                    <label class="course-template-preview-remove" for="remove_intro_document"><input id="remove_intro_document" type="checkbox" name="remove_intro_document" value="1"> {{ __('lf.LF_course_template_remove_current') }}</label>
+                </div>
+            @endif
         </div>
 
         <div class="lf-form-group"><x-form-label for="estimated_minutes_per_lesson" :value="__('lf.LF_course_template_estimated_minutes_per_lesson')" /><input id="estimated_minutes_per_lesson" type="number" min="1" name="estimated_minutes_per_lesson" class="lf-form-control" value="{{ old('estimated_minutes_per_lesson', $formTemplate?->estimated_minutes_per_lesson) }}" placeholder="{{ __('lf.LF_course_template_placeholder_minutes') }}"></div>
@@ -218,6 +231,15 @@
                             x-bind:src="videoSrc"
                             x-bind:type="preview.mimeType">
                 </video>
+                <iframe class="media-library-modal-video course-template-embed-preview"
+                        x-show="previewLoaded && preview.mediaType === 'embed'"
+                        x-bind:src="preview.mediaType === 'embed' ? preview.url : ''"
+                        x-bind:title="preview.name"
+                        loading="lazy"
+                        sandbox="allow-scripts allow-same-origin allow-presentation"
+                        allow="fullscreen; picture-in-picture"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                        allowfullscreen></iframe>
             </div>
         </div>
     </div>
