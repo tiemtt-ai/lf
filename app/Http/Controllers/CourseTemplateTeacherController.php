@@ -17,11 +17,6 @@ class CourseTemplateTeacherController extends Controller
         'reviewer',
     ];
 
-    private const STATUSES = [
-        'active',
-        'inactive',
-    ];
-
     public function index(Request $request, int $templateId)
     {
         $this->findTemplate($this->customerId(), $templateId);
@@ -40,7 +35,6 @@ class CourseTemplateTeacherController extends Controller
             'template' => $this->findTemplate($customerId, $templateId),
             'teachers' => $this->availableTeachers($customerId, $templateId),
             'assignmentRoles' => self::ASSIGNMENT_ROLES,
-            'statuses' => self::STATUSES,
             'requiredFields' => $this->requiredFields(
                 $customerId,
                 $templateId
@@ -59,20 +53,31 @@ class CourseTemplateTeacherController extends Controller
             $customerId,
             $templateId
         );
-        $now = now();
+        DB::transaction(function () use ($customerId, $templateId, $validated, $request): void {
+            DB::table('core_course_templates')
+                ->where('customer_id', $customerId)
+                ->where('id', $templateId)
+                ->lockForUpdate()
+                ->first();
+            $maximumOrder = DB::table('core_course_template_teachers')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->max('sort_order');
+            $now = now();
 
-        DB::table('core_course_template_teachers')->insert([
-            'customer_id' => $customerId,
-            'template_id' => $templateId,
-            'teacher_id' => $validated['teacher_id'],
-            'role' => $validated['role'],
-            'sort_order' => $validated['sort_order'],
-            'status' => $validated['status'],
-            'assigned_by' => $request->user()?->id,
-            'assigned_at' => $now,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+            DB::table('core_course_template_teachers')->insert([
+                'customer_id' => $customerId,
+                'template_id' => $templateId,
+                'teacher_id' => $validated['teacher_id'],
+                'role' => $validated['role'],
+                'sort_order' => $maximumOrder === null ? 0 : (int) $maximumOrder + 1,
+                'status' => 'active',
+                'assigned_by' => $request->user()?->id,
+                'assigned_at' => $now,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        });
 
         return redirect()
             ->to(
@@ -101,7 +106,6 @@ class CourseTemplateTeacherController extends Controller
                 $assignmentId
             ),
             'assignmentRoles' => self::ASSIGNMENT_ROLES,
-            'statuses' => self::STATUSES,
             'requiredFields' => $this->requiredFields(
                 $customerId,
                 $templateId,
@@ -133,8 +137,6 @@ class CourseTemplateTeacherController extends Controller
             ->where('id', $assignmentId)
             ->update([
                 'role' => $validated['role'],
-                'sort_order' => $validated['sort_order'],
-                'status' => $validated['status'],
                 'updated_at' => now(),
             ]);
 
@@ -199,11 +201,7 @@ class CourseTemplateTeacherController extends Controller
         int $templateId,
         ?int $assignmentId = null
     ): array {
-        $rules = [
-            'role' => ['required', Rule::in(self::ASSIGNMENT_ROLES)],
-            'sort_order' => ['required', 'integer', 'min:0'],
-            'status' => ['required', Rule::in(self::STATUSES)],
-        ];
+        $rules = ['role' => ['required', Rule::in(self::ASSIGNMENT_ROLES)]];
 
         if ($assignmentId === null) {
             $rules['teacher_id'] = [

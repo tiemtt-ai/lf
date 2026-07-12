@@ -14,8 +14,9 @@
         </div>
     @endif
 
-    <div class="admin-card admin-form-card">
-        <p>
+    <section class="course-template-tab-panel course-template-teacher-form-page">
+    <div class="admin-card admin-form-card course-template-teacher-form-card">
+        <p class="course-template-teacher-context">
             {{ __('lf.LF_course_template_teacher_common_template') }}:
             <strong>{{ $template->title }}</strong>
         </p>
@@ -39,4 +40,5 @@
             </div>
         </form>
     </div>
+    </section>
 @endsection

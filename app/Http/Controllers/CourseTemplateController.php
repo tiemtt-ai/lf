@@ -668,7 +668,7 @@ class CourseTemplateController extends Controller
             ->where('assignments.customer_id', $customerId)
             ->where('assignments.template_id', $templateId)
             ->orderBy('assignments.sort_order')
-            ->orderBy('teachers.name')
+            ->orderBy('assignments.id')
             ->select(
                 'assignments.*',
                 'teachers.name as teacher_name',

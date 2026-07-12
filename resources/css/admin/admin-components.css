@@ -219,6 +219,40 @@
     margin-top: 6px;
 }
 
+.course-template-teacher-form {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 24px;
+}
+
+.course-template-teacher-form-card {
+    width: 100%;
+    max-width: none;
+}
+
+.course-template-teacher-form-card > form {
+    width: 100%;
+    min-width: 0;
+}
+
+.course-template-teacher-context {
+    margin: 0 0 24px;
+    overflow-wrap: anywhere;
+}
+
+.course-template-teacher-form-card .admin-form-actions {
+    margin-top: 6px;
+}
+
+@media (min-width: 901px) {
+    :root.is-backend-sidebar-collapsed .backend-shell .course-template-teacher-form,
+    .backend-shell.is-sidebar-collapsed .course-template-teacher-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 .course-template-section-form-wide {
     grid-column: 1 / -1;
 }

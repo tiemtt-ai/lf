@@ -17,7 +17,7 @@
             ) }}
         </strong>
         <a href="{{ route($teacherRoutePrefix.'.create', $template->id) }}"
-           class="btn btn-primary">
+           class="btn admin-primary-outline-action">
             {{ __('lf.LF_course_template_teacher_common_add_action') }}
         </a>
     </div>

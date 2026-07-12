@@ -121,14 +121,15 @@ class CourseTemplateTeacherManagementTest extends TestCase
 
         $this->assertNotNull($assignment);
         $this->assertSame('primary', $assignment->role);
-        $this->assertSame(2, (int) $assignment->sort_order);
+        $this->assertSame(0, (int) $assignment->sort_order);
+        $this->assertSame('active', $assignment->status);
         $this->assertSame($admin->id, (int) $assignment->assigned_by);
         $this->assertNotNull($assignment->assigned_at);
 
         $this->actingAs($admin)
             ->put("{$url}/{$assignment->id}", [
                 'role' => 'reviewer',
-                'sort_order' => 5,
+                'sort_order' => 999,
                 'status' => 'inactive',
             ])
             ->assertRedirect("{$url}/{$assignment->id}/edit");
@@ -138,8 +139,8 @@ class CourseTemplateTeacherManagementTest extends TestCase
             'customer_id' => $customerId,
             'teacher_id' => $teacher->id,
             'role' => 'reviewer',
-            'sort_order' => 5,
-            'status' => 'inactive',
+            'sort_order' => 0,
+            'status' => 'active',
         ]);
     }
 
@@ -175,6 +176,39 @@ class CourseTemplateTeacherManagementTest extends TestCase
         ]);
     }
 
+    public function test_assignment_order_is_automatic_and_scoped_to_template(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $firstTeacher = $this->createUser($customerId, 'teacher', 'First Teacher');
+        $secondTeacher = $this->createUser($customerId, 'teacher', 'Second Teacher');
+        $otherTeacher = $this->createUser($customerId, 'teacher', 'Other Teacher');
+        $templateId = $this->createTemplate($customerId, 'Ordered Template');
+        $otherTemplateId = $this->createTemplate($customerId, 'Other Template');
+        $this->createAssignment($customerId, $templateId, $firstTeacher->id);
+        DB::table('core_course_template_teachers')
+            ->where('template_id', $templateId)
+            ->where('teacher_id', $firstTeacher->id)
+            ->update(['sort_order' => 4]);
+        $this->createAssignment($customerId, $otherTemplateId, $otherTeacher->id);
+
+        $this->actingAs($admin)->post(
+            $this->assignmentCollectionUrl('admin', $templateId),
+            $this->validAssignmentData([
+                'teacher_id' => $secondTeacher->id,
+                'sort_order' => 999,
+                'status' => 'inactive',
+            ])
+        )->assertRedirect();
+
+        $this->assertDatabaseHas('core_course_template_teachers', [
+            'template_id' => $templateId,
+            'teacher_id' => $secondTeacher->id,
+            'sort_order' => 5,
+            'status' => 'active',
+        ]);
+    }
+
     public function test_assignment_validation_rejects_invalid_users_and_values(): void
     {
         $customerId = $this->createTenant();
@@ -205,11 +239,8 @@ class CourseTemplateTeacherManagementTest extends TestCase
                 'sort_order' => -1,
                 'status' => 'archived',
             ])
-            ->assertSessionHasErrors([
-                'role',
-                'sort_order',
-                'status',
-            ]);
+            ->assertSessionHasErrors('role')
+            ->assertSessionDoesntHaveErrors(['sort_order', 'status']);
 
         $this->assertDatabaseCount('core_course_template_teachers', 0);
     }
@@ -340,11 +371,15 @@ class CourseTemplateTeacherManagementTest extends TestCase
         $createResponse = $this->actingAs($admin)
             ->get("{$url}/create")
             ->assertOk()
-            ->assertSeeText('Thông tin giáo viên')
-            ->assertSeeText('Vai trò trong Template')
-            ->assertSeeText('Trạng thái phân công');
+            ->assertSee('class="course-template-tab-panel course-template-teacher-form-page"', false)
+            ->assertSee('class="admin-card admin-form-card course-template-teacher-form-card"', false)
+            ->assertSeeText('Chọn giáo viên')
+            ->assertSeeText('Chọn vai trò giảng dạy')
+            ->assertDontSee('name="sort_order"', false)
+            ->assertDontSee('name="status"', false)
+            ->assertDontSee('admin-form-section-title', false);
 
-        foreach (['teacher_id', 'role', 'sort_order', 'status'] as $field) {
+        foreach (['teacher_id', 'role'] as $field) {
             $this->assertSame(
                 1,
                 $this->requiredIndicatorCount(
@@ -360,7 +395,7 @@ class CourseTemplateTeacherManagementTest extends TestCase
             ->assertSeeText('Teacher')
             ->assertDontSee('name="teacher_id"', false);
 
-        foreach (['role', 'sort_order', 'status'] as $field) {
+        foreach (['role'] as $field) {
             $this->assertSame(
                 1,
                 $this->requiredIndicatorCount(

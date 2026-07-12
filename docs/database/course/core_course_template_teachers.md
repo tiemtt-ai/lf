@@ -103,6 +103,10 @@ INT DEFAULT 0
 
 Thứ tự hiển thị.
 
+Ứng dụng tự gán trong phạm vi `customer_id + template_id`: assignment đầu tiên
+dùng `0`, assignment tiếp theo dùng `MAX(sort_order) + 1`. Form create/update
+không nhận giá trị này; update và remove không đánh lại thứ tự.
+
 ### status
 
 VARCHAR(50)
@@ -111,6 +115,9 @@ Giá trị:
 
 * active
 * inactive
+
+Create đặt `active` ở server. Form update không nhận `status` và bảo toàn giá
+trị hiện có; remove là lifecycle action chuyển assignment sang `inactive`.
 
 ---
 

@@ -902,6 +902,7 @@ return [
     'LF_course_template_teacher_common_template' => 'Template khóa học',
     'LF_course_template_teacher_common_teacher' => 'Giáo viên',
     'LF_course_template_teacher_common_select_teacher' => 'Chọn giáo viên',
+    'LF_course_template_teacher_common_select_role' => 'Chọn vai trò giảng dạy',
     'LF_course_template_teacher_common_name' => 'Tên giáo viên',
     'LF_course_template_teacher_common_email' => 'Email',
     'LF_course_template_teacher_common_role' => 'Vai trò phân công',
