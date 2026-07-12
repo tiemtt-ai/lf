@@ -210,20 +210,6 @@ class CourseTemplateLessonController extends Controller
                 }
             }
 
-            if (
-                $template->max_lessons !== null
-                && DB::table('core_course_template_lessons')
-                    ->where('customer_id', $customerId)
-                    ->where('template_id', $templateId)
-                    ->count() >= (int) $template->max_lessons
-            ) {
-                throw ValidationException::withMessages([
-                    'title' => __(
-                        'lf.LF_course_template_lesson_common_max_lessons_reached'
-                    ),
-                ]);
-            }
-
             $validated['sort_order'] ??= $this->nextSortOrder(
                 $customerId,
                 $templateId,

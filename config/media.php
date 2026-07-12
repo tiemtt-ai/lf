@@ -27,6 +27,7 @@ return [
     ],
     'owner_types' => [
         'course_template',
+        'course_template_version',
         'course_category',
         'course_product',
         'course_activity',
@@ -40,6 +41,9 @@ return [
         'marketing',
     ],
     'usage_types' => [
+        'intro_image',
+        'intro_video',
+        'intro_document',
         'cover_image',
         'thumbnail',
         'banner_image',

@@ -69,7 +69,8 @@ core_course_template_activities
 * Template Lesson không chứa Learning Progress.
 * Template Lesson chỉ định nghĩa cấu trúc bài học.
 * Thứ tự lesson được xác định bằng sort_order.
-* Không được tạo số lượng lesson vượt quá max_lessons của Template nếu max_lessons có giá trị.
+* `estimated_lesson_count` của Template là estimate, không phải hard limit;
+  authoring không bị chặn khi số Lesson vượt estimate.
 * Product/Enrollment/Progress chỉ sử dụng Version Lesson.
 * Sửa working Template Lesson không ảnh hưởng Version Lesson đã publish.
 * Lesson là primary authoring unit trong Course Template editing tree.

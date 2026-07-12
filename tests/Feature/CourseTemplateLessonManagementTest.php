@@ -105,7 +105,6 @@ class CourseTemplateLessonManagementTest extends TestCase
                 ),
                 $this->validLessonData([
                     'title' => 'Korean Alphabet',
-                    'slug' => 'korean-alphabet',
                     'short_description' => 'Learn the alphabet',
                     'description' => 'Detailed lesson description',
                     'sort_order' => 2,
@@ -513,7 +512,7 @@ class CourseTemplateLessonManagementTest extends TestCase
         $this->assertDatabaseCount('core_course_template_lessons', 0);
     }
 
-    public function test_template_max_lessons_is_enforced(): void
+    public function test_estimated_lesson_count_does_not_limit_authoring(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -544,9 +543,9 @@ class CourseTemplateLessonManagementTest extends TestCase
                 ),
                 $this->validLessonData(['title' => 'Too Many'])
             )
-            ->assertSessionHasErrors('title');
+            ->assertRedirect();
 
-        $this->assertDatabaseCount('core_course_template_lessons', 1);
+        $this->assertDatabaseCount('core_course_template_lessons', 2);
     }
 
     public function test_template_section_and_lesson_access_are_tenant_isolated(): void
@@ -1032,7 +1031,6 @@ class CourseTemplateLessonManagementTest extends TestCase
         $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_lessons', 'slug'));
         $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_version_lessons', 'learning_objective_snapshot'));
         $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_version_lessons', 'status_snapshot'));
-        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_version_lessons', 'slug_snapshot'));
 
         $this->assertFileDoesNotExist(
             app_path('Models/CoreCourseTemplateLesson.php')
@@ -1093,16 +1091,15 @@ class CourseTemplateLessonManagementTest extends TestCase
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,
-            'slug' => $slug,
             'short_description' => null,
             'description' => null,
             'publisher_name' => null,
-            'cover_type' => 'image',
-            'cover_image_media_file_id' => null,
+            'intro_video_source' => null,
+            'intro_image_media_file_id' => null,
             'intro_video_media_file_id' => null,
             'difficulty_level' => null,
-            'estimated_duration_minutes' => 0,
-            'max_lessons' => $maxLessons,
+            'estimated_minutes_per_lesson' => 0,
+            'estimated_lesson_count' => $maxLessons,
             'lesson_count' => 0,
             'meta_title' => null,
             'meta_description' => null,

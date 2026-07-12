@@ -89,10 +89,6 @@
                     <dd>{{ $version->title_snapshot }}</dd>
                 </div>
                 <div>
-                    <dt>{{ __('lf.LF_course_template_common_slug') }}</dt>
-                    <dd>{{ $version->slug_snapshot }}</dd>
-                </div>
-                <div>
                     <dt>{{ __('lf.LF_course_template_common_category') }}</dt>
                     <dd>{{ $version->category_name_snapshot
                         ?? __('lf.LF_course_template_common_no_category') }}</dd>
@@ -109,9 +105,10 @@
                         : __('lf.LF_course_template_common_no_difficulty') }}</dd>
                 </div>
                 <div>
-                    <dt>{{ __('lf.LF_course_template_common_estimated_duration_minutes') }}</dt>
-                    <dd>{{ $version->estimated_duration_minutes_snapshot }}</dd>
+                    <dt>{{ __('lf.LF_course_template_estimated_minutes_per_lesson') }}</dt>
+                    <dd>{{ $version->estimated_minutes_per_lesson_snapshot ?? '—' }}</dd>
                 </div>
+                <div><dt>{{ __('lf.LF_course_template_estimated_lesson_count') }}</dt><dd>{{ $version->estimated_lesson_count_snapshot ?? '—' }}</dd></div>
                 <div>
                     <dt>{{ __('lf.LF_course_template_version_detail_lesson_count') }}</dt>
                     <dd>{{ $version->lesson_count_snapshot }}</dd>

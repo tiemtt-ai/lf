@@ -1,6 +1,6 @@
 # ADR-0013 — Course Template Version Duplicate to Draft
 
-Version: 1.2
+Version: 1.3
 
 Status: Approved
 
@@ -8,6 +8,7 @@ Decision Date: 2026-07-03
 
 Scope Amendment Date: 2026-07-10
 Nested Section Amendment Date: 2026-07-10
+Information Model Amendment Date: 2026-07-12
 
 Extends:
 
@@ -116,6 +117,9 @@ Existing `core_course_template_teachers` rows remain unchanged.
 
 # Template Field Mapping
 
+The 2026-07-12 Information Model amendment removes Template slug restoration,
+generation and conflict validation, and supersedes `cover_type` restoration.
+
 The following Version snapshot fields map back to their editable Template
 counterparts:
 
@@ -123,16 +127,18 @@ counterparts:
 | --- | --- |
 | `source_category_id` | `category_id`, subject to fallback rules |
 | `title_snapshot` | `title` |
-| `slug_snapshot` | `slug` |
 | `short_description_snapshot` | `short_description` |
 | `description_snapshot` | `description` |
 | `publisher_name_snapshot` | `publisher_name` |
-| `cover_type_snapshot` | `cover_type` |
-| `cover_image_media_file_id_snapshot` | `cover_image_media_file_id`, subject to fallback rules |
+| `intro_image_media_file_id_snapshot` | `intro_image_media_file_id`, subject to fallback rules |
+| `intro_video_source_snapshot` | `intro_video_source`, subject to the video matrix |
 | `intro_video_media_file_id_snapshot` | `intro_video_media_file_id`, subject to fallback rules |
+| `intro_video_embed_url_snapshot` | `intro_video_embed_url` when source is `embed` |
+| `intro_video_provider_snapshot` | `intro_video_provider` when source is `embed` |
+| `intro_document_media_file_id_snapshot` | `intro_document_media_file_id`, subject to fallback rules |
 | `difficulty_level_snapshot` | `difficulty_level` |
-| `estimated_duration_minutes_snapshot` | `estimated_duration_minutes` |
-| `max_lessons_snapshot` | `max_lessons` |
+| `estimated_minutes_per_lesson_snapshot` | `estimated_minutes_per_lesson` |
+| `estimated_lesson_count_snapshot` | `estimated_lesson_count` |
 | `lesson_count_snapshot` | `lesson_count` |
 | `meta_title_snapshot` | `meta_title` |
 | `meta_description_snapshot` | `meta_description` |
@@ -188,9 +194,13 @@ Copy nullable Template Media identifiers only when the referenced asset still
 exists under an approved same-tenant or shared-asset contract. Otherwise set
 the nullable identifier to `NULL`.
 
-Snapshot text values such as image locations, video source and video URL are
-copied where the editable schema supports them. The immutable Version retains
-all original snapshot values regardless of fallback.
+The video source matrix is validated atomically. `upload` restores only a
+surviving same-tenant Media reference; `embed` restores only the normalized
+URL/provider; `NULL` clears both. Image and document restore independently and
+may coexist with either video source. New working Media usages are attached;
+immutable Version usages are never transferred or detached. Embed URLs create
+no Media usage. The immutable Version retains all original snapshot values
+regardless of fallback.
 
 ## Activity References
 
@@ -199,8 +209,9 @@ immutable or same-tenant reference may be copied. If an optional target no
 longer exists, its nullable reference pair is cleared while explicit snapshot
 content such as external URL or embed content is preserved.
 
-Missing required data, an unsupported required reference, a tenant mismatch or
-a Template slug conflict fails validation and rolls back the whole operation.
+Missing required data, an invalid video-source combination, an unsupported
+required reference or a tenant mismatch fails validation and rolls back the
+whole operation. Template slug conflict validation no longer exists.
 
 # Structural Replacement
 
@@ -328,6 +339,8 @@ All Version and working-table queries and writes are tenant-scoped.
   the selected Template.
 * Audit recording must participate in the transaction so success is not
   reported without provenance.
+* Optional Media may have disappeared; fallback must preserve the video-source
+  invariant without changing the immutable Version.
 
 # Explicitly Out Of Scope
 

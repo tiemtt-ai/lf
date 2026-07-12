@@ -351,7 +351,7 @@ class CourseLearningPathFoundationTest extends TestCase
             'product_code' => strtoupper($slug).'-'.uniqid(),
             'product_type' => 'single_course',
             'title' => $title,
-            'slug' => $slug.'-'.uniqid(),
+            'slug' => $slug,
             'short_description' => null,
             'description' => null,
             'thumbnail_type' => 'image',

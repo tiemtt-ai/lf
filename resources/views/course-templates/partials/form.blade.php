@@ -1,13 +1,7 @@
 @php
     $formTemplate = $template ?? null;
-    $slugSource = old('title', $formTemplate?->title);
-    $slugFollowsTitle = $formTemplate === null
-        || (string) $formTemplate->slug === \Illuminate\Support\Str::slug((string) $formTemplate->title);
-    $generatedSlug = $slugFollowsTitle
-        ? \Illuminate\Support\Str::slug((string) $slugSource)
-        : old('slug', $formTemplate?->slug);
     $selectedCategoryId = old('category_id', $formTemplate?->category_id);
-    $selectedCoverType = old('cover_type', $formTemplate?->cover_type ?? 'image');
+    $selectedVideoSource = old('intro_video_source', $formTemplate?->intro_video_source);
     $selectedDifficulty = old('difficulty_level', $formTemplate?->difficulty_level);
     $selectedStatus = old('status', $formTemplate?->status ?? 'draft');
     $isRequired = static fn (string $field): bool => in_array($field, $requiredFields, true);
@@ -15,9 +9,7 @@
 
 <div class="backend-form-columns"
      x-data="{
-         generatedSlug: @js((string) $generatedSlug),
-         slugFollowsTitle: @js($slugFollowsTitle),
-         selectedCoverType: @js($selectedCoverType),
+         selectedVideoSource: @js($selectedVideoSource),
          previewOpen: false,
          previewLoaded: false,
          videoSrc: '',
@@ -26,15 +18,6 @@
              url: '',
              mimeType: '',
              mediaType: '',
-         },
-         slugify(value) {
-             return value.toString()
-                 .normalize('NFD')
-                 .replace(/[\u0300-\u036f]/g, '')
-                 .toLowerCase()
-                 .trim()
-                 .replace(/[^a-z0-9]+/g, '-')
-                 .replace(/^-+|-+$/g, '');
          },
          openTemplatePreview(name, url, mimeType, mediaType) {
              this.resetTemplatePreview();
@@ -92,11 +75,6 @@
              this.resetTemplatePreview();
              this.previewOpen = false;
          },
-         syncSlug(value) {
-             if (this.slugFollowsTitle) {
-                 this.generatedSlug = this.slugify(value);
-             }
-         },
      }"
      x-on:keydown.escape.window="closeTemplatePreview()">
     <div class="backend-form-column">
@@ -105,7 +83,7 @@
                           :value="__('lf.LF_course_template_common_category')"
                           :required="$isRequired('category_id')" />
             <select id="category_id" name="category_id" class="lf-form-control">
-                <option value="">{{ __('lf.LF_course_template_common_no_category') }}</option>
+                <option value="" disabled @selected($selectedCategoryId === null || $selectedCategoryId === '')>{{ __('lf.LF_course_template_select_category') }}</option>
                 @foreach ($categories as $category)
                     <option value="{{ $category->id }}"
                             @selected((string) $selectedCategoryId === (string) $category->id)>
@@ -122,177 +100,64 @@
             <input id="title" type="text" name="title" class="lf-form-control"
                    value="{{ old('title', $formTemplate?->title) }}"
                    required
-                   maxlength="255"
-                   @input="syncSlug($event.target.value)">
+                   maxlength="255" placeholder="{{ __('lf.LF_course_template_placeholder_name') }}">
         </div>
 
         <div class="lf-form-group">
-            <x-form-label for="slug"
-                          :value="__('lf.LF_course_template_common_slug')" />
-            <input id="slug" type="text" name="slug" class="lf-form-control"
-                   value="{{ $generatedSlug }}"
-                   maxlength="255"
-                   readonly
-                   x-model="generatedSlug">
+            <x-form-label for="short_description" :value="__('lf.LF_course_template_common_short_description')" />
+            <textarea id="short_description" name="short_description" class="lf-form-control" rows="2" maxlength="500" placeholder="{{ __('lf.LF_course_template_placeholder_short_description') }}">{{ old('short_description', $formTemplate?->short_description) }}</textarea>
         </div>
 
         <div class="lf-form-group">
-            <x-form-label for="publisher_name"
-                          :value="__('lf.LF_course_template_common_publisher_name')"
-                          :required="$isRequired('publisher_name')" />
-            <input id="publisher_name" type="text" name="publisher_name" class="lf-form-control"
-                   value="{{ old('publisher_name', $formTemplate?->publisher_name) }}"
-                   maxlength="255"
-                   required>
-        </div>
-
-        <div class="lf-form-group">
-            <x-form-label for="difficulty_level"
-                          :value="__('lf.LF_course_template_common_difficulty_level')"
-                          :required="$isRequired('difficulty_level')" />
-            <select id="difficulty_level" name="difficulty_level" class="lf-form-control">
-                <option value="">{{ __('lf.LF_course_template_common_no_difficulty') }}</option>
-                @foreach (['beginner', 'intermediate', 'advanced'] as $difficulty)
-                    <option value="{{ $difficulty }}" @selected($selectedDifficulty === $difficulty)>
-                        {{ __('lf.LF_course_template_common_'.$difficulty) }}
-                    </option>
-                @endforeach
-            </select>
+            <x-form-label for="description" :value="__('lf.LF_course_template_common_description')" />
+            <textarea id="description" name="description" class="lf-form-control" rows="5" placeholder="{{ __('lf.LF_course_template_placeholder_description') }}">{{ old('description', $formTemplate?->description) }}</textarea>
         </div>
     </div>
 
     <div class="backend-form-column">
         <div class="lf-form-group">
-            <x-form-label for="estimated_duration_minutes"
-                          :value="__('lf.LF_course_template_common_estimated_duration_minutes')"
-                          :required="$isRequired('estimated_duration_minutes')" />
-            <input id="estimated_duration_minutes" type="number" min="0"
-                   name="estimated_duration_minutes" class="lf-form-control"
-                   value="{{ old('estimated_duration_minutes', $formTemplate?->estimated_duration_minutes ?? 0) }}">
+            <x-form-label for="intro_image_file" :value="__('lf.LF_course_template_intro_image')" />
+            <input type="hidden" name="intro_image_media_file_id" value="{{ old('intro_image_media_file_id', $formTemplate?->intro_image_media_file_id) }}">
+            <input id="intro_image_file" type="file" name="intro_image_file" class="lf-form-control" accept="image/*">
+            <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
+            @if ($introImageMedia ?? null)<a href="{{ $introImageMedia->signed_url }}" target="_blank">{{ __('lf.LF_media_file_common_preview_action') }}</a><label><input type="checkbox" name="remove_intro_image" value="1"> {{ __('lf.LF_course_template_remove_current') }}</label>@endif
         </div>
 
         <div class="lf-form-group">
-            <x-form-label for="max_lessons"
-                          :value="__('lf.LF_course_template_common_max_lessons')"
-                          :required="$isRequired('max_lessons')" />
-            <input id="max_lessons" type="number" min="0" name="max_lessons" class="lf-form-control"
-                   value="{{ old('max_lessons', $formTemplate?->max_lessons) }}">
+            <x-form-label for="intro_video_source" :value="__('lf.LF_course_template_intro_video')" />
+            <select id="intro_video_source" name="intro_video_source" class="lf-form-control" x-model="selectedVideoSource">
+                <option value="">{{ __('lf.LF_course_template_select_video_source') }}</option>
+                <option value="upload">{{ __('lf.LF_course_template_video_upload') }}</option>
+                <option value="embed">{{ __('lf.LF_course_template_video_embed') }}</option>
+            </select>
+            <input type="hidden" name="intro_video_media_file_id" value="{{ old('intro_video_media_file_id', $formTemplate?->intro_video_media_file_id) }}" :disabled="selectedVideoSource !== 'upload'">
+            <input type="file" name="intro_video_file" class="lf-form-control" accept="video/*" x-show="selectedVideoSource === 'upload'" :disabled="selectedVideoSource !== 'upload'">
+            <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']" x-show="selectedVideoSource === 'upload'" />
+            <input type="url" name="intro_video_embed_url" class="lf-form-control" value="{{ old('intro_video_embed_url', $formTemplate?->intro_video_embed_url) }}" placeholder="{{ __('lf.LF_course_template_placeholder_embed_url') }}" x-show="selectedVideoSource === 'embed'" :disabled="selectedVideoSource !== 'embed'">
+            @if ($introVideoEmbedUrl ?? null)
+                <iframe src="{{ $introVideoEmbedUrl }}"
+                        title="{{ __('lf.LF_course_template_intro_video') }}"
+                        loading="lazy"
+                        sandbox="allow-scripts allow-same-origin allow-presentation"
+                        allow="fullscreen; picture-in-picture"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                        allowfullscreen></iframe>
+            @endif
+            @if ($introVideoMedia ?? null)<a href="{{ $introVideoMedia->signed_url }}" target="_blank">{{ __('lf.LF_media_file_common_preview_action') }}</a><label><input type="checkbox" name="remove_intro_video" value="1"> {{ __('lf.LF_course_template_remove_current') }}</label>@endif
         </div>
 
         <div class="lf-form-group">
-            <x-form-label for="cover_type"
-                          :value="__('lf.LF_course_template_common_cover_type')" />
-            <div id="cover_type" class="admin-radio-group">
-                <label>
-                    <input type="radio"
-                           name="cover_type"
-                           value="image"
-                           x-model="selectedCoverType"
-                           @checked($selectedCoverType === 'image')>
-                    <span>{{ __('lf.LF_course_template_common_cover_image_type') }}</span>
-                </label>
-                <label>
-                    <input type="radio"
-                           name="cover_type"
-                           value="video"
-                           x-model="selectedCoverType"
-                           @checked($selectedCoverType === 'video')>
-                    <span>{{ __('lf.LF_course_template_common_cover_video_type') }}</span>
-                </label>
-            </div>
-
-            @if (($coverImageMedia ?? null) || ($introVideoMedia ?? null))
-                <input type="hidden" name="remove_preview_media" value="0">
-            @endif
-
-            @if ($coverImageMedia ?? null)
-                <div class="course-template-preview-card" x-show="selectedCoverType === 'image'">
-                    <div class="course-template-preview-thumb">
-                        <img src="{{ $coverImageMedia->signed_url }}"
-                             alt="{{ $coverImageMedia->display_name }}"
-                             loading="lazy"
-                             decoding="async"
-                             width="96"
-                             height="72">
-                    </div>
-                    <div class="course-template-preview-actions">
-                        <button type="button"
-                                class="admin-link-button admin-text-action"
-                                x-on:click="openTemplatePreview(
-                                    @js($coverImageMedia->display_name),
-                                    @js($coverImageMedia->signed_url),
-                                    @js($coverImageMedia->mime_type),
-                                    'image'
-                                )">
-                            {{ __('lf.LF_media_file_common_preview_action') }}
-                        </button>
-                        <label class="course-template-preview-remove">
-                            <input type="checkbox"
-                                   name="remove_preview_media"
-                                   value="1">
-                            <span>{{ __('lf.LF_course_template_common_remove_preview_media') }}</span>
-                        </label>
-                    </div>
-                </div>
-            @endif
-
-            @if ($introVideoMedia ?? null)
-                <div class="course-template-preview-card" x-show="selectedCoverType === 'video'">
-                    <div class="course-template-preview-thumb course-template-preview-thumb-video"
-                         aria-label="{{ __('lf.LF_course_template_common_cover_video_type') }}">
-                        <x-backend-icon name="video" class="course-template-preview-icon" />
-                    </div>
-                    <div class="course-template-preview-actions">
-                        <button type="button"
-                                class="admin-link-button admin-text-action"
-                                x-on:click="openTemplatePreview(
-                                    @js($introVideoMedia->display_name),
-                                    @js($introVideoMedia->signed_url),
-                                    @js($introVideoMedia->mime_type),
-                                    'video'
-                                )">
-                            {{ __('lf.LF_media_file_common_preview_action') }}
-                        </button>
-                        <label class="course-template-preview-remove">
-                            <input type="checkbox"
-                                   name="remove_preview_media"
-                                   value="1">
-                            <span>{{ __('lf.LF_course_template_common_remove_preview_media') }}</span>
-                        </label>
-                    </div>
-                </div>
-            @endif
-
-            <input type="hidden"
-                   name="cover_image_media_file_id"
-                   value="{{ old('cover_image_media_file_id', $formTemplate?->cover_image_media_file_id) }}"
-                   :disabled="selectedCoverType !== 'image'">
-            <input id="cover_image_file"
-                   type="file"
-                   name="cover_image_file"
-                   class="lf-form-control"
-                   accept="image/*"
-                   aria-label="{{ __('lf.LF_course_template_common_cover_image_type') }}"
-                   x-show="selectedCoverType === 'image'"
-                   :disabled="selectedCoverType !== 'image'">
-            <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']"
-                           x-show="selectedCoverType === 'image'" />
-
-            <input type="hidden"
-                   name="intro_video_media_file_id"
-                   value="{{ old('intro_video_media_file_id', $formTemplate?->intro_video_media_file_id) }}"
-                   :disabled="selectedCoverType !== 'video'">
-            <input id="intro_video_file"
-                   type="file"
-                   name="intro_video_file"
-                   class="lf-form-control"
-                   accept="video/*"
-                   aria-label="{{ __('lf.LF_course_template_common_cover_video_type') }}"
-                   x-show="selectedCoverType === 'video'"
-                   :disabled="selectedCoverType !== 'video'">
-            <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']"
-                           x-show="selectedCoverType === 'video'" />
+            <x-form-label for="intro_document_file" :value="__('lf.LF_course_template_intro_document')" />
+            <input type="hidden" name="intro_document_media_file_id" value="{{ old('intro_document_media_file_id', $formTemplate?->intro_document_media_file_id) }}">
+            <input id="intro_document_file" type="file" name="intro_document_file" class="lf-form-control">
+            <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'PPT', 'PPTX', 'XLS', 'XLSX']" />
+            @if ($introDocumentMedia ?? null)<a href="{{ $introDocumentMedia->signed_url }}" target="_blank">{{ $introDocumentMedia->display_name }}</a><label><input type="checkbox" name="remove_intro_document" value="1"> {{ __('lf.LF_course_template_remove_current') }}</label>@endif
         </div>
+
+        <div class="lf-form-group"><x-form-label for="estimated_minutes_per_lesson" :value="__('lf.LF_course_template_estimated_minutes_per_lesson')" /><input id="estimated_minutes_per_lesson" type="number" min="1" name="estimated_minutes_per_lesson" class="lf-form-control" value="{{ old('estimated_minutes_per_lesson', $formTemplate?->estimated_minutes_per_lesson) }}" placeholder="{{ __('lf.LF_course_template_placeholder_minutes') }}"></div>
+        <div class="lf-form-group"><x-form-label for="estimated_lesson_count" :value="__('lf.LF_course_template_estimated_lesson_count')" /><input id="estimated_lesson_count" type="number" min="1" name="estimated_lesson_count" class="lf-form-control" value="{{ old('estimated_lesson_count', $formTemplate?->estimated_lesson_count) }}" placeholder="{{ __('lf.LF_course_template_placeholder_lesson_count') }}"></div>
+        <div class="lf-form-group"><x-form-label for="difficulty_level" :value="__('lf.LF_course_template_common_difficulty_level')" /><select id="difficulty_level" name="difficulty_level" class="lf-form-control"><option value="" disabled @selected($selectedDifficulty === null || $selectedDifficulty === '')>{{ __('lf.LF_course_template_select_difficulty') }}</option>@foreach (['beginner', 'intermediate', 'advanced'] as $difficulty)<option value="{{ $difficulty }}" @selected($selectedDifficulty === $difficulty)>{{ __('lf.LF_course_template_common_'.$difficulty) }}</option>@endforeach</select></div>
+        <div class="lf-form-group"><x-form-label for="publisher_name" :value="__('lf.LF_course_template_common_publisher_name')" :required="$isRequired('publisher_name')" /><input id="publisher_name" type="text" name="publisher_name" class="lf-form-control" value="{{ old('publisher_name', $formTemplate?->publisher_name) }}" maxlength="255" placeholder="{{ __('lf.LF_course_template_placeholder_publisher') }}" required></div>
 
         <div class="lf-form-group">
             <x-form-label for="status"
@@ -354,20 +219,4 @@
             </div>
         </div>
     </div>
-</div>
-
-<div class="lf-form-group">
-    <x-form-label for="short_description"
-                  :value="__('lf.LF_course_template_common_short_description')"
-                  :required="$isRequired('short_description')" />
-    <textarea id="short_description" name="short_description" class="lf-form-control"
-              rows="2" maxlength="500">{{ old('short_description', $formTemplate?->short_description) }}</textarea>
-</div>
-
-<div class="lf-form-group">
-    <x-form-label for="description"
-                  :value="__('lf.LF_course_template_common_description')"
-                  :required="$isRequired('description')" />
-    <textarea id="description" name="description" class="lf-form-control"
-              rows="5">{{ old('description', $formTemplate?->description) }}</textarea>
 </div>

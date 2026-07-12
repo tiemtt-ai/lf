@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\CourseTemplatePublishingService;
 use App\Services\CourseTemplateVersionDuplicatingService;
 use App\Services\MediaService;
+use App\Services\TrustedVideoUrlService;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
 use Illuminate\Http\RedirectResponse;
@@ -12,7 +13,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -21,7 +21,8 @@ class CourseTemplateController extends Controller
     public function __construct(
         private readonly CourseTemplatePublishingService $publishingService,
         private readonly CourseTemplateVersionDuplicatingService $duplicatingService,
-        private readonly MediaService $mediaService
+        private readonly MediaService $mediaService,
+        private readonly TrustedVideoUrlService $trustedVideoUrls
     ) {}
 
     public function index(Request $request): View
@@ -43,7 +44,7 @@ class CourseTemplateController extends Controller
             ->when($keyword !== '', function ($query) use ($keyword): void {
                 $query->where(function ($query) use ($keyword): void {
                     $query->where('templates.title', 'like', '%'.$keyword.'%')
-                        ->orWhere('templates.slug', 'like', '%'.$keyword.'%');
+                        ;
                 });
             })
             ->when($status, function ($query) use ($status): void {
@@ -86,8 +87,10 @@ class CourseTemplateController extends Controller
         return view('course-templates.create', [
             'categories' => $this->categories(),
             'requiredFields' => $this->requiredFields($customerId),
-            'coverImageMedia' => null,
+            'introImageMedia' => null,
             'introVideoMedia' => null,
+            'introDocumentMedia' => null,
+            'introVideoEmbedUrl' => null,
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -110,7 +113,7 @@ class CourseTemplateController extends Controller
             ])
         );
 
-        $this->syncCoverMedia($request, $templateId, $validated);
+        $this->syncIntroductionMedia($request, $templateId, $validated);
 
         return redirect()
             ->route($this->routePrefix($request).'.index')
@@ -146,12 +149,19 @@ class CourseTemplateController extends Controller
             'directLessons' => $this->directLessons($customerId, $id),
             'lessonsBySection' => $this->lessonsBySection($customerId, $id),
             'activitiesByLesson' => $this->activitiesByLesson($customerId, $id),
-            'coverImageMedia' => $this->mediaFile(
-                $template->cover_image_media_file_id
+            'introImageMedia' => $this->mediaFile(
+                $template->intro_image_media_file_id
             ),
             'introVideoMedia' => $this->mediaFile(
                 $template->intro_video_media_file_id
             ),
+            'introDocumentMedia' => $this->mediaFile(
+                $template->intro_document_media_file_id
+            ),
+            'introVideoEmbedUrl' => $template->intro_video_source === 'embed'
+                && $template->intro_video_embed_url
+                    ? $this->trustedVideoUrls->embedUrl($template->intro_video_embed_url)
+                    : null,
             'teacherAssignments' => $this->teacherAssignments(
                 $customerId,
                 $id
@@ -315,7 +325,7 @@ class CourseTemplateController extends Controller
             ->where('id', $id)
             ->update($values);
 
-        $this->syncCoverMedia($request, $id, $validated);
+        $this->syncIntroductionMedia($request, $id, $validated);
 
         return redirect()
             ->route($this->routePrefix($request).'.edit', $id)
@@ -354,17 +364,18 @@ class CourseTemplateController extends Controller
         $fields = [
             'category_id',
             'title',
-            'slug',
             'short_description',
             'description',
             'publisher_name',
-            'cover_type',
-            'cover_image_media_file_id',
+            'intro_image_media_file_id',
+            'intro_video_source',
             'intro_video_media_file_id',
-            'remove_preview_media',
+            'intro_video_embed_url',
+            'intro_document_media_file_id',
+            'remove_intro_image', 'remove_intro_video', 'remove_intro_document',
             'difficulty_level',
-            'estimated_duration_minutes',
-            'max_lessons',
+            'estimated_minutes_per_lesson',
+            'estimated_lesson_count',
             'meta_title',
             'meta_description',
             'meta_keywords',
@@ -376,85 +387,52 @@ class CourseTemplateController extends Controller
             array_flip($fields)
         );
 
-        foreach (['cover_image_file', 'intro_video_file'] as $field) {
+        foreach (['intro_image_file', 'intro_video_file', 'intro_document_file'] as $field) {
             if ($request->hasFile($field)) {
                 $input[$field] = $request->file($field);
             }
         }
 
-        $submittedImagePreview = (
-            isset($input['cover_image_media_file_id'])
-            && trim((string) $input['cover_image_media_file_id']) !== ''
-        ) || $request->hasFile('cover_image_file');
-        $submittedVideoPreview = (
-            isset($input['intro_video_media_file_id'])
-            && trim((string) $input['intro_video_media_file_id']) !== ''
-        ) || $request->hasFile('intro_video_file');
-        $coverType = (string) ($input['cover_type'] ?? '');
-
-        if ($coverType === 'video') {
-            unset($input['cover_image_media_file_id']);
+        $source = $input['intro_video_source'] ?? null;
+        if ($source === 'upload') {
+            $input['intro_video_embed_url'] = null;
+        } elseif ($source === 'embed') {
+            $input['intro_video_media_file_id'] = null;
+            try {
+                $normalized = $this->trustedVideoUrls->normalize((string) ($input['intro_video_embed_url'] ?? ''));
+                $input['intro_video_embed_url'] = $normalized['url'];
+                $input['intro_video_provider'] = $normalized['provider'];
+            } catch (\InvalidArgumentException) {
+                // Validator reports the localized field error below.
+            }
+        } elseif ($source === null || $source === '') {
+            $input['intro_video_source'] = null;
+            $input['intro_video_media_file_id'] = null;
+            $input['intro_video_embed_url'] = null;
+            $input['intro_video_provider'] = null;
+        } else {
+            $input['intro_video_media_file_id'] = null;
+            $input['intro_video_embed_url'] = null;
+            $input['intro_video_provider'] = null;
         }
-
-        if ($coverType === 'image') {
-            unset($input['intro_video_media_file_id']);
-        }
-
-        $input['slug'] = $this->systemSlug(
-            (string) $request->input('title', ''),
-            $template,
-            'title'
-        );
 
         $validator = Validator::make(
             $input,
             $this->validationRules($customerId, $templateId)
         );
 
-        $validator->after(function ($validator) use (
-            $input,
-            $request,
-            $submittedImagePreview,
-            $submittedVideoPreview
-        ): void {
-            $coverType = (string) ($input['cover_type'] ?? '');
-
-            if ($submittedImagePreview && $submittedVideoPreview) {
-                $validator->errors()->add(
-                    'cover_type',
-                    __('lf.LF_course_template_preview_media_exclusive')
-                );
+        $validator->after(function ($validator) use ($input, $request): void {
+            $source = $input['intro_video_source'] ?? null;
+            if ($source === 'upload' && ! $request->hasFile('intro_video_file') && empty($input['intro_video_media_file_id'])) {
+                $validator->errors()->add('intro_video_media_file_id', __('validation.required'));
             }
-
-            if ($coverType === 'image') {
-                if ($request->hasFile('intro_video_file')) {
-                    $validator->errors()->add(
-                        'intro_video_media_file_id',
-                        __('validation.prohibited', [
-                            'attribute' => 'intro video',
-                        ])
-                    );
-                }
-
-            }
-
-            if ($coverType === 'video') {
-                if ($request->hasFile('cover_image_file')) {
-                    $validator->errors()->add(
-                        'cover_image_media_file_id',
-                        __('validation.prohibited', [
-                            'attribute' => 'cover image',
-                        ])
-                    );
-                }
-
+            if ($source === 'embed') {
+                try { $this->trustedVideoUrls->normalize((string) ($input['intro_video_embed_url'] ?? '')); }
+                catch (\InvalidArgumentException) { $validator->errors()->add('intro_video_embed_url', __('lf.LF_course_template_invalid_embed_url')); }
             }
         });
 
         $validated = $validator->validate();
-        $validated['cover_type'] ??= 'image';
-        $validated['estimated_duration_minutes'] ??= 0;
-
         return $validated;
     }
 
@@ -462,25 +440,17 @@ class CourseTemplateController extends Controller
     {
         return [
             'category_id' => [
-                'nullable',
+                'required',
                 'integer',
                 Rule::exists('core_course_categories', 'id')
                     ->where(fn ($query) => $query->where('customer_id', $customerId)),
             ],
             'title' => ['required', 'string', 'max:255'],
-            'slug' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('core_course_templates', 'slug')
-                    ->where(fn ($query) => $query->where('customer_id', $customerId))
-                    ->ignore($templateId),
-            ],
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['nullable', 'string'],
             'publisher_name' => ['required', 'string', 'max:255'],
-            'cover_type' => ['nullable', Rule::in(['image', 'video'])],
-            'cover_image_media_file_id' => [
+            'intro_video_source' => ['nullable', Rule::in(['upload', 'embed'])],
+            'intro_image_media_file_id' => [
                 'nullable',
                 'integer',
                 Rule::exists('media_files', 'id')
@@ -498,13 +468,17 @@ class CourseTemplateController extends Controller
                         ->where('file_type', 'video')
                         ->where('status', 'ready')),
             ],
-            'remove_preview_media' => ['nullable', 'boolean'],
+            'intro_video_embed_url' => ['nullable', 'string', 'max:2048'],
+            'intro_document_media_file_id' => ['nullable', 'integer', Rule::exists('media_files', 'id')->where(fn ($query) => $query->where('customer_id', $customerId)->where('file_type', 'document')->where('status', 'ready'))],
+            'remove_intro_image' => ['nullable', 'boolean'],
+            'remove_intro_video' => ['nullable', 'boolean'],
+            'remove_intro_document' => ['nullable', 'boolean'],
             'difficulty_level' => [
                 'nullable',
                 Rule::in(['beginner', 'intermediate', 'advanced']),
             ],
-            'estimated_duration_minutes' => ['nullable', 'integer', 'min:0'],
-            'max_lessons' => ['nullable', 'integer', 'min:0'],
+            'estimated_minutes_per_lesson' => ['nullable', 'integer', 'min:1'],
+            'estimated_lesson_count' => ['nullable', 'integer', 'min:1'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
             'meta_keywords' => ['nullable', 'string', 'max:500'],
@@ -512,7 +486,7 @@ class CourseTemplateController extends Controller
                 'required',
                 Rule::in(['draft', 'active', 'archived']),
             ],
-            'cover_image_file' => [
+            'intro_image_file' => [
                 'nullable',
                 'file',
                 'max:'.UploadLimit::effectiveKilobytes(),
@@ -522,6 +496,7 @@ class CourseTemplateController extends Controller
                 'file',
                 'max:'.UploadLimit::effectiveKilobytes(),
             ],
+            'intro_document_file' => ['nullable', 'file', 'max:'.UploadLimit::effectiveKilobytes()],
         ];
     }
 
@@ -530,7 +505,7 @@ class CourseTemplateController extends Controller
         return array_values(array_diff(array_keys(array_filter(
             $this->validationRules($customerId, $templateId),
             fn (array $rules): bool => in_array('required', $rules, true)
-        )), ['slug']));
+        ))));
     }
 
     private function templateValues(array $validated, array $extra = []): array
@@ -538,47 +513,23 @@ class CourseTemplateController extends Controller
         return array_merge([
             'category_id' => $validated['category_id'] ?? null,
             'title' => $validated['title'],
-            'slug' => $validated['slug'],
             'short_description' => $validated['short_description'] ?? null,
             'description' => $validated['description'] ?? null,
             'publisher_name' => $validated['publisher_name'] ?? null,
-            'cover_type' => $validated['cover_type'],
-            'cover_image_media_file_id' => $validated['cover_type'] === 'image'
-                ? (($validated['remove_preview_media'] ?? false)
-                    ? null
-                    : ($validated['cover_image_media_file_id'] ?? null))
-                : null,
-            'intro_video_media_file_id' => $validated['cover_type'] === 'video'
-                ? (($validated['remove_preview_media'] ?? false)
-                    ? null
-                    : ($validated['intro_video_media_file_id'] ?? null))
-                : null,
+            'intro_image_media_file_id' => ($validated['remove_intro_image'] ?? false) ? null : ($validated['intro_image_media_file_id'] ?? null),
+            'intro_video_source' => $validated['intro_video_source'] ?? null,
+            'intro_video_media_file_id' => ($validated['remove_intro_video'] ?? false) ? null : ($validated['intro_video_media_file_id'] ?? null),
+            'intro_video_embed_url' => $validated['intro_video_embed_url'] ?? null,
+            'intro_video_provider' => $validated['intro_video_provider'] ?? null,
+            'intro_document_media_file_id' => ($validated['remove_intro_document'] ?? false) ? null : ($validated['intro_document_media_file_id'] ?? null),
             'difficulty_level' => $validated['difficulty_level'] ?? null,
-            'estimated_duration_minutes' => $validated['estimated_duration_minutes'],
-            'max_lessons' => $validated['max_lessons'] ?? null,
+            'estimated_minutes_per_lesson' => $validated['estimated_minutes_per_lesson'] ?? null,
+            'estimated_lesson_count' => $validated['estimated_lesson_count'] ?? null,
             'meta_title' => $validated['meta_title'] ?? null,
             'meta_description' => $validated['meta_description'] ?? null,
             'meta_keywords' => $validated['meta_keywords'] ?? null,
             'status' => $validated['status'],
         ], $extra);
-    }
-
-    private function systemSlug(
-        string $source,
-        ?object $existingRecord = null,
-        string $sourceField = 'title'
-    ): string {
-        if ($existingRecord === null) {
-            return Str::slug($source);
-        }
-
-        $currentAutoSlug = Str::slug((string) $existingRecord->{$sourceField});
-
-        if ((string) $existingRecord->slug !== $currentAutoSlug) {
-            return (string) $existingRecord->slug;
-        }
-
-        return Str::slug($source);
     }
 
     private function withoutMissingSeoValues(Request $request, array $values): array
@@ -736,101 +687,54 @@ class CourseTemplateController extends Controller
             ->get();
     }
 
-    private function syncCoverMedia(
+    private function syncIntroductionMedia(
         Request $request,
         int $templateId,
         array $validated
     ): void {
-        $removePreviewMedia = (bool) ($validated['remove_preview_media'] ?? false);
-
-        if ($removePreviewMedia) {
-            $this->detachOwnerMedia($templateId, 'cover_image');
-            $this->detachOwnerMedia($templateId, 'video');
-        }
-
-        if ($validated['cover_type'] === 'image') {
-            $this->detachOwnerMedia($templateId, 'video');
-
-            $mediaFileId = $removePreviewMedia
-                ? null
-                : ($validated['cover_image_media_file_id'] ?? null);
-
-            if ($request->hasFile('cover_image_file')) {
-                $this->detachOwnerMedia($templateId, 'cover_image');
-                $mediaFileId = $this->uploadCoverMedia(
-                    $request,
-                    $templateId,
-                    'cover_image_file',
-                    'image',
-                    'cover',
-                    'cover_image'
-                );
+        $values = [];
+        foreach ([
+            'intro_image' => ['field' => 'intro_image_file', 'type' => 'image', 'column' => 'intro_image_media_file_id'],
+            'intro_video' => ['field' => 'intro_video_file', 'type' => 'video', 'column' => 'intro_video_media_file_id'],
+            'intro_document' => ['field' => 'intro_document_file', 'type' => 'document', 'column' => 'intro_document_media_file_id'],
+        ] as $usage => $definition) {
+            $remove = (bool) ($validated['remove_'.$usage] ?? false);
+            $mediaId = $remove ? null : ($validated[$definition['column']] ?? null);
+            if ($request->hasFile($definition['field'])) {
+                $mediaId = $this->uploadIntroductionMedia($request, $templateId, $definition['field'], $definition['type'], $usage);
             }
-
-            if ($mediaFileId) {
-                $this->mediaService->attachUsage(
-                    (int) $mediaFileId,
-                    'course_template',
-                    $templateId,
-                    'cover_image'
-                );
+            if ($mediaId) {
+                $this->mediaService->attachUsage((int) $mediaId, 'course_template', $templateId, $usage);
             }
-
-            DB::table('core_course_templates')
-                ->where('customer_id', $this->customerId())
-                ->where('id', $templateId)
-                ->update([
-                    'cover_image_media_file_id' => $mediaFileId,
-                    'intro_video_media_file_id' => null,
-                    'updated_at' => now(),
-                ]);
-
-            return;
+            if ($remove || $request->hasFile($definition['field'])) {
+                foreach ($this->mediaService->getOwnerMedia('course_template', $templateId, $usage) as $media) {
+                    if ((int) $media->id !== (int) $mediaId) {
+                        $this->mediaService->detachUsage((int) $media->id, 'course_template', $templateId, $usage);
+                    }
+                }
+            }
+            $values[$definition['column']] = $mediaId;
         }
 
-        $this->detachOwnerMedia($templateId, 'cover_image');
-
-        $mediaFileId = $removePreviewMedia
-            ? null
-            : ($validated['intro_video_media_file_id'] ?? null);
-
-        if ($request->hasFile('intro_video_file')) {
-            $this->detachOwnerMedia($templateId, 'video');
-            $mediaFileId = $this->uploadCoverMedia(
-                $request,
-                $templateId,
-                'intro_video_file',
-                'video',
-                'intro-video',
-                'video'
-            );
-        }
-
-        if ($mediaFileId) {
-            $this->mediaService->attachUsage(
-                (int) $mediaFileId,
-                'course_template',
-                $templateId,
-                'video'
-            );
+        if (($validated['intro_video_source'] ?? null) !== 'upload') {
+            $values['intro_video_media_file_id'] = null;
+            $this->detachOwnerMedia($templateId, 'intro_video');
         }
 
         DB::table('core_course_templates')
             ->where('customer_id', $this->customerId())
             ->where('id', $templateId)
             ->update([
-                'cover_image_media_file_id' => null,
-                'intro_video_media_file_id' => $mediaFileId,
+                ...$values,
                 'updated_at' => now(),
             ]);
     }
 
-    private function uploadCoverMedia(
+    private function uploadIntroductionMedia(
         Request $request,
         int $templateId,
         string $field,
         string $fileType,
-        string $purpose,
         string $usageType
     ): int {
         $mediaFile = $this->mediaService->upload(
@@ -840,7 +744,7 @@ class CourseTemplateController extends Controller
                 'module' => 'course',
                 'entity_type' => 'templates',
                 'entity_id' => $templateId,
-                'purpose' => $purpose,
+                'purpose' => $usageType,
                 'display_name' => $request->input('title'),
             ],
             (int) $request->user()->id

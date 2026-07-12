@@ -1,12 +1,13 @@
 # Course Template Published Version Snapshot Architecture Review
 
-Version: 1.1
+Version: 1.2
 
 Status: Approved Review
 
 Review Date: 2026-07-03
 
 Nested Section Capability Review Date: 2026-07-10
+Information Model Review Date: 2026-07-12
 
 ---
 
@@ -36,6 +37,25 @@ published Course Template Version snapshots. It does not authorize or review
 application code, migrations, rollback, duplicate, Enrollment binding or
 published Course consumption.
 
+# Information Model Amendment Review
+
+| Area | Classification | Result |
+| --- | --- | --- |
+| Domain correctness | PASS | Template is internal ID-resolved authoring; Product retains public slug. |
+| Database normalization | PASS | Three optional introduction items; one discriminator controls video source only. |
+| Snapshot immutability | PASS | Canonical introduction fields and independent Version usages are frozen. |
+| Media lifecycle | PASS | Working detach cannot detach Version usage or delete an asset still in use. |
+| Tenant isolation | PASS | Attach/publish validates owner and Media under one tenant. |
+| Authorization | PASS | Existing authorized admin/teacher authoring boundary applies; publish policy is unchanged. |
+| Embed security | PASS | Normalized HTTPS YouTube/Vimeo URLs only; no iframe storage; trusted rendering mapping. |
+| Migration safety | PASS | Deterministic legacy image/upload mapping; no invented embed/document data. |
+| Product/Enrollment compatibility | PASS | Version identity and all frozen consumer bindings remain unchanged. |
+| Naming consistency | PASS | Canonical working/snapshot and Media owner/usage names are explicit. |
+| Documentation duplication | PASS | ADR owns decision; database docs own physical fields. |
+| Reversible data downgrade | OPTIONAL | Rollback is conditional because embed/document data has no lossless legacy representation. |
+
+No unresolved `REQUIRED` finding remains.
+
 # A — Domain Boundary
 
 - [x] Course owns Course authoring and published Version state.
@@ -64,7 +84,8 @@ published Course consumption.
 - [x] Old Versions are retained.
 - [x] Editable draft content is not modified by snapshot creation.
 - [x] Lifecycle and allowed envelope updates are explicit.
-- [x] Rollback and duplicate are explicitly deferred.
+- [x] Rollback remains deferred; duplicate-to-draft is governed separately by
+  ADR-0013 and does not mutate the Version.
 
 # E — Database
 
@@ -99,23 +120,17 @@ published Course consumption.
 
 # Review Result
 
-Score:
-
-```text
-100 / 100
-```
-
 Decision:
 
 ```text
-Foundation Ready — Snapshot Documentation Scope
+PASS — Foundation Ready; implementation documentation gate satisfied
 ```
 
 Owner Approval:
 
 ```text
 Role: LearnForge Architecture Owner
-Date: 2026-07-03
+Date: 2026-07-12 (Information Model amendment)
 Decision: Approved
 ```
 
@@ -125,7 +140,6 @@ Separate review remains required before implementing:
 
 * Media/Assessment/LiveClass immutable Activity-reference contracts;
 * rollback or restore;
-* duplicate;
 * Product/Enrollment Version binding;
 * published Course consumption.
 

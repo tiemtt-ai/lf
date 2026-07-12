@@ -1,10 +1,10 @@
 # Table: core_course_template_versions
 
-Version: 2.0
+Version: 3.0
 
 Status: Approved
 
-Last Updated: 2026-07-03
+Last Updated: 2026-07-12
 
 Related ADR:
 [ADR-0012 — Course Template Published Version Snapshot Architecture](../../adr/ADR-0012-Course-Template-Published-Version-Snapshot.md)
@@ -70,19 +70,21 @@ Foundation, but their implementation is outside this snapshot batch.
 | `version_number` | INT UNSIGNED | required | Sequential number within the Template, starting at 1. |
 | `version_code` | VARCHAR(100) | required | Stable tenant-unique Version code, for example `TOPIK-BEGINNER-V3`. |
 | `is_current` | TINYINT(1) | required, default 0 | Whether this is the current published Version for the Template. |
-| `source_category_id` | BIGINT UNSIGNED | nullable | Category lineage at publish time; not a published-content foreign-key authority. |
-| `category_name_snapshot` | VARCHAR(255) | nullable | Category display name at publish time. |
+| `source_category_id` | BIGINT UNSIGNED | required | Category lineage at publish time; not a published-content foreign-key authority. |
+| `category_name_snapshot` | VARCHAR(255) | required | Category display name at publish time. |
 | `title_snapshot` | VARCHAR(255) | required | Snapshot of Template title. |
-| `slug_snapshot` | VARCHAR(255) | required | Snapshot of Template slug. |
 | `short_description_snapshot` | VARCHAR(500) | nullable | Snapshot of short description. |
 | `description_snapshot` | LONGTEXT | nullable | Snapshot of detailed description. |
-| `publisher_name_snapshot` | VARCHAR(255) | nullable | Snapshot of content publisher name. |
-| `cover_type_snapshot` | VARCHAR(50) | required | Snapshot value: `image` or `video`. |
-| `cover_image_media_file_id_snapshot` | BIGINT UNSIGNED | nullable | Cover image Media File captured at publish time. Required when `cover_type_snapshot = image`; must be `NULL` when `cover_type_snapshot = video`. |
-| `intro_video_media_file_id_snapshot` | BIGINT UNSIGNED | nullable | Intro video Media File captured at publish time. Required when `cover_type_snapshot = video`; must be `NULL` when `cover_type_snapshot = image`. |
+| `publisher_name_snapshot` | VARCHAR(255) | required | Snapshot of required content publisher name. |
+| `intro_image_media_file_id_snapshot` | BIGINT UNSIGNED | nullable | Introduction image Media File frozen at publish time. |
+| `intro_video_source_snapshot` | VARCHAR(50) | nullable | Frozen source: `upload`, `embed`, or `NULL`. |
+| `intro_video_media_file_id_snapshot` | BIGINT UNSIGNED | nullable | Uploaded introduction video, required only for `upload`. |
+| `intro_video_embed_url_snapshot` | VARCHAR(2048) | nullable | Normalized HTTPS YouTube/Vimeo URL, required only for `embed`. |
+| `intro_video_provider_snapshot` | VARCHAR(50) | nullable | Trusted provider `youtube` or `vimeo`, required only for `embed`. |
+| `intro_document_media_file_id_snapshot` | BIGINT UNSIGNED | nullable | Introduction document Media File frozen at publish time. |
 | `difficulty_level_snapshot` | VARCHAR(50) | nullable | Snapshot difficulty: `beginner`, `intermediate`, or `advanced`. |
-| `estimated_duration_minutes_snapshot` | INT UNSIGNED | required, default 0 | Published duration aggregate. |
-| `max_lessons_snapshot` | INT UNSIGNED | nullable | Snapshot authoring limit for audit. |
+| `estimated_minutes_per_lesson_snapshot` | INT UNSIGNED | nullable | Frozen estimated minutes per Lesson. |
+| `estimated_lesson_count_snapshot` | INT UNSIGNED | nullable | Frozen estimated Lesson count; not a hard limit. |
 | `lesson_count_snapshot` | INT UNSIGNED | required, default 0 | Published Lesson count. |
 | `meta_title_snapshot` | VARCHAR(255) | nullable | Snapshot SEO title. |
 | `meta_description_snapshot` | VARCHAR(500) | nullable | Snapshot SEO description. |
@@ -118,8 +120,9 @@ non-current Versions.
 * `template_id` → `core_course_templates.id`: `RESTRICT`. A Template with
   published Versions cannot be deleted.
 * `published_by` → `users.id`: `RESTRICT` so publication attribution survives.
-* Category and Media snapshot identifiers are lineage/reference values. They
-  must not cascade changes or deletion into the Version.
+* Category and Media snapshot identifiers are lineage/reference values. Media
+  usages owned by the Version retain assets independently of working Template
+  usages and must not cascade changes or deletion into the Version.
 * Published Versions cannot be hard-deleted through application behavior.
 * No cascade from working authoring records is permitted.
 
@@ -150,9 +153,12 @@ is_current = 1
 source_category_id = 2
 category_name_snapshot = Korean
 title_snapshot = TOPIK Beginner
-slug_snapshot = topik-beginner
-cover_type_snapshot = image
-estimated_duration_minutes_snapshot = 2400
+intro_image_media_file_id_snapshot = 650
+intro_video_source_snapshot = upload
+intro_video_media_file_id_snapshot = 700
+intro_document_media_file_id_snapshot = 710
+estimated_minutes_per_lesson_snapshot = 75
+estimated_lesson_count_snapshot = 40
 lesson_count_snapshot = 32
 source_working_revision = 12
 status = published

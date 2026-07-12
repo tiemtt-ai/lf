@@ -63,6 +63,7 @@ class CourseTemplateManagementTest extends TestCase
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = $this->createCategory($customerId, 'General', 'general');
         $teacher = $this->createUser($customerId, 'teacher');
         $templateId = $this->createTemplate(
             $customerId,
@@ -170,6 +171,7 @@ class CourseTemplateManagementTest extends TestCase
 
         foreach ($responses as $response) {
             foreach ([
+                'category_id',
                 'title',
                 'publisher_name',
                 'status',
@@ -182,17 +184,16 @@ class CourseTemplateManagementTest extends TestCase
             }
 
             foreach ([
-                'category_id',
                 'short_description',
                 'description',
-                'cover_type',
-                'cover_image_file',
+                'intro_image_file',
                 'intro_video_file',
-                'cover_image_media_file_id',
+                'intro_document_file',
+                'intro_image_media_file_id',
                 'intro_video_media_file_id',
                 'difficulty_level',
-                'estimated_duration_minutes',
-                'max_lessons',
+                'estimated_minutes_per_lesson',
+                'estimated_lesson_count',
             ] as $field) {
                 $this->assertSame(
                     0,
@@ -205,34 +206,33 @@ class CourseTemplateManagementTest extends TestCase
                 [
                     'category_id',
                     'title',
-                    'slug',
-                    'publisher_name',
-                    'difficulty_level',
+                    'short_description',
+                    'description',
                 ],
                 $this->backendColumnFieldNames($response->getContent(), 0)
             );
             $this->assertSame(
                 [
-                    'estimated_duration_minutes',
-                    'max_lessons',
-                    'cover_type',
+                    'intro_image_file',
+                    'intro_video_source',
+                    'intro_document_file',
+                    'estimated_minutes_per_lesson',
+                    'estimated_lesson_count',
+                    'difficulty_level',
+                    'publisher_name',
                     'status',
                 ],
                 $this->backendColumnFieldNames($response->getContent(), 1)
             );
-            $this->assertFalse($this->fieldIsInsideBackendColumn(
+            $this->assertTrue($this->fieldIsInsideBackendColumn(
                 $response->getContent(),
                 'short_description'
             ));
-            $this->assertFalse($this->fieldIsInsideBackendColumn(
+            $this->assertTrue($this->fieldIsInsideBackendColumn(
                 $response->getContent(),
                 'description'
             ));
-            $this->assertStringContainsString(
-                'name="slug"',
-                $response->getContent()
-            );
-            $this->assertStringContainsString('readonly', $response->getContent());
+            $this->assertStringNotContainsString('name="slug"', $response->getContent());
             $this->assertManualSeoControlsNotRendered(
                 $response->getContent(),
                 'course-template-seo-title',
@@ -241,13 +241,47 @@ class CourseTemplateManagementTest extends TestCase
         }
     }
 
+    public function test_create_select_defaults_and_edit_saved_values_are_preserved(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = $this->createCategory($customerId, 'General', 'general');
+
+        $create = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-templates/create')
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_select_category'))
+            ->assertSeeText(__('lf.LF_course_template_select_difficulty'));
+
+        $this->assertTrue($this->selectOptionIsSelected($create->getContent(), 'status', 'draft'));
+        $this->assertTrue($this->selectOptionIsSelected($create->getContent(), 'category_id', ''));
+        $this->assertTrue($this->selectOptionIsSelected($create->getContent(), 'difficulty_level', ''));
+        $this->assertFalse($this->selectOptionIsSelected($create->getContent(), 'category_id', (string) $categoryId));
+
+        $templateId = $this->createTemplate($customerId, 'Saved Selects', 'unused', $admin->id);
+        DB::table('core_course_templates')->where('id', $templateId)->update([
+            'category_id' => $categoryId,
+            'difficulty_level' => 'advanced',
+            'status' => 'active',
+        ]);
+
+        $edit = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->assertOk();
+        $this->assertTrue($this->selectOptionIsSelected($edit->getContent(), 'category_id', (string) $categoryId));
+        $this->assertTrue($this->selectOptionIsSelected($edit->getContent(), 'difficulty_level', 'advanced'));
+        $this->assertTrue($this->selectOptionIsSelected($edit->getContent(), 'status', 'active'));
+    }
+
     public function test_admin_can_create_template_with_only_required_fields(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = $this->createCategory($customerId, 'General', 'general');
 
         $this->actingAs($admin)
             ->post('https://tenant-a.localhost/admin/course-templates', [
+                'category_id' => $categoryId,
                 'title' => 'Minimal Template',
                 'publisher_name' => 'LearnForge',
                 'status' => 'draft',
@@ -257,17 +291,16 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_templates', [
             'customer_id' => $customerId,
             'title' => 'Minimal Template',
-            'slug' => 'minimal-template',
             'publisher_name' => 'LearnForge',
-            'category_id' => null,
-            'cover_type' => 'image',
-            'cover_image_media_file_id' => null,
+            'category_id' => $categoryId,
+            'intro_video_source' => null,
+            'intro_image_media_file_id' => null,
             'intro_video_media_file_id' => null,
             'short_description' => null,
             'description' => null,
             'difficulty_level' => null,
-            'estimated_duration_minutes' => 0,
-            'max_lessons' => null,
+            'estimated_minutes_per_lesson' => null,
+            'estimated_lesson_count' => null,
             'status' => 'draft',
         ]);
     }
@@ -284,20 +317,19 @@ class CourseTemplateManagementTest extends TestCase
                 $this->validTemplateData([
                     'category_id' => $categoryId,
                     'title' => 'TOPIK Beginner 1',
-                    'slug' => 'topik-beginner-1',
                     'short_description' => 'TOPIK foundation',
                     'description' => 'Detailed TOPIK foundation course.',
                     'publisher_name' => 'Visang',
-                    'cover_type' => 'video',
-                    'cover_image_file' => null,
+                    'intro_video_source' => 'upload',
+                    'intro_image_file' => null,
                     'intro_video_file' => UploadedFile::fake()->create(
                         'intro-video.mp4',
                         32,
                         'video/mp4'
                     ),
                     'difficulty_level' => 'beginner',
-                    'estimated_duration_minutes' => 2400,
-                    'max_lessons' => 40,
+                    'estimated_minutes_per_lesson' => 2400,
+                    'estimated_lesson_count' => 40,
                     'meta_title' => 'TOPIK Beginner',
                     'meta_description' => 'Learn TOPIK from the beginning.',
                     'meta_keywords' => 'topik,korean',
@@ -308,7 +340,7 @@ class CourseTemplateManagementTest extends TestCase
 
         $template = DB::table('core_course_templates')
             ->where('customer_id', $customerId)
-            ->where('slug', 'topik-beginner-1')
+            ->where('title', 'TOPIK Beginner 1')
             ->first();
 
         $this->assertNotNull($template);
@@ -324,14 +356,15 @@ class CourseTemplateManagementTest extends TestCase
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = $this->createCategory($customerId, 'General', 'general');
 
         $this->actingAs($admin)
             ->post(
                 'https://tenant-a.localhost/admin/course-templates',
                 $this->validTemplateData([
                     'title' => 'Optional Preview Course',
-                    'slug' => 'optional-preview-course',
-                    'cover_image_file' => null,
+                    'category_id' => $categoryId,
+                    'intro_image_file' => null,
                     'intro_video_file' => null,
                 ])
             )
@@ -339,15 +372,15 @@ class CourseTemplateManagementTest extends TestCase
 
         $this->assertDatabaseHas('core_course_templates', [
             'customer_id' => $customerId,
-            'slug' => 'optional-preview-course',
-            'cover_type' => 'image',
-            'cover_image_media_file_id' => null,
+            'title' => 'Optional Preview Course',
+            'intro_video_source' => null,
+            'intro_image_media_file_id' => null,
             'intro_video_media_file_id' => null,
         ]);
         $this->assertDatabaseMissing('media_file_usages', [
             'customer_id' => $customerId,
             'owner_type' => 'course_template',
-            'usage_type' => 'cover_image',
+            'usage_type' => 'intro_image',
             'status' => 'active',
         ]);
     }
@@ -373,7 +406,6 @@ class CourseTemplateManagementTest extends TestCase
 
         $data = $this->validTemplateData([
             'title' => 'SEO Template Updated',
-            'slug' => 'seo-template-updated',
         ]);
         unset($data['meta_title'], $data['meta_description'], $data['meta_keywords']);
 
@@ -390,7 +422,6 @@ class CourseTemplateManagementTest extends TestCase
             'id' => $templateId,
             'customer_id' => $customerId,
             'title' => 'SEO Template Updated',
-            'slug' => 'seo-template-updated',
             'meta_title' => 'Legacy SEO Title',
             'meta_description' => 'Legacy SEO description',
             'meta_keywords' => 'legacy,seo',
@@ -401,20 +432,21 @@ class CourseTemplateManagementTest extends TestCase
     {
         $customerId = $this->createTenant();
         $teacher = $this->createUser($customerId, 'teacher');
+        $categoryId = $this->createCategory($customerId, 'General', 'general');
 
         $this->actingAs($teacher)
             ->post(
                 'https://tenant-a.localhost/teacher/course-templates',
                 $this->validTemplateData([
+                    'category_id' => $categoryId,
                     'title' => 'Teacher Course',
-                    'slug' => 'teacher-course',
                 ])
             )
             ->assertRedirect('https://tenant-a.localhost/teacher/course-templates');
 
         $template = DB::table('core_course_templates')
             ->where('customer_id', $customerId)
-            ->where('slug', 'teacher-course')
+            ->where('title', 'Teacher Course')
             ->first();
 
         $this->assertNotNull($template);
@@ -440,8 +472,8 @@ class CourseTemplateManagementTest extends TestCase
                 'category_id' => $otherCategoryId,
                 'title' => '',
                 'publisher_name' => '',
-                'cover_type' => 'document',
-                'estimated_duration_minutes' => -1,
+                'intro_video_source' => 'document',
+                'estimated_minutes_per_lesson' => -1,
                 'status' => 'inactive',
             ])
             ->assertRedirect('https://tenant-a.localhost/admin/course-templates/create')
@@ -449,35 +481,39 @@ class CourseTemplateManagementTest extends TestCase
                 'category_id',
                 'title',
                 'publisher_name',
-                'cover_type',
-                'estimated_duration_minutes',
+                'intro_video_source',
+                'estimated_minutes_per_lesson',
                 'status',
             ]);
 
         $this->assertDatabaseCount('core_course_templates', 0);
     }
 
-    public function test_slug_is_unique_per_tenant_and_reusable_by_another_tenant(): void
+    public function test_templates_do_not_require_slug_or_title_uniqueness(): void
     {
         $customerId = $this->createTenant();
         $otherCustomerId = $this->createTenant('tenant-b');
         $admin = $this->createUser($customerId, 'customer_admin');
         $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
+        $otherCategoryId = $this->createCategory($otherCustomerId, 'General', 'general');
         $this->createTemplate($customerId, 'TOPIK', 'topik');
+        $ownCategoryId = DB::table('core_course_categories')->where('customer_id', $customerId)->value('id');
 
         $this->actingAs($admin)
             ->post(
                 'https://tenant-a.localhost/admin/course-templates',
                 $this->validTemplateData([
+                    'category_id' => $ownCategoryId,
                     'title' => 'TOPIK',
                 ])
             )
-            ->assertSessionHasErrors('slug');
+            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
 
         $this->actingAs($otherAdmin)
             ->post(
                 'https://tenant-b.localhost/admin/course-templates',
                 $this->validTemplateData([
+                    'category_id' => $otherCategoryId,
                     'title' => 'TOPIK',
                 ])
             )
@@ -485,7 +521,7 @@ class CourseTemplateManagementTest extends TestCase
 
         $this->assertDatabaseHas('core_course_templates', [
             'customer_id' => $otherCustomerId,
-            'slug' => 'topik',
+            'title' => 'TOPIK',
         ]);
     }
 
@@ -514,7 +550,6 @@ class CourseTemplateManagementTest extends TestCase
                 "https://tenant-a.localhost/admin/course-templates/{$otherTemplateId}",
                 $this->validTemplateData([
                     'title' => 'Changed Other Course',
-                    'slug' => 'changed-other-course',
                 ])
             )
             ->assertNotFound();
@@ -530,7 +565,6 @@ class CourseTemplateManagementTest extends TestCase
                 "https://tenant-a.localhost/admin/course-templates/{$ownTemplateId}",
                 $this->validTemplateData([
                     'title' => 'Archived Own Course',
-                    'slug' => 'archived-own-course',
                     'status' => 'archived',
                 ])
             )
@@ -651,21 +685,27 @@ class CourseTemplateManagementTest extends TestCase
         ?int $createdBy = null
     ): int {
         $now = now();
+        $categoryId = DB::table('core_course_categories')
+            ->where('customer_id', $customerId)
+            ->value('id') ?? $this->createCategory(
+                $customerId,
+                'General',
+                'general-'.$customerId
+            );
 
         return DB::table('core_course_templates')->insertGetId([
             'customer_id' => $customerId,
-            'category_id' => null,
+            'category_id' => $categoryId,
             'title' => $title,
-            'slug' => $slug,
             'short_description' => null,
             'description' => null,
             'publisher_name' => null,
-            'cover_type' => 'image',
-            'cover_image_media_file_id' => null,
+            'intro_video_source' => null,
+            'intro_image_media_file_id' => null,
             'intro_video_media_file_id' => null,
             'difficulty_level' => null,
-            'estimated_duration_minutes' => 0,
-            'max_lessons' => null,
+            'estimated_minutes_per_lesson' => 0,
+            'estimated_lesson_count' => null,
             'lesson_count' => 0,
             'meta_title' => null,
             'meta_description' => null,
@@ -681,21 +721,23 @@ class CourseTemplateManagementTest extends TestCase
 
     private function validTemplateData(array $overrides = []): array
     {
+        $categoryId = DB::table('core_course_categories')->value('id');
+
         return array_merge([
-            'category_id' => null,
+            'category_id' => $categoryId,
             'title' => 'Programming Basics',
             'short_description' => null,
             'description' => null,
             'publisher_name' => 'LearnForge',
-            'cover_type' => 'image',
-            'cover_image_file' => UploadedFile::fake()->image(
+            'intro_video_source' => null,
+            'intro_image_file' => UploadedFile::fake()->image(
                 'template-cover.png',
                 120,
                 80
             ),
             'difficulty_level' => null,
-            'estimated_duration_minutes' => 0,
-            'max_lessons' => null,
+            'estimated_minutes_per_lesson' => null,
+            'estimated_lesson_count' => null,
             'meta_title' => null,
             'meta_description' => null,
             'meta_keywords' => null,
@@ -788,6 +830,22 @@ class CourseTemplateManagementTest extends TestCase
         );
 
         return $ancestors->length > 0;
+    }
+
+    private function selectOptionIsSelected(string $html, string $select, string $value): bool
+    {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        $xpath = new \DOMXPath($document);
+
+        return $xpath->query(sprintf(
+            '//select[@name="%s"]/option[@value="%s" and @selected]',
+            $select,
+            $value
+        ))->length === 1;
     }
 
     private function assertManualSeoControlsNotRendered(

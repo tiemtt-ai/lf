@@ -9,6 +9,7 @@ use Illuminate\Validation\ValidationException;
 
 class CourseTemplateVersionDuplicatingService
 {
+    public function __construct(private readonly MediaService $mediaService) {}
     private const ACTIVITY_REFERENCE_TABLES = [
         'media_videos',
         'media_audios',
@@ -49,6 +50,8 @@ class CourseTemplateVersionDuplicatingService
 
             abort_if(! $version, 404);
 
+            $this->assertVideoState($version);
+
             $sections = $this->versionSections($customerId, $versionId);
             $lessons = $this->versionLessons($customerId, $versionId);
             $activities = $this->versionActivities($customerId, $versionId);
@@ -57,11 +60,6 @@ class CourseTemplateVersionDuplicatingService
                 $sections,
                 $lessons,
                 $activities
-            );
-            $this->assertTemplateSlugAvailable(
-                $customerId,
-                $templateId,
-                $version->slug_snapshot
             );
 
             $beforeCounts = $this->draftCounts($customerId, $templateId);
@@ -78,27 +76,28 @@ class CourseTemplateVersionDuplicatingService
                         $version->source_category_id
                     ),
                     'title' => $version->title_snapshot,
-                    'slug' => $version->slug_snapshot,
                     'short_description' => $version
                         ->short_description_snapshot,
                     'description' => $version->description_snapshot,
                     'publisher_name' => $version->publisher_name_snapshot,
-                    'cover_type' => $version->cover_type_snapshot,
-                    'cover_image_media_file_id' => $this->referenceId(
+                    'intro_image_media_file_id' => $this->referenceId(
                         $customerId,
-                        $version->cover_image_media_file_id_snapshot,
+                        $version->intro_image_media_file_id_snapshot,
                         ['media_files']
                     ),
+                    'intro_video_source' => $version->intro_video_source_snapshot,
                     'intro_video_media_file_id' => $this->referenceId(
                         $customerId,
                         $version->intro_video_media_file_id_snapshot,
                         ['media_files']
                     ),
+                    'intro_video_embed_url' => $version->intro_video_embed_url_snapshot,
+                    'intro_video_provider' => $version->intro_video_provider_snapshot,
+                    'intro_document_media_file_id' => $this->referenceId($customerId, $version->intro_document_media_file_id_snapshot, ['media_files']),
                     'difficulty_level' => $version
                         ->difficulty_level_snapshot,
-                    'estimated_duration_minutes' => $version
-                        ->estimated_duration_minutes_snapshot,
-                    'max_lessons' => $version->max_lessons_snapshot,
+                    'estimated_minutes_per_lesson' => $version->estimated_minutes_per_lesson_snapshot,
+                    'estimated_lesson_count' => $version->estimated_lesson_count_snapshot,
                     'lesson_count' => $lessons->count(),
                     'meta_title' => $version->meta_title_snapshot,
                     'meta_description' => $version
@@ -109,6 +108,13 @@ class CourseTemplateVersionDuplicatingService
                     'status' => 'draft',
                     'updated_at' => $now,
                 ]);
+
+            foreach (['intro_image' => $version->intro_image_media_file_id_snapshot, 'intro_video' => $version->intro_video_media_file_id_snapshot, 'intro_document' => $version->intro_document_media_file_id_snapshot] as $usage => $mediaId) {
+                $mediaId = $this->referenceId($customerId, $mediaId, ['media_files']);
+                if ($mediaId) {
+                    $this->mediaService->attachUsage((int) $mediaId, 'course_template', $templateId, $usage);
+                }
+            }
 
             $sectionMap = $this->restoreSections(
                 $customerId,
@@ -278,6 +284,19 @@ class CourseTemplateVersionDuplicatingService
         }
     }
 
+    private function assertVideoState(object $version): void
+    {
+        $valid = match ($version->intro_video_source_snapshot) {
+            null => ! $version->intro_video_media_file_id_snapshot && ! $version->intro_video_embed_url_snapshot && ! $version->intro_video_provider_snapshot,
+            'upload' => (bool) $version->intro_video_media_file_id_snapshot && ! $version->intro_video_embed_url_snapshot && ! $version->intro_video_provider_snapshot,
+            'embed' => ! $version->intro_video_media_file_id_snapshot && (bool) $version->intro_video_embed_url_snapshot && in_array($version->intro_video_provider_snapshot, ['youtube', 'vimeo'], true),
+            default => false,
+        };
+        if (! $valid) {
+            throw ValidationException::withMessages(['duplicate' => __('lf.LF_course_template_invalid_video_state')]);
+        }
+    }
+
     private function assertValidOrderValues(
         Collection $records,
         string $field
@@ -320,26 +339,6 @@ class CourseTemplateVersionDuplicatingService
                 $seen[$currentId] = true;
                 $currentId = $parents[$currentId];
             }
-        }
-    }
-
-    private function assertTemplateSlugAvailable(
-        int $customerId,
-        int $templateId,
-        string $slug
-    ): void {
-        if (
-            DB::table('core_course_templates')
-                ->where('customer_id', $customerId)
-                ->where('slug', $slug)
-                ->where('id', '!=', $templateId)
-                ->exists()
-        ) {
-            throw ValidationException::withMessages([
-                'duplicate' => __(
-                    'lf.LF_course_template_duplicate_slug_conflict'
-                ),
-            ]);
         }
     }
 

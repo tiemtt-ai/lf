@@ -1,12 +1,13 @@
 # Course Template Version Duplicate to Draft Architecture Review
 
-Version: 1.1
+Version: 1.2
 
 Status: Approved Review
 
 Review Date: 2026-07-03
 
 Nested Section Capability Review Date: 2026-07-10
+Information Model Review Date: 2026-07-12
 
 ---
 
@@ -88,7 +89,8 @@ changes.
 - [x] Missing optional Category references fall back to `NULL`.
 - [x] Missing optional Media/reference IDs fall back without mutating history.
 - [x] Snapshot text remains preserved on the immutable Version.
-- [x] Required invalid data and slug conflicts fail atomically.
+- [x] Required invalid data and invalid video-source combinations fail atomically.
+- [x] Template slug restoration and slug-conflict checks are removed.
 - [x] Cross-tenant references are never accepted.
 
 # G — Tenant And Authorization
@@ -134,23 +136,30 @@ changes.
 
 # Review Result
 
-Score:
+Information Model classifications:
 
-```text
-100 / 100
-```
+| Area | Classification | Result |
+| --- | --- | --- |
+| Snapshot-to-draft mapping | PASS | All introduction and estimate fields map canonically. |
+| Media lifecycle | PASS | New working usages attach without mutating Version usages. |
+| Tenant/authorization | PASS | Existing customer-admin-only and tenant-scoped boundary remains. |
+| Video invariant | PASS | Upload/embed/null matrix is validated before replacement. |
+| Product/learner compatibility | PASS | Product, Enrollment, Progress and Version identity remain unchanged. |
+| Missing optional Media | OPTIONAL | Same-tenant existence fallback may clear a working reference while preserving history. |
+
+No unresolved `REQUIRED` finding remains.
 
 Decision:
 
 ```text
-Approved — Implementation Authorized
+PASS — Implementation Authorized
 ```
 
 Owner Approval:
 
 ```text
 Role: LearnForge Architecture Owner
-Date: 2026-07-03
+Date: 2026-07-12 (Information Model amendment)
 Decision: Approved
 ```
 

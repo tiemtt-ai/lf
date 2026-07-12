@@ -2,6 +2,10 @@
 
 `media_file_usages`
 
+Version: 1.1
+
+Last Updated: 2026-07-12
+
 ## Purpose
 
 Generic mapping giữa Media File và owner record ở Domain sử dụng.
@@ -22,8 +26,11 @@ hay S3.
 * Owner Domain validate owner existence, owner tenant và authorization.
 * Không tạo hard foreign key tới Course, Assessment, LiveClass, AI hoặc domain khác.
 * `owner_type + owner_id` là generic reference; Media không diễn giải business state của owner.
-* Allowed `owner_type`: `course_template`, `course_product`, `course_activity`, `course_cohort`, `assessment_question`, `assessment_answer`, `liveclass_recording`, `certificate`, `avatar`, `ai_knowledge`, `marketing`.
-* Allowed `usage_type`: `cover_image`, `thumbnail`, `video`, `audio`, `document`, `attachment`, `recording`, `certificate_pdf`, `avatar_image`, `source_material`.
+* Allowed `owner_type`: `course_template`, `course_template_version`, `course_product`, `course_activity`, `course_cohort`, `assessment_question`, `assessment_answer`, `liveclass_recording`, `certificate`, `avatar`, `ai_knowledge`, `marketing`.
+* Allowed `usage_type`: `intro_image`, `intro_video`, `intro_document`, `cover_image`, `thumbnail`, `video`, `audio`, `document`, `attachment`, `recording`, `certificate_pdf`, `avatar_image`, `source_material`.
+* Course Template and immutable Course Template Version introduction usages use
+  only `intro_image`, `intro_video`, and `intro_document`. Embedded video URLs
+  create no Media usage.
 * Allowed `status`: `active`, `detached`, `archived`.
 * Một file có thể được nhiều Domain sử dụng; một owner có thể dùng nhiều file.
 * Attach creates usage hoặc reactivates existing detached/archived usage.

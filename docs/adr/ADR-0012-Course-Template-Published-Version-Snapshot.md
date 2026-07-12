@@ -1,6 +1,6 @@
 # ADR-0012 — Course Template Published Version Snapshot Architecture
 
-Version: 1.2
+Version: 1.3
 
 Status: Approved
 
@@ -8,6 +8,7 @@ Decision Date: 2026-07-03
 
 Scope Amendment Date: 2026-07-10
 Nested Section Amendment Date: 2026-07-10
+Information Model Amendment Date: 2026-07-12
 
 Extends:
 [ADR-0001 — Course Foundation](ADR-0001-Course-Foundation.md)
@@ -35,6 +36,49 @@ ADR freezes the field-level persistence boundary and publish behavior for the
 four published snapshot tables.
 
 # Decision
+
+## Information Model Amendment (2026-07-12)
+
+Course Template is an internal authoring aggregate identified by tenant-scoped
+ID and no longer has a slug. Course Product remains the public/catalog/SEO
+aggregate and retains all existing Product slug behavior. Consequently publish
+does not copy `slug_snapshot`.
+
+The former representative `cover_type = image|video` decision is superseded.
+The working Template and every Version support three independent optional
+introduction items: image, video and document. Image, video and document may be
+present simultaneously. Video alone has one discriminator and one active
+source:
+
+| Source | Uploaded Media ID | Embed URL/provider |
+| --- | --- | --- |
+| `NULL` | `NULL` | `NULL` / `NULL` |
+| `upload` | required | `NULL` / `NULL` |
+| `embed` | `NULL` | required / required |
+
+Canonical Version fields are:
+
+```text
+intro_image_media_file_id_snapshot
+intro_video_source_snapshot
+intro_video_media_file_id_snapshot
+intro_video_embed_url_snapshot
+intro_video_provider_snapshot
+intro_document_media_file_id_snapshot
+estimated_minutes_per_lesson_snapshot
+estimated_lesson_count_snapshot
+```
+
+Only normalized HTTPS YouTube or Vimeo URLs are accepted for embedded video.
+Raw iframe/HTML is never stored; rendering derives a trusted embed URL from
+the normalized provider and URL. Remote embeds do not create Media records or
+usages.
+
+`estimated_duration_minutes` previously meant total Course duration and
+`max_lessons` meant a hard authoring maximum, so label-only changes are not
+valid. They are superseded by nullable `estimated_minutes_per_lesson` and
+`estimated_lesson_count`. Difficulty remains Template learning-content
+metadata and is not renamed to Product level.
 
 Each successful publish creates a new, tenant-owned, immutable Course Template
 Version and a complete structural snapshot in one transaction.
@@ -168,6 +212,57 @@ A publish operation must:
 9. Unset the previous current Version and mark the new Version current.
 10. Finalize `status = published`, `published_at` and publication audit fields.
 11. Commit all records together.
+
+Snapshot validation must enforce the video-source matrix before finalization.
+Nullable introduction items are copied as nullable values. Version-owned Media
+usages are attached inside the publish transaction so detaching later working
+Template usages cannot invalidate an immutable Version.
+
+# Media Usage Contract
+
+Canonical usages use the existing separate owner and usage columns:
+
+| `owner_type` | `usage_type` |
+| --- | --- |
+| `course_template` | `intro_image` |
+| `course_template` | `intro_video` |
+| `course_template` | `intro_document` |
+| `course_template_version` | `intro_image` |
+| `course_template_version` | `intro_video` |
+| `course_template_version` | `intro_document` |
+
+Attach validates same-tenant Media ownership and authorized admin/teacher
+access. Replace attaches the new usage before detaching the previous working
+usage. Remove detaches only the relevant working usage. Publishing attaches
+separate Version usages which remain for the immutable Version lifetime.
+Duplicate-to-draft validates surviving same-tenant references, attaches new
+working usages, and never transfers or removes Version usages. Embedded URLs
+have no Media usage.
+
+# Future Migration Policy
+
+The implementation migration must be forward-only and preserve historical
+references:
+
+* drop Template slug index/unique constraint and column; drop
+  `slug_snapshot`;
+* rename/map `cover_image_media_file_id` to `intro_image_media_file_id` and its
+  Version snapshot equivalent when legacy `cover_type = image`;
+* retain `intro_video_media_file_id`, set source `upload`, and map its snapshot
+  when legacy `cover_type = video`;
+* no legacy row becomes an embed; embed URL/provider start `NULL`;
+* document fields start `NULL`;
+* remove `cover_type` and `cover_type_snapshot` after successful backfill and
+  invariant validation;
+* copy legacy duration and maximum Lesson values unchanged into the new
+  estimate fields as initial estimates because reliable semantic conversion
+  is unavailable; do not invent derived values;
+* keep Version IDs unchanged, preserve Version Media usability and do not
+  alter Product Items, Enrollments, Progress or current-Version bindings.
+
+Rollback may restore legacy columns only when it can do so without discarding
+embed/document data; otherwise rollback must fail explicitly rather than lose
+information.
 
 Any failure rolls back the entire publish. No partial published graph is
 allowed.

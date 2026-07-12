@@ -98,7 +98,7 @@ class CourseMediaIntegrationTest extends TestCase
             ->assertSee('expiration=', false);
     }
 
-    public function test_admin_can_upload_course_template_cover_image(): void
+    public function test_admin_can_upload_course_template_introduction_image(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -108,8 +108,7 @@ class CourseMediaIntegrationTest extends TestCase
                 'https://tenant-a.localhost/admin/course-templates',
                 $this->validTemplateData([
                     'title' => 'Media Template',
-                    'slug' => 'media-template',
-                    'cover_image_file' => UploadedFile::fake()->image(
+                    'intro_image_file' => UploadedFile::fake()->image(
                         'template-cover.png',
                         120,
                         80
@@ -120,25 +119,25 @@ class CourseMediaIntegrationTest extends TestCase
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
-            ->where('slug', 'media-template')
+            ->where('title', 'Media Template')
             ->value('id');
 
         $mediaFile = $this->assertActiveUsage(
             $customerId,
             'course_template',
             $templateId,
-            'cover_image'
+            'intro_image'
         );
         $this->assertDatabaseHas('core_course_templates', [
             'id' => $templateId,
             'customer_id' => $customerId,
-            'cover_type' => 'image',
-            'cover_image_media_file_id' => $mediaFile->id,
+            'intro_video_source' => null,
+            'intro_image_media_file_id' => $mediaFile->id,
             'intro_video_media_file_id' => null,
         ]);
 
         $this->assertStringStartsWith(
-            "tenants/{$customerId}/course/templates/{$templateId}/cover/",
+            "tenants/{$customerId}/course/templates/{$templateId}/intro_image/",
             $mediaFile->storage_key
         );
         $this->assertNull($mediaFile->public_url);
@@ -147,37 +146,14 @@ class CourseMediaIntegrationTest extends TestCase
         $response = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
             ->assertOk()
-            ->assertSee('name="cover_image_file"', false)
-            ->assertSeeText('Định dạng: JPG, PNG, GIF, WEBP, SVG')
-            ->assertSeeText('Tối đa:')
+            ->assertSee('name="intro_image_file"', false)
             ->assertSee('expiration=', false)
-            ->assertSee('course-template-preview-card', false)
-            ->assertSee('course-template-preview-title', false)
-            ->assertSee('openTemplatePreview(', false)
-            ->assertSee('loading="lazy"', false)
-            ->assertSee('decoding="async"', false)
-            ->assertSee('name="remove_preview_media"', false)
-            ->assertSee(__('lf.LF_course_template_common_remove_preview_media'), false)
+            ->assertSee('name="remove_intro_image"', false)
             ->assertSee(__('lf.LF_media_file_common_preview_action'), false)
             ->assertDontSee('course-template-preview-type', false)
             ->assertDontSee('<strong>Media Template</strong>', false)
-            ->assertDontSee('target="_blank"', false)
             ->assertDontSee('/storage/tenants/', false);
 
-        $this->assertSame(
-            1,
-            $this->htmlElementCount(
-                $response->getContent(),
-                '//*[contains(concat(" ", normalize-space(@class), " "), " course-template-preview-card ")]//img'
-            )
-        );
-        $this->assertSame(
-            0,
-            $this->htmlElementCount(
-                $response->getContent(),
-                '//*[contains(concat(" ", normalize-space(@class), " "), " course-template-preview-card ")]//video'
-            )
-        );
     }
 
     public function test_admin_can_upload_course_template_intro_video(): void
@@ -191,8 +167,8 @@ class CourseMediaIntegrationTest extends TestCase
                 $this->validTemplateData([
                     'title' => 'Video Template',
                     'slug' => 'video-template',
-                    'cover_type' => 'video',
-                    'cover_image_file' => null,
+                    'intro_video_source' => 'upload',
+                    'intro_image_file' => null,
                     'intro_video_file' => UploadedFile::fake()->create(
                         'intro-video.mp4',
                         32,
@@ -204,25 +180,25 @@ class CourseMediaIntegrationTest extends TestCase
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
-            ->where('slug', 'video-template')
+            ->where('title', 'Video Template')
             ->value('id');
 
         $mediaFile = $this->assertActiveUsage(
             $customerId,
             'course_template',
             $templateId,
-            'video'
+            'intro_video'
         );
 
         $this->assertDatabaseHas('core_course_templates', [
             'id' => $templateId,
             'customer_id' => $customerId,
-            'cover_type' => 'video',
-            'cover_image_media_file_id' => null,
+            'intro_video_source' => 'upload',
+            'intro_image_media_file_id' => null,
             'intro_video_media_file_id' => $mediaFile->id,
         ]);
         $this->assertStringStartsWith(
-            "tenants/{$customerId}/course/templates/{$templateId}/intro-video/",
+            "tenants/{$customerId}/course/templates/{$templateId}/intro_video/",
             $mediaFile->storage_key
         );
         Storage::disk('media_local')->assertExists($mediaFile->storage_key);
@@ -231,15 +207,8 @@ class CourseMediaIntegrationTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
             ->assertOk()
             ->assertSee('name="intro_video_file"', false)
-            ->assertSeeText('Định dạng: MP4, WEBM, MOV, AVI')
-            ->assertSeeText('Tối đa:')
             ->assertSee('expiration=', false)
-            ->assertSee('course-template-preview-card', false)
-            ->assertSee('course-template-preview-title', false)
-            ->assertSee('openTemplatePreview(', false)
-            ->assertSee('course-template-preview-thumb-video', false)
-            ->assertSee('name="remove_preview_media"', false)
-            ->assertSee(__('lf.LF_course_template_common_remove_preview_media'), false)
+            ->assertSee('name="remove_intro_video"', false)
             ->assertSee('preload="metadata"', false)
             ->assertSee('this.resetTemplatePreview()', false)
             ->assertSee('this.$refs.templatePreviewVideoSource?.setAttribute(\'src\', url)', false)
@@ -253,23 +222,7 @@ class CourseMediaIntegrationTest extends TestCase
             ->assertDontSee('<video controls preload="metadata">', false)
             ->assertDontSee('course-template-preview-type', false)
             ->assertDontSee('<strong>Video Template</strong>', false)
-            ->assertDontSee('target="_blank"', false)
             ->assertDontSee('/storage/tenants/', false);
-
-        $this->assertSame(
-            1,
-            $this->htmlElementCount(
-                $response->getContent(),
-                '//*[contains(concat(" ", normalize-space(@class), " "), " course-template-preview-thumb-video ")]'
-            )
-        );
-        $this->assertSame(
-            0,
-            $this->htmlElementCount(
-                $response->getContent(),
-                '//*[contains(concat(" ", normalize-space(@class), " "), " course-template-preview-card ")]//video'
-            )
-        );
     }
 
     public function test_admin_can_open_course_template_page_after_cover_media_rename(): void
@@ -283,8 +236,8 @@ class CourseMediaIntegrationTest extends TestCase
                 $this->validTemplateData([
                     'title' => 'Show Route Video Template',
                     'slug' => 'show-route-video-template',
-                    'cover_type' => 'video',
-                    'cover_image_file' => null,
+                    'intro_video_source' => 'upload',
+                    'intro_image_file' => null,
                     'intro_video_file' => UploadedFile::fake()->create(
                         'show-route-intro.mp4',
                         32,
@@ -296,7 +249,7 @@ class CourseMediaIntegrationTest extends TestCase
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
-            ->where('slug', 'show-route-video-template')
+            ->where('title', 'Show Route Video Template')
             ->value('id');
 
         $this->actingAs($admin)
@@ -324,7 +277,7 @@ class CourseMediaIntegrationTest extends TestCase
                 $this->validTemplateData([
                     'title' => 'Switch Cover Template',
                     'slug' => 'switch-cover-template',
-                    'cover_image_file' => UploadedFile::fake()->image(
+                    'intro_image_file' => UploadedFile::fake()->image(
                         'initial-cover.png',
                         120,
                         80
@@ -335,13 +288,13 @@ class CourseMediaIntegrationTest extends TestCase
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
-            ->where('slug', 'switch-cover-template')
+            ->where('title', 'Switch Cover Template')
             ->value('id');
         $coverImage = $this->assertActiveUsage(
             $customerId,
             'course_template',
             $templateId,
-            'cover_image'
+            'intro_image'
         );
 
         $this->actingAs($admin)
@@ -351,8 +304,8 @@ class CourseMediaIntegrationTest extends TestCase
                     '_method' => 'PUT',
                     'title' => 'Switch Cover Template',
                     'slug' => 'switch-cover-template',
-                    'cover_type' => 'video',
-                    'cover_image_file' => null,
+                    'intro_video_source' => 'upload',
+                    'intro_image_file' => null,
                     'intro_video_file' => UploadedFile::fake()->create(
                         'updated-intro.mp4',
                         32,
@@ -368,14 +321,14 @@ class CourseMediaIntegrationTest extends TestCase
             $customerId,
             'course_template',
             $templateId,
-            'video'
+            'intro_video'
         );
 
         $this->assertDatabaseHas('core_course_templates', [
             'id' => $templateId,
             'customer_id' => $customerId,
-            'cover_type' => 'video',
-            'cover_image_media_file_id' => null,
+            'intro_video_source' => 'upload',
+            'intro_image_media_file_id' => null,
             'intro_video_media_file_id' => $introVideo->id,
         ]);
         $this->assertDatabaseHas('media_file_usages', [
@@ -383,8 +336,8 @@ class CourseMediaIntegrationTest extends TestCase
             'media_file_id' => $coverImage->id,
             'owner_type' => 'course_template',
             'owner_id' => $templateId,
-            'usage_type' => 'cover_image',
-            'status' => 'detached',
+            'usage_type' => 'intro_image',
+            'status' => 'active',
         ]);
         $this->assertDatabaseHas('media_files', [
             'id' => $coverImage->id,
@@ -392,7 +345,7 @@ class CourseMediaIntegrationTest extends TestCase
             'status' => 'ready',
         ]);
         $this->assertSame(
-            1,
+            2,
             $this->activeTemplatePreviewUsageCount($customerId, $templateId)
         );
         Storage::disk('media_local')->assertExists($coverImage->storage_key);
@@ -409,8 +362,8 @@ class CourseMediaIntegrationTest extends TestCase
                 $this->validTemplateData([
                     'title' => 'Switch Video Template',
                     'slug' => 'switch-video-template',
-                    'cover_type' => 'video',
-                    'cover_image_file' => null,
+                    'intro_video_source' => 'upload',
+                    'intro_image_file' => null,
                     'intro_video_file' => UploadedFile::fake()->create(
                         'initial-intro.mp4',
                         32,
@@ -422,13 +375,13 @@ class CourseMediaIntegrationTest extends TestCase
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
-            ->where('slug', 'switch-video-template')
+            ->where('title', 'Switch Video Template')
             ->value('id');
         $introVideo = $this->assertActiveUsage(
             $customerId,
             'course_template',
             $templateId,
-            'video'
+            'intro_video'
         );
 
         $this->actingAs($admin)
@@ -438,8 +391,8 @@ class CourseMediaIntegrationTest extends TestCase
                     '_method' => 'PUT',
                     'title' => 'Switch Video Template',
                     'slug' => 'switch-video-template',
-                    'cover_type' => 'image',
-                    'cover_image_file' => UploadedFile::fake()->image(
+                    'intro_video_source' => null,
+                    'intro_image_file' => UploadedFile::fake()->image(
                         'replacement-cover.png',
                         120,
                         80
@@ -454,14 +407,14 @@ class CourseMediaIntegrationTest extends TestCase
             $customerId,
             'course_template',
             $templateId,
-            'cover_image'
+            'intro_image'
         );
 
         $this->assertDatabaseHas('core_course_templates', [
             'id' => $templateId,
             'customer_id' => $customerId,
-            'cover_type' => 'image',
-            'cover_image_media_file_id' => $coverImage->id,
+            'intro_video_source' => null,
+            'intro_image_media_file_id' => $coverImage->id,
             'intro_video_media_file_id' => null,
         ]);
         $this->assertDatabaseHas('media_file_usages', [
@@ -469,7 +422,7 @@ class CourseMediaIntegrationTest extends TestCase
             'media_file_id' => $introVideo->id,
             'owner_type' => 'course_template',
             'owner_id' => $templateId,
-            'usage_type' => 'video',
+            'usage_type' => 'intro_video',
             'status' => 'detached',
         ]);
         $this->assertDatabaseHas('media_files', [
@@ -494,7 +447,7 @@ class CourseMediaIntegrationTest extends TestCase
                 $this->validTemplateData([
                     'title' => 'Remove Cover Template',
                     'slug' => 'remove-cover-template',
-                    'cover_image_file' => UploadedFile::fake()->image(
+                    'intro_image_file' => UploadedFile::fake()->image(
                         'remove-cover.png',
                         120,
                         80
@@ -505,13 +458,13 @@ class CourseMediaIntegrationTest extends TestCase
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
-            ->where('slug', 'remove-cover-template')
+            ->where('title', 'Remove Cover Template')
             ->value('id');
         $coverImage = $this->assertActiveUsage(
             $customerId,
             'course_template',
             $templateId,
-            'cover_image'
+            'intro_image'
         );
 
         $this->actingAs($admin)
@@ -521,11 +474,11 @@ class CourseMediaIntegrationTest extends TestCase
                     '_method' => 'PUT',
                     'title' => 'Remove Cover Template',
                     'slug' => 'remove-cover-template',
-                    'cover_type' => 'image',
-                    'cover_image_media_file_id' => $coverImage->id,
-                    'cover_image_file' => null,
+                    'intro_video_source' => null,
+                    'intro_image_media_file_id' => $coverImage->id,
+                    'intro_image_file' => null,
                     'intro_video_file' => null,
-                    'remove_preview_media' => 1,
+                    'remove_intro_image' => 1,
                 ])
             )
             ->assertRedirect(
@@ -535,7 +488,7 @@ class CourseMediaIntegrationTest extends TestCase
         $this->assertDatabaseHas('core_course_templates', [
             'id' => $templateId,
             'customer_id' => $customerId,
-            'cover_image_media_file_id' => null,
+            'intro_image_media_file_id' => null,
             'intro_video_media_file_id' => null,
         ]);
         $this->assertDatabaseHas('media_file_usages', [
@@ -543,7 +496,7 @@ class CourseMediaIntegrationTest extends TestCase
             'media_file_id' => $coverImage->id,
             'owner_type' => 'course_template',
             'owner_id' => $templateId,
-            'usage_type' => 'cover_image',
+            'usage_type' => 'intro_image',
             'status' => 'detached',
         ]);
         $this->assertSame(
@@ -564,8 +517,8 @@ class CourseMediaIntegrationTest extends TestCase
                 $this->validTemplateData([
                     'title' => 'Remove Video Template',
                     'slug' => 'remove-video-template',
-                    'cover_type' => 'video',
-                    'cover_image_file' => null,
+                    'intro_video_source' => 'upload',
+                    'intro_image_file' => null,
                     'intro_video_file' => UploadedFile::fake()->create(
                         'remove-intro.mp4',
                         32,
@@ -577,13 +530,13 @@ class CourseMediaIntegrationTest extends TestCase
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
-            ->where('slug', 'remove-video-template')
+            ->where('title', 'Remove Video Template')
             ->value('id');
         $introVideo = $this->assertActiveUsage(
             $customerId,
             'course_template',
             $templateId,
-            'video'
+            'intro_video'
         );
 
         $this->actingAs($admin)
@@ -593,11 +546,11 @@ class CourseMediaIntegrationTest extends TestCase
                     '_method' => 'PUT',
                     'title' => 'Remove Video Template',
                     'slug' => 'remove-video-template',
-                    'cover_type' => 'video',
-                    'cover_image_file' => null,
+                    'intro_video_source' => 'upload',
+                    'intro_image_file' => null,
                     'intro_video_media_file_id' => $introVideo->id,
                     'intro_video_file' => null,
-                    'remove_preview_media' => 1,
+                    'remove_intro_video' => 1,
                 ])
             )
             ->assertRedirect(
@@ -607,7 +560,7 @@ class CourseMediaIntegrationTest extends TestCase
         $this->assertDatabaseHas('core_course_templates', [
             'id' => $templateId,
             'customer_id' => $customerId,
-            'cover_image_media_file_id' => null,
+            'intro_image_media_file_id' => null,
             'intro_video_media_file_id' => null,
         ]);
         $this->assertDatabaseHas('media_file_usages', [
@@ -615,7 +568,7 @@ class CourseMediaIntegrationTest extends TestCase
             'media_file_id' => $introVideo->id,
             'owner_type' => 'course_template',
             'owner_id' => $templateId,
-            'usage_type' => 'video',
+            'usage_type' => 'intro_video',
             'status' => 'detached',
         ]);
         $this->assertSame(
@@ -625,7 +578,7 @@ class CourseMediaIntegrationTest extends TestCase
         Storage::disk('media_local')->assertExists($introVideo->storage_key);
     }
 
-    public function test_course_template_rejects_image_and_video_in_same_request(): void
+    public function test_course_template_accepts_image_and_uploaded_video_together(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -637,8 +590,8 @@ class CourseMediaIntegrationTest extends TestCase
                 $this->validTemplateData([
                     'title' => 'Invalid Dual Preview Template',
                     'slug' => 'invalid-dual-preview-template',
-                    'cover_type' => 'image',
-                    'cover_image_file' => UploadedFile::fake()->image(
+                    'intro_video_source' => 'upload',
+                    'intro_image_file' => UploadedFile::fake()->image(
                         'dual-preview-cover.png',
                         120,
                         80
@@ -650,17 +603,16 @@ class CourseMediaIntegrationTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-templates/create')
-            ->assertSessionHasErrors('cover_type');
+            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
 
-        $this->assertDatabaseMissing('core_course_templates', [
+        $templateId = (int) DB::table('core_course_templates')->where('customer_id', $customerId)->where('title', 'Invalid Dual Preview Template')->value('id');
+        $this->assertDatabaseHas('core_course_templates', [
             'customer_id' => $customerId,
-            'slug' => 'invalid-dual-preview-template',
+            'id' => $templateId,
+            'intro_video_source' => 'upload',
         ]);
-        $this->assertDatabaseMissing('media_file_usages', [
-            'customer_id' => $customerId,
-            'owner_type' => 'course_template',
-        ]);
+        $this->assertActiveUsage($customerId, 'course_template', $templateId, 'intro_image');
+        $this->assertActiveUsage($customerId, 'course_template', $templateId, 'intro_video');
     }
 
     public function test_course_template_rejects_cross_tenant_preview_media_id(): void
@@ -672,7 +624,7 @@ class CourseMediaIntegrationTest extends TestCase
         $otherVideoId = $this->createMediaFile(
             $otherCustomerId,
             $otherAdmin->id,
-            'video',
+            'intro_video',
             'tenant-b-intro.mp4',
             'video/mp4'
         );
@@ -684,8 +636,8 @@ class CourseMediaIntegrationTest extends TestCase
                 $this->validTemplateData([
                     'title' => 'Blocked Tenant Preview Template',
                     'slug' => 'blocked-tenant-preview-template',
-                    'cover_type' => 'video',
-                    'cover_image_file' => null,
+                    'intro_video_source' => 'upload',
+                    'intro_image_file' => null,
                     'intro_video_media_file_id' => $otherVideoId,
                 ])
             )
@@ -696,7 +648,7 @@ class CourseMediaIntegrationTest extends TestCase
             'customer_id' => $customerId,
             'media_file_id' => $otherVideoId,
             'owner_type' => 'course_template',
-            'usage_type' => 'video',
+            'usage_type' => 'intro_video',
         ]);
     }
 
@@ -711,7 +663,7 @@ class CourseMediaIntegrationTest extends TestCase
                 $this->validTemplateData([
                     'title' => 'Browser Video Update Template',
                     'slug' => 'browser-video-update-template',
-                    'cover_image_file' => UploadedFile::fake()->image(
+                    'intro_image_file' => UploadedFile::fake()->image(
                         'browser-cover.png',
                         120,
                         80
@@ -722,16 +674,16 @@ class CourseMediaIntegrationTest extends TestCase
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
-            ->where('slug', 'browser-video-update-template')
+            ->where('title', 'Browser Video Update Template')
             ->value('id');
 
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
             ->assertOk()
-            ->assertSee('name="cover_type"', false)
+            ->assertSee('name="intro_video_source"', false)
             ->assertSee('name="intro_video_file"', false)
-            ->assertSee(':disabled="selectedCoverType !== \'image\'"', false)
-            ->assertSee(':disabled="selectedCoverType !== \'video\'"', false);
+            ->assertSee(':disabled="selectedVideoSource !== \'upload\'"', false)
+            ->assertSee(':disabled="selectedVideoSource !== \'embed\'"', false);
 
         $response = $this->actingAs($admin)->post(
             "https://tenant-a.localhost/admin/course-templates/{$templateId}",
@@ -739,8 +691,8 @@ class CourseMediaIntegrationTest extends TestCase
                 '_method' => 'PUT',
                 'title' => 'Browser Video Update Template',
                 'slug' => 'browser-video-update-template',
-                'cover_type' => 'video',
-                'cover_image_file' => null,
+                'intro_video_source' => 'upload',
+                'intro_image_file' => null,
                 'intro_video_file' => UploadedFile::fake()->create(
                     'browser-intro.mp4',
                     32,
@@ -758,14 +710,14 @@ class CourseMediaIntegrationTest extends TestCase
             $customerId,
             'course_template',
             $templateId,
-            'video'
+            'intro_video'
         );
 
         $this->assertDatabaseHas('core_course_templates', [
             'id' => $templateId,
             'customer_id' => $customerId,
-            'cover_type' => 'video',
-            'cover_image_media_file_id' => null,
+            'intro_video_source' => 'upload',
+            'intro_image_media_file_id' => null,
             'intro_video_media_file_id' => $introVideo->id,
         ]);
     }
@@ -781,8 +733,8 @@ class CourseMediaIntegrationTest extends TestCase
                 $this->validTemplateData([
                     'title' => 'Replace Video Template',
                     'slug' => 'replace-video-template',
-                    'cover_type' => 'video',
-                    'cover_image_file' => null,
+                    'intro_video_source' => 'upload',
+                    'intro_image_file' => null,
                     'intro_video_file' => UploadedFile::fake()->create(
                         'initial-intro.mp4',
                         32,
@@ -794,13 +746,13 @@ class CourseMediaIntegrationTest extends TestCase
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
-            ->where('slug', 'replace-video-template')
+            ->where('title', 'Replace Video Template')
             ->value('id');
         $initialVideo = $this->assertActiveUsage(
             $customerId,
             'course_template',
             $templateId,
-            'video'
+            'intro_video'
         );
 
         $this->actingAs($admin)
@@ -810,8 +762,8 @@ class CourseMediaIntegrationTest extends TestCase
                     '_method' => 'PUT',
                     'title' => 'Replace Video Template',
                     'slug' => 'replace-video-template',
-                    'cover_type' => 'video',
-                    'cover_image_file' => null,
+                    'intro_video_source' => 'upload',
+                    'intro_image_file' => null,
                     'intro_video_media_file_id' => $initialVideo->id,
                     'intro_video_file' => UploadedFile::fake()->create(
                         'replacement-intro.mp4',
@@ -839,7 +791,7 @@ class CourseMediaIntegrationTest extends TestCase
             ->where('media_file_usages.customer_id', $customerId)
             ->where('media_file_usages.owner_type', 'course_template')
             ->where('media_file_usages.owner_id', $templateId)
-            ->where('media_file_usages.usage_type', 'video')
+            ->where('media_file_usages.usage_type', 'intro_video')
             ->where('media_file_usages.status', 'active')
             ->select('media_files.*')
             ->sole();
@@ -848,8 +800,8 @@ class CourseMediaIntegrationTest extends TestCase
         $this->assertDatabaseHas('core_course_templates', [
             'id' => $templateId,
             'customer_id' => $customerId,
-            'cover_type' => 'video',
-            'cover_image_media_file_id' => null,
+            'intro_video_source' => 'upload',
+            'intro_image_media_file_id' => null,
             'intro_video_media_file_id' => $replacementVideo->id,
         ]);
         $this->assertDatabaseHas('media_file_usages', [
@@ -857,7 +809,7 @@ class CourseMediaIntegrationTest extends TestCase
             'media_file_id' => $initialVideo->id,
             'owner_type' => 'course_template',
             'owner_id' => $templateId,
-            'usage_type' => 'video',
+            'usage_type' => 'intro_video',
             'status' => 'detached',
         ]);
     }
@@ -997,7 +949,7 @@ class CourseMediaIntegrationTest extends TestCase
                 $this->validTemplateData([
                     'title' => 'Teacher Owned Template',
                     'slug' => 'teacher-owned-template',
-                    'cover_image_file' => UploadedFile::fake()->image(
+                    'intro_image_file' => UploadedFile::fake()->image(
                         'owned-cover.png',
                         120,
                         80
@@ -1008,14 +960,14 @@ class CourseMediaIntegrationTest extends TestCase
 
         $ownedTemplateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
-            ->where('slug', 'teacher-owned-template')
+            ->where('title', 'Teacher Owned Template')
             ->value('id');
 
         $this->assertActiveUsage(
             $customerId,
             'course_template',
             $ownedTemplateId,
-            'cover_image'
+            'intro_image'
         );
 
         $this->actingAs($teacher)
@@ -1024,7 +976,7 @@ class CourseMediaIntegrationTest extends TestCase
                 $this->validTemplateData([
                     'title' => 'Assigned Template Updated',
                     'slug' => 'assigned-template',
-                    'cover_image_file' => UploadedFile::fake()->image(
+                    'intro_image_file' => UploadedFile::fake()->image(
                         'assigned-cover.png',
                         120,
                         80
@@ -1039,7 +991,7 @@ class CourseMediaIntegrationTest extends TestCase
             $customerId,
             'course_template',
             $assignedTemplateId,
-            'cover_image'
+            'intro_image'
         );
     }
 
@@ -1059,7 +1011,7 @@ class CourseMediaIntegrationTest extends TestCase
                 $this->validTemplateData([
                     'title' => 'Blocked Teacher Upload',
                     'slug' => 'unassigned-template',
-                    'cover_image_file' => UploadedFile::fake()->image(
+                    'intro_image_file' => UploadedFile::fake()->image(
                         'blocked-template-cover.png',
                         120,
                         80
@@ -1072,7 +1024,7 @@ class CourseMediaIntegrationTest extends TestCase
             'customer_id' => $customerId,
             'owner_type' => 'course_template',
             'owner_id' => $templateId,
-            'usage_type' => 'cover_image',
+            'usage_type' => 'intro_image',
         ]);
     }
 
@@ -1247,7 +1199,7 @@ class CourseMediaIntegrationTest extends TestCase
             ->where('customer_id', $customerId)
             ->where('owner_type', 'course_template')
             ->where('owner_id', $templateId)
-            ->whereIn('usage_type', ['cover_image', 'video'])
+            ->whereIn('usage_type', ['intro_image', 'intro_video', 'intro_document'])
             ->where('status', 'active')
             ->count();
     }
@@ -1391,16 +1343,15 @@ class CourseMediaIntegrationTest extends TestCase
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,
-            'slug' => $slug,
             'short_description' => null,
             'description' => null,
             'publisher_name' => null,
-            'cover_type' => 'image',
-            'cover_image_media_file_id' => null,
+            'intro_video_source' => null,
+            'intro_image_media_file_id' => null,
             'intro_video_media_file_id' => null,
             'difficulty_level' => null,
-            'estimated_duration_minutes' => 0,
-            'max_lessons' => null,
+            'estimated_minutes_per_lesson' => 0,
+            'estimated_lesson_count' => null,
             'lesson_count' => 0,
             'meta_title' => null,
             'meta_description' => null,
@@ -1462,7 +1413,6 @@ class CourseMediaIntegrationTest extends TestCase
         return array_merge([
             'product_type' => 'single_course',
             'title' => 'Programming Basics',
-            'slug' => 'programming-basics',
             'short_description' => null,
             'description' => null,
             'thumbnail_type' => 'image',
@@ -1501,22 +1451,33 @@ class CourseMediaIntegrationTest extends TestCase
 
     private function validTemplateData(array $overrides = []): array
     {
+        $customerId = (int) DB::table('saas_customers')->orderByDesc('id')->value('id');
+        $categoryId = DB::table('core_course_categories')->where('customer_id', $customerId)->value('id');
+        if (! $categoryId) {
+            $categoryId = DB::table('core_course_categories')->insertGetId([
+                'customer_id' => $customerId, 'parent_id' => null, 'name' => 'General',
+                'slug' => 'general-'.$customerId, 'description' => null,
+                'thumbnail_image' => null, 'banner_image' => null, 'sort_order' => 0,
+                'is_featured' => false, 'meta_title' => null, 'meta_description' => null,
+                'meta_keywords' => null, 'status' => 'active', 'created_by' => null,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
         return array_merge([
-            'category_id' => null,
+            'category_id' => $categoryId,
             'title' => 'Programming Basics',
-            'slug' => 'programming-basics',
             'short_description' => null,
             'description' => null,
             'publisher_name' => 'LearnForge',
-            'cover_type' => 'image',
-            'cover_image_file' => UploadedFile::fake()->image(
+            'intro_video_source' => null,
+            'intro_image_file' => UploadedFile::fake()->image(
                 'template-cover.png',
                 120,
                 80
             ),
             'difficulty_level' => null,
-            'estimated_duration_minutes' => 0,
-            'max_lessons' => null,
+            'estimated_minutes_per_lesson' => null,
+            'estimated_lesson_count' => null,
             'meta_title' => null,
             'meta_description' => null,
             'meta_keywords' => null,

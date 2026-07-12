@@ -1,10 +1,10 @@
 # Table: core_course_templates
 
-Version: 1.0
+Version: 2.0
 
 Status: Official Foundation
 
-Last Updated: 2026-06
+Last Updated: 2026-07-12
 
 Related ADR:
 [ADR-0013 — Course Template Version Duplicate to Draft](../../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md)
@@ -98,6 +98,12 @@ core_course_template_versions
   Product, Enrollment, Progress hoặc Completion.
 * Template không chứa học viên.
 * Không tồn tại các bảng Course Runtime legacy.
+* Template là aggregate authoring nội bộ, được định danh bằng `id`; Template
+  không có slug và route authoring phải resolve bằng ID.
+* Course Product tiếp tục là aggregate public/catalog/SEO và giữ nguyên slug.
+* Category và publisher bắt buộc nhưng không có default selection. Difficulty
+  và video source là optional, không có default selection. Status mặc định
+  `draft`. Placeholder UI không phải stored value hợp lệ.
 
 ---
 
@@ -119,9 +125,9 @@ Tenant sở hữu template.
 
 ### category_id
 
-BIGINT UNSIGNED NULL
+BIGINT UNSIGNED
 
-Danh mục khóa học.
+Danh mục khóa học bắt buộc; không có giá trị mặc định.
 
 ---
 
@@ -132,12 +138,6 @@ Danh mục khóa học.
 VARCHAR(255)
 
 Tên khóa học.
-
-### slug
-
-VARCHAR(255)
-
-Slug URL.
 
 ### short_description
 
@@ -153,42 +153,63 @@ Mô tả chi tiết.
 
 ### publisher_name
 
-VARCHAR(255) NULL
+VARCHAR(255)
 
-Đơn vị phát hành nội dung.
+Đơn vị phát hành nội dung bắt buộc; không có giá trị mặc định.
 
 ---
 
-## Cover Media
+## Introduction Media
 
-### cover_type
+Ba introduction item độc lập và optional; image, video và document có thể tồn
+tại đồng thời. Chỉ hai nguồn video loại trừ lẫn nhau.
 
-VARCHAR(50)
-
-Giá trị:
-
-* image
-* video
-
-### cover_image_media_file_id
+### intro_image_media_file_id
 
 BIGINT UNSIGNED NULL
 
-FK → `media_files.id`.
+FK → `media_files.id`. Một introduction image, tenant-owned.
 
-Required when `cover_type = image`.
+### intro_video_source
 
-Must be `NULL` when `cover_type = video`.
+VARCHAR(50) NULL
+
+Giá trị `upload`, `embed`, hoặc `NULL`.
 
 ### intro_video_media_file_id
 
 BIGINT UNSIGNED NULL
 
-FK → `media_files.id`.
+FK → `media_files.id`; required only when source is `upload`.
 
-Required when `cover_type = video`.
+### intro_video_embed_url
 
-Must be `NULL` when `cover_type = image`.
+VARCHAR(2048) NULL
+
+Normalized HTTPS YouTube/Vimeo URL; raw iframe/HTML is forbidden.
+
+### intro_video_provider
+
+VARCHAR(50) NULL
+
+Normalized provider `youtube` or `vimeo`; required only when source is
+`embed`. Rendering derives a trusted embed URL from provider and normalized
+URL.
+
+### intro_document_media_file_id
+
+BIGINT UNSIGNED NULL
+
+FK → `media_files.id`. Private document access uses authorization and signed
+URLs.
+
+Video invariant:
+
+| `intro_video_source` | Media ID | Embed URL/provider |
+| --- | --- | --- |
+| `NULL` | `NULL` | `NULL` / `NULL` |
+| `upload` | required | `NULL` / `NULL` |
+| `embed` | `NULL` | required / required |
 
 ---
 
@@ -204,17 +225,20 @@ Giá trị:
 * intermediate
 * advanced
 
-### estimated_duration_minutes
+Optional; không có default selection. Đây là learning-content metadata của
+Template, không phải Product level.
 
-INT UNSIGNED DEFAULT 0
-
-Tổng thời lượng học dự kiến.
-
-### max_lessons
+### estimated_minutes_per_lesson
 
 INT UNSIGNED NULL
 
-Số lesson tối đa cho phép.
+Số phút dự kiến cho mỗi Lesson; là estimate, không phải duration aggregate.
+
+### estimated_lesson_count
+
+INT UNSIGNED NULL
+
+Số Lesson dự kiến; không phải giới hạn authoring.
 
 ### lesson_count
 
@@ -253,6 +277,8 @@ Không phải published Template Version.
 ### status
 
 VARCHAR(50)
+
+Required, default `draft`.
 
 Giá trị:
 
@@ -322,16 +348,6 @@ introduced. Duplicate provenance belongs to the append-only tenant audit trail.
 
 (customer_id, created_by)
 
-(customer_id, slug)
-
----
-
-# Unique Constraints
-
-UNIQUE(customer_id, slug)
-
----
-
 # Sample Data
 
 id = 1
@@ -342,19 +358,21 @@ category_id = 2
 
 title = TOPIK Beginner 1
 
-slug = topik-beginner-1
-
 publisher_name = Visang
 
-cover_type = video
+intro_image_media_file_id = 650
+
+intro_video_source = upload
 
 intro_video_media_file_id = 700
 
+intro_document_media_file_id = 710
+
 difficulty_level = beginner
 
-estimated_duration_minutes = 2400
+estimated_minutes_per_lesson = 75
 
-max_lessons = 40
+estimated_lesson_count = 40
 
 lesson_count = 32
 

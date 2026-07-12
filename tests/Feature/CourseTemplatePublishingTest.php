@@ -960,8 +960,8 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertSame('draft', $template->status);
         $this->assertSame(12, $template->working_revision);
         $this->assertNull($template->category_id);
-        $this->assertSame('image', $template->cover_type);
-        $this->assertNull($template->cover_image_media_file_id);
+        $this->assertNull($template->intro_video_source);
+        $this->assertNull($template->intro_image_media_file_id);
         $this->assertNull($template->intro_video_media_file_id);
         $this->assertEquals(
             $lastPublishedAt,
@@ -1198,14 +1198,11 @@ class CourseTemplatePublishingTest extends TestCase
             ->where('id', $templateId)
             ->update([
                 'title' => 'Current Working Draft',
-                'slug' => 'current-working-draft',
                 'working_revision' => 9,
             ]);
-        $this->createTemplate(
-            $customerId,
-            $admin->id,
-            'Slug Source'
-        );
+        DB::table('core_course_template_versions')
+            ->where('id', $versionId)
+            ->update(['intro_video_source_snapshot' => 'embed']);
         $draftBefore = $this->draftState($customerId, $templateId);
 
         $this->actingAs($admin)
@@ -1354,16 +1351,15 @@ class CourseTemplatePublishingTest extends TestCase
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,
-            'slug' => str($title)->slug()->toString(),
             'short_description' => 'Published snapshot course',
             'description' => 'Detailed snapshot description.',
             'publisher_name' => 'LearnForge',
-            'cover_type' => 'image',
-            'cover_image_media_file_id' => null,
+            'intro_video_source' => null,
+            'intro_image_media_file_id' => null,
             'intro_video_media_file_id' => null,
             'difficulty_level' => 'beginner',
-            'estimated_duration_minutes' => 90,
-            'max_lessons' => 20,
+            'estimated_minutes_per_lesson' => 90,
+            'estimated_lesson_count' => 20,
             'lesson_count' => 2,
             'meta_title' => 'Snapshot Course',
             'meta_description' => 'Snapshot course metadata.',

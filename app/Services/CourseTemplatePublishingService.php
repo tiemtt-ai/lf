@@ -9,6 +9,8 @@ use Illuminate\Validation\ValidationException;
 
 class CourseTemplatePublishingService
 {
+    public function __construct(private readonly MediaService $mediaService) {}
+
     public function publish(
         int $customerId,
         int $templateId,
@@ -61,19 +63,19 @@ class CourseTemplatePublishingService
                 'source_category_id' => $template->category_id,
                 'category_name_snapshot' => $categoryName,
                 'title_snapshot' => $template->title,
-                'slug_snapshot' => $template->slug,
                 'short_description_snapshot' => $template->short_description,
                 'description_snapshot' => $template->description,
                 'publisher_name_snapshot' => $template->publisher_name,
-                'cover_type_snapshot' => $template->cover_type,
-                'cover_image_media_file_id_snapshot' => $template
-                    ->cover_image_media_file_id,
+                'intro_image_media_file_id_snapshot' => $template->intro_image_media_file_id,
+                'intro_video_source_snapshot' => $template->intro_video_source,
                 'intro_video_media_file_id_snapshot' => $template
                     ->intro_video_media_file_id,
+                'intro_video_embed_url_snapshot' => $template->intro_video_embed_url,
+                'intro_video_provider_snapshot' => $template->intro_video_provider,
+                'intro_document_media_file_id_snapshot' => $template->intro_document_media_file_id,
                 'difficulty_level_snapshot' => $template->difficulty_level,
-                'estimated_duration_minutes_snapshot' => $template
-                    ->estimated_duration_minutes,
-                'max_lessons_snapshot' => $template->max_lessons,
+                'estimated_minutes_per_lesson_snapshot' => $template->estimated_minutes_per_lesson,
+                'estimated_lesson_count_snapshot' => $template->estimated_lesson_count,
                 'lesson_count_snapshot' => $lessons->count(),
                 'meta_title_snapshot' => $template->meta_title,
                 'meta_description_snapshot' => $template->meta_description,
@@ -87,6 +89,13 @@ class CourseTemplatePublishingService
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
+
+            $this->assertVideoState($template);
+            foreach (['intro_image' => $template->intro_image_media_file_id, 'intro_video' => $template->intro_video_media_file_id, 'intro_document' => $template->intro_document_media_file_id] as $usage => $mediaId) {
+                if ($mediaId) {
+                    $this->mediaService->attachUsage((int) $mediaId, 'course_template_version', $versionId, $usage);
+                }
+            }
 
             $sectionMap = $this->snapshotSections(
                 $customerId,
@@ -137,6 +146,19 @@ class CourseTemplatePublishingService
                 ->where('id', $versionId)
                 ->first();
         });
+    }
+
+    private function assertVideoState(object $template): void
+    {
+        $valid = match ($template->intro_video_source) {
+            null => ! $template->intro_video_media_file_id && ! $template->intro_video_embed_url && ! $template->intro_video_provider,
+            'upload' => (bool) $template->intro_video_media_file_id && ! $template->intro_video_embed_url && ! $template->intro_video_provider,
+            'embed' => ! $template->intro_video_media_file_id && (bool) $template->intro_video_embed_url && in_array($template->intro_video_provider, ['youtube', 'vimeo'], true),
+            default => false,
+        };
+        if (! $valid) {
+            throw ValidationException::withMessages(['publish' => __('lf.LF_course_template_invalid_video_state')]);
+        }
     }
 
     private function sourceSections(

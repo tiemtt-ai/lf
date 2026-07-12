@@ -73,7 +73,6 @@
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_template_common_name') }}</th>
                 <th>{{ __('lf.LF_course_template_common_category') }}</th>
-                <th>{{ __('lf.LF_course_template_common_slug') }}</th>
                 <th>{{ __('lf.LF_course_template_common_status') }}</th>
                 <th>{{ __('lf.table_actions') }}</th>
             </tr>
@@ -84,7 +83,6 @@
                     <td class="admin-table-sequence">{{ $templates->firstItem() + $loop->index }}</td>
                     <td>{{ $template->title }}</td>
                     <td>{{ $template->category_name ?? '—' }}</td>
-                    <td>{{ $template->slug }}</td>
                     <td>
                         <span @class([
                             'badge',
