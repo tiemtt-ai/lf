@@ -64,6 +64,7 @@ Media / Assessment / LiveClass → version_activities (approved immutable refere
 | `live_class_url_snapshot` | VARCHAR(1000) | nullable | Frozen HTTPS live-class URL. |
 | `assessment_quiz_id_snapshot` | BIGINT UNSIGNED | nullable | Frozen tenant-owned Assessment Quiz identifier. |
 | `duration_seconds` | INT UNSIGNED | required, default 0 | Published Activity duration. |
+| `estimated_duration_seconds_snapshot` | INT UNSIGNED | nullable | Frozen estimated learner completion time; `NULL` means unknown. |
 | `is_required` | TINYINT(1) | required, default 1 | Published completion requirement. |
 | `completion_rule` | VARCHAR(50) | required, default `view` | Type-compatible value: `view`, `watch_percent`, `submit`, `pass`, `join`, or `manual`. |
 | `completion_threshold` | INT UNSIGNED | nullable | Frozen threshold, such as watch percentage or pass percentage. |

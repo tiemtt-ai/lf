@@ -203,6 +203,13 @@ Thời lượng Activity.
 
 System generated nếu Activity tham chiếu Media.
 
+### estimated_duration_seconds
+
+INT UNSIGNED NULL. Estimated learner completion time. UI whole minutes are
+stored as `minutes * 60`; `NULL` means unknown. Lesson `duration_seconds` is the
+sum of non-null Activity estimates. The current non-null Lesson column uses `0`
+when every estimate is unknown.
+
 
 ### is_required
 

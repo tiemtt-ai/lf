@@ -340,6 +340,7 @@ class CourseTemplateActivityManagementTest extends TestCase
                 'is_required' => 1,
                 'completion_rule' => 'view',
                 'is_preview' => 1,
+                'estimated_duration_minutes' => 15,
             ]))
             ->assertRedirect(
                 'https://tenant-a.localhost/admin/course-templates/'
@@ -355,6 +356,11 @@ class CourseTemplateActivityManagementTest extends TestCase
         $this->assertNotNull($activity);
         $this->assertSame($admin->id, (int) $activity->created_by);
         $this->assertSame(0, (int) $activity->duration_seconds);
+        $this->assertSame(900, (int) $activity->estimated_duration_seconds);
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'id' => $lessonId,
+            'duration_seconds' => 900,
+        ]);
 
         $this->actingAs($admin)
             ->put(
@@ -363,6 +369,7 @@ class CourseTemplateActivityManagementTest extends TestCase
                     'title' => 'Updated Reading Text',
                     'sort_order' => 4,
                     'activity_type' => 'document',
+                    'estimated_duration_minutes' => 5,
                 ])
             )
             ->assertRedirect(
@@ -375,6 +382,11 @@ class CourseTemplateActivityManagementTest extends TestCase
             'title' => 'Updated Reading Text',
             'sort_order' => 4,
             'duration_seconds' => 0,
+            'estimated_duration_seconds' => 300,
+        ]);
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'id' => $lessonId,
+            'duration_seconds' => 300,
         ]);
 
         $this->actingAs($admin)
@@ -387,6 +399,10 @@ class CourseTemplateActivityManagementTest extends TestCase
 
         $this->assertDatabaseMissing('core_course_template_activities', [
             'id' => $activity->id,
+        ]);
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'id' => $lessonId,
+            'duration_seconds' => 0,
         ]);
     }
 

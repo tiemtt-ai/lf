@@ -54,6 +54,12 @@
                         {{ __('lf.LF_course_template_version_detail_order', [
                             'order' => $activity->sort_order,
                         ]) }}
+                        @if ($activity->estimated_duration_seconds_snapshot !== null)
+                            ·
+                            {{ __('lf.LF_course_template_activity_common_duration_minutes', [
+                                'minutes' => intdiv($activity->estimated_duration_seconds_snapshot, 60),
+                            ]) }}
+                        @endif
                     </span>
                 </div>
             </article>

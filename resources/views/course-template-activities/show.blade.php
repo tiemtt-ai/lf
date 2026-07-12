@@ -35,6 +35,11 @@
             <dt>{{ __('lf.LF_course_template_activity_common_type') }}</dt>
             <dd>{{ __('lf.LF_course_template_activity_common_type_'.$activity->activity_type) }}</dd>
 
+            @if ($activity->estimated_duration_seconds !== null)
+                <dt>{{ __('lf.LF_course_template_activity_common_estimated_duration_minutes') }}</dt>
+                <dd>{{ __('lf.LF_course_template_activity_common_duration_minutes', ['minutes' => intdiv($activity->estimated_duration_seconds, 60)]) }}</dd>
+            @endif
+
             @if ($activity->assessment_quiz_id)
                 <dt>{{ __('lf.LF_course_template_activity_common_reference') }}</dt>
                 <dd>Assessment Quiz #{{ $activity->assessment_quiz_id }}</dd>

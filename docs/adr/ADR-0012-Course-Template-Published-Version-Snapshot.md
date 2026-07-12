@@ -37,6 +37,11 @@ four published snapshot tables.
 
 # Decision
 
+## Activity Estimated Duration Amendment (2026-07-12)
+
+Publish freezes `estimated_duration_seconds` as
+`estimated_duration_seconds_snapshot`; ordering continues to use `sort_order`.
+
 ## Lesson Role Amendment (2026-07-12)
 
 Publish copies draft Lesson `lesson_type` to the immutable Version Lesson.

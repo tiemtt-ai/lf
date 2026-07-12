@@ -259,7 +259,8 @@ class CourseTemplateActivityController extends Controller
             'lesson' => $lesson,
             'prerequisiteActivities' => $this->prerequisiteActivities(
                 $customerId,
-                $templateId
+                $templateId,
+                $lessonId
             ),
             'requiredFields' => $this->requiredFields(
                 $customerId,
@@ -294,7 +295,9 @@ class CourseTemplateActivityController extends Controller
         $validated = $this->validatedData(
             $request,
             $customerId,
-            $templateId
+            $templateId,
+            null,
+            $lessonId
         );
         $activityId = DB::transaction(function () use (
             $request,
@@ -319,7 +322,7 @@ class CourseTemplateActivityController extends Controller
             );
             $now = now();
 
-            return DB::table(
+            $activityId = DB::table(
                 'core_course_template_activities'
             )->insertGetId($this->activityValues($validated, [
                 'customer_id' => $customerId,
@@ -329,6 +332,8 @@ class CourseTemplateActivityController extends Controller
                 'created_at' => $now,
                 'updated_at' => $now,
             ]));
+            $this->recalculateLessonDuration($customerId, $templateId, $lessonId);
+            return $activityId;
         });
 
         $this->detachInactiveMedia($activityId, $validated['activity_type'], $request);
@@ -373,6 +378,7 @@ class CourseTemplateActivityController extends Controller
             'prerequisiteActivities' => $this->prerequisiteActivities(
                 $customerId,
                 $templateId,
+                $lessonId,
                 $activityId
             ),
             'requiredFields' => $this->requiredFields(
@@ -464,10 +470,12 @@ class CourseTemplateActivityController extends Controller
             $request,
             $customerId,
             $templateId,
-            $activityId
+            $activityId,
+            $lessonId
         );
 
-        DB::table('core_course_template_activities')
+        DB::transaction(function () use ($customerId, $templateId, $lessonId, $activityId, $validated): void {
+            DB::table('core_course_template_activities')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
             ->where('template_lesson_id', $lessonId)
@@ -475,6 +483,8 @@ class CourseTemplateActivityController extends Controller
             ->update($this->activityValues($validated, [
                 'updated_at' => now(),
             ]));
+            $this->recalculateLessonDuration($customerId, $templateId, $lessonId);
+        });
 
         $this->detachInactiveMedia($activityId, $validated['activity_type'], $request);
         $this->attachUploadedMedia($request, $activityId);
@@ -527,12 +537,15 @@ class CourseTemplateActivityController extends Controller
             ]);
         }
 
-        DB::table('core_course_template_activities')
+        DB::transaction(function () use ($customerId, $templateId, $lessonId, $activityId): void {
+            DB::table('core_course_template_activities')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
             ->where('template_lesson_id', $lessonId)
             ->where('id', $activityId)
             ->delete();
+            $this->recalculateLessonDuration($customerId, $templateId, $lessonId);
+        });
 
         return redirect()
             ->to(
@@ -548,11 +561,12 @@ class CourseTemplateActivityController extends Controller
         Request $request,
         int $customerId,
         int $templateId,
-        ?int $activityId = null
+        ?int $activityId = null,
+        ?int $lessonId = null
     ): array {
         $validator = Validator::make(
             $this->validationInput($request),
-            $this->validationRules($customerId, $templateId, $activityId),
+            $this->validationRules($customerId, $templateId, $activityId, $lessonId),
             [],
             [
                 'activity_type' => __(
@@ -606,6 +620,7 @@ class CourseTemplateActivityController extends Controller
             'live_class_url',
             'assessment_quiz_id',
             'duration_seconds',
+            'estimated_duration_minutes',
             'is_required',
             'completion_rule',
             'completion_threshold',
@@ -655,7 +670,8 @@ class CourseTemplateActivityController extends Controller
     private function validationRules(
         int $customerId,
         int $templateId,
-        ?int $activityId = null
+        ?int $activityId = null,
+        ?int $lessonId = null
     ): array {
         $activityType = request()->input('activity_type');
 
@@ -703,6 +719,7 @@ class CourseTemplateActivityController extends Controller
                     )
                 ),
             ],
+            'estimated_duration_minutes' => ['nullable', 'integer', 'min:1', 'max:525600'],
             'is_required' => ['required', 'boolean'],
             'completion_rule' => [
                 'required',
@@ -739,7 +756,8 @@ class CourseTemplateActivityController extends Controller
                 Rule::exists('core_course_template_activities', 'id')
                     ->where(fn ($query) => $query
                         ->where('customer_id', $customerId)
-                        ->where('template_id', $templateId)),
+                        ->where('template_id', $templateId)
+                        ->where('template_lesson_id', $lessonId)),
             ],
             'unlock_at' => [
                 'nullable',
@@ -798,6 +816,8 @@ class CourseTemplateActivityController extends Controller
                 self::MANUAL_DURATION_TYPES,
                 true
             ) ? ($validated['duration_seconds'] ?? 0) : 0,
+            'estimated_duration_seconds' => isset($validated['estimated_duration_minutes'])
+                ? $validated['estimated_duration_minutes'] * 60 : null,
             'is_required' => (bool) $validated['is_required'],
             'completion_rule' => $validated['completion_rule'],
             'completion_threshold' => $validated['completion_threshold'] ?? null,
@@ -810,19 +830,30 @@ class CourseTemplateActivityController extends Controller
         ], fn ($value, $key) => $key !== 'sort_order' || $value !== null, ARRAY_FILTER_USE_BOTH), $extra);
     }
 
+    private function recalculateLessonDuration(int $customerId, int $templateId, int $lessonId): void
+    {
+        $duration = (int) DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)->where('template_id', $templateId)
+            ->where('template_lesson_id', $lessonId)->sum('estimated_duration_seconds');
+        DB::table('core_course_template_lessons')->where('customer_id', $customerId)
+            ->where('template_id', $templateId)->where('id', $lessonId)
+            ->update(['duration_seconds' => $duration, 'updated_at' => now()]);
+    }
+
     private function prerequisiteActivities(
         int $customerId,
         int $templateId,
+        int $lessonId,
         ?int $excludedActivityId = null
     ) {
         return DB::table('core_course_template_activities')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
+            ->where('template_lesson_id', $lessonId)
             ->when(
                 $excludedActivityId !== null,
                 fn ($query) => $query->where('id', '!=', $excludedActivityId)
             )
-            ->orderBy('template_lesson_id')
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();

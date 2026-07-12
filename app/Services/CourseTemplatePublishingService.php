@@ -368,6 +368,7 @@ class CourseTemplatePublishingService
                 'live_class_url_snapshot' => $activity->live_class_url,
                 'assessment_quiz_id_snapshot' => $activity->assessment_quiz_id,
                 'duration_seconds' => $activity->duration_seconds,
+                'estimated_duration_seconds_snapshot' => $activity->estimated_duration_seconds,
                 'is_required' => $activity->is_required,
                 'completion_rule' => $activity->completion_rule,
                 'completion_threshold' => $activity->completion_threshold,

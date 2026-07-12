@@ -45,6 +45,11 @@ documented in `core_course_template_sections`, including `parent_section_id`.
 
 # Decision
 
+## Activity Estimated Duration Amendment (2026-07-12)
+
+Duplicate restores Activity estimated duration and `sort_order`, then
+recalculates each working Lesson duration from restored Activity estimates.
+
 ## Lesson Role Amendment (2026-07-12)
 
 Duplicate-to-draft restores each Version Lesson `lesson_type` snapshot to the

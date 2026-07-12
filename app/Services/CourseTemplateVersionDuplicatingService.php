@@ -507,6 +507,7 @@ class CourseTemplateVersionDuplicatingService
                 'live_class_url' => $activity->live_class_url_snapshot,
                 'assessment_quiz_id' => $activity->assessment_quiz_id_snapshot,
                 'duration_seconds' => $activity->duration_seconds,
+                'estimated_duration_seconds' => $activity->estimated_duration_seconds_snapshot,
                 'is_required' => $activity->is_required,
                 'completion_rule' => $activity->completion_rule,
                 'completion_threshold' => $activity
@@ -536,6 +537,16 @@ class CourseTemplateVersionDuplicatingService
                     ],
                     'updated_at' => $now,
                 ]);
+        }
+
+        foreach ($lessonMap as $draftLessonId) {
+            $duration = (int) DB::table('core_course_template_activities')
+                ->where('customer_id', $customerId)
+                ->where('template_lesson_id', $draftLessonId)
+                ->sum('estimated_duration_seconds');
+            DB::table('core_course_template_lessons')
+                ->where('customer_id', $customerId)->where('id', $draftLessonId)
+                ->update(['duration_seconds' => $duration, 'updated_at' => $now]);
         }
     }
 
