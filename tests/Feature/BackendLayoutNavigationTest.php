@@ -437,7 +437,7 @@ class BackendLayoutNavigationTest extends TestCase
             base_path('resources/views/course-products/partials/form.blade.php')
         );
 
-        $this->assertSame(1, substr_count($templateForm, 'class="backend-form-columns"'));
+        $this->assertSame(1, substr_count($templateForm, 'class="backend-form-columns course-template-information-grid"'));
         $this->assertSame(2, substr_count($templateForm, 'class="backend-form-column"'));
         $this->assertStringContainsString(
             'for="category_id"',
@@ -445,10 +445,10 @@ class BackendLayoutNavigationTest extends TestCase
         );
         $this->assertStringContainsString(
             'for="difficulty_level"',
-            $this->backendFormColumnHtml($templateForm, 0)
+            $this->backendFormColumnHtml($templateForm, 1)
         );
         $this->assertStringContainsString(
-            'for="estimated_duration_minutes"',
+            'for="estimated_minutes_per_lesson"',
             $this->backendFormColumnHtml($templateForm, 1)
         );
         $this->assertStringContainsString(

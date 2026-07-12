@@ -244,6 +244,54 @@
     margin-bottom: 0;
 }
 
+@media (min-width: 901px) {
+    :root.is-backend-sidebar-collapsed .backend-shell .course-template-information-grid,
+    .backend-shell.is-sidebar-collapsed .course-template-information-grid {
+        width: 100%;
+        min-width: 0;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 24px;
+        row-gap: 0;
+        align-items: start;
+    }
+
+    :root.is-backend-sidebar-collapsed .backend-shell .course-template-information-grid > .backend-form-column,
+    .backend-shell.is-sidebar-collapsed .course-template-information-grid > .backend-form-column {
+        display: contents;
+    }
+
+    :root.is-backend-sidebar-collapsed .backend-shell .course-template-information-grid .lf-form-group,
+    .backend-shell.is-sidebar-collapsed .course-template-information-grid .lf-form-group {
+        min-width: 0;
+    }
+
+    :root.is-backend-sidebar-collapsed .backend-shell .course-template-information-grid .course-template-information-wide,
+    .backend-shell.is-sidebar-collapsed .course-template-information-grid .course-template-information-wide {
+        grid-column: 1 / -1;
+    }
+
+    :root.is-backend-sidebar-collapsed .backend-shell .course-template-information-grid > .media-library-modal,
+    .backend-shell.is-sidebar-collapsed .course-template-information-grid > .media-library-modal {
+        grid-column: 1 / -1;
+    }
+
+    :root.is-backend-sidebar-collapsed .backend-shell .course-template-information-grid .lf-form-control,
+    :root.is-backend-sidebar-collapsed .backend-shell .course-template-information-grid iframe,
+    .backend-shell.is-sidebar-collapsed .course-template-information-grid .lf-form-control,
+    .backend-shell.is-sidebar-collapsed .course-template-information-grid iframe {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        box-sizing: border-box;
+    }
+
+    :root.is-backend-sidebar-collapsed .backend-shell .course-template-information-grid iframe,
+    .backend-shell.is-sidebar-collapsed .course-template-information-grid iframe {
+        aspect-ratio: 16 / 9;
+        border: 0;
+    }
+}
+
 .admin-radio-group {
     display: flex;
     align-items: center;

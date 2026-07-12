@@ -7,7 +7,7 @@
     $isRequired = static fn (string $field): bool => in_array($field, $requiredFields, true);
 @endphp
 
-<div class="backend-form-columns"
+<div class="backend-form-columns course-template-information-grid"
      x-data="{
          selectedVideoSource: @js($selectedVideoSource),
          selectedCategoryId: @js($selectedCategoryId),
@@ -105,19 +105,19 @@
                    maxlength="255" placeholder="{{ __('lf.LF_course_template_placeholder_name') }}">
         </div>
 
-        <div class="lf-form-group">
+        <div class="lf-form-group course-template-information-wide">
             <x-form-label for="short_description" :value="__('lf.LF_course_template_common_short_description')" />
             <textarea id="short_description" name="short_description" class="lf-form-control" rows="2" maxlength="500" placeholder="{{ __('lf.LF_course_template_placeholder_short_description') }}">{{ old('short_description', $formTemplate?->short_description) }}</textarea>
         </div>
 
-        <div class="lf-form-group">
+        <div class="lf-form-group course-template-information-wide">
             <x-form-label for="description" :value="__('lf.LF_course_template_common_description')" />
             <textarea id="description" name="description" class="lf-form-control" rows="5" placeholder="{{ __('lf.LF_course_template_placeholder_description') }}">{{ old('description', $formTemplate?->description) }}</textarea>
         </div>
     </div>
 
     <div class="backend-form-column">
-        <div class="lf-form-group">
+        <div class="lf-form-group course-template-information-wide course-template-information-media">
             <x-form-label for="intro_image_file" :value="__('lf.LF_course_template_intro_image')" />
             <input type="hidden" name="intro_image_media_file_id" value="{{ old('intro_image_media_file_id', $formTemplate?->intro_image_media_file_id) }}">
             <input id="intro_image_file" type="file" name="intro_image_file" class="lf-form-control" accept="image/*">
@@ -125,7 +125,7 @@
             @if ($introImageMedia ?? null)<a href="{{ $introImageMedia->signed_url }}" target="_blank">{{ __('lf.LF_media_file_common_preview_action') }}</a><label><input type="checkbox" name="remove_intro_image" value="1"> {{ __('lf.LF_course_template_remove_current') }}</label>@endif
         </div>
 
-        <div class="lf-form-group">
+        <div class="lf-form-group course-template-information-wide course-template-information-media">
             <x-form-label for="intro_video_source" :value="__('lf.LF_course_template_intro_video')" />
             <select id="intro_video_source" name="intro_video_source" class="lf-form-control" x-model="selectedVideoSource" :class="{ 'lf-select-placeholder': selectedVideoSource === null || selectedVideoSource === '' }">
                 <option value="">{{ __('lf.LF_course_template_select_video_source') }}</option>
@@ -148,7 +148,7 @@
             @if ($introVideoMedia ?? null)<a href="{{ $introVideoMedia->signed_url }}" target="_blank">{{ __('lf.LF_media_file_common_preview_action') }}</a><label><input type="checkbox" name="remove_intro_video" value="1"> {{ __('lf.LF_course_template_remove_current') }}</label>@endif
         </div>
 
-        <div class="lf-form-group">
+        <div class="lf-form-group course-template-information-wide course-template-information-media">
             <x-form-label for="intro_document_file" :value="__('lf.LF_course_template_intro_document')" />
             <input type="hidden" name="intro_document_media_file_id" value="{{ old('intro_document_media_file_id', $formTemplate?->intro_document_media_file_id) }}">
             <input id="intro_document_file" type="file" name="intro_document_file" class="lf-form-control">

@@ -168,6 +168,8 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertStringNotContainsString('course-template-metadata-title', $formPartial);
         $this->assertStringNotContainsString('course-template-media-title', $formPartial);
         $this->assertStringNotContainsString('course-template-lifecycle-title', $formPartial);
+        $this->assertStringContainsString('course-template-information-grid', $formPartial);
+        $this->assertSame(5, substr_count($formPartial, 'course-template-information-wide'));
 
         foreach ($responses as $response) {
             foreach ([
