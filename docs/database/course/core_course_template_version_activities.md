@@ -60,6 +60,7 @@ Media / Assessment / LiveClass → version_activities (approved immutable refere
 | `description_snapshot` | TEXT | nullable | Snapshot Activity description. |
 | `sort_order` | INT | required, default 0 | Published order within the Lesson. |
 | `activity_type` | VARCHAR(50) | required | `video`, `embedded_video`, `audio`, `document`, `quiz`, or `live_class`. |
+| `media_file_id` | BIGINT UNSIGNED | nullable | Immutable uploaded video/audio/document Media reference; existing historical rows remain `NULL`. |
 | `external_video_url_snapshot` | VARCHAR(1000) | nullable | Frozen HTTPS external video URL. |
 | `live_class_url_snapshot` | VARCHAR(1000) | nullable | Frozen HTTPS live-class URL. |
 | `assessment_quiz_id_snapshot` | BIGINT UNSIGNED | nullable | Frozen tenant-owned Assessment Quiz identifier. |
@@ -103,6 +104,9 @@ The publish service validates unique `sort_order` within each Version Lesson.
 * Generic cross-domain reference fields do not use an unconditional physical
   foreign key. Publish must validate owner existence and tenant compatibility.
 * Published Version Activities cannot be deleted independently.
+* Uploaded Media has an active `course_version_activity` usage using the same
+  `video`, `audio`, or `document` purpose. The reference never falls back to a
+  current draft Activity.
 * Deleting or editing working content never changes a Version Activity.
 
 # Immutability Rules

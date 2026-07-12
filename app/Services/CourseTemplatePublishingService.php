@@ -352,6 +352,14 @@ class CourseTemplatePublishingService
         $now
     ): void {
         $map = [];
+        $uploadedTypes = ['video', 'audio', 'document'];
+        $mediaByActivity = DB::table('media_file_usages')
+            ->where('customer_id', $customerId)
+            ->where('owner_type', 'course_activity')
+            ->where('status', 'active')
+            ->whereIn('owner_id', $activities->pluck('id'))
+            ->whereIn('usage_type', $uploadedTypes)
+            ->get()->groupBy('owner_id');
 
         foreach ($activities as $activity) {
             $this->assertMapped(
@@ -359,6 +367,13 @@ class CourseTemplatePublishingService
                 $activity->template_lesson_id,
                 'publish'
             );
+
+            $mediaUsage = in_array($activity->activity_type, $uploadedTypes, true)
+                ? $mediaByActivity->get($activity->id, collect())->firstWhere('usage_type', $activity->activity_type)
+                : null;
+            if (in_array($activity->activity_type, $uploadedTypes, true) && ! $mediaUsage) {
+                throw ValidationException::withMessages(['publish' => __('lf.LF_course_template_publish_integrity_media')]);
+            }
 
             $map[$activity->id] = DB::table(
                 'core_course_template_version_activities'
@@ -373,6 +388,7 @@ class CourseTemplatePublishingService
                 'description_snapshot' => $activity->description,
                 'sort_order' => $activity->sort_order,
                 'activity_type' => $activity->activity_type,
+                'media_file_id' => $mediaUsage?->media_file_id,
                 'external_video_url_snapshot' => $activity->external_video_url,
                 'live_class_url_snapshot' => $activity->live_class_url,
                 'assessment_quiz_id_snapshot' => $activity->assessment_quiz_id,
@@ -390,6 +406,9 @@ class CourseTemplatePublishingService
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
+            if ($mediaUsage) {
+                $this->mediaService->attachUsage((int) $mediaUsage->media_file_id, 'course_version_activity', $map[$activity->id], $activity->activity_type);
+            }
         }
 
         foreach ($activities as $activity) {

@@ -87,6 +87,13 @@ class CourseTemplatePublishGraphValidator
                 $expectedType = in_array($type, ['video', 'audio', 'document'], true) ? $type : 'attachment';
                 if ((int) $media->media_customer_id !== $customerId || $media->media_status !== 'ready' || $media->usage_status !== 'active' || ($media->usage_type !== 'attachment' && ($media->usage_type !== $expectedType || $media->file_type !== $expectedType))) $this->fail('media');
             }
+            if (in_array($type, ['video', 'audio', 'document'], true)) {
+                $matching = $mediaByActivity->get($activity->id, collect())
+                    ->where('usage_type', $type);
+                if ($matching->count() !== 1) $this->fail('media');
+            } elseif ($mediaByActivity->get($activity->id, collect())->whereIn('usage_type', ['video', 'audio', 'document'])->isNotEmpty()) {
+                $this->fail('media');
+            }
             $rule = $activity->unlock_rule;
             $prerequisite = $activity->unlock_after_activity_id ? (int) $activity->unlock_after_activity_id : null;
             $target = $prerequisite ? $map->get($prerequisite) : null;

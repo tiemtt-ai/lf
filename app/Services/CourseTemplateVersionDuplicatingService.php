@@ -489,8 +489,23 @@ class CourseTemplateVersionDuplicatingService
         $now
     ): void {
         $map = [];
+        $uploadedTypes = ['video', 'audio', 'document'];
+        $versionUsages = DB::table('media_file_usages')
+            ->where('customer_id', $customerId)
+            ->where('owner_type', 'course_version_activity')
+            ->where('status', 'active')
+            ->whereIn('owner_id', $activities->pluck('id'))
+            ->whereIn('usage_type', $uploadedTypes)
+            ->get()->groupBy('owner_id');
 
         foreach ($activities as $activity) {
+            $versionUsage = in_array($activity->activity_type, $uploadedTypes, true)
+                ? $versionUsages->get($activity->id, collect())->firstWhere('usage_type', $activity->activity_type)
+                : null;
+            if (($activity->media_file_id && (! $versionUsage || (int) $versionUsage->media_file_id !== (int) $activity->media_file_id))
+                || (! $activity->media_file_id && $versionUsage)) {
+                $this->invalidStructure();
+            }
             $map[$activity->id] = DB::table(
                 'core_course_template_activities'
             )->insertGetId([
@@ -520,6 +535,9 @@ class CourseTemplateVersionDuplicatingService
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
+            if ($activity->media_file_id) {
+                $this->mediaService->attachUsage((int) $activity->media_file_id, 'course_activity', $map[$activity->id], $activity->activity_type);
+            }
         }
 
         foreach ($activities as $activity) {

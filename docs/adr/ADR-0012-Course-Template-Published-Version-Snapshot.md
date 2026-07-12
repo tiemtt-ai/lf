@@ -37,6 +37,13 @@ four published snapshot tables.
 
 # Decision
 
+## Version Activity Uploaded Media Amendment (2026-07-13)
+
+Uploaded video, audio and document Activities snapshot `media_file_id` and an
+active immutable Media Usage owned by `course_version_activity`. The physical
+Media object is reused, not copied. Draft usage changes never mutate Version
+usage, and active Version usage prevents physical deletion.
+
 ## Publish Integrity Boundary Amendment (2026-07-12)
 
 Publish validates the locked draft Template, Section, Lesson and Activity

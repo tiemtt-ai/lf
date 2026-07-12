@@ -136,6 +136,13 @@ Media Library is the centralized place for:
 
 Business modules must never create hidden or private uploads outside Media.
 
+Published Course Version Activities use immutable active usages owned by
+`course_version_activity`, with canonical purposes `video`, `audio`, or
+`document`. They reuse the tenant-owned Media object and prevent physical
+deletion while active. Historical Assessment Activities retain only the Quiz
+identifier; presenting a mutable current Quiz title as historical data is not
+permitted.
+
 ## 3. Silent Duplicate Detection
 
 Duplicate detection belongs to the Media Platform. It must happen

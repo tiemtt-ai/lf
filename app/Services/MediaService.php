@@ -166,6 +166,38 @@ class MediaService
         }
     }
 
+    public function generateVersionActivitySignedUrl(
+        int $versionId,
+        int $versionActivityId
+    ): string {
+        abort_unless(request()->user()?->role === 'customer_admin', 403);
+        $customerId = $this->customerId();
+        $media = DB::table('core_course_template_version_activities as activities')
+            ->join('core_course_template_versions as versions', function ($join) use ($customerId, $versionId): void {
+                $join->on('versions.id', '=', 'activities.template_version_id')
+                    ->where('versions.customer_id', $customerId)
+                    ->where('versions.id', $versionId);
+            })
+            ->join('media_file_usages as usages', function ($join) use ($customerId): void {
+                $join->on('usages.owner_id', '=', 'activities.id')
+                    ->on('usages.media_file_id', '=', 'activities.media_file_id')
+                    ->where('usages.customer_id', $customerId)
+                    ->where('usages.owner_type', 'course_version_activity')
+                    ->where('usages.status', 'active');
+            })
+            ->join('media_files as media', function ($join) use ($customerId): void {
+                $join->on('media.id', '=', 'activities.media_file_id')
+                    ->where('media.customer_id', $customerId)
+                    ->where('media.status', 'ready');
+            })
+            ->where('activities.customer_id', $customerId)
+            ->where('activities.id', $versionActivityId)
+            ->value('media.id');
+
+        abort_if(! $media, 404);
+        return $this->generateSignedUrl((int) $media);
+    }
+
     private function shouldUseSignedDeliveryRoute(object $mediaFile): bool
     {
         $disk = config('filesystems.disks.'.$mediaFile->storage_disk);

@@ -31,6 +31,7 @@ return [
         'course_category',
         'course_product',
         'course_activity',
+        'course_version_activity',
         'course_cohort',
         'assessment_question',
         'assessment_answer',

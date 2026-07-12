@@ -218,6 +218,20 @@ class CourseTemplatePublishingTest extends TestCase
             ->where('template_version_id', $version->id)
             ->where('source_template_activity_id', $directActivityId)
             ->first();
+        $draftMediaId = DB::table('media_file_usages')
+            ->where('owner_type', 'course_activity')
+            ->where('owner_id', $directActivityId)
+            ->where('usage_type', 'document')
+            ->value('media_file_id');
+        $this->assertSame((int) $draftMediaId, (int) $directVersionActivity->media_file_id);
+        $this->assertDatabaseHas('media_file_usages', [
+            'customer_id' => $customerId,
+            'media_file_id' => $draftMediaId,
+            'owner_type' => 'course_version_activity',
+            'owner_id' => $directVersionActivity->id,
+            'usage_type' => 'document',
+            'status' => 'active',
+        ]);
         $sectionVersionActivity = DB::table(
             'core_course_template_version_activities'
         )
@@ -1491,7 +1505,7 @@ class CourseTemplatePublishingTest extends TestCase
         int $sortOrder,
         int $createdBy
     ): int {
-        return DB::table('core_course_template_activities')->insertGetId([
+        $activityId = DB::table('core_course_template_activities')->insertGetId([
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'template_lesson_id' => $lessonId,
@@ -1514,6 +1528,24 @@ class CourseTemplatePublishingTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        $mediaId = DB::table('media_files')->insertGetId([
+            'customer_id' => $customerId, 'category_id' => null, 'uploaded_by' => $createdBy,
+            'file_type' => 'document', 'mime_type' => 'application/pdf',
+            'original_name' => "activity-{$activityId}.pdf", 'display_name' => $title,
+            'extension' => 'pdf', 'storage_disk' => 'media_local', 'storage_bucket' => 'local-media',
+            'storage_region' => null, 'storage_key' => "tests/activity-{$customerId}-{$activityId}.pdf",
+            'storage_class' => null, 'cdn_url' => null, 'public_url' => null, 'checksum' => null,
+            'file_size_bytes' => 1, 'duration_seconds' => null, 'width' => null, 'height' => null,
+            'page_count' => 1, 'language' => null, 'visibility' => 'private', 'status' => 'ready',
+            'metadata' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $customerId, 'media_file_id' => $mediaId,
+            'owner_type' => 'course_activity', 'owner_id' => $activityId,
+            'usage_type' => 'document', 'status' => 'active', 'metadata' => null,
+            'created_by' => $createdBy, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        return $activityId;
     }
 
     private function draftState(int $customerId, int $templateId): array

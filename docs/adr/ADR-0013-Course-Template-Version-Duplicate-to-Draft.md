@@ -45,6 +45,13 @@ documented in `core_course_template_sections`, including `parent_section_id`.
 
 # Decision
 
+## Version Activity Uploaded Media Amendment (2026-07-13)
+
+Duplicate-to-draft restores uploaded Activity Media only from the Version
+Activity `media_file_id` and its active `course_version_activity` usage. It
+reuses the Media object and creates a new `course_activity` usage owned by the
+new draft Activity; source Version usage remains unchanged.
+
 ## Activity Estimated Duration Amendment (2026-07-12)
 
 Duplicate restores Activity estimated duration and `sort_order`, then
