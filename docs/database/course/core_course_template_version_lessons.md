@@ -42,6 +42,9 @@ core_course_template_lessons 1 → N version_lessons (logical lineage)
 * Duration and Activity count are frozen published aggregates.
 * Source IDs exist for lineage/reporting only.
 * Version Lessons become immutable when the parent Version is published.
+* Runtime evaluates `previous_lesson_completed` against the specifically
+  mapped prerequisite, not display ordering. Completion must come from the
+  same tenant, Enrollment, Product, Version and student learning cycle.
 
 # Fields
 

@@ -3,8 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\VersionLessonAccessService;
+use App\Support\TenantContext;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
@@ -31,6 +34,57 @@ class CourseLessonProgressRuntimeTest extends TestCase
         $this->assertTrue(Schema::hasTable('core_course_lesson_progress'));
         $this->assertTrue(Schema::hasColumn('core_course_lesson_progress', 'version_id'));
         $this->assertFalse(Schema::hasColumn('core_course_lesson_progress', 'template_version_id'));
+    }
+
+    public function test_version_lesson_access_enforces_manual_prerequisite_in_exact_enrollment_context(): void
+    {
+        $context = $this->learningContext();
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        $prerequisiteId = $this->createVersionLesson($context['customer_id'], $context['version_id']);
+        $lessonId = $this->createVersionLesson($context['customer_id'], $context['version_id']);
+        DB::table('core_course_template_version_lessons')->where('id', $lessonId)->update([
+            'unlock_rule_snapshot' => 'previous_lesson_completed',
+            'unlock_after_version_lesson_id' => $prerequisiteId,
+        ]);
+        $enrollmentId = $this->createEnrollment($context['customer_id'], $context['student']->id, $context['product_id'], $context['version_id']);
+        $otherEnrollmentId = $this->createEnrollment($context['customer_id'], $context['student']->id, $context['product_id'], $context['version_id']);
+        $otherProgressId = $this->createProgressFromEnrollment($context['customer_id'], $otherEnrollmentId);
+        $this->createLessonProgressFromCourseProgress($context['customer_id'], $otherProgressId, $prerequisiteId, [
+            'status' => 'completed', 'completed_at' => now(), 'progress_percentage' => 100,
+        ]);
+
+        $service = app(VersionLessonAccessService::class);
+        $this->assertFalse($service->decide($context['student']->id, $enrollmentId, $lessonId)->allowed);
+
+        $progressId = $this->createProgressFromEnrollment($context['customer_id'], $enrollmentId);
+        $this->createLessonProgressFromCourseProgress($context['customer_id'], $progressId, $prerequisiteId, [
+            'status' => 'completed', 'completed_at' => now(), 'progress_percentage' => 100,
+        ]);
+        $decision = $service->decide($context['student']->id, $enrollmentId, $lessonId);
+        $this->assertTrue($decision->allowed);
+        $this->assertSame('prerequisite_completed', $decision->reason);
+    }
+
+    public function test_none_date_and_inactive_enrollment_access_fail_closed_correctly(): void
+    {
+        $context = $this->learningContext();
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        $lessonId = $this->createVersionLesson($context['customer_id'], $context['version_id']);
+        $enrollmentId = $this->createEnrollment($context['customer_id'], $context['student']->id, $context['product_id'], $context['version_id']);
+        $service = app(VersionLessonAccessService::class);
+        $this->assertTrue($service->decide($context['student']->id, $enrollmentId, $lessonId)->allowed);
+
+        DB::table('core_course_template_version_lessons')->where('id', $lessonId)->update([
+            'unlock_rule_snapshot' => 'date_based', 'unlock_at_snapshot' => '2026-07-12 10:00:00',
+        ]);
+        Carbon::setTestNow('2026-07-12 09:59:59 UTC');
+        $this->assertFalse($service->decide($context['student']->id, $enrollmentId, $lessonId)->allowed);
+        Carbon::setTestNow('2026-07-12 10:00:00 UTC');
+        $this->assertTrue($service->decide($context['student']->id, $enrollmentId, $lessonId)->allowed);
+        Carbon::setTestNow();
+
+        DB::table('core_course_enrollments')->where('id', $enrollmentId)->update(['status' => 'suspended']);
+        $this->assertFalse($service->decide($context['student']->id, $enrollmentId, $lessonId)->allowed);
     }
 
     public function test_runtime_lesson_progress_can_be_created_from_course_progress_context(): void

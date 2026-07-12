@@ -84,6 +84,13 @@ version_activity_id
 
 Progress không tham chiếu working Template Lesson/Activity.
 
+Student Version Lesson access is evaluated from the active Enrollment and the
+immutable Version Lesson. `previous_lesson_completed` means the manually
+selected prerequisite Version Lesson and requires completed Lesson Progress in
+the exact same tenant, Enrollment, Product, Version and student context.
+`date_based` compares the frozen UTC timestamp; unknown/inconsistent rules fail
+closed.
+
 ## Rule 6 — No Runtime Course
 
 Không tạo:
