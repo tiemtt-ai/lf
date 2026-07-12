@@ -299,7 +299,7 @@ class CourseTemplatePublishingTest extends TestCase
                 ->count()
         );
 
-        $this->actingAs($admin)
+        $historyResponse = $this->actingAs($admin)
             ->get(
                 "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=history"
             )
@@ -309,6 +309,28 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertSeeText('Version Admin')
             ->assertSeeText('Đã xuất bản')
             ->assertSeeText('Hiện tại');
+
+        $document = new \DOMDocument;
+        @$document->loadHTML($historyResponse->getContent());
+        $xpath = new \DOMXPath($document);
+        $this->assertSame(2, $xpath->query(
+            '//table[contains(@class, "course-template-history-table")]'
+            .'//tbody/tr/td[6][normalize-space()="Đã xuất bản"]'
+        )->length);
+
+        app()->setLocale('en');
+        $englishHistory = $this->actingAs($admin)
+            ->get(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=history"
+            )
+            ->assertOk();
+        $englishDocument = new \DOMDocument;
+        @$englishDocument->loadHTML($englishHistory->getContent());
+        $englishXpath = new \DOMXPath($englishDocument);
+        $this->assertSame(2, $englishXpath->query(
+            '//table[contains(@class, "course-template-history-table")]'
+            .'//tbody/tr/td[6][normalize-space()="Published"]'
+        )->length);
     }
 
     public function test_publish_and_duplicate_preserve_documented_duplicate_content_order_values(): void
