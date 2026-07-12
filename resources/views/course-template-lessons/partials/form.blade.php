@@ -29,10 +29,6 @@
         <textarea id="description" name="description" class="lf-form-control" rows="5">{{ old('description', $formLesson?->description) }}</textarea>
     </div>
     <div class="lf-form-group">
-        <x-form-label for="sort_order" :value="__('lf.LF_course_template_lesson_common_sort_order')" />
-        <input id="sort_order" type="number" min="0" name="sort_order" class="lf-form-control" value="{{ old('sort_order', $formLesson?->sort_order ?? $suggestedSortOrder ?? null) }}">
-    </div>
-    <div class="lf-form-group">
         <x-form-label for="is_preview" :value="__('lf.LF_course_template_lesson_common_preview')" :required="true" />
         <select id="is_preview" name="is_preview" class="lf-form-control" required>
             <option value="0" @selected($selectedPreview === '0')>{{ __('lf.LF_course_template_lesson_common_no') }}</option>
@@ -59,5 +55,9 @@
     <div class="lf-form-group" x-show="unlockRule === 'date_based'" x-cloak>
         <x-form-label for="unlock_at" :value="__('lf.LF_course_template_lesson_common_unlock_at')" />
         <input id="unlock_at" type="datetime-local" name="unlock_at" class="lf-form-control" value="{{ $unlockAt }}" x-ref="unlockAt">
+    </div>
+    <div class="lf-form-group">
+        <x-form-label for="sort_order" :value="__('lf.LF_course_template_lesson_common_sort_order')" />
+        <input id="sort_order" type="number" min="0" name="sort_order" class="lf-form-control" value="{{ old('sort_order', $formLesson?->sort_order ?? $suggestedSortOrder ?? null) }}">
     </div>
 </div>
