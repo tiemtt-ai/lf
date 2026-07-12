@@ -31,6 +31,10 @@
                 ? __('lf.LF_course_template_version_detail_yes')
                 : __('lf.LF_course_template_version_detail_no') }}</dd>
         </div>
+        <div>
+            <dt>{{ __('lf.LF_course_template_lesson_common_role') }}</dt>
+            <dd>{{ __('lf.LF_course_template_lesson_common_role_'.($lesson->lesson_type ?? 'regular')) }}</dd>
+        </div>
     </dl>
 
     @php

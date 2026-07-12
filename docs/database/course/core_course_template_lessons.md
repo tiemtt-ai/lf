@@ -147,6 +147,14 @@ TINYINT(1) DEFAULT 0
 
 Cho phép học thử.
 
+### lesson_type
+
+VARCHAR(50) NOT NULL DEFAULT `regular`.
+
+Canonical values: `regular`, `review`, `midterm_exam`, `final_exam`,
+`other_exam`. Đây chỉ là semantic classification; không điều khiển scheduling,
+grading, completion, unlock, Assessment, Activity hoặc Cohort.
+
 ---
 
 ## Learning Metadata

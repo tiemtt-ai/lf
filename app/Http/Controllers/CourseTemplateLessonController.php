@@ -443,6 +443,7 @@ class CourseTemplateLessonController extends Controller
             'description',
             'sort_order',
             'is_preview',
+            'lesson_type',
             'unlock_rule',
             'unlock_after_lesson_id',
             'unlock_at',
@@ -479,6 +480,9 @@ class CourseTemplateLessonController extends Controller
                 'min:0',
             ],
             'is_preview' => ['required', 'boolean'],
+            'lesson_type' => ['required', Rule::in([
+                'regular', 'review', 'midterm_exam', 'final_exam', 'other_exam',
+            ])],
             'unlock_rule' => [
                 'required',
                 Rule::in([
@@ -528,6 +532,7 @@ class CourseTemplateLessonController extends Controller
             'description' => $validated['description'] ?? null,
             'sort_order' => $validated['sort_order'],
             'is_preview' => (bool) $validated['is_preview'],
+            'lesson_type' => $validated['lesson_type'],
             'unlock_rule' => $validated['unlock_rule'],
             'unlock_after_lesson_id' => $validated['unlock_after_lesson_id'] ?? null,
             'unlock_at' => isset($validated['unlock_at'])

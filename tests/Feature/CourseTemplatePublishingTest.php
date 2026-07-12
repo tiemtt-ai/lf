@@ -114,6 +114,9 @@ class CourseTemplatePublishingTest extends TestCase
             1,
             $admin->id
         );
+        DB::table('core_course_template_lessons')
+            ->where('id', $directLessonId)
+            ->update(['lesson_type' => 'review']);
         $draftBefore = $this->draftState($customerId, $templateId);
 
         $this->actingAs($admin)
@@ -194,6 +197,7 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertNotNull($directVersionLesson);
         $this->assertNull($directVersionLesson->version_section_id);
         $this->assertSame('Course Orientation', $directVersionLesson->title_snapshot);
+        $this->assertSame('review', $directVersionLesson->lesson_type);
         $this->assertNotNull($sectionVersionLesson);
         $this->assertSame(
             $versionSection->id,
@@ -876,6 +880,10 @@ class CourseTemplatePublishingTest extends TestCase
             ->where('template_id', $templateId)
             ->first();
         $this->assertNotNull($version);
+        DB::table('core_course_template_version_lessons')
+            ->where('customer_id', $customerId)
+            ->where('template_version_id', $version->id)
+            ->update(['lesson_type' => 'final_exam']);
 
         $versionState = $this->versionState(
             $customerId,
@@ -927,7 +935,6 @@ class CourseTemplatePublishingTest extends TestCase
         );
 
         $duplicateUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/versions/{$version->id}/duplicate-to-draft";
-
         $this->withSession(['locale' => 'en'])
             ->actingAs($admin)
             ->get(
@@ -977,6 +984,11 @@ class CourseTemplatePublishingTest extends TestCase
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'title' => 'Stale Lesson',
+        ]);
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'lesson_type' => 'final_exam',
         ]);
         $this->assertDatabaseMissing('core_course_template_activities', [
             'customer_id' => $customerId,

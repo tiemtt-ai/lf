@@ -1,6 +1,7 @@
 @php
     $formLesson = $lesson ?? null;
     $selectedPreview = (string) old('is_preview', $formLesson?->is_preview ?? 0);
+    $selectedLessonType = old('lesson_type', $formLesson?->lesson_type ?? 'regular');
     $selectedUnlockRule = old('unlock_rule', $formLesson?->unlock_rule ?? 'none');
     $selectedPrerequisiteId = old('unlock_after_lesson_id', $formLesson?->unlock_after_lesson_id);
     $unlockAt = old('unlock_at', $formLesson?->unlock_at
@@ -33,6 +34,14 @@
         <select id="is_preview" name="is_preview" class="lf-form-control" required>
             <option value="0" @selected($selectedPreview === '0')>{{ __('lf.LF_course_template_lesson_common_no') }}</option>
             <option value="1" @selected($selectedPreview === '1')>{{ __('lf.LF_course_template_lesson_common_yes') }}</option>
+        </select>
+    </div>
+    <div class="lf-form-group">
+        <x-form-label for="lesson_type" :value="__('lf.LF_course_template_lesson_common_role')" :required="true" />
+        <select id="lesson_type" name="lesson_type" class="lf-form-control" required>
+            @foreach (['regular', 'review', 'midterm_exam', 'final_exam', 'other_exam'] as $lessonType)
+                <option value="{{ $lessonType }}" @selected($selectedLessonType === $lessonType)>{{ __('lf.LF_course_template_lesson_common_role_'.$lessonType) }}</option>
+            @endforeach
         </select>
     </div>
     <div class="lf-form-group">

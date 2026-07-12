@@ -45,6 +45,11 @@ documented in `core_course_template_sections`, including `parent_section_id`.
 
 # Decision
 
+## Lesson Role Amendment (2026-07-12)
+
+Duplicate-to-draft restores each Version Lesson `lesson_type` snapshot to the
+new working Lesson. It does not change any unlock or cross-domain behavior.
+
 `Duplicate Version to Draft` is an Authoring operation. It replaces the current
 working content of the selected Version's own Course Template.
 

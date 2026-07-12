@@ -162,6 +162,9 @@ Course Template
 * Media/external Activity không có target trực tiếp hợp lệ dùng readonly detail
   cho action View.
 * Lesson không có lifecycle/status riêng. Activity status không hiển thị trong tree.
+* `lesson_type` phân loại semantic Lesson bằng các code `regular`, `review`,
+  `midterm_exam`, `final_exam`, `other_exam`. Classification không tự thay đổi
+  scheduling, grading, completion, unlock, Assessment, Activity hoặc Cohort.
 * Empty Activity state chỉ hiển thị `Chưa có hoạt động.`.
 * Section `allows_lessons = false` không render Lesson heading, count, empty
   state hoặc action gắn Lesson; child Sections vẫn hiển thị bình thường.

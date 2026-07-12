@@ -57,6 +57,7 @@ core_course_template_lessons 1 → N version_lessons (logical lineage)
 | `description_snapshot` | TEXT | nullable | Snapshot detailed description. |
 | `sort_order` | INT | required, default 0 | Published order within the direct or Section group. |
 | `is_preview` | TINYINT(1) | required, default 0 | Published preview permission. |
+| `lesson_type` | VARCHAR(50) | required, default `regular` | Immutable semantic role snapshot: `regular`, `review`, `midterm_exam`, `final_exam`, `other_exam`. |
 | `duration_seconds` | INT UNSIGNED | required, default 0 | Frozen published duration aggregate. |
 | `activity_count` | INT UNSIGNED | required, default 0 | Frozen Version Activity count. |
 | `unlock_rule_snapshot` | VARCHAR(50) | required, default `none` | Snapshot rule: `none`, `previous_lesson_completed`, or `date_based`. |

@@ -512,6 +512,35 @@ class CourseTemplateLessonManagementTest extends TestCase
         $this->assertDatabaseCount('core_course_template_lessons', 0);
     }
 
+    public function test_lesson_role_allowlist_is_required_and_all_values_are_accepted(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Lesson Roles', 'lesson-roles');
+
+        foreach (['regular', 'review', 'midterm_exam', 'final_exam', 'other_exam'] as $index => $lessonType) {
+            $this->actingAs($admin)->post(
+                $this->directLessonCollectionUrl('admin', $templateId),
+                $this->validLessonData(['title' => 'Role '.$index, 'lesson_type' => $lessonType])
+            )->assertRedirect();
+            $this->assertDatabaseHas('core_course_template_lessons', [
+                'customer_id' => $customerId,
+                'template_id' => $templateId,
+                'title' => 'Role '.$index,
+                'lesson_type' => $lessonType,
+            ]);
+        }
+
+        $missing = $this->validLessonData(['title' => 'Missing Role']);
+        unset($missing['lesson_type']);
+        $this->actingAs($admin)->post($this->directLessonCollectionUrl('admin', $templateId), $missing)
+            ->assertSessionHasErrors('lesson_type');
+        $this->actingAs($admin)->post(
+            $this->directLessonCollectionUrl('admin', $templateId),
+            $this->validLessonData(['title' => 'Invalid Role', 'lesson_type' => 'introduction'])
+        )->assertSessionHasErrors('lesson_type');
+    }
+
     public function test_estimated_lesson_count_does_not_limit_authoring(): void
     {
         $customerId = $this->createTenant();
@@ -904,6 +933,7 @@ class CourseTemplateLessonManagementTest extends TestCase
         foreach ([
             'title',
             'is_preview',
+            'lesson_type',
             'unlock_rule',
         ] as $field) {
             $this->assertSame(
@@ -971,12 +1001,23 @@ class CourseTemplateLessonManagementTest extends TestCase
                 'description',
                 'sort_order',
                 'is_preview',
+                'lesson_type',
                 'unlock_rule',
                 'unlock_after_lesson_id',
                 'unlock_at',
             ] as $field) {
                 $response->assertSee('name="'.$field.'"', false);
             }
+
+            $content = $response->getContent();
+            $this->assertLessThan(
+                strpos($content, 'name="lesson_type"'),
+                strpos($content, 'name="is_preview"')
+            );
+            $this->assertLessThan(
+                strpos($content, 'name="unlock_rule"'),
+                strpos($content, 'name="lesson_type"')
+            );
 
             foreach ([
                 'id',
@@ -1168,6 +1209,7 @@ class CourseTemplateLessonManagementTest extends TestCase
             'description' => null,
             'sort_order' => 0,
             'is_preview' => 0,
+            'lesson_type' => 'regular',
             'unlock_rule' => 'none',
             'unlock_after_lesson_id' => null,
             'unlock_at' => null,

@@ -449,6 +449,7 @@ class CourseTemplateVersionDuplicatingService
                 'description' => $lesson->description_snapshot,
                 'sort_order' => $lesson->sort_order,
                 'is_preview' => $lesson->is_preview,
+                'lesson_type' => $lesson->lesson_type ?? 'regular',
                 'duration_seconds' => $lesson->duration_seconds,
                 'activity_count' => $lesson->activity_count,
                 'unlock_rule' => $lesson->unlock_rule_snapshot,

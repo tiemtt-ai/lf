@@ -37,6 +37,13 @@ four published snapshot tables.
 
 # Decision
 
+## Lesson Role Amendment (2026-07-12)
+
+Publish copies draft Lesson `lesson_type` to the immutable Version Lesson.
+Allowed codes are `regular`, `review`, `midterm_exam`, `final_exam`, and
+`other_exam`; existing data defaults to `regular`. The field is semantic only
+and does not alter scheduling, grading, completion, unlock or Assessment rules.
+
 ## Information Model Amendment (2026-07-12)
 
 Course Template is an internal authoring aggregate identified by tenant-scoped

@@ -295,6 +295,7 @@ class CourseTemplatePublishingService
                 'description_snapshot' => $lesson->description,
                 'sort_order' => $lesson->sort_order,
                 'is_preview' => $lesson->is_preview,
+                'lesson_type' => $lesson->lesson_type ?? 'regular',
                 'duration_seconds' => $lesson->duration_seconds,
                 'activity_count' => $activities
                     ->where('template_lesson_id', $lesson->id)
