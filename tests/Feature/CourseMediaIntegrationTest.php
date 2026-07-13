@@ -1020,6 +1020,67 @@ class CourseMediaIntegrationTest extends TestCase
         $this->assertActiveUsage($customerId, 'course_template', $templateId, 'intro_video');
     }
 
+    public function test_template_media_fields_use_the_shared_authoring_layout_for_admin_and_teacher(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData([
+                'title' => 'Standard Media Layout',
+                'intro_image_file' => UploadedFile::fake()->image('layout.png'),
+                'intro_video_source' => 'upload',
+                'intro_video_file' => UploadedFile::fake()->create('layout.mp4', 32, 'video/mp4'),
+                'intro_document_file' => UploadedFile::fake()->create('layout.pdf', 32, 'application/pdf'),
+            ])
+        )->assertRedirect();
+
+        $templateId = (int) DB::table('core_course_templates')
+            ->where('title', 'Standard Media Layout')->value('id');
+        $this->createTemplateAssignment($customerId, $templateId, $teacher->id);
+
+        foreach ([[$admin, 'admin'], [$teacher, 'teacher']] as [$user, $area]) {
+            $response = $this->actingAs($user)->get(
+                "https://tenant-a.localhost/{$area}/course-templates/{$templateId}/edit"
+            )->assertOk()
+                ->assertDontSeeText(__('lf.LF_course_template_activity_media_current_file'));
+            $html = $response->getContent();
+
+            $this->assertSame(3, $this->htmlElementCount(
+                $html,
+                '//div[contains(concat(" ", normalize-space(@class), " "), " course-template-information-media ")]'
+                .'//div[@data-authoring-media-current-row]'
+            ));
+
+            foreach ([
+                'intro_image_file' => 'remove_intro_image',
+                'intro_video_file' => 'remove_intro_video',
+                'intro_document_file' => 'remove_intro_document',
+            ] as $uploadName => $removeName) {
+                $field = '//div[contains(concat(" ", normalize-space(@class), " "), " course-template-information-media ")]'
+                    .'[.//input[@name="'.$uploadName.'"]]';
+                $this->assertSame(1, $this->htmlElementCount(
+                    $html,
+                    $field.'/input[@name="'.$uploadName.'"]'
+                    .'[preceding-sibling::div[@data-authoring-media-current-row]]'
+                ));
+                $this->assertSame(1, $this->htmlElementCount(
+                    $html,
+                    $field.'/input[@name="'.$uploadName.'"]'
+                    .'/following-sibling::*[1]'
+                    .'[contains(concat(" ", normalize-space(@class), " "), " authoring-media-help ")]'
+                ));
+                $this->assertSame(1, $this->htmlElementCount(
+                    $html,
+                    $field.'//div[@data-authoring-media-current-row]'
+                    .'//input[@name="'.$removeName.'"]'
+                ));
+            }
+        }
+    }
+
     public function test_course_template_rejects_cross_tenant_preview_media_id(): void
     {
         $customerId = $this->createTenant();
@@ -1787,7 +1848,7 @@ class CourseMediaIntegrationTest extends TestCase
             $this->assertSame(1, $this->htmlElementCount(
                 $response->getContent(),
                 '//div[@data-current-media-state="available"]'
-                .'//div[contains(concat(" ", normalize-space(@class), " "), " course-activity-current-media-card ")]'
+                .'//div[@data-authoring-media-current-row]'
                 .'[.//*[contains(concat(" ", normalize-space(@class), " "), " media-thumbnail ")]'
                 .' and .//*[self::a or self::button][normalize-space()="Xem"]]'
             ));
@@ -1795,6 +1856,17 @@ class CourseMediaIntegrationTest extends TestCase
                 $response->getContent(),
                 '//div[@data-current-media-state="available"]'
                 .'//*[contains(concat(" ", normalize-space(@class), " "), " course-activity-current-media-required ")]'
+            ));
+            $this->assertSame(1, $this->htmlElementCount(
+                $response->getContent(),
+                '//input[@name="'.$field.'"]'
+                .'[preceding-sibling::div[contains(concat(" ", normalize-space(@class), " "), " course-activity-current-media ")]]'
+                .'/following-sibling::*[1]'
+                .'[contains(concat(" ", normalize-space(@class), " "), " authoring-media-help ")]'
+            ));
+            $this->assertSame(0, $this->htmlElementCount(
+                $response->getContent(),
+                '//div[@data-current-media-state="available"]//input[starts-with(@name, "remove_")]'
             ));
 
             if ($type === 'document') {

@@ -273,8 +273,9 @@
     max-width: none;
 }
 
-.course-template-preview-card {
-    margin: 0 0 10px;
+.course-template-preview-card,
+.authoring-media-current-row {
+    margin: 10px;
     width: 100%;
     min-width: 0;
     display: flex;
@@ -282,6 +283,48 @@
     justify-content: flex-start;
     flex-wrap: wrap;
     gap: 8px;
+}
+
+.authoring-media-current-row {
+    flex-wrap: nowrap;
+}
+
+.authoring-media-current-row .media-thumbnail-compact {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    max-width: 48px;
+    flex-basis: 48px;
+}
+
+.authoring-media-actions {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.authoring-media-actions .admin-text-action {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.authoring-media-remove {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-weight: 500;
+}
+
+.authoring-media-help {
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.4;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .media-thumbnail-compact {
@@ -308,7 +351,7 @@
     object-fit: cover;
 }
 
-.media-thumbnail-video, .media-thumbnail-pdf, .media-thumbnail-word,
+.media-thumbnail-video, .media-thumbnail-audio, .media-thumbnail-pdf, .media-thumbnail-word,
 .media-thumbnail-spreadsheet, .media-thumbnail-presentation, .media-thumbnail-document {
     background: #e5e7eb;
 }
@@ -320,30 +363,8 @@
     height: 28px;
 }
 
-.course-template-preview-remove {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin: 0;
-    font-weight: 500;
-}
-
 .course-activity-current-media {
     margin-bottom: 8px;
-}
-
-.course-activity-current-media-card {
-    margin: 0;
-    flex-wrap: nowrap;
-    white-space: nowrap;
-}
-
-.course-activity-current-media-card .media-thumbnail-compact {
-    width: 48px;
-    height: 48px;
-    min-width: 48px;
-    max-width: 48px;
-    flex-basis: 48px;
 }
 
 .course-activity-current-media-message,
@@ -355,15 +376,6 @@
 
 .course-activity-current-media-required {
     color: #8a6d3b;
-}
-
-.course-template-activity-form .admin-upload-hint {
-    margin-top: 4px;
-    color: #64748b;
-    font-size: 13px;
-    line-height: 1.4;
-    white-space: normal;
-    overflow-wrap: anywhere;
 }
 
 .course-activity-media-audio-player {

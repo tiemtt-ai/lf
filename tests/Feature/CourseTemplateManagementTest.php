@@ -171,8 +171,7 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertStringContainsString('course-template-information-grid', $formPartial);
         $this->assertSame(2, substr_count($formPartial, 'course-template-information-wide'));
         $this->assertSame(3, substr_count($formPartial, 'course-template-information-media'));
-        $this->assertStringContainsString('course-template-preview-card', $formPartial);
-        $this->assertSame(3, substr_count($formPartial, '<x-media-thumbnail'));
+        $this->assertSame(3, substr_count($formPartial, '<x-authoring-media-row'));
         $this->assertSame(1, substr_count($formPartial, ':presentation="$introImageThumbnail"'));
         $this->assertSame(1, substr_count($formPartial, ':presentation="$introVideoThumbnail"'));
         $this->assertSame(1, substr_count($formPartial, ':presentation="$introDocumentThumbnail"'));

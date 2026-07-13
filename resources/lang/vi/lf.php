@@ -36,7 +36,7 @@ return [
     'action_view' => 'Xem',
     'upload_hint_formats' => 'Định dạng: :formats',
     'upload_hint_max_size' => 'Tối đa: :size',
-    'upload_hint_combined' => 'Định dạng: :formats • Tối đa: :size',
+    'upload_hint_combined' => 'Định dạng: :formats · Tối đa: :size',
     'LF_common_gender_common_select' => 'Chọn giới tính',
     'LF_common_gender_common_male' => 'Nam',
     'LF_common_gender_common_female' => 'Nữ',

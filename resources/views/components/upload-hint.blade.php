@@ -17,6 +17,6 @@
     ]);
 @endphp
 
-<div {{ $attributes->merge(['class' => 'admin-upload-hint']) }}>
+<div {{ $attributes->class(['admin-upload-hint', 'authoring-media-help']) }}>
     {{ $hintText }}@if ($note) <span>{{ $note }}</span>@endif
 </div>

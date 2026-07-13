@@ -7,10 +7,7 @@
 
 <div class="course-activity-current-media" data-current-media-state="{{ $presentation['state'] }}">
     @if ($presentation['state'] === 'available')
-        <div class="course-template-preview-card course-activity-current-media-card">
-            <x-media-thumbnail
-                :presentation="$presentation['thumbnail']"
-                alt="" />
+        <x-authoring-media-row :presentation="$presentation['thumbnail']" alt="">
             @if (in_array($mediaType, ['video', 'audio'], true))
                 <button type="button"
                         class="admin-link-button admin-text-action"
@@ -32,7 +29,7 @@
                     {{ __('lf.LF_media_file_common_preview_action') }}
                 </a>
             @endif
-        </div>
+        </x-authoring-media-row>
     @elseif ($presentation['state'] === 'unavailable')
         <p class="lf-form-help course-activity-current-media-message">
             {{ __('lf.LF_course_template_activity_media_unavailable') }}

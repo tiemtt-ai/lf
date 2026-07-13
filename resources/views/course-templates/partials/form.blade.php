@@ -120,15 +120,17 @@
         <div class="lf-form-group course-template-information-media">
             <x-form-label for="intro_image_file" :value="__('lf.LF_course_template_intro_image')" />
             <input type="hidden" name="intro_image_media_file_id" value="{{ old('intro_image_media_file_id', $formTemplate?->intro_image_media_file_id) }}">
-            <input id="intro_image_file" type="file" name="intro_image_file" class="lf-form-control" accept="image/*">
-            <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
             @if ($introImageMedia ?? null)
-                <div class="course-template-preview-card">
-                    <x-media-thumbnail :presentation="$introImageThumbnail" :alt="$introImageMedia->display_name" />
+                <x-authoring-media-row
+                    :presentation="$introImageThumbnail"
+                    :alt="__('lf.LF_course_template_intro_image')"
+                    remove-name="remove_intro_image"
+                    :remove-label="__('lf.LF_course_template_remove_current_image')">
                     <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openTemplatePreview(@js($introImageMedia->display_name), @js($introImageMedia->signed_url), @js($introImageMedia->mime_type), 'image')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
-                    <label class="course-template-preview-remove" for="remove_intro_image"><input id="remove_intro_image" type="checkbox" name="remove_intro_image" value="1"> {{ __('lf.LF_course_template_remove_current_image') }}</label>
-                </div>
+                </x-authoring-media-row>
             @endif
+            <input id="intro_image_file" type="file" name="intro_image_file" class="lf-form-control authoring-media-upload" accept="image/*">
+            <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
         </div>
 
         <div class="lf-form-group course-template-information-media">
@@ -139,34 +141,38 @@
                 <option value="embed">{{ __('lf.LF_course_template_video_embed') }}</option>
             </select>
             <input type="hidden" name="intro_video_media_file_id" value="{{ old('intro_video_media_file_id', $formTemplate?->intro_video_media_file_id) }}" :disabled="selectedVideoSource !== 'upload'">
-            <input type="file" name="intro_video_file" class="lf-form-control" accept="video/*" x-show="selectedVideoSource === 'upload'" :disabled="selectedVideoSource !== 'upload'">
-            <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']" x-show="selectedVideoSource === 'upload'" />
-            <input type="url" name="intro_video_embed_url" class="lf-form-control" value="{{ old('intro_video_embed_url', $formTemplate?->intro_video_embed_url) }}" placeholder="{{ __('lf.LF_course_template_placeholder_embed_url') }}" x-show="selectedVideoSource === 'embed'" :disabled="selectedVideoSource !== 'embed'">
             @if (($introVideoMedia ?? null) || ($introVideoEmbedUrl ?? null))
-                <div class="course-template-preview-card">
-                    <x-media-thumbnail :presentation="$introVideoThumbnail" :alt="__('lf.LF_course_template_intro_video')" />
+                <x-authoring-media-row
+                    :presentation="$introVideoThumbnail"
+                    :alt="__('lf.LF_course_template_intro_video')"
+                    remove-name="remove_intro_video"
+                    :remove-label="__('lf.LF_course_template_remove_current_video')">
                     @if ($introVideoMedia ?? null)
                         <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openTemplatePreview(@js($introVideoMedia->display_name), @js($introVideoMedia->signed_url), @js($introVideoMedia->mime_type), 'video')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
                     @else
                         <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openTemplatePreview(@js(ucfirst((string) $formTemplate?->intro_video_provider)), @js($introVideoEmbedUrl), 'text/html', 'embed')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
                     @endif
-                    <label class="course-template-preview-remove" for="remove_intro_video"><input id="remove_intro_video" type="checkbox" name="remove_intro_video" value="1"> {{ __('lf.LF_course_template_remove_current_video') }}</label>
-                </div>
+                </x-authoring-media-row>
             @endif
+            <input type="file" name="intro_video_file" class="lf-form-control authoring-media-upload" accept="video/*" x-show="selectedVideoSource === 'upload'" :disabled="selectedVideoSource !== 'upload'">
+            <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']" x-show="selectedVideoSource === 'upload'" />
+            <input type="url" name="intro_video_embed_url" class="lf-form-control" value="{{ old('intro_video_embed_url', $formTemplate?->intro_video_embed_url) }}" placeholder="{{ __('lf.LF_course_template_placeholder_embed_url') }}" x-show="selectedVideoSource === 'embed'" :disabled="selectedVideoSource !== 'embed'">
         </div>
 
         <div class="lf-form-group course-template-information-media">
             <x-form-label for="intro_document_file" :value="__('lf.LF_course_template_intro_document')" />
             <input type="hidden" name="intro_document_media_file_id" value="{{ old('intro_document_media_file_id', $formTemplate?->intro_document_media_file_id) }}">
-            <input id="intro_document_file" type="file" name="intro_document_file" class="lf-form-control">
-            <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'PPT', 'PPTX', 'XLS', 'XLSX']" />
             @if ($introDocumentMedia ?? null)
-                <div class="course-template-preview-card">
-                    <x-media-thumbnail :presentation="$introDocumentThumbnail" :alt="__('lf.LF_course_template_intro_document')" />
+                <x-authoring-media-row
+                    :presentation="$introDocumentThumbnail"
+                    :alt="__('lf.LF_course_template_intro_document')"
+                    remove-name="remove_intro_document"
+                    :remove-label="__('lf.LF_course_template_remove_current_document')">
                     <a class="admin-text-action" href="{{ $introDocumentMedia->signed_url }}" target="_blank" rel="noopener">{{ __('lf.LF_media_file_common_preview_action') }}</a>
-                    <label class="course-template-preview-remove" for="remove_intro_document"><input id="remove_intro_document" type="checkbox" name="remove_intro_document" value="1"> {{ __('lf.LF_course_template_remove_current_document') }}</label>
-                </div>
+                </x-authoring-media-row>
             @endif
+            <input id="intro_document_file" type="file" name="intro_document_file" class="lf-form-control authoring-media-upload">
+            <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'PPT', 'PPTX', 'XLS', 'XLSX']" />
         </div>
 
         <div class="lf-form-group"><x-form-label for="estimated_minutes_per_lesson" :value="__('lf.LF_course_template_estimated_minutes_per_lesson')" /><input id="estimated_minutes_per_lesson" type="number" min="1" name="estimated_minutes_per_lesson" class="lf-form-control" value="{{ old('estimated_minutes_per_lesson', $formTemplate?->estimated_minutes_per_lesson) }}" placeholder="{{ __('lf.LF_course_template_placeholder_minutes') }}"></div>

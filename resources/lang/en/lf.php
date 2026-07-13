@@ -36,7 +36,7 @@ return [
     'action_view' => 'View',
     'upload_hint_formats' => 'Formats: :formats',
     'upload_hint_max_size' => 'Max size: :size',
-    'upload_hint_combined' => 'Formats: :formats • Max size: :size',
+    'upload_hint_combined' => 'Formats: :formats · Maximum: :size',
     'LF_common_gender_common_select' => 'Select Gender',
     'LF_common_gender_common_male' => 'Male',
     'LF_common_gender_common_female' => 'Female',
