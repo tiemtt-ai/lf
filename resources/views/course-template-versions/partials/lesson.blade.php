@@ -1,146 +1,76 @@
 @php
-    $lessonView = $presentedLessons[$lesson->id];
+    $lessonActivities = $activitiesByLesson->get($lesson->id, collect());
+    $lessonDescription = trim((string) $lesson->short_description_snapshot) !== ''
+        ? $lesson->short_description_snapshot
+        : (trim((string) $lesson->description_snapshot) !== ''
+            ? $lesson->description_snapshot
+            : null);
 @endphp
 
-<details class="course-version-disclosure course-version-lesson">
-    <summary class="course-version-disclosure-summary">
-        <span>
+<article class="course-template-lesson-item"
+         data-version-lesson-id="{{ $lesson->id }}">
+    <div class="course-template-lesson-summary">
+        <div>
             <strong>{{ $lesson->title_snapshot }}</strong>
-            <small>
-                {{ __('lf.LF_course_template_lesson_common_role_'.($lesson->lesson_type ?? 'regular')) }}
-                ·
-                {{ $lessonView['minutes']
-                    ? __('lf.LF_course_template_activity_common_duration_minutes', [
-                        'minutes' => $lessonView['minutes'],
-                    ])
-                    : __('lf.LF_version_detail_not_specified') }}
-                · {{ $lessonView['unlock'] }}
-            </small>
-        </span>
+            @if ($lessonDescription !== null)
+                <span class="lf-secondary-text lf-line-clamp-2">
+                    {{ $lessonDescription }}
+                </span>
+            @endif
+        </div>
+    </div>
 
-        <span>
-            {{ __('lf.LF_course_template_version_detail_activities') }}:
-            {{ $lesson->activity_count }}
-        </span>
-    </summary>
+    <section id="course-version-lesson-{{ $lesson->id }}-activities"
+             class="course-template-activity-panel"
+             aria-labelledby="course-version-lesson-{{ $lesson->id }}-activities-title">
+        <div class="course-template-activity-toolbar">
+            <h5 id="course-version-lesson-{{ $lesson->id }}-activities-title">
+                {{ __('lf.LF_course_template_activity_common_list_title') }}
+                ({{ $lessonActivities->count() }})
+            </h5>
+        </div>
 
-    <div class="course-version-disclosure-body">
-        @if ($lesson->description_snapshot)
-            <p class="course-version-copy-text">
-                {{ $lesson->description_snapshot }}
-            </p>
-        @endif
-
-        <dl class="course-version-inline-summary">
-            <div>
-                <dt>{{ __('lf.LF_course_template_version_detail_preview') }}</dt>
-                <dd>
-                    {{ $lesson->is_preview
-                        ? __('lf.LF_course_template_version_detail_yes')
-                        : __('lf.LF_course_template_version_detail_no') }}
-                </dd>
-            </div>
-            <div>
-                <dt>{{ __('lf.LF_course_template_activity_common_unlock_rule') }}</dt>
-                <dd>{{ $lessonView['unlock'] }}</dd>
-            </div>
-            <div>
-                <dt>
-                    {{ __('lf.LF_course_template_version_detail_order', [
-                        'order' => $lesson->sort_order,
-                    ]) }}
-                </dt>
-                <dd>{{ $lesson->sort_order }}</dd>
-            </div>
-        </dl>
-
-        <div class="course-version-activities">
-            @forelse ($activitiesByLesson->get($lesson->id, collect()) as $activity)
+        <div class="course-template-activity-list">
+            @forelse ($lessonActivities as $activity)
                 @php
                     $activityView = $presentedActivities[$activity->id];
+                    $activityIcon = match ($activity->activity_type) {
+                        'video', 'embedded_video', 'live_class' => '🎥',
+                        'quiz', 'assignment' => '📝',
+                        'audio' => '🎧',
+                        'external_link' => '🔗',
+                        default => '📄',
+                    };
                 @endphp
 
-                <details class="course-version-disclosure course-version-activity">
-                    <summary class="course-version-disclosure-summary">
-                        <span>
-                            <strong>{{ $activity->title_snapshot }}</strong>
-                            <small>
-                                {{ __('lf.LF_course_template_activity_common_type_'.$activity->activity_type) }}
-                                ·
-                                {{ $activityView['minutes']
-                                    ? __('lf.LF_course_template_activity_common_duration_minutes', [
-                                        'minutes' => $activityView['minutes'],
-                                    ])
-                                    : __('lf.LF_version_detail_not_specified') }}
-                                · {{ $activityView['completion'] }}
-                            </small>
+                <div class="course-template-activity-item"
+                     data-version-activity-id="{{ $activity->id }}">
+                    <div class="course-template-activity-identity">
+                        <span class="course-template-activity-icon"
+                              aria-hidden="true">{{ $activityIcon }}</span>
+                        <span class="course-template-activity-title-text">
+                            {{ $activity->title_snapshot }}
                         </span>
-                    </summary>
-
-                    <div class="course-version-disclosure-body">
-                        @if ($activity->description_snapshot)
-                            <p class="course-version-copy-text">
-                                {{ $activity->description_snapshot }}
-                            </p>
-                        @endif
-
-                        <dl class="course-version-inline-summary">
-                            <div>
-                                <dt>{{ __('lf.LF_course_template_activity_common_required') }}</dt>
-                                <dd>
-                                    {{ $activity->is_required
-                                        ? __('lf.LF_course_template_version_detail_yes')
-                                        : __('lf.LF_course_template_version_detail_no') }}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt>{{ __('lf.LF_course_template_version_detail_preview') }}</dt>
-                                <dd>
-                                    {{ $activity->is_preview
-                                        ? __('lf.LF_course_template_version_detail_yes')
-                                        : __('lf.LF_course_template_version_detail_no') }}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt>{{ __('lf.LF_course_template_activity_common_unlock_rule') }}</dt>
-                                <dd>{{ $activityView['unlock'] }}</dd>
-                            </div>
-                        </dl>
-
-                        @if ($activityView['mediaUrl'])
-                            <a href="{{ $activityView['mediaUrl'] }}"
-                               target="_blank"
-                               rel="noopener">
-                                {{ __('lf.LF_media_file_common_preview_action') }}
-                            </a>
-                        @elseif ($activity->media_file_id)
-                            <p>{{ __('lf.LF_version_detail_media_unavailable') }}</p>
-                        @endif
-
-                        @if ($activity->external_video_url_snapshot)
-                            <a href="{{ $activity->external_video_url_snapshot }}"
-                               target="_blank"
-                               rel="noopener noreferrer">
-                                {{ __('lf.LF_media_file_common_preview_action') }}
-                            </a>
-                        @endif
-
-                        @if ($activity->live_class_url_snapshot)
-                            <span>
-                                {{ parse_url($activity->live_class_url_snapshot, PHP_URL_HOST) }}
-                            </span>
-                        @endif
-
-                        @if ($activity->assessment_quiz_id_snapshot)
-                            <span>{{ __('lf.LF_version_detail_assessment_reference') }}</span>
-                        @endif
                     </div>
-                </details>
+                    @if ($activityView['mediaUrl'] || $activityView['embeddedUrl'])
+                        <div class="admin-table-actions">
+                            <button type="button"
+                                    class="admin-link-button admin-text-action"
+                                    data-preview-name="{{ $activity->title_snapshot }}"
+                                    data-preview-url="{{ $activityView['mediaUrl'] ?: $activityView['embeddedUrl'] }}"
+                                    data-preview-type="{{ $activityView['mediaUrl'] ? $activity->activity_type : 'embed' }}"
+                                    data-preview-mime="{{ $activityView['embeddedUrl'] ? 'text/html' : '' }}"
+                                    x-on:click="openVersionPreview($el.dataset.previewName, $el.dataset.previewUrl, $el.dataset.previewType, $el.dataset.previewMime)">
+                                {{ __('lf.LF_media_file_common_preview_action') }}
+                            </button>
+                        </div>
+                    @endif
+                </div>
             @empty
-                <p class="course-version-empty">
-                    {{ __('lf.LF_course_template_version_detail_no_activities') }}
+                <p class="course-template-activity-empty">
+                    {{ __('lf.LF_course_template_activity_common_empty') }}
                 </p>
             @endforelse
         </div>
-    </div>
-</details>
+    </section>
+</article>

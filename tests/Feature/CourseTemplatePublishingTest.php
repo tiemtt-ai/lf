@@ -45,6 +45,123 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertFalse(Route::has('teacher.course-templates.versions.duplicate-to-draft'));
     }
 
+    public function test_version_content_tab_labels_and_empty_states_are_localized(): void
+    {
+        app()->setLocale('en');
+        $this->assertSame('Direct Lessons', __('lf.LF_course_template_structure_tab_direct'));
+        $this->assertSame('By Sections', __('lf.LF_course_template_structure_tab_sections'));
+        $this->assertSame('No direct lessons.', __('lf.LF_version_detail_no_direct_lessons'));
+        $this->assertSame('No sections.', __('lf.LF_version_detail_no_sections'));
+
+        app()->setLocale('vi');
+        $this->assertSame('Bài học trực tiếp', __('lf.LF_course_template_structure_tab_direct'));
+        $this->assertSame('Theo phần học', __('lf.LF_course_template_structure_tab_sections'));
+        $this->assertSame('Chưa có bài học trực tiếp.', __('lf.LF_version_detail_no_direct_lessons'));
+        $this->assertSame('Chưa có phần học.', __('lf.LF_version_detail_no_sections'));
+    }
+
+    public function test_version_content_reuses_authoring_visual_classes_without_parallel_tab_styles(): void
+    {
+        $authoringStructure = file_get_contents(resource_path(
+            'views/course-template-sections/partials/list.blade.php'
+        ));
+        $authoringSections = file_get_contents(resource_path(
+            'views/course-template-sections/partials/section-node.blade.php'
+        ));
+        $authoringLessons = file_get_contents(resource_path(
+            'views/course-template-lessons/partials/list.blade.php'
+        ));
+        $version = file_get_contents(resource_path(
+            'views/course-template-versions/show.blade.php'
+        ));
+        $versionSections = file_get_contents(resource_path(
+            'views/course-template-versions/partials/section-node.blade.php'
+        ));
+        $versionLessons = file_get_contents(resource_path(
+            'views/course-template-versions/partials/lesson.blade.php'
+        ));
+        foreach ([
+            'course-template-section-card',
+            'course-template-section-header',
+            'course-template-structure-tabs',
+            'course-template-structure-panel',
+            'course-template-section-action-bar',
+            'course-template-outline-sections',
+        ] as $class) {
+            $this->assertStringContainsString($class, $authoringStructure);
+            $this->assertStringContainsString($class, $version);
+        }
+
+        foreach ([
+            'course-template-outline-section',
+            'course-template-outline-section-header',
+            'course-template-outline-section-title',
+            'course-template-outline-children',
+        ] as $class) {
+            $this->assertStringContainsString($class, $authoringSections);
+            $this->assertStringContainsString($class, $versionSections);
+        }
+
+        foreach ([
+            'course-template-lesson-panel',
+            'course-template-lesson-list',
+            'course-template-lesson-item',
+            'course-template-lesson-summary',
+            'course-template-activity-panel',
+            'course-template-activity-list',
+            'course-template-activity-item',
+            'course-template-activity-identity',
+        ] as $class) {
+            $this->assertStringContainsString($class, $authoringLessons);
+            $this->assertStringContainsString($class, $version.$versionLessons);
+        }
+
+        foreach ([
+            'course-version-role-badge',
+            'course-version-lesson-title-row',
+            'course-version-lesson-meta',
+            'course-version-activity-meta',
+            'LF_version_detail_required_short',
+            'LF_course_template_version_detail_preview',
+            'unlock_rule_snapshot',
+        ] as $versionOnlyPresentation) {
+            $this->assertStringNotContainsString(
+                $versionOnlyPresentation,
+                $versionLessons
+            );
+        }
+        $this->assertStringContainsString('short_description_snapshot', $versionLessons);
+        $this->assertStringContainsString('description_snapshot', $versionLessons);
+        $this->assertStringContainsString('course-template-activity-icon', $versionLessons);
+        $this->assertStringContainsString('title_snapshot', $versionLessons);
+
+        $css = file_get_contents(resource_path('css/admin/admin-pages.css'));
+        $this->assertStringNotContainsString('.course-version-structure-tabs', $css);
+        $this->assertStringNotContainsString('.course-version-structure-tab', $css);
+        $this->assertStringNotContainsString('.course-version-outline-section-header', $css);
+        $this->assertStringNotContainsString('.course-version-lesson-item', $css);
+        $this->assertFileDoesNotExist(resource_path(
+            'views/components/course-structure-tabs.blade.php'
+        ));
+        $authoringTabs = (string) str($authoringStructure)->between(
+            '<div class="course-template-structure-tabs"',
+            '<div id="course-template-direct-panel"'
+        );
+        $versionTabs = (string) str($version)->between(
+            '<div class="course-template-structure-tabs"',
+            '<div id="course-version-direct-panel"'
+        );
+        $normalizeTabs = static fn (string $html): string => str_replace(
+            ['course-template', 'course-version', 'activeStructureTab', 'activeContentTab', 'selectStructureTab', 'selectContentTab'],
+            ['course-context', 'course-context', 'activeTab', 'activeTab', 'selectTab', 'selectTab'],
+            preg_replace('/\s+/', ' ', trim($html))
+        );
+        $this->assertSame(
+            $normalizeTabs($authoringTabs),
+            $normalizeTabs($versionTabs)
+        );
+    }
+
     public function test_admin_publish_creates_a_complete_immutable_snapshot(): void
     {
         $customerId = $this->createTenant();
@@ -431,14 +548,14 @@ class CourseTemplatePublishingTest extends TestCase
         ] as $case => $corrupt) {
             $corrupt();
             $response = $this->actingAs($admin)->get($url)->assertOk()
-                ->assertSeeText('Media snapshot không khả dụng')
+                ->assertDontSeeText('Media snapshot không khả dụng')
                 ->assertDontSee('media/files/', false)
                 ->assertDontSee('tests/activity-', false);
             $this->assertStringNotContainsString('course_activity', $response->getContent(), $case);
         }
         app()->setLocale('en');
         $this->actingAs($admin)->get($url)->assertOk()
-            ->assertSeeText('Media snapshot unavailable')
+            ->assertDontSeeText('Media snapshot unavailable')
             ->assertDontSee('media/files/', false);
         $this->assertDatabaseHas('media_file_usages', ['owner_type' => 'course_activity', 'owner_id' => $draftActivityId, 'status' => 'active']);
     }
@@ -462,6 +579,7 @@ class CourseTemplatePublishingTest extends TestCase
             'Ảnh giới thiệu của Template không khả dụng hoặc liên kết Media không hợp lệ. Vui lòng kiểm tra tab Thông tin.',
             __('lf.LF_course_template_publish_integrity_template_intro_image')
         );
+
     }
 
     public function test_publish_tab_uses_structured_readiness_for_ready_and_blocked_drafts(): void
@@ -960,6 +1078,32 @@ class CourseTemplatePublishingTest extends TestCase
             1,
             $admin->id
         );
+        $blankDescriptionLessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'Blank Description Lesson',
+            2,
+            $admin->id
+        );
+        DB::table('core_course_template_lessons')
+            ->where('id', $directLessonId)
+            ->update([
+                'short_description' => 'Immutable <script>alert("lesson")</script> summary.',
+                'description' => 'Detailed description must not replace the short description.',
+            ]);
+        DB::table('core_course_template_lessons')
+            ->where('id', $sectionLessonId)
+            ->update([
+                'short_description' => null,
+                'description' => 'Immutable section lesson description.',
+            ]);
+        DB::table('core_course_template_lessons')
+            ->where('id', $blankDescriptionLessonId)
+            ->update([
+                'short_description' => '   ',
+                'description' => "\n\t",
+            ]);
         $this->createActivity(
             $customerId,
             $templateId,
@@ -981,30 +1125,107 @@ class CourseTemplatePublishingTest extends TestCase
             "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish"
         );
 
+        DB::table('core_course_template_lessons')
+            ->whereIn('id', [$directLessonId, $sectionLessonId])
+            ->update([
+                'short_description' => 'Changed draft description.',
+                'description' => 'Changed draft detailed description.',
+            ]);
+
         $versionId = (int) DB::table('core_course_template_versions')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
             ->value('id');
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->get(
                 "https://tenant-a.localhost/admin/course-templates/{$templateId}/versions/{$versionId}"
             )
             ->assertOk()
             ->assertSeeText('Chi tiết phiên bản đã xuất bản')
             ->assertSeeText('Phiên bản 1')
-            ->assertSeeText('Hiện tại')
+            ->assertSeeText('Phiên bản xuất bản hiện tại')
+            ->assertSeeText('Bản chỉnh sửa nguồn')
+            ->assertSeeText('Đây là phiên bản lịch sử bất biến')
             ->assertSeeText('Readonly Snapshot')
             ->assertSeeText('Bài học trực tiếp')
             ->assertSeeText('Direct Snapshot Lesson')
+            ->assertSeeText('Immutable <script>alert("lesson")</script> summary.')
+            ->assertSeeText('Immutable section lesson description.')
+            ->assertSeeText('Blank Description Lesson')
+            ->assertDontSeeText('Changed draft description.')
+            ->assertDontSeeText('Detailed description must not replace the short description.')
+            ->assertDontSee('<script>alert("lesson")</script>', false)
             ->assertSeeText('Direct Snapshot Activity')
             ->assertSeeText('Hangul')
             ->assertSeeText('Section Snapshot Lesson')
             ->assertSeeText('Section Snapshot Activity')
             ->assertSeeText('Quay lại lịch sử khóa học')
             ->assertSeeText('Sao chép vào bản nháp')
+            ->assertSee('class="course-template-version-detail"', false)
+            ->assertSee('role="tablist"', false)
+            ->assertSee('id="course-version-direct-tab"', false)
+            ->assertSee('id="course-version-sections-tab"', false)
+            ->assertSee('role="tabpanel"', false)
+            ->assertSee('x-on:keydown.right.prevent', false)
+            ->assertSee('x-on:keydown.left.prevent', false)
+            ->assertSee('class="course-template-outline-section"', false)
+            ->assertSee('class="course-template-lesson-item"', false)
+            ->assertSee('class="course-template-activity-item"', false)
+            ->assertSee('openVersionPreview', false)
+            ->assertDontSeeText('Giáo viên được phân công')
             ->assertDontSeeText('Lưu thay đổi')
             ->assertDontSeeText('Xóa');
+
+        $html = $response->getContent();
+        $directPanel = str($html)->between(
+            'id="course-version-direct-panel"',
+            'id="course-version-sections-panel"'
+        );
+        $sectionsPanel = str($html)->after('id="course-version-sections-panel"');
+
+        $this->assertStringContainsString('Direct Snapshot Lesson', $directPanel);
+        $this->assertStringNotContainsString('Section Snapshot Lesson', $directPanel);
+        $this->assertStringContainsString('Section Snapshot Lesson', $sectionsPanel);
+
+        $document = new \DOMDocument;
+        @$document->loadHTML($html);
+        $xpath = new \DOMXPath($document);
+        $contentCard = $xpath->query('//*[@id="course-version-content"]')->item(0);
+        $this->assertNotNull($contentCard);
+        $this->assertSame(0, $xpath->query('.//form', $contentCard)->length);
+        $this->assertSame(0, $xpath->query('.//input|.//select|.//textarea', $contentCard)->length);
+        $this->assertSame(0, $xpath->query('.//*[contains(@class, "course-version-role-badge")]', $contentCard)->length);
+        $this->assertSame(0, $xpath->query('.//*[contains(@class, "course-version-lesson-meta")]', $contentCard)->length);
+        $this->assertSame(0, $xpath->query('.//*[contains(@class, "course-version-activity-meta")]', $contentCard)->length);
+
+        $lessonSelector = './/article[contains(concat(" ", normalize-space(@class), " "), " course-template-lesson-item ")]';
+        $directLesson = $xpath->query($lessonSelector.'[.//strong[normalize-space()="Direct Snapshot Lesson"]]', $contentCard)->item(0);
+        $sectionLesson = $xpath->query($lessonSelector.'[.//strong[normalize-space()="Section Snapshot Lesson"]]', $contentCard)->item(0);
+        $blankLesson = $xpath->query($lessonSelector.'[.//strong[normalize-space()="Blank Description Lesson"]]', $contentCard)->item(0);
+        foreach ([$directLesson, $sectionLesson, $blankLesson] as $lessonNode) {
+            $this->assertNotNull($lessonNode);
+        }
+        $descriptionSelector = './/*[contains(concat(" ", normalize-space(@class), " "), " course-template-lesson-summary ")]/div/strong/following-sibling::*[1][self::span[contains(concat(" ", normalize-space(@class), " "), " lf-secondary-text ") and contains(concat(" ", normalize-space(@class), " "), " lf-line-clamp-2 ")]]';
+        $this->assertSame(1, $xpath->query($descriptionSelector, $directLesson)->length);
+        $this->assertSame(1, $xpath->query($descriptionSelector, $sectionLesson)->length);
+        $this->assertSame(0, $xpath->query($descriptionSelector, $blankLesson)->length);
+
+        $pageCss = file_get_contents(
+            base_path('resources/css/admin/admin-pages.css')
+        );
+        $this->assertStringContainsString(
+            '.course-template-version-detail {' . PHP_EOL
+                . '    width: 100%;' . PHP_EOL
+                . '    min-width: 0;',
+            $pageCss
+        );
+        $this->assertStringNotContainsString(
+            '.course-template-version-detail {' . PHP_EOL
+                . '    width: 100%;' . PHP_EOL
+                . '    max-width: 960px;',
+            $pageCss
+        );
 
         $this->actingAs($admin)
             ->get(

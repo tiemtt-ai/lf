@@ -1486,6 +1486,12 @@ class CourseMediaIntegrationTest extends TestCase
             ->assertSeeText('Historical Media Detail')
             ->assertDontSeeText('Changed Current Draft')
             ->assertDontSee('vimeo.com/76979871', false)
+            ->assertSee('data-version-media-slot="image"', false)
+            ->assertSee('data-version-media-slot="video"', false)
+            ->assertSee('data-version-media-slot="document"', false)
+            ->assertSee('openVersionPreview', false)
+            ->assertSee('x-ref="versionPreviewVideo"', false)
+            ->assertSee('course-version-document-preview', false)
             ->assertSee("/versions/{$version->id}/media/image/", false)
             ->assertSee("/versions/{$version->id}/media/video/", false)
             ->assertSee("/versions/{$version->id}/media/document/", false);
@@ -1522,6 +1528,7 @@ class CourseMediaIntegrationTest extends TestCase
         $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$template->id}/versions/{$version->id}")
             ->assertOk()
             ->assertSee('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ', false)
+            ->assertSee("openVersionPreview", false)
             ->assertSeeText('Không có');
 
         DB::table('core_course_template_versions')->where('id', $version->id)->update([

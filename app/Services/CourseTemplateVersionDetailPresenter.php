@@ -7,7 +7,10 @@ use Illuminate\Support\Collection;
 
 class CourseTemplateVersionDetailPresenter
 {
-    public function __construct(private readonly MediaService $mediaService) {}
+    public function __construct(
+        private readonly MediaService $mediaService,
+        private readonly TrustedVideoUrlService $trustedVideos,
+    ) {}
 
     public function present(int $versionId, Collection $lessons, Collection $activities): array
     {
@@ -36,8 +39,26 @@ class CourseTemplateVersionDetailPresenter
                 default => __('lf.LF_version_detail_completion_invalid'),
             };
             $mediaUrl = $mediaUrls[$activity->id] ?? null;
+            $embeddedUrl = null;
+            if ($activity->activity_type === 'embedded_video'
+                && $activity->external_video_url_snapshot) {
+                try {
+                    $embeddedUrl = $this->trustedVideos->embedUrl(
+                        $activity->external_video_url_snapshot
+                    );
+                } catch (\Throwable) {
+                    $embeddedUrl = null;
+                }
+            }
 
-            return [$activity->id => compact('activity', 'minutes', 'unlock', 'completion', 'mediaUrl')];
+            return [$activity->id => compact(
+                'activity',
+                'minutes',
+                'unlock',
+                'completion',
+                'mediaUrl',
+                'embeddedUrl'
+            )];
         });
         $presentedLessons = $lessons->mapWithKeys(function ($lesson) use ($lessonTitles) {
             $minutes = $lesson->duration_seconds ? intdiv($lesson->duration_seconds, 60) : null;
