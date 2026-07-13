@@ -47,8 +47,7 @@ class CourseTemplateController extends Controller
             ->where('templates.customer_id', $customerId)
             ->when($keyword !== '', function ($query) use ($keyword): void {
                 $query->where(function ($query) use ($keyword): void {
-                    $query->where('templates.title', 'like', '%'.$keyword.'%')
-                        ;
+                    $query->where('templates.title', 'like', '%'.$keyword.'%');
                 });
             })
             ->when($status, function ($query) use ($status): void {
@@ -440,12 +439,16 @@ class CourseTemplateController extends Controller
                 $validator->errors()->add('intro_video_media_file_id', __('validation.required'));
             }
             if ($source === 'embed') {
-                try { $this->trustedVideoUrls->normalize((string) ($input['intro_video_embed_url'] ?? '')); }
-                catch (\InvalidArgumentException) { $validator->errors()->add('intro_video_embed_url', __('lf.LF_course_template_invalid_embed_url')); }
+                try {
+                    $this->trustedVideoUrls->normalize((string) ($input['intro_video_embed_url'] ?? ''));
+                } catch (\InvalidArgumentException) {
+                    $validator->errors()->add('intro_video_embed_url', __('lf.LF_course_template_invalid_embed_url'));
+                }
             }
         });
 
         $validated = $validator->validate();
+
         return $validated;
     }
 

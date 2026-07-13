@@ -36,6 +36,7 @@ class CourseTemplateVersionDetailPresenter
                 default => __('lf.LF_version_detail_completion_invalid'),
             };
             $mediaUrl = $mediaUrls[$activity->id] ?? null;
+
             return [$activity->id => compact('activity', 'minutes', 'unlock', 'completion', 'mediaUrl')];
         });
         $presentedLessons = $lessons->mapWithKeys(function ($lesson) use ($lessonTitles) {
@@ -48,8 +49,10 @@ class CourseTemplateVersionDetailPresenter
                 'date_based' => $lesson->unlock_at_snapshot ? __('lf.LF_version_detail_available_from', ['datetime' => $this->date($lesson->unlock_at_snapshot)]) : __('lf.LF_version_detail_unlock_invalid'),
                 default => __('lf.LF_version_detail_unlock_invalid'),
             };
+
             return [$lesson->id => compact('lesson', 'minutes', 'unlock')];
         });
+
         return compact('presentedLessons', 'presentedActivities');
     }
 

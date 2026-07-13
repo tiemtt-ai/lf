@@ -1615,6 +1615,7 @@ class CourseTemplatePublishingTest extends TestCase
             'usage_type' => $activityType, 'status' => 'active', 'metadata' => null,
             'created_by' => $createdBy, 'created_at' => now(), 'updated_at' => now(),
         ]);
+
         return $activityId;
     }
 

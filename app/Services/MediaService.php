@@ -141,6 +141,7 @@ class MediaService
     {
         abort_unless(request()->user()?->role === 'customer_admin', 403);
         $customerId = $this->customerId();
+
         return DB::table('core_course_template_version_activities as activities')
             ->join('core_course_template_versions as versions', fn ($join) => $join->on('versions.id', '=', 'activities.template_version_id')->where('versions.customer_id', $customerId)->where('versions.id', $versionId))
             ->join('media_file_usages as usages', fn ($join) => $join->on('usages.owner_id', '=', 'activities.id')->on('usages.media_file_id', '=', 'activities.media_file_id')->where('usages.customer_id', $customerId)->where('usages.owner_type', 'course_version_activity')->where('usages.status', 'active'))
@@ -216,6 +217,7 @@ class MediaService
             ->value('media.id');
 
         abort_if(! $media, 404);
+
         return $this->generateSignedUrl((int) $media);
     }
 

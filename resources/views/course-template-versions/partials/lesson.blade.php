@@ -1,16 +1,146 @@
-@php($lessonView = $presentedLessons[$lesson->id])
+@php
+    $lessonView = $presentedLessons[$lesson->id];
+@endphp
+
 <details class="course-version-disclosure course-version-lesson">
-<summary class="course-version-disclosure-summary"><span><strong>{{ $lesson->title_snapshot }}</strong><small>{{ __('lf.LF_course_template_lesson_common_role_'.($lesson->lesson_type ?? 'regular')) }} · {{ $lessonView['minutes'] ? __('lf.LF_course_template_activity_common_duration_minutes', ['minutes' => $lessonView['minutes']]) : __('lf.LF_version_detail_not_specified') }} · {{ $lessonView['unlock'] }}</small></span><span>{{ __('lf.LF_course_template_version_detail_activities') }}: {{ $lesson->activity_count }}</span></summary>
-<div class="course-version-disclosure-body">
-@if ($lesson->description_snapshot)<p class="course-version-copy-text">{{ $lesson->description_snapshot }}</p>@endif
-<dl class="course-version-inline-summary"><div><dt>{{ __('lf.LF_course_template_version_detail_preview') }}</dt><dd>{{ $lesson->is_preview ? __('lf.LF_course_template_version_detail_yes') : __('lf.LF_course_template_version_detail_no') }}</dd></div><div><dt>{{ __('lf.LF_course_template_activity_common_unlock_rule') }}</dt><dd>{{ $lessonView['unlock'] }}</dd></div><div><dt>{{ __('lf.LF_course_template_version_detail_order', ['order' => $lesson->sort_order]) }}</dt><dd>{{ $lesson->sort_order }}</dd></div></dl>
-<div class="course-version-activities">@forelse ($activitiesByLesson->get($lesson->id, collect()) as $activity) @php($activityView = $presentedActivities[$activity->id])
-<details class="course-version-disclosure course-version-activity"><summary class="course-version-disclosure-summary"><span><strong>{{ $activity->title_snapshot }}</strong><small>{{ __('lf.LF_course_template_activity_common_type_'.$activity->activity_type) }} · {{ $activityView['minutes'] ? __('lf.LF_course_template_activity_common_duration_minutes', ['minutes' => $activityView['minutes']]) : __('lf.LF_version_detail_not_specified') }} · {{ $activityView['completion'] }}</small></span></summary><div class="course-version-disclosure-body">
-@if ($activity->description_snapshot)<p class="course-version-copy-text">{{ $activity->description_snapshot }}</p>@endif
-<dl class="course-version-inline-summary"><div><dt>{{ __('lf.LF_course_template_activity_common_required') }}</dt><dd>{{ $activity->is_required ? __('lf.LF_course_template_version_detail_yes') : __('lf.LF_course_template_version_detail_no') }}</dd></div><div><dt>{{ __('lf.LF_course_template_version_detail_preview') }}</dt><dd>{{ $activity->is_preview ? __('lf.LF_course_template_version_detail_yes') : __('lf.LF_course_template_version_detail_no') }}</dd></div><div><dt>{{ __('lf.LF_course_template_activity_common_unlock_rule') }}</dt><dd>{{ $activityView['unlock'] }}</dd></div></dl>
-@if ($activityView['mediaUrl'])<a href="{{ $activityView['mediaUrl'] }}" target="_blank" rel="noopener">{{ __('lf.LF_media_file_common_preview_action') }}</a>@elseif ($activity->media_file_id)<p>{{ __('lf.LF_version_detail_media_unavailable') }}</p>@endif
-@if ($activity->external_video_url_snapshot)<a href="{{ $activity->external_video_url_snapshot }}" target="_blank" rel="noopener noreferrer">{{ __('lf.LF_media_file_common_preview_action') }}</a>@endif
-@if ($activity->live_class_url_snapshot)<span>{{ parse_url($activity->live_class_url_snapshot, PHP_URL_HOST) }}</span>@endif
-@if ($activity->assessment_quiz_id_snapshot)<span>{{ __('lf.LF_version_detail_assessment_reference') }}</span>@endif
-</div></details>@empty <p class="course-version-empty">{{ __('lf.LF_course_template_version_detail_no_activities') }}</p>@endforelse</div>
-</div></details>
+    <summary class="course-version-disclosure-summary">
+        <span>
+            <strong>{{ $lesson->title_snapshot }}</strong>
+            <small>
+                {{ __('lf.LF_course_template_lesson_common_role_'.($lesson->lesson_type ?? 'regular')) }}
+                ·
+                {{ $lessonView['minutes']
+                    ? __('lf.LF_course_template_activity_common_duration_minutes', [
+                        'minutes' => $lessonView['minutes'],
+                    ])
+                    : __('lf.LF_version_detail_not_specified') }}
+                · {{ $lessonView['unlock'] }}
+            </small>
+        </span>
+
+        <span>
+            {{ __('lf.LF_course_template_version_detail_activities') }}:
+            {{ $lesson->activity_count }}
+        </span>
+    </summary>
+
+    <div class="course-version-disclosure-body">
+        @if ($lesson->description_snapshot)
+            <p class="course-version-copy-text">
+                {{ $lesson->description_snapshot }}
+            </p>
+        @endif
+
+        <dl class="course-version-inline-summary">
+            <div>
+                <dt>{{ __('lf.LF_course_template_version_detail_preview') }}</dt>
+                <dd>
+                    {{ $lesson->is_preview
+                        ? __('lf.LF_course_template_version_detail_yes')
+                        : __('lf.LF_course_template_version_detail_no') }}
+                </dd>
+            </div>
+            <div>
+                <dt>{{ __('lf.LF_course_template_activity_common_unlock_rule') }}</dt>
+                <dd>{{ $lessonView['unlock'] }}</dd>
+            </div>
+            <div>
+                <dt>
+                    {{ __('lf.LF_course_template_version_detail_order', [
+                        'order' => $lesson->sort_order,
+                    ]) }}
+                </dt>
+                <dd>{{ $lesson->sort_order }}</dd>
+            </div>
+        </dl>
+
+        <div class="course-version-activities">
+            @forelse ($activitiesByLesson->get($lesson->id, collect()) as $activity)
+                @php
+                    $activityView = $presentedActivities[$activity->id];
+                @endphp
+
+                <details class="course-version-disclosure course-version-activity">
+                    <summary class="course-version-disclosure-summary">
+                        <span>
+                            <strong>{{ $activity->title_snapshot }}</strong>
+                            <small>
+                                {{ __('lf.LF_course_template_activity_common_type_'.$activity->activity_type) }}
+                                ·
+                                {{ $activityView['minutes']
+                                    ? __('lf.LF_course_template_activity_common_duration_minutes', [
+                                        'minutes' => $activityView['minutes'],
+                                    ])
+                                    : __('lf.LF_version_detail_not_specified') }}
+                                · {{ $activityView['completion'] }}
+                            </small>
+                        </span>
+                    </summary>
+
+                    <div class="course-version-disclosure-body">
+                        @if ($activity->description_snapshot)
+                            <p class="course-version-copy-text">
+                                {{ $activity->description_snapshot }}
+                            </p>
+                        @endif
+
+                        <dl class="course-version-inline-summary">
+                            <div>
+                                <dt>{{ __('lf.LF_course_template_activity_common_required') }}</dt>
+                                <dd>
+                                    {{ $activity->is_required
+                                        ? __('lf.LF_course_template_version_detail_yes')
+                                        : __('lf.LF_course_template_version_detail_no') }}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt>{{ __('lf.LF_course_template_version_detail_preview') }}</dt>
+                                <dd>
+                                    {{ $activity->is_preview
+                                        ? __('lf.LF_course_template_version_detail_yes')
+                                        : __('lf.LF_course_template_version_detail_no') }}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt>{{ __('lf.LF_course_template_activity_common_unlock_rule') }}</dt>
+                                <dd>{{ $activityView['unlock'] }}</dd>
+                            </div>
+                        </dl>
+
+                        @if ($activityView['mediaUrl'])
+                            <a href="{{ $activityView['mediaUrl'] }}"
+                               target="_blank"
+                               rel="noopener">
+                                {{ __('lf.LF_media_file_common_preview_action') }}
+                            </a>
+                        @elseif ($activity->media_file_id)
+                            <p>{{ __('lf.LF_version_detail_media_unavailable') }}</p>
+                        @endif
+
+                        @if ($activity->external_video_url_snapshot)
+                            <a href="{{ $activity->external_video_url_snapshot }}"
+                               target="_blank"
+                               rel="noopener noreferrer">
+                                {{ __('lf.LF_media_file_common_preview_action') }}
+                            </a>
+                        @endif
+
+                        @if ($activity->live_class_url_snapshot)
+                            <span>
+                                {{ parse_url($activity->live_class_url_snapshot, PHP_URL_HOST) }}
+                            </span>
+                        @endif
+
+                        @if ($activity->assessment_quiz_id_snapshot)
+                            <span>{{ __('lf.LF_version_detail_assessment_reference') }}</span>
+                        @endif
+                    </div>
+                </details>
+            @empty
+                <p class="course-version-empty">
+                    {{ __('lf.LF_course_template_version_detail_no_activities') }}
+                </p>
+            @endforelse
+        </div>
+    </div>
+</details>
