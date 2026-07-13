@@ -48,6 +48,113 @@ class CourseMediaIntegrationTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_course_template_create_rolls_back_when_media_synchronization_throws(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $imageId = $this->createMediaFile(
+            $customerId,
+            $admin->id,
+            'image',
+            'create-rollback.png',
+            'image/png'
+        );
+        $mediaService = \Mockery::mock(MediaService::class)->makePartial();
+        $mediaService->shouldReceive('attachUsage')
+            ->once()
+            ->andThrow(new \RuntimeException('Injected media synchronization failure.'));
+        $this->app->instance(MediaService::class, $mediaService);
+        $this->withoutExceptionHandling();
+
+        try {
+            $this->actingAs($admin)->post(
+                'https://tenant-a.localhost/admin/course-templates',
+                $this->validTemplateData([
+                    'title' => 'Create Must Roll Back',
+                    'intro_image_file' => null,
+                    'intro_image_media_file_id' => $imageId,
+                ])
+            );
+            $this->fail('Expected media synchronization to fail.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Injected media synchronization failure.', $exception->getMessage());
+        }
+
+        $this->assertDatabaseMissing('core_course_templates', [
+            'customer_id' => $customerId,
+            'title' => 'Create Must Roll Back',
+        ]);
+        $this->assertDatabaseMissing('media_file_usages', [
+            'customer_id' => $customerId,
+            'media_file_id' => $imageId,
+            'owner_type' => 'course_template',
+            'usage_type' => 'intro_image',
+        ]);
+    }
+
+    public function test_course_template_update_rolls_back_fields_and_usages_when_later_media_sync_throws(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData(['title' => 'Original Atomic Template'])
+        )->assertRedirect();
+        $template = DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('title', 'Original Atomic Template')
+            ->sole();
+        $originalImageId = (int) $template->intro_image_media_file_id;
+        $replacementImageId = $this->createMediaFile($customerId, $admin->id, 'image', 'replacement.png', 'image/png');
+        $replacementVideoId = $this->createMediaFile($customerId, $admin->id, 'video', 'replacement.mp4', 'video/mp4');
+
+        $mediaService = \Mockery::mock(MediaService::class)->makePartial();
+        $mediaService->shouldReceive('attachUsage')->byDefault()->passthru();
+        $mediaService->shouldReceive('attachUsage')
+            ->with($replacementVideoId, 'course_template', (int) $template->id, 'intro_video')
+            ->once()
+            ->andThrow(new \RuntimeException('Injected later media synchronization failure.'));
+        $this->app->instance(MediaService::class, $mediaService);
+        $this->withoutExceptionHandling();
+
+        try {
+            $this->actingAs($admin)->put(
+                "https://tenant-a.localhost/admin/course-templates/{$template->id}",
+                $this->validTemplateData([
+                    'title' => 'Mutated Title Must Roll Back',
+                    'intro_image_file' => null,
+                    'intro_image_media_file_id' => $replacementImageId,
+                    'intro_video_source' => 'upload',
+                    'intro_video_media_file_id' => $replacementVideoId,
+                ])
+            );
+            $this->fail('Expected later media synchronization to fail.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Injected later media synchronization failure.', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $template->id,
+            'title' => 'Original Atomic Template',
+            'working_revision' => 1,
+            'intro_image_media_file_id' => $originalImageId,
+            'intro_video_media_file_id' => null,
+        ]);
+        $this->assertDatabaseHas('media_file_usages', [
+            'media_file_id' => $originalImageId,
+            'owner_type' => 'course_template',
+            'owner_id' => $template->id,
+            'usage_type' => 'intro_image',
+            'status' => 'active',
+        ]);
+        $this->assertDatabaseMissing('media_file_usages', [
+            'media_file_id' => $replacementImageId,
+            'owner_type' => 'course_template',
+            'owner_id' => $template->id,
+            'usage_type' => 'intro_image',
+        ]);
+    }
+
     public function test_admin_can_upload_and_view_course_product_cover_image(): void
     {
         $customerId = $this->createTenant();
@@ -147,7 +254,7 @@ class CourseMediaIntegrationTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
             ->assertOk()
             ->assertSee('name="intro_image_file"', false)
-            ->assertSee('expiration=', false)
+            ->assertSee("/admin/course-templates/{$templateId}/media/image/", false)
             ->assertSee('name="remove_intro_image"', false)
             ->assertSee(__('lf.LF_media_file_common_preview_action'), false)
             ->assertDontSee('course-template-preview-type', false)
@@ -207,7 +314,7 @@ class CourseMediaIntegrationTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
             ->assertOk()
             ->assertSee('name="intro_video_file"', false)
-            ->assertSee('expiration=', false)
+            ->assertSee("course-templates\\/{$templateId}\\/media\\/video\\/", false)
             ->assertSee('name="remove_intro_video"', false)
             ->assertSee('preload="metadata"', false)
             ->assertSee('this.resetTemplatePreview()', false)
@@ -263,7 +370,7 @@ class CourseMediaIntegrationTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}")
             ->assertOk()
             ->assertSee('name="intro_video_file"', false)
-            ->assertSee('expiration=', false);
+            ->assertSee("course-templates\\/{$templateId}\\/media\\/video\\/", false);
     }
 
     public function test_admin_can_update_course_template_from_image_to_intro_video(): void
@@ -540,6 +647,14 @@ class CourseMediaIntegrationTest extends TestCase
         );
 
         $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")
+            ->assertRedirect();
+        $version = DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->sole();
+
+        $this->actingAs($admin)
             ->post(
                 "https://tenant-a.localhost/admin/course-templates/{$templateId}",
                 $this->validTemplateData([
@@ -571,11 +686,301 @@ class CourseMediaIntegrationTest extends TestCase
             'usage_type' => 'intro_video',
             'status' => 'detached',
         ]);
+        $this->assertDatabaseHas('core_course_template_versions', [
+            'id' => $version->id,
+            'intro_video_source_snapshot' => 'upload',
+            'intro_video_media_file_id_snapshot' => $introVideo->id,
+        ]);
+        $this->assertDatabaseHas('media_file_usages', [
+            'customer_id' => $customerId,
+            'media_file_id' => $introVideo->id,
+            'owner_type' => 'course_template_version',
+            'owner_id' => $version->id,
+            'usage_type' => 'intro_video',
+            'status' => 'active',
+        ]);
         $this->assertSame(
             0,
             $this->activeTemplatePreviewUsageCount($customerId, $templateId)
         );
         Storage::disk('media_local')->assertExists($introVideo->storage_key);
+    }
+
+    public function test_admin_can_remove_course_template_document_independently_without_deleting_media_file(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData([
+                'title' => 'Remove Document Template',
+                'intro_image_file' => UploadedFile::fake()->image('intro.png'),
+                'intro_video_source' => 'embed',
+                'intro_video_embed_url' => 'https://youtu.be/dQw4w9WgXcQ',
+                'intro_document_file' => UploadedFile::fake()->create(
+                    'remove.pdf',
+                    16,
+                    'application/pdf'
+                ),
+            ])
+        )->assertRedirect();
+
+        $template = DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('title', 'Remove Document Template')
+            ->sole();
+        $document = $this->assertActiveUsage(
+            $customerId,
+            'course_template',
+            $template->id,
+            'intro_document'
+        );
+
+        $this->actingAs($admin)->put(
+            "https://tenant-a.localhost/admin/course-templates/{$template->id}",
+            $this->validTemplateData([
+                'title' => 'Remove Document Template',
+                'intro_image_media_file_id' => $template->intro_image_media_file_id,
+                'intro_image_file' => null,
+                'intro_video_source' => 'embed',
+                'intro_video_embed_url' => $template->intro_video_embed_url,
+                'intro_document_media_file_id' => $document->id,
+                'intro_document_file' => null,
+                'remove_intro_document' => 1,
+            ])
+        )->assertRedirect();
+
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $template->id,
+            'intro_image_media_file_id' => $template->intro_image_media_file_id,
+            'intro_video_source' => 'embed',
+            'intro_video_embed_url' => $template->intro_video_embed_url,
+            'intro_document_media_file_id' => null,
+        ]);
+        $this->assertDatabaseHas('media_file_usages', [
+            'media_file_id' => $document->id,
+            'owner_type' => 'course_template',
+            'owner_id' => $template->id,
+            'usage_type' => 'intro_document',
+            'status' => 'detached',
+        ]);
+        Storage::disk('media_local')->assertExists($document->storage_key);
+    }
+
+    public function test_admin_can_remove_embedded_youtube_video_without_changing_other_introduction_media(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData([
+                'title' => 'Remove YouTube Template',
+                'intro_image_file' => UploadedFile::fake()->image('intro.png'),
+                'intro_video_source' => 'embed',
+                'intro_video_embed_url' => 'https://youtu.be/dQw4w9WgXcQ',
+                'intro_document_file' => UploadedFile::fake()->create(
+                    'intro.pdf',
+                    16,
+                    'application/pdf'
+                ),
+            ])
+        )->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+
+        $template = DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('title', 'Remove YouTube Template')
+            ->sole();
+        $imageId = $template->intro_image_media_file_id;
+        $documentId = $template->intro_document_media_file_id;
+
+        $this->actingAs($admin)->put(
+            "https://tenant-a.localhost/admin/course-templates/{$template->id}",
+            $this->validTemplateData([
+                'title' => 'Remove YouTube Template',
+                'intro_image_media_file_id' => $imageId,
+                'intro_image_file' => null,
+                'intro_video_source' => 'embed',
+                'intro_video_media_file_id' => 999999,
+                'intro_video_embed_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                'intro_video_provider' => 'vimeo',
+                'intro_document_media_file_id' => $documentId,
+                'intro_document_file' => null,
+                'remove_intro_video' => '1',
+            ])
+        )->assertRedirect(
+            "https://tenant-a.localhost/admin/course-templates/{$template->id}/edit"
+        );
+
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $template->id,
+            'intro_image_media_file_id' => $imageId,
+            'intro_video_source' => null,
+            'intro_video_media_file_id' => null,
+            'intro_video_embed_url' => null,
+            'intro_video_provider' => null,
+            'intro_document_media_file_id' => $documentId,
+        ]);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-templates/{$template->id}/edit")
+            ->assertOk()
+            ->assertDontSee('name="remove_intro_video"', false)
+            ->assertDontSee('https://www.youtube.com/embed/dQw4w9WgXcQ', false)
+            ->assertSee('name="remove_intro_image"', false)
+            ->assertSee('name="remove_intro_document"', false);
+    }
+
+    public function test_admin_can_remove_embedded_vimeo_video_and_preserve_it_when_removal_is_unchecked(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData([
+                'title' => 'Remove Vimeo Template',
+                'intro_video_source' => 'embed',
+                'intro_video_embed_url' => 'https://vimeo.com/76979871',
+            ])
+        )->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+
+        $templateId = (int) DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('title', 'Remove Vimeo Template')
+            ->value('id');
+
+        $this->actingAs($admin)->put(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}",
+            $this->validTemplateData([
+                'title' => 'Remove Vimeo Template',
+                'intro_video_source' => 'embed',
+                'intro_video_embed_url' => 'https://vimeo.com/76979871',
+            ])
+        )->assertRedirect();
+
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $templateId,
+            'intro_video_source' => 'embed',
+            'intro_video_embed_url' => 'https://vimeo.com/76979871',
+            'intro_video_provider' => 'vimeo',
+        ]);
+
+        $this->actingAs($admin)->put(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}",
+            $this->validTemplateData([
+                'title' => 'Remove Vimeo Template',
+                'intro_video_source' => 'embed',
+                'intro_video_embed_url' => 'https://vimeo.com/76979871',
+                'remove_intro_video' => true,
+            ])
+        )->assertRedirect();
+
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $templateId,
+            'intro_video_source' => null,
+            'intro_video_media_file_id' => null,
+            'intro_video_embed_url' => null,
+            'intro_video_provider' => null,
+        ]);
+    }
+
+    public function test_valid_video_replacement_wins_over_removal_and_invalid_replacement_preserves_existing_video(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData([
+                'title' => 'Video Replacement Precedence',
+                'intro_video_source' => 'embed',
+                'intro_video_embed_url' => 'https://youtu.be/dQw4w9WgXcQ',
+            ])
+        )->assertRedirect();
+
+        $templateId = (int) DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('title', 'Video Replacement Precedence')
+            ->value('id');
+
+        $this->actingAs($admin)->put(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}",
+            $this->validTemplateData([
+                'title' => 'Video Replacement Precedence',
+                'intro_video_source' => 'embed',
+                'intro_video_embed_url' => 'https://vimeo.com/76979871',
+                'remove_intro_video' => 1,
+            ])
+        )->assertRedirect();
+
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $templateId,
+            'intro_video_source' => 'embed',
+            'intro_video_embed_url' => 'https://vimeo.com/76979871',
+            'intro_video_provider' => 'vimeo',
+        ]);
+
+        $this->actingAs($admin)
+            ->from("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->put(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}",
+                $this->validTemplateData([
+                    'title' => 'Video Replacement Precedence',
+                    'intro_video_source' => 'embed',
+                    'intro_video_embed_url' => 'https://example.com/video',
+                    'remove_intro_video' => 1,
+                ])
+            )
+            ->assertRedirect(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit"
+            )
+            ->assertSessionHasErrors('intro_video_embed_url');
+
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $templateId,
+            'intro_video_source' => 'embed',
+            'intro_video_embed_url' => 'https://vimeo.com/76979871',
+            'intro_video_provider' => 'vimeo',
+        ]);
+    }
+
+    public function test_course_template_removal_labels_are_field_specific_in_vietnamese_and_english(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData([
+                'title' => 'Localized Removal Labels',
+                'intro_image_file' => UploadedFile::fake()->image('intro.png'),
+                'intro_video_source' => 'embed',
+                'intro_video_embed_url' => 'https://youtu.be/dQw4w9WgXcQ',
+                'intro_document_file' => UploadedFile::fake()->create(
+                    'intro.pdf',
+                    16,
+                    'application/pdf'
+                ),
+            ])
+        )->assertRedirect();
+
+        $templateId = (int) DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('title', 'Localized Removal Labels')
+            ->value('id');
+        $url = "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit";
+
+        $this->withSession(['locale' => 'vi'])->actingAs($admin)->get($url)
+            ->assertSeeText('Gỡ ảnh hiện tại')
+            ->assertSeeText('Gỡ video hiện tại')
+            ->assertSeeText('Gỡ tài liệu hiện tại');
+
+        $this->withSession(['locale' => 'en'])->actingAs($admin)->get($url)
+            ->assertSeeText('Remove current image')
+            ->assertSeeText('Remove current video')
+            ->assertSeeText('Remove current document');
     }
 
     public function test_course_template_accepts_image_and_uploaded_video_together(): void
@@ -867,6 +1272,220 @@ class CourseMediaIntegrationTest extends TestCase
             ->assertSee('expiration=', false);
     }
 
+    public function test_course_template_preview_allows_admin_and_assigned_teacher_for_exact_active_slots(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData([
+                'title' => 'Authorized Preview Template',
+                'intro_video_source' => 'upload',
+                'intro_video_file' => UploadedFile::fake()->create('intro.mp4', 16, 'video/mp4'),
+                'intro_document_file' => UploadedFile::fake()->create('intro.pdf', 16, 'application/pdf'),
+            ])
+        )->assertRedirect();
+        $template = DB::table('core_course_templates')->where('title', 'Authorized Preview Template')->sole();
+        $this->createTemplateAssignment($customerId, $template->id, $teacher->id);
+
+        foreach ([
+            'image' => $template->intro_image_media_file_id,
+            'video' => $template->intro_video_media_file_id,
+            'document' => $template->intro_document_media_file_id,
+        ] as $slot => $mediaId) {
+            $adminUrl = route('admin.course-templates.media.preview', [$template->id, $slot, $mediaId]);
+            $teacherUrl = route('teacher.course-templates.media.preview', [$template->id, $slot, $mediaId]);
+
+            $this->actingAs($admin)->get($adminUrl)->assertOk();
+            $this->actingAs($teacher)->get($teacherUrl)->assertOk();
+        }
+    }
+
+    public function test_course_template_preview_rejects_unassigned_teacher_cross_tenant_and_wrong_owner(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $unassignedTeacher = $this->createUser($customerId, 'teacher');
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData(['title' => 'Protected Preview Template'])
+        )->assertRedirect();
+        $template = DB::table('core_course_templates')->where('title', 'Protected Preview Template')->sole();
+        $mediaId = (int) $template->intro_image_media_file_id;
+
+        $this->actingAs($unassignedTeacher)
+            ->get(route('teacher.course-templates.media.preview', [$template->id, 'image', $mediaId]))
+            ->assertNotFound();
+
+        $otherTemplateId = $this->createTemplate($customerId, 'Other Preview Template', 'unused', $admin->id);
+        $this->actingAs($admin)
+            ->get(route('admin.course-templates.media.preview', [$otherTemplateId, 'image', $mediaId]))
+            ->assertNotFound();
+
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
+        $this->actingAs($otherAdmin)
+            ->get("https://tenant-b.localhost/admin/course-templates/{$template->id}/media/image/{$mediaId}")
+            ->assertNotFound();
+    }
+
+    public function test_course_template_preview_rejects_wrong_purpose_detached_archived_and_unrelated_usage(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData(['title' => 'Purpose Isolated Preview'])
+        )->assertRedirect();
+        $template = DB::table('core_course_templates')->where('title', 'Purpose Isolated Preview')->sole();
+        $mediaId = (int) $template->intro_image_media_file_id;
+        $url = route('admin.course-templates.media.preview', [$template->id, 'image', $mediaId]);
+
+        DB::table('media_file_usages')->where('owner_type', 'course_template')->where('owner_id', $template->id)->where('media_file_id', $mediaId)->update(['usage_type' => 'intro_video']);
+        $this->actingAs($admin)->get($url)->assertNotFound();
+
+        DB::table('media_file_usages')->where('owner_type', 'course_template')->where('owner_id', $template->id)->where('media_file_id', $mediaId)->update(['usage_type' => 'intro_image', 'status' => 'detached']);
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $customerId,
+            'media_file_id' => $mediaId,
+            'owner_type' => 'course_product',
+            'owner_id' => 9999,
+            'usage_type' => 'cover_image',
+            'status' => 'active',
+            'metadata' => null,
+            'created_by' => $admin->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('media_file_usages')->where('owner_type', 'course_template')->where('owner_id', $template->id)->where('media_file_id', $mediaId)->update(['status' => 'detached']);
+        $this->actingAs($admin)->get($url)->assertNotFound();
+
+        DB::table('media_file_usages')->where('owner_type', 'course_template')->where('owner_id', $template->id)->where('media_file_id', $mediaId)->update(['status' => 'archived']);
+        $this->actingAs($admin)->get($url)->assertNotFound();
+    }
+
+    public function test_course_template_preview_rejects_non_ready_media_and_slot_type_mismatches(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData([
+                'title' => 'Typed Preview Template',
+                'intro_video_source' => 'upload',
+                'intro_video_file' => UploadedFile::fake()->create('typed.mp4', 16, 'video/mp4'),
+                'intro_document_file' => UploadedFile::fake()->create('typed.pdf', 16, 'application/pdf'),
+            ])
+        )->assertRedirect();
+        $template = DB::table('core_course_templates')->where('title', 'Typed Preview Template')->sole();
+
+        $this->actingAs($admin)->get(route('admin.course-templates.media.preview', [$template->id, 'video', $template->intro_image_media_file_id]))->assertNotFound();
+        $this->actingAs($admin)->get(route('admin.course-templates.media.preview', [$template->id, 'image', $template->intro_video_media_file_id]))->assertNotFound();
+        $this->actingAs($admin)->get(route('admin.course-templates.media.preview', [$template->id, 'image', $template->intro_document_media_file_id]))->assertNotFound();
+
+        DB::table('media_files')->where('id', $template->intro_image_media_file_id)->update(['status' => 'deleted']);
+        $this->actingAs($admin)->get(route('admin.course-templates.media.preview', [$template->id, 'image', $template->intro_image_media_file_id]))->assertNotFound();
+    }
+
+    public function test_version_detail_displays_template_media_snapshots_independently_from_current_draft(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData([
+                'title' => 'Historical Media Detail',
+                'intro_image_file' => UploadedFile::fake()->image('historical-image.png'),
+                'intro_video_source' => 'upload',
+                'intro_video_file' => UploadedFile::fake()->create('historical-video.mp4', 16, 'video/mp4'),
+                'intro_document_file' => UploadedFile::fake()->create('historical-document.pdf', 16, 'application/pdf'),
+            ])
+        )->assertRedirect();
+        $template = DB::table('core_course_templates')->where('title', 'Historical Media Detail')->sole();
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$template->id}/publish")->assertRedirect();
+        $version = DB::table('core_course_template_versions')->where('template_id', $template->id)->sole();
+
+        $this->actingAs($admin)->put(
+            "https://tenant-a.localhost/admin/course-templates/{$template->id}",
+            $this->validTemplateData([
+                'title' => 'Changed Current Draft',
+                'intro_image_file' => UploadedFile::fake()->image('current-image.png'),
+                'intro_video_source' => 'embed',
+                'intro_video_embed_url' => 'https://vimeo.com/76979871',
+                'remove_intro_document' => 1,
+            ])
+        )->assertRedirect();
+
+        $response = $this->actingAs($admin)->get(
+            "https://tenant-a.localhost/admin/course-templates/{$template->id}/versions/{$version->id}"
+        )->assertOk();
+        $response->assertSeeText('Media giới thiệu của phiên bản')
+            ->assertSeeText('Historical Media Detail')
+            ->assertDontSeeText('Changed Current Draft')
+            ->assertDontSee('vimeo.com/76979871', false)
+            ->assertSee("/versions/{$version->id}/media/image/", false)
+            ->assertSee("/versions/{$version->id}/media/video/", false)
+            ->assertSee("/versions/{$version->id}/media/document/", false);
+
+        foreach ([
+            'image' => $version->intro_image_media_file_id_snapshot,
+            'video' => $version->intro_video_media_file_id_snapshot,
+            'document' => $version->intro_document_media_file_id_snapshot,
+        ] as $slot => $mediaId) {
+            $this->actingAs($admin)->get(route('admin.course-templates.versions.media.preview', [
+                $template->id, $version->id, $slot, $mediaId,
+            ]))->assertOk();
+        }
+    }
+
+    public function test_version_detail_uses_historical_embed_and_safely_handles_invalid_media_relationship(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData([
+                'title' => 'Historical Embed Detail',
+                'intro_image_file' => null,
+                'intro_video_source' => 'embed',
+                'intro_video_embed_url' => 'https://youtu.be/dQw4w9WgXcQ',
+            ])
+        )->assertRedirect();
+        $template = DB::table('core_course_templates')->where('title', 'Historical Embed Detail')->sole();
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$template->id}/publish")->assertRedirect();
+        $version = DB::table('core_course_template_versions')->where('template_id', $template->id)->sole();
+
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$template->id}/versions/{$version->id}")
+            ->assertOk()
+            ->assertSee('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ', false)
+            ->assertSeeText('Không có');
+
+        DB::table('core_course_template_versions')->where('id', $version->id)->update([
+            'intro_video_embed_url_snapshot' => 'https://vimeo.com/76979871',
+            'intro_video_provider_snapshot' => 'vimeo',
+        ]);
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$template->id}/versions/{$version->id}")
+            ->assertOk()
+            ->assertSee('https://player.vimeo.com/video/76979871', false);
+
+        DB::table('core_course_template_versions')->where('id', $version->id)->update([
+            'intro_image_media_file_id_snapshot' => $this->createMediaFile($customerId, $admin->id, 'image', 'unavailable.png', 'image/png'),
+        ]);
+        $invalidMediaId = (int) DB::table('core_course_template_versions')->where('id', $version->id)->value('intro_image_media_file_id_snapshot');
+
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$template->id}/versions/{$version->id}")
+            ->assertOk()
+            ->assertSeeText('Media snapshot không khả dụng');
+        $this->actingAs($admin)->get(route('admin.course-templates.versions.media.preview', [
+            $template->id, $version->id, 'image', $invalidMediaId,
+        ]))->assertNotFound();
+        $this->assertDatabaseHas('core_course_template_versions', [
+            'id' => $version->id,
+            'intro_image_media_file_id_snapshot' => $invalidMediaId,
+        ]);
+    }
+
     public function test_cross_tenant_media_is_not_visible_on_course_owner_forms(): void
     {
         $customerId = $this->createTenant();
@@ -1114,6 +1733,82 @@ class CourseMediaIntegrationTest extends TestCase
                 .'//a[normalize-space()="Teacher Media Activity" or contains(@class, "course-template-activity-title")]'
             )
         );
+    }
+
+    public function test_activity_create_rolls_back_when_media_usage_attachment_fails(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Activity Rollback Template', 'activity-rollback-template', $admin->id);
+        $lessonId = $this->createLesson($customerId, $templateId, 'Rollback Lesson', 'rollback-lesson');
+        $mediaService = \Mockery::mock(MediaService::class)->makePartial();
+        $mediaService->shouldReceive('attachUsage')->once()->andThrow(new \RuntimeException('Injected activity media failure.'));
+        $this->app->instance(MediaService::class, $mediaService);
+        $this->withoutExceptionHandling();
+
+        try {
+            $this->actingAs($admin)->post(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities",
+                $this->validActivityData([
+                    'title' => 'Activity Must Roll Back',
+                    'activity_type' => 'video',
+                    'activity_video_file' => UploadedFile::fake()->create('rollback.mp4', 32, 'video/mp4'),
+                ])
+            );
+            $this->fail('Expected activity media synchronization to fail.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Injected activity media failure.', $exception->getMessage());
+        }
+
+        $this->assertDatabaseMissing('core_course_template_activities', [
+            'customer_id' => $customerId,
+            'title' => 'Activity Must Roll Back',
+        ]);
+        $this->assertDatabaseMissing('media_files', [
+            'customer_id' => $customerId,
+            'original_name' => 'rollback.mp4',
+        ]);
+    }
+
+    public function test_activity_update_rolls_back_fields_and_existing_usage_when_replacement_fails(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Activity Update Rollback', 'activity-update-rollback', $admin->id);
+        $lessonId = $this->createLesson($customerId, $templateId, 'Update Rollback Lesson', 'update-rollback-lesson');
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities",
+            $this->validActivityData([
+                'title' => 'Original Activity',
+                'activity_type' => 'video',
+                'activity_video_file' => UploadedFile::fake()->create('original.mp4', 32, 'video/mp4'),
+            ])
+        )->assertRedirect();
+        $activityId = (int) DB::table('core_course_template_activities')->where('title', 'Original Activity')->value('id');
+        $originalUsage = DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->first();
+
+        $mediaService = \Mockery::mock(MediaService::class)->makePartial();
+        $mediaService->shouldReceive('attachUsage')->once()->andThrow(new \RuntimeException('Injected replacement failure.'));
+        $this->app->instance(MediaService::class, $mediaService);
+        $this->withoutExceptionHandling();
+
+        try {
+            $this->actingAs($admin)->put(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/{$activityId}",
+                $this->validActivityData([
+                    'title' => 'Changed Activity',
+                    'activity_type' => 'video',
+                    'activity_video_file' => UploadedFile::fake()->create('replacement.mp4', 32, 'video/mp4'),
+                ])
+            );
+            $this->fail('Expected replacement synchronization to fail.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Injected replacement failure.', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('core_course_template_activities', ['id' => $activityId, 'title' => 'Original Activity']);
+        $this->assertDatabaseHas('media_file_usages', ['id' => $originalUsage->id, 'media_file_id' => $originalUsage->media_file_id, 'status' => 'active']);
+        $this->assertDatabaseMissing('media_files', ['customer_id' => $customerId, 'original_name' => 'replacement.mp4']);
     }
 
     public function test_teacher_cannot_access_product_media_upload_or_lifecycle_routes(): void
@@ -1463,6 +2158,7 @@ class CourseMediaIntegrationTest extends TestCase
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
+
         return array_merge([
             'category_id' => $categoryId,
             'title' => 'Programming Basics',

@@ -372,7 +372,7 @@ class CourseTemplatePublishingService
                 ? $mediaByActivity->get($activity->id, collect())->firstWhere('usage_type', $activity->activity_type)
                 : null;
             if (in_array($activity->activity_type, $uploadedTypes, true) && ! $mediaUsage) {
-                throw ValidationException::withMessages(['publish' => __('lf.LF_course_template_publish_integrity_media')]);
+                throw ValidationException::withMessages(['publish' => __('lf.LF_course_template_publish_integrity_activity_media')]);
             }
 
             $map[$activity->id] = DB::table(

@@ -442,6 +442,27 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertDatabaseHas('media_file_usages', ['owner_type' => 'course_activity', 'owner_id' => $draftActivityId, 'status' => 'active']);
     }
 
+    public function test_publish_media_errors_identify_activity_and_template_fields_safely(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Media Error Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Media Error Course');
+        $lessonId = $this->createLesson($customerId, $templateId, null, 'Media Error Lesson', 0, $admin->id);
+        $activityId = $this->createActivity($customerId, $templateId, $lessonId, 'Missing Activity Media', 0, $admin->id);
+        DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->delete();
+
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish"
+        )->assertSessionHasErrors([
+            'publish' => 'Media của hoạt động "Missing Activity Media" (document) trong bài học "Media Error Lesson" đang thiếu, không khả dụng hoặc liên kết không đúng. Trong tab Nội dung, hãy sửa hoạt động này và tải lên hoặc chọn lại đúng tệp.',
+        ]);
+
+        $this->assertSame(
+            'Ảnh giới thiệu của Template không khả dụng hoặc liên kết Media không hợp lệ. Vui lòng kiểm tra tab Thông tin.',
+            __('lf.LF_course_template_publish_integrity_template_intro_image')
+        );
+    }
+
     public function test_publish_and_duplicate_preserve_documented_duplicate_content_order_values(): void
     {
         $customerId = $this->createTenant();

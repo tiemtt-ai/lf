@@ -332,12 +332,11 @@ class CourseTemplateActivityController extends Controller
                 'created_at' => $now,
                 'updated_at' => $now,
             ]));
+            $this->detachInactiveMedia($activityId, $validated['activity_type'], $request);
+            $this->attachUploadedMedia($request, $activityId);
             $this->recalculateLessonDuration($customerId, $templateId, $lessonId);
             return $activityId;
         });
-
-        $this->detachInactiveMedia($activityId, $validated['activity_type'], $request);
-        $this->attachUploadedMedia($request, $activityId);
 
         return redirect()
             ->to(
@@ -474,7 +473,7 @@ class CourseTemplateActivityController extends Controller
             $lessonId
         );
 
-        DB::transaction(function () use ($customerId, $templateId, $lessonId, $activityId, $validated): void {
+        DB::transaction(function () use ($request, $customerId, $templateId, $lessonId, $activityId, $validated): void {
             DB::table('core_course_template_activities')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
@@ -483,11 +482,10 @@ class CourseTemplateActivityController extends Controller
             ->update($this->activityValues($validated, [
                 'updated_at' => now(),
             ]));
+            $this->detachInactiveMedia($activityId, $validated['activity_type'], $request);
+            $this->attachUploadedMedia($request, $activityId);
             $this->recalculateLessonDuration($customerId, $templateId, $lessonId);
         });
-
-        $this->detachInactiveMedia($activityId, $validated['activity_type'], $request);
-        $this->attachUploadedMedia($request, $activityId);
 
         return redirect()
             ->route(

@@ -8,8 +8,10 @@ use App\Http\Controllers\CourseProductController;
 use App\Http\Controllers\CourseTemplateActivityController;
 use App\Http\Controllers\CourseTemplateController;
 use App\Http\Controllers\CourseTemplateLessonController;
+use App\Http\Controllers\CourseTemplateMediaPreviewController;
 use App\Http\Controllers\CourseTemplateSectionController;
 use App\Http\Controllers\CourseTemplateTeacherController;
+use App\Http\Controllers\CourseTemplateVersionMediaPreviewController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/course-categories', [CourseCategoryController::class, 'index'])
@@ -144,6 +146,12 @@ Route::get('/course-templates/{id}', [CourseTemplateController::class, 'show'])
 
 Route::get('/course-templates/{id}/edit', [CourseTemplateController::class, 'edit'])
     ->name('course-templates.edit');
+
+Route::get(
+    '/course-templates/{templateId}/media/{slot}/{mediaFileId}',
+    [CourseTemplateMediaPreviewController::class, 'show']
+)->whereIn('slot', ['image', 'video', 'document'])
+    ->name('course-templates.media.preview');
 
 Route::put('/course-templates/{id}', [CourseTemplateController::class, 'update'])
     ->name('course-templates.update');
@@ -337,6 +345,11 @@ Route::delete(
 )->name('course-templates.sections.lessons.activities.destroy');
 
 if ($registerCourseTemplateLifecycleRoutes ?? false) {
+    Route::get(
+        '/course-templates/{templateId}/versions/{versionId}/media/{slot}/{mediaFileId}',
+        [CourseTemplateVersionMediaPreviewController::class, 'show']
+    )->whereIn('slot', ['image', 'video', 'document'])
+        ->name('course-templates.versions.media.preview');
     Route::post(
         '/course-templates/{id}/publish',
         [CourseTemplateController::class, 'publish']

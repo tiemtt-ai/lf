@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\CourseTemplatePublishingService;
 use App\Services\CourseTemplateVersionDetailPresenter;
 use App\Services\CourseTemplateVersionDuplicatingService;
+use App\Services\CourseTemplateVersionMediaPresenter;
 use App\Services\MediaService;
 use App\Services\MediaThumbnailPresenter;
 use App\Services\TrustedVideoUrlService;
@@ -24,6 +25,7 @@ class CourseTemplateController extends Controller
         private readonly CourseTemplatePublishingService $publishingService,
         private readonly CourseTemplateVersionDetailPresenter $versionDetailPresenter,
         private readonly CourseTemplateVersionDuplicatingService $duplicatingService,
+        private readonly CourseTemplateVersionMediaPresenter $versionMediaPresenter,
         private readonly MediaService $mediaService,
         private readonly MediaThumbnailPresenter $mediaThumbnails,
         private readonly TrustedVideoUrlService $trustedVideoUrls
@@ -107,19 +109,21 @@ class CourseTemplateController extends Controller
         $validated = $this->validatedData($request, $customerId);
         $now = now();
 
-        $templateId = DB::table('core_course_templates')->insertGetId(
-            $this->templateValues($validated, [
-                'customer_id' => $customerId,
-                'lesson_count' => 0,
-                'working_revision' => 1,
-                'created_by' => $request->user()?->id,
-                'last_version_published_at' => null,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ])
-        );
+        DB::transaction(function () use ($customerId, $request, $validated, $now): void {
+            $templateId = DB::table('core_course_templates')->insertGetId(
+                $this->templateValues($validated, [
+                    'customer_id' => $customerId,
+                    'lesson_count' => 0,
+                    'working_revision' => 1,
+                    'created_by' => $request->user()?->id,
+                    'last_version_published_at' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ])
+            );
 
-        $this->syncIntroductionMedia($request, $templateId, $validated);
+            $this->syncIntroductionMedia($request, $templateId, $validated);
+        });
 
         return redirect()
             ->route($this->routePrefix($request).'.index')
@@ -143,9 +147,9 @@ class CourseTemplateController extends Controller
         $template = $this->findTemplate($customerId, $id);
         $versions = $this->versions($customerId, $id);
 
-        $introImageMedia = $this->mediaFile($template->intro_image_media_file_id);
-        $introVideoMedia = $this->mediaFile($template->intro_video_media_file_id);
-        $introDocumentMedia = $this->mediaFile($template->intro_document_media_file_id);
+        $introImageMedia = $this->mediaFile($template->intro_image_media_file_id, $id, 'image', $routePrefix);
+        $introVideoMedia = $this->mediaFile($template->intro_video_media_file_id, $id, 'video', $routePrefix);
+        $introDocumentMedia = $this->mediaFile($template->intro_document_media_file_id, $id, 'document', $routePrefix);
         $introVideoEmbedUrl = $template->intro_video_source === 'embed'
             && $template->intro_video_embed_url
                 ? $this->trustedVideoUrls->embedUrl($template->intro_video_embed_url)
@@ -273,6 +277,7 @@ class CourseTemplateController extends Controller
             ->get()
             ->groupBy('version_lesson_id');
         $presentation = $this->versionDetailPresenter->present($versionId, $lessons, $activitiesByLesson->flatten(1));
+        $templateMedia = $this->versionMediaPresenter->present($version);
 
         return view('course-template-versions.show', [
             'template' => $template,
@@ -287,6 +292,7 @@ class CourseTemplateController extends Controller
                 )
                 ->groupBy('version_section_id'),
             'activitiesByLesson' => $activitiesByLesson,
+            'templateVersionMedia' => $templateMedia,
             ...$presentation,
         ]);
     }
@@ -332,12 +338,14 @@ class CourseTemplateController extends Controller
             ])
         );
 
-        DB::table('core_course_templates')
-            ->where('customer_id', $customerId)
-            ->where('id', $id)
-            ->update($values);
+        DB::transaction(function () use ($customerId, $id, $request, $validated, $values): void {
+            DB::table('core_course_templates')
+                ->where('customer_id', $customerId)
+                ->where('id', $id)
+                ->update($values);
 
-        $this->syncIntroductionMedia($request, $id, $validated);
+            $this->syncIntroductionMedia($request, $id, $validated);
+        });
 
         return redirect()
             ->route($this->routePrefix($request).'.edit', $id)
@@ -449,7 +457,42 @@ class CourseTemplateController extends Controller
 
         $validated = $validator->validate();
 
+        if (($validated['remove_intro_video'] ?? false) && $template) {
+            if ($this->hasIntroductionVideoReplacement($request, $validated, $template)) {
+                $validated['remove_intro_video'] = false;
+            } else {
+                $validated['intro_video_source'] = null;
+                $validated['intro_video_media_file_id'] = null;
+                $validated['intro_video_embed_url'] = null;
+                $validated['intro_video_provider'] = null;
+            }
+        }
+
         return $validated;
+    }
+
+    private function hasIntroductionVideoReplacement(
+        Request $request,
+        array $validated,
+        object $template
+    ): bool {
+        if ($request->hasFile('intro_video_file')) {
+            return true;
+        }
+
+        $source = $validated['intro_video_source'] ?? null;
+        if ($source !== $template->intro_video_source) {
+            return $source !== null;
+        }
+
+        return match ($source) {
+            'upload' => ! empty($validated['intro_video_media_file_id'])
+                && (int) $validated['intro_video_media_file_id']
+                    !== (int) $template->intro_video_media_file_id,
+            'embed' => ($validated['intro_video_embed_url'] ?? null)
+                !== $template->intro_video_embed_url,
+            default => false,
+        };
     }
 
     private function validationRules(int $customerId, ?int $templateId = null): array
@@ -485,6 +528,10 @@ class CourseTemplateController extends Controller
                         ->where('status', 'ready')),
             ],
             'intro_video_embed_url' => ['nullable', 'string', 'max:2048'],
+            'intro_video_provider' => [
+                'nullable',
+                Rule::in(['youtube', 'vimeo']),
+            ],
             'intro_document_media_file_id' => ['nullable', 'integer', Rule::exists('media_files', 'id')->where(fn ($query) => $query->where('customer_id', $customerId)->where('file_type', 'document')->where('status', 'ready'))],
             'remove_intro_image' => ['nullable', 'boolean'],
             'remove_intro_video' => ['nullable', 'boolean'],
@@ -533,10 +580,10 @@ class CourseTemplateController extends Controller
             'description' => $validated['description'] ?? null,
             'publisher_name' => $validated['publisher_name'] ?? null,
             'intro_image_media_file_id' => ($validated['remove_intro_image'] ?? false) ? null : ($validated['intro_image_media_file_id'] ?? null),
-            'intro_video_source' => $validated['intro_video_source'] ?? null,
+            'intro_video_source' => ($validated['remove_intro_video'] ?? false) ? null : ($validated['intro_video_source'] ?? null),
             'intro_video_media_file_id' => ($validated['remove_intro_video'] ?? false) ? null : ($validated['intro_video_media_file_id'] ?? null),
-            'intro_video_embed_url' => $validated['intro_video_embed_url'] ?? null,
-            'intro_video_provider' => $validated['intro_video_provider'] ?? null,
+            'intro_video_embed_url' => ($validated['remove_intro_video'] ?? false) ? null : ($validated['intro_video_embed_url'] ?? null),
+            'intro_video_provider' => ($validated['remove_intro_video'] ?? false) ? null : ($validated['intro_video_provider'] ?? null),
             'intro_document_media_file_id' => ($validated['remove_intro_document'] ?? false) ? null : ($validated['intro_document_media_file_id'] ?? null),
             'difficulty_level' => $validated['difficulty_level'] ?? null,
             'estimated_minutes_per_lesson' => $validated['estimated_minutes_per_lesson'] ?? null,
@@ -794,23 +841,55 @@ class CourseTemplateController extends Controller
         }
     }
 
-    private function mediaFile(?int $mediaFileId): ?object
+    private function mediaFile(
+        ?int $mediaFileId,
+        int $templateId,
+        string $slot,
+        string $routePrefix
+    ): ?object
     {
         if (! $mediaFileId) {
             return null;
         }
 
-        $media = DB::table('media_files')
-            ->where('customer_id', $this->customerId())
-            ->where('id', $mediaFileId)
+        $usageType = match ($slot) {
+            'image' => 'intro_image',
+            'video' => 'intro_video',
+            'document' => 'intro_document',
+        };
+        $fileType = match ($slot) {
+            'image' => 'image',
+            'video' => 'video',
+            'document' => 'document',
+        };
+        $customerId = $this->customerId();
+        $media = DB::table('media_files as media')
+            ->join('media_file_usages as usages', function ($join) use (
+                $customerId,
+                $templateId,
+                $usageType
+            ): void {
+                $join->on('usages.media_file_id', '=', 'media.id')
+                    ->where('usages.customer_id', $customerId)
+                    ->where('usages.owner_type', 'course_template')
+                    ->where('usages.owner_id', $templateId)
+                    ->where('usages.usage_type', $usageType)
+                    ->where('usages.status', 'active');
+            })
+            ->where('media.customer_id', $customerId)
+            ->where('media.id', $mediaFileId)
+            ->where('media.file_type', $fileType)
+            ->where('media.status', 'ready')
+            ->select('media.*')
             ->first();
 
         if (! $media) {
             return null;
         }
 
-        $media->signed_url = $this->mediaService->generateSignedUrl(
-            (int) $media->id
+        $media->signed_url = route(
+            $routePrefix.'.media.preview',
+            [$templateId, $slot, $media->id]
         );
 
         return $media;

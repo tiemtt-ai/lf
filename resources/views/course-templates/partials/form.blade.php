@@ -126,7 +126,7 @@
                 <div class="course-template-preview-card">
                     <x-media-thumbnail :presentation="$introImageThumbnail" :alt="$introImageMedia->display_name" />
                     <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openTemplatePreview(@js($introImageMedia->display_name), @js($introImageMedia->signed_url), @js($introImageMedia->mime_type), 'image')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
-                    <label class="course-template-preview-remove" for="remove_intro_image"><input id="remove_intro_image" type="checkbox" name="remove_intro_image" value="1"> {{ __('lf.LF_course_template_remove_current') }}</label>
+                    <label class="course-template-preview-remove" for="remove_intro_image"><input id="remove_intro_image" type="checkbox" name="remove_intro_image" value="1"> {{ __('lf.LF_course_template_remove_current_image') }}</label>
                 </div>
             @endif
         </div>
@@ -150,7 +150,7 @@
                     @else
                         <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openTemplatePreview(@js(ucfirst((string) $formTemplate?->intro_video_provider)), @js($introVideoEmbedUrl), 'text/html', 'embed')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
                     @endif
-                    <label class="course-template-preview-remove" for="remove_intro_video"><input id="remove_intro_video" type="checkbox" name="remove_intro_video" value="1"> {{ __('lf.LF_course_template_remove_current') }}</label>
+                    <label class="course-template-preview-remove" for="remove_intro_video"><input id="remove_intro_video" type="checkbox" name="remove_intro_video" value="1"> {{ __('lf.LF_course_template_remove_current_video') }}</label>
                 </div>
             @endif
         </div>
@@ -164,7 +164,7 @@
                 <div class="course-template-preview-card">
                     <x-media-thumbnail :presentation="$introDocumentThumbnail" :alt="__('lf.LF_course_template_intro_document')" />
                     <a class="admin-text-action" href="{{ $introDocumentMedia->signed_url }}" target="_blank" rel="noopener">{{ __('lf.LF_media_file_common_preview_action') }}</a>
-                    <label class="course-template-preview-remove" for="remove_intro_document"><input id="remove_intro_document" type="checkbox" name="remove_intro_document" value="1"> {{ __('lf.LF_course_template_remove_current') }}</label>
+                    <label class="course-template-preview-remove" for="remove_intro_document"><input id="remove_intro_document" type="checkbox" name="remove_intro_document" value="1"> {{ __('lf.LF_course_template_remove_current_document') }}</label>
                 </div>
             @endif
         </div>

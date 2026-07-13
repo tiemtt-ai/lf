@@ -80,6 +80,55 @@
 
         <section class="admin-card admin-form-card">
             <h2 class="admin-form-section-title">
+                {{ __('lf.LF_course_template_version_detail_media') }}
+            </h2>
+
+            <dl class="course-version-information-grid">
+                @foreach ([
+                    'image' => __('lf.LF_course_template_intro_image'),
+                    'video' => __('lf.LF_course_template_intro_video'),
+                    'document' => __('lf.LF_course_template_intro_document'),
+                ] as $slot => $label)
+                    @php
+                        $snapshot = $templateVersionMedia[$slot];
+                    @endphp
+                    <div>
+                        <dt>{{ $label }}</dt>
+                        <dd>
+                            @if ($snapshot['state'] === 'empty')
+                                {{ __('lf.LF_course_template_version_detail_no_media') }}
+                            @elseif ($snapshot['state'] === 'unavailable')
+                                {{ __('lf.LF_version_detail_media_unavailable') }}
+                            @elseif ($snapshot['kind'] === 'embed')
+                                <x-media-thumbnail
+                                    :presentation="$snapshot['thumbnail']"
+                                    :alt="$label" />
+                                <div>{{ ucfirst($snapshot['provider']) }}</div>
+                                <iframe class="media-library-modal-video course-template-embed-preview"
+                                        src="{{ $snapshot['url'] }}"
+                                        title="{{ $label }}"
+                                        loading="lazy"
+                                        sandbox="allow-scripts allow-same-origin allow-presentation"
+                                        allow="fullscreen; picture-in-picture"></iframe>
+                            @else
+                                <x-media-thumbnail
+                                    :presentation="$snapshot['thumbnail']"
+                                    :alt="$snapshot['media']->display_name" />
+                                <div>{{ $snapshot['media']->display_name }}</div>
+                                <a href="{{ $snapshot['url'] }}"
+                                   target="_blank"
+                                   rel="noopener">
+                                    {{ __('lf.LF_media_file_common_preview_action') }}
+                                </a>
+                            @endif
+                        </dd>
+                    </div>
+                @endforeach
+            </dl>
+        </section>
+
+        <section class="admin-card admin-form-card">
+            <h2 class="admin-form-section-title">
                 {{ __('lf.LF_course_template_version_detail_information') }}
             </h2>
 
