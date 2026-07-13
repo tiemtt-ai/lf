@@ -328,6 +328,48 @@
     font-weight: 500;
 }
 
+.course-activity-current-media {
+    margin-bottom: 8px;
+}
+
+.course-activity-current-media-card {
+    margin: 0;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+.course-activity-current-media-card .media-thumbnail-compact {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    max-width: 48px;
+    flex-basis: 48px;
+}
+
+.course-activity-current-media-message,
+.course-activity-current-media-required {
+    margin: 3px 0 0;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.course-activity-current-media-required {
+    color: #8a6d3b;
+}
+
+.course-template-activity-form .admin-upload-hint {
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.4;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.course-activity-media-audio-player {
+    width: min(100%, 640px);
+}
+
 .course-template-embed-preview {
     aspect-ratio: 16 / 9;
     border: 0;

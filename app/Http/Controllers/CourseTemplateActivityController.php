@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\CourseActivityMediaPresenter;
 use App\Services\MediaService;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
@@ -27,7 +28,10 @@ class CourseTemplateActivityController extends Controller
     private const MANUAL_DURATION_TYPES = [
     ];
 
-    public function __construct(private readonly MediaService $mediaService) {}
+    public function __construct(
+        private readonly MediaService $mediaService,
+        private readonly CourseActivityMediaPresenter $activityMediaPresenter
+    ) {}
 
     public function index(
         Request $request,
@@ -368,6 +372,14 @@ class CourseTemplateActivityController extends Controller
             $lessonId,
             $activityId
         );
+        $currentMedia = $this->activityMediaPresenter->present($customerId, $activity);
+
+        if ($currentMedia['state'] === 'available') {
+            $currentMedia['preview_url'] = route(
+                $this->templateRoutePrefix($request).'.activities.media.preview',
+                [$templateId, $activityId, $activity->activity_type, $currentMedia['media']->id]
+            );
+        }
 
         return view('course-template-activities.edit', [
             'template' => $template,
@@ -387,10 +399,7 @@ class CourseTemplateActivityController extends Controller
             ),
             'activityTypes' => self::ACTIVITY_TYPES,
             'manualDurationTypes' => self::MANUAL_DURATION_TYPES,
-            'activityMedia' => $this->ownerMedia(
-                'course_activity',
-                $activityId
-            ),
+            'currentActivityMedia' => $currentMedia,
             'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
         ]);

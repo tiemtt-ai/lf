@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CourseActivityMediaPreviewController;
 use App\Http\Controllers\CourseCategoryController;
 use App\Http\Controllers\CourseCohortController;
 use App\Http\Controllers\CourseCohortStudentController;
@@ -152,6 +153,12 @@ Route::get(
     [CourseTemplateMediaPreviewController::class, 'show']
 )->whereIn('slot', ['image', 'video', 'document'])
     ->name('course-templates.media.preview');
+
+Route::get(
+    '/course-templates/{templateId}/activities/{activityId}/media/{slot}/{mediaFileId}',
+    [CourseActivityMediaPreviewController::class, 'show']
+)->whereIn('slot', ['video', 'audio', 'document'])
+    ->name('course-templates.activities.media.preview');
 
 Route::put('/course-templates/{id}', [CourseTemplateController::class, 'update'])
     ->name('course-templates.update');

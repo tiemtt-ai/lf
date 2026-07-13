@@ -7,7 +7,7 @@
     $icon = match ($kind) {
         'image' => 'image', 'video' => 'video', 'pdf' => 'file-pdf',
         'word' => 'file-text', 'spreadsheet' => 'file-spreadsheet',
-        'presentation' => 'file-presentation', default => 'document',
+        'presentation' => 'file-presentation', 'audio' => 'audio', default => 'document',
     };
 @endphp
 <span {{ $attributes->class(['media-thumbnail', 'media-thumbnail-'.$variant, 'media-thumbnail-'.$kind]) }} data-media-thumbnail-kind="{{ $kind }}" data-media-thumbnail-state="{{ $state }}">

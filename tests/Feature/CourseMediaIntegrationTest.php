@@ -1710,7 +1710,9 @@ class CourseMediaIntegrationTest extends TestCase
                 "https://tenant-a.localhost/teacher/course-templates/{$templateId}/lessons/{$lessonId}/activities/{$activityId}/edit"
             )
             ->assertOk()
-            ->assertSeeText('Video file');
+            ->assertSeeText(__('lf.LF_course_template_activity_media_replacement_video'))
+            ->assertDontSeeText('activity-video.mp4')
+            ->assertSee('data-current-media-state="available"', false);
 
         $outline = $this->actingAs($teacher)
             ->get(
@@ -1735,6 +1737,259 @@ class CourseMediaIntegrationTest extends TestCase
                 .'//a[normalize-space()="Teacher Media Activity" or contains(@class, "course-template-activity-title")]'
             )
         );
+    }
+
+    public function test_activity_edit_displays_exact_current_video_audio_and_document_separately_from_upload_inputs(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Current Media Template', 'current-media-template', $admin->id);
+        $lessonId = $this->createLesson($customerId, $templateId, 'Current Media Lesson', 'current-media-lesson');
+
+        $cases = [
+            'video' => ['lesson-video.mp4', 'video/mp4', 'activity_video_file'],
+            'audio' => ['lesson-audio.mp3', 'audio/mpeg', 'activity_audio_file'],
+            'document' => ['lesson-notes.pdf', 'application/pdf', 'activity_document_file'],
+        ];
+
+        foreach ($cases as $type => [$filename, $mime, $field]) {
+            $this->actingAs($admin)->post(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities",
+                $this->validActivityData([
+                    'title' => ucfirst($type).' Current Media',
+                    'activity_type' => $type,
+                    $field => UploadedFile::fake()->create($filename, 32, $mime),
+                ])
+            )->assertRedirect();
+
+            $activityId = (int) DB::table('core_course_template_activities')
+                ->where('title', ucfirst($type).' Current Media')
+                ->value('id');
+            $mediaId = (int) DB::table('media_file_usages')
+                ->where('owner_type', 'course_activity')
+                ->where('owner_id', $activityId)
+                ->where('usage_type', $type)
+                ->where('status', 'active')
+                ->value('media_file_id');
+            $previewUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/activities/{$activityId}/media/{$type}/{$mediaId}";
+
+            $response = $this->actingAs($admin)->get(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/{$activityId}/edit"
+            )->assertOk()
+                ->assertDontSeeText(__('lf.LF_course_template_activity_media_current_file'))
+                ->assertDontSeeText($filename)
+                ->assertSee('data-current-media-state="available"', false)
+                ->assertSee('name="'.$field.'"', false)
+                ->assertDontSee('name="'.$field.'" value=', false)
+                ->assertSeeText('Định dạng:')
+                ->assertSeeText('Tối đa:');
+
+            $this->assertSame(1, $this->htmlElementCount(
+                $response->getContent(),
+                '//div[@data-current-media-state="available"]'
+                .'//div[contains(concat(" ", normalize-space(@class), " "), " course-activity-current-media-card ")]'
+                .'[.//*[contains(concat(" ", normalize-space(@class), " "), " media-thumbnail ")]'
+                .' and .//*[self::a or self::button][normalize-space()="Xem"]]'
+            ));
+            $this->assertSame(0, $this->htmlElementCount(
+                $response->getContent(),
+                '//div[@data-current-media-state="available"]'
+                .'//*[contains(concat(" ", normalize-space(@class), " "), " course-activity-current-media-required ")]'
+            ));
+
+            if ($type === 'document') {
+                $response
+                    ->assertSee($previewUrl, false)
+                    ->assertSee('data-media-thumbnail-kind="pdf"', false);
+            } else {
+                $this->assertStringContainsString(
+                    str_replace('/', '\\/', $previewUrl),
+                    $response->getContent()
+                );
+            }
+
+            $this->actingAs($admin)->get($previewUrl)
+                ->assertOk()
+                ->assertHeader('content-type', $mime);
+        }
+    }
+
+    public function test_activity_edit_empty_and_invalid_relationships_never_fabricate_a_preview_url(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Empty Media Template', 'empty-media-template', $admin->id);
+        $lessonId = $this->createLesson($customerId, $templateId, 'Empty Media Lesson', 'empty-media-lesson');
+        $activityId = DB::table('core_course_template_activities')->insertGetId([
+            'customer_id' => $customerId, 'template_id' => $templateId, 'template_lesson_id' => $lessonId,
+            'title' => 'Activity 14 tài liệu a', 'description' => null, 'sort_order' => 1,
+            'activity_type' => 'document', 'external_video_url' => null, 'live_class_url' => null,
+            'assessment_quiz_id' => null, 'duration_seconds' => 0, 'estimated_duration_seconds' => null,
+            'is_required' => true, 'completion_rule' => 'view', 'completion_threshold' => null,
+            'is_preview' => false, 'unlock_rule' => 'none', 'unlock_after_activity_id' => null,
+            'unlock_at' => null, 'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $editUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/{$activityId}/edit";
+
+        $this->actingAs($admin)->get($editUrl)
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_media_empty'))
+            ->assertSeeText(__('lf.LF_course_template_activity_media_required_before_publish'))
+            ->assertSee('data-current-media-state="empty"', false)
+            ->assertDontSee("/activities/{$activityId}/media/document/", false);
+
+        DB::table('core_course_template_activities')->where('id', $activityId)->update([
+            'title' => 'Activity 15 video khoá học',
+            'activity_type' => 'video',
+        ]);
+        $this->actingAs($admin)->get($editUrl)
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_media_empty'))
+            ->assertDontSee("/activities/{$activityId}/media/video/", false);
+        DB::table('core_course_template_activities')->where('id', $activityId)->update([
+            'title' => 'Activity 14 tài liệu a',
+            'activity_type' => 'document',
+        ]);
+
+        $mediaId = $this->createMediaFile($customerId, $admin->id, 'document', 'historical.pdf', 'application/pdf');
+        $usageId = DB::table('media_file_usages')->insertGetId([
+            'customer_id' => $customerId, 'media_file_id' => $mediaId,
+            'owner_type' => 'course_activity', 'owner_id' => $activityId,
+            'usage_type' => 'document', 'status' => 'detached', 'metadata' => null,
+            'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        foreach ([
+            ['media_file_usages', $usageId, ['status' => 'detached']],
+            ['media_file_usages', $usageId, ['status' => 'archived']],
+            ['media_files', $mediaId, ['status' => 'archived']],
+            ['media_files', $mediaId, ['status' => 'deleted']],
+            ['media_files', $mediaId, ['file_type' => 'video', 'mime_type' => 'video/mp4']],
+        ] as [$table, $id, $mutation]) {
+            DB::table('media_file_usages')->where('id', $usageId)->update(['status' => 'active']);
+            DB::table('media_files')->where('id', $mediaId)->update([
+                'status' => 'ready', 'file_type' => 'document', 'mime_type' => 'application/pdf',
+            ]);
+            DB::table($table)->where('id', $id)->update($mutation);
+
+            $response = $this->actingAs($admin)->get($editUrl)
+                ->assertOk()
+                ->assertSeeText(__('lf.LF_course_template_activity_media_unavailable'))
+                ->assertSeeText(__('lf.LF_course_template_activity_media_required_before_publish'))
+                ->assertSee('data-current-media-state="unavailable"', false)
+                ->assertDontSee("/activities/{$activityId}/media/document/{$mediaId}", false);
+            $this->assertSame(0, $this->htmlElementCount(
+                $response->getContent(),
+                '//div[@data-current-media-state="unavailable"]'
+                .'//*[self::a or self::button][normalize-space()="Xem"]'
+            ));
+        }
+    }
+
+    public function test_activity_media_preview_fails_closed_for_wrong_relationship_and_teacher_scope(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $assigned = $this->createUser($customerId, 'teacher');
+        $unassigned = $this->createUser($customerId, 'teacher');
+        $templateId = $this->createTemplate($customerId, 'Preview Scope Template', 'preview-scope-template', $admin->id);
+        $lessonId = $this->createLesson($customerId, $templateId, 'Preview Scope Lesson', 'preview-scope-lesson');
+        $this->createTemplateAssignment($customerId, $templateId, $assigned->id);
+
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities",
+            $this->validActivityData([
+                'title' => 'Scoped Video', 'activity_type' => 'video',
+                'activity_video_file' => UploadedFile::fake()->create('scoped.mp4', 32, 'video/mp4'),
+            ])
+        )->assertRedirect();
+        $activityId = (int) DB::table('core_course_template_activities')->where('title', 'Scoped Video')->value('id');
+        $usage = DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->first();
+        $url = "https://tenant-a.localhost/teacher/course-templates/{$templateId}/activities/{$activityId}/media/video/{$usage->media_file_id}";
+
+        $this->actingAs($assigned)->get($url)->assertOk();
+        $this->actingAs($unassigned)->get($url)->assertNotFound();
+
+        foreach ([
+            ['owner_id' => $activityId + 999],
+            ['owner_type' => 'course_template'],
+            ['usage_type' => 'audio'],
+            ['status' => 'detached'],
+        ] as $mutation) {
+            DB::table('media_file_usages')->where('id', $usage->id)->update([
+                'owner_id' => $activityId, 'owner_type' => 'course_activity',
+                'usage_type' => 'video', 'status' => 'active',
+            ]);
+            DB::table('media_file_usages')->where('id', $usage->id)->update($mutation);
+            $this->actingAs($admin)->get(str_replace('/teacher/', '/admin/', $url))->assertNotFound();
+        }
+
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
+        $otherMediaId = $this->createMediaFile($otherCustomerId, $otherAdmin->id, 'video', 'other.mp4', 'video/mp4');
+        DB::table('media_file_usages')->where('id', $usage->id)->update([
+            'owner_id' => $activityId, 'owner_type' => 'course_activity',
+            'usage_type' => 'video', 'status' => 'active', 'media_file_id' => $otherMediaId,
+        ]);
+        $this->actingAs($admin)->get(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/activities/{$activityId}/media/video/{$otherMediaId}"
+        )->assertNotFound();
+    }
+
+    public function test_activity_media_replacement_failure_and_type_change_preserve_expected_current_state(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Replacement Display Template', 'replacement-display-template', $admin->id);
+        $lessonId = $this->createLesson($customerId, $templateId, 'Replacement Display Lesson', 'replacement-display-lesson');
+        $collection = "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities";
+
+        $this->actingAs($admin)->post($collection, $this->validActivityData([
+            'title' => 'Replace Video', 'activity_type' => 'video',
+            'activity_video_file' => UploadedFile::fake()->create('before.mp4', 32, 'video/mp4'),
+        ]))->assertRedirect();
+        $activityId = (int) DB::table('core_course_template_activities')->where('title', 'Replace Video')->value('id');
+        $editUrl = "{$collection}/{$activityId}/edit";
+
+        $this->actingAs($admin)->put("{$collection}/{$activityId}", $this->validActivityData([
+            'title' => 'Replace Video', 'activity_type' => 'video',
+            'activity_video_file' => UploadedFile::fake()->create('after.mp4', 48, 'video/mp4'),
+        ]))->assertRedirect($editUrl);
+        $replacementMediaId = (int) DB::table('media_file_usages')
+            ->where('owner_type', 'course_activity')->where('owner_id', $activityId)
+            ->where('usage_type', 'video')->where('status', 'active')->value('media_file_id');
+        $response = $this->actingAs($admin)->get($editUrl)
+            ->assertOk()
+            ->assertDontSeeText('after.mp4')->assertDontSeeText('before.mp4');
+        $this->assertStringContainsString(
+            "\\/activities\\/{$activityId}\\/media\\/video\\/{$replacementMediaId}",
+            $response->getContent()
+        );
+
+        $this->actingAs($admin)->from($editUrl)->put("{$collection}/{$activityId}", $this->validActivityData([
+            'title' => 'Replace Video', 'activity_type' => 'video',
+            'activity_video_file' => UploadedFile::fake()->create('invalid.txt', 32, 'text/plain'),
+        ]))->assertRedirect($editUrl)->assertSessionHasErrors();
+        $response = $this->actingAs($admin)->get($editUrl)
+            ->assertOk()
+            ->assertDontSeeText('after.mp4')->assertDontSeeText('invalid.txt');
+        $this->assertStringContainsString(
+            "\\/activities\\/{$activityId}\\/media\\/video\\/{$replacementMediaId}",
+            $response->getContent()
+        );
+
+        $this->actingAs($admin)->put("{$collection}/{$activityId}", $this->validActivityData([
+            'title' => 'Replace Video', 'activity_type' => 'audio',
+        ]))->assertRedirect($editUrl);
+        $this->actingAs($admin)->get($editUrl)
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_media_empty'))
+            ->assertDontSeeText('after.mp4')
+            ->assertDontSee("/activities/{$activityId}/media/video/", false);
+        $this->assertDatabaseHas('media_file_usages', [
+            'customer_id' => $customerId, 'owner_type' => 'course_activity',
+            'owner_id' => $activityId, 'usage_type' => 'video', 'status' => 'detached',
+        ]);
     }
 
     public function test_activity_create_rolls_back_when_media_usage_attachment_fails(): void
