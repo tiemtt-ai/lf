@@ -230,10 +230,12 @@
 
 .course-template-authoring {
     width: 100%;
-    max-width: 960px;
+    min-width: 0;
 }
 
 .course-template-tabs {
+    width: 100%;
+    min-width: 0;
     margin-bottom: 20px;
     padding: 6px;
     display: grid;
@@ -242,6 +244,11 @@
     border: 1px solid #dbe3ed;
     border-radius: 10px;
     background: #f8fafc;
+}
+
+.course-template-authoring > .course-template-tab-panel {
+    width: 100%;
+    min-width: 0;
 }
 
 .course-template-tab {

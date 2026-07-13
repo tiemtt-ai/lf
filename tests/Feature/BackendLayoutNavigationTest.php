@@ -488,6 +488,39 @@ class BackendLayoutNavigationTest extends TestCase
         );
     }
 
+    public function test_course_template_authoring_uses_full_available_content_width(): void
+    {
+        $editView = file_get_contents(
+            base_path('resources/views/course-templates/edit.blade.php')
+        );
+        $adminPagesCss = file_get_contents(
+            base_path('resources/css/admin/admin-pages.css')
+        );
+
+        $this->assertSame(1, substr_count($editView, 'class="course-template-authoring"'));
+        $this->assertSame(1, substr_count($editView, 'class="course-template-tabs"'));
+        $this->assertSame(5, substr_count($editView, 'class="course-template-tab-panel"'));
+        $this->assertStringContainsString(
+            '.course-template-authoring {' . PHP_EOL
+                . '    width: 100%;' . PHP_EOL
+                . '    min-width: 0;' . PHP_EOL
+                . '}',
+            $adminPagesCss
+        );
+        $this->assertStringNotContainsString(
+            '.course-template-authoring {' . PHP_EOL
+                . '    width: 100%;' . PHP_EOL
+                . '    max-width: 960px;',
+            $adminPagesCss
+        );
+        $this->assertStringContainsString(
+            '.course-template-authoring > .course-template-tab-panel {' . PHP_EOL
+                . '    width: 100%;' . PHP_EOL
+                . '    min-width: 0;',
+            $adminPagesCss
+        );
+    }
+
     public function test_account_pages_render_without_left_sidebar_account_group(): void
     {
         $customerId = $this->createTenant();
