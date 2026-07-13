@@ -286,6 +286,7 @@ class CourseTemplatePublishingTest extends TestCase
             $admin->id,
             'Versioned Course'
         );
+        $this->addValidContent($customerId, $templateId, $admin->id, 'Versioned');
 
         $url = "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish";
 
@@ -461,6 +462,166 @@ class CourseTemplatePublishingTest extends TestCase
             'Ảnh giới thiệu của Template không khả dụng hoặc liên kết Media không hợp lệ. Vui lòng kiểm tra tab Thông tin.',
             __('lf.LF_course_template_publish_integrity_template_intro_image')
         );
+    }
+
+    public function test_publish_tab_uses_structured_readiness_for_ready_and_blocked_drafts(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Readiness Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Readiness Course');
+        $lessonId = $this->createLesson($customerId, $templateId, null, 'Readiness Lesson', 0, $admin->id);
+        $activityId = $this->createActivity($customerId, $templateId, $lessonId, 'Readiness Document', 0, $admin->id);
+
+        $service = app(\App\Services\CourseTemplatePublishReadinessService::class);
+        $ready = $service->evaluate($customerId, $service->load($customerId, $templateId));
+        $this->assertTrue($ready->isReady());
+        $this->assertCount(0, $ready->blockers());
+        $this->assertCount(0, $ready->warnings());
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")
+            ->assertOk()
+            ->assertSeeText('Sẵn sàng xuất bản')
+            ->assertDontSee('course-template-publish-button" disabled', false);
+
+        DB::table('core_course_templates')->where('id', $templateId)->update(['publisher_name' => null, 'working_revision' => 4]);
+        DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->delete();
+        $blocked = $service->evaluate($customerId, $service->load($customerId, $templateId));
+        $this->assertFalse($blocked->isReady());
+        $this->assertSame(['template', 'activity_media'], $blocked->blockers()->pluck('code')->all());
+        $this->assertSame(['information', 'content'], $blocked->blockers()->pluck('targetTab')->all());
+
+        $response = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")
+            ->assertOk()
+            ->assertSeeText('2 vấn đề đang chặn xuất bản')
+            ->assertSeeText('Readiness Lesson')
+            ->assertSeeText('Readiness Document')
+            ->assertSee('?tab=information', false)
+            ->assertSee('?tab=structure', false)
+            ->assertSee("course-template-lesson-{$lessonId}-activities", false);
+        $document = new \DOMDocument;
+        @$document->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($document);
+        $this->assertSame(1, $xpath->query('//button[contains(@class, "course-template-publish-button") and @disabled]')->length);
+        $this->assertSame(1, substr_count($response->getContent(), 'data-readiness-code="activity_media"'));
+    }
+
+    public function test_direct_publish_post_cannot_bypass_readiness_and_correction_is_recalculated(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Recalculation Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Recalculation Course');
+        $lessonId = $this->createLesson($customerId, $templateId, null, 'Recalculation Lesson', 0, $admin->id);
+        $activityId = $this->createActivity($customerId, $templateId, $lessonId, 'Recalculation Video', 0, $admin->id, 'video');
+        $usage = DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->first();
+        DB::table('media_file_usages')->where('id', $usage->id)->update(['status' => 'detached']);
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")
+            ->assertSessionHasErrors('publish');
+        $this->assertDatabaseMissing('core_course_template_versions', ['template_id' => $templateId]);
+
+        DB::table('media_file_usages')->where('id', $usage->id)->update(['status' => 'active']);
+        DB::table('core_course_templates')->where('id', $templateId)->update(['working_revision' => 4]);
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")
+            ->assertOk()
+            ->assertSeeText('Bản nháp · Bản chỉnh sửa 4')
+            ->assertSeeText('Sẵn sàng xuất bản');
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")
+            ->assertRedirect("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish");
+        $this->assertDatabaseHas('core_course_template_versions', ['template_id' => $templateId, 'status' => 'published']);
+    }
+
+    public function test_readiness_reports_empty_content_and_template_media_video_state_without_foreign_details(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Coverage Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Coverage Course');
+
+        $empty = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")
+            ->assertOk()
+            ->assertSeeText('Khóa học chưa có bài học')
+            ->assertSee('?tab=structure', false);
+        $this->assertStringNotContainsString('storage_key', $empty->getContent());
+
+        DB::table('core_course_templates')->where('id', $templateId)->update([
+            'intro_video_source' => 'embed',
+            'intro_video_embed_url' => 'https://example.test/video',
+            'intro_video_provider' => 'unsupported',
+        ]);
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_invalid_video_state'))
+            ->assertSee('?tab=information', false);
+    }
+
+    public function test_readiness_keeps_every_activity_media_relationship_failure_as_a_blocker(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin', 'Relationship Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Relationship Course');
+        $lessonId = $this->createLesson($customerId, $templateId, null, 'Relationship Lesson', 0, $admin->id);
+        $activityId = $this->createActivity($customerId, $templateId, $lessonId, 'Relationship Document', 0, $admin->id);
+        $usage = DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->first();
+        $media = DB::table('media_files')->where('id', $usage->media_file_id)->first();
+        $service = app(\App\Services\CourseTemplatePublishReadinessService::class);
+
+        $cases = [
+            'detached usage' => fn () => DB::table('media_file_usages')->where('id', $usage->id)->update(['status' => 'detached']),
+            'archived media' => fn () => DB::table('media_files')->where('id', $media->id)->update(['status' => 'archived']),
+            'wrong usage' => fn () => DB::table('media_file_usages')->where('id', $usage->id)->update(['usage_type' => 'video']),
+            'wrong owner' => fn () => DB::table('media_file_usages')->where('id', $usage->id)->update(['owner_id' => $activityId + 999]),
+            'wrong mime' => fn () => DB::table('media_files')->where('id', $media->id)->update(['mime_type' => 'video/mp4']),
+            'cross tenant media' => fn () => DB::table('media_files')->where('id', $media->id)->update(['customer_id' => $otherCustomerId]),
+        ];
+
+        foreach ($cases as $case => $corrupt) {
+            DB::table('media_file_usages')->where('id', $usage->id)->update([
+                'customer_id' => $customerId,
+                'owner_type' => 'course_activity',
+                'owner_id' => $activityId,
+                'usage_type' => 'document',
+                'status' => 'active',
+            ]);
+            DB::table('media_files')->where('id', $media->id)->update([
+                'customer_id' => $customerId,
+                'file_type' => 'document',
+                'mime_type' => 'application/pdf',
+                'status' => 'ready',
+            ]);
+            $corrupt();
+
+            $readiness = $service->evaluate($customerId, $service->load($customerId, $templateId));
+            $this->assertFalse($readiness->isReady(), $case);
+            $this->assertSame(['activity_media'], $readiness->blockers()->pluck('code')->all(), $case);
+        }
+    }
+
+    public function test_readiness_reports_each_invalid_template_media_slot_from_the_shared_result(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Slot Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Slot Course');
+        $documentLesson = $this->createLesson($customerId, $templateId, null, 'Document Lesson', 0, $admin->id);
+        $documentActivity = $this->createActivity($customerId, $templateId, $documentLesson, 'Slot Document', 0, $admin->id);
+        $videoLesson = $this->createLesson($customerId, $templateId, null, 'Video Lesson', 1, $admin->id);
+        $videoActivity = $this->createActivity($customerId, $templateId, $videoLesson, 'Slot Video', 0, $admin->id, 'video');
+        $documentMediaId = DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $documentActivity)->value('media_file_id');
+        $videoMediaId = DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $videoActivity)->value('media_file_id');
+        DB::table('core_course_templates')->where('id', $templateId)->update([
+            'intro_image_media_file_id' => $documentMediaId,
+            'intro_video_source' => 'upload',
+            'intro_video_media_file_id' => $videoMediaId,
+            'intro_video_embed_url' => null,
+            'intro_video_provider' => null,
+            'intro_document_media_file_id' => $documentMediaId,
+        ]);
+
+        $service = app(\App\Services\CourseTemplatePublishReadinessService::class);
+        $readiness = $service->evaluate($customerId, $service->load($customerId, $templateId));
+        $this->assertSame(
+            ['template_intro_image', 'template_intro_video', 'template_intro_document'],
+            $readiness->blockers()->pluck('code')->all()
+        );
+        $this->assertSame(['information', 'information', 'information'], $readiness->blockers()->pluck('targetTab')->all());
     }
 
     public function test_publish_and_duplicate_preserve_documented_duplicate_content_order_values(): void
@@ -677,6 +838,9 @@ class CourseTemplatePublishingTest extends TestCase
         $templateA1 = $this->createTemplate($customerA, $adminA->id, 'Tenant A First');
         $templateA2 = $this->createTemplate($customerA, $adminA->id, 'Tenant A Second');
         $templateB = $this->createTemplate($customerB, $adminB->id, 'Tenant B First');
+        $this->addValidContent($customerA, $templateA1, $adminA->id, 'Tenant A First');
+        $this->addValidContent($customerA, $templateA2, $adminA->id, 'Tenant A Second');
+        $this->addValidContent($customerB, $templateB, $adminB->id, 'Tenant B First');
 
         $this->actingAs($adminA)
             ->post("https://tenant-a.localhost/admin/course-templates/{$templateA1}/publish")
@@ -1638,6 +1802,26 @@ class CourseTemplatePublishingTest extends TestCase
         ]);
 
         return $activityId;
+    }
+
+    private function addValidContent(int $customerId, int $templateId, int $createdBy, string $prefix): void
+    {
+        $lessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            $prefix.' Lesson',
+            0,
+            $createdBy
+        );
+        $this->createActivity(
+            $customerId,
+            $templateId,
+            $lessonId,
+            $prefix.' Activity',
+            0,
+            $createdBy
+        );
     }
 
     private function draftState(int $customerId, int $templateId): array

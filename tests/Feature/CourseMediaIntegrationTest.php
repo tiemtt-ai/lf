@@ -490,7 +490,6 @@ class CourseMediaIntegrationTest extends TestCase
             $templateId,
             'intro_video'
         );
-
         $this->actingAs($admin)
             ->post(
                 "https://tenant-a.localhost/admin/course-templates/{$templateId}",
@@ -645,6 +644,7 @@ class CourseMediaIntegrationTest extends TestCase
             $templateId,
             'intro_video'
         );
+        $this->addPublishableContent($customerId, $templateId, $admin);
 
         $this->actingAs($admin)
             ->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")
@@ -1403,6 +1403,7 @@ class CourseMediaIntegrationTest extends TestCase
             ])
         )->assertRedirect();
         $template = DB::table('core_course_templates')->where('title', 'Historical Media Detail')->sole();
+        $this->addPublishableContent($customerId, (int) $template->id, $admin);
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$template->id}/publish")->assertRedirect();
         $version = DB::table('core_course_template_versions')->where('template_id', $template->id)->sole();
 
@@ -1453,6 +1454,7 @@ class CourseMediaIntegrationTest extends TestCase
             ])
         )->assertRedirect();
         $template = DB::table('core_course_templates')->where('title', 'Historical Embed Detail')->sole();
+        $this->addPublishableContent($customerId, (int) $template->id, $admin);
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$template->id}/publish")->assertRedirect();
         $version = DB::table('core_course_template_versions')->where('template_id', $template->id)->sole();
 
@@ -2101,6 +2103,28 @@ class CourseMediaIntegrationTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    private function addPublishableContent(int $customerId, int $templateId, User $admin): void
+    {
+        $lessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            'Publishing Readiness Lesson',
+            'publishing-readiness-lesson'
+        );
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities",
+            $this->validActivityData([
+                'title' => 'Publishing Readiness Document',
+                'activity_type' => 'document',
+                'activity_document_file' => UploadedFile::fake()->create(
+                    'publishing-readiness.pdf',
+                    16,
+                    'application/pdf'
+                ),
+            ])
+        )->assertRedirect();
     }
 
     private function validProductData(array $overrides = []): array

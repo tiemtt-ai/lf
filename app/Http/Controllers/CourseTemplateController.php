@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\CourseTemplatePublishingService;
+use App\Services\CourseTemplatePublishReadinessService;
 use App\Services\CourseTemplateVersionDetailPresenter;
 use App\Services\CourseTemplateVersionDuplicatingService;
 use App\Services\CourseTemplateVersionMediaPresenter;
@@ -23,6 +24,7 @@ class CourseTemplateController extends Controller
 {
     public function __construct(
         private readonly CourseTemplatePublishingService $publishingService,
+        private readonly CourseTemplatePublishReadinessService $readinessService,
         private readonly CourseTemplateVersionDetailPresenter $versionDetailPresenter,
         private readonly CourseTemplateVersionDuplicatingService $duplicatingService,
         private readonly CourseTemplateVersionMediaPresenter $versionMediaPresenter,
@@ -146,12 +148,20 @@ class CourseTemplateController extends Controller
         $routePrefix = $this->routePrefix($request);
         $template = $this->findTemplate($customerId, $id);
         $versions = $this->versions($customerId, $id);
+        $publishGraph = $this->readinessService->load($customerId, $id);
+        $publishReadiness = $this->readinessService->evaluate(
+            $customerId,
+            $publishGraph,
+        );
 
         $introImageMedia = $this->mediaFile($template->intro_image_media_file_id, $id, 'image', $routePrefix);
         $introVideoMedia = $this->mediaFile($template->intro_video_media_file_id, $id, 'video', $routePrefix);
         $introDocumentMedia = $this->mediaFile($template->intro_document_media_file_id, $id, 'document', $routePrefix);
         $introVideoEmbedUrl = $template->intro_video_source === 'embed'
             && $template->intro_video_embed_url
+            && ! $publishReadiness->blockers()->contains(
+                fn (object $issue): bool => $issue->code === 'video_state'
+            )
                 ? $this->trustedVideoUrls->embedUrl($template->intro_video_embed_url)
                 : null;
 
@@ -162,10 +172,11 @@ class CourseTemplateController extends Controller
             'currentVersion' => $versions->first(
                 fn (object $version): bool => (bool) $version->is_current
             ),
+            'publishReadiness' => $publishReadiness,
             'categories' => $this->categories(),
-            'sections' => $this->sections($customerId, $id),
-            'directLessons' => $this->directLessons($customerId, $id),
-            'lessonsBySection' => $this->lessonsBySection($customerId, $id),
+            'sections' => $publishGraph->sections,
+            'directLessons' => $publishGraph->lessons->whereNull('template_section_id'),
+            'lessonsBySection' => $publishGraph->lessons->whereNotNull('template_section_id')->groupBy('template_section_id'),
             'activitiesByLesson' => $this->activitiesByLesson($customerId, $id),
             'introImageMedia' => $introImageMedia,
             'introVideoMedia' => $introVideoMedia,
@@ -173,7 +184,9 @@ class CourseTemplateController extends Controller
             'introVideoEmbedUrl' => $introVideoEmbedUrl,
             'introImageThumbnail' => $this->mediaThumbnails->image($introImageMedia),
             'introVideoThumbnail' => $template->intro_video_source === 'embed'
-                ? $this->mediaThumbnails->embeddedVideo($template->intro_video_embed_url)
+                ? $this->mediaThumbnails->embeddedVideo(
+                    $introVideoEmbedUrl ? $template->intro_video_embed_url : null
+                )
                 : $this->mediaThumbnails->uploadedVideo($introVideoMedia),
             'introDocumentThumbnail' => $this->mediaThumbnails->document($introDocumentMedia),
             'teacherAssignments' => $this->teacherAssignments(

@@ -135,6 +135,42 @@
                     </div>
                 </dl>
 
+                <section @class([
+                             'course-template-readiness',
+                             'is-ready' => $publishReadiness->isReady(),
+                             'is-blocked' => ! $publishReadiness->isReady(),
+                         ])
+                         aria-labelledby="course-template-readiness-title">
+                    <h3 id="course-template-readiness-title">
+                        {{ $publishReadiness->isReady()
+                            ? __('lf.LF_course_template_readiness_ready')
+                            : __('lf.LF_course_template_readiness_blocked', [
+                                'count' => $publishReadiness->blockers()->count(),
+                            ]) }}
+                    </h3>
+
+                    @if ($publishReadiness->isReady())
+                        <p>{{ __('lf.LF_course_template_readiness_ready_help') }}</p>
+                    @else
+                        <p>{{ __('lf.LF_course_template_readiness_blocked_help') }}</p>
+                        <ol class="course-template-readiness-list">
+                            @foreach ($publishReadiness->blockers() as $issue)
+                                <li data-readiness-code="{{ $issue->code }}">
+                                    <span>{{ $issue->message() }}</span>
+                                    <a href="{{ $issue->targetUrl(
+                                        $routePrefix,
+                                        (int) $template->id
+                                    ) }}">
+                                        {{ $issue->targetTab === 'information'
+                                            ? __('lf.LF_course_template_readiness_fix_information')
+                                            : __('lf.LF_course_template_readiness_fix_content') }}
+                                    </a>
+                                </li>
+                            @endforeach
+                        </ol>
+                    @endif
+                </section>
+
                 <div class="admin-form-actions">
                     @if (request()->user()?->role === 'customer_admin')
                         <form method="POST"
@@ -144,7 +180,9 @@
                               ) }}">
                             @csrf
                             <button type="submit"
-                                    class="btn btn-primary course-template-publish-button">
+                                    class="btn btn-primary course-template-publish-button"
+                                    @disabled(! $publishReadiness->isReady())
+                                    @if (! $publishReadiness->isReady()) aria-disabled="true" @endif>
                                 {{ __('lf.LF_course_template_publish_action') }}
                             </button>
                         </form>

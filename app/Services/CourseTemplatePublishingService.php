@@ -11,7 +11,7 @@ class CourseTemplatePublishingService
 {
     public function __construct(
         private readonly MediaService $mediaService,
-        private readonly CourseTemplatePublishGraphValidator $graphValidator,
+        private readonly CourseTemplatePublishReadinessService $readinessService,
     ) {}
 
     public function publish(
@@ -24,13 +24,12 @@ class CourseTemplatePublishingService
             $templateId,
             $publishedBy
         ): object {
-            $template = DB::table('core_course_templates')
-                ->where('customer_id', $customerId)
-                ->where('id', $templateId)
-                ->lockForUpdate()
-                ->first();
-
-            abort_if(! $template, 404);
+            $graph = $this->readinessService->load($customerId, $templateId, true);
+            $template = $graph->template;
+            $sections = $graph->sections;
+            $lessons = $graph->lessons;
+            $activities = $graph->activities;
+            $this->readinessService->evaluate($customerId, $graph)->assertReady();
 
             $categoryName = $template->category_id
                 ? DB::table('core_course_categories')
@@ -38,11 +37,6 @@ class CourseTemplatePublishingService
                     ->where('id', $template->category_id)
                     ->value('name')
                 : null;
-
-            $sections = $this->sourceSections($customerId, $templateId);
-            $lessons = $this->sourceLessons($customerId, $templateId);
-            $activities = $this->sourceActivities($customerId, $templateId);
-            $this->graphValidator->validate($customerId, $template, $sections, $lessons, $activities);
 
             $versionNumber = (int) DB::table(
                 'core_course_template_versions'
@@ -94,7 +88,6 @@ class CourseTemplatePublishingService
                 'updated_at' => $now,
             ]);
 
-            $this->assertVideoState($template);
             foreach (['intro_image' => $template->intro_image_media_file_id, 'intro_video' => $template->intro_video_media_file_id, 'intro_document' => $template->intro_document_media_file_id] as $usage => $mediaId) {
                 if ($mediaId) {
                     $this->mediaService->attachUsage((int) $mediaId, 'course_template_version', $versionId, $usage);
@@ -155,59 +148,6 @@ class CourseTemplatePublishingService
                 ->where('id', $versionId)
                 ->first();
         });
-    }
-
-    private function assertVideoState(object $template): void
-    {
-        $valid = match ($template->intro_video_source) {
-            null => ! $template->intro_video_media_file_id && ! $template->intro_video_embed_url && ! $template->intro_video_provider,
-            'upload' => (bool) $template->intro_video_media_file_id && ! $template->intro_video_embed_url && ! $template->intro_video_provider,
-            'embed' => ! $template->intro_video_media_file_id && (bool) $template->intro_video_embed_url && in_array($template->intro_video_provider, ['youtube', 'vimeo'], true),
-            default => false,
-        };
-        if (! $valid) {
-            throw ValidationException::withMessages(['publish' => __('lf.LF_course_template_invalid_video_state')]);
-        }
-    }
-
-    private function sourceSections(
-        int $customerId,
-        int $templateId
-    ): Collection {
-        return DB::table('core_course_template_sections')
-            ->where('customer_id', $customerId)
-            ->where('template_id', $templateId)
-            ->orderBy('parent_section_id')
-            ->orderBy('display_order')
-            ->orderBy('id')
-            ->get();
-    }
-
-    private function sourceLessons(
-        int $customerId,
-        int $templateId
-    ): Collection {
-        return DB::table('core_course_template_lessons')
-            ->where('customer_id', $customerId)
-            ->where('template_id', $templateId)
-            ->orderByRaw('template_section_id IS NOT NULL')
-            ->orderBy('template_section_id')
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
-    }
-
-    private function sourceActivities(
-        int $customerId,
-        int $templateId
-    ): Collection {
-        return DB::table('core_course_template_activities')
-            ->where('customer_id', $customerId)
-            ->where('template_id', $templateId)
-            ->orderBy('template_lesson_id')
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
     }
 
     private function snapshotSections(
