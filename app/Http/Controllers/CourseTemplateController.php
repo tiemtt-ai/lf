@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\CourseTemplatePublishingService;
+use App\Services\CourseTemplateVersionDetailPresenter;
 use App\Services\CourseTemplateVersionDuplicatingService;
 use App\Services\MediaService;
 use App\Services\MediaThumbnailPresenter;
@@ -21,6 +22,7 @@ class CourseTemplateController extends Controller
 {
     public function __construct(
         private readonly CourseTemplatePublishingService $publishingService,
+        private readonly CourseTemplateVersionDetailPresenter $versionDetailPresenter,
         private readonly CourseTemplateVersionDuplicatingService $duplicatingService,
         private readonly MediaService $mediaService,
         private readonly MediaThumbnailPresenter $mediaThumbnails,
@@ -271,6 +273,7 @@ class CourseTemplateController extends Controller
             ->orderBy('id')
             ->get()
             ->groupBy('version_lesson_id');
+        $presentation = $this->versionDetailPresenter->present($versionId, $lessons, $activitiesByLesson->flatten(1));
 
         return view('course-template-versions.show', [
             'template' => $template,
@@ -285,6 +288,7 @@ class CourseTemplateController extends Controller
                 )
                 ->groupBy('version_section_id'),
             'activitiesByLesson' => $activitiesByLesson,
+            ...$presentation,
         ]);
     }
 

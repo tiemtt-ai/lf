@@ -375,6 +375,73 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertSame(1, DB::table('core_course_template_versions')->where('template_id', $templateId)->where('is_current', true)->count());
     }
 
+    public function test_uploaded_activity_media_types_create_immutable_version_usages(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Media Snapshot Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Media Snapshot Course');
+
+        foreach (['video', 'audio', 'document'] as $order => $type) {
+            $lessonId = $this->createLesson($customerId, $templateId, null, ucfirst($type).' Lesson', $order, $admin->id);
+            $this->createActivity($customerId, $templateId, $lessonId, ucfirst($type).' Activity', 0, $admin->id, $type);
+        }
+
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish"
+        )->assertRedirect();
+
+        $versionActivities = DB::table('core_course_template_version_activities')
+            ->where('customer_id', $customerId)->orderBy('id')->get();
+        $this->assertCount(3, $versionActivities);
+        foreach ($versionActivities as $activity) {
+            $this->assertNotNull($activity->media_file_id);
+            $this->assertDatabaseHas('media_file_usages', [
+                'customer_id' => $customerId,
+                'media_file_id' => $activity->media_file_id,
+                'owner_type' => 'course_version_activity',
+                'owner_id' => $activity->id,
+                'usage_type' => $activity->activity_type,
+                'status' => 'active',
+            ]);
+            $this->assertSame(1, DB::table('media_files')->where('id', $activity->media_file_id)->count());
+        }
+    }
+
+    public function test_version_detail_media_authorization_denies_invalid_usage_and_media_states_without_draft_fallback(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Media Auth Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Media Auth Course');
+        $lessonId = $this->createLesson($customerId, $templateId, null, 'Media Auth Lesson', 0, $admin->id);
+        $draftActivityId = $this->createActivity($customerId, $templateId, $lessonId, 'Unique Media Activity', 0, $admin->id);
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish");
+        $version = DB::table('core_course_template_versions')->where('template_id', $templateId)->first();
+        $activity = DB::table('core_course_template_version_activities')->where('template_version_id', $version->id)->first();
+        $usage = DB::table('media_file_usages')->where('owner_type', 'course_version_activity')->where('owner_id', $activity->id)->first();
+        $url = "https://tenant-a.localhost/admin/course-templates/{$templateId}/versions/{$version->id}";
+
+        $this->actingAs($admin)->get($url)->assertOk()->assertSee('media/files/', false)->assertDontSee('tests/activity-', false);
+
+        foreach ([
+            'wrong_purpose' => fn () => DB::table('media_file_usages')->where('id', $usage->id)->update(['usage_type' => 'audio']),
+            'inactive_usage' => fn () => DB::table('media_file_usages')->where('id', $usage->id)->update(['usage_type' => 'document', 'status' => 'detached']),
+            'archived_media' => fn () => tap(DB::table('media_file_usages')->where('id', $usage->id)->update(['status' => 'active']), fn () => DB::table('media_files')->where('id', $activity->media_file_id)->update(['status' => 'archived'])),
+            'missing_usage' => fn () => tap(DB::table('media_files')->where('id', $activity->media_file_id)->update(['status' => 'ready']), fn () => DB::table('media_file_usages')->where('id', $usage->id)->delete()),
+        ] as $case => $corrupt) {
+            $corrupt();
+            $response = $this->actingAs($admin)->get($url)->assertOk()
+                ->assertSeeText('Media snapshot không khả dụng')
+                ->assertDontSee('media/files/', false)
+                ->assertDontSee('tests/activity-', false);
+            $this->assertStringNotContainsString('course_activity', $response->getContent(), $case);
+        }
+        app()->setLocale('en');
+        $this->actingAs($admin)->get($url)->assertOk()
+            ->assertSeeText('Media snapshot unavailable')
+            ->assertDontSee('media/files/', false);
+        $this->assertDatabaseHas('media_file_usages', ['owner_type' => 'course_activity', 'owner_id' => $draftActivityId, 'status' => 'active']);
+    }
+
     public function test_publish_and_duplicate_preserve_documented_duplicate_content_order_values(): void
     {
         $customerId = $this->createTenant();
@@ -1503,7 +1570,8 @@ class CourseTemplatePublishingTest extends TestCase
         int $lessonId,
         string $title,
         int $sortOrder,
-        int $createdBy
+        int $createdBy,
+        string $activityType = 'document'
     ): int {
         $activityId = DB::table('core_course_template_activities')->insertGetId([
             'customer_id' => $customerId,
@@ -1512,7 +1580,7 @@ class CourseTemplatePublishingTest extends TestCase
             'title' => $title,
             'description' => 'Activity description.',
             'sort_order' => $sortOrder,
-            'activity_type' => 'document',
+            'activity_type' => $activityType,
             'external_video_url' => null,
             'live_class_url' => null,
             'assessment_quiz_id' => null,
@@ -1528,12 +1596,14 @@ class CourseTemplatePublishingTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        $mime = ['video' => 'video/mp4', 'audio' => 'audio/mpeg', 'document' => 'application/pdf'][$activityType];
+        $extension = ['video' => 'mp4', 'audio' => 'mp3', 'document' => 'pdf'][$activityType];
         $mediaId = DB::table('media_files')->insertGetId([
             'customer_id' => $customerId, 'category_id' => null, 'uploaded_by' => $createdBy,
-            'file_type' => 'document', 'mime_type' => 'application/pdf',
-            'original_name' => "activity-{$activityId}.pdf", 'display_name' => $title,
-            'extension' => 'pdf', 'storage_disk' => 'media_local', 'storage_bucket' => 'local-media',
-            'storage_region' => null, 'storage_key' => "tests/activity-{$customerId}-{$activityId}.pdf",
+            'file_type' => $activityType, 'mime_type' => $mime,
+            'original_name' => "activity-{$activityId}.{$extension}", 'display_name' => $title,
+            'extension' => $extension, 'storage_disk' => 'media_local', 'storage_bucket' => 'local-media',
+            'storage_region' => null, 'storage_key' => "tests/activity-{$customerId}-{$activityId}.{$extension}",
             'storage_class' => null, 'cdn_url' => null, 'public_url' => null, 'checksum' => null,
             'file_size_bytes' => 1, 'duration_seconds' => null, 'width' => null, 'height' => null,
             'page_count' => 1, 'language' => null, 'visibility' => 'private', 'status' => 'ready',
@@ -1542,7 +1612,7 @@ class CourseTemplatePublishingTest extends TestCase
         DB::table('media_file_usages')->insert([
             'customer_id' => $customerId, 'media_file_id' => $mediaId,
             'owner_type' => 'course_activity', 'owner_id' => $activityId,
-            'usage_type' => 'document', 'status' => 'active', 'metadata' => null,
+            'usage_type' => $activityType, 'status' => 'active', 'metadata' => null,
             'created_by' => $createdBy, 'created_at' => now(), 'updated_at' => now(),
         ]);
         return $activityId;

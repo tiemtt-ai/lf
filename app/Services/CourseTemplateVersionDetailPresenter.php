@@ -1,0 +1,60 @@
+<?php
+
+namespace App\Services;
+
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+
+class CourseTemplateVersionDetailPresenter
+{
+    public function __construct(private readonly MediaService $mediaService) {}
+
+    public function present(int $versionId, Collection $lessons, Collection $activities): array
+    {
+        $lessonTitles = $lessons->pluck('title_snapshot', 'id');
+        $activityTitles = $activities->pluck('title_snapshot', 'id');
+        $activityLessons = $activities->pluck('version_lesson_id', 'id');
+        $mediaUrls = $this->mediaService->generateVersionActivitySignedUrls($versionId, $activities->whereNotNull('media_file_id')->pluck('id')->all());
+        $presentedActivities = $activities->mapWithKeys(function ($activity) use ($activityTitles, $activityLessons, $mediaUrls) {
+            $minutes = $activity->estimated_duration_seconds_snapshot ? intdiv($activity->estimated_duration_seconds_snapshot, 60) : null;
+            $unlock = match ($activity->unlock_rule_snapshot) {
+                'none' => __('lf.LF_version_detail_unlock_none'),
+                'previous_activity_completed' => $activityTitles->has($activity->unlock_after_version_activity_id)
+                    && $activityLessons->get($activity->unlock_after_version_activity_id) === $activity->version_lesson_id
+                    ? __('lf.LF_version_detail_activity_after', ['title' => $activityTitles->get($activity->unlock_after_version_activity_id)])
+                    : __('lf.LF_version_detail_activity_unavailable'),
+                'date_based' => $activity->unlock_at_snapshot ? __('lf.LF_version_detail_available_from', ['datetime' => $this->date($activity->unlock_at_snapshot)]) : __('lf.LF_version_detail_unlock_invalid'),
+                default => __('lf.LF_version_detail_unlock_invalid'),
+            };
+            $completion = match ($activity->completion_rule) {
+                'view' => __('lf.LF_version_detail_completion_view'),
+                'watch_percent' => __('lf.LF_version_detail_completion_watch', ['threshold' => $activity->completion_threshold]),
+                'submit' => __('lf.LF_version_detail_completion_submit'),
+                'pass' => __('lf.LF_version_detail_completion_pass', ['threshold' => $activity->completion_threshold]),
+                'join' => __('lf.LF_version_detail_completion_join'),
+                'manual' => __('lf.LF_version_detail_completion_manual'),
+                default => __('lf.LF_version_detail_completion_invalid'),
+            };
+            $mediaUrl = $mediaUrls[$activity->id] ?? null;
+            return [$activity->id => compact('activity', 'minutes', 'unlock', 'completion', 'mediaUrl')];
+        });
+        $presentedLessons = $lessons->mapWithKeys(function ($lesson) use ($lessonTitles) {
+            $minutes = $lesson->duration_seconds ? intdiv($lesson->duration_seconds, 60) : null;
+            $unlock = match ($lesson->unlock_rule_snapshot) {
+                'none' => __('lf.LF_version_detail_unlock_none'),
+                'previous_lesson_completed' => $lessonTitles->has($lesson->unlock_after_version_lesson_id)
+                    ? __('lf.LF_version_detail_lesson_after', ['title' => $lessonTitles->get($lesson->unlock_after_version_lesson_id)])
+                    : __('lf.LF_version_detail_lesson_unavailable'),
+                'date_based' => $lesson->unlock_at_snapshot ? __('lf.LF_version_detail_available_from', ['datetime' => $this->date($lesson->unlock_at_snapshot)]) : __('lf.LF_version_detail_unlock_invalid'),
+                default => __('lf.LF_version_detail_unlock_invalid'),
+            };
+            return [$lesson->id => compact('lesson', 'minutes', 'unlock')];
+        });
+        return compact('presentedLessons', 'presentedActivities');
+    }
+
+    private function date(string $value): string
+    {
+        return Carbon::parse($value)->timezone(config('app.timezone'))->format('d/m/Y H:i T');
+    }
+}

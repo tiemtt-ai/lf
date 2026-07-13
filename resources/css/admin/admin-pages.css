@@ -677,6 +677,14 @@
     text-align: center;
 }
 
+.course-version-disclosure { width: 100%; min-width: 0; }
+.course-version-disclosure-summary { padding: 12px 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; cursor: pointer; }
+.course-version-disclosure-summary:focus-visible { outline: 2px solid var(--admin-active); outline-offset: 3px; }
+.course-version-disclosure-summary span { min-width: 0; }
+.course-version-disclosure-summary small { margin-top: 4px; display: block; color: var(--admin-text-muted); overflow-wrap: anywhere; }
+.course-version-disclosure-body { padding: 4px 0 16px 20px; }
+.course-version-copy-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+
 .course-template-section-card {
     max-width: none;
     margin-top: 0;

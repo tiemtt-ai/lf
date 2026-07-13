@@ -134,6 +134,26 @@ class MediaService
 
         abort_if(! $mediaFile || $mediaFile->status !== 'ready', 404);
 
+        return $this->signedUrlForMedia($mediaFile, $expiresAt);
+    }
+
+    public function generateVersionActivitySignedUrls(int $versionId, array $activityIds): array
+    {
+        abort_unless(request()->user()?->role === 'customer_admin', 403);
+        $customerId = $this->customerId();
+        return DB::table('core_course_template_version_activities as activities')
+            ->join('core_course_template_versions as versions', fn ($join) => $join->on('versions.id', '=', 'activities.template_version_id')->where('versions.customer_id', $customerId)->where('versions.id', $versionId))
+            ->join('media_file_usages as usages', fn ($join) => $join->on('usages.owner_id', '=', 'activities.id')->on('usages.media_file_id', '=', 'activities.media_file_id')->where('usages.customer_id', $customerId)->where('usages.owner_type', 'course_version_activity')->where('usages.status', 'active'))
+            ->join('media_files as media', fn ($join) => $join->on('media.id', '=', 'activities.media_file_id')->where('media.customer_id', $customerId)->where('media.status', 'ready'))
+            ->whereColumn('usages.usage_type', 'activities.activity_type')
+            ->where('activities.customer_id', $customerId)->whereIn('activities.id', $activityIds)
+            ->select('activities.id as activity_id', 'media.*')->get()
+            ->mapWithKeys(fn ($media) => [$media->activity_id => $this->signedUrlForMedia($media)])
+            ->all();
+    }
+
+    private function signedUrlForMedia(object $mediaFile, ?DateTimeInterface $expiresAt = null): string
+    {
         $expiresAt ??= now()->addMinutes(
             (int) config('media.signed_url_ttl_minutes', 10)
         );
@@ -190,6 +210,7 @@ class MediaService
                     ->where('media.customer_id', $customerId)
                     ->where('media.status', 'ready');
             })
+            ->whereColumn('usages.usage_type', 'activities.activity_type')
             ->where('activities.customer_id', $customerId)
             ->where('activities.id', $versionActivityId)
             ->value('media.id');
