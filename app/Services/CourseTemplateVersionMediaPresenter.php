@@ -57,7 +57,14 @@ class CourseTemplateVersionMediaPresenter
             'document' => $this->thumbnails->document($media),
         };
 
-        return compact('media', 'thumbnail', 'url') + ['state' => 'available', 'kind' => $slot];
+        $viewMode = match ($slot) {
+            'image' => 'modal_image',
+            'video' => 'modal_video',
+            'document' => $this->documentViewMode($media),
+        };
+
+        return compact('media', 'thumbnail', 'url', 'viewMode')
+            + ['state' => 'available', 'kind' => $slot];
     }
 
     private function embedded(object $version): array
@@ -81,10 +88,28 @@ class CourseTemplateVersionMediaPresenter
         return [
             'state' => 'available',
             'kind' => 'embed',
-            'url' => $this->trustedVideos->embedUrl($normalized['url']),
+            'url' => $this->autoplayEmbedUrl(
+                $this->trustedVideos->embedUrl($normalized['url'])
+            ),
+            'viewMode' => 'modal_embed',
             'provider' => $normalized['provider'],
             'thumbnail' => $this->thumbnails->embeddedVideo($normalized['url']),
         ];
+    }
+
+    private function documentViewMode(object $media): string
+    {
+        $mime = strtolower((string) $media->mime_type);
+        $extension = strtolower((string) $media->extension);
+
+        return $mime === 'application/pdf' && $extension === 'pdf'
+            ? 'modal_document'
+            : 'new_tab_document';
+    }
+
+    private function autoplayEmbedUrl(string $url): string
+    {
+        return $url.(str_contains($url, '?') ? '&' : '?').'autoplay=1';
     }
 
     private function empty(): array

@@ -1492,6 +1492,9 @@ class CourseMediaIntegrationTest extends TestCase
             ->assertSee('openVersionPreview', false)
             ->assertSee('x-ref="versionPreviewVideo"', false)
             ->assertSee('course-version-document-preview', false)
+            ->assertSee('data-preview-type="document"', false)
+            ->assertSee('allow="autoplay; fullscreen; picture-in-picture"', false)
+            ->assertDontSeeText(__('lf.LF_version_detail_document_fallback'))
             ->assertSee("/versions/{$version->id}/media/image/", false)
             ->assertSee("/versions/{$version->id}/media/video/", false)
             ->assertSee("/versions/{$version->id}/media/document/", false);
@@ -1504,6 +1507,38 @@ class CourseMediaIntegrationTest extends TestCase
             $this->actingAs($admin)->get(route('admin.course-templates.versions.media.preview', [
                 $template->id, $version->id, $slot, $mediaId,
             ]))->assertOk();
+        }
+
+        $documentUrl = route('admin.course-templates.versions.media.preview', [
+            $template->id,
+            $version->id,
+            'document',
+            $version->intro_document_media_file_id_snapshot,
+        ]);
+        foreach ([
+            ['historical.docx', 'docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+            ['historical.xlsx', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+            ['historical.pptx', 'pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+            ['historical.bin', 'bin', 'application/octet-stream'],
+        ] as [$displayName, $extension, $mime]) {
+            DB::table('media_files')
+                ->where('id', $version->intro_document_media_file_id_snapshot)
+                ->update([
+                    'display_name' => $displayName,
+                    'extension' => $extension,
+                    'mime_type' => $mime,
+                ]);
+
+            $officeResponse = $this->actingAs($admin)->get(
+                "https://tenant-a.localhost/admin/course-templates/{$template->id}/versions/{$version->id}"
+            )->assertOk()
+                ->assertSee('target="_blank"', false)
+                ->assertSee('rel="noopener noreferrer"', false)
+                ->assertSee($documentUrl, false);
+            $this->assertSame(0, $this->htmlElementCount(
+                $officeResponse->getContent(),
+                '//div[@data-version-media-slot="document"]//button'
+            ));
         }
     }
 
@@ -1528,6 +1563,7 @@ class CourseMediaIntegrationTest extends TestCase
         $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$template->id}/versions/{$version->id}")
             ->assertOk()
             ->assertSee('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ', false)
+            ->assertSee('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1', false)
             ->assertSee("openVersionPreview", false)
             ->assertSeeText('Không có');
 
@@ -1537,7 +1573,7 @@ class CourseMediaIntegrationTest extends TestCase
         ]);
         $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$template->id}/versions/{$version->id}")
             ->assertOk()
-            ->assertSee('https://player.vimeo.com/video/76979871', false);
+            ->assertSee('https://player.vimeo.com/video/76979871?autoplay=1', false);
 
         DB::table('core_course_template_versions')->where('id', $version->id)->update([
             'intro_image_media_file_id_snapshot' => $this->createMediaFile($customerId, $admin->id, 'image', 'unavailable.png', 'image/png'),

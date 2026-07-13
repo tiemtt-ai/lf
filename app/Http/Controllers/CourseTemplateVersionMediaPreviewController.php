@@ -31,7 +31,10 @@ class CourseTemplateVersionMediaPreviewController extends Controller
         $headers = [
             'Accept-Ranges' => 'bytes',
             'Content-Type' => $media->mime_type,
-            'Content-Disposition' => 'inline; filename="'.$media->display_name.'"',
+            'Content-Disposition' => 'inline; filename="'.addcslashes(
+                $media->display_name,
+                "\\\""
+            ).'"',
         ];
 
         if (config('filesystems.disks.'.$media->storage_disk.'.driver') === 'local') {

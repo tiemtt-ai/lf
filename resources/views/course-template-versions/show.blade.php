@@ -12,6 +12,17 @@
                  this.closeVersionPreview();
                  this.preview = { name, url, type, mimeType };
                  this.previewOpen = true;
+                 this.$nextTick(() => {
+                     const player = type === 'video'
+                         ? this.$refs.versionPreviewVideo
+                         : (type === 'audio' ? this.$refs.versionPreviewAudio : null);
+                     if (player) {
+                         const playback = player.play();
+                         if (playback && typeof playback.catch === 'function') {
+                             playback.catch(() => {});
+                         }
+                     }
+                 });
              },
              closeVersionPreview() {
                  const video = this.$refs.versionPreviewVideo;
@@ -177,7 +188,7 @@
                                 {{ __('lf.LF_course_template_version_detail_no_media') }}
                             @elseif ($snapshot['state'] === 'unavailable')
                                 {{ __('lf.LF_version_detail_media_unavailable') }}
-                            @elseif ($snapshot['kind'] === 'embed')
+                            @elseif ($snapshot['viewMode'] === 'modal_embed')
                                 <button type="button"
                                         class="course-version-media-thumbnail-button"
                                         data-preview-name="{{ $label }}"
@@ -195,12 +206,33 @@
                                         x-on:click="openVersionPreview($el.dataset.previewName, $el.dataset.previewUrl, $el.dataset.previewType, $el.dataset.previewMime)">
                                     {{ __('lf.LF_media_file_common_preview_action') }}
                                 </button>
+                            @elseif ($snapshot['viewMode'] === 'new_tab_document')
+                                <a class="course-version-media-thumbnail-button"
+                                   href="{{ $snapshot['url'] }}"
+                                   target="_blank"
+                                   rel="noopener noreferrer">
+                                    <x-media-thumbnail :presentation="$snapshot['thumbnail']" :alt="$snapshot['media']->display_name" />
+                                </a>
+                                <span class="course-version-media-name">{{ $snapshot['media']->display_name }}</span>
+                                <a class="admin-text-action"
+                                   href="{{ $snapshot['url'] }}"
+                                   target="_blank"
+                                   rel="noopener noreferrer">
+                                    {{ __('lf.LF_media_file_common_preview_action') }}
+                                </a>
                             @else
+                                @php
+                                    $previewType = match ($snapshot['viewMode']) {
+                                        'modal_image' => 'image',
+                                        'modal_video' => 'video',
+                                        'modal_document' => 'document',
+                                    };
+                                @endphp
                                 <button type="button"
                                         class="course-version-media-thumbnail-button"
                                         data-preview-name="{{ $snapshot['media']->display_name }}"
                                         data-preview-url="{{ $snapshot['url'] }}"
-                                        data-preview-type="{{ $snapshot['kind'] }}"
+                                        data-preview-type="{{ $previewType }}"
                                         data-preview-mime="{{ $snapshot['media']->mime_type }}"
                                         x-on:click="openVersionPreview($el.dataset.previewName, $el.dataset.previewUrl, $el.dataset.previewType, $el.dataset.previewMime)">
                                     <x-media-thumbnail :presentation="$snapshot['thumbnail']" :alt="$snapshot['media']->display_name" />
@@ -209,7 +241,7 @@
                                 <button type="button" class="admin-link-button admin-text-action"
                                         data-preview-name="{{ $snapshot['media']->display_name }}"
                                         data-preview-url="{{ $snapshot['url'] }}"
-                                        data-preview-type="{{ $snapshot['kind'] }}"
+                                        data-preview-type="{{ $previewType }}"
                                         data-preview-mime="{{ $snapshot['media']->mime_type }}"
                                         x-on:click="openVersionPreview($el.dataset.previewName, $el.dataset.previewUrl, $el.dataset.previewType, $el.dataset.previewMime)">
                                     {{ __('lf.LF_media_file_common_preview_action') }}
@@ -380,11 +412,7 @@
                             class="media-library-modal-video course-version-document-preview"
                             loading="lazy"
                             sandbox="allow-scripts allow-same-origin allow-presentation"
-                            allow="fullscreen; picture-in-picture"></iframe>
-                    <a x-show="preview.type === 'document'" x-bind:href="preview.url"
-                       target="_blank" rel="noopener" class="admin-text-action">
-                        {{ __('lf.LF_version_detail_document_fallback') }}
-                    </a>
+                            allow="autoplay; fullscreen; picture-in-picture"></iframe>
                 </div>
             </div>
         </div>
