@@ -79,7 +79,7 @@
                 ['label' => __('lf.LF_navigation_menu_admin_dashboard'), 'route' => 'admin.dashboard', 'active' => 'admin.dashboard', 'visible' => true, 'icon' => 'home'],
                 ['label' => __('lf.LF_navigation_menu_common_product_categories'), 'route' => 'admin.course-categories.index', 'active' => 'admin.course-categories.*', 'visible' => true, 'icon' => 'folder'],
                 ['label' => __('lf.LF_navigation_menu_common_course_templates'), 'route' => 'admin.course-templates.index', 'active' => 'admin.course-templates.*', 'visible' => true, 'icon' => 'book-open'],
-                ['label' => __('lf.LF_navigation_menu_admin_course_products'), 'route' => 'admin.course-products.index', 'active' => 'admin.course-products.*', 'visible' => true, 'icon' => 'shopping-bag'],
+                ['label' => __('lf.LF_navigation_menu_admin_course_products'), 'route' => 'admin.course-products.index', 'active' => 'admin.course-products.*', 'visible' => true, 'icon' => 'package'],
                 ['label' => __('lf.LF_navigation_menu_admin_course_cohorts'), 'route' => 'admin.course-cohorts.index', 'active' => 'admin.course-cohorts.*', 'visible' => true, 'icon' => 'video'],
                 ['label' => __('lf.LF_navigation_menu_admin_course_cohort_students'), 'route' => 'admin.course-cohort-students.index', 'active' => 'admin.course-cohort-students.*', 'visible' => true, 'icon' => 'users'],
                 ['label' => __('lf.LF_navigation_menu_admin_course_enrollments'), 'route' => 'admin.course-enrollments.index', 'active' => 'admin.course-enrollments.*', 'visible' => true, 'icon' => 'clipboard-check'],

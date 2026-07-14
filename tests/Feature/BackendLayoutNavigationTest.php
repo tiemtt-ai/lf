@@ -61,6 +61,8 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertSee('data-sidebar-icon="home"', false)
             ->assertSee('data-sidebar-icon="users"', false)
             ->assertSee('data-sidebar-icon="book-open"', false)
+            ->assertSee('data-sidebar-icon="package"', false)
+            ->assertDontSee('data-sidebar-icon="shopping-bag"', false)
             ->assertSee('data-sidebar-icon="image"', false)
             ->assertDontSee('x-on:click="handleSidebarNavigation($event)"', false);
 
@@ -72,6 +74,31 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertSee('data-sidebar-icon="folder"', false)
             ->assertSee('data-sidebar-icon="book-open"', false)
             ->assertDontSee('x-on:click="handleSidebarNavigation($event)"', false);
+    }
+
+    public function test_course_products_uses_the_package_icon_when_active_and_inactive(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $inactiveHtml = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin')
+            ->assertOk()
+            ->getContent();
+        $activeHtml = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-products')
+            ->assertOk()
+            ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/class="admin-sidebar-link" href="[^"]+\/admin\/course-products"[^>]+data-sidebar-icon="package"/',
+            $inactiveHtml
+        );
+        $this->assertMatchesRegularExpression(
+            '/class="admin-sidebar-link is-active" href="[^"]+\/admin\/course-products"[^>]+data-sidebar-icon="package"/',
+            $activeHtml
+        );
+        $this->assertStringNotContainsString('data-sidebar-icon="shopping-bag"', $activeHtml);
     }
 
     public function test_account_navigation_moves_from_sidebar_to_user_dropdown_by_role(): void
