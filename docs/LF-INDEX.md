@@ -300,6 +300,7 @@ docs/adr/
 | [ADR-0011](adr/ADR-0011-Certificate-Foundation.md) | Certificate Foundation decision |
 | [ADR-0012](adr/ADR-0012-Course-Template-Published-Version-Snapshot.md) | Course Template Published Version Snapshot decision |
 | [ADR-0013](adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md) | Course Template Version Duplicate to Draft decision |
+| [ADR-0014](adr/ADR-0014-Product-Offering-And-Draft-Binding.md) | Proposed Product offering and Draft binding decision; not approved |
 
 ---
 
@@ -318,6 +319,7 @@ docs/quality/
 | [quality/LF-Course-Template-Version-Snapshot-Architecture-Review.md](quality/LF-Course-Template-Version-Snapshot-Architecture-Review.md) | Approved Course Template Version snapshot architecture review |
 | [quality/LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md](quality/LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md) | Approved Course Template Version duplicate-to-draft architecture review |
 | [quality/LF-Course-Product-Architecture-Review.md](quality/LF-Course-Product-Architecture-Review.md) | Approved Course Product CRUD architecture review |
+| [quality/LF-Course-Product-Integrated-Architecture-Review.md](quality/LF-Course-Product-Integrated-Architecture-Review.md) | Proposed integrated Product v2 review; approval pending |
 | [quality/LF-Course-Product-Items-Architecture-Review.md](quality/LF-Course-Product-Items-Architecture-Review.md) | Approved Course Product Items architecture review |
 | [quality/LF-Course-Product-Relations-Architecture-Review.md](quality/LF-Course-Product-Relations-Architecture-Review.md) | Approved Course Product Relations architecture review |
 

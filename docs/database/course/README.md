@@ -1,5 +1,13 @@
 # MIỀN NGHIỆP VỤ COURSE
 
+## Proposed revisions (not authoritative)
+
+These proposals must not be implemented until their ADR, database review, and
+integrated architecture review are approved:
+
+* [core_course_products v2 proposal](core_course_products_v2_proposal.md)
+* [core_course_product_items v2 proposal](core_course_product_items_v2_proposal.md)
+
 Miền nghiệp vụ Course quản lý vòng đời học tập từ khâu biên soạn và phát hành
 bất biến đến Product, Enrollment, Progress và Hoàn thành khóa học. Vì lý
 do lịch sử, thư mục này đồng thời chứa dữ liệu lưu trữ của Certificate; Certificate
