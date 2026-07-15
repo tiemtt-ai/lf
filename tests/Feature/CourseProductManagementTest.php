@@ -188,7 +188,7 @@ class CourseProductManagementTest extends TestCase
             status: 'draft'
         );
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
             ->assertSee('value="TOPIK Beginner"', false)
@@ -342,7 +342,7 @@ class CourseProductManagementTest extends TestCase
             ->assertSee('readonly', false);
         $this->assertSame($beforeCount, DB::table('core_course_products')->where('customer_id', $customerId)->count());
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
             ->assertDontSee('name="product_code"', false)
@@ -890,20 +890,39 @@ class CourseProductManagementTest extends TestCase
             sortOrder: 3
         );
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
             ->assertSeeText('Nội dung trong sản phẩm')
             ->assertSeeText('TOPIK Beginner')
             ->assertSeeText('TOPIK Sale Page')
             ->assertSeeText('Phiên bản 1')
-            ->assertSeeTextInOrder(['Xem phiên bản', 'Gỡ liên kết'])
+            ->assertSeeText('Xem phiên bản')
+            ->assertSeeText('Gỡ liên kết')
             ->assertSee(route('admin.course-templates.versions.show', [
                 'templateId' => DB::table('core_course_template_versions')->where('id', $versionId)->value('template_id'),
                 'versionId' => $versionId,
             ]), false)
             ->assertDontSee('<th>Chi tiết</th>', false)
             ->assertDontSee('<th>Xem</th>', false);
+
+        $versionPanel = \Illuminate\Support\Str::between(
+            $response->getContent(),
+            'id="course-product-panel-versions"',
+            'id="course-product-panel-relations"'
+        );
+        $this->assertStringNotContainsString('Xem phiên bản', $versionPanel);
+        $this->assertStringContainsString('Gỡ liên kết', $versionPanel);
+
+        $englishResponse = $this->withSession(['locale' => 'en'])->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->assertOk()->assertSeeText('View Version')->assertSeeText('Unlink');
+        $englishVersionPanel = \Illuminate\Support\Str::between(
+            $englishResponse->getContent(),
+            'id="course-product-panel-versions"',
+            'id="course-product-panel-relations"'
+        );
+        $this->assertStringNotContainsString('View Version', $englishVersionPanel);
     }
 
     public function test_version_tab_filters_versions_by_product_template_without_category_or_template_selects(): void
@@ -1941,7 +1960,7 @@ class CourseProductManagementTest extends TestCase
         ]);
         DB::table('core_course_templates')->where('id', $templateId)->update(['category_id' => $categoryId]);
         $boundVersionId = $this->createVersion($customerId, $admin->id, 'Bound', 'published', $templateId, 1, false);
-        $this->createVersion($customerId, $admin->id, 'Newer', 'published', $templateId, 2, true);
+        $newerVersionId = $this->createVersion($customerId, $admin->id, 'Newer', 'published', $templateId, 2, true);
         $productId = $this->createProduct($customerId, 'Active Immutable', 'active-immutable', status: 'active');
         $itemId = $this->createProductItem($customerId, $productId, $boundVersionId);
         DB::table('core_course_product_items')->where('id', $itemId)->update(['template_id' => $templateId]);
@@ -1949,7 +1968,13 @@ class CourseProductManagementTest extends TestCase
         $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
             ->assertSeeText('VERSION-'.$templateId.'-1 · Đã xuất bản')
-            ->assertDontSeeText('VERSION-'.$templateId.'-2 · Đã xuất bản');
+            ->assertDontSeeText('VERSION-'.$templateId.'-2 · Đã xuất bản')
+            ->assertSee(route('admin.course-templates.versions.show', [
+                'templateId' => $templateId, 'versionId' => $boundVersionId,
+            ]), false)
+            ->assertDontSee(route('admin.course-templates.versions.show', [
+                'templateId' => $templateId, 'versionId' => $newerVersionId,
+            ]), false);
 
         $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$productId}", [
             'category_id' => $categoryId, 'template_id' => $templateId, 'title' => 'Active Immutable Updated',

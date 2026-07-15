@@ -285,16 +285,6 @@
                             </td>
                             <td>
                                 <div class="admin-table-actions">
-                                    @if ($item->version_id)
-                                        <a class="admin-table-action-link admin-text-action"
-                                           href="{{ route('admin.course-templates.versions.show', [
-                                               'templateId' => $item->template_id,
-                                               'versionId' => $item->version_id,
-                                           ]) }}">
-                                            {{ __('lf.LF_product_v2_view_version') }}
-                                        </a>
-                                        <span aria-hidden="true">|</span>
-                                    @endif
                                     <form method="POST"
                                           action="{{ route($routePrefix.'.items.destroy', [$product->id, $item->id]) }}">
                                         @csrf
