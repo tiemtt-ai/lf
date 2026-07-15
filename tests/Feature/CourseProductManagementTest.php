@@ -1559,6 +1559,152 @@ class CourseProductManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_product_items', ['product_id' => $productId, 'template_id' => $templateId, 'version_id' => $versionId]);
     }
 
+    public function test_product_v2_template_summary_exposes_current_published_version_counts(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Summary Template');
+        $versionId = $this->createVersion($customerId, $admin->id, 'Summary Version', 'published', $templateId);
+        $lessonId = $this->createVersionLesson($customerId, $versionId);
+        $this->createVersionActivity($customerId, $versionId, $lessonId);
+        DB::table('core_course_templates')->where('id', $templateId)->update(['lesson_count' => 99]);
+
+        $this->actingAs($admin)->withSession(['_old_input' => ['template_id' => (string) $templateId]])
+            ->get('https://tenant-a.localhost/admin/course-products/create')
+            ->assertOk()
+            ->assertSeeText('Phiên bản sử dụng')
+            ->assertSeeText('VERSION-'.$templateId.'-1 · Đã xuất bản')
+            ->assertSeeText('1 bài học · 1 hoạt động')
+            ->assertDontSeeText('99 bài học')
+            ->assertSee(route('admin.course-templates.versions.show', ['templateId' => $templateId, 'versionId' => $versionId]), false)
+            ->assertSee('target="_blank"', false)
+            ->assertSee('rel="noopener noreferrer"', false);
+    }
+
+    public function test_product_v2_active_edit_uses_bound_version_instead_of_newer_current_version(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Immutable Template');
+        $categoryId = DB::table('core_course_categories')->insertGetId([
+            'customer_id' => $customerId, 'parent_id' => null, 'name' => 'Immutable Category',
+            'slug' => 'immutable-category', 'description' => null, 'thumbnail_image' => null,
+            'banner_image' => null, 'sort_order' => 0, 'is_featured' => false,
+            'meta_title' => null, 'meta_description' => null, 'meta_keywords' => null,
+            'status' => 'active', 'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('core_course_templates')->where('id', $templateId)->update(['category_id' => $categoryId]);
+        $boundVersionId = $this->createVersion($customerId, $admin->id, 'Bound', 'published', $templateId, 1, false);
+        $this->createVersion($customerId, $admin->id, 'Newer', 'published', $templateId, 2, true);
+        $productId = $this->createProduct($customerId, 'Active Immutable', 'active-immutable', status: 'active');
+        $itemId = $this->createProductItem($customerId, $productId, $boundVersionId);
+        DB::table('core_course_product_items')->where('id', $itemId)->update(['template_id' => $templateId]);
+
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->assertOk()
+            ->assertSeeText('VERSION-'.$templateId.'-1 · Đã xuất bản')
+            ->assertDontSeeText('VERSION-'.$templateId.'-2 · Đã xuất bản');
+
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$productId}", [
+            'category_id' => $categoryId, 'template_id' => $templateId, 'title' => 'Active Immutable Updated',
+            'offering_type' => 'learning_material', 'uses_custom_description' => 0,
+            'uses_custom_intro_media' => 0, 'price' => 0, 'currency' => 'VND',
+            'promotion_enabled' => 0, 'is_featured' => 0, 'status' => 'active',
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_product_items', [
+            'product_id' => $productId, 'template_id' => $templateId, 'version_id' => $boundVersionId,
+        ]);
+    }
+
+    public function test_product_v2_mismatched_bound_version_is_not_exposed_or_replaced(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Selected Template');
+        $otherTemplateId = $this->createTemplate($customerId, $admin->id, 'Other Template');
+        $mismatchedVersionId = $this->createVersion($customerId, $admin->id, 'Mismatched', 'published', $otherTemplateId);
+        $productId = $this->createProduct($customerId, 'Invalid Binding', 'invalid-binding', status: 'draft');
+        $itemId = $this->createProductItem($customerId, $productId, $mismatchedVersionId);
+        DB::table('core_course_product_items')->where('id', $itemId)->update(['template_id' => $templateId]);
+
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->assertOk()
+            ->assertSeeText('Phiên bản đã liên kết không khả dụng');
+    }
+
+    public function test_product_v2_draft_uses_bound_version_or_current_candidate_explicitly(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Draft Version Template');
+        $boundVersionId = $this->createVersion($customerId, $admin->id, 'Bound Draft Version', 'published', $templateId, 1, false);
+        $currentVersionId = $this->createVersion($customerId, $admin->id, 'Current Candidate', 'published', $templateId, 2, true);
+
+        $boundProductId = $this->createProduct($customerId, 'Bound Draft Product', 'bound-draft-product', status: 'draft');
+        $boundItemId = $this->createProductItem($customerId, $boundProductId, $boundVersionId);
+        DB::table('core_course_product_items')->where('id', $boundItemId)->update(['template_id' => $templateId]);
+
+        $candidateProductId = $this->createProduct($customerId, 'Candidate Draft Product', 'candidate-draft-product', status: 'draft');
+        DB::table('core_course_product_items')->insert([
+            'customer_id' => $customerId, 'product_id' => $candidateProductId, 'template_id' => $templateId,
+            'version_id' => null, 'title_override' => null, 'short_description_override' => null,
+            'sort_order' => 0, 'is_required' => true, 'status' => 'active', 'created_by' => $admin->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$boundProductId}/edit")
+            ->assertOk()->assertSeeText('VERSION-'.$templateId.'-1 · Đã xuất bản');
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$candidateProductId}/edit")
+            ->assertOk()->assertSeeText('VERSION-'.$templateId.'-2 · Đã xuất bản')
+            ->assertSee(route('admin.course-templates.versions.show', [
+                'templateId' => $templateId, 'versionId' => $currentVersionId,
+            ]), false);
+    }
+
+    public function test_product_v2_missing_version_and_inheritance_presentation_is_compact(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Unpublished Template');
+
+        $this->actingAs($admin)->withSession(['_old_input' => ['template_id' => (string) $templateId]])
+            ->get('https://tenant-a.localhost/admin/course-products/create')
+            ->assertOk()
+            ->assertSeeText('Template này chưa có phiên bản được xuất bản')
+            ->assertSeeText('Mô tả được kế thừa từ phiên bản Template.')
+            ->assertSeeText('Media giới thiệu được kế thừa từ phiên bản Template.')
+            ->assertSee('name="short_description"', false)
+            ->assertSee('name="intro_image_file"', false)
+            ->assertDontSee('lf-product-inherited-media-preview', false);
+    }
+
+    private function createVersionLesson(int $customerId, int $versionId): int
+    {
+        return DB::table('core_course_template_version_lessons')->insertGetId([
+            'customer_id' => $customerId, 'template_version_id' => $versionId, 'version_section_id' => null,
+            'source_template_lesson_id' => random_int(100000, 999999), 'title_snapshot' => 'Snapshot Lesson',
+            'short_description_snapshot' => null, 'description_snapshot' => null, 'sort_order' => 0,
+            'is_preview' => false, 'lesson_type' => 'regular', 'duration_seconds' => 0, 'activity_count' => 1,
+            'unlock_rule_snapshot' => 'none', 'unlock_after_version_lesson_id' => null, 'unlock_at_snapshot' => null,
+            'created_by_snapshot' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    private function createVersionActivity(int $customerId, int $versionId, int $lessonId): int
+    {
+        return DB::table('core_course_template_version_activities')->insertGetId([
+            'customer_id' => $customerId, 'template_version_id' => $versionId, 'version_lesson_id' => $lessonId,
+            'source_template_activity_id' => random_int(100000, 999999), 'title_snapshot' => 'Snapshot Activity',
+            'description_snapshot' => null, 'sort_order' => 0, 'activity_type' => 'video', 'media_file_id' => null,
+            'external_video_url_snapshot' => null, 'live_class_url_snapshot' => null,
+            'assessment_quiz_id_snapshot' => null, 'duration_seconds' => 0,
+            'estimated_duration_seconds_snapshot' => null, 'is_required' => true, 'completion_rule' => 'view',
+            'completion_threshold' => null, 'is_preview' => false, 'unlock_rule_snapshot' => 'none',
+            'unlock_after_version_activity_id' => null, 'unlock_at_snapshot' => null, 'created_by_snapshot' => null,
+            'metadata' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
     private function validProductItemData(array $overrides = []): array
     {
         return array_merge([

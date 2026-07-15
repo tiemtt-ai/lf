@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\MediaService;
 use App\Services\TrustedVideoUrlService;
 use App\Support\CourseProductV2;
+use App\Support\CourseProductVersionSummaryPresenter;
 use App\Support\SequentialCodeGenerator;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
@@ -31,7 +32,8 @@ class CourseProductController extends Controller
 
     public function __construct(
         private readonly MediaService $mediaService,
-        private readonly TrustedVideoUrlService $trustedVideos
+        private readonly TrustedVideoUrlService $trustedVideos,
+        private readonly CourseProductVersionSummaryPresenter $versionSummaryPresenter
     ) {}
 
     public function index(Request $request): View
@@ -84,13 +86,14 @@ class CourseProductController extends Controller
     {
         $this->authorizeAdmin($request);
         $customerId = $this->customerId();
+        $versionState = $this->versionSummaryPresenter->present($customerId, null, true);
 
         return view('course-products.create', [
             'requiredFields' => $this->requiredFields($customerId),
             'routePrefix' => $this->routePrefix($request),
             'coverImageMedia' => null,
             'categories' => $this->categories($customerId),
-            'templates' => $this->templates($customerId),
+            'templates' => $versionState['templates'],
             'relatedProducts' => $this->relatedProducts($customerId, 0),
             'selectedRelatedIds' => [],
             'introMedia' => [],
@@ -150,6 +153,7 @@ class CourseProductController extends Controller
 
         $customerId = $this->customerId();
         $product = $this->findProduct($customerId, $id);
+        $versionState = $this->versionSummaryPresenter->present($customerId, $id, true);
 
         return view('course-products.edit', [
             'product' => $product,
@@ -164,8 +168,8 @@ class CourseProductController extends Controller
                 'cover_image'
             ),
             'categories' => $this->categories($customerId),
-            'templates' => $this->templates($customerId),
-            'selectedTemplateId' => DB::table('core_course_product_items')->where('customer_id', $customerId)->where('product_id', $id)->value('template_id'),
+            'templates' => $versionState['templates'],
+            'selectedTemplateId' => $versionState['selected_template_id'],
             'selectedRelatedIds' => DB::table('core_course_product_relations')->where('customer_id', $customerId)->where('product_id', $id)->where('relation_type', 'related')->pluck('related_product_id')->all(),
             'introMedia' => collect(CourseProductV2::MEDIA_PURPOSES)->mapWithKeys(fn ($purpose) => [$purpose => $this->singleMedia(CourseProductV2::MEDIA_OWNER, $id, $purpose)])->all(),
             'routePrefix' => $this->routePrefix($request),
@@ -917,22 +921,25 @@ class CourseProductController extends Controller
             ->where('status', '!=', 'archived')->orderBy('sort_order')->orderBy('name')->get(['id', 'name']);
     }
 
-    private function templates(int $customerId)
-    {
-        return DB::table('core_course_templates as templates')
-            ->leftJoin('core_course_template_versions as versions', function ($join): void {
-                $join->on('versions.template_id', '=', 'templates.id')->where('versions.status', '=', 'published')->where('versions.is_current', '=', true);
-            })
-            ->where('templates.customer_id', $customerId)
-            ->orderBy('templates.title')
-            ->select('templates.id', 'templates.category_id', 'templates.title as name', 'templates.working_revision', 'versions.id as version_id', 'versions.version_number')
-            ->get();
-    }
-
     private function syncPhaseOneItem(int $customerId, int $productId, array $validated, ?int $actorId): void
     {
-        $versionId = DB::table('core_course_template_versions')->where('customer_id', $customerId)
-            ->where('template_id', $validated['template_id'])->where('status', 'published')->where('is_current', true)->value('id');
+        $existingVersionId = DB::table('core_course_product_items')
+            ->where('customer_id', $customerId)
+            ->where('product_id', $productId)
+            ->where('template_id', $validated['template_id'])
+            ->value('version_id');
+        $boundVersionId = $existingVersionId ? DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $validated['template_id'])
+            ->where('id', $existingVersionId)
+            ->whereIn('status', ['published', 'deprecated', 'archived'])
+            ->value('id') : null;
+        $versionId = $boundVersionId ?: DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $validated['template_id'])
+            ->where('status', 'published')
+            ->where('is_current', true)
+            ->value('id');
         if ($validated['status'] !== 'active' && ! $versionId) {
             $versionId = null;
         }
