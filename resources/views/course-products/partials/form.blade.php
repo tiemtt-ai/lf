@@ -27,7 +27,7 @@
 }" x-init="$nextTick(() => { template = @js($selectedTemplate) })" class="backend-form-columns">
     <section class="admin-form-section" aria-labelledby="product-basic">
         <h2 id="product-basic" class="admin-form-section-title">{{ __('lf.LF_product_v2_group_basic') }}</h2>
-        <div class="lf-form-group"><x-form-label for="product_code" :value="__('lf.LF_course_product_common_product_code')" /><input id="product_code" class="lf-form-control" readonly value="{{ $formProduct?->product_code ?: __('lf.LF_product_v2_generated_on_save') }}"></div>
+        @if($formProduct)<div class="lf-form-group"><x-form-label for="product_code" :value="__('lf.LF_course_product_common_product_code')" /><input id="product_code" class="lf-form-control" readonly value="{{ $formProduct->product_code }}"></div>@endif
         <div class="lf-form-group"><x-form-label for="category_id" :value="__('lf.LF_product_v2_category')" :required="true" /><select id="category_id" name="category_id" class="lf-form-control" x-model="category" :class="{ 'lf-select-placeholder': category === '' }" @change="if(!templates.some(t=>String(t.id)===template && String(t.category_id)===category)) template=''" required><option value="">{{ __('lf.LF_product_v2_select_category') }}</option>@foreach($categories as $category)<option value="{{ $category->id }}">{{ $category->name }}</option>@endforeach</select>@error('category_id')<p class="lf-form-error">{{ $message }}</p>@enderror</div>
         <div class="lf-form-group">
             <x-form-label for="template_id" :value="__('lf.LF_product_v2_template')" :required="true" />
@@ -84,10 +84,16 @@
         <div class="lf-form-group"><input type="hidden" name="uses_custom_intro_media" value="0"><div class="admin-radio-group"><label><input type="checkbox" name="uses_custom_intro_media" value="1" x-model="customMedia"> {{ __('lf.LF_product_v2_custom_media') }}</label></div></div>
         <p x-show="!customMedia" class="lf-form-help">{{ __('lf.LF_product_v2_media_inherited') }}</p>
         <div x-show="customMedia">
-            @foreach(['intro_image'=>'image/*','intro_video'=>'video/*','intro_document'=>'.pdf,.doc,.docx,.ppt,.pptx'] as $purpose=>$accept)
-                <div class="lf-form-group"><x-form-label :for="$purpose.'_file'" :value="__('lf.LF_product_v2_'.$purpose)" />@if($introMedia[$purpose] ?? null)<p class="lf-form-help"><a href="{{ $introMedia[$purpose]->signed_url }}" target="_blank" rel="noopener">{{ $introMedia[$purpose]->display_name }}</a> <label><input type="checkbox" name="remove_{{ $purpose }}" value="1"> {{ __('lf.LF_product_v2_remove') }}</label></p>@endif<input id="{{ $purpose }}_file" type="file" name="{{ $purpose }}_file" accept="{{ $accept }}" class="lf-form-control"></div>
-            @endforeach
-            <div class="lf-form-group"><x-form-label for="intro_video_source" :value="__('lf.LF_product_v2_video_source')" /><select id="intro_video_source" name="intro_video_source" class="lf-form-control"><option value="">{{ __('lf.LF_product_v2_select_video_source') }}</option><option value="upload" @selected(old('intro_video_source', $formProduct?->intro_video_source)==='upload')>{{ __('lf.LF_product_v2_upload') }}</option><option value="embed" @selected(old('intro_video_source', $formProduct?->intro_video_source)==='embed')>YouTube / Vimeo</option></select><input name="intro_video_embed_url" type="url" class="lf-form-control" value="{{ old('intro_video_embed_url', $formProduct?->intro_video_embed_url) }}" placeholder="https://"></div>
+            <x-introduction-media-fields
+                :image-media="$introMedia['intro_image'] ?? null"
+                :video-media="$introMedia['intro_video'] ?? null"
+                :document-media="$introMedia['intro_document'] ?? null"
+                :image-thumbnail="$introImageThumbnail"
+                :video-thumbnail="$introVideoThumbnail"
+                :document-thumbnail="$introDocumentThumbnail"
+                :video-embed-url="$introVideoEmbedUrl"
+                :embed-value="$formProduct?->intro_video_embed_url"
+                :selected-video-source="old('intro_video_source', $formProduct?->intro_video_source)" />
         </div>
         <div hidden aria-hidden="true"><span>Cover image upload</span>@if($coverImageMedia ?? null)<a href="{{ $coverImageMedia->signed_url }}">{{ $coverImageMedia->display_name }}</a>@endif<input type="file" name="cover_image_file" accept="image/*"><x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" /></div>
     </section>

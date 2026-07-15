@@ -6,6 +6,7 @@ use App\Http\Controllers\CourseCohortController;
 use App\Http\Controllers\CourseCohortStudentController;
 use App\Http\Controllers\CourseEnrollmentController;
 use App\Http\Controllers\CourseProductController;
+use App\Http\Controllers\CourseProductMediaPreviewController;
 use App\Http\Controllers\CourseTemplateActivityController;
 use App\Http\Controllers\CourseTemplateController;
 use App\Http\Controllers\CourseTemplateLessonController;
@@ -108,6 +109,10 @@ if ($registerCourseProductRoutes ?? false) {
 
     Route::put('/course-products/{id}', [CourseProductController::class, 'update'])
         ->name('course-products.update');
+
+    Route::get('/course-products/{productId}/media/{slot}/{mediaFileId}', [CourseProductMediaPreviewController::class, 'show'])
+        ->whereIn('slot', ['image', 'video', 'document'])
+        ->name('course-products.media.preview');
 
     Route::post(
         '/course-products/{productId}/items',

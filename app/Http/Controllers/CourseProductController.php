@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\CourseProductMediaAuthorizer;
 use App\Services\MediaService;
+use App\Services\MediaThumbnailPresenter;
 use App\Services\TrustedVideoUrlService;
 use App\Support\CourseProductV2;
 use App\Support\CourseProductVersionSummaryPresenter;
@@ -33,6 +35,8 @@ class CourseProductController extends Controller
     public function __construct(
         private readonly MediaService $mediaService,
         private readonly TrustedVideoUrlService $trustedVideos,
+        private readonly CourseProductMediaAuthorizer $productMediaAuthorizer,
+        private readonly MediaThumbnailPresenter $mediaThumbnails,
         private readonly CourseProductVersionSummaryPresenter $versionSummaryPresenter
     ) {}
 
@@ -97,6 +101,10 @@ class CourseProductController extends Controller
             'relatedProducts' => $this->relatedProducts($customerId, 0),
             'selectedRelatedIds' => [],
             'introMedia' => [],
+            'introImageThumbnail' => null,
+            'introVideoThumbnail' => null,
+            'introDocumentThumbnail' => null,
+            'introVideoEmbedUrl' => null,
         ]);
     }
 
@@ -154,6 +162,12 @@ class CourseProductController extends Controller
         $customerId = $this->customerId();
         $product = $this->findProduct($customerId, $id);
         $versionState = $this->versionSummaryPresenter->present($customerId, $id, true);
+        $introImageMedia = $this->productMedia($customerId, $product, 'image');
+        $introVideoMedia = $this->productMedia($customerId, $product, 'video');
+        $introDocumentMedia = $this->productMedia($customerId, $product, 'document');
+        $introVideoEmbedUrl = $product->intro_video_source === 'embed' && $product->intro_video_embed_url
+            ? $this->trustedVideos->embedUrl($product->intro_video_embed_url)
+            : null;
 
         return view('course-products.edit', [
             'product' => $product,
@@ -171,7 +185,17 @@ class CourseProductController extends Controller
             'templates' => $versionState['templates'],
             'selectedTemplateId' => $versionState['selected_template_id'],
             'selectedRelatedIds' => DB::table('core_course_product_relations')->where('customer_id', $customerId)->where('product_id', $id)->where('relation_type', 'related')->pluck('related_product_id')->all(),
-            'introMedia' => collect(CourseProductV2::MEDIA_PURPOSES)->mapWithKeys(fn ($purpose) => [$purpose => $this->singleMedia(CourseProductV2::MEDIA_OWNER, $id, $purpose)])->all(),
+            'introMedia' => [
+                'intro_image' => $introImageMedia,
+                'intro_video' => $introVideoMedia,
+                'intro_document' => $introDocumentMedia,
+            ],
+            'introImageThumbnail' => $this->mediaThumbnails->image($introImageMedia),
+            'introVideoThumbnail' => $product->intro_video_source === 'embed'
+                ? $this->mediaThumbnails->embeddedVideo($product->intro_video_embed_url)
+                : $this->mediaThumbnails->uploadedVideo($introVideoMedia),
+            'introDocumentThumbnail' => $this->mediaThumbnails->document($introDocumentMedia),
+            'introVideoEmbedUrl' => $introVideoEmbedUrl,
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -369,7 +393,7 @@ class CourseProductController extends Controller
         );
 
         $validator = Validator::make($input, $this->validationRules($customerId, $productId));
-        $validator->after(function ($validator) use ($input, $customerId, $productId): void {
+        $validator->after(function ($validator) use ($input, $customerId, $productId, $request, $product): void {
             if (! array_key_exists('offering_type', $input)) {
                 return;
             }
@@ -403,6 +427,22 @@ class CourseProductController extends Controller
                     ->where('template_id', $templateId)->where('status', 'published')->where('is_current', true)->first();
                 if (! $version) {
                     $validator->errors()->add('status', __('lf.LF_product_v2_activation_version_required'));
+                }
+            }
+            if (($input['uses_custom_intro_media'] ?? false)) {
+                $source = $input['intro_video_source'] ?? null;
+                if ($source === 'upload' && ! $request->hasFile('intro_video_file')
+                    && ! $product?->intro_video_media_file_id && ! ($input['remove_intro_video'] ?? false)) {
+                    $validator->errors()->add('intro_video_file', __('validation.required', [
+                        'attribute' => __('lf.LF_course_template_intro_video'),
+                    ]));
+                }
+                if ($source === 'embed') {
+                    try {
+                        $this->trustedVideos->normalize((string) ($input['intro_video_embed_url'] ?? ''));
+                    } catch (\InvalidArgumentException) {
+                        $validator->errors()->add('intro_video_embed_url', __('lf.LF_course_template_invalid_embed_url'));
+                    }
                 }
             }
         });
@@ -983,7 +1023,6 @@ class CourseProductController extends Controller
 
         $definitions = [
             'intro_image' => ['field' => 'intro_image_file', 'type' => 'image', 'column' => 'intro_image_media_file_id'],
-            'intro_video' => ['field' => 'intro_video_file', 'type' => 'video', 'column' => 'intro_video_media_file_id'],
             'intro_document' => ['field' => 'intro_document_file', 'type' => 'document', 'column' => 'intro_document_media_file_id'],
         ];
         foreach ($definitions as $purpose => $definition) {
@@ -1004,20 +1043,61 @@ class CourseProductController extends Controller
                 $mediaId = (int) $media->id;
                 $this->mediaService->attachUsage($mediaId, CourseProductV2::MEDIA_OWNER, $productId, $purpose);
             }
-            DB::table('core_course_products')->where('id', $productId)->update([$definition['column'] => $mediaId]);
+            DB::table('core_course_products')->where('customer_id', $this->customerId())
+                ->where('id', $productId)->update([$definition['column'] => $mediaId]);
         }
 
+        $product = DB::table('core_course_products')->where('customer_id', $this->customerId())
+            ->where('id', $productId)->first();
         $source = $validated['intro_video_source'] ?? null;
-        $videoValues = ['intro_video_source' => $source];
+        $hasVideoReplacement = $request->hasFile('intro_video_file');
+        $removeVideo = $request->boolean('remove_intro_video');
+        $videoValues = [];
         if ($source === 'embed') {
             $normalized = $this->trustedVideos->normalize((string) ($validated['intro_video_embed_url'] ?? ''));
-            $videoValues += ['intro_video_embed_url' => $normalized['url'], 'intro_video_provider' => $normalized['provider'], 'intro_video_media_file_id' => null];
+            $isReplacement = $product->intro_video_source !== 'embed'
+                || $product->intro_video_embed_url !== $normalized['url'];
+            if ($isReplacement) {
+                $this->detachProductMedia($productId, 'intro_video');
+                $videoValues = ['intro_video_source' => 'embed', 'intro_video_embed_url' => $normalized['url'],
+                    'intro_video_provider' => $normalized['provider'], 'intro_video_media_file_id' => null];
+            } elseif ($removeVideo) {
+                $this->detachProductMedia($productId, 'intro_video');
+                $videoValues = ['intro_video_source' => null, 'intro_video_embed_url' => null,
+                    'intro_video_provider' => null, 'intro_video_media_file_id' => null];
+            }
         } elseif ($source === 'upload') {
-            $videoValues += ['intro_video_embed_url' => null, 'intro_video_provider' => null];
+            $mediaId = $product->intro_video_media_file_id;
+            if ($hasVideoReplacement) {
+                $this->detachProductMedia($productId, 'intro_video');
+                $media = $this->mediaService->upload($request->file('intro_video_file'), [
+                    'file_type' => 'video', 'module' => 'course', 'entity_type' => 'products',
+                    'entity_id' => $productId, 'purpose' => 'intro_video', 'display_name' => $validated['title'],
+                ], (int) $request->user()->id);
+                $mediaId = (int) $media->id;
+                $this->mediaService->attachUsage($mediaId, CourseProductV2::MEDIA_OWNER, $productId, 'intro_video');
+            } elseif ($removeVideo) {
+                $this->detachProductMedia($productId, 'intro_video');
+                $mediaId = null;
+            }
+            $videoValues = ['intro_video_source' => 'upload', 'intro_video_embed_url' => null,
+                'intro_video_provider' => null, 'intro_video_media_file_id' => $mediaId];
         } else {
-            $videoValues += ['intro_video_embed_url' => null, 'intro_video_provider' => null, 'intro_video_media_file_id' => null];
+            $this->detachProductMedia($productId, 'intro_video');
+            $videoValues = ['intro_video_source' => null, 'intro_video_embed_url' => null,
+                'intro_video_provider' => null, 'intro_video_media_file_id' => null];
         }
-        DB::table('core_course_products')->where('id', $productId)->update($videoValues);
+        if ($videoValues) {
+            DB::table('core_course_products')->where('customer_id', $this->customerId())
+                ->where('id', $productId)->update($videoValues);
+        }
+    }
+
+    private function detachProductMedia(int $productId, string $purpose): void
+    {
+        foreach ($this->mediaService->getOwnerMedia(CourseProductV2::MEDIA_OWNER, $productId, $purpose) as $media) {
+            $this->mediaService->detachUsage((int) $media->id, CourseProductV2::MEDIA_OWNER, $productId, $purpose);
+        }
     }
 
     private function attachUploadedMedia(Request $request, int $productId): void
@@ -1078,6 +1158,35 @@ class CourseProductController extends Controller
         $media->signed_url = $this->mediaService->generateSignedUrl(
             (int) $media->id
         );
+
+        return $media;
+    }
+
+    private function productMedia(int $customerId, object $product, string $slot): ?object
+    {
+        $field = match ($slot) {
+            'image' => 'intro_image_media_file_id',
+            'video' => 'intro_video_media_file_id',
+            'document' => 'intro_document_media_file_id',
+        };
+        $mediaFileId = $product->{$field};
+        if (! $mediaFileId) {
+            return null;
+        }
+
+        $media = $this->productMediaAuthorizer->resolve(
+            $customerId,
+            (int) $product->id,
+            (int) $mediaFileId,
+            $slot
+        );
+        if ($media) {
+            $media->signed_url = route('admin.course-products.media.preview', [
+                'productId' => $product->id,
+                'slot' => $slot,
+                'mediaFileId' => $media->id,
+            ]);
+        }
 
         return $media;
     }

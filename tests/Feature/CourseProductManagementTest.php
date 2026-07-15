@@ -4,10 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class CourseProductManagementTest extends TestCase
@@ -324,26 +326,146 @@ class CourseProductManagementTest extends TestCase
         ]);
     }
 
-    public function test_product_code_input_is_not_rendered_on_create_or_edit_forms(): void
+    public function test_product_code_is_hidden_on_create_and_readonly_on_edit(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
         $productId = $this->createProduct($customerId, 'TOPIK', 'topik');
+        $beforeCount = DB::table('core_course_products')->where('customer_id', $customerId)->count();
 
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-products/create')
             ->assertOk()
-            ->assertDontSee('name="product_code"', false)
+            ->assertDontSee('id="product_code"', false)
+            ->assertDontSeeText('Được tạo tự động khi lưu')
             ->assertSee('name="slug"', false)
             ->assertSee('readonly', false);
+        $this->assertSame($beforeCount, DB::table('core_course_products')->where('customer_id', $customerId)->count());
 
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
             ->assertDontSee('name="product_code"', false)
+            ->assertSee('id="product_code"', false)
+            ->assertSee('value="TOPIK"', false)
             ->assertSee('name="slug"', false)
             ->assertSee('readonly', false)
             ->assertSeeText('TOPIK');
+    }
+
+    public function test_product_v2_custom_media_ui_restores_source_and_uses_template_media_structure(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $response = $this->actingAs($admin)->withSession(['_old_input' => [
+            'uses_custom_intro_media' => '1',
+            'intro_video_source' => 'embed',
+            'intro_video_embed_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        ]])->get('https://tenant-a.localhost/admin/course-products/create');
+
+        $response->assertOk()
+            ->assertSee('course-template-information-grid product-introduction-media', false)
+            ->assertSee('name="intro_image_file"', false)
+            ->assertSee('name="intro_video_source"', false)
+            ->assertSee('name="intro_video_file"', false)
+            ->assertSee('name="intro_video_embed_url"', false)
+            ->assertSee('name="intro_document_file"', false)
+            ->assertSee('https://www.youtube.com/watch?v=dQw4w9WgXcQ', false)
+            ->assertSeeText('Hình ảnh giới thiệu')
+            ->assertSeeText('Video giới thiệu')
+            ->assertSeeText('Tài liệu giới thiệu')
+            ->assertSee('placeholder="Nhập URL HTTPS YouTube hoặc Vimeo"', false)
+            ->assertDontSee('lf-product-inherited-media-preview', false);
+
+        [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-products',
+            $this->validProductV2Data($categoryId, $templateId, [
+                'uses_custom_intro_media' => 1,
+                'intro_video_source' => 'upload',
+            ])
+        )->assertSessionHasErrors([
+            'intro_video_file' => __('validation.required', [
+                'attribute' => __('lf.LF_course_template_intro_video'),
+            ]),
+        ]);
+    }
+
+    public function test_product_v2_custom_media_lifecycle_and_authorized_preview(): void
+    {
+        Storage::fake('media_local');
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
+        [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products', $this->validProductV2Data(
+            $categoryId,
+            $templateId,
+            [
+                'uses_custom_intro_media' => 1,
+                'intro_video_source' => 'upload',
+                'intro_image_file' => UploadedFile::fake()->image('product-intro.png'),
+                'intro_video_file' => UploadedFile::fake()->create('product-intro.mp4', 32, 'video/mp4'),
+                'intro_document_file' => UploadedFile::fake()->create('product-intro.pdf', 32, 'application/pdf'),
+            ]
+        ))->assertRedirect('https://tenant-a.localhost/admin/course-products');
+
+        $product = DB::table('core_course_products')->where('customer_id', $customerId)->where('title', 'Product media test')->first();
+        $this->assertNotNull($product->intro_image_media_file_id);
+        $this->assertNotNull($product->intro_video_media_file_id);
+        $this->assertNotNull($product->intro_document_media_file_id);
+        foreach (['intro_image', 'intro_video', 'intro_document'] as $purpose) {
+            $this->assertDatabaseHas('media_file_usages', [
+                'customer_id' => $customerId, 'owner_type' => 'course_product',
+                'owner_id' => $product->id, 'usage_type' => $purpose, 'status' => 'active',
+            ]);
+        }
+        $this->assertDatabaseMissing('media_file_usages', ['owner_type' => 'course_template', 'owner_id' => $templateId]);
+
+        $imageId = (int) $product->intro_image_media_file_id;
+        $preview = route('admin.course-products.media.preview', [$product->id, 'image', $imageId]);
+        $this->actingAs($admin)->get($preview)->assertOk()->assertHeader('content-type', 'image/png');
+        $this->actingAs($otherAdmin)->get("https://tenant-b.localhost/admin/course-products/{$product->id}/media/image/{$imageId}")->assertNotFound();
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$product->id}/media/document/{$imageId}")->assertNotFound();
+
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$product->id}", $this->validProductV2Data(
+            $categoryId,
+            $templateId,
+            [
+                'uses_custom_intro_media' => 1,
+                'intro_video_source' => 'embed',
+                'intro_video_embed_url' => 'https://youtu.be/dQw4w9WgXcQ',
+                'remove_intro_image' => 1,
+                'intro_image_file' => UploadedFile::fake()->image('replacement.png', 24, 24),
+                'remove_intro_video' => 1,
+                'remove_intro_document' => 1,
+            ]
+        ))->assertSessionHasNoErrors();
+
+        $updated = DB::table('core_course_products')->where('id', $product->id)->first();
+        $this->assertNotSame($imageId, (int) $updated->intro_image_media_file_id, 'Valid replacement must win over removal.');
+        $this->assertSame('embed', $updated->intro_video_source);
+        $this->assertSame('youtube', $updated->intro_video_provider);
+        $this->assertNull($updated->intro_video_media_file_id);
+        $this->assertNull($updated->intro_document_media_file_id);
+
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$product->id}/edit")
+            ->assertOk()
+            ->assertSee('name="remove_intro_image"', false)
+            ->assertSee('name="remove_intro_video"', false)
+            ->assertDontSee('name="remove_intro_document"', false);
+
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$product->id}", $this->validProductV2Data(
+            $categoryId,
+            $templateId,
+            ['uses_custom_intro_media' => 0]
+        ))->assertSessionHasNoErrors();
+        $retained = DB::table('core_course_products')->where('id', $product->id)->first();
+        $this->assertSame($updated->intro_image_media_file_id, $retained->intro_image_media_file_id);
+        $this->assertSame($updated->intro_video_embed_url, $retained->intro_video_embed_url);
     }
 
     public function test_product_forms_do_not_render_manual_seo_controls(): void
@@ -1494,6 +1616,39 @@ class CourseProductManagementTest extends TestCase
             'meta_keywords' => null,
             'status' => 'draft',
         ], $overrides);
+    }
+
+    private function validProductV2Data(int $categoryId, int $templateId, array $overrides = []): array
+    {
+        return array_merge([
+            'category_id' => $categoryId,
+            'template_id' => $templateId,
+            'title' => 'Product media test',
+            'offering_type' => 'learning_material',
+            'uses_custom_description' => 0,
+            'uses_custom_intro_media' => 0,
+            'price' => 0,
+            'currency' => 'VND',
+            'promotion_enabled' => 0,
+            'is_featured' => 0,
+            'status' => 'draft',
+        ], $overrides);
+    }
+
+    /** @return array{0: int, 1: int} */
+    private function createProductV2CategoryAndTemplate(int $customerId, int $adminId): array
+    {
+        $categoryId = DB::table('core_course_categories')->insertGetId([
+            'customer_id' => $customerId, 'parent_id' => null, 'name' => 'Media',
+            'slug' => 'media-'.$customerId, 'description' => null, 'thumbnail_image' => null,
+            'banner_image' => null, 'sort_order' => 0, 'is_featured' => false,
+            'meta_title' => null, 'meta_description' => null, 'meta_keywords' => null,
+            'status' => 'active', 'created_by' => $adminId, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $templateId = $this->createTemplate($customerId, $adminId, 'Product media template');
+        DB::table('core_course_templates')->where('id', $templateId)->update(['category_id' => $categoryId]);
+
+        return [$categoryId, $templateId];
     }
 
     public function test_product_v2_draft_binds_template_and_server_assigns_package_type(): void
