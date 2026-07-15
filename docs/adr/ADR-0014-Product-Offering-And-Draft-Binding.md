@@ -1,8 +1,10 @@
 # ADR-0014 — Product Offering and Draft Content Binding
 
-Version: 0.1
+Version: 1.0
 
-Status: Proposed — Requires Architecture Approval
+Status: Approved
+
+Decision: Accepted
 
 Date: 2026-07-15
 
@@ -30,8 +32,8 @@ published `version_id`, so it cannot represent that Draft selection.
 `offering_type VARCHAR(50)`, represents the offering dimension.
 
 The first implementation slice always writes `product_type = single_course`.
-The Package type control may be hidden from the UI. `bundle` remains valid and
-is not removed.
+The Package type control is not exposed in the phase-one UI. The server assigns
+`single_course`. `bundle` remains valid and is not removed.
 
 ## Product Item is the only content-binding aggregate child
 
@@ -109,9 +111,11 @@ update. Product, Item, category, pricing, relations, media usages, and status
 mutations require one transaction. Product Item documentation and its approved
 review require revision before implementation.
 
-# Approval gate
+# Approval
 
-This ADR is a proposal. Editing this file does not approve or freeze the
-architecture. Implementation and migrations remain prohibited until the
-Architecture Owner approves this ADR and the associated database and review
-documents.
+Approved by the Business/Architecture Owner on 2026-07-15 for Product v2 phase
+one. In LF's ADR vocabulary, `Approved` is the canonical status corresponding
+to the requested `Accepted` decision.
+
+This approval is limited to the associated frozen Product v2 and Product Item
+v2 database contracts. Deferred scope remains outside implementation authority.

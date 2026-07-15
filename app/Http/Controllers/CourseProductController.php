@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Services\MediaService;
+use App\Services\TrustedVideoUrlService;
+use App\Support\CourseProductV2;
 use App\Support\SequentialCodeGenerator;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
@@ -27,7 +29,10 @@ class CourseProductController extends Controller
         'recommended',
     ];
 
-    public function __construct(private readonly MediaService $mediaService) {}
+    public function __construct(
+        private readonly MediaService $mediaService,
+        private readonly TrustedVideoUrlService $trustedVideos
+    ) {}
 
     public function index(Request $request): View
     {
@@ -84,6 +89,11 @@ class CourseProductController extends Controller
             'requiredFields' => $this->requiredFields($customerId),
             'routePrefix' => $this->routePrefix($request),
             'coverImageMedia' => null,
+            'categories' => $this->categories($customerId),
+            'templates' => $this->templates($customerId),
+            'relatedProducts' => $this->relatedProducts($customerId, 0),
+            'selectedRelatedIds' => [],
+            'introMedia' => [],
         ]);
     }
 
@@ -95,27 +105,39 @@ class CourseProductController extends Controller
         $validated = $this->validatedData($request, $customerId);
         $now = now();
 
-        $productId = DB::table('core_course_products')->insertGetId(
-            $this->productValues($validated, [
-                'customer_id' => $customerId,
-                'product_code' => SequentialCodeGenerator::next(
-                    $customerId,
-                    'core_course_products',
-                    'product_code',
-                    'PRD'
-                ),
-                'enrollment_count' => 0,
-                'is_certificate_enabled' => false,
-                'created_by' => $request->user()?->id,
-                'published_at' => $validated['status'] === 'active'
-                    ? $now
-                    : null,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ])
-        );
+        $productId = DB::transaction(function () use ($request, $validated, $customerId, $now): int {
+            $productId = DB::table('core_course_products')->insertGetId(
+                $this->productValues($validated, [
+                    'customer_id' => $customerId,
+                    'product_code' => SequentialCodeGenerator::next(
+                        $customerId,
+                        'core_course_products',
+                        'product_code',
+                        'PRD'
+                    ),
+                    'enrollment_count' => 0,
+                    'is_certificate_enabled' => false,
+                    'created_by' => $request->user()?->id,
+                    'published_at' => $validated['status'] === 'active'
+                        ? $now
+                        : null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ])
+            );
+            if (! empty($validated['template_id'])) {
+                $this->syncPhaseOneItem($customerId, $productId, $validated, $request->user()?->id);
+            }
+            if (array_key_exists('related_product_ids', $validated)) {
+                $this->syncRelatedProducts($customerId, $productId, $validated['related_product_ids'] ?? [], $request->user()?->id);
+            }
+            if (array_key_exists('uses_custom_intro_media', $validated)) {
+                $this->attachIntroMedia($request, $productId, $validated);
+            }
+            $this->attachUploadedMedia($request, $productId);
 
-        $this->attachUploadedMedia($request, $productId);
+            return $productId;
+        });
 
         return redirect()
             ->route($this->routePrefix($request).'.index')
@@ -141,6 +163,11 @@ class CourseProductController extends Controller
                 $id,
                 'cover_image'
             ),
+            'categories' => $this->categories($customerId),
+            'templates' => $this->templates($customerId),
+            'selectedTemplateId' => DB::table('core_course_product_items')->where('customer_id', $customerId)->where('product_id', $id)->value('template_id'),
+            'selectedRelatedIds' => DB::table('core_course_product_relations')->where('customer_id', $customerId)->where('product_id', $id)->where('relation_type', 'related')->pluck('related_product_id')->all(),
+            'introMedia' => collect(CourseProductV2::MEDIA_PURPOSES)->mapWithKeys(fn ($purpose) => [$purpose => $this->singleMedia(CourseProductV2::MEDIA_OWNER, $id, $purpose)])->all(),
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -164,12 +191,19 @@ class CourseProductController extends Controller
             ])
         );
 
-        DB::table('core_course_products')
-            ->where('customer_id', $customerId)
-            ->where('id', $id)
-            ->update($values);
-
-        $this->attachUploadedMedia($request, $id);
+        DB::transaction(function () use ($request, $validated, $values, $customerId, $id): void {
+            DB::table('core_course_products')->where('customer_id', $customerId)->where('id', $id)->update($values);
+            if (! empty($validated['template_id'])) {
+                $this->syncPhaseOneItem($customerId, $id, $validated, $request->user()?->id);
+            }
+            if (array_key_exists('related_product_ids', $validated)) {
+                $this->syncRelatedProducts($customerId, $id, $validated['related_product_ids'] ?? [], $request->user()?->id);
+            }
+            if (array_key_exists('uses_custom_intro_media', $validated)) {
+                $this->attachIntroMedia($request, $id, $validated);
+            }
+            $this->attachUploadedMedia($request, $id);
+        });
 
         return redirect()
             ->route($this->routePrefix($request).'.edit', $id)
@@ -213,6 +247,7 @@ class CourseProductController extends Controller
             'customer_id' => $customerId,
             'product_id' => $productId,
             'version_id' => $validated['version_id'],
+            'template_id' => DB::table('core_course_template_versions')->where('customer_id', $customerId)->where('id', $validated['version_id'])->value('template_id'),
             'title_override' => $validated['title_override'] ?? null,
             'short_description_override' => $validated['short_description_override'] ?? null,
             'sort_order' => $validated['sort_order'],
@@ -329,19 +364,56 @@ class CourseProductController extends Controller
             'title'
         );
 
-        return Validator::make(
-            $input,
-            $this->validationRules($customerId, $productId)
-        )->validate();
+        $validator = Validator::make($input, $this->validationRules($customerId, $productId));
+        $validator->after(function ($validator) use ($input, $customerId, $productId): void {
+            if (! array_key_exists('offering_type', $input)) {
+                return;
+            }
+            $categoryId = (int) ($input['category_id'] ?? 0);
+            $templateId = (int) ($input['template_id'] ?? 0);
+            $template = DB::table('core_course_templates')->where('customer_id', $customerId)
+                ->where('id', $templateId)->where('category_id', $categoryId)->first();
+            if (! $template) {
+                $validator->errors()->add('template_id', __('lf.LF_product_v2_invalid_template'));
+            }
+
+            $relatedIds = array_map('intval', $input['related_product_ids'] ?? []);
+            if (count($relatedIds) !== count(array_unique($relatedIds))) {
+                $validator->errors()->add('related_product_ids', __('lf.LF_product_v2_invalid_related'));
+            }
+            if ($productId && in_array($productId, $relatedIds, true)) {
+                $validator->errors()->add('related_product_ids', __('lf.LF_course_product_relation_validation_self'));
+            }
+            $validRelated = DB::table('core_course_products')->where('customer_id', $customerId)
+                ->whereIn('id', $relatedIds)->where('status', '!=', 'archived')->count();
+            if ($validRelated !== count($relatedIds)) {
+                $validator->errors()->add('related_product_ids', __('lf.LF_product_v2_invalid_related'));
+            }
+
+            if (($input['promotion_enabled'] ?? false) && ($input['discount_type'] ?? null) === 'fixed_amount'
+                && (float) ($input['discount_value'] ?? 0) > (float) ($input['price'] ?? 0)) {
+                $validator->errors()->add('discount_value', __('lf.LF_product_v2_discount_too_large'));
+            }
+            if (($input['status'] ?? null) === 'active') {
+                $version = DB::table('core_course_template_versions')->where('customer_id', $customerId)
+                    ->where('template_id', $templateId)->where('status', 'published')->where('is_current', true)->first();
+                if (! $version) {
+                    $validator->errors()->add('status', __('lf.LF_product_v2_activation_version_required'));
+                }
+            }
+        });
+
+        return $validator->validate();
     }
 
     private function validationRules(int $customerId, ?int $productId = null): array
     {
+        $legacy = request()->has('product_type') && ! request()->has('offering_type');
+
         return [
-            'product_type' => [
-                'required',
-                Rule::in(['single_course', 'bundle']),
-            ],
+            'category_id' => [$legacy ? 'nullable' : 'required', 'integer', Rule::exists('core_course_categories', 'id')->where(fn ($q) => $q->where('customer_id', $customerId))],
+            'template_id' => [$legacy ? 'nullable' : 'required', 'integer'],
+            'offering_type' => [$legacy ? 'nullable' : 'required', Rule::in(CourseProductV2::OFFERING_TYPES)],
             'title' => ['required', 'string', 'max:255'],
             'slug' => [
                 'required',
@@ -351,9 +423,11 @@ class CourseProductController extends Controller
                     ->where(fn ($query) => $query->where('customer_id', $customerId))
                     ->ignore($productId),
             ],
+            'uses_custom_description' => [$legacy ? 'nullable' : 'required', 'boolean'],
+            'uses_custom_intro_media' => [$legacy ? 'nullable' : 'required', 'boolean'],
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['nullable', 'string'],
-            'thumbnail_type' => ['required', Rule::in(['image', 'video'])],
+            'thumbnail_type' => [$legacy ? 'required' : 'nullable', Rule::in(['image', 'video'])],
             'thumbnail_image' => ['nullable', 'string', 'max:500'],
             'thumbnail_video_source' => [
                 'nullable',
@@ -362,33 +436,36 @@ class CourseProductController extends Controller
             'thumbnail_video_url' => ['nullable', 'string', 'max:1000'],
             'thumbnail_video_media_id' => ['nullable', 'integer', 'min:1'],
             'price' => ['required', 'numeric', 'min:0'],
+            'promotion_enabled' => [$legacy ? 'nullable' : 'required', 'boolean'],
+            'discount_type' => ['nullable', Rule::requiredIf(fn () => request()->boolean('promotion_enabled')), Rule::in(CourseProductV2::DISCOUNT_TYPES)],
+            'discount_value' => ['nullable', Rule::requiredIf(fn () => request()->boolean('promotion_enabled')), 'numeric', 'gt:0', Rule::when(request('discount_type') === 'percentage', ['max:100'])],
             'sale_price' => ['nullable', 'numeric', 'min:0'],
             'sale_starts_at' => ['nullable', 'date'],
             'sale_ends_at' => ['nullable', 'date'],
             'currency' => ['required', 'string', 'max:10'],
             'enrollment_type' => [
-                'required',
+                $legacy ? 'required' : 'nullable',
                 Rule::in(['free', 'paid', 'invitation']),
             ],
             'max_students' => ['nullable', 'integer', 'min:0'],
-            'access_duration_days' => ['nullable', 'integer', 'min:0'],
+            'access_duration_days' => ['nullable', Rule::requiredIf(fn () => request('offering_type') === 'self_paced_course'), 'integer', 'min:1'],
             'review_duration_days' => ['nullable', 'integer', 'min:0'],
-            'is_refundable' => ['required', 'boolean'],
+            'is_refundable' => [$legacy ? 'required' : 'nullable', 'boolean'],
             'refund_days' => ['nullable', 'integer', 'min:0'],
             'tags' => ['nullable', 'json'],
             'badge_type' => ['nullable', 'string', 'max:50'],
-            'show_enrollment_count' => ['required', 'boolean'],
+            'show_enrollment_count' => [$legacy ? 'required' : 'nullable', 'boolean'],
             'display_enrollment_count' => ['nullable', 'integer', 'min:0'],
             'is_featured' => ['required', 'boolean'],
-            'sort_order' => ['required', 'integer'],
+            'sort_order' => [$legacy ? 'required' : 'nullable', 'integer', 'min:0'],
             'visibility' => [
-                'required',
+                $legacy ? 'required' : 'nullable',
                 Rule::in(['public', 'private', 'hidden']),
             ],
             'available_from' => ['nullable', 'date'],
             'available_until' => ['nullable', 'date'],
             'registration_starts_at' => ['nullable', 'date'],
-            'registration_ends_at' => ['nullable', 'date'],
+            'registration_ends_at' => ['nullable', 'date', 'after:registration_starts_at'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
             'meta_keywords' => ['nullable', 'string', 'max:500'],
@@ -398,13 +475,24 @@ class CourseProductController extends Controller
                 'file',
                 'max:'.UploadLimit::effectiveKilobytes(),
             ],
+            'related_product_ids' => ['nullable', 'array'],
+            'related_product_ids.*' => ['integer'],
+            'intro_image_file' => ['nullable', 'file', 'max:'.UploadLimit::effectiveKilobytes()],
+            'intro_video_file' => ['nullable', 'file', 'max:'.UploadLimit::effectiveKilobytes()],
+            'intro_document_file' => ['nullable', 'file', 'max:'.UploadLimit::effectiveKilobytes()],
+            'intro_video_source' => ['nullable', Rule::in(['upload', 'embed'])],
+            'intro_video_embed_url' => ['nullable', 'string', 'max:2048'],
+            'remove_intro_image' => ['nullable', 'boolean'],
+            'remove_intro_video' => ['nullable', 'boolean'],
+            'remove_intro_document' => ['nullable', 'boolean'],
         ];
     }
 
     private function validationInput(Request $request): array
     {
         $fields = [
-            'product_type',
+            'category_id', 'template_id', 'offering_type',
+            'uses_custom_description', 'uses_custom_intro_media',
             'title',
             'slug',
             'short_description',
@@ -415,6 +503,7 @@ class CourseProductController extends Controller
             'thumbnail_video_url',
             'thumbnail_video_media_id',
             'price',
+            'promotion_enabled', 'discount_type', 'discount_value',
             'sale_price',
             'sale_starts_at',
             'sale_ends_at',
@@ -440,6 +529,8 @@ class CourseProductController extends Controller
             'meta_description',
             'meta_keywords',
             'status',
+            'related_product_ids', 'intro_video_source', 'intro_video_embed_url',
+            'remove_intro_image', 'remove_intro_video', 'remove_intro_document',
         ];
 
         $input = array_intersect_key(
@@ -449,6 +540,27 @@ class CourseProductController extends Controller
 
         if ($request->hasFile('cover_image_file')) {
             $input['cover_image_file'] = $request->file('cover_image_file');
+        }
+
+        foreach (['intro_image_file', 'intro_video_file', 'intro_document_file'] as $field) {
+            if ($request->hasFile($field)) {
+                $input[$field] = $request->file($field);
+            }
+        }
+
+        if (! ($request->has('product_type') && ! $request->has('offering_type'))) {
+            $input['uses_custom_description'] = $request->boolean('uses_custom_description');
+            $input['uses_custom_intro_media'] = $request->boolean('uses_custom_intro_media');
+            $input['promotion_enabled'] = $request->boolean('promotion_enabled');
+        }
+
+        if (array_key_exists('offering_type', $input) && $input['offering_type'] !== 'self_paced_course') {
+            $input['access_duration_days'] = null;
+            $input['review_duration_days'] = null;
+        }
+        if (array_key_exists('promotion_enabled', $input) && ! $input['promotion_enabled']) {
+            $input['discount_type'] = $input['discount_value'] = null;
+            $input['sale_starts_at'] = $input['sale_ends_at'] = null;
         }
 
         return $input;
@@ -622,34 +734,41 @@ class CourseProductController extends Controller
     private function productValues(array $validated, array $extra = []): array
     {
         return array_merge([
-            'product_type' => $validated['product_type'],
+            'product_type' => CourseProductV2::PACKAGE_SINGLE,
+            'category_id' => $validated['category_id'] ?? null,
+            'offering_type' => $validated['offering_type'] ?? null,
             'title' => $validated['title'],
             'slug' => $validated['slug'],
             'short_description' => $validated['short_description'] ?? null,
             'description' => $validated['description'] ?? null,
-            'thumbnail_type' => $validated['thumbnail_type'],
+            'uses_custom_description' => (bool) ($validated['uses_custom_description'] ?? false),
+            'uses_custom_intro_media' => (bool) ($validated['uses_custom_intro_media'] ?? false),
+            'thumbnail_type' => $validated['thumbnail_type'] ?? 'image',
             'thumbnail_image' => $validated['thumbnail_image'] ?? null,
             'thumbnail_video_source' => $validated['thumbnail_video_source'] ?? null,
             'thumbnail_video_url' => $validated['thumbnail_video_url'] ?? null,
             'thumbnail_video_media_id' => $validated['thumbnail_video_media_id'] ?? null,
             'price' => $validated['price'],
+            'promotion_enabled' => (bool) ($validated['promotion_enabled'] ?? false),
+            'discount_type' => $validated['discount_type'] ?? null,
+            'discount_value' => $validated['discount_value'] ?? null,
             'sale_price' => $validated['sale_price'] ?? null,
             'sale_starts_at' => $validated['sale_starts_at'] ?? null,
             'sale_ends_at' => $validated['sale_ends_at'] ?? null,
             'currency' => $validated['currency'],
-            'enrollment_type' => $validated['enrollment_type'],
+            'enrollment_type' => $validated['enrollment_type'] ?? ((float) $validated['price'] > 0 ? 'paid' : 'free'),
             'max_students' => $validated['max_students'] ?? null,
             'access_duration_days' => $validated['access_duration_days'] ?? null,
             'review_duration_days' => $validated['review_duration_days'] ?? null,
-            'is_refundable' => (bool) $validated['is_refundable'],
+            'is_refundable' => (bool) ($validated['is_refundable'] ?? false),
             'refund_days' => $validated['refund_days'] ?? null,
             'tags' => $validated['tags'] ?? null,
             'badge_type' => $validated['badge_type'] ?? null,
-            'show_enrollment_count' => (bool) $validated['show_enrollment_count'],
+            'show_enrollment_count' => (bool) ($validated['show_enrollment_count'] ?? true),
             'display_enrollment_count' => $validated['display_enrollment_count'] ?? null,
             'is_featured' => (bool) $validated['is_featured'],
-            'sort_order' => $validated['sort_order'],
-            'visibility' => $validated['visibility'],
+            'sort_order' => $validated['sort_order'] ?? $this->nextSortOrder((int) $validated['category_id']),
+            'visibility' => $validated['visibility'] ?? 'public',
             'available_from' => $validated['available_from'] ?? null,
             'available_until' => $validated['available_until'] ?? null,
             'registration_starts_at' => $validated['registration_starts_at'] ?? null,
@@ -705,7 +824,7 @@ class CourseProductController extends Controller
     private function productItems(int $customerId, int $productId)
     {
         return DB::table('core_course_product_items as items')
-            ->join('core_course_template_versions as versions', function ($join) use (
+            ->leftJoin('core_course_template_versions as versions', function ($join) use (
                 $customerId
             ): void {
                 $join->on(
@@ -790,6 +909,108 @@ class CourseProductController extends Controller
             ->orderBy('title')
             ->select('id', 'title', 'product_code', 'status')
             ->get();
+    }
+
+    private function categories(int $customerId)
+    {
+        return DB::table('core_course_categories')->where('customer_id', $customerId)
+            ->where('status', '!=', 'archived')->orderBy('sort_order')->orderBy('name')->get(['id', 'name']);
+    }
+
+    private function templates(int $customerId)
+    {
+        return DB::table('core_course_templates as templates')
+            ->leftJoin('core_course_template_versions as versions', function ($join): void {
+                $join->on('versions.template_id', '=', 'templates.id')->where('versions.status', '=', 'published')->where('versions.is_current', '=', true);
+            })
+            ->where('templates.customer_id', $customerId)
+            ->orderBy('templates.title')
+            ->select('templates.id', 'templates.category_id', 'templates.title as name', 'templates.working_revision', 'versions.id as version_id', 'versions.version_number')
+            ->get();
+    }
+
+    private function syncPhaseOneItem(int $customerId, int $productId, array $validated, ?int $actorId): void
+    {
+        $versionId = DB::table('core_course_template_versions')->where('customer_id', $customerId)
+            ->where('template_id', $validated['template_id'])->where('status', 'published')->where('is_current', true)->value('id');
+        if ($validated['status'] !== 'active' && ! $versionId) {
+            $versionId = null;
+        }
+
+        DB::table('core_course_product_items')->updateOrInsert(
+            ['customer_id' => $customerId, 'product_id' => $productId, 'template_id' => $validated['template_id']],
+            ['version_id' => $versionId, 'title_override' => null, 'short_description_override' => null,
+                'sort_order' => 0, 'is_required' => true, 'status' => 'active', 'created_by' => $actorId,
+                'updated_at' => now(), 'created_at' => now()]
+        );
+        DB::table('core_course_product_items')->where('customer_id', $customerId)->where('product_id', $productId)
+            ->where('template_id', '!=', $validated['template_id'])->delete();
+    }
+
+    private function syncRelatedProducts(int $customerId, int $productId, array $ids, ?int $actorId): void
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        DB::table('core_course_product_relations')->where('customer_id', $customerId)->where('product_id', $productId)
+            ->where('relation_type', 'related')->when($ids, fn ($q) => $q->whereNotIn('related_product_id', $ids))->delete();
+        foreach ($ids as $relatedId) {
+            DB::table('core_course_product_relations')->updateOrInsert(
+                ['customer_id' => $customerId, 'product_id' => $productId, 'related_product_id' => $relatedId, 'relation_type' => 'related'],
+                ['title_override' => null, 'description_override' => null, 'sort_order' => 0, 'is_featured' => false,
+                    'starts_at' => null, 'ends_at' => null, 'status' => 'active', 'created_by' => $actorId,
+                    'created_at' => now(), 'updated_at' => now()]
+            );
+        }
+    }
+
+    private function nextSortOrder(int $categoryId): int
+    {
+        return ((int) DB::table('core_course_products')->where('customer_id', $this->customerId())
+            ->where('category_id', $categoryId)->lockForUpdate()->max('sort_order')) + 1;
+    }
+
+    private function attachIntroMedia(Request $request, int $productId, array $validated): void
+    {
+        if (! $validated['uses_custom_intro_media']) {
+            return;
+        }
+
+        $definitions = [
+            'intro_image' => ['field' => 'intro_image_file', 'type' => 'image', 'column' => 'intro_image_media_file_id'],
+            'intro_video' => ['field' => 'intro_video_file', 'type' => 'video', 'column' => 'intro_video_media_file_id'],
+            'intro_document' => ['field' => 'intro_document_file', 'type' => 'document', 'column' => 'intro_document_media_file_id'],
+        ];
+        foreach ($definitions as $purpose => $definition) {
+            $hasReplacement = $request->hasFile($definition['field']);
+            $remove = $request->boolean('remove_'.$purpose);
+            if (! $hasReplacement && ! $remove) {
+                continue;
+            }
+            foreach ($this->mediaService->getOwnerMedia(CourseProductV2::MEDIA_OWNER, $productId, $purpose) as $media) {
+                $this->mediaService->detachUsage((int) $media->id, CourseProductV2::MEDIA_OWNER, $productId, $purpose);
+            }
+            $mediaId = null;
+            if ($hasReplacement) {
+                $media = $this->mediaService->upload($request->file($definition['field']), [
+                    'file_type' => $definition['type'], 'module' => 'course', 'entity_type' => 'products',
+                    'entity_id' => $productId, 'purpose' => $purpose, 'display_name' => $validated['title'],
+                ], (int) $request->user()->id);
+                $mediaId = (int) $media->id;
+                $this->mediaService->attachUsage($mediaId, CourseProductV2::MEDIA_OWNER, $productId, $purpose);
+            }
+            DB::table('core_course_products')->where('id', $productId)->update([$definition['column'] => $mediaId]);
+        }
+
+        $source = $validated['intro_video_source'] ?? null;
+        $videoValues = ['intro_video_source' => $source];
+        if ($source === 'embed') {
+            $normalized = $this->trustedVideos->normalize((string) ($validated['intro_video_embed_url'] ?? ''));
+            $videoValues += ['intro_video_embed_url' => $normalized['url'], 'intro_video_provider' => $normalized['provider'], 'intro_video_media_file_id' => null];
+        } elseif ($source === 'upload') {
+            $videoValues += ['intro_video_embed_url' => null, 'intro_video_provider' => null];
+        } else {
+            $videoValues += ['intro_video_embed_url' => null, 'intro_video_provider' => null, 'intro_video_media_file_id' => null];
+        }
+        DB::table('core_course_products')->where('id', $productId)->update($videoValues);
     }
 
     private function attachUploadedMedia(Request $request, int $productId): void

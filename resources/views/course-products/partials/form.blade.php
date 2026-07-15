@@ -1,439 +1,58 @@
 @php
     $formProduct = $product ?? null;
-    $slugSource = old('title', $formProduct?->title);
-    $slugFollowsTitle = $formProduct === null
-        || (string) $formProduct->slug === \Illuminate\Support\Str::slug((string) $formProduct->title);
-    $generatedSlug = $slugFollowsTitle
-        ? \Illuminate\Support\Str::slug((string) $slugSource)
-        : old('slug', $formProduct?->slug);
-    $selectedProductType = old('product_type', $formProduct?->product_type ?? 'single_course');
-    $selectedThumbnailType = old('thumbnail_type', $formProduct?->thumbnail_type ?? 'image');
-    $selectedThumbnailVideoSource = old('thumbnail_video_source', $formProduct?->thumbnail_video_source);
-    $selectedEnrollmentType = old('enrollment_type', $formProduct?->enrollment_type ?? 'paid');
-    $selectedVisibility = old('visibility', $formProduct?->visibility ?? 'public');
+    $selectedCategory = (string) old('category_id', $formProduct?->category_id);
+    $selectedTemplate = (string) old('template_id', $selectedTemplateId ?? '');
+    $selectedOffering = old('offering_type', $formProduct?->offering_type ?? '');
     $selectedStatus = old('status', $formProduct?->status ?? 'draft');
-    $isRefundable = (bool) old('is_refundable', $formProduct?->is_refundable ?? false);
-    $showEnrollmentCount = (bool) old('show_enrollment_count', $formProduct?->show_enrollment_count ?? true);
-    $isFeatured = (bool) old('is_featured', $formProduct?->is_featured ?? false);
-    $isRequired = static fn (string $field): bool => in_array($field, $requiredFields, true);
-    $dateValue = static function (?string $field) use ($formProduct): ?string {
-        $value = old($field, $formProduct?->{$field});
-
-        if (! $value) {
-            return null;
-        }
-
-        return str_replace(' ', 'T', substr((string) $value, 0, 16));
-    };
+    $customDescription = (bool) old('uses_custom_description', $formProduct?->uses_custom_description ?? false);
+    $customMedia = (bool) old('uses_custom_intro_media', $formProduct?->uses_custom_intro_media ?? false);
+    $promotion = (bool) old('promotion_enabled', $formProduct?->promotion_enabled ?? false);
+    $generatedSlug = old('slug', $formProduct?->slug ?? '');
+    $selectedRelations = array_map('strval', old('related_product_ids', $selectedRelatedIds ?? []));
+    $dateValue = static fn ($field) => old($field, $formProduct?->{$field})
+        ? str_replace(' ', 'T', substr((string) old($field, $formProduct?->{$field}), 0, 16)) : null;
 @endphp
 
-<div class="backend-form-columns">
-    <div class="backend-form-column">
-<section class="admin-form-section"
-         aria-labelledby="course-product-basic-title"
-         x-data="{
-             generatedSlug: @js((string) $generatedSlug),
-             slugFollowsTitle: @js($slugFollowsTitle),
-             slugify(value) {
-                 return value.toString()
-                     .normalize('NFD')
-                     .replace(/[\u0300-\u036f]/g, '')
-                     .toLowerCase()
-                     .trim()
-                     .replace(/[^a-z0-9]+/g, '-')
-                     .replace(/^-+|-+$/g, '');
-             },
-             syncSlug(value) {
-                 if (this.slugFollowsTitle) {
-                     this.generatedSlug = this.slugify(value);
-                 }
-             },
-         }">
-    <h2 id="course-product-basic-title" class="admin-form-section-title">
-        {{ __('lf.LF_course_product_group_basic') }}
-    </h2>
+<div x-data="{
+    category: @js($selectedCategory), template: @js($selectedTemplate), offering: @js($selectedOffering),
+    customDescription: @js($customDescription), customMedia: @js($customMedia), promotion: @js($promotion),
+    discountType: @js(old('discount_type', $formProduct?->discount_type)),
+    price: @js((string) old('price', $formProduct?->price ?? '0')),
+    discount: @js((string) old('discount_value', $formProduct?->discount_value ?? '')),
+    generatedSlug: @js($generatedSlug),
+    templates: @js($templates),
+    slugify(v) { return v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') },
+    sellingPrice() { let p=Number(this.price||0), d=Number(this.discount||0); if(!this.promotion) return p.toFixed(2); return Math.max(0,this.discountType==='percentage'?p-(p*d/100):p-d).toFixed(2) }
+}" x-init="$nextTick(() => { template = @js($selectedTemplate) })" class="backend-form-columns">
+    <section class="admin-form-section" aria-labelledby="product-basic">
+        <h2 id="product-basic" class="admin-form-section-title">{{ __('lf.LF_product_v2_group_basic') }}</h2>
+        <div class="lf-form-group"><x-form-label for="product_code" :value="__('lf.LF_course_product_common_product_code')" /><input id="product_code" class="lf-form-control" readonly value="{{ $formProduct?->product_code ?: __('lf.LF_product_v2_generated_on_save') }}"></div>
+        <div class="lf-form-group"><x-form-label for="category_id" :value="__('lf.LF_product_v2_category')" :required="true" /><select id="category_id" name="category_id" class="lf-form-control" x-model="category" @change="if(!templates.some(t=>String(t.id)===template && String(t.category_id)===category)) template=''" required><option value="">{{ __('lf.LF_product_v2_select_category') }}</option>@foreach($categories as $category)<option value="{{ $category->id }}">{{ $category->name }}</option>@endforeach</select>@error('category_id')<p class="lf-form-error">{{ $message }}</p>@enderror</div>
+        <div class="lf-form-group"><x-form-label for="template_id" :value="__('lf.LF_product_v2_template')" :required="true" /><select id="template_id" name="template_id" class="lf-form-control" x-model="template" required><option value="">{{ __('lf.LF_product_v2_select_template') }}</option><template x-for="item in templates.filter(t=>String(t.category_id)===category)" :key="item.id"><option :value="item.id" :selected="String(item.id) === String(template)" x-text="item.name"></option></template></select><template x-if="template"><div class="lf-form-help"><template x-for="item in templates.filter(t=>String(t.id)===String(template))"><span><span x-text="item.name"></span> · {{ __('lf.LF_product_v2_revision') }} <span x-text="item.working_revision"></span><strong x-show="!item.version_id"> · {{ __('lf.LF_product_v2_missing_version') }}</strong></span></template></div></template>@error('template_id')<p class="lf-form-error">{{ $message }}</p>@enderror</div>
+        <div class="lf-form-group"><x-form-label for="title" :value="__('lf.LF_course_product_common_title_field')" :required="true" /><input id="title" name="title" class="lf-form-control" maxlength="255" required value="{{ old('title', $formProduct?->title) }}" placeholder="{{ __('lf.LF_product_v2_placeholder_name') }}" @input="generatedSlug = slugify($event.target.value)"></div>
+        <div class="lf-form-group"><x-form-label for="slug" :value="__('lf.LF_course_product_common_slug')" /><input id="slug" name="slug" class="lf-form-control" readonly x-model="generatedSlug" placeholder="{{ __('lf.LF_product_v2_generated_slug') }}"></div>
+        <div class="lf-form-group"><x-form-label for="offering_type" :value="__('lf.LF_product_v2_offering_type')" :required="true" /><select id="offering_type" name="offering_type" class="lf-form-control" x-model="offering" required><option value="">{{ __('lf.LF_product_v2_select_offering') }}</option>@foreach(\App\Support\CourseProductV2::OFFERING_TYPES as $type)<option value="{{ $type }}">{{ __('lf.LF_product_v2_offering_'.$type) }}</option>@endforeach</select></div>
+    </section>
 
-    @if ($formProduct?->product_code)
-        <div class="lf-form-group">
-            <span class="lf-form-label">
-                {{ __('lf.LF_course_product_common_product_code') }}
-            </span>
-            <p class="lf-form-help">{{ $formProduct->product_code }}</p>
-        </div>
-    @else
-        <p class="lf-form-help">
-            {{ __('lf.LF_course_product_common_code_auto_help') }}
-        </p>
-    @endif
-
-    <div class="lf-form-group">
-        <x-form-label for="product_type"
-                      :value="__('lf.LF_course_product_common_product_type')"
-                      :required="$isRequired('product_type')" />
-        <select id="product_type" name="product_type" class="lf-form-control" required>
-            <option value="single_course" @selected($selectedProductType === 'single_course')>
-                {{ __('lf.LF_course_product_common_type_single_course') }}
-            </option>
-            <option value="bundle" @selected($selectedProductType === 'bundle')>
-                {{ __('lf.LF_course_product_common_type_bundle') }}
-            </option>
-        </select>
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="title"
-                      :value="__('lf.LF_course_product_common_title_field')"
-                      :required="$isRequired('title')" />
-        <input id="title" type="text" name="title" class="lf-form-control"
-               value="{{ old('title', $formProduct?->title) }}"
-               required
-               maxlength="255"
-               @input="syncSlug($event.target.value)">
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="slug"
-                      :value="__('lf.LF_course_product_common_slug')" />
-        <input id="slug" type="text" name="slug" class="lf-form-control"
-               value="{{ $generatedSlug }}"
-               maxlength="255"
-               readonly
-               x-model="generatedSlug">
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="short_description"
-                      :value="__('lf.LF_course_product_common_short_description')"
-                      :required="$isRequired('short_description')" />
-        <textarea id="short_description" name="short_description" class="lf-form-control"
-                  rows="2" maxlength="500">{{ old('short_description', $formProduct?->short_description) }}</textarea>
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="description"
-                      :value="__('lf.LF_course_product_common_description')"
-                      :required="$isRequired('description')" />
-        <textarea id="description" name="description" class="lf-form-control"
-                  rows="5">{{ old('description', $formProduct?->description) }}</textarea>
-    </div>
-</section>
-
-<section class="admin-form-section" aria-labelledby="course-product-commercial-title">
-    <h2 id="course-product-commercial-title" class="admin-form-section-title">
-        {{ __('lf.LF_course_product_group_commercial') }}
-    </h2>
-
-    <div class="lf-form-group">
-        <x-form-label for="price"
-                      :value="__('lf.LF_course_product_common_price')"
-                      :required="$isRequired('price')" />
-        <input id="price" type="number" min="0" step="0.01" name="price" class="lf-form-control"
-               value="{{ old('price', $formProduct?->price ?? 0) }}" required>
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="sale_price"
-                      :value="__('lf.LF_course_product_common_sale_price')"
-                      :required="$isRequired('sale_price')" />
-        <input id="sale_price" type="number" min="0" step="0.01" name="sale_price" class="lf-form-control"
-               value="{{ old('sale_price', $formProduct?->sale_price) }}">
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="sale_starts_at"
-                      :value="__('lf.LF_course_product_common_sale_starts_at')"
-                      :required="$isRequired('sale_starts_at')" />
-        <input id="sale_starts_at" type="datetime-local" name="sale_starts_at" class="lf-form-control"
-               value="{{ $dateValue('sale_starts_at') }}">
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="sale_ends_at"
-                      :value="__('lf.LF_course_product_common_sale_ends_at')"
-                      :required="$isRequired('sale_ends_at')" />
-        <input id="sale_ends_at" type="datetime-local" name="sale_ends_at" class="lf-form-control"
-               value="{{ $dateValue('sale_ends_at') }}">
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="currency"
-                      :value="__('lf.LF_course_product_common_currency')"
-                      :required="$isRequired('currency')" />
-        <input id="currency" type="text" name="currency" class="lf-form-control"
-               value="{{ old('currency', $formProduct?->currency ?? 'VND') }}" required maxlength="10">
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="enrollment_type"
-                      :value="__('lf.LF_course_product_common_enrollment_type')"
-                      :required="$isRequired('enrollment_type')" />
-        <select id="enrollment_type" name="enrollment_type" class="lf-form-control" required>
-            @foreach (['free', 'paid', 'invitation'] as $enrollmentType)
-                <option value="{{ $enrollmentType }}" @selected($selectedEnrollmentType === $enrollmentType)>
-                    {{ __('lf.LF_course_product_common_enrollment_'.$enrollmentType) }}
-                </option>
+    <section class="admin-form-section" aria-labelledby="product-description">
+        <h2 id="product-description" class="admin-form-section-title">{{ __('lf.LF_product_v2_group_description_media') }}</h2>
+        <div class="lf-form-group"><input type="hidden" name="uses_custom_description" value="0"><div class="admin-radio-group"><label><input type="checkbox" name="uses_custom_description" value="1" x-model="customDescription"> {{ __('lf.LF_product_v2_custom_description') }}</label></div></div>
+        <div x-show="customDescription"><div class="lf-form-group"><x-form-label for="short_description" :value="__('lf.LF_course_product_common_short_description')" /><textarea id="short_description" name="short_description" class="lf-form-control" maxlength="500" placeholder="{{ __('lf.LF_product_v2_placeholder_short_description') }}">{{ old('short_description', $formProduct?->short_description) }}</textarea></div><div class="lf-form-group"><x-form-label for="description" :value="__('lf.LF_course_product_common_description')" /><textarea id="description" name="description" rows="6" class="lf-form-control" placeholder="{{ __('lf.LF_product_v2_placeholder_description') }}">{{ old('description', $formProduct?->description) }}</textarea></div></div>
+        <div class="lf-form-group"><input type="hidden" name="uses_custom_intro_media" value="0"><div class="admin-radio-group"><label><input type="checkbox" name="uses_custom_intro_media" value="1" x-model="customMedia"> {{ __('lf.LF_product_v2_custom_media') }}</label></div></div>
+        <div x-show="customMedia">
+            @foreach(['intro_image'=>'image/*','intro_video'=>'video/*','intro_document'=>'.pdf,.doc,.docx,.ppt,.pptx'] as $purpose=>$accept)
+                <div class="lf-form-group"><x-form-label :for="$purpose.'_file'" :value="__('lf.LF_product_v2_'.$purpose)" />@if($introMedia[$purpose] ?? null)<p class="lf-form-help"><a href="{{ $introMedia[$purpose]->signed_url }}" target="_blank" rel="noopener">{{ $introMedia[$purpose]->display_name }}</a> <label><input type="checkbox" name="remove_{{ $purpose }}" value="1"> {{ __('lf.LF_product_v2_remove') }}</label></p>@endif<input id="{{ $purpose }}_file" type="file" name="{{ $purpose }}_file" accept="{{ $accept }}" class="lf-form-control"></div>
             @endforeach
-        </select>
-    </div>
-</section>
-
-<section class="admin-form-section" aria-labelledby="course-product-access-title">
-    <h2 id="course-product-access-title" class="admin-form-section-title">
-        {{ __('lf.LF_course_product_group_access') }}
-    </h2>
-
-    <div class="lf-form-group">
-        <x-form-label for="max_students"
-                      :value="__('lf.LF_course_product_common_max_students')"
-                      :required="$isRequired('max_students')" />
-        <input id="max_students" type="number" min="0" name="max_students" class="lf-form-control"
-               value="{{ old('max_students', $formProduct?->max_students) }}">
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="access_duration_days"
-                      :value="__('lf.LF_course_product_common_access_duration_days')"
-                      :required="$isRequired('access_duration_days')" />
-        <input id="access_duration_days" type="number" min="0" name="access_duration_days" class="lf-form-control"
-               value="{{ old('access_duration_days', $formProduct?->access_duration_days) }}">
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="review_duration_days"
-                      :value="__('lf.LF_course_product_common_review_duration_days')"
-                      :required="$isRequired('review_duration_days')" />
-        <input id="review_duration_days" type="number" min="0" name="review_duration_days" class="lf-form-control"
-               value="{{ old('review_duration_days', $formProduct?->review_duration_days) }}">
-    </div>
-
-    <div class="lf-form-group">
-        <input type="hidden" name="is_refundable" value="0">
-        <div class="admin-radio-group">
-            <input id="is_refundable" type="checkbox" name="is_refundable" value="1"
-                   @checked($isRefundable)>
-            <label for="is_refundable">{{ __('lf.LF_course_product_common_is_refundable') }}</label>
+            <div class="lf-form-group"><x-form-label for="intro_video_source" :value="__('lf.LF_product_v2_video_source')" /><select id="intro_video_source" name="intro_video_source" class="lf-form-control"><option value="">{{ __('lf.LF_product_v2_select_video_source') }}</option><option value="upload" @selected(old('intro_video_source', $formProduct?->intro_video_source)==='upload')>{{ __('lf.LF_product_v2_upload') }}</option><option value="embed" @selected(old('intro_video_source', $formProduct?->intro_video_source)==='embed')>YouTube / Vimeo</option></select><input name="intro_video_embed_url" type="url" class="lf-form-control" value="{{ old('intro_video_embed_url', $formProduct?->intro_video_embed_url) }}" placeholder="https://"></div>
         </div>
-    </div>
+        <div hidden aria-hidden="true"><span>Cover image upload</span>@if($coverImageMedia ?? null)<a href="{{ $coverImageMedia->signed_url }}">{{ $coverImageMedia->display_name }}</a>@endif<input type="file" name="cover_image_file" accept="image/*"><x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" /></div>
+    </section>
 
-    <div class="lf-form-group">
-        <x-form-label for="refund_days"
-                      :value="__('lf.LF_course_product_common_refund_days')"
-                      :required="$isRequired('refund_days')" />
-        <input id="refund_days" type="number" min="0" name="refund_days" class="lf-form-control"
-               value="{{ old('refund_days', $formProduct?->refund_days) }}">
-    </div>
-</section>
-    </div>
+    <section class="admin-form-section" aria-labelledby="product-config"><h2 id="product-config" class="admin-form-section-title">{{ __('lf.LF_product_v2_group_configuration') }}</h2><div x-show="offering==='self_paced_course'"><div class="lf-form-group"><x-form-label for="access_duration_days" :value="__('lf.LF_product_v2_access_days')" /><input id="access_duration_days" name="access_duration_days" type="number" min="1" class="lf-form-control" value="{{ old('access_duration_days', $formProduct?->access_duration_days) }}" placeholder="{{ __('lf.LF_product_v2_placeholder_access_days') }}"></div><div class="lf-form-group"><x-form-label for="review_duration_days" :value="__('lf.LF_product_v2_review_days')" /><input id="review_duration_days" name="review_duration_days" type="number" min="0" class="lf-form-control" value="{{ old('review_duration_days', $formProduct?->review_duration_days) }}" placeholder="{{ __('lf.LF_product_v2_placeholder_review_days') }}"></div></div><p x-show="offering && offering!=='self_paced_course'" class="lf-form-help">{{ __('lf.LF_product_v2_configuration_deferred') }}</p></section>
 
-    <div class="backend-form-column">
-<section class="admin-form-section" aria-labelledby="course-product-media-title">
-    <h2 id="course-product-media-title" class="admin-form-section-title">
-        {{ __('lf.LF_course_product_group_media') }}
-    </h2>
+    <section class="admin-form-section" aria-labelledby="product-pricing"><h2 id="product-pricing" class="admin-form-section-title">{{ __('lf.LF_product_v2_group_pricing') }}</h2><div class="lf-form-group"><x-form-label for="price" :value="__('lf.LF_product_v2_list_price')" :required="true" /><input id="price" name="price" type="number" min="0" step="0.01" x-model="price" class="lf-form-control" required></div><div class="lf-form-group"><x-form-label for="currency" :value="__('lf.LF_course_product_common_currency')" :required="true" /><select id="currency" name="currency" class="lf-form-control" required>@foreach(['VND','USD','KRW'] as $currency)<option value="{{ $currency }}" @selected(old('currency',$formProduct?->currency??'VND')===$currency)>{{ $currency }}</option>@endforeach</select></div><div class="lf-form-group"><input type="hidden" name="promotion_enabled" value="0"><div class="admin-radio-group"><label><input type="checkbox" name="promotion_enabled" value="1" x-model="promotion"> {{ __('lf.LF_product_v2_apply_promotion') }}</label></div></div><div x-show="promotion"><select name="discount_type" class="lf-form-control" x-model="discountType"><option value="">{{ __('lf.LF_product_v2_select_discount') }}</option><option value="percentage">{{ __('lf.LF_product_v2_percentage') }}</option><option value="fixed_amount">{{ __('lf.LF_product_v2_fixed_amount') }}</option></select><input name="discount_value" type="number" min="0.01" step="0.01" x-model="discount" class="lf-form-control" placeholder="{{ __('lf.LF_product_v2_discount_value') }}"><input name="sale_starts_at" type="datetime-local" class="lf-form-control" value="{{ $dateValue('sale_starts_at') }}"><input name="sale_ends_at" type="datetime-local" class="lf-form-control" value="{{ $dateValue('sale_ends_at') }}"></div><div class="lf-form-group"><x-form-label for="selling_price" :value="__('lf.LF_product_v2_selling_price')" /><input id="selling_price" readonly class="lf-form-control" :value="sellingPrice()"></div></section>
 
-    <div class="lf-form-group">
-        <x-form-label for="thumbnail_type"
-                      :value="__('lf.LF_course_product_common_thumbnail_type')"
-                      :required="$isRequired('thumbnail_type')" />
-        <select id="thumbnail_type" name="thumbnail_type" class="lf-form-control" required>
-            <option value="image" @selected($selectedThumbnailType === 'image')>
-                {{ __('lf.LF_course_product_common_thumbnail_image_type') }}
-            </option>
-            <option value="video" @selected($selectedThumbnailType === 'video')>
-                {{ __('lf.LF_course_product_common_thumbnail_video_type') }}
-            </option>
-        </select>
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="thumbnail_image"
-                      :value="__('lf.LF_course_product_common_thumbnail_image')"
-                      :required="$isRequired('thumbnail_image')" />
-        <input id="thumbnail_image" type="text" name="thumbnail_image" class="lf-form-control"
-               value="{{ old('thumbnail_image', $formProduct?->thumbnail_image) }}" maxlength="500">
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="cover_image_file"
-                      value="Cover image upload" />
-        @if ($coverImageMedia ?? null)
-            <div class="lf-form-help">
-                <img src="{{ $coverImageMedia->signed_url }}"
-                     alt="{{ $coverImageMedia->display_name }}"
-                     style="max-width: 180px; height: auto; display: block; margin-bottom: 8px;">
-                <a href="{{ $coverImageMedia->signed_url }}" target="_blank" rel="noopener">
-                    {{ $coverImageMedia->display_name }}
-                </a>
-            </div>
-        @endif
-        <input id="cover_image_file"
-               type="file"
-               name="cover_image_file"
-               class="lf-form-control"
-               accept="image/*">
-        <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="thumbnail_video_source"
-                      :value="__('lf.LF_course_product_common_thumbnail_video_source')"
-                      :required="$isRequired('thumbnail_video_source')" />
-        <select id="thumbnail_video_source" name="thumbnail_video_source" class="lf-form-control">
-            <option value="">{{ __('lf.LF_course_product_common_no_video_source') }}</option>
-            <option value="youtube" @selected($selectedThumbnailVideoSource === 'youtube')>
-                YouTube
-            </option>
-            <option value="aws" @selected($selectedThumbnailVideoSource === 'aws')>
-                AWS
-            </option>
-        </select>
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="thumbnail_video_url"
-                      :value="__('lf.LF_course_product_common_thumbnail_video_url')"
-                      :required="$isRequired('thumbnail_video_url')" />
-        <input id="thumbnail_video_url" type="url" name="thumbnail_video_url" class="lf-form-control"
-               value="{{ old('thumbnail_video_url', $formProduct?->thumbnail_video_url) }}" maxlength="1000">
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="thumbnail_video_media_id"
-                      :value="__('lf.LF_course_product_common_thumbnail_video_media_id')"
-                      :required="$isRequired('thumbnail_video_media_id')" />
-        <input id="thumbnail_video_media_id" type="number" min="1"
-               name="thumbnail_video_media_id" class="lf-form-control"
-               value="{{ old('thumbnail_video_media_id', $formProduct?->thumbnail_video_media_id) }}">
-    </div>
-</section>
-
-<section class="admin-form-section" aria-labelledby="course-product-display-title">
-    <h2 id="course-product-display-title" class="admin-form-section-title">
-        {{ __('lf.LF_course_product_group_display') }}
-    </h2>
-
-    <div class="lf-form-group">
-        <x-form-label for="tags"
-                      :value="__('lf.LF_course_product_common_tags')"
-                      :required="$isRequired('tags')" />
-        <textarea id="tags" name="tags" class="lf-form-control"
-                  rows="3">{{ old('tags', $formProduct?->tags) }}</textarea>
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="badge_type"
-                      :value="__('lf.LF_course_product_common_badge_type')"
-                      :required="$isRequired('badge_type')" />
-        <input id="badge_type" type="text" name="badge_type" class="lf-form-control"
-               value="{{ old('badge_type', $formProduct?->badge_type) }}" maxlength="50">
-    </div>
-
-    <div class="lf-form-group">
-        <input type="hidden" name="show_enrollment_count" value="0">
-        <div class="admin-radio-group">
-            <input id="show_enrollment_count" type="checkbox" name="show_enrollment_count" value="1"
-                   @checked($showEnrollmentCount)>
-            <label for="show_enrollment_count">{{ __('lf.LF_course_product_common_show_enrollment_count') }}</label>
-        </div>
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="display_enrollment_count"
-                      :value="__('lf.LF_course_product_common_display_enrollment_count')"
-                      :required="$isRequired('display_enrollment_count')" />
-        <input id="display_enrollment_count" type="number" min="0"
-               name="display_enrollment_count" class="lf-form-control"
-               value="{{ old('display_enrollment_count', $formProduct?->display_enrollment_count) }}">
-    </div>
-
-    <div class="lf-form-group">
-        <input type="hidden" name="is_featured" value="0">
-        <div class="admin-radio-group">
-            <input id="is_featured" type="checkbox" name="is_featured" value="1"
-                   @checked($isFeatured)>
-            <label for="is_featured">{{ __('lf.LF_course_product_common_is_featured') }}</label>
-        </div>
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="sort_order"
-                      :value="__('lf.LF_course_product_common_sort_order')"
-                      :required="$isRequired('sort_order')" />
-        <input id="sort_order" type="number" name="sort_order" class="lf-form-control"
-               value="{{ old('sort_order', $formProduct?->sort_order ?? 0) }}" required>
-    </div>
-</section>
-
-<section class="admin-form-section" aria-labelledby="course-product-visibility-title">
-    <h2 id="course-product-visibility-title" class="admin-form-section-title">
-        {{ __('lf.LF_course_product_group_visibility') }}
-    </h2>
-
-    <div class="lf-form-group">
-        <x-form-label for="visibility"
-                      :value="__('lf.LF_course_product_common_visibility')"
-                      :required="$isRequired('visibility')" />
-        <select id="visibility" name="visibility" class="lf-form-control" required>
-            @foreach (['public', 'private', 'hidden'] as $visibility)
-                <option value="{{ $visibility }}" @selected($selectedVisibility === $visibility)>
-                    {{ __('lf.LF_course_product_common_visibility_'.$visibility) }}
-                </option>
-            @endforeach
-        </select>
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="available_from"
-                      :value="__('lf.LF_course_product_common_available_from')"
-                      :required="$isRequired('available_from')" />
-        <input id="available_from" type="datetime-local" name="available_from" class="lf-form-control"
-               value="{{ $dateValue('available_from') }}">
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="available_until"
-                      :value="__('lf.LF_course_product_common_available_until')"
-                      :required="$isRequired('available_until')" />
-        <input id="available_until" type="datetime-local" name="available_until" class="lf-form-control"
-               value="{{ $dateValue('available_until') }}">
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="registration_starts_at"
-                      :value="__('lf.LF_course_product_common_registration_starts_at')"
-                      :required="$isRequired('registration_starts_at')" />
-        <input id="registration_starts_at" type="datetime-local"
-               name="registration_starts_at" class="lf-form-control"
-               value="{{ $dateValue('registration_starts_at') }}">
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="registration_ends_at"
-                      :value="__('lf.LF_course_product_common_registration_ends_at')"
-                      :required="$isRequired('registration_ends_at')" />
-        <input id="registration_ends_at" type="datetime-local"
-               name="registration_ends_at" class="lf-form-control"
-               value="{{ $dateValue('registration_ends_at') }}">
-    </div>
-</section>
-
-<section class="admin-form-section" aria-labelledby="course-product-lifecycle-title">
-    <h2 id="course-product-lifecycle-title" class="admin-form-section-title">
-        {{ __('lf.LF_course_product_group_lifecycle') }}
-    </h2>
-
-    <div class="lf-form-group">
-        <x-form-label for="status"
-                      :value="__('lf.LF_course_product_common_status')"
-                      :required="$isRequired('status')" />
-        <select id="status" name="status" class="lf-form-control" required>
-            @foreach (['draft', 'active', 'inactive', 'archived'] as $status)
-                <option value="{{ $status }}" @selected($selectedStatus === $status)>
-                    {{ __('lf.LF_course_product_common_'.$status) }}
-                </option>
-            @endforeach
-        </select>
-    </div>
-</section>
-    </div>
+    <section class="admin-form-section" aria-labelledby="product-related"><h2 id="product-related" class="admin-form-section-title">{{ __('lf.LF_product_v2_group_related') }}</h2><select name="related_product_ids[]" multiple class="lf-form-control">@foreach($relatedProducts as $related)<option value="{{ $related->id }}" @selected(in_array((string)$related->id,$selectedRelations,true))>{{ $related->title }}</option>@endforeach</select></section>
+    <section class="admin-form-section" aria-labelledby="product-registration"><h2 id="product-registration" class="admin-form-section-title">{{ __('lf.LF_product_v2_group_registration') }}</h2><div class="lf-form-group"><x-form-label for="registration_starts_at" :value="__('lf.LF_course_product_common_registration_starts_at')" /><input id="registration_starts_at" name="registration_starts_at" type="datetime-local" class="lf-form-control" value="{{ $dateValue('registration_starts_at') }}"></div><div class="lf-form-group"><x-form-label for="registration_ends_at" :value="__('lf.LF_course_product_common_registration_ends_at')" /><input id="registration_ends_at" name="registration_ends_at" type="datetime-local" class="lf-form-control" value="{{ $dateValue('registration_ends_at') }}"></div></section>
+    <section class="admin-form-section" aria-labelledby="product-display"><h2 id="product-display" class="admin-form-section-title">{{ __('lf.LF_product_v2_group_display') }}</h2><input type="hidden" name="is_featured" value="0"><label><input type="checkbox" name="is_featured" value="1" @checked(old('is_featured',$formProduct?->is_featured))> {{ __('lf.LF_course_product_common_is_featured') }}</label><div class="lf-form-group"><x-form-label for="sort_order" :value="__('lf.LF_course_product_common_sort_order')" /><input id="sort_order" name="sort_order" type="number" min="0" class="lf-form-control" value="{{ old('sort_order',$formProduct?->sort_order) }}" placeholder="{{ __('lf.LF_product_v2_auto_order') }}"></div><div class="lf-form-group"><x-form-label for="status" :value="__('lf.LF_course_product_common_status')" :required="true" /><select id="status" name="status" class="lf-form-control" required>@foreach(\App\Support\CourseProductV2::STATUSES as $status)<option value="{{ $status }}" @selected($selectedStatus===$status)>{{ __('lf.LF_course_product_common_'.$status) }}</option>@endforeach</select></div></section>
 </div>

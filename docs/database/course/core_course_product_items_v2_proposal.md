@@ -1,8 +1,8 @@
-# Proposed Revision: core_course_product_items
+# Product v2 Phase-One Contract: core_course_product_items
 
-Version: 2.0-draft
+Version: 2.0
 
-Status: Proposed — Not Approved or Frozen
+Status: Foundation Approved and Frozen
 
 Last Updated: 2026-07-15
 
@@ -12,11 +12,11 @@ Parent: [core_course_product_items](core_course_product_items.md) v1.1
 
 # Scope
 
-This proposal amends Product Items only enough to persist a selected Template
-for Draft Product preparation while preserving immutable Version runtime
-authority. Until approved, v1.1 remains authoritative.
+This approved contract amends Product Items only enough to persist a selected
+Template for Draft Product preparation while preserving immutable Version
+runtime authority. Unchanged v1.1 rules remain authoritative.
 
-# Proposed schema amendment
+# Approved schema amendment
 
 Add `template_id BIGINT UNSIGNED`. It is introduced nullable for backfill, then
 made NOT NULL. Change `version_id` from NOT NULL to NULL.
@@ -52,7 +52,16 @@ documented `template_id`; this is a deterministic foreign-key projection, not
 an offering inference. Abort on missing, foreign-tenant, or inconsistent rows.
 No Version, Product, Enrollment, or Relation is rewritten.
 
-# Approval gate
+# Approval and freeze
 
-This amendment requires ADR-0014 and a revised Product Item architecture review
-before migration or application implementation.
+Approved and frozen by the Business/Architecture Owner on 2026-07-15 for the
+Product v2 phase-one implementation authorized by ADR-0014 and the integrated
+Product Architecture Review. Bundle workflow changes remain deferred.
+
+# Implementation record
+
+Implementation migration: `2026_07_15_000000_add_product_v2_phase_one_contract.php`.
+
+The migration deterministically backfills Template through Version and logs
+unresolved rows. Transitional nullability is retained until remediation proves
+that tightening is safe; new Product v2 aggregate writes require Template.

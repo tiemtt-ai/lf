@@ -1,8 +1,8 @@
 # Course Product Integrated Architecture Review
 
-Version: 2.0-draft
+Version: 2.0
 
-Status: Proposed Review — Owner Decision Required
+Status: Approved Review
 
 Review Date: 2026-07-15
 
@@ -10,15 +10,15 @@ Review Date: 2026-07-15
 
 # Review basis
 
-This proposal integrates Product common fields, phase-one binding, offering
-classification, self-paced configuration, inheritance, media, promotion,
-registration, ordering, and related Products. It does not revoke prior Product,
-Item, or Relation approvals. If approved, it amends them only where ADR-0014
-and the v2 database proposals explicitly state.
+This approved review integrates Product common fields, phase-one binding,
+offering classification, self-paced configuration, inheritance, media,
+promotion, registration, ordering, and related Products. It does not revoke
+prior Product, Item, or Relation approvals. It amends them only where ADR-0014
+and the v2 database contracts explicitly state.
 
 * [ADR-0014](../adr/ADR-0014-Product-Offering-And-Draft-Binding.md)
-* [Product v2 proposal](../database/course/core_course_products_v2_proposal.md)
-* [Product Item v2 proposal](../database/course/core_course_product_items_v2_proposal.md)
+* [Product v2 contract](../database/course/core_course_products_v2_proposal.md)
+* [Product Item v2 contract](../database/course/core_course_product_items_v2_proposal.md)
 * [Product Relation foundation](../database/course/core_course_product_relations.md)
 
 # Conflict decisions
@@ -103,22 +103,32 @@ Target Levels; Cohort schedules; expected opening/capacity; refund policy;
 learning outcomes; automatic access-expiry runtime; and commerce transaction
 price snapshots.
 
-# Open approval decisions
+# Approved owner decisions
 
-1. Accept `offering_type` as the final column name.
-2. Accept nullable transitional offering state and grandfathering policy.
-3. Accept the Product Item `template_id` amendment and nullable Draft Version.
-4. Approve remediation for Products whose category cannot be backfilled.
-5. Approve retaining inactive description/media overrides rather than clearing.
-6. Approve deferral of Target Levels and runtime access expiry.
+1. `offering_type` is the final offering-classification column name.
+2. Transitional nullability and the documented grandfathering policy are
+   approved; new Product v2 records require a value.
+3. Product Item `template_id` and nullable Draft `version_id` are approved; an
+   active Item requires a published immutable Version of that Template.
+4. Missing, conflicting, or ambiguous Item/category mappings require explicit
+   migration-time remediation and reporting; no value may be guessed.
+5. Inactive description and media overrides are retained but ignored; explicit
+   removal remains destructive at the documented association/usage level.
+6. Target Levels and runtime access-expiry enforcement are explicitly deferred.
+7. Package type is hidden in phase one and assigned `single_course` by the
+   server; Bundle architecture remains valid and its workflow is deferred.
+8. Selling price is calculated; promotion and registration intervals use
+   inclusive start and exclusive end.
 
 # Review result
 
 ```text
-Decision: PENDING
-Architecture freeze: NO
-Implementation authorized: NO
+Decision: PASS
+Architecture freeze: YES
+Implementation authorized: YES
 ```
 
-Required gates: Architecture Owner approval of ADR-0014; Database Owner approval
-of both v2 proposals; Architecture Owner approval of this integrated review.
+Owner approval date: 2026-07-15.
+
+Authorization is limited to the frozen Product v2 phase-one contract. It does
+not authorize any item listed in Deferred scope.

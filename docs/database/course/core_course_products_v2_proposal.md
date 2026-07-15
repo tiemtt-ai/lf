@@ -1,8 +1,8 @@
-# Proposed Revision: core_course_products
+# Product v2 Phase-One Contract: core_course_products
 
-Version: 2.0-draft
+Version: 2.0
 
-Status: Proposed — Not Approved or Frozen
+Status: Foundation Approved and Frozen
 
 Last Updated: 2026-07-15
 
@@ -14,9 +14,10 @@ ADR: [ADR-0014](../../adr/ADR-0014-Product-Offering-And-Draft-Binding.md)
 
 # Purpose and compatibility
 
-This is an additive proposal. Until approval, v1.3 remains authoritative.
-Product remains the tenant-owned commercial/display/access package; learning
-content remains owned by Product Items and immutable Template Versions.
+This approved additive contract amends v1.3 for Product v2 phase one. Unchanged
+v1.3 rules remain authoritative. Product remains the tenant-owned commercial,
+display, and access package; learning content remains owned by Product Items
+and immutable Template Versions.
 
 # Conflict matrix
 
@@ -70,9 +71,11 @@ approved, non-destructive cleanup.
 
 # Package and offering rules
 
-`product_type` remains `single_course` or `bundle`. Phase one assigns
-`single_course` server-side and may hide Package type. Bundle remains valid but
-its form/workflow is deferred.
+`product_type` remains `single_course` or `bundle`. Phase one does not expose
+Package type and assigns `single_course` server-side. Bundle remains valid but
+its form/workflow is deferred. UI terminology is `Loại sản phẩm` / `Product
+type` for `offering_type` and `Kiểu đóng gói` / `Package type` for
+`product_type`.
 
 `offering_type` values are `self_paced_course`, `live_online_course`,
 `blended_course`, `assessment`, and `learning_material`. For self-paced,
@@ -169,7 +172,7 @@ no table or pivot is proposed.
 
 # Keys and indexes
 
-Proposed additions use explicit short names: restrictive Category and media
+Approved additions use explicit short names: restrictive Category and media
 file FKs; indexes `(customer_id, category_id, sort_order)`,
 `(customer_id, offering_type)`, `(customer_id, status)`, and the two
 registration timestamps. Existing tenant-scoped Product code and slug unique
@@ -197,7 +200,16 @@ Target Levels; Cohort schedules; expected opening/capacity; refund policy;
 learning outcomes; automatic access-expiry runtime; and commerce price
 snapshots.
 
-# Approval gate
+# Approval and freeze
 
-Ready for review, not implementation. It becomes authoritative only after
-ADR-0014, both database proposals, and the integrated review are approved.
+Approved and frozen by the Business/Architecture Owner on 2026-07-15 for the
+documented Product v2 phase-one implementation only. Changes to this contract
+require the LF architecture workflow. Deferred scope is not authorized.
+
+# Implementation record
+
+Implementation migration: `2026_07_15_000000_add_product_v2_phase_one_contract.php`.
+
+Stage one is additive and retains legacy media and promotion columns. Existing
+Products keep transitional nullable Category and Offering values until audited
+and remediated; new Product v2 requests enforce both in the application layer.

@@ -1496,6 +1496,69 @@ class CourseProductManagementTest extends TestCase
         ], $overrides);
     }
 
+    public function test_product_v2_draft_binds_template_and_server_assigns_package_type(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = DB::table('core_course_categories')->insertGetId([
+            'customer_id' => $customerId, 'parent_id' => null, 'name' => 'Korean', 'slug' => 'korean',
+            'description' => null, 'thumbnail_image' => null, 'banner_image' => null, 'sort_order' => 0,
+            'is_featured' => false, 'meta_title' => null, 'meta_description' => null, 'meta_keywords' => null,
+            'status' => 'active', 'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $templateId = $this->createTemplate($customerId, $admin->id);
+        DB::table('core_course_templates')->where('id', $templateId)->update(['category_id' => $categoryId]);
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products', [
+            'category_id' => $categoryId, 'template_id' => $templateId, 'title' => 'Self Study',
+            'slug' => 'forged', 'product_type' => 'bundle', 'offering_type' => 'self_paced_course',
+            'uses_custom_description' => 0, 'uses_custom_intro_media' => 0,
+            'access_duration_days' => 90, 'review_duration_days' => 10, 'price' => '100000.00',
+            'currency' => 'VND', 'promotion_enabled' => 0, 'is_featured' => 0,
+            'registration_starts_at' => null, 'registration_ends_at' => null, 'status' => 'draft',
+        ])->assertRedirect('https://tenant-a.localhost/admin/course-products');
+
+        $product = DB::table('core_course_products')->where('title', 'Self Study')->first();
+        $this->assertSame('single_course', $product->product_type);
+        $this->assertSame('self_paced_course', $product->offering_type);
+        $this->assertSame('self-study', $product->slug);
+        $this->assertDatabaseHas('core_course_product_items', [
+            'product_id' => $product->id, 'template_id' => $templateId, 'version_id' => null,
+        ]);
+
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-products')
+            ->assertOk()
+            ->assertSeeText('Khóa học tự học')
+            ->assertSeeText('Bản nháp');
+    }
+
+    public function test_product_v2_activation_requires_current_published_version_and_validates_self_paced_fields(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = DB::table('core_course_categories')->insertGetId([
+            'customer_id' => $customerId, 'parent_id' => null, 'name' => 'Korean', 'slug' => 'korean',
+            'description' => null, 'thumbnail_image' => null, 'banner_image' => null, 'sort_order' => 0,
+            'is_featured' => false, 'meta_title' => null, 'meta_description' => null, 'meta_keywords' => null,
+            'status' => 'active', 'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $templateId = $this->createTemplate($customerId, $admin->id);
+        DB::table('core_course_templates')->where('id', $templateId)->update(['category_id' => $categoryId]);
+        $data = ['category_id' => $categoryId, 'template_id' => $templateId, 'title' => 'Active Study',
+            'offering_type' => 'self_paced_course', 'uses_custom_description' => 0, 'uses_custom_intro_media' => 0,
+            'access_duration_days' => null, 'review_duration_days' => 0, 'price' => 0, 'currency' => 'VND',
+            'promotion_enabled' => 0, 'is_featured' => 0, 'status' => 'active'];
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products', $data)
+            ->assertSessionHasErrors(['access_duration_days', 'status']);
+
+        $versionId = $this->createVersion($customerId, $admin->id, 'Published', 'published', $templateId);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products', array_merge($data, ['access_duration_days' => 30]))
+            ->assertSessionHasNoErrors();
+        $productId = DB::table('core_course_products')->where('title', 'Active Study')->value('id');
+        $this->assertDatabaseHas('core_course_product_items', ['product_id' => $productId, 'template_id' => $templateId, 'version_id' => $versionId]);
+    }
+
     private function validProductItemData(array $overrides = []): array
     {
         return array_merge([

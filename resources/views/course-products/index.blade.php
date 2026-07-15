@@ -96,7 +96,11 @@
                     <td class="admin-table-sequence">{{ $products->firstItem() + $loop->index }}</td>
                     <td>{{ $product->product_code }}</td>
                     <td>{{ $product->title }}</td>
-                    <td>{{ __('lf.LF_course_product_common_type_'.$product->product_type) }}</td>
+                    <td>
+                        {{ $product->offering_type
+                            ? __('lf.LF_product_v2_offering_'.$product->offering_type)
+                            : '—' }}
+                    </td>
                     <td>{{ number_format((float) $product->price, 0) }} {{ $product->currency }}</td>
                     <td>{{ __('lf.LF_course_product_common_visibility_'.$product->visibility) }}</td>
                     <td>
@@ -105,9 +109,7 @@
                             'badge-success' => $product->status === 'active',
                             'badge-danger' => $product->status === 'archived',
                         ])>
-                            {{ $product->status === 'active'
-                                ? __('lf.LF_common_status_common_active')
-                                : __('lf.LF_common_status_common_inactive') }}
+                            {{ __('lf.LF_course_product_common_'.$product->status) }}
                         </span>
                     </td>
                     <td>
