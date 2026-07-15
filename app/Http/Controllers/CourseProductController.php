@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class CourseProductController extends Controller
@@ -105,6 +106,7 @@ class CourseProductController extends Controller
             'introVideoThumbnail' => null,
             'introDocumentThumbnail' => null,
             'introVideoEmbedUrl' => null,
+            'hasActiveCourseVersion' => false,
         ]);
     }
 
@@ -197,6 +199,7 @@ class CourseProductController extends Controller
             'introDocumentThumbnail' => $this->mediaThumbnails->document($introDocumentMedia),
             'introVideoEmbedUrl' => $introVideoEmbedUrl,
             'routePrefix' => $this->routePrefix($request),
+            'hasActiveCourseVersion' => $this->productHasActivePublishedVersion($customerId, $id),
         ]);
     }
 
@@ -206,6 +209,12 @@ class CourseProductController extends Controller
 
         $customerId = $this->customerId();
         $product = $this->findProduct($customerId, $id);
+        $recoveredInvalidActiveProduct = $product->status === 'active'
+            && $request->input('status') === 'active'
+            && ! $this->productHasActivePublishedVersion($customerId, $id);
+        if ($recoveredInvalidActiveProduct) {
+            $request->merge(['status' => 'draft']);
+        }
         $validated = $this->validatedData($request, $customerId, $id, $product);
 
         $values = $this->withoutMissingSeoValues(
@@ -220,6 +229,14 @@ class CourseProductController extends Controller
         );
 
         DB::transaction(function () use ($request, $validated, $values, $customerId, $id): void {
+            DB::table('core_course_products')->where('customer_id', $customerId)
+                ->where('id', $id)->lockForUpdate()->first(['id']);
+            if (($values['status'] ?? null) === 'active'
+                && ! $this->productHasActivePublishedVersion($customerId, $id)) {
+                throw ValidationException::withMessages([
+                    'status' => __('lf.LF_product_v2_activation_version_required'),
+                ]);
+            }
             DB::table('core_course_products')->where('customer_id', $customerId)->where('id', $id)->update($values);
             if (! empty($validated['template_id'])) {
                 $this->syncPhaseOneItem($customerId, $id, $validated, $request->user()?->id);
@@ -235,7 +252,9 @@ class CourseProductController extends Controller
 
         return redirect()
             ->route($this->routePrefix($request).'.edit', $id)
-            ->with('success', __('lf.LF_course_product_common_updated'));
+            ->with('success', $recoveredInvalidActiveProduct
+                ? __('lf.LF_course_product_item_common_recovered_inactive')
+                : __('lf.LF_course_product_common_updated'));
     }
 
     public function destroy(Request $request, int $id)
@@ -271,20 +290,43 @@ class CourseProductController extends Controller
         );
         $now = now();
 
-        DB::table('core_course_product_items')->insert([
-            'customer_id' => $customerId,
-            'product_id' => $productId,
-            'version_id' => $validated['version_id'],
-            'template_id' => DB::table('core_course_template_versions')->where('customer_id', $customerId)->where('id', $validated['version_id'])->value('template_id'),
-            'title_override' => $validated['title_override'] ?? null,
-            'short_description_override' => $validated['short_description_override'] ?? null,
-            'sort_order' => $validated['sort_order'],
-            'is_required' => (bool) $validated['is_required'],
-            'status' => $validated['status'],
-            'created_by' => $request->user()?->id,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+        DB::transaction(function () use ($customerId, $productId, $validated, $request, $now): void {
+            $product = DB::table('core_course_products')->where('customer_id', $customerId)
+                ->where('id', $productId)->lockForUpdate()->first(['id', 'status']);
+            $item = DB::table('core_course_product_items')
+                ->where('customer_id', $customerId)->where('product_id', $productId)
+                ->orderBy('sort_order')->orderBy('id')->lockForUpdate()->first(['id', 'template_id', 'version_id']);
+            if (! $item) {
+                throw ValidationException::withMessages([
+                    'version_id' => __('lf.LF_course_product_item_validation_published_version'),
+                ]);
+            }
+            $version = DB::table('core_course_template_versions')->where('customer_id', $customerId)
+                ->where('id', $validated['version_id'])->where('template_id', $item->template_id)
+                ->where('status', 'published')->lockForUpdate()->first(['id']);
+            if (! $version) {
+                throw ValidationException::withMessages([
+                    'version_id' => __('lf.LF_course_product_item_validation_published_version'),
+                ]);
+            }
+            if ((int) $item->version_id === (int) $version->id) {
+                return;
+            }
+            if ($product?->status === 'active' && $validated['status'] !== 'active') {
+                throw ValidationException::withMessages([
+                    'status' => __('lf.LF_course_product_item_validation_active_product_item'),
+                ]);
+            }
+            DB::table('core_course_product_items')->where('customer_id', $customerId)
+                ->where('product_id', $productId)->where('id', $item->id)->update([
+                'version_id' => $version->id,
+                'title_override' => $validated['title_override'] ?? null,
+                'short_description_override' => $validated['short_description_override'] ?? null,
+                'sort_order' => $validated['sort_order'], 'is_required' => (bool) $validated['is_required'],
+                'status' => $validated['status'], 'created_by' => $request->user()?->id,
+                'updated_at' => $now,
+            ]);
+        });
 
         return redirect()
             ->route($this->routePrefix($request).'.edit', $productId)
@@ -296,24 +338,33 @@ class CourseProductController extends Controller
         $this->authorizeAdmin($request);
 
         $customerId = $this->customerId();
-        $this->findProduct($customerId, $productId);
-        $item = DB::table('core_course_product_items')
-            ->where('customer_id', $customerId)
-            ->where('product_id', $productId)
-            ->where('id', $itemId)
-            ->first();
+        $deactivated = DB::transaction(function () use ($customerId, $productId, $itemId): bool {
+            $product = DB::table('core_course_products')->where('customer_id', $customerId)
+                ->where('id', $productId)->lockForUpdate()->first(['id', 'status']);
+            abort_if(! $product, 404);
+            $item = DB::table('core_course_product_items')->where('customer_id', $customerId)
+                ->where('product_id', $productId)->where('id', $itemId)->lockForUpdate()->first(['id']);
+            abort_if(! $item, 404);
 
-        abort_if(! $item, 404);
+            DB::table('core_course_product_items')->where('customer_id', $customerId)
+                ->where('product_id', $productId)->where('id', $itemId)
+                ->update(['version_id' => null, 'updated_at' => now()]);
 
-        DB::table('core_course_product_items')
-            ->where('customer_id', $customerId)
-            ->where('product_id', $productId)
-            ->where('id', $itemId)
-            ->delete();
+            $hasActiveVersion = $this->productHasActivePublishedVersion($customerId, $productId);
+            if ($product->status === 'active' && ! $hasActiveVersion) {
+                DB::table('core_course_products')->where('customer_id', $customerId)
+                    ->where('id', $productId)->update(['status' => 'draft', 'updated_at' => now()]);
+                return true;
+            }
+
+            return false;
+        });
 
         return redirect()
             ->route($this->routePrefix($request).'.edit', $productId)
-            ->with('success', __('lf.LF_course_product_item_common_removed'));
+            ->with('success', $deactivated
+                ? __('lf.LF_course_product_item_common_removed_and_deactivated')
+                : __('lf.LF_course_product_item_common_removed'));
     }
 
     public function storeRelation(Request $request, int $productId)
@@ -404,6 +455,14 @@ class CourseProductController extends Controller
             if (! $template) {
                 $validator->errors()->add('template_id', __('lf.LF_product_v2_invalid_template'));
             }
+            if ($productId) {
+                $linkedItem = DB::table('core_course_product_items')
+                    ->where('customer_id', $customerId)->where('product_id', $productId)
+                    ->whereNotNull('version_id')->first(['template_id']);
+                if ($linkedItem && (int) $linkedItem->template_id !== $templateId) {
+                    $validator->errors()->add('template_id', __('lf.LF_product_v2_template_change_blocked'));
+                }
+            }
 
             $relatedIds = array_map('intval', $input['related_product_ids'] ?? []);
             if (count($relatedIds) !== count(array_unique($relatedIds))) {
@@ -423,8 +482,11 @@ class CourseProductController extends Controller
                 $validator->errors()->add('discount_value', __('lf.LF_product_v2_discount_too_large'));
             }
             if (($input['status'] ?? null) === 'active') {
-                $version = DB::table('core_course_template_versions')->where('customer_id', $customerId)
-                    ->where('template_id', $templateId)->where('status', 'published')->where('is_current', true)->first();
+                $version = DB::table('core_course_product_items as items')
+                    ->join('core_course_template_versions as versions', 'versions.id', '=', 'items.version_id')
+                    ->where('items.customer_id', $customerId)->where('items.product_id', $productId)
+                    ->where('items.template_id', $templateId)->where('items.status', 'active')
+                    ->where('versions.customer_id', $customerId)->where('versions.status', 'published')->first();
                 if (! $version) {
                     $validator->errors()->add('status', __('lf.LF_product_v2_activation_version_required'));
                 }
@@ -630,14 +692,18 @@ class CourseProductController extends Controller
             $productId
         ): void {
             $versionId = (int) $request->input('version_id');
+            $templateId = (int) DB::table('core_course_product_items')
+                ->where('customer_id', $customerId)->where('product_id', $productId)
+                ->orderBy('sort_order')->orderBy('id')->value('template_id');
 
-            if ($versionId < 1) {
+            if ($templateId < 1 || $versionId < 1) {
                 return;
             }
 
             $version = DB::table('core_course_template_versions')
                 ->where('customer_id', $customerId)
                 ->where('id', $versionId)
+                ->where('template_id', $templateId)
                 ->where('status', 'published')
                 ->first();
 
@@ -650,44 +716,6 @@ class CourseProductController extends Controller
                 return;
             }
 
-            $duplicateExists = DB::table('core_course_product_items')
-                ->where('customer_id', $customerId)
-                ->where('product_id', $productId)
-                ->where('version_id', $versionId)
-                ->exists();
-
-            if ($duplicateExists) {
-                $validator->errors()->add(
-                    'version_id',
-                    __('lf.LF_course_product_item_validation_duplicate')
-                );
-
-                return;
-            }
-
-            if ($request->input('status') !== 'active') {
-                return;
-            }
-
-            $activeTemplateExists = DB::table('core_course_product_items as items')
-                ->join('core_course_template_versions as versions', function ($join) use (
-                    $customerId
-                ): void {
-                    $join->on('versions.id', '=', 'items.version_id')
-                        ->where('versions.customer_id', '=', $customerId);
-                })
-                ->where('items.customer_id', $customerId)
-                ->where('items.product_id', $productId)
-                ->where('items.status', 'active')
-                ->where('versions.template_id', $version->template_id)
-                ->exists();
-
-            if ($activeTemplateExists) {
-                $validator->errors()->add(
-                    'version_id',
-                    __('lf.LF_course_product_item_validation_active_template_version')
-                );
-            }
         });
 
         return $validator->validate();
@@ -865,6 +893,18 @@ class CourseProductController extends Controller
         return $product;
     }
 
+    private function productHasActivePublishedVersion(int $customerId, int $productId): bool
+    {
+        return DB::table('core_course_product_items as items')
+            ->join('core_course_template_versions as versions', function ($join) use ($customerId): void {
+                $join->on('versions.id', '=', 'items.version_id')
+                    ->where('versions.customer_id', '=', $customerId);
+            })
+            ->where('items.customer_id', $customerId)->where('items.product_id', $productId)
+            ->where('items.status', 'active')->where('versions.status', 'published')
+            ->whereColumn('versions.template_id', 'items.template_id')->exists();
+    }
+
     private function productItems(int $customerId, int $productId)
     {
         return DB::table('core_course_product_items as items')
@@ -878,6 +918,10 @@ class CourseProductController extends Controller
                 )
                     ->where('versions.customer_id', '=', $customerId);
             })
+            ->leftJoin('core_course_templates as templates', function ($join) use ($customerId): void {
+                $join->on('templates.id', '=', 'items.template_id')
+                    ->where('templates.customer_id', '=', $customerId);
+            })
             ->where('items.customer_id', $customerId)
             ->where('items.product_id', $productId)
             ->orderBy('items.sort_order')
@@ -888,35 +932,46 @@ class CourseProductController extends Controller
                 'versions.version_code',
                 'versions.title_snapshot',
                 'versions.status as version_status',
-                'versions.is_current'
+                'versions.is_current',
+                'templates.category_id as template_category_id'
             )
             ->get();
     }
 
     private function publishedVersions(int $customerId, int $productId)
     {
-        return DB::table('core_course_template_versions as versions')
-            ->leftJoin('core_course_product_items as items', function ($join) use (
-                $customerId,
-                $productId
-            ): void {
-                $join->on('items.version_id', '=', 'versions.id')
-                    ->where('items.customer_id', '=', $customerId)
-                    ->where('items.product_id', '=', $productId);
-            })
+        $items = DB::table('core_course_product_items')->where('customer_id', $customerId)
+            ->where('product_id', $productId)->orderBy('sort_order')->orderBy('id')
+            ->get(['template_id', 'version_id', 'status']);
+        $item = $items->firstWhere('status', 'active') ?? $items->first();
+        if (! $item?->template_id) {
+            return collect();
+        }
+
+        $versions = DB::table('core_course_template_versions as versions')
             ->where('versions.customer_id', $customerId)
+            ->where('versions.template_id', $item->template_id)
             ->where('versions.status', 'published')
-            ->whereNull('items.id')
-            ->orderBy('versions.title_snapshot')
-            ->orderBy('versions.version_number')
+            ->orderByDesc('versions.version_number')->orderByDesc('versions.published_at')
+            ->orderByDesc('versions.id')
             ->select(
                 'versions.id',
                 'versions.title_snapshot',
                 'versions.version_number',
                 'versions.version_code',
-                'versions.is_current'
+                'versions.is_current',
+                'versions.status',
+                'versions.published_at'
             )
             ->get();
+
+        $latestVersionId = $versions->first()?->id;
+        $inUseVersionId = $item->status === 'active' ? $item->version_id : null;
+        return $versions->each(function ($version) use ($latestVersionId, $inUseVersionId): void {
+            $version->is_latest_published = (int) $version->id === (int) $latestVersionId;
+            $version->is_in_use = $inUseVersionId !== null
+                && (int) $version->id === (int) $inUseVersionId;
+        });
     }
 
     private function productRelations(int $customerId, int $productId)
@@ -963,35 +1018,26 @@ class CourseProductController extends Controller
 
     private function syncPhaseOneItem(int $customerId, int $productId, array $validated, ?int $actorId): void
     {
-        $existingVersionId = DB::table('core_course_product_items')
+        $item = DB::table('core_course_product_items')
             ->where('customer_id', $customerId)
             ->where('product_id', $productId)
-            ->where('template_id', $validated['template_id'])
-            ->value('version_id');
-        $boundVersionId = $existingVersionId ? DB::table('core_course_template_versions')
-            ->where('customer_id', $customerId)
-            ->where('template_id', $validated['template_id'])
-            ->where('id', $existingVersionId)
-            ->whereIn('status', ['published', 'deprecated', 'archived'])
-            ->value('id') : null;
-        $versionId = $boundVersionId ?: DB::table('core_course_template_versions')
-            ->where('customer_id', $customerId)
-            ->where('template_id', $validated['template_id'])
-            ->where('status', 'published')
-            ->where('is_current', true)
-            ->value('id');
-        if ($validated['status'] !== 'active' && ! $versionId) {
-            $versionId = null;
+            ->orderBy('sort_order')->orderBy('id')->lockForUpdate()->first();
+        if ($item) {
+            if ($item->version_id || (int) $item->template_id === (int) $validated['template_id']) {
+                return;
+            }
+            DB::table('core_course_product_items')->where('customer_id', $customerId)
+                ->where('product_id', $productId)->where('id', $item->id)
+                ->update(['template_id' => $validated['template_id'], 'updated_at' => now()]);
+            return;
         }
 
-        DB::table('core_course_product_items')->updateOrInsert(
-            ['customer_id' => $customerId, 'product_id' => $productId, 'template_id' => $validated['template_id']],
-            ['version_id' => $versionId, 'title_override' => null, 'short_description_override' => null,
+        DB::table('core_course_product_items')->insert(
+            ['customer_id' => $customerId, 'product_id' => $productId, 'template_id' => $validated['template_id'],
+                'version_id' => null, 'title_override' => null, 'short_description_override' => null,
                 'sort_order' => 0, 'is_required' => true, 'status' => 'active', 'created_by' => $actorId,
                 'updated_at' => now(), 'created_at' => now()]
         );
-        DB::table('core_course_product_items')->where('customer_id', $customerId)->where('product_id', $productId)
-            ->where('template_id', '!=', $validated['template_id'])->delete();
     }
 
     private function syncRelatedProducts(int $customerId, int $productId, array $ids, ?int $actorId): void

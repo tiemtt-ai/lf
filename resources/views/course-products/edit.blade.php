@@ -5,8 +5,13 @@
 
 @section('content')
     @php
-        $productItemCount = $productItems->count();
+        $linkedProductItems = $productItems->whereNotNull('version_id');
+        $productItemCount = $linkedProductItems->count();
         $productRelationCount = $productRelations->count();
+        $initialItem = $productItems->firstWhere('status', 'active') ?? $productItems->first();
+        $itemVersionId = (string) old('version_id', $initialItem?->version_id ?? '');
+        $currentItemTemplate = $templates->firstWhere('id', (int) ($initialItem?->template_id ?? 0));
+        $hasItemErrors = $errors->has('version_id');
     @endphp
 
     @if (session('success'))
@@ -25,7 +30,7 @@
         </div>
     @endif
 
-    <div class="course-product-editor" x-data="{ activeTab: 'general' }">
+    <div class="course-product-editor" x-data="{ activeTab: @js($hasItemErrors ? 'versions' : 'general') }">
         <header class="admin-card course-product-edit-header">
             <a href="{{ route($routePrefix.'.index') }}" class="course-product-back-link">
                 ← {{ __('lf.LF_course_product_common_back_to_products') }}
@@ -128,8 +133,14 @@
                         {{ __('lf.LF_course_product_item_common_help') }}
                     </p>
 
+                    @if ($currentItemTemplate)
                     <form method="POST" action="{{ route($routePrefix.'.items.store', $product->id) }}">
                         @csrf
+
+                        <div class="lf-form-group">
+                            <span class="lf-form-label">{{ __('lf.LF_course_product_item_common_current_template') }}</span>
+                            <p class="lf-form-help">{{ $currentItemTemplate->name }}</p>
+                        </div>
 
                         <div class="lf-form-group">
                             <x-form-label for="version_id"
@@ -139,22 +150,19 @@
                                     name="version_id"
                                     class="lf-form-control"
                                     required>
-                                <option value="">
-                                    {{ __('lf.LF_course_product_item_common_select_version') }}
-                                </option>
+                                <option value="">{{ __('lf.LF_course_product_item_common_select_version') }}</option>
                                 @foreach ($publishedVersions as $version)
-                                    <option value="{{ $version->id }}"
-                                            @selected((int) old('version_id') === $version->id)>
-                                        {{ $version->title_snapshot }}
-                                        —
-                                        {{ __('lf.LF_course_product_item_common_version_number', ['number' => $version->version_number]) }}
-                                        ({{ $version->version_code }})
-                                        @if ($version->is_current)
-                                            · {{ __('lf.LF_course_product_item_common_current') }}
-                                        @endif
+                                    <option value="{{ $version->id }}" @selected((string) $version->id === $itemVersionId)>
+                                        {{ $version->version_code }} — {{ __('lf.LF_course_product_item_common_version_number', ['number' => $version->version_number]) }} — {{ $version->published_at ? date('d/m/Y', strtotime($version->published_at)) : '—' }}
+                                        @if ($version->is_latest_published) · {{ __('lf.LF_course_product_item_common_latest') }} @endif
+                                        @if ($version->is_in_use) · {{ __('lf.LF_course_product_item_common_in_use') }} @endif
                                     </option>
                                 @endforeach
                             </select>
+                            @if ($publishedVersions->isEmpty())
+                                <p class="lf-form-help" role="status">{{ __('lf.LF_course_product_item_common_no_versions') }}</p>
+                            @endif
+                            @error('version_id')<p class="lf-form-error">{{ $message }}</p>@enderror
                         </div>
 
                         <div class="lf-form-group">
@@ -164,7 +172,7 @@
                                    type="text"
                                    name="title_override"
                                    class="lf-form-control"
-                                   value="{{ old('title_override') }}"
+                                   value="{{ old('title_override', $initialItem?->title_override) }}"
                                    maxlength="255">
                         </div>
 
@@ -175,7 +183,7 @@
                                       name="short_description_override"
                                       class="lf-form-control"
                                       rows="2"
-                                      maxlength="500">{{ old('short_description_override') }}</textarea>
+                                      maxlength="500">{{ old('short_description_override', $initialItem?->short_description_override) }}</textarea>
                         </div>
 
                         <div class="lf-form-group">
@@ -186,7 +194,7 @@
                                    type="number"
                                    name="sort_order"
                                    class="lf-form-control"
-                                   value="{{ old('sort_order', 0) }}"
+                                   value="{{ old('sort_order', $initialItem?->sort_order ?? 0) }}"
                                    required>
                         </div>
 
@@ -197,7 +205,7 @@
                                        type="checkbox"
                                        name="is_required"
                                        value="1"
-                                       @checked((bool) old('is_required', true))>
+                                       @checked((bool) old('is_required', $initialItem?->is_required ?? true))>
                                 <label for="is_required">
                                     {{ __('lf.LF_course_product_item_common_is_required') }}
                                 </label>
@@ -211,7 +219,7 @@
                             <select id="item_status" name="status" class="lf-form-control" required>
                                 @foreach (['active', 'inactive'] as $itemStatus)
                                     <option value="{{ $itemStatus }}"
-                                            @selected(old('status', 'active') === $itemStatus)>
+                                            @selected(old('status', $initialItem?->status ?? 'active') === $itemStatus)>
                                         {{ __('lf.LF_course_product_item_common_'.$itemStatus) }}
                                     </option>
                                 @endforeach
@@ -220,10 +228,15 @@
 
                         <div class="admin-form-actions">
                             <button type="submit" class="btn btn-primary">
-                                {{ __('lf.LF_course_product_item_common_attach') }}
+                                {{ $initialItem?->version_id
+                                    ? __('lf.LF_course_product_item_common_replace')
+                                    : __('lf.LF_course_product_item_common_attach') }}
                             </button>
                         </div>
                     </form>
+                    @else
+                        <p class="lf-form-help" role="status">{{ __('lf.LF_course_product_item_common_select_template_overview') }}</p>
+                    @endif
                 </section>
             </div>
 
@@ -241,7 +254,7 @@
                     </tr>
                     </thead>
                     <tbody>
-                    @forelse ($productItems as $item)
+                    @forelse ($linkedProductItems as $item)
                         <tr>
                             <td class="admin-table-sequence">{{ $loop->iteration }}</td>
                             <td>
@@ -271,14 +284,26 @@
                                 </span>
                             </td>
                             <td>
-                                <form method="POST"
-                                      action="{{ route($routePrefix.'.items.destroy', [$product->id, $item->id]) }}">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button class="admin-link-button admin-text-action" type="submit">
-                                        {{ __('lf.LF_course_product_item_common_remove') }}
-                                    </button>
-                                </form>
+                                <div class="admin-table-actions">
+                                    @if ($item->version_id)
+                                        <a class="admin-table-action-link admin-text-action"
+                                           href="{{ route('admin.course-templates.versions.show', [
+                                               'templateId' => $item->template_id,
+                                               'versionId' => $item->version_id,
+                                           ]) }}">
+                                            {{ __('lf.LF_product_v2_view_version') }}
+                                        </a>
+                                        <span aria-hidden="true">|</span>
+                                    @endif
+                                    <form method="POST"
+                                          action="{{ route($routePrefix.'.items.destroy', [$product->id, $item->id]) }}">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button class="admin-link-button admin-text-action" type="submit">
+                                            {{ __('lf.LF_course_product_item_common_remove') }}
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     @empty

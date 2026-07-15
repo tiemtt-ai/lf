@@ -42,9 +42,7 @@ class CourseProductVersionSummaryPresenter
             ->get();
 
         foreach ($templates as $template) {
-            $template->version_summary = $template->version_id
-                ? $this->summary($template, $canView, 'activation_candidate')
-                : null;
+            $template->version_summary = null;
             $template->integrity_warning = null;
         }
 
