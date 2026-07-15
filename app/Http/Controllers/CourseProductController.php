@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -24,14 +25,6 @@ class CourseProductController extends Controller
     private const STATUSES = ['draft', 'active', 'inactive', 'archived'];
 
     private const ITEM_STATUSES = ['active', 'inactive'];
-
-    private const RELATION_TYPES = [
-        'gift',
-        'related',
-        'upsell',
-        'cross_sell',
-        'recommended',
-    ];
 
     public function __construct(
         private readonly MediaService $mediaService,
@@ -99,8 +92,6 @@ class CourseProductController extends Controller
             'coverImageMedia' => null,
             'categories' => $this->categories($customerId),
             'templates' => $versionState['templates'],
-            'relatedProducts' => $this->relatedProducts($customerId, 0),
-            'selectedRelatedIds' => [],
             'introMedia' => [],
             'introImageThumbnail' => null,
             'introVideoThumbnail' => null,
@@ -141,9 +132,6 @@ class CourseProductController extends Controller
             if (! empty($validated['template_id'])) {
                 $this->syncPhaseOneItem($customerId, $productId, $validated, $request->user()?->id);
             }
-            if (array_key_exists('related_product_ids', $validated)) {
-                $this->syncRelatedProducts($customerId, $productId, $validated['related_product_ids'] ?? [], $request->user()?->id);
-            }
             if (array_key_exists('uses_custom_intro_media', $validated)) {
                 $this->attachIntroMedia($request, $productId, $validated);
             }
@@ -153,8 +141,8 @@ class CourseProductController extends Controller
         });
 
         return redirect()
-            ->route($this->routePrefix($request).'.index')
-            ->with('success', __('lf.LF_course_product_common_created'));
+            ->route($this->routePrefix($request).'.edit', $productId)
+            ->with('success', __('lf.LF_course_product_common_created_next_steps'));
     }
 
     public function edit(Request $request, int $id): View
@@ -186,7 +174,6 @@ class CourseProductController extends Controller
             'categories' => $this->categories($customerId),
             'templates' => $versionState['templates'],
             'selectedTemplateId' => $versionState['selected_template_id'],
-            'selectedRelatedIds' => DB::table('core_course_product_relations')->where('customer_id', $customerId)->where('product_id', $id)->where('relation_type', 'related')->pluck('related_product_id')->all(),
             'introMedia' => [
                 'intro_image' => $introImageMedia,
                 'intro_video' => $introVideoMedia,
@@ -240,9 +227,6 @@ class CourseProductController extends Controller
             DB::table('core_course_products')->where('customer_id', $customerId)->where('id', $id)->update($values);
             if (! empty($validated['template_id'])) {
                 $this->syncPhaseOneItem($customerId, $id, $validated, $request->user()?->id);
-            }
-            if (array_key_exists('related_product_ids', $validated)) {
-                $this->syncRelatedProducts($customerId, $id, $validated['related_product_ids'] ?? [], $request->user()?->id);
             }
             if (array_key_exists('uses_custom_intro_media', $validated)) {
                 $this->attachIntroMedia($request, $id, $validated);
@@ -378,24 +362,40 @@ class CourseProductController extends Controller
             $customerId,
             $productId
         );
-        $now = now();
+        try {
+            DB::transaction(function () use ($customerId, $productId, $validated, $request): void {
+                DB::table('core_course_products')->where('customer_id', $customerId)
+                    ->where('id', $productId)->lockForUpdate()->first(['id']);
 
-        DB::table('core_course_product_relations')->insert([
-            'customer_id' => $customerId,
-            'product_id' => $productId,
-            'related_product_id' => $validated['related_product_id'],
-            'relation_type' => $validated['relation_type'],
-            'title_override' => $validated['title_override'] ?? null,
-            'description_override' => $validated['description_override'] ?? null,
-            'sort_order' => $validated['sort_order'],
-            'is_featured' => (bool) $validated['is_featured'],
-            'starts_at' => $validated['starts_at'] ?? null,
-            'ends_at' => $validated['ends_at'] ?? null,
-            'status' => $validated['status'],
-            'created_by' => $request->user()?->id,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+                if (DB::table('core_course_product_relations')
+                    ->where('customer_id', $customerId)->where('product_id', $productId)
+                    ->where('related_product_id', $validated['related_product_id'])
+                    ->where('relation_type', 'related')->exists()) {
+                    throw ValidationException::withMessages([
+                        'related_product_id' => __('lf.LF_course_product_relation_validation_duplicate'),
+                    ]);
+                }
+
+                $sortOrder = ((int) DB::table('core_course_product_relations')
+                    ->where('customer_id', $customerId)->where('product_id', $productId)
+                    ->where('relation_type', 'related')->max('sort_order')) + 1;
+                $now = now();
+                DB::table('core_course_product_relations')->insert([
+                    'customer_id' => $customerId, 'product_id' => $productId,
+                    'related_product_id' => $validated['related_product_id'], 'relation_type' => 'related',
+                    'title_override' => null, 'description_override' => null, 'sort_order' => $sortOrder,
+                    'is_featured' => false, 'starts_at' => null, 'ends_at' => null, 'status' => 'active',
+                    'created_by' => $request->user()?->id, 'created_at' => $now, 'updated_at' => $now,
+                ]);
+            });
+        } catch (QueryException $exception) {
+            if (in_array((string) $exception->getCode(), ['23000', '23505'], true)) {
+                throw ValidationException::withMessages([
+                    'related_product_id' => __('lf.LF_course_product_relation_validation_duplicate'),
+                ]);
+            }
+            throw $exception;
+        }
 
         return redirect()
             ->route($this->routePrefix($request).'.edit', $productId)
@@ -414,6 +414,7 @@ class CourseProductController extends Controller
         $relation = DB::table('core_course_product_relations')
             ->where('customer_id', $customerId)
             ->where('product_id', $productId)
+            ->where('relation_type', 'related')
             ->where('id', $relationId)
             ->first();
 
@@ -422,6 +423,7 @@ class CourseProductController extends Controller
         DB::table('core_course_product_relations')
             ->where('customer_id', $customerId)
             ->where('product_id', $productId)
+            ->where('relation_type', 'related')
             ->where('id', $relationId)
             ->delete();
 
@@ -462,19 +464,6 @@ class CourseProductController extends Controller
                 if ($linkedItem && (int) $linkedItem->template_id !== $templateId) {
                     $validator->errors()->add('template_id', __('lf.LF_product_v2_template_change_blocked'));
                 }
-            }
-
-            $relatedIds = array_map('intval', $input['related_product_ids'] ?? []);
-            if (count($relatedIds) !== count(array_unique($relatedIds))) {
-                $validator->errors()->add('related_product_ids', __('lf.LF_product_v2_invalid_related'));
-            }
-            if ($productId && in_array($productId, $relatedIds, true)) {
-                $validator->errors()->add('related_product_ids', __('lf.LF_course_product_relation_validation_self'));
-            }
-            $validRelated = DB::table('core_course_products')->where('customer_id', $customerId)
-                ->whereIn('id', $relatedIds)->where('status', '!=', 'archived')->count();
-            if ($validRelated !== count($relatedIds)) {
-                $validator->errors()->add('related_product_ids', __('lf.LF_product_v2_invalid_related'));
             }
 
             if (($input['promotion_enabled'] ?? false) && ($input['discount_type'] ?? null) === 'fixed_amount'
@@ -581,8 +570,6 @@ class CourseProductController extends Controller
                 'file',
                 'max:'.UploadLimit::effectiveKilobytes(),
             ],
-            'related_product_ids' => ['nullable', 'array'],
-            'related_product_ids.*' => ['integer'],
             'intro_image_file' => ['nullable', 'file', 'max:'.UploadLimit::effectiveKilobytes()],
             'intro_video_file' => ['nullable', 'file', 'max:'.UploadLimit::effectiveKilobytes()],
             'intro_document_file' => ['nullable', 'file', 'max:'.UploadLimit::effectiveKilobytes()],
@@ -635,7 +622,7 @@ class CourseProductController extends Controller
             'meta_description',
             'meta_keywords',
             'status',
-            'related_product_ids', 'intro_video_source', 'intro_video_embed_url',
+            'intro_video_source', 'intro_video_embed_url',
             'remove_intro_image', 'remove_intro_video', 'remove_intro_document',
         ];
 
@@ -728,14 +715,6 @@ class CourseProductController extends Controller
     ): array {
         $validator = Validator::make($request->all(), [
             'related_product_id' => ['required', 'integer', 'min:1'],
-            'relation_type' => ['required', Rule::in(self::RELATION_TYPES)],
-            'title_override' => ['nullable', 'string', 'max:255'],
-            'description_override' => ['nullable', 'string', 'max:500'],
-            'sort_order' => ['required', 'integer'],
-            'is_featured' => ['required', 'boolean'],
-            'starts_at' => ['nullable', 'date'],
-            'ends_at' => ['nullable', 'date'],
-            'status' => ['required', Rule::in(self::ITEM_STATUSES)],
         ]);
 
         $validator->after(function ($validator) use (
@@ -744,8 +723,6 @@ class CourseProductController extends Controller
             $productId
         ): void {
             $relatedProductId = (int) $request->input('related_product_id');
-            $relationType = (string) $request->input('relation_type');
-
             if ($relatedProductId < 1) {
                 return;
             }
@@ -762,6 +739,7 @@ class CourseProductController extends Controller
             $relatedProduct = DB::table('core_course_products')
                 ->where('customer_id', $customerId)
                 ->where('id', $relatedProductId)
+                ->where('status', '!=', 'archived')
                 ->first();
 
             if (! $relatedProduct) {
@@ -773,15 +751,11 @@ class CourseProductController extends Controller
                 return;
             }
 
-            if (! in_array($relationType, self::RELATION_TYPES, true)) {
-                return;
-            }
-
             $duplicateExists = DB::table('core_course_product_relations')
                 ->where('customer_id', $customerId)
                 ->where('product_id', $productId)
                 ->where('related_product_id', $relatedProductId)
-                ->where('relation_type', $relationType)
+                ->where('relation_type', 'related')
                 ->exists();
 
             if ($duplicateExists) {
@@ -987,15 +961,21 @@ class CourseProductController extends Controller
                 )
                     ->where('related_products.customer_id', '=', $customerId);
             })
+            ->leftJoin('core_course_categories as categories', function ($join) use ($customerId): void {
+                $join->on('categories.id', '=', 'related_products.category_id')
+                    ->where('categories.customer_id', '=', $customerId);
+            })
             ->where('relations.customer_id', $customerId)
             ->where('relations.product_id', $productId)
+            ->where('relations.relation_type', 'related')
             ->orderBy('relations.sort_order')
             ->orderBy('relations.id')
             ->select(
                 'relations.*',
                 'related_products.title as related_product_title',
                 'related_products.product_code as related_product_code',
-                'related_products.status as related_product_status'
+                'related_products.status as related_product_status',
+                'categories.name as related_product_category_name'
             )
             ->get();
     }
@@ -1005,6 +985,14 @@ class CourseProductController extends Controller
         return DB::table('core_course_products')
             ->where('customer_id', $customerId)
             ->where('id', '!=', $productId)
+            ->where('status', '!=', 'archived')
+            ->whereNotExists(function ($query) use ($customerId, $productId): void {
+                $query->selectRaw('1')->from('core_course_product_relations as existing_relations')
+                    ->whereColumn('existing_relations.related_product_id', 'core_course_products.id')
+                    ->where('existing_relations.customer_id', $customerId)
+                    ->where('existing_relations.product_id', $productId)
+                    ->where('existing_relations.relation_type', 'related');
+            })
             ->orderBy('title')
             ->select('id', 'title', 'product_code', 'status')
             ->get();
@@ -1038,21 +1026,6 @@ class CourseProductController extends Controller
                 'sort_order' => 0, 'is_required' => true, 'status' => 'active', 'created_by' => $actorId,
                 'updated_at' => now(), 'created_at' => now()]
         );
-    }
-
-    private function syncRelatedProducts(int $customerId, int $productId, array $ids, ?int $actorId): void
-    {
-        $ids = array_values(array_unique(array_map('intval', $ids)));
-        DB::table('core_course_product_relations')->where('customer_id', $customerId)->where('product_id', $productId)
-            ->where('relation_type', 'related')->when($ids, fn ($q) => $q->whereNotIn('related_product_id', $ids))->delete();
-        foreach ($ids as $relatedId) {
-            DB::table('core_course_product_relations')->updateOrInsert(
-                ['customer_id' => $customerId, 'product_id' => $productId, 'related_product_id' => $relatedId, 'relation_type' => 'related'],
-                ['title_override' => null, 'description_override' => null, 'sort_order' => 0, 'is_featured' => false,
-                    'starts_at' => null, 'ends_at' => null, 'status' => 'active', 'created_by' => $actorId,
-                    'created_at' => now(), 'updated_at' => now()]
-            );
-        }
     }
 
     private function nextSortOrder(int $categoryId): int

@@ -173,7 +173,7 @@ class CourseMediaIntegrationTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-products');
+            ->assertRedirect('https://tenant-a.localhost/admin/course-products/1/edit');
 
         $productId = (int) DB::table('core_course_products')
             ->where('customer_id', $customerId)

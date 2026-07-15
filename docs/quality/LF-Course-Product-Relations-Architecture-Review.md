@@ -1,5 +1,26 @@
 # Course Product Relations Architecture Review
 
+## Admin mutation policy (2026-07-15 clarification)
+
+Related Products are managed only after the source Product exists, and the
+Product edit **Related Products** tab is the sole mutation surface. Product
+Create and Overview payloads do not accept or synchronize relation IDs.
+
+The managed relationship is directional (`A -> B`) and uses `relation_type =
+related`. It never creates the reverse row, checkout behavior, Enrollment,
+entitlement, cohort membership, Progress, or learning access. Source and target
+must belong to the same tenant; self-reference and duplicate same-direction
+links are rejected. Products already archived are not eligible for a new link;
+this follows the existing LF Product policy that archived records are audit-only.
+Existing links to Products that later become inactive or archived remain visible
+and are not deleted automatically.
+
+The admin list consumes `sort_order`. New rows receive `MAX(sort_order) + 1`
+within `(customer_id, product_id, relation_type = related)`, starting at `1`.
+Removing a link does not renumber remaining rows; duplicate order values already
+present in legacy data remain stable and are ordered by relation ID as the
+canonical tie-breaker.
+
 Version: 1.0
 
 Status: Approved Review

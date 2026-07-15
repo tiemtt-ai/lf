@@ -133,7 +133,8 @@ class CourseProductManagementTest extends TestCase
                 'meta_keywords' => 'topik,korean',
                 'status' => 'active',
             ]))
-            ->assertRedirect('https://tenant-a.localhost/admin/course-products');
+            ->assertRedirect('https://tenant-a.localhost/admin/course-products/1/edit')
+            ->assertSessionHas('success', 'Sản phẩm đã được tạo. Bạn có thể thêm phiên bản khóa học và sản phẩm liên quan.');
 
         $this->assertDatabaseHas('core_course_products', [
             'customer_id' => $customerId,
@@ -188,7 +189,7 @@ class CourseProductManagementTest extends TestCase
             status: 'draft'
         );
 
-        $response = $this->actingAs($admin)
+        $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
             ->assertSee('value="TOPIK Beginner"', false)
@@ -287,7 +288,7 @@ class CourseProductManagementTest extends TestCase
                     'slug' => 'topik',
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-products');
+            ->assertRedirect('https://tenant-a.localhost/admin/course-products/1/edit');
 
         $this->actingAs($admin)
             ->post(
@@ -297,7 +298,7 @@ class CourseProductManagementTest extends TestCase
                     'slug' => 'topik-b',
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-products');
+            ->assertRedirect('https://tenant-a.localhost/admin/course-products/2/edit');
 
         $this->actingAs($otherAdmin)
             ->post(
@@ -307,7 +308,7 @@ class CourseProductManagementTest extends TestCase
                     'slug' => 'topik',
                 ])
             )
-            ->assertRedirect('https://tenant-b.localhost/admin/course-products');
+            ->assertRedirect('https://tenant-b.localhost/admin/course-products/3/edit');
 
         $this->assertDatabaseHas('core_course_products', [
             'customer_id' => $customerId,
@@ -342,7 +343,7 @@ class CourseProductManagementTest extends TestCase
             ->assertSee('readonly', false);
         $this->assertSame($beforeCount, DB::table('core_course_products')->where('customer_id', $customerId)->count());
 
-        $response = $this->actingAs($admin)
+        $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
             ->assertDontSee('name="product_code"', false)
@@ -411,7 +412,7 @@ class CourseProductManagementTest extends TestCase
                 'intro_video_file' => UploadedFile::fake()->create('product-intro.mp4', 32, 'video/mp4'),
                 'intro_document_file' => UploadedFile::fake()->create('product-intro.pdf', 32, 'application/pdf'),
             ]
-        ))->assertRedirect('https://tenant-a.localhost/admin/course-products');
+        ))->assertRedirect('https://tenant-a.localhost/admin/course-products/1/edit');
 
         $product = DB::table('core_course_products')->where('customer_id', $customerId)->where('title', 'Product media test')->first();
         $this->assertNotNull($product->intro_image_media_file_id);
@@ -550,7 +551,7 @@ class CourseProductManagementTest extends TestCase
                 'https://tenant-b.localhost/admin/course-products',
                 $this->validProductData(['title' => 'TOPIK'])
             )
-            ->assertRedirect('https://tenant-b.localhost/admin/course-products');
+            ->assertRedirect('https://tenant-b.localhost/admin/course-products/2/edit');
 
         $this->assertDatabaseHas('core_course_products', [
             'customer_id' => $otherCustomerId,
@@ -590,7 +591,7 @@ class CourseProductManagementTest extends TestCase
                         'status' => $status,
                     ])
                 )
-                ->assertRedirect('https://tenant-a.localhost/admin/course-products');
+                ->assertRedirectContains('/edit');
 
             $this->assertDatabaseHas('core_course_products', [
                 'customer_id' => $customerId,
@@ -1257,11 +1258,11 @@ class CourseProductManagementTest extends TestCase
             'customer_id' => $customerId,
             'product_id' => $productId,
             'related_product_id' => $relatedProductId,
-            'relation_type' => 'gift',
-            'title_override' => 'Mock test bonus',
-            'description_override' => 'Use as marketing copy only.',
-            'sort_order' => 7,
-            'is_featured' => 1,
+            'relation_type' => 'related',
+            'title_override' => null,
+            'description_override' => null,
+            'sort_order' => 1,
+            'is_featured' => 0,
             'status' => 'active',
             'created_by' => $admin->id,
         ]);
@@ -1282,8 +1283,7 @@ class CourseProductManagementTest extends TestCase
             $customerId,
             $productId,
             $relatedProductId,
-            relationType: 'upsell',
-            titleOverride: 'Go Intermediate',
+            relationType: 'related',
             sortOrder: 4
         );
 
@@ -1293,8 +1293,8 @@ class CourseProductManagementTest extends TestCase
             ->assertSeeText('Quan hệ sản phẩm')
             ->assertSeeText('TOPIK Intermediate')
             ->assertSeeText('TOPIK-INT')
-            ->assertSeeText('Nâng cấp')
-            ->assertSeeText('Go Intermediate');
+            ->assertSeeText('Xem sản phẩm')
+            ->assertSeeText('Gỡ liên kết');
     }
 
     public function test_admin_can_remove_product_relation_link_only(): void
@@ -1393,7 +1393,7 @@ class CourseProductManagementTest extends TestCase
         $this->assertDatabaseCount('core_course_product_relations', 0);
     }
 
-    public function test_invalid_relation_type_is_rejected(): void
+    public function test_forged_relation_metadata_is_ignored_and_related_type_is_canonical(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -1416,9 +1416,14 @@ class CourseProductManagementTest extends TestCase
             ->assertRedirect(
                 "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
             )
-            ->assertSessionHasErrors('relation_type');
+            ->assertSessionDoesntHaveErrors();
 
-        $this->assertDatabaseCount('core_course_product_relations', 0);
+        $this->assertDatabaseHas('core_course_product_relations', [
+            'product_id' => $productId,
+            'related_product_id' => $relatedProductId,
+            'relation_type' => 'related',
+            'sort_order' => 1,
+        ]);
     }
 
     public function test_product_relation_attach_is_tenant_isolated(): void
@@ -1511,6 +1516,85 @@ class CourseProductManagementTest extends TestCase
                 ])
             )
             ->assertNotFound();
+    }
+
+    public function test_create_and_overview_do_not_expose_or_process_related_product_ids(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $relatedProductId = $this->createProduct($customerId, 'Related', 'related');
+
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-products/create')
+            ->assertOk()->assertDontSee('related_product_ids', false);
+
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-products',
+            $this->validProductData(['title' => 'Source', 'related_product_ids' => [$relatedProductId]])
+        )->assertRedirectContains('/edit');
+
+        $sourceId = (int) DB::table('core_course_products')->where('title', 'Source')->value('id');
+        $this->assertDatabaseMissing('core_course_product_relations', ['product_id' => $sourceId]);
+
+        $relationId = $this->createProductRelation($customerId, $sourceId, $relatedProductId, sortOrder: 4);
+        $this->actingAs($admin)->put(
+            "https://tenant-a.localhost/admin/course-products/{$sourceId}",
+            $this->validProductData(['title' => 'Source updated', 'related_product_ids' => []])
+        )->assertRedirect("https://tenant-a.localhost/admin/course-products/{$sourceId}/edit");
+
+        $this->assertDatabaseHas('core_course_product_relations', [
+            'id' => $relationId, 'product_id' => $sourceId, 'related_product_id' => $relatedProductId, 'sort_order' => 4,
+        ]);
+    }
+
+    public function test_related_tab_searches_name_and_code_and_excludes_existing_or_archived_targets(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $sourceId = $this->createProduct($customerId, 'Source', 'source');
+        $eligibleId = $this->createProduct($customerId, 'Final Acceptance Material', 'final', 'PRD-SEARCH-001');
+        $existingId = $this->createProduct($customerId, 'Already linked', 'linked', 'PRD-LINKED');
+        $archivedId = $this->createProduct($customerId, 'Archived target', 'archived-target', 'PRD-ARCHIVED', 'archived');
+        $this->createProductRelation($customerId, $sourceId, $existingId);
+
+        $response = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-products/{$sourceId}/edit")
+            ->assertOk()
+            ->assertSee('role="combobox"', false)
+            ->assertSee('PRD-SEARCH-001')
+            ->assertSee('Final Acceptance Material')
+            ->assertDontSee('PRD-ARCHIVED');
+
+        $this->assertStringNotContainsString(
+            'PRD-LINKED — Already linked',
+            $response->getContent()
+        );
+        $this->assertNotSame($sourceId, $eligibleId);
+        $this->assertNotSame($sourceId, $archivedId);
+    }
+
+    public function test_related_links_are_directional_counted_and_receive_next_source_order(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $sourceId = $this->createProduct($customerId, 'Source', 'source');
+        $firstId = $this->createProduct($customerId, 'First', 'first');
+        $secondId = $this->createProduct($customerId, 'Second', 'second');
+
+        foreach ([$firstId, $secondId] as $targetId) {
+            $this->actingAs($admin)->post(
+                "https://tenant-a.localhost/admin/course-products/{$sourceId}/relations",
+                ['related_product_id' => $targetId]
+            )->assertRedirect("https://tenant-a.localhost/admin/course-products/{$sourceId}/edit");
+        }
+
+        $this->assertSame([1, 2], DB::table('core_course_product_relations')
+            ->where('customer_id', $customerId)->where('product_id', $sourceId)
+            ->orderBy('id')->pluck('sort_order')->map(fn ($value) => (int) $value)->all());
+        $this->assertDatabaseMissing('core_course_product_relations', [
+            'product_id' => $firstId, 'related_product_id' => $sourceId,
+        ]);
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$sourceId}/edit")
+            ->assertOk()->assertSeeText('Sản phẩm liên quan (2)');
     }
 
     public function test_course_product_module_has_no_eloquent_models(): void
@@ -1845,7 +1929,7 @@ class CourseProductManagementTest extends TestCase
             'access_duration_days' => 90, 'review_duration_days' => 10, 'price' => '100000.00',
             'currency' => 'VND', 'promotion_enabled' => 0, 'is_featured' => 0,
             'registration_starts_at' => null, 'registration_ends_at' => null, 'status' => 'draft',
-        ])->assertRedirect('https://tenant-a.localhost/admin/course-products');
+        ])->assertRedirect('https://tenant-a.localhost/admin/course-products/1/edit');
 
         $product = DB::table('core_course_products')->where('title', 'Self Study')->first();
         $this->assertSame('single_course', $product->product_type);
