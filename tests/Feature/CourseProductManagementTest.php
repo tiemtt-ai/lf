@@ -158,7 +158,7 @@ class CourseProductManagementTest extends TestCase
             'show_enrollment_count' => 1,
             'display_enrollment_count' => 83,
             'is_featured' => 1,
-            'sort_order' => 0,
+            'sort_order' => 10,
             'visibility' => 'public',
             'meta_title' => 'TOPIK Beginner',
             'meta_description' => 'Learn TOPIK from the beginning.',
@@ -351,148 +351,6 @@ class CourseProductManagementTest extends TestCase
             ->assertSee('name="slug"', false)
             ->assertSee('readonly', false)
             ->assertSeeText('TOPIK');
-    }
-
-    public function test_display_order_is_hidden_on_create_and_edit_keeps_an_editable_non_negative_control(): void
-    {
-        $customerId = $this->createTenant();
-        $admin = $this->createUser($customerId, 'customer_admin');
-        $productId = $this->createProduct($customerId, 'TOPIK', 'topik');
-
-        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-products/create')
-            ->assertOk()
-            ->assertDontSee('id="sort_order"', false)
-            ->assertDontSee('name="sort_order"', false);
-
-        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
-            ->assertOk()
-            ->assertSee('id="sort_order"', false)
-            ->assertSee('name="sort_order"', false)
-            ->assertSee('min="0"', false);
-    }
-
-    public function test_product_v2_create_assigns_category_scoped_order_and_ignores_forged_input(): void
-    {
-        $customerId = $this->createTenant();
-        $otherCustomerId = $this->createTenant('tenant-b');
-        $admin = $this->createUser($customerId, 'customer_admin');
-        $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
-        [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
-        [$otherCategoryId, $otherTemplateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
-        [$foreignCategoryId] = $this->createProductV2CategoryAndTemplate($otherCustomerId, $otherAdmin->id);
-
-        foreach ([['draft', 1], ['active', 3], ['inactive', 6], ['archived', 9]] as [$status, $order]) {
-            $id = $this->createProduct($customerId, "Existing {$status}", "existing-{$status}", status: $status);
-            DB::table('core_course_products')->where('id', $id)->update([
-                'category_id' => $categoryId,
-                'sort_order' => $order,
-            ]);
-        }
-        $otherCategoryProduct = $this->createProduct($customerId, 'Other category', 'other-category');
-        DB::table('core_course_products')->where('id', $otherCategoryProduct)->update([
-            'category_id' => $otherCategoryId,
-            'sort_order' => 50,
-        ]);
-        $foreignProduct = $this->createProduct($otherCustomerId, 'Foreign tenant', 'foreign-tenant');
-        DB::table('core_course_products')->where('id', $foreignProduct)->update([
-            'category_id' => $foreignCategoryId,
-            'sort_order' => 80,
-        ]);
-
-        $this->actingAs($admin)->post(
-            'https://tenant-a.localhost/admin/course-products',
-            $this->validProductV2Data($categoryId, $templateId, [
-                'title' => 'Automatically ordered',
-                'sort_order' => 999,
-            ])
-        )->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('core_course_products', [
-            'customer_id' => $customerId,
-            'category_id' => $categoryId,
-            'title' => 'Automatically ordered',
-            'sort_order' => 10,
-        ]);
-
-        $this->actingAs($admin)->post(
-            'https://tenant-a.localhost/admin/course-products',
-            $this->validProductV2Data($otherCategoryId, $otherTemplateId, ['title' => 'Other category next'])
-        )->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('core_course_products', [
-            'customer_id' => $customerId,
-            'category_id' => $otherCategoryId,
-            'title' => 'Other category next',
-            'sort_order' => 51,
-        ]);
-
-        [$emptyCategoryId, $emptyTemplateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
-        $this->actingAs($admin)->post(
-            'https://tenant-a.localhost/admin/course-products',
-            $this->validProductV2Data($emptyCategoryId, $emptyTemplateId, ['title' => 'First category Product'])
-        )->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('core_course_products', [
-            'category_id' => $emptyCategoryId,
-            'title' => 'First category Product',
-            'sort_order' => 0,
-        ]);
-    }
-
-    public function test_product_v2_edit_preserves_manual_order_and_reassigns_only_for_implicit_category_move(): void
-    {
-        $customerId = $this->createTenant();
-        $admin = $this->createUser($customerId, 'customer_admin');
-        [$categoryA, $templateA] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
-        [$categoryB, $templateB] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
-
-        foreach ([['Product A1', $categoryA, $templateA], ['Product A2', $categoryA, $templateA], ['Product B1', $categoryB, $templateB]] as [$title, $category, $template]) {
-            $this->actingAs($admin)->post(
-                'https://tenant-a.localhost/admin/course-products',
-                $this->validProductV2Data($category, $template, ['title' => $title])
-            )->assertSessionHasNoErrors();
-        }
-        $productA1 = DB::table('core_course_products')->where('title', 'Product A1')->first();
-        $productA2 = DB::table('core_course_products')->where('title', 'Product A2')->first();
-        $this->assertSame(0, (int) $productA1->sort_order);
-        $this->assertSame(1, (int) $productA2->sort_order);
-
-        $this->actingAs($admin)->put(
-            "https://tenant-a.localhost/admin/course-products/{$productA2->id}",
-            $this->validProductV2Data($categoryA, $templateA, ['title' => 'Invalid order', 'sort_order' => -1])
-        )->assertSessionHasErrors('sort_order');
-        $this->assertDatabaseHas('core_course_products', ['id' => $productA2->id, 'sort_order' => 1]);
-
-        $this->actingAs($admin)->put(
-            "https://tenant-a.localhost/admin/course-products/{$productA2->id}",
-            $this->validProductV2Data($categoryA, $templateA, ['title' => 'Product A2', 'sort_order' => 0])
-        )->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('core_course_products', ['id' => $productA2->id, 'sort_order' => 0]);
-
-        $this->actingAs($admin)->put(
-            "https://tenant-a.localhost/admin/course-products/{$productA2->id}",
-            $this->validProductV2Data($categoryA, $templateA, ['title' => 'Description-only', 'status' => 'inactive'])
-        )->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('core_course_products', [
-            'id' => $productA2->id, 'sort_order' => 0, 'status' => 'inactive',
-        ]);
-
-        $this->actingAs($admin)->put(
-            "https://tenant-a.localhost/admin/course-products/{$productA2->id}",
-            $this->validProductV2Data($categoryB, $templateB, ['title' => 'Moved implicitly', 'sort_order' => 0, 'status' => 'inactive'])
-        )->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('core_course_products', [
-            'id' => $productA2->id, 'category_id' => $categoryB, 'sort_order' => 1,
-        ]);
-
-        $this->actingAs($admin)->put(
-            "https://tenant-a.localhost/admin/course-products/{$productA2->id}",
-            $this->validProductV2Data($categoryA, $templateA, ['title' => 'Moved explicitly', 'sort_order' => 7, 'status' => 'inactive'])
-        )->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('core_course_products', [
-            'id' => $productA2->id, 'category_id' => $categoryA, 'sort_order' => 7,
-        ]);
-
-        $this->actingAs($admin)->delete("https://tenant-a.localhost/admin/course-products/{$productA1->id}")
-            ->assertRedirect();
-        $this->assertDatabaseHas('core_course_products', ['id' => $productA2->id, 'sort_order' => 7]);
     }
 
     public function test_product_v2_custom_media_ui_restores_source_and_uses_template_media_structure(): void
@@ -1782,7 +1640,7 @@ class CourseProductManagementTest extends TestCase
     {
         $categoryId = DB::table('core_course_categories')->insertGetId([
             'customer_id' => $customerId, 'parent_id' => null, 'name' => 'Media',
-            'slug' => 'media-'.$customerId.'-'.uniqid(), 'description' => null, 'thumbnail_image' => null,
+            'slug' => 'media-'.$customerId, 'description' => null, 'thumbnail_image' => null,
             'banner_image' => null, 'sort_order' => 0, 'is_featured' => false,
             'meta_title' => null, 'meta_description' => null, 'meta_keywords' => null,
             'status' => 'active', 'created_by' => $adminId, 'created_at' => now(), 'updated_at' => now(),

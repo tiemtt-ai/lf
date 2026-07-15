@@ -117,8 +117,6 @@ class CourseProductController extends Controller
         $now = now();
 
         $productId = DB::transaction(function () use ($request, $validated, $customerId, $now): int {
-            $this->lockOrderingCategory($customerId, $validated['category_id'] ?? null);
-            $validated['sort_order'] = $this->nextSortOrder($validated['category_id'] ?? null);
             $productId = DB::table('core_course_products')->insertGetId(
                 $this->productValues($validated, [
                     'customer_id' => $customerId,
@@ -210,25 +208,18 @@ class CourseProductController extends Controller
         $product = $this->findProduct($customerId, $id);
         $validated = $this->validatedData($request, $customerId, $id, $product);
 
-        DB::transaction(function () use ($request, $validated, $product, $customerId, $id): void {
-            $categoryChanged = (int) ($validated['category_id'] ?? 0) !== (int) ($product->category_id ?? 0);
-            $orderExplicitlyChanged = array_key_exists('sort_order', $validated)
-                && (int) $validated['sort_order'] !== (int) $product->sort_order;
-            if ($categoryChanged && ! $orderExplicitlyChanged) {
-                $this->lockOrderingCategory($customerId, $validated['category_id'] ?? null);
-                $validated['sort_order'] = $this->nextSortOrder($validated['category_id'] ?? null);
-            }
+        $values = $this->withoutMissingSeoValues(
+            $request,
+            $this->productValues($validated, [
+                'published_at' => $product->published_at === null
+                    && $validated['status'] === 'active'
+                        ? now()
+                        : $product->published_at,
+                'updated_at' => now(),
+            ])
+        );
 
-            $values = $this->withoutMissingSeoValues(
-                $request,
-                $this->productValues($validated, [
-                    'published_at' => $product->published_at === null
-                        && $validated['status'] === 'active'
-                            ? now()
-                            : $product->published_at,
-                    'updated_at' => now(),
-                ])
-            );
+        DB::transaction(function () use ($request, $validated, $values, $customerId, $id): void {
             DB::table('core_course_products')->where('customer_id', $customerId)->where('id', $id)->update($values);
             if (! empty($validated['template_id'])) {
                 $this->syncPhaseOneItem($customerId, $id, $validated, $request->user()?->id);
@@ -394,7 +385,7 @@ class CourseProductController extends Controller
         ?int $productId = null,
         ?object $product = null
     ): array {
-        $input = $this->validationInput($request, $productId);
+        $input = $this->validationInput($request);
         $input['slug'] = $this->systemSlug(
             (string) $request->input('title', ''),
             $product,
@@ -510,7 +501,7 @@ class CourseProductController extends Controller
             'show_enrollment_count' => [$legacy ? 'required' : 'nullable', 'boolean'],
             'display_enrollment_count' => ['nullable', 'integer', 'min:0'],
             'is_featured' => ['required', 'boolean'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
+            'sort_order' => [$legacy ? 'required' : 'nullable', 'integer', 'min:0'],
             'visibility' => [
                 $legacy ? 'required' : 'nullable',
                 Rule::in(['public', 'private', 'hidden']),
@@ -541,7 +532,7 @@ class CourseProductController extends Controller
         ];
     }
 
-    private function validationInput(Request $request, ?int $productId = null): array
+    private function validationInput(Request $request): array
     {
         $fields = [
             'category_id', 'template_id', 'offering_type',
@@ -590,9 +581,6 @@ class CourseProductController extends Controller
             $request->request->all(),
             array_flip($fields)
         );
-        if ($productId === null) {
-            unset($input['sort_order']);
-        }
 
         if ($request->hasFile('cover_image_file')) {
             $input['cover_image_file'] = $request->file('cover_image_file');
@@ -823,9 +811,7 @@ class CourseProductController extends Controller
             'show_enrollment_count' => (bool) ($validated['show_enrollment_count'] ?? true),
             'display_enrollment_count' => $validated['display_enrollment_count'] ?? null,
             'is_featured' => (bool) $validated['is_featured'],
-            ...(array_key_exists('sort_order', $validated)
-                ? ['sort_order' => (int) $validated['sort_order']]
-                : []),
+            'sort_order' => $validated['sort_order'] ?? $this->nextSortOrder((int) $validated['category_id']),
             'visibility' => $validated['visibility'] ?? 'public',
             'available_from' => $validated['available_from'] ?? null,
             'available_until' => $validated['available_until'] ?? null,
@@ -1023,33 +1009,10 @@ class CourseProductController extends Controller
         }
     }
 
-    private function lockOrderingCategory(int $customerId, mixed $categoryId): void
+    private function nextSortOrder(int $categoryId): int
     {
-        if (! $categoryId) {
-            return;
-        }
-
-        $category = DB::table('core_course_categories')
-            ->where('customer_id', $customerId)
-            ->where('id', (int) $categoryId)
-            ->lockForUpdate()
-            ->first();
-
-        abort_if(! $category, 404);
-    }
-
-    private function nextSortOrder(mixed $categoryId): int
-    {
-        $maximum = DB::table('core_course_products')
-            ->where('customer_id', $this->customerId())
-            ->when(
-                $categoryId,
-                fn ($query) => $query->where('category_id', (int) $categoryId),
-                fn ($query) => $query->whereNull('category_id')
-            )
-            ->max('sort_order');
-
-        return $maximum === null ? 0 : (int) $maximum + 1;
+        return ((int) DB::table('core_course_products')->where('customer_id', $this->customerId())
+            ->where('category_id', $categoryId)->lockForUpdate()->max('sort_order')) + 1;
     }
 
     private function attachIntroMedia(Request $request, int $productId, array $validated): void
