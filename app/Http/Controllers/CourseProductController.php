@@ -398,7 +398,11 @@ class CourseProductController extends Controller
         }
 
         return redirect()
-            ->route($this->routePrefix($request).'.edit', $productId)
+            ->route($this->routePrefix($request).'.edit', [
+                'id' => $productId,
+                'tab' => 'relations',
+                'focus' => 'related_product_search',
+            ])
             ->with('success', __('lf.LF_course_product_relation_common_attached'));
     }
 
@@ -428,7 +432,11 @@ class CourseProductController extends Controller
             ->delete();
 
         return redirect()
-            ->route($this->routePrefix($request).'.edit', $productId)
+            ->route($this->routePrefix($request).'.edit', [
+                'id' => $productId,
+                'tab' => 'relations',
+                'focus' => 'related_product_search',
+            ])
             ->with('success', __('lf.LF_course_product_relation_common_removed'));
     }
 

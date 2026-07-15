@@ -1251,7 +1251,7 @@ class CourseProductManagementTest extends TestCase
                 ]
             )
             ->assertRedirect(
-                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit?tab=relations&focus=related_product_search"
             );
 
         $this->assertDatabaseHas('core_course_product_relations', [
@@ -1318,7 +1318,7 @@ class CourseProductManagementTest extends TestCase
                 "https://tenant-a.localhost/admin/course-products/{$productId}/relations/{$relationId}"
             )
             ->assertRedirect(
-                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit?tab=relations&focus=related_product_search"
             );
 
         $this->assertDatabaseMissing('core_course_product_relations', [
@@ -1414,7 +1414,7 @@ class CourseProductManagementTest extends TestCase
                 ])
             )
             ->assertRedirect(
-                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
+                "https://tenant-a.localhost/admin/course-products/{$productId}/edit?tab=relations&focus=related_product_search"
             )
             ->assertSessionDoesntHaveErrors();
 
@@ -1584,7 +1584,7 @@ class CourseProductManagementTest extends TestCase
             $this->actingAs($admin)->post(
                 "https://tenant-a.localhost/admin/course-products/{$sourceId}/relations",
                 ['related_product_id' => $targetId]
-            )->assertRedirect("https://tenant-a.localhost/admin/course-products/{$sourceId}/edit");
+            )->assertRedirect("https://tenant-a.localhost/admin/course-products/{$sourceId}/edit?tab=relations&focus=related_product_search");
         }
 
         $this->assertSame([1, 2], DB::table('core_course_product_relations')
@@ -1594,7 +1594,8 @@ class CourseProductManagementTest extends TestCase
             'product_id' => $firstId, 'related_product_id' => $sourceId,
         ]);
         $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$sourceId}/edit")
-            ->assertOk()->assertSeeText('Sản phẩm liên quan (2)');
+            ->assertOk()->assertSeeText('Sản phẩm liên quan (2)')
+            ->assertSee('B\u1ea1n c\u00f3 ch\u1eafc ch\u1eafn mu\u1ed1n g\u1ee1 li\u00ean k\u1ebft s\u1ea3n ph\u1ea9m li\u00ean quan n\u00e0y kh\u00f4ng?', false);
     }
 
     public function test_course_product_module_has_no_eloquent_models(): void

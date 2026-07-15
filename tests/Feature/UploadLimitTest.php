@@ -13,6 +13,10 @@ class UploadLimitTest extends TestCase
         $this->assertSame(1024 * 1024, UploadLimit::parseIniSizeToKilobytes('1024M'));
         $this->assertSame(1024 * 1024, UploadLimit::parseIniSizeToKilobytes('1G'));
         $this->assertSame(512, UploadLimit::parseIniSizeToKilobytes('512K'));
+        $this->assertSame(2 * 1024, UploadLimit::parseIniSizeToKilobytes(' 2m '));
+        $this->assertSame(1536, UploadLimit::parseIniSizeToKilobytes(' 1.5 M '));
+        $this->assertNull(UploadLimit::parseIniSizeToKilobytes('-1'));
+        $this->assertNull(UploadLimit::parseIniSizeToKilobytes('0'));
     }
 
     public function test_effective_limit_chooses_the_smallest_valid_limit(): void
@@ -45,7 +49,10 @@ class UploadLimitTest extends TestCase
 
         $this->assertStringContainsString('Định dạng: MP4, MOV', $html);
         $this->assertStringContainsString('Tối đa:', $html);
-        $this->assertStringContainsString('class="admin-upload-hint"', $html);
+        $this->assertStringContainsString(
+            'class="admin-upload-hint authoring-media-help"',
+            $html
+        );
         $this->assertStringContainsString(
             UploadLimit::humanReadable(UploadLimit::effectiveKilobytes()),
             $html
@@ -61,6 +68,12 @@ class UploadLimitTest extends TestCase
         );
 
         $this->assertStringContainsString('Formats: PDF, DOCX', $html);
-        $this->assertStringContainsString('Max size: 1 MB', $html);
+        $expectedSize = UploadLimit::humanReadable(
+            UploadLimit::effectiveKilobytes(productLimitKilobytes: 1024)
+        );
+        $this->assertStringContainsString(
+            'Formats: PDF, DOCX · Maximum: '.$expectedSize,
+            $html
+        );
     }
 }

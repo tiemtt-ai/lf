@@ -295,12 +295,31 @@ class BackendLayoutNavigationTest extends TestCase
             $this->assertStringNotContainsString('LF_common_button_delete', $blade, $file);
         }
 
-        foreach (array_diff($indexFiles, ['resources/views/media-files/index.blade.php']) as $file) {
+        foreach (array_diff($indexFiles, [
+            'resources/views/media-files/index.blade.php',
+            'resources/views/course-products/index.blade.php',
+        ]) as $file) {
             $blade = file_get_contents(base_path($file));
 
             $this->assertStringContainsString('LF_common_status_common_active', $blade, $file);
             $this->assertStringContainsString('LF_common_status_common_inactive', $blade, $file);
         }
+
+        $productIndex = file_get_contents(
+            base_path('resources/views/course-products/index.blade.php')
+        );
+        $this->assertStringContainsString(
+            "@foreach (['draft', 'active', 'inactive', 'archived'] as \$productStatus)",
+            $productIndex
+        );
+        $this->assertStringContainsString(
+            "__('lf.LF_course_product_common_'.\$productStatus)",
+            $productIndex
+        );
+        $this->assertStringContainsString(
+            "__('lf.LF_course_product_common_'.\$product->status)",
+            $productIndex
+        );
 
         foreach ([
             'app/Http/Controllers/Admin/UserController.php',
@@ -411,8 +430,12 @@ class BackendLayoutNavigationTest extends TestCase
             '/\.admin-table-actions\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;[^}]*gap:\s*12px;/s',
             $pageCss
         );
+        $this->assertMatchesRegularExpression(
+            '/\.authoring-media-actions \.admin-text-action\s*\{[^}]*flex:\s*0 0 auto;[^}]*white-space:\s*nowrap;/s',
+            $pageCss
+        );
         $this->assertDoesNotMatchRegularExpression(
-            '/\.[\w-]+\s+\.admin-text-action/',
+            '/\.[\w-]+\s+\.admin-text-action\s*\{[^}]*(?:color|text-decoration)\s*:/s',
             $pageCss
         );
 
@@ -484,34 +507,21 @@ class BackendLayoutNavigationTest extends TestCase
         );
 
         $this->assertSame(1, substr_count($productForm, 'class="backend-form-columns"'));
-        $this->assertSame(2, substr_count($productForm, 'class="backend-form-column"'));
-        $this->assertStringContainsString(
-            'course-product-basic-title',
-            $this->backendFormColumnHtml($productForm, 0)
-        );
-        $this->assertStringContainsString(
-            'course-product-commercial-title',
-            $this->backendFormColumnHtml($productForm, 0)
-        );
-        $this->assertStringContainsString(
-            'course-product-access-title',
-            $this->backendFormColumnHtml($productForm, 0)
-        );
-        $this->assertStringContainsString(
-            'course-product-media-title',
-            $this->backendFormColumnHtml($productForm, 1)
-        );
-        $this->assertStringContainsString(
-            'course-product-display-title',
-            $this->backendFormColumnHtml($productForm, 1)
-        );
-        $this->assertStringContainsString(
-            'course-product-visibility-title',
-            $this->backendFormColumnHtml($productForm, 1)
-        );
-        $this->assertStringContainsString(
-            'course-product-lifecycle-title',
-            $this->backendFormColumnHtml($productForm, 1)
+        $this->assertSame(6, substr_count($productForm, 'class="admin-form-section"'));
+        foreach ([
+            'aria-labelledby="product-basic"',
+            'aria-labelledby="product-description"',
+            'aria-labelledby="product-config"',
+            'aria-labelledby="product-pricing"',
+            'aria-labelledby="product-registration"',
+            'aria-labelledby="product-display"',
+        ] as $sectionMarker) {
+            $this->assertStringContainsString($sectionMarker, $productForm);
+        }
+        $this->assertStringNotContainsString('class="backend-form-column"', $productForm);
+        $this->assertTrue(
+            strpos($productForm, 'aria-labelledby="product-basic"')
+                < strpos($productForm, 'aria-labelledby="product-pricing"')
         );
     }
 

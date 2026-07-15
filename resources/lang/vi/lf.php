@@ -471,6 +471,7 @@ return [
     'LF_course_product_relation_common_inactive' => 'Không hoạt động',
     'LF_course_product_relation_common_attach' => 'Gắn sản phẩm liên quan',
     'LF_course_product_relation_common_remove' => 'Gỡ liên kết',
+    'LF_course_product_relation_common_remove_confirm' => 'Bạn có chắc chắn muốn gỡ liên kết sản phẩm liên quan này không?',
     'LF_course_product_relation_common_empty' => 'Chưa có quan hệ sản phẩm nào được cấu hình cho sản phẩm này.',
     'LF_course_product_relation_common_attached' => 'Đã gắn quan hệ sản phẩm.',
     'LF_course_product_relation_common_removed' => 'Đã gỡ liên kết quan hệ sản phẩm.',

@@ -12,6 +12,12 @@
         $itemVersionId = (string) old('version_id', $initialItem?->version_id ?? '');
         $currentItemTemplate = $templates->firstWhere('id', (int) ($initialItem?->template_id ?? 0));
         $hasItemErrors = $errors->has('version_id');
+        $hasRelationErrors = $errors->has('related_product_id');
+        $requestedTab = request()->query('tab');
+        $initialTab = $hasRelationErrors || $requestedTab === 'relations'
+            ? 'relations'
+            : ($hasItemErrors || $requestedTab === 'versions' ? 'versions' : 'general');
+        $focusRelationSearch = request()->query('focus') === 'related_product_search' || $hasRelationErrors;
     @endphp
 
     @if (session('success'))
@@ -30,7 +36,9 @@
         </div>
     @endif
 
-    <div class="course-product-editor" x-data="{ activeTab: @js($hasItemErrors ? 'versions' : 'general') }">
+    <div class="course-product-editor"
+         x-data="{ activeTab: @js($initialTab) }"
+         x-init="if (@js($focusRelationSearch)) $nextTick(() => document.getElementById('related_product_search')?.focus())">
         <header class="admin-card course-product-edit-header">
             <a href="{{ route($routePrefix.'.index') }}" class="course-product-back-link">
                 ← {{ __('lf.LF_course_product_common_back_to_products') }}
@@ -401,6 +409,7 @@
                                 </a>
                                 <span aria-hidden="true"> | </span>
                                 <form method="POST" class="admin-inline-form"
+                                      onsubmit="return window.confirm(@js(__('lf.LF_course_product_relation_common_remove_confirm')))"
                                       action="{{ route($routePrefix.'.relations.destroy', [$product->id, $relation->id]) }}">
                                     @csrf
                                     @method('DELETE')

@@ -471,6 +471,7 @@ return [
     'LF_course_product_relation_common_inactive' => 'Inactive',
     'LF_course_product_relation_common_attach' => 'Attach Related Product',
     'LF_course_product_relation_common_remove' => 'Remove link',
+    'LF_course_product_relation_common_remove_confirm' => 'Are you sure you want to unlink this related product?',
     'LF_course_product_relation_common_empty' => 'No product relations are configured for this product yet.',
     'LF_course_product_relation_common_attached' => 'Product relation attached.',
     'LF_course_product_relation_common_removed' => 'Product relation link removed.',

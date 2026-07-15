@@ -396,7 +396,7 @@
 
 
 .course-product-editor {
-    width: 100%;
+    width: calc(100% - 70px);
     max-width: 1080px;
 }
 
@@ -1107,6 +1107,10 @@
 }
 
 @media (max-width: 900px) {
+    .course-product-editor {
+        width: 100%;
+    }
+
     .admin-dashboard-info-grid,
     .admin-profile-summary {
         grid-template-columns: 1fr;
