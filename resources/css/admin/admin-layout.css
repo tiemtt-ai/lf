@@ -8,6 +8,12 @@
     --admin-sidebar-hover-text: #4056b8;
     --admin-sidebar-icon: #91d5ff;
     --admin-text-muted: #6b7280;
+    --admin-text: #1f2937;
+    --admin-control-text: #374151;
+    --admin-border: #e5e7eb;
+    --admin-control-border: #d9dee5;
+    --admin-surface: #ffffff;
+    --admin-surface-subtle: #f8fafc;
     --admin-danger: #b42318;
     --admin-danger-soft: #fff5f4;
     margin: 0;

@@ -171,6 +171,231 @@
     font-weight: 600;
 }
 
+/* Opt-in LF Admin Form Standard. Legacy admin forms keep their current layout
+   until they are migrated to this structure. */
+.admin-form-standard,
+.admin-form-surface,
+.admin-form-flow {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+}
+
+.admin-form-card.admin-form-surface {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+}
+
+.admin-form-flow {
+    display: block;
+}
+
+.admin-form-standard-section {
+    min-width: 0;
+    margin: 0;
+    padding: 0 0 26px;
+    border: 0;
+}
+
+.admin-form-standard-section + .admin-form-standard-section {
+    padding-top: 26px;
+    border-top: 1px solid var(--admin-border);
+}
+
+.admin-form-standard-section:last-child {
+    padding-bottom: 0;
+}
+
+.admin-form-section-header {
+    min-width: 0;
+    margin-bottom: 18px;
+}
+
+.admin-form-section-header .admin-form-section-title {
+    margin-bottom: 0;
+}
+
+.admin-form-section-help {
+    margin: 5px 0 0;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.admin-form-field-grid {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 20px;
+}
+
+.admin-form-field-grid > *,
+.admin-form-field,
+.admin-form-conditional,
+.admin-form-conditional > * {
+    min-width: 0;
+}
+
+.admin-form-field--full {
+    grid-column: 1 / -1;
+}
+
+:root.is-backend-sidebar-collapsed .backend-shell .admin-form-field-grid,
+.backend-shell.is-sidebar-collapsed .admin-form-field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lf-admin-page .admin-form-readonly {
+    border-color: var(--admin-control-border);
+    color: var(--admin-control-text);
+    background: var(--admin-surface-subtle);
+    cursor: default;
+}
+
+.admin-form-option-group + .admin-form-option-group {
+    margin-top: 16px;
+}
+
+.admin-form-option-panel {
+    min-width: 0;
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    border: 1px solid var(--admin-control-border);
+    border-radius: 8px;
+    background: var(--admin-surface-subtle);
+    cursor: pointer;
+}
+
+.admin-form-option-panel:hover {
+    border-color: color-mix(in srgb, var(--admin-primary) 45%, var(--admin-control-border));
+}
+
+.admin-form-option-panel:focus-within {
+    border-color: var(--admin-primary);
+    outline: 2px solid var(--admin-primary);
+    outline-offset: 2px;
+}
+
+.admin-form-option-panel > input {
+    margin-top: 3px;
+    flex: 0 0 auto;
+}
+
+.admin-form-option-panel > span,
+.admin-form-option-panel strong,
+.admin-form-option-panel span > span,
+.admin-form-option-panel small {
+    display: block;
+}
+
+.admin-form-option-panel > span {
+    min-width: 0;
+}
+
+.admin-form-option-panel strong {
+    color: var(--admin-text);
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.admin-form-option-panel span > span {
+    margin-top: 3px;
+    color: var(--admin-control-text);
+    line-height: 1.45;
+}
+
+.admin-form-option-panel small {
+    margin-top: 4px;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.admin-form-option-panel--compact {
+    padding-block: 12px;
+}
+
+.admin-form-option-panel--compact strong {
+    font-weight: 500;
+}
+
+.admin-form-conditional {
+    margin-top: 16px;
+}
+
+.admin-form-conditional textarea,
+.admin-form-conditional img,
+.admin-form-conditional video {
+    max-width: 100%;
+}
+
+.admin-form-empty-state {
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 6px;
+    color: var(--admin-text-muted);
+    background: var(--admin-surface-subtle);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.admin-form-footer {
+    width: 100%;
+    min-width: 0;
+    margin-top: 8px;
+    padding: 20px 0 2px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border-top: 1px solid var(--admin-border);
+}
+
+.admin-form-footer-danger,
+.admin-form-footer-primary {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.admin-form-footer-primary {
+    margin-left: auto;
+}
+
+.admin-form-footer form {
+    margin: 0;
+}
+
+.admin-form-footer .btn {
+    min-height: 40px;
+    text-decoration: none;
+}
+
+.admin-form-footer .btn:focus-visible,
+.admin-form-cancel:focus-visible {
+    outline: 2px solid var(--admin-primary);
+    outline-offset: 2px;
+}
+
+.admin-form-footer .btn:disabled {
+    cursor: not-allowed;
+    opacity: .65;
+}
+
+.admin-form-cancel {
+    min-height: 38px;
+    padding: 8px 4px;
+    display: inline-flex;
+    align-items: center;
+    color: var(--admin-primary);
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
 .backend-form-layout,
 .admin-form-card > form:has(> .admin-form-section) {
     width: 100%;
@@ -325,9 +550,38 @@
 }
 
 @media (max-width: 900px) {
+    :root.is-backend-sidebar-collapsed .backend-shell .admin-form-field-grid,
+    .backend-shell.is-sidebar-collapsed .admin-form-field-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
     :root.is-backend-sidebar-collapsed .backend-shell .course-template-lesson-form,
     .backend-shell.is-sidebar-collapsed .course-template-lesson-form {
         grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 575.98px) {
+    .admin-form-footer {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .admin-form-footer-primary {
+        width: 100%;
+        margin-left: 0;
+        order: -1;
+        flex-wrap: wrap;
+    }
+
+    .admin-form-footer-danger {
+        width: 100%;
+        padding-top: 14px;
+        border-top: 1px solid var(--admin-border);
+    }
+
+    .admin-form-footer-danger:empty {
+        display: none;
     }
 }
 

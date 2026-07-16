@@ -506,19 +506,19 @@ class BackendLayoutNavigationTest extends TestCase
             $this->backendFormColumnHtml($templateForm, 1)
         );
 
-        $this->assertSame(1, substr_count($productForm, 'class="backend-form-columns"'));
-        $this->assertSame(6, substr_count($productForm, 'class="admin-form-section"'));
+        $this->assertSame(1, substr_count($productForm, 'class="admin-form-flow"'));
+        $this->assertSame(5, substr_count($productForm, 'class="admin-form-standard-section"'));
         foreach ([
             'aria-labelledby="product-basic"',
             'aria-labelledby="product-description"',
             'aria-labelledby="product-config"',
             'aria-labelledby="product-pricing"',
-            'aria-labelledby="product-registration"',
-            'aria-labelledby="product-display"',
+            'aria-labelledby="product-availability"',
         ] as $sectionMarker) {
             $this->assertStringContainsString($sectionMarker, $productForm);
         }
         $this->assertStringNotContainsString('class="backend-form-column"', $productForm);
+        $this->assertStringNotContainsString('course-product-form-grid', $productForm);
         $this->assertTrue(
             strpos($productForm, 'aria-labelledby="product-basic"')
                 < strpos($productForm, 'aria-labelledby="product-pricing"')

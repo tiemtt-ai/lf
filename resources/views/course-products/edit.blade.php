@@ -105,8 +105,9 @@
                  x-show="activeTab === 'general'"
                  role="tabpanel"
                  aria-labelledby="course-product-tab-general">
-            <div class="admin-card admin-form-card">
+            <div class="admin-card admin-form-card admin-form-surface">
                 <form id="course-product-update-form"
+                      class="admin-form-standard"
                       method="POST"
                       action="{{ route($routePrefix.'.update', $product->id) }}"
                       enctype="multipart/form-data">
@@ -119,8 +120,8 @@
 
                 </form>
 
-                <footer class="course-product-form-footer">
-                    <div class="course-product-form-footer-destructive">
+                <footer class="admin-form-footer">
+                    <div class="admin-form-footer-danger">
                         @if($product->status === 'inactive')
                             <form method="POST"
                                   action="{{ route($routePrefix.'.archive', $product->id) }}"
@@ -147,13 +148,13 @@
                         @endif
                     </div>
 
-                    <div class="course-product-form-footer-primary">
+                    <div class="admin-form-footer-primary">
                         @if($product->status !== 'archived')
                             <button type="submit" form="course-product-update-form" class="btn btn-primary">
                                 {{ __('lf.LF_common_button_save_changes') }}
                             </button>
                         @endif
-                        <a href="{{ route($routePrefix.'.index') }}" class="course-product-form-cancel">
+                        <a href="{{ route($routePrefix.'.index') }}" class="admin-form-cancel">
                             {{ __('lf.LF_common_button_cancel') }}
                         </a>
                     </div>
@@ -377,7 +378,7 @@
                                       action="{{ route($routePrefix.'.relations.destroy', [$product->id, $relation->id]) }}">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="admin-link-button admin-danger-text-action" type="submit" :disabled="submitting" :aria-busy="submitting">
+                                    <button class="admin-link-button admin-text-action admin-danger-text-action" type="submit" :disabled="submitting" :aria-busy="submitting">
                                         {{ __('lf.LF_course_product_relation_common_remove') }}
                                     </button>
                                 </form>

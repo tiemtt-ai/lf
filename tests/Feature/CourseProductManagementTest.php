@@ -2018,6 +2018,65 @@ class CourseProductManagementTest extends TestCase
             ->assertSeeText('Bản nháp');
     }
 
+    public function test_create_and_edit_share_the_ordered_semantic_product_form_sections(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $versionId = $this->createVersion($customerId, $admin->id, 'Presentation Version', templateId: $templateId);
+        $productId = $this->createProduct($customerId, 'Presentation Product', 'presentation-product');
+        $this->createProductItem($customerId, $productId, $versionId);
+
+        foreach ([
+            'https://tenant-a.localhost/admin/course-products/create',
+            "https://tenant-a.localhost/admin/course-products/{$productId}/edit",
+        ] as $url) {
+            $content = $this->actingAs($admin)->get($url)->assertOk()->getContent();
+            $this->assertStringContainsString('class="admin-form-standard"', $content);
+            $this->assertStringContainsString('class="admin-form-flow"', $content);
+            $positions = array_map(fn (string $id) => strpos($content, 'id="'.$id.'"'), [
+                'product-basic',
+                'product-description',
+                'product-config',
+                'product-pricing',
+                'product-availability',
+            ]);
+            $this->assertNotContains(false, $positions);
+            $this->assertSame($positions, collect($positions)->sort()->values()->all());
+            $this->assertStringContainsString('admin-form-field-grid', $content);
+            $this->assertStringContainsString('admin-form-field--full', $content);
+            $this->assertMatchesRegularExpression('/<input id="slug"[^>]+readonly[^>]+admin-form-readonly|<input id="slug"[^>]+admin-form-readonly[^>]+readonly/', $content);
+            $this->assertStringNotContainsString('course-product-form-grid', $content);
+            $this->assertStringNotContainsString('course-product-option-panel', $content);
+            foreach (['uses_custom_description', 'uses_custom_intro_media', 'promotion_enabled', 'price', 'currency', 'registration_starts_at', 'registration_ends_at', 'is_featured', 'sort_order', 'status'] as $name) {
+                $this->assertStringContainsString('name="'.$name.'"', $content);
+            }
+            $statusMarkup = \Illuminate\Support\Str::between($content, '<select id="status"', '</select>');
+            $this->assertStringNotContainsString('value="archived"', $statusMarkup);
+        }
+
+        $this->assertGreaterThan(0, $categoryId);
+    }
+
+    public function test_shared_admin_form_css_contract_is_opt_in_and_responsive(): void
+    {
+        $css = file_get_contents(resource_path('css/admin/admin-components.css'));
+
+        $this->assertStringContainsString('.admin-form-standard,', $css);
+        $this->assertStringContainsString('.admin-form-card.admin-form-surface {', $css);
+        $this->assertStringContainsString("width: 100%;\n    max-width: none;\n    min-width: 0;", $css);
+        $this->assertStringContainsString('.admin-form-field-grid {', $css);
+        $this->assertStringContainsString('grid-template-columns: minmax(0, 1fr);', $css);
+        $this->assertStringContainsString(':root.is-backend-sidebar-collapsed .backend-shell .admin-form-field-grid', $css);
+        $this->assertStringContainsString('grid-template-columns: repeat(2, minmax(0, 1fr));', $css);
+        $this->assertStringContainsString('.admin-form-field--full {', $css);
+        $this->assertStringContainsString('grid-column: 1 / -1;', $css);
+        $this->assertStringContainsString('.admin-form-footer-danger,', $css);
+        $this->assertStringContainsString('.admin-form-footer-primary {', $css);
+        $this->assertStringNotContainsString('form {\n    width: 100%;\n    max-width: none;', $css);
+        $this->assertStringNotContainsString('width: calc(100vw', $css);
+    }
+
     public function test_create_product_keeps_template_enabled_and_persists_selected_published_version(): void
     {
         $customerId = $this->createTenant();
@@ -2203,8 +2262,8 @@ class CourseProductManagementTest extends TestCase
             $response = $this->actingAs($admin)
                 ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
                 ->assertOk()
-                ->assertSee('course-product-form-footer-destructive', false)
-                ->assertSee('course-product-form-footer-primary', false)
+                ->assertSee('admin-form-footer-danger', false)
+                ->assertSee('admin-form-footer-primary', false)
                 ->assertDontSee(route('admin.course-products.archive', $productId), false);
             $this->assertStringContainsString('form="course-product-update-form"', $response->getContent());
         }
@@ -2425,8 +2484,8 @@ class CourseProductManagementTest extends TestCase
             ->get('https://tenant-a.localhost/admin/course-products/create')
             ->assertOk()
             ->assertSeeText('Sản phẩm chưa có phiên bản khóa học đang sử dụng.')
-            ->assertSeeText('Mô tả được kế thừa từ phiên bản Template.')
-            ->assertSeeText('Media giới thiệu được kế thừa từ phiên bản Template.')
+            ->assertSeeText('Nếu tắt, mô tả được kế thừa từ phiên bản Template.')
+            ->assertSeeText('Nếu tắt, media giới thiệu được kế thừa từ phiên bản Template.')
             ->assertSee('name="short_description"', false)
             ->assertSee('name="intro_image_file"', false)
             ->assertDontSee('lf-product-inherited-media-preview', false);
