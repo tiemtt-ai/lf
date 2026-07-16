@@ -919,52 +919,11 @@ CSS Build Optimization
 
 # LF Admin Form Standard
 
-Create/Edit screens may opt in to the shared admin form primitives in
-`resources/css/admin/admin-components.css`. Course Product Create/Edit is the
-first reference consumer; existing forms are not implicitly migrated.
+Chuẩn canonical cho LF Admin Create/Edit forms nằm tại
+[LF-Admin-Form-Design-Standard.md](LF-Admin-Form-Design-Standard.md).
 
-Minimal structure:
-
-```html
-<div class="admin-card admin-form-card admin-form-surface">
-    <form class="admin-form-standard">
-        <div class="admin-form-flow">
-            <section class="admin-form-standard-section">
-                <header class="admin-form-section-header">
-                    <h2 class="admin-form-section-title">...</h2>
-                    <p class="admin-form-section-help">...</p>
-                </header>
-                <div class="admin-form-field-grid">
-                    <div class="admin-form-field">...</div>
-                    <div class="admin-form-field admin-form-field--full">...</div>
-                </div>
-            </section>
-        </div>
-        <footer class="admin-form-footer">
-            <div class="admin-form-footer-danger">...</div>
-            <div class="admin-form-footer-primary">...</div>
-        </footer>
-    </form>
-</div>
-```
-
-The form, surface and flow always use `width: 100%`, `max-width: none` and
-`min-width: 0`. They fill the existing LF main-content container and must not
-calculate width from the viewport, add content offsets, or use negative margins.
-
-The field grid is one column while the sidebar is expanded. It becomes two
-columns only under the existing `is-backend-sidebar-collapsed` state and returns
-to one column at tablet/mobile widths. `admin-form-field--full` spans every
-available column. Conditional content uses `admin-form-conditional`, stays out
-of layout while hidden, and must keep `min-width: 0` for long content and errors.
-
-`admin-form-option-panel`, `admin-form-readonly`, `admin-form-empty-state`, and
-the section header/help classes own reusable presentation only. Modules retain
-field names, labels, validation, conditional logic, permissions, and lifecycle
-policy. The shared footer aligns administrative/destructive actions left and
-the primary group right; on mobile the primary group is presented first and the
-danger group moves to its own row. Forms without a danger action leave that
-group empty without affecting right alignment.
+Khi task yêu cầu “Áp dụng thiết kế tiêu chuẩn” hoặc standard Create/Edit form
+design, đọc tài liệu đó trước, sau đó dùng CSS architecture trong tài liệu này.
 
 # Final Statement
 

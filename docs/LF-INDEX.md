@@ -235,6 +235,7 @@ docs/tech/
 | [tech/LF-Tech-Stack.md](tech/LF-Tech-Stack.md) | Technology stack |
 | [tech/LF-Tech-Architecture.md](tech/LF-Tech-Architecture.md) | System architecture |
 | [tech/LF-Tech-CSS.md](tech/LF-Tech-CSS.md) | CSS architecture |
+| [tech/LF-Admin-Form-Design-Standard.md](tech/LF-Admin-Form-Design-Standard.md) | Canonical presentation standard cho LF Admin Create/Edit forms; kích hoạt bởi “Áp dụng thiết kế tiêu chuẩn” và các trigger tương đương |
 | [tech/LF-Tech-AWS.md](tech/LF-Tech-AWS.md) | AWS infrastructure |
 
 ---
@@ -598,6 +599,12 @@ Read:
 
 * tech/LF-Tech-CSS.md
 * business/LF-Navigation.md
+
+Create/Edit form design hoặc user nói “Áp dụng thiết kế tiêu chuẩn”:
+
+1. Đọc `tech/LF-Admin-Form-Design-Standard.md`.
+2. Inspect target module và current reference implementation.
+3. Đọc `tech/LF-Tech-CSS.md` trước khi thay đổi CSS.
 
 ---
 
