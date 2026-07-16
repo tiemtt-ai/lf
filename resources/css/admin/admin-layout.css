@@ -8,6 +8,8 @@
     --admin-sidebar-hover-text: #4056b8;
     --admin-sidebar-icon: #91d5ff;
     --admin-text-muted: #6b7280;
+    --admin-danger: #b42318;
+    --admin-danger-soft: #fff5f4;
     margin: 0;
     color: #212529;
     background: #ffffff;

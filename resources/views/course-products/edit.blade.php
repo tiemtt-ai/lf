@@ -106,7 +106,8 @@
                  role="tabpanel"
                  aria-labelledby="course-product-tab-general">
             <div class="admin-card admin-form-card">
-                <form method="POST"
+                <form id="course-product-update-form"
+                      method="POST"
                       action="{{ route($routePrefix.'.update', $product->id) }}"
                       enctype="multipart/form-data">
                     @csrf
@@ -116,26 +117,47 @@
                     @include('course-products.partials.form')
                     @if($product->status === 'archived')</fieldset>@endif
 
-                    <div class="admin-form-actions">
-                        @if($product->status !== 'archived')
-                            <button type="submit" class="btn btn-primary">{{ __('lf.LF_common_button_save_changes') }}</button>
+                </form>
+
+                <footer class="course-product-form-footer">
+                    <div class="course-product-form-footer-destructive">
+                        @if($product->status === 'inactive')
+                            <form method="POST"
+                                  action="{{ route($routePrefix.'.archive', $product->id) }}"
+                                  x-data="{ submitting: false }"
+                                  @submit="if (submitting || !window.confirm(@js(__('lf.LF_product_status_archive_confirm')))) { $event.preventDefault(); return } submitting = true">
+                                @csrf
+                                <button type="submit"
+                                        class="btn course-product-danger-outline-action"
+                                        :disabled="submitting"
+                                        :aria-busy="submitting">
+                                    {{ __('lf.LF_product_status_archive_action') }}
+                                </button>
+                            </form>
+                        @elseif($product->status === 'archived')
+                            <form method="POST"
+                                  action="{{ route($routePrefix.'.restore', $product->id) }}"
+                                  x-data="{ submitting: false }"
+                                  @submit="if (submitting || !window.confirm(@js(__('lf.LF_product_status_restore_confirm')))) { $event.preventDefault(); return } submitting = true">
+                                @csrf
+                                <button type="submit" class="btn btn-primary" :disabled="submitting" :aria-busy="submitting">
+                                    {{ __('lf.LF_product_status_restore_action') }}
+                                </button>
+                            </form>
                         @endif
-                        <a href="{{ route($routePrefix.'.index') }}">
+                    </div>
+
+                    <div class="course-product-form-footer-primary">
+                        @if($product->status !== 'archived')
+                            <button type="submit" form="course-product-update-form" class="btn btn-primary">
+                                {{ __('lf.LF_common_button_save_changes') }}
+                            </button>
+                        @endif
+                        <a href="{{ route($routePrefix.'.index') }}" class="course-product-form-cancel">
                             {{ __('lf.LF_common_button_cancel') }}
                         </a>
                     </div>
-                </form>
-                @if($product->status === 'inactive')
-                    <form method="POST" action="{{ route($routePrefix.'.archive', $product->id) }}" onsubmit="return window.confirm(@js(__('lf.LF_product_status_archive_confirm')))">
-                        @csrf
-                        <button type="submit" class="btn btn-secondary">{{ __('lf.LF_product_status_archive_action') }}</button>
-                    </form>
-                @elseif($product->status === 'archived')
-                    <form method="POST" action="{{ route($routePrefix.'.restore', $product->id) }}" onsubmit="return window.confirm(@js(__('lf.LF_product_status_restore_confirm')))">
-                        @csrf
-                        <button type="submit" class="btn btn-primary">{{ __('lf.LF_product_status_restore_action') }}</button>
-                    </form>
-                @endif
+                </footer>
             </div>
         </section>
 

@@ -2154,6 +2154,49 @@ class CourseProductManagementTest extends TestCase
         $this->assertDatabaseHas('saas_audit_logs', ['customer_id' => $customerId, 'action' => 'course_product_restore']);
     }
 
+    public function test_edit_footer_uses_persisted_status_for_dedicated_archive_and_restore_actions(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $draftId = $this->createProduct($customerId, 'Footer Draft', 'footer-draft', status: 'draft');
+        $activeId = $this->createProduct($customerId, 'Footer Active', 'footer-active', status: 'active');
+        $inactiveId = $this->createProduct($customerId, 'Footer Inactive', 'footer-inactive', status: 'inactive');
+
+        foreach ([$draftId, $activeId] as $productId) {
+            $response = $this->actingAs($admin)
+                ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+                ->assertOk()
+                ->assertSee('course-product-form-footer-destructive', false)
+                ->assertSee('course-product-form-footer-primary', false)
+                ->assertDontSee(route('admin.course-products.archive', $productId), false);
+            $this->assertStringContainsString('form="course-product-update-form"', $response->getContent());
+        }
+
+        $inactiveResponse = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-products/{$inactiveId}/edit")
+            ->assertOk()
+            ->assertSee(route('admin.course-products.archive', $inactiveId), false)
+            ->assertSeeText(__('lf.LF_product_status_archive_action'));
+        $this->assertMatchesRegularExpression(
+            '/<form[^>]+action="'.preg_quote(route('admin.course-products.archive', $inactiveId), '/').'"[^>]*>.*course-product-danger-outline-action/s',
+            $inactiveResponse->getContent()
+        );
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-products/{$inactiveId}/archive")
+            ->assertSessionHasNoErrors();
+        $archivedResponse = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-products/{$inactiveId}/edit")
+            ->assertOk()
+            ->assertSee(route('admin.course-products.restore', $inactiveId), false)
+            ->assertDontSee(route('admin.course-products.archive', $inactiveId), false)
+            ->assertSeeText(__('lf.LF_product_status_restore_action'));
+        $this->assertStringNotContainsString('form="course-product-update-form" class="btn btn-primary"', $archivedResponse->getContent());
+
+        app()->setLocale('en');
+        $this->assertSame('Archive product', __('lf.LF_product_status_archive_action'));
+        $this->assertStringContainsString('Historical data will be preserved.', __('lf.LF_product_status_archive_confirm'));
+    }
+
     public function test_active_product_cannot_be_archived_directly(): void
     {
         $customerId = $this->createTenant();

@@ -395,7 +395,7 @@ return [
     'LF_product_status_restore_requires_archived' => 'Chỉ có thể khôi phục Product đã lưu trữ.',
     'LF_product_status_archive_action' => 'Lưu trữ sản phẩm',
     'LF_product_status_restore_action' => 'Khôi phục sản phẩm',
-    'LF_product_status_archive_confirm' => 'Lưu trữ sản phẩm? Sản phẩm sẽ được đưa khỏi danh sách quản trị thông thường và không nhận lượt ghi danh mới. Dữ liệu lịch sử vẫn được giữ nguyên.',
+    'LF_product_status_archive_confirm' => "Lưu trữ sản phẩm?\n\nSản phẩm sẽ được đưa khỏi danh sách quản trị thông thường và không nhận lượt ghi danh mới. Dữ liệu lịch sử vẫn được giữ nguyên.",
     'LF_product_status_restore_confirm' => 'Khôi phục sản phẩm? Sản phẩm sẽ chuyển sang trạng thái Ngừng hoạt động. Hãy kiểm tra cấu hình trước khi kích hoạt lại.',
     'LF_product_status_deactivate_confirm' => 'Ngừng hoạt động sản phẩm? Sản phẩm sẽ không nhận lượt ghi danh mới. Học viên hiện tại vẫn tiếp tục học bình thường.',
     'LF_product_status_draft_confirm' => 'Chuyển sản phẩm về Bản nháp? Sản phẩm sẽ ngừng hoạt động và có thể chỉnh lại Course Template hoặc phiên bản.',

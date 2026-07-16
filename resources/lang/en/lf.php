@@ -395,7 +395,7 @@ return [
     'LF_product_status_restore_requires_archived' => 'Only an Archived product can be restored.',
     'LF_product_status_archive_action' => 'Archive product',
     'LF_product_status_restore_action' => 'Restore product',
-    'LF_product_status_archive_confirm' => 'Archive this product? It will be removed from the normal management list and stop accepting new enrollments. Historical data will be preserved.',
+    'LF_product_status_archive_confirm' => "Archive product?\n\nThe product will be removed from the default administration list and will no longer accept new enrollments. Historical data will be preserved.",
     'LF_product_status_restore_confirm' => 'Restore this product? It will return to Inactive. Review its configuration before activating it again.',
     'LF_product_status_deactivate_confirm' => 'Make this product Inactive? It will stop accepting new enrollments. Existing learners can continue learning.',
     'LF_product_status_draft_confirm' => 'Move this product to Draft? It will stop operating and its Course Template or version can be adjusted.',
