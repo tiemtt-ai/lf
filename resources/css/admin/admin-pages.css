@@ -507,6 +507,14 @@
     max-width: 440px;
 }
 
+.course-product-template-lock-help {
+    max-width: 62ch;
+}
+
+.course-product-code-control {
+    font-variant-numeric: tabular-nums;
+}
+
 .course-product-featured-option {
     align-self: end;
     margin-bottom: 18px;

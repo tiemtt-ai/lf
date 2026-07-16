@@ -1237,6 +1237,8 @@ return [
     'LF_course_template_placeholder_short_description' => 'Enter a short course description',
     'LF_course_template_placeholder_description' => 'Enter detailed course information',
     'LF_product_v2_group_basic' => 'Product information',
+    'LF_product_v2_group_course_content' => 'Course content',
+    'LF_product_v2_group_identity' => 'Product identity',
     'LF_product_v2_group_description_media' => 'Introduction content and media',
     'LF_product_v2_group_configuration' => 'Product type configuration',
     'LF_product_v2_group_pricing' => 'Pricing and promotion',

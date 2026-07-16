@@ -134,6 +134,27 @@
     font-weight: 600;
 }
 
+.lf-admin-page .lf-product-version-summary-primary {
+    min-width: 0;
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.lf-admin-page .lf-product-version-summary-primary .lf-product-version-summary-main {
+    margin-top: 0;
+}
+
+.lf-admin-page .lf-product-version-summary-primary .badge {
+    flex: 0 0 auto;
+}
+
+.lf-admin-page .lf-product-version-summary-separator {
+    color: var(--admin-text-muted);
+}
+
 .lf-admin-page .lf-product-version-summary .admin-text-action {
     flex: 0 0 auto;
 }
@@ -221,6 +242,24 @@
     color: var(--admin-text-muted);
     font-size: 13px;
     line-height: 1.45;
+}
+
+.admin-form-subsection {
+    min-width: 0;
+}
+
+.admin-form-subsection + .admin-form-subsection {
+    margin-top: 24px;
+    padding-top: 22px;
+    border-top: 1px solid var(--admin-border);
+}
+
+.admin-form-subsection-title {
+    margin: 0 0 14px;
+    color: var(--admin-control-text);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
 }
 
 .admin-form-field-grid {

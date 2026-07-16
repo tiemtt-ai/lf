@@ -1237,6 +1237,8 @@ return [
     'LF_course_template_placeholder_short_description' => 'Nhập mô tả ngắn về khóa học',
     'LF_course_template_placeholder_description' => 'Nhập thông tin chi tiết về khóa học',
     'LF_product_v2_group_basic' => 'Thông tin sản phẩm',
+    'LF_product_v2_group_course_content' => 'Nội dung khóa học',
+    'LF_product_v2_group_identity' => 'Thông tin nhận diện',
     'LF_product_v2_group_description_media' => 'Mô tả và media giới thiệu',
     'LF_product_v2_group_configuration' => 'Cấu hình loại sản phẩm',
     'LF_product_v2_group_pricing' => 'Giá và khuyến mãi',

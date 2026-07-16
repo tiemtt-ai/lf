@@ -15,6 +15,7 @@
     $customMedia = (bool) old('uses_custom_intro_media', $formProduct?->uses_custom_intro_media ?? false);
     $promotion = (bool) old('promotion_enabled', $formProduct?->promotion_enabled ?? false);
     $generatedSlug = old('slug', $formProduct?->slug ?? '');
+    $initialCategoryState = $categories->firstWhere('id', (int) $selectedCategory);
     $initialTemplateState = $templates->firstWhere('id', (int) $selectedTemplate);
     $dateValue = static fn ($field) => old($field, $formProduct?->{$field})
         ? str_replace(' ', 'T', substr((string) old($field, $formProduct?->{$field}), 0, 16)) : null;
@@ -52,88 +53,122 @@
    class="admin-form-flow">
     <section class="admin-form-standard-section" aria-labelledby="product-basic">
         <h2 id="product-basic" class="admin-form-section-title">{{ __('lf.LF_product_v2_group_basic') }}</h2>
-        <div class="admin-form-field-grid">
-        <div class="lf-form-group"><x-form-label for="category_id" :value="__('lf.LF_product_v2_category')" :required="true" />@if(! $canChangeTemplate)<input type="hidden" name="category_id" value="{{ $selectedCategory }}">@endif<select id="category_id" @if($canChangeTemplate) name="category_id" @endif class="lf-form-control" x-model="category" :class="{ 'lf-select-placeholder': category === '' }" @change="if(!templates.some(t=>String(t.id)===template && String(t.category_id)===category)) { template=''; templateVersion='' }" required @disabled(! $canChangeTemplate)><option value="">{{ __('lf.LF_product_v2_select_category') }}</option>@foreach($categories as $category)<option value="{{ $category->id }}">{{ $category->name }}</option>@endforeach</select>@error('category_id')<p class="lf-form-error">{{ $message }}</p>@enderror</div>
-        <div class="lf-form-group">
-            <x-form-label for="template_id" :value="__('lf.LF_product_v2_template')" :required="true" />
-            @if($canChangeTemplate)
-                <select id="template_id" name="template_id" class="lf-form-control" x-model="template" @change="templateVersion = ''" :class="{ 'lf-select-placeholder': template === '' }" required>
-                    <option value="">{{ __('lf.LF_product_v2_select_template') }}</option>
-                    @foreach($templates as $templateOption)
-                        <option value="{{ $templateOption->id }}"
-                                x-show="String({{ (int) $templateOption->category_id }}) === String(category)"
-                                :disabled="String({{ (int) $templateOption->category_id }}) !== String(category)"
-                                @selected((string) $templateOption->id === $selectedTemplate)>{{ $templateOption->name }}</option>
-                    @endforeach
-                </select>
-                <p class="lf-form-help" x-show="category && !templates.some(item => String(item.category_id) === String(category))" x-cloak>
-                    {{ __('lf.LF_product_v2_no_templates_for_category') }}
-                </p>
-            @else
-                <input type="hidden" name="template_id" value="{{ $persistedTemplate }}">
-                <div id="template_id" class="lf-form-control" aria-readonly="true">{{ $initialTemplateState?->name ?? '—' }}</div>
-            @endif
-            @if(! $canChangeTemplate && $formProduct)
-                <p class="lf-form-help">{{ __(match($templateLockReason ?? $templateChange['reason'] ?? null) {
-                    'used' => 'lf.LF_product_v2_template_change_used',
-                    'archived' => 'lf.LF_product_v2_template_change_archived',
-                    default => 'lf.LF_product_v2_template_change_draft_required',
-                }) }}</p>
-            @endif
-            @if($canChangeTemplate)
-                <div class="lf-form-group" x-show="template && (!persistedTemplate || template !== persistedTemplate)" x-cloak>
-                    <x-form-label for="template_version_id" :value="__('lf.LF_product_v2_template_change_version')" :required="true" />
-                    <select id="template_version_id" name="template_version_id" class="lf-form-control" x-model="templateVersion" :required="template && (!persistedTemplate || template !== persistedTemplate)">
-                        <option value="">{{ __('lf.LF_course_product_item_common_select_version') }}</option>
-                        @foreach($templates as $templateOption)
-                            @foreach($templateOption->published_versions as $versionOption)
-                                <option value="{{ $versionOption['id'] }}"
-                                        x-show="String({{ (int) $templateOption->id }}) === String(template)"
-                                        :disabled="String({{ (int) $templateOption->id }}) !== String(template)">{{ $versionOption['number_label'] }} · {{ $versionOption['code'] }}@if($versionOption['published_at']) · {{ $versionOption['published_at'] }}@endif</option>
+        <div class="admin-form-subsection" aria-labelledby="product-course-content">
+            <h3 id="product-course-content" class="admin-form-subsection-title">{{ __('lf.LF_product_v2_group_course_content') }}</h3>
+            <div class="admin-form-field-grid">
+                <div class="lf-form-group">
+                    <x-form-label for="category_id" :value="__('lf.LF_product_v2_category')" :required="true" />
+                    @if($canChangeTemplate)
+                        <select id="category_id" name="category_id" class="lf-form-control" x-model="category" :class="{ 'lf-select-placeholder': category === '' }" @change="if(!templates.some(t=>String(t.id)===template && String(t.category_id)===category)) { template=''; templateVersion='' }" required>
+                            <option value="">{{ __('lf.LF_product_v2_select_category') }}</option>
+                            @foreach($categories as $category)<option value="{{ $category->id }}">{{ $category->name }}</option>@endforeach
+                        </select>
+                    @else
+                        <input type="hidden" name="category_id" value="{{ $selectedCategory }}">
+                        <input id="category_id" class="lf-form-control admin-form-readonly" readonly value="{{ $initialCategoryState?->name ?? '—' }}">
+                    @endif
+                    @error('category_id')<p class="lf-form-error">{{ $message }}</p>@enderror
+                </div>
+
+                <div class="lf-form-group">
+                    <x-form-label for="template_id" :value="__('lf.LF_product_v2_template')" :required="true" />
+                    @if($canChangeTemplate)
+                        <select id="template_id" name="template_id" class="lf-form-control" x-model="template" @change="templateVersion = ''" :class="{ 'lf-select-placeholder': template === '' }" required>
+                            <option value="">{{ __('lf.LF_product_v2_select_template') }}</option>
+                            @foreach($templates as $templateOption)
+                                <option value="{{ $templateOption->id }}"
+                                        x-show="String({{ (int) $templateOption->category_id }}) === String(category)"
+                                        :disabled="String({{ (int) $templateOption->category_id }}) !== String(category)"
+                                        @selected((string) $templateOption->id === $selectedTemplate)>{{ $templateOption->name }}</option>
                             @endforeach
-                        @endforeach
-                    </select>
-                    @error('template_version_id')<p class="lf-form-error">{{ $message }}</p>@enderror
-                </div>
-            @endif
-            <template x-for="item in templates.filter(t => String(t.id) === String(template))" :key="`version-${item.id}`">
-                <div>
-                    <template x-if="item.version_summary">
-                        <aside class="lf-product-version-summary" aria-live="polite">
-                            <div class="lf-product-version-summary-copy">
-                                <p class="lf-product-version-summary-heading">{{ __('lf.LF_product_v2_version_in_use') }}</p>
-                                <p class="lf-product-version-summary-main"><span x-text="item.version_summary.code"></span> · <span x-text="item.version_summary.status_label"></span></p>
-                                <p class="lf-secondary-text"><span x-text="item.version_summary.number_label"></span> · <span x-text="item.version_summary.lesson_text"></span> · <span x-text="item.version_summary.activity_text"></span></p>
-                            </div>
-                            <a x-show="item.version_summary.view_url" :href="item.version_summary.view_url" target="_blank" rel="noopener noreferrer" class="admin-text-action">{{ __('lf.LF_product_v2_view_version') }}</a>
-                        </aside>
-                    </template>
-                    <p x-show="!item.version_summary && !item.integrity_warning" class="lf-form-help" role="status">{{ __('lf.LF_product_v2_missing_version') }}</p>
-                    <p x-show="item.integrity_warning" class="lf-form-error" role="alert" x-text="item.integrity_warning"></p>
-                </div>
-            </template>
-            <noscript>
-                @if($initialTemplateState?->version_summary)
-                    <aside class="lf-product-version-summary">
-                        <div class="lf-product-version-summary-copy">
-                            <p class="lf-product-version-summary-heading">{{ __('lf.LF_product_v2_version_in_use') }}</p>
-                            <p class="lf-product-version-summary-main">{{ $initialTemplateState->version_summary['code'] }} · {{ $initialTemplateState->version_summary['status_label'] }}</p>
-                            <p class="lf-secondary-text">{{ $initialTemplateState->version_summary['number_label'] }} · {{ $initialTemplateState->version_summary['lesson_text'] }} · {{ $initialTemplateState->version_summary['activity_text'] }}</p>
+                        </select>
+                        <p class="lf-form-help" x-show="category && !templates.some(item => String(item.category_id) === String(category))" x-cloak>
+                            {{ __('lf.LF_product_v2_no_templates_for_category') }}
+                        </p>
+                    @else
+                        <input type="hidden" name="template_id" value="{{ $persistedTemplate }}">
+                        <input id="template_id" class="lf-form-control admin-form-readonly" readonly value="{{ $initialTemplateState?->name ?? '—' }}">
+                    @endif
+                    @if(! $canChangeTemplate && $formProduct)
+                        <p class="lf-form-help course-product-template-lock-help">{{ __(match($templateLockReason ?? $templateChange['reason'] ?? null) {
+                            'used' => 'lf.LF_product_v2_template_change_used',
+                            'archived' => 'lf.LF_product_v2_template_change_archived',
+                            default => 'lf.LF_product_v2_template_change_draft_required',
+                        }) }}</p>
+                    @endif
+                    @if($canChangeTemplate)
+                        <div class="lf-form-group" x-show="template && (!persistedTemplate || template !== persistedTemplate)" x-cloak>
+                            <x-form-label for="template_version_id" :value="__('lf.LF_product_v2_template_change_version')" :required="true" />
+                            <select id="template_version_id" name="template_version_id" class="lf-form-control" x-model="templateVersion" :required="template && (!persistedTemplate || template !== persistedTemplate)">
+                                <option value="">{{ __('lf.LF_course_product_item_common_select_version') }}</option>
+                                @foreach($templates as $templateOption)
+                                    @foreach($templateOption->published_versions as $versionOption)
+                                        <option value="{{ $versionOption['id'] }}"
+                                                x-show="String({{ (int) $templateOption->id }}) === String(template)"
+                                                :disabled="String({{ (int) $templateOption->id }}) !== String(template)">{{ $versionOption['number_label'] }} · {{ $versionOption['code'] }}@if($versionOption['published_at']) · {{ $versionOption['published_at'] }}@endif</option>
+                                    @endforeach
+                                @endforeach
+                            </select>
+                            @error('template_version_id')<p class="lf-form-error">{{ $message }}</p>@enderror
                         </div>
-                        @if($initialTemplateState->version_summary['view_url'])<a href="{{ $initialTemplateState->version_summary['view_url'] }}" target="_blank" rel="noopener noreferrer" class="admin-text-action">{{ __('lf.LF_product_v2_view_version') }}</a>@endif
-                    </aside>
-                @elseif($initialTemplateState?->integrity_warning)
-                    <p class="lf-form-error" role="alert">{{ $initialTemplateState->integrity_warning }}</p>
-                @elseif($selectedTemplate !== '')
-                    <p class="lf-form-help" role="status">{{ __('lf.LF_product_v2_missing_version') }}</p>
-                @endif
-            </noscript>
-            @error('template_id')<p class="lf-form-error">{{ $message }}</p>@enderror
+                    @endif
+                    @error('template_id')<p class="lf-form-error">{{ $message }}</p>@enderror
+                </div>
+
+                <div class="admin-form-field--full">
+                    <template x-for="item in templates.filter(t => String(t.id) === String(template))" :key="`version-${item.id}`">
+                        <div>
+                            <template x-if="item.version_summary">
+                                <aside class="lf-product-version-summary" aria-live="polite">
+                                    <div class="lf-product-version-summary-copy">
+                                        <p class="lf-product-version-summary-heading">{{ __('lf.LF_product_v2_version_in_use') }}</p>
+                                        <p class="lf-product-version-summary-primary">
+                                            <span class="lf-product-version-summary-main" x-text="item.version_summary.code"></span>
+                                            <span class="lf-product-version-summary-separator" aria-hidden="true">·</span>
+                                            <span class="badge badge-success" x-text="item.version_summary.status_label"></span>
+                                        </p>
+                                        <p class="lf-secondary-text"><span x-text="item.version_summary.number_label"></span> · <span x-text="item.version_summary.lesson_text"></span> · <span x-text="item.version_summary.activity_text"></span></p>
+                                    </div>
+                                    <a x-show="item.version_summary.view_url" :href="item.version_summary.view_url" target="_blank" rel="noopener noreferrer" class="admin-text-action">{{ __('lf.LF_product_v2_view_version') }}</a>
+                                </aside>
+                            </template>
+                            <p x-show="!item.version_summary" class="lf-product-version-summary-heading">{{ __('lf.LF_product_v2_version_in_use') }}</p>
+                            <p x-show="!item.version_summary && !item.integrity_warning" class="lf-form-help" role="status">{{ __('lf.LF_product_v2_missing_version') }}</p>
+                            <p x-show="item.integrity_warning" class="lf-form-error" role="alert" x-text="item.integrity_warning"></p>
+                        </div>
+                    </template>
+                    <noscript>
+                        @if($initialTemplateState?->version_summary)
+                            <aside class="lf-product-version-summary">
+                                <div class="lf-product-version-summary-copy">
+                                    <p class="lf-product-version-summary-heading">{{ __('lf.LF_product_v2_version_in_use') }}</p>
+                                    <p class="lf-product-version-summary-primary">
+                                        <span class="lf-product-version-summary-main">{{ $initialTemplateState->version_summary['code'] }}</span>
+                                        <span class="lf-product-version-summary-separator" aria-hidden="true">·</span>
+                                        <span class="badge badge-success">{{ $initialTemplateState->version_summary['status_label'] }}</span>
+                                    </p>
+                                    <p class="lf-secondary-text">{{ $initialTemplateState->version_summary['number_label'] }} · {{ $initialTemplateState->version_summary['lesson_text'] }} · {{ $initialTemplateState->version_summary['activity_text'] }}</p>
+                                </div>
+                                @if($initialTemplateState->version_summary['view_url'])<a href="{{ $initialTemplateState->version_summary['view_url'] }}" target="_blank" rel="noopener noreferrer" class="admin-text-action">{{ __('lf.LF_product_v2_view_version') }}</a>@endif
+                            </aside>
+                        @elseif($initialTemplateState?->integrity_warning)
+                            <p class="lf-form-error" role="alert">{{ $initialTemplateState->integrity_warning }}</p>
+                        @elseif($selectedTemplate !== '')
+                            <p class="lf-form-help" role="status">{{ __('lf.LF_product_v2_missing_version') }}</p>
+                        @endif
+                    </noscript>
+                </div>
+            </div>
         </div>
-        <div class="lf-form-group"><x-form-label for="title" :value="__('lf.LF_course_product_common_title_field')" :required="true" /><input id="title" name="title" class="lf-form-control" maxlength="255" required value="{{ old('title', $formProduct?->title) }}" placeholder="{{ __('lf.LF_product_v2_placeholder_name') }}" @input="generatedSlug = slugify($event.target.value)"></div>
-        <div class="lf-form-group"><x-form-label for="offering_type" :value="__('lf.LF_product_v2_offering_type')" :required="true" /><select id="offering_type" name="offering_type" class="lf-form-control" x-model="offering" :class="{ 'lf-select-placeholder': offering === '' }" required><option value="">{{ __('lf.LF_product_v2_select_offering') }}</option>@foreach(\App\Support\CourseProductV2::OFFERING_TYPES as $type)<option value="{{ $type }}">{{ __('lf.LF_product_v2_offering_'.$type) }}</option>@endforeach</select></div>
-        <div class="lf-form-group admin-form-field--full"><x-form-label for="slug" :value="__('lf.LF_course_product_common_slug')" /><input id="slug" name="slug" class="lf-form-control admin-form-readonly" readonly aria-describedby="product-slug-help" x-model="generatedSlug" placeholder="{{ __('lf.LF_product_v2_generated_slug') }}"><p id="product-slug-help" class="lf-form-help">{{ __('lf.LF_product_v2_slug_help') }}</p></div>
-        @if($formProduct)<div class="lf-form-group admin-form-field--full"><x-form-label for="product_code" :value="__('lf.LF_course_product_common_product_code')" /><input id="product_code" class="lf-form-control admin-form-readonly" readonly value="{{ $formProduct->product_code }}"></div>@endif
+
+        <div class="admin-form-subsection" aria-labelledby="product-identity">
+            <h3 id="product-identity" class="admin-form-subsection-title">{{ __('lf.LF_product_v2_group_identity') }}</h3>
+            <div class="admin-form-field-grid">
+                <div class="lf-form-group"><x-form-label for="title" :value="__('lf.LF_course_product_common_title_field')" :required="true" /><input id="title" name="title" class="lf-form-control" maxlength="255" required value="{{ old('title', $formProduct?->title) }}" placeholder="{{ __('lf.LF_product_v2_placeholder_name') }}" @input="generatedSlug = slugify($event.target.value)"></div>
+                <div class="lf-form-group"><x-form-label for="offering_type" :value="__('lf.LF_product_v2_offering_type')" :required="true" /><select id="offering_type" name="offering_type" class="lf-form-control" x-model="offering" :class="{ 'lf-select-placeholder': offering === '' }" required><option value="">{{ __('lf.LF_product_v2_select_offering') }}</option>@foreach(\App\Support\CourseProductV2::OFFERING_TYPES as $type)<option value="{{ $type }}">{{ __('lf.LF_product_v2_offering_'.$type) }}</option>@endforeach</select></div>
+                <div @class(['lf-form-group', 'admin-form-field--full' => ! $formProduct])><x-form-label for="slug" :value="__('lf.LF_course_product_common_slug')" /><input id="slug" name="slug" class="lf-form-control admin-form-readonly" readonly aria-describedby="product-slug-help" x-model="generatedSlug" placeholder="{{ __('lf.LF_product_v2_generated_slug') }}"><p id="product-slug-help" class="lf-form-help">{{ __('lf.LF_product_v2_slug_help') }}</p></div>
+                @if($formProduct)<div class="lf-form-group"><x-form-label for="product_code" :value="__('lf.LF_course_product_common_product_code')" /><input id="product_code" class="lf-form-control admin-form-readonly course-product-code-control" readonly value="{{ $formProduct->product_code }}"></div>@endif
+            </div>
         </div>
     </section>
 

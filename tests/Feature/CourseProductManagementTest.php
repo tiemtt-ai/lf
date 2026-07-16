@@ -2045,6 +2045,9 @@ class CourseProductManagementTest extends TestCase
             $this->assertSame($positions, collect($positions)->sort()->values()->all());
             $this->assertStringContainsString('admin-form-field-grid', $content);
             $this->assertStringContainsString('admin-form-field--full', $content);
+            $this->assertStringContainsString('admin-form-subsection', $content);
+            $this->assertStringContainsString('id="product-course-content"', $content);
+            $this->assertStringContainsString('id="product-identity"', $content);
             $this->assertMatchesRegularExpression('/<input id="slug"[^>]+readonly[^>]+admin-form-readonly|<input id="slug"[^>]+admin-form-readonly[^>]+readonly/', $content);
             $this->assertStringNotContainsString('course-product-form-grid', $content);
             $this->assertStringNotContainsString('course-product-option-panel', $content);
@@ -2055,6 +2058,44 @@ class CourseProductManagementTest extends TestCase
             $this->assertStringNotContainsString('value="archived"', $statusMarkup);
         }
 
+        $this->assertGreaterThan(0, $categoryId);
+    }
+
+    public function test_edit_overview_groups_course_content_and_identity_in_natural_order(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $versionId = $this->createVersion($customerId, $admin->id, 'Overview Version', templateId: $templateId, versionNumber: 12);
+        $lessonId = $this->createVersionLesson($customerId, $versionId);
+        $this->createVersionActivity($customerId, $versionId, $lessonId);
+        $productId = $this->createProduct($customerId, 'Overview Product', 'overview-product', status: 'active');
+        $this->createProductItem($customerId, $productId, $versionId);
+
+        $content = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->assertOk()
+            ->assertSeeText('Nội dung khóa học')
+            ->assertSeeText('Thông tin nhận diện')
+            ->assertSeeTextInOrder([
+                'Danh mục sản phẩm',
+                'Course Template',
+                'Phiên bản sử dụng',
+                'VERSION-'.$templateId.'-12',
+                'Đã xuất bản',
+                'Phiên bản 12 · 1 bài học · 1 hoạt động',
+                'Tên sản phẩm',
+                'Loại sản phẩm',
+                'Slug',
+                'Mã sản phẩm',
+            ])
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/<div class="admin-form-field--full">\s*<template x-for=.*lf-product-version-summary/s', $content);
+        $this->assertMatchesRegularExpression('/<input id="category_id"[^>]+admin-form-readonly[^>]+readonly|<input id="category_id"[^>]+readonly[^>]+admin-form-readonly/', $content);
+        $this->assertMatchesRegularExpression('/<input id="template_id"[^>]+admin-form-readonly[^>]+readonly|<input id="template_id"[^>]+readonly[^>]+admin-form-readonly/', $content);
+        $this->assertStringContainsString('class="badge badge-success"', $content);
+        $this->assertStringContainsString('course-product-code-control', $content);
         $this->assertGreaterThan(0, $categoryId);
     }
 
@@ -2199,9 +2240,9 @@ class CourseProductManagementTest extends TestCase
         $lockedResponse = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
             ->assertSeeText('Không thể đổi Course Template vì sản phẩm đã phát sinh dữ liệu sử dụng.')
-            ->assertSeeText('VERSION-'.$firstTemplateId.'-1 · Đã xuất bản');
+            ->assertSeeTextInOrder(['VERSION-'.$firstTemplateId.'-1', 'Đã xuất bản']);
         $this->assertStringNotContainsString('<select id="template_id"', $lockedResponse->getContent());
-        $this->assertMatchesRegularExpression('/<div id="template_id"[^>]*>[^<]+<\/div>/', $lockedResponse->getContent());
+        $this->assertMatchesRegularExpression('/<input id="template_id"[^>]+admin-form-readonly[^>]+readonly|<input id="template_id"[^>]+readonly[^>]+admin-form-readonly/', $lockedResponse->getContent());
     }
 
     public function test_used_active_product_can_be_deactivated_but_cannot_return_to_draft(): void
@@ -2378,8 +2419,7 @@ class CourseProductManagementTest extends TestCase
 
         $response = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
-            ->assertSeeTextInOrder(['VERSION-'.$templateId.'-37 · Đã xuất bản', 'Phiên bản 37 · 1 bài học · 1 hoạt động'])
-            ->assertDontSeeText('VERSION-'.$templateId.'-2 · Đã xuất bản')
+            ->assertSeeTextInOrder(['VERSION-'.$templateId.'-37', 'Đã xuất bản', 'Phiên bản 37 · 1 bài học · 1 hoạt động'])
             ->assertSee(route('admin.course-templates.versions.show', [
                 'templateId' => $templateId, 'versionId' => $boundVersionId,
             ]), false)
@@ -2391,7 +2431,7 @@ class CourseProductManagementTest extends TestCase
         $this->withSession(['locale' => 'en'])->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
-            ->assertSeeTextInOrder(['VERSION-'.$templateId.'-37 · Published', 'Version 37 · 1 lesson · 1 activity']);
+            ->assertSeeTextInOrder(['VERSION-'.$templateId.'-37', 'Published', 'Version 37 · 1 lesson · 1 activity']);
 
         $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$productId}", [
             'category_id' => $categoryId, 'template_id' => $templateId, 'title' => 'Active Immutable Updated',
@@ -2466,7 +2506,7 @@ class CourseProductManagementTest extends TestCase
         ]);
 
         $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$boundProductId}/edit")
-            ->assertOk()->assertSeeText('VERSION-'.$templateId.'-1 · Đã xuất bản');
+            ->assertOk()->assertSeeTextInOrder(['VERSION-'.$templateId.'-1', 'Đã xuất bản']);
         $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$candidateProductId}/edit")
             ->assertOk()->assertSeeText('Sản phẩm chưa có phiên bản khóa học đang sử dụng.')
             ->assertDontSee(route('admin.course-templates.versions.show', [

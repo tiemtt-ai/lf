@@ -130,6 +130,8 @@ Canonical primitives:
 | Section header | `admin-form-section-header` |
 | Section title | `admin-form-section-title` |
 | Optional section helper | `admin-form-section-help` |
+| Compact subsection | `admin-form-subsection` |
+| Compact subsection title | `admin-form-subsection-title` |
 | Responsive field grid | `admin-form-field-grid` |
 | Field wrapper | `admin-form-field` hoặc shared `lf-form-group` hiện có |
 | Full-width field | `admin-form-field--full` |
