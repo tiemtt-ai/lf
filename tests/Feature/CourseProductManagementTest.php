@@ -2099,6 +2099,62 @@ class CourseProductManagementTest extends TestCase
         $this->assertGreaterThan(0, $categoryId);
     }
 
+    public function test_create_product_information_uses_category_template_version_dom_flow(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $versionId = $this->createVersion($customerId, $admin->id, 'Create Flow Version', templateId: $templateId, versionNumber: 14);
+
+        $content = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-products/create')
+            ->assertOk()
+            ->assertSeeText('Phiên bản khóa học')
+            ->assertSeeText('Chọn phiên bản đã phát hành')
+            ->assertSeeText('Chọn phiên bản đã phát hành sẽ được sử dụng khi sản phẩm được kích hoạt.')
+            ->assertDontSeeText('Sản phẩm chưa có phiên bản khóa học đang sử dụng.')
+            ->assertDontSeeText('Phiên bản của Course Template mới')
+            ->getContent();
+
+        $positions = [
+            strpos($content, 'id="course-product-category-field"'),
+            strpos($content, 'id="course-product-template-field"'),
+            strpos($content, 'id="course-product-version-field"'),
+            strpos($content, 'id="title"'),
+            strpos($content, 'id="offering_type"'),
+            strpos($content, 'id="slug"'),
+        ];
+        $this->assertNotContains(false, $positions);
+        $this->assertSame($positions, collect($positions)->sort()->values()->all());
+
+        $templateToVersionMarkup = \Illuminate\Support\Str::between(
+            $content,
+            'id="course-product-template-field"',
+            'id="course-product-version-field"'
+        );
+        $this->assertStringNotContainsString('id="template_version_id"', $templateToVersionMarkup);
+        $this->assertMatchesRegularExpression('/id="course-product-version-field"[^>]+admin-form-field--full/', $content);
+        $this->assertMatchesRegularExpression('/<select(?=[^>]*\bid="template_version_id")(?=[^>]*\bname="template_version_id")[^>]*>/', $content);
+        $this->assertStringContainsString(':disabled="!template"', $content);
+        $this->assertStringContainsString('@change="templateVersion = \'\'"', $content);
+        $this->assertStringContainsString("template=''; templateVersion=''", $content);
+        $this->assertStringContainsString('value="'.$versionId.'"', $content);
+
+        $identityMarkup = \Illuminate\Support\Str::between($content, 'id="product-identity"', '</section>');
+        $this->assertMatchesRegularExpression('/<div[^>]+admin-form-field--full[^>]*>.*id="slug"/s', $identityMarkup);
+
+        $englishContent = $this->withSession(['locale' => 'en'])->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-products/create')
+            ->assertOk()
+            ->assertSeeText('Course version')
+            ->assertSeeText('Select a published version')
+            ->assertSeeText('Select the published version that will be used when the product is activated.')
+            ->assertDontSeeText('This product does not have a course version in use.')
+            ->getContent();
+        $this->assertStringContainsString('name="template_version_id"', $englishContent);
+        $this->assertGreaterThan(0, $categoryId);
+    }
+
     public function test_shared_admin_form_css_contract_is_opt_in_and_responsive(): void
     {
         $css = file_get_contents(resource_path('css/admin/admin-components.css'));
@@ -2512,8 +2568,9 @@ class CourseProductManagementTest extends TestCase
         $this->actingAs($admin)->withSession(['_old_input' => ['template_id' => (string) $templateId]])
             ->get('https://tenant-a.localhost/admin/course-products/create')
             ->assertOk()
-            ->assertSeeText('Phiên bản sử dụng')
-            ->assertSeeText('Sản phẩm chưa có phiên bản khóa học đang sử dụng.')
+            ->assertSeeText('Phiên bản khóa học')
+            ->assertDontSeeText('Phiên bản sử dụng')
+            ->assertDontSeeText('Sản phẩm chưa có phiên bản khóa học đang sử dụng.')
             ->assertDontSeeText('99 bài học')
             ->assertDontSee(route('admin.course-templates.versions.show', ['templateId' => $templateId, 'versionId' => $versionId]), false);
     }
@@ -2645,7 +2702,8 @@ class CourseProductManagementTest extends TestCase
         $this->actingAs($admin)->withSession(['_old_input' => ['template_id' => (string) $templateId]])
             ->get('https://tenant-a.localhost/admin/course-products/create')
             ->assertOk()
-            ->assertSeeText('Sản phẩm chưa có phiên bản khóa học đang sử dụng.')
+            ->assertSeeText('Phiên bản khóa học')
+            ->assertDontSeeText('Sản phẩm chưa có phiên bản khóa học đang sử dụng.')
             ->assertSeeText('Nếu tắt, mô tả được kế thừa từ phiên bản Template.')
             ->assertSeeText('Nếu tắt, media giới thiệu được kế thừa từ phiên bản Template.')
             ->assertSee('name="short_description"', false)
