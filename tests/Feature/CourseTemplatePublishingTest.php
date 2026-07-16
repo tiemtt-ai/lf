@@ -615,11 +615,23 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertSee('?tab=information', false)
             ->assertSee('?tab=structure', false)
             ->assertSee("course-template-lesson-{$lessonId}-activities", false);
+        $content = $response->getContent();
+        $this->assertStringContainsString('class="course-template-publish-summary"', $content);
+        $this->assertStringContainsString('class="course-template-readiness-header"', $content);
+        $this->assertStringContainsString('class="course-template-readiness-help"', $content);
+        $this->assertStringContainsString('class="course-template-readiness-message"', $content);
+        $this->assertStringContainsString('class="admin-form-actions course-template-publish-actions"', $content);
         $document = new \DOMDocument;
-        @$document->loadHTML($response->getContent());
+        @$document->loadHTML($content);
         $xpath = new \DOMXPath($document);
         $this->assertSame(1, $xpath->query('//button[contains(@class, "course-template-publish-button") and @disabled]')->length);
         $this->assertSame(1, substr_count($response->getContent(), 'data-readiness-code="activity_media"'));
+
+        $css = file_get_contents(resource_path('css/admin/admin-pages.css'));
+        $this->assertStringContainsString('repeat(auto-fit, minmax(min(100%, 240px), 1fr))', $css);
+        $this->assertStringContainsString('.course-template-readiness-list li {', $css);
+        $this->assertStringContainsString('grid-template-columns: minmax(0, 1fr) auto;', $css);
+        $this->assertStringContainsString('@media (max-width: 575.98px)', $css);
     }
 
     public function test_direct_publish_post_cannot_bypass_readiness_and_correction_is_recalculated(): void

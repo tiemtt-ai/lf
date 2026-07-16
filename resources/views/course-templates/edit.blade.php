@@ -121,7 +121,7 @@
                     </div>
                     <div>
                         <dt>{{ __('lf.LF_course_template_publish_current_version') }}</dt>
-                        <dd>
+                        <dd @class(['is-empty' => ! $currentVersion])>
                             @if ($currentVersion)
                                 {{ __('lf.LF_course_template_version_number', [
                                     'version' => $currentVersion->version_number,
@@ -136,7 +136,7 @@
                     </div>
                     <div>
                         <dt>{{ __('lf.LF_course_template_publish_last_time') }}</dt>
-                        <dd>
+                        <dd @class(['is-empty' => ! $latestVersion?->published_at])>
                             {{ $latestVersion?->published_at
                                 ? \Illuminate\Support\Carbon::parse(
                                     $latestVersion->published_at
@@ -152,22 +152,24 @@
                              'is-blocked' => ! $publishReadiness->isReady(),
                          ])
                          aria-labelledby="course-template-readiness-title">
-                    <h3 id="course-template-readiness-title">
-                        {{ $publishReadiness->isReady()
-                            ? __('lf.LF_course_template_readiness_ready')
-                            : __('lf.LF_course_template_readiness_blocked', [
-                                'count' => $publishReadiness->blockers()->count(),
-                            ]) }}
-                    </h3>
+                    <div class="course-template-readiness-header">
+                        <h3 id="course-template-readiness-title">
+                            {{ $publishReadiness->isReady()
+                                ? __('lf.LF_course_template_readiness_ready')
+                                : __('lf.LF_course_template_readiness_blocked', [
+                                    'count' => $publishReadiness->blockers()->count(),
+                                ]) }}
+                        </h3>
+                    </div>
 
                     @if ($publishReadiness->isReady())
-                        <p>{{ __('lf.LF_course_template_readiness_ready_help') }}</p>
+                        <p class="course-template-readiness-help">{{ __('lf.LF_course_template_readiness_ready_help') }}</p>
                     @else
-                        <p>{{ __('lf.LF_course_template_readiness_blocked_help') }}</p>
+                        <p class="course-template-readiness-help">{{ __('lf.LF_course_template_readiness_blocked_help') }}</p>
                         <ol class="course-template-readiness-list">
                             @foreach ($publishReadiness->blockers() as $issue)
                                 <li data-readiness-code="{{ $issue->code }}">
-                                    <span>{{ $issue->message() }}</span>
+                                    <span class="course-template-readiness-message">{{ $issue->message() }}</span>
                                     <a href="{{ $issue->targetUrl(
                                         $routePrefix,
                                         (int) $template->id
@@ -182,7 +184,7 @@
                     @endif
                 </section>
 
-                <div class="admin-form-actions">
+                <div class="admin-form-actions course-template-publish-actions">
                     @if (request()->user()?->role === 'customer_admin')
                         <form method="POST"
                               action="{{ route(
