@@ -502,11 +502,6 @@
     margin-inline: 0;
 }
 
-.course-product-selling-price {
-    grid-column: 1 / -1;
-    max-width: 440px;
-}
-
 .course-product-template-lock-help {
     max-width: 62ch;
 }

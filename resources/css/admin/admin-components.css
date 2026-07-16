@@ -244,6 +244,59 @@
     line-height: 1.45;
 }
 
+.admin-form-inline-notice {
+    min-width: 0;
+    margin: 7px 0 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.admin-form-inline-notice-icon {
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+    flex: 0 0 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.admin-form-label-row {
+    min-width: 0;
+    margin-bottom: 7px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.admin-form-label-row .lf-form-label {
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.admin-form-label-metadata {
+    padding: 2px 7px;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--admin-control-border);
+    border-radius: 999px;
+    color: var(--admin-text-muted);
+    background: var(--admin-surface-subtle);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.35;
+}
+
 .admin-form-subsection {
     min-width: 0;
 }
@@ -283,6 +336,11 @@
 :root.is-backend-sidebar-collapsed .backend-shell .admin-form-field-grid,
 .backend-shell.is-sidebar-collapsed .admin-form-field-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+:root.is-backend-sidebar-collapsed .backend-shell .admin-form-field-grid--main-compact,
+.backend-shell.is-sidebar-collapsed .admin-form-field-grid--main-compact {
+    grid-template-columns: minmax(0, 1fr) minmax(120px, .34fr);
 }
 
 .lf-admin-page .admin-form-readonly {
@@ -379,6 +437,39 @@
     background: var(--admin-surface-subtle);
     font-size: 14px;
     line-height: 1.5;
+}
+
+.admin-form-calculated-summary {
+    min-width: 0;
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+    border: 1px solid var(--admin-control-border);
+    border-radius: 8px;
+    color: var(--admin-text);
+    background: var(--admin-surface-subtle);
+}
+
+.admin-form-calculated-summary-label {
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.admin-form-calculated-summary-value {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.admin-form-calculated-summary-meta {
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    line-height: 1.45;
 }
 
 .admin-form-footer {

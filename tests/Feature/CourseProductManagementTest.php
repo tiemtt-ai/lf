@@ -2110,12 +2110,60 @@ class CourseProductManagementTest extends TestCase
         $this->assertStringContainsString('grid-template-columns: minmax(0, 1fr);', $css);
         $this->assertStringContainsString(':root.is-backend-sidebar-collapsed .backend-shell .admin-form-field-grid', $css);
         $this->assertStringContainsString('grid-template-columns: repeat(2, minmax(0, 1fr));', $css);
+        $this->assertStringContainsString('.admin-form-field-grid--main-compact', $css);
+        $this->assertStringContainsString('grid-template-columns: minmax(0, 1fr) minmax(120px, .34fr);', $css);
         $this->assertStringContainsString('.admin-form-field--full {', $css);
         $this->assertStringContainsString('grid-column: 1 / -1;', $css);
+        $this->assertStringContainsString('.admin-form-calculated-summary {', $css);
         $this->assertStringContainsString('.admin-form-footer-danger,', $css);
         $this->assertStringContainsString('.admin-form-footer-primary {', $css);
         $this->assertStringNotContainsString('form {\n    width: 100%;\n    max-width: none;', $css);
         $this->assertStringNotContainsString('width: calc(100vw', $css);
+    }
+
+    public function test_pricing_and_promotion_controls_have_persistent_labels_and_calculated_summary(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $content = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-products/create')
+            ->assertOk()
+            ->assertSeeText('Loại giảm giá')
+            ->assertSeeText('Giá trị giảm')
+            ->assertSeeText('Bắt đầu khuyến mãi')
+            ->assertSeeText('Kết thúc khuyến mãi')
+            ->assertSeeText('Thiết lập mức giảm và thời gian áp dụng cho sản phẩm.')
+            ->assertSeeText('Giá bán dự kiến')
+            ->getContent();
+
+        foreach ([
+            'discount_type' => 'discount_type',
+            'discount_value' => 'discount_value',
+            'sale_starts_at' => 'sale_starts_at',
+            'sale_ends_at' => 'sale_ends_at',
+        ] as $for => $name) {
+            $this->assertStringContainsString('for="'.$for.'"', $content);
+            $this->assertStringContainsString('name="'.$name.'"', $content);
+        }
+
+        $this->assertStringContainsString('name="promotion_enabled" value="1"', $content);
+        $this->assertStringContainsString('aria-controls="course-product-promotion-fields"', $content);
+        $this->assertStringContainsString('id="course-product-promotion-fields"', $content);
+        $this->assertStringContainsString('x-show="promotion"', $content);
+        $this->assertStringContainsString('class="admin-form-field--full admin-form-calculated-summary"', $content);
+        $this->assertStringNotContainsString('<input id="selling_price"', $content);
+        $this->assertStringContainsString("sellingPrice() { let p=Number(this.price||0), d=Number(this.discount||0); if(!this.promotion) return p.toFixed(2); return Math.max(0,this.discountType==='percentage'?p-(p*d/100):p-d).toFixed(2) }", $content);
+
+        $english = $this->withSession(['locale' => 'en'])->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-products/create')
+            ->assertOk()
+            ->assertSeeText('Discount type')
+            ->assertSeeText('Discount value')
+            ->assertSeeText('Promotion start')
+            ->assertSeeText('Promotion end')
+            ->assertSeeText('Configure the discount and its active period.')
+            ->assertSeeText('Expected selling price');
+        $this->assertNotEmpty($english->getContent());
     }
 
     public function test_create_product_keeps_template_enabled_and_persists_selected_published_version(): void
@@ -2239,10 +2287,63 @@ class CourseProductManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_product_items', ['id' => $itemId, 'template_id' => $firstTemplateId, 'version_id' => $firstVersionId]);
         $lockedResponse = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
-            ->assertSeeText('Không thể đổi Course Template vì sản phẩm đã phát sinh dữ liệu sử dụng.')
+            ->assertSeeText('Course Template đã được khóa vì sản phẩm đã phát sinh dữ liệu sử dụng.')
             ->assertSeeTextInOrder(['VERSION-'.$firstTemplateId.'-1', 'Đã xuất bản']);
         $this->assertStringNotContainsString('<select id="template_id"', $lockedResponse->getContent());
         $this->assertMatchesRegularExpression('/<input id="template_id"[^>]+admin-form-readonly[^>]+readonly|<input id="template_id"[^>]+readonly[^>]+admin-form-readonly/', $lockedResponse->getContent());
+    }
+
+    public function test_overview_uses_distinct_compact_template_policy_notices_and_slug_metadata(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $versionId = $this->createVersion($customerId, $admin->id, 'Policy Version', templateId: $templateId);
+
+        $activeId = $this->createProduct($customerId, 'Active Policy', 'active-policy', status: 'active');
+        $this->createProductItem($customerId, $activeId, $versionId);
+
+        $usedId = $this->createProduct($customerId, 'Used Policy', 'used-policy', status: 'draft');
+        $this->createProductItem($customerId, $usedId, $versionId);
+        $this->createEnrollmentUsage($customerId, $usedId, $versionId, $student->id, $admin->id);
+
+        $archivedId = $this->createProduct($customerId, 'Archived Policy', 'archived-policy', status: 'archived');
+        $this->createProductItem($customerId, $archivedId, $versionId);
+
+        $messages = [
+            $activeId => 'Chỉ có thể đổi Course Template khi sản phẩm ở trạng thái Bản nháp.',
+            $usedId => 'Course Template đã được khóa vì sản phẩm đã phát sinh dữ liệu sử dụng.',
+            $archivedId => 'Sản phẩm đã lưu trữ chỉ có thể xem.',
+        ];
+
+        foreach ($messages as $productId => $message) {
+            $content = $this->actingAs($admin)
+                ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+                ->assertOk()
+                ->assertSeeText($message)
+                ->assertSeeText('Tự động')
+                ->assertDontSeeText('Tự động tạo từ tên sản phẩm.')
+                ->getContent();
+
+            $this->assertSame(1, substr_count($content, 'id="template-policy-notice"'));
+            $this->assertStringContainsString('class="admin-form-inline-notice course-product-template-lock-help"', $content);
+            $this->assertStringContainsString('aria-describedby="template-policy-notice"', $content);
+            $this->assertStringNotContainsString('id="template-policy-notice" class="lf-form-error', $content);
+            $this->assertMatchesRegularExpression('/<input id="slug"[^>]+readonly/', $content);
+            $this->assertStringContainsString('class="admin-form-label-metadata"', $content);
+        }
+
+        $englishContent = $this->withSession(['locale' => 'en'])->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-products/{$activeId}/edit")
+            ->assertOk()
+            ->assertSeeText('The Course Template can only be changed while the product is in Draft status.')
+            ->assertSeeText('Automatic')
+            ->assertDontSeeText('Generated automatically from the Product name.')
+            ->getContent();
+
+        $this->assertSame(1, substr_count($englishContent, 'id="template-policy-notice"'));
+        $this->assertGreaterThan(0, $categoryId);
     }
 
     public function test_used_active_product_can_be_deactivated_but_cannot_return_to_draft(): void

@@ -132,7 +132,12 @@ Canonical primitives:
 | Optional section helper | `admin-form-section-help` |
 | Compact subsection | `admin-form-subsection` |
 | Compact subsection title | `admin-form-subsection-title` |
+| Inline policy information | `admin-form-inline-notice` |
+| Decorative information icon | `admin-form-inline-notice-icon` |
+| Label and compact metadata row | `admin-form-label-row` |
+| Compact label metadata | `admin-form-label-metadata` |
 | Responsive field grid | `admin-form-field-grid` |
+| Main/compact field grid | `admin-form-field-grid--main-compact` |
 | Field wrapper | `admin-form-field` hoặc shared `lf-form-group` hiện có |
 | Full-width field | `admin-form-field--full` |
 | Read-only field | `admin-form-readonly` |
@@ -141,6 +146,7 @@ Canonical primitives:
 | Compact option panel | `admin-form-option-panel--compact` |
 | Conditional region | `admin-form-conditional` |
 | Empty configuration state | `admin-form-empty-state` |
+| Calculated read-only summary | `admin-form-calculated-summary` |
 | Label/control/help/error | `lf-form-label`, `lf-form-control`, `lf-form-help`, `lf-form-error` |
 | Action footer | `admin-form-footer` |
 | Destructive/admin group | `admin-form-footer-danger` |
@@ -341,6 +347,24 @@ heading **MUST** có semantic heading level phù hợp; optional helper dùng
 | Validation error | Dùng `lf-form-error`, gần control, liên kết bằng ARIA khi áp dụng |
 
 User-facing text **MUST NOT** được đặt trong CSS.
+
+---
+
+# 10.1. Description Hierarchy
+
+Presentation **SHOULD** chọn đúng mức độ mô tả:
+
+| Meaning | Canonical presentation |
+| --- | --- |
+| Neutral input guidance | Muted helper text |
+| Auto-generated field | Compact “Automatic” metadata cạnh label |
+| Policy restriction | Compact informational notice |
+| Consequential warning | Warning callout |
+| Validation failure | Error text gần control |
+| Non-essential long explanation | Omit hoặc dùng existing help pattern |
+
+Policy notice **MUST NOT** dùng validation-error styling. Metadata mô tả field
+**MUST NOT** dùng status badge styling.
 
 ---
 
