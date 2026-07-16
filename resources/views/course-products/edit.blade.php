@@ -18,6 +18,7 @@
             ? 'relations'
             : ($hasItemErrors || $requestedTab === 'versions' ? 'versions' : 'general');
         $focusRelationSearch = request()->query('focus') === 'related_product_search' || $hasRelationErrors;
+        $templateRoutePrefix = str_replace('course-products', 'course-templates', $routePrefix);
     @endphp
 
     @if (session('success'))
@@ -131,25 +132,55 @@
                  x-cloak
                  role="tabpanel"
                  aria-labelledby="course-product-tab-versions">
-            <div class="admin-card admin-form-card">
-                <section class="admin-form-section" aria-labelledby="course-product-items-title">
-                    <h2 id="course-product-items-title" class="admin-form-section-title">
-                        {{ __('lf.LF_course_product_item_common_title') }}
-                    </h2>
-
-                    <p>
-                        {{ __('lf.LF_course_product_item_common_help') }}
-                    </p>
+            <div class="admin-card course-product-version-card"
+                 x-data="{ replacing: @js($hasItemErrors || ! $initialItem?->version_id), submitting: false, selected: @js($itemVersionId), current: @js((string) ($initialItem?->version_id ?? '')) }">
+                <section aria-labelledby="course-product-items-title">
+                    <header class="course-product-version-card-header">
+                        <h2 id="course-product-items-title" class="admin-form-section-title">
+                            {{ __('lf.LF_course_product_item_common_title') }}
+                        </h2>
+                        <p>{{ __('lf.LF_course_product_item_common_current_enrollment_help') }}</p>
+                    </header>
 
                     @if ($currentItemTemplate)
-                    <form method="POST" action="{{ route($routePrefix.'.items.store', $product->id) }}">
-                        @csrf
-
-                        <div class="lf-form-group">
-                            <span class="lf-form-label">{{ __('lf.LF_course_product_item_common_current_template') }}</span>
-                            <p class="lf-form-help">{{ $currentItemTemplate->name }}</p>
+                        <div class="course-product-version-details">
+                            <div class="course-product-version-detail">
+                                <span class="course-product-version-label">{{ __('lf.LF_course_product_item_common_current_template') }}</span>
+                                <p class="course-product-version-value">{{ $currentItemTemplate->name }}</p>
+                            </div>
+                            @if ($initialItem?->version_id)
+                                <div class="course-product-version-detail">
+                                    <span class="course-product-version-label">{{ __('lf.LF_course_product_item_common_current_version') }}</span>
+                                    <p class="course-product-version-value">
+                                        {{ __('lf.LF_course_product_item_common_version_number', ['number' => $initialItem->version_number]) }}
+                                        <span aria-hidden="true">·</span>
+                                        {{ $initialItem->version_code }}
+                                    </p>
+                                    <div class="course-product-version-meta">
+                                        <span>{{ __('lf.LF_course_product_item_common_released_on', ['date' => $initialItem->published_at ? date('d/m/Y', strtotime($initialItem->published_at)) : '—']) }}</span>
+                                        <span class="badge badge-success">{{ __('lf.LF_course_product_item_common_published') }}</span>
+                                    </div>
+                                </div>
+                            @endif
                         </div>
-
+                        @if ($initialItem?->version_id)
+                            <div class="course-product-version-actions">
+                                <a class="btn admin-primary-outline-action" href="{{ route($templateRoutePrefix.'.versions.show', [$initialItem->template_id, $initialItem->version_id]) }}">{{ __('lf.LF_course_product_item_common_view_version') }}</a>
+                                <button type="button" class="btn btn-primary"
+                                        x-show="!replacing"
+                                        x-on:click="replacing = true; $nextTick(() => document.getElementById('version_id')?.focus())"
+                                        x-bind:aria-expanded="replacing"
+                                        aria-controls="course-product-version-replace-form">
+                                    {{ __('lf.LF_course_product_item_common_replace') }}
+                                </button>
+                            </div>
+                        @endif
+                    <form id="course-product-version-replace-form"
+                          class="course-product-version-replace-form"
+                          method="POST" action="{{ route($routePrefix.'.items.store', $product->id) }}"
+                          x-show="replacing" x-cloak
+                          @submit="if (submitting || !selected || selected === current) { $event.preventDefault(); return } if (!window.confirm(@js(__('lf.LF_course_product_item_common_replace_confirm')))) { $event.preventDefault(); return } submitting = true">
+                        @csrf
                         <div class="lf-form-group">
                             <x-form-label for="version_id"
                                           :value="__('lf.LF_course_product_item_common_template_version')"
@@ -157,12 +188,11 @@
                             <select id="version_id"
                                     name="version_id"
                                     class="lf-form-control"
-                                    required>
+                                    required x-model="selected">
                                 <option value="">{{ __('lf.LF_course_product_item_common_select_version') }}</option>
                                 @foreach ($publishedVersions as $version)
                                     <option value="{{ $version->id }}" @selected((string) $version->id === $itemVersionId)>
-                                        {{ $version->version_code }} — {{ __('lf.LF_course_product_item_common_version_number', ['number' => $version->version_number]) }} — {{ $version->published_at ? date('d/m/Y', strtotime($version->published_at)) : '—' }}
-                                        @if ($version->is_latest_published) · {{ __('lf.LF_course_product_item_common_latest') }} @endif
+                                        {{ __('lf.LF_course_product_item_common_version_number', ['number' => $version->version_number]) }} · {{ $version->version_code }} · {{ $version->published_at ? date('d/m/Y', strtotime($version->published_at)) : '—' }}
                                         @if ($version->is_in_use) · {{ __('lf.LF_course_product_item_common_in_use') }} @endif
                                     </option>
                                 @endforeach
@@ -173,72 +203,13 @@
                             @error('version_id')<p class="lf-form-error">{{ $message }}</p>@enderror
                         </div>
 
-                        <div class="lf-form-group">
-                            <x-form-label for="title_override"
-                                          :value="__('lf.LF_course_product_item_common_title_override')" />
-                            <input id="title_override"
-                                   type="text"
-                                   name="title_override"
-                                   class="lf-form-control"
-                                   value="{{ old('title_override', $initialItem?->title_override) }}"
-                                   maxlength="255">
-                        </div>
-
-                        <div class="lf-form-group">
-                            <x-form-label for="short_description_override"
-                                          :value="__('lf.LF_course_product_item_common_short_description_override')" />
-                            <textarea id="short_description_override"
-                                      name="short_description_override"
-                                      class="lf-form-control"
-                                      rows="2"
-                                      maxlength="500">{{ old('short_description_override', $initialItem?->short_description_override) }}</textarea>
-                        </div>
-
-                        <div class="lf-form-group">
-                            <x-form-label for="item_sort_order"
-                                          :value="__('lf.LF_course_product_item_common_sort_order')"
-                                          :required="true" />
-                            <input id="item_sort_order"
-                                   type="number"
-                                   name="sort_order"
-                                   class="lf-form-control"
-                                   value="{{ old('sort_order', $initialItem?->sort_order ?? 0) }}"
-                                   required>
-                        </div>
-
-                        <div class="lf-form-group">
-                            <input type="hidden" name="is_required" value="0">
-                            <div class="admin-radio-group">
-                                <input id="is_required"
-                                       type="checkbox"
-                                       name="is_required"
-                                       value="1"
-                                       @checked((bool) old('is_required', $initialItem?->is_required ?? true))>
-                                <label for="is_required">
-                                    {{ __('lf.LF_course_product_item_common_is_required') }}
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="lf-form-group">
-                            <x-form-label for="item_status"
-                                          :value="__('lf.LF_course_product_item_common_status')"
-                                          :required="true" />
-                            <select id="item_status" name="status" class="lf-form-control" required>
-                                @foreach (['active', 'inactive'] as $itemStatus)
-                                    <option value="{{ $itemStatus }}"
-                                            @selected(old('status', $initialItem?->status ?? 'active') === $itemStatus)>
-                                        {{ __('lf.LF_course_product_item_common_'.$itemStatus) }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="admin-form-actions">
-                            <button type="submit" class="btn btn-primary">
-                                {{ $initialItem?->version_id
-                                    ? __('lf.LF_course_product_item_common_replace')
-                                    : __('lf.LF_course_product_item_common_attach') }}
+                        <div class="course-product-version-form-actions">
+                            <button type="submit" class="btn btn-primary" :disabled="submitting || !selected || selected === current" :aria-busy="submitting">
+                                {{ __('lf.LF_course_product_item_common_confirm_replace') }}
+                            </button>
+                            <button type="button" class="btn btn-secondary" :disabled="submitting"
+                                    x-on:click="replacing = false; selected = current">
+                                {{ __('lf.LF_common_button_cancel') }}
                             </button>
                         </div>
                     </form>
@@ -248,72 +219,6 @@
                 </section>
             </div>
 
-            <div class="admin-table-wrap">
-                <table class="table">
-                    <thead>
-                    <tr>
-                        <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
-                        <th>{{ __('lf.LF_course_product_item_common_template_version') }}</th>
-                        <th>{{ __('lf.LF_course_product_item_common_display_title') }}</th>
-                        <th>{{ __('lf.LF_course_product_item_common_sort_order') }}</th>
-                        <th>{{ __('lf.LF_course_product_item_common_required') }}</th>
-                        <th>{{ __('lf.LF_course_product_item_common_status') }}</th>
-                        <th>{{ __('lf.table_actions') }}</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    @forelse ($linkedProductItems as $item)
-                        <tr>
-                            <td class="admin-table-sequence">{{ $loop->iteration }}</td>
-                            <td>
-                                {{ $item->title_snapshot }}
-                                <br>
-                                <small>
-                                    {{ __('lf.LF_course_product_item_common_version_number', ['number' => $item->version_number]) }}
-                                    · {{ $item->version_code }}
-                                    @if ($item->is_current)
-                                        · {{ __('lf.LF_course_product_item_common_current') }}
-                                    @endif
-                                </small>
-                            </td>
-                            <td>{{ $item->title_override ?: $item->title_snapshot }}</td>
-                            <td>{{ $item->sort_order }}</td>
-                            <td>
-                                {{ $item->is_required
-                                    ? __('lf.LF_course_product_item_common_yes')
-                                    : __('lf.LF_course_product_item_common_no') }}
-                            </td>
-                            <td>
-                                <span @class([
-                                    'badge',
-                                    'badge-success' => $item->status === 'active',
-                                ])>
-                                    {{ __('lf.LF_course_product_item_common_'.$item->status) }}
-                                </span>
-                            </td>
-                            <td>
-                                <div class="admin-table-actions">
-                                    <form method="POST"
-                                          action="{{ route($routePrefix.'.items.destroy', [$product->id, $item->id]) }}">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button class="admin-link-button admin-text-action" type="submit">
-                                            {{ __('lf.LF_course_product_item_common_remove') }}
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="7">
-                                {{ __('lf.LF_course_product_item_common_empty') }}
-                            </td>
-                        </tr>
-                    @endforelse
-                    </tbody>
-                </table>
-            </div>
         </section>
 
         <section id="course-product-panel-relations"

@@ -670,7 +670,7 @@ class CourseProductManagementTest extends TestCase
             'version_id' => $versionId,
             'title_override' => 'Commercial TOPIK',
             'short_description_override' => 'Override description',
-            'sort_order' => 5,
+            'sort_order' => 0,
             'is_required' => 1,
             'status' => 'active',
             'created_by' => $admin->id,
@@ -881,7 +881,8 @@ class CourseProductManagementTest extends TestCase
         $versionId = $this->createVersion(
             $customerId,
             $admin->id,
-            title: 'TOPIK Beginner'
+            title: 'TOPIK Beginner',
+            versionNumber: 37
         );
         $this->createProductItem(
             $customerId,
@@ -896,10 +897,10 @@ class CourseProductManagementTest extends TestCase
             ->assertOk()
             ->assertSeeText('Nội dung trong sản phẩm')
             ->assertSeeText('TOPIK Beginner')
-            ->assertSeeText('TOPIK Sale Page')
-            ->assertSeeText('Phiên bản 1')
+            ->assertSeeText('Phiên bản 37')
             ->assertSeeText('Xem phiên bản')
-            ->assertSeeText('Gỡ liên kết')
+            ->assertSeeText('Thay phiên bản')
+            ->assertDontSeeText('Gỡ liên kết')
             ->assertSee(route('admin.course-templates.versions.show', [
                 'templateId' => DB::table('core_course_template_versions')->where('id', $versionId)->value('template_id'),
                 'versionId' => $versionId,
@@ -912,18 +913,32 @@ class CourseProductManagementTest extends TestCase
             'id="course-product-panel-versions"',
             'id="course-product-panel-relations"'
         );
-        $this->assertStringNotContainsString('Xem phiên bản', $versionPanel);
-        $this->assertStringContainsString('Gỡ liên kết', $versionPanel);
+        $this->assertStringContainsString('Xem phiên bản', $versionPanel);
+        $this->assertStringContainsString('Phiên bản 37', $versionPanel);
+        $this->assertStringContainsString('VERSION-', $versionPanel);
+        $this->assertSame(1, substr_count($versionPanel, 'TOPIK Beginner'));
+        $this->assertStringContainsString('class="badge badge-success"', $versionPanel);
+        $this->assertStringContainsString('x-show="!replacing"', $versionPanel);
+        $this->assertStringContainsString('id="course-product-version-replace-form"', $versionPanel);
+        $this->assertStringContainsString('x-show="replacing" x-cloak', $versionPanel);
+        $this->assertStringContainsString('Phiên bản 37 · VERSION-', $versionPanel);
+        $this->assertSame(1, substr_count($versionPanel, "\n                                    Thay phiên bản\n"));
+        $this->assertStringNotContainsString('name="sort_order"', $versionPanel);
+        $this->assertStringNotContainsString('name="is_required"', $versionPanel);
+        $this->assertStringNotContainsString('name="status"', $versionPanel);
+        $this->assertStringNotContainsString('Gỡ liên kết', $versionPanel);
 
         $englishResponse = $this->withSession(['locale' => 'en'])->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
-            ->assertOk()->assertSeeText('View Version')->assertSeeText('Unlink');
+            ->assertOk()->assertSeeText('View version')->assertSeeText('Replace version')->assertDontSeeText('Unlink');
         $englishVersionPanel = \Illuminate\Support\Str::between(
             $englishResponse->getContent(),
             'id="course-product-panel-versions"',
             'id="course-product-panel-relations"'
         );
-        $this->assertStringNotContainsString('View Version', $englishVersionPanel);
+        $this->assertStringContainsString('View version', $englishVersionPanel);
+        $this->assertStringContainsString('Version 37 · VERSION-', $englishVersionPanel);
+        $this->assertStringContainsString('The course version currently used for new enrollments.', $englishVersionPanel);
     }
 
     public function test_version_tab_filters_versions_by_product_template_without_category_or_template_selects(): void
@@ -973,22 +988,24 @@ class CourseProductManagementTest extends TestCase
             ->assertOk();
 
         $date = now()->format('d/m/Y');
-        $response->assertSeeTextInOrder(["VERSION-{$templateId}-13", 'Phiên bản 13', $date, 'Mới nhất'])
-            ->assertSeeTextInOrder(["VERSION-{$templateId}-12", 'Phiên bản 12', $date, 'Đang sử dụng'])
+        $response->assertSeeTextInOrder(['Phiên bản 13', "VERSION-{$templateId}-13", $date])
+            ->assertSeeTextInOrder(['Phiên bản 12', "VERSION-{$templateId}-12", $date, 'Đang sử dụng'])
             ->assertSeeText('Thay phiên bản')
             ->assertSee('value="'.$latestId.'"', false)
             ->assertSee('value="'.$inUseId.'"', false);
 
         $this->withSession(['locale' => 'en'])->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
-            ->assertOk()->assertSeeText('Latest')->assertSeeText('In use');
+            ->assertOk()->assertSeeText("Version 13 · VERSION-{$templateId}-13")
+            ->assertSeeText("Version 12 · VERSION-{$templateId}-12")
+            ->assertSeeText('In use');
 
         DB::table('core_course_product_items')->where('product_id', $productId)->update(['version_id' => $latestId]);
         $this->withSession(['locale' => 'vi'])->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
-            ->assertOk()->assertSeeTextInOrder(["VERSION-{$templateId}-13", 'Phiên bản 13', $date, 'Mới nhất', 'Đang sử dụng']);
+            ->assertOk()->assertSeeTextInOrder(['Phiên bản 13', "VERSION-{$templateId}-13", $date, 'Đang sử dụng']);
     }
 
-    public function test_admin_can_remove_product_item_link_only(): void
+    public function test_admin_cannot_remove_single_course_product_item(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -1000,14 +1017,12 @@ class CourseProductManagementTest extends TestCase
             ->delete(
                 "https://tenant-a.localhost/admin/course-products/{$productId}/items/{$itemId}"
             )
-            ->assertRedirect(
-                "https://tenant-a.localhost/admin/course-products/{$productId}/edit"
-            );
+            ->assertSessionHasErrors('version_id');
 
         $this->assertDatabaseHas('core_course_product_items', [
             'id' => $itemId,
             'customer_id' => $customerId,
-            'version_id' => null,
+            'version_id' => $versionId,
         ]);
         $this->assertDatabaseHas('core_course_products', [
             'id' => $productId,
@@ -1021,7 +1036,7 @@ class CourseProductManagementTest extends TestCase
         ]);
     }
 
-    public function test_removing_the_final_version_atomically_moves_active_product_to_draft_and_allows_template_recovery(): void
+    public function test_active_single_course_product_cannot_remove_its_final_version(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -1033,22 +1048,9 @@ class CourseProductManagementTest extends TestCase
         $itemId = $this->createProductItem($customerId, $productId, $versionId);
 
         $this->actingAs($admin)->delete("https://tenant-a.localhost/admin/course-products/{$productId}/items/{$itemId}")
-            ->assertRedirect("https://tenant-a.localhost/admin/course-products/{$productId}/edit");
-        $this->assertDatabaseHas('core_course_products', ['id' => $productId, 'status' => 'draft']);
-        $this->assertDatabaseHas('core_course_product_items', ['id' => $itemId, 'template_id' => $templateId, 'version_id' => null]);
-
-        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
-            ->assertOk()->assertSeeText('Phiên bản khóa học (0)')
-            ->assertSeeText('Product media template')
-            ->assertSee('value="'.$versionId.'"', false)
-            ->assertSeeText('Gắn phiên bản');
-
-        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$productId}",
-            $this->validProductV2Data($categoryId, $replacementTemplateId, ['title' => 'Active Recovery Product', 'status' => 'draft']))
-            ->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('core_course_product_items', [
-            'product_id' => $productId, 'template_id' => $replacementTemplateId, 'version_id' => null,
-        ]);
+            ->assertSessionHasErrors('version_id');
+        $this->assertDatabaseHas('core_course_products', ['id' => $productId, 'status' => 'active']);
+        $this->assertDatabaseHas('core_course_product_items', ['id' => $itemId, 'template_id' => $templateId, 'version_id' => $versionId]);
     }
 
     public function test_existing_invalid_active_product_is_recovered_to_draft_on_overview_save(): void

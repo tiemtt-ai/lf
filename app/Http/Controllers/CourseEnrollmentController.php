@@ -121,7 +121,6 @@ class CourseEnrollmentController extends Controller
 
         $customerId = $this->customerId();
         $validated = $this->validatedCreateData($request, $customerId);
-        $version = $this->resolveVersion($customerId, (int) $validated['product_id']);
         $now = now();
         $enrolledAt = $validated['enrolled_at'] ?? $now;
 
@@ -129,10 +128,19 @@ class CourseEnrollmentController extends Controller
             $request,
             $customerId,
             $validated,
-            $version,
             $now,
             $enrolledAt
         ): int {
+            DB::table('core_course_products')
+                ->where('customer_id', $customerId)
+                ->where('id', $validated['product_id'])
+                ->lockForUpdate()
+                ->firstOrFail(['id']);
+            $version = $this->resolveVersion(
+                $customerId,
+                (int) $validated['product_id'],
+                true
+            );
             $id = DB::table('core_course_enrollments')->insertGetId([
                 'customer_id' => $customerId,
                 'product_id' => $validated['product_id'],
@@ -321,16 +329,16 @@ class CourseEnrollmentController extends Controller
         }
     }
 
-    private function resolveVersion(int $customerId, int $productId): object
+    private function resolveVersion(int $customerId, int $productId, bool $lock = false): object
     {
-        $version = $this->resolvedVersionCandidate($customerId, $productId);
+        $version = $this->resolvedVersionCandidate($customerId, $productId, $lock);
 
         abort_if(! $version || $version->version_status !== 'published', 422);
 
         return $version;
     }
 
-    private function resolvedVersionCandidate(int $customerId, int $productId): ?object
+    private function resolvedVersionCandidate(int $customerId, int $productId, bool $lock = false): ?object
     {
         return DB::table('core_course_product_items as items')
             ->join('core_course_template_versions as versions', function ($join) use ($customerId): void {
@@ -340,6 +348,7 @@ class CourseEnrollmentController extends Controller
             ->where('items.customer_id', $customerId)
             ->where('items.product_id', $productId)
             ->where('items.status', 'active')
+            ->when($lock, fn ($query) => $query->lockForUpdate())
             ->orderBy('items.sort_order')
             ->orderBy('items.id')
             ->select(
