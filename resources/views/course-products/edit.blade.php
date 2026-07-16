@@ -263,112 +263,134 @@
                  role="tabpanel"
                  aria-labelledby="course-product-tab-relations">
             <div class="admin-card admin-form-card">
-                <section class="admin-form-section" aria-labelledby="course-product-relations-title">
+                <section class="admin-form-section course-product-relations-section" aria-labelledby="course-product-relations-title">
                     <h2 id="course-product-relations-title" class="admin-form-section-title">
                         {{ __('lf.LF_course_product_relation_common_title') }}
                     </h2>
 
-                    <p>
+                    <p class="course-product-relations-help">
                         {{ __('lf.LF_course_product_relation_common_help') }}
                     </p>
 
-                    <form method="POST"
-                          action="{{ route($routePrefix.'.relations.store', $product->id) }}"
-                          x-data="{
-                              products: @js($relatedProducts), query: '', selected: @js((string) old('related_product_id', '')),
-                              open: false, loading: true, submitting: false, activeIndex: 0,
-                              init() { this.$nextTick(() => { this.loading = false }) },
-                              matches() { const q = this.query.trim().toLocaleLowerCase(); return this.products.filter(p => !q || `${p.product_code} ${p.title}`.toLocaleLowerCase().includes(q)) },
-                              choose(product) { this.selected = String(product.id); this.query = `${product.product_code} — ${product.title}`; this.open = false },
-                              move(step) { const count = this.matches().length; if (count) this.activeIndex = (this.activeIndex + step + count) % count },
-                              chooseActive() { const product = this.matches()[this.activeIndex]; if (product) this.choose(product) }
-                          }"
-                          @submit="if (submitting || !selected) { $event.preventDefault(); return } submitting = true">
-                        @csrf
+                    @if($product->status !== 'archived')
+                        <form method="POST"
+                              class="course-product-relation-add-form"
+                              action="{{ route($routePrefix.'.relations.store', $product->id) }}"
+                              x-data="{
+                                  products: @js($relatedProducts), query: '', selected: @js((string) old('related_product_id', '')),
+                                  open: false, loading: true, submitting: false, activeIndex: 0,
+                                  init() { const chosen = this.products.find(item => String(item.id) === this.selected); if (chosen) this.query = `${chosen.product_code} — ${chosen.title}`; this.$nextTick(() => { this.loading = false }) },
+                                  matches() { const q = this.query.trim().toLocaleLowerCase(); return this.products.filter(item => !q || `${item.product_code} ${item.title}`.toLocaleLowerCase().includes(q)) },
+                                  choose(item) { this.selected = String(item.id); this.query = `${item.product_code} — ${item.title}`; this.open = false },
+                                  move(step) { const count = this.matches().length; if (count) this.activeIndex = (this.activeIndex + step + count) % count },
+                                  chooseActive() { const item = this.matches()[this.activeIndex]; if (item) this.choose(item) }
+                              }"
+                              @submit="if (submitting || !selected) { $event.preventDefault(); return } submitting = true">
+                            @csrf
 
-                        <div class="lf-form-group">
                             <x-form-label for="related_product_search"
-                                          :value="__('lf.LF_course_product_relation_common_related_product')"
-                                          :required="true" />
-                            <div class="lf-combobox" @click.outside="open = false">
-                                <input id="related_product_search" type="search" class="lf-form-control"
-                                       x-model="query" role="combobox" aria-autocomplete="list"
-                                       :aria-expanded="open" aria-controls="related-product-options"
-                                       placeholder="{{ __('lf.LF_course_product_relation_common_search_placeholder') }}"
-                                       @focus="open = true" @input="selected = ''; activeIndex = 0; open = true"
-                                       @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)"
-                                       @keydown.enter.prevent="chooseActive()" @keydown.escape="open = false">
-                                <input type="hidden" name="related_product_id" x-model="selected">
-                                <div id="related-product-options" x-show="open" x-cloak role="listbox" class="lf-combobox-options">
-                                    <p x-show="loading" class="lf-form-help" role="status">{{ __('lf.LF_course_product_relation_common_loading') }}</p>
-                                    <template x-for="(item, index) in matches()" :key="item.id">
-                                        <button type="button" role="option" class="lf-combobox-option"
-                                                :aria-selected="String(item.id) === selected" :class="{ 'is-active': index === activeIndex }"
-                                                @mouseenter="activeIndex = index" @click="choose(item)">
-                                            <span x-text="`${item.product_code} — ${item.title}`"></span>
-                                        </button>
-                                    </template>
-                                    <p x-show="!loading && matches().length === 0" class="lf-form-help" role="status">{{ __('lf.LF_course_product_relation_common_no_results') }}</p>
+                                          :value="__('lf.LF_course_product_relation_common_related_product')" />
+                            <div class="course-product-relation-add-row">
+                                <div class="lf-combobox" @click.outside="open = false">
+                                    <input id="related_product_search" type="search" class="lf-form-control"
+                                           x-model="query" role="combobox" aria-autocomplete="list"
+                                           :aria-expanded="open" aria-controls="related-product-options"
+                                           placeholder="{{ __('lf.LF_course_product_relation_common_search_placeholder') }}"
+                                           @focus="open = true" @input="selected = ''; activeIndex = 0; open = true"
+                                           @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)"
+                                           @keydown.enter.prevent="chooseActive()" @keydown.escape="open = false">
+                                    <input type="hidden" name="related_product_id" x-model="selected">
+                                    <div id="related-product-options" x-show="open" x-cloak role="listbox" class="lf-combobox-options">
+                                        <p x-show="loading" class="course-product-relation-combobox-state" role="status">{{ __('lf.LF_course_product_relation_common_loading') }}</p>
+                                        <template x-for="(item, index) in matches()" :key="item.id">
+                                            <button type="button" role="option" class="lf-combobox-option course-product-relation-option"
+                                                    :id="`related-product-option-${item.id}`"
+                                                    :aria-selected="String(item.id) === selected" :class="{ 'is-active': index === activeIndex, 'is-selected': String(item.id) === selected }"
+                                                    @mouseenter="activeIndex = index" @click="choose(item)">
+                                                <span class="course-product-relation-option-title" x-text="item.title"></span>
+                                                <span class="course-product-relation-option-meta">
+                                                    <span x-text="item.product_code"></span>
+                                                    <span aria-hidden="true">·</span>
+                                                    <span x-text="item.category_name || '—'"></span>
+                                                    <span aria-hidden="true">·</span>
+                                                    <span x-text="item.status_label"></span>
+                                                </span>
+                                            </button>
+                                        </template>
+                                        <p x-show="!loading && matches().length === 0" class="course-product-relation-combobox-state" role="status">{{ __('lf.LF_course_product_relation_common_no_results') }}</p>
+                                    </div>
                                 </div>
+                                <button type="submit" class="btn btn-primary" :disabled="submitting || !selected" :aria-busy="submitting">
+                                    {{ __('lf.LF_course_product_relation_common_attach') }}
+                                </button>
                             </div>
                             @error('related_product_id')<p class="lf-form-error" role="alert">{{ $message }}</p>@enderror
-                        </div>
-
-                        <div class="admin-form-actions">
-                            <button type="submit" class="btn btn-primary" :disabled="submitting || !selected" :aria-busy="submitting">
-                                {{ __('lf.LF_course_product_relation_common_attach') }}
-                            </button>
-                        </div>
-                    </form>
+                        </form>
+                    @endif
                 </section>
             </div>
 
-            <div class="admin-table-wrap">
-                <table class="table">
+            <section class="course-product-linked-products" aria-labelledby="course-product-linked-products-title">
+                <h2 id="course-product-linked-products-title" class="admin-form-section-title">
+                    {{ __('lf.LF_course_product_relation_common_linked_heading', ['count' => $productRelationCount]) }}
+                </h2>
+                @if($productRelations->isEmpty())
+                    <div class="course-product-relation-empty" role="status">
+                        <p>{{ __('lf.LF_course_product_relation_common_empty') }}</p>
+                        <span>{{ __('lf.LF_course_product_relation_common_empty_help') }}</span>
+                    </div>
+                @else
+                <div class="admin-table-wrap course-product-relations-table-wrap">
+                    <table class="table course-product-relations-table">
+                    <caption class="sr-only">{{ __('lf.LF_course_product_relation_common_linked_heading', ['count' => $productRelationCount]) }}</caption>
                     <thead>
                     <tr>
-                        <th>{{ __('lf.LF_course_product_relation_common_related_product') }}</th>
-                        <th>{{ __('lf.LF_course_product_common_product_code') }}</th>
-                        <th>{{ __('lf.LF_product_v2_category') }}</th>
-                        <th>{{ __('lf.LF_course_product_relation_common_target_status') }}</th>
-                        <th>{{ __('lf.LF_course_product_relation_common_sort_order') }}</th>
-                        <th>{{ __('lf.table_actions') }}</th>
+                        <th scope="col">{{ __('lf.LF_course_product_relation_common_related_product') }}</th>
+                        <th scope="col">{{ __('lf.LF_product_v2_category') }}</th>
+                        <th scope="col">{{ __('lf.LF_course_product_relation_common_target_status') }}</th>
+                        <th scope="col" class="course-product-relation-order">{{ __('lf.LF_course_product_relation_common_sort_order') }}</th>
+                        <th scope="col">{{ __('lf.table_actions') }}</th>
                     </tr>
                     </thead>
                     <tbody>
-                    @forelse ($productRelations as $relation)
+                    @foreach ($productRelations as $relation)
                         <tr>
-                            <td>{{ $relation->related_product_title }}</td>
-                            <td>{{ $relation->related_product_code }}</td>
-                            <td>{{ $relation->related_product_category_name ?: '—' }}</td>
-                            <td>{{ __('lf.LF_course_product_common_'.$relation->related_product_status) }}</td>
-                            <td>{{ $relation->sort_order }}</td>
-                            <td>
+                            <td data-label="{{ __('lf.LF_course_product_relation_common_related_product') }}">
+                                <span class="course-product-relation-name">{{ $relation->related_product_title }}</span>
+                                <span class="course-product-relation-code">{{ $relation->related_product_code }}</span>
+                            </td>
+                            <td data-label="{{ __('lf.LF_product_v2_category') }}">{{ $relation->related_product_category_name ?: '—' }}</td>
+                            <td data-label="{{ __('lf.LF_course_product_relation_common_target_status') }}">
+                                <span @class(['badge', 'badge-success' => $relation->related_product_status === 'active', 'badge-danger' => $relation->related_product_status === 'archived'])>
+                                    {{ __('lf.LF_course_product_common_'.$relation->related_product_status) }}
+                                </span>
+                            </td>
+                            <td data-label="{{ __('lf.LF_course_product_relation_common_sort_order') }}" class="course-product-relation-order">{{ $relation->sort_order }}</td>
+                            <td data-label="{{ __('lf.table_actions') }}">
+                                <div class="course-product-relation-actions">
                                 <a href="{{ route($routePrefix.'.edit', $relation->related_product_id) }}" class="admin-text-action">
                                     {{ __('lf.LF_course_product_relation_common_view_product') }}
                                 </a>
-                                <span aria-hidden="true"> | </span>
-                                <form method="POST" class="admin-inline-form"
-                                      onsubmit="return window.confirm(@js(__('lf.LF_course_product_relation_common_remove_confirm')))"
+                                @if($product->status !== 'archived')
+                                <form method="POST" class="admin-inline-form" x-data="{ submitting: false }"
+                                      @submit="if (submitting || !window.confirm(@js(__('lf.LF_course_product_relation_common_remove_confirm')))) { $event.preventDefault(); return } submitting = true"
                                       action="{{ route($routePrefix.'.relations.destroy', [$product->id, $relation->id]) }}">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="admin-link-button admin-text-action" type="submit">
+                                    <button class="admin-link-button admin-danger-text-action" type="submit" :disabled="submitting" :aria-busy="submitting">
                                         {{ __('lf.LF_course_product_relation_common_remove') }}
                                     </button>
                                 </form>
+                                @endif
+                                </div>
                             </td>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="6">
-                                {{ __('lf.LF_course_product_relation_common_empty') }}
-                            </td>
-                        </tr>
-                    @endforelse
+                    @endforeach
                     </tbody>
-                </table>
-            </div>
+                    </table>
+                </div>
+                @endif
+            </section>
         </section>
     </div>
 @endsection

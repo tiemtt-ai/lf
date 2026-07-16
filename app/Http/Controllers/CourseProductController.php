@@ -430,7 +430,8 @@ class CourseProductController extends Controller
         $this->authorizeAdmin($request);
 
         $customerId = $this->customerId();
-        $this->findProduct($customerId, $productId);
+        $product = $this->findProduct($customerId, $productId);
+        abort_if($product->status === 'archived', 403);
         $validated = $this->validatedRelationData(
             $request,
             $customerId,
@@ -488,7 +489,8 @@ class CourseProductController extends Controller
         $this->authorizeAdmin($request);
 
         $customerId = $this->customerId();
-        $this->findProduct($customerId, $productId);
+        $product = $this->findProduct($customerId, $productId);
+        abort_if($product->status === 'archived', 403);
         $relation = DB::table('core_course_product_relations')
             ->where('customer_id', $customerId)
             ->where('product_id', $productId)
@@ -1101,20 +1103,32 @@ class CourseProductController extends Controller
 
     private function relatedProducts(int $customerId, int $productId)
     {
-        return DB::table('core_course_products')
-            ->where('customer_id', $customerId)
-            ->where('id', '!=', $productId)
-            ->where('status', '!=', 'archived')
+        return DB::table('core_course_products as products')
+            ->leftJoin('core_course_categories as categories', function ($join) use ($customerId): void {
+                $join->on('categories.id', '=', 'products.category_id')
+                    ->where('categories.customer_id', '=', $customerId);
+            })
+            ->where('products.customer_id', $customerId)
+            ->where('products.id', '!=', $productId)
+            ->where('products.status', '!=', 'archived')
             ->whereNotExists(function ($query) use ($customerId, $productId): void {
                 $query->selectRaw('1')->from('core_course_product_relations as existing_relations')
-                    ->whereColumn('existing_relations.related_product_id', 'core_course_products.id')
+                    ->whereColumn('existing_relations.related_product_id', 'products.id')
                     ->where('existing_relations.customer_id', $customerId)
                     ->where('existing_relations.product_id', $productId)
                     ->where('existing_relations.relation_type', 'related');
             })
-            ->orderBy('title')
-            ->select('id', 'title', 'product_code', 'status')
-            ->get();
+            ->orderBy('products.title')
+            ->get([
+                'products.id',
+                'products.title',
+                'products.product_code',
+                'products.status',
+                'categories.name as category_name',
+            ])
+            ->each(function ($product): void {
+                $product->status_label = __('lf.LF_course_product_common_'.$product->status);
+            });
     }
 
     private function categories(int $customerId)

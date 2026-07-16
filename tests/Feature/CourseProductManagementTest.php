@@ -1289,14 +1289,19 @@ class CourseProductManagementTest extends TestCase
             sortOrder: 4
         );
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
             ->assertSeeText('Quan hệ sản phẩm')
+            ->assertSeeText('Sản phẩm đã liên kết (1)')
             ->assertSeeText('TOPIK Intermediate')
             ->assertSeeText('TOPIK-INT')
-            ->assertSeeText('Xem sản phẩm')
+            ->assertSeeText('Xem')
             ->assertSeeText('Gỡ liên kết');
+        $this->assertMatchesRegularExpression('/<span class="course-product-relation-name">TOPIK Intermediate<\/span>\s*<span class="course-product-relation-code">TOPIK-INT<\/span>/', $response->getContent());
+        $this->assertStringContainsString('class="badge', $response->getContent());
+        $this->assertStringContainsString('course-product-relation-actions', $response->getContent());
+        $this->assertStringNotContainsString('<span aria-hidden="true"> | </span>', $response->getContent());
     }
 
     public function test_admin_can_remove_product_relation_link_only(): void
@@ -1597,7 +1602,39 @@ class CourseProductManagementTest extends TestCase
         ]);
         $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$sourceId}/edit")
             ->assertOk()->assertSeeText('Sản phẩm liên quan (2)')
-            ->assertSee('B\u1ea1n c\u00f3 ch\u1eafc ch\u1eafn mu\u1ed1n g\u1ee1 li\u00ean k\u1ebft s\u1ea3n ph\u1ea9m li\u00ean quan n\u00e0y kh\u00f4ng?', false);
+            ->assertSee('G\u1ee1 li\u00ean k\u1ebft s\u1ea3n ph\u1ea9m?\\n\\nThao t\u00e1c n\u00e0y ch\u1ec9 x\u00f3a quan h\u1ec7 marketing\/b\u00e1n h\u00e0ng', false);
+    }
+
+    public function test_archived_product_relations_are_read_only_and_keep_historical_targets_visible(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $sourceId = $this->createProduct($customerId, 'Archived Source', 'archived-source', status: 'archived');
+        $targetId = $this->createProduct($customerId, 'Historical Target', 'historical-target', status: 'archived');
+        $eligibleId = $this->createProduct($customerId, 'Eligible Target', 'eligible-target');
+        $relationId = $this->createProductRelation($customerId, $sourceId, $targetId);
+
+        $response = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-products/{$sourceId}/edit?tab=relations")
+            ->assertOk()
+            ->assertSeeText('Historical Target')
+            ->assertSeeText('Đã lưu trữ')
+            ->assertSeeText('Xem')
+            ->assertDontSeeText('Gắn sản phẩm liên quan')
+            ->assertDontSeeText('Gỡ liên kết');
+
+        $this->assertStringNotContainsString(route('admin.course-products.relations.store', $sourceId), $response->getContent());
+        $this->assertStringNotContainsString(route('admin.course-products.relations.destroy', [$sourceId, $relationId]), $response->getContent());
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-products/{$sourceId}/relations", [
+            'related_product_id' => $eligibleId,
+        ])->assertForbidden();
+        $this->actingAs($admin)->delete("https://tenant-a.localhost/admin/course-products/{$sourceId}/relations/{$relationId}")
+            ->assertForbidden();
+        $this->assertDatabaseHas('core_course_product_relations', ['id' => $relationId]);
+        $this->assertDatabaseMissing('core_course_product_relations', [
+            'product_id' => $sourceId,
+            'related_product_id' => $eligibleId,
+        ]);
     }
 
     public function test_course_product_module_has_no_eloquent_models(): void

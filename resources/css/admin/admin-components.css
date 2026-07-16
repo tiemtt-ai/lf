@@ -723,6 +723,29 @@
     text-decoration: none;
 }
 
+.admin-danger-text-action {
+    color: var(--admin-danger);
+    text-decoration: none;
+}
+
+.admin-danger-text-action:hover,
+.admin-danger-text-action:focus,
+.admin-danger-text-action:focus-visible {
+    text-decoration: underline;
+}
+
+.admin-danger-text-action:focus-visible {
+    border-radius: 2px;
+    outline: 2px solid var(--admin-danger);
+    outline-offset: 2px;
+}
+
+.admin-danger-text-action:disabled {
+    cursor: not-allowed;
+    opacity: .65;
+    text-decoration: none;
+}
+
 .admin-pagination {
     margin-top: 16px;
 }

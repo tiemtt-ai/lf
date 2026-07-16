@@ -549,6 +549,144 @@
     overflow-wrap: anywhere;
 }
 
+.course-product-relations-section {
+    margin-bottom: 0;
+}
+
+.course-product-relations-help {
+    max-width: 760px;
+    margin: -4px 0 18px;
+    color: var(--admin-text-muted);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.course-product-relation-add-form {
+    max-width: 920px;
+}
+
+.course-product-relation-add-form > .lf-form-label {
+    margin-bottom: 7px;
+    display: block;
+}
+
+.course-product-relation-add-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 10px;
+}
+
+.course-product-relation-add-row > .btn {
+    min-height: 40px;
+    white-space: nowrap;
+}
+
+.course-product-relation-add-row > .btn:disabled {
+    cursor: not-allowed;
+    opacity: .65;
+}
+
+.course-product-relation-option-title,
+.course-product-relation-option-meta {
+    display: block;
+}
+
+.course-product-relation-option-title {
+    color: #1f2937;
+    font-weight: 600;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.course-product-relation-option-meta {
+    margin-top: 3px;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.course-product-relation-combobox-state {
+    margin: 0;
+    padding: 12px;
+    color: var(--admin-text-muted);
+    font-size: 14px;
+}
+
+.course-product-linked-products {
+    min-width: 0;
+}
+
+.course-product-linked-products > .admin-form-section-title {
+    margin-bottom: 12px;
+}
+
+.course-product-relation-empty {
+    padding: 22px;
+    border: 1px dashed #d1d5db;
+    border-radius: 8px;
+    color: var(--admin-text-muted);
+    background: #ffffff;
+    text-align: center;
+}
+
+.course-product-relation-empty p {
+    margin: 0;
+    color: #374151;
+    font-weight: 600;
+}
+
+.course-product-relation-empty span {
+    margin-top: 5px;
+    display: block;
+    font-size: 14px;
+}
+
+.course-product-relations-table th {
+    white-space: nowrap;
+}
+
+.course-product-relations-table td {
+    vertical-align: middle;
+}
+
+.course-product-relations-table th:first-child {
+    width: 38%;
+}
+
+.course-product-relation-name,
+.course-product-relation-code {
+    display: block;
+}
+
+.course-product-relation-name {
+    color: #1f2937;
+    font-weight: 600;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.course-product-relation-code {
+    margin-top: 3px;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.course-product-relation-order {
+    width: 1%;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.course-product-relation-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    white-space: nowrap;
+}
+
 .course-product-version-card {
     min-width: 0;
     padding: 22px 24px;
@@ -1302,6 +1440,80 @@
 }
 
 @media (max-width: 600px) {
+    .course-product-relation-add-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .course-product-relation-add-row > .btn {
+        width: 100%;
+        white-space: normal;
+    }
+
+    .course-product-relations-table-wrap {
+        overflow: visible;
+        border: 0;
+        background: transparent;
+    }
+
+    .course-product-relations-table,
+    .course-product-relations-table tbody,
+    .course-product-relations-table tr,
+    .course-product-relations-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .course-product-relations-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    .course-product-relations-table tr {
+        margin-bottom: 12px;
+        padding: 16px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        background: #ffffff;
+    }
+
+    .lf-admin-page .course-product-relations-table td {
+        padding: 8px 0;
+        display: grid;
+        grid-template-columns: minmax(86px, auto) minmax(0, 1fr);
+        gap: 12px;
+        border-bottom: 1px solid #f3f4f6;
+        text-align: left;
+    }
+
+    .course-product-relations-table td::before {
+        color: var(--admin-text-muted);
+        font-size: 13px;
+        font-weight: 600;
+        content: attr(data-label);
+    }
+
+    .lf-admin-page .course-product-relations-table td:last-child {
+        padding-bottom: 0;
+        border-bottom: 0;
+    }
+
+    .course-product-relation-order {
+        text-align: left;
+    }
+
+    .course-product-relation-actions {
+        white-space: normal;
+    }
+
+    .course-product-relation-actions a,
+    .course-product-relation-actions button {
+        padding: 7px 0;
+    }
+
     .course-product-form-footer {
         align-items: stretch;
         flex-direction: column;
