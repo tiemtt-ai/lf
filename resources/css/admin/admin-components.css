@@ -333,6 +333,16 @@
     grid-column: 1 / -1;
 }
 
+.admin-form-stack {
+    min-width: 0;
+    display: grid;
+    gap: 16px;
+}
+
+.admin-form-stack > .admin-form-conditional {
+    margin-top: 0;
+}
+
 :root.is-backend-sidebar-collapsed .backend-shell .admin-form-field-grid,
 .backend-shell.is-sidebar-collapsed .admin-form-field-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

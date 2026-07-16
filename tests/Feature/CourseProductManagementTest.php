@@ -2114,6 +2114,10 @@ class CourseProductManagementTest extends TestCase
         $this->assertStringContainsString('grid-template-columns: minmax(0, 1fr) minmax(120px, .34fr);', $css);
         $this->assertStringContainsString('.admin-form-field--full {', $css);
         $this->assertStringContainsString('grid-column: 1 / -1;', $css);
+        $this->assertStringContainsString('.admin-form-stack {', $css);
+        $this->assertStringContainsString("display: grid;\n    gap: 16px;", $css);
+        $this->assertStringContainsString('.admin-form-stack > .admin-form-conditional {', $css);
+        $this->assertStringContainsString('margin-top: 0;', $css);
         $this->assertStringContainsString('.admin-form-calculated-summary {', $css);
         $this->assertStringContainsString('.admin-form-footer-danger,', $css);
         $this->assertStringContainsString('.admin-form-footer-primary {', $css);
@@ -2150,7 +2154,24 @@ class CourseProductManagementTest extends TestCase
         $this->assertStringContainsString('aria-controls="course-product-promotion-fields"', $content);
         $this->assertStringContainsString('id="course-product-promotion-fields"', $content);
         $this->assertStringContainsString('x-show="promotion"', $content);
-        $this->assertStringContainsString('class="admin-form-field--full admin-form-calculated-summary"', $content);
+        $this->assertStringContainsString('id="course-product-promotion-flow"', $content);
+        $this->assertStringContainsString('class="admin-form-field--full admin-form-stack"', $content);
+        $promotionFlow = \Illuminate\Support\Str::between(
+            $content,
+            'id="course-product-promotion-flow"',
+            '</output>'
+        );
+        $this->assertStringContainsString('class="admin-form-option-group"', $promotionFlow);
+        $this->assertStringContainsString('class="admin-form-field-grid admin-form-conditional"', $promotionFlow);
+        $this->assertStringContainsString('class="admin-form-calculated-summary"', $promotionFlow);
+        $this->assertTrue(
+            strpos($promotionFlow, 'class="admin-form-option-group"')
+                < strpos($promotionFlow, 'id="course-product-promotion-fields"')
+        );
+        $this->assertTrue(
+            strpos($promotionFlow, 'id="course-product-promotion-fields"')
+                < strpos($promotionFlow, 'class="admin-form-calculated-summary"')
+        );
         $this->assertStringNotContainsString('<input id="selling_price"', $content);
         $this->assertStringContainsString("sellingPrice() { let p=Number(this.price||0), d=Number(this.discount||0); if(!this.promotion) return p.toFixed(2); return Math.max(0,this.discountType==='percentage'?p-(p*d/100):p-d).toFixed(2) }", $content);
 

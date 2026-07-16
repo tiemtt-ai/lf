@@ -237,70 +237,73 @@
                 </select>
             </div>
 
-            <div class="admin-form-field--full admin-form-option-group">
-                <input type="hidden" name="promotion_enabled" value="0">
-                <label class="admin-form-option-panel admin-form-option-panel--compact">
-                    <input type="checkbox" name="promotion_enabled" value="1" x-model="promotion" :aria-expanded="promotion.toString()" aria-controls="course-product-promotion-fields">
-                    <span>
-                        <strong>{{ __('lf.LF_product_v2_apply_promotion') }}</strong>
-                        <small>{{ __('lf.LF_product_v2_promotion_help') }}</small>
-                    </span>
-                </label>
-            </div>
+            <div id="course-product-promotion-flow"
+                 class="admin-form-field--full admin-form-stack">
+                <div class="admin-form-option-group">
+                    <input type="hidden" name="promotion_enabled" value="0">
+                    <label class="admin-form-option-panel admin-form-option-panel--compact">
+                        <input type="checkbox" name="promotion_enabled" value="1" x-model="promotion" :aria-expanded="promotion.toString()" aria-controls="course-product-promotion-fields">
+                        <span>
+                            <strong>{{ __('lf.LF_product_v2_apply_promotion') }}</strong>
+                            <small>{{ __('lf.LF_product_v2_promotion_help') }}</small>
+                        </span>
+                    </label>
+                </div>
 
-            <div id="course-product-promotion-fields"
-                 class="admin-form-field-grid admin-form-field--full admin-form-conditional"
-                 x-show="promotion"
-                 x-cloak>
-                <div class="lf-form-group">
-                    <x-form-label for="discount_type" :value="__('lf.LF_product_v2_discount_type')" />
-                    <select id="discount_type" name="discount_type" class="lf-form-control" x-model="discountType"
-                            @error('discount_type') aria-invalid="true" aria-describedby="discount_type_error" @enderror>
-                        <option value="">{{ __('lf.LF_product_v2_select_discount') }}</option>
-                        <option value="percentage">{{ __('lf.LF_product_v2_percentage') }}</option>
-                        <option value="fixed_amount">{{ __('lf.LF_product_v2_fixed_amount') }}</option>
-                    </select>
-                    @error('discount_type')<p id="discount_type_error" class="lf-form-error">{{ $message }}</p>@enderror
+                <div id="course-product-promotion-fields"
+                     class="admin-form-field-grid admin-form-conditional"
+                     x-show="promotion"
+                     x-cloak>
+                    <div class="lf-form-group">
+                        <x-form-label for="discount_type" :value="__('lf.LF_product_v2_discount_type')" />
+                        <select id="discount_type" name="discount_type" class="lf-form-control" x-model="discountType"
+                                @error('discount_type') aria-invalid="true" aria-describedby="discount_type_error" @enderror>
+                            <option value="">{{ __('lf.LF_product_v2_select_discount') }}</option>
+                            <option value="percentage">{{ __('lf.LF_product_v2_percentage') }}</option>
+                            <option value="fixed_amount">{{ __('lf.LF_product_v2_fixed_amount') }}</option>
+                        </select>
+                        @error('discount_type')<p id="discount_type_error" class="lf-form-error">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="lf-form-group">
+                        <x-form-label for="discount_value" :value="__('lf.LF_product_v2_discount_value_label')" />
+                        <input id="discount_value" name="discount_value" type="number" min="0.01" step="0.01" x-model="discount" class="lf-form-control" placeholder="{{ __('lf.LF_product_v2_discount_value') }}"
+                               @error('discount_value') aria-invalid="true" aria-describedby="discount_value_error" @enderror>
+                        @error('discount_value')<p id="discount_value_error" class="lf-form-error">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="lf-form-group">
+                        <x-form-label for="sale_starts_at" :value="__('lf.LF_product_v2_promotion_starts_at')" />
+                        <input id="sale_starts_at" name="sale_starts_at" type="datetime-local" class="lf-form-control" value="{{ $dateValue('sale_starts_at') }}"
+                               @error('sale_starts_at') aria-invalid="true" aria-describedby="sale_starts_at_error" @enderror>
+                        @error('sale_starts_at')<p id="sale_starts_at_error" class="lf-form-error">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="lf-form-group">
+                        <x-form-label for="sale_ends_at" :value="__('lf.LF_product_v2_promotion_ends_at')" />
+                        <input id="sale_ends_at" name="sale_ends_at" type="datetime-local" class="lf-form-control" value="{{ $dateValue('sale_ends_at') }}"
+                               @error('sale_ends_at') aria-invalid="true" aria-describedby="sale_ends_at_error" @enderror>
+                        @error('sale_ends_at')<p id="sale_ends_at_error" class="lf-form-error">{{ $message }}</p>@enderror
+                    </div>
                 </div>
-                <div class="lf-form-group">
-                    <x-form-label for="discount_value" :value="__('lf.LF_product_v2_discount_value_label')" />
-                    <input id="discount_value" name="discount_value" type="number" min="0.01" step="0.01" x-model="discount" class="lf-form-control" placeholder="{{ __('lf.LF_product_v2_discount_value') }}"
-                           @error('discount_value') aria-invalid="true" aria-describedby="discount_value_error" @enderror>
-                    @error('discount_value')<p id="discount_value_error" class="lf-form-error">{{ $message }}</p>@enderror
-                </div>
-                <div class="lf-form-group">
-                    <x-form-label for="sale_starts_at" :value="__('lf.LF_product_v2_promotion_starts_at')" />
-                    <input id="sale_starts_at" name="sale_starts_at" type="datetime-local" class="lf-form-control" value="{{ $dateValue('sale_starts_at') }}"
-                           @error('sale_starts_at') aria-invalid="true" aria-describedby="sale_starts_at_error" @enderror>
-                    @error('sale_starts_at')<p id="sale_starts_at_error" class="lf-form-error">{{ $message }}</p>@enderror
-                </div>
-                <div class="lf-form-group">
-                    <x-form-label for="sale_ends_at" :value="__('lf.LF_product_v2_promotion_ends_at')" />
-                    <input id="sale_ends_at" name="sale_ends_at" type="datetime-local" class="lf-form-control" value="{{ $dateValue('sale_ends_at') }}"
-                           @error('sale_ends_at') aria-invalid="true" aria-describedby="sale_ends_at_error" @enderror>
-                    @error('sale_ends_at')<p id="sale_ends_at_error" class="lf-form-error">{{ $message }}</p>@enderror
-                </div>
-            </div>
 
-            <output id="selling_price"
-                    class="admin-form-field--full admin-form-calculated-summary"
-                    aria-live="polite">
-                <span class="admin-form-calculated-summary-label">{{ __('lf.LF_product_v2_selling_price') }}</span>
-                <strong class="admin-form-calculated-summary-value">
-                    <span x-text="formatMoney(sellingPrice())"></span>
-                    <span x-text="currency"></span>
-                </strong>
-                <span class="admin-form-calculated-summary-meta"
-                      x-show="promotion && discountType && Number(discount || 0) > 0"
-                      x-cloak>
-                    {{ __('lf.LF_product_v2_save') }}
-                    <span x-text="formatMoney(discountAmount())"></span>
-                    <span x-text="currency"></span>
-                    <span x-show="discountType === 'percentage'">
-                        · <span x-text="`${Number(discount || 0)}%`"></span>
+                <output id="selling_price"
+                        class="admin-form-calculated-summary"
+                        aria-live="polite">
+                    <span class="admin-form-calculated-summary-label">{{ __('lf.LF_product_v2_selling_price') }}</span>
+                    <strong class="admin-form-calculated-summary-value">
+                        <span x-text="formatMoney(sellingPrice())"></span>
+                        <span x-text="currency"></span>
+                    </strong>
+                    <span class="admin-form-calculated-summary-meta"
+                          x-show="promotion && discountType && Number(discount || 0) > 0"
+                          x-cloak>
+                        {{ __('lf.LF_product_v2_save') }}
+                        <span x-text="formatMoney(discountAmount())"></span>
+                        <span x-text="currency"></span>
+                        <span x-show="discountType === 'percentage'">
+                            · <span x-text="`${Number(discount || 0)}%`"></span>
+                        </span>
                     </span>
-                </span>
-            </output>
+                </output>
+            </div>
         </div>
     </section>
 

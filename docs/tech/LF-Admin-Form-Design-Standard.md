@@ -140,6 +140,7 @@ Canonical primitives:
 | Main/compact field grid | `admin-form-field-grid--main-compact` |
 | Field wrapper | `admin-form-field` hoặc shared `lf-form-group` hiện có |
 | Full-width field | `admin-form-field--full` |
+| Stable vertical flow | `admin-form-stack` |
 | Read-only field | `admin-form-readonly` |
 | Option group | `admin-form-option-group` |
 | Option/checkbox panel | `admin-form-option-panel` |
