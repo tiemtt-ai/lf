@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Services\CourseProductMediaAuthorizer;
+use App\Services\CourseProductLifecyclePolicy;
+use App\Services\CourseProductTemplateChangePolicy;
 use App\Services\MediaService;
 use App\Services\MediaThumbnailPresenter;
 use App\Services\TrustedVideoUrlService;
 use App\Support\CourseProductV2;
+use App\Support\AuditLog;
 use App\Support\CourseProductVersionSummaryPresenter;
 use App\Support\SequentialCodeGenerator;
 use App\Support\TenantContext;
@@ -31,7 +34,9 @@ class CourseProductController extends Controller
         private readonly TrustedVideoUrlService $trustedVideos,
         private readonly CourseProductMediaAuthorizer $productMediaAuthorizer,
         private readonly MediaThumbnailPresenter $mediaThumbnails,
-        private readonly CourseProductVersionSummaryPresenter $versionSummaryPresenter
+        private readonly CourseProductVersionSummaryPresenter $versionSummaryPresenter,
+        private readonly CourseProductTemplateChangePolicy $templateChangePolicy,
+        private readonly CourseProductLifecyclePolicy $lifecyclePolicy
     ) {}
 
     public function index(Request $request): View
@@ -43,7 +48,7 @@ class CourseProductController extends Controller
         $status = $request->query('status');
         $visibility = $request->query('visibility');
 
-        if (! in_array($status, self::STATUSES, true)) {
+        if (! in_array($status, [...self::STATUSES, 'all'], true)) {
             $status = null;
         }
 
@@ -61,7 +66,12 @@ class CourseProductController extends Controller
                 });
             })
             ->when($status, function ($query) use ($status): void {
-                $query->where('status', $status);
+                if ($status !== 'all') {
+                    $query->where('status', $status);
+                }
+            })
+            ->when($status === null, function ($query): void {
+                $query->where('status', '!=', 'archived');
             })
             ->when($visibility, function ($query) use ($visibility): void {
                 $query->where('visibility', $visibility);
@@ -152,6 +162,7 @@ class CourseProductController extends Controller
         $customerId = $this->customerId();
         $product = $this->findProduct($customerId, $id);
         $versionState = $this->versionSummaryPresenter->present($customerId, $id, true);
+        $templateChange = $this->templateChangePolicy->decision($product, $customerId);
         $introImageMedia = $this->productMedia($customerId, $product, 'image');
         $introVideoMedia = $this->productMedia($customerId, $product, 'video');
         $introDocumentMedia = $this->productMedia($customerId, $product, 'document');
@@ -187,6 +198,10 @@ class CourseProductController extends Controller
             'introVideoEmbedUrl' => $introVideoEmbedUrl,
             'routePrefix' => $this->routePrefix($request),
             'hasActiveCourseVersion' => $this->productHasActivePublishedVersion($customerId, $id),
+            'templateChange' => $templateChange,
+            'canChangeTemplate' => $templateChange['allowed'],
+            'templateLockReason' => $templateChange['reason'],
+            'allowedStatuses' => $this->lifecyclePolicy->allowedStatuses($product, $customerId),
         ]);
     }
 
@@ -196,12 +211,6 @@ class CourseProductController extends Controller
 
         $customerId = $this->customerId();
         $product = $this->findProduct($customerId, $id);
-        $recoveredInvalidActiveProduct = $product->status === 'active'
-            && $request->input('status') === 'active'
-            && ! $this->productHasActivePublishedVersion($customerId, $id);
-        if ($recoveredInvalidActiveProduct) {
-            $request->merge(['status' => 'draft']);
-        }
         $validated = $this->validatedData($request, $customerId, $id, $product);
 
         $values = $this->withoutMissingSeoValues(
@@ -216,14 +225,26 @@ class CourseProductController extends Controller
         );
 
         DB::transaction(function () use ($request, $validated, $values, $customerId, $id): void {
-            DB::table('core_course_products')->where('customer_id', $customerId)
-                ->where('id', $id)->lockForUpdate()->first(['id']);
-            if (($values['status'] ?? null) === 'active'
-                && ! $this->productHasActivePublishedVersion($customerId, $id)) {
+            $lockedProduct = DB::table('core_course_products')->where('customer_id', $customerId)
+                ->where('id', $id)->lockForUpdate()->first();
+            abort_if(! $lockedProduct, 404);
+            if ($lockedProduct->status === 'archived') {
+                throw ValidationException::withMessages(['status' => __('lf.LF_product_status_archived_readonly')]);
+            }
+            $targetStatus = $validated['status'];
+            if (! $this->lifecyclePolicy->allows($lockedProduct, $customerId, $targetStatus)) {
+                throw ValidationException::withMessages(['status' => $targetStatus === 'draft'
+                    ? __('lf.LF_product_status_used_draft_blocked')
+                    : __('lf.LF_product_status_transition_invalid')]);
+            }
+            if ($targetStatus === 'active' && $lockedProduct->status !== 'active'
+                && ! $this->lifecyclePolicy->activationValid($lockedProduct, $customerId)) {
                 throw ValidationException::withMessages([
                     'status' => __('lf.LF_product_v2_activation_version_required'),
                 ]);
             }
+            $beforeItem = DB::table('core_course_product_items')->where('customer_id', $customerId)
+                ->where('product_id', $id)->orderBy('id')->first(['template_id', 'version_id']);
             DB::table('core_course_products')->where('customer_id', $customerId)->where('id', $id)->update($values);
             if (! empty($validated['template_id'])) {
                 $this->syncPhaseOneItem($customerId, $id, $validated, $request->user()?->id);
@@ -232,33 +253,72 @@ class CourseProductController extends Controller
                 $this->attachIntroMedia($request, $id, $validated);
             }
             $this->attachUploadedMedia($request, $id);
+            if ($lockedProduct->status !== $targetStatus) {
+                $afterItem = DB::table('core_course_product_items')->where('customer_id', $customerId)
+                    ->where('product_id', $id)->orderBy('id')->first(['template_id', 'version_id']);
+                AuditLog::record($request, $customerId,
+                    'course_product_'.$this->lifecyclePolicy->action($lockedProduct->status, $targetStatus), null,
+                    ['product_id' => $id, 'status' => $lockedProduct->status,
+                        'template_id' => $beforeItem?->template_id, 'version_id' => $beforeItem?->version_id],
+                    ['product_id' => $id, 'status' => $targetStatus,
+                        'template_id' => $afterItem?->template_id, 'version_id' => $afterItem?->version_id]);
+            }
         });
 
         return redirect()
             ->route($this->routePrefix($request).'.edit', $id)
-            ->with('success', $recoveredInvalidActiveProduct
-                ? __('lf.LF_course_product_item_common_recovered_inactive')
-                : __('lf.LF_course_product_common_updated'));
+            ->with('success', __('lf.LF_course_product_common_updated'));
     }
 
     public function destroy(Request $request, int $id)
     {
+        return $this->archive($request, $id);
+    }
+
+    public function archive(Request $request, int $id)
+    {
         $this->authorizeAdmin($request);
 
         $customerId = $this->customerId();
-        $this->findProduct($customerId, $id);
-
-        DB::table('core_course_products')
-            ->where('customer_id', $customerId)
-            ->where('id', $id)
-            ->update([
-                'status' => 'archived',
-                'updated_at' => now(),
-            ]);
+        DB::transaction(function () use ($request, $customerId, $id): void {
+            $product = DB::table('core_course_products')->where('customer_id', $customerId)
+                ->where('id', $id)->lockForUpdate()->first();
+            abort_if(! $product, 404);
+            if ($product->status !== 'inactive') {
+                throw ValidationException::withMessages(['status' => __('lf.LF_product_status_archive_requires_inactive')]);
+            }
+            DB::table('core_course_products')->where('customer_id', $customerId)->where('id', $id)
+                ->update(['status' => 'archived', 'updated_at' => now()]);
+            AuditLog::record($request, $customerId, 'course_product_archive', null,
+                ['product_id' => $id, 'status' => 'inactive'],
+                ['product_id' => $id, 'status' => 'archived']);
+        });
 
         return redirect()
             ->route($this->routePrefix($request).'.index')
-            ->with('success', __('lf.LF_course_product_common_archived'));
+            ->with('success', __('lf.LF_product_status_archived_success'));
+    }
+
+    public function restore(Request $request, int $id)
+    {
+        $this->authorizeAdmin($request);
+        $customerId = $this->customerId();
+        DB::transaction(function () use ($request, $customerId, $id): void {
+            $product = DB::table('core_course_products')->where('customer_id', $customerId)
+                ->where('id', $id)->lockForUpdate()->first();
+            abort_if(! $product, 404);
+            if ($product->status !== 'archived') {
+                throw ValidationException::withMessages(['status' => __('lf.LF_product_status_restore_requires_archived')]);
+            }
+            DB::table('core_course_products')->where('customer_id', $customerId)->where('id', $id)
+                ->update(['status' => 'inactive', 'updated_at' => now()]);
+            AuditLog::record($request, $customerId, 'course_product_restore', null,
+                ['product_id' => $id, 'status' => 'archived'],
+                ['product_id' => $id, 'status' => 'inactive']);
+        });
+
+        return redirect()->route($this->routePrefix($request).'.edit', $id)
+            ->with('success', __('lf.LF_product_status_restored'));
     }
 
     public function storeItem(Request $request, int $productId)
@@ -278,6 +338,9 @@ class CourseProductController extends Controller
             $product = DB::table('core_course_products')->where('customer_id', $customerId)
                 ->where('id', $productId)->lockForUpdate()->first(['id', 'status', 'product_type']);
             abort_if(! $product, 404);
+            if ($product->status === 'archived') {
+                throw ValidationException::withMessages(['version_id' => __('lf.LF_product_status_archived_readonly')]);
+            }
             $items = DB::table('core_course_product_items')
                 ->where('customer_id', $customerId)->where('product_id', $productId)
                 ->orderBy('sort_order')->orderBy('id')->lockForUpdate()
@@ -481,7 +544,32 @@ class CourseProductController extends Controller
                     ->where('customer_id', $customerId)->where('product_id', $productId)
                     ->whereNotNull('version_id')->first(['template_id']);
                 if ($linkedItem && (int) $linkedItem->template_id !== $templateId) {
-                    $validator->errors()->add('template_id', __('lf.LF_product_v2_template_change_blocked'));
+                    $decision = $this->templateChangePolicy->decision(
+                        $product,
+                        $customerId,
+                        $input['status'] ?? $product?->status
+                    );
+                    if (! $decision['allowed']) {
+                        $validator->errors()->add('template_id', __(
+                            $decision['reason'] === 'used'
+                                ? 'lf.LF_product_v2_template_change_used'
+                                : 'lf.LF_product_v2_template_change_draft_required'
+                        ));
+                    }
+                    if (empty($input['template_version_id'])) {
+                        $validator->errors()->add('template_version_id', __('lf.LF_product_v2_template_change_version_required'));
+                    }
+                }
+            }
+            if (! empty($input['template_version_id'])) {
+                $validVersion = DB::table('core_course_template_versions')
+                    ->where('customer_id', $customerId)
+                    ->where('template_id', $templateId)
+                    ->where('id', (int) $input['template_version_id'])
+                    ->where('status', 'published')
+                    ->exists();
+                if (! $validVersion) {
+                    $validator->errors()->add('template_version_id', __('lf.LF_course_product_item_validation_published_version'));
                 }
             }
 
@@ -489,7 +577,7 @@ class CourseProductController extends Controller
                 && (float) ($input['discount_value'] ?? 0) > (float) ($input['price'] ?? 0)) {
                 $validator->errors()->add('discount_value', __('lf.LF_product_v2_discount_too_large'));
             }
-            if (($input['status'] ?? null) === 'active') {
+            if (($input['status'] ?? null) === 'active' && (! $product || $product->status !== 'active')) {
                 $version = DB::table('core_course_product_items as items')
                     ->join('core_course_template_versions as versions', 'versions.id', '=', 'items.version_id')
                     ->where('items.customer_id', $customerId)->where('items.product_id', $productId)
@@ -527,6 +615,7 @@ class CourseProductController extends Controller
         return [
             'category_id' => [$legacy ? 'nullable' : 'required', 'integer', Rule::exists('core_course_categories', 'id')->where(fn ($q) => $q->where('customer_id', $customerId))],
             'template_id' => [$legacy ? 'nullable' : 'required', 'integer'],
+            'template_version_id' => ['nullable', 'integer', 'min:1'],
             'offering_type' => [$legacy ? 'nullable' : 'required', Rule::in(CourseProductV2::OFFERING_TYPES)],
             'title' => ['required', 'string', 'max:255'],
             'slug' => [
@@ -603,7 +692,7 @@ class CourseProductController extends Controller
     private function validationInput(Request $request): array
     {
         $fields = [
-            'category_id', 'template_id', 'offering_type',
+            'category_id', 'template_id', 'template_version_id', 'offering_type',
             'uses_custom_description', 'uses_custom_intro_media',
             'title',
             'slug',
@@ -934,7 +1023,12 @@ class CourseProductController extends Controller
                 'versions.is_current',
                 'templates.category_id as template_category_id'
             )
-            ->get();
+            ->get()
+            ->each(function (object $item): void {
+                $item->version_number_label = $item->version_number === null
+                    ? null
+                    : $this->versionSummaryPresenter->versionNumberLabel((int) $item->version_number);
+            });
     }
 
     private function publishedVersions(int $customerId, int $productId)
@@ -1031,23 +1125,57 @@ class CourseProductController extends Controller
 
     private function syncPhaseOneItem(int $customerId, int $productId, array $validated, ?int $actorId): void
     {
+        $product = DB::table('core_course_products')
+            ->where('customer_id', $customerId)
+            ->where('id', $productId)
+            ->lockForUpdate()
+            ->first(['id', 'product_type', 'status']);
+        abort_if(! $product, 404);
         $item = DB::table('core_course_product_items')
             ->where('customer_id', $customerId)
             ->where('product_id', $productId)
             ->orderBy('sort_order')->orderBy('id')->lockForUpdate()->first();
         if ($item) {
-            if ($item->version_id || (int) $item->template_id === (int) $validated['template_id']) {
+            if ((int) $item->template_id === (int) $validated['template_id']) {
                 return;
+            }
+            $decision = $this->templateChangePolicy->decision($product, $customerId, $validated['status']);
+            if (! $decision['allowed']) {
+                throw ValidationException::withMessages([
+                    'template_id' => __($decision['reason'] === 'used'
+                        ? 'lf.LF_product_v2_template_change_used'
+                        : 'lf.LF_product_v2_template_change_draft_required'),
+                ]);
+            }
+            $version = DB::table('core_course_template_versions')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $validated['template_id'])
+                ->where('id', $validated['template_version_id'] ?? 0)
+                ->where('status', 'published')
+                ->lockForUpdate()
+                ->first(['id']);
+            if (! $version) {
+                throw ValidationException::withMessages([
+                    'template_version_id' => __('lf.LF_course_product_item_validation_published_version'),
+                ]);
             }
             DB::table('core_course_product_items')->where('customer_id', $customerId)
                 ->where('product_id', $productId)->where('id', $item->id)
-                ->update(['template_id' => $validated['template_id'], 'updated_at' => now()]);
+                ->update([
+                    'template_id' => $validated['template_id'],
+                    'version_id' => $version->id,
+                    'sort_order' => 0,
+                    'is_required' => true,
+                    'status' => 'active',
+                    'updated_at' => now(),
+                ]);
             return;
         }
 
         DB::table('core_course_product_items')->insert(
             ['customer_id' => $customerId, 'product_id' => $productId, 'template_id' => $validated['template_id'],
-                'version_id' => null, 'title_override' => null, 'short_description_override' => null,
+                'version_id' => $validated['template_version_id'] ?? null,
+                'title_override' => null, 'short_description_override' => null,
                 'sort_order' => 0, 'is_required' => true, 'status' => 'active', 'created_by' => $actorId,
                 'updated_at' => now(), 'created_at' => now()]
         );

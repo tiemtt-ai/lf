@@ -186,7 +186,7 @@ class CourseProductManagementTest extends TestCase
             $customerId,
             'TOPIK Beginner',
             'topik-beginner',
-            status: 'draft'
+            status: 'active'
         );
 
         $this->actingAs($admin)
@@ -1053,7 +1053,7 @@ class CourseProductManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_product_items', ['id' => $itemId, 'template_id' => $templateId, 'version_id' => $versionId]);
     }
 
-    public function test_existing_invalid_active_product_is_recovered_to_draft_on_overview_save(): void
+    public function test_existing_invalid_active_product_is_not_silently_moved_to_draft(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -1063,7 +1063,7 @@ class CourseProductManagementTest extends TestCase
         $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$productId}",
             $this->validProductV2Data($categoryId, $templateId, ['title' => 'Invalid Active', 'status' => 'active']))
             ->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('core_course_products', ['id' => $productId, 'status' => 'draft']);
+        $this->assertDatabaseHas('core_course_products', ['id' => $productId, 'status' => 'active']);
         $this->assertDatabaseHas('core_course_product_items', ['product_id' => $productId, 'template_id' => $templateId, 'version_id' => null]);
     }
 
@@ -1792,6 +1792,39 @@ class CourseProductManagementTest extends TestCase
         ]);
     }
 
+    private function createEnrollmentUsage(
+        int $customerId,
+        int $productId,
+        int $versionId,
+        int $studentId,
+        int $adminId
+    ): int {
+        $now = now();
+
+        return DB::table('core_course_enrollments')->insertGetId([
+            'customer_id' => $customerId,
+            'product_id' => $productId,
+            'version_id' => $versionId,
+            'student_id' => $studentId,
+            'source' => 'admin',
+            'source_id' => null,
+            'enrolled_by' => $adminId,
+            'enrolled_at' => $now,
+            'access_starts_at' => null,
+            'access_ends_at' => null,
+            'review_starts_at' => null,
+            'review_ends_at' => null,
+            'status' => 'active',
+            'notes' => null,
+            'completed_at' => null,
+            'cancelled_at' => null,
+            'expired_at' => null,
+            'metadata' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
     private function createDraftProductTemplateItem(int $customerId, int $productId, int $versionId): int
     {
         return DB::table('core_course_product_items')->insertGetId([
@@ -1948,6 +1981,30 @@ class CourseProductManagementTest extends TestCase
             ->assertSeeText('Bản nháp');
     }
 
+    public function test_create_product_keeps_template_enabled_and_persists_selected_published_version(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $versionId = $this->createVersion($customerId, $admin->id, 'Create Version', templateId: $templateId, versionNumber: 8);
+
+        $response = $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-products/create')->assertOk();
+        $this->assertMatchesRegularExpression('/<select(?=[^>]*\bid="template_id")(?=[^>]*\bname="template_id")(?![^>]*\bdisabled\b)[^>]*>/', $response->getContent());
+        $this->assertMatchesRegularExpression('/<option\s+value="'.preg_quote((string) $templateId, '/').'"[^>]*>[^<]+<\/option>/', $response->getContent());
+        $this->assertStringContainsString('id="template_version_id"', $response->getContent());
+        $this->assertMatchesRegularExpression('/<option\s+value="'.preg_quote((string) $versionId, '/').'"[^>]*>\s*Phiên bản 8 · VERSION-/', $response->getContent());
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products',
+            $this->validProductV2Data($categoryId, $templateId, [
+                'title' => 'Created With Version', 'template_version_id' => $versionId,
+            ]))->assertSessionHasNoErrors();
+
+        $productId = DB::table('core_course_products')->where('title', 'Created With Version')->value('id');
+        $this->assertDatabaseHas('core_course_product_items', [
+            'product_id' => $productId, 'template_id' => $templateId, 'version_id' => $versionId,
+        ]);
+    }
+
     public function test_product_template_can_change_before_a_version_is_linked(): void
     {
         $customerId = $this->createTenant();
@@ -1955,16 +2012,19 @@ class CourseProductManagementTest extends TestCase
         [$categoryId, $firstTemplateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
         $secondTemplateId = $this->createTemplate($customerId, $admin->id, 'Replacement Template');
         DB::table('core_course_templates')->where('id', $secondTemplateId)->update(['category_id' => $categoryId]);
+        $secondVersionId = $this->createVersion($customerId, $admin->id, 'Replacement Version', templateId: $secondTemplateId);
 
         $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products', $this->validProductV2Data($categoryId, $firstTemplateId, ['title' => 'Changeable Product']))->assertSessionHasNoErrors();
         $productId = DB::table('core_course_products')->where('title', 'Changeable Product')->value('id');
-        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$productId}", $this->validProductV2Data($categoryId, $secondTemplateId, ['title' => 'Changeable Product']))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$productId}", $this->validProductV2Data($categoryId, $secondTemplateId, [
+            'title' => 'Changeable Product', 'template_version_id' => $secondVersionId,
+        ]))->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('core_course_product_items', ['product_id' => $productId, 'template_id' => $secondTemplateId, 'version_id' => null]);
+        $this->assertDatabaseHas('core_course_product_items', ['product_id' => $productId, 'template_id' => $secondTemplateId, 'version_id' => $secondVersionId]);
         $this->assertDatabaseMissing('core_course_product_items', ['product_id' => $productId, 'template_id' => $firstTemplateId]);
     }
 
-    public function test_product_template_change_is_blocked_when_a_version_is_linked_without_mutating_history(): void
+    public function test_unused_draft_product_can_atomically_change_template_and_linked_version(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -1972,15 +2032,138 @@ class CourseProductManagementTest extends TestCase
         $secondTemplateId = $this->createTemplate($customerId, $admin->id, 'Blocked Replacement');
         DB::table('core_course_templates')->where('id', $secondTemplateId)->update(['category_id' => $categoryId]);
         $versionId = $this->createVersion($customerId, $admin->id, 'Linked Version', templateId: $firstTemplateId);
+        $replacementVersionId = $this->createVersion($customerId, $admin->id, 'Replacement Version', templateId: $secondTemplateId);
         $productId = $this->createProduct($customerId, 'Frozen Product', 'frozen-product');
         $itemId = $this->createProductItem($customerId, $productId, $versionId);
 
-        $this->actingAs($admin)->from("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
-            ->put("https://tenant-a.localhost/admin/course-products/{$productId}", $this->validProductV2Data($categoryId, $secondTemplateId, ['title' => 'Frozen Product']))
-            ->assertRedirect("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
-            ->assertSessionHasErrors('template_id');
+        $editResponse = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")->assertOk();
+        $this->assertMatchesRegularExpression('/<select(?=[^>]*\bid="template_id")(?=[^>]*\bname="template_id")(?![^>]*\bdisabled\b)[^>]*>/', $editResponse->getContent());
+        $this->assertMatchesRegularExpression('/<option\s+value="'.preg_quote((string) $firstTemplateId, '/').'"[^>]*selected[^>]*>/', $editResponse->getContent());
+        $this->assertMatchesRegularExpression('/<option\s+value="'.preg_quote((string) $secondTemplateId, '/').'"[^>]*>Blocked Replacement<\/option>/', $editResponse->getContent());
+        $this->assertStringNotContainsString('gỡ liên kết phiên bản', mb_strtolower($editResponse->getContent()));
 
-        $this->assertDatabaseHas('core_course_product_items', ['id' => $itemId, 'template_id' => $firstTemplateId, 'version_id' => $versionId]);
+        $this->actingAs($admin)->from("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->put("https://tenant-a.localhost/admin/course-products/{$productId}", $this->validProductV2Data($categoryId, $secondTemplateId, [
+                'title' => 'Frozen Product', 'template_version_id' => $replacementVersionId,
+            ]))
+            ->assertRedirect("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('core_course_product_items', ['id' => $itemId, 'template_id' => $secondTemplateId, 'version_id' => $replacementVersionId]);
+        $this->assertDatabaseCount('core_course_product_items', 1);
+    }
+
+    public function test_active_unused_product_must_target_draft_before_changing_template(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        [$categoryId, $firstTemplateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $secondTemplateId = $this->createTemplate($customerId, $admin->id, 'Active Replacement');
+        DB::table('core_course_templates')->where('id', $secondTemplateId)->update(['category_id' => $categoryId]);
+        $firstVersionId = $this->createVersion($customerId, $admin->id, 'Active Version', templateId: $firstTemplateId);
+        $secondVersionId = $this->createVersion($customerId, $admin->id, 'Replacement Version', templateId: $secondTemplateId);
+        $productId = $this->createProduct($customerId, 'Active Unused', 'active-unused', status: 'active');
+        $itemId = $this->createProductItem($customerId, $productId, $firstVersionId);
+
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$productId}",
+            $this->validProductV2Data($categoryId, $secondTemplateId, [
+                'title' => 'Active Unused', 'status' => 'active', 'template_version_id' => $secondVersionId,
+            ]))->assertSessionHasErrors('template_id');
+        $this->assertDatabaseHas('core_course_product_items', ['id' => $itemId, 'template_id' => $firstTemplateId]);
+
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$productId}",
+            $this->validProductV2Data($categoryId, $secondTemplateId, [
+                'title' => 'Active Unused', 'status' => 'draft', 'template_version_id' => $secondVersionId,
+            ]))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_products', ['id' => $productId, 'status' => 'draft']);
+        $this->assertDatabaseHas('core_course_product_items', ['id' => $itemId, 'template_id' => $secondTemplateId, 'version_id' => $secondVersionId]);
+    }
+
+    public function test_enrollment_usage_blocks_template_change_in_every_product_status(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        [$categoryId, $firstTemplateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $secondTemplateId = $this->createTemplate($customerId, $admin->id, 'Used Replacement');
+        DB::table('core_course_templates')->where('id', $secondTemplateId)->update(['category_id' => $categoryId]);
+        $firstVersionId = $this->createVersion($customerId, $admin->id, 'Used Version', templateId: $firstTemplateId);
+        $secondVersionId = $this->createVersion($customerId, $admin->id, 'Replacement Version', templateId: $secondTemplateId);
+        $productId = $this->createProduct($customerId, 'Used Draft', 'used-draft', status: 'draft');
+        $itemId = $this->createProductItem($customerId, $productId, $firstVersionId);
+        $this->createEnrollmentUsage($customerId, $productId, $firstVersionId, $student->id, $admin->id);
+
+        $this->actingAs($admin)->from("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->put("https://tenant-a.localhost/admin/course-products/{$productId}",
+                $this->validProductV2Data($categoryId, $secondTemplateId, [
+                    'title' => 'Used Draft', 'status' => 'draft', 'template_version_id' => $secondVersionId,
+                ]))->assertSessionHasErrors('template_id');
+
+        $this->assertDatabaseHas('core_course_product_items', ['id' => $itemId, 'template_id' => $firstTemplateId, 'version_id' => $firstVersionId]);
+        $lockedResponse = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->assertOk()
+            ->assertSeeText('Không thể đổi Course Template vì sản phẩm đã phát sinh dữ liệu sử dụng.')
+            ->assertSeeText('VERSION-'.$firstTemplateId.'-1 · Đã xuất bản');
+        $this->assertStringNotContainsString('<select id="template_id"', $lockedResponse->getContent());
+        $this->assertMatchesRegularExpression('/<div id="template_id"[^>]*>[^<]+<\/div>/', $lockedResponse->getContent());
+    }
+
+    public function test_used_active_product_can_be_deactivated_but_cannot_return_to_draft(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $versionId = $this->createVersion($customerId, $admin->id, 'Used Active Version', templateId: $templateId);
+        $productId = $this->createProduct($customerId, 'Used Active', 'used-active', status: 'active');
+        $this->createProductItem($customerId, $productId, $versionId);
+        $enrollmentId = $this->createEnrollmentUsage($customerId, $productId, $versionId, $student->id, $admin->id);
+
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$productId}",
+            $this->validProductV2Data($categoryId, $templateId, ['title' => 'Used Active', 'status' => 'draft']))
+            ->assertSessionHasErrors('status');
+        $this->assertDatabaseHas('core_course_products', ['id' => $productId, 'status' => 'active']);
+
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$productId}",
+            $this->validProductV2Data($categoryId, $templateId, ['title' => 'Used Active', 'status' => 'inactive']))
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_products', ['id' => $productId, 'status' => 'inactive']);
+        $this->assertDatabaseHas('core_course_enrollments', ['id' => $enrollmentId, 'version_id' => $versionId, 'status' => 'active']);
+        $this->assertDatabaseHas('saas_audit_logs', ['customer_id' => $customerId, 'action' => 'course_product_deactivate']);
+    }
+
+    public function test_inactive_archive_and_archived_restore_use_dedicated_actions(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Lifecycle Product', 'lifecycle-product', status: 'inactive');
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-products/{$productId}/archive")
+            ->assertRedirect('https://tenant-a.localhost/admin/course-products');
+        $this->assertDatabaseHas('core_course_products', ['id' => $productId, 'status' => 'archived']);
+        $this->assertDatabaseHas('saas_audit_logs', ['customer_id' => $customerId, 'action' => 'course_product_archive']);
+
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-products')
+            ->assertOk()->assertDontSeeText('Lifecycle Product');
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-products?status=archived')
+            ->assertOk()->assertSeeText('Lifecycle Product');
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-products/{$productId}/restore")
+            ->assertRedirect("https://tenant-a.localhost/admin/course-products/{$productId}/edit");
+        $this->assertDatabaseHas('core_course_products', ['id' => $productId, 'status' => 'inactive']);
+        $this->assertDatabaseHas('saas_audit_logs', ['customer_id' => $customerId, 'action' => 'course_product_restore']);
+    }
+
+    public function test_active_product_cannot_be_archived_directly(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Direct Archive', 'direct-archive', status: 'active');
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-products/{$productId}/archive")
+            ->assertSessionHasErrors('status');
+        $this->assertDatabaseHas('core_course_products', ['id' => $productId, 'status' => 'active']);
+        $this->assertDatabaseMissing('saas_audit_logs', ['customer_id' => $customerId, 'action' => 'course_product_archive']);
     }
 
     public function test_product_v2_activation_requires_current_published_version_and_validates_self_paced_fields(): void
@@ -2046,15 +2229,17 @@ class CourseProductManagementTest extends TestCase
             'status' => 'active', 'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
         ]);
         DB::table('core_course_templates')->where('id', $templateId)->update(['category_id' => $categoryId]);
-        $boundVersionId = $this->createVersion($customerId, $admin->id, 'Bound', 'published', $templateId, 1, false);
+        $boundVersionId = $this->createVersion($customerId, $admin->id, 'Bound', 'published', $templateId, 37, false);
         $newerVersionId = $this->createVersion($customerId, $admin->id, 'Newer', 'published', $templateId, 2, true);
+        $lessonId = $this->createVersionLesson($customerId, $boundVersionId);
+        $this->createVersionActivity($customerId, $boundVersionId, $lessonId);
         $productId = $this->createProduct($customerId, 'Active Immutable', 'active-immutable', status: 'active');
         $itemId = $this->createProductItem($customerId, $productId, $boundVersionId);
         DB::table('core_course_product_items')->where('id', $itemId)->update(['template_id' => $templateId]);
 
-        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+        $response = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
-            ->assertSeeText('VERSION-'.$templateId.'-1 · Đã xuất bản')
+            ->assertSeeTextInOrder(['VERSION-'.$templateId.'-37 · Đã xuất bản', 'Phiên bản 37 · 1 bài học · 1 hoạt động'])
             ->assertDontSeeText('VERSION-'.$templateId.'-2 · Đã xuất bản')
             ->assertSee(route('admin.course-templates.versions.show', [
                 'templateId' => $templateId, 'versionId' => $boundVersionId,
@@ -2062,6 +2247,12 @@ class CourseProductManagementTest extends TestCase
             ->assertDontSee(route('admin.course-templates.versions.show', [
                 'templateId' => $templateId, 'versionId' => $newerVersionId,
             ]), false);
+        $this->assertStringNotContainsString('lf-product-version-summary-number', $response->getContent());
+
+        $this->withSession(['locale' => 'en'])->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->assertOk()
+            ->assertSeeTextInOrder(['VERSION-'.$templateId.'-37 · Published', 'Version 37 · 1 lesson · 1 activity']);
 
         $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$productId}", [
             'category_id' => $categoryId, 'template_id' => $templateId, 'title' => 'Active Immutable Updated',
@@ -2072,6 +2263,31 @@ class CourseProductManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_product_items', [
             'product_id' => $productId, 'template_id' => $templateId, 'version_id' => $boundVersionId,
         ]);
+    }
+
+    public function test_product_version_summary_query_count_does_not_grow_with_template_count(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Bound Template');
+        $versionId = $this->createVersion($customerId, $admin->id, 'Bound Version', 'published', $templateId, 9);
+        $productId = $this->createProduct($customerId, 'Query Product', 'query-product');
+        $this->createProductItem($customerId, $productId, $versionId);
+
+        foreach (range(1, 5) as $number) {
+            $extraTemplateId = $this->createTemplate($customerId, $admin->id, 'Extra '.$number);
+            $this->createVersion($customerId, $admin->id, 'Extra Version '.$number, 'published', $extraTemplateId, $number);
+        }
+
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = $query->sql;
+        });
+
+        app(\App\Support\CourseProductVersionSummaryPresenter::class)
+            ->present($customerId, $productId, true);
+
+        $this->assertCount(6, $queries);
     }
 
     public function test_product_v2_mismatched_bound_version_is_not_exposed_or_replaced(): void

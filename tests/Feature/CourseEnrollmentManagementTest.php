@@ -196,6 +196,26 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertDatabaseCount('core_course_enrollments', 0);
     }
 
+    public function test_inactive_and_archived_products_do_not_accept_new_enrollments(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+
+        foreach (['inactive', 'archived'] as $status) {
+            $productId = $this->createProduct($customerId, ucfirst($status).' Product', $status.'-product', status: $status);
+            $versionId = $this->createVersion($customerId, $admin->id, title: ucfirst($status).' Version');
+            $this->createProductItem($customerId, $productId, $versionId);
+
+            $this->actingAs($admin)->from('https://tenant-a.localhost/admin/course-enrollments/create')
+                ->post('https://tenant-a.localhost/admin/course-enrollments', $this->validEnrollmentData([
+                    'student_id' => $student->id, 'product_id' => $productId,
+                ]))->assertSessionHasErrors('product_id');
+        }
+
+        $this->assertDatabaseCount('core_course_enrollments', 0);
+    }
+
     public function test_unpublished_resolved_version_fails(): void
     {
         $customerId = $this->createTenant();

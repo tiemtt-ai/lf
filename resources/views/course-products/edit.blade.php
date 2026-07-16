@@ -112,17 +112,30 @@
                     @csrf
                     @method('PUT')
 
+                    @if($product->status === 'archived')<fieldset disabled>@endif
                     @include('course-products.partials.form')
+                    @if($product->status === 'archived')</fieldset>@endif
 
                     <div class="admin-form-actions">
-                        <button type="submit" class="btn btn-primary">
-                            {{ __('lf.LF_common_button_save_changes') }}
-                        </button>
+                        @if($product->status !== 'archived')
+                            <button type="submit" class="btn btn-primary">{{ __('lf.LF_common_button_save_changes') }}</button>
+                        @endif
                         <a href="{{ route($routePrefix.'.index') }}">
                             {{ __('lf.LF_common_button_cancel') }}
                         </a>
                     </div>
                 </form>
+                @if($product->status === 'inactive')
+                    <form method="POST" action="{{ route($routePrefix.'.archive', $product->id) }}" onsubmit="return window.confirm(@js(__('lf.LF_product_status_archive_confirm')))">
+                        @csrf
+                        <button type="submit" class="btn btn-secondary">{{ __('lf.LF_product_status_archive_action') }}</button>
+                    </form>
+                @elseif($product->status === 'archived')
+                    <form method="POST" action="{{ route($routePrefix.'.restore', $product->id) }}" onsubmit="return window.confirm(@js(__('lf.LF_product_status_restore_confirm')))">
+                        @csrf
+                        <button type="submit" class="btn btn-primary">{{ __('lf.LF_product_status_restore_action') }}</button>
+                    </form>
+                @endif
             </div>
         </section>
 
@@ -152,7 +165,7 @@
                                 <div class="course-product-version-detail">
                                     <span class="course-product-version-label">{{ __('lf.LF_course_product_item_common_current_version') }}</span>
                                     <p class="course-product-version-value">
-                                        {{ __('lf.LF_course_product_item_common_version_number', ['number' => $initialItem->version_number]) }}
+                                        {{ $initialItem->version_number_label }}
                                         <span aria-hidden="true">·</span>
                                         {{ $initialItem->version_code }}
                                     </p>

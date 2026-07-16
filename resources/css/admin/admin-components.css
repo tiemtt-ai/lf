@@ -120,6 +120,7 @@
 .lf-admin-page .lf-product-version-summary p {
     min-width: 0;
     margin: 0;
+    overflow-wrap: anywhere;
 }
 
 .lf-admin-page .lf-product-version-summary-heading {

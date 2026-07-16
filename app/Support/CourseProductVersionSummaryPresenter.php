@@ -34,6 +34,7 @@ class CourseProductVersionSummaryPresenter
                 'templates.category_id',
                 'templates.title as name',
                 'versions.id as version_id',
+                'versions.version_number',
                 'versions.version_code',
                 'versions.status as version_status',
                 DB::raw('COALESCE(lesson_counts.lesson_count, 0) as lesson_count'),
@@ -44,6 +45,25 @@ class CourseProductVersionSummaryPresenter
         foreach ($templates as $template) {
             $template->version_summary = null;
             $template->integrity_warning = null;
+            $template->published_versions = [];
+        }
+
+        $publishedVersions = DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)
+            ->where('status', 'published')
+            ->orderByDesc('version_number')
+            ->get(['id', 'template_id', 'version_number', 'version_code', 'published_at']);
+        foreach ($publishedVersions as $version) {
+            $template = $templates->firstWhere('id', $version->template_id);
+            if ($template) {
+                $template->published_versions[] = [
+                    'id' => (int) $version->id,
+                    'number_label' => $this->versionNumberLabel((int) $version->version_number),
+                    'code' => $version->version_code,
+                    'published_at' => $version->published_at
+                        ? date('d/m/Y', strtotime($version->published_at)) : null,
+                ];
+            }
         }
 
         $item = $productId ? DB::table('core_course_product_items')
@@ -97,7 +117,7 @@ class CourseProductVersionSummaryPresenter
             ->where('template_id', $templateId)
             ->where('id', $versionId)
             ->whereIn('status', ['published', 'deprecated', 'archived'])
-            ->first(['id as version_id', 'template_id', 'version_code', 'status as version_status']);
+            ->first(['id as version_id', 'template_id', 'version_number', 'version_code', 'status as version_status']);
 
         if ($version) {
             $version->lesson_count = $lessonCounts;
@@ -111,6 +131,8 @@ class CourseProductVersionSummaryPresenter
     {
         return [
             'id' => (int) $version->version_id,
+            'number' => (int) $version->version_number,
+            'number_label' => $this->versionNumberLabel((int) $version->version_number),
             'code' => $version->version_code,
             'status' => $version->version_status,
             'status_label' => __('lf.LF_course_template_version_status_'.$version->version_status),
@@ -128,5 +150,12 @@ class CourseProductVersionSummaryPresenter
                 'versionId' => $version->version_id,
             ]) : null,
         ];
+    }
+
+    public function versionNumberLabel(int $versionNumber): string
+    {
+        return __('lf.LF_course_product_item_common_version_number', [
+            'number' => $versionNumber,
+        ]);
     }
 }

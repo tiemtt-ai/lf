@@ -134,6 +134,7 @@ class CourseEnrollmentController extends Controller
             DB::table('core_course_products')
                 ->where('customer_id', $customerId)
                 ->where('id', $validated['product_id'])
+                ->where('status', 'active')
                 ->lockForUpdate()
                 ->firstOrFail(['id']);
             $version = $this->resolveVersion(
@@ -407,6 +408,7 @@ class CourseEnrollmentController extends Controller
     {
         return DB::table('core_course_products')
             ->where('customer_id', $customerId)
+            ->where('status', 'active')
             ->orderBy('title')
             ->select('id', 'title', 'product_code', 'status')
             ->get();
@@ -426,6 +428,7 @@ class CourseEnrollmentController extends Controller
         return DB::table('core_course_products')
             ->where('customer_id', $customerId)
             ->where('id', $productId)
+            ->where('status', 'active')
             ->exists();
     }
 

@@ -110,6 +110,12 @@ if ($registerCourseProductRoutes ?? false) {
     Route::put('/course-products/{id}', [CourseProductController::class, 'update'])
         ->name('course-products.update');
 
+    Route::post('/course-products/{id}/archive', [CourseProductController::class, 'archive'])
+        ->name('course-products.archive');
+
+    Route::post('/course-products/{id}/restore', [CourseProductController::class, 'restore'])
+        ->name('course-products.restore');
+
     Route::get('/course-products/{productId}/media/{slot}/{mediaFileId}', [CourseProductMediaPreviewController::class, 'show'])
         ->whereIn('slot', ['image', 'video', 'document'])
         ->name('course-products.media.preview');
