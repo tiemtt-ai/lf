@@ -28,6 +28,7 @@
     currency: @js(old('currency', $formProduct?->currency ?? 'VND')),
     price: @js((string) old('price', $formProduct?->price ?? '0')),
     discount: @js((string) old('discount_value', $formProduct?->discount_value ?? '')),
+    priceDisplay: '', discountDisplay: '',
     generatedSlug: @js($generatedSlug),
     persistedStatus: @js((string) ($formProduct?->status ?? '')),
     persistedTemplate: @js($persistedTemplate), templateVersion: @js((string) old('template_version_id', '')), submittingProduct: false,
@@ -35,7 +36,39 @@
     slugify(v) { return v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') },
     sellingPrice() { let p=Number(this.price||0), d=Number(this.discount||0); if(!this.promotion) return p.toFixed(2); return Math.max(0,this.discountType==='percentage'?p-(p*d/100):p-d).toFixed(2) },
     discountAmount() { return Math.max(0, Number(this.price||0) - Number(this.sellingPrice())) },
-    formatMoney(value) { return new Intl.NumberFormat(document.documentElement.lang === 'vi' ? 'vi-VN' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value || 0)) },
+    moneyLocale() { return document.documentElement.lang === 'vi' ? 'vi-VN' : 'en-US' },
+    moneyFractionDigits() { return this.currency === 'USD' ? 2 : 0 },
+    formatMoney(value) {
+        return new Intl.NumberFormat(this.moneyLocale(), {
+            minimumFractionDigits: this.moneyFractionDigits(),
+            maximumFractionDigits: this.moneyFractionDigits(),
+        }).format(Number(value || 0))
+    },
+    normalizeMoney(value) {
+        const text = String(value ?? '').trim()
+        if (!text) return ''
+        if (this.moneyFractionDigits() === 0) return text.replace(/\D/g, '')
+        const decimalSeparator = this.moneyLocale() === 'vi-VN' ? ',' : '.'
+        const groupingSeparator = decimalSeparator === ',' ? '.' : ','
+        const normalized = text.replace(new RegExp(`\\${groupingSeparator}`, 'g'), '').replace(decimalSeparator, '.').replace(/[^\d.]/g, '')
+        const [whole = '', ...fraction] = normalized.split('.')
+        return fraction.length ? `${whole || '0'}.${fraction.join('').slice(0, 2)}` : whole
+    },
+    formatMoneyInput(value) { return value === '' ? '' : this.formatMoney(value) },
+    updatePrice(value) { this.price = this.normalizeMoney(value); this.priceDisplay = this.formatMoneyInput(this.price) },
+    updateDiscount(value) {
+        if (this.discountType === 'fixed_amount') {
+            this.discount = this.normalizeMoney(value)
+            this.discountDisplay = this.formatMoneyInput(this.discount)
+            return
+        }
+        this.discount = String(value ?? '').replace(/[^\d.]/g, '')
+        this.discountDisplay = this.discount
+    },
+    refreshMoneyDisplays() {
+        this.priceDisplay = this.formatMoneyInput(this.price)
+        this.discountDisplay = this.discountType === 'fixed_amount' ? this.formatMoneyInput(this.discount) : this.discount
+    },
     handleProductSubmit(event) {
         if (this.submittingProduct) { event.preventDefault(); return }
         if (this.persistedTemplate && this.template !== this.persistedTemplate && !window.confirm(@js(__('lf.LF_product_v2_template_change_confirm')))) { event.preventDefault(); return }
@@ -49,10 +82,12 @@
             'inactive:active' => __('lf.LF_product_status_activate_confirm'),
         ]);
         if (this.persistedStatus && targetStatus !== this.persistedStatus && confirmations[transitionKey] && !window.confirm(confirmations[transitionKey])) { event.preventDefault(); return }
+        if (this.$refs.priceInput) this.$refs.priceInput.value = this.price
+        if (this.$refs.discountInput) this.$refs.discountInput.value = this.discount
         this.submittingProduct = true
         if (event.submitter) { event.submitter.disabled = true; event.submitter.setAttribute('aria-busy', 'true') }
     }
-}" x-init="$nextTick(() => { template = @js($selectedTemplate) }); $el.closest('form')?.addEventListener('submit', event => handleProductSubmit(event))"
+}" x-init="refreshMoneyDisplays(); $nextTick(() => { template = @js($selectedTemplate) }); $el.closest('form')?.addEventListener('submit', event => handleProductSubmit(event))"
    class="admin-form-flow">
     <section class="admin-form-standard-section" aria-labelledby="product-basic">
         <h2 id="product-basic" class="admin-form-section-title">{{ __('lf.LF_product_v2_group_basic') }}</h2>
@@ -255,11 +290,13 @@
         <div class="admin-form-field-grid admin-form-field-grid--main-compact">
             <div class="lf-form-group">
                 <x-form-label for="price" :value="__('lf.LF_product_v2_list_price')" :required="true" />
-                <input id="price" name="price" type="number" min="0" step="0.01" x-model="price" class="lf-form-control" required>
+                <input id="price" name="price" type="text" inputmode="decimal" autocomplete="off"
+                       x-ref="priceInput" x-model="priceDisplay" @input="updatePrice($event.target.value)"
+                       class="lf-form-control admin-form-money-input" required>
             </div>
             <div class="lf-form-group">
                 <x-form-label for="currency" :value="__('lf.LF_course_product_common_currency')" :required="true" />
-                <select id="currency" name="currency" class="lf-form-control" x-model="currency" required>
+                <select id="currency" name="currency" class="lf-form-control" x-model="currency" @change="refreshMoneyDisplays()" required>
                     @foreach(['VND','USD','KRW'] as $currency)<option value="{{ $currency }}" @selected(old('currency',$formProduct?->currency??'VND')===$currency)>{{ $currency }}</option>@endforeach
                 </select>
             </div>
@@ -283,7 +320,7 @@
                      x-cloak>
                     <div class="lf-form-group">
                         <x-form-label for="discount_type" :value="__('lf.LF_product_v2_discount_type')" />
-                        <select id="discount_type" name="discount_type" class="lf-form-control" x-model="discountType"
+                        <select id="discount_type" name="discount_type" class="lf-form-control" x-model="discountType" @change="refreshMoneyDisplays()"
                                 @error('discount_type') aria-invalid="true" aria-describedby="discount_type_error" @enderror>
                             <option value="">{{ __('lf.LF_product_v2_select_discount') }}</option>
                             <option value="percentage">{{ __('lf.LF_product_v2_percentage') }}</option>
@@ -293,7 +330,9 @@
                     </div>
                     <div class="lf-form-group">
                         <x-form-label for="discount_value" :value="__('lf.LF_product_v2_discount_value_label')" />
-                        <input id="discount_value" name="discount_value" type="number" min="0.01" step="0.01" x-model="discount" class="lf-form-control" placeholder="{{ __('lf.LF_product_v2_discount_value') }}"
+                        <input id="discount_value" name="discount_value" type="text" inputmode="decimal" autocomplete="off"
+                               x-ref="discountInput" x-model="discountDisplay" @input="updateDiscount($event.target.value)"
+                               class="lf-form-control admin-form-money-input" placeholder="{{ __('lf.LF_product_v2_discount_value') }}"
                                @error('discount_value') aria-invalid="true" aria-describedby="discount_value_error" @enderror>
                         @error('discount_value')<p id="discount_value_error" class="lf-form-error">{{ $message }}</p>@enderror
                     </div>

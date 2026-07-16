@@ -2111,7 +2111,7 @@ class CourseProductManagementTest extends TestCase
             ->assertOk()
             ->assertSeeText('Phiên bản khóa học')
             ->assertSeeText('Chọn phiên bản đã phát hành')
-            ->assertSeeText('Chọn phiên bản đã phát hành sẽ được sử dụng khi sản phẩm được kích hoạt.')
+            ->assertSeeText('Phiên bản đã chọn sẽ được sử dụng khi sản phẩm được kích hoạt.')
             ->assertDontSeeText('Sản phẩm chưa có phiên bản khóa học đang sử dụng.')
             ->assertDontSeeText('Phiên bản của Course Template mới')
             ->getContent();
@@ -2148,7 +2148,7 @@ class CourseProductManagementTest extends TestCase
             ->assertOk()
             ->assertSeeText('Course version')
             ->assertSeeText('Select a published version')
-            ->assertSeeText('Select the published version that will be used when the product is activated.')
+            ->assertSeeText('The selected version will be used when the product is activated.')
             ->assertDontSeeText('This product does not have a course version in use.')
             ->getContent();
         $this->assertStringContainsString('name="template_version_id"', $englishContent);
@@ -2175,6 +2175,9 @@ class CourseProductManagementTest extends TestCase
         $this->assertStringContainsString('.admin-form-stack > .admin-form-conditional {', $css);
         $this->assertStringContainsString('margin-top: 0;', $css);
         $this->assertStringContainsString('.admin-form-calculated-summary {', $css);
+        $this->assertStringContainsString('.lf-admin-page .lf-form-help,', $css);
+        $this->assertStringContainsString("font-size: 13px;\n    line-height: 1.45;", $css);
+        $this->assertStringContainsString(".lf-admin-page .lf-form-help {\n    color: var(--admin-text-muted);", $css);
         $this->assertStringContainsString('.admin-form-footer-danger,', $css);
         $this->assertStringContainsString('.admin-form-footer-primary {', $css);
         $this->assertStringNotContainsString('form {\n    width: 100%;\n    max-width: none;', $css);
@@ -2207,6 +2210,16 @@ class CourseProductManagementTest extends TestCase
         }
 
         $this->assertStringContainsString('name="promotion_enabled" value="1"', $content);
+        $this->assertMatchesRegularExpression('/<input id="price" name="price" type="text"[^>]+inputmode="decimal"/', $content);
+        $this->assertMatchesRegularExpression('/<input id="discount_value" name="discount_value" type="text"[^>]+inputmode="decimal"/', $content);
+        $this->assertStringContainsString('x-ref="priceInput"', $content);
+        $this->assertStringContainsString('x-ref="discountInput"', $content);
+        $this->assertStringContainsString('updatePrice($event.target.value)', $content);
+        $this->assertStringContainsString('updateDiscount($event.target.value)', $content);
+        $this->assertStringContainsString('this.$refs.priceInput.value = this.price', $content);
+        $this->assertStringContainsString('this.$refs.discountInput.value = this.discount', $content);
+        $this->assertStringContainsString("this.discountType === 'fixed_amount'", $content);
+        $this->assertStringContainsString("this.currency === 'USD' ? 2 : 0", $content);
         $this->assertStringContainsString('aria-controls="course-product-promotion-fields"', $content);
         $this->assertStringContainsString('id="course-product-promotion-fields"', $content);
         $this->assertStringContainsString('x-show="promotion"', $content);

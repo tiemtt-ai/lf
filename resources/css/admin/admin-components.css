@@ -104,6 +104,26 @@
     margin-bottom: 18px;
 }
 
+.lf-admin-page .lf-form-help,
+.lf-admin-page .lf-form-error {
+    margin: 7px 0 0;
+    font-size: 13px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.lf-admin-page .lf-form-help {
+    color: var(--admin-text-muted);
+}
+
+.lf-admin-page .lf-form-error {
+    color: var(--admin-danger);
+}
+
+.lf-admin-page .admin-form-money-input {
+    font-variant-numeric: tabular-nums;
+}
+
 .lf-admin-page .lf-product-version-summary {
     margin-top: 10px;
     padding: 12px 14px;

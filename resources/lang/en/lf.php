@@ -1256,7 +1256,7 @@ return [
     'LF_product_v2_version_in_use' => 'Version in use', 'LF_product_v2_view_version' => 'View Version',
     'LF_product_v2_course_version' => 'Course version',
     'LF_product_v2_select_published_version' => 'Select a published version',
-    'LF_product_v2_course_version_help' => 'Select the published version that will be used when the product is activated.',
+    'LF_product_v2_course_version_help' => 'The selected version will be used when the product is activated.',
     'LF_product_v2_version_lessons' => ':count lesson|:count lessons',
     'LF_product_v2_version_activities' => ':count activity|:count activities',
     'LF_product_v2_version_integrity_warning' => 'The bound Version is unavailable or does not match this Product Template. Contact an administrator before activation.',

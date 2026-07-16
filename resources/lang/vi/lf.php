@@ -1256,7 +1256,7 @@ return [
     'LF_product_v2_version_in_use' => 'Phiên bản sử dụng', 'LF_product_v2_view_version' => 'Xem phiên bản',
     'LF_product_v2_course_version' => 'Phiên bản khóa học',
     'LF_product_v2_select_published_version' => 'Chọn phiên bản đã phát hành',
-    'LF_product_v2_course_version_help' => 'Chọn phiên bản đã phát hành sẽ được sử dụng khi sản phẩm được kích hoạt.',
+    'LF_product_v2_course_version_help' => 'Phiên bản đã chọn sẽ được sử dụng khi sản phẩm được kích hoạt.',
     'LF_product_v2_version_lessons' => ':count bài học',
     'LF_product_v2_version_activities' => ':count hoạt động',
     'LF_product_v2_version_integrity_warning' => 'Phiên bản đã liên kết không khả dụng hoặc không khớp với Template của sản phẩm. Hãy liên hệ quản trị viên trước khi kích hoạt.',
