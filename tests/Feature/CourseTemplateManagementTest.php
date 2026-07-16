@@ -293,16 +293,32 @@ class CourseTemplateManagementTest extends TestCase
         $admin = $this->createUser($customerId, 'customer_admin');
         $categoryId = $this->createCategory($customerId, 'General', 'general');
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->post('https://tenant-a.localhost/admin/course-templates', [
                 'category_id' => $categoryId,
                 'title' => 'Minimal Template',
                 'publisher_name' => 'LearnForge',
                 'status' => 'draft',
-            ])
-            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+            ]);
+
+        $template = DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('title', 'Minimal Template')
+            ->sole();
+
+        $response
+            ->assertRedirect("https://tenant-a.localhost/admin/course-templates/{$template->id}/edit")
+            ->assertSessionHas(
+                'course_template_created_title',
+                'Đã tạo Template khóa học thành công.'
+            )
+            ->assertSessionHas(
+                'course_template_created_guidance',
+                'Bạn có thể tiếp tục cập nhật thông tin, xây dựng nội dung khóa học, phân công giáo viên và xuất bản phiên bản khi sẵn sàng.'
+            );
 
         $this->assertDatabaseHas('core_course_templates', [
+            'id' => $template->id,
             'customer_id' => $customerId,
             'title' => 'Minimal Template',
             'publisher_name' => 'LearnForge',
@@ -317,6 +333,37 @@ class CourseTemplateManagementTest extends TestCase
             'estimated_lesson_count' => null,
             'status' => 'draft',
         ]);
+
+        $firstEdit = $this->followRedirects($response)
+            ->assertOk()
+            ->assertSeeText('Đã tạo Template khóa học thành công.')
+            ->assertSeeText('Bạn có thể tiếp tục cập nhật thông tin, xây dựng nội dung khóa học, phân công giáo viên và xuất bản phiên bản khi sẵn sàng.')
+            ->assertSee('value="Minimal Template"', false);
+        $this->assertStringContainsString('role="status"', $firstEdit->getContent());
+        $this->assertStringContainsString('class="admin-alert-title"', $firstEdit->getContent());
+        $this->assertStringContainsString('class="admin-alert-guidance"', $firstEdit->getContent());
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-templates/{$template->id}/edit")
+            ->assertOk()
+            ->assertDontSeeText('Đã tạo Template khóa học thành công.')
+            ->assertDontSeeText('Bạn có thể tiếp tục cập nhật thông tin, xây dựng nội dung khóa học, phân công giáo viên và xuất bản phiên bản khi sẵn sàng.');
+
+        $this->withSession(['locale' => 'en'])->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/course-templates', [
+                'category_id' => $categoryId,
+                'title' => 'English Template',
+                'publisher_name' => 'LearnForge',
+                'status' => 'draft',
+            ])
+            ->assertSessionHas(
+                'course_template_created_title',
+                'Course Template created successfully.'
+            )
+            ->assertSessionHas(
+                'course_template_created_guidance',
+                'You can continue updating its information, building the course content, assigning teachers, and publishing a version when ready.'
+            );
     }
 
     public function test_admin_can_create_an_independent_draft_template(): void
@@ -350,7 +397,7 @@ class CourseTemplateManagementTest extends TestCase
                     'status' => 'draft',
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+            ->assertRedirect();
 
         $template = DB::table('core_course_templates')
             ->where('customer_id', $customerId)
@@ -382,7 +429,7 @@ class CourseTemplateManagementTest extends TestCase
                     'intro_video_file' => null,
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+            ->assertRedirect();
 
         $this->assertDatabaseHas('core_course_templates', [
             'customer_id' => $customerId,
@@ -456,7 +503,7 @@ class CourseTemplateManagementTest extends TestCase
                     'title' => 'Teacher Course',
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/teacher/course-templates');
+            ->assertRedirect();
 
         $template = DB::table('core_course_templates')
             ->where('customer_id', $customerId)
@@ -480,7 +527,7 @@ class CourseTemplateManagementTest extends TestCase
             'private-category'
         );
 
-        $this->actingAs($admin)
+        $validationResponse = $this->actingAs($admin)
             ->from('https://tenant-a.localhost/admin/course-templates/create')
             ->post('https://tenant-a.localhost/admin/course-templates', [
                 'category_id' => $otherCategoryId,
@@ -499,6 +546,9 @@ class CourseTemplateManagementTest extends TestCase
                 'estimated_minutes_per_lesson',
                 'status',
             ]);
+        $validationResponse
+            ->assertSessionMissing('course_template_created_title')
+            ->assertSessionMissing('course_template_created_guidance');
 
         $this->assertDatabaseCount('core_course_templates', 0);
     }
@@ -521,7 +571,7 @@ class CourseTemplateManagementTest extends TestCase
                     'title' => 'TOPIK',
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+            ->assertRedirect();
 
         $this->actingAs($otherAdmin)
             ->post(
@@ -531,7 +581,7 @@ class CourseTemplateManagementTest extends TestCase
                     'title' => 'TOPIK',
                 ])
             )
-            ->assertRedirect('https://tenant-b.localhost/admin/course-templates');
+            ->assertRedirect();
 
         $this->assertDatabaseHas('core_course_templates', [
             'customer_id' => $otherCustomerId,
@@ -614,7 +664,7 @@ class CourseTemplateManagementTest extends TestCase
             ->delete(
                 "https://tenant-a.localhost/admin/course-templates/{$templateId}"
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+            ->assertRedirect();
 
         $this->assertDatabaseMissing('core_course_templates', [
             'id' => $templateId,

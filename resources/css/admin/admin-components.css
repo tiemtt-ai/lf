@@ -1012,6 +1012,19 @@
     background: #dcfce7;
 }
 
+.admin-alert-title {
+    display: block;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.admin-alert-guidance {
+    margin: 4px 0 0;
+    color: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
 .admin-alert-danger,
 .lf-admin-page .lf-alert-danger {
     color: #991b1b;

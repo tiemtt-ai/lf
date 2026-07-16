@@ -690,6 +690,8 @@ return [
     'LF_course_template_group_lifecycle' => 'Lifecycle',
     'LF_course_template_common_empty' => 'No course templates found.',
     'LF_course_template_common_created' => 'Course template created.',
+    'LF_course_template_common_created_title' => 'Course Template created successfully.',
+    'LF_course_template_common_created_guidance' => 'You can continue updating its information, building the course content, assigning teachers, and publishing a version when ready.',
     'LF_course_template_common_updated' => 'Course template updated.',
     'LF_course_template_common_deleted' => 'Course template deleted.',
     'LF_course_template_common_delete_blocked' => 'This Course Template cannot be deleted because it is in use. Change its status to Archived if you no longer want it displayed.',

@@ -690,6 +690,8 @@ return [
     'LF_course_template_group_lifecycle' => 'Vòng đời Template',
     'LF_course_template_common_empty' => 'Chưa có Template khóa học.',
     'LF_course_template_common_created' => 'Đã tạo Template khóa học.',
+    'LF_course_template_common_created_title' => 'Đã tạo Template khóa học thành công.',
+    'LF_course_template_common_created_guidance' => 'Bạn có thể tiếp tục cập nhật thông tin, xây dựng nội dung khóa học, phân công giáo viên và xuất bản phiên bản khi sẵn sàng.',
     'LF_course_template_common_updated' => 'Đã cập nhật Template khóa học.',
     'LF_course_template_common_deleted' => 'Đã xóa Template khóa học.',
     'LF_course_template_common_delete_blocked' => 'Không thể xóa Template khóa học vì đang được sử dụng. Vui lòng chuyển trạng thái sang Ngừng sử dụng nếu không muốn hiển thị.',

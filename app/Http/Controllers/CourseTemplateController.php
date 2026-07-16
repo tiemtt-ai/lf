@@ -111,7 +111,7 @@ class CourseTemplateController extends Controller
         $validated = $this->validatedData($request, $customerId);
         $now = now();
 
-        DB::transaction(function () use ($customerId, $request, $validated, $now): void {
+        $templateId = DB::transaction(function () use ($customerId, $request, $validated, $now): int {
             $templateId = DB::table('core_course_templates')->insertGetId(
                 $this->templateValues($validated, [
                     'customer_id' => $customerId,
@@ -125,11 +125,16 @@ class CourseTemplateController extends Controller
             );
 
             $this->syncIntroductionMedia($request, $templateId, $validated);
+
+            return $templateId;
         });
 
         return redirect()
-            ->route($this->routePrefix($request).'.index')
-            ->with('success', __('lf.LF_course_template_common_created'));
+            ->route($this->routePrefix($request).'.edit', $templateId)
+            ->with([
+                'course_template_created_title' => __('lf.LF_course_template_common_created_title'),
+                'course_template_created_guidance' => __('lf.LF_course_template_common_created_guidance'),
+            ]);
     }
 
     public function show(Request $request, int $id): RedirectResponse

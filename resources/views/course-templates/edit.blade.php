@@ -18,7 +18,18 @@
             : 'information';
     @endphp
 
-    @if (session('success'))
+    @if (session('course_template_created_title'))
+        <div class="admin-alert admin-alert-success admin-form-card"
+             role="status"
+             aria-live="polite">
+            <strong class="admin-alert-title">
+                {{ session('course_template_created_title') }}
+            </strong>
+            <p class="admin-alert-guidance">
+                {{ session('course_template_created_guidance') }}
+            </p>
+        </div>
+    @elseif (session('success'))
         <div class="admin-alert admin-alert-success admin-form-card">
             {{ session('success') }}
         </div>

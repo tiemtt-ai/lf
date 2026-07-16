@@ -90,6 +90,8 @@ class CourseMediaIntegrationTest extends TestCase
             'owner_type' => 'course_template',
             'usage_type' => 'intro_image',
         ]);
+        $this->assertFalse(session()->has('course_template_created_title'));
+        $this->assertFalse(session()->has('course_template_created_guidance'));
     }
 
     public function test_course_template_update_rolls_back_fields_and_usages_when_later_media_sync_throws(): void
@@ -222,7 +224,7 @@ class CourseMediaIntegrationTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+            ->assertRedirect();
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
@@ -283,7 +285,7 @@ class CourseMediaIntegrationTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+            ->assertRedirect();
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
@@ -352,7 +354,7 @@ class CourseMediaIntegrationTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+            ->assertRedirect();
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
@@ -391,7 +393,7 @@ class CourseMediaIntegrationTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+            ->assertRedirect();
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
@@ -478,7 +480,7 @@ class CourseMediaIntegrationTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+            ->assertRedirect();
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
@@ -560,7 +562,7 @@ class CourseMediaIntegrationTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+            ->assertRedirect();
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
@@ -632,7 +634,7 @@ class CourseMediaIntegrationTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+            ->assertRedirect();
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
@@ -786,7 +788,7 @@ class CourseMediaIntegrationTest extends TestCase
                     'application/pdf'
                 ),
             ])
-        )->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+        )->assertRedirect();
 
         $template = DB::table('core_course_templates')
             ->where('customer_id', $customerId)
@@ -844,7 +846,7 @@ class CourseMediaIntegrationTest extends TestCase
                 'intro_video_source' => 'embed',
                 'intro_video_embed_url' => 'https://vimeo.com/76979871',
             ])
-        )->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+        )->assertRedirect();
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
@@ -1008,7 +1010,7 @@ class CourseMediaIntegrationTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+            ->assertRedirect();
 
         $templateId = (int) DB::table('core_course_templates')->where('customer_id', $customerId)->where('title', 'Invalid Dual Preview Template')->value('id');
         $this->assertDatabaseHas('core_course_templates', [
@@ -1136,7 +1138,7 @@ class CourseMediaIntegrationTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+            ->assertRedirect();
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
@@ -1208,7 +1210,7 @@ class CourseMediaIntegrationTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+            ->assertRedirect();
 
         $templateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
@@ -1681,7 +1683,7 @@ class CourseMediaIntegrationTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect('https://tenant-a.localhost/teacher/course-templates');
+            ->assertRedirect();
 
         $ownedTemplateId = (int) DB::table('core_course_templates')
             ->where('customer_id', $customerId)
