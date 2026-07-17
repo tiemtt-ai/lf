@@ -130,8 +130,8 @@ class CourseTemplateManagementTest extends TestCase
             ->assertSeeText('Theo phần học')
             ->assertSeeText('+ Thêm bài học')
             ->assertSeeText('+ Thêm phần học')
-            ->assertSeeText('Chưa có bài học trực tiếp.')
-            ->assertSeeText('Chưa có phần học nào.')
+            ->assertSeeText('Thêm bài học để bắt đầu xây dựng nội dung khóa học.')
+            ->assertSeeText('Thêm phần học để tổ chức bài học theo từng nhóm nội dung.')
             ->assertDontSeeText(__('lf.LF_course_template_mode_mixed_note'))
             ->assertSee('role="tablist"', false)
             ->assertSee('x-on:click="selectStructureTab(\'direct\')"', false)
@@ -139,6 +139,9 @@ class CourseTemplateManagementTest extends TestCase
             ->assertSee('x-show="activeStructureTab === \'direct\'"', false)
             ->assertSee('x-show="activeStructureTab === \'sections\'"', false)
             ->assertDontSee('course-template-mode-card', false);
+        $this->assertStringContainsString('course-template-direct-lesson-panel', $emptyStructure->getContent());
+        $this->assertStringContainsString('course-template-content-toolbar', $emptyStructure->getContent());
+        $this->assertStringContainsString('course-template-content-empty', $emptyStructure->getContent());
     }
 
     public function test_create_and_edit_labels_follow_the_validation_required_rules(): void

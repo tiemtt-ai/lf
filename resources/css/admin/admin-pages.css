@@ -1097,6 +1097,63 @@
     margin-bottom: 15px;
 }
 
+.course-template-teachers-header {
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.course-template-teachers-header-copy {
+    min-width: 0;
+}
+
+.course-template-teachers-header .admin-form-section-title {
+    margin-bottom: 5px;
+}
+
+.course-template-teachers-header p {
+    margin-bottom: 0;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+}
+
+.course-template-teacher-add-action {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.course-template-teacher-empty {
+    min-width: 0;
+    padding: 24px 20px;
+    border: 1px dashed var(--admin-control-border);
+    border-radius: 8px;
+    background: var(--admin-surface-subtle);
+    text-align: center;
+}
+
+.course-template-teacher-empty strong {
+    display: block;
+    color: var(--admin-control-text);
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.course-template-teacher-empty p {
+    margin: 5px 0 0;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.course-template-teacher-count {
+    margin: 0 0 10px;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    font-weight: 500;
+}
+
 .course-template-structure-note {
     margin-top: 16px;
     padding: 11px 14px;
@@ -1154,7 +1211,7 @@
 }
 
 .course-template-structure-panel {
-    padding-top: 16px;
+    padding-top: 14px;
 }
 
 .course-template-section-action-bar {
@@ -1167,6 +1224,46 @@
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     background: #f8fafc;
+}
+
+.course-template-content-toolbar {
+    margin-bottom: 10px;
+    padding: 12px 14px;
+    border-color: var(--admin-border);
+    background: var(--admin-surface-subtle);
+}
+
+.course-template-content-toolbar strong {
+    color: var(--admin-control-text);
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.course-template-content-toolbar .lf-secondary-text {
+    margin-top: 2px;
+    font-size: 12px;
+}
+
+.course-template-direct-lesson-panel {
+    margin-top: 0;
+    padding: 0;
+    border: 0;
+}
+
+.course-template-content-empty {
+    margin: 0;
+    padding: 22px 18px;
+    border: 1px dashed var(--admin-control-border);
+    border-radius: 8px;
+    color: var(--admin-text-muted);
+    background: var(--admin-surface-subtle);
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.course-template-direct-lesson-panel .course-template-lesson-list {
+    gap: 10px;
 }
 
 .course-template-section-list-title {
@@ -1478,6 +1575,16 @@
     .course-template-publish-actions .btn,
     .course-template-publish-actions form {
         width: 100%;
+    }
+
+    .course-template-teachers-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .course-template-teacher-add-action {
+        width: 100%;
+        white-space: normal;
     }
 }
 

@@ -406,6 +406,37 @@ class CourseTemplateTeacherManagementTest extends TestCase
         }
     }
 
+    public function test_teacher_tab_uses_a_compact_responsive_empty_state(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Empty Teacher Template');
+
+        $content = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=teachers")
+            ->assertOk()
+            ->assertSeeText('Giáo viên phụ trách')
+            ->assertSeeText('Chưa có giáo viên')
+            ->assertSeeText('Thêm giáo viên để phân công vai trò giảng dạy cho Template này.')
+            ->assertSeeText('+ Thêm giáo viên')
+            ->getContent();
+
+        $this->assertStringContainsString('class="course-template-section-header course-template-teachers-header"', $content);
+        $this->assertStringContainsString('class="course-template-teacher-empty"', $content);
+        $this->assertStringContainsString('course-template-teacher-add-action', $content);
+        $teacherSection = \Illuminate\Support\Str::between(
+            $content,
+            '<section id="course-template-teachers"',
+            '</section>'
+        );
+        $this->assertStringNotContainsString('class="course-template-section-action-bar"', $teacherSection);
+
+        $css = file_get_contents(resource_path('css/admin/admin-pages.css'));
+        $this->assertStringContainsString('.course-template-teachers-header {', $css);
+        $this->assertStringContainsString('.course-template-teacher-empty {', $css);
+        $this->assertStringContainsString('.course-template-teacher-add-action {', $css);
+    }
+
     public function test_guest_and_student_cannot_access_teacher_assignments(): void
     {
         $customerId = $this->createTenant();

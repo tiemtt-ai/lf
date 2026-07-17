@@ -6,11 +6,15 @@
 @endphp
 
 <section id="{{ $panelId }}"
-         class="course-template-lesson-panel"
+         @class([
+             'course-template-lesson-panel',
+             'course-template-direct-lesson-panel' => ! $section,
+         ])
          aria-labelledby="{{ $panelId }}-title">
     <div @class([
         'course-template-lesson-toolbar' => $section,
         'course-template-section-action-bar' => ! $section,
+        'course-template-content-toolbar' => ! $section,
     ])>
         @if ($section)
             <h4 id="{{ $panelId }}-title">
@@ -222,7 +226,10 @@
                 </x-modal>
             </article>
         @empty
-            <p class="course-template-lesson-empty">{{ $emptyMessage }}</p>
+            <p @class([
+                'course-template-lesson-empty',
+                'course-template-content-empty' => ! $section,
+            ])>{{ $emptyMessage }}</p>
         @endforelse
     </div>
 </section>

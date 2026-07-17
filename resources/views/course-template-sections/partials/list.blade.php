@@ -96,7 +96,7 @@
          aria-labelledby="course-template-sections-tab"
          x-show="activeStructureTab === 'sections'"
          x-cloak>
-        <div class="course-template-section-action-bar"
+        <div class="course-template-section-action-bar course-template-content-toolbar"
              aria-label="{{ __('lf.LF_course_template_section_common_actions') }}">
             <strong>{{ __('lf.LF_course_template_section_common_area_title') }}</strong>
             <a href="{{ route($sectionRoutePrefix.'.create', $template->id) }}"
@@ -111,7 +111,7 @@
                     'depth' => 0,
                 ])
             @empty
-                <p class="course-template-outline-empty">
+                <p class="course-template-outline-empty course-template-content-empty">
                     {{ __('lf.LF_course_template_section_common_empty') }}
                 </p>
             @endforelse

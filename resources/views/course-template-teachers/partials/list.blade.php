@@ -1,30 +1,38 @@
 <section id="course-template-teachers"
          class="admin-card admin-form-card course-template-section-card"
          aria-labelledby="course-template-teachers-title">
-    <header class="course-template-section-header">
-        <h2 id="course-template-teachers-title" class="admin-form-section-title">
-            {{ __('lf.LF_course_template_teacher_common_list_title') }}
-        </h2>
-        <p>{{ __('lf.LF_course_template_teacher_common_list_help') }}</p>
+    <header class="course-template-section-header course-template-teachers-header">
+        <div class="course-template-teachers-header-copy">
+            <h2 id="course-template-teachers-title" class="admin-form-section-title">
+                {{ __('lf.LF_course_template_teacher_common_list_title') }}
+            </h2>
+            <p>{{ __('lf.LF_course_template_teacher_common_list_help') }}</p>
+        </div>
+        <a href="{{ route($teacherRoutePrefix.'.create', $template->id) }}"
+           class="btn admin-primary-outline-action course-template-teacher-add-action">
+            {{ __('lf.LF_course_template_teacher_common_add_action') }}
+        </a>
     </header>
 
-    <div class="course-template-section-action-bar">
-        <strong>
+    @if ($teacherAssignments->isEmpty())
+        <div class="course-template-teacher-empty">
+            <strong>
+                {{ trans_choice(
+                    'lf.LF_course_template_teacher_common_count',
+                    0,
+                    ['count' => 0]
+                ) }}
+            </strong>
+            <p>{{ __('lf.LF_course_template_teacher_common_empty') }}</p>
+        </div>
+    @else
+        <div class="course-template-teacher-count">
             {{ trans_choice(
                 'lf.LF_course_template_teacher_common_count',
                 $teacherAssignments->count(),
                 ['count' => $teacherAssignments->count()]
             ) }}
-        </strong>
-        <a href="{{ route($teacherRoutePrefix.'.create', $template->id) }}"
-           class="btn admin-primary-outline-action">
-            {{ __('lf.LF_course_template_teacher_common_add_action') }}
-        </a>
-    </div>
-
-    @if ($teacherAssignments->isEmpty())
-        <p>{{ __('lf.LF_course_template_teacher_common_empty') }}</p>
-    @else
+        </div>
         <div class="admin-table-wrap">
             <table class="table">
                 <thead>
