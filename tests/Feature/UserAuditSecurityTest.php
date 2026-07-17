@@ -259,6 +259,113 @@ class UserAuditSecurityTest extends TestCase
         $this->assertTrue(Hash::check('password123', $otherTarget->fresh()->password));
     }
 
+    public function test_admin_user_create_and_edit_use_the_shared_adaptive_form_contract(): void
+    {
+        $customerId = $this->createTenant('tenant-a');
+        $admin = $this->createUser($customerId, 'admin@example.test', 'customer_admin');
+        $target = $this->createUser($customerId, 'teacher@example.test', 'teacher');
+
+        foreach ([
+            'https://tenant-a.localhost/admin/users/create' => 'admin-user-create-form',
+            'https://tenant-a.localhost/admin/users/'.$target->id.'/edit' => 'admin-user-update-form',
+        ] as $url => $formId) {
+            $response = $this->actingAs($admin)
+                ->get($url)
+                ->assertOk()
+                ->assertSee('class="admin-card admin-form-card admin-form-surface"', false)
+                ->assertSee('id="'.$formId.'"', false)
+                ->assertSee('class="admin-form-standard"', false)
+                ->assertSee('class="admin-form-flow"', false)
+                ->assertSee('class="admin-form-field-grid"', false)
+                ->assertSee('class="admin-form-footer"', false)
+                ->assertSee('class="admin-form-footer-primary"', false)
+                ->assertSee('class="admin-form-cancel"', false)
+                ->assertSee('name="name"', false)
+                ->assertSee('name="email"', false)
+                ->assertSee('name="phone"', false)
+                ->assertSee('name="date_of_birth"', false)
+                ->assertSee('name="gender"', false)
+                ->assertSee('name="role"', false)
+                ->assertDontSee('backend-form-columns', false)
+                ->assertDontSee('admin-form-actions', false);
+
+            $content = $response->getContent();
+            $this->assertLessThan(strpos($content, 'name="email"'), strpos($content, 'name="name"'));
+            $this->assertLessThan(strpos($content, 'name="phone"'), strpos($content, 'name="email"'));
+            $this->assertLessThan(strpos($content, 'name="date_of_birth"'), strpos($content, 'name="phone"'));
+            $this->assertLessThan(strpos($content, 'name="gender"'), strpos($content, 'name="date_of_birth"'));
+            $this->assertLessThan(strpos($content, 'name="role"'), strpos($content, 'name="gender"'));
+
+            if ($formId === 'admin-user-create-form') {
+                $response
+                    ->assertSee('action="https://tenant-a.localhost/admin/users"', false)
+                    ->assertSee('name="password"', false)
+                    ->assertSee('name="password_confirmation"', false);
+            } else {
+                $response
+                    ->assertSee('action="https://tenant-a.localhost/admin/users/'.$target->id.'"', false)
+                    ->assertSee('value="PUT"', false)
+                    ->assertSee('change-user-password', false);
+            }
+        }
+
+        foreach ([
+            resource_path('views/admin/users/create.blade.php'),
+            resource_path('views/admin/users/edit.blade.php'),
+        ] as $viewPath) {
+            $view = file_get_contents($viewPath);
+            $this->assertStringNotContainsString('style=', $view);
+            $this->assertStringNotContainsString('<style', $view);
+        }
+
+        $css = file_get_contents(resource_path('css/admin/admin-components.css'));
+        $this->assertStringContainsString(
+            ':root.is-backend-sidebar-collapsed .backend-shell .admin-form-field-grid',
+            $css
+        );
+        $this->assertStringContainsString(
+            'grid-template-columns: repeat(2, minmax(0, 1fr));',
+            $css
+        );
+        $this->assertMatchesRegularExpression(
+            '/@media \(max-width: 900px\).*?\.admin-form-field-grid.*?grid-template-columns: minmax\(0, 1fr\);/s',
+            $css
+        );
+        $this->assertStringContainsString('@media (max-width: 575.98px)', $css);
+    }
+
+    public function test_admin_user_main_form_errors_render_next_to_accessible_fields(): void
+    {
+        $customerId = $this->createTenant('tenant-a');
+        $admin = $this->createUser($customerId, 'admin@example.test', 'customer_admin');
+
+        $invalid = $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/users/create')
+            ->post('https://tenant-a.localhost/admin/users', [
+                'name' => '',
+                'email' => 'not-an-email',
+                'phone' => str_repeat('1', 31),
+                'date_of_birth' => 'not-a-date',
+                'gender' => 'invalid',
+                'role' => 'invalid',
+                'password' => 'short',
+                'password_confirmation' => 'different',
+            ])
+            ->assertSessionHasErrors(['name', 'email', 'phone', 'date_of_birth', 'gender', 'role', 'password']);
+
+        $this->followRedirects($invalid)
+            ->assertOk()
+            ->assertSee('id="name_error" class="lf-form-error"', false)
+            ->assertSee('aria-invalid="true" aria-describedby="name_error"', false)
+            ->assertSee('id="email_error" class="lf-form-error"', false)
+            ->assertSee('aria-invalid="true" aria-describedby="email_error"', false)
+            ->assertSee('id="phone_error" class="lf-form-error"', false)
+            ->assertSee('id="date_of_birth_error" class="lf-form-error"', false)
+            ->assertSee('id="gender_error" class="lf-form-error"', false)
+            ->assertSee('id="role_error" class="lf-form-error"', false)
+            ->assertSee('id="password_error" class="lf-form-error"', false);
+    }
+
     public function test_create_and_status_actions_are_audited_and_shared_profile_deletion_is_unavailable(): void
     {
         $customerId = $this->createTenant('tenant-a');

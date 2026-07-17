@@ -241,6 +241,76 @@ class AdminProfileTest extends TestCase
         ]);
     }
 
+    public function test_admin_organization_uses_the_shared_adaptive_form_contract(): void
+    {
+        $admin = $this->createAdmin();
+
+        $response = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/organization')
+            ->assertOk()
+            ->assertSee('class="admin-card admin-form-card admin-form-surface"', false)
+            ->assertSee('id="organization-update-form"', false)
+            ->assertSee('class="admin-form-standard"', false)
+            ->assertSee('class="admin-form-flow"', false)
+            ->assertSee('class="admin-form-field-grid"', false)
+            ->assertSee('admin-readonly-summary admin-form-field--full', false)
+            ->assertSee('class="admin-form-footer"', false)
+            ->assertSee('class="admin-form-footer-primary"', false)
+            ->assertSee('name="name"', false)
+            ->assertSee('name="email"', false)
+            ->assertSee('name="phone"', false)
+            ->assertSee('method="POST"', false)
+            ->assertSee('value="PATCH"', false)
+            ->assertDontSee('backend-form-columns', false)
+            ->assertDontSee('admin-form-actions', false);
+
+        $content = $response->getContent();
+        $this->assertLessThan(strpos($content, 'name="email"'), strpos($content, 'name="name"'));
+        $this->assertLessThan(strpos($content, 'name="phone"'), strpos($content, 'name="email"'));
+
+        $view = file_get_contents(resource_path('views/admin/organization/edit.blade.php'));
+        $this->assertStringNotContainsString('style=', $view);
+        $this->assertStringNotContainsString('<style', $view);
+
+        $css = file_get_contents(resource_path('css/admin/admin-components.css'));
+        $this->assertStringContainsString(
+            ':root.is-backend-sidebar-collapsed .backend-shell .admin-form-field-grid',
+            $css
+        );
+        $this->assertStringContainsString(
+            'grid-template-columns: repeat(2, minmax(0, 1fr));',
+            $css
+        );
+        $this->assertMatchesRegularExpression(
+            '/@media \(max-width: 900px\).*?\.admin-form-field-grid.*?grid-template-columns: minmax\(0, 1fr\);/s',
+            $css
+        );
+        $this->assertStringContainsString('@media (max-width: 575.98px)', $css);
+    }
+
+    public function test_admin_organization_keeps_field_errors_adjacent_and_accessible(): void
+    {
+        $admin = $this->createAdmin();
+
+        $invalid = $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/organization')
+            ->patch('https://tenant-a.localhost/admin/organization', [
+                'name' => '',
+                'email' => 'not-an-email',
+                'phone' => str_repeat('1', 31),
+            ])
+            ->assertSessionHasErrors(['name', 'email', 'phone']);
+
+        $this->followRedirects($invalid)
+            ->assertOk()
+            ->assertSee('id="organization_name_error" class="lf-form-error"', false)
+            ->assertSee('aria-invalid="true" aria-describedby="organization_name_error"', false)
+            ->assertSee('id="organization_email_error" class="lf-form-error"', false)
+            ->assertSee('aria-invalid="true" aria-describedby="organization_email_error"', false)
+            ->assertSee('id="organization_phone_error" class="lf-form-error"', false)
+            ->assertSee('aria-invalid="true" aria-describedby="organization_phone_error"', false);
+    }
+
     private function createAdmin(): User
     {
         $customerId = DB::table('saas_customers')->insertGetId([
