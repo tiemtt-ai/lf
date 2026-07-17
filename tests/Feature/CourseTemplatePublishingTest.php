@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\CourseTemplatePublishingService;
+use App\Services\CourseTemplatePublishReadinessService;
+use App\Services\MediaService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -806,7 +809,7 @@ class CourseTemplatePublishingTest extends TestCase
         $lessonId = $this->createLesson($customerId, $templateId, null, 'Readiness Lesson', 0, $admin->id);
         $activityId = $this->createActivity($customerId, $templateId, $lessonId, 'Readiness Document', 0, $admin->id);
 
-        $service = app(\App\Services\CourseTemplatePublishReadinessService::class);
+        $service = app(CourseTemplatePublishReadinessService::class);
         $ready = $service->evaluate($customerId, $service->load($customerId, $templateId));
         $this->assertTrue($ready->isReady());
         $this->assertCount(0, $ready->blockers());
@@ -820,7 +823,7 @@ class CourseTemplatePublishingTest extends TestCase
         DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->delete();
         $blocked = $service->evaluate($customerId, $service->load($customerId, $templateId));
         $this->assertFalse($blocked->isReady());
-        $this->assertSame(['template', 'activity_media'], $blocked->blockers()->pluck('code')->all());
+        $this->assertSame(['template_publisher', 'activity_media'], $blocked->blockers()->pluck('code')->all());
         $this->assertSame(['information', 'content'], $blocked->blockers()->pluck('targetTab')->all());
 
         $response = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")
@@ -842,11 +845,12 @@ class CourseTemplatePublishingTest extends TestCase
         $xpath = new \DOMXPath($document);
         $this->assertSame(1, $xpath->query('//button[contains(@class, "course-template-publish-button") and @disabled]')->length);
         $this->assertSame(1, substr_count($response->getContent(), 'data-readiness-code="activity_media"'));
-        $informationTarget = $xpath->query('//li[@data-readiness-code="template"]//a')->item(0);
+        $informationTarget = $xpath->query('//li[@data-readiness-code="template_publisher"]//a')->item(0);
         $contentTarget = $xpath->query('//li[@data-readiness-code="activity_media"]//a')->item(0);
         $this->assertNotNull($informationTarget);
         $this->assertNotNull($contentTarget);
         $this->assertStringContainsString('?tab=information', $informationTarget->getAttribute('href'));
+        $this->assertStringContainsString('#publisher_name', $informationTarget->getAttribute('href'));
         $this->assertStringContainsString('?tab=structure', $contentTarget->getAttribute('href'));
         $this->assertStringContainsString(
             "#course-template-lesson-{$lessonId}-activities",
@@ -927,7 +931,7 @@ class CourseTemplatePublishingTest extends TestCase
         $activityId = $this->createActivity($customerId, $templateId, $lessonId, 'Relationship Document', 0, $admin->id);
         $usage = DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->first();
         $media = DB::table('media_files')->where('id', $usage->media_file_id)->first();
-        $service = app(\App\Services\CourseTemplatePublishReadinessService::class);
+        $service = app(CourseTemplatePublishReadinessService::class);
 
         $cases = [
             'detached usage' => fn () => DB::table('media_file_usages')->where('id', $usage->id)->update(['status' => 'detached']),
@@ -980,7 +984,7 @@ class CourseTemplatePublishingTest extends TestCase
             'intro_document_media_file_id' => $documentMediaId,
         ]);
 
-        $service = app(\App\Services\CourseTemplatePublishReadinessService::class);
+        $service = app(CourseTemplatePublishReadinessService::class);
         $readiness = $service->evaluate($customerId, $service->load($customerId, $templateId));
         $this->assertSame(
             ['template_intro_image', 'template_intro_video', 'template_intro_document'],
@@ -1462,15 +1466,15 @@ class CourseTemplatePublishingTest extends TestCase
             base_path('resources/css/admin/admin-pages.css')
         );
         $this->assertStringContainsString(
-            '.course-template-version-detail {' . PHP_EOL
-                . '    width: 100%;' . PHP_EOL
-                . '    min-width: 0;',
+            '.course-template-version-detail {'.PHP_EOL
+                .'    width: 100%;'.PHP_EOL
+                .'    min-width: 0;',
             $pageCss
         );
         $this->assertStringNotContainsString(
-            '.course-template-version-detail {' . PHP_EOL
-                . '    width: 100%;' . PHP_EOL
-                . '    max-width: 960px;',
+            '.course-template-version-detail {'.PHP_EOL
+                .'    width: 100%;'.PHP_EOL
+                .'    max-width: 960px;',
             $pageCss
         );
 
@@ -2083,6 +2087,253 @@ class CourseTemplatePublishingTest extends TestCase
         ]);
     }
 
+    public function test_publish_information_category_is_tenant_scoped_active_and_locked(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin', 'Category Admin');
+        $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin', 'Other Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Category Course');
+        $this->addValidContent($customerId, $templateId, $admin->id, 'Category');
+        $service = app(CourseTemplatePublishReadinessService::class);
+
+        $this->assertTrue($service->evaluate($customerId, $service->load($customerId, $templateId))->isReady());
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")
+            ->assertSessionDoesntHaveErrors();
+        $version = DB::table('core_course_template_versions')->where('template_id', $templateId)->first();
+        $this->assertNotNull($version->category_name_snapshot);
+
+        $categoryId = DB::table('core_course_templates')->where('id', $templateId)->value('category_id');
+        DB::table('core_course_categories')->where('id', $categoryId)->update(['status' => 'inactive']);
+        $readiness = $service->evaluate($customerId, $service->load($customerId, $templateId));
+        $this->assertSame(['template_category_inactive'], $readiness->blockers()->pluck('code')->all());
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")
+            ->assertSessionHasErrors('publish');
+        $this->assertSame(1, DB::table('core_course_template_versions')->where('template_id', $templateId)->count());
+        $this->assertSame($version->id, DB::table('core_course_template_versions')->where('template_id', $templateId)->where('is_current', true)->value('id'));
+
+        DB::table('core_course_templates')->where('id', $templateId)->update(['category_id' => null]);
+        $this->assertSame(['template_category'], $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all());
+
+        $foreignCategory = $this->createCategory($otherCustomerId, $otherAdmin->id, 'Foreign Category');
+        DB::table('core_course_templates')->where('id', $templateId)->update(['category_id' => $foreignCategory]);
+        $foreign = $service->evaluate($customerId, $service->load($customerId, $templateId));
+        $this->assertSame(['template_category'], $foreign->blockers()->pluck('code')->all());
+        $this->assertSame('#category_id', parse_url($foreign->blockers()->first()->targetUrl('admin.course-templates', $templateId), PHP_URL_FRAGMENT) ? '#'.parse_url($foreign->blockers()->first()->targetUrl('admin.course-templates', $templateId), PHP_URL_FRAGMENT) : null);
+    }
+
+    public function test_publish_information_text_difficulty_and_estimates_fail_closed_without_changing_nullable_policy(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Information Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Khóa học English 日本語');
+        $this->addValidContent($customerId, $templateId, $admin->id, 'Information');
+        $service = app(CourseTemplatePublishReadinessService::class);
+
+        DB::table('core_course_templates')->where('id', $templateId)->update([
+            'short_description' => null,
+            'description' => null,
+            'difficulty_level' => null,
+            'estimated_minutes_per_lesson' => null,
+            'estimated_lesson_count' => null,
+            'publisher_name' => 'Nhà xuất bản LearnForge',
+        ]);
+        $this->assertTrue($service->evaluate($customerId, $service->load($customerId, $templateId))->isReady());
+
+        foreach ([
+            ['title', '   ', 'template_title'],
+            ['title', str_repeat('a', 256), 'template_title'],
+            ['publisher_name', null, 'template_publisher'],
+            ['publisher_name', " \t ", 'template_publisher'],
+            ['publisher_name', str_repeat('p', 256), 'template_publisher'],
+            ['short_description', str_repeat('s', 501), 'template_short_description'],
+            ['difficulty_level', 'expert', 'template_difficulty'],
+            ['estimated_minutes_per_lesson', 0, 'template_estimated_minutes'],
+            ['estimated_minutes_per_lesson', -1, 'template_estimated_minutes'],
+            ['estimated_minutes_per_lesson', '1.5', 'template_estimated_minutes'],
+            ['estimated_lesson_count', 0, 'template_estimated_lesson_count'],
+            ['estimated_lesson_count', -1, 'template_estimated_lesson_count'],
+            ['estimated_lesson_count', '2.5', 'template_estimated_lesson_count'],
+        ] as [$field, $value, $code]) {
+            $original = DB::table('core_course_templates')->where('id', $templateId)->value($field);
+            DB::table('core_course_templates')->where('id', $templateId)->update([$field => $value]);
+            $readiness = $service->evaluate($customerId, $service->load($customerId, $templateId));
+            $this->assertContains($code, $readiness->blockers()->pluck('code')->all(), $field);
+            DB::table('core_course_templates')->where('id', $templateId)->update([$field => $original]);
+        }
+
+        foreach (['beginner', 'intermediate', 'advanced'] as $difficulty) {
+            DB::table('core_course_templates')->where('id', $templateId)->update(['difficulty_level' => $difficulty]);
+            $this->assertTrue($service->evaluate($customerId, $service->load($customerId, $templateId))->isReady(), $difficulty);
+        }
+    }
+
+    public function test_estimated_lesson_count_mismatch_is_rendered_as_a_non_blocking_warning(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Warning Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Warning Course');
+        $this->addValidContent($customerId, $templateId, $admin->id, 'Warning');
+        $service = app(CourseTemplatePublishReadinessService::class);
+
+        DB::table('core_course_templates')->where('id', $templateId)->update(['estimated_lesson_count' => 1]);
+        $this->assertCount(0, $service->evaluate($customerId, $service->load($customerId, $templateId))->warnings());
+        DB::table('core_course_templates')->where('id', $templateId)->update(['estimated_lesson_count' => 3]);
+        $readiness = $service->evaluate($customerId, $service->load($customerId, $templateId));
+        $this->assertTrue($readiness->isReady());
+        $this->assertSame(['template_estimated_lesson_count_mismatch'], $readiness->warnings()->pluck('code')->all());
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")
+            ->assertOk()
+            ->assertSeeText('Cảnh báo')
+            ->assertSeeText('Số bài học dự kiến là 3 nhưng nội dung hiện có 1 bài học')
+            ->assertSee('data-readiness-warning-code="template_estimated_lesson_count_mismatch"', false)
+            ->assertDontSee('data-readiness-code="template_estimated_lesson_count_mismatch"', false);
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")
+            ->assertSessionDoesntHaveErrors();
+        $this->assertSame(3, DB::table('core_course_template_versions')->where('template_id', $templateId)->value('estimated_lesson_count_snapshot'));
+
+        DB::table('core_course_templates')->where('id', $templateId)->update(['publisher_name' => null]);
+        $blocked = $service->evaluate($customerId, $service->load($customerId, $templateId));
+        $this->assertFalse($blocked->isReady());
+        $this->assertCount(1, $blocked->warnings());
+    }
+
+    public function test_publish_revalidates_canonical_trusted_embed_state(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Embed Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Embed Course');
+        $this->addValidContent($customerId, $templateId, $admin->id, 'Embed');
+        $service = app(CourseTemplatePublishReadinessService::class);
+
+        foreach ([
+            ['https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'youtube', true],
+            ['https://vimeo.com/123456789', 'vimeo', true],
+            ['http://www.youtube.com/watch?v=dQw4w9WgXcQ', 'youtube', false],
+            ['https://example.com/watch?v=dQw4w9WgXcQ', 'youtube', false],
+            ['https://youtube.com.evil.test/watch?v=dQw4w9WgXcQ', 'youtube', false],
+            ['<iframe src="https://www.youtube.com/watch?v=dQw4w9WgXcQ"></iframe>', 'youtube', false],
+            ['https://vimeo.com/123456789', 'youtube', false],
+            ['https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'vimeo', false],
+            ['https://youtu.be/dQw4w9WgXcQ', 'youtube', false],
+        ] as [$url, $provider, $valid]) {
+            DB::table('core_course_templates')->where('id', $templateId)->update([
+                'intro_video_source' => 'embed',
+                'intro_video_media_file_id' => null,
+                'intro_video_embed_url' => $url,
+                'intro_video_provider' => $provider,
+            ]);
+            $readiness = $service->evaluate($customerId, $service->load($customerId, $templateId));
+            $this->assertSame($valid, $readiness->isReady(), $url.' '.$provider);
+            if (! $valid) {
+                $this->assertContains('video_state', $readiness->blockers()->pluck('code')->all());
+            }
+        }
+    }
+
+    public function test_publish_revalidates_intro_media_content_and_exact_slot_cardinality(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Intro Media Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Intro Media Course');
+        $this->addValidContent($customerId, $templateId, $admin->id, 'Intro Media');
+        $imageId = $this->createIntroMedia($customerId, $admin->id, 'image', 'image/png', 'png');
+        DB::table('core_course_templates')->where('id', $templateId)->update(['intro_image_media_file_id' => $imageId]);
+        $usageId = DB::table('media_file_usages')->insertGetId([
+            'customer_id' => $customerId, 'media_file_id' => $imageId, 'owner_type' => 'course_template',
+            'owner_id' => $templateId, 'usage_type' => 'intro_image', 'status' => 'active', 'metadata' => null,
+            'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $service = app(CourseTemplatePublishReadinessService::class);
+        $this->assertTrue($service->evaluate($customerId, $service->load($customerId, $templateId))->isReady());
+
+        foreach ([
+            ['mime_type', 'application/pdf'],
+            ['extension', 'pdf'],
+            ['file_type', 'document'],
+            ['status', 'processing'],
+        ] as [$field, $invalid]) {
+            $original = DB::table('media_files')->where('id', $imageId)->value($field);
+            DB::table('media_files')->where('id', $imageId)->update([$field => $invalid]);
+            $this->assertContains('template_intro_image', $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all(), $field);
+            DB::table('media_files')->where('id', $imageId)->update([$field => $original]);
+        }
+        DB::table('media_file_usages')->where('id', $usageId)->update(['status' => 'detached']);
+        $this->assertContains('template_intro_image', $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all());
+        DB::table('media_file_usages')->where('id', $usageId)->update(['status' => 'active']);
+
+        $competitorId = $this->createIntroMedia($customerId, $admin->id, 'image', 'image/png', 'png');
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $customerId, 'media_file_id' => $competitorId, 'owner_type' => 'course_template',
+            'owner_id' => $templateId, 'usage_type' => 'intro_image', 'status' => 'active', 'metadata' => null,
+            'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->assertContains('template_intro_image', $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all());
+    }
+
+    public function test_intro_version_usage_failure_rolls_back_the_complete_publish_transaction(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Rollback Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Rollback Course');
+        $this->addValidContent($customerId, $templateId, $admin->id, 'Rollback');
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")
+            ->assertSessionDoesntHaveErrors();
+        $currentVersion = DB::table('core_course_template_versions')->where('template_id', $templateId)->first();
+
+        $imageId = $this->createIntroMedia($customerId, $admin->id, 'image', 'image/png', 'png');
+        DB::table('core_course_templates')->where('id', $templateId)->update(['intro_image_media_file_id' => $imageId]);
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $customerId, 'media_file_id' => $imageId, 'owner_type' => 'course_template',
+            'owner_id' => $templateId, 'usage_type' => 'intro_image', 'status' => 'active', 'metadata' => null,
+            'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $templateBefore = (array) DB::table('core_course_templates')->where('id', $templateId)->first();
+        $draftUsageBefore = (array) DB::table('media_file_usages')->where('owner_type', 'course_template')->where('owner_id', $templateId)->first();
+
+        $mediaService = \Mockery::mock(MediaService::class)->makePartial();
+        $mediaService->shouldReceive('attachUsage')
+            ->once()
+            ->withArgs(fn (int $mediaId, string $ownerType, int $ownerId, string $usageType): bool => $mediaId === $imageId
+                && $ownerType === 'course_template_version'
+                && $ownerId > 0
+                && $usageType === 'intro_image')
+            ->andThrow(new \RuntimeException('Injected Version intro usage failure.'));
+        $this->app->instance(MediaService::class, $mediaService);
+        $this->withoutExceptionHandling();
+
+        try {
+            app(CourseTemplatePublishingService::class)->publish(
+                $customerId,
+                $templateId,
+                $admin->id,
+            );
+            $this->fail('Expected Version intro usage creation to fail.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Injected Version intro usage failure.', $exception->getMessage());
+        }
+
+        $this->assertSame(1, DB::table('core_course_template_versions')->where('template_id', $templateId)->count());
+        $this->assertSame($currentVersion->id, DB::table('core_course_template_versions')->where('template_id', $templateId)->where('is_current', true)->value('id'));
+        $this->assertDatabaseMissing('media_file_usages', ['owner_type' => 'course_template_version', 'media_file_id' => $imageId]);
+        $this->assertSame($templateBefore, (array) DB::table('core_course_templates')->where('id', $templateId)->first());
+        $this->assertSame($draftUsageBefore, (array) DB::table('media_file_usages')->where('owner_type', 'course_template')->where('owner_id', $templateId)->first());
+    }
+
+    private function createIntroMedia(int $customerId, int $createdBy, string $type, string $mime, string $extension): int
+    {
+        return DB::table('media_files')->insertGetId([
+            'customer_id' => $customerId, 'category_id' => null, 'uploaded_by' => $createdBy,
+            'file_type' => $type, 'mime_type' => $mime, 'original_name' => 'intro.'.$extension,
+            'display_name' => 'Intro', 'extension' => $extension, 'storage_disk' => 'media_local',
+            'storage_bucket' => 'local-media', 'storage_region' => null, 'storage_key' => uniqid('intro-', true).'.'.$extension,
+            'storage_class' => null, 'cdn_url' => null, 'public_url' => null, 'checksum' => null,
+            'file_size_bytes' => 1, 'duration_seconds' => null, 'width' => null, 'height' => null,
+            'page_count' => null, 'language' => null, 'visibility' => 'private', 'status' => 'ready',
+            'metadata' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
     private function createTenant(string $slug = 'tenant-a'): int
     {
         return DB::table('saas_customers')->insertGetId([
@@ -2142,10 +2393,18 @@ class CourseTemplatePublishingTest extends TestCase
         string $title
     ): int {
         $now = now();
+        $categoryId = DB::table('core_course_categories')
+            ->where('customer_id', $customerId)
+            ->where('status', 'active')
+            ->value('id') ?? $this->createCategory(
+                $customerId,
+                $createdBy,
+                'General '.$customerId
+            );
 
         return DB::table('core_course_templates')->insertGetId([
             'customer_id' => $customerId,
-            'category_id' => null,
+            'category_id' => $categoryId,
             'title' => $title,
             'short_description' => 'Published snapshot course',
             'description' => 'Detailed snapshot description.',
@@ -2155,7 +2414,7 @@ class CourseTemplatePublishingTest extends TestCase
             'intro_video_media_file_id' => null,
             'difficulty_level' => 'beginner',
             'estimated_minutes_per_lesson' => 90,
-            'estimated_lesson_count' => 20,
+            'estimated_lesson_count' => null,
             'lesson_count' => 2,
             'meta_title' => 'Snapshot Course',
             'meta_description' => 'Snapshot course metadata.',

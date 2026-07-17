@@ -562,12 +562,46 @@ class MediaService
         return $validator->validate();
     }
 
+    public function fileContentIsAllowed(
+        string $fileType,
+        string $mimeType,
+        ?string $extension
+    ): bool {
+        if ($fileType === 'other') {
+            return true;
+        }
+
+        $rules = $this->fileContentRules()[$fileType] ?? null;
+
+        return $rules !== null
+            && in_array($mimeType, $rules['mimes'], true)
+            && $extension !== null
+            && in_array($extension, $rules['extensions'], true);
+    }
+
     private function validateFileContent(
         string $fileType,
         string $mimeType,
         ?string $extension
     ): void {
-        $allowed = [
+        $allowed = $this->fileContentRules();
+
+        if ($this->fileContentIsAllowed($fileType, $mimeType, $extension)) {
+            return;
+        }
+
+        $rules = $allowed[$fileType] ?? null;
+        throw ValidationException::withMessages([
+            'file' => __('validation.mimes', [
+                'attribute' => 'file',
+                'values' => implode(', ', $rules['extensions'] ?? []),
+            ]),
+        ]);
+    }
+
+    private function fileContentRules(): array
+    {
+        return [
             'image' => [
                 'mimes' => [
                     'image/jpeg',
@@ -639,26 +673,6 @@ class MediaService
                 'extensions' => ['zip', 'tar', 'gz'],
             ],
         ];
-
-        if ($fileType === 'other') {
-            return;
-        }
-
-        $rules = $allowed[$fileType] ?? null;
-
-        if (
-            ! $rules
-            || ! in_array($mimeType, $rules['mimes'], true)
-            || ! $extension
-            || ! in_array($extension, $rules['extensions'], true)
-        ) {
-            throw ValidationException::withMessages([
-                'file' => __('validation.mimes', [
-                    'attribute' => 'file',
-                    'values' => implode(', ', $rules['extensions'] ?? []),
-                ]),
-            ]);
-        }
     }
 
     private function normalizeAttributes(array $attributes): array

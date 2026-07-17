@@ -190,6 +190,19 @@
                         </h3>
                     </div>
 
+                    @php
+                        $informationBlockers = $publishReadiness->blockers()
+                            ->where('targetTab', 'information');
+                        $informationWarnings = $publishReadiness->warnings()
+                            ->where('targetTab', 'information');
+                    @endphp
+                    <p class="course-template-readiness-help">
+                        {{ __('lf.LF_course_template_readiness_information_summary', [
+                            'blockers' => $informationBlockers->count(),
+                            'warnings' => $informationWarnings->count(),
+                        ]) }}
+                    </p>
+
                     @if ($publishReadiness->isReady())
                         <p class="course-template-readiness-help">{{ __('lf.LF_course_template_readiness_ready_help') }}</p>
                     @else
@@ -209,6 +222,25 @@
                                 </li>
                             @endforeach
                         </ol>
+                    @endif
+
+                    @if ($publishReadiness->warnings()->isNotEmpty())
+                        <h4>{{ __('lf.LF_course_template_readiness_warnings_title') }}</h4>
+                        <ul class="course-template-readiness-list course-template-readiness-warning-list">
+                            @foreach ($publishReadiness->warnings() as $issue)
+                                <li data-readiness-warning-code="{{ $issue->code }}">
+                                    <span class="course-template-readiness-message">{{ $issue->message() }}</span>
+                                    <a href="{{ $issue->targetUrl(
+                                        $routePrefix,
+                                        (int) $template->id
+                                    ) }}">
+                                        {{ $issue->targetTab === 'information'
+                                            ? __('lf.LF_course_template_readiness_fix_information')
+                                            : __('lf.LF_course_template_readiness_fix_content') }}
+                                    </a>
+                                </li>
+                            @endforeach
+                        </ul>
                     @endif
                 </section>
 

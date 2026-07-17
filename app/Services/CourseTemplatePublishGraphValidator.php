@@ -9,27 +9,34 @@ use Illuminate\Support\Facades\DB;
 class CourseTemplatePublishGraphValidator
 {
     private const LESSON_TYPES = ['regular', 'review', 'midterm_exam', 'final_exam', 'other_exam'];
+
     private const LESSON_UNLOCK_RULES = ['none', 'previous_lesson_completed', 'date_based'];
+
     private const ACTIVITY_TYPES = ['video', 'embedded_video', 'audio', 'document', 'quiz', 'live_class'];
+
     private const ACTIVITY_UNLOCK_RULES = ['none', 'previous_activity_completed', 'previous_lesson_completed', 'date_based'];
+
+    public function __construct(
+        private readonly MediaService $mediaService,
+        private readonly TrustedVideoUrlService $trustedVideoUrls,
+    ) {}
 
     public function evaluate(int $customerId, object $template, Collection $sections, Collection $lessons, Collection $activities): CourseTemplatePublishReadiness
     {
         $issues = collect();
+        $warnings = collect();
         if ((int) $template->customer_id !== $customerId) {
             $this->add($issues, 'template', 'information');
 
-            return new CourseTemplatePublishReadiness($issues);
+            return new CourseTemplatePublishReadiness($issues, $warnings);
         }
         $templateStatus = (string) $template->status;
         if (! CourseTemplateStatus::canPublish($templateStatus)) {
             $this->add($issues, 'template_status', 'information', [
                 'status' => __('lf.LF_course_template_common_'.$templateStatus),
-            ]);
+            ], 'status');
         }
-        if (blank($template->title) || blank($template->publisher_name)) {
-            $this->add($issues, 'template', 'information');
-        }
+        $this->validateTemplateInformation($customerId, $template, $lessons, $issues, $warnings);
         if ($lessons->isEmpty()) {
             $this->add($issues, 'empty_content', 'content');
         }
@@ -43,7 +50,7 @@ class CourseTemplatePublishGraphValidator
         $this->validateTemplateMedia($customerId, (int) $template->id, $template, $issues);
         $this->validateVideoState($template, $issues);
 
-        return new CourseTemplatePublishReadiness($issues);
+        return new CourseTemplatePublishReadiness($issues, $warnings);
     }
 
     public function validate(int $customerId, object $template, Collection $sections, Collection $lessons, Collection $activities): void
@@ -57,6 +64,7 @@ class CourseTemplatePublishGraphValidator
         foreach ($sections as $section) {
             if ((int) $section->customer_id !== $customerId || (int) $section->template_id !== $templateId || ! $this->nonNegativeInteger($section->display_order)) {
                 $this->add($issues, 'section', 'content');
+
                 continue;
             }
             $parentId = $section->parent_section_id ? (int) $section->parent_section_id : null;
@@ -173,10 +181,35 @@ class CourseTemplatePublishGraphValidator
             if (! $mediaId) {
                 continue;
             }
-            $valid = DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaId)->where('status', 'ready')->where('file_type', $fileType)->exists()
-                && DB::table('media_file_usages')->where('customer_id', $customerId)->where('media_file_id', $mediaId)->where('owner_type', 'course_template')->where('owner_id', $templateId)->where('usage_type', $usageType)->where('status', 'active')->exists();
+            $media = DB::table('media_files')
+                ->where('customer_id', $customerId)
+                ->where('id', $mediaId)
+                ->first();
+            $activeSlotUsages = DB::table('media_file_usages')
+                ->where('customer_id', $customerId)
+                ->where('owner_type', 'course_template')
+                ->where('owner_id', $templateId)
+                ->where('usage_type', $usageType)
+                ->where('status', 'active')
+                ->get();
+            $valid = $media
+                && $media->status === 'ready'
+                && $media->file_type === $fileType
+                && $this->mediaService->fileContentIsAllowed(
+                    $fileType,
+                    (string) $media->mime_type,
+                    $media->extension,
+                )
+                && $activeSlotUsages->count() === 1
+                && (int) $activeSlotUsages->first()->media_file_id === (int) $mediaId;
             if (! $valid) {
-                $this->add($issues, 'template_'.$usageType, 'information', ['slot' => $usageType]);
+                $this->add(
+                    $issues,
+                    'template_'.$usageType,
+                    'information',
+                    ['slot' => $usageType],
+                    $this->informationFragment($usageType),
+                );
             }
         }
     }
@@ -186,12 +219,111 @@ class CourseTemplatePublishGraphValidator
         $valid = match ($template->intro_video_source) {
             null => ! $template->intro_video_media_file_id && ! $template->intro_video_embed_url && ! $template->intro_video_provider,
             'upload' => (bool) $template->intro_video_media_file_id && ! $template->intro_video_embed_url && ! $template->intro_video_provider,
-            'embed' => ! $template->intro_video_media_file_id && (bool) $template->intro_video_embed_url && in_array($template->intro_video_provider, ['youtube', 'vimeo'], true),
+            'embed' => $this->validTrustedVideoState($template),
             default => false,
         };
         if (! $valid) {
-            $this->add($issues, 'video_state', 'information', [], null, 'lf.LF_course_template_invalid_video_state');
+            $this->add($issues, 'video_state', 'information', [], 'intro_video_source', 'lf.LF_course_template_invalid_video_state');
         }
+    }
+
+    private function validateTemplateInformation(
+        int $customerId,
+        object $template,
+        Collection $lessons,
+        Collection $issues,
+        Collection $warnings,
+    ): void {
+        $category = $template->category_id
+            ? DB::table('core_course_categories')
+                ->where('id', $template->category_id)
+                ->when(DB::transactionLevel() > 0, fn ($query) => $query->lockForUpdate())
+                ->first()
+            : null;
+        if (! $category
+            || (int) $category->customer_id !== $customerId
+            || (int) $template->customer_id !== $customerId
+            || ! is_string($category->name)
+            || blank(trim($category->name))) {
+            $this->add($issues, 'template_category', 'information', [], 'category_id');
+        } elseif ($category->status !== 'active') {
+            $this->add($issues, 'template_category_inactive', 'information', [], 'category_id');
+        }
+
+        $this->validateRequiredText($template->title, 255, 'template_title', 'title', $issues);
+        $this->validateRequiredText($template->publisher_name, 255, 'template_publisher', 'publisher_name', $issues);
+        $this->validateNullableText($template->short_description, 500, 'template_short_description', 'short_description', $issues);
+        $this->validateNullableText($template->description, null, 'template_description', 'description', $issues);
+        $this->validateNullableText($template->meta_title, 255, 'template_meta_title', null, $issues);
+        $this->validateNullableText($template->meta_description, 500, 'template_meta_description', null, $issues);
+        $this->validateNullableText($template->meta_keywords, 500, 'template_meta_keywords', null, $issues);
+
+        if ($template->difficulty_level !== null
+            && ! in_array($template->difficulty_level, ['beginner', 'intermediate', 'advanced'], true)) {
+            $this->add($issues, 'template_difficulty', 'information', [], 'difficulty_level');
+        }
+        foreach ([
+            ['estimated_minutes_per_lesson', 'template_estimated_minutes'],
+            ['estimated_lesson_count', 'template_estimated_lesson_count'],
+        ] as [$field, $code]) {
+            if ($template->{$field} !== null && ! $this->canonicalPositiveInteger($template->{$field})) {
+                $this->add($issues, $code, 'information', [], $field);
+            }
+        }
+
+        if ($this->canonicalPositiveInteger($template->estimated_lesson_count)
+            && $template->estimated_lesson_count !== $lessons->count()) {
+            $this->add($warnings, 'template_estimated_lesson_count_mismatch', 'information', [
+                'expected' => $template->estimated_lesson_count,
+                'actual' => $lessons->count(),
+            ], 'estimated_lesson_count');
+        }
+    }
+
+    private function validateRequiredText(mixed $value, int $max, string $code, string $fragment, Collection $issues): void
+    {
+        if (! is_string($value) || blank(trim($value)) || mb_strlen($value) > $max) {
+            $this->add($issues, $code, 'information', [], $fragment);
+        }
+    }
+
+    private function validateNullableText(mixed $value, ?int $max, string $code, ?string $fragment, Collection $issues): void
+    {
+        if ($value !== null && (! is_string($value) || ($max !== null && mb_strlen($value) > $max))) {
+            $this->add($issues, $code, 'information', [], $fragment);
+        }
+    }
+
+    private function validTrustedVideoState(object $template): bool
+    {
+        if ($template->intro_video_media_file_id
+            || ! is_string($template->intro_video_embed_url)
+            || ! is_string($template->intro_video_provider)) {
+            return false;
+        }
+
+        try {
+            $normalized = $this->trustedVideoUrls->normalize($template->intro_video_embed_url);
+        } catch (\InvalidArgumentException) {
+            return false;
+        }
+
+        return $normalized['url'] === $template->intro_video_embed_url
+            && $normalized['provider'] === $template->intro_video_provider;
+    }
+
+    private function canonicalPositiveInteger(mixed $value): bool
+    {
+        return is_int($value) && $value >= 1;
+    }
+
+    private function informationFragment(string $usageType): string
+    {
+        return match ($usageType) {
+            'intro_image' => 'intro_image_file',
+            'intro_video' => 'intro_video_source',
+            'intro_document' => 'intro_document_file',
+        };
     }
 
     private function add(Collection $issues, string $code, string $targetTab, array $context = [], ?string $fragment = null, ?string $messageKey = null): void

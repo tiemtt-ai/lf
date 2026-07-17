@@ -817,7 +817,7 @@ class CourseTemplateManagementTest extends TestCase
         $templateId = $this->createTemplate($customerId, 'YouTube Course', 'youtube-course', $admin->id);
         DB::table('core_course_templates')->where('id', $templateId)->update([
             'intro_video_source' => 'embed',
-            'intro_video_embed_url' => 'https://youtu.be/dQw4w9WgXcQ',
+            'intro_video_embed_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
             'intro_video_provider' => 'youtube',
         ]);
 
