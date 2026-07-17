@@ -1,6 +1,6 @@
 # LF-Core-Course.md
 
-Version: 3.4
+Version: 3.5
 
 Status: Official Foundation
 
@@ -269,6 +269,55 @@ Only an `active` Template may publish a new Version. Publish validates the
 locked working Template inside its transaction and does not change the working
 Template status. Template lifecycle changes never update, invalidate or
 silently migrate an existing Version, Product Item, Enrollment or Progress.
+
+## Course Template Publish — Information Readiness
+
+This section is the canonical policy for validating working Course Template
+information at the publish boundary. Readiness presentation and the direct
+publish action must use the same server-side validator. Publish opens a
+transaction, locks and reloads the working Template, then runs that shared
+validation before creating any Version snapshot.
+
+Only a working Template with `status = active` may publish. Its Course Category
+must exist, belong to the same `customer_id`, have a non-blank valid name and
+have `status = active`. `title` and the free-text `publisher_name` are required,
+must not be blank after trimming and must not exceed 255 characters.
+
+`short_description`, `description`, SEO fields, `difficulty_level`,
+`estimated_minutes_per_lesson` and `estimated_lesson_count` remain nullable.
+When present:
+
+* `short_description` and SEO fields follow their canonical documented length
+  limits;
+* `description` is plain text and every presentation must render it escaped;
+  raw HTML execution is not permitted;
+* `difficulty_level` must be `beginner`, `intermediate` or `advanced`;
+* `estimated_minutes_per_lesson` and `estimated_lesson_count` must be integers
+  greater than or equal to `1`.
+
+`estimated_lesson_count` is descriptive metadata, not a structural limit. A
+difference from the actual working Lesson count produces a warning only. It
+does not block publish and must not recalculate or mutate the authored value.
+
+Introduction image, video and document are independent optional items and may
+coexist. An uploaded introduction item must reference a same-tenant Media File
+with `status = ready`, the canonical file type, MIME type and extension, and
+exactly one active Media Usage for the working `course_template`, exact
+Template ID and matching intro slot. Embedded introduction video accepts only
+a canonical HTTPS YouTube or Vimeo source normalized and verified through
+`TrustedVideoUrlService`; upload and embed states remain mutually exclusive.
+
+Information that passes readiness is frozen into the immutable Course Template
+Version according to
+[ADR-0012 — Course Template Published Version Snapshot](../adr/ADR-0012-Course-Template-Published-Version-Snapshot.md).
+Any publish failure rolls back the new Version and all new Version Media
+Usages. It must not leave a partial snapshot.
+
+An inactive Template, inactive Category or invalid legacy authoring state may
+remain visible and editable under existing authorization, but cannot create a
+new Version until corrected. Blocking a new publish never modifies or
+invalidates an existing Version, Product Item, Enrollment or Progress and must
+not silently migrate historical consumers.
 
 A new Course Product may select a Template only when all conditions hold:
 
