@@ -275,6 +275,9 @@ Rules:
 * Không silent-migrate Enrollment khi Product đổi Version.
 * Version lifecycle dùng `draft_snapshot`, `published`, `deprecated`, `archived`.
 * Deprecated/archived Version không làm thay đổi existing Enrollment.
+* Course Template lifecycle, new-Product eligibility and unchanged historical
+  binding follow the canonical policy in
+  [LF-Core-Course.md](core/LF-Core-Course.md#course-template-lifecycle-and-product-eligibility).
 
 Course Foundation constraints:
 

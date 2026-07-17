@@ -246,6 +246,53 @@ Database:
 core_course_categories
 ```
 
+## Course Template Lifecycle And Product Eligibility
+
+This section is the canonical source of truth for the relationship between a
+working Course Template, immutable Template Versions and Course Product
+binding.
+
+Course Template data uses exactly four statuses:
+
+```text
+draft
+active
+inactive
+archived
+```
+
+Create and normal edit expose only `draft`, `active` and `inactive`.
+`archived` is entered only through the dedicated Admin archive action. Only an
+`inactive` Template may be archived. Archived Templates are read-only.
+
+Only an `active` Template may publish a new Version. Publish validates the
+locked working Template inside its transaction and does not change the working
+Template status. Template lifecycle changes never update, invalidate or
+silently migrate an existing Version, Product Item, Enrollment or Progress.
+
+A new Course Product may select a Template only when all conditions hold:
+
+* the Template belongs to the current `customer_id`;
+* the Template belongs to the selected Course Category;
+* the Template status is `active`;
+* the Template has at least one Version with status `published`.
+
+After selecting a Template, the Product may select any specific `published`
+Version belonging to that Template and tenant. `deprecated` and `archived`
+Versions are not eligible for a new binding. `is_current` does not by itself
+limit the eligible published Versions.
+
+An existing Product keeps its persisted Template and Version binding when the
+working Template later becomes `inactive` or `archived`. Edit must continue to
+show that historical binding and may update unrelated Product fields without
+revalidating the unchanged binding against new-Product eligibility. If the user
+changes either Template or Version, the complete new-Product eligibility rules
+apply to the requested target binding.
+
+Product Item and Enrollment continue to reference the immutable Version.
+Template lifecycle therefore must not unlink Product Items, replace Versions,
+silent-migrate Enrollments, or reset Progress.
+
 ---
 
 # Template Version Lifecycle
@@ -356,6 +403,9 @@ Product chịu trách nhiệm:
 * certificate option
 * refund policy
 * marketing metadata
+
+Canonical Template/Version selection and historical-binding policy is defined
+in [Course Template Lifecycle And Product Eligibility](#course-template-lifecycle-and-product-eligibility).
 
 Product Item liên kết:
 

@@ -295,6 +295,34 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertTrue($this->selectOptionIsSelected($edit->getContent(), 'status', 'active'));
     }
 
+    public function test_create_and_edit_use_contextual_primary_action_labels(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Action Labels', 'action-labels', $admin->id);
+
+        $create = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-templates/create')
+            ->assertOk()->assertSeeText('Tạo Template')->getContent();
+        $edit = $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->assertOk()->assertSeeText('Lưu thay đổi')->getContent();
+        $this->assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*>\s*Tạo Template\s*<\/button>/', $create);
+        $this->assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*>\s*Lưu thay đổi\s*<\/button>/', $edit);
+        $this->assertStringContainsString('class="admin-form-footer"', $create);
+        $this->assertStringContainsString('class="admin-form-footer"', $edit);
+        $this->assertStringContainsString('class="admin-form-footer-danger"', $edit);
+        $this->assertStringContainsString('class="admin-form-footer-primary"', $edit);
+        $this->assertStringContainsString('form="course-template-update-form"', $edit);
+
+        $englishCreate = $this->withSession(['locale' => 'en'])->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-templates/create')
+            ->assertOk()->assertSeeText('Create Template')->getContent();
+        $englishEdit = $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->assertOk()->assertSeeText('Save Changes')->getContent();
+        $this->assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*>\s*Create Template\s*<\/button>/', $englishCreate);
+        $this->assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*>\s*Save Changes\s*<\/button>/', $englishEdit);
+    }
+
     public function test_only_four_canonical_template_statuses_are_accepted(): void
     {
         $customerId = $this->createTenant();

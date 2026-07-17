@@ -9,6 +9,13 @@ class CourseProductVersionSummaryPresenter
 {
     public function present(int $customerId, ?int $productId, bool $canView): array
     {
+        $item = $productId ? DB::table('core_course_product_items')
+            ->where('customer_id', $customerId)
+            ->where('product_id', $productId)
+            ->where('status', 'active')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->first(['id', 'template_id', 'version_id']) : null;
         $lessonCounts = DB::table('core_course_template_version_lessons')
             ->where('customer_id', $customerId)
             ->selectRaw('template_version_id, COUNT(*) as lesson_count')
@@ -28,11 +35,20 @@ class CourseProductVersionSummaryPresenter
             ->leftJoinSub($lessonCounts, 'lesson_counts', 'lesson_counts.template_version_id', '=', 'versions.id')
             ->leftJoinSub($activityCounts, 'activity_counts', 'activity_counts.template_version_id', '=', 'versions.id')
             ->where('templates.customer_id', $customerId)
+            ->where('templates.status', 'active')
+            ->whereExists(function ($query) use ($customerId): void {
+                $query->selectRaw('1')
+                    ->from('core_course_template_versions as eligible_versions')
+                    ->whereColumn('eligible_versions.template_id', 'templates.id')
+                    ->where('eligible_versions.customer_id', $customerId)
+                    ->where('eligible_versions.status', 'published');
+            })
             ->orderBy('templates.title')
             ->select(
                 'templates.id',
                 'templates.category_id',
                 'templates.title as name',
+                'templates.status',
                 'versions.id as version_id',
                 'versions.version_number',
                 'versions.version_code',
@@ -42,10 +58,34 @@ class CourseProductVersionSummaryPresenter
             )
             ->get();
 
+        if ($item?->template_id && ! $templates->contains('id', $item->template_id)) {
+            $historicalTemplate = DB::table('core_course_templates')
+                ->where('customer_id', $customerId)
+                ->where('id', $item->template_id)
+                ->first([
+                    'id',
+                    'category_id',
+                    'title as name',
+                    'status',
+                    DB::raw('NULL as version_id'),
+                    DB::raw('NULL as version_number'),
+                    DB::raw('NULL as version_code'),
+                    DB::raw('NULL as version_status'),
+                    DB::raw('0 as lesson_count'),
+                    DB::raw('0 as activity_count'),
+                ]);
+            if ($historicalTemplate) {
+                $templates->push($historicalTemplate);
+            }
+        }
+
         foreach ($templates as $template) {
             $template->version_summary = null;
             $template->integrity_warning = null;
             $template->published_versions = [];
+            $template->is_historical_binding = (int) ($item?->template_id ?? 0) === (int) $template->id
+                && $template->status !== 'active';
+            $template->status_label = __('lf.LF_course_template_common_'.$template->status);
         }
 
         $publishedVersions = DB::table('core_course_template_versions')
@@ -65,14 +105,6 @@ class CourseProductVersionSummaryPresenter
                 ];
             }
         }
-
-        $item = $productId ? DB::table('core_course_product_items')
-            ->where('customer_id', $customerId)
-            ->where('product_id', $productId)
-            ->where('status', 'active')
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->first(['id', 'template_id', 'version_id']) : null;
 
         if ($item?->version_id) {
             $bound = $this->boundVersion($customerId, (int) $item->template_id, (int) $item->version_id);

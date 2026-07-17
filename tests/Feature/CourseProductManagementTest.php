@@ -505,6 +505,7 @@ class CourseProductManagementTest extends TestCase
                 'meta_keywords' => 'legacy,seo',
             ]);
 
+        $this->actingAs($admin);
         $data = $this->validProductData([
             'title' => 'SEO Product Updated',
             'slug' => 'seo-product-updated',
@@ -1060,11 +1061,14 @@ class CourseProductManagementTest extends TestCase
         [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
         $productId = $this->createProduct($customerId, 'Invalid Active', 'invalid-active', status: 'active');
 
-        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$productId}",
-            $this->validProductV2Data($categoryId, $templateId, ['title' => 'Invalid Active', 'status' => 'active']))
-            ->assertSessionHasNoErrors();
+        $this->actingAs($admin);
+        $data = $this->validProductV2Data($categoryId, $templateId, [
+            'title' => 'Invalid Active', 'status' => 'active', 'template_version_id' => null,
+        ]);
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$productId}", $data)
+            ->assertSessionHasErrors('template_version_id');
         $this->assertDatabaseHas('core_course_products', ['id' => $productId, 'status' => 'active']);
-        $this->assertDatabaseHas('core_course_product_items', ['product_id' => $productId, 'template_id' => $templateId, 'version_id' => null]);
+        $this->assertDatabaseMissing('core_course_product_items', ['product_id' => $productId]);
     }
 
     public function test_selecting_the_version_already_in_use_is_a_safe_no_op(): void
@@ -1910,7 +1914,12 @@ class CourseProductManagementTest extends TestCase
 
     private function validProductData(array $overrides = []): array
     {
+        [$categoryId, $templateId, $versionId] = $this->defaultEligibleBinding();
+
         return array_merge([
+            'category_id' => $categoryId,
+            'template_id' => $templateId,
+            'template_version_id' => $versionId,
             'product_type' => 'single_course',
             'title' => 'Programming Basics',
             'short_description' => null,
@@ -1951,9 +1960,25 @@ class CourseProductManagementTest extends TestCase
 
     private function validProductV2Data(int $categoryId, int $templateId, array $overrides = []): array
     {
+        $versionId = (int) DB::table('core_course_template_versions')
+            ->where('customer_id', auth()->user()->customer_id)
+            ->where('template_id', $templateId)
+            ->where('status', 'published')
+            ->orderByDesc('version_number')
+            ->value('id');
+        if ($versionId < 1) {
+            $versionId = $this->createVersion(
+                (int) auth()->user()->customer_id,
+                (int) auth()->id(),
+                'Eligible Product Version',
+                templateId: $templateId
+            );
+        }
+
         return array_merge([
             'category_id' => $categoryId,
             'template_id' => $templateId,
+            'template_version_id' => $versionId,
             'title' => 'Product media test',
             'offering_type' => 'learning_material',
             'uses_custom_description' => 0,
@@ -1964,6 +1989,63 @@ class CourseProductManagementTest extends TestCase
             'is_featured' => 0,
             'status' => 'draft',
         ], $overrides);
+    }
+
+    /** @return array{0: int, 1: int, 2: int} */
+    private function defaultEligibleBinding(): array
+    {
+        $customerId = (int) auth()->user()->customer_id;
+        $adminId = (int) auth()->id();
+        $categoryId = (int) DB::table('core_course_categories')
+            ->where('customer_id', $customerId)
+            ->where('slug', 'default-product-binding')
+            ->value('id');
+        if ($categoryId < 1) {
+            $categoryId = DB::table('core_course_categories')->insertGetId([
+                'customer_id' => $customerId,
+                'parent_id' => null,
+                'name' => 'Default Product Binding',
+                'slug' => 'default-product-binding',
+                'description' => null,
+                'thumbnail_image' => null,
+                'banner_image' => null,
+                'sort_order' => 0,
+                'is_featured' => false,
+                'meta_title' => null,
+                'meta_description' => null,
+                'meta_keywords' => null,
+                'status' => 'active',
+                'created_by' => $adminId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+        $templateId = (int) DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('category_id', $categoryId)
+            ->where('title', 'Default Product Binding Template')
+            ->value('id');
+        if ($templateId < 1) {
+            $templateId = $this->createTemplate($customerId, $adminId, 'Default Product Binding Template');
+            DB::table('core_course_templates')->where('id', $templateId)->update([
+                'category_id' => $categoryId,
+            ]);
+        }
+        $versionId = (int) DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('status', 'published')
+            ->value('id');
+        if ($versionId < 1) {
+            $versionId = $this->createVersion(
+                $customerId,
+                $adminId,
+                'Default Product Binding Version',
+                templateId: $templateId
+            );
+        }
+
+        return [$categoryId, $templateId, $versionId];
     }
 
     /** @return array{0: int, 1: int} */
@@ -1994,9 +2076,11 @@ class CourseProductManagementTest extends TestCase
         ]);
         $templateId = $this->createTemplate($customerId, $admin->id);
         DB::table('core_course_templates')->where('id', $templateId)->update(['category_id' => $categoryId]);
+        $versionId = $this->createVersion($customerId, $admin->id, 'Published', 'published', $templateId);
 
         $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products', [
-            'category_id' => $categoryId, 'template_id' => $templateId, 'title' => 'Self Study',
+            'category_id' => $categoryId, 'template_id' => $templateId,
+            'template_version_id' => $versionId, 'title' => 'Self Study',
             'slug' => 'forged', 'product_type' => 'bundle', 'offering_type' => 'self_paced_course',
             'uses_custom_description' => 0, 'uses_custom_intro_media' => 0,
             'access_duration_days' => 90, 'review_duration_days' => 10, 'price' => '100000.00',
@@ -2009,7 +2093,7 @@ class CourseProductManagementTest extends TestCase
         $this->assertSame('self_paced_course', $product->offering_type);
         $this->assertSame('self-study', $product->slug);
         $this->assertDatabaseHas('core_course_product_items', [
-            'product_id' => $product->id, 'template_id' => $templateId, 'version_id' => null,
+            'product_id' => $product->id, 'template_id' => $templateId, 'version_id' => $versionId,
         ]);
 
         $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-products')
@@ -2555,15 +2639,15 @@ class CourseProductManagementTest extends TestCase
             'promotion_enabled' => 0, 'is_featured' => 0, 'status' => 'active'];
 
         $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products', $data)
-            ->assertSessionHasErrors(['access_duration_days', 'status']);
+            ->assertSessionHasErrors(['access_duration_days', 'template_version_id']);
 
         $versionId = $this->createVersion($customerId, $admin->id, 'Published', 'published', $templateId);
-        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products', array_merge($data, ['access_duration_days' => 30]))
-            ->assertSessionHasErrors('status');
-        $draftData = array_merge($data, ['access_duration_days' => 30, 'status' => 'draft']);
-        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products', $draftData)->assertSessionHasNoErrors();
+        $draftData = array_merge($data, [
+            'template_version_id' => $versionId, 'access_duration_days' => 30, 'status' => 'draft',
+        ]);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products', $draftData)
+            ->assertSessionHasNoErrors();
         $productId = DB::table('core_course_products')->where('title', 'Active Study')->value('id');
-        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-products/{$productId}/items", $this->validProductItemData(['version_id' => $versionId]))->assertSessionHasNoErrors();
         $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$productId}", array_merge($draftData, ['status' => 'active']))->assertSessionHasNoErrors();
         $this->assertDatabaseHas('core_course_product_items', ['product_id' => $productId, 'template_id' => $templateId, 'version_id' => $versionId]);
     }
@@ -2606,6 +2690,7 @@ class CourseProductManagementTest extends TestCase
         $lessonId = $this->createVersionLesson($customerId, $boundVersionId);
         $this->createVersionActivity($customerId, $boundVersionId, $lessonId);
         $productId = $this->createProduct($customerId, 'Active Immutable', 'active-immutable', status: 'active');
+        DB::table('core_course_products')->where('id', $productId)->update(['category_id' => $categoryId]);
         $itemId = $this->createProductItem($customerId, $productId, $boundVersionId);
         DB::table('core_course_product_items')->where('id', $itemId)->update(['template_id' => $templateId]);
 
@@ -2724,6 +2809,88 @@ class CourseProductManagementTest extends TestCase
             ->assertDontSee('lf-product-inherited-media-preview', false);
     }
 
+    public function test_create_only_lists_active_templates_with_published_versions(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        [$categoryId, $eligibleTemplateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $this->createVersion($customerId, $admin->id, 'Eligible Published', 'published', $eligibleTemplateId);
+
+        foreach (['draft', 'inactive', 'archived'] as $status) {
+            $templateId = $this->createTemplate($customerId, $admin->id, 'Excluded '.ucfirst($status));
+            DB::table('core_course_templates')->where('id', $templateId)->update([
+                'category_id' => $categoryId, 'status' => $status,
+            ]);
+            $this->createVersion($customerId, $admin->id, 'Published '.$status, 'published', $templateId);
+        }
+        $noPublishedId = $this->createTemplate($customerId, $admin->id, 'Excluded No Published');
+        DB::table('core_course_templates')->where('id', $noPublishedId)->update(['category_id' => $categoryId]);
+        $this->createVersion($customerId, $admin->id, 'Deprecated Only', 'deprecated', $noPublishedId);
+
+        $response = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-products/create')
+            ->assertOk()->assertSeeText('Product media template');
+        foreach (['Excluded Draft', 'Excluded Inactive', 'Excluded Archived', 'Excluded No Published'] as $name) {
+            $response->assertDontSeeText($name);
+        }
+    }
+
+    public function test_create_revalidates_template_and_version_eligibility_after_form_render(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $versionId = $this->createVersion($customerId, $admin->id, 'Race Version', 'published', $templateId);
+        $this->actingAs($admin);
+        $data = $this->validProductV2Data($categoryId, $templateId, [
+            'title' => 'Race Product', 'template_version_id' => $versionId,
+        ]);
+
+        $this->get('https://tenant-a.localhost/admin/course-products/create')->assertOk();
+        DB::table('core_course_templates')->where('id', $templateId)->update(['status' => 'inactive']);
+        $this->post('https://tenant-a.localhost/admin/course-products', $data)
+            ->assertSessionHasErrors('template_id');
+        $this->assertDatabaseMissing('core_course_products', ['title' => 'Race Product']);
+
+        DB::table('core_course_templates')->where('id', $templateId)->update(['status' => 'active']);
+        DB::table('core_course_template_versions')->where('id', $versionId)->update(['status' => 'deprecated']);
+        $this->post('https://tenant-a.localhost/admin/course-products', $data)
+            ->assertSessionHasErrors('template_version_id');
+        $this->assertDatabaseMissing('core_course_products', ['title' => 'Race Product']);
+    }
+
+    public function test_edit_preserves_historical_inactive_and_archived_template_binding_but_rejects_it_as_new_target(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $versionId = $this->createVersion($customerId, $admin->id, 'Historical Version', 'published', $templateId);
+        $productId = $this->createProduct($customerId, 'Historical Product', 'historical-product');
+        DB::table('core_course_products')->where('id', $productId)->update(['category_id' => $categoryId]);
+        $this->createProductItem($customerId, $productId, $versionId);
+
+        foreach (['inactive', 'archived'] as $status) {
+            DB::table('core_course_templates')->where('id', $templateId)->update(['status' => $status]);
+            $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+                ->assertOk()->assertSeeText('Product media template');
+            $data = $this->validProductV2Data($categoryId, $templateId, [
+                'title' => 'Historical Product '.$status, 'template_version_id' => $versionId,
+            ]);
+            $this->put("https://tenant-a.localhost/admin/course-products/{$productId}", $data)
+                ->assertSessionHasNoErrors();
+            $this->assertDatabaseHas('core_course_product_items', [
+                'product_id' => $productId, 'template_id' => $templateId, 'version_id' => $versionId,
+            ]);
+        }
+
+        $newProductId = $this->createProduct($customerId, 'New Target', 'new-target');
+        DB::table('core_course_products')->where('id', $newProductId)->update(['category_id' => $categoryId]);
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$newProductId}",
+            $this->validProductV2Data($categoryId, $templateId, [
+                'title' => 'New Target', 'template_version_id' => $versionId,
+            ]))->assertSessionHasErrors('template_id');
+    }
+
     private function createVersionLesson(int $customerId, int $versionId): int
     {
         return DB::table('core_course_template_version_lessons')->insertGetId([
@@ -2761,24 +2928,6 @@ class CourseProductManagementTest extends TestCase
             'is_required' => 1,
             'status' => 'active',
         ], $overrides);
-
-        $version = DB::table('core_course_template_versions')->where('id', $data['version_id'])->first(['template_id', 'customer_id']);
-        if ($version) {
-            $categoryId = DB::table('core_course_templates')->where('id', $version->template_id)->value('category_id');
-            if (! $categoryId) {
-                $categoryId = DB::table('core_course_categories')->insertGetId([
-                    'customer_id' => $version->customer_id, 'parent_id' => null,
-                    'name' => 'Item category', 'slug' => 'item-category-'.$version->template_id,
-                    'description' => null, 'thumbnail_image' => null, 'banner_image' => null,
-                    'sort_order' => 0, 'is_featured' => false, 'meta_title' => null,
-                    'meta_description' => null, 'meta_keywords' => null, 'status' => 'active',
-                    'created_by' => null, 'created_at' => now(), 'updated_at' => now(),
-                ]);
-                DB::table('core_course_templates')->where('id', $version->template_id)->update(['category_id' => $categoryId]);
-            }
-            $data['item_category_id'] = $categoryId;
-            $data['item_template_id'] = $version->template_id;
-        }
 
         return $data;
     }

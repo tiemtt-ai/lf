@@ -633,6 +633,9 @@ Database design phải tuân thủ:
 * Thay đổi working Template không làm thay đổi dữ liệu học của Enrollment cũ.
 * Version lifecycle dùng `draft_snapshot`, `published`, `deprecated`, `archived`.
 * Deprecated/archived Version không làm thay đổi existing Enrollment.
+* Template lifecycle and Product Template/Version eligibility are defined by
+  [LF-Core-Course.md](core/LF-Core-Course.md#course-template-lifecycle-and-product-eligibility);
+  mutable Template status never becomes runtime learning authority.
 * Section là tùy chọn; working và published Lesson có thể thuộc trực tiếp
   Template/Version hoặc Section cùng owner.
 * Một Enrollment là một learning cycle; re-enrollment tạo record mới.

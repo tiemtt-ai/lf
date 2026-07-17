@@ -120,6 +120,7 @@ class CourseProductController extends Controller
         $now = now();
 
         $productId = DB::transaction(function () use ($request, $validated, $customerId, $now): int {
+            $this->assertEligibleTemplateVersionBinding($customerId, $validated, true);
             $productId = DB::table('core_course_products')->insertGetId(
                 $this->productValues($validated, [
                     'customer_id' => $customerId,
@@ -244,7 +245,11 @@ class CourseProductController extends Controller
                 ]);
             }
             $beforeItem = DB::table('core_course_product_items')->where('customer_id', $customerId)
-                ->where('product_id', $id)->orderBy('id')->first(['template_id', 'version_id']);
+                ->where('product_id', $id)->orderBy('id')->lockForUpdate()
+                ->first(['template_id', 'version_id']);
+            if (! $this->bindingRequestIsUnchanged($lockedProduct, $beforeItem, $validated)) {
+                $this->assertEligibleTemplateVersionBinding($customerId, $validated, true);
+            }
             DB::table('core_course_products')->where('customer_id', $customerId)->where('id', $id)->update($values);
             if (! empty($validated['template_id'])) {
                 $this->syncPhaseOneItem($customerId, $id, $validated, $request->user()?->id);
@@ -336,7 +341,7 @@ class CourseProductController extends Controller
 
         DB::transaction(function () use ($customerId, $productId, $validated, $request, $now): void {
             $product = DB::table('core_course_products')->where('customer_id', $customerId)
-                ->where('id', $productId)->lockForUpdate()->first(['id', 'status', 'product_type']);
+                ->where('id', $productId)->lockForUpdate()->first(['id', 'category_id', 'status', 'product_type']);
             abort_if(! $product, 404);
             if ($product->status === 'archived') {
                 throw ValidationException::withMessages(['version_id' => __('lf.LF_product_status_archived_readonly')]);
@@ -356,16 +361,25 @@ class CourseProductController extends Controller
                     'version_id' => __('lf.LF_course_product_item_validation_published_version'),
                 ]);
             }
-            $version = DB::table('core_course_template_versions')->where('customer_id', $customerId)
-                ->where('id', $validated['version_id'])->where('template_id', $item->template_id)
-                ->where('status', 'published')->lockForUpdate()->first(['id']);
+            if ((int) $item->version_id === (int) $validated['version_id']) {
+                return;
+            }
+            $version = DB::table('core_course_template_versions as versions')
+                ->join('core_course_templates as templates', function ($join) use ($customerId): void {
+                    $join->on('templates.id', '=', 'versions.template_id')
+                        ->where('templates.customer_id', '=', $customerId);
+                })
+                ->where('versions.customer_id', $customerId)
+                ->where('versions.id', $validated['version_id'])
+                ->where('versions.template_id', $item->template_id)
+                ->where('versions.status', 'published')
+                ->where('templates.status', 'active')
+                ->where('templates.category_id', $product->category_id)
+                ->lockForUpdate()->first(['versions.id']);
             if (! $version) {
                 throw ValidationException::withMessages([
                     'version_id' => __('lf.LF_course_product_item_validation_published_version'),
                 ]);
-            }
-            if ((int) $item->version_id === (int) $version->id) {
-                return;
             }
             DB::table('core_course_product_items')->where('customer_id', $customerId)
                 ->where('product_id', $productId)->where('id', $item->id)->update([
@@ -536,15 +550,22 @@ class CourseProductController extends Controller
             }
             $categoryId = (int) ($input['category_id'] ?? 0);
             $templateId = (int) ($input['template_id'] ?? 0);
-            $template = DB::table('core_course_templates')->where('customer_id', $customerId)
-                ->where('id', $templateId)->where('category_id', $categoryId)->first();
-            if (! $template) {
-                $validator->errors()->add('template_id', __('lf.LF_product_v2_invalid_template'));
+            $linkedItem = $productId ? DB::table('core_course_product_items')
+                ->where('customer_id', $customerId)->where('product_id', $productId)
+                ->whereNotNull('version_id')->first(['template_id', 'version_id']) : null;
+            $bindingUnchanged = $this->bindingRequestIsUnchanged($product, $linkedItem, $input);
+            if (! $bindingUnchanged) {
+                $template = DB::table('core_course_templates')->where('customer_id', $customerId)
+                    ->where('id', $templateId)->where('category_id', $categoryId)
+                    ->where('status', 'active')->first(['id']);
+                if (! $template) {
+                    $validator->errors()->add('template_id', __('lf.LF_product_v2_invalid_template'));
+                }
+                if (empty($input['template_version_id'])) {
+                    $validator->errors()->add('template_version_id', __('lf.LF_product_v2_template_change_version_required'));
+                }
             }
             if ($productId) {
-                $linkedItem = DB::table('core_course_product_items')
-                    ->where('customer_id', $customerId)->where('product_id', $productId)
-                    ->whereNotNull('version_id')->first(['template_id']);
                 if ($linkedItem && (int) $linkedItem->template_id !== $templateId) {
                     $decision = $this->templateChangePolicy->decision(
                         $product,
@@ -558,12 +579,9 @@ class CourseProductController extends Controller
                                 : 'lf.LF_product_v2_template_change_draft_required'
                         ));
                     }
-                    if (empty($input['template_version_id'])) {
-                        $validator->errors()->add('template_version_id', __('lf.LF_product_v2_template_change_version_required'));
-                    }
                 }
             }
-            if (! empty($input['template_version_id'])) {
+            if (! $bindingUnchanged && ! empty($input['template_version_id'])) {
                 $validVersion = DB::table('core_course_template_versions')
                     ->where('customer_id', $customerId)
                     ->where('template_id', $templateId)
@@ -579,7 +597,7 @@ class CourseProductController extends Controller
                 && (float) ($input['discount_value'] ?? 0) > (float) ($input['price'] ?? 0)) {
                 $validator->errors()->add('discount_value', __('lf.LF_product_v2_discount_too_large'));
             }
-            if (($input['status'] ?? null) === 'active' && (! $product || $product->status !== 'active')) {
+            if ($product && ($input['status'] ?? null) === 'active' && $product->status !== 'active') {
                 $version = DB::table('core_course_product_items as items')
                     ->join('core_course_template_versions as versions', 'versions.id', '=', 'items.version_id')
                     ->where('items.customer_id', $customerId)->where('items.product_id', $productId)
@@ -1151,6 +1169,17 @@ class CourseProductController extends Controller
             ->orderBy('sort_order')->orderBy('id')->lockForUpdate()->first();
         if ($item) {
             if ((int) $item->template_id === (int) $validated['template_id']) {
+                if (! empty($validated['template_version_id'])
+                    && (int) $item->version_id !== (int) $validated['template_version_id']) {
+                    DB::table('core_course_product_items')
+                        ->where('customer_id', $customerId)
+                        ->where('product_id', $productId)
+                        ->where('id', $item->id)
+                        ->update([
+                            'version_id' => (int) $validated['template_version_id'],
+                            'updated_at' => now(),
+                        ]);
+                }
                 return;
             }
             $decision = $this->templateChangePolicy->decision($product, $customerId, $validated['status']);
@@ -1193,6 +1222,53 @@ class CourseProductController extends Controller
                 'sort_order' => 0, 'is_required' => true, 'status' => 'active', 'created_by' => $actorId,
                 'updated_at' => now(), 'created_at' => now()]
         );
+    }
+
+    private function bindingRequestIsUnchanged(?object $product, ?object $item, array $validated): bool
+    {
+        if (! $product || ! $item) {
+            return false;
+        }
+
+        $submittedVersionId = $validated['template_version_id'] ?? null;
+
+        return (int) $item->template_id === (int) ($validated['template_id'] ?? 0)
+            && (int) $product->category_id === (int) ($validated['category_id'] ?? 0)
+            && ($submittedVersionId === null || $submittedVersionId === ''
+                || (int) $item->version_id === (int) $submittedVersionId);
+    }
+
+    private function assertEligibleTemplateVersionBinding(
+        int $customerId,
+        array $validated,
+        bool $lock
+    ): void {
+        $templateId = (int) ($validated['template_id'] ?? 0);
+        $versionId = (int) ($validated['template_version_id'] ?? 0);
+        $categoryId = (int) ($validated['category_id'] ?? 0);
+
+        $query = DB::table('core_course_templates as templates')
+            ->join('core_course_template_versions as versions', function ($join) use ($customerId): void {
+                $join->on('versions.template_id', '=', 'templates.id')
+                    ->where('versions.customer_id', '=', $customerId);
+            })
+            ->where('templates.customer_id', $customerId)
+            ->where('templates.id', $templateId)
+            ->where('templates.category_id', $categoryId)
+            ->where('templates.status', 'active')
+            ->where('versions.id', $versionId)
+            ->where('versions.status', 'published');
+
+        if ($lock) {
+            $query->lockForUpdate();
+        }
+
+        if (! $query->first(['templates.id'])) {
+            throw ValidationException::withMessages([
+                'template_id' => __('lf.LF_product_v2_invalid_template'),
+                'template_version_id' => __('lf.LF_course_product_item_validation_published_version'),
+            ]);
+        }
     }
 
     private function nextSortOrder(int $categoryId): int

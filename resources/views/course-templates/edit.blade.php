@@ -67,7 +67,8 @@
                  class="course-template-tab-panel"
                  @if ($activeTab !== 'information') hidden @endif>
             <div class="admin-card admin-form-card">
-                <form method="POST"
+                <form id="course-template-update-form"
+                      method="POST"
                       action="{{ route($routePrefix.'.update', $template->id) }}"
                       enctype="multipart/form-data">
                     @csrf
@@ -77,21 +78,12 @@
                     @include('course-templates.partials.form')
                     @if ($template->status === \App\Support\CourseTemplateStatus::ARCHIVED)</fieldset>@endif
 
-                    <div class="admin-form-actions">
-                        @if ($template->status !== \App\Support\CourseTemplateStatus::ARCHIVED)
-                            <button type="submit" class="btn btn-primary">
-                                {{ __('lf.LF_common_button_save_changes') }}
-                            </button>
-                        @endif
-                        <a href="{{ route($routePrefix.'.index') }}">
-                            {{ __('lf.LF_common_button_cancel') }}
-                        </a>
-                    </div>
                 </form>
 
-                @if ($template->status === \App\Support\CourseTemplateStatus::INACTIVE
-                    && \Illuminate\Support\Facades\Route::has($routePrefix.'.archive'))
-                    <div class="admin-form-actions">
+                <footer class="admin-form-footer">
+                    <div class="admin-form-footer-danger">
+                        @if ($template->status === \App\Support\CourseTemplateStatus::INACTIVE
+                            && \Illuminate\Support\Facades\Route::has($routePrefix.'.archive'))
                         <form method="POST"
                               action="{{ route($routePrefix.'.archive', $template->id) }}"
                               x-data="{ submitting: false }"
@@ -104,8 +96,22 @@
                                 {{ __('lf.LF_course_template_status_archive_action') }}
                             </button>
                         </form>
+                        @endif
                     </div>
-                @endif
+
+                    <div class="admin-form-footer-primary">
+                        @if ($template->status !== \App\Support\CourseTemplateStatus::ARCHIVED)
+                            <button type="submit"
+                                    form="course-template-update-form"
+                                    class="btn btn-primary">
+                                {{ __('lf.LF_common_button_save_changes') }}
+                            </button>
+                        @endif
+                        <a href="{{ route($routePrefix.'.index') }}" class="admin-form-cancel">
+                            {{ __('lf.LF_common_button_cancel') }}
+                        </a>
+                    </div>
+                </footer>
             </div>
         </section>
 

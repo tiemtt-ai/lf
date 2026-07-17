@@ -117,12 +117,19 @@
                                 <option value="{{ $templateOption->id }}"
                                         x-show="String({{ (int) $templateOption->category_id }}) === String(category)"
                                         :disabled="String({{ (int) $templateOption->category_id }}) !== String(category)"
-                                        @selected((string) $templateOption->id === $selectedTemplate)>{{ $templateOption->name }}</option>
+                                        @selected((string) $templateOption->id === $selectedTemplate)>{{ $templateOption->name }}@if($templateOption->is_historical_binding) — {{ $templateOption->status_label }}@endif</option>
                             @endforeach
                         </select>
                         <p class="lf-form-help" x-show="category && !templates.some(item => String(item.category_id) === String(category))" x-cloak>
                             {{ __('lf.LF_product_v2_no_templates_for_category') }}
                         </p>
+                        @if($initialTemplateState?->is_historical_binding)
+                            <p class="admin-form-inline-notice">
+                                {{ __('lf.LF_product_v2_historical_template_status', [
+                                    'status' => $initialTemplateState->status_label,
+                                ]) }}
+                            </p>
+                        @endif
                     @else
                         <input type="hidden" name="template_id" value="{{ $persistedTemplate }}">
                         <input id="template_id" class="lf-form-control admin-form-readonly" readonly
