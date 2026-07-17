@@ -3,7 +3,7 @@
     $selectedCategoryId = old('category_id', $formTemplate?->category_id);
     $selectedVideoSource = old('intro_video_source', $formTemplate?->intro_video_source);
     $selectedDifficulty = old('difficulty_level', $formTemplate?->difficulty_level);
-    $selectedStatus = old('status', $formTemplate?->status ?? 'draft');
+    $selectedStatus = old('status', $formTemplate?->status ?? \App\Support\CourseTemplateStatus::DEFAULT);
     $isRequired = static fn (string $field): bool => in_array($field, $requiredFields, true);
 @endphp
 
@@ -181,20 +181,21 @@
         <div class="lf-form-group"><x-form-label for="publisher_name" :value="__('lf.LF_course_template_common_publisher_name')" :required="$isRequired('publisher_name')" /><input id="publisher_name" type="text" name="publisher_name" class="lf-form-control" value="{{ old('publisher_name', $formTemplate?->publisher_name) }}" maxlength="255" placeholder="{{ __('lf.LF_course_template_placeholder_publisher') }}" required></div>
 
         <div class="lf-form-group">
-            <x-form-label for="status"
-                          :value="__('lf.LF_course_template_common_status')"
-                          :required="$isRequired('status')" />
-            <select id="status" name="status" class="lf-form-control" required>
-                <option value="draft" @selected($selectedStatus === 'draft')>
-                    {{ __('lf.LF_course_template_common_draft') }}
-                </option>
-                <option value="active" @selected($selectedStatus === 'active')>
-                    {{ __('lf.LF_course_template_common_active') }}
-                </option>
-                <option value="archived" @selected($selectedStatus === 'archived')>
-                    {{ __('lf.LF_course_template_common_archived') }}
-                </option>
-            </select>
+            @if ($selectedStatus === \App\Support\CourseTemplateStatus::ARCHIVED)
+                <span class="lf-form-label">{{ __('lf.LF_course_template_common_status') }}</span>
+                <span class="badge badge-danger">{{ __('lf.LF_course_template_common_archived') }}</span>
+            @else
+                <x-form-label for="status"
+                              :value="__('lf.LF_course_template_common_status')"
+                              :required="$isRequired('status')" />
+                <select id="status" name="status" class="lf-form-control" required>
+                    @foreach (\App\Support\CourseTemplateStatus::EDITABLE_VALUES as $templateStatus)
+                        <option value="{{ $templateStatus }}" @selected($selectedStatus === $templateStatus)>
+                            {{ __('lf.LF_course_template_common_'.$templateStatus) }}
+                        </option>
+                    @endforeach
+                </select>
+            @endif
         </div>
     </div>
 

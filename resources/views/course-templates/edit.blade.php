@@ -73,17 +73,39 @@
                     @csrf
                     @method('PUT')
 
+                    @if ($template->status === \App\Support\CourseTemplateStatus::ARCHIVED)<fieldset disabled>@endif
                     @include('course-templates.partials.form')
+                    @if ($template->status === \App\Support\CourseTemplateStatus::ARCHIVED)</fieldset>@endif
 
                     <div class="admin-form-actions">
-                        <button type="submit" class="btn btn-primary">
-                            {{ __('lf.LF_common_button_save_changes') }}
-                        </button>
+                        @if ($template->status !== \App\Support\CourseTemplateStatus::ARCHIVED)
+                            <button type="submit" class="btn btn-primary">
+                                {{ __('lf.LF_common_button_save_changes') }}
+                            </button>
+                        @endif
                         <a href="{{ route($routePrefix.'.index') }}">
                             {{ __('lf.LF_common_button_cancel') }}
                         </a>
                     </div>
                 </form>
+
+                @if ($template->status === \App\Support\CourseTemplateStatus::INACTIVE
+                    && \Illuminate\Support\Facades\Route::has($routePrefix.'.archive'))
+                    <div class="admin-form-actions">
+                        <form method="POST"
+                              action="{{ route($routePrefix.'.archive', $template->id) }}"
+                              x-data="{ submitting: false }"
+                              @submit="if (submitting || !window.confirm(@js(__('lf.LF_course_template_status_archive_confirm')))) { $event.preventDefault(); return } submitting = true">
+                            @csrf
+                            <button type="submit"
+                                    class="btn btn-danger"
+                                    :disabled="submitting"
+                                    :aria-busy="submitting">
+                                {{ __('lf.LF_course_template_status_archive_action') }}
+                            </button>
+                        </form>
+                    </div>
+                @endif
             </div>
         </section>
 

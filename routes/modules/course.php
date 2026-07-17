@@ -372,6 +372,10 @@ if ($registerCourseTemplateLifecycleRoutes ?? false) {
         '/course-templates/{id}/publish',
         [CourseTemplateController::class, 'publish']
     )->name('course-templates.publish');
+    Route::post(
+        '/course-templates/{id}/archive',
+        [CourseTemplateController::class, 'archive']
+    )->name('course-templates.archive');
 
     Route::get(
         '/course-templates/{templateId}/versions/{versionId}',

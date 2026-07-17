@@ -624,6 +624,7 @@ class CourseMediaIntegrationTest extends TestCase
                 'https://tenant-a.localhost/admin/course-templates',
                 $this->validTemplateData([
                     'title' => 'Remove Video Template',
+                    'status' => 'active',
                     'slug' => 'remove-video-template',
                     'intro_video_source' => 'upload',
                     'intro_image_file' => null,
@@ -1459,6 +1460,7 @@ class CourseMediaIntegrationTest extends TestCase
             'https://tenant-a.localhost/admin/course-templates',
             $this->validTemplateData([
                 'title' => 'Historical Media Detail',
+                'status' => 'active',
                 'intro_image_file' => UploadedFile::fake()->image('historical-image.png'),
                 'intro_video_source' => 'upload',
                 'intro_video_file' => UploadedFile::fake()->create('historical-video.mp4', 16, 'video/mp4'),
@@ -1552,6 +1554,7 @@ class CourseMediaIntegrationTest extends TestCase
             'https://tenant-a.localhost/admin/course-templates',
             $this->validTemplateData([
                 'title' => 'Historical Embed Detail',
+                'status' => 'active',
                 'intro_image_file' => null,
                 'intro_video_source' => 'embed',
                 'intro_video_embed_url' => 'https://youtu.be/dQw4w9WgXcQ',

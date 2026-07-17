@@ -189,6 +189,62 @@ class CourseActivityProgressRuntimeTest extends TestCase
         $this->assertFalse(Schema::hasTable('track_events'));
     }
 
+    public function test_inactive_or_archived_template_does_not_change_existing_learning_bindings(): void
+    {
+        $context = $this->runtimeContext();
+        $templateId = (int) DB::table('core_course_template_versions')
+            ->where('id', $context['version_id'])
+            ->value('template_id');
+        $productItemId = DB::table('core_course_product_items')->insertGetId([
+            'customer_id' => $context['customer_id'],
+            'product_id' => $context['product_id'],
+            'template_id' => $templateId,
+            'version_id' => $context['version_id'],
+            'title_override' => null,
+            'short_description_override' => null,
+            'sort_order' => 0,
+            'is_required' => true,
+            'status' => 'active',
+            'created_by' => $context['admin']->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $bindings = [
+            'version' => DB::table('core_course_template_versions')->where('id', $context['version_id'])->first(),
+            'product_item' => DB::table('core_course_product_items')->where('id', $productItemId)->first(),
+            'enrollment' => DB::table('core_course_enrollments')->where('id', $context['enrollment_id'])->first(),
+            'course_progress' => DB::table('core_course_progress')->where('id', $context['course_progress_id'])->first(),
+            'activity_progress' => DB::table('core_course_activity_progress')->where('id', $this->createActivityProgressFromLessonProgress(
+                $context['customer_id'],
+                $context['lesson_progress_id'],
+                $context['version_activity_id']
+            ))->first(),
+        ];
+
+        foreach (['inactive', 'archived'] as $status) {
+            DB::table('core_course_templates')->where('id', $templateId)->update([
+                'status' => $status,
+                'updated_at' => now()->addSecond(),
+            ]);
+
+            foreach ($bindings as $table => $expected) {
+                $tableName = match ($table) {
+                    'version' => 'core_course_template_versions',
+                    'product_item' => 'core_course_product_items',
+                    'enrollment' => 'core_course_enrollments',
+                    'course_progress' => 'core_course_progress',
+                    'activity_progress' => 'core_course_activity_progress',
+                };
+                $this->assertEquals(
+                    $expected,
+                    DB::table($tableName)->where('id', $expected->id)->first(),
+                    $table.' changed when Template became '.$status
+                );
+            }
+        }
+    }
+
     private function runtimeContext(): array
     {
         $context = $this->learningContext();

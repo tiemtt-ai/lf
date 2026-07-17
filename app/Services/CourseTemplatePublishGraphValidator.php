@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\CourseTemplateStatus;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -19,6 +20,12 @@ class CourseTemplatePublishGraphValidator
             $this->add($issues, 'template', 'information');
 
             return new CourseTemplatePublishReadiness($issues);
+        }
+        $templateStatus = (string) $template->status;
+        if (! CourseTemplateStatus::canPublish($templateStatus)) {
+            $this->add($issues, 'template_status', 'information', [
+                'status' => __('lf.LF_course_template_common_'.$templateStatus),
+            ]);
         }
         if (blank($template->title) || blank($template->publisher_name)) {
             $this->add($issues, 'template', 'information');

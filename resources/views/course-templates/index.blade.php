@@ -37,15 +37,11 @@
                 </label>
                 <select id="status" name="status" class="lf-form-control">
                     <option value="">{{ __('lf.LF_course_template_common_all_statuses') }}</option>
-                    <option value="draft" @selected($status === 'draft')>
-                        {{ __('lf.LF_course_template_common_draft') }}
-                    </option>
-                    <option value="active" @selected($status === 'active')>
-                        {{ __('lf.LF_course_template_common_active') }}
-                    </option>
-                    <option value="archived" @selected($status === 'archived')>
-                        {{ __('lf.LF_course_template_common_archived') }}
-                    </option>
+                    @foreach (\App\Support\CourseTemplateStatus::VALUES as $templateStatus)
+                        <option value="{{ $templateStatus }}" @selected($status === $templateStatus)>
+                            {{ __('lf.LF_course_template_common_'.$templateStatus) }}
+                        </option>
+                    @endforeach
                 </select>
             </div>
 
@@ -89,9 +85,7 @@
                             'badge-success' => $template->status === 'active',
                             'badge-danger' => $template->status === 'archived',
                         ])>
-                            {{ $template->status === 'active'
-                                ? __('lf.LF_common_status_common_active')
-                                : __('lf.LF_common_status_common_inactive') }}
+                            {{ __('lf.LF_course_template_common_'.$template->status) }}
                         </span>
                     </td>
                     <td>

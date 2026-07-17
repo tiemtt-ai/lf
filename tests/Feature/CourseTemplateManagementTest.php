@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Support\CourseTemplateStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -268,6 +269,10 @@ class CourseTemplateManagementTest extends TestCase
             ->assertSeeText(__('lf.LF_course_template_select_difficulty'));
 
         $this->assertTrue($this->selectOptionIsSelected($create->getContent(), 'status', 'draft'));
+        foreach (CourseTemplateStatus::EDITABLE_VALUES as $status) {
+            $create->assertSee('value="'.$status.'"', false);
+        }
+        $create->assertDontSee('value="archived"', false);
         $this->assertTrue($this->selectOptionIsSelected($create->getContent(), 'category_id', ''));
         $this->assertTrue($this->selectOptionIsSelected($create->getContent(), 'difficulty_level', ''));
         $this->assertFalse($this->selectOptionIsSelected($create->getContent(), 'category_id', (string) $categoryId));
@@ -288,6 +293,85 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertTrue($this->selectOptionIsSelected($edit->getContent(), 'category_id', (string) $categoryId));
         $this->assertTrue($this->selectOptionIsSelected($edit->getContent(), 'difficulty_level', 'advanced'));
         $this->assertTrue($this->selectOptionIsSelected($edit->getContent(), 'status', 'active'));
+    }
+
+    public function test_only_four_canonical_template_statuses_are_accepted(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = $this->createCategory($customerId, 'Statuses', 'statuses');
+
+        $this->assertSame(
+            ['draft', 'active', 'inactive', 'archived'],
+            CourseTemplateStatus::VALUES
+        );
+        $this->assertSame('draft', CourseTemplateStatus::DEFAULT);
+
+        $this->assertSame(
+            ['draft', 'active', 'inactive'],
+            CourseTemplateStatus::EDITABLE_VALUES
+        );
+
+        foreach (CourseTemplateStatus::EDITABLE_VALUES as $status) {
+            $this->actingAs($admin)->post(
+                'https://tenant-a.localhost/admin/course-templates',
+                [
+                    'category_id' => $categoryId,
+                    'title' => ucfirst($status).' Template',
+                    'publisher_name' => 'LearnForge',
+                    'status' => $status,
+                ]
+            )->assertRedirect()->assertSessionDoesntHaveErrors();
+
+            $this->assertDatabaseHas('core_course_templates', [
+                'customer_id' => $customerId,
+                'title' => ucfirst($status).' Template',
+                'status' => $status,
+            ]);
+        }
+
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            [
+                'category_id' => $categoryId,
+                'title' => 'Direct Archived Template',
+                'publisher_name' => 'LearnForge',
+                'status' => 'archived',
+            ]
+        )->assertSessionHasErrors('status');
+        $this->assertDatabaseMissing('core_course_templates', [
+            'title' => 'Direct Archived Template',
+        ]);
+
+        $activeTemplateId = (int) DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('status', 'active')
+            ->value('id');
+        $this->actingAs($admin)->put(
+            "https://tenant-a.localhost/admin/course-templates/{$activeTemplateId}",
+            $this->validTemplateData([
+                'category_id' => $categoryId,
+                'title' => 'Forged Archived Update',
+                'status' => 'archived',
+            ])
+        )->assertSessionHasErrors('status');
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $activeTemplateId,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            [
+                'category_id' => $categoryId,
+                'title' => 'Forged Status Template',
+                'publisher_name' => 'LearnForge',
+                'status' => 'published',
+            ]
+        )->assertSessionHasErrors('status');
+        $this->assertDatabaseMissing('core_course_templates', [
+            'title' => 'Forged Status Template',
+        ]);
     }
 
     public function test_admin_can_create_template_with_only_required_fields(): void
@@ -538,7 +622,7 @@ class CourseTemplateManagementTest extends TestCase
                 'publisher_name' => '',
                 'intro_video_source' => 'document',
                 'estimated_minutes_per_lesson' => -1,
-                'status' => 'inactive',
+                'status' => 'disabled',
             ])
             ->assertRedirect('https://tenant-a.localhost/admin/course-templates/create')
             ->assertSessionHasErrors([
@@ -631,8 +715,8 @@ class CourseTemplateManagementTest extends TestCase
             ->put(
                 "https://tenant-a.localhost/admin/course-templates/{$ownTemplateId}",
                 $this->validTemplateData([
-                    'title' => 'Archived Own Course',
-                    'status' => 'archived',
+                    'title' => 'Inactive Own Course',
+                    'status' => 'inactive',
                 ])
             )
             ->assertRedirect(
@@ -642,8 +726,8 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_templates', [
             'id' => $ownTemplateId,
             'customer_id' => $customerId,
-            'title' => 'Archived Own Course',
-            'status' => 'archived',
+            'title' => 'Inactive Own Course',
+            'status' => 'inactive',
             'working_revision' => 2,
         ]);
         $this->assertDatabaseHas('core_course_templates', [

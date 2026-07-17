@@ -37,10 +37,12 @@ class CourseTemplatePublishingTest extends TestCase
     public function test_course_template_lifecycle_routes_are_registered_for_admin_only(): void
     {
         $this->assertTrue(Route::has('admin.course-templates.publish'));
+        $this->assertTrue(Route::has('admin.course-templates.archive'));
         $this->assertTrue(Route::has('admin.course-templates.versions.show'));
         $this->assertTrue(Route::has('admin.course-templates.versions.duplicate-to-draft'));
 
         $this->assertFalse(Route::has('teacher.course-templates.publish'));
+        $this->assertFalse(Route::has('teacher.course-templates.archive'));
         $this->assertFalse(Route::has('teacher.course-templates.versions.show'));
         $this->assertFalse(Route::has('teacher.course-templates.versions.duplicate-to-draft'));
     }
@@ -58,6 +60,220 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertSame('Theo phần học', __('lf.LF_course_template_structure_tab_sections'));
         $this->assertSame('Chưa có bài học trực tiếp.', __('lf.LF_version_detail_no_direct_lessons'));
         $this->assertSame('Chưa có phần học.', __('lf.LF_version_detail_no_sections'));
+    }
+
+    public function test_only_active_working_template_status_can_publish(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Status Admin');
+
+        foreach (['draft', 'active', 'inactive', 'archived'] as $status) {
+            $templateId = $this->createTemplate(
+                $customerId,
+                $admin->id,
+                ucfirst($status).' Status Course'
+            );
+            DB::table('core_course_templates')
+                ->where('id', $templateId)
+                ->update(['status' => $status]);
+            $lessonId = $this->createLesson(
+                $customerId,
+                $templateId,
+                null,
+                ucfirst($status).' Lesson',
+                0,
+                $admin->id
+            );
+            $this->createActivity(
+                $customerId,
+                $templateId,
+                $lessonId,
+                ucfirst($status).' Activity',
+                0,
+                $admin->id
+            );
+
+            $editUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish";
+            $publishUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish";
+            $readiness = $this->actingAs($admin)->get($editUrl)->assertOk();
+
+            if ($status === 'active') {
+                $readiness
+                    ->assertDontSee('data-readiness-code="template_status"', false)
+                    ->assertDontSee('course-template-publish-button" disabled', false);
+                $this->actingAs($admin)
+                    ->from($editUrl)
+                    ->post($publishUrl)
+                    ->assertRedirect($editUrl)
+                    ->assertSessionDoesntHaveErrors();
+                $this->assertDatabaseHas('core_course_template_versions', [
+                    'template_id' => $templateId,
+                    'status' => 'published',
+                ]);
+            } else {
+                $statusLabel = __('lf.LF_course_template_common_'.$status);
+                $blocker = "Chỉ Course Template ở trạng thái Hoạt động mới có thể xuất bản. Trạng thái hiện tại là {$statusLabel}. Hãy đổi trạng thái trong tab Thông tin trước khi xuất bản.";
+                $readiness
+                    ->assertSee('data-readiness-code="template_status"', false)
+                    ->assertSeeText($blocker);
+                $this->actingAs($admin)
+                    ->from($editUrl)
+                    ->post($publishUrl)
+                    ->assertRedirect($editUrl)
+                    ->assertSessionHasErrors([
+                        'publish' => $blocker,
+                    ]);
+                $this->assertDatabaseMissing('core_course_template_versions', [
+                    'template_id' => $templateId,
+                ]);
+            }
+
+            $this->assertDatabaseHas('core_course_templates', [
+                'id' => $templateId,
+                'status' => $status,
+            ]);
+        }
+    }
+
+    public function test_template_status_publish_blocker_is_localized(): void
+    {
+        app()->setLocale('en');
+        $this->assertSame(
+            'Only an Active Course Template can be published. The current status is Draft. Change it in the Information tab before publishing.',
+            __('lf.LF_course_template_publish_integrity_template_status', ['status' => 'Draft'])
+        );
+
+        app()->setLocale('vi');
+        $this->assertSame(
+            'Chỉ Course Template ở trạng thái Hoạt động mới có thể xuất bản. Trạng thái hiện tại là Bản nháp. Hãy đổi trạng thái trong tab Thông tin trước khi xuất bản.',
+            __('lf.LF_course_template_publish_integrity_template_status', ['status' => 'Bản nháp'])
+        );
+    }
+
+    public function test_publish_rechecks_locked_status_after_readiness_render_and_ignores_forged_status(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Locked Status Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Locked Status Course');
+        $lessonId = $this->createLesson($customerId, $templateId, null, 'Locked Status Lesson', 0, $admin->id);
+        $this->createActivity($customerId, $templateId, $lessonId, 'Locked Status Activity', 0, $admin->id);
+        $editUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish";
+
+        $this->actingAs($admin)->get($editUrl)
+            ->assertOk()
+            ->assertSeeText('Sẵn sàng xuất bản');
+
+        DB::table('core_course_templates')->where('id', $templateId)->update([
+            'status' => 'inactive',
+        ]);
+
+        $this->actingAs($admin)
+            ->from($editUrl)
+            ->post(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish",
+                ['status' => 'active']
+            )
+            ->assertRedirect($editUrl)
+            ->assertSessionHasErrors('publish');
+
+        $this->assertDatabaseMissing('core_course_template_versions', [
+            'template_id' => $templateId,
+        ]);
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $templateId,
+            'status' => 'inactive',
+        ]);
+    }
+
+    public function test_admin_archives_only_inactive_template_without_changing_published_version(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin', 'Archive Admin');
+        $teacher = $this->createUser($customerId, 'teacher', 'Archive Teacher');
+        $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin', 'Other Archive Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Archive Course');
+        $lessonId = $this->createLesson($customerId, $templateId, null, 'Archive Lesson', 0, $admin->id);
+        $this->createActivity($customerId, $templateId, $lessonId, 'Archive Activity', 0, $admin->id);
+        $archiveUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/archive";
+
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish"
+        )->assertRedirect();
+        $versionBefore = DB::table('core_course_template_versions')
+            ->where('template_id', $templateId)
+            ->sole();
+
+        $this->actingAs($admin)
+            ->from("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->post($archiveUrl)
+            ->assertSessionHasErrors('status');
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $templateId,
+            'status' => 'active',
+        ]);
+
+        DB::table('core_course_templates')->where('id', $templateId)->update([
+            'status' => 'inactive',
+        ]);
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->assertOk()
+            ->assertSeeText('Lưu trữ Template')
+            ->assertSee('window.confirm', false)
+            ->assertSee(':aria-busy="submitting"', false);
+
+        $this->actingAs($teacher)->post($archiveUrl)->assertForbidden();
+
+        $this->actingAs($admin)
+            ->post($archiveUrl)
+            ->assertRedirect('https://tenant-a.localhost/admin/course-templates');
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $templateId,
+            'status' => 'archived',
+        ]);
+        $this->assertEquals(
+            $versionBefore,
+            DB::table('core_course_template_versions')->where('id', $versionBefore->id)->sole()
+        );
+        $audit = DB::table('saas_audit_logs')
+            ->where('customer_id', $customerId)
+            ->where('action', 'course_template_archive')
+            ->sole();
+        $this->assertSame($admin->id, $audit->actor_id);
+        $this->assertSame(
+            ['template_id' => $templateId, 'status' => 'inactive'],
+            json_decode($audit->before, true)
+        );
+        $this->assertSame(
+            ['template_id' => $templateId, 'status' => 'archived'],
+            json_decode($audit->after, true)
+        );
+
+        $archivedEdit = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->assertOk()
+            ->assertSeeText('Ngừng sử dụng')
+            ->assertDontSee('name="status"', false)
+            ->assertDontSeeText('Lưu thay đổi');
+        $this->assertStringNotContainsString('/archive', $archivedEdit->getContent());
+
+        $otherTemplateId = $this->createTemplate(
+            $otherCustomerId,
+            $otherAdmin->id,
+            'Other Tenant Archive Course'
+        );
+        DB::table('core_course_templates')->where('id', $otherTemplateId)->update([
+            'status' => 'inactive',
+        ]);
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-templates/{$otherTemplateId}/archive"
+        )->assertNotFound();
+        $this->assertDatabaseHas('core_course_templates', [
+            'id' => $otherTemplateId,
+            'customer_id' => $otherCustomerId,
+            'status' => 'inactive',
+        ]);
     }
 
     public function test_version_content_reuses_authoring_visual_classes_without_parallel_tab_styles(): void
@@ -663,7 +879,7 @@ class CourseTemplatePublishingTest extends TestCase
         DB::table('core_course_templates')->where('id', $templateId)->update(['working_revision' => 4]);
         $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")
             ->assertOk()
-            ->assertSeeText('Bản nháp · Bản chỉnh sửa 4')
+            ->assertSeeText('Hoạt động · Bản chỉnh sửa 4')
             ->assertSeeText('Sẵn sàng xuất bản');
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")
             ->assertRedirect("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish");
@@ -1945,7 +2161,7 @@ class CourseTemplatePublishingTest extends TestCase
             'meta_description' => 'Snapshot course metadata.',
             'meta_keywords' => 'snapshot,course',
             'working_revision' => 3,
-            'status' => 'draft',
+            'status' => 'active',
             'created_by' => $createdBy,
             'last_version_published_at' => null,
             'created_at' => $now,

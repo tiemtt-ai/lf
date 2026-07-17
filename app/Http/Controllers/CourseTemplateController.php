@@ -10,6 +10,8 @@ use App\Services\CourseTemplateVersionMediaPresenter;
 use App\Services\MediaService;
 use App\Services\MediaThumbnailPresenter;
 use App\Services\TrustedVideoUrlService;
+use App\Support\AuditLog;
+use App\Support\CourseTemplateStatus;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
 use Illuminate\Http\RedirectResponse;
@@ -18,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class CourseTemplateController extends Controller
@@ -39,7 +42,7 @@ class CourseTemplateController extends Controller
         $keyword = trim((string) $request->query('keyword', ''));
         $status = $request->query('status');
 
-        if (! in_array($status, ['draft', 'active', 'archived'], true)) {
+        if (! in_array($status, CourseTemplateStatus::VALUES, true)) {
             $status = null;
         }
 
@@ -346,6 +349,11 @@ class CourseTemplateController extends Controller
     {
         $customerId = $this->customerId();
         $template = $this->findTemplate($customerId, $id);
+        if ($template->status === CourseTemplateStatus::ARCHIVED) {
+            throw ValidationException::withMessages([
+                'status' => __('lf.LF_course_template_status_archived_readonly'),
+            ]);
+        }
         $validated = $this->validatedData($request, $customerId, $id, $template);
 
         $values = $this->withoutMissingSeoValues(
@@ -368,6 +376,48 @@ class CourseTemplateController extends Controller
         return redirect()
             ->route($this->routePrefix($request).'.edit', $id)
             ->with('success', __('lf.LF_course_template_common_updated'));
+    }
+
+    public function archive(Request $request, int $id): RedirectResponse
+    {
+        abort_unless($request->user()?->role === 'customer_admin', 403);
+
+        $customerId = $this->customerId();
+        DB::transaction(function () use ($request, $customerId, $id): void {
+            $template = DB::table('core_course_templates')
+                ->where('customer_id', $customerId)
+                ->where('id', $id)
+                ->lockForUpdate()
+                ->first();
+
+            abort_if(! $template, 404);
+            if ($template->status !== CourseTemplateStatus::INACTIVE) {
+                throw ValidationException::withMessages([
+                    'status' => __('lf.LF_course_template_status_archive_requires_inactive'),
+                ]);
+            }
+
+            DB::table('core_course_templates')
+                ->where('customer_id', $customerId)
+                ->where('id', $id)
+                ->update([
+                    'status' => CourseTemplateStatus::ARCHIVED,
+                    'updated_at' => now(),
+                ]);
+
+            AuditLog::record(
+                $request,
+                $customerId,
+                'course_template_archive',
+                null,
+                ['template_id' => $id, 'status' => CourseTemplateStatus::INACTIVE],
+                ['template_id' => $id, 'status' => CourseTemplateStatus::ARCHIVED]
+            );
+        });
+
+        return redirect()
+            ->route('admin.course-templates.index')
+            ->with('success', __('lf.LF_course_template_status_archived_success'));
     }
 
     public function destroy(Request $request, int $id)
@@ -565,7 +615,7 @@ class CourseTemplateController extends Controller
             'meta_keywords' => ['nullable', 'string', 'max:500'],
             'status' => [
                 'required',
-                Rule::in(['draft', 'active', 'archived']),
+                Rule::in(CourseTemplateStatus::EDITABLE_VALUES),
             ],
             'intro_image_file' => [
                 'nullable',
