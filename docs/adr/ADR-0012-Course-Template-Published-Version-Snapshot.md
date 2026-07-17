@@ -9,6 +9,7 @@ Decision Date: 2026-07-03
 Scope Amendment Date: 2026-07-10
 Nested Section Amendment Date: 2026-07-10
 Information Model Amendment Date: 2026-07-12
+Lifecycle Clarification Date: 2026-07-17
 
 Extends:
 [ADR-0001 — Course Foundation](ADR-0001-Course-Foundation.md)
@@ -46,8 +47,9 @@ usage, and active Version usage prevents physical deletion.
 
 ## Publish Integrity Boundary Amendment (2026-07-12)
 
-Publish validates the locked draft Template, Section, Lesson and Activity
-graph before creating Version rows. Invalid ownership, hierarchy, prerequisite,
+Publish validates the locked working Template, whose lifecycle status must be
+`active`, together with its Section, Lesson and Activity graph before creating
+Version rows. Invalid ownership, hierarchy, prerequisite,
 ordering, duration aggregate, activity configuration or referenced Media fails
 closed and rolls back the complete transaction. A successful publish updates
 `last_version_published_at` with the exact `published_at` timestamp of the new
@@ -60,7 +62,7 @@ Publish freezes `estimated_duration_seconds` as
 
 ## Lesson Role Amendment (2026-07-12)
 
-Publish copies draft Lesson `lesson_type` to the immutable Version Lesson.
+Publish copies the working Lesson `lesson_type` to the immutable Version Lesson.
 Allowed codes are `regular`, `review`, `midterm_exam`, `final_exam`, and
 `other_exam`; existing data defaults to `regular`. The field is semantic only
 and does not alter scheduling, grading, completion, unlock or Assessment rules.

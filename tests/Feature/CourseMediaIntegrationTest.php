@@ -161,11 +161,26 @@ class CourseMediaIntegrationTest extends TestCase
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = (int) $this->validTemplateData()['category_id'];
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Media Product Template',
+            'media-product-template',
+            $admin->id
+        );
+        DB::table('core_course_templates')->where('id', $templateId)->update([
+            'category_id' => $categoryId,
+            'status' => 'active',
+        ]);
+        $versionId = $this->createPublishedVersion($customerId, $templateId, $admin->id);
 
         $this->actingAs($admin)
             ->post(
                 'https://tenant-a.localhost/admin/course-products',
                 $this->validProductData([
+                    'category_id' => $categoryId,
+                    'template_id' => $templateId,
+                    'template_version_id' => $versionId,
                     'title' => 'Media Product',
                     'slug' => 'media-product',
                     'cover_image_file' => UploadedFile::fake()->image(
@@ -2453,6 +2468,43 @@ class CourseMediaIntegrationTest extends TestCase
             'assigned_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
+        ]);
+    }
+
+    private function createPublishedVersion(int $customerId, int $templateId, int $userId): int
+    {
+        $now = now();
+
+        return DB::table('core_course_template_versions')->insertGetId([
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'version_number' => 1,
+            'version_code' => 'VERSION-'.$templateId.'-1',
+            'is_current' => true,
+            'source_category_id' => DB::table('core_course_templates')->where('id', $templateId)->value('category_id'),
+            'category_name_snapshot' => null,
+            'title_snapshot' => 'Media Product Version',
+            'short_description_snapshot' => null,
+            'description_snapshot' => null,
+            'publisher_name_snapshot' => null,
+            'intro_video_source_snapshot' => null,
+            'intro_image_media_file_id_snapshot' => null,
+            'intro_video_media_file_id_snapshot' => null,
+            'difficulty_level_snapshot' => null,
+            'estimated_minutes_per_lesson_snapshot' => null,
+            'estimated_lesson_count_snapshot' => null,
+            'lesson_count_snapshot' => 0,
+            'meta_title_snapshot' => null,
+            'meta_description_snapshot' => null,
+            'meta_keywords_snapshot' => null,
+            'source_working_revision' => 1,
+            'status' => 'published',
+            'published_at' => $now,
+            'published_by' => $userId,
+            'source_template_updated_at' => $now,
+            'metadata' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
         ]);
     }
 

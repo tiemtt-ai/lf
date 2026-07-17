@@ -298,6 +298,7 @@ class BackendLayoutNavigationTest extends TestCase
         foreach (array_diff($indexFiles, [
             'resources/views/media-files/index.blade.php',
             'resources/views/course-products/index.blade.php',
+            'resources/views/course-templates/index.blade.php',
         ]) as $file) {
             $blade = file_get_contents(base_path($file));
 
@@ -319,6 +320,22 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringContainsString(
             "__('lf.LF_course_product_common_'.\$product->status)",
             $productIndex
+        );
+
+        $templateIndex = file_get_contents(
+            base_path('resources/views/course-templates/index.blade.php')
+        );
+        $this->assertStringContainsString(
+            '@foreach (\App\Support\CourseTemplateStatus::VALUES as $templateStatus)',
+            $templateIndex
+        );
+        $this->assertStringContainsString(
+            "__('lf.LF_course_template_common_'.\$templateStatus)",
+            $templateIndex
+        );
+        $this->assertStringContainsString(
+            "__('lf.LF_course_template_common_'.\$template->status)",
+            $templateIndex
         );
 
         foreach ([
