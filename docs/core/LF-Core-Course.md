@@ -331,8 +331,11 @@ Embedded-video Activities accept only canonical HTTPS YouTube or Vimeo URLs
 normalized by `TrustedVideoUrlService`. Live Class Activities use the `manual`
 completion rule; percentage and pass thresholds are integers from `1` through
 `100`. Activity unlock rules are limited to `none`,
-`previous_activity_completed` and `date_based`, matching the immutable Version
-Activity runtime contract.
+and `previous_activity_completed`, matching the immutable Version Activity
+runtime contract. `VersionActivityAccessService` evaluates the frozen
+prerequisite against completed Activity Progress in the exact tenant, student,
+Enrollment, Product, Version and Version Lesson context. Activity prerequisites
+need not precede the dependent Activity by `sort_order`.
 
 A Quiz Activity may be authored with a provisional positive integer
 `assessment_quiz_id`, but any Template containing a Quiz Activity is blocked
@@ -350,6 +353,11 @@ type, MIME and extension combination through the canonical MediaService policy;
 it must not maintain a separate MIME vocabulary. Media readiness remains the
 source of truth, so Activity publish validation does not perform a physical
 storage HEAD/existence request.
+
+The same Media Domain boundary applies to uploaded Template introduction media:
+publish checks `status = ready`, tenant, owner/slot cardinality, file type, MIME
+and extension, but performs no physical storage HEAD request while holding the
+Template transaction lock.
 
 A new Course Product may select a Template only when all conditions hold:
 

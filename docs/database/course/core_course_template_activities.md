@@ -271,7 +271,6 @@ Giá trị:
 
 * none
 * previous_activity_completed
-* date_based
 
 ### unlock_after_activity_id
 
@@ -283,7 +282,9 @@ Activity cần hoàn thành trước.
 
 TIMESTAMP NULL
 
-Ngày mở khóa nếu unlock_rule = date_based.
+Legacy compatibility column. Current Activity authoring and publish readiness
+require this field to remain `NULL`; date-based unlock belongs outside the
+current Activity runtime contract.
 
 ---
 

@@ -10,6 +10,7 @@ use Illuminate\Validation\ValidationException;
 class CourseTemplateVersionDuplicatingService
 {
     public function __construct(private readonly MediaService $mediaService) {}
+
     private const ACTIVITY_REFERENCE_TABLES = [
         'media_videos',
         'media_audios',
@@ -261,6 +262,14 @@ class CourseTemplateVersionDuplicatingService
 
         foreach ($activities as $activity) {
             if (! $lessonIds->has($activity->version_lesson_id)) {
+                $this->invalidStructure();
+            }
+
+            if (! in_array($activity->unlock_rule_snapshot, ['none', 'previous_activity_completed'], true)
+                || ($activity->unlock_rule_snapshot === 'none'
+                    && ($activity->unlock_after_version_activity_id || $activity->unlock_at_snapshot))
+                || ($activity->unlock_rule_snapshot === 'previous_activity_completed'
+                    && (! $activity->unlock_after_version_activity_id || $activity->unlock_at_snapshot))) {
                 $this->invalidStructure();
             }
 

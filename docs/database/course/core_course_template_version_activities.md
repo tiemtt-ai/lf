@@ -70,9 +70,9 @@ Media / Assessment / LiveClass → version_activities (approved immutable refere
 | `completion_rule` | VARCHAR(50) | required, default `view` | Type-compatible value: `view`, `watch_percent`, `submit`, `pass`, or `manual`; Live Class uses `manual`. |
 | `completion_threshold` | INT UNSIGNED | nullable | Frozen threshold from `1` through `100`, such as watch percentage or pass percentage. |
 | `is_preview` | TINYINT(1) | required, default 0 | Published preview permission. |
-| `unlock_rule_snapshot` | VARCHAR(50) | required, default `none` | `none`, `previous_activity_completed`, or `date_based`. |
+| `unlock_rule_snapshot` | VARCHAR(50) | required, default `none` | `none` or `previous_activity_completed`. |
 | `unlock_after_version_activity_id` | BIGINT UNSIGNED | nullable | Published prerequisite Activity in the same Lesson. |
-| `unlock_at_snapshot` | TIMESTAMP | nullable | Published date-based unlock time. |
+| `unlock_at_snapshot` | TIMESTAMP | nullable | Legacy compatibility column; current publish always snapshots `NULL`. |
 | `created_by_snapshot` | BIGINT UNSIGNED | nullable | Source author identifier captured for audit. |
 | `metadata` | JSON | nullable | Non-canonical immutable integration context only; not a substitute for defined fields. |
 | `created_at` | TIMESTAMP | nullable | Snapshot creation time. |

@@ -991,6 +991,54 @@ class CourseTemplatePublishingTest extends TestCase
         }
     }
 
+    public function test_activity_media_cardinality_counts_only_active_usages_and_detects_foreign_tenant_corruption(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Media Cardinality Course');
+        $lessonId = $this->createLesson($customerId, $templateId, null, 'Media Lesson', 0, $admin->id);
+        $activityId = $this->createActivity($customerId, $templateId, $lessonId, 'Media Document', 0, $admin->id);
+        $activeUsage = DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->first();
+        $activeMedia = DB::table('media_files')->where('id', $activeUsage->media_file_id)->first();
+        $historicalMedia = (array) $activeMedia;
+        unset($historicalMedia['id']);
+        $historicalMedia['storage_key'] = 'tests/historical-'.$activityId.'.pdf';
+        $historicalMediaId = DB::table('media_files')->insertGetId($historicalMedia);
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $customerId,
+            'media_file_id' => $historicalMediaId,
+            'owner_type' => 'course_activity',
+            'owner_id' => $activityId,
+            'usage_type' => 'document',
+            'status' => 'detached',
+            'metadata' => null,
+            'created_by' => $admin->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $service = app(CourseTemplatePublishReadinessService::class);
+
+        $this->assertTrue($service->evaluate($customerId, $service->load($customerId, $templateId))->isReady());
+
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $otherCustomerId,
+            'media_file_id' => $activeMedia->id,
+            'owner_type' => 'course_activity',
+            'owner_id' => $activityId,
+            'usage_type' => 'document',
+            'status' => 'active',
+            'metadata' => null,
+            'created_by' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $this->assertSame(
+            ['activity_media'],
+            $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all(),
+        );
+    }
+
     public function test_readiness_reports_each_invalid_template_media_slot_from_the_shared_result(): void
     {
         $customerId = $this->createTenant();
@@ -1061,6 +1109,12 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertSame(['activity_unlock'], $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all());
 
         DB::table('core_course_template_activities')->where('id', $activityId)->update([
+            'unlock_rule' => 'date_based',
+            'unlock_at' => now()->addDay(),
+        ]);
+        $this->assertSame(['activity_unlock'], $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all());
+
+        DB::table('core_course_template_activities')->where('id', $activityId)->update([
             'activity_type' => 'live_class',
             'external_video_url' => null,
             'live_class_url' => 'https://meet.example.test/class',
@@ -1093,8 +1147,17 @@ class CourseTemplatePublishingTest extends TestCase
         $readiness = $service->evaluate($customerId, $service->load($customerId, $templateId));
         $this->assertContains('activity', $readiness->blockers()->pluck('code')->all());
 
+        $foreignTemplateId = $this->createTemplate($otherCustomerId, $admin->id, 'Foreign Graph Course');
         DB::table('core_course_template_activities')->where('id', $activityId)->update([
             'customer_id' => $customerId,
+            'template_id' => $foreignTemplateId,
+        ]);
+        $readiness = $service->evaluate($customerId, $service->load($customerId, $templateId));
+        $this->assertContains('activity', $readiness->blockers()->pluck('code')->all());
+
+        DB::table('core_course_template_activities')->where('id', $activityId)->update([
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
             'activity_type' => 'quiz',
             'assessment_quiz_id' => 999999,
             'completion_rule' => 'submit',
@@ -2410,14 +2473,11 @@ class CourseTemplatePublishingTest extends TestCase
         $imageStorageKey = DB::table('media_files')->where('id', $imageId)->value('storage_key');
         Storage::disk('media_local')->delete($imageStorageKey);
         $missingObjectReadiness = $service->evaluate($customerId, $service->load($customerId, $templateId));
-        $this->assertContains('template_intro_image', $missingObjectReadiness->blockers()->pluck('code')->all());
+        $this->assertTrue($missingObjectReadiness->isReady());
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")
             ->assertOk()
-            ->assertSee('data-readiness-code="template_intro_image"', false)
-            ->assertSee('?tab=information#intro_image_file', false);
-        Storage::disk('media_local')->put($imageStorageKey, 'image');
-        $this->assertTrue($service->evaluate($customerId, $service->load($customerId, $templateId))->isReady());
+            ->assertDontSee('data-readiness-code="template_intro_image"', false);
 
         foreach ([
             ['mime_type', 'application/pdf'],

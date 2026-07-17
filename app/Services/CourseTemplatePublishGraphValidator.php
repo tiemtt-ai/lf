@@ -14,7 +14,7 @@ class CourseTemplatePublishGraphValidator
 
     private const ACTIVITY_TYPES = ['video', 'embedded_video', 'audio', 'document', 'quiz', 'live_class'];
 
-    private const ACTIVITY_UNLOCK_RULES = ['none', 'previous_activity_completed', 'date_based'];
+    private const ACTIVITY_UNLOCK_RULES = ['none', 'previous_activity_completed'];
 
     public function __construct(
         private readonly MediaService $mediaService,
@@ -122,11 +122,10 @@ class CourseTemplatePublishGraphValidator
     private function validateActivities(int $customerId, int $templateId, Collection $activities, Collection $map, Collection $lessons, Collection $issues): void
     {
         $mediaByActivity = DB::table('media_file_usages as usages')
-            ->join('media_files as media', 'media.id', '=', 'usages.media_file_id')
-            ->where('usages.customer_id', $customerId)
+            ->leftJoin('media_files as media', 'media.id', '=', 'usages.media_file_id')
             ->where('usages.owner_type', 'course_activity')
             ->whereIn('usages.owner_id', $activities->pluck('id'))
-            ->select('usages.owner_id', 'usages.usage_type', 'usages.status as usage_status', 'media.customer_id as media_customer_id', 'media.file_type', 'media.mime_type', 'media.extension', 'media.status as media_status')
+            ->select('usages.owner_id', 'usages.customer_id as usage_customer_id', 'usages.media_file_id', 'usages.usage_type', 'usages.status as usage_status', 'media.id as resolved_media_id', 'media.customer_id as media_customer_id', 'media.file_type', 'media.mime_type', 'media.extension', 'media.status as media_status')
             ->get()->groupBy('owner_id');
         $parents = [];
         foreach ($activities as $activity) {
@@ -176,12 +175,14 @@ class CourseTemplatePublishGraphValidator
             }
 
             $activityMedia = $mediaByActivity->get($activity->id, collect());
+            $activeMedia = $activityMedia->where('usage_status', 'active');
             $invalidMedia = false;
-            foreach ($activityMedia as $media) {
+            foreach ($activeMedia as $media) {
                 $expectedType = in_array($type, ['video', 'audio', 'document'], true) ? $type : 'attachment';
-                if ((int) $media->media_customer_id !== $customerId
+                if ((int) $media->usage_customer_id !== $customerId
+                    || ! $media->resolved_media_id
+                    || (int) $media->media_customer_id !== $customerId
                     || $media->media_status !== 'ready'
-                    || $media->usage_status !== 'active'
                     || ($media->usage_type !== 'attachment'
                         && ($media->usage_type !== $expectedType
                             || $media->file_type !== $expectedType
@@ -194,8 +195,11 @@ class CourseTemplatePublishGraphValidator
                 }
             }
             if (in_array($type, ['video', 'audio', 'document'], true)) {
-                $invalidMedia = $invalidMedia || $activityMedia->where('usage_type', $type)->count() !== 1;
-            } elseif ($activityMedia->whereIn('usage_type', ['video', 'audio', 'document'])->isNotEmpty()) {
+                $correctActiveUsages = $activeMedia
+                    ->where('usage_customer_id', $customerId)
+                    ->where('usage_type', $type);
+                $invalidMedia = $invalidMedia || $correctActiveUsages->count() !== 1;
+            } elseif ($activeMedia->whereIn('usage_type', ['video', 'audio', 'document'])->isNotEmpty()) {
                 $invalidMedia = true;
             }
             if ($invalidMedia) {
@@ -205,7 +209,9 @@ class CourseTemplatePublishGraphValidator
             $rule = $activity->unlock_rule;
             $prerequisite = $activity->unlock_after_activity_id ? (int) $activity->unlock_after_activity_id : null;
             $target = $prerequisite ? $map->get($prerequisite) : null;
-            if (! in_array($rule, self::ACTIVITY_UNLOCK_RULES, true) || ($rule === 'none' && ($prerequisite || $activity->unlock_at)) || ($rule === 'previous_activity_completed' && (! $target || $activity->unlock_at || (int) $target->template_lesson_id !== (int) $activity->template_lesson_id)) || ($rule === 'date_based' && ($prerequisite || ! $activity->unlock_at))) {
+            if (! in_array($rule, self::ACTIVITY_UNLOCK_RULES, true)
+                || ($rule === 'none' && ($prerequisite || $activity->unlock_at))
+                || ($rule === 'previous_activity_completed' && (! $target || $activity->unlock_at || (int) $target->template_lesson_id !== (int) $activity->template_lesson_id))) {
                 $this->add($issues, 'activity_unlock', 'content', $context, $fragment);
             }
             $parents[(int) $activity->id] = $rule === 'previous_activity_completed' ? $prerequisite : null;
@@ -227,7 +233,6 @@ class CourseTemplatePublishGraphValidator
                 ->where('id', $mediaId)
                 ->first();
             $activeSlotUsages = DB::table('media_file_usages')
-                ->where('customer_id', $customerId)
                 ->where('owner_type', 'course_template')
                 ->where('owner_id', $templateId)
                 ->where('usage_type', $usageType)
@@ -236,13 +241,13 @@ class CourseTemplatePublishGraphValidator
             $valid = $media
                 && $media->status === 'ready'
                 && $media->file_type === $fileType
-                && $this->mediaService->storageObjectExists($media)
                 && $this->mediaService->fileContentIsAllowed(
                     $fileType,
                     (string) $media->mime_type,
                     $media->extension,
                 )
                 && $activeSlotUsages->count() === 1
+                && (int) $activeSlotUsages->first()->customer_id === $customerId
                 && (int) $activeSlotUsages->first()->media_file_id === (int) $mediaId;
             if (! $valid) {
                 $this->add(

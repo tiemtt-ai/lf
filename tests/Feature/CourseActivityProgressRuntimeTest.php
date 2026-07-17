@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\VersionActivityAccessService;
+use App\Support\TenantContext;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +33,78 @@ class CourseActivityProgressRuntimeTest extends TestCase
         $this->assertTrue(Schema::hasTable('core_course_activity_progress'));
         $this->assertTrue(Schema::hasColumn('core_course_activity_progress', 'version_id'));
         $this->assertFalse(Schema::hasColumn('core_course_activity_progress', 'template_version_id'));
+    }
+
+    public function test_version_activity_access_enforces_prerequisite_in_exact_enrollment_context(): void
+    {
+        $context = $this->runtimeContext();
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        $targetActivityId = $this->createVersionActivity(
+            $context['customer_id'],
+            $context['version_id'],
+            $context['version_lesson_id'],
+        );
+        DB::table('core_course_template_version_activities')->where('id', $targetActivityId)->update([
+            'unlock_rule_snapshot' => 'previous_activity_completed',
+            'unlock_after_version_activity_id' => $context['version_activity_id'],
+        ]);
+        $service = app(VersionActivityAccessService::class);
+
+        $this->assertFalse($service->decide(
+            $context['student']->id,
+            $context['enrollment_id'],
+            $targetActivityId,
+        )->allowed);
+
+        $progressId = $this->createActivityProgressFromLessonProgress(
+            $context['customer_id'],
+            $context['lesson_progress_id'],
+            $context['version_activity_id'],
+        );
+        DB::table('core_course_activity_progress')->where('id', $progressId)->update([
+            'status' => 'completed',
+            'completed_at' => now(),
+        ]);
+
+        $decision = $service->decide(
+            $context['student']->id,
+            $context['enrollment_id'],
+            $targetActivityId,
+        );
+        $this->assertTrue($decision->allowed);
+        $this->assertSame('prerequisite_completed', $decision->reason);
+        $this->assertSame($context['version_activity_id'], $decision->prerequisiteVersionActivityId);
+    }
+
+    public function test_version_activity_access_fails_closed_for_unsupported_rule_and_wrong_lesson_prerequisite(): void
+    {
+        $context = $this->runtimeContext();
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        $otherLessonId = $this->createVersionLesson($context['customer_id'], $context['version_id']);
+        $targetActivityId = $this->createVersionActivity(
+            $context['customer_id'],
+            $context['version_id'],
+            $otherLessonId,
+        );
+        DB::table('core_course_template_version_activities')->where('id', $targetActivityId)->update([
+            'unlock_rule_snapshot' => 'previous_activity_completed',
+            'unlock_after_version_activity_id' => $context['version_activity_id'],
+        ]);
+        $service = app(VersionActivityAccessService::class);
+
+        $this->assertSame(
+            'invalid_prerequisite_context',
+            $service->decide($context['student']->id, $context['enrollment_id'], $targetActivityId)->reason,
+        );
+
+        DB::table('core_course_template_version_activities')->where('id', $targetActivityId)->update([
+            'unlock_rule_snapshot' => 'date_based',
+            'unlock_after_version_activity_id' => null,
+        ]);
+        $this->assertSame(
+            'invalid_unlock_rule',
+            $service->decide($context['student']->id, $context['enrollment_id'], $targetActivityId)->reason,
+        );
     }
 
     public function test_runtime_activity_progress_can_be_created_from_lesson_progress_context(): void

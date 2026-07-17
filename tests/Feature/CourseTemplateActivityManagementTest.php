@@ -639,6 +639,13 @@ class CourseTemplateActivityManagementTest extends TestCase
             ]))
             ->assertSessionHasErrors('completion_threshold');
 
+        $this->actingAs($admin)
+            ->post($url, $this->validActivityData([
+                'unlock_rule' => 'date_based',
+                'unlock_at' => now()->addDay()->format('Y-m-d H:i:s'),
+            ]))
+            ->assertSessionHasErrors('unlock_rule');
+
         $this->assertDatabaseCount('core_course_template_activities', 0);
     }
 

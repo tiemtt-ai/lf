@@ -8,7 +8,6 @@ use App\Services\TrustedVideoUrlService;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -648,7 +647,6 @@ class CourseTemplateActivityController extends Controller
             'is_preview',
             'unlock_rule',
             'unlock_after_activity_id',
-            'unlock_at',
         ];
 
         $input = array_intersect_key(
@@ -680,9 +678,6 @@ class CourseTemplateActivityController extends Controller
         }
         if (($input['unlock_rule'] ?? null) !== 'previous_activity_completed') {
             unset($input['unlock_after_activity_id']);
-        }
-        if (($input['unlock_rule'] ?? null) !== 'date_based') {
-            unset($input['unlock_at']);
         }
 
         foreach ([
@@ -789,7 +784,6 @@ class CourseTemplateActivityController extends Controller
                 Rule::in([
                     'none',
                     'previous_activity_completed',
-                    'date_based',
                 ]),
             ],
             'unlock_after_activity_id' => [
@@ -802,12 +796,6 @@ class CourseTemplateActivityController extends Controller
                         ->where('customer_id', $customerId)
                         ->where('template_id', $templateId)
                         ->where('template_lesson_id', $lessonId)),
-            ],
-            'unlock_at' => [
-                'nullable',
-                'date',
-                'required_if:unlock_rule,date_based',
-                'prohibited_unless:unlock_rule,date_based',
             ],
             'activity_video_file' => [
                 'nullable',
@@ -868,9 +856,7 @@ class CourseTemplateActivityController extends Controller
             'is_preview' => (bool) $validated['is_preview'],
             'unlock_rule' => $validated['unlock_rule'],
             'unlock_after_activity_id' => $validated['unlock_after_activity_id'] ?? null,
-            'unlock_at' => isset($validated['unlock_at'])
-                ? Carbon::parse($validated['unlock_at'])->format('Y-m-d H:i:s')
-                : null,
+            'unlock_at' => null,
         ], fn ($value, $key) => $key !== 'sort_order' || $value !== null, ARRAY_FILTER_USE_BOTH), $extra);
     }
 
