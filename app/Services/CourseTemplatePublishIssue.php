@@ -19,9 +19,14 @@ final readonly class CourseTemplatePublishIssue
 
     public function targetUrl(string $routePrefix, int $templateId): string
     {
+        $editTab = match ($this->targetTab) {
+            'content' => 'structure',
+            default => $this->targetTab,
+        };
+
         return route($routePrefix.'.edit', [
             'id' => $templateId,
-            'tab' => $this->targetTab,
+            'tab' => $editTab,
         ]).($this->fragment ? '#'.$this->fragment : '');
     }
 }

@@ -626,6 +626,17 @@ class CourseTemplatePublishingTest extends TestCase
         $xpath = new \DOMXPath($document);
         $this->assertSame(1, $xpath->query('//button[contains(@class, "course-template-publish-button") and @disabled]')->length);
         $this->assertSame(1, substr_count($response->getContent(), 'data-readiness-code="activity_media"'));
+        $informationTarget = $xpath->query('//li[@data-readiness-code="template"]//a')->item(0);
+        $contentTarget = $xpath->query('//li[@data-readiness-code="activity_media"]//a')->item(0);
+        $this->assertNotNull($informationTarget);
+        $this->assertNotNull($contentTarget);
+        $this->assertStringContainsString('?tab=information', $informationTarget->getAttribute('href'));
+        $this->assertStringContainsString('?tab=structure', $contentTarget->getAttribute('href'));
+        $this->assertStringContainsString(
+            "#course-template-lesson-{$lessonId}-activities",
+            $contentTarget->getAttribute('href')
+        );
+        $this->assertStringNotContainsString('?tab=content', $contentTarget->getAttribute('href'));
 
         $css = file_get_contents(resource_path('css/admin/admin-pages.css'));
         $this->assertStringContainsString('repeat(auto-fit, minmax(min(100%, 240px), 1fr))', $css);
@@ -670,6 +681,14 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertSeeText('Khóa học chưa có bài học')
             ->assertSee('?tab=structure', false);
         $this->assertStringNotContainsString('storage_key', $empty->getContent());
+        $emptyDocument = new \DOMDocument;
+        @$emptyDocument->loadHTML($empty->getContent());
+        $emptyTarget = (new \DOMXPath($emptyDocument))
+            ->query('//li[@data-readiness-code="empty_content"]//a')
+            ->item(0);
+        $this->assertNotNull($emptyTarget);
+        $this->assertStringContainsString('?tab=structure', $emptyTarget->getAttribute('href'));
+        $this->assertStringNotContainsString('?tab=content', $emptyTarget->getAttribute('href'));
 
         DB::table('core_course_templates')->where('id', $templateId)->update([
             'intro_video_source' => 'embed',
