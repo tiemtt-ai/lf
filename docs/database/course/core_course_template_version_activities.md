@@ -63,12 +63,12 @@ Media / Assessment / LiveClass → version_activities (approved immutable refere
 | `media_file_id` | BIGINT UNSIGNED | nullable | Immutable uploaded video/audio/document Media reference; existing historical rows remain `NULL`. |
 | `external_video_url_snapshot` | VARCHAR(1000) | nullable | Frozen HTTPS external video URL. |
 | `live_class_url_snapshot` | VARCHAR(1000) | nullable | Frozen HTTPS live-class URL. |
-| `assessment_quiz_id_snapshot` | BIGINT UNSIGNED | nullable | Frozen tenant-owned Assessment Quiz identifier. |
+| `assessment_quiz_id_snapshot` | BIGINT UNSIGNED | nullable | Reserved for the future immutable Assessment binding; current publish readiness blocks Quiz Activities. |
 | `duration_seconds` | INT UNSIGNED | required, default 0 | Published Activity duration. |
 | `estimated_duration_seconds_snapshot` | INT UNSIGNED | nullable | Frozen estimated learner completion time; `NULL` means unknown. |
 | `is_required` | TINYINT(1) | required, default 1 | Published completion requirement. |
-| `completion_rule` | VARCHAR(50) | required, default `view` | Type-compatible value: `view`, `watch_percent`, `submit`, `pass`, `join`, or `manual`. |
-| `completion_threshold` | INT UNSIGNED | nullable | Frozen threshold, such as watch percentage or pass percentage. |
+| `completion_rule` | VARCHAR(50) | required, default `view` | Type-compatible value: `view`, `watch_percent`, `submit`, `pass`, or `manual`; Live Class uses `manual`. |
+| `completion_threshold` | INT UNSIGNED | nullable | Frozen threshold from `1` through `100`, such as watch percentage or pass percentage. |
 | `is_preview` | TINYINT(1) | required, default 0 | Published preview permission. |
 | `unlock_rule_snapshot` | VARCHAR(50) | required, default `none` | `none`, `previous_activity_completed`, or `date_based`. |
 | `unlock_after_version_activity_id` | BIGINT UNSIGNED | nullable | Published prerequisite Activity in the same Lesson. |
@@ -93,7 +93,8 @@ UNIQUE uk_cctva_source
     (customer_id, template_version_id, source_template_activity_id);
 ```
 
-The publish service validates unique `sort_order` within each Version Lesson.
+Duplicate `sort_order` values are permitted within a Version Lesson. Consumers
+order by `sort_order`, then `id`, and publishing preserves the authored value.
 
 # Delete And Reference Rules
 

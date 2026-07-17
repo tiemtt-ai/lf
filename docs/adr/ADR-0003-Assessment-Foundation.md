@@ -21,6 +21,11 @@ Approved
 * [ADR-0001 — Course Foundation](ADR-0001-Course-Foundation.md)
 * [ADR-0002 — LiveClass Foundation](ADR-0002-LiveClass-Foundation.md)
 
+Implementation note: this ADR approves the target Assessment architecture.
+Course Templates containing Quiz Activities remain blocked from publish under
+the canonical `LF-Core-Course.md` Content Readiness policy until Assessment
+Phase 2 implements the immutable Version Activity/Quiz binding.
+
 ---
 
 ## Context

@@ -6,6 +6,11 @@
 
 Assessment object immutable khi publish, dùng bởi một Course Version Activity.
 
+This table documents the Assessment Phase 2 target contract. It is not evidence
+that Course Quiz publishing is currently available; the canonical Course
+Content Readiness policy blocks Templates containing Quiz Activities until the
+immutable binding is implemented.
+
 ## Relationships
 
 `Version Activity 1 → 0..1 Quiz`; `Quiz 1 → N Sections / Quiz Questions / Attempts`; `Product 1 → N Quizzes`.

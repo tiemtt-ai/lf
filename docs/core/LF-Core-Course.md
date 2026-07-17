@@ -319,6 +319,38 @@ new Version until corrected. Blocking a new publish never modifies or
 invalidates an existing Version, Product Item, Enrollment or Progress and must
 not silently migrate historical consumers.
 
+## Course Template Publish — Content Readiness
+
+Every published Template must contain at least one Lesson, and every Lesson
+must contain at least one Activity. Sections remain optional and empty Sections
+are permitted. The shared readiness validator and direct publish action must
+reject corrupt or cross-tenant Section, Lesson and Activity rows instead of
+silently omitting them from the Version graph.
+
+Embedded-video Activities accept only canonical HTTPS YouTube or Vimeo URLs
+normalized by `TrustedVideoUrlService`. Live Class Activities use the `manual`
+completion rule; percentage and pass thresholds are integers from `1` through
+`100`. Activity unlock rules are limited to `none`,
+`previous_activity_completed` and `date_based`, matching the immutable Version
+Activity runtime contract.
+
+A Quiz Activity may be authored with a provisional positive integer
+`assessment_quiz_id`, but any Template containing a Quiz Activity is blocked
+from publish. Publishing remains blocked until Assessment Phase 2 defines the
+tenant-owned, published and immutable Quiz binding.
+
+Publish and every Section, Lesson or Activity mutation serialize through the
+same working Template lock. Validation runs after that lock and before any
+Version graph is created.
+
+Uploaded Activity media must exist in `media_files`, belong to the same tenant,
+have `status = ready`, match the Activity file type and have exactly one active
+`course_activity` usage for the exact Activity and slot. Publish validates the
+type, MIME and extension combination through the canonical MediaService policy;
+it must not maintain a separate MIME vocabulary. Media readiness remains the
+source of truth, so Activity publish validation does not perform a physical
+storage HEAD/existence request.
+
 A new Course Product may select a Template only when all conditions hold:
 
 * the Template belongs to the current `customer_id`;

@@ -85,8 +85,10 @@ UNIQUE uk_cctvl_source
     (customer_id, template_version_id, source_template_lesson_id);
 ```
 
-The publish service validates unique `sort_order` values separately for direct
-Lessons (`version_section_id IS NULL`) and for each Version Section.
+Duplicate `sort_order` values are permitted for direct Lessons and within a
+Version Section. Consumers order by `sort_order`, then `id`, so publishing and
+Duplicate-to-Draft preserve authored values without restoring a stale
+uniqueness rule.
 
 # Delete And Reference Rules
 

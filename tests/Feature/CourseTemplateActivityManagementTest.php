@@ -553,7 +553,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->post($collectionUrl, $this->validActivityData([
                 'title' => 'Practice Link',
                 'activity_type' => 'embedded_video',
-                'external_video_url' => 'https://www.youtube.com/watch?v=practice',
+                'external_video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
             ]))
             ->assertRedirect();
 
@@ -570,7 +570,7 @@ class CourseTemplateActivityManagementTest extends TestCase
                 $this->validActivityData([
                     'title' => 'Updated Practice Link',
                     'activity_type' => 'embedded_video',
-                    'external_video_url' => 'https://youtu.be/updated',
+                    'external_video_url' => 'https://youtu.be/9bZkp7q19f0',
                 ])
             )
             ->assertRedirect("{$collectionUrl}/{$activity->id}/edit");

@@ -151,13 +151,16 @@ class CourseTemplateSectionController extends Controller
             $sectionId
         );
 
-        DB::table('core_course_template_sections')
-            ->where('customer_id', $customerId)
-            ->where('template_id', $templateId)
-            ->where('id', $sectionId)
-            ->update($this->sectionValues($validated, [
-                'updated_at' => now(),
-            ]));
+        DB::transaction(function () use ($customerId, $templateId, $sectionId, $validated): void {
+            $this->lockTemplate($customerId, $templateId);
+            DB::table('core_course_template_sections')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->where('id', $sectionId)
+                ->update($this->sectionValues($validated, [
+                    'updated_at' => now(),
+                ]));
+        });
 
         return redirect()
             ->route(
@@ -176,19 +179,24 @@ class CourseTemplateSectionController extends Controller
         $this->findTemplate($customerId, $templateId);
         $this->findSection($customerId, $templateId, $sectionId);
 
-        if ($this->hasReferences($customerId, $templateId, $sectionId)) {
+        $deleted = DB::transaction(function () use ($customerId, $templateId, $sectionId): bool {
+            $this->lockTemplate($customerId, $templateId);
+            if ($this->hasReferences($customerId, $templateId, $sectionId)) {
+                return false;
+            }
+            DB::table('core_course_template_sections')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->where('id', $sectionId)
+                ->delete();
+
+            return true;
+        });
+        if (! $deleted) {
             return back()->withErrors([
-                'section' => __(
-                    'lf.LF_course_template_section_common_delete_blocked'
-                ),
+                'section' => __('lf.LF_course_template_section_common_delete_blocked'),
             ]);
         }
-
-        DB::table('core_course_template_sections')
-            ->where('customer_id', $customerId)
-            ->where('template_id', $templateId)
-            ->where('id', $sectionId)
-            ->delete();
 
         return redirect()
             ->to(
@@ -198,6 +206,15 @@ class CourseTemplateSectionController extends Controller
                 ).'?tab=structure#course-template-sections'
             )
             ->with('success', __('lf.LF_course_template_section_common_deleted'));
+    }
+
+    private function lockTemplate(int $customerId, int $templateId): void
+    {
+        abort_if(! DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('id', $templateId)
+            ->lockForUpdate()
+            ->exists(), 404);
     }
 
     private function validatedData(

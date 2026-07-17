@@ -309,21 +309,19 @@ class CourseTemplateLessonController extends Controller
             $sectionId
         );
 
-        DB::table('core_course_template_lessons')
-            ->where('customer_id', $customerId)
-            ->where('template_id', $templateId)
-            ->when(
-                $sectionId === null,
-                fn ($query) => $query->whereNull('template_section_id'),
-                fn ($query) => $query->where(
-                    'template_section_id',
-                    $sectionId
+        DB::transaction(function () use ($customerId, $templateId, $sectionId, $lessonId, $validated): void {
+            $this->lockTemplate($customerId, $templateId);
+            DB::table('core_course_template_lessons')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->when(
+                    $sectionId === null,
+                    fn ($query) => $query->whereNull('template_section_id'),
+                    fn ($query) => $query->where('template_section_id', $sectionId)
                 )
-            )
-            ->where('id', $lessonId)
-            ->update($this->lessonValues($validated, [
-                'updated_at' => now(),
-            ]));
+                ->where('id', $lessonId)
+                ->update($this->lessonValues($validated, ['updated_at' => now()]));
+        });
 
         return redirect()
             ->route(
@@ -357,27 +355,31 @@ class CourseTemplateLessonController extends Controller
             $lessonId
         );
 
-        if ($this->hasReferences($customerId, $templateId, $lessonId)) {
+        $deleted = DB::transaction(function () use ($customerId, $templateId, $sectionId, $lessonId): bool {
+            $this->lockTemplate($customerId, $templateId);
+            if ($this->hasReferences($customerId, $templateId, $lessonId)) {
+                return false;
+            }
+            DB::table('core_course_template_lessons')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->when(
+                    $sectionId === null,
+                    fn ($query) => $query->whereNull('template_section_id'),
+                    fn ($query) => $query->where('template_section_id', $sectionId)
+                )
+                ->where('id', $lessonId)
+                ->delete();
+
+            return true;
+        });
+        if (! $deleted) {
             return back()->withErrors([
                 'lesson' => __(
                     'lf.LF_course_template_lesson_common_delete_blocked'
                 ),
             ]);
         }
-
-        DB::table('core_course_template_lessons')
-            ->where('customer_id', $customerId)
-            ->where('template_id', $templateId)
-            ->when(
-                $sectionId === null,
-                fn ($query) => $query->whereNull('template_section_id'),
-                fn ($query) => $query->where(
-                    'template_section_id',
-                    $sectionId
-                )
-            )
-            ->where('id', $lessonId)
-            ->delete();
 
         return redirect()
             ->to(
@@ -387,6 +389,15 @@ class CourseTemplateLessonController extends Controller
                 ).$this->lessonAnchor($sectionId)
             )
             ->with('success', __('lf.LF_course_template_lesson_common_deleted'));
+    }
+
+    private function lockTemplate(int $customerId, int $templateId): void
+    {
+        abort_if(! DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('id', $templateId)
+            ->lockForUpdate()
+            ->exists(), 404);
     }
 
     private function validatedData(

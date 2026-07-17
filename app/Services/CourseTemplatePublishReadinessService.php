@@ -21,14 +21,12 @@ final class CourseTemplatePublishReadinessService
         abort_if(! $template, 404);
 
         $sections = DB::table('core_course_template_sections')
-            ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
             ->orderBy('parent_section_id')
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
         $lessons = DB::table('core_course_template_lessons')
-            ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
             ->orderByRaw('template_section_id IS NOT NULL')
             ->orderBy('template_section_id')
@@ -36,7 +34,6 @@ final class CourseTemplatePublishReadinessService
             ->orderBy('id')
             ->get();
         $activities = DB::table('core_course_template_activities')
-            ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
             ->orderBy('template_lesson_id')
             ->orderBy('sort_order')

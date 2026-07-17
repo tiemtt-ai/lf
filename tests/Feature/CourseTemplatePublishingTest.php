@@ -964,6 +964,7 @@ class CourseTemplatePublishingTest extends TestCase
             'wrong usage' => fn () => DB::table('media_file_usages')->where('id', $usage->id)->update(['usage_type' => 'video']),
             'wrong owner' => fn () => DB::table('media_file_usages')->where('id', $usage->id)->update(['owner_id' => $activityId + 999]),
             'wrong mime' => fn () => DB::table('media_files')->where('id', $media->id)->update(['mime_type' => 'video/mp4']),
+            'wrong extension' => fn () => DB::table('media_files')->where('id', $media->id)->update(['extension' => 'exe']),
             'cross tenant media' => fn () => DB::table('media_files')->where('id', $media->id)->update(['customer_id' => $otherCustomerId]),
         ];
 
@@ -979,6 +980,7 @@ class CourseTemplatePublishingTest extends TestCase
                 'customer_id' => $customerId,
                 'file_type' => 'document',
                 'mime_type' => 'application/pdf',
+                'extension' => 'pdf',
                 'status' => 'ready',
             ]);
             $corrupt();
@@ -1016,6 +1018,102 @@ class CourseTemplatePublishingTest extends TestCase
             $readiness->blockers()->pluck('code')->all()
         );
         $this->assertSame(['information', 'information', 'information'], $readiness->blockers()->pluck('targetTab')->all());
+    }
+
+    public function test_lesson_without_activity_is_blocked_in_readiness_and_direct_publish(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Empty Lesson Course');
+        $this->createLesson($customerId, $templateId, null, 'Empty Lesson', 0, $admin->id);
+        $service = app(CourseTemplatePublishReadinessService::class);
+
+        $readiness = $service->evaluate($customerId, $service->load($customerId, $templateId));
+
+        $this->assertSame(['lesson_empty'], $readiness->blockers()->pluck('code')->all());
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")
+            ->assertSessionHasErrors('publish');
+        $this->assertDatabaseMissing('core_course_template_versions', ['template_id' => $templateId]);
+    }
+
+    public function test_publish_rejects_untrusted_activity_sources_and_non_runtime_unlock_rules(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Activity Hardening Course');
+        $lessonId = $this->createLesson($customerId, $templateId, null, 'Hardened Lesson', 0, $admin->id);
+        $activityId = $this->createActivity($customerId, $templateId, $lessonId, 'Hardened Activity', 0, $admin->id);
+        $service = app(CourseTemplatePublishReadinessService::class);
+
+        DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->delete();
+        DB::table('core_course_template_activities')->where('id', $activityId)->update([
+            'activity_type' => 'embedded_video',
+            'external_video_url' => 'https://youtube.com.attacker.example/watch?v=dQw4w9WgXcQ',
+            'completion_rule' => 'view',
+        ]);
+        $this->assertContains('activity_source', $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all());
+
+        DB::table('core_course_template_activities')->where('id', $activityId)->update([
+            'external_video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            'unlock_rule' => 'previous_lesson_completed',
+        ]);
+        $this->assertSame(['activity_unlock'], $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all());
+
+        DB::table('core_course_template_activities')->where('id', $activityId)->update([
+            'activity_type' => 'live_class',
+            'external_video_url' => null,
+            'live_class_url' => 'https://meet.example.test/class',
+            'completion_rule' => 'join',
+            'unlock_rule' => 'none',
+        ]);
+        $this->assertContains('activity', $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all());
+
+        DB::table('core_course_template_activities')->where('id', $activityId)->update([
+            'activity_type' => 'embedded_video',
+            'external_video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            'live_class_url' => null,
+            'completion_rule' => 'view',
+            'completion_threshold' => 0,
+        ]);
+        $this->assertContains('activity_completion', $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all());
+    }
+
+    public function test_publish_loader_detects_cross_tenant_children_and_blocks_quiz_until_immutable_binding_exists(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Tenant Graph Course');
+        $lessonId = $this->createLesson($customerId, $templateId, null, 'Tenant Lesson', 0, $admin->id);
+        $activityId = $this->createActivity($customerId, $templateId, $lessonId, 'Tenant Activity', 0, $admin->id);
+        $service = app(CourseTemplatePublishReadinessService::class);
+
+        DB::table('core_course_template_activities')->where('id', $activityId)->update(['customer_id' => $otherCustomerId]);
+        $readiness = $service->evaluate($customerId, $service->load($customerId, $templateId));
+        $this->assertContains('activity', $readiness->blockers()->pluck('code')->all());
+
+        DB::table('core_course_template_activities')->where('id', $activityId)->update([
+            'customer_id' => $customerId,
+            'activity_type' => 'quiz',
+            'assessment_quiz_id' => 999999,
+            'completion_rule' => 'submit',
+        ]);
+        DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->delete();
+        $this->assertSame(
+            ['activity_quiz_unavailable'],
+            $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all()
+        );
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")
+            ->assertSessionHasErrors('publish');
+        $this->assertDatabaseMissing('core_course_template_versions', ['template_id' => $templateId]);
+
+        DB::table('core_course_template_activities')->where('id', $activityId)->update(['assessment_quiz_id' => 0]);
+        $this->assertSame(
+            ['activity_source', 'activity_quiz_unavailable'],
+            $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all()
+        );
     }
 
     public function test_publish_and_duplicate_preserve_documented_duplicate_content_order_values(): void
@@ -1058,7 +1156,7 @@ class CourseTemplatePublishingTest extends TestCase
             3,
             $admin->id
         );
-        $this->createLesson(
+        $secondDirectId = $this->createLesson(
             $customerId,
             $templateId,
             null,
@@ -1074,7 +1172,7 @@ class CourseTemplatePublishingTest extends TestCase
             1,
             $admin->id
         );
-        $this->createLesson(
+        $secondLessonId = $this->createLesson(
             $customerId,
             $templateId,
             $firstSectionId,
@@ -1106,6 +1204,9 @@ class CourseTemplatePublishingTest extends TestCase
             2,
             $admin->id
         );
+        $this->createActivity($customerId, $templateId, $firstDirectId, 'Direct Activity', 1, $admin->id);
+        $this->createActivity($customerId, $templateId, $secondDirectId, 'Second Direct Activity', 1, $admin->id);
+        $this->createActivity($customerId, $templateId, $secondLessonId, 'Second Lesson Activity', 1, $admin->id);
         $this->createActivity(
             $customerId,
             $templateId,
@@ -1396,6 +1497,14 @@ class CourseTemplatePublishingTest extends TestCase
             1,
             $admin->id
         );
+        $this->createActivity(
+            $customerId,
+            $templateId,
+            $blankDescriptionLessonId,
+            'Blank Description Activity',
+            1,
+            $admin->id
+        );
 
         $this->actingAs($admin)->post(
             "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish"
@@ -1658,6 +1767,14 @@ class CourseTemplatePublishingTest extends TestCase
             $directFirstId,
             'Activity Later',
             2,
+            $admin->id
+        );
+        $this->createActivity(
+            $customerId,
+            $templateId,
+            $directLaterId,
+            'Direct Later Activity',
+            1,
             $admin->id
         );
         $this->createActivity(
@@ -2001,7 +2118,7 @@ class CourseTemplatePublishingTest extends TestCase
             $admin->id,
             'Slug Source'
         );
-        $this->createLesson(
+        $lessonId = $this->createLesson(
             $customerId,
             $templateId,
             null,
@@ -2009,6 +2126,7 @@ class CourseTemplatePublishingTest extends TestCase
             1,
             $admin->id
         );
+        $this->createActivity($customerId, $templateId, $lessonId, 'Original Activity', 1, $admin->id);
 
         $this->actingAs($admin)->post(
             "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish"
@@ -2061,7 +2179,7 @@ class CourseTemplatePublishingTest extends TestCase
             $admin->id,
             'Invalid Snapshot Order'
         );
-        $this->createLesson(
+        $lessonId = $this->createLesson(
             $customerId,
             $templateId,
             null,
@@ -2069,6 +2187,7 @@ class CourseTemplatePublishingTest extends TestCase
             1,
             $admin->id
         );
+        $this->createActivity($customerId, $templateId, $lessonId, 'Published Activity', 1, $admin->id);
         $this->actingAs($admin)->post(
             "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish"
         );

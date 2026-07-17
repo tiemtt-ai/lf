@@ -177,7 +177,8 @@ VARCHAR(1000) NULL
 
 URL ngoài hệ thống.
 
-Dùng khi activity_type = embedded_video. Chỉ URL HTTPS.
+Dùng khi activity_type = embedded_video. Chỉ canonical HTTPS YouTube/Vimeo URL
+được normalize bởi `TrustedVideoUrlService`.
 
 ### live_class_url
 
@@ -189,7 +190,10 @@ Dùng khi activity_type = live_class. Chỉ URL HTTPS.
 
 BIGINT UNSIGNED NULL
 
-Tenant-owned Assessment Quiz ID khi activity_type = quiz.
+Provisional positive integer Assessment Quiz reference khi
+`activity_type = quiz`. Có thể lưu ở working Activity, nhưng Template chứa Quiz
+bị chặn publish cho đến khi Assessment Phase 2 định nghĩa ownership và
+immutable binding.
 
 ---
 
@@ -227,16 +231,22 @@ Giá trị:
 * watch_percent
 * submit
 * pass
-* join
 * manual
 
-`join` chỉ áp dụng cho `live_class`; `live_class` cũng hỗ trợ `manual`.
+`live_class` chỉ hỗ trợ `manual`.
+
+Uploaded `video`, `audio` và `document` media được publish validation bằng
+canonical `MediaService` type/MIME/extension policy. `media_files.status =
+ready` là source of truth; publish không gọi storage HEAD để kiểm tra lại object
+vật lý.
 
 ### completion_threshold
 
 INT UNSIGNED NULL
 
 Ngưỡng hoàn thành.
+
+Khi có giá trị, threshold là integer từ `1` đến `100`.
 
 Ví dụ:
 

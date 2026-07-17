@@ -55,6 +55,13 @@ closed and rolls back the complete transaction. A successful publish updates
 `last_version_published_at` with the exact `published_at` timestamp of the new
 Version in that same transaction.
 
+The canonical field-level rules for the working Content graph are maintained
+in `LF-Core-Course.md`, section **Course Template Publish — Content
+Readiness**. This ADR defines the immutable snapshot and transaction boundary;
+it does not maintain a competing validation list. In particular, Quiz
+Activities remain blocked until the Assessment immutable binding is
+implemented.
+
 ## Activity Estimated Duration Amendment (2026-07-12)
 
 Publish freezes `estimated_duration_seconds` as

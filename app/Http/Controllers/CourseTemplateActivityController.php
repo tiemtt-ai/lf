@@ -4,12 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Services\CourseActivityMediaPresenter;
 use App\Services\MediaService;
+use App\Services\TrustedVideoUrlService;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -30,7 +30,8 @@ class CourseTemplateActivityController extends Controller
 
     public function __construct(
         private readonly MediaService $mediaService,
-        private readonly CourseActivityMediaPresenter $activityMediaPresenter
+        private readonly CourseActivityMediaPresenter $activityMediaPresenter,
+        private readonly TrustedVideoUrlService $trustedVideoUrls,
     ) {}
 
     public function index(
@@ -310,6 +311,7 @@ class CourseTemplateActivityController extends Controller
             $templateId,
             $lessonId
         ): int {
+            $this->lockTemplate($customerId, $templateId);
             $lesson = DB::table('core_course_template_lessons')
                 ->where('customer_id', $customerId)
                 ->where('template_id', $templateId)
@@ -339,6 +341,7 @@ class CourseTemplateActivityController extends Controller
             $this->detachInactiveMedia($activityId, $validated['activity_type'], $request);
             $this->attachUploadedMedia($request, $activityId);
             $this->recalculateLessonDuration($customerId, $templateId, $lessonId);
+
             return $activityId;
         });
 
@@ -483,14 +486,15 @@ class CourseTemplateActivityController extends Controller
         );
 
         DB::transaction(function () use ($request, $customerId, $templateId, $lessonId, $activityId, $validated): void {
+            $this->lockTemplate($customerId, $templateId);
             DB::table('core_course_template_activities')
-            ->where('customer_id', $customerId)
-            ->where('template_id', $templateId)
-            ->where('template_lesson_id', $lessonId)
-            ->where('id', $activityId)
-            ->update($this->activityValues($validated, [
-                'updated_at' => now(),
-            ]));
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->where('template_lesson_id', $lessonId)
+                ->where('id', $activityId)
+                ->update($this->activityValues($validated, [
+                    'updated_at' => now(),
+                ]));
             $this->detachInactiveMedia($activityId, $validated['activity_type'], $request);
             $this->attachUploadedMedia($request, $activityId);
             $this->recalculateLessonDuration($customerId, $templateId, $lessonId);
@@ -545,12 +549,13 @@ class CourseTemplateActivityController extends Controller
         }
 
         DB::transaction(function () use ($customerId, $templateId, $lessonId, $activityId): void {
+            $this->lockTemplate($customerId, $templateId);
             DB::table('core_course_template_activities')
-            ->where('customer_id', $customerId)
-            ->where('template_id', $templateId)
-            ->where('template_lesson_id', $lessonId)
-            ->where('id', $activityId)
-            ->delete();
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->where('template_lesson_id', $lessonId)
+                ->where('id', $activityId)
+                ->delete();
             $this->recalculateLessonDuration($customerId, $templateId, $lessonId);
         });
 
@@ -562,6 +567,15 @@ class CourseTemplateActivityController extends Controller
                 )."?tab=structure#course-template-lesson-{$lessonId}-activities"
             )
             ->with('success', __('lf.LF_course_template_activity_common_deleted'));
+    }
+
+    private function lockTemplate(int $customerId, int $templateId): void
+    {
+        abort_if(! DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('id', $templateId)
+            ->lockForUpdate()
+            ->exists(), 404);
     }
 
     private function validatedData(
@@ -648,13 +662,28 @@ class CourseTemplateActivityController extends Controller
             'quiz' => 'assessment_quiz_id',
         ][$input['activity_type'] ?? ''] ?? null;
         foreach (['external_video_url', 'live_class_url', 'assessment_quiz_id'] as $field) {
-            if ($field !== $typeField) unset($input[$field]);
+            if ($field !== $typeField) {
+                unset($input[$field]);
+            }
+        }
+        if (($input['activity_type'] ?? null) === 'embedded_video'
+            && is_string($input['external_video_url'] ?? null)) {
+            try {
+                $input['external_video_url'] = $this->trustedVideoUrls
+                    ->normalize($input['external_video_url'])['url'];
+            } catch (\InvalidArgumentException) {
+                // Preserve the submitted value so canonical validation rejects it.
+            }
         }
         if (! in_array($input['completion_rule'] ?? null, ['watch_percent', 'pass'], true)) {
             unset($input['completion_threshold']);
         }
-        if (($input['unlock_rule'] ?? null) !== 'previous_activity_completed') unset($input['unlock_after_activity_id']);
-        if (($input['unlock_rule'] ?? null) !== 'date_based') unset($input['unlock_at']);
+        if (($input['unlock_rule'] ?? null) !== 'previous_activity_completed') {
+            unset($input['unlock_after_activity_id']);
+        }
+        if (($input['unlock_rule'] ?? null) !== 'date_based') {
+            unset($input['unlock_at']);
+        }
 
         foreach ([
             'activity_video_file',
@@ -701,18 +730,27 @@ class CourseTemplateActivityController extends Controller
                 'starts_with:https://',
                 'required_if:activity_type,embedded_video',
                 'prohibited_unless:activity_type,embedded_video',
+                function ($attribute, $value, $fail): void {
+                    if ($value === null) {
+                        return;
+                    }
+                    try {
+                        $normalized = $this->trustedVideoUrls->normalize($value);
+                    } catch (\InvalidArgumentException) {
+                        $fail(__('validation.url', ['attribute' => $attribute]));
+
+                        return;
+                    }
+                    if ($normalized['url'] !== $value) {
+                        $fail(__('validation.url', ['attribute' => $attribute]));
+                    }
+                },
             ],
             'live_class_url' => ['nullable', 'url', 'max:1000', 'starts_with:https://', 'required_if:activity_type,live_class', 'prohibited_unless:activity_type,live_class'],
             'assessment_quiz_id' => [
                 'nullable', 'integer', 'min:1',
                 'required_if:activity_type,quiz',
                 'prohibited_unless:activity_type,quiz',
-                function ($attribute, $value, $fail) use ($customerId): void {
-                    if ($value === null) return;
-                    if (! Schema::hasTable('core_assessment_quizzes') || ! DB::table('core_assessment_quizzes')->where('customer_id', $customerId)->where('id', $value)->exists()) {
-                        $fail(__('validation.exists', ['attribute' => $attribute]));
-                    }
-                },
             ],
             'duration_seconds' => [
                 'nullable',
@@ -734,14 +772,14 @@ class CourseTemplateActivityController extends Controller
                     'video', 'audio' => ['view', 'watch_percent', 'manual'],
                     'document', 'embedded_video' => ['view', 'manual'],
                     'quiz' => ['submit', 'pass', 'manual'],
-                    'live_class' => ['join', 'manual'],
+                    'live_class' => ['manual'],
                     default => [],
                 }),
             ],
             'completion_threshold' => [
                 'nullable',
                 'integer',
-                'min:0',
+                'min:1',
                 'max:100',
                 'required_if:completion_rule,watch_percent,pass',
             ],
@@ -751,7 +789,6 @@ class CourseTemplateActivityController extends Controller
                 Rule::in([
                     'none',
                     'previous_activity_completed',
-                    'previous_lesson_completed',
                     'date_based',
                 ]),
             ],

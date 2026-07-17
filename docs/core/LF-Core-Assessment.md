@@ -23,6 +23,15 @@ Assessment quản lý authoring và evaluation evidence:
 Assessment không phải Course Domain và không sở hữu Course Progress, Course
 Completion hoặc Certificate Eligibility.
 
+## Current Course Integration Boundary
+
+The immutable Assessment binding described below is the approved target
+architecture, not a completed Course publish integration. Current Course
+authoring uses `activity_type = quiz` with a provisional numeric reference, and
+`LF-Core-Course.md` is the source of truth for publish readiness. Templates
+containing Quiz Activities remain blocked from publish until Assessment Phase
+2 implements and reconciles the immutable Version Activity/Quiz contract.
+
 ---
 
 # Architecture Flow

@@ -14,7 +14,7 @@ class CourseTemplatePublishGraphValidator
 
     private const ACTIVITY_TYPES = ['video', 'embedded_video', 'audio', 'document', 'quiz', 'live_class'];
 
-    private const ACTIVITY_UNLOCK_RULES = ['none', 'previous_activity_completed', 'previous_lesson_completed', 'date_based'];
+    private const ACTIVITY_UNLOCK_RULES = ['none', 'previous_activity_completed', 'date_based'];
 
     public function __construct(
         private readonly MediaService $mediaService,
@@ -82,12 +82,25 @@ class CourseTemplatePublishGraphValidator
     {
         $parents = [];
         foreach ($lessons as $lesson) {
-            $context = ['lesson' => $lesson->title];
+            $context = ['lesson' => is_string($lesson->title) ? $lesson->title : (string) $lesson->id];
             $section = $lesson->template_section_id ? $sections->get($lesson->template_section_id) : null;
-            if ((int) $lesson->customer_id !== $customerId || (int) $lesson->template_id !== $templateId || ! in_array($lesson->lesson_type, self::LESSON_TYPES, true) || ! $this->nonNegativeInteger($lesson->sort_order) || ! $this->nonNegativeInteger($lesson->duration_seconds) || ($lesson->template_section_id && (! $section || ! $section->allows_lessons))) {
+            if ((int) $lesson->customer_id !== $customerId
+                || (int) $lesson->template_id !== $templateId
+                || ! $this->validRequiredText($lesson->title, 255)
+                || ! in_array($lesson->lesson_type, self::LESSON_TYPES, true)
+                || ! $this->canonicalBoolean($lesson->is_preview)
+                || ! $this->nonNegativeInteger($lesson->sort_order)
+                || ! $this->nonNegativeInteger($lesson->duration_seconds)
+                || ($lesson->description !== null && ! is_string($lesson->description))
+                || ($lesson->short_description !== null && (! is_string($lesson->short_description) || mb_strlen($lesson->short_description) > 500))
+                || ($lesson->template_section_id && (! $section || ! $section->allows_lessons))) {
                 $this->add($issues, 'lesson', 'content', $context, $this->lessonFragment($lesson));
             }
-            $expectedDuration = (int) $activities->where('template_lesson_id', $lesson->id)->sum('estimated_duration_seconds');
+            $lessonActivities = $activities->where('template_lesson_id', $lesson->id);
+            if ($lessonActivities->isEmpty()) {
+                $this->add($issues, 'lesson_empty', 'content', $context, $this->lessonFragment($lesson));
+            }
+            $expectedDuration = (int) $lessonActivities->sum('estimated_duration_seconds');
             if ((int) $lesson->duration_seconds !== $expectedDuration) {
                 $this->add($issues, 'lesson_duration', 'content', $context, $this->lessonFragment($lesson));
             }
@@ -113,7 +126,7 @@ class CourseTemplatePublishGraphValidator
             ->where('usages.customer_id', $customerId)
             ->where('usages.owner_type', 'course_activity')
             ->whereIn('usages.owner_id', $activities->pluck('id'))
-            ->select('usages.owner_id', 'usages.usage_type', 'usages.status as usage_status', 'media.customer_id as media_customer_id', 'media.file_type', 'media.mime_type', 'media.status as media_status')
+            ->select('usages.owner_id', 'usages.usage_type', 'usages.status as usage_status', 'media.customer_id as media_customer_id', 'media.file_type', 'media.mime_type', 'media.extension', 'media.status as media_status')
             ->get()->groupBy('owner_id');
         $parents = [];
         foreach ($activities as $activity) {
@@ -129,26 +142,54 @@ class CourseTemplatePublishGraphValidator
                 'video', 'audio' => ['view', 'watch_percent', 'manual'],
                 'document', 'embedded_video' => ['view', 'manual'],
                 'quiz' => ['submit', 'pass', 'manual'],
-                'live_class' => ['join', 'manual'],
+                'live_class' => ['manual'],
                 default => [],
             };
             $thresholdRequired = in_array($activity->completion_rule, ['watch_percent', 'pass'], true);
             $estimated = $activity->estimated_duration_seconds;
-            if ((int) $activity->customer_id !== $customerId || (int) $activity->template_id !== $templateId || ! $lesson || ! in_array($type, self::ACTIVITY_TYPES, true) || ! $this->nonNegativeInteger($activity->sort_order) || ($estimated !== null && (! $this->positiveInteger($estimated) || (int) $estimated > 31536000)) || ! in_array($activity->completion_rule, $completionRules, true) || ! in_array((int) $activity->is_required, [0, 1], true) || ! in_array((int) $activity->is_preview, [0, 1], true)) {
+            if ((int) $activity->customer_id !== $customerId
+                || (int) $activity->template_id !== $templateId
+                || ! $lesson
+                || ! $this->validRequiredText($activity->title, 255)
+                || ($activity->description !== null && ! is_string($activity->description))
+                || ! in_array($type, self::ACTIVITY_TYPES, true)
+                || ! $this->nonNegativeInteger($activity->sort_order)
+                || ($estimated !== null && (! $this->positiveInteger($estimated) || (int) $estimated > 31536000))
+                || ! in_array($activity->completion_rule, $completionRules, true)
+                || ! $this->canonicalBoolean($activity->is_required)
+                || ! $this->canonicalBoolean($activity->is_preview)) {
                 $this->add($issues, 'activity', 'content', $context, $fragment);
             }
-            if (($thresholdRequired && (! $this->nonNegativeInteger($activity->completion_threshold) || (int) $activity->completion_threshold > 100)) || (! $thresholdRequired && $activity->completion_threshold !== null)) {
+            if (($thresholdRequired && (! $this->positiveInteger($activity->completion_threshold) || (int) $activity->completion_threshold > 100)) || (! $thresholdRequired && $activity->completion_threshold !== null)) {
                 $this->add($issues, 'activity_completion', 'content', $context, $fragment);
             }
-            if (($type === 'embedded_video' && blank($activity->external_video_url)) || ($type !== 'embedded_video' && $activity->external_video_url !== null) || ($type === 'live_class' && blank($activity->live_class_url)) || ($type !== 'live_class' && $activity->live_class_url !== null) || ($type === 'quiz' && ! $activity->assessment_quiz_id) || ($type !== 'quiz' && $activity->assessment_quiz_id !== null)) {
+            if (($type === 'embedded_video' && ! $this->validEmbeddedActivityUrl($activity->external_video_url))
+                || ($type !== 'embedded_video' && $activity->external_video_url !== null)
+                || ($type === 'live_class' && ! $this->validHttpsUrl($activity->live_class_url))
+                || ($type !== 'live_class' && $activity->live_class_url !== null)
+                || ($type === 'quiz' && ! $this->positiveInteger($activity->assessment_quiz_id))
+                || ($type !== 'quiz' && $activity->assessment_quiz_id !== null)) {
                 $this->add($issues, 'activity_source', 'content', $context, $fragment);
+            }
+            if ($type === 'quiz') {
+                $this->add($issues, 'activity_quiz_unavailable', 'content', $context, $fragment);
             }
 
             $activityMedia = $mediaByActivity->get($activity->id, collect());
             $invalidMedia = false;
             foreach ($activityMedia as $media) {
                 $expectedType = in_array($type, ['video', 'audio', 'document'], true) ? $type : 'attachment';
-                if ((int) $media->media_customer_id !== $customerId || $media->media_status !== 'ready' || $media->usage_status !== 'active' || ($media->usage_type !== 'attachment' && ($media->usage_type !== $expectedType || ! $this->mediaTypeMatches($expectedType, $media)))) {
+                if ((int) $media->media_customer_id !== $customerId
+                    || $media->media_status !== 'ready'
+                    || $media->usage_status !== 'active'
+                    || ($media->usage_type !== 'attachment'
+                        && ($media->usage_type !== $expectedType
+                            || $media->file_type !== $expectedType
+                            || ! $this->mediaService->fileContentIsAllowed(
+                                $expectedType,
+                                (string) $media->mime_type,
+                                $media->extension,
+                            )))) {
                     $invalidMedia = true;
                 }
             }
@@ -318,6 +359,38 @@ class CourseTemplatePublishGraphValidator
         return is_int($value) && $value >= 1;
     }
 
+    private function validRequiredText(mixed $value, int $max): bool
+    {
+        return is_string($value) && ! blank(trim($value)) && mb_strlen($value) <= $max;
+    }
+
+    private function canonicalBoolean(mixed $value): bool
+    {
+        return is_int($value) && in_array($value, [0, 1], true);
+    }
+
+    private function validEmbeddedActivityUrl(mixed $url): bool
+    {
+        if (! is_string($url)) {
+            return false;
+        }
+
+        try {
+            $normalized = $this->trustedVideoUrls->normalize($url);
+        } catch (\InvalidArgumentException) {
+            return false;
+        }
+
+        return $normalized['url'] === $url;
+    }
+
+    private function validHttpsUrl(mixed $url): bool
+    {
+        return is_string($url)
+            && filter_var($url, FILTER_VALIDATE_URL) !== false
+            && parse_url($url, PHP_URL_SCHEME) === 'https';
+    }
+
     private function informationFragment(string $usageType): string
     {
         return match ($usageType) {
@@ -339,6 +412,7 @@ class CourseTemplatePublishGraphValidator
             $code === 'lesson_unlock' && isset($context['lesson']) => 'lf.LF_course_template_publish_integrity_lesson_unlock_context',
             $code === 'activity' && isset($context['activity']) => 'lf.LF_course_template_publish_integrity_activity_context',
             $code === 'activity_source' && isset($context['activity']) => 'lf.LF_course_template_publish_integrity_activity_source_context',
+            $code === 'activity_quiz_unavailable' && isset($context['activity']) => 'lf.LF_course_template_publish_integrity_activity_quiz_unavailable',
             $code === 'activity_completion' && isset($context['activity']) => 'lf.LF_course_template_publish_integrity_activity_completion_context',
             $code === 'activity_unlock' && isset($context['activity']) => 'lf.LF_course_template_publish_integrity_activity_unlock_context',
             default => null,
@@ -380,16 +454,5 @@ class CourseTemplatePublishGraphValidator
     private function positiveInteger(mixed $value): bool
     {
         return filter_var($value, FILTER_VALIDATE_INT) !== false && (int) $value > 0;
-    }
-
-    private function mediaTypeMatches(string $expectedType, object $media): bool
-    {
-        $mimes = [
-            'video' => ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'],
-            'audio' => ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/ogg', 'audio/webm', 'audio/mp4'],
-            'document' => ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'text/plain'],
-        ];
-
-        return $media->file_type === $expectedType && in_array($media->mime_type, $mimes[$expectedType] ?? [], true);
     }
 }
