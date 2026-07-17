@@ -138,6 +138,15 @@ core_course_template_activities
 
 Working content có thể được giáo viên chỉnh sửa.
 
+Teacher assignments are optional mutable operating configuration of the
+working Template. A Template with no active assigned Teacher receives a
+non-blocking readiness warning and may still publish; the assignment can be
+completed later. Assignments are not Course content and are not copied into immutable Template Versions;
+later assignment changes do not mutate an existing Version, Product Item,
+Enrollment or Progress. Assignment integrity at the publish boundary must not
+be described as enforced until the shared publish graph loads and validates
+that relationship.
+
 Mỗi Section bắt buộc khai báo `allows_lessons`. Chỉ Section có giá trị `true`
 được hiển thị thao tác và chấp nhận Lesson; hierarchy không mặc định đồng nghĩa
 với khả năng chứa Lesson.

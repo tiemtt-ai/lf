@@ -25,6 +25,7 @@
             'template_estimated_minutes' => 'lf.LF_course_template_readiness_issue_estimated_minutes_title',
             'template_estimated_lesson_count' => 'lf.LF_course_template_readiness_issue_estimated_lessons_title',
             'template_estimated_lesson_count_mismatch' => 'lf.LF_course_template_readiness_issue_lesson_count_warning_title',
+            'template_teacher_missing' => 'lf.LF_course_template_readiness_issue_teacher_warning_title',
             'template_intro_image', 'template_intro_video', 'template_intro_document', 'video_state' => 'lf.LF_course_template_readiness_issue_media_title',
             default => $issue->targetTab === 'content'
                 ? 'lf.LF_course_template_readiness_issue_content_title'
@@ -34,6 +35,7 @@
             'template_status' => 'lf.LF_course_template_readiness_action_change_status',
             'template_category', 'template_category_inactive' => 'lf.LF_course_template_readiness_action_review_category',
             'template_estimated_lesson_count', 'template_estimated_lesson_count_mismatch' => 'lf.LF_course_template_readiness_action_review_lesson_count',
+            'template_teacher_missing' => 'lf.LF_course_template_readiness_action_assign_teacher',
             'template_intro_image', 'template_intro_video', 'template_intro_document', 'video_state' => 'lf.LF_course_template_readiness_action_review_media',
             default => $issue->targetTab === 'content'
                 ? 'lf.LF_course_template_readiness_action_review_content'

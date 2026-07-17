@@ -168,6 +168,8 @@ class CourseTemplatePublishingTest extends TestCase
         $templateId = $this->createTemplate($customerId, $admin->id, 'Locked Status Course');
         $lessonId = $this->createLesson($customerId, $templateId, null, 'Locked Status Lesson', 0, $admin->id);
         $this->createActivity($customerId, $templateId, $lessonId, 'Locked Status Activity', 0, $admin->id);
+        $teacher = $this->createUser($customerId, 'teacher', 'Locked Status Teacher');
+        $this->assignTeacher($customerId, $templateId, $teacher->id, $admin->id);
         $editUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish";
 
         $this->actingAs($admin)->get($editUrl)
@@ -828,10 +830,14 @@ class CourseTemplatePublishingTest extends TestCase
         $ready = $service->evaluate($customerId, $service->load($customerId, $templateId));
         $this->assertTrue($ready->isReady());
         $this->assertCount(0, $ready->blockers());
-        $this->assertCount(0, $ready->warnings());
+        $this->assertSame(['template_teacher_missing'], $ready->warnings()->pluck('code')->all());
         $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")
             ->assertOk()
-            ->assertSeeText('Sẵn sàng xuất bản')
+            ->assertSeeText('Chưa phân công giáo viên')
+            ->assertSeeText('Template hiện chưa có giáo viên đang hoạt động. Bạn vẫn có thể xuất bản và phân công sau.')
+            ->assertSeeText('Phân công giáo viên')
+            ->assertSee('?tab=teachers#course-template-teachers', false)
+            ->assertSee('data-readiness-warning-code="template_teacher_missing"', false)
             ->assertDontSee('course-template-publish-button" disabled', false);
 
         DB::table('core_course_templates')->where('id', $templateId)->update(['publisher_name' => null, 'working_revision' => 4]);
@@ -897,6 +903,8 @@ class CourseTemplatePublishingTest extends TestCase
         $templateId = $this->createTemplate($customerId, $admin->id, 'Recalculation Course');
         $lessonId = $this->createLesson($customerId, $templateId, null, 'Recalculation Lesson', 0, $admin->id);
         $activityId = $this->createActivity($customerId, $templateId, $lessonId, 'Recalculation Video', 0, $admin->id, 'video');
+        $teacher = $this->createUser($customerId, 'teacher', 'Recalculation Teacher');
+        $this->assignTeacher($customerId, $templateId, $teacher->id, $admin->id);
         $usage = DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->first();
         DB::table('media_file_usages')->where('id', $usage->id)->update(['status' => 'detached']);
 
@@ -2381,6 +2389,8 @@ class CourseTemplatePublishingTest extends TestCase
         $admin = $this->createUser($customerId, 'customer_admin', 'Warning Admin');
         $templateId = $this->createTemplate($customerId, $admin->id, 'Warning Course');
         $this->addValidContent($customerId, $templateId, $admin->id, 'Warning');
+        $teacher = $this->createUser($customerId, 'teacher', 'Warning Teacher');
+        $this->assignTeacher($customerId, $templateId, $teacher->id, $admin->id);
         $service = app(CourseTemplatePublishReadinessService::class);
 
         DB::table('core_course_templates')->where('id', $templateId)->update(['estimated_lesson_count' => 1]);
@@ -2659,6 +2669,23 @@ class CourseTemplatePublishingTest extends TestCase
             'status' => 'active',
             'created_by' => $createdBy,
             'last_version_published_at' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function assignTeacher(int $customerId, int $templateId, int $teacherId, int $assignedBy): void
+    {
+        $now = now();
+        DB::table('core_course_template_teachers')->insert([
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'teacher_id' => $teacherId,
+            'role' => 'primary',
+            'sort_order' => 0,
+            'status' => 'active',
+            'assigned_by' => $assignedBy,
+            'assigned_at' => $now,
             'created_at' => $now,
             'updated_at' => $now,
         ]);

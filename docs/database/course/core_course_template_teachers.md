@@ -50,7 +50,14 @@ core_course_template_teachers
 * Chỉ user role = teacher mới được gán.
 * Một teacher có thể tham gia nhiều template.
 * Một template có thể có nhiều teacher.
+* Một Template có thể không có teacher assignment; thiếu Giáo viên không phải
+  publish blocker, nhưng readiness hiển thị cảnh báo không chặn để người dùng có
+  thể phân công sau.
 * Có thể xác định teacher chính và teacher phụ.
+* Teacher assignment là cấu hình vận hành mutable của working Template, không
+  phải nội dung immutable và không được snapshot vào Course Template Version.
+  Thay đổi assignment sau publish không sửa Version, Product Item, Enrollment
+  hoặc Progress hiện hữu.
 * Khi Template đang được Product tham chiếu, thay đổi teacher assignment phải bảo toàn quyền truy cập và lịch sử liên quan.
 
 ---

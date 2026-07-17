@@ -37,6 +37,7 @@ class CourseTemplatePublishGraphValidator
             ], 'status');
         }
         $this->validateTemplateInformation($customerId, $template, $lessons, $issues, $warnings);
+        $this->validateTeacherReadiness($customerId, (int) $template->id, $warnings);
         if ($lessons->isEmpty()) {
             $this->add($issues, 'empty_content', 'content');
         }
@@ -56,6 +57,23 @@ class CourseTemplatePublishGraphValidator
     public function validate(int $customerId, object $template, Collection $sections, Collection $lessons, Collection $activities): void
     {
         $this->evaluate($customerId, $template, $sections, $lessons, $activities)->assertReady();
+    }
+
+    private function validateTeacherReadiness(int $customerId, int $templateId, Collection $warnings): void
+    {
+        $hasActiveTeacher = DB::table('core_course_template_teachers as assignments')
+            ->join('users as teachers', 'teachers.id', '=', 'assignments.teacher_id')
+            ->where('assignments.customer_id', $customerId)
+            ->where('assignments.template_id', $templateId)
+            ->where('assignments.status', 'active')
+            ->where('teachers.customer_id', $customerId)
+            ->where('teachers.role', 'teacher')
+            ->where('teachers.status', 'active')
+            ->exists();
+
+        if (! $hasActiveTeacher) {
+            $this->add($warnings, 'template_teacher_missing', 'teachers', [], 'course-template-teachers');
+        }
     }
 
     private function validateSections(int $customerId, int $templateId, Collection $sections, Collection $map, Collection $issues): void
