@@ -768,17 +768,18 @@
 
 .course-template-publish-summary {
     margin: 0;
+    padding: 4px;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-    gap: 12px;
+    gap: 4px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    background: var(--admin-surface-subtle);
 }
 
 .course-template-publish-summary > div {
     min-width: 0;
-    padding: 14px 16px;
-    border: 1px solid var(--admin-border);
-    border-radius: 8px;
-    background: var(--admin-surface-subtle);
+    padding: 9px 11px;
 }
 
 .course-template-publish-summary dt {
@@ -801,8 +802,9 @@
 }
 
 .course-template-readiness {
-    margin-top: 16px;
+    margin-top: 12px;
     margin-bottom: 0;
+    padding: 12px 14px;
 }
 
 .course-template-readiness h3,
@@ -812,7 +814,12 @@
 
 .course-template-readiness h3 {
     font-size: 16px;
+    font-weight: 600;
     line-height: 1.4;
+}
+
+.course-template-readiness .admin-alert-guidance {
+    margin-top: 3px;
 }
 
 .course-template-readiness .course-template-readiness-help {
@@ -822,25 +829,27 @@
     line-height: 1.5;
 }
 
-.course-template-readiness-list {
-    margin: 12px 0 0;
+.course-template-readiness .course-template-readiness-list {
+    margin: 8px 0 0;
     padding: 0;
     display: grid;
-    gap: 8px;
+    gap: 0;
     list-style: none;
     counter-reset: readiness-issue;
 }
 
 .course-template-readiness-list li {
     min-width: 0;
-    padding: 10px 12px;
+    padding: 10px 0 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 8px 16px;
-    border: 1px solid var(--admin-border);
-    border-radius: 6px;
-    background: var(--admin-surface);
+    border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.course-template-readiness-list li + li {
+    margin-top: 10px;
 }
 
 .course-template-readiness-message {
@@ -861,13 +870,12 @@
 
 .course-template-readiness-list a {
     white-space: nowrap;
-    color: var(--admin-primary);
     font-size: 13px;
     font-weight: 600;
 }
 
 .course-template-publish-actions {
-    margin-top: 16px;
+    margin-top: 12px;
     justify-content: flex-end;
 }
 
@@ -1562,6 +1570,18 @@
 }
 
 @media (max-width: 575.98px) {
+    .course-template-publish-summary {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .course-template-publish-summary > div + div {
+        border-top: 1px solid var(--admin-border);
+    }
+
+    .course-template-readiness {
+        padding: 10px 12px;
+    }
+
     .course-template-readiness-list li {
         grid-template-columns: minmax(0, 1fr);
     }

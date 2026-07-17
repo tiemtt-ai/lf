@@ -137,6 +137,21 @@ class MediaService
         return $this->signedUrlForMedia($mediaFile, $expiresAt);
     }
 
+    public function storageObjectExists(object $mediaFile): bool
+    {
+        if (blank($mediaFile->storage_disk ?? null)
+            || blank($mediaFile->storage_key ?? null)) {
+            return false;
+        }
+
+        try {
+            return Storage::disk($mediaFile->storage_disk)
+                ->exists($mediaFile->storage_key);
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
     public function generateVersionActivitySignedUrls(int $versionId, array $activityIds): array
     {
         abort_unless(request()->user()?->role === 'customer_admin', 403);

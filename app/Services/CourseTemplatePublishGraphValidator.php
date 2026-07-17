@@ -195,6 +195,7 @@ class CourseTemplatePublishGraphValidator
             $valid = $media
                 && $media->status === 'ready'
                 && $media->file_type === $fileType
+                && $this->mediaService->storageObjectExists($media)
                 && $this->mediaService->fileContentIsAllowed(
                     $fileType,
                     (string) $media->mime_type,

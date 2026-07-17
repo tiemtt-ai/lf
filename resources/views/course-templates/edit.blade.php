@@ -216,7 +216,7 @@
                                         <strong class="course-template-readiness-issue-title">{{ __($readinessIssueTitleKey($issue)) }}</strong>
                                         <span>{{ $issue->message() }}</span>
                                     </div>
-                                    <a href="{{ $issue->targetUrl(
+                                    <a class="admin-text-action" href="{{ $issue->targetUrl(
                                         $routePrefix,
                                         (int) $template->id
                                     ) }}">
@@ -248,7 +248,7 @@
                                         <strong class="course-template-readiness-issue-title">{{ __($readinessIssueTitleKey($issue)) }}</strong>
                                         <span>{{ $issue->message() }}</span>
                                     </div>
-                                    <a href="{{ $issue->targetUrl(
+                                    <a class="admin-text-action" href="{{ $issue->targetUrl(
                                         $routePrefix,
                                         (int) $template->id
                                     ) }}">

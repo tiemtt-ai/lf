@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class CourseTemplatePublishingTest extends TestCase
@@ -26,6 +27,7 @@ class CourseTemplatePublishingTest extends TestCase
             'app.base_domain' => 'localhost',
             'app.tenant_scheme' => 'https',
         ]);
+        Storage::fake('media_local');
 
         Carbon::setTestNow('2026-07-04 09:00:00');
     }
@@ -874,8 +876,16 @@ class CourseTemplatePublishingTest extends TestCase
 
         $css = file_get_contents(resource_path('css/admin/admin-pages.css'));
         $this->assertStringContainsString('repeat(auto-fit, minmax(min(100%, 240px), 1fr))', $css);
+        $this->assertStringContainsString('.course-template-readiness .course-template-readiness-list {', $css);
+        $this->assertMatchesRegularExpression(
+            '/\.course-template-readiness \.course-template-readiness-list\s*\{[^}]*padding:\s*0;/s',
+            $css
+        );
         $this->assertStringContainsString('.course-template-readiness-list li {', $css);
         $this->assertStringContainsString('grid-template-columns: minmax(0, 1fr) auto;', $css);
+        $this->assertStringContainsString('border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent);', $css);
+        preg_match('/\.course-template-readiness-list li \{([^}]*)\}/s', $css, $readinessItemRule);
+        $this->assertStringNotContainsString('background:', $readinessItemRule[1] ?? '');
         $this->assertStringContainsString('@media (max-width: 575.98px)', $css);
         $this->assertStringContainsString('overflow-wrap: anywhere;', $css);
     }
@@ -2201,7 +2211,7 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertOk()
             ->assertSeeText('1 cảnh báo — không chặn xuất bản')
             ->assertSeeText('Số bài học thực tế khác dự kiến')
-            ->assertSeeText('Số bài học dự kiến là 3 nhưng nội dung hiện có 1 bài học')
+            ->assertSeeText('Dự kiến: 3 bài học · Hiện có: 1 bài học.')
             ->assertSeeText('Kiểm tra số bài học')
             ->assertSee('?tab=information#estimated_lesson_count', false)
             ->assertSee('data-readiness-warning-code="template_estimated_lesson_count_mismatch"', false)
@@ -2276,6 +2286,18 @@ class CourseTemplatePublishingTest extends TestCase
             'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
         ]);
         $service = app(CourseTemplatePublishReadinessService::class);
+        $this->assertTrue($service->evaluate($customerId, $service->load($customerId, $templateId))->isReady());
+
+        $imageStorageKey = DB::table('media_files')->where('id', $imageId)->value('storage_key');
+        Storage::disk('media_local')->delete($imageStorageKey);
+        $missingObjectReadiness = $service->evaluate($customerId, $service->load($customerId, $templateId));
+        $this->assertContains('template_intro_image', $missingObjectReadiness->blockers()->pluck('code')->all());
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")
+            ->assertOk()
+            ->assertSee('data-readiness-code="template_intro_image"', false)
+            ->assertSee('?tab=information#intro_image_file', false);
+        Storage::disk('media_local')->put($imageStorageKey, 'image');
         $this->assertTrue($service->evaluate($customerId, $service->load($customerId, $templateId))->isReady());
 
         foreach ([
@@ -2353,16 +2375,20 @@ class CourseTemplatePublishingTest extends TestCase
 
     private function createIntroMedia(int $customerId, int $createdBy, string $type, string $mime, string $extension): int
     {
-        return DB::table('media_files')->insertGetId([
+        $storageKey = uniqid('intro-', true).'.'.$extension;
+        $mediaId = DB::table('media_files')->insertGetId([
             'customer_id' => $customerId, 'category_id' => null, 'uploaded_by' => $createdBy,
             'file_type' => $type, 'mime_type' => $mime, 'original_name' => 'intro.'.$extension,
             'display_name' => 'Intro', 'extension' => $extension, 'storage_disk' => 'media_local',
-            'storage_bucket' => 'local-media', 'storage_region' => null, 'storage_key' => uniqid('intro-', true).'.'.$extension,
+            'storage_bucket' => 'local-media', 'storage_region' => null, 'storage_key' => $storageKey,
             'storage_class' => null, 'cdn_url' => null, 'public_url' => null, 'checksum' => null,
             'file_size_bytes' => 1, 'duration_seconds' => null, 'width' => null, 'height' => null,
             'page_count' => null, 'language' => null, 'visibility' => 'private', 'status' => 'ready',
             'metadata' => null, 'created_at' => now(), 'updated_at' => now(),
         ]);
+        Storage::disk('media_local')->put($storageKey, 'media');
+
+        return $mediaId;
     }
 
     private function createTenant(string $slug = 'tenant-a'): int
