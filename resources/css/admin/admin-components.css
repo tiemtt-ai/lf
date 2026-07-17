@@ -1031,6 +1031,11 @@
     background: #fee2e2;
 }
 
+.admin-alert-warning {
+    color: #854d0e;
+    background: #fef9c3;
+}
+
 .admin-alert ul,
 .lf-admin-page .lf-alert-danger ul {
     margin: 0;

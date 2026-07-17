@@ -106,7 +106,7 @@ class CourseTemplateManagementTest extends TestCase
                 'https://tenant-a.localhost/admin/course-templates/'
                 ."{$templateId}/edit?tab=publish"
             )
-            ->assertSeeText('Bản nháp hiện tại')
+            ->assertSeeText('Bản chỉnh sửa hiện tại')
             ->assertSeeText('Bản nháp · Bản chỉnh sửa 1')
             ->assertSeeText('Phiên bản đã xuất bản hiện tại')
             ->assertSeeText('Lần xuất bản gần nhất')

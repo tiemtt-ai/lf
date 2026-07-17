@@ -802,19 +802,7 @@
 
 .course-template-readiness {
     margin-top: 16px;
-    padding: 16px;
-    border: 1px solid;
-    border-radius: 8px;
-}
-
-.course-template-readiness.is-ready {
-    border-color: #86cda2;
-    background: #f0fdf4;
-}
-
-.course-template-readiness.is-blocked {
-    border-color: #f4b4b4;
-    background: #fff7f7;
+    margin-bottom: 0;
 }
 
 .course-template-readiness h3,
@@ -822,16 +810,7 @@
     margin: 0;
 }
 
-.course-template-readiness-header {
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-}
-
 .course-template-readiness h3 {
-    color: var(--admin-control-text);
     font-size: 16px;
     line-height: 1.4;
 }
@@ -871,6 +850,15 @@
     overflow-wrap: anywhere;
 }
 
+.course-template-readiness-issue-title,
+.course-template-readiness-message span {
+    display: block;
+}
+
+.course-template-readiness-issue-title {
+    margin-bottom: 3px;
+}
+
 .course-template-readiness-list a {
     white-space: nowrap;
     color: var(--admin-primary);
@@ -881,6 +869,20 @@
 .course-template-publish-actions {
     margin-top: 16px;
     justify-content: flex-end;
+}
+
+.course-template-publish-actions form {
+    min-width: 0;
+    text-align: right;
+}
+
+.course-template-publish-disabled-help {
+    max-width: 420px;
+    margin: 6px 0 0;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
 }
 
 .lf-admin-page .course-template-publish-button:disabled {
@@ -1575,6 +1577,10 @@
     .course-template-publish-actions .btn,
     .course-template-publish-actions form {
         width: 100%;
+    }
+
+    .course-template-publish-actions form {
+        text-align: left;
     }
 
     .course-template-teachers-header {

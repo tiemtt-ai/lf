@@ -145,12 +145,18 @@ class CourseTemplatePublishingTest extends TestCase
             'Only an Active Course Template can be published. The current status is Draft. Change it in the Information tab before publishing.',
             __('lf.LF_course_template_publish_integrity_template_status', ['status' => 'Draft'])
         );
+        $this->assertSame('1 error blocking publication', trans_choice('lf.LF_course_template_readiness_blocked_count', 1, ['count' => 1]));
+        $this->assertSame('2 warnings — do not block publication', trans_choice('lf.LF_course_template_readiness_warning_count', 2, ['count' => 2]));
+        $this->assertSame('Current Working Revision', __('lf.LF_course_template_publish_current_working'));
 
         app()->setLocale('vi');
         $this->assertSame(
             'Chỉ Course Template ở trạng thái Hoạt động mới có thể xuất bản. Trạng thái hiện tại là Bản nháp. Hãy đổi trạng thái trong tab Thông tin trước khi xuất bản.',
             __('lf.LF_course_template_publish_integrity_template_status', ['status' => 'Bản nháp'])
         );
+        $this->assertSame('1 lỗi đang chặn xuất bản', trans_choice('lf.LF_course_template_readiness_blocked_count', 1, ['count' => 1]));
+        $this->assertSame('2 cảnh báo — không chặn xuất bản', trans_choice('lf.LF_course_template_readiness_warning_count', 2, ['count' => 2]));
+        $this->assertSame('Bản chỉnh sửa hiện tại', __('lf.LF_course_template_publish_current_working'));
     }
 
     public function test_publish_rechecks_locked_status_after_readiness_render_and_ignores_forged_status(): void
@@ -186,6 +192,13 @@ class CourseTemplatePublishingTest extends TestCase
             'id' => $templateId,
             'status' => 'inactive',
         ]);
+
+        $statusResponse = $this->actingAs($admin)->get($editUrl)
+            ->assertOk()
+            ->assertSeeText('Trạng thái Template chưa hợp lệ')
+            ->assertSeeText('Đổi trạng thái')
+            ->assertSee('?tab=information#status', false);
+        $this->assertStringNotContainsString('lf.LF_', $statusResponse->getContent());
     }
 
     public function test_admin_archives_only_inactive_template_without_changing_published_version(): void
@@ -828,7 +841,8 @@ class CourseTemplatePublishingTest extends TestCase
 
         $response = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")
             ->assertOk()
-            ->assertSeeText('2 vấn đề đang chặn xuất bản')
+            ->assertSeeText('2 lỗi đang chặn xuất bản')
+            ->assertSeeText('Cần xử lý 2 lỗi chặn trước khi xuất bản.')
             ->assertSeeText('Readiness Lesson')
             ->assertSeeText('Readiness Document')
             ->assertSee('?tab=information', false)
@@ -836,14 +850,14 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertSee("course-template-lesson-{$lessonId}-activities", false);
         $content = $response->getContent();
         $this->assertStringContainsString('class="course-template-publish-summary"', $content);
-        $this->assertStringContainsString('class="course-template-readiness-header"', $content);
-        $this->assertStringContainsString('class="course-template-readiness-help"', $content);
         $this->assertStringContainsString('class="course-template-readiness-message"', $content);
         $this->assertStringContainsString('class="admin-form-actions course-template-publish-actions"', $content);
         $document = new \DOMDocument;
         @$document->loadHTML($content);
         $xpath = new \DOMXPath($document);
+        $this->assertSame(1, $xpath->query('//section[contains(@class, "course-template-readiness-blockers")][@role="alert"][@aria-labelledby="course-template-readiness-blockers-title"]')->length);
         $this->assertSame(1, $xpath->query('//button[contains(@class, "course-template-publish-button") and @disabled]')->length);
+        $this->assertSame(1, $xpath->query('//button[contains(@class, "course-template-publish-button")][@aria-describedby="course-template-publish-disabled-help"]')->length);
         $this->assertSame(1, substr_count($response->getContent(), 'data-readiness-code="activity_media"'));
         $informationTarget = $xpath->query('//li[@data-readiness-code="template_publisher"]//a')->item(0);
         $contentTarget = $xpath->query('//li[@data-readiness-code="activity_media"]//a')->item(0);
@@ -863,6 +877,7 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertStringContainsString('.course-template-readiness-list li {', $css);
         $this->assertStringContainsString('grid-template-columns: minmax(0, 1fr) auto;', $css);
         $this->assertStringContainsString('@media (max-width: 575.98px)', $css);
+        $this->assertStringContainsString('overflow-wrap: anywhere;', $css);
     }
 
     public function test_direct_publish_post_cannot_bypass_readiness_and_correction_is_recalculated(): void
@@ -2182,12 +2197,21 @@ class CourseTemplatePublishingTest extends TestCase
         $readiness = $service->evaluate($customerId, $service->load($customerId, $templateId));
         $this->assertTrue($readiness->isReady());
         $this->assertSame(['template_estimated_lesson_count_mismatch'], $readiness->warnings()->pluck('code')->all());
-        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")
+        $warningResponse = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")
             ->assertOk()
-            ->assertSeeText('Cảnh báo')
+            ->assertSeeText('1 cảnh báo — không chặn xuất bản')
+            ->assertSeeText('Số bài học thực tế khác dự kiến')
             ->assertSeeText('Số bài học dự kiến là 3 nhưng nội dung hiện có 1 bài học')
+            ->assertSeeText('Kiểm tra số bài học')
+            ->assertSee('?tab=information#estimated_lesson_count', false)
             ->assertSee('data-readiness-warning-code="template_estimated_lesson_count_mismatch"', false)
-            ->assertDontSee('data-readiness-code="template_estimated_lesson_count_mismatch"', false);
+            ->assertDontSee('data-readiness-code="template_estimated_lesson_count_mismatch"', false)
+            ->assertDontSee('course-template-publish-button" disabled', false);
+        $warningDocument = new \DOMDocument;
+        @$warningDocument->loadHTML($warningResponse->getContent());
+        $warningXpath = new \DOMXPath($warningDocument);
+        $this->assertSame(1, $warningXpath->query('//section[contains(@class, "course-template-readiness-warnings")][@role="status"][@aria-live="polite"]')->length);
+        $this->assertSame(0, $warningXpath->query('//section[contains(@class, "course-template-readiness-blockers")]//*[@data-readiness-warning-code]')->length);
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")
             ->assertSessionDoesntHaveErrors();
         $this->assertSame(3, DB::table('core_course_template_versions')->where('template_id', $templateId)->value('estimated_lesson_count_snapshot'));
@@ -2196,6 +2220,13 @@ class CourseTemplatePublishingTest extends TestCase
         $blocked = $service->evaluate($customerId, $service->load($customerId, $templateId));
         $this->assertFalse($blocked->isReady());
         $this->assertCount(1, $blocked->warnings());
+        $mixedResponse = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")->assertOk();
+        $mixedDocument = new \DOMDocument;
+        @$mixedDocument->loadHTML($mixedResponse->getContent());
+        $mixedXpath = new \DOMXPath($mixedDocument);
+        $this->assertSame(1, $mixedXpath->query('//section[contains(@class, "course-template-readiness-blockers")]')->length);
+        $this->assertSame(1, $mixedXpath->query('//section[contains(@class, "course-template-readiness-warnings")]')->length);
+        $this->assertSame(0, $mixedXpath->query('//section[contains(@class, "course-template-readiness-blockers")]//*[@data-readiness-warning-code]')->length);
     }
 
     public function test_publish_revalidates_canonical_trusted_embed_state(): void

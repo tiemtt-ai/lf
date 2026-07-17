@@ -16,6 +16,29 @@
         $activeTab = array_key_exists($activeTab, $tabs)
             ? $activeTab
             : 'information';
+        $readinessIssueTitleKey = static fn (object $issue): string => match ($issue->code) {
+            'template_status' => 'lf.LF_course_template_readiness_issue_status_title',
+            'template_category', 'template_category_inactive' => 'lf.LF_course_template_readiness_issue_category_title',
+            'template_title' => 'lf.LF_course_template_readiness_issue_title_title',
+            'template_publisher' => 'lf.LF_course_template_readiness_issue_publisher_title',
+            'template_difficulty' => 'lf.LF_course_template_readiness_issue_difficulty_title',
+            'template_estimated_minutes' => 'lf.LF_course_template_readiness_issue_estimated_minutes_title',
+            'template_estimated_lesson_count' => 'lf.LF_course_template_readiness_issue_estimated_lessons_title',
+            'template_estimated_lesson_count_mismatch' => 'lf.LF_course_template_readiness_issue_lesson_count_warning_title',
+            'template_intro_image', 'template_intro_video', 'template_intro_document', 'video_state' => 'lf.LF_course_template_readiness_issue_media_title',
+            default => $issue->targetTab === 'content'
+                ? 'lf.LF_course_template_readiness_issue_content_title'
+                : 'lf.LF_course_template_readiness_issue_information_title',
+        };
+        $readinessIssueActionKey = static fn (object $issue): string => match ($issue->code) {
+            'template_status' => 'lf.LF_course_template_readiness_action_change_status',
+            'template_category', 'template_category_inactive' => 'lf.LF_course_template_readiness_action_review_category',
+            'template_estimated_lesson_count', 'template_estimated_lesson_count_mismatch' => 'lf.LF_course_template_readiness_action_review_lesson_count',
+            'template_intro_image', 'template_intro_video', 'template_intro_document', 'video_state' => 'lf.LF_course_template_readiness_action_review_media',
+            default => $issue->targetTab === 'content'
+                ? 'lf.LF_course_template_readiness_action_review_content'
+                : 'lf.LF_course_template_readiness_action_review_field',
+        };
     @endphp
 
     @if (session('course_template_created_title'))
@@ -139,7 +162,7 @@
                 <dl class="course-template-publish-summary"
                     aria-labelledby="course-template-publish-title">
                     <div>
-                        <dt>{{ __('lf.LF_course_template_publish_current_draft') }}</dt>
+                        <dt>{{ __('lf.LF_course_template_publish_current_working') }}</dt>
                         <dd>
                             {{ __('lf.LF_course_template_publish_current_draft_value', [
                                 'status' => __('lf.LF_course_template_common_'.$template->status),
@@ -174,75 +197,77 @@
                     </div>
                 </dl>
 
-                <section @class([
-                             'course-template-readiness',
-                             'is-ready' => $publishReadiness->isReady(),
-                             'is-blocked' => ! $publishReadiness->isReady(),
-                         ])
-                         aria-labelledby="course-template-readiness-title">
-                    <div class="course-template-readiness-header">
-                        <h3 id="course-template-readiness-title">
-                            {{ $publishReadiness->isReady()
-                                ? __('lf.LF_course_template_readiness_ready')
-                                : __('lf.LF_course_template_readiness_blocked', [
-                                    'count' => $publishReadiness->blockers()->count(),
-                                ]) }}
+                @if ($publishReadiness->blockers()->isNotEmpty())
+                    <section class="admin-alert admin-alert-danger course-template-readiness course-template-readiness-blockers"
+                             role="alert"
+                             aria-labelledby="course-template-readiness-blockers-title">
+                        <h3 id="course-template-readiness-blockers-title" class="admin-alert-title">
+                            {{ trans_choice(
+                                'lf.LF_course_template_readiness_blocked_count',
+                                $publishReadiness->blockers()->count(),
+                                ['count' => $publishReadiness->blockers()->count()]
+                            ) }}
                         </h3>
-                    </div>
-
-                    @php
-                        $informationBlockers = $publishReadiness->blockers()
-                            ->where('targetTab', 'information');
-                        $informationWarnings = $publishReadiness->warnings()
-                            ->where('targetTab', 'information');
-                    @endphp
-                    <p class="course-template-readiness-help">
-                        {{ __('lf.LF_course_template_readiness_information_summary', [
-                            'blockers' => $informationBlockers->count(),
-                            'warnings' => $informationWarnings->count(),
-                        ]) }}
-                    </p>
-
-                    @if ($publishReadiness->isReady())
-                        <p class="course-template-readiness-help">{{ __('lf.LF_course_template_readiness_ready_help') }}</p>
-                    @else
-                        <p class="course-template-readiness-help">{{ __('lf.LF_course_template_readiness_blocked_help') }}</p>
+                        <p class="admin-alert-guidance">{{ __('lf.LF_course_template_readiness_blocked_help') }}</p>
                         <ol class="course-template-readiness-list">
                             @foreach ($publishReadiness->blockers() as $issue)
                                 <li data-readiness-code="{{ $issue->code }}">
-                                    <span class="course-template-readiness-message">{{ $issue->message() }}</span>
+                                    <div class="course-template-readiness-message">
+                                        <strong class="course-template-readiness-issue-title">{{ __($readinessIssueTitleKey($issue)) }}</strong>
+                                        <span>{{ $issue->message() }}</span>
+                                    </div>
                                     <a href="{{ $issue->targetUrl(
                                         $routePrefix,
                                         (int) $template->id
                                     ) }}">
-                                        {{ $issue->targetTab === 'information'
-                                            ? __('lf.LF_course_template_readiness_fix_information')
-                                            : __('lf.LF_course_template_readiness_fix_content') }}
+                                        {{ __($readinessIssueActionKey($issue)) }}
                                     </a>
                                 </li>
                             @endforeach
                         </ol>
-                    @endif
+                    </section>
+                @endif
 
-                    @if ($publishReadiness->warnings()->isNotEmpty())
-                        <h4>{{ __('lf.LF_course_template_readiness_warnings_title') }}</h4>
+                @if ($publishReadiness->warnings()->isNotEmpty())
+                    <section class="admin-alert admin-alert-warning course-template-readiness course-template-readiness-warnings"
+                             role="status"
+                             aria-live="polite"
+                             aria-labelledby="course-template-readiness-warnings-title">
+                        <h3 id="course-template-readiness-warnings-title" class="admin-alert-title">
+                            {{ trans_choice(
+                                'lf.LF_course_template_readiness_warning_count',
+                                $publishReadiness->warnings()->count(),
+                                ['count' => $publishReadiness->warnings()->count()]
+                            ) }}
+                        </h3>
+                        <p class="admin-alert-guidance">{{ __('lf.LF_course_template_readiness_warning_help') }}</p>
                         <ul class="course-template-readiness-list course-template-readiness-warning-list">
                             @foreach ($publishReadiness->warnings() as $issue)
                                 <li data-readiness-warning-code="{{ $issue->code }}">
-                                    <span class="course-template-readiness-message">{{ $issue->message() }}</span>
+                                    <div class="course-template-readiness-message">
+                                        <strong class="course-template-readiness-issue-title">{{ __($readinessIssueTitleKey($issue)) }}</strong>
+                                        <span>{{ $issue->message() }}</span>
+                                    </div>
                                     <a href="{{ $issue->targetUrl(
                                         $routePrefix,
                                         (int) $template->id
                                     ) }}">
-                                        {{ $issue->targetTab === 'information'
-                                            ? __('lf.LF_course_template_readiness_fix_information')
-                                            : __('lf.LF_course_template_readiness_fix_content') }}
+                                        {{ __($readinessIssueActionKey($issue)) }}
                                     </a>
                                 </li>
                             @endforeach
                         </ul>
-                    @endif
-                </section>
+                    </section>
+                @endif
+
+                @if ($publishReadiness->blockers()->isEmpty() && $publishReadiness->warnings()->isEmpty())
+                    <section class="admin-alert admin-alert-success course-template-readiness course-template-readiness-ready"
+                             role="status"
+                             aria-labelledby="course-template-readiness-ready-title">
+                        <h3 id="course-template-readiness-ready-title" class="admin-alert-title">{{ __('lf.LF_course_template_readiness_ready') }}</h3>
+                        <p class="admin-alert-guidance">{{ __('lf.LF_course_template_readiness_ready_help') }}</p>
+                    </section>
+                @endif
 
                 <div class="admin-form-actions course-template-publish-actions">
                     @if (request()->user()?->role === 'customer_admin')
@@ -250,14 +275,24 @@
                               action="{{ route(
                                   $routePrefix.'.publish',
                                   $template->id
-                              ) }}">
+                              ) }}"
+                              @if (! $publishReadiness->isReady()) aria-describedby="course-template-publish-disabled-help" @endif>
                             @csrf
                             <button type="submit"
                                     class="btn btn-primary course-template-publish-button"
                                     @disabled(! $publishReadiness->isReady())
-                                    @if (! $publishReadiness->isReady()) aria-disabled="true" @endif>
+                                    @if (! $publishReadiness->isReady()) aria-disabled="true" aria-describedby="course-template-publish-disabled-help" @endif>
                                 {{ __('lf.LF_course_template_publish_action') }}
                             </button>
+                            @if (! $publishReadiness->isReady())
+                                <p id="course-template-publish-disabled-help" class="course-template-publish-disabled-help">
+                                    {{ trans_choice(
+                                        'lf.LF_course_template_publish_disabled_help',
+                                        $publishReadiness->blockers()->count(),
+                                        ['count' => $publishReadiness->blockers()->count()]
+                                    ) }}
+                                </p>
+                            @endif
                         </form>
                     @else
                         <button type="button"
