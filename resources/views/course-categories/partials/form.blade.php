@@ -79,10 +79,13 @@
                        @input="syncSlug($event.target.value)">
             </div>
 
-            <div class="lf-form-group admin-form-field">
-                <x-form-label for="slug"
-                              :value="__('lf.LF_course_category_common_slug')" />
-                <input id="slug" type="text" name="slug" class="lf-form-control"
+            <div class="lf-form-group admin-form-field--full">
+                <div class="admin-form-label-row">
+                    <x-form-label for="slug"
+                                  :value="__('lf.LF_course_category_common_slug')" />
+                    <span class="admin-form-label-metadata">{{ __('lf.LF_course_category_common_automatic') }}</span>
+                </div>
+                <input id="slug" type="text" name="slug" class="lf-form-control admin-form-readonly"
                        value="{{ $generatedSlug }}"
                        placeholder="{{ __('lf.LF_course_category_placeholder_slug') }}"
                        maxlength="255"
@@ -93,7 +96,7 @@
             <div class="lf-form-group admin-form-field--full">
                 <x-form-label for="description" :value="__('lf.LF_course_category_common_description')" />
                 <textarea id="description" name="description" class="lf-form-control"
-                          rows="4" placeholder="{{ __('lf.LF_course_category_placeholder_description') }}">{{ old('description', $formCategory?->description) }}</textarea>
+                          rows="3" placeholder="{{ __('lf.LF_course_category_placeholder_description') }}">{{ old('description', $formCategory?->description) }}</textarea>
             </div>
 
         </div>

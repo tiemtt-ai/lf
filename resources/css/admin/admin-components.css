@@ -373,6 +373,13 @@
     grid-template-columns: minmax(0, 1fr) minmax(120px, .34fr);
 }
 
+@media (min-width: 1200px) {
+    :root.is-backend-sidebar-collapsed .backend-shell .admin-form-field-grid--three,
+    .backend-shell.is-sidebar-collapsed .admin-form-field-grid--three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
 .lf-admin-page .admin-form-readonly {
     border-color: var(--admin-control-border);
     color: var(--admin-control-text);

@@ -97,45 +97,52 @@
             <h2 id="course-template-basic" class="admin-form-section-title">{{ __('lf.LF_course_template_group_basic') }}</h2>
         </header>
         <div class="admin-form-field-grid">
-        <div class="lf-form-group admin-form-field">
-            <x-form-label for="category_id"
-                          :value="__('lf.LF_course_template_common_category')"
-                          :required="$isRequired('category_id')" />
-            <select id="category_id" name="category_id" class="lf-form-control" x-model="selectedCategoryId" x-on:change="syncDefaultSortOrder($event.target.value)" :class="{ 'lf-select-placeholder': selectedCategoryId === null || selectedCategoryId === '' }">
-                <option value="" @selected($selectedCategoryId === null || $selectedCategoryId === '')>{{ __('lf.LF_course_template_select_category') }}</option>
-                @foreach ($categories as $category)
-                    <option value="{{ $category->id }}"
-                            @selected((string) $selectedCategoryId === (string) $category->id)>
-                        {{ $category->name }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
+            <div class="lf-form-group admin-form-field--full">
+                <x-form-label for="title"
+                              :value="__('lf.LF_course_template_common_name')"
+                              :required="$isRequired('title')" />
+                <input id="title" type="text" name="title" class="lf-form-control"
+                       value="{{ old('title', $formTemplate?->title) }}"
+                       required
+                       maxlength="255" placeholder="{{ __('lf.LF_course_template_placeholder_name') }}">
+            </div>
 
-        <div class="lf-form-group admin-form-field">
-            <x-form-label for="title"
-                          :value="__('lf.LF_course_template_common_name')"
-                          :required="$isRequired('title')" />
-            <input id="title" type="text" name="title" class="lf-form-control"
-                   value="{{ old('title', $formTemplate?->title) }}"
-                   required
-                   maxlength="255" placeholder="{{ __('lf.LF_course_template_placeholder_name') }}">
-        </div>
+            <div class="lf-form-group admin-form-field">
+                <x-form-label for="category_id"
+                              :value="__('lf.LF_course_template_common_category')"
+                              :required="$isRequired('category_id')" />
+                <select id="category_id" name="category_id" class="lf-form-control" x-model="selectedCategoryId" x-on:change="syncDefaultSortOrder($event.target.value)" :class="{ 'lf-select-placeholder': selectedCategoryId === null || selectedCategoryId === '' }">
+                    <option value="" @selected($selectedCategoryId === null || $selectedCategoryId === '')>{{ __('lf.LF_course_template_select_category') }}</option>
+                    @foreach ($categories as $category)
+                        <option value="{{ $category->id }}"
+                                @selected((string) $selectedCategoryId === (string) $category->id)>
+                            {{ $category->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
 
-        <div class="lf-form-group admin-form-field">
-            <x-form-label for="publisher_name" :value="__('lf.LF_course_template_common_publisher_name')" :required="$isRequired('publisher_name')" />
-            <input id="publisher_name" type="text" name="publisher_name" class="lf-form-control" value="{{ old('publisher_name', $formTemplate?->publisher_name) }}" maxlength="255" placeholder="{{ __('lf.LF_course_template_placeholder_publisher') }}" required>
+            <div class="lf-form-group admin-form-field">
+                <x-form-label for="publisher_name" :value="__('lf.LF_course_template_common_publisher_name')" :required="$isRequired('publisher_name')" />
+                <input id="publisher_name" type="text" name="publisher_name" class="lf-form-control" value="{{ old('publisher_name', $formTemplate?->publisher_name) }}" maxlength="255" placeholder="{{ __('lf.LF_course_template_placeholder_publisher') }}" required>
+            </div>
         </div>
+    </section>
 
-        <div class="lf-form-group admin-form-field--full">
-            <x-form-label for="short_description" :value="__('lf.LF_course_template_common_short_description')" />
-            <textarea id="short_description" name="short_description" class="lf-form-control" rows="2" maxlength="500" placeholder="{{ __('lf.LF_course_template_placeholder_short_description') }}">{{ old('short_description', $formTemplate?->short_description) }}</textarea>
-        </div>
+    <section class="admin-form-standard-section" aria-labelledby="course-template-description">
+        <header class="admin-form-section-header">
+            <h2 id="course-template-description" class="admin-form-section-title">{{ __('lf.LF_course_template_group_description') }}</h2>
+        </header>
+        <div class="admin-form-field-grid">
+            <div class="lf-form-group admin-form-field--full">
+                <x-form-label for="short_description" :value="__('lf.LF_course_template_common_short_description')" />
+                <textarea id="short_description" name="short_description" class="lf-form-control" rows="2" maxlength="500" placeholder="{{ __('lf.LF_course_template_placeholder_short_description') }}">{{ old('short_description', $formTemplate?->short_description) }}</textarea>
+            </div>
 
-        <div class="lf-form-group admin-form-field--full">
-            <x-form-label for="description" :value="__('lf.LF_course_template_common_description')" />
-            <textarea id="description" name="description" class="lf-form-control" rows="5" placeholder="{{ __('lf.LF_course_template_placeholder_description') }}">{{ old('description', $formTemplate?->description) }}</textarea>
-        </div>
+            <div class="lf-form-group admin-form-field--full">
+                <x-form-label for="description" :value="__('lf.LF_course_template_common_description')" />
+                <textarea id="description" name="description" class="lf-form-control" rows="4" placeholder="{{ __('lf.LF_course_template_placeholder_description') }}">{{ old('description', $formTemplate?->description) }}</textarea>
+            </div>
         </div>
     </section>
 
@@ -143,7 +150,7 @@
         <header class="admin-form-section-header">
             <h2 id="course-template-learning" class="admin-form-section-title">{{ __('lf.LF_course_template_group_learning') }}</h2>
         </header>
-        <div class="admin-form-field-grid">
+        <div class="admin-form-field-grid admin-form-field-grid--three">
             <div class="lf-form-group admin-form-field">
                 <x-form-label for="difficulty_level" :value="__('lf.LF_course_template_common_difficulty_level')" />
                 <select id="difficulty_level" name="difficulty_level" class="lf-form-control" x-model="selectedDifficulty" :class="{ 'lf-select-placeholder': selectedDifficulty === null || selectedDifficulty === '' }"><option value="" @selected($selectedDifficulty === null || $selectedDifficulty === '')>{{ __('lf.LF_course_template_select_difficulty') }}</option>@foreach (['beginner', 'intermediate', 'advanced'] as $difficulty)<option value="{{ $difficulty }}" @selected($selectedDifficulty === $difficulty)>{{ __('lf.LF_course_template_common_'.$difficulty) }}</option>@endforeach</select>
@@ -163,7 +170,7 @@
         <header class="admin-form-section-header">
             <h2 id="course-template-introduction" class="admin-form-section-title">{{ __('lf.LF_course_template_group_introduction') }}</h2>
         </header>
-        <div class="admin-form-field-grid">
+        <div class="admin-form-field-grid admin-form-field-grid--three">
         <div class="lf-form-group admin-form-field">
             <x-form-label for="intro_image_file" :value="__('lf.LF_course_template_intro_image')" />
             <input type="hidden" name="intro_image_media_file_id" value="{{ old('intro_image_media_file_id', $formTemplate?->intro_image_media_file_id) }}">
@@ -231,8 +238,13 @@
         </header>
         <div class="admin-form-field-grid">
             <div class="lf-form-group admin-form-field">
-                <x-form-label for="sort_order" :value="__('lf.LF_course_template_common_sort_order')" />
-                <input id="sort_order" type="number" min="0" name="sort_order" class="lf-form-control"
+                <div class="admin-form-label-row">
+                    <x-form-label for="sort_order" :value="__('lf.LF_course_template_common_sort_order')" />
+                    @if (! $formTemplate)
+                        <span class="admin-form-label-metadata">{{ __('lf.LF_course_template_common_automatic') }}</span>
+                    @endif
+                </div>
+                <input id="sort_order" type="number" min="0" name="sort_order" @class(['lf-form-control', 'admin-form-readonly' => ! $formTemplate])
                        x-model.number="selectedSortOrder" x-on:input="sortOrderTouched = true"
                        value="{{ $selectedSortOrder }}"
                        @if (! $formTemplate) readonly @endif

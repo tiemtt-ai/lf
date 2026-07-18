@@ -168,12 +168,13 @@ class CourseTemplateManagementTest extends TestCase
         );
 
         $this->assertSame(1, substr_count($formPartial, 'class="admin-form-flow"'));
-        $this->assertSame(4, substr_count($formPartial, 'class="admin-form-standard-section"'));
+        $this->assertSame(5, substr_count($formPartial, 'class="admin-form-standard-section"'));
         $this->assertStringContainsString('aria-labelledby="course-template-basic"', $formPartial);
+        $this->assertStringContainsString('aria-labelledby="course-template-description"', $formPartial);
         $this->assertStringContainsString('aria-labelledby="course-template-learning"', $formPartial);
         $this->assertStringContainsString('aria-labelledby="course-template-introduction"', $formPartial);
         $this->assertStringContainsString('aria-labelledby="course-template-display"', $formPartial);
-        $this->assertSame(2, substr_count($formPartial, 'admin-form-field--full'));
+        $this->assertSame(3, substr_count($formPartial, 'admin-form-field--full'));
         $this->assertStringNotContainsString('admin-form-subsection', $formPartial);
         $this->assertSame(3, substr_count($formPartial, '<x-authoring-media-row'));
         $this->assertSame(1, substr_count($formPartial, ':presentation="$introImageThumbnail"'));
@@ -184,6 +185,7 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertStringNotContainsString('course-template-preview-actions', $formPartial);
         $this->assertStringContainsString("preview.mediaType === 'embed'", $formPartial);
         $this->assertStringContainsString('syncDefaultSortOrder($event.target.value)', $formPartial);
+        $this->assertStringContainsString('admin-form-readonly', $responses[0]->getContent());
 
         foreach ($responses as $response) {
             foreach ([
@@ -220,8 +222,10 @@ class CourseTemplateManagementTest extends TestCase
             }
 
             $response->assertSeeText(__('lf.LF_course_template_group_basic'))
+                ->assertSeeText(__('lf.LF_course_template_group_description'))
                 ->assertSeeText(__('lf.LF_course_template_group_learning'))
                 ->assertSeeText(__('lf.LF_course_template_group_introduction'));
+            $this->assertStringContainsString('admin-form-field-grid--three', $response->getContent());
             $this->assertStringNotContainsString('name="slug"', $response->getContent());
             $this->assertManualSeoControlsNotRendered(
                 $response->getContent(),
