@@ -9,9 +9,10 @@
     $selectedParentId = old('parent_id', $formCategory?->parent_id);
     $selectedStatus = old('status', $formCategory?->status ?? 'active');
     $isFeatured = (bool) old('is_featured', $formCategory?->is_featured ?? false);
+    $selectedSortOrder = old('sort_order', $formCategory?->sort_order ?? $initialSortOrder);
 @endphp
 
-<div class="backend-form-shell"
+<div class="admin-form-flow"
      x-data="{
          generatedSlug: @js((string) $generatedSlug),
          selectedParentId: @js($selectedParentId),
@@ -45,9 +46,12 @@
          },
      }"
      x-on:keydown.escape.window="closeCategoryImagePreview()">
-    <div class="backend-form-columns">
-        <div class="backend-form-column">
-            <div class="lf-form-group">
+    <section class="admin-form-standard-section" aria-labelledby="course-category-general">
+        <header class="admin-form-section-header">
+            <h2 id="course-category-general" class="admin-form-section-title">{{ __('lf.LF_course_category_group_general') }}</h2>
+        </header>
+        <div class="admin-form-field-grid">
+            <div class="lf-form-group admin-form-field">
                 <x-form-label for="parent_id"
                               :value="__('lf.LF_course_category_common_parent')" />
                 <select id="parent_id" name="parent_id" class="lf-form-control"
@@ -63,7 +67,7 @@
                 </select>
             </div>
 
-            <div class="lf-form-group">
+            <div class="lf-form-group admin-form-field">
                 <x-form-label for="name"
                               :value="__('lf.LF_course_category_common_name')"
                               required />
@@ -75,7 +79,7 @@
                        @input="syncSlug($event.target.value)">
             </div>
 
-            <div class="lf-form-group">
+            <div class="lf-form-group admin-form-field">
                 <x-form-label for="slug"
                               :value="__('lf.LF_course_category_common_slug')" />
                 <input id="slug" type="text" name="slug" class="lf-form-control"
@@ -86,7 +90,21 @@
                        x-model="generatedSlug">
             </div>
 
-            <div class="lf-form-group">
+            <div class="lf-form-group admin-form-field--full">
+                <x-form-label for="description" :value="__('lf.LF_course_category_common_description')" />
+                <textarea id="description" name="description" class="lf-form-control"
+                          rows="4" placeholder="{{ __('lf.LF_course_category_placeholder_description') }}">{{ old('description', $formCategory?->description) }}</textarea>
+            </div>
+
+        </div>
+    </section>
+
+    <section class="admin-form-standard-section" aria-labelledby="course-category-media">
+        <header class="admin-form-section-header">
+            <h2 id="course-category-media" class="admin-form-section-title">{{ __('lf.LF_course_category_group_media') }}</h2>
+        </header>
+        <div class="admin-form-field-grid">
+            <div class="lf-form-group admin-form-field">
                 <x-form-label for="thumbnail_image_file"
                               :value="__('lf.LF_course_category_common_thumbnail_upload')" />
                 @if ($thumbnailMedia ?? null)
@@ -137,10 +155,7 @@
                        accept="image/*">
                 <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
             </div>
-        </div>
-
-        <div class="backend-form-column">
-            <div class="lf-form-group">
+            <div class="lf-form-group admin-form-field">
                 <x-form-label for="banner_image_file"
                               :value="__('lf.LF_course_category_common_banner_upload')" />
                 @if ($bannerMedia ?? null)
@@ -192,7 +207,15 @@
                 <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
             </div>
 
-            <div class="lf-form-group">
+        </div>
+    </section>
+
+    <section class="admin-form-standard-section" aria-labelledby="course-category-display">
+        <header class="admin-form-section-header">
+            <h2 id="course-category-display" class="admin-form-section-title">{{ __('lf.LF_course_category_group_display') }}</h2>
+        </header>
+        <div class="admin-form-field-grid">
+            <div class="lf-form-group admin-form-field--full">
                 <input type="hidden" name="is_featured" value="0">
                 <div class="admin-radio-group">
                     <input id="is_featured" type="checkbox" name="is_featured" value="1"
@@ -201,16 +224,17 @@
                 </div>
             </div>
 
-            <div class="lf-form-group">
+            <div class="lf-form-group admin-form-field">
                 <x-form-label for="sort_order"
                               :value="__('lf.LF_course_category_common_sort_order')"
                               required />
                 <input id="sort_order" type="number" name="sort_order" class="lf-form-control"
-                       value="{{ old('sort_order', $formCategory?->sort_order ?? 0) }}"
+                       value="{{ $selectedSortOrder }}"
+                       @if (! $formCategory) readonly @endif
                        placeholder="{{ __('lf.LF_course_category_placeholder_sort_order') }}" required>
             </div>
 
-            <div class="lf-form-group">
+            <div class="lf-form-group admin-form-field">
                 <x-form-label for="status"
                               :value="__('lf.LF_course_category_common_status')"
                               required />
@@ -224,14 +248,7 @@
                 </select>
             </div>
         </div>
-    </div>
-
-    <div class="lf-form-group">
-        <x-form-label for="description"
-                      :value="__('lf.LF_course_category_common_description')" />
-        <textarea id="description" name="description" class="lf-form-control"
-                  rows="4" placeholder="{{ __('lf.LF_course_category_placeholder_description') }}">{{ old('description', $formCategory?->description) }}</textarea>
-    </div>
+    </section>
 
 <div class="media-library-modal"
      x-cloak

@@ -69,8 +69,11 @@ class CourseCategoryController extends Controller
 
     public function create(Request $request): View
     {
+        $customerId = $this->customerId();
+
         return view('course-categories.create', [
             'parentCategories' => $this->parentCategories(),
+            'initialSortOrder' => $this->nextSortOrder($customerId),
             'routePrefix' => $this->routePrefix($request),
             'thumbnailMedia' => null,
             'bannerMedia' => null,
@@ -83,24 +86,28 @@ class CourseCategoryController extends Controller
         $validated = $this->validatedData($request, $customerId);
         $now = now();
 
-        $categoryId = DB::table('core_course_categories')->insertGetId([
-            'customer_id' => $customerId,
-            'parent_id' => $validated['parent_id'] ?? null,
-            'name' => $validated['name'],
-            'slug' => $validated['slug'],
-            'description' => $validated['description'] ?? null,
-            'thumbnail_image' => $validated['thumbnail_image'] ?? null,
-            'banner_image' => $validated['banner_image'] ?? null,
-            'sort_order' => $validated['sort_order'],
-            'is_featured' => (bool) $validated['is_featured'],
-            'meta_title' => $validated['meta_title'] ?? null,
-            'meta_description' => $validated['meta_description'] ?? null,
-            'meta_keywords' => $validated['meta_keywords'] ?? null,
-            'status' => $validated['status'],
-            'created_by' => $request->user()?->id,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+        $categoryId = DB::transaction(function () use ($customerId, $validated, $request, $now): int {
+            $validated['sort_order'] = $this->nextSortOrder($customerId, true);
+
+            return DB::table('core_course_categories')->insertGetId([
+                'customer_id' => $customerId,
+                'parent_id' => $validated['parent_id'] ?? null,
+                'name' => $validated['name'],
+                'slug' => $validated['slug'],
+                'description' => $validated['description'] ?? null,
+                'thumbnail_image' => $validated['thumbnail_image'] ?? null,
+                'banner_image' => $validated['banner_image'] ?? null,
+                'sort_order' => $validated['sort_order'],
+                'is_featured' => (bool) $validated['is_featured'],
+                'meta_title' => $validated['meta_title'] ?? null,
+                'meta_description' => $validated['meta_description'] ?? null,
+                'meta_keywords' => $validated['meta_keywords'] ?? null,
+                'status' => $validated['status'],
+                'created_by' => $request->user()?->id,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        });
 
         $this->syncUploadedMedia($request, $categoryId, $validated['name']);
 
@@ -118,6 +125,7 @@ class CourseCategoryController extends Controller
         return view('course-categories.edit', [
             'category' => $category,
             'parentCategories' => $this->parentCategories($excludedIds),
+            'initialSortOrder' => (int) $category->sort_order,
             'routePrefix' => $this->routePrefix($request),
             'thumbnailMedia' => $this->singleMedia(
                 'course_category',
@@ -328,6 +336,22 @@ class CourseCategoryController extends Controller
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
+    }
+
+    private function nextSortOrder(int $customerId, bool $lockTenant = false): int
+    {
+        if ($lockTenant) {
+            DB::table('saas_customers')
+                ->where('id', $customerId)
+                ->lockForUpdate()
+                ->first(['id']);
+        }
+
+        $maximum = DB::table('core_course_categories')
+            ->where('customer_id', $customerId)
+            ->max('sort_order');
+
+        return $maximum === null ? 1 : (int) $maximum + 1;
     }
 
     private function descendantIds(int $customerId, int $categoryId): array

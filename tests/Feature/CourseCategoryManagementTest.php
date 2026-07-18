@@ -108,7 +108,7 @@ class CourseCategoryManagementTest extends TestCase
             'description' => 'Korean courses',
             'thumbnail_image' => '/images/korean-thumbnail.jpg',
             'banner_image' => '/images/korean-banner.jpg',
-            'sort_order' => 10,
+            'sort_order' => 1,
             'is_featured' => 1,
             'meta_title' => 'Learn Korean',
             'meta_description' => 'Korean course category',
@@ -142,31 +142,14 @@ class CourseCategoryManagementTest extends TestCase
         ] as $response) {
             $content = $response->getContent();
 
-            $this->assertSame(0, substr_count($content, 'class="admin-form-section"'));
-            $this->assertSame(1, substr_count($content, 'class="backend-form-columns"'));
-            $this->assertSame(2, substr_count($content, 'class="backend-form-column"'));
-            $this->assertStringNotContainsString('course-category-basic-title', $content);
-            $this->assertStringNotContainsString('course-category-media-title', $content);
-            $this->assertStringNotContainsString('course-category-description-title', $content);
-            $this->assertSame(
-                [
-                    'parent_id',
-                    'name',
-                    'slug',
-                    'thumbnail_image_file',
-                ],
-                $this->backendColumnFieldNames($content, 0)
-            );
-            $this->assertSame(
-                [
-                    'banner_image_file',
-                    'is_featured',
-                    'sort_order',
-                    'status',
-                ],
-                $this->backendColumnFieldNames($content, 1)
-            );
-            $this->assertFalse($this->fieldIsInsideBackendColumn($content, 'description'));
+            $this->assertSame(1, substr_count($content, 'class="admin-form-flow"'));
+            $this->assertSame(3, substr_count($content, 'class="admin-form-standard-section"'));
+            $this->assertStringContainsString('aria-labelledby="course-category-general"', $content);
+            $this->assertStringContainsString('aria-labelledby="course-category-media"', $content);
+            $this->assertStringContainsString('aria-labelledby="course-category-display"', $content);
+            $this->assertStringNotContainsString('aria-labelledby="course-category-description"', $content);
+            $this->assertStringContainsString('class="admin-form-footer"', $content);
+            $this->assertStringContainsString('class="admin-form-footer-primary"', $content);
             $this->assertStringContainsString('name="slug"', $content);
             $this->assertStringContainsString('readonly', $content);
             $this->assertStringContainsString('x-model="selectedParentId"', $content);
@@ -186,6 +169,34 @@ class CourseCategoryManagementTest extends TestCase
                 'LF_course_category'
             );
         }
+    }
+
+    public function test_create_order_displays_and_persists_the_tenant_maximum_plus_one(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $existingId = $this->createCategory($customerId, 'Existing', 'existing');
+        DB::table('core_course_categories')->where('id', $existingId)->update(['sort_order' => 8]);
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-categories/create')
+            ->assertOk()
+            ->assertSee('value="9"', false)
+            ->assertSee('name="sort_order"', false)
+            ->assertSee('readonly', false);
+
+        $this->post(
+            'https://tenant-a.localhost/admin/course-categories',
+            $this->validCategoryData(['name' => 'Next Category', 'sort_order' => 1])
+        )->assertRedirect();
+
+        $this->assertSame(
+            9,
+            (int) DB::table('core_course_categories')
+                ->where('customer_id', $customerId)
+                ->where('name', 'Next Category')
+                ->value('sort_order')
+        );
     }
 
     public function test_category_update_without_manual_seo_inputs_preserves_existing_seo_data(): void

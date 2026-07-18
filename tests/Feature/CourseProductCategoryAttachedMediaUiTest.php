@@ -67,9 +67,9 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
             1,
             $this->htmlElementCount(
                 $content,
-                '//div[contains(concat(" ", normalize-space(@class), " "), " admin-form-card ")]'
-                .'/form/div[contains(concat(" ", normalize-space(@class), " "), " backend-form-shell ")]'
-                .'/div[contains(concat(" ", normalize-space(@class), " "), " backend-form-columns ")]'
+                '//div[contains(concat(" ", normalize-space(@class), " "), " admin-form-surface ")]'
+                .'/form[contains(concat(" ", normalize-space(@class), " "), " admin-form-standard ")]'
+                .'/div[contains(concat(" ", normalize-space(@class), " "), " admin-form-flow ")]'
             )
         );
         $this->assertSame(
@@ -137,6 +137,15 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
         );
         $this->assertStringNotContainsString('admin-media-action-divider', $content);
         $this->assertStringNotContainsString('target="_blank"', $content);
+
+        $componentCss = file_get_contents(
+            base_path('resources/css/admin/admin-components.css')
+        );
+        $this->assertStringContainsString(
+            '.lf-admin-page .admin-attached-media-card',
+            $componentCss
+        );
+        $this->assertStringContainsString('margin: 7px 0 14px;', $componentCss);
     }
 
     public function test_remove_current_image_still_detaches_usage_without_deleting_media_file(): void

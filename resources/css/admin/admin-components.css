@@ -853,8 +853,8 @@
     line-height: 1.5;
 }
 
-.admin-attached-media-card {
-    margin-bottom: 8px;
+.lf-admin-page .admin-attached-media-card {
+    margin: 7px 0 14px;
     display: flex;
     align-items: center;
     gap: 12px;

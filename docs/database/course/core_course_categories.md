@@ -1,6 +1,6 @@
 # Table: core_course_categories
 
-Version: 1.0
+Version: 1.1
 
 Status: Official Foundation
 
@@ -77,6 +77,9 @@ core_course_templates
 * Category không chứa dữ liệu học tập.
 * Category inactive sẽ không hiển thị trên Website.
 * Không được xóa Category đang được Template sử dụng.
+* Khi tạo mới, server luôn gán `MAX(sort_order) + 1` trong tenant; tenant chưa
+  có Category bắt đầu từ `1`. Giá trị client gửi khi Create không quyết định
+  thứ tự. Edit vẫn cho phép quản trị thứ tự thủ công.
 
 ---
 
