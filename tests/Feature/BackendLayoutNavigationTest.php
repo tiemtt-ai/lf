@@ -12,6 +12,23 @@ class BackendLayoutNavigationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_admin_dashboard_exposes_localized_status_and_quick_actions(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin')
+            ->assertOk()
+            ->assertSee('class="admin-dashboard-intro"', false)
+            ->assertSee('class="admin-dashboard-quick-grid"', false)
+            ->assertSee('href="https://tenant-a.localhost/admin/organization"', false)
+            ->assertSee('href="https://tenant-a.localhost/admin/users"', false)
+            ->assertSee('href="https://tenant-a.localhost/admin/my-account"', false)
+            ->assertSeeText(__('lf.LF_common_status_common_active'))
+            ->assertSeeText(__('lf.LF_common_role_admin_customer_admin'));
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

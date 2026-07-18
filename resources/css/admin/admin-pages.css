@@ -1,6 +1,83 @@
-.admin-dashboard-welcome {
-    margin: 0 0 20px;
-    font-size: 16px;
+.admin-dashboard-intro {
+    margin: 0 0 22px;
+    padding: 18px 20px;
+    border: 1px solid color-mix(in srgb, var(--admin-primary) 20%, var(--admin-border));
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--admin-primary) 4%, var(--admin-surface));
+}
+
+.admin-dashboard-intro h2,
+.admin-dashboard-intro p {
+    margin: 0;
+}
+
+.admin-dashboard-intro h2 {
+    color: var(--admin-text);
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.admin-dashboard-intro p {
+    margin-top: 5px;
+    color: var(--admin-text-muted);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.admin-dashboard-quick-section {
+    margin-bottom: 22px;
+}
+
+.admin-dashboard-subsection-title {
+    margin: 0 0 12px;
+    color: var(--admin-control-text);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.admin-dashboard-quick-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.admin-dashboard-quick-action {
+    min-width: 0;
+    padding: 14px 16px;
+    display: block;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    color: var(--admin-text);
+    background: var(--admin-surface);
+    text-decoration: none;
+}
+
+.admin-dashboard-quick-action:hover,
+.admin-dashboard-quick-action:focus-visible {
+    border-color: color-mix(in srgb, var(--admin-primary) 50%, var(--admin-border));
+    background: var(--admin-surface-subtle);
+}
+
+.admin-dashboard-quick-action:focus-visible {
+    outline: 2px solid var(--admin-primary);
+    outline-offset: 2px;
+}
+
+.admin-dashboard-quick-action strong,
+.admin-dashboard-quick-action span {
+    display: block;
+}
+
+.admin-dashboard-quick-action strong {
+    color: var(--admin-primary);
+    font-size: 15px;
+}
+
+.admin-dashboard-quick-action span {
+    margin-top: 4px;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    line-height: 1.45;
 }
 
 .admin-dashboard-info-grid {
@@ -10,10 +87,18 @@
 }
 
 .admin-dashboard-section-title {
-    margin: 0 0 18px;
+    margin: 0;
     color: var(--admin-primary);
     font-size: 20px;
     font-weight: 600;
+}
+
+.admin-dashboard-card-header {
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
 }
 
 .admin-profile-summary {
@@ -35,6 +120,19 @@
     margin-top: 24px;
     padding-top: 20px;
     border-top: 1px solid #e5e7eb;
+}
+
+.admin-readonly-summary--standalone {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+}
+
+@media (min-width: 1200px) {
+    :root.is-backend-sidebar-collapsed .backend-shell .admin-profile-summary--three,
+    .backend-shell.is-sidebar-collapsed .admin-profile-summary--three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
 }
 
 .admin-user-toolbar {
@@ -1555,6 +1653,10 @@
 
     .admin-dashboard-info-grid,
     .admin-profile-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-dashboard-quick-grid {
         grid-template-columns: 1fr;
     }
 
