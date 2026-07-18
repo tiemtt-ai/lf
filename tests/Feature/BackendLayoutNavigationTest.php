@@ -505,8 +505,9 @@ class BackendLayoutNavigationTest extends TestCase
         );
 
         $this->assertSame(1, substr_count($templateForm, 'class="admin-form-flow"'));
-        $this->assertSame(4, substr_count($templateForm, 'class="admin-form-standard-section"'));
+        $this->assertSame(5, substr_count($templateForm, 'class="admin-form-standard-section"'));
         $this->assertStringContainsString('aria-labelledby="course-template-basic"', $templateForm);
+        $this->assertStringContainsString('aria-labelledby="course-template-description"', $templateForm);
         $this->assertStringContainsString('aria-labelledby="course-template-learning"', $templateForm);
         $this->assertStringContainsString('aria-labelledby="course-template-introduction"', $templateForm);
         $this->assertStringContainsString('aria-labelledby="course-template-display"', $templateForm);

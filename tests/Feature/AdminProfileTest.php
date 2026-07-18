@@ -57,6 +57,16 @@ class AdminProfileTest extends TestCase
             ->assertDontSeeText(__('lf.LF_navigation_group_admin_account_organization'))
             ->assertDontSee('admin-sidebar-link-child is-active', false);
 
+        $response->assertSee('class="admin-form-standard"', false)
+            ->assertSee('class="admin-form-flow"', false)
+            ->assertSee('aria-labelledby="admin-account-information"', false)
+            ->assertSee('aria-labelledby="admin-personal-information"', false)
+            ->assertSee('aria-labelledby="admin-account-security"', false)
+            ->assertSee('admin-form-field-grid--three', false)
+            ->assertSee('admin-form-readonly', false)
+            ->assertSee('class="admin-form-footer"', false)
+            ->assertDontSee('class="admin-form-grid"', false);
+
         $content = $response->getContent();
 
         $this->assertLessThan(
