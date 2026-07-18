@@ -91,8 +91,9 @@
         <section id="course-template-tab-information"
                  class="course-template-tab-panel"
                  @if ($activeTab !== 'information') hidden @endif>
-            <div class="admin-card admin-form-card">
+            <div class="admin-card admin-form-card admin-form-surface">
                 <form id="course-template-update-form"
+                      class="admin-form-standard"
                       method="POST"
                       action="{{ route($routePrefix.'.update', $template->id) }}"
                       enctype="multipart/form-data">

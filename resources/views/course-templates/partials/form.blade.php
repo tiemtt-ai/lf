@@ -4,14 +4,27 @@
     $selectedVideoSource = old('intro_video_source', $formTemplate?->intro_video_source);
     $selectedDifficulty = old('difficulty_level', $formTemplate?->difficulty_level);
     $selectedStatus = old('status', $formTemplate?->status ?? \App\Support\CourseTemplateStatus::DEFAULT);
+    $selectedSortOrder = old(
+        'sort_order',
+        $formTemplate?->sort_order
+            ?? ($nextSortOrders[(int) $selectedCategoryId] ?? $initialSortOrder)
+    );
     $isRequired = static fn (string $field): bool => in_array($field, $requiredFields, true);
 @endphp
 
-<div class="backend-form-columns course-template-information-grid"
+<div class="admin-form-flow"
      x-data="{
          selectedVideoSource: @js($selectedVideoSource),
          selectedCategoryId: @js($selectedCategoryId),
          selectedDifficulty: @js($selectedDifficulty),
+         selectedSortOrder: @js((int) $selectedSortOrder),
+         nextSortOrders: @js($nextSortOrders),
+         sortOrderTouched: @js(old('sort_order') !== null || $formTemplate !== null),
+         syncDefaultSortOrder(categoryId) {
+             if (! this.sortOrderTouched) {
+                 this.selectedSortOrder = Number(this.nextSortOrders[categoryId] ?? @js($initialSortOrder));
+             }
+         },
          previewOpen: false,
          previewLoaded: false,
          videoSrc: '',
@@ -79,12 +92,16 @@
          },
      }"
      x-on:keydown.escape.window="closeTemplatePreview()">
-    <div class="backend-form-column">
-        <div class="lf-form-group">
+    <section class="admin-form-standard-section" aria-labelledby="course-template-basic">
+        <header class="admin-form-section-header">
+            <h2 id="course-template-basic" class="admin-form-section-title">{{ __('lf.LF_course_template_group_basic') }}</h2>
+        </header>
+        <div class="admin-form-field-grid">
+        <div class="lf-form-group admin-form-field">
             <x-form-label for="category_id"
                           :value="__('lf.LF_course_template_common_category')"
                           :required="$isRequired('category_id')" />
-            <select id="category_id" name="category_id" class="lf-form-control" x-model="selectedCategoryId" :class="{ 'lf-select-placeholder': selectedCategoryId === null || selectedCategoryId === '' }">
+            <select id="category_id" name="category_id" class="lf-form-control" x-model="selectedCategoryId" x-on:change="syncDefaultSortOrder($event.target.value)" :class="{ 'lf-select-placeholder': selectedCategoryId === null || selectedCategoryId === '' }">
                 <option value="" @selected($selectedCategoryId === null || $selectedCategoryId === '')>{{ __('lf.LF_course_template_select_category') }}</option>
                 @foreach ($categories as $category)
                     <option value="{{ $category->id }}"
@@ -95,7 +112,7 @@
             </select>
         </div>
 
-        <div class="lf-form-group">
+        <div class="lf-form-group admin-form-field">
             <x-form-label for="title"
                           :value="__('lf.LF_course_template_common_name')"
                           :required="$isRequired('title')" />
@@ -105,19 +122,49 @@
                    maxlength="255" placeholder="{{ __('lf.LF_course_template_placeholder_name') }}">
         </div>
 
-        <div class="lf-form-group course-template-information-wide">
+        <div class="lf-form-group admin-form-field">
+            <x-form-label for="publisher_name" :value="__('lf.LF_course_template_common_publisher_name')" :required="$isRequired('publisher_name')" />
+            <input id="publisher_name" type="text" name="publisher_name" class="lf-form-control" value="{{ old('publisher_name', $formTemplate?->publisher_name) }}" maxlength="255" placeholder="{{ __('lf.LF_course_template_placeholder_publisher') }}" required>
+        </div>
+
+        <div class="lf-form-group admin-form-field--full">
             <x-form-label for="short_description" :value="__('lf.LF_course_template_common_short_description')" />
             <textarea id="short_description" name="short_description" class="lf-form-control" rows="2" maxlength="500" placeholder="{{ __('lf.LF_course_template_placeholder_short_description') }}">{{ old('short_description', $formTemplate?->short_description) }}</textarea>
         </div>
 
-        <div class="lf-form-group course-template-information-wide">
+        <div class="lf-form-group admin-form-field--full">
             <x-form-label for="description" :value="__('lf.LF_course_template_common_description')" />
             <textarea id="description" name="description" class="lf-form-control" rows="5" placeholder="{{ __('lf.LF_course_template_placeholder_description') }}">{{ old('description', $formTemplate?->description) }}</textarea>
         </div>
-    </div>
+        </div>
+    </section>
 
-    <div class="backend-form-column">
-        <div class="lf-form-group course-template-information-media">
+    <section class="admin-form-standard-section" aria-labelledby="course-template-learning">
+        <header class="admin-form-section-header">
+            <h2 id="course-template-learning" class="admin-form-section-title">{{ __('lf.LF_course_template_group_learning') }}</h2>
+        </header>
+        <div class="admin-form-field-grid">
+            <div class="lf-form-group admin-form-field">
+                <x-form-label for="difficulty_level" :value="__('lf.LF_course_template_common_difficulty_level')" />
+                <select id="difficulty_level" name="difficulty_level" class="lf-form-control" x-model="selectedDifficulty" :class="{ 'lf-select-placeholder': selectedDifficulty === null || selectedDifficulty === '' }"><option value="" @selected($selectedDifficulty === null || $selectedDifficulty === '')>{{ __('lf.LF_course_template_select_difficulty') }}</option>@foreach (['beginner', 'intermediate', 'advanced'] as $difficulty)<option value="{{ $difficulty }}" @selected($selectedDifficulty === $difficulty)>{{ __('lf.LF_course_template_common_'.$difficulty) }}</option>@endforeach</select>
+            </div>
+            <div class="lf-form-group admin-form-field">
+                <x-form-label for="estimated_minutes_per_lesson" :value="__('lf.LF_course_template_estimated_minutes_per_lesson')" />
+                <input id="estimated_minutes_per_lesson" type="number" min="1" name="estimated_minutes_per_lesson" class="lf-form-control" value="{{ old('estimated_minutes_per_lesson', $formTemplate?->estimated_minutes_per_lesson) }}" placeholder="{{ __('lf.LF_course_template_placeholder_minutes') }}">
+            </div>
+            <div class="lf-form-group admin-form-field">
+                <x-form-label for="estimated_lesson_count" :value="__('lf.LF_course_template_estimated_lesson_count')" />
+                <input id="estimated_lesson_count" type="number" min="1" name="estimated_lesson_count" class="lf-form-control" value="{{ old('estimated_lesson_count', $formTemplate?->estimated_lesson_count) }}" placeholder="{{ __('lf.LF_course_template_placeholder_lesson_count') }}">
+            </div>
+        </div>
+    </section>
+
+    <section class="admin-form-standard-section" aria-labelledby="course-template-introduction">
+        <header class="admin-form-section-header">
+            <h2 id="course-template-introduction" class="admin-form-section-title">{{ __('lf.LF_course_template_group_introduction') }}</h2>
+        </header>
+        <div class="admin-form-field-grid">
+        <div class="lf-form-group admin-form-field">
             <x-form-label for="intro_image_file" :value="__('lf.LF_course_template_intro_image')" />
             <input type="hidden" name="intro_image_media_file_id" value="{{ old('intro_image_media_file_id', $formTemplate?->intro_image_media_file_id) }}">
             @if ($introImageMedia ?? null)
@@ -133,7 +180,7 @@
             <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
         </div>
 
-        <div class="lf-form-group course-template-information-media">
+        <div class="lf-form-group admin-form-field">
             <x-form-label for="intro_video_source" :value="__('lf.LF_course_template_intro_video')" />
             <select id="intro_video_source" name="intro_video_source" class="lf-form-control" x-model="selectedVideoSource" :class="{ 'lf-select-placeholder': selectedVideoSource === null || selectedVideoSource === '' }">
                 <option value="">{{ __('lf.LF_course_template_select_video_source') }}</option>
@@ -159,7 +206,7 @@
             <input type="url" name="intro_video_embed_url" class="lf-form-control" value="{{ old('intro_video_embed_url', $formTemplate?->intro_video_embed_url) }}" placeholder="{{ __('lf.LF_course_template_placeholder_embed_url') }}" x-show="selectedVideoSource === 'embed'" :disabled="selectedVideoSource !== 'embed'">
         </div>
 
-        <div class="lf-form-group course-template-information-media">
+        <div class="lf-form-group admin-form-field">
             <x-form-label for="intro_document_file" :value="__('lf.LF_course_template_intro_document')" />
             <input type="hidden" name="intro_document_media_file_id" value="{{ old('intro_document_media_file_id', $formTemplate?->intro_document_media_file_id) }}">
             @if ($introDocumentMedia ?? null)
@@ -175,29 +222,37 @@
             <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'PPT', 'PPTX', 'XLS', 'XLSX']" />
         </div>
 
-        <div class="lf-form-group"><x-form-label for="estimated_minutes_per_lesson" :value="__('lf.LF_course_template_estimated_minutes_per_lesson')" /><input id="estimated_minutes_per_lesson" type="number" min="1" name="estimated_minutes_per_lesson" class="lf-form-control" value="{{ old('estimated_minutes_per_lesson', $formTemplate?->estimated_minutes_per_lesson) }}" placeholder="{{ __('lf.LF_course_template_placeholder_minutes') }}"></div>
-        <div class="lf-form-group"><x-form-label for="estimated_lesson_count" :value="__('lf.LF_course_template_estimated_lesson_count')" /><input id="estimated_lesson_count" type="number" min="1" name="estimated_lesson_count" class="lf-form-control" value="{{ old('estimated_lesson_count', $formTemplate?->estimated_lesson_count) }}" placeholder="{{ __('lf.LF_course_template_placeholder_lesson_count') }}"></div>
-        <div class="lf-form-group"><x-form-label for="difficulty_level" :value="__('lf.LF_course_template_common_difficulty_level')" /><select id="difficulty_level" name="difficulty_level" class="lf-form-control" x-model="selectedDifficulty" :class="{ 'lf-select-placeholder': selectedDifficulty === null || selectedDifficulty === '' }"><option value="" @selected($selectedDifficulty === null || $selectedDifficulty === '')>{{ __('lf.LF_course_template_select_difficulty') }}</option>@foreach (['beginner', 'intermediate', 'advanced'] as $difficulty)<option value="{{ $difficulty }}" @selected($selectedDifficulty === $difficulty)>{{ __('lf.LF_course_template_common_'.$difficulty) }}</option>@endforeach</select></div>
-        <div class="lf-form-group"><x-form-label for="publisher_name" :value="__('lf.LF_course_template_common_publisher_name')" :required="$isRequired('publisher_name')" /><input id="publisher_name" type="text" name="publisher_name" class="lf-form-control" value="{{ old('publisher_name', $formTemplate?->publisher_name) }}" maxlength="255" placeholder="{{ __('lf.LF_course_template_placeholder_publisher') }}" required></div>
-
-        <div class="lf-form-group">
-            @if ($selectedStatus === \App\Support\CourseTemplateStatus::ARCHIVED)
-                <span class="lf-form-label">{{ __('lf.LF_course_template_common_status') }}</span>
-                <span class="badge badge-danger">{{ __('lf.LF_course_template_common_archived') }}</span>
-            @else
-                <x-form-label for="status"
-                              :value="__('lf.LF_course_template_common_status')"
-                              :required="$isRequired('status')" />
-                <select id="status" name="status" class="lf-form-control" required>
-                    @foreach (\App\Support\CourseTemplateStatus::EDITABLE_VALUES as $templateStatus)
-                        <option value="{{ $templateStatus }}" @selected($selectedStatus === $templateStatus)>
-                            {{ __('lf.LF_course_template_common_'.$templateStatus) }}
-                        </option>
-                    @endforeach
-                </select>
-            @endif
         </div>
-    </div>
+    </section>
+
+    <section class="admin-form-standard-section" aria-labelledby="course-template-display">
+        <header class="admin-form-section-header">
+            <h2 id="course-template-display" class="admin-form-section-title">{{ __('lf.LF_course_template_group_display') }}</h2>
+        </header>
+        <div class="admin-form-field-grid">
+            <div class="lf-form-group admin-form-field">
+                <x-form-label for="sort_order" :value="__('lf.LF_course_template_common_sort_order')" />
+                <input id="sort_order" type="number" min="0" name="sort_order" class="lf-form-control"
+                       x-model.number="selectedSortOrder" x-on:input="sortOrderTouched = true"
+                       value="{{ $selectedSortOrder }}"
+                       @if (! $formTemplate) readonly @endif
+                       placeholder="{{ __('lf.LF_course_template_placeholder_sort_order') }}">
+            </div>
+            <div class="lf-form-group admin-form-field">
+                @if ($selectedStatus === \App\Support\CourseTemplateStatus::ARCHIVED)
+                    <span class="lf-form-label">{{ __('lf.LF_course_template_common_status') }}</span>
+                    <span class="badge badge-danger">{{ __('lf.LF_course_template_common_archived') }}</span>
+                @else
+                    <x-form-label for="status" :value="__('lf.LF_course_template_common_status')" :required="$isRequired('status')" />
+                    <select id="status" name="status" class="lf-form-control" required>
+                        @foreach (\App\Support\CourseTemplateStatus::EDITABLE_VALUES as $templateStatus)
+                            <option value="{{ $templateStatus }}" @selected($selectedStatus === $templateStatus)>{{ __('lf.LF_course_template_common_'.$templateStatus) }}</option>
+                        @endforeach
+                    </select>
+                @endif
+            </div>
+        </div>
+    </section>
 
     <div class="media-library-modal"
          x-cloak

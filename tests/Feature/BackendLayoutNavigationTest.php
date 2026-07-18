@@ -504,24 +504,12 @@ class BackendLayoutNavigationTest extends TestCase
             base_path('resources/views/course-products/partials/form.blade.php')
         );
 
-        $this->assertSame(1, substr_count($templateForm, 'class="backend-form-columns course-template-information-grid"'));
-        $this->assertSame(2, substr_count($templateForm, 'class="backend-form-column"'));
-        $this->assertStringContainsString(
-            'for="category_id"',
-            $this->backendFormColumnHtml($templateForm, 0)
-        );
-        $this->assertStringContainsString(
-            'for="difficulty_level"',
-            $this->backendFormColumnHtml($templateForm, 1)
-        );
-        $this->assertStringContainsString(
-            'for="estimated_minutes_per_lesson"',
-            $this->backendFormColumnHtml($templateForm, 1)
-        );
-        $this->assertStringContainsString(
-            'for="status"',
-            $this->backendFormColumnHtml($templateForm, 1)
-        );
+        $this->assertSame(1, substr_count($templateForm, 'class="admin-form-flow"'));
+        $this->assertSame(4, substr_count($templateForm, 'class="admin-form-standard-section"'));
+        $this->assertStringContainsString('aria-labelledby="course-template-basic"', $templateForm);
+        $this->assertStringContainsString('aria-labelledby="course-template-learning"', $templateForm);
+        $this->assertStringContainsString('aria-labelledby="course-template-introduction"', $templateForm);
+        $this->assertStringContainsString('aria-labelledby="course-template-display"', $templateForm);
 
         $this->assertSame(1, substr_count($productForm, 'class="admin-form-flow"'));
         $this->assertSame(5, substr_count($productForm, 'class="admin-form-standard-section"'));
@@ -555,22 +543,22 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertSame(1, substr_count($editView, 'class="course-template-tabs"'));
         $this->assertSame(5, substr_count($editView, 'class="course-template-tab-panel"'));
         $this->assertStringContainsString(
-            '.course-template-authoring {' . PHP_EOL
-                . '    width: 100%;' . PHP_EOL
-                . '    min-width: 0;' . PHP_EOL
-                . '}',
+            '.course-template-authoring {'.PHP_EOL
+                .'    width: 100%;'.PHP_EOL
+                .'    min-width: 0;'.PHP_EOL
+                .'}',
             $adminPagesCss
         );
         $this->assertStringNotContainsString(
-            '.course-template-authoring {' . PHP_EOL
-                . '    width: 100%;' . PHP_EOL
-                . '    max-width: 960px;',
+            '.course-template-authoring {'.PHP_EOL
+                .'    width: 100%;'.PHP_EOL
+                .'    max-width: 960px;',
             $adminPagesCss
         );
         $this->assertStringContainsString(
-            '.course-template-authoring > .course-template-tab-panel {' . PHP_EOL
-                . '    width: 100%;' . PHP_EOL
-                . '    min-width: 0;',
+            '.course-template-authoring > .course-template-tab-panel {'.PHP_EOL
+                .'    width: 100%;'.PHP_EOL
+                .'    min-width: 0;',
             $adminPagesCss
         );
     }

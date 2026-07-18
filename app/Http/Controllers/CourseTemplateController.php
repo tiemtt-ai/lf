@@ -76,8 +76,10 @@ class CourseTemplateController extends Controller
                     });
                 }
             )
-            ->orderByDesc('templates.updated_at')
-            ->orderBy('templates.title')
+            ->orderBy('categories.sort_order')
+            ->orderBy('categories.id')
+            ->orderBy('templates.sort_order')
+            ->orderBy('templates.id')
             ->select('templates.*', 'categories.name as category_name')
             ->paginate(10)
             ->withQueryString();
@@ -96,6 +98,8 @@ class CourseTemplateController extends Controller
 
         return view('course-templates.create', [
             'categories' => $this->categories(),
+            'nextSortOrders' => $this->nextSortOrders($customerId),
+            'initialSortOrder' => $this->nextTenantSortOrder($customerId),
             'requiredFields' => $this->requiredFields($customerId),
             'introImageMedia' => null,
             'introVideoMedia' => null,
@@ -115,6 +119,10 @@ class CourseTemplateController extends Controller
         $now = now();
 
         $templateId = DB::transaction(function () use ($customerId, $request, $validated, $now): int {
+            $validated['sort_order'] = $this->nextSortOrder(
+                $customerId,
+                (int) $validated['category_id']
+            );
             $templateId = DB::table('core_course_templates')->insertGetId(
                 $this->templateValues($validated, [
                     'customer_id' => $customerId,
@@ -182,6 +190,8 @@ class CourseTemplateController extends Controller
             ),
             'publishReadiness' => $publishReadiness,
             'categories' => $this->categories(),
+            'nextSortOrders' => $this->nextSortOrders($customerId),
+            'initialSortOrder' => (int) $template->sort_order,
             'sections' => $publishGraph->sections,
             'directLessons' => $publishGraph->lessons->whereNull('template_section_id'),
             'lessonsBySection' => $publishGraph->lessons->whereNotNull('template_section_id')->groupBy('template_section_id'),
@@ -356,15 +366,28 @@ class CourseTemplateController extends Controller
         }
         $validated = $this->validatedData($request, $customerId, $id, $template);
 
-        $values = $this->withoutMissingSeoValues(
-            $request,
-            $this->templateValues($validated, [
-                'working_revision' => (int) $template->working_revision + 1,
-                'updated_at' => now(),
-            ])
-        );
+        DB::transaction(function () use ($customerId, $id, $request, $validated, $template): void {
+            $categoryChanged = (int) $validated['category_id'] !== (int) $template->category_id;
+            $sortOrderUnchanged = ! array_key_exists('sort_order', $validated)
+                || (int) $validated['sort_order'] === (int) $template->sort_order;
 
-        DB::transaction(function () use ($customerId, $id, $request, $validated, $values): void {
+            if ($categoryChanged && $sortOrderUnchanged) {
+                $validated['sort_order'] = $this->nextSortOrder(
+                    $customerId,
+                    (int) $validated['category_id']
+                );
+            } else {
+                $validated['sort_order'] ??= (int) $template->sort_order;
+            }
+
+            $values = $this->withoutMissingSeoValues(
+                $request,
+                $this->templateValues($validated, [
+                    'working_revision' => (int) $template->working_revision + 1,
+                    'updated_at' => now(),
+                ])
+            );
+
             DB::table('core_course_templates')
                 ->where('customer_id', $customerId)
                 ->where('id', $id)
@@ -468,6 +491,7 @@ class CourseTemplateController extends Controller
             'meta_description',
             'meta_keywords',
             'status',
+            'sort_order',
         ];
 
         $input = array_intersect_key(
@@ -617,6 +641,7 @@ class CourseTemplateController extends Controller
                 'required',
                 Rule::in(CourseTemplateStatus::EDITABLE_VALUES),
             ],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
             'intro_image_file' => [
                 'nullable',
                 'file',
@@ -660,6 +685,7 @@ class CourseTemplateController extends Controller
             'meta_description' => $validated['meta_description'] ?? null,
             'meta_keywords' => $validated['meta_keywords'] ?? null,
             'status' => $validated['status'],
+            'sort_order' => $validated['sort_order'],
         ], $extra);
     }
 
@@ -681,6 +707,48 @@ class CourseTemplateController extends Controller
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
+    }
+
+    private function nextSortOrders(int $customerId): array
+    {
+        return DB::table('core_course_categories as categories')
+            ->leftJoin('core_course_templates as templates', function ($join): void {
+                $join->on('templates.category_id', '=', 'categories.id')
+                    ->on('templates.customer_id', '=', 'categories.customer_id');
+            })
+            ->where('categories.customer_id', $customerId)
+            ->groupBy('categories.id')
+            ->selectRaw('categories.id, COALESCE(MAX(templates.sort_order), 0) + 1 as next_sort_order')
+            ->pluck('next_sort_order', 'id')
+            ->map(fn ($value): int => (int) $value)
+            ->all();
+    }
+
+    private function nextTenantSortOrder(int $customerId): int
+    {
+        $maximum = DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->max('sort_order');
+
+        return $maximum === null ? 1 : (int) $maximum + 1;
+    }
+
+    private function nextSortOrder(int $customerId, int $categoryId): int
+    {
+        $category = DB::table('core_course_categories')
+            ->where('customer_id', $customerId)
+            ->where('id', $categoryId)
+            ->lockForUpdate()
+            ->first(['id']);
+
+        abort_if(! $category, 404);
+
+        $maximum = DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('category_id', $categoryId)
+            ->max('sort_order');
+
+        return $maximum === null ? 1 : (int) $maximum + 1;
     }
 
     private function sections(int $customerId, int $templateId)
@@ -914,8 +982,7 @@ class CourseTemplateController extends Controller
         int $templateId,
         string $slot,
         string $routePrefix
-    ): ?object
-    {
+    ): ?object {
         if (! $mediaFileId) {
             return null;
         }

@@ -1,6 +1,6 @@
 # Table: core_course_templates
 
-Version: 2.0
+Version: 2.1
 
 Status: Official Foundation
 
@@ -104,6 +104,14 @@ core_course_template_versions
 * Category và publisher bắt buộc nhưng không có default selection. Difficulty
   và video source là optional, không có default selection. Status mặc định
   `draft`. Placeholder UI không phải stored value hợp lệ.
+* `sort_order` là metadata quản trị mutable để sắp xếp Template trong phạm vi
+  `customer_id + category_id`; nó không thuộc published Version snapshot và
+  không thay thế `core_course_products.sort_order`.
+* Khi tạo mới, server luôn gán `MAX(sort_order) + 1` trong đúng tenant và
+  Category, không tin giá trị thứ tự do client gửi; Category rỗng bắt đầu từ
+  `1`. Giá trị được phép trùng khi chỉnh sửa và `id` là tie-breaker ổn định.
+* Khi đổi Category mà không chỉnh `sort_order`, server đưa Template xuống cuối
+  Category đích bằng `MAX(sort_order) + 1`. Không renumber Template khác.
 
 ---
 
@@ -265,6 +273,14 @@ VARCHAR(500) NULL
 ---
 
 ## Business
+
+### sort_order
+
+INT UNSIGNED NOT NULL DEFAULT 0
+
+Số nguyên không âm dùng cho thứ tự quản trị Template trong phạm vi
+`customer_id + category_id`. Cho phép trùng; query dùng `id` tăng dần làm
+tie-breaker. Giá trị này không được snapshot khi publish.
 
 ### working_revision
 

@@ -14,8 +14,8 @@
         </div>
     @endif
 
-    <div class="admin-card admin-form-card">
-        <form method="POST"
+    <div class="admin-card admin-form-card admin-form-surface">
+        <form class="admin-form-standard" method="POST"
               action="{{ route($routePrefix.'.store') }}"
               enctype="multipart/form-data">
             @csrf

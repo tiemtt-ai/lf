@@ -167,14 +167,14 @@ class CourseTemplateManagementTest extends TestCase
             base_path('resources/views/course-templates/partials/form.blade.php')
         );
 
-        $this->assertStringNotContainsString('admin-form-section', $formPartial);
-        $this->assertStringNotContainsString('course-template-basic-title', $formPartial);
-        $this->assertStringNotContainsString('course-template-metadata-title', $formPartial);
-        $this->assertStringNotContainsString('course-template-media-title', $formPartial);
-        $this->assertStringNotContainsString('course-template-lifecycle-title', $formPartial);
-        $this->assertStringContainsString('course-template-information-grid', $formPartial);
-        $this->assertSame(2, substr_count($formPartial, 'course-template-information-wide'));
-        $this->assertSame(3, substr_count($formPartial, 'course-template-information-media'));
+        $this->assertSame(1, substr_count($formPartial, 'class="admin-form-flow"'));
+        $this->assertSame(4, substr_count($formPartial, 'class="admin-form-standard-section"'));
+        $this->assertStringContainsString('aria-labelledby="course-template-basic"', $formPartial);
+        $this->assertStringContainsString('aria-labelledby="course-template-learning"', $formPartial);
+        $this->assertStringContainsString('aria-labelledby="course-template-introduction"', $formPartial);
+        $this->assertStringContainsString('aria-labelledby="course-template-display"', $formPartial);
+        $this->assertSame(2, substr_count($formPartial, 'admin-form-field--full'));
+        $this->assertStringNotContainsString('admin-form-subsection', $formPartial);
         $this->assertSame(3, substr_count($formPartial, '<x-authoring-media-row'));
         $this->assertSame(1, substr_count($formPartial, ':presentation="$introImageThumbnail"'));
         $this->assertSame(1, substr_count($formPartial, ':presentation="$introVideoThumbnail"'));
@@ -183,6 +183,7 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertStringNotContainsString('course-template-preview-name', $formPartial);
         $this->assertStringNotContainsString('course-template-preview-actions', $formPartial);
         $this->assertStringContainsString("preview.mediaType === 'embed'", $formPartial);
+        $this->assertStringContainsString('syncDefaultSortOrder($event.target.value)', $formPartial);
 
         foreach ($responses as $response) {
             foreach ([
@@ -209,6 +210,7 @@ class CourseTemplateManagementTest extends TestCase
                 'difficulty_level',
                 'estimated_minutes_per_lesson',
                 'estimated_lesson_count',
+                'sort_order',
             ] as $field) {
                 $this->assertSame(
                     0,
@@ -217,36 +219,9 @@ class CourseTemplateManagementTest extends TestCase
                 );
             }
 
-            $this->assertSame(
-                [
-                    'category_id',
-                    'title',
-                    'short_description',
-                    'description',
-                ],
-                $this->backendColumnFieldNames($response->getContent(), 0)
-            );
-            $this->assertSame(
-                [
-                    'intro_image_file',
-                    'intro_video_source',
-                    'intro_document_file',
-                    'estimated_minutes_per_lesson',
-                    'estimated_lesson_count',
-                    'difficulty_level',
-                    'publisher_name',
-                    'status',
-                ],
-                $this->backendColumnFieldNames($response->getContent(), 1)
-            );
-            $this->assertTrue($this->fieldIsInsideBackendColumn(
-                $response->getContent(),
-                'short_description'
-            ));
-            $this->assertTrue($this->fieldIsInsideBackendColumn(
-                $response->getContent(),
-                'description'
-            ));
+            $response->assertSeeText(__('lf.LF_course_template_group_basic'))
+                ->assertSeeText(__('lf.LF_course_template_group_learning'))
+                ->assertSeeText(__('lf.LF_course_template_group_introduction'));
             $this->assertStringNotContainsString('name="slug"', $response->getContent());
             $this->assertManualSeoControlsNotRendered(
                 $response->getContent(),
@@ -293,6 +268,96 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertTrue($this->selectOptionIsSelected($edit->getContent(), 'category_id', (string) $categoryId));
         $this->assertTrue($this->selectOptionIsSelected($edit->getContent(), 'difficulty_level', 'advanced'));
         $this->assertTrue($this->selectOptionIsSelected($edit->getContent(), 'status', 'active'));
+    }
+
+    public function test_template_order_defaults_updates_and_category_moves_are_scoped(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $sourceCategoryId = $this->createCategory($customerId, 'Source', 'source');
+        $destinationCategoryId = $this->createCategory($customerId, 'Destination', 'destination');
+
+        $firstLocation = $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData(['category_id' => $sourceCategoryId, 'title' => 'First ordered Template'])
+        )->assertRedirect()->headers->get('Location');
+        $firstId = (int) basename(dirname((string) parse_url($firstLocation, PHP_URL_PATH)));
+
+        $secondLocation = $this->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData([
+                'category_id' => $sourceCategoryId,
+                'title' => 'Second ordered Template',
+                'sort_order' => 0,
+            ])
+        )->assertRedirect()->headers->get('Location');
+        $secondId = (int) basename(dirname((string) parse_url($secondLocation, PHP_URL_PATH)));
+
+        $this->assertSame(1, (int) DB::table('core_course_templates')->where('id', $firstId)->value('sort_order'));
+        $this->assertSame(2, (int) DB::table('core_course_templates')->where('id', $secondId)->value('sort_order'));
+
+        $destinationId = $this->createTemplate($customerId, 'Destination existing', 'unused', $admin->id);
+        DB::table('core_course_templates')->where('id', $destinationId)->update([
+            'category_id' => $destinationCategoryId,
+            'sort_order' => 7,
+        ]);
+
+        $this->put(
+            "https://tenant-a.localhost/admin/course-templates/{$secondId}",
+            $this->validTemplateData(['category_id' => $destinationCategoryId, 'title' => 'Second ordered Template'])
+        )->assertRedirect();
+
+        $moved = DB::table('core_course_templates')->where('id', $secondId)->first();
+        $this->assertSame($destinationCategoryId, (int) $moved->category_id);
+        $this->assertSame(8, (int) $moved->sort_order);
+
+        $this->put(
+            "https://tenant-a.localhost/admin/course-templates/{$secondId}",
+            $this->validTemplateData([
+                'category_id' => $destinationCategoryId,
+                'title' => 'Second ordered Template',
+                'sort_order' => 3,
+            ])
+        )->assertRedirect();
+
+        $this->assertSame(3, (int) DB::table('core_course_templates')->where('id', $secondId)->value('sort_order'));
+    }
+
+    public function test_template_order_validation_and_list_tie_breaker_are_stable(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = $this->createCategory($customerId, 'Ordering', 'ordering');
+
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData(['category_id' => $categoryId, 'sort_order' => -1])
+        )->assertSessionHasErrors('sort_order');
+
+        $firstId = $this->createTemplate($customerId, 'Tie A', 'unused-a', $admin->id);
+        $secondId = $this->createTemplate($customerId, 'Tie B', 'unused-b', $admin->id);
+        DB::table('core_course_templates')->whereIn('id', [$firstId, $secondId])->update([
+            'category_id' => $categoryId,
+            'sort_order' => 4,
+        ]);
+
+        $this->get('https://tenant-a.localhost/admin/course-templates')
+            ->assertOk()
+            ->assertSeeInOrder(['Tie A', 'Tie B']);
+    }
+
+    public function test_create_initial_order_uses_the_tenant_maximum_before_category_selection(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Highest existing', 'unused', $admin->id);
+        DB::table('core_course_templates')->where('id', $templateId)->update(['sort_order' => 8]);
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-templates/create')
+            ->assertOk()
+            ->assertSee('selectedSortOrder: 9', false)
+            ->assertSee('value="9"', false);
     }
 
     public function test_create_and_edit_use_contextual_primary_action_labels(): void
