@@ -29,16 +29,16 @@
             @method('PUT')
 
             <div class="admin-form-flow">
-                <section class="admin-form-standard-section" aria-labelledby="admin-user-edit-title">
-                    <h2 id="admin-user-edit-title" class="admin-form-section-title">
-                        {{ __('lf.LF_admin_title_admin_edit_user') }}
+                <section class="admin-form-standard-section" aria-labelledby="admin-user-edit-personal">
+                    <h2 id="admin-user-edit-personal" class="admin-form-section-title">
+                        {{ __('lf.LF_admin_group_user_personal') }}
                     </h2>
 
-                    <div class="admin-form-field-grid">
+                    <div class="admin-form-field-grid admin-form-field-grid--three">
                         <div class="lf-form-group admin-form-field">
                             <x-form-label for="name" :value="__('lf.LF_common_label_name')" :required="true" />
                             <input id="name" type="text" name="name" class="lf-form-control"
-                                   value="{{ old('name', $user->name) }}" required
+                                   value="{{ old('name', $user->name) }}" placeholder="{{ __('lf.LF_admin_placeholder_user_name') }}" required
                                    @if($errors->default->has('name')) aria-invalid="true" aria-describedby="name_error" @endif>
                             @error('name')<p id="name_error" class="lf-form-error">{{ $message }}</p>@enderror
                         </div>
@@ -46,7 +46,7 @@
                         <div class="lf-form-group admin-form-field">
                             <x-form-label for="email" :value="__('lf.LF_common_label_email')" :required="true" />
                             <input id="email" type="email" name="email" class="lf-form-control"
-                                   value="{{ old('email', $user->email) }}" required
+                                   value="{{ old('email', $user->email) }}" placeholder="{{ __('lf.LF_admin_placeholder_user_email') }}" required
                                    @if($errors->default->has('email')) aria-invalid="true" aria-describedby="email_error" @endif>
                             @error('email')<p id="email_error" class="lf-form-error">{{ $message }}</p>@enderror
                         </div>
@@ -54,7 +54,7 @@
                         <div class="lf-form-group admin-form-field">
                             <label class="lf-form-label" for="phone">{{ __('lf.LF_common_label_phone') }}</label>
                             <input id="phone" type="text" name="phone" class="lf-form-control"
-                                   value="{{ old('phone', $user->phone) }}"
+                                   value="{{ old('phone', $user->phone) }}" placeholder="{{ __('lf.LF_admin_placeholder_user_phone') }}"
                                    @if($errors->default->has('phone')) aria-invalid="true" aria-describedby="phone_error" @endif>
                             @error('phone')<p id="phone_error" class="lf-form-error">{{ $message }}</p>@enderror
                         </div>
@@ -78,7 +78,15 @@
                             </select>
                             @error('gender')<p id="gender_error" class="lf-form-error">{{ $message }}</p>@enderror
                         </div>
+                    </div>
+                </section>
 
+                <section class="admin-form-standard-section" aria-labelledby="admin-user-edit-access">
+                    <header class="admin-form-section-header">
+                        <h2 id="admin-user-edit-access" class="admin-form-section-title">{{ __('lf.LF_admin_group_user_access') }}</h2>
+                        <p class="admin-form-section-help">{{ __('lf.LF_admin_help_user_access') }}</p>
+                    </header>
+                    <div class="admin-form-field-grid">
                         <div class="lf-form-group admin-form-field">
                             <x-form-label for="role" :value="__('lf.LF_common_label_role')" :required="true" />
                             <select id="role" name="role" class="lf-form-control" required
@@ -91,6 +99,17 @@
                         </div>
                     </div>
                 </section>
+
+                <section class="admin-form-standard-section" aria-labelledby="admin-user-edit-security">
+                    <header class="admin-form-section-header">
+                        <h2 id="admin-user-edit-security" class="admin-form-section-title">{{ __('lf.LF_admin_group_user_security') }}</h2>
+                        <p class="admin-form-section-help">{{ __('lf.LF_admin_help_user_edit_security') }}</p>
+                    </header>
+                    <button type="button" class="btn btn-secondary" x-data
+                            x-on:click="$dispatch('open-modal', 'change-user-password')">
+                        {{ (int) $user->id === (int) auth()->id() ? __('lf.LF_profile_button_admin_change_my_password') : __('lf.LF_profile_button_admin_change_user_password') }}
+                    </button>
+                </section>
             </div>
 
             <footer class="admin-form-footer">
@@ -98,10 +117,6 @@
                 <div class="admin-form-footer-primary">
                     <button type="submit" class="btn btn-primary">{{ __('lf.LF_common_button_save_changes') }}</button>
                     <a href="{{ route('admin.users.index') }}" class="admin-form-cancel">{{ __('lf.LF_common_button_cancel') }}</a>
-                    <button type="button" class="btn btn-secondary" x-data
-                            x-on:click="$dispatch('open-modal', 'change-user-password')">
-                        {{ (int) $user->id === (int) auth()->id() ? __('lf.LF_profile_button_admin_change_my_password') : __('lf.LF_profile_button_admin_change_user_password') }}
-                    </button>
                 </div>
             </footer>
         </form>

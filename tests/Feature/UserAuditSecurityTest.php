@@ -289,6 +289,14 @@ class UserAuditSecurityTest extends TestCase
                 ->assertDontSee('backend-form-columns', false)
                 ->assertDontSee('admin-form-actions', false);
 
+            $response
+                ->assertSee('admin-user-'.($formId === 'admin-user-create-form' ? 'create' : 'edit').'-personal', false)
+                ->assertSee('admin-user-'.($formId === 'admin-user-create-form' ? 'create' : 'edit').'-access', false)
+                ->assertSee('admin-user-'.($formId === 'admin-user-create-form' ? 'create' : 'edit').'-security', false)
+                ->assertSeeText(__('lf.LF_admin_group_user_personal'))
+                ->assertSeeText(__('lf.LF_admin_group_user_access'))
+                ->assertSeeText(__('lf.LF_admin_group_user_security'));
+
             $content = $response->getContent();
             $this->assertLessThan(strpos($content, 'name="email"'), strpos($content, 'name="name"'));
             $this->assertLessThan(strpos($content, 'name="phone"'), strpos($content, 'name="email"'));
@@ -301,12 +309,20 @@ class UserAuditSecurityTest extends TestCase
                     ->assertSee('action="https://tenant-a.localhost/admin/users"', false)
                     ->assertSee('name="password"', false)
                     ->assertSee('name="password_confirmation"', false);
+                $response
+                    ->assertSee('placeholder="'.__('lf.LF_admin_placeholder_user_password').'"', false)
+                    ->assertSee('placeholder="'.__('lf.LF_admin_placeholder_user_password_confirmation').'"', false);
             } else {
                 $response
                     ->assertSee('action="https://tenant-a.localhost/admin/users/'.$target->id.'"', false)
                     ->assertSee('value="PUT"', false)
                     ->assertSee('change-user-password', false);
             }
+
+            $response
+                ->assertSee('placeholder="'.__('lf.LF_admin_placeholder_user_name').'"', false)
+                ->assertSee('placeholder="'.__('lf.LF_admin_placeholder_user_email').'"', false)
+                ->assertSee('placeholder="'.__('lf.LF_admin_placeholder_user_phone').'"', false);
         }
 
         foreach ([
