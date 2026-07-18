@@ -5,8 +5,9 @@
         : ['state' => 'empty', 'type' => $mediaType];
 @endphp
 
-<div class="course-activity-current-media" data-current-media-state="{{ $presentation['state'] }}">
-    @if ($presentation['state'] === 'available')
+@if (in_array($presentation['state'], ['available', 'unavailable'], true))
+    <div class="course-activity-current-media" data-current-media-state="{{ $presentation['state'] }}">
+        @if ($presentation['state'] === 'available')
         <x-authoring-media-row :presentation="$presentation['thumbnail']" alt="">
             @if (in_array($mediaType, ['video', 'audio'], true))
                 <button type="button"
@@ -30,19 +31,10 @@
                 </a>
             @endif
         </x-authoring-media-row>
-    @elseif ($presentation['state'] === 'unavailable')
-        <p class="lf-form-help course-activity-current-media-message">
-            {{ __('lf.LF_course_template_activity_media_unavailable') }}
-        </p>
-        <p class="lf-form-help course-activity-current-media-required">
-            {{ __('lf.LF_course_template_activity_media_required_before_publish') }}
-        </p>
-    @else
-        <p class="lf-form-help course-activity-current-media-message">
-            {{ __('lf.LF_course_template_activity_media_empty') }}
-        </p>
-        <p class="lf-form-help course-activity-current-media-required">
-            {{ __('lf.LF_course_template_activity_media_required_before_publish') }}
-        </p>
-    @endif
-</div>
+        @else
+            <p class="lf-form-help course-activity-current-media-message">
+                {{ __('lf.LF_course_template_activity_media_unavailable') }}
+            </p>
+        @endif
+    </div>
+@endif

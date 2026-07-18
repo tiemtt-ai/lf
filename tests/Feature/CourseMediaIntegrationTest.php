@@ -1968,9 +1968,9 @@ class CourseMediaIntegrationTest extends TestCase
 
         $this->actingAs($admin)->get($editUrl)
             ->assertOk()
-            ->assertSeeText(__('lf.LF_course_template_activity_media_empty'))
-            ->assertSeeText(__('lf.LF_course_template_activity_media_required_before_publish'))
-            ->assertSee('data-current-media-state="empty"', false)
+            ->assertDontSeeText(__('lf.LF_course_template_activity_media_empty'))
+            ->assertDontSeeText(__('lf.LF_course_template_activity_media_required_before_publish'))
+            ->assertDontSee('data-current-media-state="empty"', false)
             ->assertDontSee("/activities/{$activityId}/media/document/", false);
 
         DB::table('core_course_template_activities')->where('id', $activityId)->update([
@@ -1979,7 +1979,7 @@ class CourseMediaIntegrationTest extends TestCase
         ]);
         $this->actingAs($admin)->get($editUrl)
             ->assertOk()
-            ->assertSeeText(__('lf.LF_course_template_activity_media_empty'))
+            ->assertDontSeeText(__('lf.LF_course_template_activity_media_empty'))
             ->assertDontSee("/activities/{$activityId}/media/video/", false);
         DB::table('core_course_template_activities')->where('id', $activityId)->update([
             'title' => 'Activity 14 tài liệu a',
@@ -2010,7 +2010,7 @@ class CourseMediaIntegrationTest extends TestCase
             $response = $this->actingAs($admin)->get($editUrl)
                 ->assertOk()
                 ->assertSeeText(__('lf.LF_course_template_activity_media_unavailable'))
-                ->assertSeeText(__('lf.LF_course_template_activity_media_required_before_publish'))
+                ->assertDontSeeText(__('lf.LF_course_template_activity_media_required_before_publish'))
                 ->assertSee('data-current-media-state="unavailable"', false)
                 ->assertDontSee("/activities/{$activityId}/media/document/{$mediaId}", false);
             $this->assertSame(0, $this->htmlElementCount(
@@ -2118,7 +2118,7 @@ class CourseMediaIntegrationTest extends TestCase
         ]))->assertRedirect($editUrl);
         $this->actingAs($admin)->get($editUrl)
             ->assertOk()
-            ->assertSeeText(__('lf.LF_course_template_activity_media_empty'))
+            ->assertDontSeeText(__('lf.LF_course_template_activity_media_empty'))
             ->assertDontSeeText('after.mp4')
             ->assertDontSee("/activities/{$activityId}/media/video/", false);
         $this->assertDatabaseHas('media_file_usages', [
