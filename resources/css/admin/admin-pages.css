@@ -502,6 +502,13 @@
     margin-inline: 0;
 }
 
+@media (min-width: 1200px) {
+    :root.is-backend-sidebar-collapsed .backend-shell #course-product-media-fields .product-introduction-media,
+    .backend-shell.is-sidebar-collapsed #course-product-media-fields .product-introduction-media {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
 .course-product-template-lock-help {
     max-width: 62ch;
 }

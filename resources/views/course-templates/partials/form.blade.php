@@ -171,7 +171,7 @@
             <h2 id="course-template-introduction" class="admin-form-section-title">{{ __('lf.LF_course_template_group_introduction') }}</h2>
         </header>
         <div class="admin-form-field-grid admin-form-field-grid--three">
-        <div class="lf-form-group admin-form-field">
+        <div class="lf-form-group admin-form-field course-template-information-media">
             <x-form-label for="intro_image_file" :value="__('lf.LF_course_template_intro_image')" />
             <input type="hidden" name="intro_image_media_file_id" value="{{ old('intro_image_media_file_id', $formTemplate?->intro_image_media_file_id) }}">
             @if ($introImageMedia ?? null)
@@ -187,7 +187,7 @@
             <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
         </div>
 
-        <div class="lf-form-group admin-form-field">
+        <div class="lf-form-group admin-form-field course-template-information-media">
             <x-form-label for="intro_video_source" :value="__('lf.LF_course_template_intro_video')" />
             <select id="intro_video_source" name="intro_video_source" class="lf-form-control" x-model="selectedVideoSource" :class="{ 'lf-select-placeholder': selectedVideoSource === null || selectedVideoSource === '' }">
                 <option value="">{{ __('lf.LF_course_template_select_video_source') }}</option>
@@ -213,7 +213,7 @@
             <input type="url" name="intro_video_embed_url" class="lf-form-control" value="{{ old('intro_video_embed_url', $formTemplate?->intro_video_embed_url) }}" placeholder="{{ __('lf.LF_course_template_placeholder_embed_url') }}" x-show="selectedVideoSource === 'embed'" :disabled="selectedVideoSource !== 'embed'">
         </div>
 
-        <div class="lf-form-group admin-form-field">
+        <div class="lf-form-group admin-form-field course-template-information-media">
             <x-form-label for="intro_document_file" :value="__('lf.LF_course_template_intro_document')" />
             <input type="hidden" name="intro_document_media_file_id" value="{{ old('intro_document_media_file_id', $formTemplate?->intro_document_media_file_id) }}">
             @if ($introDocumentMedia ?? null)

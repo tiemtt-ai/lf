@@ -2128,6 +2128,8 @@ class CourseProductManagementTest extends TestCase
             $this->assertNotContains(false, $positions);
             $this->assertSame($positions, collect($positions)->sort()->values()->all());
             $this->assertStringContainsString('admin-form-field-grid', $content);
+            $this->assertStringContainsString('admin-form-field-grid--three', $content);
+            $this->assertStringContainsString('admin-form-option-panel--compact', $content);
             $this->assertStringContainsString('admin-form-field--full', $content);
             $this->assertStringContainsString('admin-form-subsection', $content);
             $this->assertStringContainsString('id="product-course-content"', $content);
@@ -2242,6 +2244,7 @@ class CourseProductManagementTest extends TestCase
     public function test_shared_admin_form_css_contract_is_opt_in_and_responsive(): void
     {
         $css = file_get_contents(resource_path('css/admin/admin-components.css'));
+        $pageCss = file_get_contents(resource_path('css/admin/admin-pages.css'));
 
         $this->assertStringContainsString('.admin-form-standard,', $css);
         $this->assertStringContainsString('.admin-form-card.admin-form-surface {', $css);
@@ -2252,6 +2255,8 @@ class CourseProductManagementTest extends TestCase
         $this->assertStringContainsString('grid-template-columns: repeat(2, minmax(0, 1fr));', $css);
         $this->assertStringContainsString('.admin-form-field-grid--main-compact', $css);
         $this->assertStringContainsString('grid-template-columns: minmax(0, 1fr) minmax(120px, .34fr);', $css);
+        $this->assertStringContainsString('#course-product-media-fields .product-introduction-media', $pageCss);
+        $this->assertStringContainsString('grid-template-columns: repeat(3, minmax(0, 1fr));', $pageCss);
         $this->assertStringContainsString('.admin-form-field--full {', $css);
         $this->assertStringContainsString('grid-column: 1 / -1;', $css);
         $this->assertStringContainsString('.admin-form-stack {', $css);

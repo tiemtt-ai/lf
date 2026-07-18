@@ -10,7 +10,7 @@
     'selectedVideoSource' => null,
 ])
 
-<div class="course-template-information-grid product-introduction-media"
+<div class="course-template-information-grid product-introduction-media admin-form-field-grid admin-form-field-grid--three"
      x-data="{
          selectedVideoSource: @js($selectedVideoSource),
          previewOpen: false,

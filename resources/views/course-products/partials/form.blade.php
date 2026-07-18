@@ -259,18 +259,18 @@
         <h2 id="product-description" class="admin-form-section-title">{{ __('lf.LF_product_v2_group_description_media') }}</h2>
         <div class="admin-form-option-group">
             <input type="hidden" name="uses_custom_description" value="0">
-            <label class="admin-form-option-panel">
+            <label class="admin-form-option-panel admin-form-option-panel--compact">
                 <input type="checkbox" name="uses_custom_description" value="1" x-model="customDescription" :aria-expanded="customDescription.toString()" aria-controls="course-product-description-fields">
                 <span><strong>{{ __('lf.LF_product_v2_description_option_title') }}</strong><span>{{ __('lf.LF_product_v2_custom_description') }}</span><small>{{ __('lf.LF_product_v2_description_inherited') }}</small></span>
             </label>
             <div id="course-product-description-fields" class="admin-form-conditional" x-show="customDescription" x-cloak>
-                <div class="lf-form-group"><x-form-label for="short_description" :value="__('lf.LF_course_product_common_short_description')" /><textarea id="short_description" name="short_description" class="lf-form-control" maxlength="500" placeholder="{{ __('lf.LF_product_v2_placeholder_short_description') }}">{{ old('short_description', $formProduct?->short_description) }}</textarea></div>
-                <div class="lf-form-group"><x-form-label for="description" :value="__('lf.LF_course_product_common_description')" /><textarea id="description" name="description" rows="6" class="lf-form-control" placeholder="{{ __('lf.LF_product_v2_placeholder_description') }}">{{ old('description', $formProduct?->description) }}</textarea></div>
+                <div class="lf-form-group"><x-form-label for="short_description" :value="__('lf.LF_course_product_common_short_description')" /><textarea id="short_description" name="short_description" class="lf-form-control" rows="2" maxlength="500" placeholder="{{ __('lf.LF_product_v2_placeholder_short_description') }}">{{ old('short_description', $formProduct?->short_description) }}</textarea></div>
+                <div class="lf-form-group"><x-form-label for="description" :value="__('lf.LF_course_product_common_description')" /><textarea id="description" name="description" rows="4" class="lf-form-control" placeholder="{{ __('lf.LF_product_v2_placeholder_description') }}">{{ old('description', $formProduct?->description) }}</textarea></div>
             </div>
         </div>
         <div class="admin-form-option-group">
             <input type="hidden" name="uses_custom_intro_media" value="0">
-            <label class="admin-form-option-panel">
+            <label class="admin-form-option-panel admin-form-option-panel--compact">
                 <input type="checkbox" name="uses_custom_intro_media" value="1" x-model="customMedia" :aria-expanded="customMedia.toString()" aria-controls="course-product-media-fields">
                 <span><strong>{{ __('lf.LF_product_v2_media_option_title') }}</strong><span>{{ __('lf.LF_product_v2_custom_media') }}</span><small>{{ __('lf.LF_product_v2_media_inherited') }}</small></span>
             </label>
