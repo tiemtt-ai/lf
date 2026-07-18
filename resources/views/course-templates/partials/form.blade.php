@@ -183,7 +183,7 @@
                     <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openTemplatePreview(@js($introImageMedia->display_name), @js($introImageMedia->signed_url), @js($introImageMedia->mime_type), 'image')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
                 </x-authoring-media-row>
             @endif
-            <input id="intro_image_file" type="file" name="intro_image_file" class="lf-form-control authoring-media-upload" accept="image/*">
+            <input id="intro_image_file" type="file" name="intro_image_file" class="lf-form-control authoring-media-upload admin-file-upload" accept="image/*">
             <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
         </div>
 
@@ -208,7 +208,7 @@
                     @endif
                 </x-authoring-media-row>
             @endif
-            <input type="file" name="intro_video_file" class="lf-form-control authoring-media-upload" accept="video/*" x-show="selectedVideoSource === 'upload'" :disabled="selectedVideoSource !== 'upload'">
+            <input type="file" name="intro_video_file" class="lf-form-control authoring-media-upload admin-file-upload" accept="video/*" x-show="selectedVideoSource === 'upload'" :disabled="selectedVideoSource !== 'upload'">
             <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']" x-show="selectedVideoSource === 'upload'" />
             <input type="url" name="intro_video_embed_url" class="lf-form-control" value="{{ old('intro_video_embed_url', $formTemplate?->intro_video_embed_url) }}" placeholder="{{ __('lf.LF_course_template_placeholder_embed_url') }}" x-show="selectedVideoSource === 'embed'" :disabled="selectedVideoSource !== 'embed'">
         </div>
@@ -225,7 +225,7 @@
                     <a class="admin-text-action" href="{{ $introDocumentMedia->signed_url }}" target="_blank" rel="noopener">{{ __('lf.LF_media_file_common_preview_action') }}</a>
                 </x-authoring-media-row>
             @endif
-            <input id="intro_document_file" type="file" name="intro_document_file" class="lf-form-control authoring-media-upload">
+            <input id="intro_document_file" type="file" name="intro_document_file" class="lf-form-control authoring-media-upload admin-file-upload">
             <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'PPT', 'PPTX', 'XLS', 'XLSX']" />
         </div>
 

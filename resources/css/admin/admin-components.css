@@ -100,6 +100,60 @@
     resize: vertical;
 }
 
+/* Opt-in styling for native file inputs. The native control remains intact so
+   keyboard access, filename display and browser upload behavior are preserved. */
+.lf-admin-page .admin-file-upload {
+    height: 40px;
+    padding: 3px 10px 3px 3px;
+    color: var(--admin-text-muted);
+    background: var(--admin-surface);
+    cursor: pointer;
+}
+
+.lf-admin-page .admin-file-upload::file-selector-button {
+    appearance: none;
+    margin-right: 10px;
+    padding: 5px 12px;
+    border: 1px solid #ced4da !important;
+    border-radius: 4px;
+    color: #6b7280 !important;
+    background: #f8fafc !important;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.35;
+    box-shadow: none !important;
+    cursor: pointer;
+}
+
+.lf-admin-page .admin-file-upload::-webkit-file-upload-button {
+    -webkit-appearance: none;
+    margin-right: 10px;
+    padding: 5px 12px;
+    border: 1px solid #ced4da !important;
+    border-radius: 4px;
+    color: #6b7280 !important;
+    background: #f8fafc !important;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.35;
+    box-shadow: none !important;
+    cursor: pointer;
+}
+
+.lf-admin-page .admin-file-upload:hover::file-selector-button {
+    border-color: #adb5bd !important;
+    color: #495057 !important;
+    background: #f1f3f5 !important;
+}
+
+.lf-admin-page .admin-file-upload:hover::-webkit-file-upload-button {
+    border-color: #adb5bd !important;
+    color: #495057 !important;
+    background: #f1f3f5 !important;
+}
+
 .lf-admin-page .lf-form-group {
     margin-bottom: 18px;
 }

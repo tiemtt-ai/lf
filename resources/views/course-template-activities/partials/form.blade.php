@@ -72,20 +72,20 @@
     <div class="lf-form-group" x-show="activityType === 'video'" x-cloak>
         <x-form-label for="activity_video_file" :value="__('lf.LF_course_template_activity_media_replacement_video')" />
         @include('course-template-activities.partials.current-media', ['mediaType' => 'video'])
-        <input id="activity_video_file" type="file" name="activity_video_file" class="lf-form-control authoring-media-upload" accept="video/*">
+        <input id="activity_video_file" type="file" name="activity_video_file" class="lf-form-control authoring-media-upload admin-file-upload" accept="video/*">
         <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']" />
     </div>
     <div class="lf-form-group" x-show="activityType === 'embedded_video'" x-cloak><x-form-label for="external_video_url" value="External video URL" /><input id="external_video_url" type="url" name="external_video_url" class="lf-form-control" value="{{ old('external_video_url', $formActivity?->external_video_url) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_video_url') }}"></div>
     <div class="lf-form-group" x-show="activityType === 'audio'" x-cloak>
         <x-form-label for="activity_audio_file" :value="__('lf.LF_course_template_activity_media_replacement_audio')" />
         @include('course-template-activities.partials.current-media', ['mediaType' => 'audio'])
-        <input id="activity_audio_file" type="file" name="activity_audio_file" class="lf-form-control authoring-media-upload" accept="audio/*">
+        <input id="activity_audio_file" type="file" name="activity_audio_file" class="lf-form-control authoring-media-upload admin-file-upload" accept="audio/*">
         <x-upload-hint :formats="['MP3', 'WAV', 'M4A', 'AAC', 'OGG']" />
     </div>
     <div class="lf-form-group" x-show="activityType === 'document'" x-cloak>
         <x-form-label for="activity_document_file" :value="__('lf.LF_course_template_activity_media_replacement_document')" />
         @include('course-template-activities.partials.current-media', ['mediaType' => 'document'])
-        <input id="activity_document_file" type="file" name="activity_document_file" class="lf-form-control authoring-media-upload" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf">
+        <input id="activity_document_file" type="file" name="activity_document_file" class="lf-form-control authoring-media-upload admin-file-upload" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf">
         <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX', 'TXT']" />
     </div>
     <div class="lf-form-group" x-show="activityType === 'quiz'" x-cloak><x-form-label for="assessment_quiz_id" value="Assessment Quiz ID" /><input id="assessment_quiz_id" type="number" min="1" name="assessment_quiz_id" class="lf-form-control" value="{{ old('assessment_quiz_id', $formActivity?->assessment_quiz_id) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_assessment') }}"></div>

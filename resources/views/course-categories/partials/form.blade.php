@@ -154,7 +154,7 @@
                 <input id="thumbnail_image_file"
                        type="file"
                        name="thumbnail_image_file"
-                       class="lf-form-control"
+                       class="lf-form-control admin-file-upload"
                        accept="image/*">
                 <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
             </div>
@@ -205,7 +205,7 @@
                 <input id="banner_image_file"
                        type="file"
                        name="banner_image_file"
-                       class="lf-form-control"
+                       class="lf-form-control admin-file-upload"
                        accept="image/*">
                 <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
             </div>

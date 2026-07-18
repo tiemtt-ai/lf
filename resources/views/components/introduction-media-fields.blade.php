@@ -53,7 +53,7 @@
                 <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openIntroductionPreview(@js($imageMedia->display_name), @js($imageMedia->signed_url), @js($imageMedia->mime_type), 'image')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
             </x-authoring-media-row>
         @endif
-        <input id="intro_image_file" type="file" name="intro_image_file" class="lf-form-control authoring-media-upload" accept="image/*" @error('intro_image_file') aria-invalid="true" aria-describedby="intro_image_file_error" @enderror>
+        <input id="intro_image_file" type="file" name="intro_image_file" class="lf-form-control authoring-media-upload admin-file-upload" accept="image/*" @error('intro_image_file') aria-invalid="true" aria-describedby="intro_image_file_error" @enderror>
         @error('intro_image_file')<p id="intro_image_file_error" class="lf-form-error">{{ $message }}</p>@enderror
         <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
     </div>
@@ -75,7 +75,7 @@
                 @endif
             </x-authoring-media-row>
         @endif
-        <input id="intro_video_file" type="file" name="intro_video_file" class="lf-form-control authoring-media-upload" accept="video/*" x-show="selectedVideoSource === 'upload'" :disabled="selectedVideoSource !== 'upload'" @error('intro_video_file') aria-invalid="true" aria-describedby="intro_video_file_error" @enderror>
+        <input id="intro_video_file" type="file" name="intro_video_file" class="lf-form-control authoring-media-upload admin-file-upload" accept="video/*" x-show="selectedVideoSource === 'upload'" :disabled="selectedVideoSource !== 'upload'" @error('intro_video_file') aria-invalid="true" aria-describedby="intro_video_file_error" @enderror>
         @error('intro_video_file')<p id="intro_video_file_error" class="lf-form-error">{{ $message }}</p>@enderror
         <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']" x-show="selectedVideoSource === 'upload'" />
         <input id="intro_video_embed_url" type="url" name="intro_video_embed_url" class="lf-form-control" value="{{ old('intro_video_embed_url', $embedValue) }}" placeholder="{{ __('lf.LF_course_template_placeholder_embed_url') }}" x-show="selectedVideoSource === 'embed'" :disabled="selectedVideoSource !== 'embed'" @error('intro_video_embed_url') aria-invalid="true" aria-describedby="intro_video_embed_url_error" @enderror>
@@ -93,7 +93,7 @@
                 @endif
             </x-authoring-media-row>
         @endif
-        <input id="intro_document_file" type="file" name="intro_document_file" class="lf-form-control authoring-media-upload" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx" @error('intro_document_file') aria-invalid="true" aria-describedby="intro_document_file_error" @enderror>
+        <input id="intro_document_file" type="file" name="intro_document_file" class="lf-form-control authoring-media-upload admin-file-upload" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx" @error('intro_document_file') aria-invalid="true" aria-describedby="intro_document_file_error" @enderror>
         @error('intro_document_file')<p id="intro_document_file_error" class="lf-form-error">{{ $message }}</p>@enderror
         <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'PPT', 'PPTX', 'XLS', 'XLSX']" />
     </div>

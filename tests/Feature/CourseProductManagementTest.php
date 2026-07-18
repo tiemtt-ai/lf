@@ -2130,6 +2130,7 @@ class CourseProductManagementTest extends TestCase
             $this->assertStringContainsString('admin-form-field-grid', $content);
             $this->assertStringContainsString('admin-form-field-grid--three', $content);
             $this->assertStringContainsString('admin-form-option-panel--compact', $content);
+            $this->assertSame(3, substr_count($content, 'authoring-media-upload admin-file-upload'));
             $this->assertStringContainsString('admin-form-field--full', $content);
             $this->assertStringContainsString('admin-form-subsection', $content);
             $this->assertStringContainsString('id="product-course-content"', $content);

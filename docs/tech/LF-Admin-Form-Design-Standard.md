@@ -1,6 +1,6 @@
 # LearnForge Create/Edit Form Design Standard
 
-Version: 1.0
+Version: 1.1
 
 Status: Official Standard
 
@@ -367,6 +367,67 @@ Presentation **SHOULD** chọn đúng mức độ mô tả:
 Policy notice **MUST NOT** dùng validation-error styling. Metadata mô tả field
 **MUST NOT** dùng status badge styling.
 
+## 10.2. Native File Upload Control
+
+File upload trong LF Admin **MUST** giữ native `<input type="file">` để bảo
+toàn keyboard access, browser file picker, filename display, `accept`,
+validation và submitted file behavior. Presentation nhẹ hơn **MAY** được kích
+hoạt bằng shared opt-in class:
+
+```html
+<input type="file"
+       name="image_file"
+       class="lf-form-control admin-file-upload"
+       accept="image/*">
+```
+
+Canonical implementation nằm tại
+`resources/css/admin/admin-components.css` với class
+`admin-file-upload`.
+
+Presentation requirements:
+
+* Control **MUST** tiếp tục hiển thị filename hoặc trạng thái chưa chọn file do
+  browser cung cấp.
+* Button text, button border và filename text **SHOULD** dùng cùng neutral color
+  family với LF form control; nút **MUST NOT** trông như primary submit action.
+* Button **SHOULD** dùng regular font weight, subtle background và compact
+  padding.
+* Hover **MAY** tăng contrast vừa phải; focus của toàn control **MUST** tiếp tục
+  dùng visible LF focus treatment.
+* Upload hint, accepted formats, maximum size và validation error **MUST** nằm
+  gần control và dùng shared help/error presentation.
+* Styling **MUST NOT** ẩn filename, thay input bằng click handler giả hoặc làm
+  giảm native keyboard/file-picker behavior.
+* Styling **MUST NOT** thay đổi `type`, `name`, `accept`, `multiple`, `required`,
+  validation, controller contract hoặc Media lifecycle.
+* Create và Edit của cùng module **MUST** dùng cùng upload presentation.
+
+Browser compatibility requirements:
+
+* Standard `::file-selector-button` và WebKit
+  `::-webkit-file-upload-button` **SHOULD** được khai báo thành selector blocks
+  riêng. Không gộp chúng nếu một browser có thể invalidate toàn selector list.
+* Native button appearance có thể override màu chữ, border hoặc shadow. Một
+  scoped override chỉ dưới `.lf-admin-page .admin-file-upload` **MAY** dùng
+  explicit neutral values và `!important` khi computed browser evidence cho
+  thấy user-agent style vẫn thắng.
+* Ngoại lệ `!important` này chỉ dành cho native file-selector pseudo-element;
+  nó **MUST NOT** mở rộng sang general form controls.
+* Agent **MUST** kiểm tra computed/built CSS và thực hiện hard refresh khi asset
+  hash thay đổi trước khi kết luận style chưa áp dụng.
+
+Rollout requirements:
+
+* Đây là opt-in shared presentation. Form upload khác chỉ nhận chuẩn này sau
+  khi thêm `admin-file-upload`; **MUST NOT** dùng broad
+  `input[type="file"]` selector để thay đổi legacy consumers hàng loạt.
+* Khi rollout sang module khác, agent **MUST** giữ nguyên module-specific upload,
+  preview, remove, authorization và tenant behavior; chỉ thay class
+  presentation.
+* Relevant structural/upload tests, production frontend build và
+  `git diff --check` **MUST** pass.
+
 ---
 
 # 11. Read-Only, Disabled And Hidden
@@ -606,6 +667,8 @@ Module **MUST NOT** tạo hai design systems riêng cho Create và Edit.
 - [ ] Disabled và restriction explanation khi cần.
 - [ ] Conditional fields open/closed.
 - [ ] Media state khi áp dụng.
+- [ ] Native file upload giữ filename, picker, accept/validation và dùng
+      `admin-file-upload` khi module opt in.
 
 ## Actions
 

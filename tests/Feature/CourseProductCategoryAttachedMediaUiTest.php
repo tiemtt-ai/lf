@@ -128,6 +128,13 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
         $this->assertStringContainsString('openCategoryImagePreview', $content);
         $this->assertStringContainsString('$el.dataset.previewUrl', $content);
         $this->assertStringContainsString('media-library-modal-image', $content);
+        $this->assertSame(
+            2,
+            $this->htmlElementCount(
+                $content,
+                '//input[@type="file" and contains(concat(" ", normalize-space(@class), " "), " admin-file-upload ")]'
+            )
+        );
         $this->assertGreaterThanOrEqual(
             1,
             $this->htmlElementCount(
@@ -146,6 +153,7 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
             $componentCss
         );
         $this->assertStringContainsString('margin: 7px 0 14px;', $componentCss);
+        $this->assertStringContainsString('.lf-admin-page .admin-file-upload::file-selector-button', $componentCss);
     }
 
     public function test_remove_current_image_still_detaches_usage_without_deleting_media_file(): void

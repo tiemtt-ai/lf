@@ -1039,6 +1039,13 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->assertSee('placeholder="Ví dụ: 1"', false);
 
         $this->assertActivityTypeSelector($createResponse->getContent());
+        $this->assertSame(
+            3,
+            substr_count(
+                $createResponse->getContent(),
+                'authoring-media-upload admin-file-upload'
+            )
+        );
 
         $editResponse = $this->actingAs($admin)
             ->get("{$collectionUrl}/{$activityId}/edit")
@@ -1048,6 +1055,13 @@ class CourseTemplateActivityManagementTest extends TestCase
         $this->assertActivityTypeSelector(
             $editResponse->getContent(),
             'quiz'
+        );
+        $this->assertSame(
+            3,
+            substr_count(
+                $editResponse->getContent(),
+                'authoring-media-upload admin-file-upload'
+            )
         );
 
         app()->setLocale('en');
