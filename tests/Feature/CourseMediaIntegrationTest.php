@@ -1298,7 +1298,7 @@ class CourseMediaIntegrationTest extends TestCase
         ]);
     }
 
-    public function test_admin_can_upload_and_view_cohort_document_and_attachment(): void
+    public function test_cohort_rejects_deferred_document_and_attachment_media(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -1320,35 +1320,19 @@ class CourseMediaIntegrationTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect();
+            ->assertSessionHasErrors([
+                'cohort_document_file',
+                'cohort_attachment_file',
+            ]);
 
-        $cohortId = (int) DB::table('core_course_cohorts')
-            ->where('customer_id', $customerId)
-            ->where('name', 'Media Cohort')
-            ->value('id');
-
-        foreach (['document', 'attachment'] as $usageType) {
-            $mediaFile = $this->assertActiveUsage(
-                $customerId,
-                'course_cohort',
-                $cohortId,
-                $usageType
-            );
-
-            $this->assertStringStartsWith(
-                "tenants/{$customerId}/course/cohorts/{$cohortId}/",
-                $mediaFile->storage_key
-            );
-            $this->assertSignedDeliveryUrl($customerId, $mediaFile);
-        }
-
-        $this->actingAs($admin)
-            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}")
-            ->assertOk()
-            ->assertSeeText('Cohort media')
-            ->assertSeeText('document')
-            ->assertSeeText('attachment')
-            ->assertSee('expiration=', false);
+        $this->assertDatabaseMissing('core_course_cohorts', [
+            'customer_id' => $customerId,
+            'name' => 'Media Cohort',
+        ]);
+        $this->assertDatabaseMissing('media_file_usages', [
+            'customer_id' => $customerId,
+            'owner_type' => 'course_cohort',
+        ]);
     }
 
     public function test_course_template_preview_allows_admin_and_assigned_teacher_for_exact_active_slots(): void
@@ -1584,7 +1568,7 @@ class CourseMediaIntegrationTest extends TestCase
             ->assertOk()
             ->assertSee('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ', false)
             ->assertSee('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1', false)
-            ->assertSee("openVersionPreview", false)
+            ->assertSee('openVersionPreview', false)
             ->assertSeeText('Không có');
 
         DB::table('core_course_template_versions')->where('id', $version->id)->update([

@@ -313,6 +313,7 @@ class BackendLayoutNavigationTest extends TestCase
         }
 
         foreach (array_diff($indexFiles, [
+            'resources/views/course-cohorts/index.blade.php',
             'resources/views/media-files/index.blade.php',
             'resources/views/course-products/index.blade.php',
             'resources/views/course-templates/index.blade.php',
@@ -322,6 +323,26 @@ class BackendLayoutNavigationTest extends TestCase
             $this->assertStringContainsString('LF_common_status_common_active', $blade, $file);
             $this->assertStringContainsString('LF_common_status_common_inactive', $blade, $file);
         }
+
+        $cohortIndex = file_get_contents(
+            base_path('resources/views/course-cohorts/index.blade.php')
+        );
+        $this->assertStringContainsString(
+            "@foreach (['draft', 'active', 'completed', 'archived'] as \$cohortStatus)",
+            $cohortIndex
+        );
+        $this->assertStringContainsString(
+            "__('lf.LF_course_cohort_common_'.\$cohortStatus)",
+            $cohortIndex
+        );
+        $this->assertStringContainsString(
+            "__('lf.LF_course_cohort_common_'.\$cohort->status)",
+            $cohortIndex
+        );
+        $this->assertStringContainsString('course-cohort-status-badge--draft', $cohortIndex);
+        $this->assertStringContainsString('badge-success', $cohortIndex);
+        $this->assertStringContainsString('course-cohort-status-badge--completed', $cohortIndex);
+        $this->assertStringContainsString('badge-danger', $cohortIndex);
 
         $productIndex = file_get_contents(
             base_path('resources/views/course-products/index.blade.php')

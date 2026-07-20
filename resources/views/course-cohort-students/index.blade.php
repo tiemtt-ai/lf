@@ -15,6 +15,11 @@
             {{ session('success') }}
         </div>
     @endif
+    @if (session('error'))
+        <div class="admin-alert admin-alert-danger" role="alert">
+            {{ session('error') }}
+        </div>
+    @endif
 
     <div class="admin-card admin-form-card">
         <form method="GET" action="{{ route($routePrefix.'.index') }}">
@@ -56,11 +61,13 @@
         </form>
     </div>
 
-    <div class="admin-form-actions">
-        <a href="{{ route($routePrefix.'.create', $contextCohort ? ['cohort_id' => $contextCohort->id] : []) }}" class="btn btn-primary" data-disable-on-submit>
-            {{ __('lf.LF_course_cohort_student_common_create') }}
-        </a>
-    </div>
+    @if ($canAddStudents)
+        <div class="admin-form-actions">
+            <a href="{{ route('admin.course-cohorts.students.create', $contextCohort->id) }}" class="btn btn-primary" data-disable-on-submit>
+                {{ __('lf.LF_course_cohort_student_common_create') }}
+            </a>
+        </div>
+    @endif
 
     <div class="admin-table-wrap">
         <table class="table">

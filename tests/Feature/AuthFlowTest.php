@@ -92,12 +92,12 @@ class AuthFlowTest extends TestCase
             ->assertSeeText('acme')
             ->assertSeeText('hello@acme.test')
             ->assertSeeText('0280000000')
-            ->assertSeeText('active')
+            ->assertSeeText(__('lf.LF_common_status_common_active'))
             ->assertSeeText('Người dùng hiện tại')
             ->assertSeeText('Acme Admin')
             ->assertSeeText('admin@acme.test')
             ->assertSeeText('0900000000')
-            ->assertSeeText('customer_admin')
+            ->assertSeeText(__('lf.LF_common_role_admin_customer_admin'))
             ->assertDontSeeText('Customer ID');
     }
 

@@ -1711,6 +1711,38 @@
     background: var(--color-surface-muted, #f3f4f6);
 }
 
+.cohort-student-class-summary,
+.cohort-student-combobox-state {
+    min-width: 0;
+}
+
+.cohort-student-class-summary p {
+    margin: .35rem 0 0;
+    overflow-wrap: anywhere;
+    color: var(--color-text-muted, #6b7280);
+}
+
+.cohort-student-class-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+}
+
+.cohort-student-option-meta {
+    display: block;
+    margin-top: .2rem;
+    overflow-wrap: anywhere;
+    color: var(--color-text-muted, #6b7280);
+    font-size: .875rem;
+}
+
+.cohort-student-combobox-state {
+    margin: 0;
+    padding: .75rem;
+    color: var(--color-text-muted, #6b7280);
+}
+
 .admin-inline-form {
     display: inline;
 }

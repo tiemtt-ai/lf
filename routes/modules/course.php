@@ -62,6 +62,15 @@ if ($registerCourseProductRoutes ?? false) {
     Route::post('/course-cohorts/{id}/archive', [CourseCohortController::class, 'archive'])
         ->name('course-cohorts.archive');
 
+    Route::get('/course-cohorts/{cohort}/students/create', [CourseCohortStudentController::class, 'create'])
+        ->name('course-cohorts.students.create');
+
+    Route::get('/course-cohorts/{cohort}/students/search', [CourseCohortStudentController::class, 'search'])
+        ->name('course-cohorts.students.search');
+
+    Route::post('/course-cohorts/{cohort}/students', [CourseCohortStudentController::class, 'store'])
+        ->name('course-cohorts.students.store');
+
     Route::get('/course-cohort-students', [CourseCohortStudentController::class, 'index'])
         ->name('course-cohort-students.index');
 
