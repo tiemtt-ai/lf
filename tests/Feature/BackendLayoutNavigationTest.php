@@ -76,7 +76,7 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertOk()
             ->assertSee('class="backend-sidebar-icon"', false)
             ->assertSee('data-sidebar-icon="home"', false)
-            ->assertSee('data-sidebar-icon="users"', false)
+            ->assertSee('data-sidebar-icon="teacher-board"', false)
             ->assertSee('data-sidebar-icon="book-open"', false)
             ->assertSee('data-sidebar-icon="package"', false)
             ->assertDontSee('data-sidebar-icon="shopping-bag"', false)

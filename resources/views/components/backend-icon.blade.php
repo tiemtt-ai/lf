@@ -11,6 +11,7 @@
         'book-open' => '<path d="M12 7v14"></path><path d="M3 5a2 2 0 0 1 2-2h4a3 3 0 0 1 3 3v15a3 3 0 0 0-3-3H5a2 2 0 0 0-2 2Z"></path><path d="M21 5a2 2 0 0 0-2-2h-4a3 3 0 0 0-3 3v15a3 3 0 0 1 3-3h4a2 2 0 0 1 2 2Z"></path>',
         'shopping-bag' => '<path d="M6 8h12l-1 13H7Z"></path><path d="M9 8a3 3 0 0 1 6 0"></path>',
         'package' => '<path d="m12 3 9 4.5-9 4.5-9-4.5Z"></path><path d="m3 7.5 9 4.5 9-4.5V17l-9 4-9-4Z"></path><path d="M12 12v9"></path>',
+        'teacher-board' => '<rect x="8" y="3" width="14" height="13" rx="1"></rect><path d="M12 20h6"></path><path d="M15 16v4"></path><circle cx="4" cy="7" r="2"></circle><path d="M1.5 21v-5a2.5 2.5 0 0 1 5 0v5"></path><path d="m6 13 5-3"></path>',
         'clipboard-check' => '<path d="M9 5h6"></path><path d="M9 3h6v4H9Z"></path><path d="M5 5h2"></path><path d="M17 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2"></path><path d="m9 14 2 2 4-4"></path>',
         'video' => '<path d="M4 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"></path><path d="m16 10 6-3v10l-6-3Z"></path>',
         'image' => '<rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="8" cy="10" r="2"></circle><path d="m21 15-5-5L5 19"></path>',
