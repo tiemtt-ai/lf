@@ -554,6 +554,7 @@ class CourseCohortManagementTest extends TestCase
         $detail = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}")->assertOk();
         $detail->assertSeeText(__('lf.LF_course_cohort_tab_overview'))
             ->assertSeeText(__('lf.LF_course_cohort_tab_students'))
+            ->assertSee('course-cohort-detail', false)
             ->assertSeeText(__('lf.LF_course_cohort_create_group_information'))
             ->assertSeeText(__('lf.LF_course_cohort_create_group_dates'))
             ->assertSeeText(__('lf.LF_course_cohort_create_group_additional'))

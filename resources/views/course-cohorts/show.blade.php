@@ -87,7 +87,7 @@
         </div>
     </div>
 
-    <div id="overview" class="admin-card admin-form-card admin-form-surface">
+    <div id="overview" class="admin-card admin-form-card admin-form-surface course-cohort-detail">
         <div class="admin-form-standard">
             <section class="admin-form-standard-section" aria-labelledby="cohort-show-information">
                 <header class="admin-form-section-header">
