@@ -265,6 +265,8 @@ class CourseEnrollmentController extends Controller
                 'status' => $validated['status'],
                 'access_starts_at' => $validated['access_starts_at'] ?? null,
                 'access_ends_at' => $validated['access_ends_at'] ?? null,
+                'review_starts_at' => $validated['review_starts_at'] ?? null,
+                'review_ends_at' => $validated['review_ends_at'] ?? null,
                 'notes' => $validated['notes'] ?? null,
                 'updated_at' => now(),
             ]);
@@ -339,7 +341,9 @@ class CourseEnrollmentController extends Controller
         $validator = Validator::make($request->all(), [
             'status' => ['required', Rule::in(self::STATUSES)],
             'access_starts_at' => ['nullable', 'date'],
-            'access_ends_at' => ['nullable', 'date'],
+            'access_ends_at' => ['nullable', 'date', 'after_or_equal:access_starts_at'],
+            'review_starts_at' => ['nullable', 'date'],
+            'review_ends_at' => ['nullable', 'date', 'after_or_equal:review_starts_at'],
             'notes' => ['nullable', 'string'],
         ]);
 

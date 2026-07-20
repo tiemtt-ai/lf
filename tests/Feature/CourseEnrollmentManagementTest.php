@@ -164,7 +164,9 @@ class CourseEnrollmentManagementTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}")
             ->assertOk()
             ->assertSee('class="cohort-detail-toolbar"', false)
-            ->assertSee('class="admin-card admin-form-card admin-form-surface"', false)
+            ->assertSee('course-enrollment-detail', false)
+            ->assertSee('course-enrollment-detail-metadata-grid', false)
+            ->assertSee('course-enrollment-detail-item', false)
             ->assertSee('id="enrollment-show-access"', false)
             ->assertSee('id="enrollment-show-information"', false)
             ->assertSee('id="enrollment-show-access-window"', false)
@@ -173,6 +175,66 @@ class CourseEnrollmentManagementTest extends TestCase
             ->assertSeeText('2026-08-01 09:00:00')
             ->assertSeeText('2026-08-31 18:00:00')
             ->assertDontSee('<table', false);
+    }
+
+    public function test_edit_matches_create_form_and_persists_review_window(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $versionId = $this->createVersion($customerId, $admin->id, title: 'TOPIK Beginner');
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+
+        $response = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")
+            ->assertOk()
+            ->assertSee('class="admin-form-standard"', false)
+            ->assertSee('class="admin-form-footer"', false)
+            ->assertSee('name="review_starts_at"', false)
+            ->assertSee('name="review_ends_at"', false)
+            ->assertDontSee('<table', false);
+
+        $html = $response->getContent();
+        $positions = array_map(fn (string $id) => strpos($html, 'id="'.$id.'"'), [
+            'enrollment-edit-access',
+            'enrollment-edit-information',
+            'enrollment-edit-access-window',
+            'enrollment-edit-review-window',
+            'enrollment-edit-additional',
+        ]);
+        $this->assertNotContains(false, $positions);
+        $sorted = $positions;
+        sort($sorted);
+        $this->assertSame($sorted, $positions);
+
+        $this->actingAs($admin)
+            ->from("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")
+            ->put("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}", [
+                'status' => 'active',
+                'access_starts_at' => '2026-07-01 09:00:00',
+                'access_ends_at' => '2026-07-31 18:00:00',
+                'review_starts_at' => '2026-08-01 09:00:00',
+                'review_ends_at' => '2026-08-31 18:00:00',
+                'notes' => 'Review window approved.',
+            ])
+            ->assertRedirect("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}");
+
+        $this->assertDatabaseHas('core_course_enrollments', [
+            'id' => $enrollmentId,
+            'review_starts_at' => '2026-08-01 09:00:00',
+            'review_ends_at' => '2026-08-31 18:00:00',
+        ]);
+
+        $this->actingAs($admin)
+            ->from("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")
+            ->put("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}", [
+                'status' => 'active',
+                'review_starts_at' => '2026-09-01 09:00:00',
+                'review_ends_at' => '2026-08-01 09:00:00',
+            ])
+            ->assertRedirect("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")
+            ->assertSessionHasErrors('review_ends_at');
     }
 
     public function test_admin_cannot_submit_version_id_manually(): void
