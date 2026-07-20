@@ -47,8 +47,6 @@ class CourseEnrollmentManagementTest extends TestCase
                 $this->validEnrollmentData([
                     'student_id' => $student->id,
                     'product_id' => $productId,
-                    'source' => 'admin',
-                    'enrolled_at' => '2026-07-04 09:00:00',
                     'access_starts_at' => '2026-07-04 09:00:00',
                     'access_ends_at' => '2026-10-04 23:59:59',
                     'notes' => 'Manual admin assignment.',
@@ -490,7 +488,6 @@ class CourseEnrollmentManagementTest extends TestCase
                     $this->validEnrollmentData([
                         'student_id' => $student->id,
                         'product_id' => $productId,
-                        'source_id' => $cycle,
                     ])
                 )
                 ->assertRedirect();
@@ -504,6 +501,144 @@ class CourseEnrollmentManagementTest extends TestCase
                 ->where('product_id', $productId)
                 ->count()
         );
+    }
+
+    public function test_create_form_uses_business_order_and_server_owned_metadata(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $response = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-enrollments/create')
+            ->assertOk()
+            ->assertSee('class="admin-form-standard"', false)
+            ->assertSee('role="combobox"', false)
+            ->assertSeeText(__('lf.LF_course_enrollment_common_source_admin'))
+            ->assertSeeText(__('lf.LF_course_enrollment_common_active'))
+            ->assertSeeText(__('lf.LF_course_enrollment_recorded_on_save'))
+            ->assertDontSee('name="version_id"', false)
+            ->assertDontSee('name="source"', false)
+            ->assertDontSee('name="source_id"', false)
+            ->assertDontSee('name="status"', false)
+            ->assertDontSee('name="enrolled_at"', false);
+
+        $html = $response->getContent();
+        $positions = array_map(fn (string $id) => strpos($html, 'id="'.$id.'"'), [
+            'student_search', 'product_search', 'enrollment-metadata-title',
+            'access_starts_at', 'access_ends_at', 'review_starts_at',
+            'review_ends_at', 'notes',
+        ]);
+        $this->assertNotContains(false, $positions);
+        $sorted = $positions;
+        sort($sorted);
+        $this->assertSame($sorted, $positions);
+    }
+
+    public function test_search_endpoints_are_tenant_scoped_and_products_include_version_summary(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $otherStudent = $this->createUser($otherCustomerId, 'student');
+        $productId = $this->createProduct($customerId, 'Eligible TOPIK', 'eligible-topik');
+        $versionId = $this->createVersion($customerId, $admin->id, title: 'Eligible Version');
+        $this->createProductItem($customerId, $productId, $versionId);
+
+        $this->actingAs($admin)
+            ->getJson('https://tenant-a.localhost/admin/course-enrollments/students/search?q=student')
+            ->assertOk()
+            ->assertJsonFragment(['id' => $student->id, 'email' => $student->email])
+            ->assertJsonMissing(['email' => $otherStudent->email]);
+
+        $this->actingAs($admin)
+            ->getJson('https://tenant-a.localhost/admin/course-enrollments/products/search?q=eligible')
+            ->assertOk()
+            ->assertJsonFragment([
+                'id' => $productId,
+                'title' => 'Eligible TOPIK',
+                'code' => 'ELIGIBLE-TOPIK',
+                'lesson_count' => 0,
+                'activity_count' => 0,
+            ]);
+    }
+
+    public function test_admin_create_derives_authority_and_validates_time_windows(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Secure Product', 'secure-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $this->createProductItem($customerId, $productId, $versionId);
+
+        $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/course-enrollments/create')
+            ->post('https://tenant-a.localhost/admin/course-enrollments', [
+                'student_id' => $student->id,
+                'product_id' => $productId,
+                'source' => 'api',
+                'source_id' => 99,
+                'status' => 'completed',
+                'enrolled_at' => '2000-01-01 00:00:00',
+                'version_id' => 999,
+            ])
+            ->assertSessionHasErrors(['source', 'source_id', 'status', 'enrolled_at', 'version_id']);
+
+        $this->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/course-enrollments', [
+                'student_id' => $student->id,
+                'product_id' => $productId,
+                'access_starts_at' => '2026-08-02 10:00:00',
+                'access_ends_at' => '2026-08-01 10:00:00',
+                'review_starts_at' => '2026-09-02 10:00:00',
+                'review_ends_at' => '2026-09-01 10:00:00',
+            ])
+            ->assertSessionHasErrors(['access_ends_at', 'review_ends_at']);
+
+        $this->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/course-enrollments', [
+                'student_id' => $student->id,
+                'product_id' => $productId,
+                'notes' => 'Internal only',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('core_course_enrollments', [
+            'student_id' => $student->id,
+            'product_id' => $productId,
+            'version_id' => $versionId,
+            'source' => 'admin',
+            'source_id' => null,
+            'status' => 'active',
+            'notes' => 'Internal only',
+        ]);
+        $this->assertDatabaseCount('core_course_cohort_students', 0);
+    }
+
+    public function test_multiple_active_product_items_are_not_eligible_for_enrollment(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Ambiguous Product', 'ambiguous-product');
+        $versionA = $this->createVersion($customerId, $admin->id, title: 'Version A');
+        $versionB = $this->createVersion($customerId, $admin->id, title: 'Version B');
+        $this->createProductItem($customerId, $productId, $versionA);
+        $this->createProductItem($customerId, $productId, $versionB, sortOrder: 1);
+
+        $this->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/course-enrollments', [
+                'student_id' => $student->id,
+                'product_id' => $productId,
+            ])
+            ->assertSessionHasErrors('product_id');
+
+        $this->actingAs($admin)
+            ->getJson('https://tenant-a.localhost/admin/course-enrollments/products/search?q=ambiguous')
+            ->assertOk()
+            ->assertJsonMissing(['id' => $productId]);
+        $this->assertDatabaseCount('core_course_enrollments', 0);
     }
 
     public function test_course_enrollment_module_has_no_eloquent_models(): void
@@ -733,10 +868,6 @@ class CourseEnrollmentManagementTest extends TestCase
         return array_merge([
             'student_id' => 1,
             'product_id' => 1,
-            'status' => 'active',
-            'source' => 'admin',
-            'source_id' => null,
-            'enrolled_at' => null,
             'access_starts_at' => null,
             'access_ends_at' => null,
             'review_starts_at' => null,

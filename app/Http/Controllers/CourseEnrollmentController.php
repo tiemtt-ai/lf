@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\TenantContext;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -107,12 +108,56 @@ class CourseEnrollmentController extends Controller
         $customerId = $this->customerId();
 
         return view('course-enrollments.create', [
-            'students' => $this->students($customerId),
-            'products' => $this->products($customerId),
-            'statuses' => self::STATUSES,
-            'sources' => self::SOURCES,
+            'selectedStudent' => old('student_id') ? $this->studentRecord($customerId, (int) old('student_id')) : null,
+            'selectedProduct' => old('product_id')
+                ? optional($this->eligibleProductQuery($customerId)->where('products.id', (int) old('product_id'))->first(), fn (object $product): array => $this->productSearchPayload($product))
+                : null,
             'routePrefix' => $this->routePrefix($request),
         ]);
+    }
+
+    public function searchStudents(Request $request): JsonResponse
+    {
+        $this->authorizeAdmin($request);
+
+        $customerId = $this->customerId();
+        $keyword = trim((string) $request->query('q', ''));
+        $students = DB::table('users')
+            ->where('customer_id', $customerId)
+            ->where('role', 'student')
+            ->where('status', 'active')
+            ->when($keyword !== '', function ($query) use ($keyword): void {
+                $query->where(function ($query) use ($keyword): void {
+                    $query->where('name', 'like', '%'.$keyword.'%')
+                        ->orWhere('email', 'like', '%'.$keyword.'%');
+                });
+            })
+            ->orderBy('name')
+            ->limit(20)
+            ->get(['id', 'name', 'email']);
+
+        return response()->json(['data' => $students]);
+    }
+
+    public function searchProducts(Request $request): JsonResponse
+    {
+        $this->authorizeAdmin($request);
+
+        $customerId = $this->customerId();
+        $keyword = trim((string) $request->query('q', ''));
+        $products = $this->eligibleProductQuery($customerId)
+            ->when($keyword !== '', function ($query) use ($keyword): void {
+                $query->where(function ($query) use ($keyword): void {
+                    $query->where('products.title', 'like', '%'.$keyword.'%')
+                        ->orWhere('products.product_code', 'like', '%'.$keyword.'%');
+                });
+            })
+            ->orderBy('products.title')
+            ->limit(20)
+            ->get()
+            ->map(fn (object $product): array => $this->productSearchPayload($product));
+
+        return response()->json(['data' => $products]);
     }
 
     public function store(Request $request)
@@ -122,14 +167,12 @@ class CourseEnrollmentController extends Controller
         $customerId = $this->customerId();
         $validated = $this->validatedCreateData($request, $customerId);
         $now = now();
-        $enrolledAt = $validated['enrolled_at'] ?? $now;
 
         $enrollmentId = DB::transaction(function () use (
             $request,
             $customerId,
             $validated,
             $now,
-            $enrolledAt
         ): int {
             DB::table('core_course_products')
                 ->where('customer_id', $customerId)
@@ -147,15 +190,15 @@ class CourseEnrollmentController extends Controller
                 'product_id' => $validated['product_id'],
                 'version_id' => $version->id,
                 'student_id' => $validated['student_id'],
-                'source' => $validated['source'],
-                'source_id' => $validated['source_id'] ?? null,
+                'source' => 'admin',
+                'source_id' => null,
                 'enrolled_by' => $request->user()?->id,
-                'enrolled_at' => $enrolledAt,
+                'enrolled_at' => $now,
                 'access_starts_at' => $validated['access_starts_at'] ?? null,
                 'access_ends_at' => $validated['access_ends_at'] ?? null,
                 'review_starts_at' => $validated['review_starts_at'] ?? null,
                 'review_ends_at' => $validated['review_ends_at'] ?? null,
-                'status' => $validated['status'],
+                'status' => 'active',
                 'notes' => $validated['notes'] ?? null,
                 'completed_at' => null,
                 'cancelled_at' => null,
@@ -236,23 +279,20 @@ class CourseEnrollmentController extends Controller
         $validator = Validator::make($request->all(), [
             'student_id' => ['required', 'integer', 'min:1'],
             'product_id' => ['required', 'integer', 'min:1'],
-            'status' => ['required', Rule::in(self::STATUSES)],
-            'source' => ['required', Rule::in(self::SOURCES)],
-            'source_id' => ['nullable', 'integer', 'min:1'],
-            'enrolled_at' => ['nullable', 'date'],
             'access_starts_at' => ['nullable', 'date'],
-            'access_ends_at' => ['nullable', 'date'],
+            'access_ends_at' => ['nullable', 'date', 'after_or_equal:access_starts_at'],
             'review_starts_at' => ['nullable', 'date'],
-            'review_ends_at' => ['nullable', 'date'],
+            'review_ends_at' => ['nullable', 'date', 'after_or_equal:review_starts_at'],
             'notes' => ['nullable', 'string'],
+            'customer_id' => ['prohibited'],
+            'version_id' => ['prohibited'],
+            'source' => ['prohibited'],
+            'source_id' => ['prohibited'],
+            'status' => ['prohibited'],
+            'enrolled_at' => ['prohibited'],
         ]);
 
         $validator->after(function ($validator) use ($request, $customerId): void {
-            $this->rejectImmutableInputs($validator, $request, [
-                'customer_id',
-                'version_id',
-            ]);
-
             $studentId = (int) $request->input('student_id');
             $productId = (int) $request->input('product_id');
 
@@ -341,7 +381,7 @@ class CourseEnrollmentController extends Controller
 
     private function resolvedVersionCandidate(int $customerId, int $productId, bool $lock = false): ?object
     {
-        return DB::table('core_course_product_items as items')
+        $versions = DB::table('core_course_product_items as items')
             ->join('core_course_template_versions as versions', function ($join) use ($customerId): void {
                 $join->on('versions.id', '=', 'items.version_id')
                     ->where('versions.customer_id', '=', $customerId);
@@ -352,11 +392,11 @@ class CourseEnrollmentController extends Controller
             ->when($lock, fn ($query) => $query->lockForUpdate())
             ->orderBy('items.sort_order')
             ->orderBy('items.id')
-            ->select(
-                'versions.id',
-                'versions.status as version_status'
-            )
-            ->first();
+            ->select('versions.id', 'versions.status as version_status')
+            ->limit(2)
+            ->get();
+
+        return $versions->count() === 1 ? $versions->first() : null;
     }
 
     private function findEnrollment(int $customerId, int $id): object
@@ -393,25 +433,58 @@ class CourseEnrollmentController extends Controller
         return $enrollment;
     }
 
-    private function students(int $customerId)
+    private function studentRecord(int $customerId, int $studentId): ?object
     {
         return DB::table('users')
             ->where('customer_id', $customerId)
+            ->where('id', $studentId)
             ->where('role', 'student')
             ->where('status', 'active')
-            ->orderBy('name')
             ->select('id', 'name', 'email')
-            ->get();
+            ->first();
     }
 
-    private function products(int $customerId)
+    private function eligibleProductQuery(int $customerId)
     {
-        return DB::table('core_course_products')
-            ->where('customer_id', $customerId)
-            ->where('status', 'active')
-            ->orderBy('title')
-            ->select('id', 'title', 'product_code', 'status')
-            ->get();
+        return DB::table('core_course_products as products')
+            ->join('core_course_product_items as items', function ($join) use ($customerId): void {
+                $join->on('items.product_id', '=', 'products.id')
+                    ->where('items.customer_id', $customerId)
+                    ->where('items.status', 'active');
+            })
+            ->join('core_course_template_versions as versions', function ($join) use ($customerId): void {
+                $join->on('versions.id', '=', 'items.version_id')
+                    ->where('versions.customer_id', $customerId)
+                    ->where('versions.status', 'published');
+            })
+            ->where('products.customer_id', $customerId)
+            ->where('products.status', 'active')
+            ->whereRaw('(select count(*) from core_course_product_items active_items where active_items.customer_id = products.customer_id and active_items.product_id = products.id and active_items.status = ?) = 1', ['active'])
+            ->select(
+                'products.id',
+                'products.title',
+                'products.product_code',
+                'versions.id as version_id',
+                'versions.version_code',
+                'versions.version_number',
+                'versions.lesson_count_snapshot as lesson_count',
+                DB::raw('(select count(*) from core_course_template_version_activities activities where activities.customer_id = versions.customer_id and activities.template_version_id = versions.id) as activity_count')
+            );
+    }
+
+    private function productSearchPayload(object $product): array
+    {
+        return [
+            'id' => $product->id,
+            'title' => $product->title,
+            'code' => $product->product_code,
+            'version' => [
+                'code' => $product->version_code,
+                'status' => __('lf.LF_course_enrollment_version_published'),
+                'lesson_count' => (int) $product->lesson_count,
+                'activity_count' => (int) $product->activity_count,
+            ],
+        ];
     }
 
     private function studentExists(int $customerId, int $studentId): bool
@@ -420,6 +493,7 @@ class CourseEnrollmentController extends Controller
             ->where('customer_id', $customerId)
             ->where('id', $studentId)
             ->where('role', 'student')
+            ->where('status', 'active')
             ->exists();
     }
 

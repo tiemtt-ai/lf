@@ -98,6 +98,12 @@ if ($registerCourseProductRoutes ?? false) {
     Route::get('/course-enrollments/create', [CourseEnrollmentController::class, 'create'])
         ->name('course-enrollments.create');
 
+    Route::get('/course-enrollments/students/search', [CourseEnrollmentController::class, 'searchStudents'])
+        ->name('course-enrollments.students.search');
+
+    Route::get('/course-enrollments/products/search', [CourseEnrollmentController::class, 'searchProducts'])
+        ->name('course-enrollments.products.search');
+
     Route::post('/course-enrollments', [CourseEnrollmentController::class, 'store'])
         ->name('course-enrollments.store');
 

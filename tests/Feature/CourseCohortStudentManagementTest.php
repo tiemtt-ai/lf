@@ -154,8 +154,9 @@ class CourseCohortStudentManagementTest extends TestCase
             $this->actingAs($admin)
                 ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/create")
                 ->assertOk()
-                ->assertSee('name="enrollment_id"', false)
-                ->assertSee('role="combobox"', false)
+                ->assertSeeText(__('lf.LF_course_cohort_student_search_no_eligible'))
+                ->assertSeeText(__('lf.LF_course_cohort_student_create_enrollment_action'))
+                ->assertDontSee('role="combobox"', false)
                 ->assertDontSee('name="cohort_id"', false)
                 ->assertDontSee('name="status"', false)
                 ->assertDontSee('name="joined_at"', false)
@@ -342,6 +343,13 @@ class CourseCohortStudentManagementTest extends TestCase
         $otherVersion = $this->createVersion($customerId, $admin->id, 'Other Search Version');
         $otherStudent = $this->createUser($customerId, 'student');
         $this->createEnrollment($customerId, $otherStudent->id, $otherProduct, $otherVersion);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/create")
+            ->assertOk()
+            ->assertSee('name="enrollment_id"', false)
+            ->assertSee('role="combobox"', false)
+            ->assertDontSeeText(__('lf.LF_course_cohort_student_search_no_eligible'));
 
         $this->actingAs($admin)
             ->getJson("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/search?q=".urlencode($student->email))

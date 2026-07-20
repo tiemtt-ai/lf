@@ -1716,6 +1716,35 @@
     min-width: 0;
 }
 
+.enrollment-create-metadata {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.enrollment-create-metadata div {
+    min-width: 0;
+}
+
+.enrollment-create-metadata dt {
+    margin-bottom: .35rem;
+    color: var(--color-text-muted, #6b7280);
+    font-size: .875rem;
+}
+
+.enrollment-create-metadata dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+    font-weight: 600;
+}
+
+@media (max-width: 575.98px) {
+    .enrollment-create-metadata {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 .cohort-student-class-summary p {
     margin: .35rem 0 0;
     overflow-wrap: anywhere;

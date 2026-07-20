@@ -61,32 +61,41 @@
                     </header>
                     <div class="lf-form-group admin-form-field--full">
                         <label class="lf-form-label" for="enrollment_search">{{ __('lf.LF_course_cohort_student_student_required') }}</label>
-                        <div class="lf-combobox" @click.outside="open = false">
-                            <input id="enrollment_search" type="search" class="lf-form-control"
-                                   x-model="query" role="combobox" aria-autocomplete="list"
-                                   :aria-expanded="open.toString()" aria-controls="eligible-enrollment-options"
-                                   :aria-activedescendant="open && results[activeIndex] ? `eligible-enrollment-${results[activeIndex].id}` : null"
-                                   placeholder="{{ __('lf.LF_course_cohort_student_search_placeholder') }}"
-                                   @focus="open = true" @input="search()"
-                                   @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)"
-                                   @keydown.enter.prevent="chooseActive()" @keydown.escape="open = false">
-                            <input type="hidden" name="enrollment_id" x-model="selected">
-                            <div id="eligible-enrollment-options" x-show="open" x-cloak role="listbox" class="lf-combobox-options">
-                                <p x-show="loading" class="cohort-student-combobox-state" role="status">{{ __('lf.LF_course_cohort_student_search_loading') }}</p>
-                                <p x-show="!loading && query.trim().length < 2" class="cohort-student-combobox-state" role="status">{{ __('lf.LF_course_cohort_student_search_prompt') }}</p>
-                                <template x-for="(item, index) in results" :key="item.id">
-                                    <button type="button" role="option" class="lf-combobox-option"
-                                            :id="`eligible-enrollment-${item.id}`" :aria-selected="String(item.id) === selected"
-                                            :class="{ 'is-active': index === activeIndex }" @mouseenter="activeIndex = index" @click="choose(item)">
-                                        <strong x-text="item.name"></strong>
-                                        <span class="cohort-student-option-meta"><span x-text="item.email"></span> · <span x-text="item.code"></span></span>
-                                    </button>
-                                </template>
-                                <p x-show="!loading && searched && results.length === 0" class="cohort-student-combobox-state" role="status">{{ __('lf.LF_course_cohort_student_search_empty') }}</p>
+                        @if ($eligibleEnrollmentCount > 0)
+                            <div class="lf-combobox" @click.outside="open = false">
+                                <input id="enrollment_search" type="search" class="lf-form-control"
+                                       x-model="query" role="combobox" aria-autocomplete="list"
+                                       :aria-expanded="open.toString()" aria-controls="eligible-enrollment-options"
+                                       :aria-activedescendant="open && results[activeIndex] ? `eligible-enrollment-${results[activeIndex].id}` : null"
+                                       placeholder="{{ __('lf.LF_course_cohort_student_search_placeholder') }}"
+                                       @focus="open = true" @input="search()"
+                                       @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)"
+                                       @keydown.enter.prevent="chooseActive()" @keydown.escape="open = false">
+                                <input type="hidden" name="enrollment_id" x-model="selected">
+                                <div id="eligible-enrollment-options" x-show="open" x-cloak role="listbox" class="lf-combobox-options">
+                                    <p x-show="loading" class="cohort-student-combobox-state" role="status">{{ __('lf.LF_course_cohort_student_search_loading') }}</p>
+                                    <p x-show="!loading && query.trim().length < 2" class="cohort-student-combobox-state" role="status">{{ __('lf.LF_course_cohort_student_search_prompt') }}</p>
+                                    <template x-for="(item, index) in results" :key="item.id">
+                                        <button type="button" role="option" class="lf-combobox-option"
+                                                :id="`eligible-enrollment-${item.id}`" :aria-selected="String(item.id) === selected"
+                                                :class="{ 'is-active': index === activeIndex }" @mouseenter="activeIndex = index" @click="choose(item)">
+                                            <strong x-text="item.name"></strong>
+                                            <span class="cohort-student-option-meta"><span x-text="item.email"></span> · <span x-text="item.code"></span></span>
+                                        </button>
+                                    </template>
+                                    <p x-show="!loading && searched && results.length === 0" class="cohort-student-combobox-state" role="status">{{ __('lf.LF_course_cohort_student_search_empty') }}</p>
+                                </div>
                             </div>
-                        </div>
-                        <p class="lf-form-help">{{ __('lf.LF_course_cohort_student_search_help') }}</p>
-                        @error('enrollment_id')<p class="lf-form-error" role="alert">{{ $message }}</p>@enderror
+                            <p class="lf-form-help">{{ __('lf.LF_course_cohort_student_search_help') }}</p>
+                            @error('enrollment_id')<p class="lf-form-error" role="alert">{{ $message }}</p>@enderror
+                        @else
+                            <div class="admin-form-empty-state cohort-student-empty-state" role="status">
+                                <p>{{ __('lf.LF_course_cohort_student_search_no_eligible') }}</p>
+                                <a class="admin-text-action" href="{{ route('admin.course-enrollments.create') }}">
+                                    {{ __('lf.LF_course_cohort_student_create_enrollment_action') }}
+                                </a>
+                            </div>
+                        @endif
                     </div>
                 </section>
 

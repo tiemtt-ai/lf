@@ -123,6 +123,7 @@ class CourseCohortStudentController extends Controller
         return view('course-cohort-students.create', [
             'cohort' => $contextCohort,
             'selectedEnrollment' => $selectedEnrollment,
+            'eligibleEnrollmentCount' => $this->eligibleEnrollmentsQuery($customerId, $contextCohort)->count(),
         ]);
     }
 

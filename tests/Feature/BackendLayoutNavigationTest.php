@@ -118,6 +118,24 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringNotContainsString('data-sidebar-icon="shopping-bag"', $activeHtml);
     }
 
+    public function test_enrollment_navigation_precedes_class_navigation(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $html = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin')
+            ->assertOk()
+            ->getContent();
+
+        $enrollmentPosition = strpos($html, 'href="https://tenant-a.localhost/admin/course-enrollments"');
+        $classPosition = strpos($html, 'href="https://tenant-a.localhost/admin/course-cohorts"');
+
+        $this->assertNotFalse($enrollmentPosition);
+        $this->assertNotFalse($classPosition);
+        $this->assertLessThan($classPosition, $enrollmentPosition);
+    }
+
     public function test_account_navigation_moves_from_sidebar_to_user_dropdown_by_role(): void
     {
         $customerId = $this->createTenant();
