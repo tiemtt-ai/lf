@@ -57,48 +57,48 @@
         </form>
     </div>
 
-    <div class="admin-form-actions">
+    <div class="course-category-index-toolbar">
         <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
             {{ __('lf.LF_course_category_common_create') }}
         </a>
     </div>
 
-    <div class="admin-table-wrap">
-        <table class="table">
+    <div class="admin-table-wrap course-category-index-table-wrap">
+        <table class="table course-category-index-table">
             <thead>
             <tr>
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_category_common_name') }}</th>
                 <th>{{ __('lf.LF_course_category_common_parent') }}</th>
-                <th>{{ __('lf.LF_course_category_common_slug') }}</th>
-                <th>{{ __('lf.LF_course_category_common_sort_order') }}</th>
-                <th>{{ __('lf.LF_course_category_common_featured') }}</th>
-                <th>{{ __('lf.LF_course_category_common_status') }}</th>
-                <th>{{ __('lf.table_actions') }}</th>
+                <th class="course-category-index-slug">{{ __('lf.LF_course_category_common_slug') }}</th>
+                <th class="course-category-index-order">{{ __('lf.LF_course_category_common_sort_order') }}</th>
+                <th class="course-category-index-featured">{{ __('lf.LF_course_category_common_featured') }}</th>
+                <th class="course-category-index-status">{{ __('lf.LF_course_category_common_status') }}</th>
+                <th class="course-category-index-actions">{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
             @forelse ($categories as $category)
                 <tr>
                     <td class="admin-table-sequence">{{ $categories->firstItem() + $loop->index }}</td>
-                    <td>{{ $category->name }}</td>
+                    <td><strong class="course-category-index-primary">{{ $category->name }}</strong></td>
                     <td>{{ $category->parent_name ?? __('lf.LF_course_category_common_root') }}</td>
-                    <td>{{ $category->slug }}</td>
-                    <td>{{ $category->sort_order }}</td>
-                    <td>
+                    <td class="course-category-index-slug"><span class="course-category-index-slug-value">{{ $category->slug }}</span></td>
+                    <td class="course-category-index-order">{{ $category->sort_order }}</td>
+                    <td class="course-category-index-featured">
                         {{ $category->is_featured
                             ? __('lf.LF_course_category_common_yes')
                             : __('lf.LF_course_category_common_no') }}
                     </td>
-                    <td>
-                        <span class="badge {{ $category->status === 'active' ? 'badge-success' : 'badge-danger' }}">
+                    <td class="course-category-index-status">
+                        <span class="badge course-category-status-badge {{ $category->status === 'active' ? 'badge-success' : 'badge-danger' }}">
                             {{ $category->status === 'active'
                                 ? __('lf.LF_common_status_common_active')
                                 : __('lf.LF_common_status_common_inactive') }}
                         </span>
                     </td>
-                    <td>
-                        <div class="admin-table-actions">
+                    <td class="course-category-index-actions">
+                        <div class="admin-table-actions course-category-index-action-list">
                             <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $category->id) }}">
                                 {{ __('lf.action_edit') }}
                             </a>

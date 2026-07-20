@@ -51,6 +51,9 @@ class CourseCategoryManagementTest extends TestCase
             ->assertSeeText('Admin Category')
             ->assertSeeText('Teacher Category')
             ->assertSeeText(__('lf.LF_navigation_menu_common_product_categories'))
+            ->assertSee('course-category-index-toolbar', false)
+            ->assertSee('course-category-index-table', false)
+            ->assertSee('course-category-status-badge', false)
             ->assertDontSeeText(__('lf.LF_course_category_common_thumbnail_image'))
             ->assertDontSeeText('Private Tenant Category');
         $this->assertSame(

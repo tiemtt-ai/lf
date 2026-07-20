@@ -56,40 +56,42 @@
         </form>
     </div>
 
-    <div class="admin-form-actions">
+    <div class="course-template-index-toolbar">
         <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
             {{ __('lf.LF_course_template_common_create') }}
         </a>
     </div>
 
-    <div class="admin-table-wrap">
-        <table class="table">
+    <div class="admin-table-wrap course-template-index-table-wrap">
+        <table class="table course-template-index-table">
             <thead>
             <tr>
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_template_common_name') }}</th>
                 <th>{{ __('lf.LF_course_template_common_category') }}</th>
-                <th>{{ __('lf.LF_course_template_common_status') }}</th>
-                <th>{{ __('lf.table_actions') }}</th>
+                <th class="course-template-index-status">{{ __('lf.LF_course_template_common_status') }}</th>
+                <th class="course-template-index-actions">{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
             @forelse ($templates as $template)
                 <tr>
                     <td class="admin-table-sequence">{{ $templates->firstItem() + $loop->index }}</td>
-                    <td>{{ $template->title }}</td>
+                    <td><strong class="course-template-index-primary">{{ $template->title }}</strong></td>
                     <td>{{ $template->category_name ?? '—' }}</td>
-                    <td>
+                    <td class="course-template-index-status">
                         <span @class([
                             'badge',
+                            'course-template-status-badge',
+                            'admin-status-badge--neutral' => ! in_array($template->status, ['active', 'archived'], true),
                             'badge-success' => $template->status === 'active',
                             'badge-danger' => $template->status === 'archived',
                         ])>
                             {{ __('lf.LF_course_template_common_'.$template->status) }}
                         </span>
                     </td>
-                    <td>
-                        <div class="admin-table-actions">
+                    <td class="course-template-index-actions">
+                        <div class="admin-table-actions course-template-index-action-list">
                             <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $template->id) }}">
                                 {{ __('lf.action_edit') }}
                             </a>

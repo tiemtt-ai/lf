@@ -56,6 +56,9 @@ class CourseTemplateManagementTest extends TestCase
                 ->assertOk()
                 ->assertSeeText('TOPIK Beginner')
                 ->assertSeeText('Template khóa học')
+                ->assertSee('course-template-index-toolbar', false)
+                ->assertSee('course-template-index-table', false)
+                ->assertSee('course-template-status-badge', false)
                 ->assertDontSeeText('Private Tenant Template');
         }
     }

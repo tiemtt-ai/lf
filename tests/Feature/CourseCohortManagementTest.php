@@ -43,7 +43,8 @@ class CourseCohortManagementTest extends TestCase
             'show',
             'edit',
             'update',
-            'transition',
+            'activate',
+            'complete',
             'archive',
         ] as $route) {
             $this->assertTrue(Route::has("admin.course-cohorts.{$route}"));
@@ -250,6 +251,27 @@ class CourseCohortManagementTest extends TestCase
             'name' => 'Tenant B Evening',
             'status' => 'active',
         ]);
+    }
+
+    public function test_cohort_list_shows_newest_records_first(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        Carbon::setTestNow('2026-07-04 09:00:00');
+        $this->createCohort($customerId, name: 'A Older Class');
+
+        Carbon::setTestNow('2026-07-04 10:00:00');
+        $this->createCohort($customerId, name: 'Z Newest Class');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-cohorts')
+            ->assertOk()
+            ->assertSeeInOrder(['Z Newest Class', 'A Older Class'])
+            ->assertSee('course-cohort-index-table', false)
+            ->assertSee('course-cohort-index-toolbar', false)
+            ->assertSee('course-cohort-status-badge', false)
+            ->assertSeeText(__('lf.LF_course_cohort_common_version'));
     }
 
     public function test_teacher_and_student_cannot_access_admin_cohort_routes(): void
@@ -517,9 +539,9 @@ class CourseCohortManagementTest extends TestCase
             $this->validCohortData(['product_id' => $productId, 'status' => 'active']))->assertRedirect();
         $this->assertDatabaseHas('core_course_cohorts', ['id' => $cohortId, 'status' => 'draft']);
 
-        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/transition", [
-            'status' => 'active',
-        ])->assertRedirect();
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/activate")
+            ->assertRedirect();
         $this->assertDatabaseHas('core_course_cohorts', [
             'id' => $cohortId, 'product_id' => $productId, 'version_id' => $versionId,
             'teacher_id' => $teacher->id, 'status' => 'active',
@@ -544,6 +566,229 @@ class CourseCohortManagementTest extends TestCase
         $layout = file_get_contents(resource_path('views/layouts/backend.blade.php'));
         $this->assertSame(1, substr_count($layout, 'LF_navigation_menu_admin_course_cohorts'));
         $this->assertStringNotContainsString('LF_navigation_menu_admin_course_cohort_students', $layout);
+    }
+
+    public function test_canonical_lifecycle_transitions_and_replays_fail_closed(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Lifecycle Product', 'lifecycle-canonical');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $cohortId = $this->createCohort($customerId, status: 'draft');
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'product_id' => $productId,
+            'version_id' => $versionId,
+        ]);
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/complete")
+            ->assertSessionHasErrors('lifecycle');
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/activate")
+            ->assertRedirect();
+        $this->assertDatabaseHas('core_course_cohorts', ['id' => $cohortId, 'status' => 'active', 'version_id' => $versionId]);
+
+        foreach (['activate', 'archive'] as $action) {
+            $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/{$action}")
+                ->assertSessionHasErrors('lifecycle');
+        }
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/complete")
+            ->assertRedirect();
+        $this->assertDatabaseHas('core_course_cohorts', ['id' => $cohortId, 'status' => 'completed']);
+
+        foreach (['activate', 'complete'] as $action) {
+            $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/{$action}")
+                ->assertSessionHasErrors('lifecycle');
+        }
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/archive")
+            ->assertRedirect();
+        $this->assertDatabaseHas('core_course_cohorts', ['id' => $cohortId, 'status' => 'archived']);
+
+        foreach (['activate', 'complete', 'archive'] as $action) {
+            $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/{$action}")
+                ->assertSessionHasErrors('lifecycle');
+        }
+
+        $draftArchiveId = $this->createCohort($customerId, 'Draft Archive', 'draft');
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$draftArchiveId}/archive")
+            ->assertRedirect();
+        $this->assertDatabaseHas('core_course_cohorts', ['id' => $draftArchiveId, 'status' => 'archived']);
+    }
+
+    public function test_activation_revalidates_locked_product_item_and_version_without_migration(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Activation Product', 'activation-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $cohortId = $this->createCohort($customerId, status: 'draft');
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'product_id' => $productId,
+            'version_id' => $versionId,
+        ]);
+
+        DB::table('core_course_products')->where('id', $productId)->update(['status' => 'inactive']);
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/activate")
+            ->assertSessionHasErrors('lifecycle');
+
+        DB::table('core_course_products')->where('id', $productId)->update(['status' => 'active']);
+        DB::table('core_course_product_items')->where('product_id', $productId)->update(['status' => 'inactive']);
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/activate")
+            ->assertSessionHasErrors('lifecycle');
+
+        DB::table('core_course_product_items')->where('product_id', $productId)->update(['status' => 'active']);
+        DB::table('core_course_template_versions')->where('id', $versionId)->update(['status' => 'draft_snapshot']);
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/activate")
+            ->assertSessionHasErrors('lifecycle');
+
+        DB::table('core_course_template_versions')->where('id', $versionId)->update(['status' => 'published']);
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['capacity' => 0]);
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/activate")
+            ->assertSessionHasErrors('lifecycle');
+
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'capacity' => null,
+            'start_date' => '2026-08-02',
+            'end_date' => '2026-08-01',
+        ]);
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/activate")
+            ->assertSessionHasErrors('lifecycle');
+
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['end_date' => '2026-08-02']);
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/activate")
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('core_course_cohorts', [
+            'id' => $cohortId,
+            'status' => 'active',
+            'product_id' => $productId,
+            'version_id' => $versionId,
+        ]);
+    }
+
+    public function test_completion_and_archive_preserve_enrollment_membership_and_downstream_data(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Downstream Product', 'downstream-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $cohortId = $this->createCohort($customerId, status: 'active');
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'product_id' => $productId,
+            'version_id' => $versionId,
+        ]);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $membershipId = $this->createMembership($customerId, $cohortId, $enrollmentId, $productId, $student->id);
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/complete")
+            ->assertRedirect();
+        $this->assertDatabaseHas('core_course_enrollments', ['id' => $enrollmentId, 'status' => 'active', 'version_id' => $versionId]);
+        $this->assertDatabaseHas('core_course_cohort_students', ['id' => $membershipId, 'status' => 'active']);
+        $this->assertDatabaseCount('core_course_progress', 0);
+        $this->assertDatabaseCount('core_certificate_issued_certificates', 0);
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/archive")
+            ->assertRedirect();
+        $this->assertDatabaseHas('core_course_cohorts', [
+            'id' => $cohortId,
+            'status' => 'archived',
+            'product_id' => $productId,
+            'version_id' => $versionId,
+        ]);
+        $this->assertDatabaseHas('core_course_cohort_students', ['id' => $membershipId]);
+        $this->assertDatabaseHas('core_course_enrollments', ['id' => $enrollmentId]);
+    }
+
+    public function test_draft_archive_fails_closed_when_legacy_membership_usage_exists(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Legacy Product', 'legacy-archive-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $cohortId = $this->createCohort($customerId, status: 'draft');
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['product_id' => $productId, 'version_id' => $versionId]);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $membershipId = $this->createMembership($customerId, $cohortId, $enrollmentId, $productId, $student->id);
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/archive")
+            ->assertSessionHasErrors('lifecycle');
+        $this->assertDatabaseHas('core_course_cohorts', ['id' => $cohortId, 'status' => 'draft']);
+        $this->assertDatabaseHas('core_course_cohort_students', ['id' => $membershipId]);
+    }
+
+    public function test_lifecycle_authorization_tenant_scope_method_contract_and_ui_matrix(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $otherCustomerId = $this->createTenant('Tenant B', 'tenant-b');
+        $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
+
+        $ids = [];
+        foreach (['draft', 'active', 'completed', 'archived'] as $status) {
+            $ids[$status] = $this->createCohort($customerId, ucfirst($status).' Class', $status);
+        }
+
+        $this->actingAs($teacher)->post("https://tenant-a.localhost/admin/course-cohorts/{$ids['draft']}/activate")
+            ->assertForbidden();
+        $this->actingAs($otherAdmin)->post("https://tenant-b.localhost/admin/course-cohorts/{$ids['draft']}/activate")
+            ->assertNotFound();
+
+        foreach (['activate', 'complete', 'archive'] as $route) {
+            $routeDefinition = Route::getRoutes()->getByName("admin.course-cohorts.{$route}");
+            $this->assertNotNull($routeDefinition);
+            $this->assertSame(['POST'], $routeDefinition->methods());
+        }
+        $this->assertFalse(Route::has('admin.course-cohorts.transition'));
+
+        $index = $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-cohorts')->assertOk();
+        foreach (['draft', 'active'] as $status) {
+            $index->assertSee(route('admin.course-cohorts.edit', $ids[$status]), false);
+        }
+        foreach (['completed', 'archived'] as $status) {
+            $index->assertDontSee(route('admin.course-cohorts.edit', $ids[$status]), false);
+        }
+        foreach (['draft', 'active', 'completed', 'archived'] as $status) {
+            $index->assertSeeText(__('lf.LF_course_cohort_common_'.$status));
+            $this->assertNotSame(
+                "lf.LF_course_cohort_common_{$status}",
+                app('translator')->get("lf.LF_course_cohort_common_{$status}", [], 'en')
+            );
+        }
+
+        $draft = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$ids['draft']}")->assertOk();
+        $draft->assertSeeText(__('lf.LF_course_cohort_action_activate'))
+            ->assertSeeText(__('lf.LF_course_cohort_action_edit'))
+            ->assertSeeText(__('lf.LF_course_cohort_common_archive'))
+            ->assertSeeText(__('lf.LF_course_cohort_lifecycle_activate_body'));
+        $this->assertStringContainsString('cohort-lifecycle-dialog', $draft->getContent());
+        $this->assertStringContainsString('x-bind:aria-busy="submitting"', $draft->getContent());
+
+        $active = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$ids['active']}")->assertOk();
+        $active->assertSeeText(__('lf.LF_course_cohort_action_complete'))
+            ->assertSeeText(__('lf.LF_course_cohort_action_edit'))
+            ->assertDontSeeText(__('lf.LF_course_cohort_common_archive'));
+
+        $completed = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$ids['completed']}")->assertOk();
+        $completed->assertSeeText(__('lf.LF_course_cohort_common_archive'))
+            ->assertDontSeeText(__('lf.LF_course_cohort_action_edit'))
+            ->assertDontSeeText(__('lf.LF_course_cohort_action_complete'));
+
+        $archived = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$ids['archived']}")->assertOk();
+        $archived->assertDontSeeText(__('lf.LF_course_cohort_common_archive'))
+            ->assertDontSeeText(__('lf.LF_course_cohort_action_edit'))
+            ->assertDontSeeText(__('lf.LF_course_cohort_action_activate'))
+            ->assertDontSeeText(__('lf.LF_course_cohort_action_complete'));
+
+        foreach (['completed', 'archived'] as $status) {
+            $this->actingAs($admin)->put(
+                "https://tenant-a.localhost/admin/course-cohorts/{$ids[$status]}",
+                ['name' => 'Forged Update']
+            )->assertUnprocessable();
+            $this->assertDatabaseMissing('core_course_cohorts', ['id' => $ids[$status], 'name' => 'Forged Update']);
+        }
     }
 
     public function test_create_class_uses_approved_business_form_and_dom_order(): void
@@ -800,18 +1045,74 @@ class CourseCohortManagementTest extends TestCase
         string $status = 'active'
     ): int {
         $now = now();
+        $existingCount = DB::table('core_course_cohorts')->where('customer_id', $customerId)->count();
 
         return DB::table('core_course_cohorts')->insertGetId([
             'customer_id' => $customerId,
             'product_id' => DB::table('core_course_products')->orderByDesc('id')->value('id'),
             'name' => $name,
-            'code' => 'COH-EXISTING',
+            'code' => $existingCount === 0 ? 'COH-EXISTING' : 'COH-EXISTING-'.($existingCount + 1),
             'description' => null,
             'status' => $status,
             'capacity' => null,
             'start_date' => null,
             'end_date' => null,
             'notes' => null,
+            'metadata' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function createEnrollment(int $customerId, int $studentId, int $productId, int $versionId): int
+    {
+        $now = now();
+
+        return DB::table('core_course_enrollments')->insertGetId([
+            'customer_id' => $customerId,
+            'student_id' => $studentId,
+            'product_id' => $productId,
+            'version_id' => $versionId,
+            'source' => 'admin',
+            'source_id' => null,
+            'enrolled_by' => null,
+            'enrolled_at' => $now,
+            'access_starts_at' => null,
+            'access_ends_at' => null,
+            'review_starts_at' => null,
+            'review_ends_at' => null,
+            'status' => 'active',
+            'completed_at' => null,
+            'cancelled_at' => null,
+            'expired_at' => null,
+            'metadata' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function createMembership(
+        int $customerId,
+        int $cohortId,
+        int $enrollmentId,
+        int $productId,
+        int $studentId
+    ): int {
+        $now = now();
+
+        return DB::table('core_course_cohort_students')->insertGetId([
+            'customer_id' => $customerId,
+            'cohort_id' => $cohortId,
+            'enrollment_id' => $enrollmentId,
+            'product_id' => $productId,
+            'student_id' => $studentId,
+            'assigned_by' => null,
+            'joined_at' => $now,
+            'left_at' => null,
+            'status' => 'active',
+            'transfer_from_cohort_id' => null,
+            'transfer_reason' => null,
+            'note' => null,
             'metadata' => null,
             'created_at' => $now,
             'updated_at' => $now,

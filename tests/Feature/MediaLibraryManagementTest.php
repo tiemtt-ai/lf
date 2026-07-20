@@ -62,6 +62,8 @@ class MediaLibraryManagementTest extends TestCase
             ->assertOk()
             ->assertSeeText(__('lf.LF_media_file_common_title'))
             ->assertSeeText(__('lf.LF_navigation_menu_admin_media'))
+            ->assertSee('media-library-index-table', false)
+            ->assertSee('media-library-index-actions', false)
             ->assertSeeText('TOPIK Beginner')
             ->assertSeeText('Course Category')
             ->assertSeeText('Thumbnail')

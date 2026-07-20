@@ -676,6 +676,64 @@
     margin: 0;
 }
 
+.cohort-lifecycle-action {
+    display: inline-flex;
+}
+
+.cohort-lifecycle-dialog {
+    width: min(480px, calc(100% - 32px));
+    max-width: none;
+    padding: 0;
+    border: 0;
+    border-radius: 12px;
+    color: var(--admin-text);
+    background: var(--admin-surface);
+    box-shadow: 0 24px 64px rgb(15 23 42 / 24%);
+}
+
+.cohort-lifecycle-dialog::backdrop {
+    background: rgb(15 23 42 / 48%);
+}
+
+.cohort-lifecycle-dialog-panel {
+    padding: 24px;
+}
+
+.cohort-lifecycle-dialog-title {
+    margin: 0;
+    color: var(--admin-text);
+    font-size: 20px;
+    font-weight: 650;
+    line-height: 1.35;
+}
+
+.cohort-lifecycle-dialog-body {
+    margin: 10px 0 0;
+    color: var(--admin-text-muted);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.cohort-lifecycle-dialog-actions {
+    margin-top: 22px;
+    padding-top: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    border-top: 1px solid var(--admin-border);
+}
+
+.lf-admin-page .btn.btn-danger {
+    color: #fff;
+    border-color: var(--admin-danger);
+    background: var(--admin-danger);
+}
+
+.lf-admin-page .btn.btn-danger:hover {
+    filter: brightness(.94);
+}
+
 .cohort-show-notes {
     min-height: 42px;
     color: var(--admin-control-text);
@@ -1310,6 +1368,318 @@
     background: #ffffff;
 }
 
+.course-cohort-index-toolbar {
+    margin: 24px 0 12px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.course-category-index-toolbar {
+    margin: 24px 0 12px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.course-category-index-table {
+    min-width: 1120px;
+    table-layout: fixed;
+}
+
+.lf-admin-page .course-category-index-table th,
+.lf-admin-page .course-category-index-table td {
+    padding: 12px 14px;
+    vertical-align: middle;
+}
+
+.course-category-index-table .course-category-index-slug {
+    width: 170px;
+}
+
+.course-category-index-table .course-category-index-order {
+    width: 138px;
+    text-align: center;
+}
+
+.course-category-index-table .course-category-index-featured {
+    width: 150px;
+    text-align: center;
+}
+
+.course-category-index-table .course-category-index-status {
+    width: 138px;
+    position: sticky;
+    right: 96px;
+    z-index: 2;
+    background: #ffffff;
+    box-shadow: -1px 0 0 #e5e7eb;
+}
+
+.course-category-index-table .course-category-index-actions {
+    width: 96px;
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background: #ffffff;
+    text-align: right;
+}
+
+.course-category-index-table thead .course-category-index-status,
+.course-category-index-table thead .course-category-index-actions {
+    z-index: 3;
+    background: #f8fafc;
+}
+
+.course-category-index-primary {
+    color: #1f2937;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.course-category-index-slug-value,
+.course-category-status-badge {
+    white-space: nowrap;
+}
+
+.course-category-index-slug-value {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.admin-table-actions.course-category-index-action-list {
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+.course-template-index-toolbar,
+.course-product-index-toolbar {
+    margin: 24px 0 12px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.course-template-index-table {
+    min-width: 820px;
+    table-layout: fixed;
+}
+
+.course-product-index-table {
+    min-width: 1120px;
+    table-layout: fixed;
+}
+
+.lf-admin-page .course-template-index-table th,
+.lf-admin-page .course-template-index-table td,
+.lf-admin-page .course-product-index-table th,
+.lf-admin-page .course-product-index-table td {
+    padding: 12px 14px;
+    vertical-align: middle;
+}
+
+.course-template-index-table .course-template-index-status,
+.course-product-index-table .course-product-index-status {
+    width: 138px;
+    position: sticky;
+    right: 96px;
+    z-index: 2;
+    background: #ffffff;
+    box-shadow: -1px 0 0 #e5e7eb;
+}
+
+.course-template-index-table .course-template-index-actions,
+.course-product-index-table .course-product-index-actions {
+    width: 96px;
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background: #ffffff;
+    text-align: right;
+}
+
+.course-template-index-table thead .course-template-index-status,
+.course-template-index-table thead .course-template-index-actions,
+.course-product-index-table thead .course-product-index-status,
+.course-product-index-table thead .course-product-index-actions {
+    z-index: 3;
+    background: #f8fafc;
+}
+
+.course-product-index-table .course-product-index-code {
+    width: 210px;
+}
+
+.course-template-index-primary,
+.course-product-index-primary {
+    color: #1f2937;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.course-product-index-code-value,
+.course-template-status-badge,
+.course-product-status-badge {
+    white-space: nowrap;
+}
+
+.course-product-index-code-value {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.lf-admin-page .admin-status-badge--neutral {
+    color: #475569;
+    background: #f1f5f9;
+}
+
+.admin-table-actions.course-template-index-action-list,
+.admin-table-actions.course-product-index-action-list {
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+.media-library-index-table {
+    min-width: 1380px;
+    table-layout: fixed;
+}
+
+.lf-admin-page .media-library-index-table th,
+.lf-admin-page .media-library-index-table td {
+    padding: 12px 14px;
+    vertical-align: middle;
+}
+
+.media-library-index-table th:nth-child(2),
+.media-library-index-table td:nth-child(2) {
+    width: 110px;
+}
+
+.media-library-index-table th:nth-child(3),
+.media-library-index-table td:nth-child(3) {
+    width: 220px;
+}
+
+.media-library-index-table th:nth-child(9),
+.media-library-index-table td:nth-child(9) {
+    width: 220px;
+}
+
+.media-library-index-table .media-library-index-actions {
+    width: 96px;
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background: #ffffff;
+    box-shadow: -1px 0 0 #e5e7eb;
+    text-align: right;
+}
+
+.media-library-index-table thead .media-library-index-actions {
+    z-index: 3;
+    background: #f8fafc;
+}
+
+.admin-table-actions.media-library-index-action-list {
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+.course-cohort-index-table {
+    min-width: 1120px;
+    table-layout: fixed;
+}
+
+.lf-admin-page .course-cohort-index-table th,
+.lf-admin-page .course-cohort-index-table td {
+    padding: 12px 14px;
+    vertical-align: middle;
+}
+
+.course-cohort-index-table .course-cohort-index-code {
+    width: 210px;
+}
+
+.course-cohort-index-table .course-cohort-index-status {
+    width: 138px;
+    position: sticky;
+    right: 112px;
+    z-index: 2;
+    background: #ffffff;
+    box-shadow: -1px 0 0 #e5e7eb;
+}
+
+.course-cohort-index-table .course-cohort-index-actions {
+    width: 112px;
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background: #ffffff;
+    text-align: right;
+}
+
+.course-cohort-index-table thead .course-cohort-index-status,
+.course-cohort-index-table thead .course-cohort-index-actions {
+    z-index: 3;
+    background: #f8fafc;
+}
+
+.course-cohort-index-code-value,
+.course-cohort-index-meta {
+    overflow-wrap: normal;
+    word-break: normal;
+}
+
+.course-cohort-index-code-value {
+    white-space: nowrap;
+}
+
+.course-cohort-index-primary {
+    display: block;
+    color: #1f2937;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.course-cohort-index-meta {
+    margin-top: 3px;
+    display: block;
+    color: #6b7280;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.course-cohort-status-badge {
+    max-width: 100%;
+    white-space: nowrap;
+}
+
+.lf-admin-page .course-cohort-status-badge--draft {
+    color: #475569;
+    background: #f1f5f9;
+}
+
+.lf-admin-page .course-cohort-status-badge--completed {
+    color: #3730a3;
+    background: #e0e7ff;
+}
+
+.admin-table-actions.course-cohort-index-action-list {
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    .course-cohort-index-toolbar .btn,
+    .course-category-index-toolbar .btn,
+    .course-template-index-toolbar .btn,
+    .course-product-index-toolbar .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
 .lf-combobox {
     position: relative;
 }
@@ -1350,6 +1720,27 @@
     min-width: 56px;
     white-space: nowrap;
     text-align: center;
+}
+
+.lf-admin-page .course-cohort-index-table .admin-table-sequence {
+    width: 72px;
+    min-width: 72px;
+}
+
+.lf-admin-page .course-category-index-table .admin-table-sequence {
+    width: 72px;
+    min-width: 72px;
+}
+
+.lf-admin-page .course-template-index-table .admin-table-sequence,
+.lf-admin-page .course-product-index-table .admin-table-sequence {
+    width: 72px;
+    min-width: 72px;
+}
+
+.lf-admin-page .media-library-index-table .admin-table-sequence {
+    width: 72px;
+    min-width: 72px;
 }
 
 .admin-table-action-link {

@@ -70,32 +70,32 @@
         </form>
     </div>
 
-    <div class="admin-form-actions">
+    <div class="course-product-index-toolbar">
         <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
             {{ __('lf.LF_course_product_common_create') }}
         </a>
     </div>
 
-    <div class="admin-table-wrap">
-        <table class="table">
+    <div class="admin-table-wrap course-product-index-table-wrap">
+        <table class="table course-product-index-table">
             <thead>
             <tr>
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
-                <th>{{ __('lf.table_code') }}</th>
+                <th class="course-product-index-code">{{ __('lf.table_code') }}</th>
                 <th>{{ __('lf.LF_course_product_common_title_field') }}</th>
                 <th>{{ __('lf.LF_course_product_common_product_type') }}</th>
                 <th>{{ __('lf.LF_course_product_common_price') }}</th>
                 <th>{{ __('lf.LF_course_product_common_visibility') }}</th>
-                <th>{{ __('lf.LF_course_product_common_status') }}</th>
-                <th>{{ __('lf.table_actions') }}</th>
+                <th class="course-product-index-status">{{ __('lf.LF_course_product_common_status') }}</th>
+                <th class="course-product-index-actions">{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
             @forelse ($products as $product)
                 <tr>
                     <td class="admin-table-sequence">{{ $products->firstItem() + $loop->index }}</td>
-                    <td>{{ $product->product_code }}</td>
-                    <td>{{ $product->title }}</td>
+                    <td class="course-product-index-code"><span class="course-product-index-code-value">{{ $product->product_code }}</span></td>
+                    <td><strong class="course-product-index-primary">{{ $product->title }}</strong></td>
                     <td>
                         {{ $product->offering_type
                             ? __('lf.LF_product_v2_offering_'.$product->offering_type)
@@ -103,17 +103,19 @@
                     </td>
                     <td>{{ number_format((float) $product->price, 0) }} {{ $product->currency }}</td>
                     <td>{{ __('lf.LF_course_product_common_visibility_'.$product->visibility) }}</td>
-                    <td>
+                    <td class="course-product-index-status">
                         <span @class([
                             'badge',
+                            'course-product-status-badge',
+                            'admin-status-badge--neutral' => ! in_array($product->status, ['active', 'archived'], true),
                             'badge-success' => $product->status === 'active',
                             'badge-danger' => $product->status === 'archived',
                         ])>
                             {{ __('lf.LF_course_product_common_'.$product->status) }}
                         </span>
                     </td>
-                    <td>
-                        <div class="admin-table-actions">
+                    <td class="course-product-index-actions">
+                        <div class="admin-table-actions course-product-index-action-list">
                             <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $product->id) }}">
                                 {{ __('lf.action_edit') }}
                             </a>

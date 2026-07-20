@@ -10,6 +10,12 @@
         </div>
     @endif
 
+    @if ($errors->has('lifecycle'))
+        <div class="admin-alert admin-alert-danger" role="alert">
+            {{ $errors->first('lifecycle') }}
+        </div>
+    @endif
+
     @if (!$cohort->product_id || !$cohort->version_id)
         <div class="admin-alert admin-alert-danger" role="alert">
             {{ __('lf.LF_course_cohort_common_configuration_required') }}
@@ -29,32 +35,54 @@
             {{ __('lf.LF_course_cohort_common_back_to_cohorts') }}
         </a>
         <div class="cohort-detail-action-group">
-            @if ($cohort->status === 'draft')
-                <form method="POST" action="{{ route($routePrefix.'.transition', $cohort->id) }}">
-                    @csrf
-                    <input type="hidden" name="status" value="active">
-                    <button type="submit" class="btn btn-secondary">{{ __('lf.LF_course_cohort_action_activate') }}</button>
-                </form>
-            @elseif ($cohort->status === 'active')
-                <form method="POST" action="{{ route($routePrefix.'.transition', $cohort->id) }}">
-                    @csrf
-                    <input type="hidden" name="status" value="completed">
-                    <button type="submit" class="btn btn-secondary">{{ __('lf.LF_course_cohort_action_complete') }}</button>
-                </form>
-            @endif
             @if (in_array($cohort->status, ['draft', 'active'], true))
                 <a href="{{ route($routePrefix.'.edit', $cohort->id) }}" class="btn btn-primary">
                     {{ __('lf.LF_course_cohort_action_edit') }}
                 </a>
             @endif
-            @if ($cohort->status !== 'archived')
-                <form method="POST" action="{{ route($routePrefix.'.archive', $cohort->id) }}">
-                    @csrf
-                    <button type="submit" class="admin-danger-text-action"
-                            onclick="return confirm('{{ __('lf.LF_course_cohort_common_archive_confirm') }}')">
-                        {{ __('lf.LF_course_cohort_common_archive') }}
-                    </button>
-                </form>
+            @if ($cohort->status === 'draft')
+                @include('course-cohorts.partials.lifecycle-action', [
+                    'dialogId' => 'cohort-activate',
+                    'action' => route($routePrefix.'.activate', $cohort->id),
+                    'triggerClass' => 'btn btn-secondary',
+                    'triggerLabel' => __('lf.LF_course_cohort_action_activate'),
+                    'title' => __('lf.LF_course_cohort_lifecycle_activate_title'),
+                    'body' => __('lf.LF_course_cohort_lifecycle_activate_body'),
+                    'confirmClass' => 'btn btn-primary',
+                    'confirmLabel' => __('lf.LF_course_cohort_lifecycle_activate_confirm'),
+                ])
+                @include('course-cohorts.partials.lifecycle-action', [
+                    'dialogId' => 'cohort-archive',
+                    'action' => route($routePrefix.'.archive', $cohort->id),
+                    'triggerClass' => 'admin-danger-text-action',
+                    'triggerLabel' => __('lf.LF_course_cohort_common_archive'),
+                    'title' => __('lf.LF_course_cohort_lifecycle_archive_title'),
+                    'body' => __('lf.LF_course_cohort_lifecycle_archive_body'),
+                    'confirmClass' => 'btn btn-danger',
+                    'confirmLabel' => __('lf.LF_course_cohort_lifecycle_archive_confirm'),
+                ])
+            @elseif ($cohort->status === 'active')
+                @include('course-cohorts.partials.lifecycle-action', [
+                    'dialogId' => 'cohort-complete',
+                    'action' => route($routePrefix.'.complete', $cohort->id),
+                    'triggerClass' => 'btn btn-secondary',
+                    'triggerLabel' => __('lf.LF_course_cohort_action_complete'),
+                    'title' => __('lf.LF_course_cohort_lifecycle_complete_title'),
+                    'body' => __('lf.LF_course_cohort_lifecycle_complete_body'),
+                    'confirmClass' => 'btn btn-primary',
+                    'confirmLabel' => __('lf.LF_course_cohort_lifecycle_complete_confirm'),
+                ])
+            @elseif ($cohort->status === 'completed')
+                @include('course-cohorts.partials.lifecycle-action', [
+                    'dialogId' => 'cohort-archive',
+                    'action' => route($routePrefix.'.archive', $cohort->id),
+                    'triggerClass' => 'admin-danger-text-action',
+                    'triggerLabel' => __('lf.LF_course_cohort_common_archive'),
+                    'title' => __('lf.LF_course_cohort_lifecycle_archive_title'),
+                    'body' => __('lf.LF_course_cohort_lifecycle_archive_body'),
+                    'confirmClass' => 'btn btn-danger',
+                    'confirmLabel' => __('lf.LF_course_cohort_lifecycle_archive_confirm'),
+                ])
             @endif
         </div>
     </div>

@@ -180,8 +180,8 @@
              },
          }"
          x-on:keydown.escape.window="closeMediaPreview()">
-    <div class="admin-table-wrap media-library-table-wrap">
-        <table class="table media-library-table">
+    <div class="admin-table-wrap media-library-table-wrap media-library-index-table-wrap">
+        <table class="table media-library-table media-library-index-table">
             <thead>
             <tr>
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
@@ -193,7 +193,7 @@
                 <th>{{ __('lf.LF_media_file_common_upload_date') }}</th>
                 <th>{{ __('lf.LF_media_file_common_usage_count') }}</th>
                 <th>{{ __('lf.LF_media_file_common_used_by') }}</th>
-                <th>{{ __('lf.table_actions') }}</th>
+                <th class="media-library-index-actions">{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
@@ -266,9 +266,9 @@
                             -
                         @endif
                     </td>
-                    <td>
+                    <td class="media-library-index-actions">
                         @if ((int) $mediaFile->usage_count === 0)
-                            <div class="admin-table-actions">
+                            <div class="admin-table-actions media-library-index-action-list">
                                 <form method="POST" action="{{ route('admin.media.destroy', $mediaFile->id) }}">
                                     @csrf
                                     @method('DELETE')

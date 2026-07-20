@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Support\CourseProductVersionSummaryPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -10,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class CourseProductManagementTest extends TestCase
@@ -87,6 +89,9 @@ class CourseProductManagementTest extends TestCase
             ->assertOk()
             ->assertSeeText('TOPIK Beginner')
             ->assertSeeText('Sản phẩm khóa học')
+            ->assertSee('course-product-index-toolbar', false)
+            ->assertSee('course-product-index-table', false)
+            ->assertSee('course-product-status-badge', false)
             ->assertDontSeeText('Private Tenant Product');
     }
 
@@ -909,7 +914,7 @@ class CourseProductManagementTest extends TestCase
             ->assertDontSee('<th>Chi tiết</th>', false)
             ->assertDontSee('<th>Xem</th>', false);
 
-        $versionPanel = \Illuminate\Support\Str::between(
+        $versionPanel = Str::between(
             $response->getContent(),
             'id="course-product-panel-versions"',
             'id="course-product-panel-relations"'
@@ -932,7 +937,7 @@ class CourseProductManagementTest extends TestCase
         $englishResponse = $this->withSession(['locale' => 'en'])->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()->assertSeeText('View version')->assertSeeText('Replace version')->assertDontSeeText('Unlink');
-        $englishVersionPanel = \Illuminate\Support\Str::between(
+        $englishVersionPanel = Str::between(
             $englishResponse->getContent(),
             'id="course-product-panel-versions"',
             'id="course-product-panel-relations"'
@@ -2141,7 +2146,7 @@ class CourseProductManagementTest extends TestCase
             foreach (['uses_custom_description', 'uses_custom_intro_media', 'promotion_enabled', 'price', 'currency', 'registration_starts_at', 'registration_ends_at', 'is_featured', 'sort_order', 'status'] as $name) {
                 $this->assertStringContainsString('name="'.$name.'"', $content);
             }
-            $statusMarkup = \Illuminate\Support\Str::between($content, '<select id="status"', '</select>');
+            $statusMarkup = Str::between($content, '<select id="status"', '</select>');
             $this->assertStringNotContainsString('value="archived"', $statusMarkup);
         }
 
@@ -2214,7 +2219,7 @@ class CourseProductManagementTest extends TestCase
         $this->assertNotContains(false, $positions);
         $this->assertSame($positions, collect($positions)->sort()->values()->all());
 
-        $templateToVersionMarkup = \Illuminate\Support\Str::between(
+        $templateToVersionMarkup = Str::between(
             $content,
             'id="course-product-template-field"',
             'id="course-product-version-field"'
@@ -2227,7 +2232,7 @@ class CourseProductManagementTest extends TestCase
         $this->assertStringContainsString("template=''; templateVersion=''", $content);
         $this->assertStringContainsString('value="'.$versionId.'"', $content);
 
-        $identityMarkup = \Illuminate\Support\Str::between($content, 'id="product-identity"', '</section>');
+        $identityMarkup = Str::between($content, 'id="product-identity"', '</section>');
         $this->assertMatchesRegularExpression('/<div[^>]+admin-form-field--full[^>]*>.*id="slug"/s', $identityMarkup);
 
         $englishContent = $this->withSession(['locale' => 'en'])->actingAs($admin)
@@ -2315,7 +2320,7 @@ class CourseProductManagementTest extends TestCase
         $this->assertStringContainsString('x-show="promotion"', $content);
         $this->assertStringContainsString('id="course-product-promotion-flow"', $content);
         $this->assertStringContainsString('class="admin-form-field--full admin-form-stack"', $content);
-        $promotionFlow = \Illuminate\Support\Str::between(
+        $promotionFlow = Str::between(
             $content,
             'id="course-product-promotion-flow"',
             '</output>'
@@ -2746,7 +2751,7 @@ class CourseProductManagementTest extends TestCase
             $queries[] = $query->sql;
         });
 
-        app(\App\Support\CourseProductVersionSummaryPresenter::class)
+        app(CourseProductVersionSummaryPresenter::class)
             ->present($customerId, $productId, true);
 
         $this->assertCount(6, $queries);
