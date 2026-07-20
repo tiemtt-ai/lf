@@ -73,14 +73,14 @@
         </form>
     </div>
 
-    <div class="admin-form-actions">
+    <div class="course-cohort-index-toolbar">
         <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
             {{ __('lf.LF_course_enrollment_common_create') }}
         </a>
     </div>
 
-    <div class="admin-table-wrap">
-        <table class="table">
+    <div class="admin-table-wrap course-cohort-index-table-wrap">
+        <table class="table course-cohort-index-table course-enrollment-index-table">
             <thead>
             <tr>
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
@@ -88,9 +88,9 @@
                 <th>{{ __('lf.LF_course_enrollment_common_product') }}</th>
                 <th>{{ __('lf.LF_course_enrollment_common_version') }}</th>
                 <th>{{ __('lf.LF_course_enrollment_common_source') }}</th>
-                <th>{{ __('lf.LF_course_enrollment_common_status') }}</th>
                 <th>{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</th>
-                <th>{{ __('lf.table_actions') }}</th>
+                <th class="course-cohort-index-status">{{ __('lf.LF_course_enrollment_common_status') }}</th>
+                <th class="course-cohort-index-actions">{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
@@ -98,38 +98,33 @@
                 <tr>
                     <td class="admin-table-sequence">{{ $enrollments->firstItem() + $loop->index }}</td>
                     <td>
-                        {{ $enrollment->student_name }}
-                        <br>
-                        <small>{{ $enrollment->student_email }}</small>
+                        <strong class="course-cohort-index-primary">{{ $enrollment->student_name }}</strong>
+                        <span class="course-cohort-index-meta">{{ $enrollment->student_email }}</span>
                     </td>
                     <td>
-                        {{ $enrollment->product_title }}
-                        <br>
-                        <small>{{ $enrollment->product_code }}</small>
+                        <strong class="course-cohort-index-primary">{{ $enrollment->product_title }}</strong>
+                        <span class="course-cohort-index-meta">{{ $enrollment->product_code }}</span>
                     </td>
                     <td>
-                        {{ $enrollment->version_title }}
-                        <br>
-                        <small>
+                        <strong class="course-cohort-index-primary">{{ $enrollment->version_title }}</strong>
+                        <span class="course-cohort-index-meta">
                             {{ __('lf.LF_course_product_item_common_version_number', ['number' => $enrollment->version_number]) }}
                             · {{ $enrollment->version_code }}
-                        </small>
+                        </span>
                     </td>
                     <td>{{ __('lf.LF_course_enrollment_common_source_'.$enrollment->source) }}</td>
-                    <td>
+                    <td>{{ $enrollment->enrolled_at }}</td>
+                    <td class="course-cohort-index-status">
                         <span @class([
                             'badge',
                             'badge-success' => $enrollment->status === 'active',
                             'badge-danger' => in_array($enrollment->status, ['expired', 'cancelled'], true),
                         ])>
-                            {{ $enrollment->status === 'active'
-                                ? __('lf.LF_common_status_common_active')
-                                : __('lf.LF_common_status_common_inactive') }}
+                            {{ __('lf.LF_course_enrollment_common_'.$enrollment->status) }}
                         </span>
                     </td>
-                    <td>{{ $enrollment->enrolled_at }}</td>
-                    <td>
-                        <div class="admin-table-actions">
+                    <td class="course-cohort-index-actions">
+                        <div class="admin-table-actions course-cohort-index-action-list">
                             <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.show', $enrollment->id) }}">
                                 {{ __('lf.action_view') }}
                             </a>

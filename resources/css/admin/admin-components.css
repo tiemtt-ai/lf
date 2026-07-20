@@ -1590,6 +1590,10 @@
     table-layout: fixed;
 }
 
+.course-enrollment-index-table {
+    min-width: 1420px;
+}
+
 .lf-admin-page .course-cohort-index-table th,
 .lf-admin-page .course-cohort-index-table td {
     padding: 12px 14px;

@@ -576,6 +576,7 @@ return [
     'LF_course_enrollment_activities' => 'activities',
     'LF_course_enrollment_information' => 'Enrollment information',
     'LF_course_enrollment_recorded_on_save' => 'Recorded when saved',
+    'LF_course_enrollment_create_submitting' => 'Creating enrollment…',
     'LF_course_enrollment_access_window' => 'Access window',
     'LF_course_enrollment_access_help' => 'Leave the start blank for access immediately after enrollment; leave the end blank for no access limit.',
     'LF_course_enrollment_review_window' => 'Review window',

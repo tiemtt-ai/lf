@@ -576,6 +576,7 @@ return [
     'LF_course_enrollment_activities' => 'hoạt động',
     'LF_course_enrollment_information' => 'Thông tin ghi danh',
     'LF_course_enrollment_recorded_on_save' => 'Ghi nhận khi lưu',
+    'LF_course_enrollment_create_submitting' => 'Đang tạo ghi danh…',
     'LF_course_enrollment_access_window' => 'Thời gian truy cập',
     'LF_course_enrollment_access_help' => 'Bỏ trống thời điểm bắt đầu để cho phép truy cập ngay sau khi ghi danh; bỏ trống thời điểm kết thúc nghĩa là không giới hạn.',
     'LF_course_enrollment_review_window' => 'Thời gian ôn tập',

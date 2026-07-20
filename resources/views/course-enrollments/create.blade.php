@@ -128,8 +128,11 @@
 
             <footer class="admin-form-footer" data-actions-align="end">
                 <div class="admin-form-footer-primary">
-                    <a class="admin-form-cancel" href="{{ route($routePrefix.'.index') }}">{{ __('lf.LF_common_button_cancel') }}</a>
-                    <button type="submit" class="btn btn-primary" :disabled="submitting || !student.selected || !product.selected" :aria-busy="submitting">{{ __('lf.LF_course_enrollment_common_create') }}</button>
+                    <a class="btn btn-secondary" href="{{ route($routePrefix.'.index') }}">{{ __('lf.LF_common_button_cancel') }}</a>
+                    <button type="submit" class="btn btn-primary" :disabled="submitting || !student.selected || !product.selected" :aria-busy="submitting">
+                        <span x-show="!submitting">{{ __('lf.LF_course_enrollment_common_create') }}</span>
+                        <span x-show="submitting" x-cloak>{{ __('lf.LF_course_enrollment_create_submitting') }}</span>
+                    </button>
                 </div>
             </footer>
         </form>

@@ -146,6 +146,35 @@ class CourseEnrollmentManagementTest extends TestCase
         ]);
     }
 
+    public function test_enrollment_detail_uses_grouped_readonly_form_contract(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $versionId = $this->createVersion($customerId, $admin->id, title: 'TOPIK Beginner');
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+
+        DB::table('core_course_enrollments')->where('id', $enrollmentId)->update([
+            'review_starts_at' => '2026-08-01 09:00:00',
+            'review_ends_at' => '2026-08-31 18:00:00',
+        ]);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}")
+            ->assertOk()
+            ->assertSee('class="cohort-detail-toolbar"', false)
+            ->assertSee('class="admin-card admin-form-card admin-form-surface"', false)
+            ->assertSee('id="enrollment-show-access"', false)
+            ->assertSee('id="enrollment-show-information"', false)
+            ->assertSee('id="enrollment-show-access-window"', false)
+            ->assertSee('id="enrollment-show-review-window"', false)
+            ->assertSee('id="enrollment-show-additional"', false)
+            ->assertSeeText('2026-08-01 09:00:00')
+            ->assertSeeText('2026-08-31 18:00:00')
+            ->assertDontSee('<table', false);
+    }
+
     public function test_admin_cannot_submit_version_id_manually(): void
     {
         $customerId = $this->createTenant();
@@ -532,6 +561,27 @@ class CourseEnrollmentManagementTest extends TestCase
         $sorted = $positions;
         sort($sorted);
         $this->assertSame($sorted, $positions);
+        $this->assertLessThan(
+            strpos($html, 'type="submit" class="btn btn-primary"'),
+            strpos($html, 'class="btn btn-secondary"')
+        );
+        $response->assertDontSee('class="admin-form-cancel"', false);
+        $response->assertSeeText(__('lf.LF_course_enrollment_create_submitting'));
+    }
+
+    public function test_index_uses_the_approved_class_list_table_contract(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-enrollments')
+            ->assertOk()
+            ->assertSee('class="course-cohort-index-toolbar"', false)
+            ->assertSee('course-cohort-index-table-wrap', false)
+            ->assertSee('course-enrollment-index-table', false)
+            ->assertSee('course-cohort-index-status', false)
+            ->assertSee('course-cohort-index-actions', false);
     }
 
     public function test_search_endpoints_are_tenant_scoped_and_products_include_version_summary(): void
