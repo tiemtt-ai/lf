@@ -43,6 +43,7 @@ class CourseCohortManagementTest extends TestCase
             'show',
             'edit',
             'update',
+            'transition',
             'archive',
         ] as $route) {
             $this->assertTrue(Route::has("admin.course-cohorts.{$route}"));
@@ -54,7 +55,6 @@ class CourseCohortManagementTest extends TestCase
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
-        $teacher = $this->createUser($customerId, 'teacher');
         $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
         $versionId = $this->createVersion($customerId, $admin->id);
 
@@ -63,8 +63,6 @@ class CourseCohortManagementTest extends TestCase
                 'https://tenant-a.localhost/admin/course-cohorts',
                 $this->validCohortData([
                     'product_id' => $productId,
-                    'version_id' => $versionId,
-                    'teacher_id' => $teacher->id,
                     'name' => 'TOPIK Beginner Morning Class',
                     'description' => 'Morning operational class.',
                     'status' => 'active',
@@ -74,16 +72,17 @@ class CourseCohortManagementTest extends TestCase
                     'notes' => 'Bring printed placement tests.',
                 ])
             )
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('core_course_cohorts', [
             'customer_id' => $customerId,
             'product_id' => $productId,
             'version_id' => $versionId,
-            'teacher_id' => $teacher->id,
+            'teacher_id' => null,
             'name' => 'TOPIK Beginner Morning Class',
             'code' => 'COH-20260704-001',
-            'status' => 'active',
+            'status' => 'draft',
             'capacity' => 30,
             'notes' => 'Bring printed placement tests.',
             'metadata' => null,
@@ -104,8 +103,6 @@ class CourseCohortManagementTest extends TestCase
                 "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}",
                 $this->validCohortData([
                     'product_id' => $productId,
-                    'version_id' => $versionId,
-                    'teacher_id' => $teacher->id,
                     'name' => 'TOPIK Beginner Weekend Class',
                     'code' => 'MANUAL-CHANGE',
                     'status' => 'completed',
@@ -122,10 +119,10 @@ class CourseCohortManagementTest extends TestCase
             'customer_id' => $customerId,
             'product_id' => $productId,
             'version_id' => $versionId,
-            'teacher_id' => $teacher->id,
+            'teacher_id' => null,
             'name' => 'TOPIK Beginner Weekend Class',
             'code' => 'COH-EXISTING',
-            'status' => 'completed',
+            'status' => 'active',
             'capacity' => 24,
             'notes' => 'Weekend cohort moved to room B.',
         ]);
@@ -169,6 +166,8 @@ class CourseCohortManagementTest extends TestCase
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
+        $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $this->createVersion($customerId, $admin->id);
         $cohortId = $this->createCohort($customerId);
 
         DB::table('core_course_cohorts')
@@ -198,7 +197,7 @@ class CourseCohortManagementTest extends TestCase
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
-        $cohortId = $this->createCohort($customerId, status: 'active');
+        $cohortId = $this->createCohort($customerId, status: 'completed');
 
         $this->actingAs($admin)
             ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/archive")
@@ -281,6 +280,8 @@ class CourseCohortManagementTest extends TestCase
         $otherCustomerId = $this->createTenant('tenant-b');
         $admin = $this->createUser($customerId, 'customer_admin');
         $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
+        $this->createProduct($customerId, 'Tenant A Product', 'tenant-a-product');
+        $this->createVersion($customerId, $admin->id);
         $otherTeacher = $this->createUser($otherCustomerId, 'teacher');
         $otherProductId = $this->createProduct(
             $otherCustomerId,
@@ -325,6 +326,10 @@ class CourseCohortManagementTest extends TestCase
         $otherCustomerId = $this->createTenant('tenant-b');
         $admin = $this->createUser($customerId, 'customer_admin');
         $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Tenant A Product', 'tenant-a-sequence-product');
+        $this->createVersion($customerId, $admin->id);
+        $otherProductId = $this->createProduct($otherCustomerId, 'Tenant B Product', 'tenant-b-sequence-product');
+        $this->createVersion($otherCustomerId, $otherAdmin->id);
 
         $this->actingAs($admin)
             ->post(
@@ -332,6 +337,7 @@ class CourseCohortManagementTest extends TestCase
                 $this->validCohortData([
                     'name' => 'Tenant A Morning',
                     'code' => 'MANUAL-CODE',
+                    'product_id' => $productId,
                 ])
             )
             ->assertRedirect();
@@ -339,14 +345,14 @@ class CourseCohortManagementTest extends TestCase
         $this->actingAs($admin)
             ->post(
                 'https://tenant-a.localhost/admin/course-cohorts',
-                $this->validCohortData(['name' => 'Tenant A Evening'])
+                $this->validCohortData(['name' => 'Tenant A Evening', 'product_id' => $productId])
             )
             ->assertRedirect();
 
         $this->actingAs($otherAdmin)
             ->post(
                 'https://tenant-b.localhost/admin/course-cohorts',
-                $this->validCohortData(['name' => 'Tenant B Morning'])
+                $this->validCohortData(['name' => 'Tenant B Morning', 'product_id' => $otherProductId])
             )
             ->assertRedirect();
 
@@ -385,6 +391,60 @@ class CourseCohortManagementTest extends TestCase
             ->assertSeeText('COH-EXISTING');
     }
 
+    public function test_edit_class_matches_approved_readonly_layout_and_field_contract(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Approved Product', 'approved-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $cohortId = $this->createCohort($customerId);
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'product_id' => $productId,
+            'version_id' => $versionId,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/edit")
+            ->assertOk()
+            ->assertSeeText('Sửa lớp học')
+            ->assertSeeText('Mã lớp học')
+            ->assertSeeText('Trạng thái')
+            ->assertSeeText('Sản phẩm')
+            ->assertSeeText('Phiên bản nội dung')
+            ->assertSee('class="admin-form-standard"', false)
+            ->assertDontSee('name="code"', false)
+            ->assertDontSee('name="status"', false)
+            ->assertDontSee('name="product_id"', false)
+            ->assertDontSee('name="version_id"', false)
+            ->assertDontSee('name="description"', false)
+            ->assertDontSee('name="cohort_document_file"', false)
+            ->assertDontSee('name="cohort_attachment_file"', false);
+
+        $html = $response->getContent();
+        $positions = [
+            strpos($html, 'id="cohort-edit-code"'),
+            strpos($html, 'id="cohort-edit-status"'),
+            strpos($html, 'id="cohort-edit-product"'),
+            strpos($html, 'id="cohort-edit-version"'),
+            strpos($html, 'id="name"'),
+            strpos($html, 'id="capacity"'),
+            strpos($html, 'id="start_date"'),
+            strpos($html, 'id="end_date"'),
+            strpos($html, 'id="notes"'),
+        ];
+        $this->assertNotContains(false, $positions);
+        $sorted = $positions;
+        sort($sorted);
+        $this->assertSame($sorted, $positions);
+
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['status' => 'completed']);
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/edit")
+            ->assertOk()
+            ->assertSee('readonly', false)
+            ->assertDontSeeText(__('lf.LF_common_button_save_changes'));
+    }
+
     public function test_non_teacher_and_unpublished_version_are_rejected(): void
     {
         $customerId = $this->createTenant();
@@ -415,6 +475,151 @@ class CourseCohortManagementTest extends TestCase
     {
         $this->assertFileDoesNotExist(app_path('Models/CoreCourseCohort.php'));
         $this->assertFileDoesNotExist(app_path('Models/CourseCohort.php'));
+    }
+
+    public function test_product_item_resolution_capacity_dates_and_managed_version_contract(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Resolved Product', 'resolved-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-cohorts',
+            $this->validCohortData(['product_id' => $productId, 'version_id' => $versionId]))
+            ->assertSessionHasErrors('version_id');
+
+        foreach ([0, -1] as $capacity) {
+            $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-cohorts',
+                $this->validCohortData(['product_id' => $productId, 'capacity' => $capacity]))
+                ->assertSessionHasErrors('capacity');
+        }
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-cohorts',
+            $this->validCohortData(['product_id' => $productId, 'start_date' => '2026-08-02', 'end_date' => '2026-08-01']))
+            ->assertSessionHasErrors('end_date');
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-cohorts',
+            $this->validCohortData(['product_id' => $productId, 'capacity' => 1]))->assertRedirect();
+        $this->assertDatabaseHas('core_course_cohorts', ['product_id' => $productId, 'version_id' => $versionId, 'capacity' => 1]);
+    }
+
+    public function test_lifecycle_binding_freeze_legacy_teacher_and_contextual_ui_contract(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $productId = $this->createProduct($customerId, 'Lifecycle Product', 'lifecycle-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $cohortId = $this->createCohort($customerId, status: 'draft');
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['teacher_id' => $teacher->id]);
+
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}",
+            $this->validCohortData(['product_id' => $productId, 'status' => 'active']))->assertRedirect();
+        $this->assertDatabaseHas('core_course_cohorts', ['id' => $cohortId, 'status' => 'draft']);
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/transition", [
+            'status' => 'active',
+        ])->assertRedirect();
+        $this->assertDatabaseHas('core_course_cohorts', [
+            'id' => $cohortId, 'product_id' => $productId, 'version_id' => $versionId,
+            'teacher_id' => $teacher->id, 'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}",
+            $this->validCohortData(['product_id' => $productId, 'status' => 'draft']))->assertRedirect();
+        $this->assertDatabaseHas('core_course_cohorts', ['id' => $cohortId, 'status' => 'active']);
+
+        $detail = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}")->assertOk();
+        $detail->assertSeeText(__('lf.LF_course_cohort_tab_overview'))
+            ->assertSeeText(__('lf.LF_course_cohort_tab_students'))
+            ->assertSeeText(__('lf.LF_course_cohort_create_group_information'))
+            ->assertSeeText(__('lf.LF_course_cohort_create_group_dates'))
+            ->assertSeeText(__('lf.LF_course_cohort_create_group_additional'))
+            ->assertDontSeeText(__('lf.LF_course_cohort_common_description'))
+            ->assertDontSeeText('Cohort media')
+            ->assertDontSeeText(__('lf.LF_course_cohort_group_context'))
+            ->assertDontSee('name="teacher_id"', false)
+            ->assertDontSeeText('LiveClass')->assertDontSeeText('Schedule');
+
+        $layout = file_get_contents(resource_path('views/layouts/backend.blade.php'));
+        $this->assertSame(1, substr_count($layout, 'LF_navigation_menu_admin_course_cohorts'));
+        $this->assertStringNotContainsString('LF_navigation_menu_admin_course_cohort_students', $layout);
+    }
+
+    public function test_create_class_uses_approved_business_form_and_dom_order(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Eligible Product', 'eligible-product');
+        $this->createVersion($customerId, $admin->id);
+        $ineligibleProductId = $this->createProduct($customerId, 'No Version Product', 'no-version-product');
+
+        $response = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-cohorts/create')
+            ->assertOk()
+            ->assertSeeText('Tạo lớp học')
+            ->assertDontSeeText('Tạo Cohort')
+            ->assertSeeText('Bảng điều khiển')
+            ->assertSeeText('Lớp học')
+            ->assertSee('value="'.$productId.'"', false)
+            ->assertDontSee('value="'.$ineligibleProductId.'"', false)
+            ->assertSeeText('Chọn sản phẩm')
+            ->assertSeeText('Phiên bản nội dung')
+            ->assertDontSeeText('Mã lớp học')
+            ->assertDontSeeText('Tự động tạo sau khi lưu')
+            ->assertSee('aria-live="polite"', false)
+            ->assertSee('class="admin-form-standard"', false)
+            ->assertSee('class="admin-form-field-grid"', false)
+            ->assertSee('x-bind:disabled="submitting"', false)
+            ->assertDontSee('name="version_id"', false)
+            ->assertDontSee('name="code"', false)
+            ->assertDontSee('name="status"', false)
+            ->assertDontSee('name="description"', false)
+            ->assertDontSee('name="teacher_id"', false)
+            ->assertDontSee('name="cohort_document_file"', false)
+            ->assertDontSee('name="cohort_attachment_file"', false)
+            ->assertDontSeeText('Ngữ cảnh vận hành');
+
+        $html = $response->getContent();
+        $orderedIds = ['product_id', 'cohort-create-content-version', 'name', 'capacity', 'start_date', 'end_date', 'notes'];
+        $positions = [
+            strpos($html, 'id="product_id"'),
+            strpos($html, 'aria-live="polite"'),
+            strpos($html, 'id="name"'),
+            strpos($html, 'id="capacity"'),
+            strpos($html, 'id="start_date"'),
+            strpos($html, 'id="end_date"'),
+            strpos($html, 'id="notes"'),
+        ];
+        $this->assertNotContains(false, $positions, implode(', ', $orderedIds));
+        $sorted = $positions;
+        sort($sorted);
+        $this->assertSame($sorted, $positions, 'Create Class DOM order must match the approved one-column reading order.');
+    }
+
+    public function test_create_ignores_forged_code_and_status_and_validation_does_not_consume_code(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Secure Product', 'secure-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-cohorts', [
+            'product_id' => $productId, 'name' => '', 'code' => 'FORGED', 'status' => 'active',
+        ])->assertSessionHasErrors('name');
+        $this->assertDatabaseCount('core_course_cohorts', 0);
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-cohorts', [
+            'product_id' => $productId, 'name' => 'Secure Class', 'code' => 'FORGED',
+            'status' => 'active', 'description' => 'Must be ignored', 'notes' => 'Admin only',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('core_course_cohorts', [
+            'customer_id' => $customerId, 'product_id' => $productId, 'version_id' => $versionId,
+            'name' => 'Secure Class', 'code' => 'COH-20260704-001', 'status' => 'draft',
+            'description' => null, 'notes' => 'Admin only',
+        ]);
+        $this->assertDatabaseMissing('core_course_cohorts', ['code' => 'FORGED']);
     }
 
     private function createTenant(string $slug = 'tenant-a'): int
@@ -542,7 +747,7 @@ class CourseCohortManagementTest extends TestCase
         $now = now();
         $templateId ??= $this->createTemplate($customerId, $userId, $title);
 
-        return DB::table('core_course_template_versions')->insertGetId([
+        $versionId = DB::table('core_course_template_versions')->insertGetId([
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'version_number' => $versionNumber,
@@ -573,6 +778,20 @@ class CourseCohortManagementTest extends TestCase
             'created_at' => $now,
             'updated_at' => $now,
         ]);
+
+        $productId = DB::table('core_course_products')->where('customer_id', $customerId)
+            ->where('status', 'active')->orderByDesc('id')->value('id');
+        if ($productId && $status === 'published') {
+            DB::table('core_course_product_items')->insert([
+                'customer_id' => $customerId, 'product_id' => $productId,
+                'version_id' => $versionId, 'template_id' => $templateId,
+                'title_override' => null, 'short_description_override' => null,
+                'sort_order' => 0, 'is_required' => true, 'status' => 'active',
+                'created_by' => $userId, 'created_at' => $now, 'updated_at' => $now,
+            ]);
+        }
+
+        return $versionId;
     }
 
     private function createCohort(
@@ -584,9 +803,7 @@ class CourseCohortManagementTest extends TestCase
 
         return DB::table('core_course_cohorts')->insertGetId([
             'customer_id' => $customerId,
-            'product_id' => null,
-            'version_id' => null,
-            'teacher_id' => null,
+            'product_id' => DB::table('core_course_products')->orderByDesc('id')->value('id'),
             'name' => $name,
             'code' => 'COH-EXISTING',
             'description' => null,
@@ -604,9 +821,7 @@ class CourseCohortManagementTest extends TestCase
     private function validCohortData(array $overrides = []): array
     {
         return array_merge([
-            'product_id' => null,
-            'version_id' => null,
-            'teacher_id' => null,
+            'product_id' => DB::table('core_course_products')->orderByDesc('id')->value('id'),
             'name' => 'TOPIK Beginner Morning',
             'description' => null,
             'status' => 'active',

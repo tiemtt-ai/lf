@@ -41,8 +41,8 @@ Foundation v1 aligns `core_course_cohorts` with the current Course Domain Phase
 
 Decision:
 
-* `product_id` is nullable.
-* `version_id` is added and nullable.
+* `product_id` and `version_id` remain physically nullable for legacy compatibility.
+* Every new Cohort requires a Product and server-resolved published Version.
 * The cohort code field is named `code`.
 * `code` is nullable.
 * Foundation statuses are `draft`, `active`, `completed`, `archived`.
@@ -115,7 +115,7 @@ Student membership is not stored in `core_course_cohorts`.
 * Every Cohort must belong to `customer_id`.
 * A Cohort may optionally belong to `product_id`.
 * A Cohort may optionally belong to `version_id`.
-* A Cohort may optionally have `teacher_id`.
+* `teacher_id` is legacy/deprecated and is not a canonical teacher authority.
 * `version_id`, when present, references an immutable published Course Version.
 * `version_id` must not reference an editable Course Template.
 * Cohort does not own learning content.
@@ -502,6 +502,22 @@ notes = NULL
 ---
 
 ## Final Statement
+
+## Approved Lifecycle And Legacy Binding Amendment
+
+Every new Cohort binds a Product and a published Version resolved by the
+server from exactly one valid active Product Item. `version_id` is never
+accepted from request input and both bindings are frozen after creation.
+
+Allowed transitions are `draft -> active`, `draft -> archived`,
+`active -> completed`, and `completed -> archived`. Completed and archived
+Cohorts are read-only. Legacy rows with unresolved Product/Version remain
+nullable but cannot become active, receive membership, or supply runtime
+context. Backfill is permitted only when every membership Enrollment implies
+the same Product and Version.
+
+After a duplicate audit succeeds, Cohort code is unique by
+`(customer_id, code)`.
 
 `core_course_cohorts` is the operational group table for Course learning
 operations.

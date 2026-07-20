@@ -4,6 +4,12 @@
 @section('page_title', __('lf.LF_course_cohort_student_common_title'))
 
 @section('content')
+    @if ($contextCohort)
+        <nav class="admin-form-actions" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
+            <a class="btn btn-secondary" href="{{ route('admin.course-cohorts.show', $contextCohort->id) }}#overview">{{ __('lf.LF_course_cohort_tab_overview') }}</a>
+            <span class="btn btn-primary" aria-current="page">{{ __('lf.LF_course_cohort_tab_students') }}</span>
+        </nav>
+    @endif
     @if (session('success'))
         <div class="admin-alert admin-alert-success">
             {{ session('success') }}
@@ -12,6 +18,7 @@
 
     <div class="admin-card admin-form-card">
         <form method="GET" action="{{ route($routePrefix.'.index') }}">
+            @if ($contextCohort)<input type="hidden" name="cohort_id" value="{{ $contextCohort->id }}">@endif
             <div class="lf-form-group">
                 <label class="lf-form-label" for="keyword">
                     {{ __('lf.LF_course_cohort_student_common_keyword') }}
@@ -50,7 +57,7 @@
     </div>
 
     <div class="admin-form-actions">
-        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
+        <a href="{{ route($routePrefix.'.create', $contextCohort ? ['cohort_id' => $contextCohort->id] : []) }}" class="btn btn-primary" data-disable-on-submit>
             {{ __('lf.LF_course_cohort_student_common_create') }}
         </a>
     </div>

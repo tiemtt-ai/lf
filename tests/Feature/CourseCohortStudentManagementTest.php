@@ -86,7 +86,7 @@ class CourseCohortStudentManagementTest extends TestCase
                     'cohort_id' => $newCohortId,
                     'enrollment_id' => null,
                     'joined_at' => '2026-07-15 10:00:00',
-                    'status' => 'completed',
+                    'status' => 'active',
                     'transfer_reason' => 'Schedule change',
                     'note' => 'Moved by admin',
                 ])
@@ -97,7 +97,7 @@ class CourseCohortStudentManagementTest extends TestCase
             'id' => $membershipId,
             'cohort_id' => $newCohortId,
             'transfer_from_cohort_id' => $cohortId,
-            'status' => 'completed',
+            'status' => 'active',
             'transfer_reason' => 'Schedule change',
             'note' => 'Moved by admin',
         ]);
@@ -350,6 +350,32 @@ class CourseCohortStudentManagementTest extends TestCase
         $this->assertFileDoesNotExist(app_path('Models/CourseCohortStudent.php'));
     }
 
+    public function test_membership_requires_active_enrollment_active_cohort_and_capacity(): void
+    {
+        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $activeCohort = $this->createCohort($customerId, $productId, $versionId, capacity: 1);
+        $draftCohort = $this->createCohort($customerId, $productId, $versionId, status: 'draft');
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        DB::table('core_course_enrollments')->where('id', $enrollmentId)->update(['status' => 'suspended']);
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-cohort-students',
+            $this->validMembershipData(['cohort_id' => $activeCohort, 'enrollment_id' => $enrollmentId]))
+            ->assertSessionHasErrors('enrollment_id');
+
+        DB::table('core_course_enrollments')->where('id', $enrollmentId)->update(['status' => 'active']);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-cohort-students',
+            $this->validMembershipData(['cohort_id' => $draftCohort, 'enrollment_id' => $enrollmentId]))
+            ->assertSessionHasErrors('cohort_id');
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-cohort-students',
+            $this->validMembershipData(['cohort_id' => $activeCohort, 'enrollment_id' => $enrollmentId]))->assertRedirect();
+        $secondStudent = $this->createUser($customerId, 'student');
+        $secondEnrollment = $this->createEnrollment($customerId, $secondStudent->id, $productId, $versionId);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-cohort-students',
+            $this->validMembershipData(['cohort_id' => $activeCohort, 'enrollment_id' => $secondEnrollment]))
+            ->assertSessionHasErrors('cohort_id');
+    }
+
     private function learningContext(): array
     {
         $customerId = $this->createTenant();
@@ -473,7 +499,7 @@ class CourseCohortStudentManagementTest extends TestCase
         $now = now();
         $templateId = $this->createTemplate($customerId, $userId, $title);
 
-        return DB::table('core_course_template_versions')->insertGetId([
+        $versionId = DB::table('core_course_template_versions')->insertGetId([
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'version_number' => 1,
@@ -504,6 +530,20 @@ class CourseCohortStudentManagementTest extends TestCase
             'created_at' => $now,
             'updated_at' => $now,
         ]);
+
+        $productId = DB::table('core_course_products')->where('customer_id', $customerId)
+            ->where('status', 'active')->orderByDesc('id')->value('id');
+        if ($productId) {
+            DB::table('core_course_product_items')->insert([
+                'customer_id' => $customerId, 'product_id' => $productId,
+                'version_id' => $versionId, 'template_id' => $templateId,
+                'title_override' => null, 'short_description_override' => null,
+                'sort_order' => 0, 'is_required' => true, 'status' => 'active',
+                'created_by' => $userId, 'created_at' => $now, 'updated_at' => $now,
+            ]);
+        }
+
+        return $versionId;
     }
 
     private function createCohort(

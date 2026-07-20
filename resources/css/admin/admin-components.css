@@ -557,10 +557,143 @@
     line-height: 1.35;
 }
 
+.admin-form-calculated-summary-content {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.admin-form-calculated-summary-meta-row {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 0;
+}
+
+.admin-form-calculated-summary-meta-item {
+    white-space: nowrap;
+}
+
+.admin-form-calculated-summary-meta-item + .admin-form-calculated-summary-meta-item::before {
+    content: "\00b7";
+    margin: 0 7px;
+    color: var(--admin-text-muted);
+}
+
 .admin-form-calculated-summary-meta {
     color: var(--admin-text-muted);
     font-size: 13px;
     line-height: 1.45;
+}
+
+.cohort-edit-readonly-row {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cohort-edit-readonly-stack {
+    min-height: 42px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+}
+
+.cohort-edit-readonly-value {
+    min-width: 0;
+    color: var(--admin-control-text);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.cohort-edit-readonly-meta {
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.cohort-edit-copy-action {
+    padding: 3px 0;
+    border: 0;
+    color: var(--admin-primary);
+    background: transparent;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.cohort-edit-copy-action:hover {
+    text-decoration: underline;
+}
+
+.cohort-edit-copy-action:focus-visible {
+    border-radius: 4px;
+    outline: 2px solid var(--admin-primary);
+    outline-offset: 2px;
+}
+
+.cohort-detail-toolbar {
+    width: 100%;
+    min-width: 0;
+    margin: 12px 0 20px;
+    padding-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.cohort-detail-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--admin-control-text);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.cohort-detail-back:hover {
+    color: var(--admin-primary);
+}
+
+.cohort-detail-action-group {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.cohort-detail-action-group form {
+    margin: 0;
+}
+
+.cohort-show-notes {
+    min-height: 42px;
+    color: var(--admin-control-text);
+    font-size: 15px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+@media (max-width: 767px) {
+    .cohort-detail-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .cohort-detail-action-group {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
 }
 
 .admin-form-footer {
@@ -585,6 +718,36 @@
 
 .admin-form-footer-primary {
     margin-left: auto;
+}
+
+.admin-form-footer[data-actions-align="end"] {
+    justify-content: flex-end;
+}
+
+.admin-form-footer[data-actions-align="end"] .admin-form-footer-primary {
+    justify-content: flex-end;
+}
+
+.admin-form-actions--footer {
+    width: 100%;
+    min-width: 0;
+    margin-top: 20px;
+    padding-top: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    border-top: 1px solid var(--admin-border);
+}
+
+.admin-form-actions--footer .btn {
+    min-height: 40px;
+}
+
+@media (max-width: 575.98px) {
+    .admin-form-actions--footer {
+        flex-wrap: wrap;
+    }
 }
 
 .admin-form-footer form {

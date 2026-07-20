@@ -14,14 +14,15 @@
         </div>
     @endif
 
-    <div class="admin-card admin-form-card">
-        <form method="POST" action="{{ route($routePrefix.'.store') }}" enctype="multipart/form-data">
+    <div class="admin-card admin-form-card admin-form-surface">
+        <form class="admin-form-standard"
+              method="POST"
+              action="{{ route($routePrefix.'.store') }}"
+              x-data="{ submitting: false }"
+              x-on:submit="submitting = true">
             @csrf
 
-            @include('course-cohorts.partials.form', [
-                'cohort' => null,
-                'submitLabel' => __('lf.LF_course_cohort_common_create'),
-            ])
+            @include('course-cohorts.partials.create-form')
         </form>
     </div>
 @endsection

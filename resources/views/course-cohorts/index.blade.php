@@ -64,7 +64,6 @@
                 <th>{{ __('lf.LF_course_cohort_common_name') }}</th>
                 <th>{{ __('lf.LF_course_cohort_common_product') }}</th>
                 <th>{{ __('lf.LF_course_cohort_common_version') }}</th>
-                <th>{{ __('lf.LF_course_cohort_common_teacher') }}</th>
                 <th>{{ __('lf.LF_course_cohort_common_status') }}</th>
                 <th>{{ __('lf.table_actions') }}</th>
             </tr>
@@ -97,15 +96,6 @@
                         @endif
                     </td>
                     <td>
-                        @if ($cohort->teacher_id)
-                            {{ $cohort->teacher_name }}
-                            <br>
-                            <small>{{ $cohort->teacher_email }}</small>
-                        @else
-                            -
-                        @endif
-                    </td>
-                    <td>
                         <span @class([
                             'badge',
                             'badge-success' => $cohort->status === 'active',
@@ -121,15 +111,17 @@
                             <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.show', $cohort->id) }}">
                                 {{ __('lf.action_view') }}
                             </a>
-                            <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $cohort->id) }}">
-                                {{ __('lf.action_edit') }}
-                            </a>
+                            @if (in_array($cohort->status, ['draft', 'active'], true))
+                                <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $cohort->id) }}">
+                                    {{ __('lf.action_edit') }}
+                                </a>
+                            @endif
                         </div>
                     </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8">
+                    <td colspan="7">
                         {{ __('lf.LF_course_cohort_common_empty') }}
                     </td>
                 </tr>

@@ -324,6 +324,7 @@ docs/quality/
 | [quality/LF-Course-Product-Integrated-Architecture-Review.md](quality/LF-Course-Product-Integrated-Architecture-Review.md) | Approved and frozen integrated Product v2 phase-one review |
 | [quality/LF-Course-Product-Items-Architecture-Review.md](quality/LF-Course-Product-Items-Architecture-Review.md) | Approved Course Product Items architecture review |
 | [quality/LF-Course-Product-Relations-Architecture-Review.md](quality/LF-Course-Product-Relations-Architecture-Review.md) | Approved Course Product Relations architecture review |
+| [quality/LF-Course-Cohort-Architecture-Review.md](quality/LF-Course-Cohort-Architecture-Review.md) | Approved Cohort binding, lifecycle, membership and legacy migration review |
 
 ---
 

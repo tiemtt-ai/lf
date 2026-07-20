@@ -37,17 +37,17 @@
 
             @include('course-template-teachers.partials.form')
 
-            <div class="admin-form-actions">
-                <button type="submit" class="btn btn-primary">
-                    {{ __('lf.LF_common_button_save_changes') }}
-                </button>
+            <footer class="admin-form-actions admin-form-actions--footer">
                 <a href="{{ route(
                     $templateRoutePrefix.'.edit',
                     $template->id
-                ) }}?tab=teachers#course-template-teachers">
+                ) }}?tab=teachers#course-template-teachers" class="btn btn-secondary">
                     {{ __('lf.LF_common_button_cancel') }}
                 </a>
-            </div>
+                <button type="submit" class="btn btn-primary">
+                    {{ __('lf.LF_common_button_save_changes') }}
+                </button>
+            </footer>
         </form>
     </div>
     </section>

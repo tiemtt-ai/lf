@@ -25,6 +25,8 @@ class CourseCohortStudentController extends Controller
         $customerId = $this->customerId();
         $keyword = trim((string) $request->query('keyword', ''));
         $status = $request->query('status');
+        $cohortId = (int) $request->query('cohort_id', 0);
+        $contextCohort = $cohortId > 0 ? $this->findCohortRecord($customerId, $cohortId) : null;
 
         if (! in_array($status, self::STATUSES, true)) {
             $status = null;
@@ -48,6 +50,7 @@ class CourseCohortStudentController extends Controller
                     ->where('products.customer_id', '=', $customerId);
             })
             ->where('memberships.customer_id', $customerId)
+            ->when($contextCohort, fn ($query) => $query->where('memberships.cohort_id', $contextCohort->id))
             ->when($keyword !== '', function ($query) use ($keyword): void {
                 $query->where(function ($query) use ($keyword): void {
                     $query->where('cohorts.name', 'like', '%'.$keyword.'%')
@@ -79,6 +82,7 @@ class CourseCohortStudentController extends Controller
             'memberships' => $memberships,
             'keyword' => $keyword,
             'status' => $status,
+            'contextCohort' => $contextCohort,
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -92,7 +96,7 @@ class CourseCohortStudentController extends Controller
         return view('course-cohort-students.create', [
             'cohorts' => $this->cohorts($customerId),
             'enrollments' => $this->enrollments($customerId),
-            'statuses' => self::STATUSES,
+            'statuses' => ['active'],
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -103,27 +107,27 @@ class CourseCohortStudentController extends Controller
 
         $customerId = $this->customerId();
         $validated = $this->validatedData($request, $customerId);
-        $cohort = $this->findCohortRecord($customerId, (int) $validated['cohort_id']);
-        $enrollment = $this->findEnrollmentRecord($customerId, (int) $validated['enrollment_id']);
-        $now = now();
+        $membershipId = DB::transaction(function () use ($customerId, $validated, $request): int {
+            $cohort = DB::table('core_course_cohorts')->where('customer_id', $customerId)
+                ->where('id', $validated['cohort_id'])->lockForUpdate()->first();
+            $enrollment = DB::table('core_course_enrollments')->where('customer_id', $customerId)
+                ->where('id', $validated['enrollment_id'])->lockForUpdate()->first();
+            abort_if(! $cohort || ! $enrollment, 422);
+            $this->assertAssignmentAllowed($customerId, $cohort, $enrollment);
+            abort_if($this->membershipExists($customerId, $enrollment->id), 422,
+                __('lf.LF_course_cohort_student_validation_duplicate'));
+            $now = now();
 
-        $membershipId = DB::table('core_course_cohort_students')->insertGetId([
-            'customer_id' => $customerId,
-            'cohort_id' => $cohort->id,
-            'enrollment_id' => $enrollment->id,
-            'product_id' => $enrollment->product_id,
-            'student_id' => $enrollment->student_id,
-            'assigned_by' => $request->user()?->id,
-            'joined_at' => $validated['joined_at'],
-            'left_at' => $validated['left_at'] ?? null,
-            'status' => $validated['status'],
-            'transfer_from_cohort_id' => null,
-            'transfer_reason' => $validated['transfer_reason'] ?? null,
-            'note' => $validated['note'] ?? null,
-            'metadata' => null,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+            return DB::table('core_course_cohort_students')->insertGetId([
+                'customer_id' => $customerId, 'cohort_id' => $cohort->id,
+                'enrollment_id' => $enrollment->id, 'product_id' => $enrollment->product_id,
+                'student_id' => $enrollment->student_id, 'assigned_by' => $request->user()?->id,
+                'joined_at' => $validated['joined_at'], 'left_at' => null, 'status' => 'active',
+                'transfer_from_cohort_id' => null, 'transfer_reason' => $validated['transfer_reason'] ?? null,
+                'note' => $validated['note'] ?? null, 'metadata' => null,
+                'created_at' => $now, 'updated_at' => $now,
+            ]);
+        }, 3);
 
         return redirect()
             ->route($this->routePrefix($request).'.show', $membershipId)
@@ -149,7 +153,7 @@ class CourseCohortStudentController extends Controller
         return view('course-cohort-students.edit', [
             'membership' => $this->findMembership($customerId, $id),
             'cohorts' => $this->cohorts($customerId),
-            'statuses' => self::STATUSES,
+            'statuses' => ['active'],
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -161,23 +165,28 @@ class CourseCohortStudentController extends Controller
         $customerId = $this->customerId();
         $membership = $this->findMembership($customerId, $id);
         $validated = $this->validatedData($request, $customerId, $membership);
-        $cohort = $this->findCohortRecord($customerId, (int) $validated['cohort_id']);
+        DB::transaction(function () use ($customerId, $validated, $membership, $id): void {
+            $ids = array_values(array_unique([(int) $membership->cohort_id, (int) $validated['cohort_id']]));
+            sort($ids);
+            $lockedCohorts = DB::table('core_course_cohorts')->where('customer_id', $customerId)
+                ->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            $lockedMembership = DB::table('core_course_cohort_students')->where('customer_id', $customerId)
+                ->where('id', $id)->lockForUpdate()->first();
+            $enrollment = DB::table('core_course_enrollments')->where('customer_id', $customerId)
+                ->where('id', $lockedMembership->enrollment_id)->lockForUpdate()->first();
+            $source = $lockedCohorts->get((int) $lockedMembership->cohort_id);
+            $target = $lockedCohorts->get((int) $validated['cohort_id']);
+            abort_if(! $source || ! $target || ! $enrollment || $source->status !== 'active', 422);
+            $this->assertAssignmentAllowed($customerId, $target, $enrollment, $id);
 
-        DB::table('core_course_cohort_students')
-            ->where('customer_id', $customerId)
-            ->where('id', $id)
-            ->update([
-                'cohort_id' => $cohort->id,
-                'joined_at' => $validated['joined_at'],
-                'left_at' => $validated['left_at'] ?? null,
-                'status' => $validated['status'],
-                'transfer_from_cohort_id' => $cohort->id !== $membership->cohort_id
-                    ? $membership->cohort_id
-                    : $membership->transfer_from_cohort_id,
+            DB::table('core_course_cohort_students')->where('customer_id', $customerId)->where('id', $id)->update([
+                'cohort_id' => $target->id, 'joined_at' => $validated['joined_at'],
+                'left_at' => null, 'status' => 'active',
+                'transfer_from_cohort_id' => $target->id !== $source->id ? $source->id : $lockedMembership->transfer_from_cohort_id,
                 'transfer_reason' => $validated['transfer_reason'] ?? null,
-                'note' => $validated['note'] ?? null,
-                'updated_at' => now(),
+                'note' => $validated['note'] ?? null, 'updated_at' => now(),
             ]);
+        }, 3);
 
         return redirect()
             ->route($this->routePrefix($request).'.show', $id)
@@ -189,16 +198,16 @@ class CourseCohortStudentController extends Controller
         $this->authorizeAdmin($request);
 
         $customerId = $this->customerId();
-        $this->findMembership($customerId, $id);
-
-        DB::table('core_course_cohort_students')
-            ->where('customer_id', $customerId)
-            ->where('id', $id)
-            ->update([
-                'status' => 'removed',
-                'left_at' => now(),
-                'updated_at' => now(),
-            ]);
+        DB::transaction(function () use ($customerId, $id): void {
+            $membership = DB::table('core_course_cohort_students')->where('customer_id', $customerId)
+                ->where('id', $id)->lockForUpdate()->first();
+            abort_if(! $membership, 404);
+            $cohort = DB::table('core_course_cohorts')->where('customer_id', $customerId)
+                ->where('id', $membership->cohort_id)->lockForUpdate()->first();
+            abort_if(! $cohort || $cohort->status !== 'active' || $membership->status !== 'active', 422);
+            DB::table('core_course_cohort_students')->where('customer_id', $customerId)->where('id', $id)
+                ->update(['status' => 'removed', 'left_at' => now(), 'updated_at' => now()]);
+        }, 3);
 
         return redirect()
             ->route($this->routePrefix($request).'.show', $id)
@@ -230,6 +239,10 @@ class CourseCohortStudentController extends Controller
                 $this->rejectManagedInputs($validator, $request, ['enrollment_id']);
             }
 
+            if ($request->input('status') !== 'active') {
+                $validator->errors()->add('status', __('lf.LF_course_cohort_student_validation_active_status'));
+            }
+
             $cohortId = (int) $request->input('cohort_id');
             $enrollmentId = $membership
                 ? (int) $membership->enrollment_id
@@ -247,7 +260,7 @@ class CourseCohortStudentController extends Controller
                 );
             }
 
-            if ($cohort && $cohort->status === 'archived') {
+            if ($cohort && $cohort->status !== 'active') {
                 $validator->errors()->add(
                     'cohort_id',
                     __('lf.LF_course_cohort_student_validation_archived_cohort')
@@ -259,6 +272,10 @@ class CourseCohortStudentController extends Controller
                     'enrollment_id',
                     __('lf.LF_course_cohort_student_validation_enrollment')
                 );
+            }
+
+            if ($enrollment && $enrollment->status !== 'active') {
+                $validator->errors()->add('enrollment_id', __('lf.LF_course_cohort_student_validation_active_enrollment'));
             }
 
             if (! $membership && $enrollment && $this->membershipExists($customerId, $enrollment->id)) {
@@ -398,6 +415,20 @@ class CourseCohortStudentController extends Controller
         }
 
         return $query->count() >= (int) $cohort->capacity;
+    }
+
+    private function assertAssignmentAllowed(int $customerId, object $cohort, object $enrollment, ?int $ignoreMembershipId = null): void
+    {
+        abort_if($cohort->status !== 'active' || ! $cohort->product_id || ! $cohort->version_id, 422,
+            __('lf.LF_course_cohort_student_validation_active_cohort'));
+        abort_if($enrollment->status !== 'active', 422,
+            __('lf.LF_course_cohort_student_validation_active_enrollment'));
+        abort_if((int) $cohort->product_id !== (int) $enrollment->product_id, 422,
+            __('lf.LF_course_cohort_student_validation_product_mismatch'));
+        abort_if((int) $cohort->version_id !== (int) $enrollment->version_id, 422,
+            __('lf.LF_course_cohort_student_validation_version_mismatch'));
+        abort_if($this->cohortIsFull($customerId, $cohort, $ignoreMembershipId), 422,
+            __('lf.LF_course_cohort_student_validation_capacity'));
     }
 
     private function cohorts(int $customerId)

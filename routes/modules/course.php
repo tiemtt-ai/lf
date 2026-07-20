@@ -53,6 +53,9 @@ if ($registerCourseProductRoutes ?? false) {
     Route::put('/course-cohorts/{id}', [CourseCohortController::class, 'update'])
         ->name('course-cohorts.update');
 
+    Route::post('/course-cohorts/{id}/transition', [CourseCohortController::class, 'transition'])
+        ->name('course-cohorts.transition');
+
     Route::post('/course-cohorts/{id}/archive', [CourseCohortController::class, 'archive'])
         ->name('course-cohorts.archive');
 

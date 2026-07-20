@@ -15,7 +15,7 @@
     @endif
 
     <div class="admin-card admin-form-card">
-        <form method="POST" action="{{ route($routePrefix.'.store') }}">
+        <form method="POST" action="{{ route($routePrefix.'.store') }}" x-data="{ submitting: false }" x-on:submit="submitting = true">
             @csrf
 
             <section class="admin-form-section">
@@ -59,14 +59,14 @@
                 'statuses' => $statuses,
             ])
 
-            <div class="admin-form-actions">
-                <button type="submit" class="btn btn-primary">
-                    {{ __('lf.LF_course_cohort_student_common_create') }}
-                </button>
-                <a href="{{ route($routePrefix.'.index') }}">
+            <footer class="admin-form-actions admin-form-actions--footer">
+                <a href="{{ route($routePrefix.'.index') }}" class="btn btn-secondary">
                     {{ __('lf.LF_common_button_cancel') }}
                 </a>
-            </div>
+                <button type="submit" class="btn btn-primary" x-bind:disabled="submitting" aria-live="polite">
+                    {{ __('lf.LF_course_cohort_student_common_create') }}
+                </button>
+            </footer>
         </form>
     </div>
 @endsection

@@ -10,149 +10,135 @@
         </div>
     @endif
 
-    <div class="admin-form-actions">
-        <a href="{{ route($routePrefix.'.index') }}">
+    @if (!$cohort->product_id || !$cohort->version_id)
+        <div class="admin-alert admin-alert-danger" role="alert">
+            {{ __('lf.LF_course_cohort_common_configuration_required') }}
+        </div>
+    @endif
+
+    <nav class="admin-form-actions" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
+        <a class="btn btn-primary" href="#overview">{{ __('lf.LF_course_cohort_tab_overview') }}</a>
+        <a class="btn btn-secondary" href="{{ route('admin.course-cohort-students.index', ['cohort_id' => $cohort->id]) }}">
+            {{ __('lf.LF_course_cohort_tab_students') }} ({{ $activeMembershipCount }}/{{ $cohort->capacity ?? '∞' }})
+        </a>
+    </nav>
+
+    <div class="cohort-detail-toolbar">
+        <a class="cohort-detail-back" href="{{ route($routePrefix.'.index') }}">
+            <span aria-hidden="true">←</span>
             {{ __('lf.LF_course_cohort_common_back_to_cohorts') }}
         </a>
-        <a href="{{ route($routePrefix.'.edit', $cohort->id) }}" class="btn btn-primary">
-            {{ __('lf.LF_common_button_edit') }}
-        </a>
-        @if ($cohort->status !== 'archived')
-            <form method="POST" action="{{ route($routePrefix.'.archive', $cohort->id) }}">
-                @csrf
-                <button type="submit"
-                        class="btn btn-secondary"
-                        onclick="return confirm('{{ __('lf.LF_course_cohort_common_archive_confirm') }}')">
-                    {{ __('lf.LF_course_cohort_common_archive') }}
-                </button>
-            </form>
-        @endif
+        <div class="cohort-detail-action-group">
+            @if ($cohort->status === 'draft')
+                <form method="POST" action="{{ route($routePrefix.'.transition', $cohort->id) }}">
+                    @csrf
+                    <input type="hidden" name="status" value="active">
+                    <button type="submit" class="btn btn-secondary">{{ __('lf.LF_course_cohort_action_activate') }}</button>
+                </form>
+            @elseif ($cohort->status === 'active')
+                <form method="POST" action="{{ route($routePrefix.'.transition', $cohort->id) }}">
+                    @csrf
+                    <input type="hidden" name="status" value="completed">
+                    <button type="submit" class="btn btn-secondary">{{ __('lf.LF_course_cohort_action_complete') }}</button>
+                </form>
+            @endif
+            @if (in_array($cohort->status, ['draft', 'active'], true))
+                <a href="{{ route($routePrefix.'.edit', $cohort->id) }}" class="btn btn-primary">
+                    {{ __('lf.LF_course_cohort_action_edit') }}
+                </a>
+            @endif
+            @if ($cohort->status !== 'archived')
+                <form method="POST" action="{{ route($routePrefix.'.archive', $cohort->id) }}">
+                    @csrf
+                    <button type="submit" class="admin-danger-text-action"
+                            onclick="return confirm('{{ __('lf.LF_course_cohort_common_archive_confirm') }}')">
+                        {{ __('lf.LF_course_cohort_common_archive') }}
+                    </button>
+                </form>
+            @endif
+        </div>
     </div>
 
-    <div class="admin-card admin-form-card">
-        <section class="admin-form-section">
-            <h2 class="admin-form-section-title">
-                {{ __('lf.LF_course_cohort_group_basic') }}
-            </h2>
+    <div id="overview" class="admin-card admin-form-card admin-form-surface">
+        <div class="admin-form-standard">
+            <section class="admin-form-standard-section" aria-labelledby="cohort-show-information">
+                <header class="admin-form-section-header">
+                    <h2 id="cohort-show-information" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_information') }}</h2>
+                </header>
+                <div class="admin-form-field-grid">
+                    <div class="lf-form-group admin-form-field">
+                        <span class="lf-form-label">{{ __('lf.LF_course_cohort_common_code') }}</span>
+                        <div class="cohort-edit-readonly-row" x-data="{ copied: false }">
+                            <strong class="cohort-edit-readonly-value">{{ $cohort->code ?: '—' }}</strong>
+                            @if ($cohort->code)
+                                <button type="button" class="cohort-edit-copy-action"
+                                        x-bind:aria-label="copied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_edit_copy_code'))"
+                                        x-on:click="navigator.clipboard.writeText(@js($cohort->code)).then(() => { copied = true; setTimeout(() => copied = false, 1600) })">
+                                    <span x-show="!copied">{{ __('lf.LF_course_cohort_edit_copy') }}</span>
+                                    <span x-cloak x-show="copied">{{ __('lf.LF_course_cohort_edit_copied') }}</span>
+                                </button>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="lf-form-group admin-form-field">
+                        <span class="lf-form-label">{{ __('lf.LF_course_cohort_common_status') }}</span>
+                        <div class="cohort-edit-readonly-row">
+                            <span @class(['badge', 'badge-success' => $cohort->status === 'active', 'badge-danger' => $cohort->status === 'archived'])>{{ __('lf.LF_course_cohort_common_'.$cohort->status) }}</span>
+                        </div>
+                    </div>
+                    <div class="lf-form-group admin-form-field">
+                        <span class="lf-form-label">{{ __('lf.LF_course_cohort_common_product') }}</span>
+                        <div class="admin-form-calculated-summary">
+                            <strong class="admin-form-calculated-summary-value">{{ $cohort->product_title ?: '—' }}</strong>
+                            @if ($cohort->product_code)<span class="admin-form-calculated-summary-meta">{{ $cohort->product_code }} · {{ __('lf.LF_course_cohort_common_locked') }}</span>@endif
+                        </div>
+                    </div>
+                    <div class="lf-form-group admin-form-field">
+                        <span class="lf-form-label">{{ __('lf.LF_course_cohort_create_content_version') }}</span>
+                        <div class="admin-form-calculated-summary">
+                            @if ($cohort->version_id)
+                                <div class="admin-form-calculated-summary-content">
+                                    <strong class="admin-form-calculated-summary-value">{{ str_replace(':code', $cohort->version_code, __('lf.LF_course_cohort_create_version_prefix')) }}</strong>
+                                    <span class="admin-form-calculated-summary-meta admin-form-calculated-summary-meta-row">
+                                        <span class="admin-form-calculated-summary-meta-item">{{ __('lf.LF_course_cohort_common_published') }}</span>
+                                        <span class="admin-form-calculated-summary-meta-item">{{ __('lf.LF_course_cohort_create_lesson_count', ['count' => (int) $cohort->lesson_count]) }}</span>
+                                        <span class="admin-form-calculated-summary-meta-item">{{ __('lf.LF_course_cohort_create_activity_count', ['count' => (int) $cohort->activity_count]) }}</span>
+                                    </span>
+                                </div>
+                            @else
+                                <span class="admin-form-calculated-summary-meta">—</span>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="lf-form-group admin-form-field">
+                        <span class="lf-form-label">{{ __('lf.LF_course_cohort_common_name') }}</span>
+                        <div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ $cohort->name }}</strong></div>
+                    </div>
+                    <div class="lf-form-group admin-form-field">
+                        <span class="lf-form-label">{{ __('lf.LF_course_cohort_common_capacity') }}</span>
+                        <div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ $cohort->capacity ?? '—' }}</strong></div>
+                    </div>
+                </div>
+            </section>
 
-            <table class="table">
-                <tbody>
-                <tr>
-                    <th>{{ __('lf.LF_common_label_common_id') }}</th>
-                    <td>{{ $cohort->id }}</td>
-                </tr>
-                <tr>
-                    <th>{{ __('lf.LF_course_cohort_common_name') }}</th>
-                    <td>{{ $cohort->name }}</td>
-                </tr>
-                <tr>
-                    <th>{{ __('lf.LF_course_cohort_common_code') }}</th>
-                    <td>{{ $cohort->code ?: '-' }}</td>
-                </tr>
-                <tr>
-                    <th>{{ __('lf.LF_course_cohort_common_status') }}</th>
-                    <td>{{ __('lf.LF_course_cohort_common_'.$cohort->status) }}</td>
-                </tr>
-                <tr>
-                    <th>{{ __('lf.LF_course_cohort_common_capacity') }}</th>
-                    <td>{{ $cohort->capacity ?? '-' }}</td>
-                </tr>
-                <tr>
-                    <th>{{ __('lf.LF_course_cohort_common_start_date') }}</th>
-                    <td>{{ $cohort->start_date ?: '-' }}</td>
-                </tr>
-                <tr>
-                    <th>{{ __('lf.LF_course_cohort_common_end_date') }}</th>
-                    <td>{{ $cohort->end_date ?: '-' }}</td>
-                </tr>
-                <tr>
-                    <th>{{ __('lf.LF_course_cohort_common_description') }}</th>
-                    <td>{{ $cohort->description ?: '-' }}</td>
-                </tr>
-                <tr>
-                    <th>{{ __('lf.LF_course_cohort_common_notes') }}</th>
-                    <td>{{ $cohort->notes ?: '-' }}</td>
-                </tr>
-                </tbody>
-            </table>
-        </section>
+            <section class="admin-form-standard-section" aria-labelledby="cohort-show-dates">
+                <header class="admin-form-section-header">
+                    <h2 id="cohort-show-dates" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_dates') }}</h2>
+                </header>
+                <div class="admin-form-field-grid">
+                    <div class="lf-form-group admin-form-field"><span class="lf-form-label">{{ __('lf.LF_course_cohort_common_start_date') }}</span><div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ $cohort->start_date ?: '—' }}</strong></div></div>
+                    <div class="lf-form-group admin-form-field"><span class="lf-form-label">{{ __('lf.LF_course_cohort_common_end_date') }}</span><div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ $cohort->end_date ?: '—' }}</strong></div></div>
+                </div>
+            </section>
 
-        <section class="admin-form-section">
-            <h2 class="admin-form-section-title">
-                Cohort media
-            </h2>
-
-            @if (($cohortMedia ?? collect())->isNotEmpty())
-                <table class="table">
-                    <thead>
-                    <tr>
-                        <th>Type</th>
-                        <th>Name</th>
-                        <th>Action</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    @foreach ($cohortMedia as $media)
-                        <tr>
-                            <td>{{ $media->usage_type }}</td>
-                            <td>{{ $media->display_name }}</td>
-                            <td>
-                                <a href="{{ $media->signed_url }}" target="_blank" rel="noopener">
-                                    Open
-                                </a>
-                            </td>
-                        </tr>
-                    @endforeach
-                    </tbody>
-                </table>
-            @else
-                <p>-</p>
-            @endif
-        </section>
-
-        <section class="admin-form-section">
-            <h2 class="admin-form-section-title">
-                {{ __('lf.LF_course_cohort_group_context') }}
-            </h2>
-
-            <p>{{ __('lf.LF_course_cohort_common_operational_help') }}</p>
-
-            <table class="table">
-                <tbody>
-                <tr>
-                    <th>{{ __('lf.LF_course_cohort_common_product') }}</th>
-                    <td>
-                        @if ($cohort->product_id)
-                            {{ $cohort->product_title }} · {{ $cohort->product_code }}
-                        @else
-                            -
-                        @endif
-                    </td>
-                </tr>
-                <tr>
-                    <th>{{ __('lf.LF_course_cohort_common_version') }}</th>
-                    <td>
-                        @if ($cohort->version_id)
-                            {{ $cohort->version_title }}
-                            · {{ __('lf.LF_course_product_item_common_version_number', ['number' => $cohort->version_number]) }}
-                            · {{ $cohort->version_code }}
-                        @else
-                            -
-                        @endif
-                    </td>
-                </tr>
-                <tr>
-                    <th>{{ __('lf.LF_course_cohort_common_teacher') }}</th>
-                    <td>
-                        @if ($cohort->teacher_id)
-                            {{ $cohort->teacher_name }} · {{ $cohort->teacher_email }}
-                        @else
-                            -
-                        @endif
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </section>
+            <section class="admin-form-standard-section" aria-labelledby="cohort-show-additional">
+                <header class="admin-form-section-header">
+                    <h2 id="cohort-show-additional" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_additional') }}</h2>
+                </header>
+                <div class="admin-form-field-grid">
+                    <div class="lf-form-group admin-form-field admin-form-field--full"><span class="lf-form-label">{{ __('lf.LF_course_cohort_common_notes') }}</span><div class="cohort-show-notes">{{ $cohort->notes ?: '—' }}</div></div>
+                </div>
+            </section>
+        </div>
     </div>
 @endsection

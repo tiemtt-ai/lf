@@ -162,14 +162,14 @@
                 </div>
             </section>
 
-            <div class="admin-form-actions">
+            <footer class="admin-form-actions admin-form-actions--footer">
+                <a href="{{ route($routePrefix.'.index') }}" class="btn btn-secondary">
+                    {{ __('lf.LF_common_button_cancel') }}
+                </a>
                 <button type="submit" class="btn btn-primary">
                     {{ __('lf.LF_course_enrollment_common_create') }}
                 </button>
-                <a href="{{ route($routePrefix.'.index') }}">
-                    {{ __('lf.LF_common_button_cancel') }}
-                </a>
-            </div>
+            </footer>
         </form>
     </div>
 @endsection

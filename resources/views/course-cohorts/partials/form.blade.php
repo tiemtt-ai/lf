@@ -1,217 +1,118 @@
-<section class="admin-form-section">
-    <h2 class="admin-form-section-title">
-        {{ __('lf.LF_course_cohort_group_basic') }}
-    </h2>
+@php($isEditable = ! in_array($cohort->status, ['completed', 'archived'], true))
 
-    <div class="lf-form-group">
-        <label class="lf-form-label" for="name">
-            {{ __('lf.LF_course_cohort_common_name') }}
-            <span class="text-danger">*</span>
-        </label>
-        <input id="name"
-               type="text"
-               name="name"
-               class="lf-form-control"
-               value="{{ old('name', $cohort->name ?? '') }}"
-               required>
-    </div>
-
-    @if ($cohort?->code)
-        <div class="lf-form-group">
-            <span class="lf-form-label">
-                {{ __('lf.LF_course_cohort_common_code') }}
-            </span>
-            <p class="lf-form-help">{{ $cohort->code }}</p>
+<section class="admin-form-standard-section" aria-labelledby="cohort-edit-information">
+    <header class="admin-form-section-header">
+        <h2 id="cohort-edit-information" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_information') }}</h2>
+    </header>
+    <div class="admin-form-field-grid">
+        <div class="lf-form-group admin-form-field">
+            <span class="lf-form-label">{{ __('lf.LF_course_cohort_common_code') }}</span>
+            <div id="cohort-edit-code" class="cohort-edit-readonly-row" x-data="{ copied: false }">
+                <strong class="cohort-edit-readonly-value">{{ $cohort->code }}</strong>
+                <button type="button" class="cohort-edit-copy-action"
+                        x-on:click="navigator.clipboard.writeText(@js($cohort->code)).then(() => { copied = true; setTimeout(() => copied = false, 1600) })"
+                        x-bind:aria-label="copied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_edit_copy_code'))">
+                    <span x-show="!copied">{{ __('lf.LF_course_cohort_edit_copy') }}</span>
+                    <span x-cloak x-show="copied">{{ __('lf.LF_course_cohort_edit_copied') }}</span>
+                </button>
+            </div>
         </div>
-    @else
-        <p class="lf-form-help">
-            {{ __('lf.LF_course_cohort_common_code_auto_help') }}
-        </p>
-    @endif
-
-    <div class="lf-form-group">
-        <label class="lf-form-label" for="description">
-            {{ __('lf.LF_course_cohort_common_description') }}
-        </label>
-        <textarea id="description"
-                  name="description"
-                  class="lf-form-control"
-                  rows="3">{{ old('description', $cohort->description ?? '') }}</textarea>
-    </div>
-
-    <div class="lf-form-group">
-        <label class="lf-form-label" for="status">
-            {{ __('lf.LF_course_cohort_common_status') }}
-            <span class="text-danger">*</span>
-        </label>
-        <select id="status" name="status" class="lf-form-control" required>
-            @foreach ($statuses as $status)
-                <option value="{{ $status }}" @selected(old('status', $cohort->status ?? 'draft') === $status)>
-                    {{ __('lf.LF_course_cohort_common_'.$status) }}
-                </option>
-            @endforeach
-        </select>
-    </div>
-
-    <div class="lf-form-group">
-        <label class="lf-form-label" for="capacity">
-            {{ __('lf.LF_course_cohort_common_capacity') }}
-        </label>
-        <input id="capacity"
-               type="number"
-               min="0"
-               name="capacity"
-               class="lf-form-control"
-               value="{{ old('capacity', $cohort->capacity ?? '') }}">
-    </div>
-
-    <div class="lf-form-group">
-        <label class="lf-form-label" for="start_date">
-            {{ __('lf.LF_course_cohort_common_start_date') }}
-        </label>
-        <input id="start_date"
-               type="date"
-               name="start_date"
-               class="lf-form-control"
-               value="{{ old('start_date', $cohort->start_date ?? '') }}">
-    </div>
-
-    <div class="lf-form-group">
-        <label class="lf-form-label" for="end_date">
-            {{ __('lf.LF_course_cohort_common_end_date') }}
-        </label>
-        <input id="end_date"
-               type="date"
-               name="end_date"
-               class="lf-form-control"
-               value="{{ old('end_date', $cohort->end_date ?? '') }}">
-    </div>
-</section>
-
-<section class="admin-form-section">
-    <h2 class="admin-form-section-title">
-        Cohort media
-    </h2>
-
-    @if (($cohortMedia ?? collect())->isNotEmpty())
-        <div class="admin-table-wrap">
-            <table class="table">
-                <thead>
-                <tr>
-                    <th>Type</th>
-                    <th>Name</th>
-                    <th>Action</th>
-                </tr>
-                </thead>
-                <tbody>
-                @foreach ($cohortMedia as $media)
-                    <tr>
-                        <td>{{ $media->usage_type }}</td>
-                        <td>{{ $media->display_name }}</td>
-                        <td>
-                            <a href="{{ $media->signed_url }}" target="_blank" rel="noopener">
-                                Open
-                            </a>
-                        </td>
-                    </tr>
-                @endforeach
-                </tbody>
-            </table>
+        <div class="lf-form-group admin-form-field">
+            <span class="lf-form-label">{{ __('lf.LF_course_cohort_common_status') }}</span>
+            <div id="cohort-edit-status" class="cohort-edit-readonly-row">
+                <span @class([
+                    'badge',
+                    'badge-success' => $cohort->status === 'active',
+                    'badge-danger' => $cohort->status === 'archived',
+                ])>{{ __('lf.LF_course_cohort_common_'.$cohort->status) }}</span>
+            </div>
+            <p class="lf-form-help">{{ __('lf.LF_course_cohort_edit_status_help') }}</p>
         </div>
-    @endif
 
-    <div class="lf-form-group">
-        <label class="lf-form-label" for="cohort_document_file">
-            Document
-        </label>
-        <input id="cohort_document_file"
-               type="file"
-               name="cohort_document_file"
-               class="lf-form-control"
-               accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf">
-        <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX', 'TXT']" />
-    </div>
+        <div class="lf-form-group admin-form-field">
+            <span class="lf-form-label">{{ __('lf.LF_course_cohort_common_product') }}</span>
+            <div id="cohort-edit-product" class="admin-form-calculated-summary">
+                <strong class="admin-form-calculated-summary-value">{{ $cohort->product_title ?: '—' }}</strong>
+                @if ($cohort->product_code)
+                    <span class="admin-form-calculated-summary-meta">{{ $cohort->product_code }} · {{ __('lf.LF_course_cohort_common_locked') }}</span>
+                @endif
+            </div>
+        </div>
+        <div class="lf-form-group admin-form-field">
+            <span class="lf-form-label">{{ __('lf.LF_course_cohort_create_content_version') }}</span>
+            <div id="cohort-edit-version" class="admin-form-calculated-summary">
+                @if ($cohort->version_id)
+                    <div class="admin-form-calculated-summary-content">
+                        <strong class="admin-form-calculated-summary-value">{{ str_replace(':code', $cohort->version_code, __('lf.LF_course_cohort_create_version_prefix')) }}</strong>
+                        <span class="admin-form-calculated-summary-meta admin-form-calculated-summary-meta-row">
+                            <span class="admin-form-calculated-summary-meta-item">{{ __('lf.LF_course_cohort_common_published') }}</span>
+                            <span class="admin-form-calculated-summary-meta-item">{{ __('lf.LF_course_cohort_create_lesson_count', ['count' => (int) $cohort->lesson_count]) }}</span>
+                            <span class="admin-form-calculated-summary-meta-item">{{ __('lf.LF_course_cohort_create_activity_count', ['count' => (int) $cohort->activity_count]) }}</span>
+                        </span>
+                    </div>
+                @else
+                    <span class="admin-form-calculated-summary-meta">—</span>
+                @endif
+            </div>
+            <p class="lf-form-help">{{ __('lf.LF_course_cohort_create_version_help') }}</p>
+        </div>
 
-    <div class="lf-form-group">
-        <label class="lf-form-label" for="cohort_attachment_file">
-            Attachment
-        </label>
-        <input id="cohort_attachment_file"
-               type="file"
-               name="cohort_attachment_file"
-               class="lf-form-control"
-               accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf">
-        <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX', 'TXT']" />
-    </div>
-</section>
-
-<section class="admin-form-section">
-    <h2 class="admin-form-section-title">
-        {{ __('lf.LF_course_cohort_group_context') }}
-    </h2>
-
-    <p>{{ __('lf.LF_course_cohort_common_operational_help') }}</p>
-
-    <div class="lf-form-group">
-        <label class="lf-form-label" for="product_id">
-            {{ __('lf.LF_course_cohort_common_product') }}
-        </label>
-        <select id="product_id" name="product_id" class="lf-form-control">
-            <option value="">{{ __('lf.LF_course_cohort_common_no_product') }}</option>
-            @foreach ($products as $product)
-                <option value="{{ $product->id }}" @selected((int) old('product_id', $cohort->product_id ?? 0) === $product->id)>
-                    {{ $product->title }} · {{ $product->product_code }}
-                </option>
-            @endforeach
-        </select>
-    </div>
-
-    <div class="lf-form-group">
-        <label class="lf-form-label" for="version_id">
-            {{ __('lf.LF_course_cohort_common_version') }}
-        </label>
-        <select id="version_id" name="version_id" class="lf-form-control">
-            <option value="">{{ __('lf.LF_course_cohort_common_no_version') }}</option>
-            @foreach ($versions as $version)
-                <option value="{{ $version->id }}" @selected((int) old('version_id', $cohort->version_id ?? 0) === $version->id)>
-                    {{ $version->title_snapshot }}
-                    · {{ __('lf.LF_course_product_item_common_version_number', ['number' => $version->version_number]) }}
-                    · {{ $version->version_code }}
-                </option>
-            @endforeach
-        </select>
-    </div>
-
-    <div class="lf-form-group">
-        <label class="lf-form-label" for="teacher_id">
-            {{ __('lf.LF_course_cohort_common_teacher') }}
-        </label>
-        <select id="teacher_id" name="teacher_id" class="lf-form-control">
-            <option value="">{{ __('lf.LF_course_cohort_common_no_teacher') }}</option>
-            @foreach ($teachers as $teacher)
-                <option value="{{ $teacher->id }}" @selected((int) old('teacher_id', $cohort->teacher_id ?? 0) === $teacher->id)>
-                    {{ $teacher->name }} · {{ $teacher->email }}
-                </option>
-            @endforeach
-        </select>
-    </div>
-
-    <div class="lf-form-group">
-        <label class="lf-form-label" for="notes">
-            {{ __('lf.LF_course_cohort_common_notes') }}
-        </label>
-        <textarea id="notes"
-                  name="notes"
-                  class="lf-form-control"
-                  rows="3">{{ old('notes', $cohort->notes ?? '') }}</textarea>
+        <div class="lf-form-group admin-form-field">
+            <x-form-label for="name" :value="__('lf.LF_course_cohort_common_name')" required />
+            <input id="name" type="text" name="name" class="lf-form-control" value="{{ old('name', $cohort->name) }}"
+                   maxlength="255" required @readonly(! $isEditable)>
+            @error('name')<p class="lf-form-error">{{ $message }}</p>@enderror
+        </div>
+        <div class="lf-form-group admin-form-field">
+            <x-form-label for="capacity" :value="__('lf.LF_course_cohort_common_capacity')" />
+            <input id="capacity" type="number" name="capacity" class="lf-form-control"
+                   value="{{ old('capacity', $cohort->capacity) }}" min="1" step="1" inputmode="numeric" @readonly(! $isEditable)>
+            <p class="lf-form-help">{{ __('lf.LF_course_cohort_create_capacity_help') }}</p>
+            @error('capacity')<p class="lf-form-error">{{ $message }}</p>@enderror
+        </div>
     </div>
 </section>
 
-<div class="admin-form-actions">
-    <button type="submit" class="btn btn-primary">
-        {{ $submitLabel }}
-    </button>
-    <a href="{{ route($routePrefix.'.index') }}">
-        {{ __('lf.LF_common_button_cancel') }}
-    </a>
-</div>
+<section class="admin-form-standard-section" aria-labelledby="cohort-edit-dates">
+    <header class="admin-form-section-header">
+        <h2 id="cohort-edit-dates" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_dates') }}</h2>
+    </header>
+    <div class="admin-form-field-grid">
+        <div class="lf-form-group admin-form-field">
+            <x-form-label for="start_date" :value="__('lf.LF_course_cohort_common_start_date')" />
+            <input id="start_date" type="date" name="start_date" class="lf-form-control" value="{{ old('start_date', $cohort->start_date) }}" @readonly(! $isEditable)>
+            @error('start_date')<p class="lf-form-error">{{ $message }}</p>@enderror
+        </div>
+        <div class="lf-form-group admin-form-field">
+            <x-form-label for="end_date" :value="__('lf.LF_course_cohort_common_end_date')" />
+            <input id="end_date" type="date" name="end_date" class="lf-form-control" value="{{ old('end_date', $cohort->end_date) }}" @readonly(! $isEditable)>
+            @error('end_date')<p class="lf-form-error">{{ $message }}</p>@enderror
+        </div>
+    </div>
+</section>
+
+<section class="admin-form-standard-section" aria-labelledby="cohort-edit-additional">
+    <header class="admin-form-section-header">
+        <h2 id="cohort-edit-additional" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_additional') }}</h2>
+    </header>
+    <div class="admin-form-field-grid">
+        <div class="lf-form-group admin-form-field admin-form-field--full">
+            <x-form-label for="notes" :value="__('lf.LF_course_cohort_common_notes')" />
+            <textarea id="notes" name="notes" class="lf-form-control" rows="4" @readonly(! $isEditable)>{{ old('notes', $cohort->notes) }}</textarea>
+            <p class="lf-form-help">{{ __('lf.LF_course_cohort_create_notes_help') }}</p>
+            @error('notes')<p class="lf-form-error">{{ $message }}</p>@enderror
+        </div>
+    </div>
+</section>
+
+<footer class="admin-form-footer" data-actions-align="end">
+    <div class="admin-form-footer-primary">
+        <a class="btn btn-secondary" href="{{ route($routePrefix.'.show', $cohort->id) }}">{{ __('lf.LF_common_button_cancel') }}</a>
+        @if ($isEditable)
+            <button type="submit" class="btn btn-primary" x-bind:disabled="submitting">
+                <span x-show="!submitting">{{ $submitLabel }}</span>
+                <span x-cloak x-show="submitting">{{ __('lf.LF_course_cohort_edit_saving') }}</span>
+            </button>
+        @endif
+    </div>
+</footer>

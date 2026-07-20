@@ -46,7 +46,7 @@
             </table>
         </section>
 
-        <form method="POST" action="{{ route($routePrefix.'.update', $membership->id) }}">
+        <form method="POST" action="{{ route($routePrefix.'.update', $membership->id) }}" x-data="{ submitting: false }" x-on:submit="submitting = true">
             @csrf
             @method('PUT')
 
@@ -74,14 +74,14 @@
                 'statuses' => $statuses,
             ])
 
-            <div class="admin-form-actions">
-                <button type="submit" class="btn btn-primary">
-                    {{ __('lf.LF_common_button_save_changes') }}
-                </button>
-                <a href="{{ route($routePrefix.'.show', $membership->id) }}">
+            <footer class="admin-form-actions admin-form-actions--footer">
+                <a href="{{ route($routePrefix.'.show', $membership->id) }}" class="btn btn-secondary">
                     {{ __('lf.LF_common_button_cancel') }}
                 </a>
-            </div>
+                <button type="submit" class="btn btn-primary" x-bind:disabled="submitting">
+                    {{ __('lf.LF_common_button_save_changes') }}
+                </button>
+            </footer>
         </form>
     </div>
 @endsection

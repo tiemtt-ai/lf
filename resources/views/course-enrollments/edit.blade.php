@@ -105,14 +105,14 @@
                 </div>
             </section>
 
-            <div class="admin-form-actions">
+            <footer class="admin-form-actions admin-form-actions--footer">
+                <a href="{{ route($routePrefix.'.show', $enrollment->id) }}" class="btn btn-secondary">
+                    {{ __('lf.LF_common_button_cancel') }}
+                </a>
                 <button type="submit" class="btn btn-primary">
                     {{ __('lf.LF_common_button_save_changes') }}
                 </button>
-                <a href="{{ route($routePrefix.'.show', $enrollment->id) }}">
-                    {{ __('lf.LF_common_button_cancel') }}
-                </a>
-            </div>
+            </footer>
         </form>
     </div>
 @endsection

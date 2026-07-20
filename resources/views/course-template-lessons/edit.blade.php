@@ -51,14 +51,14 @@
 
             @include('course-template-lessons.partials.form')
 
-            <div class="admin-form-actions">
+            <footer class="admin-form-actions admin-form-actions--footer">
+                <a href="{{ route($templateRoutePrefix.'.edit', $template->id) }}{{ $lessonAnchor }}" class="btn btn-secondary">
+                    {{ __('lf.LF_common_button_cancel') }}
+                </a>
                 <button type="submit" class="btn btn-primary">
                     {{ __('lf.LF_common_button_save_changes') }}
                 </button>
-                <a href="{{ route($templateRoutePrefix.'.edit', $template->id) }}{{ $lessonAnchor }}">
-                    {{ __('lf.LF_common_button_cancel') }}
-                </a>
-            </div>
+            </footer>
         </form>
     </div>
     </section>

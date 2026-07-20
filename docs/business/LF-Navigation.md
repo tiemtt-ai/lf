@@ -10,6 +10,10 @@ Last Updated: 2026-06
 
 # LearnForge Navigation Architecture
 
+> Course Cohort amendment (2026-07): Admin navigation exposes one `Lớp học` /
+> `Cohorts` entry. Cohort detail contains only `Tổng quan` / `Overview` and
+> `Học viên` / `Students`; membership is managed in Cohort context.
+
 ## Overview
 
 Tài liệu này mô tả toàn bộ cấu trúc điều hướng (Navigation) của LearnForge.

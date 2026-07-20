@@ -42,6 +42,11 @@ criteria hay không.
 
 # Future Documents
 
+Approved Course review:
+
+* [LF-Course-Cohort-Architecture-Review.md](LF-Course-Cohort-Architecture-Review.md)
+  — approved Cohort binding, lifecycle, membership and legacy migration review.
+
 * Release Checklist.
 * Security Checklist.
 * Performance Checklist.

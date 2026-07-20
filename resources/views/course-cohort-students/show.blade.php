@@ -20,9 +20,11 @@
         @if ($membership->status === 'active')
             <form method="POST"
                   action="{{ route($routePrefix.'.archive', $membership->id) }}"
+                  x-data="{ submitting: false }"
+                  x-on:submit="submitting = true"
                   onsubmit="return confirm('{{ __('lf.LF_course_cohort_student_common_archive_confirm') }}')">
                 @csrf
-                <button type="submit" class="btn btn-danger">
+                <button type="submit" class="btn btn-danger" x-bind:disabled="submitting">
                     {{ __('lf.LF_course_cohort_student_common_archive') }}
                 </button>
             </form>

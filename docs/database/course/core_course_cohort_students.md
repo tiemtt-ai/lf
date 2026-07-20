@@ -77,8 +77,10 @@ core_course_cohort_students
 * Khi chuyển Cohort, UPDATE record hiện tại; không tạo record mới.
 * Không lưu Membership History trong bảng này hoặc bảng history riêng.
 * Không dùng field `is_current`.
-* Nếu Cohort đầy, không cho thêm student mới trừ khi admin override.
+* Nếu Cohort đầy, không cho thêm student mới. Foundation không có admin override.
 * Nếu student bị remove khỏi Cohort, enrollment vẫn có thể còn active.
+* Chỉ Enrollment `active` được thêm hoặc chuyển vào Cohort `active`.
+* Capacity được kiểm tra trong transaction sau khi lock Cohort parent row.
 
 ---
 

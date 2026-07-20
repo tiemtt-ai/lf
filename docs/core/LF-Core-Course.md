@@ -1108,6 +1108,13 @@ Marketing/display cache không được dùng cho Completion, Certificate, Billi
   không tạo hidden/default Section.
 * Một Enrollment chỉ có một active Cohort; chuyển lớp cập nhật membership hiện
   tại, không lưu membership history và không dùng `is_current`.
+* Mọi Cohort mới khóa một Product và published Version được server resolve từ
+  đúng một active Product Item hợp lệ. Request không được chọn Version. Product
+  đổi Version không cập nhật Cohort hoặc Enrollment đã có.
+* Cohort lifecycle là `draft -> active -> completed -> archived`, cùng nhánh
+  `draft -> archived`. Chỉ Cohort `active` quản lý membership.
+* Cohort legacy thiếu Product/Version không được activate, nhận membership hoặc
+  làm runtime context cho tới khi binding được resolve chắc chắn.
 * Notes và Bookmarks chỉ được tạo hoặc cập nhật khi Enrollment `active`; không
   hỗ trợ preview, guest hoặc anonymous records.
 * Review dùng `user_id`, không dùng `student_id`.

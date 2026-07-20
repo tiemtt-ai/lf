@@ -106,7 +106,7 @@
 
                 </form>
 
-                <footer class="admin-form-footer">
+                <footer class="admin-form-footer" data-actions-align="end">
                     <div class="admin-form-footer-danger">
                         @if ($template->status === \App\Support\CourseTemplateStatus::INACTIVE
                             && \Illuminate\Support\Facades\Route::has($routePrefix.'.archive'))
@@ -126,6 +126,9 @@
                     </div>
 
                     <div class="admin-form-footer-primary">
+                        <a href="{{ route($routePrefix.'.index') }}" class="btn btn-secondary">
+                            {{ __('lf.LF_common_button_cancel') }}
+                        </a>
                         @if ($template->status !== \App\Support\CourseTemplateStatus::ARCHIVED)
                             <button type="submit"
                                     form="course-template-update-form"
@@ -133,9 +136,6 @@
                                 {{ __('lf.LF_common_button_save_changes') }}
                             </button>
                         @endif
-                        <a href="{{ route($routePrefix.'.index') }}" class="admin-form-cancel">
-                            {{ __('lf.LF_common_button_cancel') }}
-                        </a>
                     </div>
                 </footer>
             </div>
