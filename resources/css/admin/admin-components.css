@@ -1538,7 +1538,7 @@
     white-space: nowrap;
 }
 
-.media-library-index-table {
+.media-library-table.media-library-index-table {
     min-width: 1380px;
     table-layout: fixed;
 }
