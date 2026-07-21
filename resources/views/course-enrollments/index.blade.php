@@ -109,7 +109,6 @@
     </div>
 
     <div class="course-cohort-index-toolbar">
-        <p>{{ __('lf.LF_course_enrollment_filter_results', ['count' => $enrollments->total()]) }}</p>
         <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
             {{ __('lf.LF_course_enrollment_common_create') }}
         </a>

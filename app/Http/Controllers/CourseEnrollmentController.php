@@ -112,7 +112,14 @@ class CourseEnrollmentController extends Controller
             ->when($enrolledBy, fn ($query) => $query->where('enrollments.enrolled_by', $enrolledBy))
             ->when($enrolledFrom, fn ($query) => $query->where('enrollments.enrolled_at', '>=', $enrolledFrom.' 00:00:00'))
             ->when($enrolledTo, fn ($query) => $query->where('enrollments.enrolled_at', '<=', $enrolledTo.' 23:59:59'))
-            ->orderByDesc('enrollments.enrolled_at')
+            ->orderByRaw("CASE enrollments.status
+                WHEN 'pending' THEN 10
+                WHEN 'active' THEN 20
+                WHEN 'suspended' THEN 30
+                WHEN 'cancelled' THEN 100
+                ELSE 50
+            END ASC")
+            ->orderByDesc('enrollments.created_at')
             ->orderByDesc('enrollments.id')
             ->select(
                 'enrollments.*',
@@ -124,7 +131,7 @@ class CourseEnrollmentController extends Controller
                 'versions.version_number',
                 'versions.version_code'
             )
-            ->paginate(10)
+            ->paginate(2)
             ->withQueryString();
 
         return view('course-enrollments.index', [

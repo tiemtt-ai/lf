@@ -853,6 +853,65 @@ class CourseEnrollmentManagementTest extends TestCase
             ->assertSee('course-cohort-index-actions', false);
     }
 
+    public function test_index_paginates_ten_and_orders_statuses_by_operational_priority(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Priority Product', 'priority-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+
+        $records = [
+            ['status' => 'cancelled', 'created_at' => '2026-07-30 10:00:00'],
+            ['status' => 'completed', 'created_at' => '2026-07-28 10:00:00'],
+            ['status' => 'active', 'created_at' => '2026-07-24 10:00:00'],
+            ['status' => 'pending', 'created_at' => '2026-07-21 10:00:00'],
+            ['status' => 'suspended', 'created_at' => '2026-07-26 10:00:00'],
+            ['status' => 'expired', 'created_at' => '2026-07-27 10:00:00'],
+            ['status' => 'active', 'created_at' => '2026-07-23 10:00:00'],
+            ['status' => 'pending', 'created_at' => '2026-07-20 10:00:00'],
+            ['status' => 'cancelled', 'created_at' => '2026-07-29 10:00:00'],
+            ['status' => 'suspended', 'created_at' => '2026-07-25 10:00:00'],
+            ['status' => 'active', 'created_at' => '2026-07-22 10:00:00'],
+            ['status' => 'pending', 'created_at' => '2026-07-19 10:00:00'],
+        ];
+
+        $idsByStatus = [];
+        foreach ($records as $record) {
+            $id = $this->createEnrollment($customerId, $student->id, $productId, $versionId, $record['status']);
+            DB::table('core_course_enrollments')->where('id', $id)->update([
+                'created_at' => $record['created_at'],
+            ]);
+            $idsByStatus[$record['status']][] = $id;
+        }
+
+        $firstResponse = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-enrollments?keyword=Priority&per_page=100')
+            ->assertOk();
+        $firstPage = $firstResponse->viewData('enrollments');
+
+        $this->assertSame(10, $firstPage->perPage());
+        $this->assertSame(12, $firstPage->total());
+        $this->assertStringContainsString('keyword=Priority', $firstPage->url(2));
+        $this->assertStringContainsString('per_page=100', $firstPage->url(2));
+        $this->assertSame([
+            $idsByStatus['pending'][0], $idsByStatus['pending'][1], $idsByStatus['pending'][2],
+            $idsByStatus['active'][0], $idsByStatus['active'][1], $idsByStatus['active'][2],
+            $idsByStatus['suspended'][0], $idsByStatus['suspended'][1],
+            $idsByStatus['completed'][0], $idsByStatus['expired'][0],
+        ], collect($firstPage->items())->pluck('id')->all());
+
+        $secondResponse = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-enrollments?keyword=Priority&per_page=100&page=2')
+            ->assertOk();
+        $secondPage = $secondResponse->viewData('enrollments');
+
+        $this->assertSame(10, $secondPage->perPage());
+        $this->assertSame([
+            $idsByStatus['cancelled'][0], $idsByStatus['cancelled'][1],
+        ], collect($secondPage->items())->pluck('id')->all());
+    }
+
     public function test_enrollment_index_filters_and_bulk_selection_markup_use_canonical_contracts(): void
     {
         $customerId = $this->createTenant();
