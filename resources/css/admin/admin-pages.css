@@ -1974,6 +1974,145 @@
     grid-column: 1 / -1;
 }
 
+.bulk-enrollment-result__success {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 18px;
+    padding: 12px 14px;
+    border: 1px solid #8bcaa5;
+    border-radius: 8px;
+    color: #176b3a;
+    background: #edf9f1;
+}
+
+.bulk-enrollment-result__success-icon {
+    display: grid;
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border-radius: 999px;
+    color: #fff;
+    background: #23834a;
+    font-weight: 700;
+}
+
+.bulk-enrollment-result__success strong {
+    display: block;
+    margin-bottom: 2px;
+}
+
+.bulk-enrollment-result__success p {
+    margin: 0;
+    line-height: 1.45;
+}
+
+.bulk-enrollment-result__context {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 22px;
+    margin: 7px 0 0;
+    font-size: 12px;
+}
+
+.bulk-enrollment-result__context > div {
+    display: flex;
+    gap: 6px;
+}
+
+.bulk-enrollment-result__context dt {
+    opacity: 0.78;
+}
+
+.bulk-enrollment-result__context dd {
+    margin: 0;
+    font-weight: 600;
+}
+
+.bulk-enrollment-result .admin-form-standard-section {
+    padding-bottom: 18px;
+}
+
+.bulk-enrollment-result .admin-form-standard-section + .admin-form-standard-section {
+    padding-top: 18px;
+}
+
+.bulk-enrollment-result .admin-form-section-title {
+    font-size: 1rem;
+}
+
+.bulk-enrollment-result__summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 10px 0 0;
+}
+
+.bulk-enrollment-result__summary > div {
+    flex: 0 1 210px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 12px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    background: var(--admin-surface-subtle);
+}
+
+.bulk-enrollment-result__summary dt {
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.bulk-enrollment-result__summary dd {
+    margin: 0;
+    color: var(--admin-text);
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.bulk-enrollment-result__settings {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 28px;
+    margin: 10px 0 0;
+    padding: 14px 16px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    background: var(--admin-surface-subtle);
+}
+
+.bulk-enrollment-result__settings > div {
+    min-width: 0;
+}
+
+.bulk-enrollment-result__settings dt {
+    margin-bottom: 4px;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.bulk-enrollment-result__settings dd {
+    margin: 0;
+    color: var(--admin-text);
+    line-height: 1.45;
+}
+
+.bulk-enrollment-result__table {
+    margin-top: 10px;
+}
+
+.bulk-enrollment-result__table th,
+.bulk-enrollment-result__table td {
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
 .course-enrollment-bulk-bar {
     display: grid;
     gap: 10px;
@@ -2101,6 +2240,20 @@
 @media (max-width: 640px) {
     .course-enrollment-filter-grid,
     .course-enrollment-bulk-field {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .bulk-enrollment-result__summary > div {
+        flex-basis: 100%;
+    }
+
+    .bulk-enrollment-result__context {
+        align-items: flex-start;
+        flex-direction: column;
+        margin-left: 0;
+    }
+
+    .bulk-enrollment-result__settings {
         grid-template-columns: minmax(0, 1fr);
     }
 

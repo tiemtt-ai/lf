@@ -1350,6 +1350,24 @@ class CourseEnrollmentManagementTest extends TestCase
             ->assertSessionHas('bulk_result', fn (array $result): bool => $result['summary']['created'] === 4);
 
         $this->assertDatabaseCount('core_course_enrollments', 4);
+        $firstEnrollmentId = (int) DB::table('core_course_enrollments')->min('id');
+        $firstVersionCode = DB::table('core_course_template_versions')->where('id', $products->first()[1])->value('version_code');
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-enrollments/bulk/result')
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_bulk_enrollment_result_success_title'))
+            ->assertSeeText(__('lf.LF_bulk_enrollment_result_success_content', ['count' => 4]))
+            ->assertSeeText(__('lf.LF_bulk_enrollment_applied_settings'))
+            ->assertSeeText($admin->name)
+            ->assertSeeText($firstVersionCode)
+            ->assertSee('href="'.route('admin.course-enrollments.show', $firstEnrollmentId).'"', false)
+            ->assertDontSeeText(__('lf.LF_bulk_enrollment_summary_skipped_existing'))
+            ->assertDontSeeText(__('lf.LF_bulk_enrollment_summary_re_enrollment_required'))
+            ->assertDontSeeText(__('lf.LF_bulk_enrollment_summary_failed'));
+        $storedResult = json_decode(DB::table('core_course_enrollment_submissions')->value('result'), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame($admin->name, $storedResult['context']['completed_by_name']);
+        $this->assertSame($configuration, $storedResult['context']['configuration']);
+        $this->assertSame($firstVersionCode, $storedResult['items'][0]['version_code']);
         foreach ($students as $student) {
             foreach ($products as [$productId, $versionId]) {
                 $this->assertDatabaseHas('core_course_enrollments', [

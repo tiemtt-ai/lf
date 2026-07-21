@@ -91,6 +91,7 @@ class BulkEnrollmentService
                         'student_name' => $preflight['student_labels'][(string) $studentId],
                         'product_id' => $productId,
                         'product_title' => $product['title'],
+                        'version_code' => $product['version_code'],
                         'enrollment_id' => $enrollmentId,
                         'status' => $reenrolled ? 'reenrolled' : 'created',
                     ];
@@ -103,6 +104,13 @@ class BulkEnrollmentService
             }
 
             $result = [
+                'context' => [
+                    'completed_at' => $now->toIso8601String(),
+                    'completed_by_id' => $adminId,
+                    'completed_by_name' => DB::table('users')->where('customer_id', $customerId)
+                        ->where('id', $adminId)->value('name'),
+                    'configuration' => $payload['configuration'],
+                ],
                 'summary' => [
                     'total' => count($items),
                     'created' => collect($items)->where('status', 'created')->count(),
@@ -146,7 +154,7 @@ class BulkEnrollmentService
         if ($lock) {
             $bindingsQuery->lockForUpdate();
         }
-        $bindings = $bindingsQuery->get(['items.id as item_id', 'items.product_id', 'versions.id as version_id', 'versions.status as version_status'])
+        $bindings = $bindingsQuery->get(['items.id as item_id', 'items.product_id', 'versions.id as version_id', 'versions.version_code', 'versions.status as version_status'])
             ->groupBy('product_id');
 
         $existingQuery = DB::table('core_course_enrollments')->where('customer_id', $customerId)
@@ -231,7 +239,7 @@ class BulkEnrollmentService
 
                 return ['id' => $product->id, 'title' => $product->title, 'product_code' => $product->product_code,
                     'offering_type' => $product->offering_type, 'review_duration_days' => $product->review_duration_days,
-                    'version_id' => $binding?->version_id];
+                    'version_id' => $binding?->version_id, 'version_code' => $binding?->version_code];
             })->values()->all(),
         ];
     }
