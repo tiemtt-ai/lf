@@ -81,6 +81,9 @@ core_course_cohort_students
 * Nếu student bị remove khỏi Cohort, enrollment vẫn có thể còn active.
 * Chỉ Enrollment `active` được thêm hoặc chuyển vào Cohort `active`.
 * Capacity được kiểm tra trong transaction sau khi lock Cohort parent row.
+* Enrollment status transitions do not mutate Membership. A current Membership
+  continues to count toward Cohort capacity regardless of Enrollment status.
+  Only explicit Membership Remove or Transfer changes or releases capacity.
 
 ---
 

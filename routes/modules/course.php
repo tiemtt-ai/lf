@@ -116,6 +116,11 @@ if ($registerCourseProductRoutes ?? false) {
     Route::put('/course-enrollments/{id}', [CourseEnrollmentController::class, 'update'])
         ->name('course-enrollments.update');
 
+    Route::post('/course-enrollments/{id}/activate', [CourseEnrollmentController::class, 'activate'])->name('course-enrollments.activate');
+    Route::post('/course-enrollments/{id}/suspend', [CourseEnrollmentController::class, 'suspend'])->name('course-enrollments.suspend');
+    Route::post('/course-enrollments/{id}/reactivate', [CourseEnrollmentController::class, 'reactivate'])->name('course-enrollments.reactivate');
+    Route::post('/course-enrollments/{id}/cancel', [CourseEnrollmentController::class, 'cancel'])->name('course-enrollments.cancel');
+
     Route::get('/course-products', [CourseProductController::class, 'index'])
         ->name('course-products.index');
 

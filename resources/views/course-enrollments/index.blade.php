@@ -128,9 +128,7 @@
                             <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.show', $enrollment->id) }}">
                                 {{ __('lf.action_view') }}
                             </a>
-                            <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $enrollment->id) }}">
-                                {{ __('lf.action_edit') }}
-                            </a>
+                            @if (in_array($enrollment->status, ['pending', 'active', 'suspended'], true))<a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $enrollment->id) }}">{{ __('lf.action_edit') }}</a>@endif
                         </div>
                     </td>
                 </tr>

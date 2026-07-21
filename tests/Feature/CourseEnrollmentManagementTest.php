@@ -26,7 +26,7 @@ class CourseEnrollmentManagementTest extends TestCase
 
     public function test_admin_course_enrollment_routes_exist_and_teacher_routes_do_not(): void
     {
-        foreach (['index', 'create', 'store', 'show', 'edit', 'update'] as $route) {
+        foreach (['index', 'create', 'store', 'show', 'edit', 'update', 'activate', 'suspend', 'reactivate', 'cancel'] as $route) {
             $this->assertTrue(Route::has("admin.course-enrollments.{$route}"));
             $this->assertFalse(Route::has("teacher.course-enrollments.{$route}"));
         }
@@ -129,7 +129,6 @@ class CourseEnrollmentManagementTest extends TestCase
             ->put(
                 "https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}",
                 [
-                    'status' => 'suspended',
                     'access_starts_at' => null,
                     'access_ends_at' => null,
                     'notes' => 'Visible enrollment note',
@@ -140,7 +139,7 @@ class CourseEnrollmentManagementTest extends TestCase
 
         $this->assertDatabaseHas('core_course_enrollments', [
             'id' => $enrollmentId,
-            'status' => 'suspended',
+            'status' => 'active',
             'notes' => 'Visible enrollment note',
             'metadata' => '{"system":"internal"}',
         ]);
@@ -193,6 +192,7 @@ class CourseEnrollmentManagementTest extends TestCase
             ->assertSee('class="admin-form-footer"', false)
             ->assertSee('name="review_starts_at"', false)
             ->assertSee('name="review_ends_at"', false)
+            ->assertDontSee('name="status"', false)
             ->assertDontSee('<table', false);
 
         $html = $response->getContent();
@@ -211,7 +211,6 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->actingAs($admin)
             ->from("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")
             ->put("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}", [
-                'status' => 'active',
                 'access_starts_at' => '2026-07-01 09:00:00',
                 'access_ends_at' => '2026-07-31 18:00:00',
                 'review_starts_at' => '2026-08-01 09:00:00',
@@ -229,7 +228,6 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->actingAs($admin)
             ->from("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")
             ->put("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}", [
-                'status' => 'active',
                 'review_starts_at' => '2026-09-01 09:00:00',
                 'review_ends_at' => '2026-08-01 09:00:00',
             ])
@@ -631,6 +629,97 @@ class CourseEnrollmentManagementTest extends TestCase
         $response->assertSeeText(__('lf.LF_course_enrollment_create_submitting'));
     }
 
+    public function test_admin_lifecycle_transition_matrix_is_explicit_and_preserves_binding(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Lifecycle Product', 'lifecycle-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+
+        foreach ([
+            ['pending', 'activate', 'active'],
+            ['pending', 'cancel', 'cancelled'],
+            ['active', 'suspend', 'suspended'],
+            ['active', 'cancel', 'cancelled'],
+            ['suspended', 'reactivate', 'active'],
+            ['suspended', 'cancel', 'cancelled'],
+        ] as [$source, $action, $target]) {
+            $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+            DB::table('core_course_enrollments')->where('id', $enrollmentId)->update(['status' => $source]);
+
+            $this->actingAs($admin)
+                ->post("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/{$action}")
+                ->assertRedirect("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}");
+
+            $this->assertDatabaseHas('core_course_enrollments', [
+                'id' => $enrollmentId,
+                'status' => $target,
+                'version_id' => $versionId,
+            ]);
+            if ($target === 'cancelled') {
+                $this->assertNotNull(DB::table('core_course_enrollments')->where('id', $enrollmentId)->value('cancelled_at'));
+            }
+        }
+    }
+
+    public function test_lifecycle_fails_closed_and_keeps_cohort_membership(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Lifecycle Product', 'lifecycle-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $cohortId = $this->createCohort($customerId, $productId, $versionId);
+        DB::table('core_course_cohort_students')->insert([
+            'customer_id' => $customerId, 'cohort_id' => $cohortId, 'enrollment_id' => $enrollmentId,
+            'product_id' => $productId, 'student_id' => $student->id, 'assigned_by' => $admin->id,
+            'joined_at' => now(), 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/suspend")->assertRedirect();
+        $this->assertDatabaseHas('core_course_cohort_students', ['cohort_id' => $cohortId, 'enrollment_id' => $enrollmentId, 'status' => 'active']);
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/cancel")->assertRedirect();
+        $this->assertDatabaseHas('core_course_cohort_students', ['cohort_id' => $cohortId, 'enrollment_id' => $enrollmentId, 'status' => 'active']);
+
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/reactivate")
+            ->assertSessionHasErrors('lifecycle');
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")->assertStatus(422);
+        $this->actingAs($teacher)->post("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/cancel")->assertForbidden();
+    }
+
+    public function test_edit_rejects_forged_status_and_show_uses_localized_action_matrix(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Lifecycle Product', 'lifecycle-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+
+        $this->actingAs($admin)
+            ->put("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}", ['status' => 'cancelled'])
+            ->assertSessionHasErrors('status');
+        $this->assertDatabaseHas('core_course_enrollments', ['id' => $enrollmentId, 'status' => 'active']);
+
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}")
+            ->assertOk()->assertSeeText(__('lf.LF_course_enrollment_lifecycle_suspend'))
+            ->assertSeeText(__('lf.LF_course_enrollment_lifecycle_cancel'))
+            ->assertDontSeeText(__('lf.LF_course_enrollment_lifecycle_reactivate'));
+
+        $this->withSession(['locale' => 'en'])->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}")
+            ->assertOk()->assertSeeText('Suspend')->assertSeeText('Cancel enrollment');
+
+        DB::table('core_course_enrollments')->where('id', $enrollmentId)->update(['status' => 'completed', 'completed_at' => now()]);
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}")
+            ->assertOk()->assertDontSee('course-enrollments/'.$enrollmentId.'/suspend', false)
+            ->assertDontSee('course-enrollments/'.$enrollmentId.'/cancel', false);
+    }
+
     public function test_index_uses_the_approved_class_list_table_contract(): void
     {
         $customerId = $this->createTenant();
@@ -986,5 +1075,21 @@ class CourseEnrollmentManagementTest extends TestCase
             'review_ends_at' => null,
             'notes' => null,
         ], $overrides);
+    }
+
+    private function createCohort(int $customerId, int $productId, int $versionId): int
+    {
+        return DB::table('core_course_cohorts')->insertGetId([
+            'customer_id' => $customerId,
+            'product_id' => $productId,
+            'version_id' => $versionId,
+            'teacher_id' => null,
+            'name' => 'Lifecycle Cohort',
+            'code' => 'COH-'.uniqid(),
+            'status' => 'active',
+            'capacity' => 20,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 }

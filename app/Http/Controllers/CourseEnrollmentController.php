@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\CourseEnrollmentLifecycleService;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class CourseEnrollmentController extends Controller
@@ -242,10 +242,10 @@ class CourseEnrollmentController extends Controller
         $customerId = $this->customerId();
 
         $enrollment = $this->findEnrollment($customerId, $id);
+        abort_if(in_array($enrollment->status, ['completed', 'expired', 'cancelled'], true), 422);
 
         return view('course-enrollments.edit', [
             'enrollment' => $enrollment,
-            'statuses' => self::STATUSES,
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -258,11 +258,12 @@ class CourseEnrollmentController extends Controller
         $this->findEnrollment($customerId, $id);
         $validated = $this->validatedUpdateData($request);
 
-        DB::table('core_course_enrollments')
-            ->where('customer_id', $customerId)
-            ->where('id', $id)
-            ->update([
-                'status' => $validated['status'],
+        DB::transaction(function () use ($customerId, $id, $validated): void {
+            $enrollment = DB::table('core_course_enrollments')->where('customer_id', $customerId)
+                ->where('id', $id)->lockForUpdate()->first();
+            abort_if(! $enrollment, 404);
+            abort_if(! in_array($enrollment->status, ['pending', 'active', 'suspended'], true), 422);
+            DB::table('core_course_enrollments')->where('customer_id', $customerId)->where('id', $id)->update([
                 'access_starts_at' => $validated['access_starts_at'] ?? null,
                 'access_ends_at' => $validated['access_ends_at'] ?? null,
                 'review_starts_at' => $validated['review_starts_at'] ?? null,
@@ -270,10 +271,31 @@ class CourseEnrollmentController extends Controller
                 'notes' => $validated['notes'] ?? null,
                 'updated_at' => now(),
             ]);
+        }, 3);
 
         return redirect()
             ->route($this->routePrefix($request).'.show', $id)
             ->with('success', __('lf.LF_course_enrollment_common_updated'));
+    }
+
+    public function activate(Request $request, int $id, CourseEnrollmentLifecycleService $service)
+    {
+        return $this->runLifecycle($request, $id, fn () => $service->activate($this->customerId(), $id), 'activated');
+    }
+
+    public function suspend(Request $request, int $id, CourseEnrollmentLifecycleService $service)
+    {
+        return $this->runLifecycle($request, $id, fn () => $service->suspend($this->customerId(), $id), 'suspended');
+    }
+
+    public function reactivate(Request $request, int $id, CourseEnrollmentLifecycleService $service)
+    {
+        return $this->runLifecycle($request, $id, fn () => $service->reactivate($this->customerId(), $id), 'reactivated');
+    }
+
+    public function cancel(Request $request, int $id, CourseEnrollmentLifecycleService $service)
+    {
+        return $this->runLifecycle($request, $id, fn () => $service->cancel($this->customerId(), $id), 'cancelled');
     }
 
     private function validatedCreateData(Request $request, int $customerId): array
@@ -339,7 +361,7 @@ class CourseEnrollmentController extends Controller
     private function validatedUpdateData(Request $request): array
     {
         $validator = Validator::make($request->all(), [
-            'status' => ['required', Rule::in(self::STATUSES)],
+            'status' => ['prohibited'],
             'access_starts_at' => ['nullable', 'date'],
             'access_ends_at' => ['nullable', 'date', 'after_or_equal:access_starts_at'],
             'review_starts_at' => ['nullable', 'date'],
@@ -357,6 +379,15 @@ class CourseEnrollmentController extends Controller
         });
 
         return $validator->validate();
+    }
+
+    private function runLifecycle(Request $request, int $id, callable $transition, string $messageKey)
+    {
+        $this->authorizeAdmin($request);
+        $transition();
+
+        return redirect()->route($this->routePrefix($request).'.show', $id)
+            ->with('success', __('lf.LF_course_enrollment_lifecycle_'.$messageKey));
     }
 
     private function rejectImmutableInputs(

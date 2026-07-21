@@ -673,6 +673,15 @@ cancelled
 
 Enrollment hết hạn không làm mất Version hoặc Progress history.
 
+Admin Enrollment lifecycle is limited to `pending -> active|cancelled`,
+`active -> suspended|cancelled`, and `suspended -> active|cancelled`.
+`completed`, `expired`, and `cancelled` are terminal. Completion and expiry are
+system/runtime-owned transitions. Enrollment transitions never mutate Cohort
+Membership; a current Membership continues to consume Cohort capacity for every
+Enrollment status until an explicit Membership Remove or Transfer action.
+Runtime access requires an active Enrollment, and Cohort Add/Transfer accepts
+only active Enrollments.
+
 ## Enrollment Relationship
 
 ```text

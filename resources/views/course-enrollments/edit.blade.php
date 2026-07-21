@@ -51,11 +51,8 @@
                     <header class="admin-form-section-header"><h2 id="enrollment-edit-information" class="admin-form-section-title">{{ __('lf.LF_course_enrollment_information') }}</h2></header>
                     <div class="admin-form-field-grid">
                         <div class="lf-form-group admin-form-field">
-                            <label class="lf-form-label" for="status">{{ __('lf.LF_course_enrollment_common_status') }} <span aria-hidden="true">*</span></label>
-                            <select id="status" name="status" class="lf-form-control" required @error('status') aria-invalid="true" @enderror>
-                                @foreach ($statuses as $status)<option value="{{ $status }}" @selected(old('status', $enrollment->status) === $status)>{{ __('lf.LF_course_enrollment_common_'.$status) }}</option>@endforeach
-                            </select>
-                            @error('status')<p class="lf-form-error" role="alert">{{ $message }}</p>@enderror
+                            <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_status') }}</span>
+                            <div class="admin-form-readonly lf-form-control"><span @class(['badge', 'badge-success' => $enrollment->status === 'active'])>{{ __('lf.LF_course_enrollment_common_'.$enrollment->status) }}</span></div>
                         </div>
                         <div class="lf-form-group admin-form-field">
                             <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_source') }}</span>

@@ -9,6 +9,7 @@
             {{ session('success') }}
         </div>
     @endif
+    @if ($errors->has('lifecycle'))<div class="admin-alert admin-alert-danger" role="alert">{{ $errors->first('lifecycle') }}</div>@endif
 
     <div class="cohort-detail-toolbar">
         <a class="cohort-detail-back" href="{{ route($routePrefix.'.index') }}">
@@ -16,9 +17,19 @@
             {{ __('lf.LF_course_enrollment_common_back_to_enrollments') }}
         </a>
         <div class="cohort-detail-action-group">
-            <a href="{{ route($routePrefix.'.edit', $enrollment->id) }}" class="btn btn-primary">
-                {{ __('lf.LF_common_button_edit') }}
-            </a>
+            @if (in_array($enrollment->status, ['pending', 'active', 'suspended'], true))
+                <a href="{{ route($routePrefix.'.edit', $enrollment->id) }}" class="btn btn-secondary">{{ __('lf.LF_common_button_edit') }}</a>
+            @endif
+            @if ($enrollment->status === 'pending')
+                @include('course-enrollments.partials.lifecycle-action', ['action' => route($routePrefix.'.activate', $enrollment->id), 'triggerClass' => 'btn btn-primary', 'triggerLabel' => __('lf.LF_course_enrollment_lifecycle_activate'), 'title' => __('lf.LF_course_enrollment_lifecycle_activate_title'), 'body' => __('lf.LF_course_enrollment_lifecycle_activate_body'), 'confirmClass' => 'btn btn-primary', 'confirmLabel' => __('lf.LF_course_enrollment_lifecycle_activate')])
+            @elseif ($enrollment->status === 'active')
+                @include('course-enrollments.partials.lifecycle-action', ['action' => route($routePrefix.'.suspend', $enrollment->id), 'triggerClass' => 'btn btn-primary', 'triggerLabel' => __('lf.LF_course_enrollment_lifecycle_suspend'), 'title' => __('lf.LF_course_enrollment_lifecycle_suspend_title'), 'body' => __('lf.LF_course_enrollment_lifecycle_suspend_body'), 'confirmClass' => 'btn btn-primary', 'confirmLabel' => __('lf.LF_course_enrollment_lifecycle_suspend')])
+            @elseif ($enrollment->status === 'suspended')
+                @include('course-enrollments.partials.lifecycle-action', ['action' => route($routePrefix.'.reactivate', $enrollment->id), 'triggerClass' => 'btn btn-primary', 'triggerLabel' => __('lf.LF_course_enrollment_lifecycle_reactivate'), 'title' => __('lf.LF_course_enrollment_lifecycle_reactivate_title'), 'body' => __('lf.LF_course_enrollment_lifecycle_reactivate_body'), 'confirmClass' => 'btn btn-primary', 'confirmLabel' => __('lf.LF_course_enrollment_lifecycle_reactivate')])
+            @endif
+            @if (in_array($enrollment->status, ['pending', 'active', 'suspended'], true))
+                @include('course-enrollments.partials.lifecycle-action', ['action' => route($routePrefix.'.cancel', $enrollment->id), 'triggerClass' => 'admin-danger-text-action', 'triggerLabel' => __('lf.LF_course_enrollment_lifecycle_cancel'), 'title' => __('lf.LF_course_enrollment_lifecycle_cancel_title'), 'body' => __('lf.LF_course_enrollment_lifecycle_cancel_body'), 'confirmClass' => 'btn btn-danger', 'confirmLabel' => __('lf.LF_course_enrollment_lifecycle_cancel')])
+            @endif
         </div>
     </div>
 

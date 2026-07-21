@@ -332,6 +332,7 @@ class BackendLayoutNavigationTest extends TestCase
 
         foreach (array_diff($indexFiles, [
             'resources/views/course-cohorts/index.blade.php',
+            'resources/views/course-enrollments/index.blade.php',
             'resources/views/media-files/index.blade.php',
             'resources/views/course-products/index.blade.php',
             'resources/views/course-templates/index.blade.php',
@@ -341,6 +342,18 @@ class BackendLayoutNavigationTest extends TestCase
             $this->assertStringContainsString('LF_common_status_common_active', $blade, $file);
             $this->assertStringContainsString('LF_common_status_common_inactive', $blade, $file);
         }
+
+        $enrollmentIndex = file_get_contents(
+            base_path('resources/views/course-enrollments/index.blade.php')
+        );
+        $this->assertStringContainsString(
+            "@foreach (['pending', 'active', 'suspended', 'completed', 'expired', 'cancelled'] as \$enrollmentStatus)",
+            $enrollmentIndex
+        );
+        $this->assertStringContainsString(
+            "__('lf.LF_course_enrollment_common_'.\$enrollmentStatus)",
+            $enrollmentIndex
+        );
 
         $cohortIndex = file_get_contents(
             base_path('resources/views/course-cohorts/index.blade.php')
