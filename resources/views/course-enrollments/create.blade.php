@@ -206,9 +206,9 @@
                 </section>
             </section>
 
-            <footer class="admin-form-footer">
-                <a href="{{ route($routePrefix.'.index') }}" class="btn btn-secondary">{{ __('lf.LF_common_button_cancel') }}</a>
+            <footer class="admin-form-footer" data-actions-align="end">
                 <div class="admin-form-footer-primary">
+                    <a href="{{ route($routePrefix.'.index') }}" class="btn btn-secondary">{{ __('lf.LF_common_button_cancel') }}</a>
                     <button x-show="step === 2" type="button" class="btn btn-secondary" x-on:click="backToSelection">{{ __('lf.LF_bulk_enrollment_back') }}</button>
                     <button x-show="step === 1" type="button" class="btn btn-primary" x-on:click="continueToSetup" :disabled="loading || !productEligibilityReady || hasInvalidSelectedProducts || pairCount < 1 || pairCount > 100">{{ __('lf.LF_bulk_enrollment_continue') }}</button>
                     <button x-show="step === 2" type="submit" class="btn btn-primary" :disabled="loading || submitting"><span x-show="!submitting">{{ __('lf.LF_bulk_enrollment_submit') }}</span><span x-show="submitting">{{ __('lf.LF_course_enrollment_update_saving') }}</span></button>
