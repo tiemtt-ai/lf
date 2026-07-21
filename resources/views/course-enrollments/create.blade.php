@@ -59,9 +59,9 @@
                 </span>
             </template>
 
-            <p class="admin-alert admin-alert-danger" x-show="errorMessage" x-text="errorMessage" role="alert"></p>
+            <p class="admin-alert admin-alert-danger" x-show="errorMessage" x-text="errorMessage" role="alert" x-cloak></p>
             <div x-ref="selectionError" class="admin-alert admin-alert-danger" x-show="hasInvalidSelectedProducts"
-                 tabindex="-1" role="alert" aria-labelledby="bulk-selection-error-title">
+                 tabindex="-1" role="alert" aria-labelledby="bulk-selection-error-title" x-cloak>
                 <strong id="bulk-selection-error-title">{{ __('lf.LF_bulk_enrollment_preflight_blocked') }}</strong>
                 <button type="button" class="admin-text-action" x-on:click="removeInvalidProducts">{{ __('lf.LF_bulk_enrollment_remove_invalid_products') }}</button>
             </div>
@@ -99,7 +99,7 @@
                                 <td><input type="checkbox" :checked="hasStudent(item.id)" x-on:change="toggleStudent(item, $event.target.checked)" :aria-label="item.name"></td>
                                 <td><strong x-text="item.name"></strong><span class="course-cohort-index-meta" x-text="item.email"></span></td>
                             </tr></template>
-                            <tr x-show="!studentLoading && studentResults.length === 0"><td>{{ __('lf.LF_course_enrollment_search_empty') }}</td></tr>
+                            <tr x-show="!studentLoading && studentResults.length === 0" x-cloak><td>{{ __('lf.LF_course_enrollment_search_empty') }}</td></tr>
                         </tbody></table></div>
                         <nav class="bulk-enrollment-pagination" aria-label="{{ __('lf.LF_bulk_enrollment_students_pagination') }}">
                             <button type="button" class="bulk-enrollment-pagination__button" x-on:click="loadStudents(studentPage - 1)" :disabled="studentPage <= 1"><span aria-hidden="true">←</span><span>{{ __('lf.LF_bulk_enrollment_previous') }}</span></button>
@@ -137,13 +137,13 @@
                                         <span x-show="item.version?.code"><span class="bulk-enrollment-product-meta__label">{{ __('lf.LF_course_enrollment_common_version') }}</span><span x-text="item.version?.code"></span></span>
                                     </span>
                                     <span class="bulk-enrollment-eligibility-badge" :class="`is-${item.eligibility || 'unchecked'}`" x-text="eligibilityLabel(item)"></span>
-                                    <span :id="`product-reason-${item.id}`" x-show="item.eligibility === 'ineligible'" class="course-cohort-index-meta" x-text="eligibilityReason(item)"></span>
-                                    <button x-show="hasProduct(item.id) && item.eligibility === 'ineligible'" type="button" class="admin-text-action" x-on:click="toggleProduct(item, false)">{{ __('lf.LF_bulk_enrollment_deselect') }}</button>
+                                    <span :id="`product-reason-${item.id}`" x-show="item.eligibility === 'ineligible'" class="course-cohort-index-meta" x-text="eligibilityReason(item)" x-cloak></span>
+                                    <button x-show="hasProduct(item.id) && item.eligibility === 'ineligible'" type="button" class="admin-text-action" x-on:click="toggleProduct(item, false)" x-cloak>{{ __('lf.LF_bulk_enrollment_deselect') }}</button>
                                 </td>
                             </tr></template>
-                            <tr x-show="!productLoading && productResults.length === 0"><td>{{ __('lf.LF_course_enrollment_search_empty') }}</td></tr>
+                            <tr x-show="!productLoading && productResults.length === 0" x-cloak><td>{{ __('lf.LF_course_enrollment_search_empty') }}</td></tr>
                         </tbody></table></div>
-                        <div x-show="productEligibilityError" class="admin-alert admin-alert-danger" role="alert">
+                        <div x-show="productEligibilityError" class="admin-alert admin-alert-danger" role="alert" x-cloak>
                             <span>{{ __('lf.LF_bulk_enrollment_eligibility_error') }}</span>
                             <button type="button" class="admin-text-action" x-on:click="loadProducts(productPage)">{{ __('lf.LF_bulk_enrollment_retry') }}</button>
                         </div>
@@ -161,7 +161,7 @@
                 </div>
             </section>
 
-            <section x-show="step === 2" class="admin-form-standard-section bulk-enrollment-wizard-section" aria-labelledby="bulk-setup-title">
+            <section x-show="step === 2" class="admin-form-standard-section bulk-enrollment-wizard-section" aria-labelledby="bulk-setup-title" x-cloak>
                 <header class="admin-form-section-header">
                     <h2 id="bulk-setup-title" class="admin-form-section-title">{{ __('lf.LF_bulk_enrollment_setup_confirm') }}</h2>
                     <p class="admin-form-section-help">{{ __('lf.LF_bulk_enrollment_admin_override_help') }}</p>
@@ -208,9 +208,9 @@
             <footer class="admin-form-footer" data-actions-align="end">
                 <div class="admin-form-footer-primary">
                     <a href="{{ route($routePrefix.'.index') }}" class="btn btn-secondary">{{ __('lf.LF_common_button_cancel') }}</a>
-                    <button x-show="step === 2" type="button" class="btn btn-secondary" x-on:click="backToSelection">{{ __('lf.LF_bulk_enrollment_back') }}</button>
+                    <button x-show="step === 2" type="button" class="btn btn-secondary" x-on:click="backToSelection" x-cloak>{{ __('lf.LF_bulk_enrollment_back') }}</button>
                     <button x-show="step === 1" type="button" class="btn btn-primary" x-on:click="continueToSetup" :disabled="loading || !productEligibilityReady || hasInvalidSelectedProducts || pairCount < 1 || pairCount > 100">{{ __('lf.LF_bulk_enrollment_continue') }}</button>
-                    <button x-show="step === 2" type="submit" class="btn btn-primary" :disabled="loading || submitting"><span x-show="!submitting">{{ __('lf.LF_bulk_enrollment_submit') }}</span><span x-show="submitting">{{ __('lf.LF_course_enrollment_update_saving') }}</span></button>
+                    <button x-show="step === 2" type="submit" class="btn btn-primary" :disabled="loading || submitting" x-cloak><span x-show="!submitting">{{ __('lf.LF_bulk_enrollment_submit') }}</span><span x-show="submitting">{{ __('lf.LF_course_enrollment_update_saving') }}</span></button>
                 </div>
             </footer>
             </form>
@@ -221,13 +221,12 @@
             <section class="admin-modal bulk-enrollment-guidance-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-product-guidance-title" aria-describedby="bulk-product-guidance-content">
                 <header class="admin-modal-header">
                     <h2 id="bulk-product-guidance-title">{{ __('lf.LF_bulk_enrollment_select_student_popup_title') }}</h2>
-                    <button x-ref="productPromptClose" type="button" class="admin-text-action" x-on:click="closeProductSelectionPrompt">{{ __('lf.LF_common_button_close') }}</button>
                 </header>
                 <div class="bulk-enrollment-guidance-modal__body">
                     <p id="bulk-product-guidance-content">{{ __('lf.LF_bulk_enrollment_select_student_first') }}</p>
                 </div>
                 <footer class="bulk-enrollment-guidance-modal__footer">
-                    <button type="button" class="btn btn-primary" x-on:click="closeProductSelectionPrompt">{{ __('lf.LF_common_button_close') }}</button>
+                    <button x-ref="productPromptClose" type="button" class="btn btn-primary" x-on:click="closeProductSelectionPrompt">{{ __('lf.LF_bulk_enrollment_acknowledge') }}</button>
                 </footer>
             </section>
         </div>

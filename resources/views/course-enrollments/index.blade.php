@@ -19,6 +19,8 @@
         $pageEnrollmentStatuses = $enrollments->getCollection()
             ->mapWithKeys(fn ($row) => [(string) $row->id => $row->status])
             ->all();
+        $advancedFiltersOpen = request()->query('advanced_filters') === '1';
+        $hasActiveFilters = $keyword !== '' || $status || $source || $productId || $studentId || $enrolledBy || $enrolledFrom || $enrolledTo;
     @endphp
     @if (session('success'))
         <div class="admin-alert admin-alert-success" role="status">
@@ -50,7 +52,8 @@
     )">
 
     <div class="admin-card admin-form-card course-enrollment-filter-card">
-        <form class="course-enrollment-filter-grid" method="GET" action="{{ route($routePrefix.'.index') }}">
+        <form class="course-enrollment-filter-grid" method="GET" action="{{ route($routePrefix.'.index') }}" x-data="{ advancedFiltersOpen: @js($advancedFiltersOpen) }">
+            <input type="hidden" name="advanced_filters" :value="advancedFiltersOpen ? '1' : '0'">
             <div class="lf-form-group">
                 <label class="lf-form-label" for="keyword">
                     {{ __('lf.LF_course_enrollment_common_keyword') }}
@@ -91,11 +94,21 @@
                 </select>
             </div>
 
-            <div class="lf-form-group"><label class="lf-form-label" for="product_id">{{ __('lf.LF_course_enrollment_common_product') }}</label><select id="product_id" name="product_id" class="lf-form-control"><option value="">{{ __('lf.LF_course_enrollment_filter_all_products') }}</option>@foreach ($filterProducts as $product)<option value="{{ $product->id }}" @selected($productId === $product->id)>{{ $product->title }} · {{ $product->product_code }}</option>@endforeach</select></div>
-            <div class="lf-form-group"><label class="lf-form-label" for="student_id">{{ __('lf.LF_course_enrollment_common_student') }}</label><select id="student_id" name="student_id" class="lf-form-control"><option value="">{{ __('lf.LF_course_enrollment_filter_all_students') }}</option>@foreach ($filterStudents as $student)<option value="{{ $student->id }}" @selected($studentId === $student->id)>{{ $student->name }} · {{ $student->email }}</option>@endforeach</select></div>
-            <div class="lf-form-group"><label class="lf-form-label" for="enrolled_from">{{ __('lf.LF_course_enrollment_filter_from') }}</label><input id="enrolled_from" name="enrolled_from" type="date" class="lf-form-control" value="{{ $enrolledFrom }}"></div>
-            <div class="lf-form-group"><label class="lf-form-label" for="enrolled_to">{{ __('lf.LF_course_enrollment_filter_to') }}</label><input id="enrolled_to" name="enrolled_to" type="date" class="lf-form-control" value="{{ $enrolledTo }}"></div>
-            <div class="lf-form-group"><label class="lf-form-label" for="enrolled_by">{{ __('lf.LF_course_enrollment_filter_creator') }}</label><select id="enrolled_by" name="enrolled_by" class="lf-form-control"><option value="">{{ __('lf.LF_course_enrollment_filter_all_creators') }}</option>@foreach ($filterCreators as $creator)<option value="{{ $creator->id }}" @selected($enrolledBy === $creator->id)>{{ $creator->name }}</option>@endforeach</select></div>
+            <div class="course-enrollment-filter-toggle">
+                <button type="button" class="admin-text-action" x-on:click="advancedFiltersOpen = !advancedFiltersOpen" :aria-expanded="advancedFiltersOpen.toString()" aria-controls="course-enrollment-advanced-filters">
+                    <span x-show="!advancedFiltersOpen">{{ __('lf.LF_course_enrollment_filter_show_advanced') }}</span>
+                    <span x-cloak x-show="advancedFiltersOpen">{{ __('lf.LF_course_enrollment_filter_hide_advanced') }}</span>
+                    <span aria-hidden="true" x-text="advancedFiltersOpen ? '−' : '+'"></span>
+                </button>
+            </div>
+
+            <div id="course-enrollment-advanced-filters" x-cloak x-show="advancedFiltersOpen" class="course-enrollment-advanced-filter-grid">
+                <div class="lf-form-group"><label class="lf-form-label" for="product_id">{{ __('lf.LF_course_enrollment_common_product') }}</label><select id="product_id" name="product_id" class="lf-form-control"><option value="">{{ __('lf.LF_course_enrollment_filter_all_products') }}</option>@foreach ($filterProducts as $product)<option value="{{ $product->id }}" @selected($productId === $product->id)>{{ $product->title }} · {{ $product->product_code }}</option>@endforeach</select></div>
+                <div class="lf-form-group"><label class="lf-form-label" for="student_id">{{ __('lf.LF_course_enrollment_common_student') }}</label><select id="student_id" name="student_id" class="lf-form-control"><option value="">{{ __('lf.LF_course_enrollment_filter_all_students') }}</option>@foreach ($filterStudents as $student)<option value="{{ $student->id }}" @selected($studentId === $student->id)>{{ $student->name }} · {{ $student->email }}</option>@endforeach</select></div>
+                <div class="lf-form-group"><label class="lf-form-label" for="enrolled_from">{{ __('lf.LF_course_enrollment_filter_from') }}</label><input id="enrolled_from" name="enrolled_from" type="date" class="lf-form-control" value="{{ $enrolledFrom }}"></div>
+                <div class="lf-form-group"><label class="lf-form-label" for="enrolled_to">{{ __('lf.LF_course_enrollment_filter_to') }}</label><input id="enrolled_to" name="enrolled_to" type="date" class="lf-form-control" value="{{ $enrolledTo }}"></div>
+                <div class="lf-form-group"><label class="lf-form-label" for="enrolled_by">{{ __('lf.LF_course_enrollment_filter_creator') }}</label><select id="enrolled_by" name="enrolled_by" class="lf-form-control"><option value="">{{ __('lf.LF_course_enrollment_filter_all_creators') }}</option>@foreach ($filterCreators as $creator)<option value="{{ $creator->id }}" @selected($enrolledBy === $creator->id)>{{ $creator->name }}</option>@endforeach</select></div>
+            </div>
 
             <div class="admin-form-actions course-enrollment-filter-actions">
                 <button type="submit" class="btn btn-primary">
@@ -191,8 +204,11 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="9">
-                        {{ __('lf.LF_course_enrollment_common_empty') }}
+                    <td colspan="9" class="course-enrollment-empty-cell">
+                        <div class="course-enrollment-empty-state" role="status">
+                            <strong>{{ $hasActiveFilters ? __('lf.LF_course_enrollment_filter_empty') : __('lf.LF_course_enrollment_common_empty') }}</strong>
+                            <span>{{ $hasActiveFilters ? __('lf.LF_course_enrollment_filter_empty_help') : __('lf.LF_course_enrollment_empty_help') }}</span>
+                        </div>
                     </td>
                 </tr>
             @endforelse
@@ -226,13 +242,13 @@
 
     <div x-cloak x-show="lifecycleModalOpen" class="admin-modal-backdrop" x-on:keydown.escape.window="if (!submitting) closeLifecycleModal()" x-on:click.self="if (!submitting) closeLifecycleModal()">
         <section class="admin-modal course-enrollment-lifecycle-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-lifecycle-title" aria-describedby="bulk-lifecycle-body" :aria-busy="submitting">
-            <header class="admin-modal-header"><h2 id="bulk-lifecycle-title" x-text="lifecycleTitle"></h2><button x-ref="lifecycleCancel" type="button" class="admin-text-action" x-on:click="closeLifecycleModal" :disabled="submitting">{{ __('lf.LF_common_button_close') }}</button></header>
+            <header class="admin-modal-header"><h2 id="bulk-lifecycle-title" x-text="lifecycleTitle"></h2><button x-ref="lifecycleCancel" type="button" class="course-enrollment-lifecycle-modal__close" x-on:click="closeLifecycleModal" :disabled="submitting" aria-label="{{ __('lf.LF_common_button_close') }}"><span aria-hidden="true">×</span></button></header>
             <form method="POST" action="{{ route($routePrefix.'.bulk-lifecycle') }}" x-on:submit="guardLifecycleSubmit">
                 @csrf
                 <input type="hidden" name="action" :value="lifecycleAction">
                 <template x-for="id in selectedIds" :key="`lifecycle-${id}`"><input type="hidden" name="enrollment_ids[]" :value="id"></template>
                 <div class="course-enrollment-lifecycle-modal__body"><p id="bulk-lifecycle-body" x-text="lifecycleBody"></p></div>
-                <footer class="admin-form-footer"><div class="admin-form-footer-primary"><button type="button" class="btn btn-secondary" x-on:click="closeLifecycleModal" :disabled="submitting">{{ __('lf.LF_common_button_cancel') }}</button><button type="submit" :class="lifecycleAction === 'cancel' ? 'btn btn-danger' : 'btn btn-primary'" :disabled="submitting"><span x-show="!submitting" x-text="lifecycleConfirm"></span><span x-cloak x-show="submitting">{{ __('lf.LF_course_enrollment_lifecycle_processing') }}</span></button></div></footer>
+                <footer class="admin-form-footer course-enrollment-lifecycle-modal__footer" data-actions-align="end"><div class="admin-form-footer-primary"><button type="button" class="btn btn-secondary" x-on:click="closeLifecycleModal" :disabled="submitting">{{ __('lf.LF_common_button_cancel') }}</button><button type="submit" :class="lifecycleAction === 'cancel' ? 'btn btn-danger' : 'btn btn-primary'" :disabled="submitting"><span x-show="!submitting" x-text="lifecycleConfirm"></span><span x-cloak x-show="submitting">{{ __('lf.LF_course_enrollment_lifecycle_processing') }}</span></button></div></footer>
                 <p class="sr-only" aria-live="polite" x-text="submitting ? @js(__('lf.LF_course_enrollment_lifecycle_processing')) : ''"></p>
             </form>
         </section>

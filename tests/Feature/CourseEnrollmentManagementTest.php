@@ -662,6 +662,9 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertStringContainsString('this.productAbortController?.abort()', $html);
         $this->assertStringNotContainsString('this.productResults = this.productResults.map(item => ({ ...item, eligibility: null }))', $html);
         $this->assertStringContainsString('get hasInvalidSelectedProducts()', $html);
+        $this->assertStringContainsString('x-show="errorMessage" x-text="errorMessage" role="alert" x-cloak', $html);
+        $this->assertStringContainsString('aria-labelledby="bulk-selection-error-title" x-cloak', $html);
+        $this->assertStringContainsString('x-show="productEligibilityError" class="admin-alert admin-alert-danger" role="alert" x-cloak', $html);
         $this->assertStringContainsString('x-show="selectedStudents.length === 0" class="admin-alert admin-alert-info" role="status"', $html);
         $this->assertStringContainsString('x-show="selectedStudents.length > 0 && selectedProducts.length === 0" class="admin-alert admin-alert-info" role="status"', $html);
         $this->assertStringNotContainsString('class="bulk-enrollment-empty-state"', $html);
@@ -674,6 +677,8 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertStringContainsString('productSelectionPromptVisible: false', $html);
         $this->assertStringContainsString('async promptForStudentSelection(trigger)', $html);
         $this->assertStringContainsString('this.$refs.productPromptClose.focus()', $html);
+        $this->assertSame(1, substr_count($html, 'x-ref="productPromptClose"'));
+        $this->assertStringContainsString(__('lf.LF_bulk_enrollment_acknowledge'), $html);
         $this->assertStringContainsString('this.productPromptTrigger?.focus()', $html);
         $this->assertStringContainsString('if (this.selectedStudents.length > 0) this.productSelectionPromptVisible = false', $html);
         $this->assertStringContainsString('id="bulk-products-title" tabindex="-1"', $html);
@@ -851,7 +856,9 @@ class CourseEnrollmentManagementTest extends TestCase
             ->assertSee('course-cohort-index-table-wrap', false)
             ->assertSee('course-enrollment-index-table', false)
             ->assertSee('course-cohort-index-status', false)
-            ->assertSee('course-cohort-index-actions', false);
+            ->assertSee('course-cohort-index-actions', false)
+            ->assertSeeText(__('lf.LF_course_enrollment_common_empty'))
+            ->assertSeeText(__('lf.LF_course_enrollment_empty_help'));
     }
 
     public function test_index_paginates_ten_and_orders_statuses_by_operational_priority(): void
@@ -943,6 +950,9 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertStringContainsString('get canCancel()', $html);
         $this->assertStringContainsString("['pending', 'active', 'suspended'].includes(status)", $html);
         $this->assertStringContainsString('role="dialog" aria-modal="true" aria-labelledby="bulk-lifecycle-title" aria-describedby="bulk-lifecycle-body"', $html);
+        $this->assertStringContainsString('name="advanced_filters" :value="advancedFiltersOpen ? \'1\' : \'0\'"', $html);
+        $this->assertStringContainsString('aria-controls="course-enrollment-advanced-filters"', $html);
+        $this->assertStringContainsString('x-show="advancedFiltersOpen" class="course-enrollment-advanced-filter-grid"', $html);
         $this->assertStringContainsString(':aria-busy="submitting"', $html);
         $this->assertStringContainsString('if (this.submitting) { event.preventDefault(); return }', $html);
         $this->assertStringContainsString("lifecycleAction === 'cancel' ? 'btn btn-danger' : 'btn btn-primary'", $html);
@@ -968,6 +978,11 @@ class CourseEnrollmentManagementTest extends TestCase
             ->assertDontSee('value="999999" selected', false)
             ->assertSee('name="enrolled_from"', false)
             ->assertSee('value=""', false);
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-enrollments?advanced_filters=1')
+            ->assertOk()
+            ->assertSee('x-data="{ advancedFiltersOpen: true }"', false);
     }
 
     public function test_bulk_update_explicitly_preserves_sets_and_clears_only_editable_metadata(): void
