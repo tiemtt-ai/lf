@@ -33,6 +33,8 @@ class CourseEnrollmentManagementTest extends TestCase
         }
         $this->assertTrue(Route::has('admin.course-enrollments.bulk-update'));
         $this->assertFalse(Route::has('teacher.course-enrollments.bulk-update'));
+        $this->assertTrue(Route::has('admin.course-enrollments.bulk-lifecycle'));
+        $this->assertFalse(Route::has('teacher.course-enrollments.bulk-lifecycle'));
         foreach (['bulk-store', 'bulk-preflight', 'bulk-invalidate', 'bulk-result'] as $route) {
             $this->assertTrue(Route::has("admin.course-enrollments.{$route}"));
             $this->assertFalse(Route::has("teacher.course-enrollments.{$route}"));
@@ -702,6 +704,12 @@ class CourseEnrollmentManagementTest extends TestCase
         $transferCss = file_get_contents(resource_path('css/admin/admin-pages.css'));
         $this->assertStringContainsString('.bulk-enrollment-dual-selectors', $transferCss);
         $this->assertStringContainsString('.bulk-enrollment-selector.is-onboarding-highlight', $transferCss);
+        $this->assertStringContainsString('grid-template-columns: repeat(2, minmax(0, 1fr));', $transferCss);
+        $this->assertStringContainsString('.bulk-enrollment-wizard-section', $transferCss);
+        $this->assertStringContainsString('width: min(720px, 100%);', $transferCss);
+        $this->assertStringContainsString('justify-items: center;', $transferCss);
+        $this->assertStringContainsString('margin: 0 auto 18px;', $transferCss);
+        $this->assertLessThan(strpos($html, 'class="admin-card admin-form-card admin-form-surface"'), strpos($html, 'class="bulk-enrollment-stepper"'));
         $this->assertLessThan(
             strpos($html, 'class="admin-table-wrap bulk-enrollment-review-table"'),
             strpos($html, 'id="bulk-enrollment-information"')
@@ -868,6 +876,30 @@ class CourseEnrollmentManagementTest extends TestCase
         $html = $response->getContent();
         $this->assertStringContainsString('value="'.$activeId.'" x-model="selectedIds"', $html);
         $this->assertStringNotContainsString('value="'.$terminalId.'" x-model="selectedIds"', $html);
+        $this->assertStringContainsString('get canSuspend()', $html);
+        $this->assertStringContainsString("status === 'active'", $html);
+        $this->assertStringContainsString('get canReactivate()', $html);
+        $this->assertStringContainsString("status === 'suspended'", $html);
+        $this->assertStringContainsString('get canCancel()', $html);
+        $this->assertStringContainsString("['pending', 'active', 'suspended'].includes(status)", $html);
+        $this->assertStringContainsString('role="dialog" aria-modal="true" aria-labelledby="bulk-lifecycle-title" aria-describedby="bulk-lifecycle-body"', $html);
+        $this->assertStringContainsString(':aria-busy="submitting"', $html);
+        $this->assertStringContainsString('if (this.submitting) { event.preventDefault(); return }', $html);
+        $this->assertStringContainsString("lifecycleAction === 'cancel' ? 'btn btn-danger' : 'btn btn-primary'", $html);
+        $lifecycleForm = substr($html, strpos($html, 'action="'.route('admin.course-enrollments.bulk-lifecycle').'"'));
+        $lifecycleForm = substr($lifecycleForm, 0, strpos($lifecycleForm, '</form>'));
+        $this->assertStringNotContainsString('name="status"', $lifecycleForm);
+
+        $this->withSession(['locale' => 'en'])->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-enrollments')
+            ->assertOk()
+            ->assertSeeText('Suspend')
+            ->assertSeeText('Reactivate')
+            ->assertSeeText('Cancel enrollment');
+        $this->assertSame('Suspend enrollments', trans('lf.LF_course_enrollment_bulk_suspend_confirm', [], 'en'));
+        $this->assertSame('Cancel enrollments', trans('lf.LF_course_enrollment_bulk_cancel_confirm', [], 'en'));
+        $this->assertSame('Tạm dừng ghi danh', trans('lf.LF_course_enrollment_bulk_suspend_confirm', [], 'vi'));
+        $this->assertSame('Hủy ghi danh', trans('lf.LF_course_enrollment_bulk_cancel_confirm', [], 'vi'));
 
         $invalidFilterResponse = $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-enrollments?source=not-real&product_id=999999&enrolled_from=2026-99-99');
 
@@ -931,8 +963,144 @@ class CourseEnrollmentManagementTest extends TestCase
             'access_starts_at_action' => 'set', 'access_starts_at_value' => '2026-08-02 10:00:00',
             'access_ends_at_action' => 'set', 'access_ends_at_value' => '2026-08-01 10:00:00',
         ]))->assertSessionHasErrors('access_ends_at');
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk-update', $this->bulkUpdateData([$activeId], [
+            'notes_action' => 'set', 'notes_value' => 'Rejected forged authority',
+            'status' => 'cancelled', 'cancelled_at' => now(), 'source_id' => 99,
+        ]))->assertSessionHasErrors(['status', 'cancelled_at', 'source_id']);
         $this->assertDatabaseMissing('core_course_enrollments', ['id' => $activeId, 'notes' => 'Must roll back']);
+        $this->assertDatabaseMissing('core_course_enrollments', ['id' => $activeId, 'notes' => 'Rejected forged authority']);
         $this->assertDatabaseMissing('core_course_enrollments', ['id' => $otherId, 'notes' => 'Must roll back']);
+    }
+
+    public function test_bulk_lifecycle_applies_only_canonical_atomic_transitions_and_preserves_binding(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Bulk Lifecycle', 'bulk-lifecycle');
+        $versionId = $this->createVersion($customerId, $admin->id);
+
+        $activeIds = [
+            $this->createEnrollment($customerId, $student->id, $productId, $versionId),
+            $this->createEnrollment($customerId, $student->id, $productId, $versionId),
+        ];
+        $this->from('https://tenant-a.localhost/admin/course-enrollments?status=active')
+            ->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk-lifecycle', [
+                'enrollment_ids' => $activeIds,
+                'action' => 'suspend',
+            ])->assertRedirect('https://tenant-a.localhost/admin/course-enrollments?status=active')
+            ->assertSessionHas('success', __('lf.LF_course_enrollment_bulk_lifecycle_suspend_success', ['count' => 2]));
+        foreach ($activeIds as $id) {
+            $this->assertDatabaseHas('core_course_enrollments', [
+                'id' => $id, 'status' => 'suspended', 'product_id' => $productId,
+                'version_id' => $versionId, 'source' => 'admin', 'cancelled_at' => null,
+            ]);
+        }
+
+        $preservedCancelledAt = '2026-07-01 00:00:00';
+        DB::table('core_course_enrollments')->where('id', $activeIds[0])->update(['cancelled_at' => $preservedCancelledAt]);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk-lifecycle', [
+            'enrollment_ids' => array_reverse($activeIds),
+            'action' => 'reactivate',
+        ])->assertRedirect();
+        $this->assertDatabaseHas('core_course_enrollments', ['id' => $activeIds[0], 'status' => 'active', 'cancelled_at' => $preservedCancelledAt]);
+        $this->assertDatabaseHas('core_course_enrollments', ['id' => $activeIds[1], 'status' => 'active', 'cancelled_at' => null]);
+
+        $cancelIds = [
+            $this->createEnrollment($customerId, $student->id, $productId, $versionId, 'pending'),
+            $this->createEnrollment($customerId, $student->id, $productId, $versionId, 'active'),
+            $this->createEnrollment($customerId, $student->id, $productId, $versionId, 'suspended'),
+        ];
+        $cohortId = $this->createCohort($customerId, $productId, $versionId);
+        DB::table('core_course_cohort_students')->insert([
+            'customer_id' => $customerId, 'cohort_id' => $cohortId, 'enrollment_id' => $cancelIds[1],
+            'product_id' => $productId, 'student_id' => $student->id, 'assigned_by' => $admin->id,
+            'joined_at' => now(), 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $progressId = DB::table('core_course_progress')->insertGetId([
+            'customer_id' => $customerId, 'enrollment_id' => $cancelIds[1], 'student_id' => $student->id,
+            'product_id' => $productId, 'version_id' => $versionId, 'progress_percentage' => 42.50,
+            'completed_lessons' => 2, 'total_lessons' => 5, 'completed_activities' => 3,
+            'total_activities' => 8, 'required_activities_completed' => 2, 'required_activities_total' => 6,
+            'assessment_completed' => 0, 'assessment_total' => 1, 'total_learning_seconds' => 900,
+            'last_version_activity_id' => null, 'last_version_lesson_id' => null, 'last_accessed_at' => now(),
+            'started_at' => now(), 'completed_at' => null, 'status' => 'in_progress', 'recalculated_at' => null,
+            'metadata' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk-lifecycle', [
+            'enrollment_ids' => $cancelIds,
+            'action' => 'cancel',
+        ])->assertRedirect()->assertSessionHas('success', __('lf.LF_course_enrollment_bulk_lifecycle_cancel_success', ['count' => 3]));
+        foreach ($cancelIds as $id) {
+            $this->assertSame('cancelled', DB::table('core_course_enrollments')->where('id', $id)->value('status'));
+            $this->assertNotNull(DB::table('core_course_enrollments')->where('id', $id)->value('cancelled_at'));
+        }
+        $this->assertDatabaseHas('core_course_cohort_students', ['cohort_id' => $cohortId, 'enrollment_id' => $cancelIds[1], 'status' => 'active']);
+        $this->assertDatabaseHas('core_course_progress', ['id' => $progressId, 'progress_percentage' => 42.50, 'status' => 'in_progress']);
+    }
+
+    public function test_bulk_lifecycle_rejects_stale_cross_tenant_terminal_and_forged_requests_atomically(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $otherStudent = $this->createUser($otherCustomerId, 'student');
+        $productId = $this->createProduct($customerId, 'Atomic Lifecycle', 'atomic-lifecycle');
+        $otherProductId = $this->createProduct($otherCustomerId, 'Other Lifecycle', 'other-lifecycle');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $otherVersionId = $this->createVersion($otherCustomerId, $otherAdmin->id);
+        $activeId = $this->createEnrollment($customerId, $student->id, $productId, $versionId, 'active');
+        $suspendedId = $this->createEnrollment($customerId, $student->id, $productId, $versionId, 'suspended');
+        $eligibleSuspendedId = $this->createEnrollment($customerId, $student->id, $productId, $versionId, 'suspended');
+        $terminalId = $this->createEnrollment($customerId, $student->id, $productId, $versionId, 'completed');
+        $otherId = $this->createEnrollment($otherCustomerId, $otherStudent->id, $otherProductId, $otherVersionId, 'active');
+
+        foreach ([[$activeId, $suspendedId], [$activeId, $terminalId], [$activeId, $otherId], [$activeId, 999999]] as $ids) {
+            $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk-lifecycle', [
+                'enrollment_ids' => $ids, 'action' => 'suspend',
+            ])->assertSessionHasErrors('enrollment_ids');
+            $this->assertDatabaseHas('core_course_enrollments', ['id' => $activeId, 'status' => 'active']);
+        }
+
+        DB::table('core_course_enrollments')->where('id', $suspendedId)->update(['access_ends_at' => now()->subMinute()]);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk-lifecycle', [
+            'enrollment_ids' => [$suspendedId, $eligibleSuspendedId], 'action' => 'reactivate',
+        ])->assertSessionHasErrors('enrollment_ids');
+        $this->assertDatabaseHas('core_course_enrollments', ['id' => $eligibleSuspendedId, 'status' => 'suspended']);
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk-lifecycle', [
+            'enrollment_ids' => [$activeId], 'action' => 'activate', 'status' => 'cancelled',
+            'cancelled_at' => now(), 'source_id' => 99,
+        ])->assertSessionHasErrors(['action', 'status', 'cancelled_at', 'source_id']);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk-lifecycle', [
+            'enrollment_ids' => [], 'action' => 'cancel',
+        ])->assertSessionHasErrors('enrollment_ids');
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk-lifecycle', [
+            'enrollment_ids' => range(1, 101), 'action' => 'cancel',
+        ])->assertSessionHasErrors('enrollment_ids');
+        $this->assertDatabaseHas('core_course_enrollments', ['id' => $activeId, 'status' => 'active']);
+        $this->assertDatabaseHas('core_course_enrollments', ['id' => $otherId, 'status' => 'active']);
+    }
+
+    public function test_bulk_lifecycle_normalizes_duplicates_and_competing_replay_fails_without_rewriting_cancelled_at(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Replay Lifecycle', 'replay-lifecycle');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $id = $this->createEnrollment($customerId, $student->id, $productId, $versionId, 'active');
+
+        $payload = ['enrollment_ids' => [$id, $id], 'action' => 'cancel'];
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk-lifecycle', $payload)
+            ->assertSessionHas('success', __('lf.LF_course_enrollment_bulk_lifecycle_cancel_success', ['count' => 1]));
+        $cancelledAt = DB::table('core_course_enrollments')->where('id', $id)->value('cancelled_at');
+        $this->travel(1)->minute();
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk-lifecycle', $payload)
+            ->assertSessionHasErrors('enrollment_ids');
+        $this->assertEquals($cancelledAt, DB::table('core_course_enrollments')->where('id', $id)->value('cancelled_at'));
     }
 
     public function test_search_endpoints_are_tenant_scoped_and_products_include_version_summary(): void

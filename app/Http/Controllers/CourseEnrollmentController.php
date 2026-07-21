@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\BulkEnrollmentAtomicException;
+use App\Http\Requests\BulkEnrollmentLifecycleRequest;
 use App\Http\Requests\BulkEnrollmentPreflightRequest;
 use App\Http\Requests\BulkEnrollmentRequest;
 use App\Http\Requests\BulkEnrollmentUpdateRequest;
@@ -150,6 +151,21 @@ class CourseEnrollmentController extends Controller
 
         return redirect()->route($this->routePrefix($request).'.index')
             ->with('success', __('lf.LF_course_enrollment_bulk_updated', ['count' => $count]));
+    }
+
+    public function bulkLifecycle(BulkEnrollmentLifecycleRequest $request, CourseEnrollmentLifecycleService $service)
+    {
+        $action = $request->validated('action');
+        $count = $service->bulkTransition(
+            $this->customerId(),
+            $request->validated('enrollment_ids'),
+            $action
+        );
+
+        return redirect()->back()->with(
+            'success',
+            __('lf.LF_course_enrollment_bulk_lifecycle_'.$action.'_success', ['count' => $count])
+        );
     }
 
     public function create(Request $request): View

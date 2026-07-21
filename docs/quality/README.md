@@ -40,6 +40,9 @@ criteria hay không.
 * [LF-Bulk-Enrollment-Architecture-Review.md](LF-Bulk-Enrollment-Architecture-Review.md)
   — approved architecture review for Admin bulk Enrollment creation,
   re-enrollment, atomic submission and durable idempotency.
+* [LF-Enrollment-Lifecycle-Architecture-Review.md](LF-Enrollment-Lifecycle-Architecture-Review.md)
+  — approved and frozen review for single and atomic bulk Enrollment lifecycle
+  transitions.
 
 ---
 

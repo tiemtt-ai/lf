@@ -16,9 +16,12 @@
             ->filter(fn ($id) => in_array($id, $editablePageIds, true))
             ->values()
             ->all();
+        $pageEnrollmentStatuses = $enrollments->getCollection()
+            ->mapWithKeys(fn ($row) => [(string) $row->id => $row->status])
+            ->all();
     @endphp
     @if (session('success'))
-        <div class="admin-alert admin-alert-success">
+        <div class="admin-alert admin-alert-success" role="status">
             {{ session('success') }}
         </div>
     @endif
@@ -33,7 +36,18 @@
         </div>
     @endif
 
-    <div x-data="enrollmentIndexBulk(@js($editablePageIds), @js($initialSelectedIds), @js($errors->any()))">
+    <div x-data="enrollmentIndexBulk(
+        @js($editablePageIds),
+        @js($pageEnrollmentStatuses),
+        @js($initialSelectedIds),
+        @js($errors->any()),
+        @js(in_array(old('action'), ['suspend', 'reactivate', 'cancel'], true) ? old('action') : null),
+        @js([
+            'suspend' => ['title' => __('lf.LF_course_enrollment_bulk_suspend_title'), 'body' => __('lf.LF_course_enrollment_bulk_suspend_body'), 'confirm' => __('lf.LF_course_enrollment_bulk_suspend_confirm')],
+            'reactivate' => ['title' => __('lf.LF_course_enrollment_bulk_reactivate_title'), 'body' => __('lf.LF_course_enrollment_bulk_reactivate_body'), 'confirm' => __('lf.LF_course_enrollment_bulk_reactivate_confirm')],
+            'cancel' => ['title' => __('lf.LF_course_enrollment_bulk_cancel_title'), 'body' => __('lf.LF_course_enrollment_bulk_cancel_body'), 'confirm' => __('lf.LF_course_enrollment_bulk_cancel_confirm')],
+        ])
+    )">
 
     <div class="admin-card admin-form-card course-enrollment-filter-card">
         <form class="course-enrollment-filter-grid" method="GET" action="{{ route($routePrefix.'.index') }}">
@@ -103,7 +117,16 @@
 
     <div x-cloak x-show="selectedIds.length > 0" class="course-enrollment-bulk-bar" aria-live="polite">
         <strong x-text="selectedLabel"></strong>
-        <div class="admin-form-actions"><button type="button" class="btn btn-primary" x-on:click="modalOpen = true">{{ __('lf.LF_course_enrollment_bulk_edit') }}</button><button type="button" class="btn btn-secondary" x-on:click="clearSelection">{{ __('lf.LF_course_enrollment_bulk_clear') }}</button></div>
+        <div class="course-enrollment-bulk-actions">
+            <button type="button" class="btn btn-primary" x-on:click="openEditModal">{{ __('lf.LF_course_enrollment_bulk_edit') }}</button>
+            <button type="button" class="btn btn-secondary" x-on:click="openLifecycle('suspend', $event.currentTarget)" :disabled="!canSuspend" :aria-describedby="!canSuspend ? 'bulk-suspend-reason' : null">{{ __('lf.LF_course_enrollment_lifecycle_suspend') }}</button>
+            <button type="button" class="btn btn-secondary" x-on:click="openLifecycle('reactivate', $event.currentTarget)" :disabled="!canReactivate" :aria-describedby="!canReactivate ? 'bulk-reactivate-reason' : null">{{ __('lf.LF_course_enrollment_lifecycle_reactivate') }}</button>
+            <button type="button" class="btn btn-danger" x-on:click="openLifecycle('cancel', $event.currentTarget)" :disabled="!canCancel" :aria-describedby="!canCancel ? 'bulk-cancel-reason' : null">{{ __('lf.LF_course_enrollment_lifecycle_cancel') }}</button>
+            <button type="button" class="btn btn-secondary" x-on:click="clearSelection">{{ __('lf.LF_course_enrollment_bulk_clear') }}</button>
+            <span id="bulk-suspend-reason" class="sr-only">{{ __('lf.LF_course_enrollment_bulk_suspend_disabled') }}</span>
+            <span id="bulk-reactivate-reason" class="sr-only">{{ __('lf.LF_course_enrollment_bulk_reactivate_disabled') }}</span>
+            <span id="bulk-cancel-reason" class="sr-only">{{ __('lf.LF_course_enrollment_bulk_cancel_disabled') }}</span>
+        </div>
     </div>
 
     <div class="admin-table-wrap course-cohort-index-table-wrap">
@@ -184,9 +207,9 @@
         </div>
     @endif
 
-    <div x-cloak x-show="modalOpen" class="admin-modal-backdrop" x-on:keydown.escape.window="modalOpen = false">
+    <div x-cloak x-show="editModalOpen" class="admin-modal-backdrop" x-on:keydown.escape.window="if (!submitting) closeEditModal()" x-on:click.self="if (!submitting) closeEditModal()">
         <section class="admin-modal course-enrollment-bulk-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-edit-title">
-            <header class="admin-modal-header"><h2 id="bulk-edit-title">{{ __('lf.LF_course_enrollment_bulk_edit') }}</h2><button type="button" class="admin-text-action" x-on:click="modalOpen = false">{{ __('lf.LF_common_button_cancel') }}</button></header>
+            <header class="admin-modal-header"><h2 id="bulk-edit-title">{{ __('lf.LF_course_enrollment_bulk_edit') }}</h2><button type="button" class="admin-text-action" x-on:click="closeEditModal" :disabled="submitting">{{ __('lf.LF_common_button_cancel') }}</button></header>
             <form method="POST" action="{{ route($routePrefix.'.bulk-update') }}" x-on:submit="submitting = true">
                 @csrf
                 <template x-for="id in selectedIds" :key="id"><input type="hidden" name="enrollment_ids[]" :value="id"></template>
@@ -197,20 +220,47 @@
                     @endforeach
                     <div class="course-enrollment-bulk-field"><label class="lf-form-label" for="notes_action">{{ __('lf.LF_course_enrollment_internal_notes') }}</label><select id="notes_action" name="notes_action" class="lf-form-control" x-model="actions.notes"><option value="preserve">{{ __('lf.LF_course_enrollment_bulk_preserve') }}</option><option value="set">{{ __('lf.LF_course_enrollment_bulk_set') }}</option><option value="clear">{{ __('lf.LF_course_enrollment_bulk_clear_value') }}</option></select><textarea x-show="actions.notes === 'set'" name="notes_value" class="lf-form-control" rows="3" :disabled="actions.notes !== 'set'"></textarea></div>
                 </div>
-                <footer class="admin-form-footer"><div class="admin-form-footer-primary"><button type="button" class="btn btn-secondary" x-on:click="modalOpen = false">{{ __('lf.LF_common_button_cancel') }}</button><button type="submit" class="btn btn-primary" :disabled="submitting || selectedIds.length === 0"><span x-show="!submitting">{{ __('lf.LF_common_button_save_changes') }}</span><span x-show="submitting">{{ __('lf.LF_course_enrollment_update_saving') }}</span></button></div></footer>
+                <footer class="admin-form-footer"><div class="admin-form-footer-primary"><button type="button" class="btn btn-secondary" x-on:click="closeEditModal" :disabled="submitting">{{ __('lf.LF_common_button_cancel') }}</button><button type="submit" class="btn btn-primary" :disabled="submitting || selectedIds.length === 0"><span x-show="!submitting">{{ __('lf.LF_common_button_save_changes') }}</span><span x-show="submitting">{{ __('lf.LF_course_enrollment_update_saving') }}</span></button></div></footer>
+            </form>
+        </section>
+    </div>
+
+    <div x-cloak x-show="lifecycleModalOpen" class="admin-modal-backdrop" x-on:keydown.escape.window="if (!submitting) closeLifecycleModal()" x-on:click.self="if (!submitting) closeLifecycleModal()">
+        <section class="admin-modal course-enrollment-lifecycle-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-lifecycle-title" aria-describedby="bulk-lifecycle-body" :aria-busy="submitting">
+            <header class="admin-modal-header"><h2 id="bulk-lifecycle-title" x-text="lifecycleTitle"></h2><button x-ref="lifecycleCancel" type="button" class="admin-text-action" x-on:click="closeLifecycleModal" :disabled="submitting">{{ __('lf.LF_common_button_close') }}</button></header>
+            <form method="POST" action="{{ route($routePrefix.'.bulk-lifecycle') }}" x-on:submit="guardLifecycleSubmit">
+                @csrf
+                <input type="hidden" name="action" :value="lifecycleAction">
+                <template x-for="id in selectedIds" :key="`lifecycle-${id}`"><input type="hidden" name="enrollment_ids[]" :value="id"></template>
+                <div class="course-enrollment-lifecycle-modal__body"><p id="bulk-lifecycle-body" x-text="lifecycleBody"></p></div>
+                <footer class="admin-form-footer"><div class="admin-form-footer-primary"><button type="button" class="btn btn-secondary" x-on:click="closeLifecycleModal" :disabled="submitting">{{ __('lf.LF_common_button_cancel') }}</button><button type="submit" :class="lifecycleAction === 'cancel' ? 'btn btn-danger' : 'btn btn-primary'" :disabled="submitting"><span x-show="!submitting" x-text="lifecycleConfirm"></span><span x-cloak x-show="submitting">{{ __('lf.LF_course_enrollment_lifecycle_processing') }}</span></button></div></footer>
+                <p class="sr-only" aria-live="polite" x-text="submitting ? @js(__('lf.LF_course_enrollment_lifecycle_processing')) : ''"></p>
             </form>
         </section>
     </div>
     </div>
 
     <script>
-        function enrollmentIndexBulk(pageIds, initialSelectedIds, hasValidationErrors) {
-            return { pageIds, selectedIds: initialSelectedIds, modalOpen: hasValidationErrors && initialSelectedIds.length > 0, submitting: false,
+        function enrollmentIndexBulk(pageIds, pageStatuses, initialSelectedIds, hasValidationErrors, initialLifecycleAction, lifecycleCopy) {
+            return { pageIds, pageStatuses, selectedIds: initialSelectedIds, editModalOpen: hasValidationErrors && !initialLifecycleAction && initialSelectedIds.length > 0, lifecycleModalOpen: hasValidationErrors && Boolean(initialLifecycleAction) && initialSelectedIds.length > 0, lifecycleAction: initialLifecycleAction || '', lifecycleCopy, lifecycleTrigger: null, submitting: false,
                 actions: { access_starts_at: 'preserve', access_ends_at: 'preserve', review_starts_at: 'preserve', review_ends_at: 'preserve', notes: 'preserve' },
+                init() { if (this.lifecycleModalOpen) this.$nextTick(() => this.$refs.lifecycleCancel.focus()) },
                 get allPageSelected() { return this.pageIds.length > 0 && this.pageIds.every(id => this.selectedIds.includes(id)) },
                 get selectedLabel() { return @js(__('lf.LF_course_enrollment_bulk_selected')).replace(':count', this.selectedIds.length) },
+                get selectedStatuses() { return this.selectedIds.map(id => this.pageStatuses[String(id)]).filter(Boolean) },
+                get canSuspend() { return this.selectedStatuses.length === this.selectedIds.length && this.selectedStatuses.length > 0 && this.selectedStatuses.every(status => status === 'active') },
+                get canReactivate() { return this.selectedStatuses.length === this.selectedIds.length && this.selectedStatuses.length > 0 && this.selectedStatuses.every(status => status === 'suspended') },
+                get canCancel() { return this.selectedStatuses.length === this.selectedIds.length && this.selectedStatuses.length > 0 && this.selectedStatuses.every(status => ['pending', 'active', 'suspended'].includes(status)) },
+                get lifecycleTitle() { return (this.lifecycleCopy[this.lifecycleAction]?.title || '').replace(':count', this.selectedIds.length) },
+                get lifecycleBody() { return this.lifecycleCopy[this.lifecycleAction]?.body || '' },
+                get lifecycleConfirm() { return this.lifecycleCopy[this.lifecycleAction]?.confirm || '' },
                 togglePage(checked) { this.selectedIds = checked ? [...this.pageIds] : [] },
-                clearSelection() { this.selectedIds = []; this.modalOpen = false },
+                clearSelection() { this.selectedIds = []; this.editModalOpen = false; this.lifecycleModalOpen = false },
+                openEditModal() { this.submitting = false; this.editModalOpen = true },
+                closeEditModal() { if (!this.submitting) this.editModalOpen = false },
+                async openLifecycle(action, trigger) { if ((action === 'suspend' && !this.canSuspend) || (action === 'reactivate' && !this.canReactivate) || (action === 'cancel' && !this.canCancel)) return; this.lifecycleAction = action; this.lifecycleTrigger = trigger; this.submitting = false; this.lifecycleModalOpen = true; await this.$nextTick(); this.$refs.lifecycleCancel.focus() },
+                async closeLifecycleModal() { if (this.submitting) return; this.lifecycleModalOpen = false; await this.$nextTick(); this.lifecycleTrigger?.focus(); this.lifecycleTrigger = null },
+                guardLifecycleSubmit(event) { if (this.submitting) { event.preventDefault(); return } this.submitting = true },
             }
         }
     </script>

@@ -325,6 +325,7 @@ docs/quality/
 | [quality/LF-Course-Product-Items-Architecture-Review.md](quality/LF-Course-Product-Items-Architecture-Review.md) | Approved Course Product Items architecture review |
 | [quality/LF-Course-Product-Relations-Architecture-Review.md](quality/LF-Course-Product-Relations-Architecture-Review.md) | Approved Course Product Relations architecture review |
 | [quality/LF-Course-Cohort-Architecture-Review.md](quality/LF-Course-Cohort-Architecture-Review.md) | Approved Cohort binding, lifecycle, membership and legacy migration review |
+| [quality/LF-Enrollment-Lifecycle-Architecture-Review.md](quality/LF-Enrollment-Lifecycle-Architecture-Review.md) | Approved and frozen single and bulk Enrollment lifecycle transition review |
 | [quality/LF-Bulk-Enrollment-Architecture-Review.md](quality/LF-Bulk-Enrollment-Architecture-Review.md) | Approved Admin Bulk Enrollment creation, re-enrollment, partial-success and idempotency review |
 
 ---

@@ -1,7 +1,7 @@
 # Enrollment Lifecycle Architecture Review
 
-Status: **Approved — Policy 1**  
-Date: 2026-07-20
+Status: **Approved and Frozen — Policy 1**
+Date: 2026-07-21
 
 ## Scope reviewed
 
@@ -81,3 +81,48 @@ Runtime learning access still requires `Enrollment.status = active`. Add and
 Transfer continue to accept only active Enrollments. No cross-domain lifecycle
 matrix, Membership history, `is_current`, `activated_at`, or `suspended_at` is
 introduced.
+
+## Bulk lifecycle actions
+
+The Admin Enrollment list exposes lifecycle mutations independently from the
+bulk common-information update. The common-information request continues to
+prohibit `status`, lifecycle timestamps, binding fields, source fields and
+cross-domain state. Bulk lifecycle accepts only a canonical action:
+
+```text
+suspend     active -> suspended
+reactivate suspended -> active
+cancel      pending|active|suspended -> cancelled
+```
+
+The server resolves the target status; clients never submit an arbitrary
+target. Availability in the UI is advisory and requires every selected row to
+support the action. The server revalidates the complete selection under lock.
+
+Each request normalizes unique positive Enrollment IDs and is limited to 100
+submitted IDs. The transaction loads exactly the tenant-owned rows, ordered by
+Enrollment ID, with `FOR UPDATE`. A missing, cross-tenant, stale or ineligible
+row rejects the whole request. No partial success or silent skipping is
+allowed. Reactivation then locks required Product rows in ascending Product ID
+order before validating Product existence, immutable published Version and
+the Enrollment access window. This preserves the existing lock hierarchy:
+
+```text
+Enrollment IDs ascending -> Product IDs ascending
+```
+
+Cancel writes one server timestamp to `cancelled_at` for every row in that
+transaction. Suspend and reactivate preserve the existing `cancelled_at`
+value. Competing requests serialize through row locks; the loser revalidates
+the new status and fails atomically rather than applying a second transition.
+
+Bulk lifecycle never changes Student, Product, immutable `version_id`, source,
+access/review configuration, Cohort Membership/capacity, Progress, Completion,
+Assessment or Certificate state. Runtime learning access continues to require
+`status = active`.
+
+The current Enrollment lifecycle implementation has no canonical domain audit
+event/log writer. The repository-wide SaaS audit table is not used by the
+existing single Enrollment lifecycle flow. Bulk lifecycle therefore does not
+invent a competing audit mechanism or schema; this remains an explicit audit
+infrastructure gap for a future approved architecture change.

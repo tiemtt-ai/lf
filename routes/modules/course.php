@@ -119,6 +119,9 @@ if ($registerCourseProductRoutes ?? false) {
     Route::post('/course-enrollments/bulk-update', [CourseEnrollmentController::class, 'bulkUpdate'])
         ->name('course-enrollments.bulk-update');
 
+    Route::post('/course-enrollments/bulk-lifecycle', [CourseEnrollmentController::class, 'bulkLifecycle'])
+        ->name('course-enrollments.bulk-lifecycle');
+
     Route::get('/course-enrollments/bulk/result', [CourseEnrollmentController::class, 'bulkResult'])
         ->name('course-enrollments.bulk-result');
 

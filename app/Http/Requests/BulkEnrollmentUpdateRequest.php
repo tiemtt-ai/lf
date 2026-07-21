@@ -22,7 +22,8 @@ class BulkEnrollmentUpdateRequest extends FormRequest
             'enrollment_ids.*' => ['required', 'integer', 'min:1', 'distinct'],
             'customer_id' => ['prohibited'], 'student_id' => ['prohibited'],
             'product_id' => ['prohibited'], 'version_id' => ['prohibited'],
-            'source' => ['prohibited'], 'status' => ['prohibited'], 'enrolled_at' => ['prohibited'],
+            'source' => ['prohibited'], 'source_id' => ['prohibited'], 'enrolled_by' => ['prohibited'],
+            'status' => ['prohibited'], 'cancelled_at' => ['prohibited'], 'enrolled_at' => ['prohibited'],
         ];
         foreach (self::FIELDS as $field) {
             $rules[$field.'_action'] = ['required', Rule::in(['preserve', 'set', 'clear'])];

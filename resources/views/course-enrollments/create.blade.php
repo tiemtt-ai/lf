@@ -10,7 +10,7 @@
         </div>
     @endif
 
-    <div class="admin-card admin-form-card admin-form-surface"
+    <div class="bulk-enrollment-wizard"
          x-data="bulkEnrollmentWizard({
              studentUrl: @js(route($routePrefix.'.students.search')),
              productUrl: @js(route($routePrefix.'.products.search')),
@@ -18,7 +18,30 @@
              invalidateUrl: @js(route($routePrefix.'.bulk-invalidate')),
              csrf: @js(csrf_token()),
          })">
-        <form x-ref="form" class="admin-form-standard" method="POST"
+        <nav class="bulk-enrollment-stepper" aria-label="{{ __('lf.LF_bulk_enrollment_progress') }}">
+            <ol>
+                @foreach ([
+                    1 => ['LF_bulk_enrollment_step_selection', 'LF_bulk_enrollment_step_selection_help'],
+                    2 => ['LF_bulk_enrollment_step_setup', 'LF_bulk_enrollment_step_setup_help'],
+                ] as $number => [$titleKey, $helpKey])
+                    <li :class="{ 'is-current': step === {{ $number }}, 'is-completed': step > {{ $number }}, 'is-upcoming': step < {{ $number }} }">
+                        <button type="button" class="bulk-enrollment-stepper__button"
+                                :disabled="step <= {{ $number }}" x-on:click="backToSelection"
+                                :aria-current="step === {{ $number }} ? 'step' : null">
+                            <span class="bulk-enrollment-stepper__marker">
+                                <span x-show="step <= {{ $number }}">{{ $number }}</span>
+                                <span x-show="step > {{ $number }}" aria-hidden="true">✓</span>
+                            </span>
+                            <span class="bulk-enrollment-stepper__copy"><strong>{{ __('lf.'.$titleKey) }}</strong><small>{{ __('lf.'.$helpKey) }}</small></span>
+                            <span x-show="step > {{ $number }}" class="sr-only">{{ __('lf.LF_bulk_enrollment_completed') }}</span>
+                        </button>
+                    </li>
+                @endforeach
+            </ol>
+        </nav>
+
+        <div class="admin-card admin-form-card admin-form-surface">
+            <form x-ref="form" class="admin-form-standard" method="POST"
               action="{{ route($routePrefix.'.bulk-store') }}" x-on:submit.prevent="commit">
             @csrf
             <input type="hidden" name="submission_token" :value="submissionToken">
@@ -36,28 +59,6 @@
                 </span>
             </template>
 
-            <nav class="bulk-enrollment-stepper" aria-label="{{ __('lf.LF_bulk_enrollment_progress') }}">
-                <ol>
-                    @foreach ([
-                        1 => ['LF_bulk_enrollment_step_selection', 'LF_bulk_enrollment_step_selection_help'],
-                        2 => ['LF_bulk_enrollment_step_setup', 'LF_bulk_enrollment_step_setup_help'],
-                    ] as $number => [$titleKey, $helpKey])
-                        <li :class="{ 'is-current': step === {{ $number }}, 'is-completed': step > {{ $number }}, 'is-upcoming': step < {{ $number }} }">
-                            <button type="button" class="bulk-enrollment-stepper__button"
-                                    :disabled="step <= {{ $number }}" x-on:click="backToSelection"
-                                    :aria-current="step === {{ $number }} ? 'step' : null">
-                                <span class="bulk-enrollment-stepper__marker">
-                                    <span x-show="step <= {{ $number }}">{{ $number }}</span>
-                                    <span x-show="step > {{ $number }}" aria-hidden="true">✓</span>
-                                </span>
-                                <span class="bulk-enrollment-stepper__copy"><strong>{{ __('lf.'.$titleKey) }}</strong><small>{{ __('lf.'.$helpKey) }}</small></span>
-                                <span x-show="step > {{ $number }}" class="sr-only">{{ __('lf.LF_bulk_enrollment_completed') }}</span>
-                            </button>
-                        </li>
-                    @endforeach
-                </ol>
-            </nav>
-
             <p class="admin-alert admin-alert-danger" x-show="errorMessage" x-text="errorMessage" role="alert"></p>
             <div x-ref="selectionError" class="admin-alert admin-alert-danger" x-show="hasInvalidSelectedProducts"
                  tabindex="-1" role="alert" aria-labelledby="bulk-selection-error-title">
@@ -65,7 +66,7 @@
                 <button type="button" class="admin-text-action" x-on:click="removeInvalidProducts">{{ __('lf.LF_bulk_enrollment_remove_invalid_products') }}</button>
             </div>
 
-            <section x-show="step === 1" class="admin-form-standard-section" aria-labelledby="bulk-selection-title">
+            <section x-show="step === 1" class="admin-form-standard-section bulk-enrollment-wizard-section" aria-labelledby="bulk-selection-title">
                 <header class="admin-form-section-header">
                     <h2 id="bulk-selection-title" class="admin-form-section-title">{{ __('lf.LF_bulk_enrollment_select_students_products') }}</h2>
                     <p class="admin-form-section-help">{{ __('lf.LF_bulk_enrollment_cartesian_help') }}</p>
@@ -160,7 +161,7 @@
                 </div>
             </section>
 
-            <section x-show="step === 2" class="admin-form-standard-section" aria-labelledby="bulk-setup-title">
+            <section x-show="step === 2" class="admin-form-standard-section bulk-enrollment-wizard-section" aria-labelledby="bulk-setup-title">
                 <header class="admin-form-section-header">
                     <h2 id="bulk-setup-title" class="admin-form-section-title">{{ __('lf.LF_bulk_enrollment_setup_confirm') }}</h2>
                     <p class="admin-form-section-help">{{ __('lf.LF_bulk_enrollment_admin_override_help') }}</p>
@@ -213,7 +214,8 @@
                     <button x-show="step === 2" type="submit" class="btn btn-primary" :disabled="loading || submitting"><span x-show="!submitting">{{ __('lf.LF_bulk_enrollment_submit') }}</span><span x-show="submitting">{{ __('lf.LF_course_enrollment_update_saving') }}</span></button>
                 </div>
             </footer>
-        </form>
+            </form>
+        </div>
 
         <div x-show="productSelectionPromptVisible" x-cloak class="admin-modal-backdrop"
              x-on:keydown.escape.window="closeProductSelectionPrompt" x-on:click.self="closeProductSelectionPrompt">
