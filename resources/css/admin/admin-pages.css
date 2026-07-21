@@ -1923,27 +1923,47 @@
 }
 
 .course-enrollment-bulk-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
+    display: grid;
+    gap: 10px;
     margin-bottom: 14px;
-    padding: 12px 16px;
+    padding: 14px 16px 16px;
     border: 1px solid color-mix(in srgb, var(--admin-primary) 35%, var(--admin-border));
     border-radius: 8px;
     background: color-mix(in srgb, var(--admin-primary) 6%, var(--admin-surface));
+}
+
+.course-enrollment-bulk-bar > strong {
+    line-height: 1.35;
+    white-space: nowrap;
 }
 
 .course-enrollment-bulk-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: flex-end;
     gap: 8px;
+    min-width: 0;
 }
 
 .course-enrollment-bulk-actions .btn {
     min-height: 38px;
+    width: auto;
+    white-space: nowrap;
+}
+
+@media (min-width: 901px) {
+    :root.is-backend-sidebar-collapsed .backend-shell .course-enrollment-bulk-bar,
+    .backend-shell.is-sidebar-collapsed .course-enrollment-bulk-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    :root.is-backend-sidebar-collapsed .backend-shell .course-enrollment-bulk-actions,
+    .backend-shell.is-sidebar-collapsed .course-enrollment-bulk-actions {
+        flex-wrap: nowrap;
+        justify-content: flex-end;
+    }
 }
 
 .course-enrollment-select-column {
@@ -2016,6 +2036,7 @@
     .course-enrollment-filter-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
 }
 
 @media (max-width: 640px) {
@@ -2024,18 +2045,13 @@
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .course-enrollment-bulk-bar {
+    .course-enrollment-bulk-actions {
         align-items: stretch;
         flex-direction: column;
     }
 
-    .course-enrollment-bulk-actions {
-        align-items: stretch;
-        justify-content: stretch;
-    }
-
     .course-enrollment-bulk-actions .btn {
-        flex: 1 1 calc(50% - 8px);
+        width: 100%;
     }
 
     .course-enrollment-bulk-bar .admin-form-actions {
