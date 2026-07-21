@@ -178,7 +178,7 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}")
             ->assertOk()
-            ->assertSee('class="cohort-detail-toolbar"', false)
+            ->assertSee('class="cohort-detail-toolbar course-enrollment-detail-toolbar"', false)
             ->assertSee('course-enrollment-detail', false)
             ->assertSee('course-enrollment-detail-metadata-grid', false)
             ->assertSee('course-enrollment-detail-item', false)

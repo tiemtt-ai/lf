@@ -12,21 +12,21 @@
         </div>
     @endif
 
-    <div class="cohort-detail-toolbar">
+    <div class="cohort-detail-toolbar course-enrollment-edit-toolbar">
         <a class="cohort-detail-back" href="{{ route($routePrefix.'.show', $enrollment->id) }}">
             <span aria-hidden="true">←</span>
             {{ __('lf.LF_course_enrollment_common_back_to_detail') }}
         </a>
     </div>
 
-    <div class="admin-card admin-form-card admin-form-surface">
+    <div class="admin-card admin-form-card admin-form-surface course-enrollment-edit">
         <form class="admin-form-standard" method="POST" action="{{ route($routePrefix.'.update', $enrollment->id) }}"
               x-data="{ submitting: false }" x-on:submit="if (submitting) { $event.preventDefault(); return } submitting = true">
             @csrf
             @method('PUT')
 
             <div class="admin-form-flow">
-                <section class="admin-form-standard-section" aria-labelledby="enrollment-edit-access">
+                <section class="admin-form-standard-section course-enrollment-identity-section" aria-labelledby="enrollment-edit-access">
                     <header class="admin-form-section-header">
                         <h2 id="enrollment-edit-access" class="admin-form-section-title">{{ __('lf.LF_course_enrollment_group_access') }}</h2>
                         <p class="admin-form-section-help">{{ __('lf.LF_course_enrollment_common_frozen_help') }}</p>
@@ -40,14 +40,14 @@
                             <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_product') }}</span>
                             <div class="admin-form-calculated-summary"><strong class="admin-form-calculated-summary-value">{{ $enrollment->product_title }}</strong><span class="admin-form-calculated-summary-meta">{{ $enrollment->product_code }}</span></div>
                         </div>
-                        <div class="lf-form-group admin-form-field admin-form-field--full">
+                        <div class="lf-form-group admin-form-field">
                             <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_version') }}</span>
                             <div class="admin-form-calculated-summary"><strong class="admin-form-calculated-summary-value">{{ $enrollment->version_title }}</strong><span class="admin-form-calculated-summary-meta">{{ __('lf.LF_course_product_item_common_version_number', ['number' => $enrollment->version_number]) }} · {{ $enrollment->version_code }}</span></div>
                         </div>
                     </div>
                 </section>
 
-                <section class="admin-form-standard-section" aria-labelledby="enrollment-edit-information">
+                <section class="admin-form-standard-section course-enrollment-system-section" aria-labelledby="enrollment-edit-information">
                     <header class="admin-form-section-header"><h2 id="enrollment-edit-information" class="admin-form-section-title">{{ __('lf.LF_course_enrollment_information') }}</h2></header>
                     <div class="admin-form-field-grid">
                         <div class="lf-form-group admin-form-field">
@@ -58,7 +58,7 @@
                             <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_source') }}</span>
                             <div class="admin-form-readonly lf-form-control">{{ __('lf.LF_course_enrollment_common_source_'.$enrollment->source) }}</div>
                         </div>
-                        <div class="lf-form-group admin-form-field admin-form-field--full">
+                        <div class="lf-form-group admin-form-field">
                             <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</span>
                             <div class="admin-form-readonly lf-form-control">{{ $enrollment->enrolled_at }}</div>
                         </div>

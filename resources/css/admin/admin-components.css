@@ -1611,10 +1611,11 @@
 
 .course-enrollment-detail-item {
     margin: 0;
-    padding: 16px 18px;
-    border: 1px solid var(--admin-border);
-    border-radius: 10px;
-    background: var(--admin-surface-subtle);
+    padding: 0 0 14px;
+    border: 0;
+    border-bottom: 1px solid var(--admin-border);
+    border-radius: 0;
+    background: transparent;
 }
 
 .course-enrollment-detail-item .lf-form-label {
@@ -1636,6 +1637,126 @@
 .course-enrollment-detail-item .cohort-edit-readonly-row,
 .course-enrollment-detail-item .cohort-edit-readonly-stack {
     min-height: 26px;
+}
+
+.course-enrollment-edit .course-enrollment-identity-section .admin-form-field,
+.course-enrollment-edit .course-enrollment-system-section .admin-form-field {
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.course-enrollment-edit-toolbar,
+.course-enrollment-detail-toolbar {
+    margin-top: 4px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+}
+
+.admin-card.course-enrollment-edit,
+.admin-card.course-enrollment-detail {
+    padding: 20px;
+}
+
+.course-enrollment-edit .admin-form-standard-section,
+.course-enrollment-detail .admin-form-standard-section {
+    padding-bottom: 20px;
+}
+
+.course-enrollment-edit .admin-form-standard-section + .admin-form-standard-section,
+.course-enrollment-detail .admin-form-standard-section + .admin-form-standard-section {
+    padding-top: 20px;
+}
+
+.course-enrollment-edit .admin-form-section-header,
+.course-enrollment-detail .admin-form-section-header {
+    margin-bottom: 12px;
+}
+
+.course-enrollment-edit .course-enrollment-identity-section .admin-form-field-grid,
+.course-enrollment-edit .course-enrollment-system-section .admin-form-field-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+    padding: 14px 16px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface-subtle);
+}
+
+.course-enrollment-detail .course-enrollment-identity-section .admin-form-field-grid,
+.course-enrollment-detail .course-enrollment-system-section .admin-form-field-grid {
+    gap: 20px;
+    padding: 14px 16px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface-subtle);
+}
+
+.course-enrollment-detail .course-enrollment-identity-section .admin-form-field-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.course-enrollment-detail .course-enrollment-system-section .admin-form-field-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.course-enrollment-detail .course-enrollment-identity-section .course-enrollment-detail-item,
+.course-enrollment-detail .course-enrollment-system-section .course-enrollment-detail-item {
+    padding: 0;
+    border: 0;
+}
+
+.course-enrollment-detail .course-enrollment-identity-section .lf-form-label,
+.course-enrollment-detail .course-enrollment-system-section .lf-form-label,
+.course-enrollment-edit .course-enrollment-identity-section .lf-form-label,
+.course-enrollment-edit .course-enrollment-system-section .lf-form-label {
+    margin-bottom: 7px;
+    color: var(--admin-text-muted);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.course-enrollment-detail .course-enrollment-identity-section .admin-form-calculated-summary-value,
+.course-enrollment-edit .course-enrollment-identity-section .admin-form-calculated-summary-value {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.course-enrollment-detail .course-enrollment-system-section .cohort-edit-readonly-value {
+    font-weight: 400;
+}
+
+.course-enrollment-detail .course-enrollment-system-section .cohort-edit-readonly-value,
+.course-enrollment-edit .course-enrollment-system-section .admin-form-readonly {
+    color: var(--admin-text);
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.45;
+}
+
+.course-enrollment-detail .course-enrollment-identity-section .admin-form-calculated-summary-meta,
+.course-enrollment-edit .course-enrollment-identity-section .admin-form-calculated-summary-meta {
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.45;
+}
+
+.course-enrollment-edit .course-enrollment-identity-section .admin-form-calculated-summary {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.course-enrollment-edit .course-enrollment-system-section .admin-form-readonly {
+    min-height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
 }
 
 .course-cohort-detail .admin-form-field-grid {
@@ -1677,11 +1798,22 @@
     .course-enrollment-detail .course-enrollment-detail-metadata-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .course-enrollment-edit .course-enrollment-identity-section .admin-form-field-grid,
+    .course-enrollment-edit .course-enrollment-system-section .admin-form-field-grid,
+    .course-enrollment-detail .course-enrollment-identity-section .admin-form-field-grid,
+    .course-enrollment-detail .course-enrollment-system-section .admin-form-field-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 640px) {
     .course-enrollment-detail .admin-form-field-grid,
     .course-enrollment-detail .course-enrollment-detail-metadata-grid,
+    .course-enrollment-edit .course-enrollment-identity-section .admin-form-field-grid,
+    .course-enrollment-edit .course-enrollment-system-section .admin-form-field-grid,
+    .course-enrollment-detail .course-enrollment-identity-section .admin-form-field-grid,
+    .course-enrollment-detail .course-enrollment-system-section .admin-form-field-grid,
     .course-cohort-detail .admin-form-field-grid {
         grid-template-columns: minmax(0, 1fr);
     }
