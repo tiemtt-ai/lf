@@ -619,7 +619,7 @@ class CourseEnrollmentManagementTest extends TestCase
             ->assertSee('class="admin-form-standard"', false)
             ->assertSeeText(__('lf.LF_bulk_enrollment_select_students_products'))
             ->assertSeeText(__('lf.LF_bulk_enrollment_setup_confirm'))
-            ->assertSeeText(__('lf.LF_bulk_enrollment_information_section'))
+            ->assertSee('aria-label="'.__('lf.LF_bulk_enrollment_information_section').'"', false)
             ->assertSee('configuration[access_starts_at]', false)
             ->assertSee('configuration[access_ends_at]', false)
             ->assertSee('configuration[review_starts_at]', false)
@@ -712,8 +712,9 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertLessThan(strpos($html, 'class="admin-card admin-form-card admin-form-surface"'), strpos($html, 'class="bulk-enrollment-stepper"'));
         $this->assertLessThan(
             strpos($html, 'class="admin-table-wrap bulk-enrollment-review-table"'),
-            strpos($html, 'id="bulk-enrollment-information"')
+            strpos($html, 'id="bulk-setup-title"')
         );
+        $this->assertStringNotContainsString('id="bulk-enrollment-information"', $html);
         $this->assertLessThan(
             strpos($html, 'id="bulk-access-window"'),
             strpos($html, 'class="admin-table-wrap bulk-enrollment-review-table"')

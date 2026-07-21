@@ -167,9 +167,8 @@
                     <p class="admin-form-section-help">{{ __('lf.LF_bulk_enrollment_admin_override_help') }}</p>
                 </header>
 
-                <section class="admin-form-standard-section" aria-labelledby="bulk-enrollment-information">
-                    <header class="admin-form-section-header"><h3 id="bulk-enrollment-information" class="admin-form-section-title">{{ __('lf.LF_bulk_enrollment_information_section') }}</h3></header>
-                    <div class="bulk-enrollment-pair-summary"><strong x-text="pairCountLabel"></strong><button type="button" class="admin-text-action" x-on:click="backToSelection">{{ __('lf.LF_bulk_enrollment_change') }}</button></div>
+                <section class="admin-form-standard-section bulk-enrollment-confirmation" aria-label="{{ __('lf.LF_bulk_enrollment_information_section') }}">
+                    <div class="bulk-enrollment-pair-summary bulk-enrollment-confirmation__summary"><strong x-text="pairCountLabel"></strong><button type="button" class="admin-text-action" x-on:click="backToSelection">{{ __('lf.LF_bulk_enrollment_change') }}</button></div>
                     <button x-show="reenrollmentPairs.length > 1" type="button" class="btn btn-secondary" x-on:click="confirmAllReenrollments">{{ __('lf.LF_bulk_enrollment_confirm_all_reenrollments') }}</button>
                     <div class="admin-table-wrap bulk-enrollment-review-table"><table class="table">
                         <thead><tr><th>{{ __('lf.LF_course_enrollment_common_student') }}</th><th>{{ __('lf.LF_course_enrollment_common_product') }}</th><th>{{ __('lf.LF_course_enrollment_common_status') }}</th></tr></thead>
@@ -181,10 +180,10 @@
                             </td>
                         </tr></template></tbody>
                     </table></div>
-                    <div class="admin-form-field-grid">
-                        <div class="lf-form-group admin-form-field"><span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_status') }}</span><div class="admin-form-readonly lf-form-control">{{ __('lf.LF_course_enrollment_common_active') }}</div></div>
-                        <div class="lf-form-group admin-form-field"><span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_source') }}</span><div class="admin-form-readonly lf-form-control">{{ __('lf.LF_course_enrollment_common_source_admin') }}</div></div>
-                    </div>
+                    <dl class="bulk-enrollment-confirmation__facts">
+                        <div><dt>{{ __('lf.LF_course_enrollment_common_status') }}</dt><dd><span class="badge badge-success">{{ __('lf.LF_course_enrollment_common_active') }}</span></dd></div>
+                        <div><dt>{{ __('lf.LF_course_enrollment_common_source') }}</dt><dd>{{ __('lf.LF_course_enrollment_common_source_admin') }}</dd></div>
+                    </dl>
                 </section>
 
                 <section class="admin-form-standard-section" aria-labelledby="bulk-access-window">
