@@ -2521,35 +2521,6 @@
     white-space: nowrap;
 }
 
-.bulk-enrollment-transfer__panel-status {
-    position: relative;
-    min-width: 12rem;
-    text-align: right;
-}
-
-.bulk-enrollment-transfer__panel-status > span {
-    display: block;
-}
-
-.bulk-enrollment-eligibility-progress {
-    position: absolute;
-    top: calc(100% + 2px);
-    right: 0;
-    z-index: 1;
-    max-width: 18rem;
-    padding: 0.15rem 0.45rem;
-    border-radius: 999px;
-    background: var(--admin-surface, #fff);
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(-2px);
-    transition: opacity 150ms ease, transform 150ms ease;
-}
-
-.bulk-enrollment-eligibility-progress.is-visible {
-    opacity: 1;
-    transform: translateY(0);
-}
 
 .bulk-enrollment-transfer__select-all {
     display: inline-flex;
@@ -2644,13 +2615,4 @@
         gap: 3px;
     }
 
-    .bulk-enrollment-transfer__panel-status {
-        min-width: 0;
-        text-align: left;
-    }
-
-    .bulk-enrollment-eligibility-progress {
-        right: auto;
-        left: 0;
-    }
 }

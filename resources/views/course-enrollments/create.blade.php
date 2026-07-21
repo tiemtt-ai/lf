@@ -110,10 +110,7 @@
                     <section x-ref="productPanel" class="bulk-enrollment-selector" :class="{ 'is-onboarding-highlight': productGuidanceHighlighted }" aria-labelledby="bulk-products-title" :aria-busy="productLoading">
                         <div class="bulk-enrollment-transfer__panel-header">
                             <h3 x-ref="productHeading" id="bulk-products-title" tabindex="-1">{{ __('lf.LF_bulk_enrollment_products_panel') }}</h3>
-                            <div class="bulk-enrollment-transfer__panel-status">
-                                <span x-text="selectedProductsLabel" aria-live="polite"></span>
-                                <span class="bulk-enrollment-eligibility-progress" :class="{ 'is-visible': productLoading && selectedStudents.length > 0 }" aria-hidden="true">{{ __('lf.LF_bulk_enrollment_eligibility_loading') }}</span>
-                            </div>
+                            <span x-text="selectedProductsLabel" aria-live="polite"></span>
                         </div>
                         <p class="sr-only" aria-live="polite" x-text="productEligibilityAnnouncement"></p>
                         <label class="lf-form-label" for="bulk-product-search">{{ __('lf.LF_common_button_search') }}</label>

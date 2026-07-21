@@ -656,7 +656,7 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertStringContainsString('scheduleProductEligibility()', $html);
         $this->assertStringContainsString('requestVersion !== this.productRequestVersion', $html);
         $this->assertStringNotContainsString('x-show="productLoading && selectedStudents.length > 0"', $html);
-        $this->assertStringContainsString("class=\"bulk-enrollment-eligibility-progress\" :class=\"{ 'is-visible': productLoading && selectedStudents.length > 0 }\"", $html);
+        $this->assertStringNotContainsString('bulk-enrollment-eligibility-progress', $html);
         $this->assertStringContainsString('this.productAbortController?.abort()', $html);
         $this->assertStringNotContainsString('this.productResults = this.productResults.map(item => ({ ...item, eligibility: null }))', $html);
         $this->assertStringContainsString('get hasInvalidSelectedProducts()', $html);
