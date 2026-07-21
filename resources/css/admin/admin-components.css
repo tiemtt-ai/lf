@@ -1611,9 +1611,8 @@
 
 .course-enrollment-detail-item {
     margin: 0;
-    padding: 0 0 14px;
+    padding: 0;
     border: 0;
-    border-bottom: 1px solid var(--admin-border);
     border-radius: 0;
     background: transparent;
 }
