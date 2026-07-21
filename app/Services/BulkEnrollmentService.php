@@ -105,6 +105,7 @@ class BulkEnrollmentService
 
             $result = [
                 'context' => [
+                    'submission_id' => (int) $submission->id,
                     'completed_at' => $now->toIso8601String(),
                     'completed_by_id' => $adminId,
                     'completed_by_name' => DB::table('users')->where('customer_id', $customerId)

@@ -1345,15 +1345,16 @@ class CourseEnrollmentManagementTest extends TestCase
         $token = $this->prepareBulkSubmission($admin, $studentIds, $productIds, [], $configuration);
 
         $payload = $this->bulkStoreData($studentIds, $productIds, $token, [], $configuration);
-        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk', $payload)
-            ->assertRedirect('https://tenant-a.localhost/admin/course-enrollments/bulk/result')
-            ->assertSessionHas('bulk_result', fn (array $result): bool => $result['summary']['created'] === 4);
+        $storeResponse = $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk', $payload);
 
         $this->assertDatabaseCount('core_course_enrollments', 4);
+        $submissionId = (int) DB::table('core_course_enrollment_submissions')->value('id');
+        $resultUrl = 'https://tenant-a.localhost/admin/course-enrollments/bulk/result?submission='.$submissionId;
+        $storeResponse->assertRedirect($resultUrl);
         $firstEnrollmentId = (int) DB::table('core_course_enrollments')->min('id');
         $firstVersionCode = DB::table('core_course_template_versions')->where('id', $products->first()[1])->value('version_code');
         $this->actingAs($admin)
-            ->get('https://tenant-a.localhost/admin/course-enrollments/bulk/result')
+            ->get($resultUrl)
             ->assertOk()
             ->assertSeeText(__('lf.LF_bulk_enrollment_result_success_title'))
             ->assertSeeText(__('lf.LF_bulk_enrollment_result_success_content', ['count' => 4]))
@@ -1364,6 +1365,9 @@ class CourseEnrollmentManagementTest extends TestCase
             ->assertDontSeeText(__('lf.LF_bulk_enrollment_summary_skipped_existing'))
             ->assertDontSeeText(__('lf.LF_bulk_enrollment_summary_re_enrollment_required'))
             ->assertDontSeeText(__('lf.LF_bulk_enrollment_summary_failed'));
+        $this->actingAs($admin)->get($resultUrl)->assertOk();
+        $otherAdmin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($otherAdmin)->get($resultUrl)->assertNotFound();
         $storedResult = json_decode(DB::table('core_course_enrollment_submissions')->value('result'), true, flags: JSON_THROW_ON_ERROR);
         $this->assertSame($admin->name, $storedResult['context']['completed_by_name']);
         $this->assertSame($configuration, $storedResult['context']['configuration']);
@@ -1418,10 +1422,12 @@ class CourseEnrollmentManagementTest extends TestCase
         $confirmations = [['student_id' => $student->id, 'product_id' => $productId, 'previous_enrollment_id' => $oldId]];
         $token = $this->prepareBulkSubmission($admin, [$student->id], [$productId], $confirmations, $configuration);
         $payload = $this->bulkStoreData([$student->id], [$productId], $token, $confirmations, $configuration);
+        $firstCommit = $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk', $payload);
+        $submissionId = (int) DB::table('core_course_enrollment_submissions')->where('token_hash', hash('sha256', $token))->value('id');
+        $resultUrl = 'https://tenant-a.localhost/admin/course-enrollments/bulk/result?submission='.$submissionId;
+        $firstCommit->assertRedirect($resultUrl);
         $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk', $payload)
-            ->assertSessionHas('bulk_result', fn (array $result): bool => $result['summary']['reenrolled'] === 1);
-        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk', $payload)
-            ->assertSessionHas('bulk_result', fn (array $result): bool => $result['summary']['reenrolled'] === 1);
+            ->assertRedirect($resultUrl);
 
         $this->assertSame('completed', DB::table('core_course_enrollments')->where('id', $oldId)->value('status'));
         $this->assertDatabaseCount('core_course_enrollments', 2);

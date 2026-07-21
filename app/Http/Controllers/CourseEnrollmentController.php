@@ -322,7 +322,14 @@ class CourseEnrollmentController extends Controller
                 ->withErrors(['submission' => __('lf.LF_bulk_enrollment_atomic_failed')]);
         }
 
-        return redirect()->route($this->routePrefix($request).'.bulk-result')->with('bulk_result', $result);
+        $submissionId = $result['context']['submission_id'] ?? DB::table('core_course_enrollment_submissions')
+            ->where('customer_id', $customerId)
+            ->where('admin_id', (int) $request->user()->id)
+            ->where('token_hash', hash('sha256', $request->validated('submission_token')))
+            ->where('status', 'completed')
+            ->value('id');
+
+        return redirect()->route($this->routePrefix($request).'.bulk-result', ['submission' => $submissionId]);
     }
 
     public function bulkPreflight(
@@ -362,10 +369,21 @@ class CourseEnrollmentController extends Controller
     public function bulkResult(Request $request): View
     {
         $this->authorizeAdmin($request);
-        abort_unless($request->session()->has('bulk_result'), 404);
+
+        $submissionId = $request->integer('submission');
+        abort_unless($submissionId > 0, 404);
+
+        $submission = DB::table('core_course_enrollment_submissions')
+            ->where('id', $submissionId)
+            ->where('customer_id', $this->customerId())
+            ->where('admin_id', (int) $request->user()->id)
+            ->where('status', 'completed')
+            ->whereNotNull('result')
+            ->first(['result']);
+        abort_unless($submission, 404);
 
         return view('course-enrollments.bulk-result', [
-            'result' => $request->session()->get('bulk_result'),
+            'result' => json_decode($submission->result, true, flags: JSON_THROW_ON_ERROR),
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
