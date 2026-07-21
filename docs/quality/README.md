@@ -37,6 +37,9 @@ criteria hay không.
 * [LF-Course-Product-Relations-Architecture-Review.md](LF-Course-Product-Relations-Architecture-Review.md)
   — approved architecture review for Course Product Relation attach, list and
   remove behavior inside Product management.
+* [LF-Bulk-Enrollment-Architecture-Review.md](LF-Bulk-Enrollment-Architecture-Review.md)
+  — approved architecture review for Admin bulk Enrollment creation,
+  re-enrollment, atomic submission and durable idempotency.
 
 ---
 

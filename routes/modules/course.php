@@ -107,6 +107,21 @@ if ($registerCourseProductRoutes ?? false) {
     Route::post('/course-enrollments', [CourseEnrollmentController::class, 'store'])
         ->name('course-enrollments.store');
 
+    Route::post('/course-enrollments/bulk', [CourseEnrollmentController::class, 'bulkStore'])
+        ->name('course-enrollments.bulk-store');
+
+    Route::post('/course-enrollments/bulk/preflight', [CourseEnrollmentController::class, 'bulkPreflight'])
+        ->name('course-enrollments.bulk-preflight');
+
+    Route::post('/course-enrollments/bulk/invalidate', [CourseEnrollmentController::class, 'bulkInvalidate'])
+        ->name('course-enrollments.bulk-invalidate');
+
+    Route::post('/course-enrollments/bulk-update', [CourseEnrollmentController::class, 'bulkUpdate'])
+        ->name('course-enrollments.bulk-update');
+
+    Route::get('/course-enrollments/bulk/result', [CourseEnrollmentController::class, 'bulkResult'])
+        ->name('course-enrollments.bulk-result');
+
     Route::get('/course-enrollments/{id}', [CourseEnrollmentController::class, 'show'])
         ->name('course-enrollments.show');
 

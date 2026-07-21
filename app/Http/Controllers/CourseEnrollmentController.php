@@ -2,6 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\BulkEnrollmentAtomicException;
+use App\Http\Requests\BulkEnrollmentPreflightRequest;
+use App\Http\Requests\BulkEnrollmentRequest;
+use App\Http\Requests\BulkEnrollmentUpdateRequest;
+use App\Services\BulkEnrollmentPayload;
+use App\Services\BulkEnrollmentService;
+use App\Services\BulkEnrollmentSubmissionToken;
+use App\Services\BulkEnrollmentUpdateService;
 use App\Services\CourseEnrollmentLifecycleService;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -39,6 +47,11 @@ class CourseEnrollmentController extends Controller
         $keyword = trim((string) $request->query('keyword', ''));
         $status = $request->query('status');
         $source = $request->query('source');
+        $productId = $request->integer('product_id') ?: null;
+        $studentId = $request->integer('student_id') ?: null;
+        $enrolledBy = $request->integer('enrolled_by') ?: null;
+        $enrolledFrom = $this->validDateFilter($request->query('enrolled_from'));
+        $enrolledTo = $this->validDateFilter($request->query('enrolled_to'));
 
         if (! in_array($status, self::STATUSES, true)) {
             $status = null;
@@ -46,6 +59,19 @@ class CourseEnrollmentController extends Controller
 
         if (! in_array($source, self::SOURCES, true)) {
             $source = null;
+        }
+        if ($productId && ! DB::table('core_course_products')->where('customer_id', $customerId)->where('id', $productId)->exists()) {
+            $productId = null;
+        }
+        if ($studentId && ! DB::table('users')
+            ->where('customer_id', $customerId)
+            ->where('id', $studentId)
+            ->where('role', 'student')
+            ->exists()) {
+            $studentId = null;
+        }
+        if ($enrolledBy && ! DB::table('users')->where('customer_id', $customerId)->where('id', $enrolledBy)->exists()) {
+            $enrolledBy = null;
         }
 
         $enrollments = DB::table('core_course_enrollments as enrollments')
@@ -69,6 +95,9 @@ class CourseEnrollmentController extends Controller
                         ->orWhere('products.title', 'like', '%'.$keyword.'%')
                         ->orWhere('products.product_code', 'like', '%'.$keyword.'%')
                         ->orWhere('versions.version_code', 'like', '%'.$keyword.'%');
+                    if (ctype_digit($keyword)) {
+                        $query->orWhere('enrollments.id', (int) $keyword);
+                    }
                 });
             })
             ->when($status, function ($query) use ($status): void {
@@ -77,6 +106,11 @@ class CourseEnrollmentController extends Controller
             ->when($source, function ($query) use ($source): void {
                 $query->where('enrollments.source', $source);
             })
+            ->when($productId, fn ($query) => $query->where('enrollments.product_id', $productId))
+            ->when($studentId, fn ($query) => $query->where('enrollments.student_id', $studentId))
+            ->when($enrolledBy, fn ($query) => $query->where('enrollments.enrolled_by', $enrolledBy))
+            ->when($enrolledFrom, fn ($query) => $query->where('enrollments.enrolled_at', '>=', $enrolledFrom.' 00:00:00'))
+            ->when($enrolledTo, fn ($query) => $query->where('enrollments.enrolled_at', '<=', $enrolledTo.' 23:59:59'))
             ->orderByDesc('enrollments.enrolled_at')
             ->orderByDesc('enrollments.id')
             ->select(
@@ -97,21 +131,32 @@ class CourseEnrollmentController extends Controller
             'keyword' => $keyword,
             'status' => $status,
             'source' => $source,
+            'productId' => $productId, 'studentId' => $studentId, 'enrolledBy' => $enrolledBy,
+            'enrolledFrom' => $enrolledFrom, 'enrolledTo' => $enrolledTo,
+            'filterProducts' => DB::table('core_course_products')->where('customer_id', $customerId)->orderBy('title')->get(['id', 'title', 'product_code']),
+            'filterStudents' => DB::table('users')->where('customer_id', $customerId)->where('role', 'student')->orderBy('name')->get(['id', 'name', 'email']),
+            'filterCreators' => DB::table('users')->where('customer_id', $customerId)->whereIn('role', ['customer_admin', 'teacher'])->orderBy('name')->get(['id', 'name']),
             'routePrefix' => $this->routePrefix($request),
         ]);
+    }
+
+    public function bulkUpdate(BulkEnrollmentUpdateRequest $request, BulkEnrollmentUpdateService $service)
+    {
+        $count = $service->update(
+            $this->customerId(),
+            $request->validated('enrollment_ids'),
+            $request->changes()
+        );
+
+        return redirect()->route($this->routePrefix($request).'.index')
+            ->with('success', __('lf.LF_course_enrollment_bulk_updated', ['count' => $count]));
     }
 
     public function create(Request $request): View
     {
         $this->authorizeAdmin($request);
 
-        $customerId = $this->customerId();
-
         return view('course-enrollments.create', [
-            'selectedStudent' => old('student_id') ? $this->studentRecord($customerId, (int) old('student_id')) : null,
-            'selectedProduct' => old('product_id')
-                ? optional($this->eligibleProductQuery($customerId)->where('products.id', (int) old('product_id'))->first(), fn (object $product): array => $this->productSearchPayload($product))
-                : null,
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -132,18 +177,49 @@ class CourseEnrollmentController extends Controller
                         ->orWhere('email', 'like', '%'.$keyword.'%');
                 });
             })
-            ->orderBy('name')
-            ->limit(20)
-            ->get(['id', 'name', 'email']);
+            ->orderBy('name')->orderBy('id')
+            ->paginate(15, ['id', 'name', 'email', 'status']);
 
-        return response()->json(['data' => $students]);
+        $studentItems = collect($students->items());
+        $states = $request->integer('product_id') > 0
+            ? $this->pairEnrollmentStates($customerId, $studentItems->pluck('id')->all(), [$request->integer('product_id')])
+            : [];
+        $data = $studentItems->map(function (object $student) use ($request, $states): array {
+            $state = $states[$student->id.':'.$request->integer('product_id')] ?? 'none';
+
+            return ['id' => $student->id, 'name' => $student->name, 'email' => $student->email,
+                'account_status' => $student->status, 'enrollment_state' => $state];
+        });
+
+        return response()->json(['data' => $data, 'pagination' => [
+            'current_page' => $students->currentPage(), 'last_page' => $students->lastPage(),
+            'total' => $students->total(), 'per_page' => $students->perPage(),
+        ]]);
     }
 
-    public function searchProducts(Request $request): JsonResponse
-    {
+    public function searchProducts(
+        Request $request,
+        BulkEnrollmentPayload $payloads,
+        BulkEnrollmentService $service
+    ): JsonResponse {
         $this->authorizeAdmin($request);
 
         $customerId = $this->customerId();
+        $selection = Validator::make($request->query(), [
+            'student_ids' => ['sometimes', 'array', 'max:100'],
+            'student_ids.*' => ['integer', 'min:1', 'distinct'],
+            'selected_product_ids' => ['sometimes', 'array', 'max:100'],
+            'selected_product_ids.*' => ['integer', 'min:1', 'distinct'],
+        ])->validate();
+        $studentIds = collect($selection['student_ids'] ?? [])->map(fn ($id): int => (int) $id)
+            ->unique()->sort()->values();
+        $selectedProductIds = collect($selection['selected_product_ids'] ?? [])->map(fn ($id): int => (int) $id)
+            ->unique()->sort()->values();
+        if ($studentIds->isNotEmpty()) {
+            $eligibleStudentCount = DB::table('users')->where('customer_id', $customerId)
+                ->whereIn('id', $studentIds)->where('role', 'student')->where('status', 'active')->count();
+            abort_if($eligibleStudentCount !== $studentIds->count(), 422);
+        }
         $keyword = trim((string) $request->query('q', ''));
         $products = $this->eligibleProductQuery($customerId)
             ->when($keyword !== '', function ($query) use ($keyword): void {
@@ -152,12 +228,123 @@ class CourseEnrollmentController extends Controller
                         ->orWhere('products.product_code', 'like', '%'.$keyword.'%');
                 });
             })
-            ->orderBy('products.title')
-            ->limit(20)
-            ->get()
-            ->map(fn (object $product): array => $this->productSearchPayload($product));
+            ->orderBy('products.title')->orderBy('products.id')
+            ->paginate(15);
+        $productItems = collect($products->items());
+        $states = $request->integer('student_id') > 0
+            ? $this->pairEnrollmentStates($customerId, [$request->integer('student_id')], $productItems->pluck('id')->all())
+            : [];
+        $data = $productItems->map(function (object $product) use ($request, $states): array {
+            $payload = $this->productSearchPayload($product);
+            $payload['enrollment_state'] = $states[$request->integer('student_id').':'.$product->id] ?? 'none';
 
-        return response()->json(['data' => $products]);
+            return $payload;
+        });
+
+        $selectedEligibility = [];
+        if ($studentIds->isNotEmpty()) {
+            $eligibilityProductIds = $productItems->pluck('id')->merge($selectedProductIds)->unique()->sort()->values();
+            $preflightPayload = $payloads->canonical($studentIds->all(), $eligibilityProductIds->all(), [], []);
+            $preflight = $service->preflight($customerId, $preflightPayload);
+            $pairsByProduct = collect($preflight['pairs'])->groupBy('product_id');
+            $eligibility = $eligibilityProductIds->mapWithKeys(function (int $productId) use ($pairsByProduct, $studentIds): array {
+                $pairs = $pairsByProduct->get($productId, collect());
+                $invalidPairs = $pairs->filter(fn (array $pair): bool => in_array($pair['status'], ['ineligible', 'existing_non_terminal'], true));
+
+                return [(string) $productId => [
+                    'eligibility' => $invalidPairs->isEmpty() && $pairs->count() === $studentIds->count() ? 'eligible' : 'ineligible',
+                    'valid_pair_count' => $pairs->count() - $invalidPairs->count(),
+                    'invalid_pair_count' => $invalidPairs->count(),
+                    'invalid_pairs' => $invalidPairs->map(fn (array $pair): array => [
+                        'student_id' => $pair['student_id'],
+                        'student_name' => $pair['student_name'],
+                        'reason' => $pair['reason'],
+                    ])->values()->all(),
+                ]];
+            });
+            $selectedEligibility = $selectedProductIds->mapWithKeys(fn (int $id): array => [(string) $id => $eligibility->get((string) $id)])->all();
+            $data = $data->map(function (array $product) use ($eligibility): array {
+                return $product + $eligibility->get((string) $product['id']);
+            })->sortBy(fn (array $product): int => $product['eligibility'] === 'eligible' ? 0 : 1)->values();
+        }
+
+        return response()->json(['data' => $data, 'pagination' => [
+            'current_page' => $products->currentPage(), 'last_page' => $products->lastPage(),
+            'total' => $products->total(), 'per_page' => $products->perPage(),
+        ], 'selected_eligibility' => $selectedEligibility]);
+    }
+
+    public function bulkStore(
+        BulkEnrollmentRequest $request,
+        BulkEnrollmentPayload $payloads,
+        BulkEnrollmentService $service
+    ) {
+        $customerId = $this->customerId();
+        $payload = $payloads->canonical(
+            $request->validated('student_ids'),
+            $request->validated('product_ids'),
+            $request->validated('reenrollment_confirmations', []),
+            $request->enrollmentConfiguration()
+        );
+        try {
+            $result = $service->commit(
+                $customerId,
+                (int) $request->user()->id,
+                $request->validated('submission_token'),
+                $payload
+            );
+        } catch (BulkEnrollmentAtomicException $exception) {
+            return redirect()->route($this->routePrefix($request).'.create')
+                ->withInput()->with('bulk_preflight', $exception->preflight)
+                ->withErrors(['submission' => __('lf.LF_bulk_enrollment_atomic_failed')]);
+        }
+
+        return redirect()->route($this->routePrefix($request).'.bulk-result')->with('bulk_result', $result);
+    }
+
+    public function bulkPreflight(
+        BulkEnrollmentPreflightRequest $request,
+        BulkEnrollmentPayload $payloads,
+        BulkEnrollmentSubmissionToken $tokens,
+        BulkEnrollmentService $service
+    ): JsonResponse {
+        $customerId = $this->customerId();
+        $payload = $payloads->canonical(
+            $request->validated('student_ids'),
+            $request->validated('product_ids'),
+            $request->validated('reenrollment_confirmations', []),
+            $request->validated('configuration', [])
+        );
+        $result = $service->preflight($customerId, $payload);
+        $result['can_continue'] = collect($result['pairs'])
+            ->doesntContain(fn (array $pair): bool => in_array($pair['status'], ['ineligible', 'existing_non_terminal'], true));
+        $result['submission_token'] = null;
+
+        if ($request->boolean('finalize') && $result['valid']) {
+            $result['submission_token'] = $tokens->issue($customerId, (int) $request->user()->id, $payload);
+        }
+
+        return response()->json($result);
+    }
+
+    public function bulkInvalidate(Request $request, BulkEnrollmentSubmissionToken $tokens): JsonResponse
+    {
+        $this->authorizeAdmin($request);
+        $validated = $request->validate(['submission_token' => ['nullable', 'string', 'size:64']]);
+        $tokens->invalidate($this->customerId(), (int) $request->user()->id, $validated['submission_token'] ?? null);
+
+        return response()->json(['invalidated' => true]);
+    }
+
+    public function bulkResult(Request $request): View
+    {
+        $this->authorizeAdmin($request);
+        abort_unless($request->session()->has('bulk_result'), 404);
+
+        return view('course-enrollments.bulk-result', [
+            'result' => $request->session()->get('bulk_result'),
+            'routePrefix' => $this->routePrefix($request),
+        ]);
     }
 
     public function store(Request $request)
@@ -457,6 +644,10 @@ class CourseEnrollmentController extends Controller
                 'students.email as student_email',
                 'products.title as product_title',
                 'products.product_code',
+                'products.offering_type',
+                'products.review_duration_days',
+                'products.registration_starts_at',
+                'products.registration_ends_at',
                 'versions.title_snapshot as version_title',
                 'versions.version_number',
                 'versions.version_code'
@@ -499,6 +690,10 @@ class CourseEnrollmentController extends Controller
                 'products.id',
                 'products.title',
                 'products.product_code',
+                'products.offering_type',
+                'products.review_duration_days',
+                'products.registration_starts_at',
+                'products.registration_ends_at',
                 'versions.id as version_id',
                 'versions.version_code',
                 'versions.version_number',
@@ -509,10 +704,18 @@ class CourseEnrollmentController extends Controller
 
     private function productSearchPayload(object $product): array
     {
+        $now = now();
+        $outsideRegistration = ($product->registration_starts_at && $now->timestamp < strtotime($product->registration_starts_at))
+            || ($product->registration_ends_at && $now->timestamp >= strtotime($product->registration_ends_at));
+
         return [
             'id' => $product->id,
             'title' => $product->title,
             'code' => $product->product_code,
+            'offering_type' => $product->offering_type,
+            'supports_review' => $product->offering_type === 'self_paced_course'
+                && (int) $product->review_duration_days > 0,
+            'outside_registration_window' => $outsideRegistration,
             'version' => [
                 'code' => $product->version_code,
                 'status' => __('lf.LF_course_enrollment_version_published'),
@@ -520,6 +723,21 @@ class CourseEnrollmentController extends Controller
                 'activity_count' => (int) $product->activity_count,
             ],
         ];
+    }
+
+    private function pairEnrollmentStates(int $customerId, array $studentIds, array $productIds): array
+    {
+        $states = [];
+        $rows = DB::table('core_course_enrollments')->where('customer_id', $customerId)
+            ->whereIn('student_id', $studentIds)->whereIn('product_id', $productIds)
+            ->get(['student_id', 'product_id', 'status']);
+        foreach ($rows->groupBy(fn (object $row): string => $row->student_id.':'.$row->product_id) as $key => $enrollments) {
+            $states[$key] = $enrollments->contains(
+                fn (object $row): bool => in_array($row->status, ['pending', 'active', 'suspended'], true)
+            ) ? 'existing' : 'terminal';
+        }
+
+        return $states;
     }
 
     private function studentExists(int $customerId, int $studentId): bool
@@ -548,6 +766,16 @@ class CourseEnrollmentController extends Controller
         abort_if(! $customerId, 404);
 
         return $customerId;
+    }
+
+    private function validDateFilter(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+
+        return $date && $date->format('Y-m-d') === $value ? $value : null;
     }
 
     private function authorizeAdmin(Request $request): void

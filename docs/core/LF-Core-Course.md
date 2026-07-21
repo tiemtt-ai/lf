@@ -551,6 +551,33 @@ Product versioning so với tạo Product mới cần owner xác nhận theo t�
 
 # Enrollment
 
+## Admin Bulk Enrollment
+
+Customer Admin uses one unified Bulk Enrollment flow supporting one or many
+Students and one or many Products. The Cartesian product `N Students × M
+Products` creates independent Enrollment candidates and is limited to 100
+pairs per atomic submission. There are no direction modes and no group
+Enrollment.
+
+Every pair is tenant-revalidated and resolves exactly one active Product Item
+to its published immutable Version inside the submission transaction. Existing
+`pending`, `active` or `suspended` cycles block the complete submission. A
+terminal historical cycle requires explicit pair-level re-enrollment
+confirmation and remains unchanged when the new cycle is created. Any invalid
+pair rolls back the complete submission.
+
+Admin assignment may occur outside Product registration windows because it is
+an internal access grant, not a sale or self-registration. Automatic access
+expiry remains deferred: Product `access_duration_days` is not automatically
+projected to Enrollment `access_ends_at` in this phase.
+
+Step 2 review and confirmation may define one shared access window, review
+window and internal note for the submission. These values apply only when the
+atomic submission creates new Enrollment cycles. Review windows apply only to self-paced Products with a
+positive `review_duration_days`; other Products remain eligible for enrollment
+with `review_starts_at` and `review_ends_at` left `NULL`. Status, source and
+enrollment time remain server-owned canonical values.
+
 Enrollment cấp quyền học Course Product và khóa learning Version.
 
 Enrollment không chỉ là quan hệ Student ↔ Course.

@@ -7,6 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class CourseEnrollmentManagementTest extends TestCase
@@ -30,6 +31,22 @@ class CourseEnrollmentManagementTest extends TestCase
             $this->assertTrue(Route::has("admin.course-enrollments.{$route}"));
             $this->assertFalse(Route::has("teacher.course-enrollments.{$route}"));
         }
+        $this->assertTrue(Route::has('admin.course-enrollments.bulk-update'));
+        $this->assertFalse(Route::has('teacher.course-enrollments.bulk-update'));
+        foreach (['bulk-store', 'bulk-preflight', 'bulk-invalidate', 'bulk-result'] as $route) {
+            $this->assertTrue(Route::has("admin.course-enrollments.{$route}"));
+            $this->assertFalse(Route::has("teacher.course-enrollments.{$route}"));
+        }
+    }
+
+    public function test_bulk_submission_schema_is_durable_and_does_not_change_enrollment_identity(): void
+    {
+        $this->assertTrue(Schema::hasColumns('core_course_enrollment_submissions', [
+            'id', 'customer_id', 'admin_id', 'token_hash', 'payload_hash', 'student_ids', 'product_ids',
+            'reenrollment_confirmations', 'configuration', 'pair_count', 'status', 'expires_at',
+            'committed_at', 'invalidated_at', 'result', 'created_at', 'updated_at',
+        ]));
+        $this->assertFalse(Schema::hasColumn('core_course_enrollments', 'submission_id'));
     }
 
     public function test_customer_admin_can_create_enrollment_with_resolved_version(): void
@@ -92,9 +109,6 @@ class CourseEnrollmentManagementTest extends TestCase
             ]);
 
         foreach ([
-            $this->actingAs($admin)
-                ->get('https://tenant-a.localhost/admin/course-enrollments/create')
-                ->assertOk(),
             $this->actingAs($admin)
                 ->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")
                 ->assertOk()
@@ -601,32 +615,128 @@ class CourseEnrollmentManagementTest extends TestCase
             ->get('https://tenant-a.localhost/admin/course-enrollments/create')
             ->assertOk()
             ->assertSee('class="admin-form-standard"', false)
-            ->assertSee('role="combobox"', false)
-            ->assertSeeText(__('lf.LF_course_enrollment_common_source_admin'))
-            ->assertSeeText(__('lf.LF_course_enrollment_common_active'))
-            ->assertSeeText(__('lf.LF_course_enrollment_recorded_on_save'))
+            ->assertSeeText(__('lf.LF_bulk_enrollment_select_students_products'))
+            ->assertSeeText(__('lf.LF_bulk_enrollment_setup_confirm'))
+            ->assertSeeText(__('lf.LF_bulk_enrollment_information_section'))
+            ->assertSee('configuration[access_starts_at]', false)
+            ->assertSee('configuration[access_ends_at]', false)
+            ->assertSee('configuration[review_starts_at]', false)
+            ->assertSee('configuration[review_ends_at]', false)
+            ->assertSee('configuration[notes]', false)
             ->assertDontSee('name="version_id"', false)
             ->assertDontSee('name="source"', false)
             ->assertDontSee('name="source_id"', false)
             ->assertDontSee('name="status"', false)
             ->assertDontSee('name="enrolled_at"', false);
 
+        $response->assertSee('aria-live="polite"', false)
+            ->assertSeeText(__('lf.LF_bulk_enrollment_select_visible'))
+            ->assertSeeText(__('lf.LF_bulk_enrollment_start_title'))
+            ->assertSeeText(__('lf.LF_bulk_enrollment_start_content'))
+            ->assertSeeText(__('lf.LF_bulk_enrollment_select_products_title'))
+            ->assertSeeText(__('lf.LF_bulk_enrollment_select_products_content'))
+            ->assertSeeText(__('lf.LF_bulk_enrollment_select_student_first'))
+            ->assertSeeText(__('lf.LF_bulk_enrollment_students_panel'))
+            ->assertSeeText(__('lf.LF_bulk_enrollment_products_panel'))
+            ->assertSee('name="submission_token"', false)
+            ->assertSee('class="admin-table-wrap bulk-enrollment-review-table"', false)
+            ->assertDontSee('class="bulk-enrollment-summary"', false);
         $html = $response->getContent();
-        $positions = array_map(fn (string $id) => strpos($html, 'id="'.$id.'"'), [
-            'student_search', 'product_search', 'enrollment-metadata-title',
-            'access_starts_at', 'access_ends_at', 'review_starts_at',
-            'review_ends_at', 'notes',
-        ]);
-        $this->assertNotContains(false, $positions);
-        $sorted = $positions;
-        sort($sorted);
-        $this->assertSame($sorted, $positions);
+        $this->assertSame(2, substr_count($html, '<li :class='));
+        $this->assertStringContainsString('class="bulk-enrollment-stepper"', $html);
+        $this->assertStringContainsString(':aria-current="step === 1 ? \'step\' : null"', $html);
+        $this->assertStringNotContainsString('role="radiogroup"', $html);
+        $this->assertStringNotContainsString('name="mode"', $html);
+        $this->assertStringContainsString('class="bulk-enrollment-dual-selectors"', $html);
+        $this->assertStringContainsString('student_ids[]', $html);
+        $this->assertStringContainsString('product_ids[]', $html);
+        $this->assertStringContainsString('get pairCount()', $html);
+        $this->assertStringContainsString('runPreflight(false)', $html);
+        $this->assertStringContainsString('runPreflight(true)', $html);
+        $this->assertStringContainsString('scheduleProductEligibility()', $html);
+        $this->assertStringContainsString('requestVersion !== this.productRequestVersion', $html);
+        $this->assertStringNotContainsString('x-show="productLoading && selectedStudents.length > 0"', $html);
+        $this->assertStringContainsString("class=\"bulk-enrollment-eligibility-progress\" :class=\"{ 'is-visible': productLoading && selectedStudents.length > 0 }\"", $html);
+        $this->assertStringContainsString('this.productAbortController?.abort()', $html);
+        $this->assertStringNotContainsString('this.productResults = this.productResults.map(item => ({ ...item, eligibility: null }))', $html);
+        $this->assertStringContainsString('get hasInvalidSelectedProducts()', $html);
+        $this->assertStringContainsString('x-show="selectedStudents.length === 0" class="admin-alert admin-alert-info" role="status"', $html);
+        $this->assertStringContainsString('x-show="selectedStudents.length > 0 && selectedProducts.length === 0" class="admin-alert admin-alert-info" role="status"', $html);
+        $this->assertStringNotContainsString('class="bulk-enrollment-empty-state"', $html);
+        $this->assertStringContainsString('x-show="productSelectionPromptVisible" x-cloak class="admin-modal-backdrop"', $html);
+        $this->assertStringContainsString('class="admin-modal bulk-enrollment-guidance-modal" role="dialog" aria-modal="true"', $html);
+        $this->assertStringNotContainsString('x-on:click.capture="promptForStudentSelection"', $html);
+        $this->assertStringContainsString('x-on:click="if (selectedStudents.length === 0) { $event.preventDefault(); promptForStudentSelection($event.currentTarget) }"', $html);
+        $this->assertStringContainsString(':disabled="selectedStudents.length > 0 && (!productEligibilityReady || item.eligibility !== \'eligible\')"', $html);
+        $this->assertStringContainsString(':aria-disabled="selectedStudents.length === 0 || !productEligibilityReady || item.eligibility !== \'eligible\'"', $html);
+        $this->assertStringContainsString('productSelectionPromptVisible: false', $html);
+        $this->assertStringContainsString('async promptForStudentSelection(trigger)', $html);
+        $this->assertStringContainsString('this.$refs.productPromptClose.focus()', $html);
+        $this->assertStringContainsString('this.productPromptTrigger?.focus()', $html);
+        $this->assertStringContainsString('if (this.selectedStudents.length > 0) this.productSelectionPromptVisible = false', $html);
+        $this->assertStringContainsString('id="bulk-products-title" tabindex="-1"', $html);
+        $this->assertStringContainsString('productOnboardingShown: false', $html);
+        $this->assertStringContainsString('if (shouldGuideProducts) this.guideToProductsOnce()', $html);
+        $this->assertStringContainsString('if (this.productOnboardingShown) return', $html);
+        $this->assertStringContainsString("panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })", $html);
+        $this->assertStringContainsString('smallViewport || !panelIsVisible', $html);
+        $this->assertStringNotContainsString('selectedStudents.length === 0" class="admin-alert admin-alert-danger', $html);
+        $this->assertStringContainsString('removeInvalidProducts()', $html);
+        $this->assertStringContainsString('item.eligibility !== \'eligible\'', $html);
+        $this->assertStringContainsString('eligibleVisibleProducts', $html);
+        $this->assertStringContainsString('x-text="item.code"', $html);
+        $this->assertStringContainsString('x-text="item.version?.code"', $html);
+        $this->assertStringContainsString('class="bulk-enrollment-product-meta__label"', $html);
+        $this->assertStringContainsString('class="bulk-enrollment-pagination"', $html);
+        $this->assertStringContainsString('aria-label="'.__('lf.LF_bulk_enrollment_students_pagination').'"', $html);
+        $this->assertStringContainsString('aria-label="'.__('lf.LF_bulk_enrollment_products_pagination').'"', $html);
+        $this->assertStringNotContainsString('item.product_code', $html);
+        $this->assertStringNotContainsString('item.version?.version_code', $html);
+        $this->assertStringNotContainsString('LF_course_enrollment_common_students', $html);
+        $this->assertStringNotContainsString('LF_course_enrollment_common_products', $html);
+        $this->assertStringNotContainsString('selectedProducts = productResults', $html);
+        $this->assertSame('Start enrollment', trans('lf.LF_bulk_enrollment_start_title', [], 'en'));
+        $this->assertSame('Select students to check eligible products.', trans('lf.LF_bulk_enrollment_select_student_first', [], 'en'));
+        $this->assertSame('Bắt đầu ghi danh', trans('lf.LF_bulk_enrollment_start_title', [], 'vi'));
+        $this->assertSame('Chọn học viên để kiểm tra sản phẩm phù hợp.', trans('lf.LF_bulk_enrollment_select_student_first', [], 'vi'));
+        $transferCss = file_get_contents(resource_path('css/admin/admin-pages.css'));
+        $this->assertStringContainsString('.bulk-enrollment-dual-selectors', $transferCss);
+        $this->assertStringContainsString('.bulk-enrollment-selector.is-onboarding-highlight', $transferCss);
         $this->assertLessThan(
-            strpos($html, 'type="submit" class="btn btn-primary"'),
-            strpos($html, 'class="btn btn-secondary"')
+            strpos($html, 'class="admin-table-wrap bulk-enrollment-review-table"'),
+            strpos($html, 'id="bulk-enrollment-information"')
         );
-        $response->assertDontSee('class="admin-form-cancel"', false);
-        $response->assertSeeText(__('lf.LF_course_enrollment_create_submitting'));
+        $this->assertLessThan(
+            strpos($html, 'id="bulk-access-window"'),
+            strpos($html, 'class="admin-table-wrap bulk-enrollment-review-table"')
+        );
+        $response->assertSeeText(__('lf.LF_bulk_enrollment_submit'));
+    }
+
+    public function test_bulk_preflight_is_tenant_scoped_for_both_selection_sets(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $studentA = $this->createUser($customerId, 'student');
+        $studentB = $this->createUser($customerId, 'student');
+        $otherStudent = $this->createUser($otherCustomerId, 'student');
+        $productA = $this->createProduct($customerId, 'Bootstrap Product A', 'bootstrap-product-a');
+        $productB = $this->createProduct($customerId, 'Bootstrap Product B', 'bootstrap-product-b');
+        $otherProduct = $this->createProduct($otherCustomerId, 'Other Product', 'other-product');
+        foreach ([[$customerId, $productA], [$customerId, $productB], [$otherCustomerId, $otherProduct]] as [$tenantId, $productId]) {
+            $owner = $tenantId === $customerId ? $admin : $this->createUser($tenantId, 'customer_admin');
+            $this->createProductItem($tenantId, $productId, $this->createVersion($tenantId, $owner->id));
+        }
+
+        $this->actingAs($admin)->postJson('https://tenant-a.localhost/admin/course-enrollments/bulk/preflight', [
+            'student_ids' => [$studentA->id, $studentB->id, $otherStudent->id],
+            'product_ids' => [$productA, $productB, $otherProduct],
+            'configuration' => [],
+        ])->assertOk()->assertJson(['can_continue' => false, 'submission_token' => null]);
+
+        $this->assertDatabaseCount('core_course_enrollments', 0);
+        $this->assertDatabaseCount('core_course_enrollment_submissions', 0);
     }
 
     public function test_admin_lifecycle_transition_matrix_is_explicit_and_preserves_binding(): void
@@ -735,6 +845,96 @@ class CourseEnrollmentManagementTest extends TestCase
             ->assertSee('course-cohort-index-actions', false);
     }
 
+    public function test_enrollment_index_filters_and_bulk_selection_markup_use_canonical_contracts(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Filter Product', 'filter-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $activeId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $terminalId = $this->createEnrollment($customerId, $student->id, $productId, $versionId, 'completed');
+        DB::table('core_course_enrollments')->where('id', $activeId)->update([
+            'source' => 'self_registration', 'enrolled_by' => $admin->id,
+            'enrolled_at' => '2026-07-10 10:00:00',
+        ]);
+
+        $response = $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-enrollments?source=self_registration&status=active&product_id='.$productId.'&student_id='.$student->id.'&enrolled_by='.$admin->id.'&enrolled_from=2026-07-10&enrolled_to=2026-07-10')
+            ->assertOk()->assertSee('Filter Product')->assertSee('value="self_registration" selected', false)
+            ->assertSee('name="product_id"', false)->assertSee('name="student_id"', false)
+            ->assertSee('name="enrolled_from"', false)->assertSee('name="enrolled_by"', false)
+            ->assertSee('name="enrollment_ids[]"', false)
+            ->assertSeeText(__('lf.LF_course_enrollment_bulk_edit'));
+        $html = $response->getContent();
+        $this->assertStringContainsString('value="'.$activeId.'" x-model="selectedIds"', $html);
+        $this->assertStringNotContainsString('value="'.$terminalId.'" x-model="selectedIds"', $html);
+
+        $invalidFilterResponse = $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-enrollments?source=not-real&product_id=999999&enrolled_from=2026-99-99');
+
+        $invalidFilterResponse->assertOk()
+            ->assertDontSee('value="not-real" selected', false)
+            ->assertDontSee('value="999999" selected', false)
+            ->assertSee('name="enrolled_from"', false)
+            ->assertSee('value=""', false);
+    }
+
+    public function test_bulk_update_explicitly_preserves_sets_and_clears_only_editable_metadata(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Bulk Edit Product', 'bulk-edit-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $ids = [$this->createEnrollment($customerId, $student->id, $productId, $versionId), $this->createEnrollment($customerId, $student->id, $productId, $versionId)];
+        DB::table('core_course_enrollments')->whereIn('id', $ids)->update([
+            'access_starts_at' => '2026-07-01 09:00:00', 'access_ends_at' => '2026-07-31 18:00:00',
+            'review_starts_at' => '2026-08-01 09:00:00', 'review_ends_at' => '2026-08-31 18:00:00', 'notes' => 'Old',
+        ]);
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk-update', $this->bulkUpdateData($ids, [
+            'access_ends_at_action' => 'set', 'access_ends_at_value' => '2026-07-20 18:00:00',
+            'review_starts_at_action' => 'clear', 'notes_action' => 'set', 'notes_value' => 'Shared note',
+        ]))->assertRedirect('https://tenant-a.localhost/admin/course-enrollments');
+
+        foreach ($ids as $id) {
+            $this->assertDatabaseHas('core_course_enrollments', [
+                'id' => $id, 'student_id' => $student->id, 'product_id' => $productId, 'version_id' => $versionId,
+                'status' => 'active', 'access_starts_at' => '2026-07-01 09:00:00',
+                'access_ends_at' => '2026-07-20 18:00:00', 'review_starts_at' => null,
+                'review_ends_at' => '2026-08-31 18:00:00', 'notes' => 'Shared note',
+            ]);
+        }
+    }
+
+    public function test_bulk_update_is_tenant_safe_atomic_and_rejects_terminal_or_invalid_windows(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $otherStudent = $this->createUser($otherCustomerId, 'student');
+        $productId = $this->createProduct($customerId, 'Safe Edit', 'safe-edit');
+        $otherProduct = $this->createProduct($otherCustomerId, 'Other Edit', 'other-edit');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
+        $otherVersion = $this->createVersion($otherCustomerId, $otherAdmin->id);
+        $activeId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $terminalId = $this->createEnrollment($customerId, $student->id, $productId, $versionId, 'completed');
+        $otherId = $this->createEnrollment($otherCustomerId, $otherStudent->id, $otherProduct, $otherVersion);
+
+        foreach ([[$activeId, $terminalId], [$activeId, $otherId]] as $selection) {
+            $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk-update', $this->bulkUpdateData($selection, [
+                'notes_action' => 'set', 'notes_value' => 'Must roll back',
+            ]))->assertSessionHasErrors('enrollment_ids');
+        }
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk-update', $this->bulkUpdateData([$activeId], [
+            'access_starts_at_action' => 'set', 'access_starts_at_value' => '2026-08-02 10:00:00',
+            'access_ends_at_action' => 'set', 'access_ends_at_value' => '2026-08-01 10:00:00',
+        ]))->assertSessionHasErrors('access_ends_at');
+        $this->assertDatabaseMissing('core_course_enrollments', ['id' => $activeId, 'notes' => 'Must roll back']);
+        $this->assertDatabaseMissing('core_course_enrollments', ['id' => $otherId, 'notes' => 'Must roll back']);
+    }
+
     public function test_search_endpoints_are_tenant_scoped_and_products_include_version_summary(): void
     {
         $customerId = $this->createTenant();
@@ -743,6 +943,10 @@ class CourseEnrollmentManagementTest extends TestCase
         $student = $this->createUser($customerId, 'student');
         $otherStudent = $this->createUser($otherCustomerId, 'student');
         $productId = $this->createProduct($customerId, 'Eligible TOPIK', 'eligible-topik');
+        DB::table('core_course_products')->where('id', $productId)->update([
+            'offering_type' => 'self_paced_course',
+            'review_duration_days' => 7,
+        ]);
         $versionId = $this->createVersion($customerId, $admin->id, title: 'Eligible Version');
         $this->createProductItem($customerId, $productId, $versionId);
 
@@ -759,9 +963,56 @@ class CourseEnrollmentManagementTest extends TestCase
                 'id' => $productId,
                 'title' => 'Eligible TOPIK',
                 'code' => 'ELIGIBLE-TOPIK',
+                'supports_review' => true,
                 'lesson_count' => 0,
                 'activity_count' => 0,
             ]);
+    }
+
+    public function test_product_search_classifies_every_selected_student_and_stably_sorts_the_current_page(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $studentA = $this->createUser($customerId, 'student');
+        $studentB = $this->createUser($customerId, 'student');
+        $otherStudent = $this->createUser($otherCustomerId, 'student');
+        $products = collect([
+            'Alpha Product' => 'alpha-product',
+            'Beta Product' => 'beta-product',
+            'Gamma Product' => 'gamma-product',
+        ])->mapWithKeys(function (string $slug, string $title) use ($customerId, $admin): array {
+            $productId = $this->createProduct($customerId, $title, $slug);
+            $versionId = $this->createVersion($customerId, $admin->id, title: $title);
+            $this->createProductItem($customerId, $productId, $versionId);
+
+            return [$title => ['product' => $productId, 'version' => $versionId]];
+        });
+        $this->createEnrollment($customerId, $studentA->id, $products['Beta Product']['product'], $products['Beta Product']['version']);
+        $this->createEnrollment($customerId, $studentB->id, $products['Gamma Product']['product'], $products['Gamma Product']['version']);
+
+        $oneStudent = $this->actingAs($admin)->getJson(
+            'https://tenant-a.localhost/admin/course-enrollments/products/search?student_ids[]='.$studentA->id
+        )->assertOk();
+        $this->assertSame(['Alpha Product', 'Gamma Product', 'Beta Product'], collect($oneStudent->json('data'))->pluck('title')->all());
+        $this->assertSame(['eligible', 'eligible', 'ineligible'], collect($oneStudent->json('data'))->pluck('eligibility')->all());
+        $this->assertSame(1, $oneStudent->json('data.2.invalid_pair_count'));
+
+        $selectedOffPage = $this->actingAs($admin)->getJson(
+            'https://tenant-a.localhost/admin/course-enrollments/products/search?q=Alpha&student_ids[]='.$studentA->id.'&selected_product_ids[]='.$products['Beta Product']['product']
+        )->assertOk();
+        $this->assertSame('ineligible', $selectedOffPage->json('selected_eligibility.'.$products['Beta Product']['product'].'.eligibility'));
+
+        $manyStudents = $this->actingAs($admin)->getJson(
+            'https://tenant-a.localhost/admin/course-enrollments/products/search?student_ids[]='.$studentA->id.'&student_ids[]='.$studentB->id
+        )->assertOk();
+        $this->assertSame(['Alpha Product', 'Beta Product', 'Gamma Product'], collect($manyStudents->json('data'))->pluck('title')->all());
+        $this->assertSame(['eligible', 'ineligible', 'ineligible'], collect($manyStudents->json('data'))->pluck('eligibility')->all());
+        $this->assertSame(2, $manyStudents->json('data.0.valid_pair_count'));
+
+        $this->actingAs($admin)->getJson(
+            'https://tenant-a.localhost/admin/course-enrollments/products/search?student_ids[]='.$otherStudent->id
+        )->assertUnprocessable();
     }
 
     public function test_admin_create_derives_authority_and_validates_time_windows(): void
@@ -846,6 +1097,144 @@ class CourseEnrollmentManagementTest extends TestCase
     {
         $this->assertFileDoesNotExist(app_path('Models/CoreCourseEnrollment.php'));
         $this->assertFileDoesNotExist(app_path('Models/CourseEnrollment.php'));
+    }
+
+    public function test_bulk_enrollment_creates_the_full_cartesian_product_and_freezes_versions(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $students = collect([1, 2])->map(fn () => $this->createUser($customerId, 'student'));
+        $products = collect(['A', 'B'])->map(function (string $suffix) use ($customerId, $admin): array {
+            $productId = $this->createProduct($customerId, 'Product '.$suffix, 'product-'.strtolower($suffix));
+            $versionId = $this->createVersion($customerId, $admin->id, title: 'Version '.$suffix);
+            $this->createProductItem($customerId, $productId, $versionId);
+
+            return [$productId, $versionId];
+        });
+        $studentIds = $students->pluck('id')->all();
+        $productIds = $products->pluck(0)->all();
+        $configuration = $this->bulkConfiguration();
+        $token = $this->prepareBulkSubmission($admin, $studentIds, $productIds, [], $configuration);
+
+        $payload = $this->bulkStoreData($studentIds, $productIds, $token, [], $configuration);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk', $payload)
+            ->assertRedirect('https://tenant-a.localhost/admin/course-enrollments/bulk/result')
+            ->assertSessionHas('bulk_result', fn (array $result): bool => $result['summary']['created'] === 4);
+
+        $this->assertDatabaseCount('core_course_enrollments', 4);
+        foreach ($students as $student) {
+            foreach ($products as [$productId, $versionId]) {
+                $this->assertDatabaseHas('core_course_enrollments', [
+                    'customer_id' => $customerId, 'student_id' => $student->id,
+                    'product_id' => $productId, 'version_id' => $versionId,
+                    'source' => 'admin', 'status' => 'active',
+                ]);
+            }
+        }
+    }
+
+    public function test_bulk_submission_is_atomic_when_eligibility_changes_after_preflight(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $students = [$this->createUser($customerId, 'student')->id, $this->createUser($customerId, 'student')->id];
+        $productId = $this->createProduct($customerId, 'Atomic Product', 'atomic-product');
+        $this->createProductItem($customerId, $productId, $this->createVersion($customerId, $admin->id));
+        $configuration = $this->bulkConfiguration();
+        $token = $this->prepareBulkSubmission($admin, $students, [$productId], [], $configuration);
+
+        DB::table('users')->where('id', $students[1])->update(['status' => 'inactive']);
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk',
+            $this->bulkStoreData($students, [$productId], $token, [], $configuration))
+            ->assertRedirect('https://tenant-a.localhost/admin/course-enrollments/create')
+            ->assertSessionHasErrors('submission');
+        $this->assertDatabaseCount('core_course_enrollments', 0);
+        $this->assertDatabaseHas('core_course_enrollment_submissions', ['token_hash' => hash('sha256', $token), 'status' => 'prepared']);
+    }
+
+    public function test_reenrollment_requires_exact_confirmation_and_completed_token_replays_result(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Lifecycle Product', 'lifecycle-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $this->createProductItem($customerId, $productId, $versionId);
+        $oldId = $this->createEnrollment($customerId, $student->id, $productId, $versionId, 'completed');
+        $configuration = $this->bulkConfiguration();
+
+        $this->actingAs($admin)->postJson('https://tenant-a.localhost/admin/course-enrollments/bulk/preflight', [
+            'student_ids' => [$student->id], 'product_ids' => [$productId],
+            'reenrollment_confirmations' => [], 'configuration' => $configuration, 'finalize' => true,
+        ])->assertOk()->assertJson(['valid' => false, 'submission_token' => null]);
+
+        $confirmations = [['student_id' => $student->id, 'product_id' => $productId, 'previous_enrollment_id' => $oldId]];
+        $token = $this->prepareBulkSubmission($admin, [$student->id], [$productId], $confirmations, $configuration);
+        $payload = $this->bulkStoreData([$student->id], [$productId], $token, $confirmations, $configuration);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk', $payload)
+            ->assertSessionHas('bulk_result', fn (array $result): bool => $result['summary']['reenrolled'] === 1);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk', $payload)
+            ->assertSessionHas('bulk_result', fn (array $result): bool => $result['summary']['reenrolled'] === 1);
+
+        $this->assertSame('completed', DB::table('core_course_enrollments')->where('id', $oldId)->value('status'));
+        $this->assertDatabaseCount('core_course_enrollments', 2);
+        $this->assertDatabaseHas('core_course_enrollment_submissions', ['token_hash' => hash('sha256', $token), 'status' => 'completed']);
+        $this->assertDatabaseMissing('core_course_enrollment_submissions', ['token_hash' => $token]);
+    }
+
+    public function test_bulk_configuration_pair_limit_payload_binding_and_review_policy_are_enforced(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $reviewProduct = $this->createProduct($customerId, 'Review Product', 'review-product');
+        $plainProduct = $this->createProduct($customerId, 'Plain Product', 'plain-product');
+        DB::table('core_course_products')->where('id', $reviewProduct)->update(['offering_type' => 'self_paced_course', 'review_duration_days' => 14]);
+        DB::table('core_course_products')->where('id', $plainProduct)->update(['offering_type' => 'instructor_led_course', 'review_duration_days' => null]);
+        foreach ([$reviewProduct, $plainProduct] as $productId) {
+            $this->createProductItem($customerId, $productId, $this->createVersion($customerId, $admin->id));
+        }
+        $configuration = $this->bulkConfiguration([
+            'access_starts_at' => '2026-08-01 09:00:00', 'access_ends_at' => '2026-08-31 18:00:00',
+            'review_starts_at' => '2026-09-01 09:00:00', 'review_ends_at' => '2026-09-14 18:00:00',
+            'notes' => ' Shared note ',
+        ]);
+        $token = $this->prepareBulkSubmission($admin, [$student->id], [$reviewProduct, $plainProduct], [], $configuration);
+        $payload = $this->bulkStoreData([$student->id], [$reviewProduct, $plainProduct], $token, [], $configuration);
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk', array_replace_recursive($payload, ['configuration' => ['notes' => 'tampered']]))
+            ->assertSessionHasErrors('submission_token');
+        $this->assertDatabaseCount('core_course_enrollments', 0);
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk', $payload)->assertRedirect();
+        $this->assertDatabaseHas('core_course_enrollments', ['product_id' => $reviewProduct, 'notes' => 'Shared note', 'review_starts_at' => '2026-09-01 09:00:00']);
+        $this->assertDatabaseHas('core_course_enrollments', ['product_id' => $plainProduct, 'notes' => 'Shared note', 'review_starts_at' => null, 'review_ends_at' => null]);
+
+        $this->actingAs($admin)->postJson('https://tenant-a.localhost/admin/course-enrollments/bulk/preflight', [
+            'student_ids' => range(1, 11), 'product_ids' => range(1, 10), 'configuration' => [],
+        ])->assertUnprocessable()->assertJsonValidationErrors('pair_count');
+    }
+
+    private function prepareBulkSubmission(object $admin, array $studentIds, array $productIds, array $confirmations, array $configuration): string
+    {
+        return (string) $this->actingAs($admin)->postJson('https://tenant-a.localhost/admin/course-enrollments/bulk/preflight', [
+            'student_ids' => $studentIds, 'product_ids' => $productIds,
+            'reenrollment_confirmations' => $confirmations, 'configuration' => $configuration, 'finalize' => true,
+        ])->assertOk()->assertJson(['valid' => true])->json('submission_token');
+    }
+
+    private function bulkStoreData(array $studentIds, array $productIds, string $token, array $confirmations, array $configuration): array
+    {
+        return ['student_ids' => $studentIds, 'product_ids' => $productIds,
+            'reenrollment_confirmations' => $confirmations, 'configuration' => $configuration,
+            'submission_token' => $token];
+    }
+
+    private function bulkConfiguration(array $overrides = []): array
+    {
+        return array_merge(['access_starts_at' => null, 'access_ends_at' => null,
+            'review_starts_at' => null, 'review_ends_at' => null, 'notes' => null], $overrides);
     }
 
     private function createTenant(string $slug = 'tenant-a'): int
@@ -1074,6 +1463,23 @@ class CourseEnrollmentManagementTest extends TestCase
             'review_starts_at' => null,
             'review_ends_at' => null,
             'notes' => null,
+        ], $overrides);
+    }
+
+    private function bulkUpdateData(array $enrollmentIds, array $overrides = []): array
+    {
+        return array_merge([
+            'enrollment_ids' => $enrollmentIds,
+            'access_starts_at_action' => 'preserve',
+            'access_starts_at_value' => null,
+            'access_ends_at_action' => 'preserve',
+            'access_ends_at_value' => null,
+            'review_starts_at_action' => 'preserve',
+            'review_starts_at_value' => null,
+            'review_ends_at_action' => 'preserve',
+            'review_ends_at_value' => null,
+            'notes_action' => 'preserve',
+            'notes_value' => null,
         ], $overrides);
     }
 

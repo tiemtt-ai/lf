@@ -614,6 +614,14 @@ consumers. Không tạo source of truth song song.
 
 # Course Template Versioning Standard
 
+## Bulk Enrollment persistence rule
+
+Bulk Enrollment introduces no new table or permanent Student–Product unique
+constraint. Each row remains one learning cycle. Batch replay protection uses
+a short-lived tenant/Admin/mode-bound session token, while transaction locking
+and revalidation protect the non-terminal cycle invariant. Re-enrollment adds
+a new row and never rewrites historical Enrollment, Version or Progress data.
+
 LearnForge tách:
 
 ```text

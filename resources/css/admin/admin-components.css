@@ -1294,6 +1294,12 @@
     background: #dcfce7;
 }
 
+.admin-alert-info {
+    color: #1e3a5f;
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+}
+
 .admin-alert-title {
     display: block;
     font-weight: 600;

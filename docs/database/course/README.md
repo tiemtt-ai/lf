@@ -74,6 +74,7 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 | Bảng | Mô tả |
 |------|------|
 | **core_course_enrollments** | Quyền truy cập và chu trình học của học viên |
+| [**core_course_enrollment_submissions**](core_course_enrollment_submissions.md) | Durable preflight và idempotency authority cho Bulk Enrollment |
 | **core_course_cohorts** | Cohort và nhóm học vận hành thực tế |
 | **core_course_cohort_students** | Quan hệ thành viên của học viên trong Cohort |
 

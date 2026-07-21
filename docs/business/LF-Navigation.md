@@ -10,6 +10,12 @@ Last Updated: 2026-06
 
 # LearnForge Navigation Architecture
 
+> Bulk Enrollment amendment (2026-07): the Admin Enrollment index exposes one
+> primary “Create enrollment” action. Its two-step wizard selects one or many
+> Students and one or many Products, then configures and confirms their
+> Cartesian Student–Product pairs. Cohort assignment remains a
+> separate contextual workflow.
+
 > Course Cohort amendment (2026-07): Admin navigation exposes one `Lớp học` /
 > `Cohorts` entry. Cohort detail contains only `Tổng quan` / `Overview` and
 > `Học viên` / `Students`; membership is managed in Cohort context.
