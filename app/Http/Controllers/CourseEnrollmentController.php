@@ -131,7 +131,7 @@ class CourseEnrollmentController extends Controller
                 'versions.version_number',
                 'versions.version_code'
             )
-            ->paginate(2)
+            ->paginate(10)
             ->withQueryString();
 
         return view('course-enrollments.index', [

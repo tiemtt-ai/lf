@@ -1951,6 +1951,13 @@
     white-space: nowrap;
 }
 
+.course-enrollment-bulk-actions .btn:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+    box-shadow: none;
+    filter: saturate(0.35);
+}
+
 @media (min-width: 901px) {
     :root.is-backend-sidebar-collapsed .backend-shell .course-enrollment-bulk-bar,
     .backend-shell.is-sidebar-collapsed .course-enrollment-bulk-bar {
