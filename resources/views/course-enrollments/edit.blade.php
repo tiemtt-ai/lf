@@ -60,7 +60,7 @@
                         </div>
                         <div class="lf-form-group admin-form-field">
                             <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</span>
-                            <div class="admin-form-readonly lf-form-control">{{ $enrollment->enrolled_at }}</div>
+                            <div class="admin-form-readonly lf-form-control">{{ $enrollment->enrolled_at ? \Illuminate\Support\Carbon::parse($enrollment->enrolled_at)->format('d/m/Y H:i') : '—' }}</div>
                         </div>
                     </div>
                 </section>

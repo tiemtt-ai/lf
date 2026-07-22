@@ -229,7 +229,10 @@
                 @csrf
                 <template x-for="id in selectedIds" :key="id"><input type="hidden" name="enrollment_ids[]" :value="id"></template>
                 <div class="course-enrollment-bulk-modal__body">
-                    <p class="course-enrollment-bulk-modal__selection" x-text="selectedLabel"></p>
+                    <div class="course-enrollment-bulk-modal__intro">
+                        <p class="course-enrollment-bulk-modal__selection" x-text="selectedLabel"></p>
+                        <p id="bulk-edit-actions-help" class="course-enrollment-bulk-modal__help">{{ __('lf.LF_course_enrollment_bulk_actions_help') }}</p>
+                    </div>
                     @foreach ([
                         ['title' => 'LF_course_enrollment_access_window', 'fields' => ['access_starts_at', 'access_ends_at']],
                         ['title' => 'LF_course_enrollment_review_window', 'fields' => ['review_starts_at', 'review_ends_at']],
@@ -240,7 +243,7 @@
                                 @foreach ($group['fields'] as $field)
                                     <div class="course-enrollment-bulk-field">
                                         <label class="lf-form-label" for="{{ $field }}_action">{{ __('lf.LF_course_enrollment_common_'.$field) }}</label>
-                                        <select id="{{ $field }}_action" name="{{ $field }}_action" class="lf-form-control" x-model="actions.{{ $field }}"><option value="preserve">{{ __('lf.LF_course_enrollment_bulk_preserve') }}</option><option value="set">{{ __('lf.LF_course_enrollment_bulk_set') }}</option><option value="clear">{{ __('lf.LF_course_enrollment_bulk_clear_value') }}</option></select>
+                                        <select id="{{ $field }}_action" name="{{ $field }}_action" class="lf-form-control" x-model="actions.{{ $field }}" aria-describedby="bulk-edit-actions-help"><option value="preserve">{{ __('lf.LF_course_enrollment_bulk_preserve') }}</option><option value="set">{{ __('lf.LF_course_enrollment_bulk_set') }}</option><option value="clear">{{ __('lf.LF_course_enrollment_bulk_clear_value') }}</option></select>
                                         <input x-cloak x-show="actions.{{ $field }} === 'set'" type="datetime-local" name="{{ $field }}_value" class="lf-form-control" :disabled="actions.{{ $field }} !== 'set'">
                                     </div>
                                 @endforeach
@@ -251,7 +254,7 @@
                         <h3 id="bulk-notes-title">{{ __('lf.LF_course_enrollment_internal_notes') }}</h3>
                         <div class="course-enrollment-bulk-field course-enrollment-bulk-field--notes">
                             <label class="sr-only" for="notes_action">{{ __('lf.LF_course_enrollment_internal_notes') }}</label>
-                            <select id="notes_action" name="notes_action" class="lf-form-control" x-model="actions.notes"><option value="preserve">{{ __('lf.LF_course_enrollment_bulk_preserve') }}</option><option value="set">{{ __('lf.LF_course_enrollment_bulk_set') }}</option><option value="clear">{{ __('lf.LF_course_enrollment_bulk_clear_value') }}</option></select>
+                            <select id="notes_action" name="notes_action" class="lf-form-control" x-model="actions.notes" aria-describedby="bulk-edit-actions-help"><option value="preserve">{{ __('lf.LF_course_enrollment_bulk_preserve') }}</option><option value="set">{{ __('lf.LF_course_enrollment_bulk_set') }}</option><option value="clear">{{ __('lf.LF_course_enrollment_bulk_clear_value') }}</option></select>
                             <textarea x-cloak x-show="actions.notes === 'set'" name="notes_value" class="lf-form-control" rows="3" :disabled="actions.notes !== 'set'"></textarea>
                         </div>
                     </section>

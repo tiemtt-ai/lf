@@ -1801,6 +1801,18 @@
     background: transparent;
 }
 
+.lf-admin-page .course-enrollment-edit input.lf-form-control:hover:not(:focus),
+.lf-admin-page .course-enrollment-edit textarea.lf-form-control:hover:not(:focus) {
+    border-color: color-mix(in srgb, var(--admin-primary) 28%, var(--border-color, #ced4da));
+}
+
+.lf-admin-page .course-enrollment-edit input.lf-form-control:focus,
+.lf-admin-page .course-enrollment-edit textarea.lf-form-control:focus {
+    border-color: color-mix(in srgb, var(--admin-primary) 72%, #ffffff);
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-primary) 10%, transparent);
+}
+
 .course-cohort-detail .admin-form-field-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
