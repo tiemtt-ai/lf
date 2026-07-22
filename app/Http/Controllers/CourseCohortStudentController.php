@@ -137,31 +137,35 @@ class CourseCohortStudentController extends Controller
         abort_if($this->cohortEligibilityError($customerId, $contextCohort), 422);
 
         $query = trim((string) $request->query('q', ''));
-        if (mb_strlen($query) < 2) {
-            return response()->json(['data' => []]);
-        }
-
         $numericQuery = preg_replace('/\D+/', '', $query);
         $enrollments = $this->eligibleEnrollmentsQuery($customerId, $contextCohort)
-            ->where(function ($builder) use ($query, $numericQuery): void {
-                $builder->where('students.name', 'like', '%'.$query.'%')
-                    ->orWhere('students.email', 'like', '%'.$query.'%');
+            ->when($query !== '', function ($builder) use ($query, $numericQuery): void {
+                $builder->where(function ($builder) use ($query, $numericQuery): void {
+                    $builder->where('students.name', 'like', '%'.$query.'%')
+                        ->orWhere('students.email', 'like', '%'.$query.'%');
 
-                if ($numericQuery !== '') {
-                    $builder->orWhere('enrollments.id', (int) $numericQuery);
-                }
+                    if ($numericQuery !== '') {
+                        $builder->orWhere('enrollments.id', (int) $numericQuery);
+                    }
+                });
             })
             ->orderBy('students.name')
-            ->limit(20)
-            ->get()
-            ->map(fn (object $enrollment): array => [
-                'id' => $enrollment->id,
-                'name' => $enrollment->student_name,
-                'email' => $enrollment->student_email,
-                'code' => 'ENR-'.str_pad((string) $enrollment->id, 6, '0', STR_PAD_LEFT),
-            ]);
+            ->orderBy('enrollments.id')
+            ->paginate(15);
 
-        return response()->json(['data' => $enrollments]);
+        $data = collect($enrollments->items())->map(fn (object $enrollment): array => [
+            'id' => $enrollment->id,
+            'name' => $enrollment->student_name,
+            'email' => $enrollment->student_email,
+            'code' => 'ENR-'.str_pad((string) $enrollment->id, 6, '0', STR_PAD_LEFT),
+        ]);
+
+        return response()->json(['data' => $data, 'pagination' => [
+            'current_page' => $enrollments->currentPage(),
+            'last_page' => $enrollments->lastPage(),
+            'total' => $enrollments->total(),
+            'per_page' => $enrollments->perPage(),
+        ]]);
     }
 
     public function store(Request $request, ?int $cohort = null): RedirectResponse

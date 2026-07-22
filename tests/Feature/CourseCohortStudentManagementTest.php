@@ -348,8 +348,15 @@ class CourseCohortStudentManagementTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/create")
             ->assertOk()
             ->assertSee('name="enrollment_ids[]"', false)
-            ->assertSee('role="combobox"', false)
+            ->assertSee('bulk-enrollment-selector', false)
             ->assertDontSeeText(__('lf.LF_course_cohort_student_search_no_eligible'));
+
+        $this->actingAs($admin)
+            ->getJson("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/search")
+            ->assertOk()
+            ->assertJsonFragment(['id' => $eligibleId, 'email' => $student->email])
+            ->assertJsonMissing(['email' => $assignedStudent->email])
+            ->assertJsonMissing(['email' => $otherStudent->email]);
 
         $this->actingAs($admin)
             ->getJson("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/search?q=".urlencode($student->email))
@@ -362,6 +369,35 @@ class CourseCohortStudentManagementTest extends TestCase
             ->getJson("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/search?q=ENR-".str_pad((string) $eligibleId, 6, '0', STR_PAD_LEFT))
             ->assertOk()
             ->assertJsonFragment(['id' => $eligibleId]);
+    }
+
+    public function test_enrollment_search_paginates_results(): void
+    {
+        [$customerId, $admin, , $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId);
+
+        for ($i = 0; $i < 17; $i++) {
+            $student = $this->createUser($customerId, 'student');
+            $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        }
+
+        $firstPage = $this->actingAs($admin)
+            ->getJson("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/search")
+            ->assertOk()
+            ->json();
+
+        $this->assertCount(15, $firstPage['data']);
+        $this->assertSame(1, $firstPage['pagination']['current_page']);
+        $this->assertSame(2, $firstPage['pagination']['last_page']);
+        $this->assertSame(17, $firstPage['pagination']['total']);
+
+        $secondPage = $this->actingAs($admin)
+            ->getJson("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/search?page=2")
+            ->assertOk()
+            ->json();
+
+        $this->assertCount(2, $secondPage['data']);
+        $this->assertSame(2, $secondPage['pagination']['current_page']);
     }
 
     public function test_add_derives_managed_fields_and_rejects_forged_authority(): void
