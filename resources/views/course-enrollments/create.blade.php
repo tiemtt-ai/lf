@@ -165,7 +165,9 @@
                     </section>
                 </div>
 
-                <div class="bulk-enrollment-pair-summary" aria-live="polite">
+                <div class="bulk-enrollment-pair-summary"
+                     :class="{ 'is-near-limit': pairCount >= 80 && pairCount <= 100, 'is-over-limit': pairCount > 100 }"
+                     aria-live="polite">
                     <strong x-text="pairCountLabel"></strong>
                     <span>{{ __('lf.LF_bulk_enrollment_pair_limit_help') }}</span>
                 </div>
@@ -181,23 +183,23 @@
                     <div class="bulk-enrollment-pair-summary bulk-enrollment-confirmation__summary"><strong x-text="pairCountLabel"></strong><button type="button" class="admin-text-action" x-on:click="backToSelection">{{ __('lf.LF_bulk_enrollment_change') }}</button></div>
                     <button x-show="reenrollmentPairs.length > 1" type="button" class="btn btn-secondary" x-on:click="confirmAllReenrollments">{{ __('lf.LF_bulk_enrollment_confirm_all_reenrollments') }}</button>
                     <div class="admin-table-wrap bulk-enrollment-review-table"><table class="table">
-                        <thead><tr><th>{{ __('lf.LF_course_enrollment_common_student') }}</th><th>{{ __('lf.LF_course_enrollment_common_product') }}</th><th>{{ __('lf.LF_course_enrollment_common_status') }}</th></tr></thead>
+                        <thead><tr><th>{{ __('lf.LF_course_enrollment_common_student') }}</th><th>{{ __('lf.LF_course_enrollment_common_product') }}</th><th>{{ __('lf.LF_bulk_enrollment_expected_result') }}</th></tr></thead>
                         <tbody><template x-for="pair in pairs" :key="`${pair.student_id}:${pair.product_id}`"><tr>
                             <td x-text="pair.student_name"></td><td x-text="pair.product_title"></td>
-                            <td><span x-show="pair.status === 'creatable'">{{ __('lf.LF_bulk_enrollment_new') }}</span>
+                            <td><span x-show="pair.status === 'creatable'" class="bulk-enrollment-pair-status is-new">{{ __('lf.LF_bulk_enrollment_new') }}</span>
                                 <label x-show="pair.status === 'reenrollment_eligible'"><input type="checkbox" x-model="confirmedPairKeys" :value="`${pair.student_id}:${pair.product_id}`"> {{ __('lf.LF_bulk_enrollment_confirm_reenroll') }} #<span x-text="pair.previous_enrollment_id"></span></label>
                                 <span x-show="pair.reason && pair.status !== 'reenrollment_eligible'" x-text="pair.reason"></span>
                             </td>
                         </tr></template></tbody>
                     </table></div>
                     <dl class="bulk-enrollment-confirmation__facts">
-                        <div><dt>{{ __('lf.LF_course_enrollment_common_status') }}</dt><dd><span class="badge badge-success">{{ __('lf.LF_course_enrollment_common_active') }}</span></dd></div>
+                        <div><dt>{{ __('lf.LF_bulk_enrollment_status_after_creation') }}</dt><dd><span class="badge badge-success">{{ __('lf.LF_course_enrollment_common_active') }}</span></dd></div>
                         <div><dt>{{ __('lf.LF_course_enrollment_common_source') }}</dt><dd>{{ __('lf.LF_course_enrollment_common_source_admin') }}</dd></div>
                     </dl>
                 </section>
 
                 <section class="admin-form-standard-section" aria-labelledby="bulk-access-window">
-                    <header class="admin-form-section-header"><h3 id="bulk-access-window" class="admin-form-section-title">{{ __('lf.LF_course_enrollment_access_window') }}</h3></header>
+                    <header class="admin-form-section-header"><h3 id="bulk-access-window" class="admin-form-section-title">{{ __('lf.LF_course_enrollment_access_window') }}</h3><p class="admin-form-section-help">{{ __('lf.LF_course_enrollment_access_help') }}</p></header>
                     <div class="admin-form-field-grid">
                         @foreach (['access_starts_at', 'access_ends_at'] as $field)
                             <div class="lf-form-group admin-form-field"><label class="lf-form-label" for="bulk-{{ $field }}">{{ __('lf.LF_course_enrollment_common_'.$field) }}</label><input id="bulk-{{ $field }}" type="datetime-local" :name="`configuration[{{ $field }}]`" class="lf-form-control" x-model="configuration.{{ $field }}"></div>
@@ -205,7 +207,7 @@
                     </div>
                 </section>
                 <section class="admin-form-standard-section" aria-labelledby="bulk-review-window">
-                    <header class="admin-form-section-header"><h3 id="bulk-review-window" class="admin-form-section-title">{{ __('lf.LF_course_enrollment_review_window') }}</h3></header>
+                    <header class="admin-form-section-header"><h3 id="bulk-review-window" class="admin-form-section-title">{{ __('lf.LF_course_enrollment_review_window') }}</h3><p class="admin-form-section-help">{{ __('lf.LF_course_enrollment_review_help') }}</p></header>
                     <div class="admin-form-field-grid">
                         @foreach (['review_starts_at', 'review_ends_at'] as $field)
                             <div class="lf-form-group admin-form-field"><label class="lf-form-label" for="bulk-{{ $field }}">{{ __('lf.LF_course_enrollment_common_'.$field) }}</label><input id="bulk-{{ $field }}" type="datetime-local" :name="`configuration[{{ $field }}]`" class="lf-form-control" x-model="configuration.{{ $field }}"></div>

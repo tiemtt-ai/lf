@@ -24,17 +24,16 @@
                     @endif
                 </div>
             </div>
-            <section class="admin-form-standard-section" aria-labelledby="bulk-summary-title">
-                <h2 id="bulk-summary-title" class="admin-form-section-title">{{ __('lf.LF_bulk_enrollment_summary') }}</h2>
-                <dl class="bulk-enrollment-result__summary">
-                    @foreach (['total', 'created'] as $key)
-                        <div><dt>{{ __('lf.LF_bulk_enrollment_summary_'.$key) }}</dt><dd>{{ $result['summary'][$key] }}</dd></div>
-                    @endforeach
-                    @if ($result['summary']['reenrolled'] > 0)
+            @if ($result['summary']['reenrolled'] > 0)
+                <section class="admin-form-standard-section" aria-labelledby="bulk-summary-title">
+                    <h2 id="bulk-summary-title" class="admin-form-section-title">{{ __('lf.LF_bulk_enrollment_summary') }}</h2>
+                    <dl class="bulk-enrollment-result__summary">
+                        <div><dt>{{ __('lf.LF_bulk_enrollment_summary_total') }}</dt><dd>{{ $result['summary']['total'] }}</dd></div>
+                        <div><dt>{{ __('lf.LF_bulk_enrollment_summary_created') }}</dt><dd>{{ $result['summary']['created'] }}</dd></div>
                         <div><dt>{{ __('lf.LF_bulk_enrollment_summary_reenrolled') }}</dt><dd>{{ $result['summary']['reenrolled'] }}</dd></div>
-                    @endif
-                </dl>
-            </section>
+                    </dl>
+                </section>
+            @endif
             <section class="admin-form-standard-section" aria-labelledby="bulk-result-detail-title">
                 <h2 id="bulk-result-detail-title" class="admin-form-section-title">{{ __('lf.LF_bulk_enrollment_result_details') }}</h2>
                 <div class="admin-table-wrap bulk-enrollment-result__table"><table class="table"><thead><tr><th>{{ __('lf.LF_course_enrollment_common_student') }}</th><th>{{ __('lf.LF_course_enrollment_common_product') }}</th><th>{{ __('lf.LF_course_enrollment_common_version') }}</th><th>{{ __('lf.LF_bulk_enrollment_enrollment_id') }}</th><th>{{ __('lf.LF_course_enrollment_common_status') }}</th></tr></thead>
@@ -49,7 +48,9 @@
                         <div><dt>{{ __('lf.LF_course_enrollment_review_window') }}</dt><dd>{{ $configuration['review_starts_at'] ? $formatDateTime($configuration['review_starts_at']) : __('lf.LF_bulk_enrollment_not_configured') }} <span aria-hidden="true">→</span> {{ $configuration['review_ends_at'] ? $formatDateTime($configuration['review_ends_at']) : __('lf.LF_bulk_enrollment_not_configured') }}</dd></div>
                         <div><dt>{{ __('lf.LF_course_enrollment_common_status') }}</dt><dd><span class="badge badge-success">{{ __('lf.LF_course_enrollment_common_active') }}</span></dd></div>
                         <div><dt>{{ __('lf.LF_course_enrollment_common_source') }}</dt><dd>{{ __('lf.LF_course_enrollment_common_source_admin') }}</dd></div>
-                        <div><dt>{{ __('lf.LF_course_enrollment_internal_notes') }}</dt><dd>{{ filled($configuration['notes'] ?? null) ? __('lf.LF_bulk_enrollment_has_notes') : __('lf.LF_bulk_enrollment_none') }}</dd></div>
+                        @if (filled($configuration['notes'] ?? null))
+                            <div><dt>{{ __('lf.LF_course_enrollment_internal_notes') }}</dt><dd>{{ __('lf.LF_bulk_enrollment_has_notes') }}</dd></div>
+                        @endif
                     </dl>
                 </section>
             @endif

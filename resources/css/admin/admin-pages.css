@@ -1949,15 +1949,38 @@
     justify-content: space-between;
     gap: 1rem;
     margin-top: 1rem;
-    padding: 1rem;
-    border: 1px solid color-mix(in srgb, var(--primary-color, #4f63d9) 30%, #dfe3e8);
+    padding: 0.75rem 1rem;
+    border: 1px solid color-mix(in srgb, var(--primary-color, #4f63d9) 16%, #dfe3e8);
     border-radius: 0.75rem;
-    background: color-mix(in srgb, var(--primary-color, #4f63d9) 5%, #fff);
+    background: color-mix(in srgb, var(--primary-color, #4f63d9) 2%, #fff);
+}
+
+.bulk-enrollment-pair-summary > strong {
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+.bulk-enrollment-pair-summary > span {
+    color: var(--admin-text-muted);
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.4;
+}
+
+.bulk-enrollment-pair-summary.is-near-limit {
+    border-color: #e7cf8b;
+    background: #fffaf0;
+}
+
+.bulk-enrollment-pair-summary.is-over-limit {
+    border-color: #e4aaaa;
+    color: #9d2d2d;
+    background: #fff2f2;
 }
 
 .bulk-enrollment-confirmation__summary {
     margin-top: 0;
-    padding: 12px 14px;
+    padding: 10px 14px;
 }
 
 .bulk-enrollment-confirmation__summary strong {
@@ -1971,27 +1994,42 @@
 
 .bulk-enrollment-confirmation .bulk-enrollment-review-table th,
 .bulk-enrollment-confirmation .bulk-enrollment-review-table td {
-    padding-top: 12px;
-    padding-bottom: 12px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.bulk-enrollment-pair-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.bulk-enrollment-pair-status.is-new {
+    color: #3157a5;
+    background: #eef3ff;
 }
 
 .bulk-enrollment-confirmation__facts {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    margin: 12px 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    margin: 10px 0 0;
+    padding: 0 2px;
 }
 
 .bulk-enrollment-confirmation__facts > div {
+    display: inline-flex;
     min-width: 0;
-    padding: 12px 14px;
-    border: 1px solid var(--admin-border);
-    border-radius: 8px;
-    background: var(--admin-surface-subtle);
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .bulk-enrollment-confirmation__facts dt {
-    margin-bottom: 6px;
+    margin: 0;
     color: var(--admin-text-muted);
     font-size: 12px;
     font-weight: 600;
@@ -2000,7 +2038,18 @@
 .bulk-enrollment-confirmation__facts dd {
     margin: 0;
     color: var(--admin-text);
-    font-weight: 600;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.lf-admin-page .bulk-enrollment-wizard-section .admin-form-field .lf-form-control:hover:not(:focus) {
+    border-color: color-mix(in srgb, var(--admin-primary) 28%, var(--border-color, #ced4da));
+}
+
+.lf-admin-page .bulk-enrollment-wizard-section .admin-form-field .lf-form-control:focus {
+    border-color: color-mix(in srgb, var(--admin-primary) 72%, #ffffff);
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-primary) 10%, transparent);
 }
 
 .bulk-enrollment-eligibility-badge {
@@ -2112,11 +2161,11 @@
 }
 
 .bulk-enrollment-result .admin-form-standard-section {
-    padding-bottom: 18px;
+    padding-bottom: 14px;
 }
 
 .bulk-enrollment-result .admin-form-standard-section + .admin-form-standard-section {
-    padding-top: 18px;
+    padding-top: 14px;
 }
 
 .bulk-enrollment-result .admin-form-section-title {
@@ -2159,9 +2208,9 @@
 .bulk-enrollment-result__settings {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px 28px;
+    gap: 12px 28px;
     margin: 10px 0 0;
-    padding: 14px 16px;
+    padding: 12px 14px;
     border: 1px solid var(--admin-border);
     border-radius: 8px;
     background: var(--admin-surface-subtle);
@@ -2182,6 +2231,10 @@
     margin: 0;
     color: var(--admin-text);
     line-height: 1.45;
+}
+
+.bulk-enrollment-result__settings > div:nth-child(-n + 2) dd {
+    white-space: nowrap;
 }
 
 .bulk-enrollment-result__table {
@@ -2446,6 +2499,10 @@
 
     .bulk-enrollment-result__settings {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .bulk-enrollment-result__settings > div:nth-child(-n + 2) dd {
+        white-space: normal;
     }
 
     .course-enrollment-bulk-actions {

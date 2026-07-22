@@ -1667,6 +1667,8 @@ return [
     'LF_bulk_enrollment_none' => 'None',
     'LF_bulk_enrollment_admin_override_help' => 'This is an administrative assignment and may occur outside the product registration window.',
     'LF_bulk_enrollment_new' => 'New enrollment',
+    'LF_bulk_enrollment_expected_result' => 'Expected result',
+    'LF_bulk_enrollment_status_after_creation' => 'Status after creation',
     'LF_bulk_enrollment_confirm_reenroll' => 'Create a new learning cycle (re-enroll)',
     'LF_bulk_enrollment_outside_registration' => 'Outside registration window — Admin assignment is allowed.',
     'LF_bulk_enrollment_back' => 'Back',
@@ -1701,5 +1703,5 @@ return [
     'LF_bulk_enrollment_status_skipped_existing' => 'Already enrolled — skipped',
     'LF_bulk_enrollment_status_re_enrollment_required' => 'Re-enrollment confirmation required',
     'LF_bulk_enrollment_status_failed' => 'Failed',
-    'LF_bulk_enrollment_create_another' => 'Create another enrollment batch',
+    'LF_bulk_enrollment_create_another' => 'Create another enrollment',
 ];
