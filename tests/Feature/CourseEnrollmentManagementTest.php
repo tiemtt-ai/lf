@@ -184,11 +184,13 @@ class CourseEnrollmentManagementTest extends TestCase
             ->assertSee('course-enrollment-detail-item', false)
             ->assertSee('id="enrollment-show-access"', false)
             ->assertSee('id="enrollment-show-information"', false)
-            ->assertSee('id="enrollment-show-access-window"', false)
-            ->assertSee('id="enrollment-show-review-window"', false)
-            ->assertSee('id="enrollment-show-additional"', false)
-            ->assertSeeText('2026-08-01 09:00:00')
-            ->assertSeeText('2026-08-31 18:00:00')
+            ->assertSee('course-enrollment-detail-information-panel', false)
+            ->assertSee('course-enrollment-detail-window-grid', false)
+            ->assertDontSee('id="enrollment-show-access-window"', false)
+            ->assertDontSee('id="enrollment-show-review-window"', false)
+            ->assertDontSee('id="enrollment-show-additional"', false)
+            ->assertSeeText('01/08/2026 09:00')
+            ->assertSeeText('31/08/2026 18:00')
             ->assertDontSee('<table', false);
     }
 

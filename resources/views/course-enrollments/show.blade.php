@@ -4,6 +4,11 @@
 @section('page_title', __('lf.LF_course_enrollment_common_detail'))
 
 @section('content')
+    @php
+        $formatDateTime = static fn ($value): string => $value
+            ? \Illuminate\Support\Carbon::parse($value)->format('d/m/Y H:i')
+            : '';
+    @endphp
     @if (session('success'))
         <div class="admin-alert admin-alert-success">
             {{ session('success') }}
@@ -72,57 +77,55 @@
                     <header class="admin-form-section-header">
                         <h2 id="enrollment-show-information" class="admin-form-section-title">{{ __('lf.LF_course_enrollment_information') }}</h2>
                     </header>
-                    <div class="admin-form-field-grid course-enrollment-detail-metadata-grid">
-                        <div class="lf-form-group admin-form-field course-enrollment-detail-item">
-                            <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_status') }}</span>
-                            <div class="cohort-edit-readonly-row">
-                                <span @class([
-                                    'badge',
-                                    'badge-success' => $enrollment->status === 'active',
-                                    'badge-danger' => in_array($enrollment->status, ['expired', 'cancelled'], true),
-                                ])>{{ __('lf.LF_course_enrollment_common_'.$enrollment->status) }}</span>
+                    <div class="course-enrollment-detail-information-panel">
+                        <div class="admin-form-field-grid course-enrollment-detail-metadata-grid">
+                            <div class="lf-form-group admin-form-field course-enrollment-detail-item">
+                                <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_status') }}</span>
+                                <div class="cohort-edit-readonly-row">
+                                    <span @class([
+                                        'badge',
+                                        'badge-success' => $enrollment->status === 'active',
+                                        'badge-danger' => in_array($enrollment->status, ['expired', 'cancelled'], true),
+                                    ])>{{ __('lf.LF_course_enrollment_common_'.$enrollment->status) }}</span>
+                                </div>
+                            </div>
+                            <div class="lf-form-group admin-form-field course-enrollment-detail-item">
+                                <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_source') }}</span>
+                                <div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ __('lf.LF_course_enrollment_common_source_'.$enrollment->source) }}</strong></div>
+                            </div>
+                            <div class="lf-form-group admin-form-field course-enrollment-detail-item">
+                                <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</span>
+                                <div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ $formatDateTime($enrollment->enrolled_at) }}</strong></div>
                             </div>
                         </div>
-                        <div class="lf-form-group admin-form-field course-enrollment-detail-item">
-                            <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_source') }}</span>
-                            <div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ __('lf.LF_course_enrollment_common_source_'.$enrollment->source) }}</strong></div>
+                        <div class="course-enrollment-detail-window-grid">
+                            <div class="course-enrollment-detail-item">
+                                <span class="lf-form-label">{{ __('lf.LF_course_enrollment_access_window') }}</span>
+                                <strong class="cohort-edit-readonly-value course-enrollment-detail-window-value">
+                                    {{ $enrollment->access_starts_at ? $formatDateTime($enrollment->access_starts_at) : __('lf.LF_bulk_enrollment_access_immediate') }}
+                                    <span aria-hidden="true">→</span>
+                                    {{ $enrollment->access_ends_at ? $formatDateTime($enrollment->access_ends_at) : __('lf.LF_bulk_enrollment_access_unlimited') }}
+                                </strong>
+                            </div>
+                            <div class="course-enrollment-detail-item">
+                                <span class="lf-form-label">{{ __('lf.LF_course_enrollment_review_window') }}</span>
+                                <strong class="cohort-edit-readonly-value course-enrollment-detail-window-value">
+                                    @if (!$enrollment->review_starts_at && !$enrollment->review_ends_at)
+                                        {{ __('lf.LF_bulk_enrollment_not_configured') }}
+                                    @else
+                                        {{ $enrollment->review_starts_at ? $formatDateTime($enrollment->review_starts_at) : __('lf.LF_bulk_enrollment_not_configured') }}
+                                        <span aria-hidden="true">→</span>
+                                        {{ $enrollment->review_ends_at ? $formatDateTime($enrollment->review_ends_at) : __('lf.LF_bulk_enrollment_not_configured') }}
+                                    @endif
+                                </strong>
+                            </div>
                         </div>
-                        <div class="lf-form-group admin-form-field course-enrollment-detail-item">
-                            <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</span>
-                            <div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ $enrollment->enrolled_at }}</strong></div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="admin-form-standard-section" aria-labelledby="enrollment-show-access-window">
-                    <header class="admin-form-section-header">
-                        <h2 id="enrollment-show-access-window" class="admin-form-section-title">{{ __('lf.LF_course_enrollment_access_window') }}</h2>
-                    </header>
-                    <div class="admin-form-field-grid">
-                        <div class="lf-form-group admin-form-field course-enrollment-detail-item"><span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_access_starts_at') }}</span><div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ $enrollment->access_starts_at ?: '—' }}</strong></div></div>
-                        <div class="lf-form-group admin-form-field course-enrollment-detail-item"><span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_access_ends_at') }}</span><div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ $enrollment->access_ends_at ?: '—' }}</strong></div></div>
-                    </div>
-                </section>
-
-                <section class="admin-form-standard-section" aria-labelledby="enrollment-show-review-window">
-                    <header class="admin-form-section-header">
-                        <h2 id="enrollment-show-review-window" class="admin-form-section-title">{{ __('lf.LF_course_enrollment_review_window') }}</h2>
-                    </header>
-                    <div class="admin-form-field-grid">
-                        <div class="lf-form-group admin-form-field course-enrollment-detail-item"><span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_review_starts_at') }}</span><div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ $enrollment->review_starts_at ?: '—' }}</strong></div></div>
-                        <div class="lf-form-group admin-form-field course-enrollment-detail-item"><span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_review_ends_at') }}</span><div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ $enrollment->review_ends_at ?: '—' }}</strong></div></div>
-                    </div>
-                </section>
-
-                <section class="admin-form-standard-section" aria-labelledby="enrollment-show-additional">
-                    <header class="admin-form-section-header">
-                        <h2 id="enrollment-show-additional" class="admin-form-section-title">{{ __('lf.LF_course_enrollment_additional_information') }}</h2>
-                    </header>
-                    <div class="admin-form-field-grid">
-                        <div class="lf-form-group admin-form-field admin-form-field--full course-enrollment-detail-item">
+                        @if (filled($enrollment->notes))
+                        <div class="course-enrollment-detail-notes course-enrollment-detail-item">
                             <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_notes') }}</span>
-                            <div class="cohort-show-notes">{{ $enrollment->notes ?: '—' }}</div>
+                            <div class="cohort-show-notes">{{ $enrollment->notes }}</div>
                         </div>
+                        @endif
                     </div>
                 </section>
             </div>
