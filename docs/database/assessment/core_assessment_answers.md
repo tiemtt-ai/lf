@@ -1,6 +1,4 @@
-# Table Name
-
-`core_assessment_answers`
+# Table: core_assessment_answers
 
 ## Purpose
 

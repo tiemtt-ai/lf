@@ -1,6 +1,4 @@
-# Table Name
-
-`core_assessment_attempts`
+# Table: core_assessment_attempts
 
 ## Purpose
 

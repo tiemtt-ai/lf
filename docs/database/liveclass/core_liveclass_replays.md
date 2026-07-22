@@ -1,8 +1,4 @@
-# Table Name
-
-```text
-core_liveclass_replays
-```
+# Table: core_liveclass_replays
 
 ## Purpose
 

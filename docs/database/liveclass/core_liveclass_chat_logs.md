@@ -1,8 +1,4 @@
-# Table Name
-
-```text
-core_liveclass_chat_logs
-```
+# Table: core_liveclass_chat_logs
 
 ## Purpose
 

@@ -6,7 +6,7 @@ Track Foundation
 
 ## Status
 
-Accepted
+Frozen
 
 ---
 
@@ -357,7 +357,7 @@ ADR Amendment hoặc ADR mới.
 ```text
 Track Foundation
 
-Approved
+Frozen
 
 Version
 
@@ -365,7 +365,7 @@ Version
 
 Architecture Status
 
-Foundation Approved
+Foundation Frozen
 
 Ready for Migration
 

@@ -1,4 +1,4 @@
-# core_course_activity_progress
+# Table: core_course_activity_progress
 
 ## Purpose
 

@@ -1,6 +1,4 @@
-# Table Name
-
-`ai_assistant_sessions`
+# Table: ai_assistant_sessions
 
 ## Purpose
 

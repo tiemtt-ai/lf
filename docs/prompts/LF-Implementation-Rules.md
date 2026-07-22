@@ -4,6 +4,8 @@ Version: 1.1
 
 Status: Official Implementation Rule
 
+Last Updated: 2026-07-03
+
 ---
 
 # 1. Purpose

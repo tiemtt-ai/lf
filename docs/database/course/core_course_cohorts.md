@@ -1,4 +1,4 @@
-# core_course_cohorts
+# Table: core_course_cohorts
 
 ## Purpose
 

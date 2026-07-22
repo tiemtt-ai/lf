@@ -1,4 +1,4 @@
-# core_course_bookmarks
+# Table: core_course_bookmarks
 
 ## Purpose
 

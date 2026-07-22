@@ -397,6 +397,12 @@ Implementation Authorized After Documentation Update
 Section Schema Simplification Authorized By New Migration Only
 ```
 
+Note: "Documentation Frozen" describes this ADR's content/text being locked
+against further edits. It is not the ADR lifecycle Status defined at the top
+of this document (`Status: Approved`, per the Draft → Review → Approved →
+Frozen → Archived vocabulary in `adr/README.md`). The two uses of "Frozen"
+refer to different things and are not in conflict.
+
 ---
 
 End of ADR

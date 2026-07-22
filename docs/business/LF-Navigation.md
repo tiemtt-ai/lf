@@ -4,7 +4,7 @@ Version: 1.0
 
 Status: Official Foundation
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -1080,7 +1080,7 @@ Infrastructure
 # Future Modules
 
 ```text
-Certificates
+Certificates (*)
 
 Learning Paths
 
@@ -1090,6 +1090,12 @@ Mentoring
 
 Gamification
 ```
+
+(*) Certificate database/architecture foundation is "Foundation Approved and
+Frozen" per ADR-0011 and LF-Domain-Map.md — the schema exists and is ready.
+"Future" here refers only to navigation/UI: no route, controller or view for
+Certificate exists yet (verified against `routes/` and
+`app/Http/Controllers/`).
 
 ---
 
@@ -1150,7 +1156,7 @@ Student Experience
 ```text
 Super Admin
 
-Certificates
+Certificates (*)
 
 Learning Paths
 
@@ -1158,6 +1164,9 @@ Communities
 
 Gamification
 ```
+
+(*) See note under Future Modules — schema Frozen (ADR-0011), UI/navigation
+not yet implemented.
 
 ---
 

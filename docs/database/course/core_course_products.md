@@ -1,6 +1,6 @@
 # Table: core_course_products
 
-Version: 1.3
+Version: 1.4
 
 Status: Official Foundation
 
@@ -243,6 +243,140 @@ Youtube URL hoặc AWS URL.
 BIGINT UNSIGNED NULL
 
 Liên kết media_files hoặc media_videos.
+
+---
+
+## Product v2 — Category, Offering, Media & Promotion
+
+Thêm bởi Product v2 phase-one contract (ADR-0014, 2026-07-15). Xem
+[core_course_products_v2.md](core_course_products_v2.md) để
+biết đầy đủ business rules, activation/inheritance behavior và migration plan.
+Legacy thumbnail columns ở trên vẫn được giữ trong giai đoạn compatibility.
+
+### category_id
+
+BIGINT UNSIGNED
+
+Staged nullable, sau đó NOT NULL.
+
+Same-tenant Category.
+
+Liên kết:
+
+```text
+core_course_categories.id (RESTRICT)
+```
+
+### offering_type
+
+VARCHAR(50) NULL (transitionally)
+
+Canonical offering. Giá trị:
+
+* self_paced_course
+* live_online_course
+* blended_course
+* assessment
+* learning_material
+
+### uses_custom_description
+
+TINYINT(1) DEFAULT 0
+
+False ignores stored overrides — khi tắt, `short_description`/`description`
+không được dùng cho runtime/public presentation; hệ thống đọc mô tả từ
+published Course Template Version.
+
+### uses_custom_intro_media
+
+TINYINT(1) DEFAULT 0
+
+False ignores Product media — khi tắt, hệ thống chỉ đọc media từ published
+Version, bỏ qua các pointer Product bên dưới.
+
+### intro_image_media_file_id
+
+BIGINT UNSIGNED NULL
+
+Ready same-tenant image.
+
+Liên kết:
+
+```text
+media_files.id (RESTRICT)
+```
+
+### intro_video_source
+
+VARCHAR(50) NULL
+
+Giá trị:
+
+* upload
+* embed
+
+### intro_video_media_file_id
+
+BIGINT UNSIGNED NULL
+
+Ready uploaded video.
+
+Liên kết:
+
+```text
+media_files.id (RESTRICT)
+```
+
+### intro_video_embed_url
+
+VARCHAR(2048) NULL
+
+Normalized trusted URL. Chỉ chấp nhận HTTPS YouTube hoặc Vimeo URL đã
+normalize; không lưu raw iframe/HTML.
+
+### intro_video_provider
+
+VARCHAR(50) NULL
+
+Giá trị:
+
+* youtube
+* vimeo
+
+### intro_document_media_file_id
+
+BIGINT UNSIGNED NULL
+
+Ready document.
+
+Liên kết:
+
+```text
+media_files.id (RESTRICT)
+```
+
+### promotion_enabled
+
+TINYINT(1) DEFAULT 0
+
+Gates promotion fields — khi tắt, `discount_type`/`discount_value` là NULL và
+không có hiệu lực.
+
+### discount_type
+
+VARCHAR(50) NULL
+
+Bắt buộc khi `promotion_enabled = true`. Giá trị:
+
+* percentage
+* fixed_amount
+
+### discount_value
+
+DECIMAL(15,2) NULL
+
+Bắt buộc khi `promotion_enabled = true`. Positive and bounded: `percentage`
+phải `> 0` và `<= 100`; `fixed_amount` phải `> 0` và `<= price`.
 
 ---
 
@@ -773,6 +907,10 @@ Website không hiển thị số lượng học viên.
 (customer_id, created_by)
 
 (customer_id, published_at)
+
+(customer_id, category_id, sort_order)  -- idx_ccp_v2_cat_sort
+
+(customer_id, offering_type)  -- idx_ccp_v2_offering
 ```
 
 ---
@@ -1025,6 +1163,21 @@ Các quan hệ này thuộc:
 ```text
 core_course_product_relations
 ```
+
+---
+
+# Changelog
+
+## v1.4 (2026-07-22)
+
+* Gộp 13 cột Product v2 phase-one vào mục Fields: `category_id`,
+  `offering_type`, `uses_custom_description`, `uses_custom_intro_media`,
+  `intro_image_media_file_id`, `intro_video_source`,
+  `intro_video_media_file_id`, `intro_video_embed_url`,
+  `intro_video_provider`, `intro_document_media_file_id`,
+  `promotion_enabled`, `discount_type`, `discount_value`. Nguồn: ADR-0014 /
+  Product v2 phase-one contract (2026-07-15). Xem
+  [core_course_products_v2.md](core_course_products_v2.md).
 
 ---
 

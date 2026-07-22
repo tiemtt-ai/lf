@@ -1,6 +1,4 @@
-# Table Name
-
-`ai_messages`
+# Table: ai_messages
 
 ## Purpose
 

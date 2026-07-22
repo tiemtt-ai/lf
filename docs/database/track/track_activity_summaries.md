@@ -1,6 +1,4 @@
-# Table Name
-
-`track_activity_summaries`
+# Table: track_activity_summaries
 
 ## Purpose
 

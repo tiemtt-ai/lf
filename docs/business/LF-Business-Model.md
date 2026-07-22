@@ -4,7 +4,7 @@ Version: 1.0
 
 Status: Strategic Document
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -114,7 +114,9 @@ Tracking
 AI Personalization
 ```
 
-Student là end-user và customer của tenant.
+Student là end-user (người học) của tenant, không phải "Customer" theo định
+nghĩa SaaS Tenant Domain — Customer là tổ chức mua và vận hành LearnForge
+(xem mục Customer Segments bên dưới).
 
 ---
 

@@ -4,7 +4,7 @@ Version: 1.0
 
 Status: Official Governance
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -78,6 +78,9 @@ tạo thêm Domain ownership; ownership luôn phải phù hợp với ADR và
 | Grading | Quá trình áp dụng rules hoặc đánh giá thủ công để tạo Score và Evaluation Evidence. | Assessment | Assessment grading records | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) |
 | Rubric | Bộ tiêu chí chấm điểm; bản dùng để grading phải được snapshot để bảo toàn lịch sử. | Assessment | Assessment Rubric; Rubric Snapshot cho lịch sử | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) |
 | Evaluation Evidence | Kết quả đánh giá như Score hoặc Pass/Fail do Assessment phát sinh để Domain khác tự ra quyết định. | Assessment | Assessment Result | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) |
+| Topic | Nhãn phân loại Question theo chủ đề nội dung, hỗ trợ tổ chức Question Bank. | Assessment | Assessment Question Topic | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) |
+| Exam | Quiz dùng policy nghiêm ngặt hơn (thời lượng, số lần làm) cho đánh giá chính thức; vẫn là một dạng Quiz, không phải entity riêng. | Assessment | Assessment Quiz | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) |
+| Assignment | Nhiệm vụ đánh giá được giao và nộp bài, được xử lý qua Grading Assignment. | Assessment | Assessment Grading Assignment | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) |
 
 ---
 
@@ -108,6 +111,17 @@ tạo thêm Domain ownership; ownership luôn phải phù hợp với ADR và
 | Prompt Template | Versioned, governed prompt contract cho một AI role/purpose. | AI | AI Prompt Template | [ADR-0006](../adr/ADR-0006-AI-Foundation.md) |
 | Recommendation | Đề xuất do AI tạo để hỗ trợ User hoặc Owner Domain quyết định; không tự thực thi business action. | AI | AI Recommendation | [ADR-0006](../adr/ADR-0006-AI-Foundation.md) |
 | Insight | Explainable AI observation/analysis; không thay Source Of Truth của Domain đầu vào. | AI | AI Insight | [ADR-0006](../adr/ADR-0006-AI-Foundation.md) |
+
+---
+
+# SaaS Tenant Terms
+
+| Term | Definition | Owner Domain | Source of Truth | Related ADR |
+| --- | --- | --- | --- | --- |
+| Customer | Tenant identity gốc; tổ chức mua và vận hành LearnForge dưới một ranh giới cô lập riêng. Customer không phải Student/learner. | Tenant | `saas_customers` | [ADR-0007](../adr/ADR-0007-SaaS-Tenant-Foundation.md) |
+| Membership | Quan hệ tenant-scoped giữa User và Customer, xác nhận User thuộc Customer với một official role. | Tenant | `saas_customer_members` | [ADR-0007](../adr/ADR-0007-SaaS-Tenant-Foundation.md) |
+| Invitation | Lời mời tham gia Customer, lưu token hash và thời hạn; chỉ tạo Membership sau khi được accept. | Tenant | `saas_customer_invitations` | [ADR-0007](../adr/ADR-0007-SaaS-Tenant-Foundation.md) |
+| Domain Mapping | Ánh xạ subdomain hoặc custom domain của request tới một Customer; là canonical routing registry. | Tenant | `saas_customer_domains` | [ADR-0007](../adr/ADR-0007-SaaS-Tenant-Foundation.md) |
 
 ---
 

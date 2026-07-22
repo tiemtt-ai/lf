@@ -5,8 +5,8 @@
 These contracts are approved and frozen for the Product v2 phase-one
 implementation authorized by ADR-0014 and the integrated architecture review:
 
-* [core_course_products v2 contract](core_course_products_v2_proposal.md)
-* [core_course_product_items v2 contract](core_course_product_items_v2_proposal.md)
+* [core_course_products v2 contract](core_course_products_v2.md)
+* [core_course_product_items v2 contract](core_course_product_items_v2.md)
 
 Miền nghiệp vụ Course quản lý vòng đời học tập từ khâu biên soạn và phát hành
 bất biến đến Product, Enrollment, Progress và Hoàn thành khóa học. Vì lý

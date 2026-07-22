@@ -1,4 +1,4 @@
-# core_course_favorites
+# Table: core_course_favorites
 
 ## Purpose
 

@@ -1,8 +1,4 @@
-# Table Name
-
-```text
-core_liveclass_sessions
-```
+# Table: core_liveclass_sessions
 
 ## Purpose
 

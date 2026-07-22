@@ -1,5 +1,9 @@
 # MIỀN NGHIỆP VỤ SAAS BILLING
 
+> ⚠️ **Chưa triển khai**: Đây là spec kiến trúc đã duyệt (ADR-0010, Frozen)
+> nhưng hiện chưa có migration/model thực tế trong codebase — xem
+> `database/migrations/` để biết trạng thái triển khai thật.
+
 Miền nghiệp vụ SaaS Billing ghi nhận khoản Customer phải thanh toán và
 cách nghĩa vụ đó được quyết toán hoặc điều chỉnh. Miền nghiệp vụ này chuyển
 đầu vào Commercial và Usage đã được phê duyệt thành Hóa đơn, Thanh toán,

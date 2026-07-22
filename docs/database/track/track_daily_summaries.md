@@ -1,6 +1,4 @@
-# Table Name
-
-`track_daily_summaries`
+# Table: track_daily_summaries
 
 ## Purpose
 

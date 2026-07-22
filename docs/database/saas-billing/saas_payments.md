@@ -1,6 +1,4 @@
-# Table Name
-
-`saas_payments`
+# Table: saas_payments
 
 ## Purpose
 

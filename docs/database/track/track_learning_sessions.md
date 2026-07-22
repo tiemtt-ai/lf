@@ -1,6 +1,4 @@
-# Table Name
-
-`track_learning_sessions`
+# Table: track_learning_sessions
 
 ## Purpose
 

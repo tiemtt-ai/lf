@@ -1,6 +1,4 @@
-# Table Name
-
-`track_events`
+# Table: track_events
 
 ## Purpose
 

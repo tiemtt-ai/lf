@@ -1,6 +1,4 @@
-# Table Name
-
-`saas_plans`
+# Table: saas_plans
 
 ## Purpose
 

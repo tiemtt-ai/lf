@@ -1,6 +1,4 @@
-# Table Name
-
-`saas_plan_features`
+# Table: saas_plan_features
 
 ## Purpose
 

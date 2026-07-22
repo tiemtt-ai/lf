@@ -1,4 +1,4 @@
-# core_certificate_template_products
+# Table: core_certificate_template_products
 
 Version: 1.0
 

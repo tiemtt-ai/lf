@@ -1,6 +1,4 @@
-# Table Name
-
-`ai_feedback`
+# Table: ai_feedback
 
 ## Purpose
 

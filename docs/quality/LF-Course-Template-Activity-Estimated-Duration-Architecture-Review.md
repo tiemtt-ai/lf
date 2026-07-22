@@ -1,5 +1,7 @@
 # Course Template Activity Estimated Duration Architecture Review
 
+Version: 1.0
+
 Status: Approved Review
 
 Review Date: 2026-07-12

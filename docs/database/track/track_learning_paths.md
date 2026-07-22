@@ -1,6 +1,4 @@
-# Table Name
-
-`track_learning_paths`
+# Table: track_learning_paths
 
 ## Purpose
 

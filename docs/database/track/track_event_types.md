@@ -1,6 +1,4 @@
-# Table Name
-
-`track_event_types`
+# Table: track_event_types
 
 ## Purpose
 

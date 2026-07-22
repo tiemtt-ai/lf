@@ -1,6 +1,4 @@
-# Table Name
-
-`saas_credit_notes`
+# Table: saas_credit_notes
 
 ## Purpose
 

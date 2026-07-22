@@ -1,4 +1,4 @@
-# core_certificate_issued_certificates
+# Table: core_certificate_issued_certificates
 
 Version: 2.0
 

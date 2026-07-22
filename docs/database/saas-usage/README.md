@@ -1,5 +1,9 @@
 # MIỀN NGHIỆP VỤ SAAS USAGE
 
+> ⚠️ **Chưa triển khai**: Đây là spec kiến trúc đã duyệt (ADR-0009, Frozen)
+> nhưng hiện chưa có migration/model thực tế trong codebase — xem
+> `database/migrations/` để biết trạng thái triển khai thật.
+
 Miền nghiệp vụ SaaS Usage đo lường lượng tài nguyên LearnForge mà mỗi
 Customer đã tiêu thụ. Miền nghiệp vụ này lưu giữ các phép đo chỉ ghi nối tiếp
 và xây dựng bộ đếm hiện tại cùng bản tổng hợp có Version phục vụ báo cáo, so

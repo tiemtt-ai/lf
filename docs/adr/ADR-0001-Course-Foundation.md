@@ -1,8 +1,26 @@
-# Course Foundation Final Review
+# ADR-0001
 
-Review date: 2026-06-27
-Course Blueprint V2 amendment: 2026-07-03
-Course Blueprint V2 status: Approved
+Course Foundation
+
+---
+
+## Status
+
+Approved
+
+---
+
+## Date
+
+2026-06-27
+
+---
+
+## Amendments
+
+Course Blueprint V2 amendment: 2026-07-03 — Approved.
+
+---
 
 ## 1. Architecture Summary
 

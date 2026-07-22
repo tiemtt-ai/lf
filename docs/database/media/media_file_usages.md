@@ -1,8 +1,8 @@
-# Table Name
-
-`media_file_usages`
+# Table: media_file_usages
 
 Version: 1.1
+
+Status: Approved
 
 Last Updated: 2026-07-12
 

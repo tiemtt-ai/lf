@@ -1,6 +1,4 @@
-# Table Name
-
-`core_assessment_answer_files`
+# Table: core_assessment_answer_files
 
 ## Purpose
 

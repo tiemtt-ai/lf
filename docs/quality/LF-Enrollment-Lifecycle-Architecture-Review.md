@@ -1,5 +1,7 @@
 # Enrollment Lifecycle Architecture Review
 
+Version: 1.0
+
 Status: **Approved and Frozen — Policy 1**
 Date: 2026-07-21
 

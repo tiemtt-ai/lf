@@ -1,6 +1,4 @@
-# Table Name
-
-`ai_prompt_templates`
+# Table: ai_prompt_templates
 
 ## Purpose
 

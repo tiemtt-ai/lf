@@ -1,6 +1,4 @@
-# Table Name
-
-`saas_usage_events`
+# Table: saas_usage_events
 
 ## Purpose
 

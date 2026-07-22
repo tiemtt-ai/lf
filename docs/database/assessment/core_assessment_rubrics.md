@@ -1,6 +1,4 @@
-# Table Name
-
-`core_assessment_rubrics`
+# Table: core_assessment_rubrics
 
 ## Purpose
 

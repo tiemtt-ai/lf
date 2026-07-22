@@ -1,6 +1,4 @@
-# Table Name
-
-`saas_subscriptions`
+# Table: saas_subscriptions
 
 ## Purpose
 

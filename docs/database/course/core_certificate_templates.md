@@ -1,4 +1,4 @@
-# core_certificate_templates
+# Table: core_certificate_templates
 
 ## Purpose
 

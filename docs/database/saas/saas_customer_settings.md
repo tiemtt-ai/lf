@@ -1,6 +1,4 @@
-# Table Name
-
-`saas_customer_settings`
+# Table: saas_customer_settings
 
 ## Purpose
 

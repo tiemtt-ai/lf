@@ -1,6 +1,4 @@
-# Table Name
-
-`ai_embeddings`
+# Table: ai_embeddings
 
 ## Purpose
 

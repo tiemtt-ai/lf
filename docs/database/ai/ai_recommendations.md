@@ -1,6 +1,4 @@
-# Table Name
-
-`ai_recommendations`
+# Table: ai_recommendations
 
 ## Purpose
 

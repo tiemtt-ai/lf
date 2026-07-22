@@ -1,4 +1,4 @@
-# core_course_notes
+# Table: core_course_notes
 
 ## Purpose
 

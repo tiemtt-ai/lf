@@ -1,6 +1,4 @@
-# Table Name
-
-`saas_payment_methods`
+# Table: saas_payment_methods
 
 ## Purpose
 

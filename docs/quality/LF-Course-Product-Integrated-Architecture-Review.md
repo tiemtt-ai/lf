@@ -17,8 +17,8 @@ prior Product, Item, or Relation approvals. It amends them only where ADR-0014
 and the v2 database contracts explicitly state.
 
 * [ADR-0014](../adr/ADR-0014-Product-Offering-And-Draft-Binding.md)
-* [Product v2 contract](../database/course/core_course_products_v2_proposal.md)
-* [Product Item v2 contract](../database/course/core_course_product_items_v2_proposal.md)
+* [Product v2 contract](../database/course/core_course_products_v2.md)
+* [Product Item v2 contract](../database/course/core_course_product_items_v2.md)
 * [Product Relation foundation](../database/course/core_course_product_relations.md)
 
 # Conflict decisions

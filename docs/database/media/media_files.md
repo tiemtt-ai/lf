@@ -1,6 +1,4 @@
-# Table Name
-
-`media_files`
+# Table: media_files
 
 ## Purpose
 

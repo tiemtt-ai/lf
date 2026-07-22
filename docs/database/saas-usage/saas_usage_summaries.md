@@ -1,6 +1,4 @@
-# Table Name
-
-`saas_usage_summaries`
+# Table: saas_usage_summaries
 
 ## Purpose
 

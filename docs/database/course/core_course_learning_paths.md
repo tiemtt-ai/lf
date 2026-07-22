@@ -1,4 +1,4 @@
-# core_course_learning_paths
+# Table: core_course_learning_paths
 
 ## Purpose
 

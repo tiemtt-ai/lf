@@ -1,6 +1,4 @@
-# Table Name
-
-`ai_model_runs`
+# Table: ai_model_runs
 
 ## Purpose
 

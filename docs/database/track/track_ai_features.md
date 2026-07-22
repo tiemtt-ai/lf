@@ -1,6 +1,4 @@
-# Table Name
-
-`track_ai_features`
+# Table: track_ai_features
 
 ## Purpose
 

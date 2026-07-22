@@ -4,7 +4,7 @@ Version: 1.0
 
 Status: Official Governance
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -54,6 +54,7 @@ Prefix chuẩn:
 | Scope | Prefix |
 | --- | --- |
 | Course | `core_course_` |
+| Certificate | `core_certificate_` |
 | LiveClass | `core_liveclass_` |
 | Assessment | `core_assessment_` |
 | Media | `media_` |

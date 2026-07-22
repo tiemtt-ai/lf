@@ -1,4 +1,4 @@
-# core_certificate_download_logs
+# Table: core_certificate_download_logs
 
 ## Purpose
 

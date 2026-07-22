@@ -1,6 +1,4 @@
-# Table Name
-
-`saas_audit_logs`
+# Table: saas_audit_logs
 
 ## Purpose
 

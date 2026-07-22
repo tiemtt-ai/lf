@@ -1,5 +1,9 @@
 # MIỀN NGHIỆP VỤ TRACK
 
+> ⚠️ **Chưa triển khai**: Đây là spec kiến trúc đã duyệt (ADR-0005, Frozen)
+> nhưng hiện chưa có migration/model thực tế trong codebase — xem
+> `database/migrations/` để biết trạng thái triển khai thật.
+
 Miền nghiệp vụ Track ghi nhận hành vi học tập dưới dạng quan sát chỉ ghi nối
 tiếp và chuyển lịch sử đó thành dữ liệu phân tích cùng mô hình đọc sẵn sàng cho
 AI có thể tái tạo. Miền nghiệp vụ này giải thích quá trình học đã diễn ra như

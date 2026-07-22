@@ -1,6 +1,4 @@
-# Table Name
-
-`core_assessment_question_media`
+# Table: core_assessment_question_media
 
 ## Purpose
 

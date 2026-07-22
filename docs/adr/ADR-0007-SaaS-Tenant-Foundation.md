@@ -6,7 +6,7 @@ SaaS Tenant Foundation
 
 ## Status
 
-Accepted
+Frozen
 
 ---
 
@@ -418,7 +418,7 @@ Version 1.0
 
 Status
 
-Foundation Approved and Frozen
+Frozen
 
 Ready for implementation
 

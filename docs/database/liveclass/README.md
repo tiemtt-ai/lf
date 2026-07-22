@@ -1,5 +1,9 @@
 # MIỀN NGHIỆP VỤ LIVECLASS
 
+> ⚠️ **Chưa triển khai**: Đây là spec kiến trúc đã duyệt (ADR-0002, Approved)
+> nhưng hiện chưa có migration/model thực tế trong codebase — xem
+> `database/migrations/` để biết trạng thái triển khai thật.
+
 Miền nghiệp vụ LiveClass quản lý Activity đồng bộ và kết hợp. Miền
 nghiệp vụ này kết nối các Activity của Course đã phát hành với
 phòng, phiên học theo lịch, bằng chứng tham gia, bản ghi, hoạt động xem lại và

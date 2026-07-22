@@ -1,4 +1,4 @@
-# core_certificate_verification_logs
+# Table: core_certificate_verification_logs
 
 ## Purpose
 

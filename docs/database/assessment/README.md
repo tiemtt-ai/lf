@@ -1,5 +1,9 @@
 # MIỀN NGHIỆP VỤ ASSESSMENT
 
+> ⚠️ **Chưa triển khai**: Đây là spec kiến trúc đã duyệt (ADR-0003, Approved)
+> nhưng hiện chưa có migration/model thực tế trong codebase — xem
+> `database/migrations/` để biết trạng thái triển khai thật.
+
 Miền nghiệp vụ Assessment quản lý việc biên soạn câu hỏi và toàn bộ chu trình
 đánh giá, từ bài kiểm tra đã phát hành đến lần làm bài, câu trả lời, chấm điểm
 và phản hồi. Miền nghiệp vụ này tạo ra bằng chứng đánh giá, đồng thời để các

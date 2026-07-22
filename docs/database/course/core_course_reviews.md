@@ -1,4 +1,4 @@
-# core_course_reviews
+# Table: core_course_reviews
 
 Version: 1.0
 

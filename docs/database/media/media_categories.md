@@ -1,6 +1,4 @@
-# Table Name
-
-`media_categories`
+# Table: media_categories
 
 ## Purpose
 

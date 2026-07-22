@@ -1,6 +1,4 @@
-# Table Name
-
-`ai_insights`
+# Table: ai_insights
 
 ## Purpose
 

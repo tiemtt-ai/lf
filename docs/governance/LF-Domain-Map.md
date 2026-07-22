@@ -4,7 +4,7 @@ Version: 1.0
 
 Status: Official Governance
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -76,6 +76,12 @@ Completion và context cho Certificate/Track/AI.
 **ADR:** [ADR-0001 — Course Foundation](../adr/ADR-0001-Course-Foundation.md)
 — Approved.
 
+**Amendments:**
+
+* [ADR-0012 — Course Template Published Version Snapshot](../adr/ADR-0012-Course-Template-Published-Version-Snapshot.md) — Approved.
+* [ADR-0013 — Course Template Version Duplicate to Draft](../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md) — Approved.
+* [ADR-0014 — Product Offering and Draft Content Binding](../adr/ADR-0014-Product-Offering-And-Draft-Binding.md) — Approved.
+
 ### LiveClass
 
 **Responsibility:** Room, Session, Attendance, Recording reference, Replay và
@@ -125,7 +131,7 @@ context và Certificate rules.
 **Produces:** Issued Certificate and verification evidence.
 
 **ADR:** [ADR-0011 — Certificate Foundation](../adr/ADR-0011-Certificate-Foundation.md)
-— Accepted.
+— Frozen.
 
 ---
 
@@ -154,7 +160,7 @@ và access events.
 
 ### Track
 
-**Status:** Foundation Approved — Version 1.0.
+**Status:** Foundation Approved and Frozen — Version 1.0.
 
 **Responsibility:** Append-only learning behavior events, learning sessions,
 rebuildable behavior summaries, AI-ready feature records, feature snapshots và
@@ -173,7 +179,7 @@ Attendance, Media Processing State, Certificate Eligibility hoặc AI
 Recommendation.
 
 **ADR:** [ADR-0005 — Track Foundation](../adr/ADR-0005-Track-Foundation.md)
-— Accepted.
+— Frozen.
 
 ---
 
@@ -211,7 +217,7 @@ Insight records only; AI is not source of truth for consumer business state.
 Processing State, Certificate, Payment hoặc Track behavior state.
 
 **ADR:** [ADR-0006 — AI Foundation](../adr/ADR-0006-AI-Foundation.md)
-— Accepted.
+— Frozen.
 
 ---
 
@@ -231,7 +237,7 @@ tenant settings, User–Customer membership and invitation state.
 metering, AI Recommendation hoặc Media Processing State.
 
 **ADR:** [ADR-0007 — SaaS Tenant Foundation](../adr/ADR-0007-SaaS-Tenant-Foundation.md)
-— Accepted.
+— Frozen.
 
 ### Commercial
 
@@ -252,7 +258,7 @@ and Billing.
 Invoice, Payment or learning/AI business state.
 
 **ADR:** [ADR-0008 — SaaS Commercial Foundation](../adr/ADR-0008-SaaS-Commercial-Foundation.md)
-— Accepted.
+— Frozen.
 
 ### Usage
 
@@ -274,7 +280,7 @@ used-versus-allowed measurement input.
 Course Progress, Track Event, AI Model Run hoặc source Domain state.
 
 **ADR:** [ADR-0009 — SaaS Usage Foundation](../adr/ADR-0009-SaaS-Usage-Foundation.md)
-— Accepted.
+— Frozen.
 
 ### Billing
 
@@ -296,7 +302,7 @@ and Billing Event/Request when another Domain must decide an effect.
 Course, Assessment, Media, Track hoặc AI state.
 
 **ADR:** [ADR-0010 — SaaS Billing Foundation](../adr/ADR-0010-SaaS-Billing-Foundation.md)
-— Accepted.
+— Frozen.
 
 ---
 
@@ -391,13 +397,13 @@ Read models, evidence and caches do not replace these sources of truth.
 | LiveClass | ADR-0002 | Approved |
 | Assessment | ADR-0003 | Approved |
 | Media | ADR-0004 | Approved |
-| Certificate | ADR-0011 | Approved |
-| Track | ADR-0005 | Approved |
-| AI | ADR-0006 | Approved |
-| Tenant | ADR-0007 | Approved |
-| Commercial | ADR-0008 | Approved |
-| Usage | ADR-0009 | Approved |
-| Billing | ADR-0010 | Approved |
+| Certificate | ADR-0011 | Frozen |
+| Track | ADR-0005 | Frozen |
+| AI | ADR-0006 | Frozen |
+| Tenant | ADR-0007 | Frozen |
+| Commercial | ADR-0008 | Frozen |
+| Usage | ADR-0009 | Frozen |
+| Billing | ADR-0010 | Frozen |
 
 ---
 

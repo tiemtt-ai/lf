@@ -1,6 +1,4 @@
-# Table Name
-
-`core_assessment_rubric_items`
+# Table: core_assessment_rubric_items
 
 ## Purpose
 

@@ -1,6 +1,4 @@
-# Table Name
-
-`saas_entitlements`
+# Table: saas_entitlements
 
 ## Purpose
 

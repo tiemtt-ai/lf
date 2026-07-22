@@ -4,7 +4,7 @@ Version: 1.0
 
 Status: Official Directory Guide
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -48,15 +48,16 @@ Số ADR không được tái sử dụng hoặc đổi để lấp khoảng tr�
 | [ADR-0002](ADR-0002-LiveClass-Foundation.md) | LiveClass Foundation | Approved |
 | [ADR-0003](ADR-0003-Assessment-Foundation.md) | Assessment Foundation | Approved |
 | [ADR-0004](ADR-0004-Media-Foundation.md) | Media Foundation | Approved |
-| [ADR-0005](ADR-0005-Track-Foundation.md) | Track Foundation | Accepted |
-| [ADR-0006](ADR-0006-AI-Foundation.md) | AI Foundation | Accepted |
-| [ADR-0007](ADR-0007-SaaS-Tenant-Foundation.md) | SaaS Tenant Foundation | Accepted |
-| [ADR-0008](ADR-0008-SaaS-Commercial-Foundation.md) | SaaS Commercial Foundation | Accepted |
-| [ADR-0009](ADR-0009-SaaS-Usage-Foundation.md) | SaaS Usage Foundation | Accepted |
-| [ADR-0010](ADR-0010-SaaS-Billing-Foundation.md) | SaaS Billing Foundation | Accepted |
-| [ADR-0011](ADR-0011-Certificate-Foundation.md) | Certificate Foundation | Accepted |
+| [ADR-0005](ADR-0005-Track-Foundation.md) | Track Foundation | Frozen |
+| [ADR-0006](ADR-0006-AI-Foundation.md) | AI Foundation | Frozen |
+| [ADR-0007](ADR-0007-SaaS-Tenant-Foundation.md) | SaaS Tenant Foundation | Frozen |
+| [ADR-0008](ADR-0008-SaaS-Commercial-Foundation.md) | SaaS Commercial Foundation | Frozen |
+| [ADR-0009](ADR-0009-SaaS-Usage-Foundation.md) | SaaS Usage Foundation | Frozen |
+| [ADR-0010](ADR-0010-SaaS-Billing-Foundation.md) | SaaS Billing Foundation | Frozen |
+| [ADR-0011](ADR-0011-Certificate-Foundation.md) | Certificate Foundation | Frozen |
 | [ADR-0012](ADR-0012-Course-Template-Published-Version-Snapshot.md) | Course Template Published Version Snapshot | Approved |
 | [ADR-0013](ADR-0013-Course-Template-Version-Duplicate-to-Draft.md) | Course Template Version Duplicate to Draft | Approved |
+| [ADR-0014](ADR-0014-Product-Offering-And-Draft-Binding.md) | Product Offering and Draft Content Binding | Approved |
 
 ---
 

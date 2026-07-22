@@ -1,6 +1,4 @@
-# Table Name
-
-`core_assessment_grading_assignments`
+# Table: core_assessment_grading_assignments
 
 ## Purpose
 

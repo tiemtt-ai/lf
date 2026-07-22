@@ -1,6 +1,4 @@
-# Table Name
-
-`media_processing_jobs`
+# Table: media_processing_jobs
 
 ## Purpose
 

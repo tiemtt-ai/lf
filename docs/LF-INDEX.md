@@ -215,7 +215,7 @@ docs/saas/
 
 | Document | Purpose |
 | --- | --- |
-| [saas/LF-SaaS-Tenant.md](saas/LF-SaaS-Tenant.md) | Multi-tenant architecture |
+| [saas/LF-SaaS-Tenant.md](saas/LF-SaaS-Tenant.md) | Foundation Approved and Frozen — Version 1.0; Multi-tenant architecture |
 | [saas/LF-SaaS-Commercial.md](saas/LF-SaaS-Commercial.md) | Foundation Approved and Frozen — Version 1.0; Plan, Subscription and Entitlement architecture |
 | [saas/LF-SaaS-Usage.md](saas/LF-SaaS-Usage.md) | Foundation Approved and Frozen — Version 1.0; Usage measurement, counters and summaries |
 | [saas/LF-SaaS-Billing.md](saas/LF-SaaS-Billing.md) | Foundation Approved and Frozen — Version 1.0; Invoice, Payment and Credit Note |
@@ -320,13 +320,16 @@ docs/quality/
 | [quality/LF-Course-Template-Version-Snapshot-Architecture-Review.md](quality/LF-Course-Template-Version-Snapshot-Architecture-Review.md) | Approved Course Template Version snapshot architecture review |
 | [quality/LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md](quality/LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md) | Approved Course Template Version duplicate-to-draft architecture review |
 | [quality/LF-Course-Template-Ordering-Architecture-Review.md](quality/LF-Course-Template-Ordering-Architecture-Review.md) | Approved and frozen Course Template tenant/category ordering review |
+| [quality/LF-Course-Template-Activity-Estimated-Duration-Architecture-Review.md](quality/LF-Course-Template-Activity-Estimated-Duration-Architecture-Review.md) | Approved Course Template Activity estimated duration architecture review |
+| [quality/LF-Course-Template-Lesson-Role-Architecture-Review.md](quality/LF-Course-Template-Lesson-Role-Architecture-Review.md) | Approved Course Template Lesson role architecture review |
+| [quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md](quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md) | Approved Version Activity media snapshot architecture review |
 | [quality/LF-Course-Product-Architecture-Review.md](quality/LF-Course-Product-Architecture-Review.md) | Approved Course Product CRUD architecture review |
 | [quality/LF-Course-Product-Integrated-Architecture-Review.md](quality/LF-Course-Product-Integrated-Architecture-Review.md) | Approved and frozen integrated Product v2 phase-one review |
-| [quality/LF-Course-Product-Items-Architecture-Review.md](quality/LF-Course-Product-Items-Architecture-Review.md) | Approved Course Product Items architecture review |
+| [quality/LF-Course-Product-Items-Architecture-Review.md](quality/LF-Course-Product-Items-Architecture-Review.md) | Superseded by the integrated Product v2 phase-one review; retained for historical context |
 | [quality/LF-Course-Product-Relations-Architecture-Review.md](quality/LF-Course-Product-Relations-Architecture-Review.md) | Approved Course Product Relations architecture review |
 | [quality/LF-Course-Cohort-Architecture-Review.md](quality/LF-Course-Cohort-Architecture-Review.md) | Approved Cohort binding, lifecycle, membership and legacy migration review |
 | [quality/LF-Enrollment-Lifecycle-Architecture-Review.md](quality/LF-Enrollment-Lifecycle-Architecture-Review.md) | Approved and frozen single and bulk Enrollment lifecycle transition review |
-| [quality/LF-Bulk-Enrollment-Architecture-Review.md](quality/LF-Bulk-Enrollment-Architecture-Review.md) | Approved Admin Bulk Enrollment creation, re-enrollment, partial-success and idempotency review |
+| [quality/LF-Bulk-Enrollment-Architecture-Review.md](quality/LF-Bulk-Enrollment-Architecture-Review.md) | Approved and frozen Admin Bulk Enrollment creation, re-enrollment and atomic-submission idempotency review |
 
 ---
 

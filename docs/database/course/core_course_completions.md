@@ -1,4 +1,4 @@
-# core_course_completions
+# Table: core_course_completions
 
 ## Purpose
 

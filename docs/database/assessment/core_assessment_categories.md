@@ -1,6 +1,4 @@
-# Table Name
-
-`core_assessment_categories`
+# Table: core_assessment_categories
 
 ## Purpose
 

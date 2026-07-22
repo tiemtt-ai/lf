@@ -1,5 +1,9 @@
 # MIỀN NGHIỆP VỤ SAAS COMMERCIAL
 
+> ⚠️ **Chưa triển khai**: Đây là spec kiến trúc đã duyệt (ADR-0008, Frozen)
+> nhưng hiện chưa có migration/model thực tế trong codebase — xem
+> `database/migrations/` để biết trạng thái triển khai thật.
+
 Miền nghiệp vụ SaaS Commercial xác định những tính năng LearnForge mà Customer
 được phép sử dụng. Miền nghiệp vụ này quản lý danh mục Gói dịch vụ toàn
 cục, vòng đời Subscription của Customer, cấu phần Subscription và

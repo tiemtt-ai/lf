@@ -1,4 +1,4 @@
-# core_course_learning_path_items
+# Table: core_course_learning_path_items
 
 ## Purpose
 

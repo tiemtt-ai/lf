@@ -1,6 +1,6 @@
 # Table: core_course_product_items
 
-Version: 1.1
+Version: 1.2
 
 Status: Official Foundation
 
@@ -177,8 +177,6 @@ Các field sau đã bị loại khỏi thiết kế chính thức:
 item_type
 
 item_id
-
-template_id
 ```
 
 Lý do:
@@ -188,6 +186,11 @@ Lý do:
 * `version_id` là foreign key learning content chính thức.
 
 Không tạo migration hoặc implementation mới dựa trên `item_type/item_id`.
+
+`template_id` **re-introduced** bởi ADR-0014 / Product v2 phase-one contract
+(2026-07-15) làm Draft selection provenance — không phải learning runtime
+authority; `version_id` vẫn là runtime content authority. Xem
+[core_course_product_items_v2.md](core_course_product_items_v2.md).
 
 ---
 
@@ -283,11 +286,15 @@ TIMESTAMP
 
 (customer_id, product_id, sort_order)
 
+(customer_id, template_id)  -- idx_ccpi_v2_template
+
 ---
 
 # Unique Constraints
 
 UNIQUE(customer_id, product_id, version_id)
+
+UNIQUE(customer_id, product_id, template_id)  -- uk_ccpi_v2_product_template (Product v2 phase-one; xem core_course_product_items_v2.md)
 
 ---
 
@@ -414,6 +421,17 @@ Bảng này cho phép LearnForge mở rộng từ:
 
 Product Item luôn liên kết Course Product với published Course Version và
 không tạo bản sao nội dung.
+
+---
+
+# Changelog
+
+## v1.2 (2026-07-22)
+
+* "Legacy / Removed Fields": loại `template_id` khỏi danh sách field bị cấm.
+  `template_id` đã được re-introduced bởi ADR-0014 / Product v2 phase-one
+  contract (2026-07-15). Xem
+  [core_course_product_items_v2.md](core_course_product_items_v2.md).
 
 ---
 

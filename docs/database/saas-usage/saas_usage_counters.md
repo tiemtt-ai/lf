@@ -1,6 +1,4 @@
-# Table Name
-
-`saas_usage_counters`
+# Table: saas_usage_counters
 
 ## Purpose
 

@@ -1,6 +1,4 @@
-# Table Name
-
-`ai_knowledge_sources`
+# Table: ai_knowledge_sources
 
 ## Purpose
 

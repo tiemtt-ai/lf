@@ -1,4 +1,4 @@
-# core_course_enrollment_submissions
+# Table: core_course_enrollment_submissions
 
 Version: 1.0
 

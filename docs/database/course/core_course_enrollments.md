@@ -1,4 +1,4 @@
-# core_course_enrollments
+# Table: core_course_enrollments
 
 ## Purpose
 

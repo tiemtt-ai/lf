@@ -1,6 +1,4 @@
-# Table Name
-
-`media_captions`
+# Table: media_captions
 
 ## Purpose
 

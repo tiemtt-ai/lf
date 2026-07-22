@@ -1,6 +1,4 @@
-# Table Name
-
-`saas_customer_members`
+# Table: saas_customer_members
 
 ## Purpose
 

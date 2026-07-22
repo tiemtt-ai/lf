@@ -1,6 +1,4 @@
-# Table Name
-
-`media_transcripts`
+# Table: media_transcripts
 
 ## Purpose
 

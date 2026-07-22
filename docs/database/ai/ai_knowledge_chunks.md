@@ -1,6 +1,4 @@
-# Table Name
-
-`ai_knowledge_chunks`
+# Table: ai_knowledge_chunks
 
 ## Purpose
 

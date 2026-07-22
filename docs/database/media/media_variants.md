@@ -1,6 +1,4 @@
-# Table Name
-
-`media_variants`
+# Table: media_variants
 
 ## Purpose
 

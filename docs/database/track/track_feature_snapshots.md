@@ -1,6 +1,4 @@
-# Table Name
-
-`track_feature_snapshots`
+# Table: track_feature_snapshots
 
 ## Purpose
 

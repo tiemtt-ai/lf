@@ -4,7 +4,7 @@ Version: 1.0
 
 Status: Official Directory Guide
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -32,6 +32,13 @@ database/
 Mỗi Domain folder mô tả tables thuộc ownership của Domain đó. Việc đặt file
 trong folder không được dùng để thay đổi Domain ownership đã được Governance
 và ADR xác định.
+
+Certificate là một Business Domain độc lập (xem
+[ADR-0011](../adr/ADR-0011-Certificate-Foundation.md)) nhưng 5 bảng
+`core_certificate_*` hiện được đặt vật lý trong `course/` vì lý do lịch sử.
+Đây là quyết định có chủ đích — chính ADR-0011 ghi rõ: "The physical
+documentation folder does not change Certificate Domain ownership." Không suy
+diễn Certificate thuộc Course Domain từ vị trí file.
 
 ---
 

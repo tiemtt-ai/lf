@@ -1,6 +1,4 @@
-# Table Name
-
-`core_assessment_topics`
+# Table: core_assessment_topics
 
 ## Purpose
 

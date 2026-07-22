@@ -8,6 +8,12 @@ Review Date: 2026-07-03
 
 ---
 
+> ⚠️ **SUPERSEDED** by
+> [LF-Course-Product-Integrated-Architecture-Review.md](LF-Course-Product-Integrated-Architecture-Review.md)
+> (v2.0). This document is retained for historical context only.
+
+---
+
 # Review Information
 
 | Field | Value |

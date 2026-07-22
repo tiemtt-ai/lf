@@ -1,6 +1,4 @@
-# Table Name
-
-`media_access_logs`
+# Table: media_access_logs
 
 ## Purpose
 

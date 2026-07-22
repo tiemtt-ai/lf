@@ -1,6 +1,4 @@
-# Table Name
-
-`saas_invoice_items`
+# Table: saas_invoice_items
 
 ## Purpose
 

@@ -1,5 +1,9 @@
 # MIỀN NGHIỆP VỤ AI
 
+> ⚠️ **Chưa triển khai**: Đây là spec kiến trúc đã duyệt (ADR-0006, Frozen)
+> nhưng hiện chưa có migration/model thực tế trong codebase — xem
+> `database/migrations/` để biết trạng thái triển khai thật.
+
 Miền nghiệp vụ AI chuyển đổi ngữ cảnh học tập, hành vi và bằng chứng đã được
 phê duyệt thành các chức năng trợ giúp và hỗ trợ ra quyết định có thể kiểm
 chứng. Miền nghiệp vụ này quản lý tri thức AI, hội thoại, đề xuất, thông tin

@@ -4,7 +4,7 @@ Version: 1.0
 
 Status: Official Directory Guide
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -28,18 +28,31 @@ criteria hay không.
 * [LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md](LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md)
   — approved architecture review for replacing the one editable Course
   Template draft from an immutable published Version.
+* [LF-Course-Template-Ordering-Architecture-Review.md](LF-Course-Template-Ordering-Architecture-Review.md)
+  — approved and frozen Course Template tenant/category ordering review.
+* [LF-Course-Template-Activity-Estimated-Duration-Architecture-Review.md](LF-Course-Template-Activity-Estimated-Duration-Architecture-Review.md)
+  — approved Course Template Activity estimated duration architecture review.
+* [LF-Course-Template-Lesson-Role-Architecture-Review.md](LF-Course-Template-Lesson-Role-Architecture-Review.md)
+  — approved Course Template Lesson role architecture review.
+* [LF-Version-Activity-Media-Snapshot-Architecture-Review.md](LF-Version-Activity-Media-Snapshot-Architecture-Review.md)
+  — approved Version Activity media snapshot architecture review.
 * [LF-Course-Product-Architecture-Review.md](LF-Course-Product-Architecture-Review.md)
   — approved architecture review for Course Product CRUD documentation and
   Product-specific implementation readiness.
+* [LF-Course-Product-Integrated-Architecture-Review.md](LF-Course-Product-Integrated-Architecture-Review.md)
+  — approved and frozen integrated Product v2 phase-one review; supersedes
+  LF-Course-Product-Items-Architecture-Review.md.
 * [LF-Course-Product-Items-Architecture-Review.md](LF-Course-Product-Items-Architecture-Review.md)
-  — approved architecture review for Course Product Item attach, list and
-  remove behavior inside Product management.
+  — superseded by LF-Course-Product-Integrated-Architecture-Review.md;
+  retained for historical context only.
 * [LF-Course-Product-Relations-Architecture-Review.md](LF-Course-Product-Relations-Architecture-Review.md)
   — approved architecture review for Course Product Relation attach, list and
   remove behavior inside Product management.
+* [LF-Course-Cohort-Architecture-Review.md](LF-Course-Cohort-Architecture-Review.md)
+  — approved Cohort binding, lifecycle, membership and legacy migration review.
 * [LF-Bulk-Enrollment-Architecture-Review.md](LF-Bulk-Enrollment-Architecture-Review.md)
-  — approved architecture review for Admin bulk Enrollment creation,
-  re-enrollment, atomic submission and durable idempotency.
+  — approved and frozen architecture review for Admin bulk Enrollment
+  creation, re-enrollment and atomic-submission idempotency.
 * [LF-Enrollment-Lifecycle-Architecture-Review.md](LF-Enrollment-Lifecycle-Architecture-Review.md)
   — approved and frozen review for single and atomic bulk Enrollment lifecycle
   transitions.
@@ -47,11 +60,6 @@ criteria hay không.
 ---
 
 # Future Documents
-
-Approved Course review:
-
-* [LF-Course-Cohort-Architecture-Review.md](LF-Course-Cohort-Architecture-Review.md)
-  — approved Cohort binding, lifecycle, membership and legacy migration review.
 
 * Release Checklist.
 * Security Checklist.
