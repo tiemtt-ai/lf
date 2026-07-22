@@ -82,13 +82,18 @@
                 </div>
 
                 <div class="bulk-enrollment-dual-selectors">
-                    <section class="bulk-enrollment-selector" aria-labelledby="bulk-students-title">
+                    <section class="bulk-enrollment-selector" aria-labelledby="bulk-students-title" :aria-busy="studentLoading">
                         <div class="bulk-enrollment-transfer__panel-header">
                             <h3 id="bulk-students-title">{{ __('lf.LF_bulk_enrollment_students_panel') }}</h3>
                             <span x-text="selectedStudentsLabel" aria-live="polite"></span>
                         </div>
                         <label class="lf-form-label" for="bulk-student-search">{{ __('lf.LF_common_button_search') }}</label>
-                        <input id="bulk-student-search" type="search" class="lf-form-control" x-model.debounce.350ms="studentQuery" x-on:input="loadStudents(1)">
+                        <div class="bulk-enrollment-search">
+                            <svg class="bulk-enrollment-search__icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+                            <input id="bulk-student-search" type="search" class="lf-form-control"
+                                   placeholder="{{ __('lf.LF_course_enrollment_student_search_placeholder') }}"
+                                   x-model="studentQuery" x-on:input.debounce.350ms="loadStudents(1)">
+                        </div>
                         <label class="bulk-enrollment-transfer__select-all">
                             <input type="checkbox" x-on:change="toggleVisibleStudents($event.target.checked)"
                                    :checked="studentResults.length > 0 && studentResults.every(item => hasStudent(item.id))">
@@ -115,7 +120,12 @@
                         </div>
                         <p class="sr-only" aria-live="polite" x-text="productEligibilityAnnouncement"></p>
                         <label class="lf-form-label" for="bulk-product-search">{{ __('lf.LF_common_button_search') }}</label>
-                        <input id="bulk-product-search" type="search" class="lf-form-control" x-model.debounce.350ms="productQuery" x-on:input="loadProducts(1)">
+                        <div class="bulk-enrollment-search">
+                            <svg class="bulk-enrollment-search__icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+                            <input id="bulk-product-search" type="search" class="lf-form-control"
+                                   placeholder="{{ __('lf.LF_course_enrollment_product_search_placeholder') }}"
+                                   x-model="productQuery" x-on:input.debounce.350ms="loadProducts(1)">
+                        </div>
                         <label class="bulk-enrollment-transfer__select-all">
                             <input type="checkbox" x-on:change="toggleVisibleProducts($event.target.checked)"
                                    :checked="eligibleVisibleProducts.length > 0 && eligibleVisibleProducts.every(item => hasProduct(item.id))"

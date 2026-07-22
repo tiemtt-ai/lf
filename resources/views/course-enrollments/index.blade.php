@@ -224,18 +224,39 @@
 
     <div x-cloak x-show="editModalOpen" class="admin-modal-backdrop" x-on:keydown.escape.window="if (!submitting) closeEditModal()" x-on:click.self="if (!submitting) closeEditModal()">
         <section class="admin-modal course-enrollment-bulk-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-edit-title">
-            <header class="admin-modal-header"><h2 id="bulk-edit-title">{{ __('lf.LF_course_enrollment_bulk_edit') }}</h2><button type="button" class="admin-text-action" x-on:click="closeEditModal" :disabled="submitting">{{ __('lf.LF_common_button_cancel') }}</button></header>
+            <header class="admin-modal-header"><h2 id="bulk-edit-title">{{ __('lf.LF_course_enrollment_bulk_edit') }}</h2><button type="button" class="course-enrollment-lifecycle-modal__close" x-on:click="closeEditModal" :disabled="submitting" aria-label="{{ __('lf.LF_common_button_close') }}"><span aria-hidden="true">×</span></button></header>
             <form method="POST" action="{{ route($routePrefix.'.bulk-update') }}" x-on:submit="submitting = true">
                 @csrf
                 <template x-for="id in selectedIds" :key="id"><input type="hidden" name="enrollment_ids[]" :value="id"></template>
-                <p x-text="selectedLabel"></p>
-                <div class="admin-form-stack">
-                    @foreach (['access_starts_at', 'access_ends_at', 'review_starts_at', 'review_ends_at'] as $field)
-                        <div class="course-enrollment-bulk-field"><label class="lf-form-label" for="{{ $field }}_action">{{ __('lf.LF_course_enrollment_common_'.$field) }}</label><select id="{{ $field }}_action" name="{{ $field }}_action" class="lf-form-control" x-model="actions.{{ $field }}"><option value="preserve">{{ __('lf.LF_course_enrollment_bulk_preserve') }}</option><option value="set">{{ __('lf.LF_course_enrollment_bulk_set') }}</option><option value="clear">{{ __('lf.LF_course_enrollment_bulk_clear_value') }}</option></select><input x-show="actions.{{ $field }} === 'set'" type="datetime-local" name="{{ $field }}_value" class="lf-form-control" :disabled="actions.{{ $field }} !== 'set'"></div>
+                <div class="course-enrollment-bulk-modal__body">
+                    <p class="course-enrollment-bulk-modal__selection" x-text="selectedLabel"></p>
+                    @foreach ([
+                        ['title' => 'LF_course_enrollment_access_window', 'fields' => ['access_starts_at', 'access_ends_at']],
+                        ['title' => 'LF_course_enrollment_review_window', 'fields' => ['review_starts_at', 'review_ends_at']],
+                    ] as $group)
+                        <section class="course-enrollment-bulk-modal__group" aria-labelledby="bulk-{{ $group['fields'][0] }}-title">
+                            <h3 id="bulk-{{ $group['fields'][0] }}-title">{{ __('lf.'.$group['title']) }}</h3>
+                            <div class="course-enrollment-bulk-modal__grid">
+                                @foreach ($group['fields'] as $field)
+                                    <div class="course-enrollment-bulk-field">
+                                        <label class="lf-form-label" for="{{ $field }}_action">{{ __('lf.LF_course_enrollment_common_'.$field) }}</label>
+                                        <select id="{{ $field }}_action" name="{{ $field }}_action" class="lf-form-control" x-model="actions.{{ $field }}"><option value="preserve">{{ __('lf.LF_course_enrollment_bulk_preserve') }}</option><option value="set">{{ __('lf.LF_course_enrollment_bulk_set') }}</option><option value="clear">{{ __('lf.LF_course_enrollment_bulk_clear_value') }}</option></select>
+                                        <input x-cloak x-show="actions.{{ $field }} === 'set'" type="datetime-local" name="{{ $field }}_value" class="lf-form-control" :disabled="actions.{{ $field }} !== 'set'">
+                                    </div>
+                                @endforeach
+                            </div>
+                        </section>
                     @endforeach
-                    <div class="course-enrollment-bulk-field"><label class="lf-form-label" for="notes_action">{{ __('lf.LF_course_enrollment_internal_notes') }}</label><select id="notes_action" name="notes_action" class="lf-form-control" x-model="actions.notes"><option value="preserve">{{ __('lf.LF_course_enrollment_bulk_preserve') }}</option><option value="set">{{ __('lf.LF_course_enrollment_bulk_set') }}</option><option value="clear">{{ __('lf.LF_course_enrollment_bulk_clear_value') }}</option></select><textarea x-show="actions.notes === 'set'" name="notes_value" class="lf-form-control" rows="3" :disabled="actions.notes !== 'set'"></textarea></div>
+                    <section class="course-enrollment-bulk-modal__group" aria-labelledby="bulk-notes-title">
+                        <h3 id="bulk-notes-title">{{ __('lf.LF_course_enrollment_internal_notes') }}</h3>
+                        <div class="course-enrollment-bulk-field course-enrollment-bulk-field--notes">
+                            <label class="sr-only" for="notes_action">{{ __('lf.LF_course_enrollment_internal_notes') }}</label>
+                            <select id="notes_action" name="notes_action" class="lf-form-control" x-model="actions.notes"><option value="preserve">{{ __('lf.LF_course_enrollment_bulk_preserve') }}</option><option value="set">{{ __('lf.LF_course_enrollment_bulk_set') }}</option><option value="clear">{{ __('lf.LF_course_enrollment_bulk_clear_value') }}</option></select>
+                            <textarea x-cloak x-show="actions.notes === 'set'" name="notes_value" class="lf-form-control" rows="3" :disabled="actions.notes !== 'set'"></textarea>
+                        </div>
+                    </section>
                 </div>
-                <footer class="admin-form-footer"><div class="admin-form-footer-primary"><button type="button" class="btn btn-secondary" x-on:click="closeEditModal" :disabled="submitting">{{ __('lf.LF_common_button_cancel') }}</button><button type="submit" class="btn btn-primary" :disabled="submitting || selectedIds.length === 0"><span x-show="!submitting">{{ __('lf.LF_common_button_save_changes') }}</span><span x-show="submitting">{{ __('lf.LF_course_enrollment_update_saving') }}</span></button></div></footer>
+                <footer class="admin-form-footer course-enrollment-bulk-modal__footer" data-actions-align="end"><div class="admin-form-footer-primary"><button type="button" class="btn btn-secondary" x-on:click="closeEditModal" :disabled="submitting">{{ __('lf.LF_common_button_cancel') }}</button><button type="submit" class="btn btn-primary" :disabled="submitting || selectedIds.length === 0"><span x-show="!submitting">{{ __('lf.LF_common_button_save_changes') }}</span><span x-show="submitting">{{ __('lf.LF_course_enrollment_update_saving') }}</span></button></div></footer>
             </form>
         </section>
     </div>

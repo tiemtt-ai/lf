@@ -1751,12 +1751,49 @@
     font-weight: 600;
 }
 
-.bulk-enrollment-selector .lf-form-control {
-    min-height: 44px;
+.bulk-enrollment-search {
+    position: relative;
     margin-bottom: 0.65rem;
-    padding: 0.65rem 0.8rem;
+}
+
+.bulk-enrollment-search__icon {
+    position: absolute;
+    z-index: 1;
+    top: 50%;
+    left: 0.85rem;
+    width: 1.05rem;
+    height: 1.05rem;
+    color: var(--admin-text-muted);
+    pointer-events: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+    transform: translateY(-50%);
+}
+
+.bulk-enrollment-search .lf-form-control {
+    min-height: 44px;
+    margin: 0;
+    padding: 0.65rem 2.5rem 0.65rem 2.5rem;
     border-radius: 0.7rem;
     background: color-mix(in srgb, var(--admin-surface, #fff) 96%, var(--admin-primary, #4f63d9));
+    font-size: 0.875rem;
+    font-weight: 400;
+}
+
+.bulk-enrollment-search .lf-form-control::placeholder {
+    color: var(--admin-text-muted);
+    opacity: 0.72;
+}
+
+.lf-admin-page .bulk-enrollment-search .lf-form-control:hover:not(:focus) {
+    border-color: color-mix(in srgb, var(--admin-primary) 28%, var(--border-color, #ced4da));
+}
+
+.lf-admin-page .bulk-enrollment-search .lf-form-control:focus {
+    border-color: color-mix(in srgb, var(--admin-primary) 72%, #ffffff);
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-primary) 10%, transparent);
 }
 
 .bulk-enrollment-selector__list {
@@ -2247,17 +2284,77 @@
     font-size: 20px;
 }
 
-.course-enrollment-bulk-modal form > p,
-.course-enrollment-bulk-modal .admin-form-stack {
-    margin-right: 20px;
-    margin-left: 20px;
+.course-enrollment-bulk-modal {
+    width: min(680px, 100%);
+    overflow: hidden;
+}
+
+.course-enrollment-bulk-modal__body {
+    display: grid;
+    gap: 22px;
+    padding: 20px 22px 24px;
+}
+
+.course-enrollment-bulk-modal__selection {
+    width: fit-content;
+    margin: 0;
+    padding: 7px 12px;
+    border-radius: 999px;
+    color: var(--admin-primary);
+    background: color-mix(in srgb, var(--admin-primary) 9%, var(--admin-surface));
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.course-enrollment-bulk-modal__group {
+    display: grid;
+    gap: 12px;
+}
+
+.course-enrollment-bulk-modal__group + .course-enrollment-bulk-modal__group {
+    padding-top: 20px;
+    border-top: 1px solid var(--admin-border);
+}
+
+.course-enrollment-bulk-modal__group h3 {
+    margin: 0;
+    color: var(--admin-text);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.course-enrollment-bulk-modal__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
 }
 
 .course-enrollment-bulk-field {
-    display: grid;
-    grid-template-columns: minmax(150px, 0.8fr) minmax(150px, 0.7fr) minmax(220px, 1fr);
-    align-items: center;
-    gap: 12px;
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.course-enrollment-bulk-field .lf-form-label {
+    margin: 0;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.course-enrollment-bulk-field--notes {
+    max-width: 100%;
+}
+
+.course-enrollment-bulk-modal__footer {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 14px 20px 16px;
+}
+
+.course-enrollment-bulk-modal__footer .admin-form-footer-primary {
+    justify-content: flex-end;
 }
 
 .course-enrollment-lifecycle-modal {
@@ -2327,9 +2424,13 @@
 }
 
 @media (max-width: 640px) {
+    .bulk-enrollment-search .lf-form-control {
+        font-size: 1rem;
+    }
+
     .course-enrollment-filter-grid,
     .course-enrollment-advanced-filter-grid,
-    .course-enrollment-bulk-field {
+    .course-enrollment-bulk-modal__grid {
         grid-template-columns: minmax(0, 1fr);
     }
 
@@ -2362,7 +2463,9 @@
     }
 
     .course-enrollment-lifecycle-modal__footer .admin-form-footer-primary,
-    .course-enrollment-lifecycle-modal__footer .btn {
+    .course-enrollment-lifecycle-modal__footer .btn,
+    .course-enrollment-bulk-modal__footer .admin-form-footer-primary,
+    .course-enrollment-bulk-modal__footer .btn {
         width: 100%;
     }
 
