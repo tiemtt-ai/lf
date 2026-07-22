@@ -54,7 +54,7 @@ class CourseCohortStudentManagementTest extends TestCase
             ->post(
                 "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students",
                 [
-                    'enrollment_id' => $enrollmentId,
+                    'enrollment_ids' => [$enrollmentId],
                     'note' => 'Seat A1',
                 ]
             )
@@ -285,10 +285,10 @@ class CourseCohortStudentManagementTest extends TestCase
             ->from("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/create")
             ->post(
                 "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students",
-                ['enrollment_id' => $otherEnrollmentId]
+                ['enrollment_ids' => [$otherEnrollmentId]]
             )
             ->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/create")
-            ->assertSessionHasErrors('enrollment_id');
+            ->assertSessionHasErrors('enrollment_ids.0');
 
         $this->assertDatabaseCount('core_course_cohort_students', 0);
     }
@@ -310,9 +310,9 @@ class CourseCohortStudentManagementTest extends TestCase
             ->from("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/create")
             ->post(
                 "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students",
-                ['enrollment_id' => $enrollmentId]
+                ['enrollment_ids' => [$enrollmentId]]
             )
-            ->assertSessionHasErrors('enrollment_id');
+            ->assertSessionHasErrors('enrollment_ids.0');
 
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$archivedCohortId}/students/create")
@@ -322,9 +322,9 @@ class CourseCohortStudentManagementTest extends TestCase
             ->from("https://tenant-a.localhost/admin/course-cohorts/{$mismatchCohortId}/students/create")
             ->post(
                 "https://tenant-a.localhost/admin/course-cohorts/{$mismatchCohortId}/students",
-                ['enrollment_id' => $newEnrollmentId]
+                ['enrollment_ids' => [$newEnrollmentId]]
             )
-            ->assertSessionHasErrors('enrollment_id');
+            ->assertSessionHasErrors('enrollment_ids.0');
 
         $this->assertSame(1, DB::table('core_course_cohort_students')->count());
     }
@@ -347,7 +347,7 @@ class CourseCohortStudentManagementTest extends TestCase
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/create")
             ->assertOk()
-            ->assertSee('name="enrollment_id"', false)
+            ->assertSee('name="enrollment_ids[]"', false)
             ->assertSee('role="combobox"', false)
             ->assertDontSeeText(__('lf.LF_course_cohort_student_search_no_eligible'));
 
@@ -373,7 +373,7 @@ class CourseCohortStudentManagementTest extends TestCase
         $this->actingAs($admin)
             ->from("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/create")
             ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students", [
-                'enrollment_id' => $enrollmentId,
+                'enrollment_ids' => [$enrollmentId],
                 'note' => 'Admin-only note',
                 'cohort_id' => 999,
                 'student_id' => 999,
@@ -387,7 +387,7 @@ class CourseCohortStudentManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students", [
-                'enrollment_id' => $enrollmentId,
+                'enrollment_ids' => [$enrollmentId],
                 'note' => 'Admin-only note',
             ])
             ->assertRedirect("https://tenant-a.localhost/admin/course-cohort-students?cohort_id={$cohortId}")
@@ -419,20 +419,55 @@ class CourseCohortStudentManagementTest extends TestCase
         DB::table('core_course_enrollments')->where('id', $enrollmentId)->update(['status' => 'suspended']);
 
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$activeCohort}/students",
-            ['enrollment_id' => $enrollmentId])
-            ->assertSessionHasErrors('enrollment_id');
+            ['enrollment_ids' => [$enrollmentId]])
+            ->assertSessionHasErrors('enrollment_ids.0');
 
         DB::table('core_course_enrollments')->where('id', $enrollmentId)->update(['status' => 'active']);
         $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$draftCohort}/students/create")
-            ->assertRedirect("https://tenant-a.localhost/admin/course-cohort-students?cohort_id={$draftCohort}");
+            ->assertOk();
 
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$activeCohort}/students",
-            ['enrollment_id' => $enrollmentId])->assertRedirect();
+            ['enrollment_ids' => [$enrollmentId]])->assertRedirect();
         $secondStudent = $this->createUser($customerId, 'student');
         $secondEnrollment = $this->createEnrollment($customerId, $secondStudent->id, $productId, $versionId);
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$activeCohort}/students",
-            ['enrollment_id' => $secondEnrollment])
-            ->assertSessionHasErrors('enrollment_id');
+            ['enrollment_ids' => [$secondEnrollment]])
+            ->assertSessionHasErrors('enrollment_ids.0');
+    }
+
+    public function test_batch_enrollment_ids_are_inserted_atomically(): void
+    {
+        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId);
+        $enrollmentIdOne = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $secondStudent = $this->createUser($customerId, 'student');
+        $enrollmentIdTwo = $this->createEnrollment($customerId, $secondStudent->id, $productId, $versionId);
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students",
+                ['enrollment_ids' => [$enrollmentIdOne, $enrollmentIdTwo]]
+            )
+            ->assertRedirect();
+
+        $this->assertSame(2, DB::table('core_course_cohort_students')->where('cohort_id', $cohortId)->count());
+
+        $limitedCohortId = $this->createCohort($customerId, $productId, $versionId, capacity: 2);
+        $thirdStudent = $this->createUser($customerId, 'student');
+        $enrollmentIdThree = $this->createEnrollment($customerId, $thirdStudent->id, $productId, $versionId);
+        $fourthStudent = $this->createUser($customerId, 'student');
+        $enrollmentIdFour = $this->createEnrollment($customerId, $fourthStudent->id, $productId, $versionId);
+        $fifthStudent = $this->createUser($customerId, 'student');
+        $enrollmentIdFive = $this->createEnrollment($customerId, $fifthStudent->id, $productId, $versionId);
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-cohorts/{$limitedCohortId}/students",
+                ['enrollment_ids' => [$enrollmentIdThree, $enrollmentIdFour, $enrollmentIdFive]]
+            )
+            ->assertSessionHasErrors('enrollment_ids.2');
+
+        $this->assertSame(0, DB::table('core_course_cohort_students')->where('cohort_id', $limitedCohortId)->count());
     }
 
     private function learningContext(): array

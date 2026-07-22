@@ -4,6 +4,12 @@
 @section('page_title', __('lf.LF_course_cohort_student_common_create'))
 
 @section('content')
+    @if (session('success'))
+        <div class="admin-alert admin-alert-success">
+            {{ session('success') }}
+        </div>
+    @endif
+
     @if ($errors->any())
         <div class="admin-alert admin-alert-danger" role="alert">
             <ul>
@@ -16,28 +22,37 @@
         <form class="admin-form-standard" method="POST"
               action="{{ route('admin.course-cohorts.students.store', $cohort->id) }}"
               x-data="{
-                  query: @js($selectedEnrollment?->student_name ?? ''),
-                  selected: @js((string) old('enrollment_id', $selectedEnrollment?->id ?? '')),
-                  results: [], open: false, loading: false, searched: false,
+                  query: '', results: [], open: false, loading: false, searched: false,
                   activeIndex: 0, timer: null, submitting: false,
+                  selectedItems: @js($selectedEnrollments->map(fn ($enrollment) => [
+                      'id' => $enrollment->id,
+                      'name' => $enrollment->student_name,
+                      'email' => $enrollment->student_email,
+                  ])->values()),
+                  isSelected(id) { return this.selectedItems.some(item => String(item.id) === String(id)) },
                   search() {
-                      this.selected = ''; this.activeIndex = 0; this.open = true;
+                      this.activeIndex = 0; this.open = true;
                       clearTimeout(this.timer);
                       if (this.query.trim().length < 2) { this.results = []; this.searched = false; return }
                       this.timer = setTimeout(async () => {
                           this.loading = true;
                           try {
                               const response = await fetch(`${@js(route('admin.course-cohorts.students.search', $cohort->id))}?q=${encodeURIComponent(this.query.trim())}`, { headers: { Accept: 'application/json' } });
-                              this.results = response.ok ? (await response.json()).data : [];
+                              const data = response.ok ? (await response.json()).data : [];
+                              this.results = data.filter(item => !this.isSelected(item.id));
                               this.searched = true;
                           } finally { this.loading = false }
                       }, 300)
                   },
-                  choose(item) { this.selected = String(item.id); this.query = item.name; this.open = false },
+                  choose(item) {
+                      if (!this.isSelected(item.id)) { this.selectedItems.push({ id: item.id, name: item.name, email: item.email }) }
+                      this.query = ''; this.results = []; this.searched = false; this.open = false;
+                  },
+                  remove(id) { this.selectedItems = this.selectedItems.filter(item => String(item.id) !== String(id)) },
                   move(step) { if (this.results.length) this.activeIndex = (this.activeIndex + step + this.results.length) % this.results.length },
                   chooseActive() { const item = this.results[this.activeIndex]; if (item) this.choose(item) }
               }"
-              @submit="if (submitting || !selected) { $event.preventDefault(); return } submitting = true">
+              @submit="if (submitting || selectedItems.length === 0) { $event.preventDefault(); return } submitting = true">
             @csrf
 
             <div class="admin-form-flow">
@@ -48,7 +63,7 @@
                     <div class="cohort-student-class-summary">
                         <div class="cohort-student-class-heading">
                             <strong>{{ $cohort->name }}</strong>
-                            <span class="badge badge-success">{{ __('lf.LF_common_status_common_active') }}</span>
+                            <span @class(['badge', 'badge-success' => $cohort->status === 'active', 'course-cohort-status-badge--draft' => $cohort->status === 'draft'])>{{ __('lf.LF_course_cohort_common_'.$cohort->status) }}</span>
                         </div>
                         <p>{{ $cohort->code ?: '—' }} · {{ $cohort->product_title }} ({{ $cohort->product_code }}) · {{ $cohort->version_code }}</p>
                         <p>{{ __('lf.LF_course_cohort_student_capacity_summary', ['current' => $cohort->active_membership_count, 'capacity' => $cohort->capacity ?? __('lf.LF_course_cohort_student_capacity_unlimited')]) }}</p>
@@ -71,13 +86,15 @@
                                        @focus="open = true" @input="search()"
                                        @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)"
                                        @keydown.enter.prevent="chooseActive()" @keydown.escape="open = false">
-                                <input type="hidden" name="enrollment_id" x-model="selected">
+                                <template x-for="item in selectedItems" :key="item.id">
+                                    <input type="hidden" name="enrollment_ids[]" :value="item.id">
+                                </template>
                                 <div id="eligible-enrollment-options" x-show="open" x-cloak role="listbox" class="lf-combobox-options">
                                     <p x-show="loading" class="cohort-student-combobox-state" role="status">{{ __('lf.LF_course_cohort_student_search_loading') }}</p>
                                     <p x-show="!loading && query.trim().length < 2" class="cohort-student-combobox-state" role="status">{{ __('lf.LF_course_cohort_student_search_prompt') }}</p>
                                     <template x-for="(item, index) in results" :key="item.id">
                                         <button type="button" role="option" class="lf-combobox-option"
-                                                :id="`eligible-enrollment-${item.id}`" :aria-selected="String(item.id) === selected"
+                                                :id="`eligible-enrollment-${item.id}`" :aria-selected="isSelected(item.id)"
                                                 :class="{ 'is-active': index === activeIndex }" @mouseenter="activeIndex = index" @click="choose(item)">
                                             <strong x-text="item.name"></strong>
                                             <span class="cohort-student-option-meta"><span x-text="item.email"></span> · <span x-text="item.code"></span></span>
@@ -87,7 +104,21 @@
                                 </div>
                             </div>
                             <p class="lf-form-help">{{ __('lf.LF_course_cohort_student_search_help') }}</p>
-                            @error('enrollment_id')<p class="lf-form-error" role="alert">{{ $message }}</p>@enderror
+                            @error('enrollment_ids')<p class="lf-form-error" role="alert">{{ $message }}</p>@enderror
+
+                            <h3 class="cohort-student-selected-heading">{{ __('lf.LF_course_cohort_student_selected_heading') }}</h3>
+                            <p x-show="selectedItems.length === 0" class="cohort-student-combobox-state" role="status">{{ __('lf.LF_course_cohort_student_selected_empty') }}</p>
+                            <ul class="cohort-student-selected-list" x-show="selectedItems.length > 0" x-cloak>
+                                <template x-for="item in selectedItems" :key="item.id">
+                                    <li class="cohort-student-selected-chip">
+                                        <span>
+                                            <strong x-text="item.name"></strong>
+                                            <span class="cohort-student-option-meta" x-text="item.email"></span>
+                                        </span>
+                                        <button type="button" class="cohort-student-chip-remove" @click="remove(item.id)" :aria-label="`{{ __('lf.LF_course_cohort_student_selected_remove') }}: ${item.name}`">×</button>
+                                    </li>
+                                </template>
+                            </ul>
                         @else
                             <div class="admin-form-empty-state cohort-student-empty-state" role="status">
                                 <p>{{ __('lf.LF_course_cohort_student_search_no_eligible') }}</p>
@@ -115,7 +146,7 @@
             <footer class="admin-form-footer" data-actions-align="end">
                 <div class="admin-form-footer-primary">
                     <a class="admin-form-cancel" href="{{ route('admin.course-cohort-students.index', ['cohort_id' => $cohort->id]) }}">{{ __('lf.LF_common_button_cancel') }}</a>
-                    <button type="submit" class="btn btn-primary" :disabled="submitting || !selected" :aria-busy="submitting" aria-live="polite">
+                    <button type="submit" class="btn btn-primary" :disabled="submitting || selectedItems.length === 0" :aria-busy="submitting" aria-live="polite">
                         {{ __('lf.LF_course_cohort_student_common_create') }}
                     </button>
                 </div>

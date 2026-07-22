@@ -121,7 +121,7 @@ class CourseCohortController extends Controller
         }, 3);
 
         return redirect()
-            ->route($this->routePrefix($request).'.show', $cohortId)
+            ->route('admin.course-cohorts.students.create', $cohortId)
             ->with('success', __('lf.LF_course_cohort_common_created'));
     }
 

@@ -73,8 +73,17 @@ class CourseCohortManagementTest extends TestCase
                     'notes' => 'Bring printed placement tests.',
                 ])
             )
-            ->assertRedirect()
             ->assertSessionHasNoErrors();
+
+        $response = $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-cohorts',
+            $this->validCohortData(['product_id' => $productId, 'name' => 'Redirect check class'])
+        );
+
+        $newCohortId = DB::table('core_course_cohorts')->where('customer_id', $customerId)
+            ->where('name', 'Redirect check class')->value('id');
+
+        $response->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$newCohortId}/students/create");
 
         $this->assertDatabaseHas('core_course_cohorts', [
             'customer_id' => $customerId,
