@@ -15,13 +15,13 @@
              return this.productSummaries[this.selectedProductId] ?? null;
          }
      }">
-    <section class="admin-form-standard-section" aria-labelledby="cohort-create-information">
+    <section class="admin-form-standard-section cohort-create-information" aria-labelledby="cohort-create-information">
         <header class="admin-form-section-header">
             <h2 id="cohort-create-information" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_information') }}</h2>
         </header>
 
-        <div class="admin-form-field-grid">
-            <div class="lf-form-group admin-form-field">
+        <div class="admin-form-field-grid cohort-create-information-grid">
+            <div class="lf-form-group admin-form-field cohort-create-product-field">
                 <x-form-label for="product_id" :value="__('lf.LF_course_cohort_common_product')" required />
                 <select id="product_id"
                         name="product_id"
@@ -40,7 +40,7 @@
                 @error('product_id')<p id="product_id_error" class="lf-form-error">{{ $message }}</p>@enderror
             </div>
 
-            <div class="lf-form-group admin-form-field">
+            <div class="lf-form-group admin-form-field cohort-create-version-field">
                 <span class="lf-form-label">{{ __('lf.LF_course_cohort_create_content_version') }}</span>
                 <div class="admin-form-calculated-summary" aria-live="polite" aria-atomic="true">
                     <template x-if="!selectedVersion">
@@ -84,7 +84,7 @@
         </div>
     </section>
 
-    <section class="admin-form-standard-section" aria-labelledby="cohort-create-dates">
+    <section class="admin-form-standard-section cohort-create-optional-section" aria-labelledby="cohort-create-dates">
         <header class="admin-form-section-header">
             <h2 id="cohort-create-dates" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_dates') }}</h2>
             <p class="admin-form-section-help">{{ __('lf.LF_course_cohort_create_dates_help') }}</p>
@@ -105,14 +105,14 @@
         </div>
     </section>
 
-    <section class="admin-form-standard-section" aria-labelledby="cohort-create-additional">
+    <section class="admin-form-standard-section cohort-create-optional-section" aria-labelledby="cohort-create-additional">
         <header class="admin-form-section-header">
             <h2 id="cohort-create-additional" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_additional') }}</h2>
         </header>
         <div class="admin-form-field-grid">
             <div class="lf-form-group admin-form-field--full">
                 <x-form-label for="notes" :value="__('lf.LF_course_cohort_create_internal_notes')" />
-                <textarea id="notes" name="notes" class="lf-form-control" rows="4"
+                <textarea id="notes" name="notes" class="lf-form-control" rows="3"
                           placeholder="{{ __('lf.LF_course_cohort_create_notes_placeholder') }}"
                           @error('notes') aria-invalid="true" aria-describedby="notes_error notes_help" @else aria-describedby="notes_help" @enderror>{{ old('notes') }}</textarea>
                 <p id="notes_help" class="lf-form-help">{{ __('lf.LF_course_cohort_create_notes_help') }}</p>

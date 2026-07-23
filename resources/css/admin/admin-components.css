@@ -1375,9 +1375,40 @@
 }
 
 .course-cohort-index-toolbar {
-    margin: 24px 0 12px;
+    margin: 0 0 14px;
     display: flex;
+    align-items: center;
     justify-content: flex-end;
+    gap: 14px;
+}
+
+.course-cohort-index-count {
+    margin-right: auto;
+    color: var(--admin-text-muted);
+    font-size: 14px;
+}
+
+.course-cohort-filter-card {
+    margin-bottom: 16px;
+    padding: 18px;
+}
+
+.course-cohort-filter-grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 2fr) minmax(190px, 1fr) auto;
+    align-items: end;
+    gap: 14px;
+}
+
+.course-cohort-filter-grid .lf-form-group {
+    margin: 0;
+}
+
+.course-cohort-filter-actions {
+    min-height: 42px;
+    margin: 0;
+    align-items: center;
+    flex-wrap: nowrap;
 }
 
 .course-category-index-toolbar {
@@ -1592,7 +1623,7 @@
 }
 
 .course-cohort-index-table {
-    min-width: 1120px;
+    min-width: 680px;
     table-layout: fixed;
 }
 
@@ -1742,6 +1773,159 @@
     overflow-wrap: anywhere;
 }
 
+.course-cohort-student-detail-toolbar {
+    margin-top: 4px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+}
+
+.admin-card.course-cohort-student-detail {
+    padding: 20px;
+}
+
+.course-cohort-student-detail .admin-form-standard-section {
+    padding-bottom: 20px;
+}
+
+.course-cohort-student-detail .admin-form-standard-section + .admin-form-standard-section {
+    padding-top: 20px;
+}
+
+.course-cohort-student-detail .admin-form-section-header {
+    margin-bottom: 12px;
+}
+
+.course-cohort-student-detail-grid,
+.course-cohort-student-detail-panel {
+    padding: 14px 16px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface-subtle);
+}
+
+.course-cohort-student-detail-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.course-cohort-student-detail-panel > .course-cohort-student-detail-grid {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.course-cohort-student-detail-item {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.course-cohort-student-detail-item .lf-form-label {
+    margin-bottom: 7px;
+    color: var(--admin-text-muted);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.course-cohort-student-detail-item .admin-form-calculated-summary {
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.course-cohort-student-detail-item .admin-form-calculated-summary-value {
+    font-size: 16px;
+}
+
+.course-cohort-student-detail-notes {
+    margin-top: 14px;
+    padding-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    border-top: 1px solid var(--admin-border);
+}
+
+.course-cohort-student-detail .admin-form-footer-danger form {
+    margin: 0;
+}
+
+.course-cohort-student-edit-toolbar {
+    margin-top: 4px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+}
+
+.admin-card.course-cohort-student-edit {
+    padding: 20px;
+}
+
+.course-cohort-student-edit .admin-form-standard-section {
+    padding-bottom: 20px;
+}
+
+.course-cohort-student-edit .admin-form-standard-section + .admin-form-standard-section {
+    padding-top: 20px;
+}
+
+.course-cohort-student-edit .admin-form-section-header {
+    margin-bottom: 12px;
+}
+
+.course-cohort-student-edit-context-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+    padding: 14px 16px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface-subtle);
+}
+
+.course-cohort-student-edit-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.course-cohort-student-edit-item {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.course-cohort-student-edit-item .lf-form-label {
+    margin-bottom: 7px;
+    color: var(--admin-text-muted);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.course-cohort-student-edit-item .admin-form-calculated-summary {
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.course-cohort-student-edit-item .admin-form-calculated-summary-value {
+    font-size: 16px;
+}
+
+@media (max-width: 900px) {
+    .course-cohort-student-edit-context-grid,
+    .course-cohort-student-edit-fields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .course-cohort-student-detail-grid,
+    .course-cohort-student-detail-notes {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 .course-enrollment-detail .course-enrollment-identity-section .course-enrollment-detail-item,
 .course-enrollment-detail .course-enrollment-system-section .course-enrollment-detail-item {
     padding: 0;
@@ -1813,39 +1997,345 @@
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-primary) 10%, transparent);
 }
 
-.course-cohort-detail .admin-form-field-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
+.cohort-overview-identity {
+    padding-bottom: 22px;
 }
 
-.course-cohort-detail .admin-form-field {
-    margin: 0;
-    padding: 16px 18px;
-    border: 1px solid var(--admin-border);
-    border-radius: 10px;
-    background: var(--admin-surface-subtle);
+.cohort-overview-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
 }
 
-.course-cohort-detail .lf-form-label {
-    margin-bottom: 8px;
+.cohort-overview-eyebrow {
+    color: var(--admin-primary);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.cohort-overview-heading h2 {
+    margin: 4px 0 0;
+    color: var(--admin-text);
+    font-size: 24px;
+    line-height: 1.3;
+}
+
+.cohort-overview-code {
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
     color: var(--admin-text-muted);
     font-size: 13px;
 }
 
-.course-cohort-detail .admin-form-calculated-summary {
+.cohort-overview-context {
+    margin: 20px 0 0;
     padding: 0;
-    border: 0;
-    background: transparent;
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(140px, .55fr);
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    overflow: hidden;
 }
 
-.course-cohort-detail .admin-form-calculated-summary-value {
+.cohort-overview-context > div {
+    min-width: 0;
+    padding: 15px 18px;
+}
+
+.cohort-overview-context > div + div {
+    border-left: 1px solid var(--admin-border);
+}
+
+.cohort-overview-context dt,
+.cohort-overview-dates dt {
+    margin-bottom: 7px;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.cohort-overview-context dd {
+    margin: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.cohort-overview-context dd strong {
+    color: var(--admin-text);
+    font-size: 15px;
+}
+
+.cohort-overview-context dd span {
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.cohort-overview-dates {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.cohort-overview-dates > div {
+    padding: 14px 16px;
+    border-left: 3px solid color-mix(in srgb, var(--admin-primary) 55%, transparent);
+    background: var(--admin-surface-subtle);
+}
+
+.cohort-overview-dates dd {
+    margin: 0;
+    color: var(--admin-text);
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.cohort-overview-notes {
+    padding: 14px 16px;
+    border-left: 3px solid var(--admin-border);
+    background: var(--admin-surface-subtle);
+    color: var(--admin-text-muted);
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.cohort-overview-notes > span {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.cohort-overview-notes > p {
+    margin: 0;
+}
+
+.admin-card.course-cohort-edit-overview {
+    padding: 24px 28px;
+}
+
+.course-cohort-edit-overview .admin-form-standard-section {
+    padding-bottom: 24px;
+}
+
+.course-cohort-edit-overview .admin-form-standard-section + .admin-form-standard-section {
+    padding-top: 24px;
+}
+
+.course-cohort-edit-overview .admin-form-section-header {
+    margin-bottom: 16px;
+}
+
+.cohort-edit-overview-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.cohort-edit-overview-eyebrow {
+    color: var(--admin-primary);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.cohort-edit-overview-heading h2 {
+    margin: 4px 0 0;
+    color: var(--admin-text);
+    font-size: 22px;
+    line-height: 1.3;
+}
+
+.cohort-edit-overview-heading .cohort-edit-readonly-row {
+    min-height: auto;
+    margin-top: 5px;
+}
+
+.cohort-edit-overview-meta-label {
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+#cohort-edit-status {
+    display: grid;
+    justify-items: end;
+    gap: 6px;
+}
+
+.cohort-edit-overview-context {
+    margin: 18px 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.cohort-edit-overview-context > div {
+    min-width: 0;
+    padding: 14px 16px;
+}
+
+.cohort-edit-overview-context > div + div {
+    border-left: 1px solid var(--admin-border);
+}
+
+.cohort-edit-overview-context dt {
+    margin-bottom: 6px;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.cohort-edit-overview-context dd {
+    margin: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.cohort-edit-overview-context dd strong {
+    color: var(--admin-text);
+    font-size: 15px;
+}
+
+.cohort-edit-overview-context dd span {
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.cohort-edit-overview-fields {
+    gap: 16px;
+}
+
+.course-cohort-edit-overview textarea.lf-form-control {
+    min-height: 104px;
+}
+
+.course-cohort-edit-overview .admin-form-footer {
+    margin-top: 0;
+    padding-top: 18px;
+}
+
+.admin-card.course-cohort-create {
+    padding: 24px 28px;
+}
+
+.course-cohort-create .admin-form-standard {
+    max-width: 1180px;
+    margin: 0 auto;
+}
+
+.course-cohort-create .admin-form-standard-section {
+    padding-bottom: 24px;
+}
+
+.course-cohort-create .admin-form-standard-section + .admin-form-standard-section {
+    padding-top: 24px;
+}
+
+.course-cohort-create .admin-form-section-header {
+    margin-bottom: 16px;
+}
+
+.cohort-create-information-grid {
+    align-items: start;
+    gap: 18px 20px;
+}
+
+.cohort-create-version-field .admin-form-calculated-summary {
+    min-height: 42px;
+    padding: 10px 14px;
+}
+
+.cohort-create-version-field .admin-form-calculated-summary-value {
     font-size: 16px;
 }
 
-.course-cohort-detail .cohort-edit-readonly-row,
-.course-cohort-detail .cohort-edit-readonly-stack,
-.course-cohort-detail .cohort-show-notes {
-    min-height: 26px;
+.cohort-create-version-field .lf-form-help,
+.cohort-create-product-field .lf-form-help {
+    margin-top: 6px;
+    font-size: 12px;
+}
+
+.course-cohort-create .cohort-create-optional-section .admin-form-field-grid {
+    gap: 16px;
+}
+
+.course-cohort-create textarea.lf-form-control {
+    min-height: 104px;
+}
+
+.course-cohort-create .admin-form-footer {
+    margin-top: 0;
+    padding-top: 18px;
+}
+
+.course-cohort-students-readonly .admin-form-standard-section {
+    padding-bottom: 0;
+}
+
+.course-cohort-students-readonly .admin-form-section-header {
+    margin-bottom: 16px;
+}
+
+.cohort-student-list-filter {
+    margin-bottom: 14px;
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+}
+
+.cohort-student-list-filter .lf-form-group,
+.cohort-student-list-filter__actions {
+    margin: 0;
+}
+
+.cohort-student-list-filter__actions {
+    min-height: 42px;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+
+.cohort-student-list-table {
+    table-layout: fixed;
+}
+
+.cohort-student-list-table th:nth-child(1) {
+    width: 38%;
+}
+
+.cohort-student-list-table th:nth-child(2) {
+    width: 44%;
+}
+
+.cohort-student-list-table .cohort-student-list-actions {
+    width: 18%;
+    text-align: right;
+}
+
+.cohort-student-list-actions .admin-table-actions {
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+.cohort-student-enrollment-code {
+    color: var(--admin-text);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.cohort-student-list-empty-cell {
+    padding: 0 !important;
 }
 
 @media (max-width: 1199.98px) {
@@ -1861,6 +2351,85 @@
     }
 }
 
+@media (max-width: 767px) {
+    .cohort-student-list-filter {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .cohort-student-list-filter__actions .btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .cohort-student-list-table-wrap {
+        overflow: visible;
+        border: 0;
+        background: transparent;
+    }
+
+    .cohort-student-list-table {
+        display: block;
+    }
+
+    .cohort-student-list-table thead {
+        display: none;
+    }
+
+    .cohort-student-list-table tbody {
+        display: grid;
+        gap: 10px;
+    }
+
+    .cohort-student-list-table tr {
+        display: block;
+        overflow: hidden;
+        border: 1px solid var(--admin-border);
+        border-radius: 10px;
+        background: var(--admin-surface);
+    }
+
+    .lf-admin-page .cohort-student-list-table td {
+        width: auto;
+        padding: 11px 13px;
+        display: grid;
+        grid-template-columns: minmax(82px, .4fr) minmax(0, 1fr);
+        gap: 10px;
+        border-bottom: 1px solid var(--admin-border);
+        text-align: left;
+    }
+
+    .cohort-student-list-table td::before {
+        content: attr(data-label);
+        color: var(--admin-text-muted);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.4;
+    }
+
+    .cohort-student-list-table .cohort-student-list-actions {
+        width: auto;
+        text-align: left;
+    }
+
+    .cohort-student-list-actions .admin-table-actions {
+        justify-content: flex-start;
+        white-space: normal;
+    }
+
+    .cohort-student-list-empty-row {
+        border: 0 !important;
+    }
+
+    .lf-admin-page .cohort-student-list-table .cohort-student-list-empty-cell {
+        display: block;
+        border: 0;
+    }
+
+    .cohort-student-list-empty-cell::before {
+        display: none;
+    }
+}
+
 @media (max-width: 640px) {
     .course-enrollment-detail .admin-form-field-grid,
     .course-enrollment-detail .course-enrollment-detail-metadata-grid,
@@ -1868,8 +2437,45 @@
     .course-enrollment-edit .course-enrollment-system-section .admin-form-field-grid,
     .course-enrollment-detail .course-enrollment-identity-section .admin-form-field-grid,
     .course-enrollment-detail .course-enrollment-system-section .admin-form-field-grid,
-    .course-cohort-detail .admin-form-field-grid {
+    .cohort-overview-heading {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .admin-card.course-cohort-edit-overview {
+        padding: 20px;
+    }
+
+    .admin-card.course-cohort-create {
+        padding: 20px;
+    }
+
+    .cohort-edit-overview-heading {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    #cohort-edit-status {
+        justify-items: start;
+    }
+
+    .cohort-edit-overview-context {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .cohort-edit-overview-context > div + div {
+        border-top: 1px solid var(--admin-border);
+        border-left: 0;
+    }
+
+    .cohort-overview-context,
+    .cohort-overview-dates {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .cohort-overview-context > div + div {
+        border-top: 1px solid var(--admin-border);
+        border-left: 0;
     }
 
     .course-enrollment-detail-window-grid {
@@ -1885,10 +2491,6 @@
 .lf-admin-page .course-cohort-index-table td {
     padding: 12px 14px;
     vertical-align: middle;
-}
-
-.course-cohort-index-table .course-cohort-index-code {
-    width: 210px;
 }
 
 .course-cohort-index-table .course-cohort-index-status {
@@ -1961,13 +2563,144 @@
     white-space: nowrap;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 767px) {
+    .course-cohort-index-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
     .course-cohort-index-toolbar .btn,
     .course-category-index-toolbar .btn,
     .course-template-index-toolbar .btn,
     .course-product-index-toolbar .btn {
         width: 100%;
         justify-content: center;
+    }
+
+    .course-cohort-filter-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .course-cohort-filter-actions {
+        justify-content: space-between;
+    }
+
+    .course-cohort-filter-actions .btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .course-cohort-index-table-wrap {
+        overflow: visible;
+        border: 0;
+        background: transparent;
+    }
+
+    .course-cohort-index-table {
+        min-width: 0;
+        display: block;
+    }
+
+    .course-cohort-index-table thead {
+        display: none;
+    }
+
+    .course-cohort-index-table tbody {
+        display: grid;
+        gap: 12px;
+    }
+
+    .course-cohort-index-table tr {
+        display: block;
+        overflow: hidden;
+        border: 1px solid var(--admin-border);
+        border-radius: 10px;
+        background: #ffffff;
+    }
+
+    .lf-admin-page .course-cohort-index-table td {
+        width: auto;
+        min-width: 0;
+        padding: 11px 14px;
+        display: grid;
+        grid-template-columns: minmax(88px, .42fr) minmax(0, 1fr);
+        gap: 12px;
+        border-bottom: 1px solid #f3f4f6;
+        text-align: left;
+    }
+
+    .course-cohort-index-table td::before {
+        content: attr(data-label);
+        color: var(--admin-text-muted);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.4;
+    }
+
+    .course-cohort-index-table .course-cohort-index-status,
+    .course-cohort-index-table .course-cohort-index-actions {
+        position: static;
+        width: auto;
+        background: #ffffff;
+        box-shadow: none;
+    }
+
+    .admin-table-actions.course-cohort-index-action-list {
+        justify-content: flex-start;
+    }
+
+    .course-cohort-empty-row {
+        border: 0 !important;
+    }
+
+    .lf-admin-page .course-cohort-index-table .course-cohort-empty-cell {
+        display: block;
+        padding: 0;
+        border: 0;
+    }
+
+    .course-cohort-empty-cell::before {
+        display: none;
+    }
+}
+
+.course-cohort-empty-cell {
+    padding: 0 !important;
+}
+
+.course-cohort-empty-state {
+    display: grid;
+    justify-items: center;
+    gap: 7px;
+    padding: 36px 20px;
+    color: var(--admin-text-muted);
+    text-align: center;
+}
+
+.course-cohort-empty-state strong {
+    color: var(--admin-text);
+    font-size: 15px;
+}
+
+.course-cohort-empty-state span {
+    max-width: 440px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.course-cohort-empty-state .btn,
+.course-cohort-empty-state .admin-text-action {
+    margin-top: 8px;
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+    .course-cohort-filter-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(180px, .55fr);
+    }
+
+    .course-cohort-filter-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-end;
     }
 }
 
@@ -2007,6 +2740,22 @@
     min-width: 0;
 }
 
+.cohort-student-tabs {
+    margin-bottom: 12px;
+}
+
+.cohort-student-edit-back {
+    margin-bottom: 14px;
+}
+
+.cohort-student-create .admin-form-standard-section {
+    padding-bottom: 20px;
+}
+
+.cohort-student-create .admin-form-standard-section + .admin-form-standard-section {
+    padding-top: 20px;
+}
+
 .enrollment-create-metadata {
     margin: 0;
     display: grid;
@@ -2036,17 +2785,64 @@
     }
 }
 
-.cohort-student-class-summary p {
-    margin: .35rem 0 0;
-    overflow-wrap: anywhere;
-    color: var(--color-text-muted, #6b7280);
+.cohort-student-class-summary {
+    padding: 16px 18px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface-subtle);
 }
 
 .cohort-student-class-heading {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: space-between;
     gap: .5rem;
+}
+
+.cohort-student-class-heading > div {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.cohort-student-class-heading strong {
+    color: var(--admin-text);
+    font-size: 17px;
+}
+
+.cohort-student-class-eyebrow,
+.cohort-enrollment-detail-modal__eyebrow {
+    color: var(--admin-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    line-height: 1.4;
+    text-transform: uppercase;
+}
+
+.cohort-student-class-meta {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 0;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.cohort-student-class-meta > * {
+    overflow-wrap: anywhere;
+}
+
+.cohort-student-class-meta > * + *::before {
+    content: "\00b7";
+    margin: 0 8px;
+    color: var(--admin-control-border);
+}
+
+.cohort-student-manage-field {
+    margin-bottom: 0;
 }
 
 .cohort-student-option-meta {
@@ -2064,13 +2860,19 @@
 }
 
 .cohort-student-selected-heading {
-    margin: 1rem 0 .5rem;
+    margin: 0 0 .6rem;
     font-size: .9375rem;
 }
 
+.cohort-student-selected-panel {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--admin-border);
+}
+
 .cohort-student-selected-list {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: .5rem;
     margin: 0;
     padding: 0;
@@ -2088,6 +2890,159 @@
     background: var(--color-surface-muted, #f9fafb);
 }
 
+.cohort-student-selected-main {
+    min-width: 0;
+    padding: 0;
+    display: block;
+    border: 0;
+    color: inherit;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+}
+
+.cohort-student-selected-main:hover strong {
+    color: var(--admin-primary);
+}
+
+.cohort-student-option-action {
+    width: 122px;
+    text-align: right;
+}
+
+.cohort-student-option-action .admin-text-action {
+    white-space: nowrap;
+}
+
+.cohort-enrollment-detail-modal {
+    width: min(640px, 100%);
+    overflow: hidden;
+}
+
+.cohort-enrollment-detail-modal .admin-modal-header > div {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.cohort-enrollment-detail-modal__body {
+    padding: 20px;
+}
+
+.cohort-enrollment-detail-modal__student {
+    padding: 0 0 16px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.cohort-enrollment-detail-modal__student > div {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.cohort-enrollment-detail-modal__student strong {
+    color: var(--admin-text);
+    font-size: 16px;
+}
+
+.cohort-enrollment-detail-modal__student span:not(.badge) {
+    overflow-wrap: anywhere;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+}
+
+.cohort-enrollment-context {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border: 1px solid var(--admin-border);
+    border-radius: 9px;
+    background: var(--admin-surface-subtle);
+}
+
+.cohort-enrollment-context h3 {
+    margin: 0 0 12px;
+    color: var(--admin-text);
+    font-size: 14px;
+}
+
+.cohort-enrollment-context dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 13px 18px;
+}
+
+.cohort-enrollment-context dl > div {
+    min-width: 0;
+}
+
+.cohort-enrollment-context dt {
+    margin-bottom: 3px;
+    color: var(--admin-text-muted);
+    font-size: 11px;
+}
+
+.cohort-enrollment-context dd {
+    margin: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.cohort-enrollment-context dd strong {
+    overflow-wrap: anywhere;
+    color: var(--admin-text);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.cohort-enrollment-context dd span {
+    overflow-wrap: anywhere;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.cohort-enrollment-detail-grid {
+    margin: 18px 0 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 20px;
+}
+
+.cohort-enrollment-detail-grid div {
+    min-width: 0;
+}
+
+.cohort-enrollment-detail-grid dt {
+    margin-bottom: 4px;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.cohort-enrollment-detail-grid dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: var(--admin-text);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.cohort-enrollment-detail-modal__footer {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 14px 20px 16px;
+}
+
+.cohort-enrollment-detail-modal__footer .admin-form-footer-primary {
+    justify-content: flex-end;
+}
+
 .cohort-student-chip-remove {
     flex-shrink: 0;
     border: none;
@@ -2101,6 +3056,33 @@
 
 .cohort-student-chip-remove:hover {
     color: var(--color-danger, #dc2626);
+}
+
+@media (max-width: 767px) {
+    .cohort-student-selected-list,
+    .cohort-enrollment-context dl,
+    .cohort-enrollment-detail-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .cohort-student-class-meta {
+        display: grid;
+        gap: 3px;
+    }
+
+    .cohort-student-class-meta > * + *::before {
+        content: none;
+    }
+
+    .cohort-student-option-action {
+        width: 104px;
+    }
+
+    .cohort-enrollment-detail-modal__student {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
+    }
 }
 
 .admin-inline-form {

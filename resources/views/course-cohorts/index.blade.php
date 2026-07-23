@@ -4,14 +4,27 @@
 @section('page_title', __('lf.LF_course_cohort_common_title'))
 
 @section('content')
+    @php
+        $hasActiveFilters = $keyword !== '' || $status;
+    @endphp
+
     @if (session('success'))
-        <div class="admin-alert admin-alert-success">
+        <div class="admin-alert admin-alert-success" role="status">
             {{ session('success') }}
         </div>
     @endif
 
-    <div class="admin-card admin-form-card">
-        <form method="GET" action="{{ route($routePrefix.'.index') }}">
+    <div class="course-cohort-index-toolbar">
+        <span class="course-cohort-index-count">
+            {{ trans_choice('lf.LF_course_cohort_index_count', $cohorts->total(), ['count' => $cohorts->total()]) }}
+        </span>
+        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
+            {{ __('lf.LF_course_cohort_common_create') }}
+        </a>
+    </div>
+
+    <div class="admin-card admin-form-card course-cohort-filter-card">
+        <form class="course-cohort-filter-grid" method="GET" action="{{ route($routePrefix.'.index') }}">
             <div class="lf-form-group">
                 <label class="lf-form-label" for="keyword">
                     {{ __('lf.LF_course_cohort_common_keyword') }}
@@ -38,32 +51,28 @@
                 </select>
             </div>
 
-            <div class="admin-form-actions">
+            <div class="admin-form-actions course-cohort-filter-actions">
                 <button type="submit" class="btn btn-primary">
                     {{ __('lf.LF_common_button_search') }}
                 </button>
-                <a href="{{ route($routePrefix.'.index') }}">
-                    {{ __('lf.LF_course_cohort_common_clear_filters') }}
-                </a>
+                @if ($hasActiveFilters)
+                    <a class="admin-text-action" href="{{ route($routePrefix.'.index') }}">
+                        {{ __('lf.LF_course_cohort_common_clear_filters') }}
+                    </a>
+                @endif
             </div>
         </form>
-    </div>
-
-    <div class="course-cohort-index-toolbar">
-        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
-            {{ __('lf.LF_course_cohort_common_create') }}
-        </a>
     </div>
 
     <div class="admin-table-wrap course-cohort-index-table-wrap">
         <table class="table course-cohort-index-table">
             <thead>
             <tr>
-                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
-                <th class="course-cohort-index-code">{{ __('lf.table_code') }}</th>
                 <th>{{ __('lf.LF_course_cohort_common_name') }}</th>
-                <th>{{ __('lf.LF_course_cohort_common_product') }}</th>
-                <th>{{ __('lf.LF_course_cohort_common_version') }}</th>
+                <th>
+                    {{ __('lf.LF_course_cohort_common_product') }}
+                    / {{ __('lf.LF_course_cohort_common_version') }}
+                </th>
                 <th class="course-cohort-index-status">{{ __('lf.LF_course_cohort_common_status') }}</th>
                 <th class="course-cohort-index-actions">{{ __('lf.table_actions') }}</th>
             </tr>
@@ -71,29 +80,25 @@
             <tbody>
             @forelse ($cohorts as $cohort)
                 <tr>
-                    <td class="admin-table-sequence">{{ $cohorts->firstItem() + $loop->index }}</td>
-                    <td class="course-cohort-index-code"><span class="course-cohort-index-code-value">{{ $cohort->code ?? '-' }}</span></td>
-                    <td><strong class="course-cohort-index-primary">{{ $cohort->name }}</strong></td>
-                    <td>
+                    <td data-label="{{ __('lf.LF_course_cohort_common_name') }}">
+                        <strong class="course-cohort-index-primary">{{ $cohort->name }}</strong>
+                        <span class="course-cohort-index-meta">{{ $cohort->code ?? '—' }}</span>
+                    </td>
+                    <td data-label="{{ __('lf.LF_course_cohort_common_product') }}">
                         @if ($cohort->product_id)
                             <strong class="course-cohort-index-primary">{{ $cohort->product_title }}</strong>
-                            <span class="course-cohort-index-meta">{{ $cohort->product_code }}</span>
-                        @else
-                            -
-                        @endif
-                    </td>
-                    <td>
-                        @if ($cohort->version_id)
-                            <strong class="course-cohort-index-primary">{{ $cohort->version_title }}</strong>
                             <span class="course-cohort-index-meta">
-                                {{ __('lf.LF_course_product_item_common_version_number', ['number' => $cohort->version_number]) }}
-                                · {{ $cohort->version_code }}
+                                {{ $cohort->product_code }}
+                                @if ($cohort->version_id)
+                                    · {{ __('lf.LF_course_product_item_common_version_number', ['number' => $cohort->version_number]) }}
+                                    · {{ $cohort->version_code }}
+                                @endif
                             </span>
                         @else
-                            -
+                            —
                         @endif
                     </td>
-                    <td class="course-cohort-index-status">
+                    <td class="course-cohort-index-status" data-label="{{ __('lf.LF_course_cohort_common_status') }}">
                         <span @class([
                             'badge',
                             'course-cohort-status-badge',
@@ -105,7 +110,7 @@
                             {{ __('lf.LF_course_cohort_common_'.$cohort->status) }}
                         </span>
                     </td>
-                    <td class="course-cohort-index-actions">
+                    <td class="course-cohort-index-actions" data-label="{{ __('lf.table_actions') }}">
                         <div class="admin-table-actions course-cohort-index-action-list">
                             <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.show', $cohort->id) }}">
                                 {{ __('lf.action_view') }}
@@ -119,9 +124,21 @@
                     </td>
                 </tr>
             @empty
-                <tr>
-                    <td colspan="7">
-                        {{ __('lf.LF_course_cohort_common_empty') }}
+                <tr class="course-cohort-empty-row">
+                    <td class="course-cohort-empty-cell" colspan="4">
+                        <div class="course-cohort-empty-state" role="status">
+                            <strong>{{ $hasActiveFilters ? __('lf.LF_course_cohort_filter_empty') : __('lf.LF_course_cohort_common_empty') }}</strong>
+                            <span>{{ $hasActiveFilters ? __('lf.LF_course_cohort_filter_empty_help') : __('lf.LF_course_cohort_empty_help') }}</span>
+                            @if ($hasActiveFilters)
+                                <a class="admin-text-action" href="{{ route($routePrefix.'.index') }}">
+                                    {{ __('lf.LF_course_cohort_common_clear_filters') }}
+                                </a>
+                            @else
+                                <a class="btn btn-primary" href="{{ route($routePrefix.'.create') }}">
+                                    {{ __('lf.LF_course_cohort_common_create') }}
+                                </a>
+                            @endif
+                        </div>
                     </td>
                 </tr>
             @endforelse

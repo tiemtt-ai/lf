@@ -166,6 +166,15 @@ class CourseCohortStudentController extends Controller
             'name' => $enrollment->student_name,
             'email' => $enrollment->student_email,
             'code' => 'ENR-'.str_pad((string) $enrollment->id, 6, '0', STR_PAD_LEFT),
+            'status' => $enrollment->status,
+            'status_label' => __('lf.LF_course_enrollment_common_'.$enrollment->status),
+            'source_label' => __('lf.LF_course_enrollment_common_source_'.$enrollment->source),
+            'enrolled_at' => $this->formatEnrollmentDateTime($enrollment->enrolled_at),
+            'access_starts_at' => $this->formatEnrollmentDateTime($enrollment->access_starts_at),
+            'access_ends_at' => $this->formatEnrollmentDateTime($enrollment->access_ends_at),
+            'review_starts_at' => $this->formatEnrollmentDateTime($enrollment->review_starts_at),
+            'review_ends_at' => $this->formatEnrollmentDateTime($enrollment->review_ends_at),
+            'detail_url' => route('admin.course-enrollments.show', $enrollment->id),
             'current' => (bool) ($enrollment->current_membership ?? false),
         ]);
 
@@ -215,16 +224,48 @@ class CourseCohortStudentController extends Controller
 
                 $enrollments = DB::table('core_course_enrollments')->where('customer_id', $customerId)
                     ->whereIn('id', $enrollmentIds)->lockForUpdate()->get()->keyBy('id');
+                $existingMemberships = DB::table('core_course_cohort_students')
+                    ->where('customer_id', $customerId)
+                    ->whereIn('enrollment_id', $enrollmentIds)
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy('enrollment_id');
 
                 $now = now();
                 $rows = [];
+                $acceptedCount = 0;
 
                 foreach ($enrollmentIds as $index => $enrollmentId) {
                     $enrollment = $enrollments->get($enrollmentId);
                     throw_if(! $enrollment, ValidationException::withMessages([
                         "enrollment_ids.{$index}" => __('lf.LF_course_cohort_student_validation_enrollment'),
                     ]));
-                    $this->validateLockedAssignment($customerId, $cohort, $enrollment, count($rows), "enrollment_ids.{$index}");
+                    $this->validateLockedAssignment($customerId, $cohort, $enrollment, $acceptedCount, "enrollment_ids.{$index}");
+                    $existingMembership = $existingMemberships->get($enrollmentId);
+
+                    if ($existingMembership) {
+                        DB::table('core_course_cohort_students')
+                            ->where('customer_id', $customerId)
+                            ->where('id', $existingMembership->id)
+                            ->update([
+                                'cohort_id' => $cohort->id,
+                                'product_id' => $enrollment->product_id,
+                                'student_id' => $enrollment->student_id,
+                                'assigned_by' => $request->user()?->id,
+                                'joined_at' => $now,
+                                'left_at' => null,
+                                'status' => 'active',
+                                'transfer_from_cohort_id' => (int) $existingMembership->cohort_id !== (int) $cohort->id
+                                    ? $existingMembership->cohort_id
+                                    : $existingMembership->transfer_from_cohort_id,
+                                'transfer_reason' => null,
+                                'note' => $validated['note'] ?? null,
+                                'updated_at' => $now,
+                            ]);
+                        $acceptedCount++;
+
+                        continue;
+                    }
 
                     $rows[] = [
                         'customer_id' => $customerId, 'cohort_id' => $cohort->id,
@@ -235,6 +276,7 @@ class CourseCohortStudentController extends Controller
                         'note' => $validated['note'] ?? null, 'metadata' => null,
                         'created_at' => $now, 'updated_at' => $now,
                     ];
+                    $acceptedCount++;
                 }
 
                 DB::table('core_course_cohort_students')->insert($rows);
@@ -302,6 +344,12 @@ class CourseCohortStudentController extends Controller
             $enrollments = DB::table('core_course_enrollments')
                 ->where('customer_id', $customerId)->whereIn('id', $addIds)
                 ->lockForUpdate()->get()->keyBy('id');
+            $existingMemberships = DB::table('core_course_cohort_students')
+                ->where('customer_id', $customerId)
+                ->whereIn('enrollment_id', $addIds)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('enrollment_id');
             $now = now();
             $rows = [];
 
@@ -311,6 +359,30 @@ class CourseCohortStudentController extends Controller
                     "enrollment_ids.{$index}" => __('lf.LF_course_cohort_student_validation_enrollment'),
                 ]));
                 $this->validateLockedAssignmentForSync($customerId, $lockedCohort, $enrollment, "enrollment_ids.{$index}");
+                $existingMembership = $existingMemberships->get($enrollmentId);
+
+                if ($existingMembership) {
+                    DB::table('core_course_cohort_students')
+                        ->where('customer_id', $customerId)
+                        ->where('id', $existingMembership->id)
+                        ->update([
+                            'cohort_id' => $cohort,
+                            'product_id' => $enrollment->product_id,
+                            'student_id' => $enrollment->student_id,
+                            'assigned_by' => $request->user()?->id,
+                            'joined_at' => $now,
+                            'left_at' => null,
+                            'status' => 'active',
+                            'transfer_from_cohort_id' => (int) $existingMembership->cohort_id !== $cohort
+                                ? $existingMembership->cohort_id
+                                : $existingMembership->transfer_from_cohort_id,
+                            'transfer_reason' => null,
+                            'updated_at' => $now,
+                        ]);
+
+                    continue;
+                }
+
                 $rows[] = [
                     'customer_id' => $customerId, 'cohort_id' => $cohort,
                     'enrollment_id' => $enrollment->id, 'product_id' => $enrollment->product_id,
@@ -333,7 +405,7 @@ class CourseCohortStudentController extends Controller
             }
         }, 3);
 
-        return redirect()->route('admin.course-cohorts.edit', ['id' => $cohort, 'tab' => 'students'])
+        return redirect()->route('admin.course-cohorts.show', ['id' => $cohort, 'tab' => 'students'])
             ->with('success', __('lf.LF_course_cohort_student_sync_updated'));
     }
 
@@ -352,9 +424,11 @@ class CourseCohortStudentController extends Controller
         $this->authorizeAdmin($request);
 
         $customerId = $this->customerId();
+        $membership = $this->findMembership($customerId, $id);
+        abort_if($membership->status !== 'active', 422);
 
         return view('course-cohort-students.edit', [
-            'membership' => $this->findMembership($customerId, $id),
+            'membership' => $membership,
             'cohorts' => $this->cohorts($customerId),
             'statuses' => ['active'],
             'routePrefix' => $this->routePrefix($request),
@@ -367,6 +441,7 @@ class CourseCohortStudentController extends Controller
 
         $customerId = $this->customerId();
         $membership = $this->findMembership($customerId, $id);
+        abort_if($membership->status !== 'active', 422);
         $validated = $this->validatedData($request, $customerId, $membership);
         DB::transaction(function () use ($customerId, $validated, $membership, $id): void {
             $ids = array_values(array_unique([(int) $membership->cohort_id, (int) $validated['cohort_id']]));
@@ -602,6 +677,15 @@ class CourseCohortStudentController extends Controller
             ->exists();
     }
 
+    private function activeMembershipExists(int $customerId, int $enrollmentId): bool
+    {
+        return DB::table('core_course_cohort_students')
+            ->where('customer_id', $customerId)
+            ->where('enrollment_id', $enrollmentId)
+            ->where('status', 'active')
+            ->exists();
+    }
+
     private function cohortIsFull(int $customerId, object $cohort, ?int $ignoreMembershipId = null, int $extra = 0): bool
     {
         if ($cohort->capacity === null) {
@@ -642,7 +726,7 @@ class CourseCohortStudentController extends Controller
             $enrollment->status !== 'active' => __('lf.LF_course_cohort_student_validation_active_enrollment'),
             (int) $cohort->product_id !== (int) $enrollment->product_id => __('lf.LF_course_cohort_student_validation_product_mismatch'),
             (int) $cohort->version_id !== (int) $enrollment->version_id => __('lf.LF_course_cohort_student_validation_version_mismatch'),
-            $this->membershipExists($customerId, $enrollment->id) => __('lf.LF_course_cohort_student_validation_duplicate'),
+            $this->activeMembershipExists($customerId, $enrollment->id) => __('lf.LF_course_cohort_student_validation_duplicate'),
             default => null,
         };
 
@@ -657,7 +741,7 @@ class CourseCohortStudentController extends Controller
             $enrollment->status !== 'active' => __('lf.LF_course_cohort_student_validation_active_enrollment'),
             (int) $cohort->product_id !== (int) $enrollment->product_id => __('lf.LF_course_cohort_student_validation_product_mismatch'),
             (int) $cohort->version_id !== (int) $enrollment->version_id => __('lf.LF_course_cohort_student_validation_version_mismatch'),
-            $this->membershipExists($customerId, $enrollment->id) => __('lf.LF_course_cohort_student_validation_duplicate'),
+            $this->activeMembershipExists($customerId, $enrollment->id) => __('lf.LF_course_cohort_student_validation_duplicate'),
             default => null,
         };
 
@@ -728,10 +812,18 @@ class CourseCohortStudentController extends Controller
                 $query->selectRaw('1')
                     ->from('core_course_cohort_students as memberships')
                     ->whereColumn('memberships.enrollment_id', 'enrollments.id')
-                    ->where('memberships.customer_id', $customerId);
+                    ->where('memberships.customer_id', $customerId)
+                    ->where('memberships.status', 'active');
             })
             ->select(
                 'enrollments.id',
+                'enrollments.status',
+                'enrollments.source',
+                'enrollments.enrolled_at',
+                'enrollments.access_starts_at',
+                'enrollments.access_ends_at',
+                'enrollments.review_starts_at',
+                'enrollments.review_ends_at',
                 'students.name as student_name',
                 'students.email as student_email'
             );
@@ -762,16 +854,29 @@ class CourseCohortStudentController extends Controller
                             ->whereNotExists(function ($query) use ($customerId): void {
                                 $query->selectRaw('1')->from('core_course_cohort_students as memberships')
                                     ->whereColumn('memberships.enrollment_id', 'enrollments.id')
-                                    ->where('memberships.customer_id', $customerId);
+                                    ->where('memberships.customer_id', $customerId)
+                                    ->where('memberships.status', 'active');
                             });
                     });
             })
             ->select(
                 'enrollments.id',
+                'enrollments.status',
+                'enrollments.source',
+                'enrollments.enrolled_at',
+                'enrollments.access_starts_at',
+                'enrollments.access_ends_at',
+                'enrollments.review_starts_at',
+                'enrollments.review_ends_at',
                 'students.name as student_name',
                 'students.email as student_email',
                 DB::raw('CASE WHEN current_memberships.id IS NULL THEN 0 ELSE 1 END as current_membership')
             );
+    }
+
+    private function formatEnrollmentDateTime(mixed $value): string
+    {
+        return $value ? \Illuminate\Support\Carbon::parse($value)->format('d/m/Y H:i') : '—';
     }
 
     private function cohorts(int $customerId)

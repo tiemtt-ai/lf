@@ -14,7 +14,7 @@
         </div>
     @endif
 
-    <div class="admin-card admin-form-card admin-form-surface">
+    <div class="admin-card admin-form-card admin-form-surface course-cohort-create">
         <form class="admin-form-standard"
               method="POST"
               action="{{ route($routePrefix.'.store') }}"

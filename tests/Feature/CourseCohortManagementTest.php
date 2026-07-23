@@ -80,10 +80,9 @@ class CourseCohortManagementTest extends TestCase
             $this->validCohortData(['product_id' => $productId, 'name' => 'Redirect check class'])
         );
 
-        $newCohortId = DB::table('core_course_cohorts')->where('customer_id', $customerId)
-            ->where('name', 'Redirect check class')->value('id');
-
-        $response->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$newCohortId}/students/create");
+        $response
+            ->assertRedirect('https://tenant-a.localhost/admin/course-cohorts')
+            ->assertSessionHas('success', 'Tạo lớp học thành công.');
 
         $this->assertDatabaseHas('core_course_cohorts', [
             'customer_id' => $customerId,
@@ -281,6 +280,45 @@ class CourseCohortManagementTest extends TestCase
             ->assertSee('course-cohort-index-toolbar', false)
             ->assertSee('course-cohort-status-badge', false)
             ->assertSeeText(__('lf.LF_course_cohort_common_version'));
+    }
+
+    public function test_cohort_index_uses_compact_filters_responsive_rows_and_business_empty_state(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $empty = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-cohorts')
+            ->assertOk()
+            ->assertSee('course-cohort-filter-grid', false)
+            ->assertSee('course-cohort-index-count', false)
+            ->assertSeeText('Chưa có lớp học nào.')
+            ->assertSeeText('Tạo lớp học đầu tiên')
+            ->assertDontSeeText('Chưa có Cohort nào.');
+
+        $this->assertSame(
+            1,
+            substr_count($empty->getContent(), 'course-cohort-index-toolbar'),
+            'The create action should live in one compact top toolbar.'
+        );
+
+        $this->createCohort($customerId, 'Responsive Class');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-cohorts')
+            ->assertOk()
+            ->assertSee('data-label="Tên lớp học"', false)
+            ->assertSee('data-label="Sản phẩm"', false)
+            ->assertSee('data-label="Trạng thái"', false)
+            ->assertSee('data-label="Thao tác"', false)
+            ->assertSeeText('Sản phẩm')
+            ->assertSeeText('Phiên bản nội dung');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-cohorts?keyword=missing')
+            ->assertOk()
+            ->assertSeeText('Không tìm thấy lớp học phù hợp.')
+            ->assertSeeText('Xóa bộ lọc');
     }
 
     public function test_teacher_and_student_cannot_access_admin_cohort_routes(): void
@@ -550,7 +588,8 @@ class CourseCohortManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/activate")
-            ->assertRedirect();
+            ->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}")
+            ->assertSessionHas('success', __('lf.LF_course_cohort_lifecycle_activated'));
         $this->assertDatabaseHas('core_course_cohorts', [
             'id' => $cohortId, 'product_id' => $productId, 'version_id' => $versionId,
             'teacher_id' => $teacher->id, 'status' => 'active',

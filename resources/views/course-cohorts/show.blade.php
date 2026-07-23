@@ -95,15 +95,13 @@
     @if ($activeTab === 'overview')
     <div id="overview" class="admin-card admin-form-card admin-form-surface course-cohort-detail">
         <div class="admin-form-standard">
-            <section class="admin-form-standard-section" aria-labelledby="cohort-show-information">
-                <header class="admin-form-section-header">
-                    <h2 id="cohort-show-information" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_information') }}</h2>
-                </header>
-                <div class="admin-form-field-grid">
-                    <div class="lf-form-group admin-form-field">
-                        <span class="lf-form-label">{{ __('lf.LF_course_cohort_common_code') }}</span>
-                        <div class="cohort-edit-readonly-row" x-data="{ copied: false }">
-                            <strong class="cohort-edit-readonly-value">{{ $cohort->code ?: '—' }}</strong>
+            <section class="admin-form-standard-section cohort-overview-identity" aria-labelledby="cohort-show-information">
+                <div class="cohort-overview-heading">
+                    <div>
+                        <span class="cohort-overview-eyebrow">{{ __('lf.LF_course_cohort_create_group_information') }}</span>
+                        <h2 id="cohort-show-information">{{ $cohort->name }}</h2>
+                        <div class="cohort-overview-code" x-data="{ copied: false }">
+                            <span>{{ $cohort->code ?: '—' }}</span>
                             @if ($cohort->code)
                                 <button type="button" class="cohort-edit-copy-action"
                                         x-bind:aria-label="copied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_edit_copy_code'))"
@@ -114,69 +112,71 @@
                             @endif
                         </div>
                     </div>
-                    <div class="lf-form-group admin-form-field">
-                        <span class="lf-form-label">{{ __('lf.LF_course_cohort_common_status') }}</span>
-                        <div class="cohort-edit-readonly-row">
-                            <span @class(['badge', 'badge-success' => $cohort->status === 'active', 'badge-danger' => $cohort->status === 'archived'])>{{ __('lf.LF_course_cohort_common_'.$cohort->status) }}</span>
-                        </div>
-                    </div>
-                    <div class="lf-form-group admin-form-field">
-                        <span class="lf-form-label">{{ __('lf.LF_course_cohort_common_product') }}</span>
-                        <div class="admin-form-calculated-summary">
-                            <strong class="admin-form-calculated-summary-value">{{ $cohort->product_title ?: '—' }}</strong>
-                            @if ($cohort->product_code)<span class="admin-form-calculated-summary-meta">{{ $cohort->product_code }} · {{ __('lf.LF_course_cohort_common_locked') }}</span>@endif
-                        </div>
-                    </div>
-                    <div class="lf-form-group admin-form-field">
-                        <span class="lf-form-label">{{ __('lf.LF_course_cohort_create_content_version') }}</span>
-                        <div class="admin-form-calculated-summary">
-                            @if ($cohort->version_id)
-                                <div class="admin-form-calculated-summary-content">
-                                    <strong class="admin-form-calculated-summary-value">{{ str_replace(':code', $cohort->version_code, __('lf.LF_course_cohort_create_version_prefix')) }}</strong>
-                                    <span class="admin-form-calculated-summary-meta admin-form-calculated-summary-meta-row">
-                                        <span class="admin-form-calculated-summary-meta-item">{{ __('lf.LF_course_cohort_common_published') }}</span>
-                                        <span class="admin-form-calculated-summary-meta-item">{{ __('lf.LF_course_cohort_create_lesson_count', ['count' => (int) $cohort->lesson_count]) }}</span>
-                                        <span class="admin-form-calculated-summary-meta-item">{{ __('lf.LF_course_cohort_create_activity_count', ['count' => (int) $cohort->activity_count]) }}</span>
-                                    </span>
-                                </div>
-                            @else
-                                <span class="admin-form-calculated-summary-meta">—</span>
-                            @endif
-                        </div>
-                    </div>
-                    <div class="lf-form-group admin-form-field">
-                        <span class="lf-form-label">{{ __('lf.LF_course_cohort_common_name') }}</span>
-                        <div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ $cohort->name }}</strong></div>
-                    </div>
-                    <div class="lf-form-group admin-form-field">
-                        <span class="lf-form-label">{{ __('lf.LF_course_cohort_common_capacity') }}</span>
-                        <div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ $cohort->capacity ?? '—' }}</strong></div>
-                    </div>
+                    <span @class(['badge', 'badge-success' => $cohort->status === 'active', 'badge-danger' => $cohort->status === 'archived'])>{{ __('lf.LF_course_cohort_common_'.$cohort->status) }}</span>
                 </div>
+
+                <dl class="cohort-overview-context">
+                    <div>
+                        <dt>{{ __('lf.LF_course_cohort_common_product') }}</dt>
+                        <dd>
+                            <strong>{{ $cohort->product_title ?: '—' }}</strong>
+                            @if ($cohort->product_code)<span>{{ $cohort->product_code }} · {{ __('lf.LF_course_cohort_common_locked') }}</span>@endif
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>{{ __('lf.LF_course_cohort_create_content_version') }}</dt>
+                        <dd>
+                            @if ($cohort->version_id)
+                                <strong>{{ str_replace(':code', $cohort->version_code, __('lf.LF_course_cohort_create_version_prefix')) }}</strong>
+                                <span>{{ __('lf.LF_course_cohort_common_published') }} · {{ __('lf.LF_course_cohort_create_lesson_count', ['count' => (int) $cohort->lesson_count]) }} · {{ __('lf.LF_course_cohort_create_activity_count', ['count' => (int) $cohort->activity_count]) }}</span>
+                            @else
+                                <strong>—</strong>
+                            @endif
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>{{ __('lf.LF_course_cohort_common_capacity') }}</dt>
+                        <dd><strong>{{ $activeMembershipCount }}/{{ $cohort->capacity ?? '∞' }}</strong></dd>
+                    </div>
+                </dl>
             </section>
 
             <section class="admin-form-standard-section" aria-labelledby="cohort-show-dates">
                 <header class="admin-form-section-header">
                     <h2 id="cohort-show-dates" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_dates') }}</h2>
                 </header>
-                <div class="admin-form-field-grid">
-                    <div class="lf-form-group admin-form-field"><span class="lf-form-label">{{ __('lf.LF_course_cohort_common_start_date') }}</span><div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ $cohort->start_date ?: '—' }}</strong></div></div>
-                    <div class="lf-form-group admin-form-field"><span class="lf-form-label">{{ __('lf.LF_course_cohort_common_end_date') }}</span><div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ $cohort->end_date ?: '—' }}</strong></div></div>
-                </div>
+                <dl class="cohort-overview-dates">
+                    <div><dt>{{ __('lf.LF_course_cohort_common_start_date') }}</dt><dd>{{ $cohort->start_date ? \Illuminate\Support\Carbon::parse($cohort->start_date)->format('d/m/Y') : '—' }}</dd></div>
+                    <div><dt>{{ __('lf.LF_course_cohort_common_end_date') }}</dt><dd>{{ $cohort->end_date ? \Illuminate\Support\Carbon::parse($cohort->end_date)->format('d/m/Y') : '—' }}</dd></div>
+                </dl>
             </section>
 
             <section class="admin-form-standard-section" aria-labelledby="cohort-show-additional">
                 <header class="admin-form-section-header">
                     <h2 id="cohort-show-additional" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_additional') }}</h2>
                 </header>
-                <div class="admin-form-field-grid">
-                    <div class="lf-form-group admin-form-field admin-form-field--full"><span class="lf-form-label">{{ __('lf.LF_course_cohort_common_notes') }}</span><div class="cohort-show-notes">{{ $cohort->notes ?: '—' }}</div></div>
+                <div class="cohort-overview-notes">
+                    <span>{{ __('lf.LF_course_cohort_common_notes') }}</span>
+                    <p>{{ $cohort->notes ?: __('lf.LF_course_cohort_empty_notes') }}</p>
                 </div>
             </section>
         </div>
     </div>
     @else
-    <div class="admin-card admin-form-card admin-form-surface course-cohort-students-readonly">
+    <div class="admin-card admin-form-card admin-form-surface course-cohort-students-readonly"
+         x-data="{
+             detail: null,
+             detailTrigger: null,
+             openDetail(item, event) {
+                 this.detail = item; this.detailTrigger = event.currentTarget;
+                 this.$nextTick(() => this.$refs.detailClose.focus())
+             },
+             closeDetail() {
+                 this.detail = null;
+                 this.$nextTick(() => this.detailTrigger?.focus())
+             }
+         }"
+         x-on:keydown.escape.window="if (detail) closeDetail()">
         <div class="admin-form-standard">
             <section class="admin-form-standard-section" aria-labelledby="cohort-show-students">
                 <header class="admin-form-section-header">
@@ -184,41 +184,78 @@
                     <p class="admin-form-section-help">{{ __('lf.LF_course_cohort_student_view_help') }}</p>
                 </header>
 
-                <form method="GET" action="{{ route($routePrefix.'.show', $cohort->id) }}" class="admin-form-stack">
+                <form method="GET"
+                      action="{{ route($routePrefix.'.show', $cohort->id) }}"
+                      class="cohort-student-list-filter">
                     <input type="hidden" name="tab" value="students">
-                    <div class="lf-form-group admin-form-field--full">
-                        <label class="lf-form-label" for="student_keyword">{{ __('lf.LF_course_cohort_student_common_keyword') }}</label>
+                    <div class="lf-form-group">
+                        <label class="sr-only" for="student_keyword">{{ __('lf.LF_course_cohort_student_common_keyword') }}</label>
                         <input id="student_keyword" type="search" name="student_keyword" class="lf-form-control"
                                value="{{ $studentKeyword }}" placeholder="{{ __('lf.LF_course_cohort_student_search_placeholder') }}">
                     </div>
-                    <div class="admin-form-actions">
+                    <div class="admin-form-actions cohort-student-list-filter__actions">
                         <button type="submit" class="btn btn-primary">{{ __('lf.LF_common_button_search') }}</button>
                         @if ($studentKeyword !== '')
-                            <a href="{{ route($routePrefix.'.show', ['id' => $cohort->id, 'tab' => 'students']) }}">{{ __('lf.LF_course_cohort_student_common_clear_filters') }}</a>
+                            <a class="admin-text-action" href="{{ route($routePrefix.'.show', ['id' => $cohort->id, 'tab' => 'students']) }}">{{ __('lf.LF_course_cohort_student_common_clear_filters') }}</a>
                         @endif
                     </div>
                 </form>
 
-                <div class="admin-table-wrap">
-                    <table class="table">
+                <div class="admin-table-wrap cohort-student-list-table-wrap">
+                    <table class="table cohort-student-list-table">
                         <thead><tr>
-                            <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                             <th>{{ __('lf.LF_course_cohort_student_common_student') }}</th>
                             <th>{{ __('lf.LF_course_cohort_student_common_enrollment') }}</th>
-                            <th>{{ __('lf.LF_course_cohort_student_common_joined_at') }}</th>
-                            <th>{{ __('lf.table_actions') }}</th>
+                            <th class="cohort-student-list-actions">{{ __('lf.table_actions') }}</th>
                         </tr></thead>
                         <tbody>
                         @forelse ($students as $student)
                             <tr>
-                                <td class="admin-table-sequence">{{ $students->firstItem() + $loop->index }}</td>
-                                <td><strong>{{ $student->student_name }}</strong><br><small>{{ $student->student_email }}</small></td>
-                                <td>ENR-{{ str_pad((string) $student->enrollment_id, 6, '0', STR_PAD_LEFT) }}</td>
-                                <td>{{ $student->joined_at }}</td>
-                                <td><a class="admin-table-action-link admin-text-action" href="{{ route('admin.course-cohort-students.show', $student->membership_id) }}">{{ __('lf.action_view') }}</a></td>
+                                <td data-label="{{ __('lf.LF_course_cohort_student_common_student') }}">
+                                    <strong class="course-cohort-index-primary">{{ $student->student_name }}</strong>
+                                    <span class="course-cohort-index-meta">{{ $student->student_email }}</span>
+                                </td>
+                                <td data-label="{{ __('lf.LF_course_cohort_student_common_enrollment') }}">
+                                    <strong class="cohort-student-enrollment-code">ENR-{{ str_pad((string) $student->enrollment_id, 6, '0', STR_PAD_LEFT) }}</strong>
+                                    <span class="course-cohort-index-meta">
+                                        {{ __('lf.LF_course_cohort_student_joined_short') }}:
+                                        {{ \Illuminate\Support\Carbon::parse($student->joined_at)->format('d/m/Y H:i') }}
+                                    </span>
+                                </td>
+                                <td class="cohort-student-list-actions" data-label="{{ __('lf.table_actions') }}">
+                                    <div class="admin-table-actions">
+                                        <button type="button"
+                                                class="admin-text-action"
+                                                x-on:click="openDetail(@js([
+                                                    'id' => $student->enrollment_id,
+                                                    'name' => $student->student_name,
+                                                    'email' => $student->student_email,
+                                                    'code' => 'ENR-'.str_pad((string) $student->enrollment_id, 6, '0', STR_PAD_LEFT),
+                                                    'status' => $student->enrollment_status,
+                                                    'status_label' => __('lf.LF_course_enrollment_common_'.$student->enrollment_status),
+                                                    'source_label' => __('lf.LF_course_enrollment_common_source_'.$student->enrollment_source),
+                                                    'enrolled_at' => $student->enrolled_at ? \Illuminate\Support\Carbon::parse($student->enrolled_at)->format('d/m/Y H:i') : '—',
+                                                    'access_starts_at' => $student->access_starts_at ? \Illuminate\Support\Carbon::parse($student->access_starts_at)->format('d/m/Y H:i') : '—',
+                                                    'access_ends_at' => $student->access_ends_at ? \Illuminate\Support\Carbon::parse($student->access_ends_at)->format('d/m/Y H:i') : '—',
+                                                    'review_starts_at' => $student->review_starts_at ? \Illuminate\Support\Carbon::parse($student->review_starts_at)->format('d/m/Y H:i') : '—',
+                                                    'review_ends_at' => $student->review_ends_at ? \Illuminate\Support\Carbon::parse($student->review_ends_at)->format('d/m/Y H:i') : '—',
+                                                    'detail_url' => route('admin.course-enrollments.show', $student->enrollment_id),
+                                                    'current' => true,
+                                                ]), $event)">
+                                            {{ __('lf.LF_course_cohort_student_view_enrollment') }}
+                                        </button>
+                                    </div>
+                                </td>
                             </tr>
                         @empty
-                            <tr><td colspan="5">{{ __('lf.LF_course_cohort_student_common_empty') }}</td></tr>
+                            <tr class="cohort-student-list-empty-row">
+                                <td class="cohort-student-list-empty-cell" colspan="3">
+                                    <div class="course-cohort-empty-state" role="status">
+                                        <strong>{{ $studentKeyword !== '' ? __('lf.LF_course_cohort_student_filter_empty') : __('lf.LF_course_cohort_student_class_empty') }}</strong>
+                                        <span>{{ $studentKeyword !== '' ? __('lf.LF_course_cohort_student_filter_empty_help') : __('lf.LF_course_cohort_student_class_empty_help') }}</span>
+                                    </div>
+                                </td>
+                            </tr>
                         @endforelse
                         </tbody>
                     </table>
@@ -228,6 +265,7 @@
                 @endif
             </section>
         </div>
+        @include('course-cohorts.partials.enrollment-quick-view', ['cohort' => $cohort])
     </div>
     @endif
 @endsection

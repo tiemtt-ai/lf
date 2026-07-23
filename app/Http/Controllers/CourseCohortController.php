@@ -99,13 +99,13 @@ class CourseCohortController extends Controller
         $customerId = $this->customerId();
         $validated = $this->validatedCreateData($request, $customerId);
 
-        $cohortId = DB::transaction(function () use ($customerId, $validated): int {
+        DB::transaction(function () use ($customerId, $validated): void {
             DB::table('saas_customers')->where('id', $customerId)->lockForUpdate()->first();
             $version = $this->versionResolver->resolve($customerId, (int) $validated['product_id'], true);
             abort_if(! $version, 422, __('lf.LF_course_cohort_validation_active_item'));
             $now = now();
 
-            return DB::table('core_course_cohorts')->insertGetId(
+            DB::table('core_course_cohorts')->insert(
                 $this->cohortValues(array_merge($validated, [
                     'description' => null,
                     'status' => 'draft',
@@ -121,7 +121,7 @@ class CourseCohortController extends Controller
         }, 3);
 
         return redirect()
-            ->route('admin.course-cohorts.students.create', $cohortId)
+            ->route('admin.course-cohorts.index')
             ->with('success', __('lf.LF_course_cohort_common_created'));
     }
 
@@ -156,6 +156,13 @@ class CourseCohortController extends Controller
                 'memberships.id as membership_id',
                 'memberships.joined_at',
                 'enrollments.id as enrollment_id',
+                'enrollments.status as enrollment_status',
+                'enrollments.source as enrollment_source',
+                'enrollments.enrolled_at',
+                'enrollments.access_starts_at',
+                'enrollments.access_ends_at',
+                'enrollments.review_starts_at',
+                'enrollments.review_ends_at',
                 'students.name as student_name',
                 'students.email as student_email'
             )
@@ -193,7 +200,18 @@ class CourseCohortController extends Controller
             ->where('memberships.cohort_id', $id)
             ->where('memberships.status', 'active')
             ->orderBy('students.name')
-            ->select('enrollments.id', 'students.name as student_name', 'students.email as student_email')
+            ->select(
+                'enrollments.id',
+                'enrollments.status',
+                'enrollments.source',
+                'enrollments.enrolled_at',
+                'enrollments.access_starts_at',
+                'enrollments.access_ends_at',
+                'enrollments.review_starts_at',
+                'enrollments.review_ends_at',
+                'students.name as student_name',
+                'students.email as student_email'
+            )
             ->get();
 
         return view('course-cohorts.edit', [

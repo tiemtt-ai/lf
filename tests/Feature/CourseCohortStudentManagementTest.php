@@ -194,6 +194,66 @@ class CourseCohortStudentManagementTest extends TestCase
         $this->assertSame(1, DB::table('core_course_cohort_students')->count());
     }
 
+    public function test_membership_detail_has_cancel_and_returns_to_class_students_tab(): void
+    {
+        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $membershipId = $this->createMembership($customerId, $cohortId, $enrollmentId, $productId, $student->id);
+        $returnUrl = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=students";
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohort-students/{$membershipId}")
+            ->assertOk()
+            ->assertSee('course-cohort-student-detail', false)
+            ->assertSeeText(__('lf.LF_common_button_cancel'))
+            ->assertSeeText(__('lf.LF_course_cohort_student_back_to_class_students'))
+            ->assertSee($returnUrl, false)
+            ->assertSeeText('ENR-'.str_pad((string) $enrollmentId, 6, '0', STR_PAD_LEFT));
+
+        DB::table('core_course_cohort_students')->where('id', $membershipId)->update([
+            'status' => 'removed',
+            'left_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohort-students/{$membershipId}")
+            ->assertOk()
+            ->assertDontSee(route('admin.course-cohort-students.edit', $membershipId), false)
+            ->assertDontSee(route('admin.course-cohort-students.archive', $membershipId), false);
+    }
+
+    public function test_membership_edit_uses_standard_layout_and_only_exposes_effective_fields(): void
+    {
+        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $membershipId = $this->createMembership($customerId, $cohortId, $enrollmentId, $productId, $student->id);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohort-students/{$membershipId}/edit")
+            ->assertOk()
+            ->assertSee('admin-form-surface course-cohort-student-edit', false)
+            ->assertSee('course-cohort-student-edit-context-grid', false)
+            ->assertSee('name="cohort_id"', false)
+            ->assertSee('name="joined_at"', false)
+            ->assertSee('name="transfer_reason"', false)
+            ->assertSee('name="note"', false)
+            ->assertSee('name="status" value="active"', false)
+            ->assertDontSee('name="left_at"', false)
+            ->assertSeeText(__('lf.LF_common_button_cancel'))
+            ->assertSeeText(__('lf.LF_common_button_save_changes'));
+
+        DB::table('core_course_cohort_students')->where('id', $membershipId)->update([
+            'status' => 'removed',
+            'left_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohort-students/{$membershipId}/edit")
+            ->assertStatus(422);
+    }
+
     public function test_tenant_isolation_on_list_detail_update_and_archive(): void
     {
         [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
@@ -354,7 +414,15 @@ class CourseCohortStudentManagementTest extends TestCase
         $this->actingAs($admin)
             ->getJson("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/search")
             ->assertOk()
-            ->assertJsonFragment(['id' => $eligibleId, 'email' => $student->email])
+            ->assertJsonFragment([
+                'id' => $eligibleId,
+                'email' => $student->email,
+                'code' => 'ENR-'.str_pad((string) $eligibleId, 6, '0', STR_PAD_LEFT),
+                'status' => 'active',
+                'status_label' => 'Hoạt động',
+                'source_label' => 'Quản trị viên',
+                'detail_url' => route('admin.course-enrollments.show', $eligibleId),
+            ])
             ->assertJsonMissing(['email' => $assignedStudent->email])
             ->assertJsonMissing(['email' => $otherStudent->email]);
 
@@ -457,17 +525,34 @@ class CourseCohortStudentManagementTest extends TestCase
         $newStudent = $this->createUser($customerId, 'student');
         $newEnrollmentId = $this->createEnrollment($customerId, $newStudent->id, $productId, $versionId);
 
-        $this->actingAs($admin)
+        $studentTab = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/edit?tab=students")
             ->assertOk()
             ->assertSeeText('Quản lý học viên')
+            ->assertSeeText('Xem ghi danh')
+            ->assertSeeText('Thông tin ghi danh')
+            ->assertSeeText('Ghi danh cho')
+            ->assertSeeText('Lớp hiện tại')
+            ->assertSeeText('Xem chi tiết đầy đủ')
+            ->assertSee('cohort-enrollment-detail-modal', false)
+            ->assertSee(':href="detail?.detail_url"', false)
+            ->assertSee(route('admin.course-cohorts.show', ['id' => $cohortId, 'tab' => 'students']), false)
             ->assertSee("/admin/course-cohorts/{$cohortId}/students", false);
+
+        $this->assertStringContainsString('openDetail(item, event)', $studentTab->getContent());
+        $this->assertStringContainsString('x-on:keydown.escape.window="if (detail) closeDetail()"', $studentTab->getContent());
+        $this->assertStringContainsString("replace(':count', this.removedCount())", $studentTab->getContent());
+        $this->assertStringContainsString(
+            'Ghi danh, quyền học và tiến độ của học viên không bị xóa.',
+            __('lf.LF_course_cohort_student_sync_remove_confirm')
+        );
 
         $this->actingAs($admin)
             ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students", [
                 'enrollment_ids' => [$newEnrollmentId],
             ])
-            ->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/edit?tab=students");
+            ->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=students")
+            ->assertSessionHas('success', 'Danh sách học viên của lớp đã được cập nhật.');
 
         $this->assertDatabaseHas('core_course_cohort_students', [
             'id' => $currentMembershipId,
@@ -480,6 +565,51 @@ class CourseCohortStudentManagementTest extends TestCase
             'status' => 'active',
         ]);
         $this->assertSame('active', DB::table('core_course_enrollments')->where('id', $currentEnrollmentId)->value('status'));
+    }
+
+    public function test_removed_student_can_be_selected_again_and_reactivates_the_same_membership(): void
+    {
+        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId, capacity: 2);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $membershipId = $this->createMembership(
+            $customerId, $cohortId, $enrollmentId, $productId, $student->id
+        );
+
+        DB::table('core_course_cohort_students')
+            ->where('id', $membershipId)
+            ->update(['status' => 'removed', 'left_at' => now()]);
+
+        $this->actingAs($admin)
+            ->getJson("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/search?manage=1")
+            ->assertOk()
+            ->assertJsonFragment([
+                'id' => $enrollmentId,
+                'email' => $student->email,
+                'current' => false,
+            ]);
+
+        $this->actingAs($admin)
+            ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students", [
+                'enrollment_ids' => [$enrollmentId],
+            ])
+            ->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=students");
+
+        $this->assertDatabaseHas('core_course_cohort_students', [
+            'id' => $membershipId,
+            'customer_id' => $customerId,
+            'cohort_id' => $cohortId,
+            'enrollment_id' => $enrollmentId,
+            'status' => 'active',
+            'left_at' => null,
+        ]);
+        $this->assertSame(
+            1,
+            DB::table('core_course_cohort_students')
+                ->where('customer_id', $customerId)
+                ->where('enrollment_id', $enrollmentId)
+                ->count()
+        );
     }
 
     public function test_student_tab_search_includes_current_members_when_class_is_full(): void
@@ -509,7 +639,14 @@ class CourseCohortStudentManagementTest extends TestCase
             ->assertSeeText('Học viên lớp học')
             ->assertSeeText($student->name)
             ->assertSeeText('ENR-'.str_pad((string) $enrollmentId, 6, '0', STR_PAD_LEFT))
-            ->assertSee(route('admin.course-cohort-students.show', $membershipId), false)
+            ->assertSeeText('Xem ghi danh')
+            ->assertDontSeeText('Xem phân lớp')
+            ->assertSee('cohort-student-list-filter', false)
+            ->assertSee('cohort-student-list-table', false)
+            ->assertSee('cohort-enrollment-detail-modal', false)
+            ->assertSee('data-label="Học viên"', false)
+            ->assertDontSee('class="admin-table-sequence"', false)
+            ->assertDontSee(route('admin.course-cohort-students.show', $membershipId), false)
             ->assertSee(route('admin.course-cohorts.edit', ['id' => $cohortId, 'tab' => 'students']), false)
             ->assertDontSee('name="enrollment_ids[]"', false);
 
@@ -519,6 +656,7 @@ class CourseCohortStudentManagementTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=students&student_keyword=missing")
             ->assertOk()
             ->assertSeeText('1/12')
+            ->assertSeeText('Không tìm thấy học viên phù hợp.')
             ->assertDontSeeText($student->email);
     }
 
