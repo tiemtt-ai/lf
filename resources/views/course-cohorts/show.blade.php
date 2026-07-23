@@ -4,6 +4,7 @@
 @section('page_title', __('lf.LF_course_cohort_common_detail'))
 
 @section('content')
+    @php($activeTab = request('tab') === 'students' ? 'students' : 'overview')
     @if (session('success'))
         <div class="admin-alert admin-alert-success">
             {{ session('success') }}
@@ -23,8 +24,12 @@
     @endif
 
     <nav class="admin-form-actions" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
-        <a class="btn btn-primary" href="#overview">{{ __('lf.LF_course_cohort_tab_overview') }}</a>
-        <a class="btn btn-secondary" href="{{ route('admin.course-cohort-students.index', ['cohort_id' => $cohort->id]) }}">
+        <a @class(['btn', 'btn-primary' => $activeTab === 'overview', 'btn-secondary' => $activeTab !== 'overview'])
+           href="{{ route($routePrefix.'.show', $cohort->id) }}" @if($activeTab === 'overview') aria-current="page" @endif>
+            {{ __('lf.LF_course_cohort_tab_overview') }}
+        </a>
+        <a @class(['btn', 'btn-primary' => $activeTab === 'students', 'btn-secondary' => $activeTab !== 'students'])
+           href="{{ route($routePrefix.'.show', ['id' => $cohort->id, 'tab' => 'students']) }}" @if($activeTab === 'students') aria-current="page" @endif>
             {{ __('lf.LF_course_cohort_tab_students') }} ({{ $activeMembershipCount }}/{{ $cohort->capacity ?? '∞' }})
         </a>
     </nav>
@@ -36,8 +41,8 @@
         </a>
         <div class="cohort-detail-action-group">
             @if (in_array($cohort->status, ['draft', 'active'], true))
-                <a href="{{ route($routePrefix.'.edit', $cohort->id) }}" class="btn btn-primary">
-                    {{ __('lf.LF_course_cohort_action_edit') }}
+                <a href="{{ route($routePrefix.'.edit', $activeTab === 'students' ? ['id' => $cohort->id, 'tab' => 'students'] : $cohort->id) }}" class="btn btn-primary">
+                    {{ $activeTab === 'students' ? __('lf.LF_course_cohort_student_manage_heading') : __('lf.LF_course_cohort_action_edit') }}
                 </a>
             @endif
             @if ($cohort->status === 'draft')
@@ -87,6 +92,7 @@
         </div>
     </div>
 
+    @if ($activeTab === 'overview')
     <div id="overview" class="admin-card admin-form-card admin-form-surface course-cohort-detail">
         <div class="admin-form-standard">
             <section class="admin-form-standard-section" aria-labelledby="cohort-show-information">
@@ -169,4 +175,59 @@
             </section>
         </div>
     </div>
+    @else
+    <div class="admin-card admin-form-card admin-form-surface course-cohort-students-readonly">
+        <div class="admin-form-standard">
+            <section class="admin-form-standard-section" aria-labelledby="cohort-show-students">
+                <header class="admin-form-section-header">
+                    <h2 id="cohort-show-students" class="admin-form-section-title">{{ __('lf.LF_course_cohort_student_common_title') }}</h2>
+                    <p class="admin-form-section-help">{{ __('lf.LF_course_cohort_student_view_help') }}</p>
+                </header>
+
+                <form method="GET" action="{{ route($routePrefix.'.show', $cohort->id) }}" class="admin-form-stack">
+                    <input type="hidden" name="tab" value="students">
+                    <div class="lf-form-group admin-form-field--full">
+                        <label class="lf-form-label" for="student_keyword">{{ __('lf.LF_course_cohort_student_common_keyword') }}</label>
+                        <input id="student_keyword" type="search" name="student_keyword" class="lf-form-control"
+                               value="{{ $studentKeyword }}" placeholder="{{ __('lf.LF_course_cohort_student_search_placeholder') }}">
+                    </div>
+                    <div class="admin-form-actions">
+                        <button type="submit" class="btn btn-primary">{{ __('lf.LF_common_button_search') }}</button>
+                        @if ($studentKeyword !== '')
+                            <a href="{{ route($routePrefix.'.show', ['id' => $cohort->id, 'tab' => 'students']) }}">{{ __('lf.LF_course_cohort_student_common_clear_filters') }}</a>
+                        @endif
+                    </div>
+                </form>
+
+                <div class="admin-table-wrap">
+                    <table class="table">
+                        <thead><tr>
+                            <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
+                            <th>{{ __('lf.LF_course_cohort_student_common_student') }}</th>
+                            <th>{{ __('lf.LF_course_cohort_student_common_enrollment') }}</th>
+                            <th>{{ __('lf.LF_course_cohort_student_common_joined_at') }}</th>
+                            <th>{{ __('lf.table_actions') }}</th>
+                        </tr></thead>
+                        <tbody>
+                        @forelse ($students as $student)
+                            <tr>
+                                <td class="admin-table-sequence">{{ $students->firstItem() + $loop->index }}</td>
+                                <td><strong>{{ $student->student_name }}</strong><br><small>{{ $student->student_email }}</small></td>
+                                <td>ENR-{{ str_pad((string) $student->enrollment_id, 6, '0', STR_PAD_LEFT) }}</td>
+                                <td>{{ $student->joined_at }}</td>
+                                <td><a class="admin-table-action-link admin-text-action" href="{{ route('admin.course-cohort-students.show', $student->membership_id) }}">{{ __('lf.action_view') }}</a></td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="5">{{ __('lf.LF_course_cohort_student_common_empty') }}</td></tr>
+                        @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                @if ($students->hasPages())
+                    <div class="admin-pagination">{{ $students->links() }}</div>
+                @endif
+            </section>
+        </div>
+    </div>
+    @endif
 @endsection

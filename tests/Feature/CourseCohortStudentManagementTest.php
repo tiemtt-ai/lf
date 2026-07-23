@@ -39,7 +39,7 @@ class CourseCohortStudentManagementTest extends TestCase
             $this->assertFalse(Route::has("teacher.course-cohort-students.{$route}"));
         }
 
-        foreach (['create', 'search', 'store'] as $route) {
+        foreach (['create', 'search', 'store', 'sync'] as $route) {
             $this->assertTrue(Route::has("admin.course-cohorts.students.{$route}"));
         }
     }
@@ -444,6 +444,106 @@ class CourseCohortStudentManagementTest extends TestCase
     {
         $this->assertFileDoesNotExist(app_path('Models/CoreCourseCohortStudent.php'));
         $this->assertFileDoesNotExist(app_path('Models/CourseCohortStudent.php'));
+    }
+
+    public function test_edit_class_student_tab_can_add_and_remove_students_atomically(): void
+    {
+        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId, capacity: 2);
+        $currentEnrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $currentMembershipId = $this->createMembership(
+            $customerId, $cohortId, $currentEnrollmentId, $productId, $student->id
+        );
+        $newStudent = $this->createUser($customerId, 'student');
+        $newEnrollmentId = $this->createEnrollment($customerId, $newStudent->id, $productId, $versionId);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/edit?tab=students")
+            ->assertOk()
+            ->assertSeeText('Quản lý học viên')
+            ->assertSee("/admin/course-cohorts/{$cohortId}/students", false);
+
+        $this->actingAs($admin)
+            ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students", [
+                'enrollment_ids' => [$newEnrollmentId],
+            ])
+            ->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/edit?tab=students");
+
+        $this->assertDatabaseHas('core_course_cohort_students', [
+            'id' => $currentMembershipId,
+            'status' => 'removed',
+        ]);
+        $this->assertDatabaseHas('core_course_cohort_students', [
+            'customer_id' => $customerId,
+            'cohort_id' => $cohortId,
+            'enrollment_id' => $newEnrollmentId,
+            'status' => 'active',
+        ]);
+        $this->assertSame('active', DB::table('core_course_enrollments')->where('id', $currentEnrollmentId)->value('status'));
+    }
+
+    public function test_student_tab_search_includes_current_members_when_class_is_full(): void
+    {
+        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId, capacity: 1);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $this->createMembership($customerId, $cohortId, $enrollmentId, $productId, $student->id);
+
+        $this->actingAs($admin)
+            ->getJson("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/search?manage=1")
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $enrollmentId)
+            ->assertJsonPath('data.0.current', true);
+    }
+
+    public function test_show_class_students_tab_is_read_only_and_links_to_student_management(): void
+    {
+        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId, capacity: 12);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $membershipId = $this->createMembership($customerId, $cohortId, $enrollmentId, $productId, $student->id);
+
+        $response = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=students")
+            ->assertOk()
+            ->assertSeeText('Học viên lớp học')
+            ->assertSeeText($student->name)
+            ->assertSeeText('ENR-'.str_pad((string) $enrollmentId, 6, '0', STR_PAD_LEFT))
+            ->assertSee(route('admin.course-cohort-students.show', $membershipId), false)
+            ->assertSee(route('admin.course-cohorts.edit', ['id' => $cohortId, 'tab' => 'students']), false)
+            ->assertDontSee('name="enrollment_ids[]"', false);
+
+        $response->assertSeeText('1/12');
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=students&student_keyword=missing")
+            ->assertOk()
+            ->assertSeeText('1/12')
+            ->assertDontSeeText($student->email);
+    }
+
+    public function test_student_sync_rejects_an_enrollment_from_another_tenant(): void
+    {
+        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId);
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $otherStudent = $this->createUser($otherCustomerId, 'student');
+        $otherProductId = $this->createProduct($otherCustomerId, 'Other Product', 'other-product');
+        $otherVersionId = $this->createVersion($otherCustomerId, $otherStudent->id, 'Other Product');
+        $otherEnrollmentId = $this->createEnrollment(
+            $otherCustomerId, $otherStudent->id, $otherProductId, $otherVersionId
+        );
+
+        $this->actingAs($admin)
+            ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students", [
+                'enrollment_ids' => [$otherEnrollmentId],
+            ])
+            ->assertSessionHasErrors('enrollment_ids.0');
+
+        $this->assertDatabaseMissing('core_course_cohort_students', [
+            'customer_id' => $customerId,
+            'enrollment_id' => $otherEnrollmentId,
+        ]);
     }
 
     public function test_membership_requires_active_enrollment_active_cohort_and_capacity(): void

@@ -71,6 +71,9 @@ if ($registerCourseProductRoutes ?? false) {
     Route::post('/course-cohorts/{cohort}/students', [CourseCohortStudentController::class, 'store'])
         ->name('course-cohorts.students.store');
 
+    Route::put('/course-cohorts/{cohort}/students', [CourseCohortStudentController::class, 'sync'])
+        ->name('course-cohorts.students.sync');
+
     Route::get('/course-cohort-students', [CourseCohortStudentController::class, 'index'])
         ->name('course-cohort-students.index');
 

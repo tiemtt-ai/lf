@@ -128,13 +128,47 @@ class CourseCohortController extends Controller
     public function show(Request $request, int $id): View
     {
         $this->authorizeAdmin($request);
-        $cohort = $this->findCohort($this->customerId(), $id);
+        $customerId = $this->customerId();
+        $cohort = $this->findCohort($customerId, $id);
+        $studentKeyword = trim((string) $request->query('student_keyword', ''));
+        $students = DB::table('core_course_cohort_students as memberships')
+            ->join('users as students', function ($join) use ($customerId): void {
+                $join->on('students.id', '=', 'memberships.student_id')
+                    ->where('students.customer_id', $customerId);
+            })
+            ->join('core_course_enrollments as enrollments', function ($join) use ($customerId): void {
+                $join->on('enrollments.id', '=', 'memberships.enrollment_id')
+                    ->where('enrollments.customer_id', $customerId);
+            })
+            ->where('memberships.customer_id', $customerId)
+            ->where('memberships.cohort_id', $id)
+            ->where('memberships.status', 'active')
+            ->when($studentKeyword !== '', function ($query) use ($studentKeyword): void {
+                $query->where(function ($query) use ($studentKeyword): void {
+                    $query->where('students.name', 'like', '%'.$studentKeyword.'%')
+                        ->orWhere('students.email', 'like', '%'.$studentKeyword.'%')
+                        ->orWhere('enrollments.id', preg_replace('/\D+/', '', $studentKeyword) ?: 0);
+                });
+            })
+            ->orderBy('students.name')
+            ->orderBy('memberships.id')
+            ->select(
+                'memberships.id as membership_id',
+                'memberships.joined_at',
+                'enrollments.id as enrollment_id',
+                'students.name as student_name',
+                'students.email as student_email'
+            )
+            ->paginate(10, ['*'], 'student_page')
+            ->withQueryString();
 
         return view('course-cohorts.show', [
             'cohort' => $cohort,
             'activeMembershipCount' => DB::table('core_course_cohort_students')
-                ->where('customer_id', $this->customerId())->where('cohort_id', $id)
+                ->where('customer_id', $customerId)->where('cohort_id', $id)
                 ->where('status', 'active')->count(),
+            'students' => $students,
+            'studentKeyword' => $studentKeyword,
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -146,8 +180,26 @@ class CourseCohortController extends Controller
         $customerId = $this->customerId();
         $cohort = $this->findCohort($customerId, $id);
 
+        $selectedEnrollments = DB::table('core_course_cohort_students as memberships')
+            ->join('core_course_enrollments as enrollments', function ($join) use ($customerId): void {
+                $join->on('enrollments.id', '=', 'memberships.enrollment_id')
+                    ->where('enrollments.customer_id', $customerId);
+            })
+            ->join('users as students', function ($join) use ($customerId): void {
+                $join->on('students.id', '=', 'memberships.student_id')
+                    ->where('students.customer_id', $customerId);
+            })
+            ->where('memberships.customer_id', $customerId)
+            ->where('memberships.cohort_id', $id)
+            ->where('memberships.status', 'active')
+            ->orderBy('students.name')
+            ->select('enrollments.id', 'students.name as student_name', 'students.email as student_email')
+            ->get();
+
         return view('course-cohorts.edit', [
             'cohort' => $cohort,
+            'selectedEnrollments' => $selectedEnrollments,
+            'activeMembershipCount' => $selectedEnrollments->count(),
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
