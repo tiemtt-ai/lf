@@ -1584,8 +1584,12 @@
 }
 
 .media-library-table.media-library-index-table {
-    min-width: 1380px;
+    min-width: 1040px;
     table-layout: fixed;
+}
+
+.media-library-index-table .admin-table-sequence {
+    width: 88px;
 }
 
 .lf-admin-page .media-library-index-table th,
@@ -1596,27 +1600,33 @@
 
 .media-library-index-table th:nth-child(2),
 .media-library-index-table td:nth-child(2) {
-    width: 110px;
+    width: 32%;
 }
 
 .media-library-index-table th:nth-child(3),
 .media-library-index-table td:nth-child(3) {
-    width: 220px;
+    width: 150px;
+    text-align: left;
 }
 
-.media-library-index-table th:nth-child(9),
-.media-library-index-table td:nth-child(9) {
-    width: 220px;
+.media-library-index-table th:nth-child(4),
+.media-library-index-table td:nth-child(4) {
+    width: 170px;
+}
+
+.media-library-index-table th:nth-child(5),
+.media-library-index-table td:nth-child(5) {
+    width: 30%;
 }
 
 .media-library-index-table .media-library-index-actions {
-    width: 96px;
     position: sticky;
-    right: 0;
     z-index: 2;
+    right: 0;
+    width: 156px;
     background: #ffffff;
     box-shadow: -1px 0 0 #e5e7eb;
-    text-align: right;
+    text-align: center;
 }
 
 .media-library-index-table thead .media-library-index-actions {

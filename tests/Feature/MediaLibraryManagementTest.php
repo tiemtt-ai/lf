@@ -62,15 +62,36 @@ class MediaLibraryManagementTest extends TestCase
             ->assertOk()
             ->assertSeeText(__('lf.LF_media_file_common_title'))
             ->assertSeeText(__('lf.LF_navigation_menu_admin_media'))
+            ->assertSee('media-library-filter-grid', false)
             ->assertSee('media-library-index-table', false)
             ->assertSee('media-library-index-actions', false)
+            ->assertSee('media-library-preview-button', false)
+            ->assertDontSee('name="type"', false)
+            ->assertSeeTextInOrder([
+                __('lf.LF_media_file_common_owner_type'),
+                __('lf.LF_media_file_common_usage_type'),
+                __('lf.LF_media_file_usage_status'),
+            ])
             ->assertSeeText('TOPIK Beginner')
-            ->assertSeeText('Course Category')
-            ->assertSeeText('Thumbnail')
-            ->assertSeeText('Banner Image');
+            ->assertSeeText(__('lf.LF_media_usage_label_course_category'))
+            ->assertSeeText(__('lf.LF_media_usage_label_thumbnail'))
+            ->assertSeeText(__('lf.LF_media_usage_label_banner_image'));
 
         $this->assertSame(2, DB::table('media_files')->where('customer_id', $customerId)->count());
         $this->assertSame(2, DB::table('media_file_usages')->where('customer_id', $customerId)->count());
+    }
+
+    public function test_media_library_uses_standard_empty_state(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/media')
+            ->assertOk()
+            ->assertSee('media-library-empty-state', false)
+            ->assertSeeText(__('lf.LF_media_file_common_empty'))
+            ->assertSeeText(__('lf.LF_media_file_empty_help'));
     }
 
     public function test_media_library_tabs_filter_file_types(): void
@@ -97,7 +118,7 @@ class MediaLibraryManagementTest extends TestCase
             ->get('https://tenant-a.localhost/admin/media?tab=videos')
             ->assertOk()
             ->assertSeeText('Video Asset')
-            ->assertSeeText(__('lf.LF_media_file_common_preview_action'))
+            ->assertSee('media-library-preview-button', false)
             ->assertSeeText('Video')
             ->assertSee('expiration=', false)
             ->assertSee('media\\/files\\/', false)
@@ -126,7 +147,7 @@ class MediaLibraryManagementTest extends TestCase
             ->get('https://tenant-a.localhost/admin/media?tab=videos')
             ->assertOk()
             ->assertSeeText('Preview Video')
-            ->assertSeeText(__('lf.LF_media_file_common_preview_action'))
+            ->assertSee('media-library-preview-button', false)
             ->assertSeeText('Video')
             ->assertSee('expiration=', false)
             ->assertSee('media\\/files\\/'.$mediaFile->id.'\\/signed', false)
@@ -138,10 +159,9 @@ class MediaLibraryManagementTest extends TestCase
 
         $this->assertSame(0, $this->tableMediaElementCount($response->getContent(), 'video'));
         $this->assertSame(0, $this->tableMediaElementCount($response->getContent(), 'img'));
-        $this->assertSame(1, $this->mediaLibraryPreviewActionCount($response->getContent(), 2));
-        $this->assertSame(0, $this->mediaLibraryPreviewActionCount($response->getContent(), 3));
-        $this->assertSame(0, $this->mediaLibraryPreviewActionInsideThumbnailCount($response->getContent()));
-        $this->assertMediaLibraryPreviewActionCssUsesFlowLayout();
+        $this->assertSame(1, $this->mediaLibraryPreviewButtonCount($response->getContent(), 2));
+        $this->assertSame(0, $this->mediaLibraryPreviewButtonCount($response->getContent(), 3));
+        $this->assertMediaLibraryPreviewButtonCss();
         $this->assertSame(1, substr_count($response->getContent(), '<video'));
         $this->assertStringContainsString('this.resetMediaPreview()', $response->getContent());
         $this->assertStringContainsString('this.$refs.videoPreviewSource?.setAttribute(\'src\', url)', $response->getContent());
@@ -197,7 +217,7 @@ class MediaLibraryManagementTest extends TestCase
             ->get('https://tenant-a.localhost/admin/media?tab=images')
             ->assertOk()
             ->assertSeeText('Preview Image')
-            ->assertSeeText(__('lf.LF_media_file_common_preview_action'))
+            ->assertSee('media-library-preview-button', false)
             ->assertSee('media\\/files\\/'.$mediaFile->id.'\\/signed', false)
             ->assertSee('openMediaPreview(', false)
             ->assertSee('loading="lazy"', false)
@@ -211,10 +231,9 @@ class MediaLibraryManagementTest extends TestCase
 
         $this->assertSame(1, $this->tableMediaElementCount($response->getContent(), 'img'));
         $this->assertSame(0, $this->tableMediaElementCount($response->getContent(), 'video'));
-        $this->assertSame(1, $this->mediaLibraryPreviewActionCount($response->getContent(), 2));
-        $this->assertSame(0, $this->mediaLibraryPreviewActionCount($response->getContent(), 3));
-        $this->assertSame(0, $this->mediaLibraryPreviewActionInsideThumbnailCount($response->getContent()));
-        $this->assertMediaLibraryPreviewActionCssUsesFlowLayout();
+        $this->assertSame(1, $this->mediaLibraryPreviewButtonCount($response->getContent(), 2));
+        $this->assertSame(0, $this->mediaLibraryPreviewButtonCount($response->getContent(), 3));
+        $this->assertMediaLibraryPreviewButtonCss();
         $this->assertStringContainsString('preview.mediaType === \'image\'', $response->getContent());
 
         $signedUrl = app(MediaService::class)->generateSignedUrl((int) $mediaFile->id);
@@ -240,7 +259,7 @@ class MediaLibraryManagementTest extends TestCase
             ->length;
     }
 
-    private function mediaLibraryPreviewActionCount(string $html, int $columnIndex): int
+    private function mediaLibraryPreviewButtonCount(string $html, int $columnIndex): int
     {
         $previous = libxml_use_internal_errors(true);
         $document = new \DOMDocument;
@@ -251,37 +270,17 @@ class MediaLibraryManagementTest extends TestCase
         return (new \DOMXPath($document))
             ->query(
                 '//tbody/tr/td['.$columnIndex.']'
-                .'//*[contains(concat(" ", normalize-space(@class), " "), " media-library-preview-action ")]'
+                .'//*[contains(concat(" ", normalize-space(@class), " "), " media-library-preview-button ")]'
             )
             ->length;
     }
 
-    private function mediaLibraryPreviewActionInsideThumbnailCount(string $html): int
-    {
-        $previous = libxml_use_internal_errors(true);
-        $document = new \DOMDocument;
-        $document->loadHTML($html);
-        libxml_clear_errors();
-        libxml_use_internal_errors($previous);
-
-        return (new \DOMXPath($document))
-            ->query(
-                '//*[contains(concat(" ", normalize-space(@class), " "), " media-library-preview ")]'
-                .'//*[contains(concat(" ", normalize-space(@class), " "), " media-library-preview-action ")]'
-            )
-            ->length;
-    }
-
-    private function assertMediaLibraryPreviewActionCssUsesFlowLayout(): void
+    private function assertMediaLibraryPreviewButtonCss(): void
     {
         $css = file_get_contents(base_path('resources/css/admin/admin-pages.css'));
 
-        $this->assertStringContainsString('.media-library-preview-cell', $css);
-        $this->assertStringContainsString('flex-direction: column;', $css);
-        $this->assertStringContainsString('align-items: center;', $css);
-        $this->assertStringContainsString('gap: 6px;', $css);
-        $this->assertStringContainsString('.media-library-preview-action', $css);
-        $this->assertStringNotContainsString('.media-library-preview-action {'."\n".'    position: absolute;', $css);
+        $this->assertStringContainsString('.media-library-preview-button {', $css);
+        $this->assertStringContainsString('.media-library-preview-button:focus-visible {', $css);
     }
 
     public function test_media_library_filters_by_owner_and_usage_type(): void
@@ -389,6 +388,138 @@ class MediaLibraryManagementTest extends TestCase
         Storage::disk('media_local')->assertExists($mediaFile->storage_key);
     }
 
+    public function test_media_library_filters_by_usage_status(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+
+        $this->uploadManagedMedia(
+            $admin,
+            'Used Filter Image',
+            'image',
+            'used-filter.png',
+            'course_category',
+            101,
+            'thumbnail'
+        );
+        $this->uploadUnattachedMedia(
+            $admin,
+            'Unused Filter Document',
+            'document',
+            'unused-filter.pdf'
+        );
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/media?usage_status=in_use')
+            ->assertOk()
+            ->assertSeeText('Used Filter Image')
+            ->assertDontSeeText('Unused Filter Document');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/media?usage_status=unused')
+            ->assertOk()
+            ->assertSeeText('Unused Filter Document')
+            ->assertDontSeeText('Used Filter Image')
+            ->assertSee('media-library-selection-checkbox', false)
+            ->assertSeeText(__('lf.LF_media_file_bulk_delete'));
+    }
+
+    public function test_can_bulk_delete_unused_media_files(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+
+        $first = $this->uploadUnattachedMedia($admin, 'Bulk First', 'image', 'bulk-first.png');
+        $second = $this->uploadUnattachedMedia($admin, 'Bulk Second', 'document', 'bulk-second.pdf');
+
+        $this->actingAs($admin)
+            ->delete('https://tenant-a.localhost/admin/media/bulk', [
+                'media_ids' => [$first->id, $second->id],
+            ])
+            ->assertRedirect('https://tenant-a.localhost/admin/media?usage_status=unused')
+            ->assertSessionHas(
+                'success',
+                trans_choice('lf.LF_media_file_bulk_deleted', 2, ['count' => 2])
+            );
+
+        foreach ([$first, $second] as $mediaFile) {
+            $this->assertDatabaseHas('media_files', [
+                'id' => $mediaFile->id,
+                'customer_id' => $customerId,
+                'status' => 'deleted',
+            ]);
+            Storage::disk('media_local')->assertMissing($mediaFile->storage_key);
+        }
+    }
+
+    public function test_bulk_delete_is_atomic_when_selection_contains_used_media(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+
+        $unused = $this->uploadUnattachedMedia($admin, 'Bulk Unused', 'document', 'bulk-unused.pdf');
+        $used = $this->uploadManagedMedia(
+            $admin,
+            'Bulk Used',
+            'image',
+            'bulk-used.png',
+            'course_category',
+            102,
+            'thumbnail'
+        );
+
+        $this->actingAs($admin)
+            ->delete('https://tenant-a.localhost/admin/media/bulk', [
+                'media_ids' => [$unused->id, $used->id],
+            ])
+            ->assertSessionHasErrors('media_ids');
+
+        foreach ([$unused, $used] as $mediaFile) {
+            $this->assertDatabaseHas('media_files', [
+                'id' => $mediaFile->id,
+                'customer_id' => $customerId,
+                'status' => 'ready',
+            ]);
+            Storage::disk('media_local')->assertExists($mediaFile->storage_key);
+        }
+    }
+
+    public function test_bulk_delete_rejects_media_from_another_tenant_without_partial_delete(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
+
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+        $ownMedia = $this->uploadUnattachedMedia($admin, 'Own Bulk Media', 'image', 'own-bulk.png');
+
+        $this->actingAs($otherAdmin);
+        TenantContext::set((object) ['id' => $otherCustomerId]);
+        $otherMedia = $this->uploadUnattachedMedia($otherAdmin, 'Other Bulk Media', 'image', 'other-bulk.png');
+
+        $this->actingAs($admin)
+            ->delete('https://tenant-a.localhost/admin/media/bulk', [
+                'media_ids' => [$ownMedia->id, $otherMedia->id],
+            ])
+            ->assertSessionHasErrors('media_ids');
+
+        foreach ([$ownMedia, $otherMedia] as $mediaFile) {
+            $this->assertDatabaseHas('media_files', [
+                'id' => $mediaFile->id,
+                'status' => 'ready',
+            ]);
+            Storage::disk('media_local')->assertExists($mediaFile->storage_key);
+        }
+    }
+
     public function test_can_delete_unused_media_file(): void
     {
         $customerId = $this->createTenant();
@@ -407,7 +538,10 @@ class MediaLibraryManagementTest extends TestCase
             ->get('https://tenant-a.localhost/admin/media')
             ->assertOk()
             ->assertSeeText('Unused Image')
-            ->assertSee("admin/media/{$mediaFile->id}", false);
+            ->assertSee("admin/media/{$mediaFile->id}", false)
+            ->assertSeeText(__('lf.LF_media_file_common_delete_confirm'))
+            ->assertSeeText(__('lf.LF_media_file_delete_confirm_warning'))
+            ->assertDontSee('onclick="return confirm', false);
 
         $this->actingAs($admin)
             ->delete("https://tenant-a.localhost/admin/media/{$mediaFile->id}")

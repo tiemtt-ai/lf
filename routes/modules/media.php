@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/media', [MediaFileController::class, 'index'])
     ->name('media.index');
 
+Route::delete('/media/bulk', [MediaFileController::class, 'bulkDestroy'])
+    ->name('media.bulk-destroy');
+
 Route::delete('/media/{id}', [MediaFileController::class, 'destroy'])
     ->name('media.destroy');
 

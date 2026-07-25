@@ -104,7 +104,7 @@
             </div>
 
             <div class="course-enrollment-filter-toggle">
-                <button type="button" class="admin-text-action" x-on:click="advancedFiltersOpen = !advancedFiltersOpen" :aria-expanded="advancedFiltersOpen.toString()" aria-controls="course-enrollment-advanced-filters">
+                <button type="button" class="course-enrollment-filter-toggle-action" x-on:click="advancedFiltersOpen = !advancedFiltersOpen" :aria-expanded="advancedFiltersOpen.toString()" aria-controls="course-enrollment-advanced-filters">
                     <span x-show="!advancedFiltersOpen">{{ __('lf.LF_course_enrollment_filter_show_advanced') }}</span>
                     <span x-cloak x-show="advancedFiltersOpen">{{ __('lf.LF_course_enrollment_filter_hide_advanced') }}</span>
                     <span aria-hidden="true" x-text="advancedFiltersOpen ? '−' : '+'"></span>
@@ -114,9 +114,17 @@
             <div id="course-enrollment-advanced-filters" x-cloak x-show="advancedFiltersOpen" class="course-enrollment-advanced-filter-grid">
                 <div class="lf-form-group"><label class="lf-form-label" for="product_id">{{ __('lf.LF_course_enrollment_common_product') }}</label><select id="product_id" name="product_id" class="lf-form-control"><option value="">{{ __('lf.LF_course_enrollment_filter_all_products') }}</option>@foreach ($filterProducts as $product)<option value="{{ $product->id }}" @selected($productId === $product->id)>{{ $product->title }} · {{ $product->product_code }}</option>@endforeach</select></div>
                 <div class="lf-form-group"><label class="lf-form-label" for="student_id">{{ __('lf.LF_course_enrollment_common_student') }}</label><select id="student_id" name="student_id" class="lf-form-control"><option value="">{{ __('lf.LF_course_enrollment_filter_all_students') }}</option>@foreach ($filterStudents as $student)<option value="{{ $student->id }}" @selected($studentId === $student->id)>{{ $student->name }} · {{ $student->email }}</option>@endforeach</select></div>
-                <div class="lf-form-group"><label class="lf-form-label" for="enrolled_from">{{ __('lf.LF_course_enrollment_filter_from') }}</label><input id="enrolled_from" name="enrolled_from" type="date" class="lf-form-control" value="{{ $enrolledFrom }}"></div>
-                <div class="lf-form-group"><label class="lf-form-label" for="enrolled_to">{{ __('lf.LF_course_enrollment_filter_to') }}</label><input id="enrolled_to" name="enrolled_to" type="date" class="lf-form-control" value="{{ $enrolledTo }}"></div>
                 <div class="lf-form-group"><label class="lf-form-label" for="enrolled_by">{{ __('lf.LF_course_enrollment_filter_creator') }}</label><select id="enrolled_by" name="enrolled_by" class="lf-form-control"><option value="">{{ __('lf.LF_course_enrollment_filter_all_creators') }}</option>@foreach ($filterCreators as $creator)<option value="{{ $creator->id }}" @selected($enrolledBy === $creator->id)>{{ $creator->name }}</option>@endforeach</select></div>
+                <div class="course-enrollment-date-range">
+                    <div class="lf-form-group">
+                        <label class="lf-form-label" for="enrolled_from">{{ __('lf.LF_course_enrollment_filter_from') }}</label>
+                        <input id="enrolled_from" name="enrolled_from" type="date" class="lf-form-control" value="{{ $enrolledFrom }}">
+                    </div>
+                    <div class="lf-form-group">
+                        <label class="lf-form-label" for="enrolled_to">{{ __('lf.LF_course_enrollment_filter_to') }}</label>
+                        <input id="enrolled_to" name="enrolled_to" type="date" class="lf-form-control" value="{{ $enrolledTo }}">
+                    </div>
+                </div>
             </div>
 
             <div class="admin-form-actions course-enrollment-filter-actions">

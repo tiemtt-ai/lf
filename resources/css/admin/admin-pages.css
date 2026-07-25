@@ -149,6 +149,7 @@
 }
 
 .media-library-tabs {
+    margin-bottom: 16px;
     flex-wrap: wrap;
 }
 
@@ -161,24 +162,92 @@
 
 .media-library-filter-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(3, minmax(190px, 1fr)) auto;
+    align-items: end;
+    gap: 14px;
+}
+
+.media-library-bulk-toolbar {
+    min-height: 52px;
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    border: 1px solid color-mix(in srgb, var(--admin-danger) 22%, var(--admin-border));
+    border-radius: 8px;
+    color: var(--admin-text);
+    background: color-mix(in srgb, var(--admin-danger) 4%, #fff);
+}
+
+.media-library-bulk-toolbar > span {
+    margin-right: auto;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.media-library-sequence-heading,
+.media-library-sequence-cell {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 9px;
+}
+
+.media-library-selection-checkbox {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    margin: 0;
+    accent-color: var(--admin-primary);
+    cursor: pointer;
+}
+
+.media-library-selection-checkbox:focus-visible {
+    outline: 2px solid var(--admin-primary);
+    outline-offset: 2px;
+}
+
+.media-library-selection-placeholder {
+    width: 16px;
+    flex: 0 0 16px;
+}
+
+.media-library-filter-card {
+    margin-bottom: 20px;
+    padding: 16px 18px;
+}
+
+.media-library-filter-grid .lf-form-group {
+    margin: 0;
+}
+
+.media-library-filter-actions {
+    min-height: 42px;
+    margin: 0;
+    align-items: center;
+    flex-wrap: nowrap;
 }
 
 .media-library-table {
-    min-width: 980px;
+    min-width: 900px;
+}
+
+.media-library-media-cell {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 .media-library-preview-cell {
-    width: 72px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
+    width: 64px;
+    min-width: 64px;
 }
 
 .media-library-preview {
-    width: 72px;
+    width: 64px;
     aspect-ratio: 1;
     display: flex;
     align-items: center;
@@ -190,6 +259,26 @@
     background: #f8fafc;
     font-size: 12px;
     text-align: center;
+}
+
+.media-library-preview-button {
+    padding: 0;
+    cursor: pointer;
+}
+
+.media-library-preview-button:hover,
+.media-library-preview-button:focus-visible {
+    border-color: var(--admin-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-primary) 10%, transparent);
+}
+
+.media-library-preview-button:focus-visible {
+    outline: 2px solid var(--admin-primary);
+    outline-offset: 2px;
+}
+
+.media-library-file-information {
+    min-width: 0;
 }
 
 .media-library-file-name {
@@ -220,11 +309,6 @@
 
 .media-library-preview-placeholder-video {
     background: #e5e7eb;
-}
-
-.media-library-preview-action {
-    margin-top: 0;
-    text-align: center;
 }
 
 .media-library-modal {
@@ -290,15 +374,28 @@
 
 .media-library-file-meta {
     margin-top: 3px;
+    display: block;
     color: #64748b;
     font-size: 12px;
     overflow-wrap: anywhere;
 }
 
+.media-library-size-meta,
+.media-library-upload-date {
+    white-space: nowrap;
+}
+
+.media-library-type-label {
+    display: block;
+    color: var(--admin-text);
+    line-height: 1.4;
+}
+
 .media-library-used-by {
     display: grid;
-    gap: 6px;
-    min-width: 180px;
+    gap: 7px;
+    min-width: 0;
+    margin-top: 7px;
 }
 
 .media-library-used-by div {
@@ -310,6 +407,154 @@
 .media-library-used-by span,
 .media-library-used-by em {
     overflow-wrap: anywhere;
+}
+
+.media-library-usage-count {
+    color: var(--admin-text);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.media-library-status-stack {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+}
+
+.media-library-status-stack .admin-danger-text-action {
+    font-weight: 400;
+}
+
+.media-library-status-badge {
+    padding: 4px 8px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+.media-library-status-badge--in-use {
+    color: #166534;
+    background: #dcfce7;
+    font-weight: 400;
+}
+
+.media-library-status-badge--unused {
+    color: #475569;
+    background: #f1f5f9;
+    font-weight: 400;
+}
+
+.admin-modal.media-library-delete-modal {
+    width: min(34rem, 100%);
+    overflow: hidden;
+}
+
+.media-library-delete-modal .admin-modal-header {
+    padding: 16px 18px;
+}
+
+.media-library-delete-modal .admin-modal-header h2 {
+    font-size: 18px;
+    line-height: 1.35;
+}
+
+.media-library-delete-modal .admin-modal-header > div {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.media-library-delete-icon {
+    display: inline-grid;
+    width: 2.25rem;
+    height: 2.25rem;
+    flex: 0 0 2.25rem;
+    place-items: center;
+    border-radius: 50%;
+    color: #b42318;
+    background: #fee4e2;
+    font-weight: 700;
+}
+
+.media-library-delete-close {
+    display: inline-grid;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    place-items: center;
+    border: 1px solid var(--admin-border);
+    border-radius: 0.625rem;
+    color: var(--admin-text-muted);
+    background: #fff;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.media-library-delete-close:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.media-library-delete-body {
+    display: grid;
+    gap: 0.875rem;
+    padding: 20px 18px;
+    color: var(--admin-text);
+}
+
+.media-library-delete-body p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.55;
+}
+
+.media-library-delete-body strong {
+    color: #b42318;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.media-library-delete-modal .admin-form-footer {
+    margin: 0;
+    padding: 14px 18px;
+    background: var(--admin-surface-subtle);
+}
+
+.media-library-delete-modal .admin-form-footer .btn {
+    min-width: 104px;
+}
+
+.media-library-empty-cell {
+    padding: 0 !important;
+}
+
+.media-library-empty-state {
+    display: grid;
+    justify-items: center;
+    gap: 7px;
+    padding: 36px 20px;
+    color: var(--admin-text-muted);
+    text-align: center;
+}
+
+.media-library-empty-state strong {
+    color: var(--admin-text);
+    font-size: 15px;
+}
+
+.media-library-empty-state span {
+    max-width: 480px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.media-library-empty-state .admin-text-action {
+    margin-top: 8px;
 }
 
 .media-library-used-by em {
@@ -1674,7 +1919,109 @@
     }
 
     .media-library-filter-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .media-library-filter-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+    }
+}
+
+@media (max-width: 767px) {
+    .media-library-filter-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .media-library-filter-actions {
+        justify-content: space-between;
+    }
+
+    .media-library-filter-actions .btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .media-library-bulk-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .media-library-bulk-toolbar .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .media-library-index-table-wrap {
+        overflow: visible;
+        border: 0;
+        background: transparent;
+    }
+
+    .media-library-index-table {
+        min-width: 0 !important;
+        display: block;
+    }
+
+    .media-library-index-table thead {
+        display: none;
+    }
+
+    .media-library-index-table tbody {
+        display: grid;
+        gap: 12px;
+    }
+
+    .media-library-index-table tr {
+        display: block;
+        overflow: hidden;
+        border: 1px solid var(--admin-border);
+        border-radius: 10px;
+        background: #ffffff;
+    }
+
+    .lf-admin-page .media-library-index-table td {
+        width: auto;
+        min-width: 0;
+        padding: 11px 14px;
+        display: grid;
+        grid-template-columns: minmax(94px, .42fr) minmax(0, 1fr);
+        gap: 12px;
+        border-bottom: 1px solid #f3f4f6;
+        text-align: left;
+    }
+
+    .media-library-index-table td::before {
+        content: attr(data-label);
+        color: var(--admin-text-muted);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.4;
+    }
+
+    .media-library-index-table .media-library-index-actions {
+        position: static;
+        width: auto;
+        background: #ffffff;
+        box-shadow: none;
+    }
+
+    .admin-table-actions.media-library-index-action-list {
+        justify-content: flex-start;
+    }
+
+    .media-library-empty-row {
+        border: 0 !important;
+    }
+
+    .lf-admin-page .media-library-index-table .media-library-empty-cell {
+        display: block;
+        padding: 0;
+        border: 0;
+    }
+
+    .media-library-empty-cell::before {
+        display: none;
     }
 }
 
@@ -1717,11 +2064,30 @@
     align-items: center;
 }
 
-.course-enrollment-filter-toggle .admin-text-action {
+.course-enrollment-filter-toggle-action {
+    padding: 3px 2px;
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    border: 0;
+    border-radius: 4px;
+    color: var(--admin-primary);
+    background: transparent;
+    font: inherit;
     font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.course-enrollment-filter-toggle-action:hover,
+.course-enrollment-filter-toggle-action:focus,
+.course-enrollment-filter-toggle-action:active {
+    text-decoration: none;
+}
+
+.course-enrollment-filter-toggle-action:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--admin-primary) 55%, transparent);
+    outline-offset: 2px;
 }
 
 .course-enrollment-advanced-filter-grid {
@@ -1731,6 +2097,13 @@
     gap: 14px;
     padding-top: 14px;
     border-top: 1px solid var(--admin-border);
+}
+
+.course-enrollment-date-range {
+    grid-column: 1 / span 2;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
 }
 
 .course-enrollment-version-meta,
@@ -2560,6 +2933,11 @@
     .course-enrollment-filter-grid,
     .course-enrollment-advanced-filter-grid,
     .course-enrollment-bulk-modal__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .course-enrollment-date-range {
+        grid-column: 1;
         grid-template-columns: minmax(0, 1fr);
     }
 

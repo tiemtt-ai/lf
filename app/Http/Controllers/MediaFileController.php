@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\View\View;
 
 class MediaFileController extends Controller
@@ -22,6 +23,8 @@ class MediaFileController extends Controller
     ];
 
     private const FILTER_TYPES = ['image', 'video', 'audio', 'document'];
+
+    private const USAGE_STATUSES = ['in_use', 'unused'];
 
     public function __construct(private readonly MediaService $mediaService) {}
 
@@ -38,9 +41,13 @@ class MediaFileController extends Controller
             $request->query('usage_type'),
             $this->usageOptions($customerId, 'usage_type')->keys()->all()
         );
+        $usageStatus = $this->normalizedValue(
+            $request->query('usage_status'),
+            self::USAGE_STATUSES
+        );
         $fileType = $type ?? self::TAB_TYPES[$tab] ?? null;
 
-        $mediaFiles = $this->mediaQuery($customerId, $fileType, $ownerType, $usageType)
+        $mediaFiles = $this->mediaQuery($customerId, $fileType, $ownerType, $usageType, $usageStatus)
             ->orderByDesc('media_files.created_at')
             ->orderByDesc('media_files.id')
             ->paginate(10)
@@ -61,6 +68,7 @@ class MediaFileController extends Controller
             'type' => $type,
             'ownerType' => $ownerType,
             'usageType' => $usageType,
+            'usageStatus' => $usageStatus,
             'ownerTypeOptions' => $this->usageOptions($customerId, 'owner_type'),
             'usageTypeOptions' => $this->usageOptions($customerId, 'usage_type'),
             'tabCounts' => $this->tabCounts($customerId),
@@ -76,11 +84,32 @@ class MediaFileController extends Controller
             ->with('success', __('lf.LF_media_file_common_deleted'));
     }
 
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'media_ids' => ['required', 'array', 'min:1', 'max:100'],
+            'media_ids.*' => ['required', 'integer', 'distinct'],
+        ]);
+
+        $deletedCount = $this->mediaService->deleteUnusedMedia(
+            $validated['media_ids']
+        );
+
+        return redirect()
+            ->route('admin.media.index', ['usage_status' => 'unused'])
+            ->with('success', trans_choice(
+                'lf.LF_media_file_bulk_deleted',
+                $deletedCount,
+                ['count' => $deletedCount]
+            ));
+    }
+
     private function mediaQuery(
         int $customerId,
         ?string $fileType,
         ?string $ownerType,
-        ?string $usageType
+        ?string $usageType,
+        ?string $usageStatus
     ) {
         $usageCounts = DB::table('media_file_usages')
             ->where('customer_id', $customerId)
@@ -99,6 +128,8 @@ class MediaFileController extends Controller
             ->where('media_files.customer_id', $customerId)
             ->where('media_files.status', '!=', 'deleted')
             ->when($fileType, fn ($query) => $query->where('media_files.file_type', $fileType))
+            ->when($usageStatus === 'in_use', fn ($query) => $query->whereRaw('COALESCE(usage_counts.usage_count, 0) > 0'))
+            ->when($usageStatus === 'unused', fn ($query) => $query->whereRaw('COALESCE(usage_counts.usage_count, 0) = 0'))
             ->when($ownerType, function ($query) use ($customerId, $ownerType): void {
                 $query->whereExists(function ($usageQuery) use ($customerId, $ownerType): void {
                     $usageQuery->selectRaw('1')
@@ -267,6 +298,12 @@ class MediaFileController extends Controller
 
     private function usageLabel(string $value): string
     {
+        $translationKey = 'lf.LF_media_usage_label_'.$value;
+
+        if (Lang::has($translationKey)) {
+            return __($translationKey);
+        }
+
         return str((string) $value)
             ->replace('_', ' ')
             ->headline()

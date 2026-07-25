@@ -450,6 +450,50 @@ class MediaService
             ->first();
     }
 
+    public function deleteUnusedMedia(array $mediaFileIds): int
+    {
+        $customerId = $this->customerId();
+        $ids = collect($mediaFileIds)
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            throw ValidationException::withMessages([
+                'media_ids' => __('lf.LF_media_file_bulk_selection_required'),
+            ]);
+        }
+
+        $ownedIds = DB::table('media_files')
+            ->where('customer_id', $customerId)
+            ->whereIn('id', $ids)
+            ->where('status', '!=', 'deleted')
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id);
+
+        if ($ownedIds->count() !== $ids->count()) {
+            throw ValidationException::withMessages([
+                'media_ids' => __('lf.LF_media_file_bulk_invalid_selection'),
+            ]);
+        }
+
+        $hasActiveUsage = DB::table('media_file_usages')
+            ->where('customer_id', $customerId)
+            ->whereIn('media_file_id', $ownedIds)
+            ->where('status', 'active')
+            ->exists();
+
+        if ($hasActiveUsage) {
+            throw ValidationException::withMessages([
+                'media_ids' => __('lf.LF_media_file_bulk_contains_used'),
+            ]);
+        }
+
+        $ownedIds->each(fn (int $id) => $this->deleteMedia($id));
+
+        return $ownedIds->count();
+    }
+
     private function deleteStorageObject(object $mediaFile): void
     {
         $disk = Storage::disk($mediaFile->storage_disk);
