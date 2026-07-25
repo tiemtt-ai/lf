@@ -57,10 +57,36 @@ class CourseTemplateManagementTest extends TestCase
                 ->assertSeeText('TOPIK Beginner')
                 ->assertSeeText('Template khóa học')
                 ->assertSee('course-template-index-toolbar', false)
+                ->assertSee('course-template-index-count', false)
+                ->assertSee('course-template-filter-grid', false)
                 ->assertSee('course-template-index-table', false)
                 ->assertSee('course-template-status-badge', false)
                 ->assertDontSeeText('Private Tenant Template');
         }
+    }
+
+    public function test_template_index_uses_standard_empty_states_for_default_and_filtered_lists(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-templates')
+            ->assertOk()
+            ->assertSee('course-template-empty-state', false)
+            ->assertSeeText(__('lf.LF_course_template_common_empty'))
+            ->assertSeeText(__('lf.LF_course_template_empty_help'))
+            ->assertSeeText(__('lf.LF_course_template_common_create'));
+
+        $this->createTemplate($customerId, 'Existing Template', 'existing-template');
+
+        $this->get('https://tenant-a.localhost/admin/course-templates?keyword=missing')
+            ->assertOk()
+            ->assertSee('course-template-empty-state', false)
+            ->assertSeeText(__('lf.LF_course_template_filter_empty'))
+            ->assertSeeText(__('lf.LF_course_template_filter_empty_help'))
+            ->assertSeeText(__('lf.LF_course_template_common_clear_filters'))
+            ->assertDontSeeText(__('lf.LF_course_template_common_empty'));
     }
 
     public function test_template_edit_uses_the_five_authoring_tabs(): void
