@@ -1408,13 +1408,43 @@
 }
 
 .course-category-index-toolbar {
-    margin: 24px 0 12px;
+    margin-bottom: 16px;
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.course-category-index-count {
+    color: var(--admin-text-muted);
+    font-size: 14px;
+}
+
+.course-category-filter-card {
+    margin-bottom: 20px;
+    padding: 16px 18px;
+}
+
+.course-category-filter-grid {
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) minmax(180px, 240px) auto;
+    align-items: end;
+    gap: 14px;
+}
+
+.course-category-filter-grid .lf-form-group {
+    margin: 0;
+}
+
+.course-category-filter-actions {
+    min-height: 42px;
+    margin: 0;
+    align-items: center;
+    flex-wrap: nowrap;
 }
 
 .course-category-index-table {
-    min-width: 1120px;
+    min-width: 760px;
     table-layout: fixed;
 }
 
@@ -1424,42 +1454,18 @@
     vertical-align: middle;
 }
 
-.course-category-index-table .course-category-index-slug {
-    width: 170px;
-}
-
 .course-category-index-table .course-category-index-order {
-    width: 138px;
-    text-align: center;
-}
-
-.course-category-index-table .course-category-index-featured {
-    width: 150px;
+    width: 160px;
     text-align: center;
 }
 
 .course-category-index-table .course-category-index-status {
-    width: 138px;
-    position: sticky;
-    right: 96px;
-    z-index: 2;
-    background: #ffffff;
-    box-shadow: -1px 0 0 #e5e7eb;
+    width: 132px;
 }
 
 .course-category-index-table .course-category-index-actions {
     width: 96px;
-    position: sticky;
-    right: 0;
-    z-index: 2;
-    background: #ffffff;
     text-align: right;
-}
-
-.course-category-index-table thead .course-category-index-status,
-.course-category-index-table thead .course-category-index-actions {
-    z-index: 3;
-    background: #f8fafc;
 }
 
 .course-category-index-primary {
@@ -1468,14 +1474,29 @@
     line-height: 1.35;
 }
 
-.course-category-index-slug-value,
-.course-category-status-badge {
+.course-category-index-meta {
+    display: block;
+    margin-top: 3px;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.course-category-featured-badge {
+    margin-left: 6px;
+    padding: 3px 7px;
+    display: inline-flex;
+    border-radius: 999px;
+    color: #3730a3;
+    background: #eef2ff;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
     white-space: nowrap;
 }
 
-.course-category-index-slug-value {
-    color: #6b7280;
-    font-size: 13px;
+.course-category-status-badge {
+    white-space: nowrap;
 }
 
 .admin-table-actions.course-category-index-action-list {
@@ -2560,7 +2581,8 @@
 }
 
 @media (max-width: 767px) {
-    .course-cohort-index-toolbar {
+    .course-cohort-index-toolbar,
+    .course-category-index-toolbar {
         align-items: stretch;
         flex-direction: column;
     }
@@ -2573,40 +2595,48 @@
         justify-content: center;
     }
 
-    .course-cohort-filter-grid {
+    .course-cohort-filter-grid,
+    .course-category-filter-grid {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .course-cohort-filter-actions {
+    .course-cohort-filter-actions,
+    .course-category-filter-actions {
         justify-content: space-between;
     }
 
-    .course-cohort-filter-actions .btn {
+    .course-cohort-filter-actions .btn,
+    .course-category-filter-actions .btn {
         flex: 1;
         justify-content: center;
     }
 
-    .course-cohort-index-table-wrap {
+    .course-cohort-index-table-wrap,
+    .course-category-index-table-wrap {
         overflow: visible;
         border: 0;
         background: transparent;
     }
 
-    .course-cohort-index-table {
+    .course-cohort-index-table,
+    .course-category-index-table {
         min-width: 0;
         display: block;
     }
 
-    .course-cohort-index-table thead {
+    .course-cohort-index-table thead,
+    .course-category-index-table thead {
         display: none;
     }
 
-    .course-cohort-index-table tbody {
+    .course-cohort-index-table tbody,
+    .course-category-index-table tbody {
         display: grid;
         gap: 12px;
     }
 
-    .course-cohort-index-table tr {
+    .course-cohort-index-table tr,
+    .course-category-index-table tr {
         display: block;
         overflow: hidden;
         border: 1px solid var(--admin-border);
@@ -2614,7 +2644,8 @@
         background: #ffffff;
     }
 
-    .lf-admin-page .course-cohort-index-table td {
+    .lf-admin-page .course-cohort-index-table td,
+    .lf-admin-page .course-category-index-table td {
         width: auto;
         min-width: 0;
         padding: 11px 14px;
@@ -2625,7 +2656,8 @@
         text-align: left;
     }
 
-    .course-cohort-index-table td::before {
+    .course-cohort-index-table td::before,
+    .course-category-index-table td::before {
         content: attr(data-label);
         color: var(--admin-text-muted);
         font-size: 12px;
@@ -2634,37 +2666,45 @@
     }
 
     .course-cohort-index-table .course-cohort-index-status,
-    .course-cohort-index-table .course-cohort-index-actions {
+    .course-cohort-index-table .course-cohort-index-actions,
+    .course-category-index-table .course-category-index-status,
+    .course-category-index-table .course-category-index-actions {
         position: static;
         width: auto;
         background: #ffffff;
         box-shadow: none;
     }
 
-    .admin-table-actions.course-cohort-index-action-list {
+    .admin-table-actions.course-cohort-index-action-list,
+    .admin-table-actions.course-category-index-action-list {
         justify-content: flex-start;
     }
 
-    .course-cohort-empty-row {
+    .course-cohort-empty-row,
+    .course-category-empty-row {
         border: 0 !important;
     }
 
-    .lf-admin-page .course-cohort-index-table .course-cohort-empty-cell {
+    .lf-admin-page .course-cohort-index-table .course-cohort-empty-cell,
+    .lf-admin-page .course-category-index-table .course-category-empty-cell {
         display: block;
         padding: 0;
         border: 0;
     }
 
-    .course-cohort-empty-cell::before {
+    .course-cohort-empty-cell::before,
+    .course-category-empty-cell::before {
         display: none;
     }
 }
 
-.course-cohort-empty-cell {
+.course-cohort-empty-cell,
+.course-category-empty-cell {
     padding: 0 !important;
 }
 
-.course-cohort-empty-state {
+.course-cohort-empty-state,
+.course-category-empty-state {
     display: grid;
     justify-items: center;
     gap: 7px;
@@ -2673,28 +2713,34 @@
     text-align: center;
 }
 
-.course-cohort-empty-state strong {
+.course-cohort-empty-state strong,
+.course-category-empty-state strong {
     color: var(--admin-text);
     font-size: 15px;
 }
 
-.course-cohort-empty-state span {
+.course-cohort-empty-state span,
+.course-category-empty-state span {
     max-width: 440px;
     font-size: 13px;
     line-height: 1.45;
 }
 
 .course-cohort-empty-state .btn,
-.course-cohort-empty-state .admin-text-action {
+.course-cohort-empty-state .admin-text-action,
+.course-category-empty-state .btn,
+.course-category-empty-state .admin-text-action {
     margin-top: 8px;
 }
 
 @media (min-width: 768px) and (max-width: 1024px) {
-    .course-cohort-filter-grid {
+    .course-cohort-filter-grid,
+    .course-category-filter-grid {
         grid-template-columns: minmax(0, 1fr) minmax(180px, .55fr);
     }
 
-    .course-cohort-filter-actions {
+    .course-cohort-filter-actions,
+    .course-category-filter-actions {
         grid-column: 1 / -1;
         justify-content: flex-end;
     }

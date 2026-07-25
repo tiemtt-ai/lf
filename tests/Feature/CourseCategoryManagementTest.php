@@ -52,7 +52,10 @@ class CourseCategoryManagementTest extends TestCase
             ->assertSeeText('Teacher Category')
             ->assertSeeText(__('lf.LF_navigation_menu_common_product_categories'))
             ->assertSee('course-category-index-toolbar', false)
+            ->assertSee('course-category-index-count', false)
+            ->assertSee('course-category-filter-grid', false)
             ->assertSee('course-category-index-table', false)
+            ->assertSee('course-category-index-meta', false)
             ->assertSee('course-category-status-badge', false)
             ->assertDontSeeText(__('lf.LF_course_category_common_thumbnail_image'))
             ->assertDontSeeText('Private Tenant Category');
@@ -81,6 +84,30 @@ class CourseCategoryManagementTest extends TestCase
             __('lf.LF_course_category_common_name'),
             $this->tableHeaderText($teacherResponse->getContent(), 2)
         );
+    }
+
+    public function test_category_index_uses_standard_empty_states_for_default_and_filtered_lists(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-categories')
+            ->assertOk()
+            ->assertSee('course-category-empty-state', false)
+            ->assertSeeText(__('lf.LF_course_category_common_empty'))
+            ->assertSeeText(__('lf.LF_course_category_empty_help'))
+            ->assertSeeText(__('lf.LF_course_category_common_create'));
+
+        $this->createCategory($customerId, 'Existing Category', 'existing-category');
+
+        $this->get('https://tenant-a.localhost/admin/course-categories?keyword=missing')
+            ->assertOk()
+            ->assertSee('course-category-empty-state', false)
+            ->assertSeeText(__('lf.LF_course_category_filter_empty'))
+            ->assertSeeText(__('lf.LF_course_category_filter_empty_help'))
+            ->assertSeeText(__('lf.LF_course_category_common_clear_filters'))
+            ->assertDontSeeText(__('lf.LF_course_category_common_empty'));
     }
 
     public function test_admin_can_create_a_category_with_documented_fields(): void

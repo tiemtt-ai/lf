@@ -4,8 +4,12 @@
 @section('page_title', __('lf.LF_course_category_common_title'))
 
 @section('content')
+    @php
+        $hasActiveFilters = $keyword !== '' || $status;
+    @endphp
+
     @if (session('success'))
-        <div class="admin-alert admin-alert-success">
+        <div class="admin-alert admin-alert-success" role="status">
             {{ session('success') }}
         </div>
     @endif
@@ -20,8 +24,17 @@
         </div>
     @endif
 
-    <div class="admin-card admin-form-card">
-        <form method="GET" action="{{ route($routePrefix.'.index') }}">
+    <div class="course-category-index-toolbar">
+        <span class="course-category-index-count">
+            {{ trans_choice('lf.LF_course_category_index_count', $categories->total(), ['count' => $categories->total()]) }}
+        </span>
+        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
+            {{ __('lf.LF_course_category_common_create') }}
+        </a>
+    </div>
+
+    <div class="admin-card admin-form-card course-category-filter-card">
+        <form class="course-category-filter-grid" method="GET" action="{{ route($routePrefix.'.index') }}">
             <div class="lf-form-group">
                 <label class="lf-form-label" for="keyword">
                     {{ __('lf.LF_course_category_common_keyword') }}
@@ -46,21 +59,17 @@
                 </select>
             </div>
 
-            <div class="admin-form-actions">
+            <div class="admin-form-actions course-category-filter-actions">
                 <button type="submit" class="btn btn-primary">
                     {{ __('lf.LF_common_button_search') }}
                 </button>
-                <a href="{{ route($routePrefix.'.index') }}">
-                    {{ __('lf.LF_course_category_common_clear_filters') }}
-                </a>
+                @if ($hasActiveFilters)
+                    <a class="admin-text-action" href="{{ route($routePrefix.'.index') }}">
+                        {{ __('lf.LF_course_category_common_clear_filters') }}
+                    </a>
+                @endif
             </div>
         </form>
-    </div>
-
-    <div class="course-category-index-toolbar">
-        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
-            {{ __('lf.LF_course_category_common_create') }}
-        </a>
     </div>
 
     <div class="admin-table-wrap course-category-index-table-wrap">
@@ -70,9 +79,7 @@
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_category_common_name') }}</th>
                 <th>{{ __('lf.LF_course_category_common_parent') }}</th>
-                <th class="course-category-index-slug">{{ __('lf.LF_course_category_common_slug') }}</th>
                 <th class="course-category-index-order">{{ __('lf.LF_course_category_common_sort_order') }}</th>
-                <th class="course-category-index-featured">{{ __('lf.LF_course_category_common_featured') }}</th>
                 <th class="course-category-index-status">{{ __('lf.LF_course_category_common_status') }}</th>
                 <th class="course-category-index-actions">{{ __('lf.table_actions') }}</th>
             </tr>
@@ -80,24 +87,28 @@
             <tbody>
             @forelse ($categories as $category)
                 <tr>
-                    <td class="admin-table-sequence">{{ $categories->firstItem() + $loop->index }}</td>
-                    <td><strong class="course-category-index-primary">{{ $category->name }}</strong></td>
-                    <td>{{ $category->parent_name ?? __('lf.LF_course_category_common_root') }}</td>
-                    <td class="course-category-index-slug"><span class="course-category-index-slug-value">{{ $category->slug }}</span></td>
-                    <td class="course-category-index-order">{{ $category->sort_order }}</td>
-                    <td class="course-category-index-featured">
-                        {{ $category->is_featured
-                            ? __('lf.LF_course_category_common_yes')
-                            : __('lf.LF_course_category_common_no') }}
+                    <td class="admin-table-sequence" data-label="{{ __('lf.table_no') }}">{{ $categories->firstItem() + $loop->index }}</td>
+                    <td data-label="{{ __('lf.LF_course_category_common_name') }}">
+                        <strong class="course-category-index-primary">{{ $category->name }}</strong>
+                        <span class="course-category-index-meta">{{ $category->slug }}</span>
                     </td>
-                    <td class="course-category-index-status">
+                    <td data-label="{{ __('lf.LF_course_category_common_parent') }}">
+                        {{ $category->parent_name ?? __('lf.LF_course_category_common_root') }}
+                    </td>
+                    <td class="course-category-index-order" data-label="{{ __('lf.LF_course_category_common_sort_order') }}">
+                        <strong>{{ $category->sort_order }}</strong>
+                        @if ($category->is_featured)
+                            <span class="course-category-featured-badge">{{ __('lf.LF_course_category_common_featured') }}</span>
+                        @endif
+                    </td>
+                    <td class="course-category-index-status" data-label="{{ __('lf.LF_course_category_common_status') }}">
                         <span class="badge course-category-status-badge {{ $category->status === 'active' ? 'badge-success' : 'badge-danger' }}">
                             {{ $category->status === 'active'
                                 ? __('lf.LF_common_status_common_active')
                                 : __('lf.LF_common_status_common_inactive') }}
                         </span>
                     </td>
-                    <td class="course-category-index-actions">
+                    <td class="course-category-index-actions" data-label="{{ __('lf.table_actions') }}">
                         <div class="admin-table-actions course-category-index-action-list">
                             <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $category->id) }}">
                                 {{ __('lf.action_edit') }}
@@ -106,9 +117,21 @@
                     </td>
                 </tr>
             @empty
-                <tr>
-                    <td colspan="8">
-                        {{ __('lf.LF_course_category_common_empty') }}
+                <tr class="course-category-empty-row">
+                    <td class="course-category-empty-cell" colspan="6">
+                        <div class="course-category-empty-state" role="status">
+                            <strong>{{ $hasActiveFilters ? __('lf.LF_course_category_filter_empty') : __('lf.LF_course_category_common_empty') }}</strong>
+                            <span>{{ $hasActiveFilters ? __('lf.LF_course_category_filter_empty_help') : __('lf.LF_course_category_empty_help') }}</span>
+                            @if ($hasActiveFilters)
+                                <a class="admin-text-action" href="{{ route($routePrefix.'.index') }}">
+                                    {{ __('lf.LF_course_category_common_clear_filters') }}
+                                </a>
+                            @else
+                                <a class="btn btn-primary" href="{{ route($routePrefix.'.create') }}">
+                                    {{ __('lf.LF_course_category_common_create') }}
+                                </a>
+                            @endif
+                        </div>
                     </td>
                 </tr>
             @endforelse
