@@ -30,7 +30,8 @@
 
 .lf-admin-page .lf-form-control::placeholder,
 .lf-admin-page select.lf-form-control.lf-select-placeholder {
-    color: var(--admin-text-muted);
+    color: var(--lf-placeholder-color);
+    opacity: 1;
 }
 
 .lf-line-clamp-2 {

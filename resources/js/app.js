@@ -4,6 +4,22 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
+window.tenantRegistrationForm = (initialSlug = '') => ({
+    slug: initialSlug,
+    slugify(value) {
+        return String(value ?? '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[đĐ]/g, 'd')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .replace(/-+/g, '-')
+            .slice(0, 50)
+            .replace(/-+$/g, '');
+    },
+});
+
 window.backendSidebar = () => ({
     sidebarCollapsed: false,
     storageKey: 'lf.backend.sidebar.collapsed',

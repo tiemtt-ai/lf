@@ -30,7 +30,7 @@ class TenantRegistrationSecurityTest extends TestCase
 
         $response = $this->post('https://localhost/register-customer', [
             'customer_name' => 'Acme Academy',
-            'slug' => 'acme',
+            'slug' => 'forged-slug',
             'organization_type' => 'training_center',
             'name' => 'Acme Admin',
             'email' => 'admin@acme.test',
@@ -39,10 +39,10 @@ class TenantRegistrationSecurityTest extends TestCase
             'password_confirmation' => 'password123',
         ]);
 
-        $response->assertRedirect('https://acme.localhost/login');
+        $response->assertRedirect('https://acme-academy.localhost/login');
         $this->assertGuest();
 
-        $customer = DB::table('saas_customers')->where('slug', 'acme')->first();
+        $customer = DB::table('saas_customers')->where('slug', 'acme-academy')->first();
         $user = User::where('email', 'admin@acme.test')->firstOrFail();
 
         $this->assertSame('active', $customer->status);
@@ -52,6 +52,113 @@ class TenantRegistrationSecurityTest extends TestCase
         $this->assertSame($customer->id, $user->customer_id);
         $this->assertSame('0900000000', $user->phone);
         $this->assertNull($user->email_verified_at);
+    }
+
+    public function test_registration_form_generates_readonly_slug_and_has_localized_placeholders(): void
+    {
+        $response = $this->get('https://localhost/register-customer')
+            ->assertOk()
+            ->assertSee('x-data="tenantRegistrationForm(', false)
+            ->assertSee('@input="slug = slugify($event.target.value)"', false)
+            ->assertSee('id="slug"', false)
+            ->assertSee('x-model="slug"', false)
+            ->assertSee('readonly', false)
+            ->assertSee(__('lf.LF_auth_register_slug_help'));
+
+        foreach ([
+            'Nhập tên tổ chức',
+            'Slug được tạo tự động từ tên tổ chức',
+            'Chọn loại tổ chức',
+            'Nhập họ và tên quản trị viên',
+            'Nhập email quản trị viên',
+            'Nhập số điện thoại',
+            'Nhập mật khẩu',
+            'Nhập lại mật khẩu',
+        ] as $placeholder) {
+            $response->assertSee($placeholder);
+        }
+
+        $this->assertSame(8, substr_count(
+            $response->getContent(),
+            'class="lf-required-indicator"'
+        ));
+        $this->assertSame(8, substr_count(
+            $response->getContent(),
+            'aria-required="true"'
+        ));
+    }
+
+    public function test_backend_derives_and_normalizes_slug_from_organization_name(): void
+    {
+        $cases = [
+            ['Visang 1', 'visang-1', 'visang1@example.test'],
+            ['Trung tâm Tiếng Hàn', 'trung-tam-tieng-han', 'korean@example.test'],
+            ['  Học viện && Công nghệ---LF  ', 'hoc-vien-cong-nghe-lf', 'academy@example.test'],
+        ];
+
+        foreach ($cases as [$customerName, $expectedSlug, $email]) {
+            $this->post('https://localhost/register-customer', [
+                'customer_name' => $customerName,
+                'slug' => 'forged-value',
+                'organization_type' => 'training_center',
+                'name' => 'Tenant Admin',
+                'email' => $email,
+                'phone' => '0900000000',
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+            ])->assertRedirect("https://{$expectedSlug}.localhost/login");
+
+            $this->assertDatabaseHas('saas_customers', [
+                'name' => trim($customerName),
+                'slug' => $expectedSlug,
+                'subdomain' => $expectedSlug,
+            ]);
+        }
+    }
+
+    public function test_registration_rejects_derived_duplicate_slug(): void
+    {
+        DB::table('saas_customers')->insert([
+            'name' => 'Existing',
+            'slug' => 'trung-tam-tieng-han',
+            'subdomain' => 'trung-tam-tieng-han',
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->post('https://localhost/register-customer', [
+            'customer_name' => 'Trung tâm Tiếng Hàn',
+            'slug' => 'available-forged-value',
+            'organization_type' => 'training_center',
+            'name' => 'Tenant Admin',
+            'email' => 'duplicate@example.test',
+            'phone' => '0900000000',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertSessionHasErrors('slug');
+
+        $this->assertDatabaseCount('saas_customers', 1);
+    }
+
+    public function test_registration_keeps_non_sensitive_input_after_validation_error(): void
+    {
+        $this->post('https://localhost/register-customer', [
+            'customer_name' => 'Trung tâm Tiếng Hàn',
+            'slug' => 'forged-value',
+            'organization_type' => '',
+            'name' => 'Nguyễn Văn A',
+            'email' => 'admin@example.test',
+            'phone' => '0900000000',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])
+            ->assertSessionHasErrors('organization_type')
+            ->assertSessionHasInput('customer_name', 'Trung tâm Tiếng Hàn')
+            ->assertSessionHasInput('slug', 'trung-tam-tieng-han')
+            ->assertSessionHasInput('name', 'Nguyễn Văn A')
+            ->assertSessionHasInput('email', 'admin@example.test')
+            ->assertSessionHasInput('phone', '0900000000');
     }
 
     public function test_customer_registration_rejects_unknown_organization_type(): void

@@ -2,6 +2,24 @@
     box-sizing: border-box;
 }
 
+:root {
+    --lf-placeholder-color: #98a2b3;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--lf-placeholder-color);
+    opacity: 1;
+}
+
+select:has(option[value=""]:checked) {
+    color: var(--lf-placeholder-color);
+}
+
+select option {
+    color: #111827;
+}
+
 body {
     margin: 0;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;

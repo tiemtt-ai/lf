@@ -20,9 +20,20 @@ class CustomerRegisterController extends Controller
 
     public function store(Request $request)
     {
+        $request->merge([
+            'slug' => Str::slug((string) $request->input('customer_name')),
+        ]);
+
         $validated = $request->validate([
             'customer_name' => ['required', 'string', 'max:255'],
-            'slug' => ['required', 'string', 'max:50', 'alpha_dash', 'unique:saas_customers,slug'],
+            'slug' => [
+                'required',
+                'string',
+                'max:50',
+                'alpha_dash',
+                Rule::unique('saas_customers', 'slug'),
+                Rule::unique('saas_customers', 'subdomain'),
+            ],
             'organization_type' => ['required', Rule::in([
                 'training_center',
                 'school',
@@ -33,10 +44,14 @@ class CustomerRegisterController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['required', 'string', 'max:30'],
             'password' => ['required', 'confirmed', 'min:8'],
+        ], [
+            'slug.required' => __('lf.LF_auth_register_slug_required'),
+            'slug.max' => __('lf.LF_auth_register_slug_max'),
+            'slug.unique' => __('lf.LF_auth_register_slug_unique'),
         ]);
 
         $registration = DB::transaction(function () use ($request, $validated) {
-            $slug = Str::lower($validated['slug']);
+            $slug = $validated['slug'];
 
             $customerId = DB::table('saas_customers')->insertGetId([
                 'name' => $validated['customer_name'],

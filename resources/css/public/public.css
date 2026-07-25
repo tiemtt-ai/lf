@@ -501,6 +501,26 @@
     box-shadow: 0 0 0 3px rgba(72, 92, 199, .12);
 }
 
+.public-form-control.is-readonly {
+    border-color: #cbd3f5;
+    color: #3448aa;
+    background: #f5f7ff;
+    cursor: default;
+}
+
+.public-form-control.is-readonly:focus {
+    border-color: #aebaf1;
+    box-shadow: 0 0 0 3px rgba(72, 92, 199, .08);
+}
+
+.public-form-help {
+    margin-top: 7px;
+    display: block;
+    color: var(--public-muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
 .public-alert-danger {
     margin-bottom: 24px;
     padding: 14px 16px;

@@ -262,6 +262,7 @@
 
 .auth-input::placeholder {
     color: #d8dadd;
+    opacity: 1;
 }
 
 .auth-input:focus {
