@@ -1,5 +1,14 @@
 # Table: core_liveclass_attendances
 
+## Cohort-Centered Amendment — 2026-07-25
+
+Attendance always belongs to a Session and an Enrollment that is an active
+member of that Session's Cohort when attendance is first recorded.
+`version_activity_id` is derived from Session and is nullable. Attendance can
+be Course Activity Evidence only when that value exists. Canonical statuses are
+`registered`, `present`, `late`, `absent`, `excused`; attendance mode is
+`online` or `offline`.
+
 ## Purpose
 
 Ghi nhận trạng thái và thời lượng một học viên tham gia một LiveClass Session.

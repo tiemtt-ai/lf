@@ -1,21 +1,20 @@
 @extends('layouts.public')
 
 @section('title', '404 - '.__('lf.LF_common_title_public_page_not_found'))
+@section('force_root_navigation', '1')
 
 @section('content')
-    <div class="container py-5 text-center">
-        <h1 class="display-1 fw-bold">404</h1>
+    <section class="public-error-page" aria-labelledby="public-error-title">
+        <div class="public-error-card">
+            <div class="public-error-visual" aria-hidden="true">
+                <span class="public-error-orbit"></span>
+                <span class="public-error-compass">?</span>
+            </div>
 
-        <h3 class="mb-3">
-            {{ __('lf.LF_common_title_public_page_not_found') }}
-        </h3>
-
-        <p class="text-muted mb-4">
-            {{ __('lf.LF_common_message_public_page_not_found') }}
-        </p>
-
-        <a href="{{ config('app.url') }}" class="btn btn-primary">
-            {{ __('lf.LF_common_button_public_back_home') }}
-        </a>
-    </div>
+            <p class="public-error-code">404</p>
+            <h1 id="public-error-title">{{ __('lf.LF_common_title_public_page_not_found') }}</h1>
+            <p class="public-error-message">{{ __('lf.LF_common_message_public_page_not_found') }}</p>
+            <span class="public-error-divider" aria-hidden="true"></span>
+        </div>
+    </section>
 @endsection

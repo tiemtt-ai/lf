@@ -130,6 +130,9 @@ class CourseCohortController extends Controller
         $this->authorizeAdmin($request);
         $customerId = $this->customerId();
         $cohort = $this->findCohort($customerId, $id);
+        $activeTab = in_array($request->query('tab'), [
+            'students', 'teachers', 'sessions', 'attendance', 'recordings',
+        ], true) ? $request->query('tab') : 'overview';
         $studentKeyword = trim((string) $request->query('student_keyword', ''));
         $students = DB::table('core_course_cohort_students as memberships')
             ->join('users as students', function ($join) use ($customerId): void {
@@ -169,6 +172,63 @@ class CourseCohortController extends Controller
             ->paginate(10, ['*'], 'student_page')
             ->withQueryString();
 
+        $teachers = DB::table('core_course_cohort_teachers as assignments')
+            ->join('users as teachers', 'teachers.id', '=', 'assignments.teacher_id')
+            ->where('assignments.customer_id', $customerId)
+            ->where('assignments.cohort_id', $id)
+            ->where('assignments.status', 'active')
+            ->select('assignments.*', 'teachers.name as teacher_name', 'teachers.email as teacher_email')
+            ->orderByRaw("CASE assignments.role WHEN 'primary_teacher' THEN 0 WHEN 'teacher' THEN 1 ELSE 2 END")
+            ->orderBy('teachers.name')->get();
+        $availableTeachers = DB::table('users')->where('customer_id', $customerId)
+            ->where('role', 'teacher')->where('status', 'active')
+            ->orderBy('name')->get(['id', 'name', 'email']);
+        $versionLessons = collect();
+        $versionActivities = collect();
+        if ($cohort->version_id) {
+            $versionLessons = DB::table('core_course_template_version_lessons')
+                ->where('customer_id', $customerId)->where('template_version_id', $cohort->version_id)
+                ->orderBy('sort_order')->orderBy('id')->get(['id', 'title_snapshot']);
+            $versionActivities = DB::table('core_course_template_version_activities')
+                ->where('customer_id', $customerId)->where('template_version_id', $cohort->version_id)
+                ->where('activity_type', 'live_class')
+                ->orderBy('sort_order')->orderBy('id')
+                ->get(['id', 'version_lesson_id', 'title_snapshot']);
+        }
+        $sessions = DB::table('core_liveclass_sessions as sessions')
+            ->join('core_course_template_version_lessons as lessons', 'lessons.id', '=', 'sessions.version_lesson_id')
+            ->leftJoin('core_course_template_version_activities as activities', 'activities.id', '=', 'sessions.version_activity_id')
+            ->leftJoin('users as teachers', 'teachers.id', '=', 'sessions.primary_teacher_id')
+            ->where('sessions.customer_id', $customerId)->where('sessions.cohort_id', $id)
+            ->orderBy('sessions.scheduled_start_at')->orderBy('sessions.id')
+            ->select('sessions.*', 'lessons.title_snapshot as lesson_title', 'activities.title_snapshot as activity_title', 'teachers.name as primary_teacher_name')
+            ->get();
+        $selectedSessionId = $request->integer('session_id') ?: ($sessions->first()?->id);
+        $attendance = collect();
+        if ($selectedSessionId) {
+            $attendance = DB::table('core_course_cohort_students as memberships')
+                ->join('core_course_enrollments as enrollments', 'enrollments.id', '=', 'memberships.enrollment_id')
+                ->join('users as students', 'students.id', '=', 'memberships.student_id')
+                ->leftJoin('core_liveclass_attendances as attendance', function ($join) use ($selectedSessionId): void {
+                    $join->on('attendance.enrollment_id', '=', 'memberships.enrollment_id')
+                        ->where('attendance.session_id', $selectedSessionId);
+                })
+                ->where('memberships.customer_id', $customerId)->where('memberships.cohort_id', $id)
+                ->where('memberships.status', 'active')
+                ->orderBy('students.name')
+                ->get([
+                    'enrollments.id as enrollment_id', 'students.name as student_name',
+                    'students.email as student_email', 'attendance.status as attendance_status',
+                    'attendance.attendance_mode', 'attendance.notes',
+                ]);
+        }
+        $recordings = DB::table('core_liveclass_recordings as recordings')
+            ->join('core_liveclass_sessions as sessions', 'sessions.id', '=', 'recordings.session_id')
+            ->where('recordings.customer_id', $customerId)->where('sessions.cohort_id', $id)
+            ->orderByDesc('recordings.id')
+            ->select('recordings.*', 'sessions.title as session_title', 'sessions.session_no')
+            ->get();
+
         return view('course-cohorts.show', [
             'cohort' => $cohort,
             'activeMembershipCount' => DB::table('core_course_cohort_students')
@@ -176,6 +236,15 @@ class CourseCohortController extends Controller
                 ->where('status', 'active')->count(),
             'students' => $students,
             'studentKeyword' => $studentKeyword,
+            'activeTab' => $activeTab,
+            'teachers' => $teachers,
+            'availableTeachers' => $availableTeachers,
+            'versionLessons' => $versionLessons,
+            'versionActivities' => $versionActivities,
+            'sessions' => $sessions,
+            'selectedSessionId' => $selectedSessionId,
+            'attendance' => $attendance,
+            'recordings' => $recordings,
             'routePrefix' => $this->routePrefix($request),
         ]);
     }

@@ -1,5 +1,10 @@
 # Table: core_liveclass_chat_logs
 
+## Cohort-Centered Amendment — 2026-07-25
+
+Chat remains a Session child. Session now belongs directly to Cohort and Room
+is optional. Chat never contributes directly to Course completion.
+
 ## Purpose
 
 Lưu lịch sử chat trong LiveClass Session để phục vụ audit, replay, AI

@@ -1,3 +1,11 @@
+@php
+    $forceRootNavigation = $forceRootNavigation ?? false;
+    $rootUrl = rtrim((string) config('app.url'), '/');
+    $footerUrl = static fn (string $routeName, string $path): string => $forceRootNavigation
+        ? $rootUrl.$path
+        : route($routeName);
+@endphp
+
 <footer class="public-footer">
     <div class="public-container public-footer-inner">
         <div>
@@ -7,9 +15,9 @@
         </div>
 
         <nav class="public-footer-links" aria-label="{{ __('lf.LF_common_navigation_common_footer') }}">
-            <a href="{{ route('public.features') }}">{{ __('lf.LF_navigation_menu_public_features') }}</a>
-            <a href="{{ route('public.pricing') }}">{{ __('lf.LF_navigation_menu_public_pricing') }}</a>
-            <a href="{{ route('public.about') }}">{{ __('lf.LF_navigation_menu_public_about') }}</a>
+            <a href="{{ $footerUrl('public.features', '/features') }}">{{ __('lf.LF_navigation_menu_public_features') }}</a>
+            <a href="{{ $footerUrl('public.pricing', '/pricing') }}">{{ __('lf.LF_navigation_menu_public_pricing') }}</a>
+            <a href="{{ $footerUrl('public.about', '/about') }}">{{ __('lf.LF_navigation_menu_public_about') }}</a>
         </nav>
     </div>
 </footer>

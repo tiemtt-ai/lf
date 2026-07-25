@@ -1,5 +1,13 @@
 # Table: core_liveclass_recordings
 
+## Cohort-Centered Amendment — 2026-07-25
+
+Recording belongs directly to Session. It may reference a Media File after
+import, but Media owns file processing, transcript, caption and delivery.
+Recording does not imply attendance or completion. Replay evidence can affect
+Course Activity Progress only when the parent Session has
+`version_activity_id`.
+
 ## Purpose
 
 Quản lý liên kết và metadata vận hành của một recording được tạo từ LiveClass

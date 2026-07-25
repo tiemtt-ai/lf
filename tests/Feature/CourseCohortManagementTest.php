@@ -916,6 +916,98 @@ class CourseCohortManagementTest extends TestCase
         $this->assertDatabaseMissing('core_course_cohorts', ['code' => 'FORGED']);
     }
 
+    public function test_cohort_operational_tabs_manage_session_evidence(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Live Product', 'live-product');
+        $versionId = $this->createVersion($customerId, $admin->id, 'Live Version');
+        $cohortId = $this->createCohort($customerId, 'Live Cohort');
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'product_id' => $productId, 'version_id' => $versionId,
+        ]);
+        $lessonId = DB::table('core_course_template_version_lessons')->insertGetId([
+            'customer_id' => $customerId, 'template_version_id' => $versionId,
+            'source_template_lesson_id' => 9001, 'title_snapshot' => 'Lesson 1',
+            'sort_order' => 1,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $activityId = DB::table('core_course_template_version_activities')->insertGetId([
+            'customer_id' => $customerId, 'template_version_id' => $versionId,
+            'version_lesson_id' => $lessonId, 'source_template_activity_id' => 9101,
+            'title_snapshot' => 'Live Lesson 1', 'activity_type' => 'live_class',
+            'completion_rule' => 'manual',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $detail = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=teachers")
+            ->assertOk();
+        foreach (['overview', 'students', 'teachers', 'sessions', 'attendance', 'recordings'] as $tab) {
+            $detail->assertSee(__('lf.LF_course_cohort_tab_'.$tab));
+        }
+
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers", [
+                'teacher_id' => $teacher->id, 'role' => 'primary_teacher',
+            ])->assertSessionHasNoErrors();
+
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", [
+                'title' => 'Session 1', 'version_lesson_id' => $lessonId,
+                'version_activity_id' => $activityId, 'primary_teacher_id' => $teacher->id,
+                'delivery_mode' => 'online',
+                'scheduled_start_at' => '2026-08-01 19:00:00',
+                'scheduled_end_at' => '2026-08-01 20:30:00',
+                'online_provider' => 'zoom', 'meeting_url' => 'https://example.com/meeting',
+            ])->assertSessionHasNoErrors();
+        $sessionId = (int) DB::table('core_liveclass_sessions')->value('id');
+        $this->assertDatabaseHas('core_liveclass_sessions', [
+            'id' => $sessionId, 'cohort_id' => $cohortId,
+            'template_version_id' => $versionId, 'version_lesson_id' => $lessonId,
+            'version_activity_id' => $activityId,
+        ]);
+        $this->actingAs($admin)
+            ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}/schedule", [
+                'scheduled_start_at' => '2026-08-02 19:00:00',
+                'scheduled_end_at' => '2026-08-02 20:30:00',
+                'reason' => 'Teacher availability',
+            ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_liveclass_session_schedule_changes', [
+            'customer_id' => $customerId, 'session_id' => $sessionId,
+            'reason' => 'Teacher availability',
+        ]);
+        $this->assertDatabaseHas('core_liveclass_sessions', [
+            'id' => $sessionId, 'status' => 'scheduled',
+            'scheduled_start_at' => '2026-08-02 19:00:00',
+        ]);
+
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $this->createMembership($customerId, $cohortId, $enrollmentId, $productId, $student->id);
+        $this->actingAs($admin)
+            ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}/attendance", [
+                'attendance' => [[
+                    'enrollment_id' => $enrollmentId, 'status' => 'present',
+                    'attendance_mode' => 'online',
+                ]],
+            ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_liveclass_attendances', [
+            'session_id' => $sessionId, 'enrollment_id' => $enrollmentId,
+            'version_activity_id' => $activityId, 'status' => 'present',
+        ]);
+
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}/recordings", [
+                'title' => 'Session replay', 'recording_url' => 'https://example.com/replay',
+            ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_liveclass_recordings', [
+            'customer_id' => $customerId, 'session_id' => $sessionId,
+            'title' => 'Session replay',
+        ]);
+    }
+
     private function createTenant(string $slug = 'tenant-a'): int
     {
         return DB::table('saas_customers')->insertGetId([

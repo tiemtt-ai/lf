@@ -4,7 +4,6 @@
 @section('page_title', __('lf.LF_course_cohort_common_detail'))
 
 @section('content')
-    @php($activeTab = request('tab') === 'students' ? 'students' : 'overview')
     @if (session('success'))
         <div class="admin-alert admin-alert-success">
             {{ session('success') }}
@@ -24,14 +23,14 @@
     @endif
 
     <nav class="admin-form-actions" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
-        <a @class(['btn', 'btn-primary' => $activeTab === 'overview', 'btn-secondary' => $activeTab !== 'overview'])
-           href="{{ route($routePrefix.'.show', $cohort->id) }}" @if($activeTab === 'overview') aria-current="page" @endif>
-            {{ __('lf.LF_course_cohort_tab_overview') }}
-        </a>
-        <a @class(['btn', 'btn-primary' => $activeTab === 'students', 'btn-secondary' => $activeTab !== 'students'])
-           href="{{ route($routePrefix.'.show', ['id' => $cohort->id, 'tab' => 'students']) }}" @if($activeTab === 'students') aria-current="page" @endif>
-            {{ __('lf.LF_course_cohort_tab_students') }} ({{ $activeMembershipCount }}/{{ $cohort->capacity ?? '∞' }})
-        </a>
+        @foreach (['overview', 'students', 'teachers', 'sessions', 'attendance', 'recordings'] as $tab)
+            <a @class(['btn', 'btn-primary' => $activeTab === $tab, 'btn-secondary' => $activeTab !== $tab])
+               href="{{ route($routePrefix.'.show', $tab === 'overview' ? ['id' => $cohort->id] : ['id' => $cohort->id, 'tab' => $tab]) }}"
+               @if($activeTab === $tab) aria-current="page" @endif>
+                {{ __('lf.LF_course_cohort_tab_'.$tab) }}
+                @if ($tab === 'students') ({{ $activeMembershipCount }}/{{ $cohort->capacity ?? '∞' }}) @endif
+            </a>
+        @endforeach
     </nav>
 
     <div class="cohort-detail-toolbar">
@@ -40,7 +39,7 @@
             {{ __('lf.LF_course_cohort_common_back_to_cohorts') }}
         </a>
         <div class="cohort-detail-action-group">
-            @if (in_array($cohort->status, ['draft', 'active'], true))
+            @if (in_array($cohort->status, ['draft', 'active'], true) && in_array($activeTab, ['overview', 'students'], true))
                 <a href="{{ route($routePrefix.'.edit', $activeTab === 'students' ? ['id' => $cohort->id, 'tab' => 'students'] : $cohort->id) }}" class="btn btn-primary">
                     {{ $activeTab === 'students' ? __('lf.LF_course_cohort_student_manage_heading') : __('lf.LF_course_cohort_action_edit') }}
                 </a>
@@ -162,7 +161,7 @@
             </section>
         </div>
     </div>
-    @else
+    @elseif ($activeTab === 'students')
     <div class="admin-card admin-form-card admin-form-surface course-cohort-students-readonly"
          x-data="{
              detail: null,
@@ -267,5 +266,13 @@
         </div>
         @include('course-cohorts.partials.enrollment-quick-view', ['cohort' => $cohort])
     </div>
+    @elseif ($activeTab === 'teachers')
+        @include('course-cohorts.partials.tabs.teachers')
+    @elseif ($activeTab === 'sessions')
+        @include('course-cohorts.partials.tabs.sessions')
+    @elseif ($activeTab === 'attendance')
+        @include('course-cohorts.partials.tabs.attendance')
+    @elseif ($activeTab === 'recordings')
+        @include('course-cohorts.partials.tabs.recordings')
     @endif
 @endsection

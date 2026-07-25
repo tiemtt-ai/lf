@@ -1,5 +1,42 @@
 # Table: core_liveclass_sessions
 
+## Cohort-Centered Amendment — 2026-07-25
+
+This section supersedes all conflicting fields and cardinalities below.
+
+Canonical relationships:
+
+```text
+Cohort 1 → N Sessions
+Version Lesson 1 → N Sessions
+Version Live Class Activity 1 → 0..N Sessions
+Room 1 → 0..N Sessions
+Session N ↔ N Teachers
+Session 1 → N Attendance / Recording / Schedule Change
+```
+
+Required fields: `customer_id`, `cohort_id`, `template_version_id`,
+`version_lesson_id`, `title`, `session_no`, `delivery_mode`,
+`scheduled_start_at`, `scheduled_end_at`, `timezone`, `status`.
+
+Nullable fields: `version_activity_id`, `room_id`, `primary_teacher_id`,
+`superseded_by_session_id`, actual times, online provider/meeting snapshot,
+offline facility/room/address snapshot, cancellation reason and metadata.
+
+`version_activity_id` is required by business validation when the Session is a
+Course-linked learning Session and must be `NULL` for an operational event.
+When present it must be a same-tenant `live_class` Activity in the Session
+Lesson and Version. Only such a Session may produce Activity Completion
+Evidence.
+
+Allowed `delivery_mode`: `online`, `offline`, `hybrid`.
+Allowed `status`: `draft`, `scheduled`, `live`, `completed`, `cancelled`,
+`no_show`.
+
+Rescheduling keeps the Session scheduled and appends
+`core_liveclass_session_schedule_changes`. Replacement uses a new Session and
+`superseded_by_session_id`.
+
 ## Purpose
 
 Đại diện cho một lần học live cụ thể trong một LiveClass Room.

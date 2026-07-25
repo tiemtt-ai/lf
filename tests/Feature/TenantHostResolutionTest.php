@@ -62,6 +62,28 @@ class TenantHostResolutionTest extends TestCase
         $this->assertNull(TenantContext::customerId());
     }
 
+    public function test_invalid_tenant_404_navigation_returns_to_root_public_site(): void
+    {
+        $response = $this->get('http://unknown.localhost:8000/login')
+            ->assertNotFound();
+
+        foreach ([
+            'http://localhost:8000/',
+            'http://localhost:8000/features',
+            'http://localhost:8000/pricing',
+            'http://localhost:8000/services',
+            'http://localhost:8000/about',
+            'http://localhost:8000/register-customer',
+        ] as $url) {
+            $response->assertSee('href="'.$url.'"', false);
+        }
+
+        $response
+            ->assertSee('action="http://localhost:8000/language/en"', false)
+            ->assertDontSee('href="http://unknown.localhost:8000/', false)
+            ->assertDontSee('action="http://unknown.localhost:8000/', false);
+    }
+
     public function test_invalid_tenant_subdomain_does_not_display_root_pages(): void
     {
         $this->get('http://unknown.localhost:8000/')

@@ -3,6 +3,7 @@
 use App\Http\Controllers\CourseActivityMediaPreviewController;
 use App\Http\Controllers\CourseCategoryController;
 use App\Http\Controllers\CourseCohortController;
+use App\Http\Controllers\CourseCohortOperationController;
 use App\Http\Controllers\CourseCohortStudentController;
 use App\Http\Controllers\CourseEnrollmentController;
 use App\Http\Controllers\CourseProductController;
@@ -61,6 +62,19 @@ if ($registerCourseProductRoutes ?? false) {
 
     Route::post('/course-cohorts/{id}/archive', [CourseCohortController::class, 'archive'])
         ->name('course-cohorts.archive');
+
+    Route::post('/course-cohorts/{cohort}/teachers', [CourseCohortOperationController::class, 'storeTeacher'])
+        ->name('course-cohorts.teachers.store');
+    Route::delete('/course-cohorts/{cohort}/teachers/{assignment}', [CourseCohortOperationController::class, 'removeTeacher'])
+        ->name('course-cohorts.teachers.destroy');
+    Route::post('/course-cohorts/{cohort}/sessions', [CourseCohortOperationController::class, 'storeSession'])
+        ->name('course-cohorts.sessions.store');
+    Route::put('/course-cohorts/{cohort}/sessions/{session}/schedule', [CourseCohortOperationController::class, 'updateSchedule'])
+        ->name('course-cohorts.sessions.schedule');
+    Route::put('/course-cohorts/{cohort}/sessions/{session}/attendance', [CourseCohortOperationController::class, 'saveAttendance'])
+        ->name('course-cohorts.sessions.attendance');
+    Route::post('/course-cohorts/{cohort}/sessions/{session}/recordings', [CourseCohortOperationController::class, 'storeRecording'])
+        ->name('course-cohorts.sessions.recordings.store');
 
     Route::get('/course-cohorts/{cohort}/students/create', [CourseCohortStudentController::class, 'create'])
         ->name('course-cohorts.students.create');

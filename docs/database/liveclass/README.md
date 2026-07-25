@@ -1,8 +1,8 @@
 # MIỀN NGHIỆP VỤ LIVECLASS
 
-> ⚠️ **Chưa triển khai**: Đây là spec kiến trúc đã duyệt (ADR-0002, Approved)
-> nhưng hiện chưa có migration/model thực tế trong codebase — xem
-> `database/migrations/` để biết trạng thái triển khai thật.
+> **Implementation scope approved 2026-07-25**: Cohort-centered Session,
+> optional delivery resource, Session teachers, Attendance and Recording/
+> Replay foundation are authorized for migration and implementation.
 
 Miền nghiệp vụ LiveClass quản lý Activity đồng bộ và kết hợp. Miền
 nghiệp vụ này kết nối các Activity của Course đã phát hành với
@@ -33,6 +33,8 @@ trò chuyện mà không sở hữu Progress của Course hoặc tài sản Medi
 |------|------|
 | **core_liveclass_rooms** | Phòng vận hành cho các Activity trực tiếp đã phát hành |
 | **core_liveclass_sessions** | Các buổi học trực tiếp đã lên lịch và hoàn tất |
+| **core_liveclass_session_teachers** | Đội ngũ giảng dạy của từng Session |
+| **core_liveclass_session_schedule_changes** | Audit append-only khi đổi lịch |
 
 ---
 

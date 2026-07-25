@@ -11,13 +11,17 @@
 </head>
 <body class="public-page">
 
-@include('partials.topbar')
+@php
+    $forceRootNavigation = trim($__env->yieldContent('force_root_navigation')) === '1';
+@endphp
+
+@include('partials.topbar', ['forceRootNavigation' => $forceRootNavigation])
 
 <main class="public-main">
     @yield('content')
 </main>
 
-@include('partials.footer')
+@include('partials.footer', ['forceRootNavigation' => $forceRootNavigation])
 
 </body>
 </html>

@@ -1,5 +1,20 @@
 # Table: core_liveclass_rooms
 
+## Cohort-Centered Amendment — 2026-07-25
+
+This section supersedes all conflicting fields and cardinalities below.
+
+Room is an optional reusable delivery resource, not a Session parent or Course
+learning-context authority.
+
+Canonical fields are: `id`, `customer_id`, `title`, `delivery_mode`
+(`online|offline|hybrid`), nullable `provider`, provider/meeting/join/host
+values, nullable facility/room/address values, `timezone`, nullable `capacity`,
+`status` (`active|archived`), `metadata`, timestamps and audit users.
+
+Room has no `product_id`, `template_version_id`, `version_activity_id` or
+required teacher. One Room may be referenced by zero or many Sessions.
+
 ## Purpose
 
 Đại diện cho phòng LiveClass của một Course Version Activity đã publish và là

@@ -36,6 +36,24 @@ Published Course Version
 
 ## Policy Decision
 
+### Cohort Operational Tabs Amendment — 2026-07-25
+
+The Cohort detail workflow is organized as:
+
+```text
+Overview
+Students
+Teachers
+Sessions
+Attendance
+Recordings / Replay
+```
+
+Cohort owns its Product/Version binding, membership and Cohort teacher team.
+LiveClass owns Sessions and downstream operational evidence. A Session must use
+the immutable `version_id` locked by Cohort. This amendment supersedes the
+earlier statement that Session and teacher-team integration are deferred.
+
 Foundation v1 aligns `core_course_cohorts` with the current Course Domain Phase
 4 policy.
 

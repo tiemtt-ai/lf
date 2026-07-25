@@ -14,6 +14,53 @@ Approved
 
 2026-06-27
 
+## Cohort-Centered Session Amendment
+
+Approved: 2026-07-25
+
+This amendment supersedes every conflicting Room-owned Session clause below.
+
+The operational root for a scheduled class meeting is now:
+
+```text
+Course Product
+└── Cohort
+    └── LiveClass Session
+        ├── Published Version Lesson
+        ├── Published Live Class Activity (conditional)
+        ├── Session Teachers
+        ├── Optional Delivery Resource
+        ├── Attendance
+        └── Recording / Replay
+```
+
+Every Session requires same-tenant `cohort_id`, `template_version_id` and
+`version_lesson_id`. The Version must equal the immutable Version locked by the
+Cohort, and the Lesson must belong to that Version.
+
+`version_activity_id` is required when the Session operationalizes a published
+Live Class Activity and may produce Course Activity evidence. It may be `NULL`
+for operational events outside Course Activity completion. When present, it
+must belong to the Session Lesson and Version, have `activity_type =
+live_class`, and share `customer_id`.
+
+Session belongs directly to Cohort. `room_id` is nullable. Room is a reusable
+delivery resource only and is no longer the Session owner or learning-context
+authority. Online, offline and hybrid Sessions snapshot the delivery details
+needed for historical reproducibility.
+
+Session teachers use an assignment table and support `primary_teacher`,
+`teacher`, `assistant` and `substitute`. A nullable `primary_teacher_id` on
+Session is a convenience value; assignments are the complete authority.
+
+Rescheduling updates the planned times while appending a schedule-change audit
+record. A replacement Session uses `superseded_by_session_id`; the old Session
+is cancelled and historical evidence remains attached to the old Session.
+
+Attendance and Replay may provide Course Activity Completion Evidence only
+when `version_activity_id` is present. LiveClass never updates Course Progress
+directly.
+
 ---
 
 ## Context
@@ -92,8 +139,8 @@ Replay
 Course Activity Progress
 ```
 
-Version Activity là published immutable learning context. LiveClass Room và
-Session là operational instances gắn vào context đó.
+Version Lesson và conditional Version Activity là published immutable learning
+context. Session is the Cohort-owned operational instance; Room is optional.
 
 ---
 
@@ -220,16 +267,17 @@ không tự chuyển Course business state.
 ## Foundation Decisions
 
 * LiveClass là Operational Domain.
-* Room không kế thừa Course.
+* Room không kế thừa Course và không sở hữu Session.
 * Không tạo Runtime Course tables cho LiveClass.
 * Working Template Activity chỉ định nghĩa `activity_type = live_class`.
 * Published Version Activity đóng băng learning context và completion rule.
-* `version_activity_id` là liên kết chính giữa LiveClass và Course.
-* Course-linked operational records lưu `template_version_id` và
-  `version_activity_id`.
+* `cohort_id`, `template_version_id` và `version_lesson_id` là Session
+  invariants.
+* `version_activity_id` là conditional Course Activity evidence link.
 * Room và downstream records luôn tenant-scoped bằng `customer_id`.
 * Room visibility không thay thế authorization.
-* Session thuộc Room và tách thời gian scheduled khỏi actual.
+* Session thuộc Cohort, có Room/Delivery Resource tùy chọn và tách thời gian
+  scheduled khỏi actual.
 * Session status không quyết định learning completion.
 * Attendance tham chiếu Enrollment learning cycle.
 * Attendance source và attendance method là hai khái niệm riêng.

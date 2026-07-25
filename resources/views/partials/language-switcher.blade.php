@@ -3,7 +3,7 @@
     $currentLocale = strtoupper(app()->getLocale());
 @endphp
 
-<form method="POST" action="{{ route('language.update', ['locale' => $targetLocale]) }}">
+<form method="POST" action="{{ isset($action) && $action ? rtrim($action, '/').'/'.$targetLocale : route('language.update', ['locale' => $targetLocale]) }}">
     @csrf
     <button type="submit"
             {{ $attributes->class(['language-switcher']) }}

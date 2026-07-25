@@ -1,5 +1,12 @@
 # Table: core_liveclass_replays
 
+## Cohort-Centered Amendment — 2026-07-25
+
+Replay belongs to a Recording, Session and Enrollment. Enrollment must match a
+Cohort membership for the Session context. `version_activity_id` is derived
+from Session and nullable; without it Replay cannot become Course Activity
+Completion Evidence.
+
 ## Purpose
 
 Lưu trạng thái xem lại một LiveClass Recording của một Enrollment trong một

@@ -1,6 +1,6 @@
 # LF-Core-LiveClass.md
 
-Version: 2.0
+Version: 2.1
 
 Status: Official Foundation
 
@@ -68,6 +68,22 @@ chỉ gắn với Course thông qua published Version context.
 ---
 
 # Core Architecture Rules
+
+## Cohort-Centered Session Policy
+
+The 2026-07-25 approved policy supersedes the earlier Room-owned Session
+description in this document.
+
+`core_liveclass_sessions` belongs directly to one `core_course_cohorts` row.
+Every Session freezes the Cohort's `template_version_id` and one
+`version_lesson_id`. `version_activity_id` is conditionally required only when
+the Session realizes a Version Activity of type `live_class`; operational
+events may leave it `NULL` and cannot produce Activity Completion Evidence.
+
+Room is an optional reusable delivery resource. Session snapshots its online,
+offline or hybrid delivery values. Session Teachers, Attendance, Recording and
+Replay are children of Session. Course remains the only owner of Progress and
+Completion.
 
 ## LiveClass Operational Data Principle
 
@@ -232,8 +248,8 @@ core_liveclass_chat_logs
 
 # LiveClass Rooms
 
-`core_liveclass_rooms` đại diện cho phòng live của một Version Activity hoặc
-nhóm Session.
+`core_liveclass_rooms` là delivery resource online/offline/hybrid có thể tái sử
+dụng cho nhiều Session và không chứa Course learning context.
 
 Course context:
 
@@ -249,8 +265,8 @@ version_activity_id
 teacher_id
 ```
 
-Một Version Activity có tối đa một Room trong Foundation. Room chứa provider
-abstraction và meeting endpoints, nhưng không chứa progress.
+Room chứa provider/location configuration nhưng không chứa progress và không
+giới hạn cardinality theo Version Activity.
 
 Supported provider examples:
 
@@ -272,10 +288,11 @@ Provider credentials và signing secrets không thuộc Room record.
 
 # LiveClass Sessions
 
-`core_liveclass_sessions` đại diện cho một lần học live cụ thể.
+`core_liveclass_sessions` đại diện cho một lần học cụ thể của Cohort.
 
 ```text
-Room 1 → N Sessions
+Cohort 1 → N Sessions
+Room 1 → 0..N Sessions
 ```
 
 Session tách:
