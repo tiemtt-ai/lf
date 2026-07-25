@@ -20,6 +20,14 @@ class CourseTemplateVersionDetailPresenter
         $mediaUrls = $this->mediaService->generateVersionActivitySignedUrls($versionId, $activities->whereNotNull('media_file_id')->pluck('id')->all());
         $presentedActivities = $activities->mapWithKeys(function ($activity) use ($activityTitles, $activityLessons, $mediaUrls) {
             $minutes = $activity->estimated_duration_seconds_snapshot ? intdiv($activity->estimated_duration_seconds_snapshot, 60) : null;
+            $availability = collect([
+                'anytime' => $activity->available_anytime,
+                'before_session' => $activity->available_before_session,
+                'during_session' => $activity->available_during_session,
+                'after_session' => $activity->available_after_session,
+            ])->filter()->keys()->map(
+                fn (string $phase): string => __('lf.LF_course_template_activity_learning_availability_'.$phase)
+            )->implode(', ');
             $unlock = match ($activity->unlock_rule_snapshot) {
                 'none' => __('lf.LF_version_detail_unlock_none'),
                 'previous_activity_completed' => $activityTitles->has($activity->unlock_after_version_activity_id)
@@ -54,6 +62,7 @@ class CourseTemplateVersionDetailPresenter
             return [$activity->id => compact(
                 'activity',
                 'minutes',
+                'availability',
                 'unlock',
                 'completion',
                 'mediaUrl',

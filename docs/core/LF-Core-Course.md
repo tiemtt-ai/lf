@@ -1,6 +1,6 @@
 # LF-Core-Course.md
 
-Version: 3.5
+Version: 3.6
 
 Status: Official Foundation
 
@@ -345,6 +345,29 @@ runtime contract. `VersionActivityAccessService` evaluates the frozen
 prerequisite against completed Activity Progress in the exact tenant, student,
 Enrollment, Product, Version and Version Lesson context. Activity prerequisites
 need not precede the dependent Activity by `sort_order`.
+
+### Activity Learning Availability
+
+Every working Activity declares when it is intended to be available relative
+to the real Cohort Session that schedules its Lesson:
+
+* `anytime`; or
+* one or more of `before_session`, `during_session`, `after_session`.
+
+`anytime` is mutually exclusive with the three Session-relative choices.
+Existing Activities default to `anytime`. Activity `sort_order` controls only
+display order and does not define availability.
+
+This declaration belongs to the Course definition and is frozen into the
+Version Activity at publish. It does not reference or require a Live Class
+Activity in the Template. The real Cohort Session mapped to the Version Lesson
+is the future runtime time anchor.
+
+Learning availability is independent from `is_required`, completion rules,
+unlock rules and Progress. The Course Template feature records and snapshots
+the declaration only; actual time-window calculation, Session rescheduling,
+automatic activation and learner reminders belong to the future Cohort/Session
+runtime contract.
 
 A Quiz Activity may be authored with a provisional positive integer
 `assessment_quiz_id`, but any Template containing a Quiz Activity is blocked

@@ -40,6 +40,19 @@
                 <dd>{{ __('lf.LF_course_template_activity_common_duration_minutes', ['minutes' => intdiv($activity->estimated_duration_seconds, 60)]) }}</dd>
             @endif
 
+            @php
+                $learningAvailability = collect([
+                    'anytime' => $activity->available_anytime,
+                    'before_session' => $activity->available_before_session,
+                    'during_session' => $activity->available_during_session,
+                    'after_session' => $activity->available_after_session,
+                ])->filter()->keys()->map(
+                    fn (string $phase) => __('lf.LF_course_template_activity_learning_availability_'.$phase)
+                )->implode(', ');
+            @endphp
+            <dt>{{ __('lf.LF_course_template_activity_learning_availability') }}</dt>
+            <dd>{{ $learningAvailability }}</dd>
+
             @if ($activity->assessment_quiz_id)
                 <dt>{{ __('lf.LF_course_template_activity_common_reference') }}</dt>
                 <dd>Assessment Quiz #{{ $activity->assessment_quiz_id }}</dd>

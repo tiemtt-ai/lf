@@ -680,6 +680,79 @@ class CourseTemplateActivityManagementTest extends TestCase
         ]);
     }
 
+    public function test_learning_availability_supports_anytime_or_multiple_session_phases(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
+
+        $this->actingAs($admin)
+            ->post($url, $this->validActivityData([
+                'title' => 'Before and during',
+                'learning_phases_present' => 1,
+                'learning_phases' => ['before_session', 'during_session'],
+            ]))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('core_course_template_activities', [
+            'customer_id' => $customerId,
+            'title' => 'Before and during',
+            'available_anytime' => 0,
+            'available_before_session' => 1,
+            'available_during_session' => 1,
+            'available_after_session' => 0,
+        ]);
+
+        $this->actingAs($admin)
+            ->post($url, $this->validActivityData([
+                'title' => 'Invalid availability',
+                'learning_phases_present' => 1,
+                'learning_phases' => ['anytime', 'after_session'],
+            ]))
+            ->assertSessionHasErrors('learning_phases');
+
+        $this->actingAs($admin)
+            ->post($url, $this->validActivityData([
+                'title' => 'Missing availability',
+                'learning_phases_present' => 1,
+                'learning_phases' => [],
+            ]))
+            ->assertSessionHasErrors('learning_phases');
+    }
+
+    public function test_learning_availability_checkboxes_render_on_activity_form_and_detail(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
+
+        $this->actingAs($admin)->get("{$url}/create")
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_learning_availability'))
+            ->assertSee('name="learning_phases[]"', false)
+            ->assertSee('value="anytime"', false)
+            ->assertSee('value="before_session"', false)
+            ->assertSee('value="during_session"', false)
+            ->assertSee('value="after_session"', false);
+
+        $this->actingAs($admin)
+            ->post($url, $this->validActivityData([
+                'title' => 'After class resource',
+                'learning_phases_present' => 1,
+                'learning_phases' => ['after_session'],
+            ]))
+            ->assertRedirect();
+
+        $activityId = (int) DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)
+            ->where('title', 'After class resource')
+            ->value('id');
+
+        $this->actingAs($admin)->get("{$url}/{$activityId}")
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_learning_availability_after_session'));
+    }
+
     public function test_template_section_lesson_and_activity_access_are_tenant_isolated(): void
     {
         [$customerId, $templateId, $sectionId, $lessonId] =

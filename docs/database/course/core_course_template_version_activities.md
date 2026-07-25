@@ -1,6 +1,6 @@
 # Table: core_course_template_version_activities
 
-Version: 2.0
+Version: 2.1
 
 Status: Approved
 
@@ -46,6 +46,10 @@ Media / Assessment / LiveClass → version_activities (approved immutable refere
   accompanied by the immutable context required by that Domain contract.
   Final Media/Assessment/LiveClass contracts remain a future review item.
 * Version Activities become immutable when the parent Version is published.
+* Learning availability is copied as four booleans. `available_anytime` is
+  exclusive; otherwise one or more Session-relative choices are required.
+* Version Activity stores no Working Live Class anchor. A future Cohort
+  Session mapped to the Version Lesson supplies the runtime time anchor.
 
 # Fields
 
@@ -66,6 +70,10 @@ Media / Assessment / LiveClass → version_activities (approved immutable refere
 | `assessment_quiz_id_snapshot` | BIGINT UNSIGNED | nullable | Reserved for the future immutable Assessment binding; current publish readiness blocks Quiz Activities. |
 | `duration_seconds` | INT UNSIGNED | required, default 0 | Published Activity duration. |
 | `estimated_duration_seconds_snapshot` | INT UNSIGNED | nullable | Frozen estimated learner completion time; `NULL` means unknown. |
+| `available_anytime` | TINYINT(1) | required, default 1 | Available without a Session-relative window. |
+| `available_before_session` | TINYINT(1) | required, default 0 | Available before the real Cohort Session. |
+| `available_during_session` | TINYINT(1) | required, default 0 | Available during the real Cohort Session. |
+| `available_after_session` | TINYINT(1) | required, default 0 | Available after the real Cohort Session. |
 | `is_required` | TINYINT(1) | required, default 1 | Published completion requirement. |
 | `completion_rule` | VARCHAR(50) | required, default `view` | Type-compatible value: `view`, `watch_percent`, `submit`, `pass`, or `manual`; Live Class uses `manual`. |
 | `completion_threshold` | INT UNSIGNED | nullable | Frozen threshold from `1` through `100`, such as watch percentage or pass percentage. |

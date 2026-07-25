@@ -265,6 +265,27 @@ class CourseTemplateVersionDuplicatingService
                 $this->invalidStructure();
             }
 
+            $availability = [
+                $activity->available_anytime,
+                $activity->available_before_session,
+                $activity->available_during_session,
+                $activity->available_after_session,
+            ];
+            if (! collect($availability)->every(
+                fn ($value): bool => in_array($value, [0, 1, '0', '1', false, true], true)
+            ) || ! (
+                ((bool) $activity->available_anytime
+                    && ! $activity->available_before_session
+                    && ! $activity->available_during_session
+                    && ! $activity->available_after_session)
+                || (! $activity->available_anytime
+                    && ($activity->available_before_session
+                        || $activity->available_during_session
+                        || $activity->available_after_session))
+            )) {
+                $this->invalidStructure();
+            }
+
             if (! in_array($activity->unlock_rule_snapshot, ['none', 'previous_activity_completed'], true)
                 || ($activity->unlock_rule_snapshot === 'none'
                     && ($activity->unlock_after_version_activity_id || $activity->unlock_at_snapshot))
@@ -532,6 +553,10 @@ class CourseTemplateVersionDuplicatingService
                 'assessment_quiz_id' => $activity->assessment_quiz_id_snapshot,
                 'duration_seconds' => $activity->duration_seconds,
                 'estimated_duration_seconds' => $activity->estimated_duration_seconds_snapshot,
+                'available_anytime' => $activity->available_anytime,
+                'available_before_session' => $activity->available_before_session,
+                'available_during_session' => $activity->available_during_session,
+                'available_after_session' => $activity->available_after_session,
                 'is_required' => $activity->is_required,
                 'completion_rule' => $activity->completion_rule,
                 'completion_threshold' => $activity

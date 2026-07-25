@@ -68,6 +68,7 @@
         <table class="table course-cohort-index-table">
             <thead>
             <tr>
+                <th>{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_cohort_common_name') }}</th>
                 <th>
                     {{ __('lf.LF_course_cohort_common_product') }}
@@ -80,6 +81,9 @@
             <tbody>
             @forelse ($cohorts as $cohort)
                 <tr>
+                    <td data-label="{{ __('lf.table_no') }}">
+                        {{ $cohorts->firstItem() + $loop->index }}
+                    </td>
                     <td data-label="{{ __('lf.LF_course_cohort_common_name') }}">
                         <strong class="course-cohort-index-primary">{{ $cohort->name }}</strong>
                         <span class="course-cohort-index-meta">{{ $cohort->code ?? '—' }}</span>
@@ -125,7 +129,7 @@
                 </tr>
             @empty
                 <tr class="course-cohort-empty-row">
-                    <td class="course-cohort-empty-cell" colspan="4">
+                    <td class="course-cohort-empty-cell" colspan="5">
                         <div class="course-cohort-empty-state" role="status">
                             <strong>{{ $hasActiveFilters ? __('lf.LF_course_cohort_filter_empty') : __('lf.LF_course_cohort_common_empty') }}</strong>
                             <span>{{ $hasActiveFilters ? __('lf.LF_course_cohort_filter_empty_help') : __('lf.LF_course_cohort_empty_help') }}</span>

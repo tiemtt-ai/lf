@@ -27,7 +27,7 @@
     @endif
 
     <section class="course-template-tab-panel course-template-activity-form-page">
-    <div class="admin-card admin-form-card course-template-activity-form-card">
+    <div class="admin-card admin-form-card admin-form-surface course-template-activity-form-card">
         <p class="course-template-activity-context">
             {{ __('lf.LF_course_template_activity_common_location') }}:
             <strong>
@@ -40,6 +40,7 @@
         </p>
 
         <form method="POST"
+              class="admin-form-standard"
               enctype="multipart/form-data"
               action="{{ route(
                   $routePrefix.'.update',
@@ -50,13 +51,15 @@
 
             @include('course-template-activities.partials.form')
 
-            <footer class="admin-form-actions admin-form-actions--footer">
-                <a href="{{ route($templateRoutePrefix.'.edit', $template->id) }}?tab=structure#course-template-lesson-{{ $lesson->id }}-activities" class="btn btn-secondary">
-                    {{ __('lf.LF_common_button_cancel') }}
-                </a>
-                <button type="submit" class="btn btn-primary">
-                    {{ __('lf.LF_common_button_save_changes') }}
-                </button>
+            <footer class="admin-form-footer" data-actions-align="end">
+                <div class="admin-form-footer-primary">
+                    <a href="{{ route($templateRoutePrefix.'.edit', $template->id) }}?tab=structure#course-template-lesson-{{ $lesson->id }}-activities" class="btn btn-secondary">
+                        {{ __('lf.LF_common_button_cancel') }}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        {{ __('lf.LF_common_button_save_changes') }}
+                    </button>
+                </div>
             </footer>
         </form>
     </div>

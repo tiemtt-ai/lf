@@ -15,6 +15,13 @@ use Illuminate\View\View;
 
 class CourseTemplateActivityController extends Controller
 {
+    private const LEARNING_PHASES = [
+        'anytime',
+        'before_session',
+        'during_session',
+        'after_session',
+    ];
+
     private const ACTIVITY_TYPES = [
         'video',
         'embedded_video',
@@ -595,6 +602,19 @@ class CourseTemplateActivityController extends Controller
             ]
         );
 
+        $validator->after(function ($validator) use ($request): void {
+            $phases = $request->input('learning_phases', ['anytime']);
+
+            if (is_array($phases)
+                && in_array('anytime', $phases, true)
+                && count($phases) > 1) {
+                $validator->errors()->add(
+                    'learning_phases',
+                    __('lf.LF_course_template_activity_learning_availability_anytime_exclusive')
+                );
+            }
+        });
+
         if ($activityId !== null) {
             $validator->after(function ($validator) use (
                 $request,
@@ -641,6 +661,8 @@ class CourseTemplateActivityController extends Controller
             'assessment_quiz_id',
             'duration_seconds',
             'estimated_duration_minutes',
+            'learning_phases',
+            'learning_phases_present',
             'is_required',
             'completion_rule',
             'completion_threshold',
@@ -653,6 +675,9 @@ class CourseTemplateActivityController extends Controller
             $request->request->all(),
             array_flip($fields)
         );
+        $input['learning_phases'] = $input['learning_phases']
+            ?? ($request->boolean('learning_phases_present') ? [] : ['anytime']);
+        unset($input['learning_phases_present']);
 
         $typeField = [
             'embedded_video' => 'external_video_url',
@@ -760,6 +785,8 @@ class CourseTemplateActivityController extends Controller
                 ),
             ],
             'estimated_duration_minutes' => ['nullable', 'integer', 'min:1', 'max:525600'],
+            'learning_phases' => ['required', 'array', 'min:1'],
+            'learning_phases.*' => ['required', 'string', Rule::in(self::LEARNING_PHASES), 'distinct'],
             'is_required' => ['required', 'boolean'],
             'completion_rule' => [
                 'required',
@@ -850,6 +877,10 @@ class CourseTemplateActivityController extends Controller
             ) ? ($validated['duration_seconds'] ?? 0) : 0,
             'estimated_duration_seconds' => isset($validated['estimated_duration_minutes'])
                 ? $validated['estimated_duration_minutes'] * 60 : null,
+            'available_anytime' => in_array('anytime', $validated['learning_phases'], true),
+            'available_before_session' => in_array('before_session', $validated['learning_phases'], true),
+            'available_during_session' => in_array('during_session', $validated['learning_phases'], true),
+            'available_after_session' => in_array('after_session', $validated['learning_phases'], true),
             'is_required' => (bool) $validated['is_required'],
             'completion_rule' => $validated['completion_rule'],
             'completion_threshold' => $validated['completion_threshold'] ?? null,

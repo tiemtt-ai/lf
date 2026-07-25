@@ -1,6 +1,6 @@
 # ADR-0012 — Course Template Published Version Snapshot Architecture
 
-Version: 1.3
+Version: 1.4
 
 Status: Approved
 
@@ -10,6 +10,7 @@ Scope Amendment Date: 2026-07-10
 Nested Section Amendment Date: 2026-07-10
 Information Model Amendment Date: 2026-07-12
 Lifecycle Clarification Date: 2026-07-17
+Activity Learning Availability Amendment Date: 2026-07-25
 
 Extends:
 [ADR-0001 — Course Foundation](ADR-0001-Course-Foundation.md)
@@ -37,6 +38,19 @@ ADR freezes the field-level persistence boundary and publish behavior for the
 four published snapshot tables.
 
 # Decision
+
+## Activity Learning Availability Amendment (2026-07-25)
+
+Each Activity snapshots four explicit availability booleans:
+`available_anytime`, `available_before_session`,
+`available_during_session`, and `available_after_session`. `anytime` is
+exclusive; otherwise one or more Session-relative phases may be selected.
+Existing data defaults to `anytime`.
+
+The snapshot contains no Working Live Class Activity anchor. A future Cohort
+Session mapped to the Version Lesson supplies the real runtime time anchor.
+These fields do not change ordering, completion, unlock or Progress and do not
+implement Session scheduling or automatic activation by themselves.
 
 ## Version Activity Uploaded Media Amendment (2026-07-13)
 
@@ -244,7 +258,7 @@ A publish operation must:
 5. Copy Sections, their `allows_lessons` capability and mapped parents.
 6. Copy Lessons, preserving direct/Sectioned location at any Section level and
    mapping prerequisites.
-7. Copy Activities and map Activity prerequisites.
+7. Copy Activities, their learning availability and map Activity prerequisites.
 8. Validate tenant ownership, ordering and references.
 9. Unset the previous current Version and mark the new Version current.
 10. Finalize `status = published`, `published_at` and publication audit fields.

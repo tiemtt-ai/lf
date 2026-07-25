@@ -51,6 +51,11 @@
                         <span class="course-template-activity-title-text">
                             {{ $activity->title_snapshot }}
                         </span>
+                        <span class="lf-secondary-text">
+                            {{ __('lf.LF_course_template_activity_learning_availability_summary', [
+                                'phases' => $activityView['availability'],
+                            ]) }}
+                        </span>
                     </div>
                     @if ($activityView['mediaUrl'] || $activityView['embeddedUrl'])
                         <div class="admin-table-actions">

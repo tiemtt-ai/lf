@@ -901,10 +901,10 @@
     margin-top: 6px;
 }
 
-.course-template-activity-form { width: 100%; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 24px; }
+.course-template-activity-form { width: 100%; min-width: 0; display: block; }
 .course-template-activity-form-wide { grid-column: 1 / -1; }
 .course-template-activity-form-card > form { width: 100%; min-width: 0; }
-.course-template-activity-context { margin: 0 0 24px; }
+.course-template-activity-context { margin: 0 0 24px; overflow-wrap: anywhere; }
 .course-template-activity-form-card .admin-form-actions { margin-top: 6px; }
 
 .course-template-section-form {
@@ -977,11 +977,6 @@
     .backend-shell.is-sidebar-collapsed .course-template-section-form {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-}
-
-@media (min-width: 901px) {
-    :root.is-backend-sidebar-collapsed .backend-shell .course-template-activity-form,
-    .backend-shell.is-sidebar-collapsed .course-template-activity-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (min-width: 901px) {

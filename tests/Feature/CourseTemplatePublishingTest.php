@@ -467,6 +467,14 @@ class CourseTemplatePublishingTest extends TestCase
             1,
             $admin->id
         );
+        DB::table('core_course_template_activities')
+            ->where('id', $directActivityId)
+            ->update([
+                'available_anytime' => false,
+                'available_before_session' => true,
+                'available_during_session' => true,
+                'available_after_session' => false,
+            ]);
         DB::table('core_course_template_lessons')
             ->where('id', $directLessonId)
             ->update(['lesson_type' => 'review']);
@@ -606,6 +614,10 @@ class CourseTemplatePublishingTest extends TestCase
             $directVersionActivity->version_lesson_id
         );
         $this->assertSame('Welcome Video', $directVersionActivity->title_snapshot);
+        $this->assertSame(0, (int) $directVersionActivity->available_anytime);
+        $this->assertSame(1, (int) $directVersionActivity->available_before_session);
+        $this->assertSame(1, (int) $directVersionActivity->available_during_session);
+        $this->assertSame(0, (int) $directVersionActivity->available_after_session);
         $this->assertNotNull($sectionVersionActivity);
         $this->assertSame(
             $sectionVersionLesson->id,

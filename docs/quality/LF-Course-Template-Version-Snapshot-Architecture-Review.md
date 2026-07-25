@@ -1,6 +1,6 @@
 # Course Template Published Version Snapshot Architecture Review
 
-Version: 1.2
+Version: 1.3
 
 Status: Approved Review
 
@@ -8,6 +8,7 @@ Review Date: 2026-07-03
 
 Nested Section Capability Review Date: 2026-07-10
 Information Model Review Date: 2026-07-12
+Activity Learning Availability Review Date: 2026-07-25
 
 ---
 
@@ -36,6 +37,20 @@ This review verifies the documentation and schema contract for immutable
 published Course Template Version snapshots. It does not authorize or review
 application code, migrations, rollback, duplicate, Enrollment binding or
 published Course consumption.
+
+# Activity Learning Availability Amendment Review
+
+| Area | Result |
+| --- | --- |
+| Domain ownership | PASS — Course owns the authored availability declaration. |
+| Runtime boundary | PASS — Cohort Session remains the future real-time anchor. |
+| Snapshot | PASS — Four booleans are copied immutably without Working IDs. |
+| Backward compatibility | PASS — Existing rows default to `anytime`. |
+| Completion/Progress | PASS — Availability does not redefine either contract. |
+| Tenant isolation | PASS — No new cross-tenant relationship is introduced. |
+| UI | PASS — `anytime` is exclusive; before/during/after support multi-select. |
+
+No unresolved required finding remains for this amendment.
 
 # Information Model Amendment Review
 
@@ -130,7 +145,7 @@ Owner Approval:
 
 ```text
 Role: LearnForge Architecture Owner
-Date: 2026-07-12 (Information Model amendment)
+Date: 2026-07-25 (Activity Learning Availability amendment)
 Decision: Approved
 ```
 

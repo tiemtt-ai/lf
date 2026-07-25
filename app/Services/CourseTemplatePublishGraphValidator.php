@@ -164,6 +164,24 @@ class CourseTemplatePublishGraphValidator
             };
             $thresholdRequired = in_array($activity->completion_rule, ['watch_percent', 'pass'], true);
             $estimated = $activity->estimated_duration_seconds;
+            $availability = [
+                $activity->available_anytime,
+                $activity->available_before_session,
+                $activity->available_during_session,
+                $activity->available_after_session,
+            ];
+            $validAvailability = collect($availability)->every(
+                fn ($value): bool => $this->canonicalBoolean($value)
+            ) && (
+                ((bool) $activity->available_anytime
+                    && ! $activity->available_before_session
+                    && ! $activity->available_during_session
+                    && ! $activity->available_after_session)
+                || (! $activity->available_anytime
+                    && ($activity->available_before_session
+                        || $activity->available_during_session
+                        || $activity->available_after_session))
+            );
             if ((int) $activity->customer_id !== $customerId
                 || (int) $activity->template_id !== $templateId
                 || ! $lesson
@@ -174,7 +192,8 @@ class CourseTemplatePublishGraphValidator
                 || ($estimated !== null && (! $this->positiveInteger($estimated) || (int) $estimated > 31536000))
                 || ! in_array($activity->completion_rule, $completionRules, true)
                 || ! $this->canonicalBoolean($activity->is_required)
-                || ! $this->canonicalBoolean($activity->is_preview)) {
+                || ! $this->canonicalBoolean($activity->is_preview)
+                || ! $validAvailability) {
                 $this->add($issues, 'activity', 'content', $context, $fragment);
             }
             if (($thresholdRequired && (! $this->positiveInteger($activity->completion_threshold) || (int) $activity->completion_threshold > 100)) || (! $thresholdRequired && $activity->completion_threshold !== null)) {

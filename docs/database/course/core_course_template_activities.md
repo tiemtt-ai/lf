@@ -1,6 +1,6 @@
 # Table: core_course_template_activities
 
-Version: 1.0
+Version: 1.1
 
 Status: Official Foundation
 
@@ -95,6 +95,13 @@ core_course_template_activities
   Activity detail.
 * Không hiển thị Activity status hoặc type/status badge trong authoring tree.
 * Empty state chỉ hiển thị `Chưa có hoạt động.`.
+* Mỗi Activity chọn `anytime`, hoặc một hay nhiều thời điểm
+  `before_session`, `during_session`, `after_session`.
+* `anytime` không được kết hợp với các thời điểm theo buổi học.
+* Activity hiện có mặc định `anytime`.
+* Không tham chiếu Live Class Activity; Cohort Session thực tế gắn Lesson là
+  mốc thời gian ở runtime.
+* Các lựa chọn này độc lập với sort order, completion, unlock và Progress.
 
 ---
 
@@ -198,6 +205,32 @@ immutable binding.
 ---
 
 ## Learning Metadata
+
+### available_anytime
+
+TINYINT(1) DEFAULT 1
+
+Có thể học bất kỳ lúc nào. Khi bằng `1`, ba field theo buổi học phải bằng `0`.
+
+### available_before_session
+
+TINYINT(1) DEFAULT 0
+
+Có thể học trước Cohort Session thực tế gắn với Lesson.
+
+### available_during_session
+
+TINYINT(1) DEFAULT 0
+
+Có thể học trong Cohort Session thực tế gắn với Lesson.
+
+### available_after_session
+
+TINYINT(1) DEFAULT 0
+
+Có thể học sau Cohort Session thực tế gắn với Lesson.
+
+Ít nhất một trong bốn field availability phải bằng `1`.
 
 ### duration_seconds
 

@@ -75,6 +75,37 @@
     color: #dc2626;
 }
 
+.admin-checkbox-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.admin-checkbox-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    background: #fff;
+    cursor: pointer;
+}
+
+.admin-checkbox-option:has(input:checked) {
+    border-color: #4f6fe7;
+    background: #eef2ff;
+    color: #334fc4;
+}
+
+.admin-checkbox-option input {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+}
+
 /* =========================
    Public Hero
 ========================= */
