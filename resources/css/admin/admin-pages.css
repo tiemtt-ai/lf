@@ -1681,7 +1681,23 @@
 .course-enrollment-filter-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: end;
     gap: 14px;
+}
+
+.course-enrollment-index-count {
+    margin-right: auto;
+    color: var(--admin-text-muted);
+    font-size: 14px;
+}
+
+.course-enrollment-filter-card {
+    margin-bottom: 20px;
+    padding: 16px 18px;
+}
+
+.course-enrollment-filter-grid .lf-form-group {
+    margin: 0;
 }
 
 .lf-admin-page .course-enrollment-filter-grid .lf-form-control:hover:not(:focus) {
@@ -1695,8 +1711,10 @@
 }
 
 .course-enrollment-filter-toggle {
-    grid-column: 1 / -1;
-    margin-top: -2px;
+    grid-column: 1 / 3;
+    min-height: 42px;
+    display: flex;
+    align-items: center;
 }
 
 .course-enrollment-filter-toggle .admin-text-action {
@@ -1713,6 +1731,16 @@
     gap: 14px;
     padding-top: 14px;
     border-top: 1px solid var(--admin-border);
+}
+
+.course-enrollment-version-meta,
+.course-enrollment-source-meta {
+    display: block;
+    margin-top: 4px;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
 }
 
 .course-enrollment-empty-cell {
@@ -1736,6 +1764,11 @@
 .course-enrollment-empty-state span {
     font-size: 13px;
     line-height: 1.45;
+}
+
+.course-enrollment-empty-state .btn,
+.course-enrollment-empty-state .admin-text-action {
+    margin-top: 8px;
 }
 
 .bulk-enrollment-dual-selectors {
@@ -2111,7 +2144,12 @@
 }
 
 .course-enrollment-filter-actions {
-    grid-column: 1 / -1;
+    grid-column: 3;
+    min-height: 42px;
+    margin: 0;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
 }
 
 .bulk-enrollment-result__success {
@@ -2507,6 +2545,11 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .course-enrollment-filter-toggle,
+    .course-enrollment-filter-actions {
+        grid-column: 1 / -1;
+    }
+
 }
 
 @media (max-width: 640px) {
@@ -2518,6 +2561,15 @@
     .course-enrollment-advanced-filter-grid,
     .course-enrollment-bulk-modal__grid {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .course-enrollment-filter-actions {
+        justify-content: space-between;
+    }
+
+    .course-enrollment-filter-actions .btn {
+        flex: 1;
+        justify-content: center;
     }
 
     .bulk-enrollment-result__summary > div {

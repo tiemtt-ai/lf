@@ -51,6 +51,15 @@
         ])
     )">
 
+    <div class="course-cohort-index-toolbar course-enrollment-index-toolbar">
+        <span class="course-enrollment-index-count">
+            {{ trans_choice('lf.LF_course_enrollment_index_count', $enrollments->total(), ['count' => $enrollments->total()]) }}
+        </span>
+        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
+            {{ __('lf.LF_course_enrollment_common_create') }}
+        </a>
+    </div>
+
     <div class="admin-card admin-form-card course-enrollment-filter-card">
         <form class="course-enrollment-filter-grid" method="GET" action="{{ route($routePrefix.'.index') }}" x-data="{ advancedFiltersOpen: @js($advancedFiltersOpen) }">
             <input type="hidden" name="advanced_filters" :value="advancedFiltersOpen ? '1' : '0'">
@@ -114,17 +123,13 @@
                 <button type="submit" class="btn btn-primary">
                     {{ __('lf.LF_common_button_search') }}
                 </button>
-                <a href="{{ route($routePrefix.'.index') }}">
-                    {{ __('lf.LF_course_enrollment_common_clear_filters') }}
-                </a>
+                @if ($hasActiveFilters)
+                    <a class="admin-text-action" href="{{ route($routePrefix.'.index') }}">
+                        {{ __('lf.LF_course_enrollment_common_clear_filters') }}
+                    </a>
+                @endif
             </div>
         </form>
-    </div>
-
-    <div class="course-cohort-index-toolbar">
-        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
-            {{ __('lf.LF_course_enrollment_common_create') }}
-        </a>
     </div>
 
     <div x-cloak x-show="selectedIds.length > 0" class="course-enrollment-bulk-bar" aria-live="polite">
@@ -149,9 +154,7 @@
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_enrollment_common_student') }}</th>
                 <th>{{ __('lf.LF_course_enrollment_common_product') }}</th>
-                <th>{{ __('lf.LF_course_enrollment_common_version') }}</th>
                 <th>{{ __('lf.LF_course_enrollment_common_source') }}</th>
-                <th>{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</th>
                 <th class="course-cohort-index-status">{{ __('lf.LF_course_enrollment_common_status') }}</th>
                 <th class="course-cohort-index-actions">{{ __('lf.table_actions') }}</th>
             </tr>
@@ -159,32 +162,33 @@
             <tbody>
             @forelse ($enrollments as $enrollment)
                 <tr>
-                    <td class="course-enrollment-select-column">
+                    <td class="course-enrollment-select-column" data-label="{{ __('lf.LF_course_enrollment_select_page') }}">
                         @if (in_array($enrollment->status, ['pending', 'active', 'suspended'], true))
                             <label><input type="checkbox" value="{{ $enrollment->id }}" x-model="selectedIds"><span class="sr-only">{{ __('lf.LF_course_enrollment_select_row', ['id' => $enrollment->id, 'student' => $enrollment->student_name]) }}</span></label>
                         @else
                             <span title="{{ __('lf.LF_course_enrollment_bulk_terminal') }}">—</span>
                         @endif
                     </td>
-                    <td class="admin-table-sequence">{{ $enrollments->firstItem() + $loop->index }}</td>
-                    <td>
+                    <td class="admin-table-sequence" data-label="{{ __('lf.table_no') }}">{{ $enrollments->firstItem() + $loop->index }}</td>
+                    <td data-label="{{ __('lf.LF_course_enrollment_common_student') }}">
                         <strong class="course-cohort-index-primary">{{ $enrollment->student_name }}</strong>
                         <span class="course-cohort-index-meta">{{ $enrollment->student_email }}</span>
                     </td>
-                    <td>
+                    <td data-label="{{ __('lf.LF_course_enrollment_common_product') }}">
                         <strong class="course-cohort-index-primary">{{ $enrollment->product_title }}</strong>
                         <span class="course-cohort-index-meta">{{ $enrollment->product_code }}</span>
-                    </td>
-                    <td>
-                        <strong class="course-cohort-index-primary">{{ $enrollment->version_title }}</strong>
-                        <span class="course-cohort-index-meta">
+                        <span class="course-enrollment-version-meta">
+                            {{ __('lf.LF_course_enrollment_common_version') }}:
+                            {{ $enrollment->version_title }} ·
                             {{ __('lf.LF_course_product_item_common_version_number', ['number' => $enrollment->version_number]) }}
                             · {{ $enrollment->version_code }}
                         </span>
                     </td>
-                    <td>{{ __('lf.LF_course_enrollment_common_source_'.$enrollment->source) }}</td>
-                    <td>{{ $enrollment->enrolled_at }}</td>
-                    <td class="course-cohort-index-status">
+                    <td data-label="{{ __('lf.LF_course_enrollment_common_source') }}">
+                        {{ __('lf.LF_course_enrollment_common_source_'.$enrollment->source) }}
+                        <span class="course-enrollment-source-meta">{{ $enrollment->enrolled_at }}</span>
+                    </td>
+                    <td class="course-cohort-index-status" data-label="{{ __('lf.LF_course_enrollment_common_status') }}">
                         <span @class([
                             'badge',
                             'badge-success' => $enrollment->status === 'active',
@@ -193,7 +197,7 @@
                             {{ __('lf.LF_course_enrollment_common_'.$enrollment->status) }}
                         </span>
                     </td>
-                    <td class="course-cohort-index-actions">
+                    <td class="course-cohort-index-actions" data-label="{{ __('lf.table_actions') }}">
                         <div class="admin-table-actions course-cohort-index-action-list">
                             <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.show', $enrollment->id) }}">
                                 {{ __('lf.action_view') }}
@@ -203,11 +207,20 @@
                     </td>
                 </tr>
             @empty
-                <tr>
-                    <td colspan="9" class="course-enrollment-empty-cell">
+                <tr class="course-cohort-empty-row course-enrollment-empty-row">
+                    <td colspan="7" class="course-cohort-empty-cell course-enrollment-empty-cell">
                         <div class="course-enrollment-empty-state" role="status">
                             <strong>{{ $hasActiveFilters ? __('lf.LF_course_enrollment_filter_empty') : __('lf.LF_course_enrollment_common_empty') }}</strong>
                             <span>{{ $hasActiveFilters ? __('lf.LF_course_enrollment_filter_empty_help') : __('lf.LF_course_enrollment_empty_help') }}</span>
+                            @if ($hasActiveFilters)
+                                <a class="admin-text-action" href="{{ route($routePrefix.'.index') }}">
+                                    {{ __('lf.LF_course_enrollment_common_clear_filters') }}
+                                </a>
+                            @else
+                                <a class="btn btn-primary" href="{{ route($routePrefix.'.create') }}">
+                                    {{ __('lf.LF_course_enrollment_common_create') }}
+                                </a>
+                            @endif
                         </div>
                     </td>
                 </tr>

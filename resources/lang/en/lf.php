@@ -575,6 +575,7 @@ return [
     'LF_course_enrollment_filter_empty' => 'No matching enrollments found.',
     'LF_course_enrollment_filter_empty_help' => 'Adjust the keyword or filters and try again.',
     'LF_course_enrollment_empty_help' => 'Created enrollments will appear here.',
+    'LF_course_enrollment_index_count' => '{0} No enrollments|{1} :count enrollment|[2,*] :count enrollments',
     'LF_course_enrollment_filter_results' => ':count results',
     'LF_course_enrollment_select_page' => 'Select all eligible enrollments on this page',
     'LF_course_enrollment_select_row' => 'Select enrollment #:id for :student',

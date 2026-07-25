@@ -854,13 +854,24 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-enrollments')
             ->assertOk()
-            ->assertSee('class="course-cohort-index-toolbar"', false)
+            ->assertSee('course-cohort-index-toolbar', false)
+            ->assertSee('course-enrollment-index-toolbar', false)
+            ->assertSee('course-enrollment-index-count', false)
+            ->assertSee('course-enrollment-filter-grid', false)
             ->assertSee('course-cohort-index-table-wrap', false)
             ->assertSee('course-enrollment-index-table', false)
             ->assertSee('course-cohort-index-status', false)
             ->assertSee('course-cohort-index-actions', false)
             ->assertSeeText(__('lf.LF_course_enrollment_common_empty'))
-            ->assertSeeText(__('lf.LF_course_enrollment_empty_help'));
+            ->assertSeeText(__('lf.LF_course_enrollment_empty_help'))
+            ->assertSeeText(__('lf.LF_course_enrollment_common_create'));
+
+        $this->get('https://tenant-a.localhost/admin/course-enrollments?keyword=missing')
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_enrollment_filter_empty'))
+            ->assertSeeText(__('lf.LF_course_enrollment_filter_empty_help'))
+            ->assertSeeText(__('lf.LF_course_enrollment_common_clear_filters'))
+            ->assertDontSeeText(__('lf.LF_course_enrollment_common_empty'));
     }
 
     public function test_index_paginates_ten_and_orders_statuses_by_operational_priority(): void

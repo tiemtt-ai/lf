@@ -575,6 +575,7 @@ return [
     'LF_course_enrollment_filter_empty' => 'Không tìm thấy ghi danh phù hợp.',
     'LF_course_enrollment_filter_empty_help' => 'Hãy điều chỉnh từ khóa hoặc bộ lọc rồi thử lại.',
     'LF_course_enrollment_empty_help' => 'Các ghi danh được tạo sẽ xuất hiện tại đây.',
+    'LF_course_enrollment_index_count' => '{0} Chưa có ghi danh|[1,*] :count ghi danh',
     'LF_course_enrollment_filter_results' => ':count kết quả',
     'LF_course_enrollment_select_page' => 'Chọn tất cả ghi danh đủ điều kiện trên trang này',
     'LF_course_enrollment_select_row' => 'Chọn ghi danh #:id của :student',
