@@ -131,12 +131,30 @@
         </div>
     @endif
 
-    <x-modal name="change-password" :show="$errors->updatePassword->any()" focusable>
-        <div class="lf-modal-card">
-            <h2>{{ __('lf.LF_profile_title_common_change_password') }}</h2>
+    <x-modal name="change-password" :show="$errors->updatePassword->any()" max-width="lg" focusable>
+        <div class="lf-modal-card admin-password-modal">
+            <header class="admin-password-modal-header">
+                <div class="admin-password-modal-heading">
+                    <span class="admin-password-modal-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <rect x="5" y="10" width="14" height="10" rx="2"></rect>
+                            <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2"></path>
+                        </svg>
+                    </span>
+                    <div>
+                        <h2 id="admin-password-modal-title">{{ __('lf.LF_profile_title_common_change_password') }}</h2>
+                        <p>{{ __('lf.LF_profile_help_admin_security') }}</p>
+                    </div>
+                </div>
+                <button type="button" class="admin-password-modal-close"
+                        aria-label="{{ __('lf.LF_common_button_close') }}"
+                        x-on:click="$dispatch('close-modal', 'change-password')">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </header>
 
             @if ($errors->updatePassword->any())
-                <div class="lf-alert-danger">
+                <div class="lf-alert-danger admin-password-modal-errors" role="alert">
                     <ul>
                         @foreach ($errors->updatePassword->all() as $error)
                             <li>{{ $error }}</li>
@@ -145,29 +163,100 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('admin.my-account.password.update') }}">
+            <form method="POST" action="{{ route('admin.my-account.password.update') }}"
+                  aria-labelledby="admin-password-modal-title">
                 @csrf
                 @method('PATCH')
 
-                <div class="lf-form-group">
-                    <label for="admin_current_password" class="lf-form-label">{{ __('lf.LF_common_label_current_password') }}</label>
-                    <input id="admin_current_password" type="password" name="current_password"
-                           class="lf-form-control" autocomplete="current-password" required>
+                <div class="lf-form-group admin-password-field" x-data="{ visible: false }">
+                    <label for="admin_current_password" class="lf-form-label">
+                        {{ __('lf.LF_common_label_current_password') }}
+                        <span class="lf-required-indicator" aria-hidden="true">*</span>
+                    </label>
+                    <div class="admin-password-control">
+                        <input id="admin_current_password" type="password" x-bind:type="visible ? 'text' : 'password'"
+                               name="current_password" class="lf-form-control"
+                               autocomplete="current-password"
+                               placeholder="{{ __('lf.LF_profile_placeholder_current_password') }}"
+                               aria-required="true" required autofocus>
+                        <button type="button" x-on:click="visible = ! visible"
+                                x-bind:aria-label="visible ? @js(__('lf.LF_auth_login_hide_password')) : @js(__('lf.LF_auth_login_show_password'))"
+                                x-bind:title="visible ? @js(__('lf.LF_auth_login_hide_password')) : @js(__('lf.LF_auth_login_show_password'))">
+                            <svg x-show="! visible" class="admin-password-eye" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+                                <circle cx="12" cy="12" r="2.75"></circle>
+                            </svg>
+                            <svg x-show="visible" x-cloak class="admin-password-eye" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path d="m3 3 18 18M10.6 6.15A10.7 10.7 0 0 1 12 6c6 0 9.5 6 9.5 6a15 15 0 0 1-2.1 2.75M6.2 6.2C3.8 7.85 2.5 12 2.5 12s3.5 6 9.5 6a9.8 9.8 0 0 0 3.15-.52M9.9 9.9a3 3 0 0 0 4.2 4.2"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    @foreach ($errors->updatePassword->get('current_password') as $error)
+                        <p class="lf-form-error">{{ $error }}</p>
+                    @endforeach
                 </div>
 
-                <div class="lf-form-group">
-                    <label for="admin_new_password" class="lf-form-label">{{ __('lf.LF_common_label_new_password') }}</label>
-                    <input id="admin_new_password" type="password" name="password"
-                           class="lf-form-control" autocomplete="new-password" required>
+                <div class="lf-form-group admin-password-field" x-data="{ visible: false }">
+                    <label for="admin_new_password" class="lf-form-label">
+                        {{ __('lf.LF_common_label_new_password') }}
+                        <span class="lf-required-indicator" aria-hidden="true">*</span>
+                    </label>
+                    <div class="admin-password-control">
+                        <input id="admin_new_password" type="password" x-bind:type="visible ? 'text' : 'password'"
+                               name="password" class="lf-form-control"
+                               autocomplete="new-password"
+                               placeholder="{{ __('lf.LF_profile_placeholder_new_password') }}"
+                               aria-describedby="admin_new_password_help" aria-required="true" required>
+                        <button type="button" x-on:click="visible = ! visible"
+                                x-bind:aria-label="visible ? @js(__('lf.LF_auth_login_hide_password')) : @js(__('lf.LF_auth_login_show_password'))"
+                                x-bind:title="visible ? @js(__('lf.LF_auth_login_hide_password')) : @js(__('lf.LF_auth_login_show_password'))">
+                            <svg x-show="! visible" class="admin-password-eye" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+                                <circle cx="12" cy="12" r="2.75"></circle>
+                            </svg>
+                            <svg x-show="visible" x-cloak class="admin-password-eye" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path d="m3 3 18 18M10.6 6.15A10.7 10.7 0 0 1 12 6c6 0 9.5 6 9.5 6a15 15 0 0 1-2.1 2.75M6.2 6.2C3.8 7.85 2.5 12 2.5 12s3.5 6 9.5 6a9.8 9.8 0 0 0 3.15-.52M9.9 9.9a3 3 0 0 0 4.2 4.2"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <p id="admin_new_password_help" class="lf-form-help">{{ __('lf.LF_profile_help_new_password') }}</p>
+                    @foreach ($errors->updatePassword->get('password') as $error)
+                        <p class="lf-form-error">{{ $error }}</p>
+                    @endforeach
                 </div>
 
-                <div class="lf-form-group">
-                    <label for="admin_password_confirmation" class="lf-form-label">{{ __('lf.LF_common_label_confirm_new_password') }}</label>
-                    <input id="admin_password_confirmation" type="password" name="password_confirmation"
-                           class="lf-form-control" autocomplete="new-password" required>
+                <div class="lf-form-group admin-password-field" x-data="{ visible: false }">
+                    <label for="admin_password_confirmation" class="lf-form-label">
+                        {{ __('lf.LF_common_label_confirm_new_password') }}
+                        <span class="lf-required-indicator" aria-hidden="true">*</span>
+                    </label>
+                    <div class="admin-password-control">
+                        <input id="admin_password_confirmation" type="password" x-bind:type="visible ? 'text' : 'password'"
+                               name="password_confirmation" class="lf-form-control"
+                               autocomplete="new-password"
+                               placeholder="{{ __('lf.LF_profile_placeholder_confirm_new_password') }}"
+                               aria-required="true" required>
+                        <button type="button" x-on:click="visible = ! visible"
+                                x-bind:aria-label="visible ? @js(__('lf.LF_auth_login_hide_password')) : @js(__('lf.LF_auth_login_show_password'))"
+                                x-bind:title="visible ? @js(__('lf.LF_auth_login_hide_password')) : @js(__('lf.LF_auth_login_show_password'))">
+                            <svg x-show="! visible" class="admin-password-eye" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+                                <circle cx="12" cy="12" r="2.75"></circle>
+                            </svg>
+                            <svg x-show="visible" x-cloak class="admin-password-eye" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path d="m3 3 18 18M10.6 6.15A10.7 10.7 0 0 1 12 6c6 0 9.5 6 9.5 6-3.5 6-9.5 6a9.8 9.8 0 0 1-3.15-.52M6.2 6.2C3.8 7.85 2.5 12 2.5 12s3.5 6 9.5 6a9.8 9.8 0 0 0 3.15-.52M9.9 9.9a3 3 0 0 0 4.2 4.2"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
-                <div class="lf-modal-actions">
+                <div class="lf-modal-actions admin-password-modal-actions">
                     <button type="button" class="btn btn-secondary"
                             x-on:click="$dispatch('close-modal', 'change-password')">
                         {{ __('lf.LF_common_button_cancel') }}

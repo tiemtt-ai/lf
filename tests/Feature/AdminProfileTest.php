@@ -47,6 +47,12 @@ class AdminProfileTest extends TestCase
             ->assertSee('name="current_password"', false)
             ->assertSee('name="password"', false)
             ->assertSee('name="password_confirmation"', false)
+            ->assertSee('class="lf-modal-card admin-password-modal"', false)
+            ->assertSee('class="admin-password-modal-header"', false)
+            ->assertSee(__('lf.LF_profile_placeholder_current_password'))
+            ->assertSee(__('lf.LF_profile_placeholder_new_password'))
+            ->assertSee(__('lf.LF_profile_placeholder_confirm_new_password'))
+            ->assertSee(__('lf.LF_profile_help_new_password'))
             ->assertSeeText(__('lf.LF_navigation_menu_admin_organization'))
             ->assertSeeText(__('lf.LF_navigation_menu_admin_users'))
             ->assertSeeText(__('lf.LF_navigation_menu_admin_my_account'))
@@ -68,6 +74,20 @@ class AdminProfileTest extends TestCase
             ->assertDontSee('class="admin-form-grid"', false);
 
         $content = $response->getContent();
+
+        $modalContent = substr($content, strpos($content, 'admin-password-modal'));
+        $this->assertSame(3, substr_count(
+            $modalContent,
+            'class="lf-required-indicator"'
+        ));
+        $this->assertSame(3, substr_count(
+            $modalContent,
+            'aria-required="true"'
+        ));
+        $this->assertSame(6, substr_count(
+            $modalContent,
+            'class="admin-password-eye"'
+        ));
 
         $this->assertLessThan(
             strpos($content, 'name="password"'),
