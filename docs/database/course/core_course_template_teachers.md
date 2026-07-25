@@ -53,11 +53,14 @@ core_course_template_teachers
 * Một Template có thể không có teacher assignment; thiếu Giáo viên không phải
   publish blocker, nhưng readiness hiển thị cảnh báo không chặn để người dùng có
   thể phân công sau.
-* Có thể xác định teacher chính và teacher phụ.
+* Có thể xác định trách nhiệm của teacher trên working Template: chủ trì nội
+  dung, biên soạn hoặc phản biện. Đây không phải vai trò đứng lớp.
 * Teacher assignment là cấu hình vận hành mutable của working Template, không
   phải nội dung immutable và không được snapshot vào Course Template Version.
   Thay đổi assignment sau publish không sửa Version, Product Item, Enrollment
   hoặc Progress hiện hữu.
+* Teacher assignment không tự động tạo phân công giáo viên cho Product, Cohort
+  hoặc LiveClass Session.
 * Khi Template đang được Product tham chiếu, thay đổi teacher assignment phải bảo toàn quyền truy cập và lịch sử liên quan.
 
 ---
@@ -103,6 +106,15 @@ Giá trị:
 * primary
 * assistant
 * reviewer
+
+Ý nghĩa hiển thị:
+
+* `primary`: Chủ trì nội dung.
+* `assistant`: Người biên soạn.
+* `reviewer`: Người phản biện.
+
+Các giá trị này mô tả trách nhiệm trên working Template, không mô tả vai trò
+giảng dạy tại Cohort hoặc LiveClass Session.
 
 ### sort_order
 

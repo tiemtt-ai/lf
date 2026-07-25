@@ -71,11 +71,11 @@ class CourseTemplateTeacherManagementTest extends TestCase
                     ."{$templateId}/edit?tab=teachers"
                 )
                 ->assertOk()
-                ->assertSeeText('Giáo viên phụ trách')
-                ->assertSeeText('+ Thêm giáo viên')
+                ->assertSeeText('Nhóm phụ trách Template')
+                ->assertSeeText('+ Phân công giáo viên')
                 ->assertSeeText('Assigned Teacher')
                 ->assertSeeText($assignedTeacher->email)
-                ->assertSeeText('Giáo viên chính')
+                ->assertSeeText('Chủ trì nội dung')
                 ->assertSeeText(
                     'Bạn có chắc chắn muốn xóa giáo viên khỏi Template này không?'
                 )
@@ -374,7 +374,7 @@ class CourseTemplateTeacherManagementTest extends TestCase
             ->assertSee('class="course-template-tab-panel course-template-teacher-form-page"', false)
             ->assertSee('class="admin-card admin-form-card course-template-teacher-form-card"', false)
             ->assertSeeText('Chọn giáo viên')
-            ->assertSeeText('Chọn vai trò giảng dạy')
+            ->assertSeeText('Chọn vai trò')
             ->assertDontSee('name="sort_order"', false)
             ->assertDontSee('name="status"', false)
             ->assertDontSee('admin-form-section-title', false);
@@ -415,10 +415,10 @@ class CourseTemplateTeacherManagementTest extends TestCase
         $content = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=teachers")
             ->assertOk()
-            ->assertSeeText('Giáo viên phụ trách')
+            ->assertSeeText('Nhóm phụ trách Template')
             ->assertSeeText('Chưa có giáo viên')
-            ->assertSeeText('Thêm giáo viên để phân công vai trò giảng dạy cho Template này.')
-            ->assertSeeText('+ Thêm giáo viên')
+            ->assertSeeText('Phân công giáo viên và xác định vai trò của họ trên Template này.')
+            ->assertSeeText('+ Phân công giáo viên')
             ->getContent();
 
         $this->assertStringContainsString('class="course-template-section-header course-template-teachers-header"', $content);
