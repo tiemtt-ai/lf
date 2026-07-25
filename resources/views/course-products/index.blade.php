@@ -4,8 +4,12 @@
 @section('page_title', __('lf.LF_course_product_common_title'))
 
 @section('content')
+    @php
+        $hasActiveFilters = $keyword !== '' || $status !== null || $visibility !== null;
+    @endphp
+
     @if (session('success'))
-        <div class="admin-alert admin-alert-success">
+        <div class="admin-alert admin-alert-success" role="status">
             {{ session('success') }}
         </div>
     @endif
@@ -20,8 +24,17 @@
         </div>
     @endif
 
-    <div class="admin-card admin-form-card">
-        <form method="GET" action="{{ route($routePrefix.'.index') }}">
+    <div class="course-product-index-toolbar">
+        <span class="course-product-index-count">
+            {{ trans_choice('lf.LF_course_product_index_count', $products->total(), ['count' => $products->total()]) }}
+        </span>
+        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
+            {{ __('lf.LF_course_product_common_create') }}
+        </a>
+    </div>
+
+    <div class="admin-card admin-form-card course-product-filter-card">
+        <form class="course-product-filter-grid" method="GET" action="{{ route($routePrefix.'.index') }}">
             <div class="lf-form-group">
                 <label class="lf-form-label" for="keyword">
                     {{ __('lf.LF_course_product_common_keyword') }}
@@ -59,21 +72,17 @@
                 </select>
             </div>
 
-            <div class="admin-form-actions">
+            <div class="admin-form-actions course-product-filter-actions">
                 <button type="submit" class="btn btn-primary">
                     {{ __('lf.LF_common_button_search') }}
                 </button>
-                <a href="{{ route($routePrefix.'.index') }}">
-                    {{ __('lf.LF_course_product_common_clear_filters') }}
-                </a>
+                @if ($hasActiveFilters)
+                    <a class="admin-text-action" href="{{ route($routePrefix.'.index') }}">
+                        {{ __('lf.LF_course_product_common_clear_filters') }}
+                    </a>
+                @endif
             </div>
         </form>
-    </div>
-
-    <div class="course-product-index-toolbar">
-        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
-            {{ __('lf.LF_course_product_common_create') }}
-        </a>
     </div>
 
     <div class="admin-table-wrap course-product-index-table-wrap">
@@ -81,7 +90,6 @@
             <thead>
             <tr>
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
-                <th class="course-product-index-code">{{ __('lf.table_code') }}</th>
                 <th>{{ __('lf.LF_course_product_common_title_field') }}</th>
                 <th>{{ __('lf.LF_course_product_common_product_type') }}</th>
                 <th>{{ __('lf.LF_course_product_common_price') }}</th>
@@ -93,17 +101,25 @@
             <tbody>
             @forelse ($products as $product)
                 <tr>
-                    <td class="admin-table-sequence">{{ $products->firstItem() + $loop->index }}</td>
-                    <td class="course-product-index-code"><span class="course-product-index-code-value">{{ $product->product_code }}</span></td>
-                    <td><strong class="course-product-index-primary">{{ $product->title }}</strong></td>
-                    <td>
+                    <td class="admin-table-sequence" data-label="{{ __('lf.table_no') }}">
+                        {{ $products->firstItem() + $loop->index }}
+                    </td>
+                    <td data-label="{{ __('lf.LF_course_product_common_title_field') }}">
+                        <strong class="course-product-index-primary">{{ $product->title }}</strong>
+                        <span class="course-product-index-meta">{{ $product->product_code }}</span>
+                    </td>
+                    <td data-label="{{ __('lf.LF_course_product_common_product_type') }}">
                         {{ $product->offering_type
                             ? __('lf.LF_product_v2_offering_'.$product->offering_type)
                             : '—' }}
                     </td>
-                    <td>{{ number_format((float) $product->price, 0) }} {{ $product->currency }}</td>
-                    <td>{{ __('lf.LF_course_product_common_visibility_'.$product->visibility) }}</td>
-                    <td class="course-product-index-status">
+                    <td data-label="{{ __('lf.LF_course_product_common_price') }}">
+                        {{ number_format((float) $product->price, 0) }} {{ $product->currency }}
+                    </td>
+                    <td data-label="{{ __('lf.LF_course_product_common_visibility') }}">
+                        {{ __('lf.LF_course_product_common_visibility_'.$product->visibility) }}
+                    </td>
+                    <td class="course-product-index-status" data-label="{{ __('lf.LF_course_product_common_status') }}">
                         <span @class([
                             'badge',
                             'course-product-status-badge',
@@ -114,7 +130,7 @@
                             {{ __('lf.LF_course_product_common_'.$product->status) }}
                         </span>
                     </td>
-                    <td class="course-product-index-actions">
+                    <td class="course-product-index-actions" data-label="{{ __('lf.table_actions') }}">
                         <div class="admin-table-actions course-product-index-action-list">
                             <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $product->id) }}">
                                 {{ __('lf.action_edit') }}
@@ -123,9 +139,21 @@
                     </td>
                 </tr>
             @empty
-                <tr>
-                    <td colspan="8">
-                        {{ __('lf.LF_course_product_common_empty') }}
+                <tr class="course-product-empty-row">
+                    <td class="course-product-empty-cell" colspan="7">
+                        <div class="course-product-empty-state" role="status">
+                            <strong>{{ $hasActiveFilters ? __('lf.LF_course_product_filter_empty') : __('lf.LF_course_product_common_empty') }}</strong>
+                            <span>{{ $hasActiveFilters ? __('lf.LF_course_product_filter_empty_help') : __('lf.LF_course_product_empty_help') }}</span>
+                            @if ($hasActiveFilters)
+                                <a class="admin-text-action" href="{{ route($routePrefix.'.index') }}">
+                                    {{ __('lf.LF_course_product_common_clear_filters') }}
+                                </a>
+                            @else
+                                <a class="btn btn-primary" href="{{ route($routePrefix.'.create') }}">
+                                    {{ __('lf.LF_course_product_common_create') }}
+                                </a>
+                            @endif
+                        </div>
                     </td>
                 </tr>
             @endforelse

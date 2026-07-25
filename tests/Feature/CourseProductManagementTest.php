@@ -90,9 +90,36 @@ class CourseProductManagementTest extends TestCase
             ->assertSeeText('TOPIK Beginner')
             ->assertSeeText('Sản phẩm khóa học')
             ->assertSee('course-product-index-toolbar', false)
+            ->assertSee('course-product-index-count', false)
+            ->assertSee('course-product-filter-grid', false)
             ->assertSee('course-product-index-table', false)
+            ->assertSee('course-product-index-meta', false)
             ->assertSee('course-product-status-badge', false)
             ->assertDontSeeText('Private Tenant Product');
+    }
+
+    public function test_product_index_uses_standard_empty_states_for_default_and_filtered_lists(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-products')
+            ->assertOk()
+            ->assertSee('course-product-empty-state', false)
+            ->assertSeeText(__('lf.LF_course_product_common_empty'))
+            ->assertSeeText(__('lf.LF_course_product_empty_help'))
+            ->assertSeeText(__('lf.LF_course_product_common_create'));
+
+        $this->createProduct($customerId, 'Existing Product', 'existing-product');
+
+        $this->get('https://tenant-a.localhost/admin/course-products?keyword=missing')
+            ->assertOk()
+            ->assertSee('course-product-empty-state', false)
+            ->assertSeeText(__('lf.LF_course_product_filter_empty'))
+            ->assertSeeText(__('lf.LF_course_product_filter_empty_help'))
+            ->assertSeeText(__('lf.LF_course_product_common_clear_filters'))
+            ->assertDontSeeText(__('lf.LF_course_product_common_empty'));
     }
 
     public function test_admin_can_create_a_product_with_documented_fields(): void
