@@ -957,9 +957,14 @@ class CourseTemplateSectionManagementTest extends TestCase
             ->assertSee('class="course-template-tab-panel course-template-section-form-page"', false)
             ->assertSee('class="admin-card admin-form-card course-template-section-form-card"', false)
             ->assertSee('class="course-template-section-context"', false)
-            ->assertSee('class="course-template-section-form"', false)
-            ->assertDontSee('admin-form-section-title', false)
-            ->assertSee('class="lf-form-group course-template-section-form-wide"', false)
+            ->assertSee('class="admin-form-flow course-template-section-form"', false)
+            ->assertSeeText('Vị trí nội dung')
+            ->assertSeeText('Thông tin phần học')
+            ->assertSeeText('Tổ chức phần học')
+            ->assertSee('class="admin-form-field-grid admin-form-field-grid--three"', false)
+            ->assertSee('id="display_order"', false)
+            ->assertSee('readonly', false)
+            ->assertDontSeeText('Hệ thống đề xuất thứ tự tiếp theo; có thể điều chỉnh khi cần.')
             ->assertSee('placeholder="Nhập tên phần học"', false)
             ->assertSee('placeholder="Nhập mô tả phần học"', false)
             ->assertSee('placeholder="Ví dụ: 1"', false);
@@ -991,12 +996,13 @@ class CourseTemplateSectionManagementTest extends TestCase
 
         $css = file_get_contents(resource_path('css/admin/admin-components.css'));
         $this->assertStringContainsString(
-            ':root.is-backend-sidebar-collapsed .backend-shell .course-template-section-form',
+            '.course-template-section-form {',
             $css
         );
+        $this->assertStringContainsString('flex-direction: column;', $css);
         $this->assertStringContainsString('.course-template-section-form-card {', $css);
         $this->assertStringContainsString('max-width: none;', $css);
-        $this->assertStringContainsString('@media (min-width: 901px)', $css);
+        $this->assertStringContainsString('.admin-form-field-grid--three', $css);
     }
 
     public function test_guest_and_student_cannot_access_section_management(): void

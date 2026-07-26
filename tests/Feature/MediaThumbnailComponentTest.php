@@ -30,11 +30,11 @@ class MediaThumbnailComponentTest extends TestCase
     {
         $html = Blade::render('<x-backend-icon name="hierarchy" />');
 
-        $this->assertStringContainsString(
-            '<rect x="8" y="1.5" width="8" height="4" rx="1">',
-            $html
-        );
-        $this->assertStringContainsString('<path d="M5 18v-2h14v2">', $html);
+        $this->assertStringContainsString('<circle cx="4" cy="5" r="1">', $html);
+        $this->assertStringContainsString('<path d="M6 8v11">', $html);
+        $this->assertStringContainsString('<path d="M6 12h4">', $html);
+        $this->assertStringContainsString('<path d="M6 19h4">', $html);
+        $this->assertStringContainsString('<circle cx="11.5" cy="12" r="1">', $html);
         $this->assertStringNotContainsString('<circle cx="12" cy="12" r="8">', $html);
     }
 

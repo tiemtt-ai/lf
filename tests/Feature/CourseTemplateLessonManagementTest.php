@@ -1531,6 +1531,10 @@ class CourseTemplateLessonManagementTest extends TestCase
                 ->assertOk(),
         ];
 
+        $responses[0]
+            ->assertSee('class="course-template-prerequisite-list"', false)
+            ->assertSee('class="admin-checkbox-option course-template-prerequisite-option"', false);
+
         foreach ($responses as $response) {
             foreach ([
                 'title',

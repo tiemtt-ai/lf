@@ -61,8 +61,39 @@ class CourseTemplateManagementTest extends TestCase
                 ->assertSee('course-template-filter-grid', false)
                 ->assertSee('course-template-index-table', false)
                 ->assertSee('course-template-status-badge', false)
+                ->assertDontSee('admin-table-sequence', false)
+                ->assertDontSeeText(__('lf.table_no'))
                 ->assertDontSeeText('Private Tenant Template');
         }
+    }
+
+    public function test_template_index_paginates_ten_records_without_a_sequence_column(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        foreach (range(1, 11) as $number) {
+            $suffix = str_pad((string) $number, 2, '0', STR_PAD_LEFT);
+            $this->createTemplate(
+                $customerId,
+                "Paginated Template {$suffix}",
+                "paginated-template-{$suffix}"
+            );
+        }
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-templates')
+            ->assertOk()
+            ->assertSeeText('Paginated Template 01')
+            ->assertSeeText('Paginated Template 10')
+            ->assertDontSeeText('Paginated Template 11')
+            ->assertDontSee('admin-table-sequence', false);
+
+        $this->get('https://tenant-a.localhost/admin/course-templates?page=2')
+            ->assertOk()
+            ->assertSeeText('Paginated Template 11')
+            ->assertDontSeeText('Paginated Template 01')
+            ->assertDontSee('admin-table-sequence', false);
     }
 
     public function test_template_index_uses_standard_empty_states_for_default_and_filtered_lists(): void

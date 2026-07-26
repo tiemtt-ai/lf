@@ -133,7 +133,7 @@
                 <legend class="lf-form-label">{{ __('lf.LF_course_template_lesson_common_unlock_after_lessons') }}</legend>
                 <div class="course-template-prerequisite-list">
                     @foreach ($prerequisiteLessons as $prerequisiteLesson)
-                        <label class="lf-checkbox-option">
+                        <label class="admin-checkbox-option course-template-prerequisite-option">
                             <input type="checkbox" name="prerequisite_lesson_ids[]"
                                    value="{{ $prerequisiteLesson->id }}"
                                    @checked(in_array((string) $prerequisiteLesson->id, $selectedPrerequisites, true))>

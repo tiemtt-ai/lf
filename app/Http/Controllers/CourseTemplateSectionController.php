@@ -39,6 +39,11 @@ class CourseTemplateSectionController extends Controller
         return view('course-template-sections.create', [
             'template' => $template,
             'parentSections' => $parentSections,
+            'nextDisplayOrders' => $this->nextDisplayOrders(
+                $customerId,
+                $templateId,
+                $parentSections
+            ),
             'suggestedDisplayOrder' => $this->nextDisplayOrder(
                 $customerId,
                 $templateId,
@@ -365,6 +370,26 @@ class CourseTemplateSectionController extends Controller
                 )
             )
             ->max('display_order') + 1;
+    }
+
+    private function nextDisplayOrders(
+        int $customerId,
+        int $templateId,
+        $parentSections
+    ): array {
+        $orders = [
+            'root' => $this->nextDisplayOrder($customerId, $templateId, null),
+        ];
+
+        foreach ($parentSections as $parentSection) {
+            $orders[(string) $parentSection->id] = $this->nextDisplayOrder(
+                $customerId,
+                $templateId,
+                (int) $parentSection->id
+            );
+        }
+
+        return $orders;
     }
 
     private function flattenSections($sections, ?int $parentId = null, int $depth = 0): array

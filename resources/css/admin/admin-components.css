@@ -921,7 +921,8 @@
 }
 
 .course-template-lesson-context,
-.course-template-activity-context {
+.course-template-activity-context,
+.course-template-section-context {
     margin: 0 0 24px;
     padding: 12px 14px;
     display: flex;
@@ -937,7 +938,8 @@
 }
 
 .course-template-lesson-context strong,
-.course-template-activity-context strong {
+.course-template-activity-context strong,
+.course-template-section-context strong {
     color: var(--admin-control-text);
     font-size: 14px;
     font-weight: 500;
@@ -946,6 +948,42 @@
 
 .course-template-lesson-form-wide {
     grid-column: 1 / -1;
+}
+
+.course-template-prerequisite-list {
+    width: 100%;
+    min-width: 0;
+    margin-top: 8px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+}
+
+.course-template-prerequisite-option {
+    width: 100%;
+    min-width: 0;
+    min-height: 48px;
+    align-items: flex-start;
+    padding: 12px 14px;
+}
+
+.course-template-prerequisite-option input {
+    flex: 0 0 auto;
+    margin-top: 2px;
+}
+
+.course-template-prerequisite-option span {
+    min-width: 0;
+    color: var(--admin-control-text);
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+@media (min-width: 1200px) {
+    :root.is-backend-sidebar-collapsed .backend-shell .course-template-prerequisite-list,
+    .backend-shell.is-sidebar-collapsed .course-template-prerequisite-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 .course-template-lesson-form-card .admin-form-actions {
@@ -988,9 +1026,8 @@
 .course-template-section-form {
     width: 100%;
     min-width: 0;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0 24px;
+    display: flex;
+    flex-direction: column;
 }
 
 .course-template-section-form-card {
@@ -1001,15 +1038,6 @@
 .course-template-section-form-card > form {
     width: 100%;
     min-width: 0;
-}
-
-.course-template-section-context {
-    margin: 0 0 24px;
-    overflow-wrap: anywhere;
-}
-
-.course-template-section-form-card .admin-form-actions {
-    margin-top: 6px;
 }
 
 .course-template-teacher-form {
@@ -1042,17 +1070,6 @@
 @media (min-width: 901px) {
     :root.is-backend-sidebar-collapsed .backend-shell .course-template-teacher-form,
     .backend-shell.is-sidebar-collapsed .course-template-teacher-form {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
-.course-template-section-form-wide {
-    grid-column: 1 / -1;
-}
-
-@media (min-width: 901px) {
-    :root.is-backend-sidebar-collapsed .backend-shell .course-template-section-form,
-    .backend-shell.is-sidebar-collapsed .course-template-section-form {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
