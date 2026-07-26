@@ -1207,7 +1207,7 @@ class CourseTemplatePublishingTest extends TestCase
             'completion_rule' => 'join',
             'unlock_rule' => 'none',
         ]);
-        $this->assertContains('activity', $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all());
+        $this->assertNotContains('activity', $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all());
 
         DB::table('core_course_template_activities')->where('id', $activityId)->update([
             'activity_type' => 'embedded_video',

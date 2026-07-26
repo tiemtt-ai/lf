@@ -75,7 +75,7 @@ Media / Assessment / LiveClass → version_activities (approved immutable refere
 | `available_during_session` | TINYINT(1) | required, default 0 | Available during the real Cohort Session. |
 | `available_after_session` | TINYINT(1) | required, default 0 | Available after the real Cohort Session. |
 | `is_required` | TINYINT(1) | required, default 1 | Published completion requirement. |
-| `completion_rule` | VARCHAR(50) | required, default `view` | Type-compatible value: `view`, `watch_percent`, `submit`, `pass`, or `manual`; Live Class uses `manual`. |
+| `completion_rule` | VARCHAR(50) | required, default `view` | Type-compatible value: `view`, `watch_percent`, `submit`, `pass`, `join`, or `manual`; Live Class supports `join` and `manual`. |
 | `completion_threshold` | INT UNSIGNED | nullable | Frozen threshold from `1` through `100`, such as watch percentage or pass percentage. |
 | `is_preview` | TINYINT(1) | required, default 0 | Published preview permission. |
 | `unlock_rule_snapshot` | VARCHAR(50) | required, default `none` | `none` or `previous_activity_completed`. |

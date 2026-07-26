@@ -28,11 +28,17 @@
     $completionRules = [
         'video' => ['view', 'watch_percent', 'manual'], 'audio' => ['view', 'watch_percent', 'manual'],
         'document' => ['view', 'manual'], 'embedded_video' => ['view', 'manual'],
-        'quiz' => ['submit', 'pass', 'manual'], 'live_class' => ['manual'],
+        'quiz' => ['submit', 'pass', 'manual'], 'live_class' => ['join', 'manual'],
     ];
     $completionRuleLabels = collect(['view', 'watch_percent', 'submit', 'pass', 'join', 'manual'])
         ->mapWithKeys(fn (string $rule) => [$rule => __('lf.LF_course_template_activity_common_completion_'.$rule)])
         ->all();
+    $completionRuleLabelsByType = [
+        'audio' => [
+            'view' => __('lf.LF_course_template_activity_common_completion_audio_view'),
+            'watch_percent' => __('lf.LF_course_template_activity_common_completion_audio_watch_percent'),
+        ],
+    ];
 @endphp
 
 <div class="course-template-activity-form admin-form-flow"
@@ -50,6 +56,11 @@
          learningPhases: @js(array_values((array) $selectedLearningPhases)),
          completionRules: @js($completionRules),
          completionRuleLabels: @js($completionRuleLabels),
+         completionRuleLabelsByType: @js($completionRuleLabelsByType),
+         completionRuleLabel(rule) {
+             return this.completionRuleLabelsByType[this.activityType]?.[rule]
+                 ?? this.completionRuleLabels[rule];
+         },
          activityTypeChanged() {
              this.completionRule = '';
              const automatic = ['video', 'audio'].includes(this.activityType);
@@ -297,7 +308,7 @@
             </p>
         </header>
         <div class="admin-form-field-grid">
-    <div class="lf-form-group"><x-form-label for="completion_rule" :value="__('lf.LF_course_template_activity_common_completion_rule')" :required="true" /><select id="completion_rule" name="completion_rule" class="lf-form-control" x-model="completionRule" :class="{ 'lf-select-placeholder': completionRule === '' }" required><option value="" disabled x-text="activityType ? @js(__('lf.LF_course_template_activity_placeholder_completion_rule')) : @js(__('lf.LF_course_template_activity_common_select_type_first'))"></option><template x-for="rule in (completionRules[activityType] || [])" :key="rule"><option :value="rule" x-text="completionRuleLabels[rule]"></option></template></select></div>
+    <div class="lf-form-group"><x-form-label for="completion_rule" :value="__('lf.LF_course_template_activity_common_completion_rule')" :required="true" /><select id="completion_rule" name="completion_rule" class="lf-form-control" x-model="completionRule" :class="{ 'lf-select-placeholder': completionRule === '' }" required><option value="" disabled x-text="activityType ? @js(__('lf.LF_course_template_activity_placeholder_completion_rule')) : @js(__('lf.LF_course_template_activity_common_select_type_first'))"></option><template x-for="rule in (completionRules[activityType] || [])" :key="rule"><option :value="rule" x-text="completionRuleLabel(rule)"></option></template></select></div>
     <div class="lf-form-group" x-show="['watch_percent', 'pass'].includes(completionRule)" x-cloak><x-form-label for="completion_threshold" :value="__('lf.LF_course_template_activity_common_completion_threshold')" /><input id="completion_threshold" type="number" min="1" max="100" name="completion_threshold" class="lf-form-control" value="{{ old('completion_threshold', $formActivity?->completion_threshold) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_completion_threshold_percent') }}"></div>
     <div class="lf-form-group"><x-form-label for="is_preview" :value="__('lf.LF_course_template_activity_common_preview')" :required="true" /><select id="is_preview" name="is_preview" class="lf-form-control" required><option value="0" @selected($selectedPreview === '0')>{{ __('lf.LF_course_template_activity_common_no') }}</option><option value="1" @selected($selectedPreview === '1')>{{ __('lf.LF_course_template_activity_common_yes') }}</option></select></div>
     <div class="lf-form-group"><x-form-label for="unlock_rule" :value="__('lf.LF_course_template_activity_common_unlock_rule')" :required="true" /><select id="unlock_rule" name="unlock_rule" class="lf-form-control" x-model="unlockRule" :class="{ 'lf-select-placeholder': unlockRule === '' }" required><option value="" disabled>{{ __('lf.LF_course_template_activity_placeholder_unlock_rule') }}</option>@foreach (['none','previous_activity_completed'] as $rule)<option value="{{ $rule }}">{{ __('lf.LF_course_template_activity_common_unlock_'.$rule) }}</option>@endforeach</select></div>

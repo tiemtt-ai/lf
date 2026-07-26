@@ -264,9 +264,12 @@ Giá trị:
 * watch_percent
 * submit
 * pass
+* join
 * manual
 
-`live_class` chỉ hỗ trợ `manual`.
+`live_class` hỗ trợ `join` (đã tham gia lớp học) và `manual`. Rule `join` là
+contract hoàn thành dựa trên bằng chứng Attendance của LiveClass; thao tác mở
+URL lớp học không tự thân được xem là đã hoàn thành.
 
 Uploaded `video`, `audio` và `document` media được publish validation bằng
 canonical `MediaService` type/MIME/extension policy. `media_files.status =

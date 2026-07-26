@@ -680,6 +680,36 @@ class CourseTemplateActivityManagementTest extends TestCase
         ]);
     }
 
+    public function test_live_class_accepts_attendance_or_manual_completion_rules(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] =
+            $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $url = $this->activityCollectionUrl(
+            'admin',
+            $templateId,
+            $sectionId,
+            $lessonId
+        );
+
+        $this->actingAs($admin)
+            ->post($url, $this->validActivityData([
+                'title' => 'Live attendance',
+                'activity_type' => 'live_class',
+                'live_class_url' => 'https://meet.example.test/live-attendance',
+                'completion_rule' => 'join',
+            ]))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('core_course_template_activities', [
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'template_lesson_id' => $lessonId,
+            'activity_type' => 'live_class',
+            'completion_rule' => 'join',
+        ]);
+    }
+
     public function test_learning_availability_supports_anytime_or_multiple_session_phases(): void
     {
         [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
@@ -1011,6 +1041,18 @@ class CourseTemplateActivityManagementTest extends TestCase
                 ).'/create'
             )
             ->assertOk();
+
+        $response
+            ->assertSee('completionRuleLabelsByType', false)
+            ->assertSee('x-text="completionRuleLabel(rule)"', false);
+        $this->assertSame(
+            'Nghe nội dung',
+            __('lf.LF_course_template_activity_common_completion_audio_view')
+        );
+        $this->assertSame(
+            'Phần trăm đã nghe',
+            __('lf.LF_course_template_activity_common_completion_audio_watch_percent')
+        );
 
         foreach ([
             'title',
