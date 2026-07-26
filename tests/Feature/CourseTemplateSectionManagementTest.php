@@ -941,7 +941,7 @@ class CourseTemplateSectionManagementTest extends TestCase
             )
             ->assertOk()
             ->assertSeeText('+ Thêm phần học')
-            ->assertSeeText('Phần học')
+            ->assertSeeText('1 phần học')
             ->assertSeeText('Sửa')
             ->assertSeeText('Xóa')
             ->assertSeeText('Bạn có chắc chắn muốn xóa phần học này không?')

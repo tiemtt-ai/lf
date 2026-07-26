@@ -1534,17 +1534,21 @@
 
 .course-template-structure-tabs {
     margin-top: 18px;
+    width: fit-content;
+    padding: 4px;
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     gap: 4px;
-    border-bottom: 1px solid #dbe3ed;
+    border: 1px solid var(--admin-border);
+    border-radius: 9px;
+    background: var(--admin-surface-subtle);
 }
 
 .course-template-structure-tabs button {
-    min-width: 0;
-    padding: 10px 16px;
+    min-width: 150px;
+    padding: 8px 14px;
     border: 0;
-    border-bottom: 3px solid transparent;
+    border-radius: 6px;
     color: #64748b;
     background: transparent;
     font: inherit;
@@ -1557,7 +1561,7 @@
 .course-template-structure-tabs button:hover,
 .course-template-structure-tabs button:focus-visible {
     color: var(--admin-active);
-    background: #f8fafc;
+    background: #ffffff;
 }
 
 .course-template-structure-tabs button:focus-visible {
@@ -1566,8 +1570,18 @@
 }
 
 .course-template-structure-tabs button.is-active {
-    border-bottom-color: var(--admin-active);
     color: var(--admin-active);
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .08);
+}
+
+.course-template-structure-tab-help {
+    min-height: 21px;
+    margin: 8px 0 0;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    font-weight: 300;
+    line-height: 1.5;
 }
 
 .course-template-structure-panel {
@@ -1612,14 +1626,47 @@
 
 .course-template-content-empty {
     margin: 0;
-    padding: 22px 18px;
+    min-height: 190px;
+    padding: 28px 20px;
     border: 1px dashed var(--admin-control-border);
     border-radius: 8px;
     color: var(--admin-text-muted);
     background: var(--admin-surface-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 7px;
     font-size: 13px;
     line-height: 1.5;
     text-align: center;
+}
+
+.course-template-content-empty-icon {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    color: var(--admin-primary);
+    background: color-mix(in srgb, var(--admin-primary) 9%, #ffffff);
+    font-size: 22px;
+    font-weight: 400;
+}
+
+.course-template-content-empty strong {
+    color: var(--admin-control-text);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.course-template-content-empty p {
+    max-width: 520px;
+    margin: 0;
+}
+
+.course-template-content-empty .btn {
+    margin-top: 7px;
 }
 
 .course-template-direct-lesson-panel .course-template-lesson-list {
@@ -3151,9 +3198,14 @@
     }
 
     .course-template-structure-tabs button {
+        min-width: 0;
         flex: 1 1 0;
         padding-right: 8px;
         padding-left: 8px;
+    }
+
+    .course-template-structure-tabs {
+        width: 100%;
     }
 
     .course-template-section-action-bar .btn {

@@ -55,14 +55,14 @@ class CourseTemplatePublishingTest extends TestCase
     public function test_version_content_tab_labels_and_empty_states_are_localized(): void
     {
         app()->setLocale('en');
-        $this->assertSame('Direct Lessons', __('lf.LF_course_template_structure_tab_direct'));
-        $this->assertSame('By Sections', __('lf.LF_course_template_structure_tab_sections'));
+        $this->assertSame('Independent lessons', __('lf.LF_course_template_structure_tab_direct'));
+        $this->assertSame('Organize by section', __('lf.LF_course_template_structure_tab_sections'));
         $this->assertSame('No direct lessons.', __('lf.LF_version_detail_no_direct_lessons'));
         $this->assertSame('No sections.', __('lf.LF_version_detail_no_sections'));
 
         app()->setLocale('vi');
-        $this->assertSame('Bài học trực tiếp', __('lf.LF_course_template_structure_tab_direct'));
-        $this->assertSame('Theo phần học', __('lf.LF_course_template_structure_tab_sections'));
+        $this->assertSame('Bài học độc lập', __('lf.LF_course_template_structure_tab_direct'));
+        $this->assertSame('Chia theo phần', __('lf.LF_course_template_structure_tab_sections'));
         $this->assertSame('Chưa có bài học trực tiếp.', __('lf.LF_version_detail_no_direct_lessons'));
         $this->assertSame('Chưa có phần học.', __('lf.LF_version_detail_no_sections'));
     }
@@ -1616,7 +1616,7 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertSeeText('Bản chỉnh sửa nguồn')
             ->assertSeeText('Đây là phiên bản lịch sử bất biến')
             ->assertSeeText('Readonly Snapshot')
-            ->assertSeeText('Bài học trực tiếp')
+            ->assertSeeText('Bài học độc lập')
             ->assertSeeText('Direct Snapshot Lesson')
             ->assertSeeText('Immutable <script>alert("lesson")</script> summary.')
             ->assertSeeText('Immutable section lesson description.')

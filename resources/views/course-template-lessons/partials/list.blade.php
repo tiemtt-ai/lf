@@ -21,16 +21,13 @@
                 {{ $panelTitle }} ({{ $lessons->count() }})
             </h4>
         @else
-            <div>
-                <strong id="{{ $panelId }}-title">{{ $panelTitle }}</strong>
-                <div class="lf-secondary-text">
-                    {{ __('lf.LF_course_template_lesson_common_direct_total', [
-                        'count' => $lessons->count(),
-                    ]) }}
-                </div>
-            </div>
+            <strong id="{{ $panelId }}-title">
+                {{ trans_choice('lf.LF_course_template_lesson_common_count', $lessons->count(), [
+                    'count' => $lessons->count(),
+                ]) }}
+            </strong>
         @endif
-        @if (! $section || $section->allows_lessons)
+        @if (($section && $section->allows_lessons) || (! $section && $lessons->isNotEmpty()))
             <a href="{{ route(
                 $lessonRoutePrefix.'.create',
                 $lessonBaseParameters
@@ -226,10 +223,19 @@
                 </x-modal>
             </article>
         @empty
-            <p @class([
-                'course-template-lesson-empty',
-                'course-template-content-empty' => ! $section,
-            ])>{{ $emptyMessage }}</p>
+            @if ($section)
+                <p class="course-template-lesson-empty">{{ $emptyMessage }}</p>
+            @else
+                <div class="course-template-content-empty">
+                    <span class="course-template-content-empty-icon" aria-hidden="true">＋</span>
+                    <strong>{{ __('lf.LF_course_template_lesson_common_direct_empty_title') }}</strong>
+                    <p>{{ $emptyMessage }}</p>
+                    <a href="{{ route($lessonRoutePrefix.'.create', $lessonBaseParameters) }}"
+                       class="btn admin-primary-outline-action">
+                        {{ __('lf.LF_course_template_lesson_common_add_action') }}
+                    </a>
+                </div>
+            @endif
         @endforelse
     </div>
 </section>

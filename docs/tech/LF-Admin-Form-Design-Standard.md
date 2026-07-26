@@ -152,7 +152,7 @@ Canonical primitives:
 | Action footer | `admin-form-footer` |
 | Destructive/admin group | `admin-form-footer-danger` |
 | Primary group | `admin-form-footer-primary` |
-| Cancel action | `admin-form-cancel` |
+| Cancel action | `btn btn-secondary` |
 
 Minimal generic Blade/HTML:
 
@@ -179,8 +179,8 @@ Minimal generic Blade/HTML:
         <footer class="admin-form-footer">
             <div class="admin-form-footer-danger">...</div>
             <div class="admin-form-footer-primary">
+                <a class="btn btn-secondary" href="...">Cancel</a>
                 <button type="submit" class="btn btn-primary">...</button>
-                <a class="admin-form-cancel" href="...">...</a>
             </div>
         </footer>
     </form>
@@ -510,13 +510,21 @@ rules, field names hoặc submitted values.
 Canonical desktop layout:
 
 ```text
-[Destructive/administrative action]         [Primary action] [Cancel]
+[Destructive/administrative action]         [Cancel] [Primary action]
 ```
 
 Desktop requirements:
 
 * `admin-form-footer-danger` ở trái.
 * `admin-form-footer-primary` ở phải.
+* Trong primary group, Cancel/Back **MUST** đứng trước Primary Submit theo
+  logical DOM order và visual order.
+* Cancel/Back **MUST** dùng secondary button treatment
+  (`btn btn-secondary`) khi đứng cạnh primary submit; **MUST NOT** giảm thành
+  text link vì sẽ làm action set thiếu cân bằng.
+* Create **MUST** có Cancel và Create/Submit. Edit **MUST** có Cancel và
+  Save/Update. Chỉ được thiếu action khi workflow có bằng chứng rõ ràng và
+  module documentation cho phép.
 * Các nhóm cùng baseline, có divider nhẹ và balanced padding.
 * Empty danger group **MUST NOT** làm primary group lệch khỏi phải.
 
@@ -674,7 +682,9 @@ Module **MUST NOT** tạo hai design systems riêng cho Create và Edit.
 
 - [ ] Desktop footer alignment đúng.
 - [ ] Mobile primary group đứng trước danger group.
-- [ ] Primary/Cancel behavior được giữ nguyên.
+- [ ] Cancel đứng trước Primary trong DOM và visual order.
+- [ ] Cancel dùng secondary button; Primary dùng primary button.
+- [ ] Create/Edit có đủ action bắt buộc theo workflow.
 - [ ] Destructive action tách rõ.
 - [ ] Loading/double-submit guard được giữ khi đã tồn tại.
 

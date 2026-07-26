@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class CourseTemplateLessonManagementTest extends TestCase
@@ -75,7 +76,7 @@ class CourseTemplateLessonManagementTest extends TestCase
                 )
                 ->assertOk()
                 ->assertSeeText('Gắn bài học')
-                ->assertSeeText('Tổng số bài học: 0')
+                ->assertSeeText('Chưa có bài học')
                 ->assertSeeText('Korean Alphabet')
                 ->assertDontSeeText('Private Tenant Lesson');
         }
@@ -160,7 +161,7 @@ class CourseTemplateLessonManagementTest extends TestCase
             $this->actingAs($user)
                 ->get($collectionUrl.'/create')
                 ->assertOk()
-                ->assertSeeText('Trực tiếp trong Template khóa học');
+                ->assertSeeText('Bài học độc lập');
 
             $this->actingAs($user)
                 ->post(
@@ -190,16 +191,16 @@ class CourseTemplateLessonManagementTest extends TestCase
                     ."{$templateId}/edit"
                 )
                 ->assertOk()
-                ->assertSeeText('Bài học trực tiếp')
-                ->assertSeeText('Tổng số bài học: 2')
+                ->assertSeeText('Bài học độc lập')
+                ->assertSeeText('2 bài học')
                 ->assertSeeText('Admin Direct Lesson')
                 ->assertSeeText('Teacher Direct Lesson')
                 ->assertSee(
                     "/{$area}/course-templates/{$templateId}/lessons/create",
                     false
                 )
-                ->assertSeeText('Bài học trực tiếp')
-                ->assertSeeText('Theo phần học')
+                ->assertSeeText('Bài học độc lập')
+                ->assertSeeText('Chia theo phần')
                 ->assertSee('x-show="activeStructureTab === \'direct\'"', false)
                 ->assertSee('x-show="activeStructureTab === \'sections\'"', false);
 
@@ -1011,12 +1012,27 @@ class CourseTemplateLessonManagementTest extends TestCase
 
             $content = $response->getContent();
             $this->assertLessThan(
-                strpos($content, 'name="lesson_type"'),
-                strpos($content, 'name="is_preview"')
+                strpos($content, 'name="is_preview"'),
+                strpos($content, 'name="lesson_type"')
             );
             $this->assertLessThan(
                 strpos($content, 'name="unlock_rule"'),
                 strpos($content, 'name="lesson_type"')
+            );
+            $response
+                ->assertSee('class="admin-form-standard"', false)
+                ->assertSee('aria-labelledby="lesson-information"', false)
+                ->assertSee('aria-labelledby="lesson-display"', false)
+                ->assertSee('aria-labelledby="lesson-unlock"', false)
+                ->assertSee('class="admin-form-footer"', false)
+                ->assertSee('class="btn btn-secondary"', false)
+                ->assertSee('class="btn btn-primary"', false)
+                ->assertDontSee('class="admin-form-cancel"', false)
+                ->assertSeeText(__('lf.LF_course_template_lesson_common_type'));
+            $footerContent = substr($content, strpos($content, 'class="admin-form-footer"'));
+            $this->assertLessThan(
+                strpos($footerContent, 'class="btn btn-primary"'),
+                strpos($footerContent, 'class="btn btn-secondary"')
             );
 
             foreach ([
@@ -1067,11 +1083,11 @@ class CourseTemplateLessonManagementTest extends TestCase
 
     public function test_course_template_lesson_module_has_no_eloquent_models(): void
     {
-        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_lessons', 'learning_objective'));
-        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_lessons', 'status'));
-        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_lessons', 'slug'));
-        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_version_lessons', 'learning_objective_snapshot'));
-        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('core_course_template_version_lessons', 'status_snapshot'));
+        $this->assertFalse(Schema::hasColumn('core_course_template_lessons', 'learning_objective'));
+        $this->assertFalse(Schema::hasColumn('core_course_template_lessons', 'status'));
+        $this->assertFalse(Schema::hasColumn('core_course_template_lessons', 'slug'));
+        $this->assertFalse(Schema::hasColumn('core_course_template_version_lessons', 'learning_objective_snapshot'));
+        $this->assertFalse(Schema::hasColumn('core_course_template_version_lessons', 'status_snapshot'));
 
         $this->assertFileDoesNotExist(
             app_path('Models/CoreCourseTemplateLesson.php')

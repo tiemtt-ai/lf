@@ -145,7 +145,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             )
             ->assertOk()
             ->assertSeeText('Cấu trúc khóa học')
-            ->assertSeeText('Bài học trực tiếp')
+            ->assertSeeText('Bài học độc lập')
             ->assertSeeText('Direct Outline Lesson')
             ->assertSeeText('Direct Outline Activity')
             ->assertSeeText('Section default')

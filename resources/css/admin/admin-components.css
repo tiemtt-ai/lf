@@ -911,9 +911,8 @@
 .course-template-lesson-form {
     width: 100%;
     min-width: 0;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0 24px;
+    display: flex;
+    flex-direction: column;
 }
 
 .course-template-lesson-form-card > form {
@@ -923,6 +922,24 @@
 
 .course-template-lesson-context {
     margin: 0 0 24px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+    border: 1px solid color-mix(in srgb, var(--admin-primary) 18%, var(--admin-border));
+    border-radius: 8px;
+    color: var(--admin-text-muted);
+    background: color-mix(in srgb, var(--admin-primary) 4%, var(--admin-surface));
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.course-template-lesson-context strong {
+    color: var(--admin-control-text);
+    font-size: 14px;
+    font-weight: 500;
+    overflow-wrap: anywhere;
 }
 
 .course-template-lesson-form-wide {

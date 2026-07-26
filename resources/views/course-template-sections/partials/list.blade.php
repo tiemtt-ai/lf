@@ -72,6 +72,14 @@
             {{ __('lf.LF_course_template_structure_tab_sections') }}
         </button>
     </div>
+    <p class="course-template-structure-tab-help" aria-live="polite">
+        <span x-show="activeStructureTab === 'direct'">
+            {{ __('lf.LF_course_template_structure_tab_direct_help') }}
+        </span>
+        <span x-show="activeStructureTab === 'sections'" x-cloak>
+            {{ __('lf.LF_course_template_structure_tab_sections_help') }}
+        </span>
+    </p>
 
     <div id="course-template-direct-panel"
          class="course-template-structure-panel"
@@ -98,11 +106,13 @@
          x-cloak>
         <div class="course-template-section-action-bar course-template-content-toolbar"
              aria-label="{{ __('lf.LF_course_template_section_common_actions') }}">
-            <strong>{{ __('lf.LF_course_template_section_common_area_title') }}</strong>
-            <a href="{{ route($sectionRoutePrefix.'.create', $template->id) }}"
-               class="btn admin-primary-outline-action">
-                {{ __('lf.LF_course_template_section_common_add_action') }}
-            </a>
+            <strong>{{ trans_choice('lf.LF_course_template_section_common_count', $sections->count(), ['count' => $sections->count()]) }}</strong>
+            @if ($hasSections)
+                <a href="{{ route($sectionRoutePrefix.'.create', $template->id) }}"
+                   class="btn admin-primary-outline-action">
+                    {{ __('lf.LF_course_template_section_common_add_action') }}
+                </a>
+            @endif
         </div>
 
         <div class="course-template-outline-sections">
@@ -111,9 +121,15 @@
                     'depth' => 0,
                 ])
             @empty
-                <p class="course-template-outline-empty course-template-content-empty">
-                    {{ __('lf.LF_course_template_section_common_empty') }}
-                </p>
+                <div class="course-template-content-empty">
+                    <span class="course-template-content-empty-icon" aria-hidden="true">§</span>
+                    <strong>{{ __('lf.LF_course_template_section_common_empty_title') }}</strong>
+                    <p>{{ __('lf.LF_course_template_section_common_empty') }}</p>
+                    <a href="{{ route($sectionRoutePrefix.'.create', $template->id) }}"
+                       class="btn admin-primary-outline-action">
+                        {{ __('lf.LF_course_template_section_common_add_action') }}
+                    </a>
+                </div>
             @endforelse
         </div>
     </div>
