@@ -8,6 +8,24 @@ use Tests\TestCase;
 
 class MediaThumbnailComponentTest extends TestCase
 {
+    public function test_audio_thumbnail_uses_the_headphones_icon_instead_of_circle_fallback(): void
+    {
+        $html = Blade::render(
+            '<x-media-thumbnail :presentation="$presentation" />',
+            [
+                'presentation' => [
+                    'state' => 'file_type_icon',
+                    'kind' => 'audio',
+                    'url' => null,
+                ],
+            ]
+        );
+
+        $this->assertStringContainsString('data-media-thumbnail-kind="audio"', $html);
+        $this->assertStringContainsString('M4 14v-2a8 8 0 0 1 16 0v2', $html);
+        $this->assertStringNotContainsString('<circle cx="12" cy="12" r="8"', $html);
+    }
+
     public function test_youtube_thumbnail_is_resolved_server_side_and_rendered_as_image(): void
     {
         $presentation = app(MediaThumbnailPresenter::class)
