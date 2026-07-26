@@ -492,8 +492,11 @@
 
 .admin-form-option-panel:focus-within {
     border-color: var(--admin-primary);
-    outline: 2px solid var(--admin-primary);
-    outline-offset: 2px;
+    outline: none;
+}
+
+.admin-form-option-panel:has(> input:focus-visible) {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-primary) 18%, transparent);
 }
 
 .admin-form-option-panel > input {

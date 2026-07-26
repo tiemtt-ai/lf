@@ -442,7 +442,7 @@
 }
 
 .public-register-card {
-    max-width: 720px;
+    max-width: 880px;
     margin: 0 auto;
     padding: 36px;
     border: 1px solid var(--public-border);
@@ -457,9 +457,38 @@
 }
 
 .public-register-intro {
-    margin: 0 0 28px;
+    margin: 0 0 30px;
     color: var(--public-muted);
     line-height: 1.6;
+}
+
+.public-register-section {
+    padding: 24px 0;
+    border-top: 1px solid var(--public-border);
+}
+
+.public-register-section:first-of-type {
+    padding-top: 0;
+    border-top: 0;
+}
+
+.public-register-section-header {
+    margin-bottom: 18px;
+}
+
+.public-register-section-header h2 {
+    margin: 0 0 5px;
+    color: #1d2939;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.public-register-section-header p {
+    margin: 0;
+    color: var(--public-muted);
+    font-size: 14px;
+    font-weight: 300;
+    line-height: 1.5;
 }
 
 .public-form-grid {
@@ -469,7 +498,7 @@
 }
 
 .public-form-group {
-    margin-bottom: 20px;
+    margin-bottom: 16px;
 }
 
 .public-form-group.is-full {
@@ -587,6 +616,62 @@
     line-height: 1.5;
 }
 
+.public-address-preview {
+    margin-top: 9px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: var(--public-muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.public-address-preview svg {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 auto;
+    color: var(--public-primary);
+}
+
+.public-address-preview strong {
+    color: #3448aa;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.public-register-actions {
+    padding-top: 24px;
+    border-top: 1px solid var(--public-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.public-register-actions p {
+    margin: 0;
+    color: var(--public-muted);
+    font-size: 14px;
+}
+
+.public-register-login-guidance {
+    max-width: 430px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.5;
+    text-align: right;
+}
+
+.public-register-login-guidance svg {
+    width: 17px;
+    height: 17px;
+    margin-top: 2px;
+    flex: 0 0 auto;
+    color: var(--public-primary);
+}
+
 .public-alert-danger {
     margin-bottom: 24px;
     padding: 14px 16px;
@@ -676,6 +761,16 @@
 
     .public-form-group.is-full {
         grid-column: auto;
+    }
+
+    .public-register-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .public-register-login-guidance {
+        max-width: none;
+        text-align: left;
     }
 
     .public-footer-inner {

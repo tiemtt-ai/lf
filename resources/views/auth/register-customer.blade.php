@@ -26,45 +26,65 @@
                       x-data="tenantRegistrationForm(@js(old('slug', \Illuminate\Support\Str::slug((string) old('customer_name', '')))))">
                     @csrf
 
-                    <div class="public-form-grid">
-                        <div class="public-form-group is-full">
-                            <label class="public-form-label" for="customer_name">
-                                {{ __('lf.LF_auth_register_organization') }}
-                                <span class="lf-required-indicator" aria-hidden="true">*</span>
-                            </label>
-                            <input id="customer_name" type="text" name="customer_name" class="public-form-control"
-                                   value="{{ old('customer_name') }}"
-                                   placeholder="{{ __('lf.LF_auth_register_organization_placeholder') }}"
-                                   @input="slug = slugify($event.target.value)" aria-required="true" required>
-                        </div>
+                    <section class="public-register-section" aria-labelledby="registration-organization">
+                        <header class="public-register-section-header">
+                            <h2 id="registration-organization">{{ __('lf.LF_auth_register_group_organization') }}</h2>
+                            <p>{{ __('lf.LF_auth_register_group_organization_help') }}</p>
+                        </header>
 
-                        <div class="public-form-group is-full">
-                            <label class="public-form-label" for="slug">
-                                {{ __('lf.LF_auth_register_slug') }}
-                                <span class="lf-required-indicator" aria-hidden="true">*</span>
-                            </label>
-                            <input id="slug" type="text" name="slug" class="public-form-control is-readonly"
-                                   x-model="slug" value="{{ old('slug') }}"
-                                   placeholder="{{ __('lf.LF_auth_register_slug_placeholder') }}"
-                                   aria-describedby="slug_help" aria-required="true" readonly required>
-                            <small id="slug_help" class="public-form-help">{{ __('lf.LF_auth_register_slug_help') }}</small>
-                        </div>
+                        <div class="public-form-grid">
+                            <div class="public-form-group is-full">
+                                <label class="public-form-label" for="customer_name">
+                                    {{ __('lf.LF_auth_register_organization') }}
+                                    <span class="lf-required-indicator" aria-hidden="true">*</span>
+                                </label>
+                                <input id="customer_name" type="text" name="customer_name" class="public-form-control"
+                                       value="{{ old('customer_name') }}"
+                                       placeholder="{{ __('lf.LF_auth_register_organization_placeholder') }}"
+                                       @input="slug = slugify($event.target.value)" aria-required="true" required>
+                            </div>
 
-                        <div class="public-form-group is-full">
-                            <label class="public-form-label" for="organization_type">
-                                {{ __('lf.LF_auth_register_organization_type') }}
-                                <span class="lf-required-indicator" aria-hidden="true">*</span>
-                            </label>
-                            <select id="organization_type" name="organization_type" class="public-form-control" aria-required="true" required>
-                                <option value="" @selected(old('organization_type') === null)>{{ __('lf.LF_auth_register_organization_type_placeholder') }}</option>
-                                <option value="training_center" @selected(old('organization_type') === 'training_center')>{{ __('lf.LF_auth_register_organization_type_training_center') }}</option>
-                                <option value="school" @selected(old('organization_type') === 'school')>{{ __('lf.LF_auth_register_organization_type_school') }}</option>
-                                <option value="corporate" @selected(old('organization_type') === 'corporate')>{{ __('lf.LF_auth_register_organization_type_corporate') }}</option>
-                                <option value="individual" @selected(old('organization_type') === 'individual')>{{ __('lf.LF_auth_register_organization_type_individual') }}</option>
-                            </select>
-                        </div>
+                            <div class="public-form-group">
+                                <label class="public-form-label" for="organization_type">
+                                    {{ __('lf.LF_auth_register_organization_type') }}
+                                    <span class="lf-required-indicator" aria-hidden="true">*</span>
+                                </label>
+                                <select id="organization_type" name="organization_type" class="public-form-control" aria-required="true" required>
+                                    <option value="" @selected(old('organization_type') === null)>{{ __('lf.LF_auth_register_organization_type_placeholder') }}</option>
+                                    <option value="training_center" @selected(old('organization_type') === 'training_center')>{{ __('lf.LF_auth_register_organization_type_training_center') }}</option>
+                                    <option value="school" @selected(old('organization_type') === 'school')>{{ __('lf.LF_auth_register_organization_type_school') }}</option>
+                                    <option value="corporate" @selected(old('organization_type') === 'corporate')>{{ __('lf.LF_auth_register_organization_type_corporate') }}</option>
+                                    <option value="individual" @selected(old('organization_type') === 'individual')>{{ __('lf.LF_auth_register_organization_type_individual') }}</option>
+                                </select>
+                            </div>
 
-                        <div class="public-form-group">
+                            <div class="public-form-group">
+                                <label class="public-form-label" for="slug">
+                                    {{ __('lf.LF_auth_register_slug') }}
+                                    <span class="lf-required-indicator" aria-hidden="true">*</span>
+                                </label>
+                                <input id="slug" type="text" name="slug" class="public-form-control is-readonly"
+                                       x-model="slug" value="{{ old('slug') }}"
+                                       placeholder="{{ __('lf.LF_auth_register_slug_placeholder') }}"
+                                       aria-describedby="slug_help slug_preview" aria-required="true" readonly required>
+                                <small id="slug_help" class="public-form-help">{{ __('lf.LF_auth_register_slug_help') }}</small>
+                                <div id="slug_preview" class="public-address-preview" aria-live="polite">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+                                    <span>{{ __('lf.LF_auth_register_address_preview') }}</span>
+                                    <strong x-text="`${slug || @js(__('lf.LF_auth_register_address_example'))}.{{ config('app.base_domain') }}`"></strong>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="public-register-section" aria-labelledby="registration-administrator">
+                        <header class="public-register-section-header">
+                            <h2 id="registration-administrator">{{ __('lf.LF_auth_register_group_administrator') }}</h2>
+                            <p>{{ __('lf.LF_auth_register_group_administrator_help') }}</p>
+                        </header>
+
+                        <div class="public-form-grid">
+                            <div class="public-form-group">
                             <label class="public-form-label" for="name">
                                 {{ __('lf.LF_auth_register_admin_name') }}
                                 <span class="lf-required-indicator" aria-hidden="true">*</span>
@@ -74,7 +94,7 @@
                                    placeholder="{{ __('lf.LF_auth_register_admin_name_placeholder') }}" aria-required="true" required>
                         </div>
 
-                        <div class="public-form-group">
+                            <div class="public-form-group">
                             <label class="public-form-label" for="email">
                                 {{ __('lf.LF_auth_register_admin_email') }}
                                 <span class="lf-required-indicator" aria-hidden="true">*</span>
@@ -84,7 +104,7 @@
                                    placeholder="{{ __('lf.LF_auth_register_admin_email_placeholder') }}" aria-required="true" required>
                         </div>
 
-                        <div class="public-form-group is-full">
+                            <div class="public-form-group is-full">
                             <label class="public-form-label" for="phone">
                                 {{ __('lf.LF_auth_register_admin_phone') }}
                                 <span class="lf-required-indicator" aria-hidden="true">*</span>
@@ -94,7 +114,17 @@
                                    placeholder="{{ __('lf.LF_auth_register_admin_phone_placeholder') }}" aria-required="true" required>
                         </div>
 
-                        <div class="public-form-group" x-data="{ visible: false }">
+                        </div>
+                    </section>
+
+                    <section class="public-register-section" aria-labelledby="registration-security">
+                        <header class="public-register-section-header">
+                            <h2 id="registration-security">{{ __('lf.LF_auth_register_group_security') }}</h2>
+                            <p>{{ __('lf.LF_auth_register_group_security_help') }}</p>
+                        </header>
+
+                        <div class="public-form-grid">
+                            <div class="public-form-group" x-data="{ visible: false }">
                             <label class="public-form-label" for="password">
                                 {{ __('lf.LF_common_label_password') }}
                                 <span class="lf-required-indicator" aria-hidden="true">*</span>
@@ -113,7 +143,7 @@
                             <small id="registration-password-help" class="public-form-help">{{ __('lf.LF_profile_help_new_password') }}</small>
                         </div>
 
-                        <div class="public-form-group" x-data="{ visible: false }">
+                            <div class="public-form-group" x-data="{ visible: false }">
                             <label class="public-form-label" for="password_confirmation">
                                 {{ __('lf.LF_common_label_confirm_password') }}
                                 <span class="lf-required-indicator" aria-hidden="true">*</span>
@@ -130,9 +160,15 @@
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
-                    <button type="submit" class="public-button">{{ __('lf.LF_auth_register_create') }}</button>
+                    <div class="public-register-actions">
+                        <button type="submit" class="public-button">{{ __('lf.LF_auth_register_create') }}</button>
+                        <p class="public-register-login-guidance">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 10v6M12 7h.01"></path></svg>
+                            <span>{{ __('lf.LF_auth_register_login_guidance') }}</span>
+                        </p>
+                    </div>
                 </form>
             </div>
         </div>

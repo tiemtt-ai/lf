@@ -69,7 +69,7 @@ class TenantRegistrationSecurityTest extends TestCase
 
         foreach ([
             'Nhập tên tổ chức',
-            'Slug được tạo tự động từ tên tổ chức',
+            'Được tạo tự động từ tên tổ chức',
             'Chọn loại tổ chức',
             'Nhập họ và tên quản trị viên',
             'Nhập email quản trị viên',
@@ -88,6 +88,15 @@ class TenantRegistrationSecurityTest extends TestCase
             $response->getContent(),
             'aria-required="true"'
         ));
+        $response
+            ->assertSeeText(__('lf.LF_auth_register_group_organization'))
+            ->assertSeeText(__('lf.LF_auth_register_group_administrator'))
+            ->assertSeeText(__('lf.LF_auth_register_group_security'))
+            ->assertSee('class="public-address-preview"', false)
+            ->assertSeeText(__('lf.LF_auth_register_address_preview'))
+            ->assertSee('class="public-register-actions"', false)
+            ->assertSeeText(__('lf.LF_auth_register_login_guidance'))
+            ->assertDontSee('href="https://localhost/login"', false);
 
         $publicCss = file_get_contents(resource_path('css/public/public.css'));
         $appJs = file_get_contents(resource_path('js/app.js'));
