@@ -19,6 +19,14 @@ class MediaThumbnailPresenter
         return $this->result($media?->status === 'ready' ? 'fallback' : 'pending', 'video');
     }
 
+    public function audio(?object $media): array
+    {
+        return $this->result(
+            $media && $media->status !== 'ready' ? 'pending' : 'file_type_icon',
+            'audio'
+        );
+    }
+
     public function embeddedVideo(?string $trustedUrl): array
     {
         if (! $trustedUrl) {

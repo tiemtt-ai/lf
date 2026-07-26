@@ -1733,7 +1733,10 @@
 }
 
 .media-library-index-table .admin-table-sequence {
-    width: 88px;
+    width: 72px;
+    min-width: 72px;
+    max-width: 72px;
+    text-align: center;
 }
 
 .lf-admin-page .media-library-index-table th,
@@ -3338,6 +3341,7 @@
     min-width: 72px;
 }
 
+.lf-admin-page .course-category-index-table .admin-table-sequence,
 .lf-admin-page .course-template-index-table .admin-table-sequence,
 .lf-admin-page .course-product-index-table .admin-table-sequence {
     width: 72px;
@@ -3347,6 +3351,8 @@
 .lf-admin-page .media-library-index-table .admin-table-sequence {
     width: 72px;
     min-width: 72px;
+    max-width: 72px;
+    text-align: center;
 }
 
 .admin-table-action-link {

@@ -65,6 +65,7 @@ class MediaLibraryManagementTest extends TestCase
             ->assertSee('media-library-filter-grid', false)
             ->assertSee('media-library-index-table', false)
             ->assertSee('media-library-index-actions', false)
+            ->assertSee('media-library-sequence-number', false)
             ->assertSee('media-library-preview-button', false)
             ->assertDontSee('name="type"', false)
             ->assertSeeTextInOrder([
@@ -76,6 +77,22 @@ class MediaLibraryManagementTest extends TestCase
             ->assertSeeText(__('lf.LF_media_usage_label_course_category'))
             ->assertSeeText(__('lf.LF_media_usage_label_thumbnail'))
             ->assertSeeText(__('lf.LF_media_usage_label_banner_image'));
+
+        $componentsCss = file_get_contents(resource_path('css/admin/admin-components.css'));
+        $pagesCss = file_get_contents(resource_path('css/admin/admin-pages.css'));
+        $this->assertStringContainsString(
+            '.lf-admin-page .media-library-index-table .admin-table-sequence',
+            $componentsCss
+        );
+        $this->assertStringContainsString('max-width: 72px;', $componentsCss);
+        $this->assertStringContainsString(
+            '.media-library-index-table tbody tr:hover > td',
+            $pagesCss
+        );
+        $this->assertStringContainsString(
+            '.media-library-index-table tbody tr:hover .media-library-preview-button .media-library-preview-overlay',
+            $pagesCss
+        );
 
         $this->assertSame(2, DB::table('media_files')->where('customer_id', $customerId)->count());
         $this->assertSame(2, DB::table('media_file_usages')->where('customer_id', $customerId)->count());
@@ -127,6 +144,26 @@ class MediaLibraryManagementTest extends TestCase
             ->assertDontSee('<video controls preload="metadata">', false)
             ->assertDontSee('/storage/tenants/', false)
             ->assertDontSeeText('Image Asset');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/media?tab=audio')
+            ->assertOk()
+            ->assertSeeText('Audio Asset')
+            ->assertSee('data-media-thumbnail-kind="audio"', false)
+            ->assertSee('media-library-preview-overlay', false)
+            ->assertSee('openMediaPreview(', false)
+            ->assertSee('x-ref="audioPreviewPlayer"', false)
+            ->assertDontSeeText('Document Asset');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/media?tab=documents')
+            ->assertOk()
+            ->assertSeeText('Document Asset')
+            ->assertSee('data-media-thumbnail-kind="pdf"', false)
+            ->assertSee('media-library-preview-overlay', false)
+            ->assertSee('target="_blank"', false)
+            ->assertSee('rel="noopener noreferrer"', false)
+            ->assertDontSeeText('Audio Asset');
     }
 
     public function test_video_media_can_be_previewed_through_signed_private_url(): void
@@ -222,8 +259,8 @@ class MediaLibraryManagementTest extends TestCase
             ->assertSee('openMediaPreview(', false)
             ->assertSee('loading="lazy"', false)
             ->assertSee('decoding="async"', false)
-            ->assertSee('width="72"', false)
-            ->assertSee('height="72"', false)
+            ->assertSee('media-thumbnail-compact', false)
+            ->assertSee('data-media-thumbnail-kind="image"', false)
             ->assertSee('media-library-modal-image', false)
             ->assertSee('media-library-preview-title', false)
             ->assertDontSee('target="_blank"', false)

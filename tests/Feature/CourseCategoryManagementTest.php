@@ -61,20 +61,25 @@ class CourseCategoryManagementTest extends TestCase
             ->assertDontSeeText(__('lf.LF_course_category_common_thumbnail_image'))
             ->assertDontSeeText('Private Tenant Category');
         $this->assertSame(
-            __('lf.LF_course_category_common_name'),
+            __('lf.table_no'),
             $this->tableHeaderText($adminResponse->getContent(), 1)
         );
         $this->assertSame(
-            __('lf.LF_course_category_common_parent'),
+            __('lf.LF_course_category_common_name'),
             $this->tableHeaderText($adminResponse->getContent(), 2)
         );
         $this->assertSame(
-            __('lf.LF_course_category_index_sort_order'),
+            __('lf.LF_course_category_common_parent'),
             $this->tableHeaderText($adminResponse->getContent(), 3)
         );
         $adminResponse
-            ->assertDontSee('<th class="admin-table-sequence">', false)
+            ->assertSee('<th class="admin-table-sequence">', false)
             ->assertSee('course-category-index-parent is-root', false);
+        $css = file_get_contents(resource_path('css/admin/admin-components.css'));
+        $this->assertStringContainsString(
+            '.lf-admin-page .course-category-index-table .admin-table-sequence',
+            $css
+        );
 
         $teacherResponse = $this->actingAs($teacher)
             ->get('https://tenant-a.localhost/teacher/course-categories')
@@ -85,13 +90,58 @@ class CourseCategoryManagementTest extends TestCase
             ->assertDontSeeText('Admin Category')
             ->assertDontSeeText('Private Tenant Category');
         $this->assertSame(
-            __('lf.LF_course_category_common_name'),
+            __('lf.table_no'),
             $this->tableHeaderText($teacherResponse->getContent(), 1)
         );
         $this->assertSame(
-            __('lf.LF_course_category_common_parent'),
+            __('lf.LF_course_category_common_name'),
             $this->tableHeaderText($teacherResponse->getContent(), 2)
         );
+        $this->assertSame(
+            __('lf.LF_course_category_common_parent'),
+            $this->tableHeaderText($teacherResponse->getContent(), 3)
+        );
+    }
+
+    public function test_category_index_paginates_ten_records_with_a_continuous_sequence_column(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        foreach (range(1, 11) as $number) {
+            $suffix = str_pad((string) $number, 2, '0', STR_PAD_LEFT);
+            $this->createCategory(
+                $customerId,
+                "Paginated Category {$suffix}",
+                "paginated-category-{$suffix}"
+            );
+        }
+
+        $firstPage = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-categories')
+            ->assertOk()
+            ->assertSeeText('Paginated Category 01')
+            ->assertSeeText('Paginated Category 10')
+            ->assertDontSeeText('Paginated Category 11');
+
+        $secondPage = $this->get('https://tenant-a.localhost/admin/course-categories?page=2')
+            ->assertOk()
+            ->assertSeeText('Paginated Category 11')
+            ->assertDontSeeText('Paginated Category 01');
+
+        $firstPageDocument = new \DOMDocument;
+        @$firstPageDocument->loadHTML($firstPage->getContent());
+        $firstPageSequence = (new \DOMXPath($firstPageDocument))
+            ->query('//tbody/tr/td[contains(@class, "admin-table-sequence")]');
+        $this->assertCount(10, $firstPageSequence);
+        $this->assertSame('10', trim($firstPageSequence->item(9)->textContent));
+
+        $secondPageDocument = new \DOMDocument;
+        @$secondPageDocument->loadHTML($secondPage->getContent());
+        $secondPageSequence = (new \DOMXPath($secondPageDocument))
+            ->query('//tbody/tr/td[contains(@class, "admin-table-sequence")]');
+        $this->assertCount(1, $secondPageSequence);
+        $this->assertSame('11', trim($secondPageSequence->item(0)->textContent));
     }
 
     public function test_category_index_uses_standard_empty_states_for_default_and_filtered_lists(): void

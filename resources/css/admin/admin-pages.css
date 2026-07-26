@@ -189,10 +189,18 @@
 
 .media-library-sequence-heading,
 .media-library-sequence-cell {
+    position: relative;
+    width: 100%;
+    min-width: 0;
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    gap: 9px;
+    justify-content: center;
+}
+
+.media-library-sequence-heading .media-library-selection-checkbox,
+.media-library-sequence-cell .media-library-selection-checkbox {
+    position: absolute;
+    left: 0;
 }
 
 .media-library-selection-checkbox {
@@ -210,8 +218,13 @@
 }
 
 .media-library-selection-placeholder {
-    width: 16px;
-    flex: 0 0 16px;
+    display: none;
+}
+
+.media-library-sequence-number {
+    display: block;
+    min-width: 1.5ch;
+    text-align: center;
 }
 
 .media-library-filter-card {
@@ -247,6 +260,7 @@
 }
 
 .media-library-preview {
+    position: relative;
     width: 64px;
     aspect-ratio: 1;
     display: flex;
@@ -264,12 +278,50 @@
 .media-library-preview-button {
     padding: 0;
     cursor: pointer;
+    text-decoration: none;
 }
 
 .media-library-preview-button:hover,
 .media-library-preview-button:focus-visible {
     border-color: var(--admin-primary);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-primary) 10%, transparent);
+}
+
+.media-library-preview .media-thumbnail {
+    border: 0;
+    border-radius: 0;
+}
+
+.media-library-preview-overlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #ffffff;
+    background: rgb(15 23 42 / 58%);
+    opacity: 0;
+    transition: opacity 150ms ease;
+}
+
+.media-library-preview-overlay .backend-sidebar-icon {
+    width: 22px;
+    height: 22px;
+}
+
+.media-library-preview-button:hover .media-library-preview-overlay,
+.media-library-preview-button:focus-visible .media-library-preview-overlay,
+.media-library-index-table tbody tr:hover .media-library-preview-button .media-library-preview-overlay,
+.media-library-index-table tbody tr:focus-within .media-library-preview-button .media-library-preview-overlay {
+    opacity: 1;
+}
+
+.media-library-index-table tbody td {
+    transition: background-color 150ms ease;
+}
+
+.media-library-index-table tbody tr:hover > td,
+.media-library-index-table tbody tr:focus-within > td {
+    background: color-mix(in srgb, var(--admin-primary) 4%, #ffffff);
 }
 
 .media-library-preview-button:focus-visible {
@@ -375,6 +427,10 @@
     border: 0;
     background: #020617;
     border-radius: 8px;
+}
+
+.media-library-modal-audio {
+    width: min(720px, 100%);
 }
 
 .media-library-file-meta {

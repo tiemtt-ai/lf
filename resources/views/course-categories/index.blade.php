@@ -76,6 +76,7 @@
         <table class="table course-category-index-table">
             <thead>
             <tr>
+                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                 <th class="course-category-index-name">{{ __('lf.LF_course_category_common_name') }}</th>
                 <th class="course-category-index-parent">{{ __('lf.LF_course_category_common_parent') }}</th>
                 <th class="course-category-index-order">{{ __('lf.LF_course_category_index_sort_order') }}</th>
@@ -86,6 +87,9 @@
             <tbody>
             @forelse ($categories as $category)
                 <tr>
+                    <td class="admin-table-sequence" data-label="{{ __('lf.table_no') }}">
+                        {{ $categories->firstItem() + $loop->index }}
+                    </td>
                     <td class="course-category-index-name" data-label="{{ __('lf.LF_course_category_common_name') }}">
                         <strong class="course-category-index-primary">{{ $category->name }}</strong>
                         <span class="course-category-index-meta">{{ $category->slug }}</span>
@@ -117,7 +121,7 @@
                 </tr>
             @empty
                 <tr class="course-category-empty-row">
-                    <td class="course-category-empty-cell" colspan="5">
+                    <td class="course-category-empty-cell" colspan="6">
                         <div class="course-category-empty-state" role="status">
                             <strong>{{ $hasActiveFilters ? __('lf.LF_course_category_filter_empty') : __('lf.LF_course_category_common_empty') }}</strong>
                             <span>{{ $hasActiveFilters ? __('lf.LF_course_category_filter_empty_help') : __('lf.LF_course_category_empty_help') }}</span>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\MediaService;
+use App\Services\MediaThumbnailPresenter;
 use App\Support\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,7 +27,10 @@ class MediaFileController extends Controller
 
     private const USAGE_STATUSES = ['in_use', 'unused'];
 
-    public function __construct(private readonly MediaService $mediaService) {}
+    public function __construct(
+        private readonly MediaService $mediaService,
+        private readonly MediaThumbnailPresenter $thumbnails
+    ) {}
 
     public function index(Request $request): View
     {
@@ -57,6 +61,23 @@ class MediaFileController extends Controller
         $mediaFiles->setCollection($mediaFiles->getCollection()->map(function (object $mediaFile) use ($usageGroups): object {
             $mediaFile->active_usages = $usageGroups->get((int) $mediaFile->id, collect());
             $mediaFile->preview_url = $this->previewUrl($mediaFile);
+            $mediaFile->preview_mode = match ($mediaFile->file_type) {
+                'image', 'video', 'audio' => $mediaFile->preview_url ? 'popup' : null,
+                'document' => $mediaFile->preview_url ? 'new_tab' : null,
+                default => null,
+            };
+            $mediaFile->signed_url = $mediaFile->preview_url;
+            $mediaFile->thumbnail_presentation = match ($mediaFile->file_type) {
+                'image' => $this->thumbnails->image($mediaFile),
+                'video' => $this->thumbnails->uploadedVideo($mediaFile),
+                'audio' => $this->thumbnails->audio($mediaFile),
+                'document' => $this->thumbnails->document($mediaFile),
+                default => [
+                    'state' => 'fallback',
+                    'kind' => 'document',
+                    'url' => null,
+                ],
+            };
 
             return $mediaFile;
         }));
@@ -261,10 +282,7 @@ class MediaFileController extends Controller
 
     private function previewUrl(object $mediaFile): ?string
     {
-        if (
-            ! in_array($mediaFile->file_type, ['image', 'video'], true)
-            || $mediaFile->status !== 'ready'
-        ) {
+        if ($mediaFile->status !== 'ready') {
             return null;
         }
 

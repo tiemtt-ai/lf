@@ -126,6 +126,7 @@
              previewOpen: false,
              previewLoaded: false,
              videoSrc: '',
+             audioSrc: '',
              preview: {
                  name: '',
                  url: '',
@@ -151,13 +152,17 @@
              },
              openMediaPreview(name, url, mimeType, mediaType) {
                  this.resetMediaPreview();
-                 this.preview = { name, url: mediaType === 'image' ? url : '', mimeType, mediaType };
+                 this.preview = { name, url: ['image', 'audio'].includes(mediaType) ? url : '', mimeType, mediaType };
                  this.previewLoaded = true;
 
                  if (mediaType === 'video') {
                      this.videoSrc = url;
                      this.$refs.videoPreviewSource?.setAttribute('src', url);
                      this.$refs.videoPreviewPlayer?.load();
+                 }
+
+                 if (mediaType === 'audio') {
+                     this.audioSrc = url;
                  }
 
                  this.previewOpen = true;
@@ -186,6 +191,7 @@
              },
              resetMediaPreview() {
                  const player = this.$refs.videoPreviewPlayer;
+                 const audioPlayer = this.$refs.audioPreviewPlayer;
 
                  if (player) {
                      player.pause();
@@ -197,8 +203,15 @@
                      player.load();
                  }
 
+                 if (audioPlayer) {
+                     audioPlayer.pause();
+                     audioPlayer.removeAttribute('src');
+                     audioPlayer.load();
+                 }
+
                  this.previewLoaded = false;
                  this.videoSrc = '';
+                 this.audioSrc = '';
                  this.preview = { name: '', url: '', mimeType: '', mediaType: '' };
              },
              closeMediaPreview() {
@@ -293,13 +306,13 @@
                             @else
                                 <span class="media-library-selection-placeholder" aria-hidden="true"></span>
                             @endif
-                            <span>{{ $mediaFiles->firstItem() + $loop->index }}</span>
+                            <span class="media-library-sequence-number">{{ $mediaFiles->firstItem() + $loop->index }}</span>
                         </div>
                     </td>
                     <td data-label="{{ __('lf.LF_media_file_common_file') }}">
                         <div class="media-library-media-cell">
                             <div class="media-library-preview-cell">
-                                @if ($mediaFile->preview_url)
+                                @if ($mediaFile->preview_mode === 'popup')
                                     <button type="button"
                                             class="media-library-preview media-library-preview-button"
                                             x-on:click="openMediaPreview(
@@ -309,22 +322,25 @@
                                                 @js($mediaFile->file_type)
                                             )"
                                             aria-label="{{ __('lf.LF_media_file_preview_named', ['name' => $mediaFile->display_name]) }}">
-                                        @if ($mediaFile->file_type === 'image')
-                                            <img src="{{ $mediaFile->preview_url }}"
-                                                 alt=""
-                                                 loading="lazy"
-                                                 decoding="async"
-                                                 width="72"
-                                                 height="72">
-                                        @else
-                                            <span class="media-library-preview-placeholder media-library-preview-placeholder-{{ $mediaFile->file_type }}" aria-hidden="true">
-                                                {{ $typeLabels[$mediaFile->file_type] ?? __('lf.LF_media_file_common_other') }}
-                                            </span>
-                                        @endif
+                                        <x-media-thumbnail :presentation="$mediaFile->thumbnail_presentation" :alt="$mediaFile->display_name" />
+                                        <span class="media-library-preview-overlay" aria-hidden="true">
+                                            <x-backend-icon name="eye" />
+                                        </span>
                                     </button>
+                                @elseif ($mediaFile->preview_mode === 'new_tab')
+                                    <a class="media-library-preview media-library-preview-button"
+                                       href="{{ $mediaFile->preview_url }}"
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       aria-label="{{ __('lf.LF_media_file_preview_named', ['name' => $mediaFile->display_name]) }}">
+                                        <x-media-thumbnail :presentation="$mediaFile->thumbnail_presentation" :alt="$mediaFile->display_name" />
+                                        <span class="media-library-preview-overlay" aria-hidden="true">
+                                            <x-backend-icon name="eye" />
+                                        </span>
+                                    </a>
                                 @else
                                     <div class="media-library-preview">
-                                        <span>{{ $typeLabels[$mediaFile->file_type] ?? __('lf.LF_media_file_common_other') }}</span>
+                                        <x-media-thumbnail :presentation="$mediaFile->thumbnail_presentation" :alt="$mediaFile->display_name" />
                                     </div>
                                 @endif
                             </div>
@@ -520,6 +536,13 @@
                             x-bind:src="videoSrc"
                             x-bind:type="preview.mimeType">
                 </video>
+
+                <audio x-ref="audioPreviewPlayer"
+                       x-show="previewLoaded && preview.mediaType === 'audio'"
+                       x-bind:src="audioSrc"
+                       controls
+                       preload="metadata"
+                       class="media-library-modal-audio"></audio>
             </div>
         </div>
     </div>

@@ -75,6 +75,7 @@
         <table class="table course-template-index-table">
             <thead>
             <tr>
+                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_template_common_name') }}</th>
                 <th>{{ __('lf.LF_course_template_common_category') }}</th>
                 <th class="course-template-index-status">{{ __('lf.LF_course_template_common_status') }}</th>
@@ -84,6 +85,9 @@
             <tbody>
             @forelse ($templates as $template)
                 <tr>
+                    <td class="admin-table-sequence" data-label="{{ __('lf.table_no') }}">
+                        {{ $templates->firstItem() + $loop->index }}
+                    </td>
                     <td data-label="{{ __('lf.LF_course_template_common_name') }}">
                         <strong class="course-template-index-primary">{{ $template->title }}</strong>
                     </td>
@@ -111,7 +115,7 @@
                 </tr>
             @empty
                 <tr class="course-template-empty-row">
-                    <td class="course-template-empty-cell" colspan="4">
+                    <td class="course-template-empty-cell" colspan="5">
                         <div class="course-template-empty-state" role="status">
                             <strong>{{ $hasActiveFilters ? __('lf.LF_course_template_filter_empty') : __('lf.LF_course_template_common_empty') }}</strong>
                             <span>{{ $hasActiveFilters ? __('lf.LF_course_template_filter_empty_help') : __('lf.LF_course_template_empty_help') }}</span>
