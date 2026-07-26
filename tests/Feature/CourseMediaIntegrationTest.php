@@ -1083,14 +1083,12 @@ class CourseMediaIntegrationTest extends TestCase
                     .'[.//input[@name="'.$uploadName.'"]]';
                 $this->assertSame(1, $this->htmlElementCount(
                     $html,
-                    $field.'/input[@name="'.$uploadName.'"]'
-                    .'[preceding-sibling::div[@data-authoring-media-current-row]]'
+                    $field.'//div[contains(concat(" ", normalize-space(@class), " "), " authoring-media-upload-tile ")]'
+                    .'[.//input[@name="'.$uploadName.'"]]'
                 ));
                 $this->assertSame(1, $this->htmlElementCount(
                     $html,
-                    $field.'/input[@name="'.$uploadName.'"]'
-                    .'/following-sibling::*[1]'
-                    .'[contains(concat(" ", normalize-space(@class), " "), " authoring-media-help ")]'
+                    $field.'//*[contains(concat(" ", normalize-space(@class), " "), " authoring-media-help ")]'
                 ));
                 $this->assertSame(1, $this->htmlElementCount(
                     $html,
@@ -1820,7 +1818,7 @@ class CourseMediaIntegrationTest extends TestCase
                 "https://tenant-a.localhost/teacher/course-templates/{$templateId}/lessons/{$lessonId}/activities/{$activityId}/edit"
             )
             ->assertOk()
-            ->assertSeeText(__('lf.LF_course_template_activity_media_replacement_video'))
+            ->assertSeeText(__('lf.LF_media_replace_video'))
             ->assertDontSeeText('activity-video.mp4')
             ->assertSee('data-current-media-state="available"', false);
 
@@ -1836,9 +1834,10 @@ class CourseMediaIntegrationTest extends TestCase
                 '//div[contains(concat(" ", normalize-space(@class), " "), " course-template-activity-item ")'
                 .' and .//span[normalize-space()="Teacher Media Activity"]]'
                 .'//div[contains(concat(" ", normalize-space(@class), " "), " admin-table-actions ")]'
-                .'//a[normalize-space()="Xem" and @target="_blank" and contains(@href, "expiration=")]'
+                .'//button[normalize-space()="Xem" and contains(@*[name()="x-on:click"], "openActivityPreview")]'
             )
         );
+        $outline->assertSee('x-show="activityPreviewOpen"', false);
         $this->assertSame(
             0,
             $this->htmlElementCount(
@@ -1929,9 +1928,10 @@ class CourseMediaIntegrationTest extends TestCase
             ->assertSeeText(__('lf.LF_course_template_activity_media_actual_duration'))
             ->assertDontSee('course-template-activity-auto-duration', false)
             ->assertSee(
-                'name="activity_audio_file" class="lf-form-control authoring-media-upload admin-file-upload" accept=".mp3,.wav,.m4a,.aac,.ogg"',
+                'name="activity_audio_file"',
                 false
             )
+            ->assertSee('accept=".mp3,.wav,.m4a,.aac,.ogg"', false)
             ->assertDontSee('accept=".mp3,.wav,.webm', false)
             ->assertDontSee('audio/mp4', false);
 
@@ -2121,20 +2121,20 @@ class CourseMediaIntegrationTest extends TestCase
             ));
             $this->assertSame(1, $this->htmlElementCount(
                 $response->getContent(),
-                '//input[@name="'.$field.'"]'
-                .'[preceding-sibling::div[contains(concat(" ", normalize-space(@class), " "), " course-activity-current-media ")]]'
-                .'/following-sibling::*[1]'
-                .'[contains(concat(" ", normalize-space(@class), " "), " authoring-media-help ")]'
+                '//div[contains(concat(" ", normalize-space(@class), " "), " course-template-activity-source-field ")]'
+                .'[.//input[@name="'.$field.'"]'
+                .' and .//div[contains(concat(" ", normalize-space(@class), " "), " course-activity-current-media ")]'
+                .' and .//*[contains(concat(" ", normalize-space(@class), " "), " authoring-media-help ")]]'
             ));
-            $this->assertSame(0, $this->htmlElementCount(
+            $this->assertSame(1, $this->htmlElementCount(
                 $response->getContent(),
-                '//div[@data-current-media-state="available"]//input[starts-with(@name, "remove_")]'
+                '//div[@data-current-media-state="available"]//input[@name="remove_activity_media"]'
             ));
 
             if ($type === 'document') {
                 $response
-                    ->assertSee($previewUrl, false)
-                    ->assertSee('data-media-thumbnail-kind="pdf"', false);
+                    ->assertSee('data-media-thumbnail-kind="pdf"', false)
+                    ->assertSee($previewUrl, false);
             } else {
                 $this->assertStringContainsString(
                     str_replace('/', '\\/', $previewUrl),

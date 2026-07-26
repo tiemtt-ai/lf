@@ -714,6 +714,56 @@ class CourseTemplatePublishingTest extends TestCase
         )->length);
     }
 
+    public function test_history_is_paginated_by_ten_without_redundant_sequence_column(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'History Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Long History Course');
+        $this->addValidContent($customerId, $templateId, $admin->id, 'History');
+        $publishUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish";
+
+        foreach (range(1, 11) as $iteration) {
+            $this->actingAs($admin)->post($publishUrl)->assertRedirect();
+        }
+
+        $firstPage = $this->actingAs($admin)->get(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=history"
+        )->assertOk();
+        $firstDocument = new \DOMDocument;
+        @$firstDocument->loadHTML($firstPage->getContent());
+        $firstXpath = new \DOMXPath($firstDocument);
+
+        $this->assertSame(10, $firstXpath->query(
+            '//table[contains(@class, "course-template-history-table")]//tbody/tr'
+        )->length);
+        $firstPage->assertSeeText('11 phiên bản đã phát hành');
+        $firstPage->assertSeeText('Phiên bản 11');
+        $this->assertSame(0, $firstXpath->query(
+            '//table[contains(@class, "course-template-history-table")]'
+            .'//tbody/tr/td[2][normalize-space()="Phiên bản 1"]'
+        )->length);
+        $this->assertSame(7, $firstXpath->query(
+            '//table[contains(@class, "course-template-history-table")]//thead/tr/th'
+        )->length);
+        $firstPage->assertSee('history_page=2', false)->assertSee('tab=history', false);
+
+        $secondPage = $this->actingAs($admin)->get(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=history&history_page=2"
+        )->assertOk();
+        $secondDocument = new \DOMDocument;
+        @$secondDocument->loadHTML($secondPage->getContent());
+        $secondXpath = new \DOMXPath($secondDocument);
+
+        $this->assertSame(1, $secondXpath->query(
+            '//table[contains(@class, "course-template-history-table")]//tbody/tr'
+        )->length);
+        $secondPage->assertSeeText('11 phiên bản đã phát hành');
+        $this->assertSame('Phiên bản 1', trim($secondXpath->query(
+            '//table[contains(@class, "course-template-history-table")]//tbody/tr[1]/td[2]'
+        )->item(0)->textContent));
+        $secondPage->assertSeeText('Phiên bản 1');
+    }
+
     public function test_publish_integrity_rejects_invalid_graph_and_preserves_atomic_state(): void
     {
         $customerId = $this->createTenant();

@@ -37,7 +37,6 @@
             <table class="table">
                 <thead>
                 <tr>
-                    <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                     <th>{{ __('lf.LF_course_template_teacher_common_name') }}</th>
                     <th>{{ __('lf.LF_course_template_teacher_common_email') }}</th>
                     <th>{{ __('lf.LF_course_template_teacher_common_role') }}</th>
@@ -48,7 +47,6 @@
                 <tbody>
                 @foreach ($teacherAssignments as $assignment)
                     <tr>
-                        <td class="admin-table-sequence">{{ $loop->iteration }}</td>
                         <td>{{ $assignment->teacher_name }}</td>
                         <td>{{ $assignment->teacher_email }}</td>
                         <td>

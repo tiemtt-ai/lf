@@ -19,7 +19,7 @@
          preview: { name: '', url: '', mimeType: '', mediaType: '' },
          openIntroductionPreview(name, url, mimeType, mediaType) {
              this.resetIntroductionPreview();
-             this.preview = { name, url: ['image', 'embed', 'document'].includes(mediaType) ? url : '', mimeType, mediaType };
+             this.preview = { name, url: ['image', 'embed'].includes(mediaType) ? url : '', mimeType, mediaType };
              this.previewLoaded = true;
              if (mediaType === 'video') {
                  this.videoSrc = url;
@@ -47,35 +47,40 @@
      }"
      x-on:keydown.escape.window="closeIntroductionPreview()">
     <div class="lf-form-group course-template-information-media">
-        <x-form-label for="intro_image_file" :value="__('lf.LF_course_template_intro_image')" />
+        <p class="authoring-media-field-title">{{ __('lf.LF_course_template_intro_image') }}</p>
+        <div class="authoring-media-picker-row">
         @if($imageMedia)
-            <x-authoring-media-row :presentation="$imageThumbnail" :alt="__('lf.LF_course_template_intro_image')" remove-name="remove_intro_image" :remove-label="__('lf.LF_course_template_remove_current_image')">
-                <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openIntroductionPreview(@js($imageMedia->display_name), @js($imageMedia->signed_url), @js($imageMedia->mime_type), 'image')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
+            <x-authoring-media-row :presentation="$imageThumbnail" :alt="__('lf.LF_course_template_intro_image')" :current-label="__('lf.LF_media_current_image')" :display-name="$imageMedia->display_name" remove-name="remove_intro_image" :remove-label="__('lf.LF_course_template_remove_current_image')">
+                <button type="button" class="authoring-media-overlay-action" x-on:click.stop="openIntroductionPreview(@js($imageMedia->display_name), @js($imageMedia->signed_url), @js($imageMedia->mime_type), 'image')"><x-backend-icon name="eye" class="authoring-media-action-icon" /><span class="sr-only">{{ __('lf.LF_media_file_common_preview_action') }}</span></button>
             </x-authoring-media-row>
         @endif
-        <input id="intro_image_file" type="file" name="intro_image_file" class="lf-form-control authoring-media-upload admin-file-upload" accept="image/*" @error('intro_image_file') aria-invalid="true" aria-describedby="intro_image_file_error" @enderror>
+        <x-authoring-media-upload id="intro_image_file" name="intro_image_file" :label="$imageMedia ? __('lf.LF_media_replace_image') : __('lf.LF_media_upload_image')" accept="image/*" @error('intro_image_file') aria-invalid="true" aria-describedby="intro_image_file_error" @enderror />
+        </div>
         @error('intro_image_file')<p id="intro_image_file_error" class="lf-form-error">{{ $message }}</p>@enderror
         <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
     </div>
 
     <div class="lf-form-group course-template-information-media">
-        <x-form-label for="intro_video_source" :value="__('lf.LF_course_template_intro_video')" />
+        <p class="authoring-media-field-title">{{ __('lf.LF_course_template_intro_video') }}</p>
+        <label for="intro_video_source" class="sr-only">{{ __('lf.LF_course_template_video_source') }}</label>
         <select id="intro_video_source" name="intro_video_source" class="lf-form-control" x-model="selectedVideoSource" :class="{ 'lf-select-placeholder': !selectedVideoSource }" @error('intro_video_source') aria-invalid="true" aria-describedby="intro_video_source_error" @enderror>
             <option value="">{{ __('lf.LF_course_template_select_video_source') }}</option>
             <option value="upload">{{ __('lf.LF_course_template_video_upload') }}</option>
             <option value="embed">{{ __('lf.LF_course_template_video_embed') }}</option>
         </select>
         @error('intro_video_source')<p id="intro_video_source_error" class="lf-form-error">{{ $message }}</p>@enderror
+        <div class="authoring-media-picker-row" x-show="selectedVideoSource === 'upload' || @js((bool) ($videoMedia || $videoEmbedUrl))">
         @if($videoMedia || $videoEmbedUrl)
-            <x-authoring-media-row :presentation="$videoThumbnail" :alt="__('lf.LF_course_template_intro_video')" remove-name="remove_intro_video" :remove-label="__('lf.LF_course_template_remove_current_video')">
+            <x-authoring-media-row :presentation="$videoThumbnail" :alt="__('lf.LF_course_template_intro_video')" :current-label="__('lf.LF_media_current_video')" :display-name="$videoMedia?->display_name ?? 'Video'" remove-name="remove_intro_video" :remove-label="__('lf.LF_course_template_remove_current_video')">
                 @if($videoMedia)
-                    <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openIntroductionPreview(@js($videoMedia->display_name), @js($videoMedia->signed_url), @js($videoMedia->mime_type), 'video')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
+                    <button type="button" class="authoring-media-overlay-action" x-on:click.stop="openIntroductionPreview(@js($videoMedia->display_name), @js($videoMedia->signed_url), @js($videoMedia->mime_type), 'video')"><x-backend-icon name="eye" class="authoring-media-action-icon" /><span class="sr-only">{{ __('lf.LF_media_file_common_preview_action') }}</span></button>
                 @else
-                    <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openIntroductionPreview(@js(ucfirst((string) $videoMedia?->display_name ?: 'Video')), @js($videoEmbedUrl), 'text/html', 'embed')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
+                    <button type="button" class="authoring-media-overlay-action" x-on:click.stop="openIntroductionPreview(@js(ucfirst((string) $videoMedia?->display_name ?: 'Video')), @js($videoEmbedUrl), 'text/html', 'embed')"><x-backend-icon name="eye" class="authoring-media-action-icon" /><span class="sr-only">{{ __('lf.LF_media_file_common_preview_action') }}</span></button>
                 @endif
             </x-authoring-media-row>
         @endif
-        <input id="intro_video_file" type="file" name="intro_video_file" class="lf-form-control authoring-media-upload admin-file-upload" accept="video/*" x-show="selectedVideoSource === 'upload'" :disabled="selectedVideoSource !== 'upload'" @error('intro_video_file') aria-invalid="true" aria-describedby="intro_video_file_error" @enderror>
+        <div class="authoring-media-upload-wrapper" x-show="selectedVideoSource === 'upload'"><x-authoring-media-upload id="intro_video_file" name="intro_video_file" :label="($videoMedia || $videoEmbedUrl) ? __('lf.LF_media_replace_video') : __('lf.LF_media_upload_video')" accept="video/*" x-bind:disabled="selectedVideoSource !== 'upload'" @error('intro_video_file') aria-invalid="true" aria-describedby="intro_video_file_error" @enderror /></div>
+        </div>
         @error('intro_video_file')<p id="intro_video_file_error" class="lf-form-error">{{ $message }}</p>@enderror
         <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']" x-show="selectedVideoSource === 'upload'" />
         <input id="intro_video_embed_url" type="url" name="intro_video_embed_url" class="lf-form-control" value="{{ old('intro_video_embed_url', $embedValue) }}" placeholder="{{ __('lf.LF_course_template_placeholder_embed_url') }}" x-show="selectedVideoSource === 'embed'" :disabled="selectedVideoSource !== 'embed'" @error('intro_video_embed_url') aria-invalid="true" aria-describedby="intro_video_embed_url_error" @enderror>
@@ -83,17 +88,15 @@
     </div>
 
     <div class="lf-form-group course-template-information-media">
-        <x-form-label for="intro_document_file" :value="__('lf.LF_course_template_intro_document')" />
+        <p class="authoring-media-field-title">{{ __('lf.LF_course_template_intro_document') }}</p>
+        <div class="authoring-media-picker-row">
         @if($documentMedia)
-            <x-authoring-media-row :presentation="$documentThumbnail" :alt="__('lf.LF_course_template_intro_document')" remove-name="remove_intro_document" :remove-label="__('lf.LF_course_template_remove_current_document')">
-                @if(strtolower((string) $documentMedia->mime_type) === 'application/pdf')
-                    <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openIntroductionPreview(@js($documentMedia->display_name), @js($documentMedia->signed_url), @js($documentMedia->mime_type), 'document')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
-                @else
-                    <a class="admin-text-action" href="{{ $documentMedia->signed_url }}" target="_blank" rel="noopener noreferrer">{{ __('lf.LF_media_file_common_preview_action') }}</a>
-                @endif
+            <x-authoring-media-row :presentation="$documentThumbnail" :alt="__('lf.LF_course_template_intro_document')" :current-label="__('lf.LF_media_current_document')" :display-name="$documentMedia->display_name" remove-name="remove_intro_document" :remove-label="__('lf.LF_course_template_remove_current_document')">
+                <a class="authoring-media-overlay-action" href="{{ $documentMedia->signed_url }}" target="_blank" rel="noopener noreferrer"><x-backend-icon name="eye" class="authoring-media-action-icon" /><span class="sr-only">{{ __('lf.LF_media_file_common_preview_action') }}</span></a>
             </x-authoring-media-row>
         @endif
-        <input id="intro_document_file" type="file" name="intro_document_file" class="lf-form-control authoring-media-upload admin-file-upload" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx" @error('intro_document_file') aria-invalid="true" aria-describedby="intro_document_file_error" @enderror>
+        <x-authoring-media-upload id="intro_document_file" name="intro_document_file" :label="$documentMedia ? __('lf.LF_media_replace_document') : __('lf.LF_media_upload_document')" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx" @error('intro_document_file') aria-invalid="true" aria-describedby="intro_document_file_error" @enderror />
+        </div>
         @error('intro_document_file')<p id="intro_document_file_error" class="lf-form-error">{{ $message }}</p>@enderror
         <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'PPT', 'PPTX', 'XLS', 'XLSX']" />
     </div>
@@ -108,7 +111,7 @@
             <div class="media-library-modal-body">
                 <template x-if="previewLoaded && preview.mediaType === 'image'"><img :src="preview.url" :alt="preview.name" class="media-library-modal-image"></template>
                 <video x-ref="introductionPreviewVideoPlayer" x-show="previewLoaded && preview.mediaType === 'video'" controls preload="metadata" class="media-library-modal-video"><source x-ref="introductionPreviewVideoSource" :src="videoSrc" :type="preview.mimeType"></video>
-                <iframe class="media-library-modal-video course-template-embed-preview" x-show="previewLoaded && ['embed', 'document'].includes(preview.mediaType)" :src="['embed', 'document'].includes(preview.mediaType) ? preview.url : ''" :title="preview.name" loading="lazy" sandbox="allow-scripts allow-same-origin allow-presentation" allow="fullscreen; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                <iframe class="media-library-modal-video course-template-embed-preview" x-show="previewLoaded && preview.mediaType === 'embed'" :src="preview.mediaType === 'embed' ? preview.url : ''" :title="preview.name" loading="lazy" sandbox="allow-scripts allow-same-origin allow-presentation" allow="fullscreen; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin"></iframe>
             </div>
         </div>
     </div>

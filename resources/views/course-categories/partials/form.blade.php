@@ -108,105 +108,65 @@
         </header>
         <div class="admin-form-field-grid">
             <div class="lf-form-group admin-form-field">
-                <x-form-label for="thumbnail_image_file"
-                              :value="__('lf.LF_course_category_common_thumbnail_upload')" />
+                <p class="authoring-media-field-title">{{ __('lf.LF_course_category_common_thumbnail_image') }}</p>
+                <div class="authoring-media-picker-row">
                 @if ($thumbnailMedia ?? null)
                     <input type="hidden" name="remove_thumbnail_image_media" value="0">
-                    <div class="lf-form-help admin-attached-media-card">
-                        <img class="admin-attached-media-thumbnail"
-                             src="{{ $thumbnailMedia->signed_url }}"
-                             alt="{{ $thumbnailMedia->display_name }}"
-                             loading="lazy">
-                        <div class="admin-attached-media-actions">
-                            <button type="button"
-                                    class="admin-media-preview-link admin-text-action"
-                                    data-preview-name="{{ $thumbnailMedia->display_name }}"
-                                    data-preview-url="{{ $thumbnailMedia->signed_url }}"
-                                    x-on:click="openCategoryImagePreview($el.dataset.previewName, $el.dataset.previewUrl)">
-                                {{ __('lf.LF_course_category_common_view_image') }}
-                            </button>
-                            <label class="admin-attached-media-remove" for="remove_thumbnail_image_media">
-                                <input id="remove_thumbnail_image_media"
-                                       type="checkbox"
-                                       name="remove_thumbnail_image_media"
-                                       value="1">
-                                <span>{{ __('lf.LF_course_category_common_remove_image') }}</span>
-                            </label>
-                        </div>
-                    </div>
+                    <x-authoring-media-row
+                        :presentation="$thumbnailPresentation"
+                        :alt="$thumbnailMedia->display_name"
+                        :display-name="$thumbnailMedia->display_name"
+                        remove-name="remove_thumbnail_image_media"
+                        :remove-label="__('lf.LF_course_category_common_remove_image')">
+                        <button type="button" class="authoring-media-overlay-action" x-on:click.stop="openCategoryImagePreview(@js($thumbnailMedia->display_name), @js($thumbnailMedia->signed_url))">
+                            <x-backend-icon name="eye" class="authoring-media-action-icon" />
+                            <span class="sr-only">{{ __('lf.LF_course_category_common_view_image') }}</span>
+                        </button>
+                    </x-authoring-media-row>
                 @elseif ($formCategory?->thumbnail_image)
-                    <div class="lf-form-help admin-attached-media-card">
-                        <img class="admin-attached-media-thumbnail"
-                             src="{{ $formCategory->thumbnail_image }}"
-                             alt="{{ $formCategory->name }}"
-                             loading="lazy">
-                        <div class="admin-attached-media-actions">
-                            <button type="button"
-                                    class="admin-media-preview-link admin-text-action"
-                                    data-preview-name="{{ $formCategory->name }}"
-                                    data-preview-url="{{ $formCategory->thumbnail_image }}"
-                                    x-on:click="openCategoryImagePreview($el.dataset.previewName, $el.dataset.previewUrl)">
-                                {{ __('lf.LF_course_category_common_view_image') }}
-                            </button>
-                        </div>
-                    </div>
+                    <x-authoring-media-row
+                        :presentation="['state' => 'image', 'kind' => 'image', 'url' => $formCategory->thumbnail_image]"
+                        :alt="$formCategory->name"
+                        :display-name="$formCategory->name">
+                        <button type="button" class="authoring-media-overlay-action" x-on:click.stop="openCategoryImagePreview(@js($formCategory->name), @js($formCategory->thumbnail_image))">
+                            <x-backend-icon name="eye" class="authoring-media-action-icon" />
+                            <span class="sr-only">{{ __('lf.LF_course_category_common_view_image') }}</span>
+                        </button>
+                    </x-authoring-media-row>
                 @endif
-                <input id="thumbnail_image_file"
-                       type="file"
-                       name="thumbnail_image_file"
-                       class="lf-form-control admin-file-upload"
-                       accept="image/*">
+                <x-authoring-media-upload id="thumbnail_image_file" name="thumbnail_image_file" :label="(($thumbnailMedia ?? null) || $formCategory?->thumbnail_image) ? __('lf.LF_media_replace_image') : __('lf.LF_media_upload_image')" accept="image/*" />
+                </div>
                 <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
             </div>
             <div class="lf-form-group admin-form-field">
-                <x-form-label for="banner_image_file"
-                              :value="__('lf.LF_course_category_common_banner_upload')" />
+                <p class="authoring-media-field-title">{{ __('lf.LF_course_category_common_banner_image') }}</p>
+                <div class="authoring-media-picker-row">
                 @if ($bannerMedia ?? null)
                     <input type="hidden" name="remove_banner_image_media" value="0">
-                    <div class="lf-form-help admin-attached-media-card">
-                        <img class="admin-attached-media-thumbnail is-wide"
-                             src="{{ $bannerMedia->signed_url }}"
-                             alt="{{ $bannerMedia->display_name }}"
-                             loading="lazy">
-                        <div class="admin-attached-media-actions">
-                            <button type="button"
-                                    class="admin-media-preview-link admin-text-action"
-                                    data-preview-name="{{ $bannerMedia->display_name }}"
-                                    data-preview-url="{{ $bannerMedia->signed_url }}"
-                                    x-on:click="openCategoryImagePreview($el.dataset.previewName, $el.dataset.previewUrl)">
-                                {{ __('lf.LF_course_category_common_view_image') }}
-                            </button>
-                            <label class="admin-attached-media-remove" for="remove_banner_image_media">
-                                <input id="remove_banner_image_media"
-                                       type="checkbox"
-                                       name="remove_banner_image_media"
-                                       value="1">
-                                <span>{{ __('lf.LF_course_category_common_remove_image') }}</span>
-                            </label>
-                        </div>
-                    </div>
+                    <x-authoring-media-row
+                        :presentation="$bannerPresentation"
+                        :alt="$bannerMedia->display_name"
+                        :display-name="$bannerMedia->display_name"
+                        remove-name="remove_banner_image_media"
+                        :remove-label="__('lf.LF_course_category_common_remove_image')">
+                        <button type="button" class="authoring-media-overlay-action" x-on:click.stop="openCategoryImagePreview(@js($bannerMedia->display_name), @js($bannerMedia->signed_url))">
+                            <x-backend-icon name="eye" class="authoring-media-action-icon" />
+                            <span class="sr-only">{{ __('lf.LF_course_category_common_view_image') }}</span>
+                        </button>
+                    </x-authoring-media-row>
                 @elseif ($formCategory?->banner_image)
-                    <div class="lf-form-help admin-attached-media-card">
-                        <img class="admin-attached-media-thumbnail is-wide"
-                             src="{{ $formCategory->banner_image }}"
-                             alt="{{ $formCategory->name }}"
-                             loading="lazy">
-                        <div class="admin-attached-media-actions">
-                            <button type="button"
-                                    class="admin-media-preview-link admin-text-action"
-                                    data-preview-name="{{ $formCategory->name }}"
-                                    data-preview-url="{{ $formCategory->banner_image }}"
-                                    x-on:click="openCategoryImagePreview($el.dataset.previewName, $el.dataset.previewUrl)">
-                                {{ __('lf.LF_course_category_common_view_image') }}
-                            </button>
-                        </div>
-                    </div>
+                    <x-authoring-media-row
+                        :presentation="['state' => 'image', 'kind' => 'image', 'url' => $formCategory->banner_image]"
+                        :alt="$formCategory->name"
+                        :display-name="$formCategory->name">
+                        <button type="button" class="authoring-media-overlay-action" x-on:click.stop="openCategoryImagePreview(@js($formCategory->name), @js($formCategory->banner_image))">
+                            <x-backend-icon name="eye" class="authoring-media-action-icon" />
+                            <span class="sr-only">{{ __('lf.LF_course_category_common_view_image') }}</span>
+                        </button>
+                    </x-authoring-media-row>
                 @endif
-                <input id="banner_image_file"
-                       type="file"
-                       name="banner_image_file"
-                       class="lf-form-control admin-file-upload"
-                       accept="image/*">
+                <x-authoring-media-upload id="banner_image_file" name="banner_image_file" :label="(($bannerMedia ?? null) || $formCategory?->banner_image) ? __('lf.LF_media_replace_image') : __('lf.LF_media_upload_image')" accept="image/*" />
+                </div>
                 <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
             </div>
 

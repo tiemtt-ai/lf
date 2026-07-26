@@ -6,6 +6,29 @@
 @endphp
 
 <section id="{{ $panelId }}"
+         x-data="{
+             activityPreviewOpen: false,
+             activityPreview: { title: '', url: '', type: '' },
+             openActivityPreview(title, url, type) {
+                 this.activityPreview = { title, url, type };
+                 this.activityPreviewOpen = true;
+                 this.$nextTick(() => {
+                     const player = type === 'video'
+                         ? this.$refs.outlinePreviewVideo
+                         : (type === 'audio' ? this.$refs.outlinePreviewAudio : null);
+                     player?.load();
+                     player?.play().catch(() => {});
+                 });
+             },
+             closeActivityPreview() {
+                 [this.$refs.outlinePreviewVideo, this.$refs.outlinePreviewAudio]
+                     .filter(Boolean)
+                     .forEach((player) => player.pause());
+                 this.activityPreviewOpen = false;
+                 this.activityPreview = { title: '', url: '', type: '' };
+             },
+         }"
+         x-on:keydown.escape.window="closeActivityPreview()"
          @class([
              'course-template-lesson-panel',
              'course-template-direct-lesson-panel' => ! $section,
@@ -129,13 +152,25 @@
                                     </span>
                                 </div>
                                 <div class="admin-table-actions">
-                                    <a class="admin-text-action" href="{{ $activityViewUrl }}"
-                                       @if (in_array($activity->view_kind, ['media', 'external'], true))
-                                           target="_blank"
-                                           rel="noopener noreferrer"
-                                       @endif>
-                                        {{ __('lf.LF_common_button_view') }}
-                                    </a>
+                                    @if (($activity->view_behavior ?? null) === 'popup')
+                                        <button type="button"
+                                                class="admin-link-button admin-text-action"
+                                                x-on:click="openActivityPreview(
+                                                    @js($activity->title),
+                                                    @js($activityViewUrl),
+                                                    @js($activity->activity_type)
+                                                )">
+                                            {{ __('lf.LF_common_button_view') }}
+                                        </button>
+                                    @else
+                                        <a class="admin-text-action" href="{{ $activityViewUrl }}"
+                                           @if (in_array(($activity->view_behavior ?? null), ['new_tab'], true))
+                                               target="_blank"
+                                               rel="noopener noreferrer"
+                                           @endif>
+                                            {{ __('lf.LF_common_button_view') }}
+                                        </a>
+                                    @endif
                                     <a class="admin-text-action" href="{{ route(
                                         $activityRoutePrefix.'.edit',
                                         $activityParameters
@@ -237,5 +272,40 @@
                 </div>
             @endif
         @endforelse
+    </div>
+
+    <div class="media-library-modal"
+         x-cloak
+         x-show="activityPreviewOpen"
+         x-transition.opacity
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="{{ $panelId }}-activity-preview-title">
+        <button type="button"
+                class="media-library-modal-backdrop"
+                aria-label="{{ __('lf.LF_common_button_cancel') }}"
+                x-on:click="closeActivityPreview()"></button>
+        <div class="media-library-modal-panel">
+            <div class="media-library-modal-header">
+                <h2 id="{{ $panelId }}-activity-preview-title" x-text="activityPreview.title"></h2>
+                <button type="button"
+                        class="admin-link-button admin-text-action"
+                        x-on:click="closeActivityPreview()">
+                    {{ __('lf.LF_common_button_cancel') }}
+                </button>
+            </div>
+            <div class="media-library-modal-body">
+                <video x-ref="outlinePreviewVideo"
+                       x-show="activityPreview.type === 'video'"
+                       x-bind:src="activityPreview.type === 'video' ? activityPreview.url : ''"
+                       controls preload="metadata"
+                       class="media-library-modal-video"></video>
+                <audio x-ref="outlinePreviewAudio"
+                       x-show="activityPreview.type === 'audio'"
+                       x-bind:src="activityPreview.type === 'audio' ? activityPreview.url : ''"
+                       controls preload="metadata"
+                       class="course-activity-media-audio-player"></audio>
+            </div>
+        </div>
     </div>
 </section>

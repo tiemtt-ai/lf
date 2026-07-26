@@ -1,6 +1,6 @@
 # LF-Media.md
 
-Version: 1.1
+Version: 1.2
 
 Status: Foundation Approved
 
@@ -241,7 +241,73 @@ tenants.
 Media UI trong LearnForge phải che giấu chi tiết kỹ thuật storage và trình bày
 asset bằng ngôn ngữ nghiệp vụ rõ ràng.
 
-## 1. Upload
+Khi một yêu cầu implementation nói **“áp dụng chuẩn Media LF”**, form hoặc
+danh sách đó phải tuân thủ toàn bộ section này. Không được tự tạo một biến thể
+upload, preview hoặc remove riêng nếu chưa có architecture/UI review.
+
+## 1. Form Layout
+
+Mỗi media field trên form Create/Edit phải trình bày theo trục dọc:
+
+```text
+Business label
+
+Current media tile + Upload/Replace tile
+
+Format and maximum-size hint
+```
+
+Rules:
+
+* Business label dùng cùng typography với label thông thường của form; không
+  dùng heading đậm chỉ để mô tả media field.
+* Current media và Upload/Replace nằm trong cùng một picker row, căn từ trái
+  sang phải và wrap khi viewport không đủ rộng.
+* Create hoặc field chưa có media chỉ hiển thị Upload tile.
+* Edit có media hiển thị Current media tile trước, Upload/Replace tile sau.
+* Hint định dạng/dung lượng phải nằm thành dòng riêng bên dưới picker row.
+* Field video có source selector vẫn giữ hierarchy: business label, source
+  selector, media picker row, hint.
+* Không hiển thị native file input như control chính khi shared Media picker
+  đã được áp dụng.
+
+Shared implementation contract:
+
+* Current media dùng shared `authoring-media-row`.
+* Upload/Replace dùng shared `authoring-media-upload`.
+* Thumbnail/fallback dùng shared `media-thumbnail`.
+* Không copy markup hoặc tạo CSS riêng theo từng Domain để mô phỏng contract
+  này.
+
+## 2. Current Media Tile
+
+Current media tile là summary nhẹ, không phải inline player.
+
+* Image hiển thị authorized thumbnail.
+* Video hiển thị poster/thumbnail khi có; nếu không có dùng video icon.
+* Audio dùng audio/headphones icon.
+* PDF và Office document dùng thumbnail an toàn khi có, nếu không dùng đúng
+  file-type icon.
+* Không tải full binary chỉ để render list/form tile.
+
+Trên thiết bị có hover, hover hoặc keyboard focus vào Current media tile phải
+hiển thị overlay action:
+
+* View
+* Remove, khi owner Domain cho phép detach
+
+Trên thiết bị không có hover, action overlay phải luôn nhìn thấy. Icon action
+phải có accessible name; không được dùng icon-only control thiếu screen-reader
+label. Focus phải mở overlay và có focus state rõ ràng.
+
+Remove trên form:
+
+* Ẩn Current media tile ngay để phản hồi thao tác.
+* Chỉ detach usage/domain reference khi form được submit thành công.
+* Không xóa vật lý Media File.
+* Nếu Remove và valid replacement cùng được gửi, replacement thắng.
+
+## 3. Upload / Replace
 
 User-facing forms must expose media upload in simple business language.
 
@@ -267,7 +333,18 @@ Image or Video
 Do not show two independent required controls that imply both image and video
 can be active at the same time.
 
-## 2. List Display
+Upload tile phải:
+
+* dùng dấu cộng và label nghiệp vụ `Tải lên ...` khi chưa có media;
+* dùng label `Thay thế ...` khi đã có media;
+* hiển thị tên file vừa chọn theo cách compact;
+* giữ native file input trong DOM cho keyboard, validation và browser upload,
+  nhưng không để browser-specific `Choose File / No file chosen` quyết định
+  visual contract;
+* giữ accept/type validation phía client và validation authoritative phía
+  server.
+
+## 4. List Display
 
 Media lists must stay lightweight.
 
@@ -282,10 +359,25 @@ Do not render inline video players in list rows or cards.
 
 Do not load full-size images or videos in lists.
 
-## 3. Preview
+Hành động `Xem` trên list phải dùng cùng Preview Routing Policy với form; list
+không được hardcode tất cả media sang popup hoặc tất cả sang tab mới.
 
-`Xem / Preview` must open a standard modal or popup experience. It must not
-open a new browser tab for normal preview behavior.
+## 5. Preview Routing Policy
+
+Preview mode phải được quyết định bằng canonical media type, normalized provider
+identity và server-trusted MIME metadata. Không quyết định chỉ bằng filename
+hoặc extension do client gửi.
+
+| Media | View behavior |
+| --- | --- |
+| Image có authorized preview URL | Standard popup/modal |
+| Uploaded video có signed/private delivery | Video player trong popup/modal |
+| Uploaded audio có signed/private delivery | Audio player trong popup/modal |
+| Trusted normalized video embed | Embed preview trong popup/modal |
+| PDF | Mở tab mới; browser quyết định inline view hoặc download |
+| DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT và document khác | Mở tab mới; browser quyết định view hoặc download |
+| External URL hoặc Live Class URL | Mở tab mới với `noopener noreferrer` |
+| Missing, unauthorized, processing hoặc unavailable media | Không tạo View action giả |
 
 Image preview must:
 
@@ -309,9 +401,17 @@ On modal close, video preview must:
 * call the browser load/reset behavior when needed
 * release browser/network resources
 
+Audio popup cũng phải pause và release resource khi đóng. Popup chỉ được tạo
+hoặc nạp media sau explicit user action; list/form không autoplay hoặc preload
+toàn bộ media.
+
+Document không được ép vào iframe/modal. PDF và các document khác phải dùng
+authorized/signed URL trong tab mới để browser quyết định inline rendering hoặc
+download dựa trên MIME và `Content-Disposition`.
+
 Media preview/download must not require buckets or files to be public.
 
-## 4. Edit Form Display
+## 6. Edit Form Display
 
 Existing attached media should be visible on edit/detail forms.
 
@@ -320,15 +420,15 @@ Image attachments should show a thumbnail.
 Video attachments should show a poster, icon, or lightweight placeholder. Edit
 forms must not render inline video players by default.
 
-Preview and remove actions must be aligned with the thumbnail, poster, icon, or
-placeholder.
+Preview and remove actions phải nằm trên overlay của Current media tile theo
+Current Media Tile contract, không tạo một hàng text action rời bên cạnh.
 
 Do not show noisy duplicate labels that repeat the same context without adding
 meaning.
 
 Optional media must not show a required marker.
 
-## 5. Remove / Delete
+## 7. Remove / Delete
 
 Removing media from an entity only detaches or updates the usage mapping. It
 must not delete the underlying Media File or physical storage object.
@@ -341,7 +441,7 @@ If a Media File has active usage, delete must be blocked.
 Do not hard-delete media history or usage history unless an approved lifecycle
 explicitly allows it.
 
-## 6. Security
+## 8. Security
 
 Media access must be tenant-scoped.
 
@@ -353,7 +453,7 @@ Do not make buckets or files public to support preview behavior.
 `storage_key` is an internal locator. It must not be exposed as user-editable
 data.
 
-## 7. Performance
+## 9. Performance
 
 Do not render inline video players in lists or forms.
 
@@ -843,15 +943,22 @@ implementation details.
 
 ## Media Thumbnail UI Standard
 
-Compact media summaries use the shared `media-thumbnail` Blade component and
-the order `64px thumbnail → View → Remove current`, left aligned with an 8px
-gap. Images use an authorized thumbnail variant when available, otherwise an
+Compact authoring media summaries use the shared `media-thumbnail`,
+`authoring-media-row`, and `authoring-media-upload` Blade components. Form
+layout follows `Business label → Current + Upload/Replace picker row → format
+hint`. Current media is represented by a compact tile; View and Remove actions
+appear as an accessible overlay on hover/focus and remain visible on devices
+without hover.
+
+Images use an authorized thumbnail variant when available, otherwise an
 authorized signed/private image URL. Uploaded videos use a ready generated or
 stored poster, otherwise the video icon. Trusted embeds derive provider
 thumbnails only from normalized identity; failure uses the video icon and must
 never load an iframe for thumbnail display. PDFs use an authorized first-page
 preview when available, otherwise the PDF icon. Office files use standardized
-file-type icons unless an approved safe conversion service exists.
+file-type icons unless an approved safe conversion service exists. Thumbnail
+availability does not change Preview Routing Policy: PDF and document View
+actions still open a new tab.
 
 Pending, failed, or broken thumbnails fall back to decorative icons. Thumbnail
 processing is asynchronous and must not block upload or rendering. Private

@@ -328,24 +328,31 @@
                         <p>{{ __('lf.LF_course_template_history_empty') }}</p>
                     </div>
                 @else
+                    <p class="course-template-history-count">
+                        {{ trans_choice(
+                            'lf.LF_course_template_history_count',
+                            $versions->total(),
+                            ['count' => $versions->total()]
+                        ) }}
+                    </p>
                     <div class="admin-table-wrap">
                         <table class="table course-template-history-table">
                             <thead>
                             <tr>
-                                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                                 <th>{{ __('lf.table_code') }}</th>
                                 <th>{{ __('lf.LF_course_template_history_version') }}</th>
                                 <th>{{ __('lf.LF_course_template_history_published_at') }}</th>
                                 <th>{{ __('lf.LF_course_template_history_published_by') }}</th>
                                 <th>{{ __('lf.LF_course_template_history_status') }}</th>
-                                <th>{{ __('lf.LF_course_template_history_current') }}</th>
+                                <th class="course-template-history-current-column">
+                                    {{ __('lf.LF_course_template_history_current') }}
+                                </th>
                                 <th>{{ __('lf.table_actions') }}</th>
                             </tr>
                             </thead>
                             <tbody>
                             @foreach ($versions as $version)
                                 <tr>
-                                    <td class="admin-table-sequence">{{ $loop->iteration }}</td>
                                     <td>{{ $version->version_code }}</td>
                                     <td>
                                         {{ __('lf.LF_course_template_version_number', [
@@ -364,7 +371,7 @@
                                     <td>
                                         {{ __('lf.LF_course_template_version_status_'.$version->status) }}
                                     </td>
-                                    <td>
+                                    <td class="course-template-history-current-column">
                                         @if ($version->is_current)
                                             <span class="badge badge-success">
                                                 {{ __('lf.LF_course_template_version_current') }}
@@ -423,6 +430,11 @@
                             </tbody>
                         </table>
                     </div>
+                    @if ($versions->hasPages())
+                        <div class="admin-pagination course-template-history-pagination">
+                            {{ $versions->links() }}
+                        </div>
+                    @endif
                 @endif
             </div>
         </section>

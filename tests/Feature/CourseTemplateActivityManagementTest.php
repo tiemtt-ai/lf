@@ -1116,7 +1116,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             3,
             substr_count(
                 $createResponse->getContent(),
-                'authoring-media-upload admin-file-upload'
+                'authoring-media-upload-tile'
             )
         );
 
@@ -1133,7 +1133,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             3,
             substr_count(
                 $editResponse->getContent(),
-                'authoring-media-upload admin-file-upload'
+                'authoring-media-upload-tile'
             )
         );
 

@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class CourseTemplateTeacherManagementTest extends TestCase
@@ -65,7 +66,7 @@ class CourseTemplateTeacherManagementTest extends TestCase
             [$admin, 'admin'],
             [$viewer, 'teacher'],
         ] as [$user, $area]) {
-            $this->actingAs($user)
+            $response = $this->actingAs($user)
                 ->get(
                     "https://tenant-a.localhost/{$area}/course-templates/"
                     ."{$templateId}/edit?tab=teachers"
@@ -87,6 +88,19 @@ class CourseTemplateTeacherManagementTest extends TestCase
                     )."/{$assignmentId}/edit",
                     false
                 );
+
+            $document = new \DOMDocument;
+            @$document->loadHTML($response->getContent());
+            $xpath = new \DOMXPath($document);
+
+            $this->assertSame(5, $xpath->query(
+                '//section[@id="course-template-teachers"]//table/thead/tr/th'
+            )->length);
+            $this->assertSame(0, $xpath->query(
+                '//section[@id="course-template-teachers"]'
+                .'//table//*[contains(concat(" ", normalize-space(@class), " "),'
+                .' " admin-table-sequence ")]'
+            )->length);
         }
     }
 
@@ -424,7 +438,7 @@ class CourseTemplateTeacherManagementTest extends TestCase
         $this->assertStringContainsString('class="course-template-section-header course-template-teachers-header"', $content);
         $this->assertStringContainsString('class="course-template-teacher-empty"', $content);
         $this->assertStringContainsString('course-template-teacher-add-action', $content);
-        $teacherSection = \Illuminate\Support\Str::between(
+        $teacherSection = Str::between(
             $content,
             '<section id="course-template-teachers"',
             '</section>'

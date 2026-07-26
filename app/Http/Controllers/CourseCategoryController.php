@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\MediaService;
+use App\Services\MediaThumbnailPresenter;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
 use Illuminate\Http\Request;
@@ -14,7 +15,10 @@ use Illuminate\View\View;
 
 class CourseCategoryController extends Controller
 {
-    public function __construct(private readonly MediaService $mediaService) {}
+    public function __construct(
+        private readonly MediaService $mediaService,
+        private readonly MediaThumbnailPresenter $mediaThumbnails
+    ) {}
 
     public function index(Request $request): View
     {
@@ -77,6 +81,8 @@ class CourseCategoryController extends Controller
             'routePrefix' => $this->routePrefix($request),
             'thumbnailMedia' => null,
             'bannerMedia' => null,
+            'thumbnailPresentation' => null,
+            'bannerPresentation' => null,
         ]);
     }
 
@@ -121,22 +127,18 @@ class CourseCategoryController extends Controller
         $customerId = $this->customerId();
         $category = $this->findCategory($customerId, $id);
         $excludedIds = array_merge([$id], $this->descendantIds($customerId, $id));
+        $thumbnailMedia = $this->singleMedia('course_category', $id, 'thumbnail');
+        $bannerMedia = $this->singleMedia('course_category', $id, 'banner_image');
 
         return view('course-categories.edit', [
             'category' => $category,
             'parentCategories' => $this->parentCategories($excludedIds),
             'initialSortOrder' => (int) $category->sort_order,
             'routePrefix' => $this->routePrefix($request),
-            'thumbnailMedia' => $this->singleMedia(
-                'course_category',
-                $id,
-                'thumbnail'
-            ),
-            'bannerMedia' => $this->singleMedia(
-                'course_category',
-                $id,
-                'banner_image'
-            ),
+            'thumbnailMedia' => $thumbnailMedia,
+            'bannerMedia' => $bannerMedia,
+            'thumbnailPresentation' => $this->mediaThumbnails->image($thumbnailMedia),
+            'bannerPresentation' => $this->mediaThumbnails->image($bannerMedia),
         ]);
     }
 

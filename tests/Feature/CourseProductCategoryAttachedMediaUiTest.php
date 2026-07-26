@@ -76,44 +76,44 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
             2,
             $this->htmlElementCount(
                 $content,
-                '//div[contains(concat(" ", normalize-space(@class), " "), " admin-attached-media-card ")]'
+                '//div[@data-authoring-media-current-row]'
             )
         );
         $this->assertSame(
             2,
             $this->htmlElementCount(
                 $content,
-                '//div[contains(concat(" ", normalize-space(@class), " "), " admin-attached-media-card ")]'
-                .'//img[contains(concat(" ", normalize-space(@class), " "), " admin-attached-media-thumbnail ")]'
+                '//div[@data-authoring-media-current-row]'
+                .'//*[contains(concat(" ", normalize-space(@class), " "), " media-thumbnail ")]'
             )
         );
         $this->assertSame(
             2,
             $this->htmlElementCount(
                 $content,
-                '//div[contains(concat(" ", normalize-space(@class), " "), " admin-attached-media-actions ")]'
-                .'//button[@type="button" and contains(concat(" ", normalize-space(@class), " "), " admin-media-preview-link ")]'
+                '//div[@data-authoring-media-current-row]'
+                .'//button[@type="button" and contains(concat(" ", normalize-space(@class), " "), " authoring-media-overlay-action ")]'
             )
         );
         $this->assertSame(
             2,
             $this->htmlElementCount(
                 $content,
-                '//button[@type="button" and @data-preview-name and @data-preview-url]'
+                '//button[@type="button" and @*[starts-with(name(), "x-on:click") and contains(., "openCategoryImagePreview")]]'
             )
         );
         $this->assertSame(
             0,
             $this->htmlElementCount(
                 $content,
-                '//a[contains(concat(" ", normalize-space(@class), " "), " admin-media-preview-link ")]'
+                '//a[contains(concat(" ", normalize-space(@class), " "), " authoring-media-overlay-action ")]'
             )
         );
         $this->assertSame(
             2,
             $this->htmlElementCount(
                 $content,
-                '//label[contains(concat(" ", normalize-space(@class), " "), " admin-attached-media-remove ")]'
+                '//label[contains(concat(" ", normalize-space(@class), " "), " authoring-media-remove ")]'
                 .'//input[@type="checkbox"]'
             )
         );
@@ -125,8 +125,9 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
             $content
         );
         $this->assertStringContainsString('Tối đa:', $content);
+        $this->assertStringContainsString('Ảnh đại diện', $content);
+        $this->assertStringContainsString('Ảnh banner', $content);
         $this->assertStringContainsString('openCategoryImagePreview', $content);
-        $this->assertStringContainsString('$el.dataset.previewUrl', $content);
         $this->assertStringContainsString('media-library-modal-image', $content);
         $this->assertSame(
             2,
@@ -145,15 +146,13 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
         $this->assertStringNotContainsString('admin-media-action-divider', $content);
         $this->assertStringNotContainsString('target="_blank"', $content);
 
-        $componentCss = file_get_contents(
-            base_path('resources/css/admin/admin-components.css')
-        );
+        $componentCss = file_get_contents(base_path('resources/css/admin/admin-pages.css'));
         $this->assertStringContainsString(
-            '.lf-admin-page .admin-attached-media-card',
+            '.authoring-media-picker-row',
             $componentCss
         );
-        $this->assertStringContainsString('margin: 7px 0 14px;', $componentCss);
-        $this->assertStringContainsString('.lf-admin-page .admin-file-upload::file-selector-button', $componentCss);
+        $this->assertStringContainsString('.authoring-media-upload-tile', $componentCss);
+        $this->assertStringContainsString('.authoring-media-current-row:hover', $componentCss);
     }
 
     public function test_remove_current_image_still_detaches_usage_without_deleting_media_file(): void

@@ -866,6 +866,7 @@ class CourseTemplateActivityController extends Controller
                 'file',
                 'max:'.UploadLimit::effectiveKilobytes(),
             ],
+            'remove_activity_media' => ['nullable', 'boolean'],
         ];
     }
 
@@ -1128,14 +1129,18 @@ class CourseTemplateActivityController extends Controller
             : null;
         $replacingActiveMedia = $activeUsage !== null
             && $request->hasFile("activity_{$activeUsage}_file");
+        $removingActiveMedia = $activeUsage !== null
+            && $request->boolean('remove_activity_media')
+            && ! $replacingActiveMedia;
+        $detachingActiveMedia = $replacingActiveMedia || $removingActiveMedia;
 
         DB::table('media_file_usages')
             ->where('customer_id', $this->customerId())
             ->where('owner_type', 'course_activity')
             ->where('owner_id', $activityId)
             ->where('status', 'active')
-            ->when($activeUsage && ! $replacingActiveMedia, fn ($query) => $query->where('usage_type', '!=', $activeUsage))
-            ->when(! $activeUsage || $replacingActiveMedia, fn ($query) => $query->whereIn('usage_type', ['video', 'audio', 'document']))
+            ->when($activeUsage && ! $detachingActiveMedia, fn ($query) => $query->where('usage_type', '!=', $activeUsage))
+            ->when(! $activeUsage || $detachingActiveMedia, fn ($query) => $query->whereIn('usage_type', ['video', 'audio', 'document']))
             ->get()
             ->each(fn (object $usage) => $this->mediaService->detachUsage(
                 (int) $usage->media_file_id,
@@ -1143,6 +1148,16 @@ class CourseTemplateActivityController extends Controller
                 $activityId,
                 $usage->usage_type
             ));
+
+        if ($removingActiveMedia && in_array($activityType, self::AUTO_MEDIA_DURATION_TYPES, true)) {
+            DB::table('core_course_template_activities')
+                ->where('customer_id', $this->customerId())
+                ->where('id', $activityId)
+                ->update([
+                    'duration_seconds' => 0,
+                    'updated_at' => now(),
+                ]);
+        }
     }
 
     private function ownerMedia(string $ownerType, int $ownerId): object

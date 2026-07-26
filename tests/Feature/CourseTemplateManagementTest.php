@@ -209,7 +209,7 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertSame(3, substr_count($formPartial, 'admin-form-field--full'));
         $this->assertStringNotContainsString('admin-form-subsection', $formPartial);
         $this->assertSame(3, substr_count($formPartial, '<x-authoring-media-row'));
-        $this->assertSame(3, substr_count($formPartial, 'authoring-media-upload admin-file-upload'));
+        $this->assertSame(3, substr_count($formPartial, '<x-authoring-media-upload'));
         $this->assertSame(1, substr_count($formPartial, ':presentation="$introImageThumbnail"'));
         $this->assertSame(1, substr_count($formPartial, ':presentation="$introVideoThumbnail"'));
         $this->assertSame(1, substr_count($formPartial, ':presentation="$introDocumentThumbnail"'));

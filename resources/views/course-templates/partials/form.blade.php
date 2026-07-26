@@ -172,60 +172,73 @@
         </header>
         <div class="admin-form-field-grid admin-form-field-grid--three">
         <div class="lf-form-group admin-form-field course-template-information-media">
-            <x-form-label for="intro_image_file" :value="__('lf.LF_course_template_intro_image')" />
+            <p class="authoring-media-field-title">{{ __('lf.LF_course_template_intro_image') }}</p>
             <input type="hidden" name="intro_image_media_file_id" value="{{ old('intro_image_media_file_id', $formTemplate?->intro_image_media_file_id) }}">
+            <div class="authoring-media-picker-row">
             @if ($introImageMedia ?? null)
                 <x-authoring-media-row
                     :presentation="$introImageThumbnail"
                     :alt="__('lf.LF_course_template_intro_image')"
+                    :current-label="__('lf.LF_media_current_image')"
+                    :display-name="$introImageMedia->display_name"
                     remove-name="remove_intro_image"
                     :remove-label="__('lf.LF_course_template_remove_current_image')">
-                    <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openTemplatePreview(@js($introImageMedia->display_name), @js($introImageMedia->signed_url), @js($introImageMedia->mime_type), 'image')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
+                    <button type="button" class="authoring-media-overlay-action" x-on:click.stop="openTemplatePreview(@js($introImageMedia->display_name), @js($introImageMedia->signed_url), @js($introImageMedia->mime_type), 'image')"><x-backend-icon name="eye" class="authoring-media-action-icon" /><span class="sr-only">{{ __('lf.LF_media_file_common_preview_action') }}</span></button>
                 </x-authoring-media-row>
             @endif
-            <input id="intro_image_file" type="file" name="intro_image_file" class="lf-form-control authoring-media-upload admin-file-upload" accept="image/*">
+            <x-authoring-media-upload id="intro_image_file" name="intro_image_file" :label="($introImageMedia ?? null) ? __('lf.LF_media_replace_image') : __('lf.LF_media_upload_image')" accept="image/*" />
+            </div>
             <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
         </div>
 
         <div class="lf-form-group admin-form-field course-template-information-media">
-            <x-form-label for="intro_video_source" :value="__('lf.LF_course_template_intro_video')" />
+            <p class="authoring-media-field-title">{{ __('lf.LF_course_template_intro_video') }}</p>
+            <label for="intro_video_source" class="sr-only">{{ __('lf.LF_course_template_video_source') }}</label>
             <select id="intro_video_source" name="intro_video_source" class="lf-form-control" x-model="selectedVideoSource" :class="{ 'lf-select-placeholder': selectedVideoSource === null || selectedVideoSource === '' }">
                 <option value="">{{ __('lf.LF_course_template_select_video_source') }}</option>
                 <option value="upload">{{ __('lf.LF_course_template_video_upload') }}</option>
                 <option value="embed">{{ __('lf.LF_course_template_video_embed') }}</option>
             </select>
             <input type="hidden" name="intro_video_media_file_id" value="{{ old('intro_video_media_file_id', $formTemplate?->intro_video_media_file_id) }}" :disabled="selectedVideoSource !== 'upload'">
+            <div class="authoring-media-picker-row" x-show="selectedVideoSource === 'upload' || @js((bool) (($introVideoMedia ?? null) || ($introVideoEmbedUrl ?? null)))">
             @if (($introVideoMedia ?? null) || ($introVideoEmbedUrl ?? null))
                 <x-authoring-media-row
                     :presentation="$introVideoThumbnail"
                     :alt="__('lf.LF_course_template_intro_video')"
+                    :current-label="__('lf.LF_media_current_video')"
+                    :display-name="($introVideoMedia ?? null)?->display_name ?? ucfirst((string) $formTemplate?->intro_video_provider)"
                     remove-name="remove_intro_video"
                     :remove-label="__('lf.LF_course_template_remove_current_video')">
                     @if ($introVideoMedia ?? null)
-                        <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openTemplatePreview(@js($introVideoMedia->display_name), @js($introVideoMedia->signed_url), @js($introVideoMedia->mime_type), 'video')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
+                        <button type="button" class="authoring-media-overlay-action" x-on:click.stop="openTemplatePreview(@js($introVideoMedia->display_name), @js($introVideoMedia->signed_url), @js($introVideoMedia->mime_type), 'video')"><x-backend-icon name="eye" class="authoring-media-action-icon" /><span class="sr-only">{{ __('lf.LF_media_file_common_preview_action') }}</span></button>
                     @else
-                        <button type="button" class="admin-link-button admin-text-action" x-on:click.stop="openTemplatePreview(@js(ucfirst((string) $formTemplate?->intro_video_provider)), @js($introVideoEmbedUrl), 'text/html', 'embed')">{{ __('lf.LF_media_file_common_preview_action') }}</button>
+                        <button type="button" class="authoring-media-overlay-action" x-on:click.stop="openTemplatePreview(@js(ucfirst((string) $formTemplate?->intro_video_provider)), @js($introVideoEmbedUrl), 'text/html', 'embed')"><x-backend-icon name="eye" class="authoring-media-action-icon" /><span class="sr-only">{{ __('lf.LF_media_file_common_preview_action') }}</span></button>
                     @endif
                 </x-authoring-media-row>
             @endif
-            <input type="file" name="intro_video_file" class="lf-form-control authoring-media-upload admin-file-upload" accept="video/*" x-show="selectedVideoSource === 'upload'" :disabled="selectedVideoSource !== 'upload'">
+            <div class="authoring-media-upload-wrapper" x-show="selectedVideoSource === 'upload'"><x-authoring-media-upload id="intro_video_file" name="intro_video_file" :label="(($introVideoMedia ?? null) || ($introVideoEmbedUrl ?? null)) ? __('lf.LF_media_replace_video') : __('lf.LF_media_upload_video')" accept="video/*" x-bind:disabled="selectedVideoSource !== 'upload'" /></div>
+            </div>
             <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']" x-show="selectedVideoSource === 'upload'" />
             <input type="url" name="intro_video_embed_url" class="lf-form-control" value="{{ old('intro_video_embed_url', $formTemplate?->intro_video_embed_url) }}" placeholder="{{ __('lf.LF_course_template_placeholder_embed_url') }}" x-show="selectedVideoSource === 'embed'" :disabled="selectedVideoSource !== 'embed'">
         </div>
 
         <div class="lf-form-group admin-form-field course-template-information-media">
-            <x-form-label for="intro_document_file" :value="__('lf.LF_course_template_intro_document')" />
+            <p class="authoring-media-field-title">{{ __('lf.LF_course_template_intro_document') }}</p>
             <input type="hidden" name="intro_document_media_file_id" value="{{ old('intro_document_media_file_id', $formTemplate?->intro_document_media_file_id) }}">
+            <div class="authoring-media-picker-row">
             @if ($introDocumentMedia ?? null)
                 <x-authoring-media-row
                     :presentation="$introDocumentThumbnail"
                     :alt="__('lf.LF_course_template_intro_document')"
+                    :current-label="__('lf.LF_media_current_document')"
+                    :display-name="$introDocumentMedia->display_name"
                     remove-name="remove_intro_document"
                     :remove-label="__('lf.LF_course_template_remove_current_document')">
-                    <a class="admin-text-action" href="{{ $introDocumentMedia->signed_url }}" target="_blank" rel="noopener">{{ __('lf.LF_media_file_common_preview_action') }}</a>
+                    <a class="authoring-media-overlay-action" href="{{ $introDocumentMedia->signed_url }}" target="_blank" rel="noopener noreferrer"><x-backend-icon name="eye" class="authoring-media-action-icon" /><span class="sr-only">{{ __('lf.LF_media_file_common_preview_action') }}</span></a>
                 </x-authoring-media-row>
             @endif
-            <input id="intro_document_file" type="file" name="intro_document_file" class="lf-form-control authoring-media-upload admin-file-upload">
+            <x-authoring-media-upload id="intro_document_file" name="intro_document_file" :label="($introDocumentMedia ?? null) ? __('lf.LF_media_replace_document') : __('lf.LF_media_upload_document')" />
+            </div>
             <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'PPT', 'PPTX', 'XLS', 'XLSX']" />
         </div>
 

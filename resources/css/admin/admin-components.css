@@ -1209,40 +1209,65 @@
 }
 
 .lf-admin-page .admin-attached-media-card {
-    margin: 7px 0 14px;
-    display: flex;
+    position: relative;
+    width: 112px;
+    height: 112px;
+    margin: 7px 8px 14px 0;
+    display: inline-flex;
     align-items: center;
-    gap: 12px;
+    overflow: hidden;
+    vertical-align: top;
+    border: 1px solid #dbe3ed;
+    border-radius: 6px;
 }
 
 .admin-attached-media-thumbnail {
-    width: 120px;
-    height: 80px;
+    width: 100%;
+    height: 100%;
     flex: 0 0 auto;
-    border: 1px solid #dbe3ed;
-    border-radius: 6px;
+    border: 0;
+    border-radius: 0;
     background: #f8fafc;
     object-fit: cover;
 }
 
 .admin-attached-media-thumbnail.is-wide {
-    width: 180px;
+    width: 100%;
 }
 
 .admin-attached-media-actions {
+    position: absolute;
+    inset: 0;
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 12px;
+    justify-content: center;
+    gap: 8px;
+    background: rgb(15 23 42 / 58%);
+    opacity: 0;
+    transition: opacity 140ms ease;
+}
+
+.admin-attached-media-card:hover .admin-attached-media-actions,
+.admin-attached-media-card:focus-within .admin-attached-media-actions {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .admin-attached-media-actions {
+        opacity: 1;
+    }
 }
 
 .admin-media-preview-link {
-    min-height: 32px;
+    width: 36px;
+    height: 36px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
-    background: #ffffff;
+    border: 0;
+    border-radius: 50%;
+    color: #fff;
+    background: rgb(15 23 42 / 45%);
     font: inherit;
     line-height: 1.2;
     text-decoration: none;
@@ -1257,17 +1282,24 @@
 }
 
 .admin-attached-media-remove {
+    position: relative;
+    width: 36px;
+    height: 36px;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    color: #374151;
+    justify-content: center;
+    border-radius: 50%;
+    color: #fff;
+    background: rgb(15 23 42 / 45%);
     font-weight: 500;
 }
 
 .admin-attached-media-remove input {
-    width: 14px;
-    height: 14px;
-    margin: 0;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
 }
 
 .admin-media-action-row {

@@ -163,7 +163,14 @@ class CourseTemplateController extends Controller
         $customerId = $this->customerId();
         $routePrefix = $this->routePrefix($request);
         $template = $this->findTemplate($customerId, $id);
-        $versions = $this->versions($customerId, $id);
+        $versionsQuery = $this->versionsQuery($customerId, $id);
+        $versions = (clone $versionsQuery)
+            ->paginate(10, ['*'], 'history_page')
+            ->withQueryString();
+        $latestVersion = (clone $versionsQuery)->first();
+        $currentVersion = (clone $versionsQuery)
+            ->where('versions.is_current', true)
+            ->first();
         $publishGraph = $this->readinessService->load($customerId, $id);
         $publishReadiness = $this->readinessService->evaluate(
             $customerId,
@@ -184,10 +191,8 @@ class CourseTemplateController extends Controller
         return view('course-templates.edit', [
             'template' => $template,
             'versions' => $versions,
-            'latestVersion' => $versions->first(),
-            'currentVersion' => $versions->first(
-                fn (object $version): bool => (bool) $version->is_current
-            ),
+            'latestVersion' => $latestVersion,
+            'currentVersion' => $currentVersion,
             'publishReadiness' => $publishReadiness,
             'categories' => $this->categories(),
             'nextSortOrders' => $this->nextSortOrders($customerId),
@@ -799,6 +804,8 @@ class CourseTemplateController extends Controller
             ->map(function (object $activity): object {
                 $activity->view_kind = 'readonly';
                 $activity->view_url = null;
+                $activity->view_mime_type = null;
+                $activity->view_behavior = 'readonly';
 
                 if (in_array($activity->activity_type, ['embedded_video', 'live_class'], true)) {
                     $activity->view_url = $this->safeExternalUrl(
@@ -806,6 +813,9 @@ class CourseTemplateController extends Controller
                     );
                     $activity->view_kind = $activity->view_url
                         ? 'external'
+                        : 'none';
+                    $activity->view_behavior = $activity->view_url
+                        ? 'new_tab'
                         : 'none';
 
                     return $activity;
@@ -819,6 +829,14 @@ class CourseTemplateController extends Controller
                     $activity->view_url = $this->mediaService
                         ->generateSignedUrl((int) $media->id);
                     $activity->view_kind = 'media';
+                    $activity->view_mime_type = $media->mime_type;
+                    $activity->view_behavior = in_array(
+                        $activity->activity_type,
+                        ['video', 'audio'],
+                        true
+                    )
+                        ? 'popup'
+                        : 'new_tab';
                 } elseif (in_array(
                     $activity->activity_type,
                     ['video', 'audio', 'document'],
@@ -867,7 +885,7 @@ class CourseTemplateController extends Controller
             ->get();
     }
 
-    private function versions(int $customerId, int $templateId)
+    private function versionsQuery(int $customerId, int $templateId)
     {
         return DB::table('core_course_template_versions as versions')
             ->leftJoin('users as publishers', function ($join) use (
@@ -882,8 +900,7 @@ class CourseTemplateController extends Controller
             ->select(
                 'versions.*',
                 'publishers.name as published_by_name'
-            )
-            ->get();
+            );
     }
 
     private function syncIntroductionMedia(
