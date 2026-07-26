@@ -1867,25 +1867,6 @@
     line-height: 1.5;
 }
 
-.teacher-profile-card-title {
-    margin: 0;
-    color: var(--admin-primary);
-    font-size: 20px;
-    font-weight: 500;
-}
-
-.teacher-profile-card-copy {
-    margin: 8px 0 24px;
-    color: #777777;
-    font-size: 14px;
-}
-
-.teacher-profile-fields {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0 18px;
-}
-
 .teacher-password-success {
     max-width: 720px;
     margin-top: 20px;
@@ -3156,22 +3137,12 @@
         flex-direction: column;
     }
 
-    .teacher-dashboard-grid,
-    .teacher-profile-fields {
+    .teacher-dashboard-grid {
         grid-template-columns: 1fr;
     }
 
     .teacher-dashboard-card {
         min-height: 150px;
-    }
-
-    .teacher-profile-card-copy {
-        margin-bottom: 20px;
-    }
-
-    .teacher-profile-card .admin-form-actions {
-        align-items: stretch;
-        flex-direction: column;
     }
 
     .course-template-section-action-bar {

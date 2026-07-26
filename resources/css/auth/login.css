@@ -191,7 +191,8 @@
 .auth-help-text {
     margin: 0 0 22px;
     color: #555555;
-    font-size: 16px;
+    font-size: 14px;
+    font-weight: 300;
     line-height: 1.55;
 }
 
@@ -257,11 +258,14 @@
     background: #ffffff;
     font: inherit;
     font-size: 18px;
+    font-weight: 400;
     outline: none;
 }
 
 .auth-input::placeholder {
-    color: #d8dadd;
+    color: color-mix(in srgb, #6b7280 58%, #ffffff);
+    font-size: 14px;
+    font-weight: 300;
     opacity: 1;
 }
 
@@ -300,7 +304,16 @@
     padding: 0;
     color: #b91c1c;
     font-size: 13px;
+    font-weight: 400;
     list-style: none;
+}
+
+.auth-field-help {
+    margin: 7px 0 0;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 300;
+    line-height: 1.45;
 }
 
 .auth-remember {

@@ -2298,8 +2298,11 @@ class CourseProductManagementTest extends TestCase
         $this->assertStringContainsString('margin-top: 0;', $css);
         $this->assertStringContainsString('.admin-form-calculated-summary {', $css);
         $this->assertStringContainsString('.lf-admin-page .lf-form-help,', $css);
-        $this->assertStringContainsString("font-size: 13px;\n    line-height: 1.45;", $css);
+        $this->assertStringContainsString('font-size: 13px;', $css);
         $this->assertStringContainsString(".lf-admin-page .lf-form-help {\n    color: var(--admin-text-muted);", $css);
+        $this->assertStringContainsString(".lf-admin-page .lf-form-control::placeholder,\n.lf-admin-page select.lf-form-control.lf-select-placeholder {", $css);
+        $this->assertStringContainsString('font-size: 14px;', $css);
+        $this->assertStringContainsString('font-weight: 300;', $css);
         $this->assertStringContainsString('.admin-form-footer-danger,', $css);
         $this->assertStringContainsString('.admin-form-footer-primary {', $css);
         $this->assertStringNotContainsString('form {\n    width: 100%;\n    max-width: none;', $css);

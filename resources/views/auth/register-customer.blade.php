@@ -94,24 +94,41 @@
                                    placeholder="{{ __('lf.LF_auth_register_admin_phone_placeholder') }}" aria-required="true" required>
                         </div>
 
-                        <div class="public-form-group">
+                        <div class="public-form-group" x-data="{ visible: false }">
                             <label class="public-form-label" for="password">
                                 {{ __('lf.LF_common_label_password') }}
                                 <span class="lf-required-indicator" aria-hidden="true">*</span>
                             </label>
-                            <input id="password" type="password" name="password" class="public-form-control"
-                                   placeholder="{{ __('lf.LF_auth_register_password_placeholder') }}" aria-required="true" required>
+                            <div class="public-password-control">
+                                <input id="password" type="password" x-bind:type="visible ? 'text' : 'password'"
+                                       name="password" class="public-form-control"
+                                       placeholder="{{ __('lf.LF_auth_register_password_placeholder') }}"
+                                       aria-describedby="registration-password-help" aria-required="true" required>
+                                <button class="public-password-toggle" type="button" x-on:click="visible = ! visible"
+                                        x-bind:aria-label="visible ? @js(__('lf.LF_auth_login_hide_password')) : @js(__('lf.LF_auth_login_show_password'))">
+                                    <svg x-show="! visible" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.75"></circle></svg>
+                                    <svg x-show="visible" x-cloak viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m3 3 18 18M10.6 6.15A10.7 10.7 0 0 1 12 6c6 0 9.5 6 9.5 6a15 15 0 0 1-2.1 2.75M6.2 6.2C3.8 7.85 2.5 12 2.5 12s3.5 6 9.5 6a9.8 9.8 0 0 0 3.15-.52M9.9 9.9a3 3 0 0 0 4.2 4.2"></path></svg>
+                                </button>
+                            </div>
+                            <small id="registration-password-help" class="public-form-help">{{ __('lf.LF_profile_help_new_password') }}</small>
                         </div>
 
-                        <div class="public-form-group">
+                        <div class="public-form-group" x-data="{ visible: false }">
                             <label class="public-form-label" for="password_confirmation">
                                 {{ __('lf.LF_common_label_confirm_password') }}
                                 <span class="lf-required-indicator" aria-hidden="true">*</span>
                             </label>
-                            <input id="password_confirmation" type="password" name="password_confirmation"
-                                   class="public-form-control"
-                                   placeholder="{{ __('lf.LF_auth_register_password_confirmation_placeholder') }}"
-                                   aria-required="true" required>
+                            <div class="public-password-control">
+                                <input id="password_confirmation" type="password" x-bind:type="visible ? 'text' : 'password'"
+                                       name="password_confirmation" class="public-form-control"
+                                       placeholder="{{ __('lf.LF_auth_register_password_confirmation_placeholder') }}"
+                                       aria-required="true" required>
+                                <button class="public-password-toggle" type="button" x-on:click="visible = ! visible"
+                                        x-bind:aria-label="visible ? @js(__('lf.LF_auth_login_hide_password')) : @js(__('lf.LF_auth_login_show_password'))">
+                                    <svg x-show="! visible" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.75"></circle></svg>
+                                    <svg x-show="visible" x-cloak viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m3 3 18 18M10.6 6.15A10.7 10.7 0 0 1 12 6c6 0 9.5 6 9.5 6a15 15 0 0 1-2.1 2.75M6.2 6.2C3.8 7.85 2.5 12 2.5 12s3.5 6 9.5 6a9.8 9.8 0 0 0 3.15-.52M9.9 9.9a3 3 0 0 0 4.2 4.2"></path></svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
 

@@ -99,17 +99,50 @@
                         <p class="admin-form-section-help">{{ __('lf.LF_admin_help_user_create_security') }}</p>
                     </header>
                     <div class="admin-form-field-grid">
-                        <div class="lf-form-group admin-form-field">
+                        <div class="lf-form-group admin-form-field admin-password-field" x-data="{ visible: false }">
                             <x-form-label for="password" :value="__('lf.LF_common_label_password')" :required="true" />
-                            <input id="password" type="password" name="password" class="lf-form-control" autocomplete="new-password" placeholder="{{ __('lf.LF_admin_placeholder_user_password') }}" required
-                                   @if($errors->has('password')) aria-invalid="true" aria-describedby="password_error" @endif>
+                            <div class="admin-password-control">
+                                <input id="password" type="password" x-bind:type="visible ? 'text' : 'password'"
+                                       name="password" class="lf-form-control" autocomplete="new-password"
+                                       placeholder="{{ __('lf.LF_admin_placeholder_user_password') }}" required
+                                       @if($errors->has('password')) aria-invalid="true" aria-describedby="password_error" @endif>
+                                <button type="button" x-on:click="visible = ! visible"
+                                        x-bind:aria-label="visible ? @js(__('lf.LF_auth_login_hide_password')) : @js(__('lf.LF_auth_login_show_password'))"
+                                        x-bind:title="visible ? @js(__('lf.LF_auth_login_hide_password')) : @js(__('lf.LF_auth_login_show_password'))">
+                                    <svg x-show="! visible" class="admin-password-eye" viewBox="0 0 24 24" fill="none"
+                                         stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                        <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+                                        <circle cx="12" cy="12" r="2.75"></circle>
+                                    </svg>
+                                    <svg x-show="visible" x-cloak class="admin-password-eye" viewBox="0 0 24 24" fill="none"
+                                         stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                        <path d="m3 3 18 18M10.6 6.15A10.7 10.7 0 0 1 12 6c6 0 9.5 6 9.5 6a15 15 0 0 1-2.1 2.75M6.2 6.2C3.8 7.85 2.5 12 2.5 12s3.5 6 9.5 6a9.8 9.8 0 0 0 3.15-.52M9.9 9.9a3 3 0 0 0 4.2 4.2"></path>
+                                    </svg>
+                                </button>
+                            </div>
                             @error('password')<p id="password_error" class="lf-form-error">{{ $message }}</p>@enderror
                         </div>
 
-                        <div class="lf-form-group admin-form-field">
+                        <div class="lf-form-group admin-form-field admin-password-field" x-data="{ visible: false }">
                             <x-form-label for="password_confirmation" :value="__('lf.LF_common_label_confirm_password')" :required="true" />
-                            <input id="password_confirmation" type="password" name="password_confirmation"
-                                   class="lf-form-control" autocomplete="new-password" placeholder="{{ __('lf.LF_admin_placeholder_user_password_confirmation') }}" required>
+                            <div class="admin-password-control">
+                                <input id="password_confirmation" type="password" x-bind:type="visible ? 'text' : 'password'"
+                                       name="password_confirmation" class="lf-form-control" autocomplete="new-password"
+                                       placeholder="{{ __('lf.LF_admin_placeholder_user_password_confirmation') }}" required>
+                                <button type="button" x-on:click="visible = ! visible"
+                                        x-bind:aria-label="visible ? @js(__('lf.LF_auth_login_hide_password')) : @js(__('lf.LF_auth_login_show_password'))"
+                                        x-bind:title="visible ? @js(__('lf.LF_auth_login_hide_password')) : @js(__('lf.LF_auth_login_show_password'))">
+                                    <svg x-show="! visible" class="admin-password-eye" viewBox="0 0 24 24" fill="none"
+                                         stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                        <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+                                        <circle cx="12" cy="12" r="2.75"></circle>
+                                    </svg>
+                                    <svg x-show="visible" x-cloak class="admin-password-eye" viewBox="0 0 24 24" fill="none"
+                                         stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                        <path d="m3 3 18 18M10.6 6.15A10.7 10.7 0 0 1 12 6c6 0 9.5 6 9.5 6a15 15 0 0 1-2.1 2.75M6.2 6.2C3.8 7.85 2.5 12 2.5 12s3.5 6 9.5 6a9.8 9.8 0 0 0 3.15-.52M9.9 9.9a3 3 0 0 0 4.2 4.2"></path>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -118,8 +151,8 @@
             <footer class="admin-form-footer">
                 <div class="admin-form-footer-danger"></div>
                 <div class="admin-form-footer-primary">
+                    <a href="{{ route('admin.users.index', ['role' => $role]) }}" class="btn btn-secondary">{{ __('lf.LF_common_button_cancel') }}</a>
                     <button type="submit" class="btn btn-primary">{{ __('lf.LF_admin_button_admin_create_user') }}</button>
-                    <a href="{{ route('admin.users.index') }}" class="admin-form-cancel">{{ __('lf.LF_common_button_cancel') }}</a>
                 </div>
             </footer>
         </form>

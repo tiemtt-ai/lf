@@ -481,7 +481,7 @@
     display: block;
     color: #344054;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .public-form-control {
@@ -493,7 +493,52 @@
     color: #101828;
     background: #ffffff;
     font: inherit;
+    font-weight: 400;
     outline: none;
+}
+
+.public-form-control::placeholder,
+select.public-form-control:required:invalid {
+    color: color-mix(in srgb, var(--public-muted) 58%, #ffffff);
+    font-size: 14px;
+    font-weight: 300;
+    opacity: 1;
+}
+
+.public-password-control {
+    position: relative;
+}
+
+.public-password-control .public-form-control {
+    padding-right: 50px;
+}
+
+.public-password-toggle {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    position: absolute;
+    top: 50%;
+    right: 5px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 6px;
+    color: var(--public-primary);
+    background: transparent;
+    cursor: pointer;
+    transform: translateY(-50%);
+}
+
+.public-password-toggle:hover,
+.public-password-toggle:focus-visible {
+    background: color-mix(in srgb, var(--public-primary) 8%, #ffffff);
+    outline: 2px solid color-mix(in srgb, var(--public-primary) 35%, transparent);
+}
+
+.public-password-toggle svg {
+    width: 20px;
+    height: 20px;
 }
 
 .public-form-control:focus {
@@ -518,6 +563,7 @@
     display: block;
     color: var(--public-muted);
     font-size: 13px;
+    font-weight: 300;
     line-height: 1.5;
 }
 

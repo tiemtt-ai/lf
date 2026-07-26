@@ -63,6 +63,8 @@ class TenantRegistrationSecurityTest extends TestCase
             ->assertSee('id="slug"', false)
             ->assertSee('x-model="slug"', false)
             ->assertSee('readonly', false)
+            ->assertSee('class="public-password-control"', false)
+            ->assertSee('class="public-password-toggle"', false)
             ->assertSee(__('lf.LF_auth_register_slug_help'));
 
         foreach ([

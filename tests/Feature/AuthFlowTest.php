@@ -110,7 +110,12 @@ class AuthFlowTest extends TestCase
         $this->get('https://tenant-a.localhost/forgot-password')->assertOk();
 
         $this->get('https://tenant-a.localhost/reset-password/'.$token.'?email='.urlencode($user->email))
-            ->assertOk();
+            ->assertOk()
+            ->assertSee('class="auth-login-card auth-forgot-card"', false)
+            ->assertSee('class="auth-input auth-password-input"', false)
+            ->assertSee('class="auth-password-toggle"', false)
+            ->assertSee('class="auth-field-help"', false)
+            ->assertSeeText(__('lf.LF_auth_reset_title'));
 
         $this->post('https://tenant-a.localhost/reset-password', [
             'token' => $token,

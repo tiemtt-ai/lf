@@ -279,7 +279,7 @@ class UserAuditSecurityTest extends TestCase
                 ->assertSee('class="admin-form-field-grid"', false)
                 ->assertSee('class="admin-form-footer"', false)
                 ->assertSee('class="admin-form-footer-primary"', false)
-                ->assertSee('class="admin-form-cancel"', false)
+                ->assertSee('class="btn btn-secondary"', false)
                 ->assertSee('name="name"', false)
                 ->assertSee('name="email"', false)
                 ->assertSee('name="phone"', false)
@@ -324,6 +324,24 @@ class UserAuditSecurityTest extends TestCase
                 ->assertSee('placeholder="'.__('lf.LF_admin_placeholder_user_email').'"', false)
                 ->assertSee('placeholder="'.__('lf.LF_admin_placeholder_user_phone').'"', false);
         }
+
+        $create = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/users/create')
+            ->assertOk();
+
+        $create
+            ->assertSee('x-bind:type="visible ? \'text\' : \'password\'"', false)
+            ->assertSee('x-bind:aria-label="visible ?', false)
+            ->assertSee('class="admin-password-eye"', false);
+
+        $edit = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/users/'.$target->id.'/edit')
+            ->assertOk();
+
+        $edit
+            ->assertSee('id="user_new_password"', false)
+            ->assertSee('id="user_password_confirmation"', false)
+            ->assertSee('x-bind:type="visible ? \'text\' : \'password\'"', false);
 
         foreach ([
             resource_path('views/admin/users/create.blade.php'),
