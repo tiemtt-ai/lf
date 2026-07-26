@@ -263,22 +263,22 @@
 }
 
 .auth-input::placeholder {
-    color: color-mix(in srgb, #6b7280 58%, #ffffff);
-    font-size: 14px;
+    color: color-mix(in srgb, #6b7280 50%, #ffffff);
+    font-size: 18px;
     font-weight: 300;
     opacity: 1;
 }
 
 .auth-page .auth-input.is-lf-placeholder:not(:focus) {
-    color: color-mix(in srgb, #6b7280 58%, #ffffff);
+    color: color-mix(in srgb, #6b7280 50%, #ffffff);
     font-size: 18px;
-    font-weight: 400;
+    font-weight: 300;
 }
 
 .auth-page select.auth-input:has(option[value=""]:checked):not(:focus) {
-    color: color-mix(in srgb, #6b7280 58%, #ffffff);
+    color: color-mix(in srgb, #6b7280 50%, #ffffff);
     font-size: 18px;
-    font-weight: 400;
+    font-weight: 300;
 }
 
 .auth-page select.auth-input:focus,

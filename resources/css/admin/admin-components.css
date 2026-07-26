@@ -29,8 +29,8 @@
 }
 
 .lf-admin-page .lf-form-control::placeholder {
-    color: color-mix(in srgb, var(--admin-text-muted) 58%, var(--admin-surface));
-    font-size: 14px;
+    color: color-mix(in srgb, var(--admin-text-muted) 50%, var(--admin-surface));
+    font-size: 1rem;
     font-weight: 300;
     opacity: 1;
 }
@@ -38,9 +38,9 @@
 .lf-admin-page .lf-form-control.is-lf-placeholder:not(:focus),
 .lf-admin-page select.lf-form-control:has(option[value=""]:checked):not(:focus),
 .lf-admin-page select.lf-form-control[data-placeholder-values="all"]:has(option[value="all"]:checked):not(:focus) {
-    color: color-mix(in srgb, var(--admin-text-muted) 58%, var(--admin-surface));
+    color: color-mix(in srgb, var(--admin-text-muted) 50%, var(--admin-surface));
     font-size: 1rem;
-    font-weight: 400;
+    font-weight: 300;
     opacity: 1;
 }
 
