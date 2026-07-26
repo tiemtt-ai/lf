@@ -189,18 +189,12 @@
 
 .media-library-sequence-heading,
 .media-library-sequence-cell {
-    position: relative;
     width: 100%;
     min-width: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-}
-
-.media-library-sequence-heading .media-library-selection-checkbox,
-.media-library-sequence-cell .media-library-selection-checkbox {
-    position: absolute;
-    left: 0;
+    gap: 10px;
 }
 
 .media-library-selection-checkbox {
@@ -218,7 +212,9 @@
 }
 
 .media-library-selection-placeholder {
-    display: none;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
 }
 
 .media-library-sequence-number {
@@ -452,21 +448,22 @@
     line-height: 1.4;
 }
 
-.media-library-used-by {
+.media-library-usage-summary {
     display: grid;
-    gap: 7px;
+    gap: 6px;
     min-width: 0;
-    margin-top: 7px;
+    margin-top: 8px;
 }
 
-.media-library-used-by div {
-    display: grid;
-    gap: 2px;
+.media-library-usage-summary-item {
+    min-width: 0;
 }
 
-.media-library-used-by strong,
-.media-library-used-by span,
-.media-library-used-by em {
+.media-library-usage-summary-item span {
+    min-width: 0;
+    color: var(--admin-text);
+    font-size: 13px;
+    font-weight: 500;
     overflow-wrap: anywhere;
 }
 
@@ -616,12 +613,6 @@
 
 .media-library-empty-state .admin-text-action {
     margin-top: 8px;
-}
-
-.media-library-used-by em {
-    color: #64748b;
-    font-size: 12px;
-    font-style: normal;
 }
 
 .admin-link-button {

@@ -194,8 +194,72 @@ class MediaFileController extends Controller
             ->orderBy('usage_type')
             ->get();
 
-        return $this->attachOwnerNames($customerId, $usages)
-            ->groupBy('media_file_id');
+        return $this->collapseLogicalUsages(
+            $customerId,
+            $this->attachOwnerNames($customerId, $usages)
+        )->groupBy('media_file_id');
+    }
+
+    private function collapseLogicalUsages(
+        int $customerId,
+        Collection $usages
+    ): Collection {
+        $versionActivityIds = $usages
+            ->where('owner_type', 'course_version_activity')
+            ->pluck('owner_id')
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+        $sourceActivityIds = $versionActivityIds === []
+            ? collect()
+            : DB::table('core_course_template_version_activities')
+                ->where('customer_id', $customerId)
+                ->whereIn('id', $versionActivityIds)
+                ->pluck('source_template_activity_id', 'id');
+        $templateVersionIds = $usages
+            ->where('owner_type', 'course_template_version')
+            ->pluck('owner_id')
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+        $sourceTemplateIds = $templateVersionIds === []
+            ? collect()
+            : DB::table('core_course_template_versions')
+                ->where('customer_id', $customerId)
+                ->whereIn('id', $templateVersionIds)
+                ->pluck('template_id', 'id');
+
+        return $usages
+            ->map(function (object $usage) use (
+                $sourceActivityIds,
+                $sourceTemplateIds
+            ): object {
+                if ($usage->owner_type === 'course_version_activity') {
+                    $sourceActivityId = $sourceActivityIds[(int) $usage->owner_id] ?? null;
+
+                    if ($sourceActivityId !== null) {
+                        $usage->owner_type = 'course_activity';
+                        $usage->owner_id = (int) $sourceActivityId;
+                    }
+                }
+                if ($usage->owner_type === 'course_template_version') {
+                    $sourceTemplateId = $sourceTemplateIds[(int) $usage->owner_id] ?? null;
+
+                    if ($sourceTemplateId !== null) {
+                        $usage->owner_type = 'course_template';
+                        $usage->owner_id = (int) $sourceTemplateId;
+                    }
+                }
+
+                $usage->logical_owner_key = $usage->media_file_id.':'
+                    .$usage->owner_type.':'.$usage->owner_id;
+
+                return $usage;
+            })
+            ->unique('logical_owner_key')
+            ->values();
     }
 
     private function attachOwnerNames(int $customerId, Collection $usages): Collection
@@ -204,7 +268,8 @@ class MediaFileController extends Controller
 
         return $usages->map(function (object $usage) use ($ownerNames): object {
             $key = $usage->owner_type.':'.$usage->owner_id;
-            $usage->owner_name = $ownerNames[$key] ?? '#'.$usage->owner_id;
+            $usage->owner_name = $ownerNames[$key]
+                ?? __('lf.LF_media_file_usage_unknown_owner');
 
             return $usage;
         });
@@ -218,6 +283,10 @@ class MediaFileController extends Controller
             'course_template' => ['core_course_templates', 'title'],
             'course_product' => ['core_course_products', 'title'],
             'course_activity' => ['core_course_template_activities', 'title'],
+            'course_version_activity' => [
+                'core_course_template_version_activities',
+                'title_snapshot',
+            ],
             'course_cohort' => ['core_course_cohorts', 'name'],
         ];
 

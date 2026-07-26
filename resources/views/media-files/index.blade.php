@@ -281,6 +281,8 @@
                                    x-bind:checked="allUnusedSelected"
                                    x-on:change="toggleAllUnused($event.target.checked)"
                                    aria-label="{{ __('lf.LF_media_file_select_all_unused') }}">
+                        @else
+                            <span class="media-library-selection-placeholder" aria-hidden="true"></span>
                         @endif
                         <span>{{ __('lf.table_no') }}</span>
                     </div>
@@ -360,23 +362,15 @@
                     </td>
                     <td data-label="{{ __('lf.LF_media_file_common_usage') }}">
                         <span class="media-library-usage-count">
-                            {{ trans_choice('lf.LF_media_file_usage_count', (int) $mediaFile->usage_count, ['count' => $mediaFile->usage_count]) }}
+                            {{ trans_choice('lf.LF_media_file_usage_count', $mediaFile->active_usages->count(), ['count' => $mediaFile->active_usages->count()]) }}
                         </span>
                         @if ($mediaFile->active_usages->isNotEmpty())
-                            <div class="media-library-used-by">
-                                @foreach ($mediaFile->active_usages->take(2) as $usage)
-                                    <div>
-                                        <strong>{{ $ownerTypeOptions[$usage->owner_type] ?? str($usage->owner_type)->replace('_', ' ')->headline() }}</strong>
-                                        <span>{{ $usage->owner_name }}</span>
-                                        <em>{{ $usageTypeOptions[$usage->usage_type] ?? str($usage->usage_type)->replace('_', ' ')->headline() }}</em>
+                            <div class="media-library-usage-summary">
+                                @foreach ($mediaFile->active_usages->groupBy('owner_type')->keys() as $logicalOwnerType)
+                                    <div class="media-library-usage-summary-item">
+                                        <span>{{ $ownerTypeOptions[$logicalOwnerType] ?? str($logicalOwnerType)->replace('_', ' ')->headline() }}</span>
                                     </div>
                                 @endforeach
-
-                                @if ($mediaFile->active_usages->count() > 2)
-                                    <span class="media-library-file-meta">
-                                        +{{ $mediaFile->active_usages->count() - 2 }}
-                                    </span>
-                                @endif
                             </div>
                         @endif
                     </td>

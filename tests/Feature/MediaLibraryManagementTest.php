@@ -84,7 +84,7 @@ class MediaLibraryManagementTest extends TestCase
             '.lf-admin-page .media-library-index-table .admin-table-sequence',
             $componentsCss
         );
-        $this->assertStringContainsString('max-width: 72px;', $componentsCss);
+        $this->assertStringContainsString('max-width: 92px;', $componentsCss);
         $this->assertStringContainsString(
             '.media-library-index-table tbody tr:hover > td',
             $pagesCss
@@ -153,6 +153,10 @@ class MediaLibraryManagementTest extends TestCase
             ->assertSee('media-library-preview-overlay', false)
             ->assertSee('openMediaPreview(', false)
             ->assertSee('x-ref="audioPreviewPlayer"', false)
+            ->assertSeeText('Hoạt động khóa học')
+            ->assertDontSeeText('#401')
+            ->assertDontSee('media-library-used-by', false)
+            ->assertSee('media-library-usage-summary', false)
             ->assertDontSeeText('Document Asset');
 
         $this->actingAs($admin)
@@ -335,7 +339,8 @@ class MediaLibraryManagementTest extends TestCase
             ->get('https://tenant-a.localhost/admin/media?owner_type=course_category')
             ->assertOk()
             ->assertSeeText('Category Thumbnail')
-            ->assertSeeText('TOPIK Beginner')
+            ->assertSeeText('Danh mục sản phẩm')
+            ->assertSeeText('1 nơi sử dụng')
             ->assertDontSeeText('Lesson Document');
 
         $this->actingAs($admin)
