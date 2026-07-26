@@ -10,7 +10,13 @@ class CourseTemplatePublishGraphValidator
 {
     private const LESSON_TYPES = ['regular', 'review', 'midterm_exam', 'final_exam', 'other_exam'];
 
-    private const LESSON_UNLOCK_RULES = ['none', 'previous_lesson_completed', 'date_based'];
+    private const LESSON_UNLOCK_RULES = [
+        'none',
+        'previous_lesson_completed',
+        'selected_lessons_completed',
+        'all_previous_lessons_completed',
+        'date_based',
+    ];
 
     private const ACTIVITY_TYPES = ['video', 'embedded_video', 'audio', 'document', 'quiz', 'live_class'];
 
@@ -98,7 +104,13 @@ class CourseTemplatePublishGraphValidator
 
     private function validateLessons(int $customerId, int $templateId, Collection $lessons, Collection $map, Collection $sections, Collection $activities, Collection $issues): void
     {
-        $parents = [];
+        $edges = DB::table('core_course_template_lesson_prerequisites')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->orderBy('sort_order')
+            ->get()
+            ->groupBy('lesson_id');
+        $order = $this->lessonOrder($lessons, $sections);
         foreach ($lessons as $lesson) {
             $context = ['lesson' => is_string($lesson->title) ? $lesson->title : (string) $lesson->id];
             $section = $lesson->template_section_id ? $sections->get($lesson->template_section_id) : null;
@@ -123,18 +135,87 @@ class CourseTemplatePublishGraphValidator
                 $this->add($issues, 'lesson_duration', 'content', $context, $this->lessonFragment($lesson));
             }
             $rule = $lesson->unlock_rule;
-            $prerequisite = $lesson->unlock_after_lesson_id ? (int) $lesson->unlock_after_lesson_id : null;
+            $selected = $edges->get($lesson->id, collect())
+                ->pluck('prerequisite_lesson_id')
+                ->map(fn ($id): int => (int) $id);
+            $effective = $rule === 'all_previous_lessons_completed'
+                ? collect($order)->filter(
+                    fn (int $position, int $id): bool =>
+                        $position < ($order[$lesson->id] ?? -1)
+                        && (($map[$id]->template_section_id === null)
+                            === ($lesson->template_section_id === null))
+                )->keys()
+                : ($rule === 'previous_lesson_completed'
+                    ? collect([(int) $lesson->unlock_after_lesson_id])->filter()
+                    : $selected);
+            $invalidEdge = $effective->contains(function (int $id) use (
+                $lesson,
+                $map,
+                $order
+            ): bool {
+                $target = $map->get($id);
+
+                return ! $target
+                    || (($target->template_section_id === null)
+                        !== ($lesson->template_section_id === null))
+                    || ($order[$id] ?? PHP_INT_MAX)
+                        >= ($order[$lesson->id] ?? -1);
+            });
             if (! in_array($rule, self::LESSON_UNLOCK_RULES, true)
-                || ($rule === 'none' && ($prerequisite || $lesson->unlock_at))
-                || ($rule === 'previous_lesson_completed' && (! $prerequisite || $lesson->unlock_at || ! $map->has($prerequisite)))
-                || ($rule === 'date_based' && ($prerequisite || ! $lesson->unlock_at))) {
+                || ($rule === 'none' && ($selected->isNotEmpty() || $lesson->unlock_at))
+                || ($rule === 'previous_lesson_completed'
+                    && ($effective->isEmpty() || $lesson->unlock_at
+                        || $invalidEdge))
+                || ($rule === 'selected_lessons_completed'
+                    && (! in_array($lesson->prerequisite_match, ['all', 'any'], true)
+                        || $selected->isEmpty() || $lesson->unlock_at || $invalidEdge))
+                || ($rule === 'all_previous_lessons_completed'
+                    && ($effective->isEmpty() || $selected->isNotEmpty()
+                        || $lesson->prerequisite_match || $lesson->unlock_at
+                        || $invalidEdge))
+                || ($rule === 'date_based'
+                    && ($selected->isNotEmpty() || ! $lesson->unlock_at
+                        || $lesson->prerequisite_match))) {
                 $this->add($issues, 'lesson_unlock', 'content', $context, $this->lessonFragment($lesson));
             }
-            $parents[(int) $lesson->id] = $rule === 'previous_lesson_completed' ? $prerequisite : null;
         }
-        if ($this->hasCycle($parents)) {
-            $this->add($issues, 'lesson_unlock', 'content');
-        }
+    }
+
+    private function lessonOrder(Collection $lessons, Collection $sections): array
+    {
+        $sectionKeys = [];
+        $children = $sections->groupBy(
+            fn (object $section): int => (int) ($section->parent_section_id ?? 0)
+        );
+        $walk = function (int $parentId, string $prefix = '') use (
+            &$walk,
+            &$sectionKeys,
+            $children
+        ): void {
+            foreach ($children->get($parentId, collect())->sortBy(
+                fn (object $section): string => sprintf(
+                    '%010d:%020d',
+                    $section->display_order,
+                    $section->id
+                )
+            ) as $section) {
+                $key = $prefix.sprintf(
+                    '/S%010d:%020d',
+                    $section->display_order,
+                    $section->id
+                );
+                $sectionKeys[$section->id] = $key;
+                $walk((int) $section->id, $key);
+            }
+        };
+        $walk(0);
+
+        return $lessons->sortBy(fn (object $lesson): string =>
+            ($lesson->template_section_id === null
+                ? '0'
+                : '1'.($sectionKeys[$lesson->template_section_id] ?? ''))
+            .sprintf('/L%010d:%020d', $lesson->sort_order, $lesson->id)
+        )->values()->pluck('id')->flip()->all();
     }
 
     private function validateActivities(int $customerId, int $templateId, Collection $activities, Collection $map, Collection $lessons, Collection $issues): void

@@ -229,6 +229,12 @@ class CourseTemplateLessonController extends Controller
                     'updated_at' => $now,
                 ])
             );
+            $this->syncPrerequisites(
+                $customerId,
+                $templateId,
+                $lessonId,
+                $validated
+            );
 
             return $lessonId;
         });
@@ -266,6 +272,16 @@ class CourseTemplateLessonController extends Controller
                 $sectionId,
                 $lessonId
             ),
+            'selectedPrerequisiteIds' => DB::table(
+                'core_course_template_lesson_prerequisites'
+            )
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->where('lesson_id', $lessonId)
+                ->orderBy('sort_order')
+                ->pluck('prerequisite_lesson_id')
+                ->map(fn ($id): string => (string) $id)
+                ->all(),
             'prerequisiteLessons' => $this->prerequisiteLessons(
                 $customerId,
                 $templateId,
@@ -321,6 +337,12 @@ class CourseTemplateLessonController extends Controller
                 )
                 ->where('id', $lessonId)
                 ->update($this->lessonValues($validated, ['updated_at' => now()]));
+            $this->syncPrerequisites(
+                $customerId,
+                $templateId,
+                $lessonId,
+                $validated
+            );
         });
 
         return redirect()
@@ -360,6 +382,11 @@ class CourseTemplateLessonController extends Controller
             if ($this->hasReferences($customerId, $templateId, $lessonId)) {
                 return false;
             }
+            DB::table('core_course_template_lesson_prerequisites')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->where('lesson_id', $lessonId)
+                ->delete();
             DB::table('core_course_template_lessons')
                 ->where('customer_id', $customerId)
                 ->where('template_id', $templateId)
@@ -412,36 +439,78 @@ class CourseTemplateLessonController extends Controller
             $this->validationRules($customerId, $templateId, $lessonId, $sectionId)
         );
 
-        if ($lessonId !== null) {
-            $validator->after(function ($validator) use (
-                $request,
+        $validator->after(function ($validator) use (
+            $request,
+            $customerId,
+            $templateId,
+            $lessonId,
+            $sectionId
+        ): void {
+            $rule = $request->input('unlock_rule');
+            $prospectiveSortOrder = $request->filled('sort_order')
+                ? $request->integer('sort_order')
+                : $this->nextSortOrder(
+                    $customerId,
+                    $templateId,
+                    $sectionId
+                );
+            $prospectivePrerequisites = $this->prerequisiteLessons(
                 $customerId,
                 $templateId,
-                $lessonId
-            ): void {
-                $prerequisiteId = $request->integer(
-                    'unlock_after_lesson_id'
+                $sectionId,
+                $lessonId,
+                $prospectiveSortOrder
+            );
+
+            if ($rule === 'all_previous_lessons_completed'
+                && $prospectivePrerequisites->isEmpty()) {
+                $validator->errors()->add(
+                    'unlock_rule',
+                    __('lf.LF_course_template_lesson_common_invalid_prerequisite')
                 );
 
-                if (
-                    $prerequisiteId !== 0
-                    && (
-                        $prerequisiteId === $lessonId
-                        || $this->dependencyWouldCycle(
-                            $customerId,
-                            $templateId,
-                            $lessonId,
-                            $prerequisiteId
-                        )
-                    )
-                ) {
-                    $validator->errors()->add(
-                        'unlock_after_lesson_id',
-                        __('lf.LF_course_template_lesson_common_invalid_prerequisite')
-                    );
-                }
-            });
-        }
+                return;
+            }
+            $selected = $rule === 'previous_lesson_completed'
+                ? collect([$request->integer('unlock_after_lesson_id')])->filter()
+                : collect($request->input('prerequisite_lesson_ids', []))
+                    ->map(fn ($id): int => (int) $id)->filter()->unique();
+
+            if (! in_array($rule, [
+                'selected_lessons_completed',
+                'previous_lesson_completed',
+            ], true)) {
+                return;
+            }
+
+            $validIds = $prospectivePrerequisites
+                ->pluck('id')
+                ->map(fn ($id): int => (int) $id);
+
+            if ($selected->isEmpty() || $selected->diff($validIds)->isNotEmpty()) {
+                $validator->errors()->add(
+                    $rule === 'previous_lesson_completed'
+                        ? 'unlock_after_lesson_id'
+                        : 'prerequisite_lesson_ids',
+                    __('lf.LF_course_template_lesson_common_invalid_prerequisite')
+                );
+            }
+
+            if ($rule === 'previous_lesson_completed'
+                && $lessonId !== null
+                && $selected->isNotEmpty()
+                && $this->dependencyWouldCycle(
+                    $customerId,
+                    $templateId,
+                    $lessonId,
+                    (int) $selected->first()
+                )) {
+                $validator->errors()->add(
+                    'unlock_after_lesson_id',
+                    __('lf.LF_course_template_lesson_common_invalid_prerequisite')
+                );
+            }
+        });
 
         return $validator->validate();
     }
@@ -457,6 +526,8 @@ class CourseTemplateLessonController extends Controller
             'lesson_type',
             'unlock_rule',
             'unlock_after_lesson_id',
+            'prerequisite_match',
+            'prerequisite_lesson_ids',
             'unlock_at',
         ];
 
@@ -465,8 +536,16 @@ class CourseTemplateLessonController extends Controller
             array_flip($fields)
         );
 
-        if (($input['unlock_rule'] ?? null) !== 'previous_lesson_completed') {
+        if (($input['unlock_rule'] ?? null) === 'previous_lesson_completed') {
+            $input['unlock_rule'] = 'selected_lessons_completed';
+            $input['prerequisite_match'] = 'all';
+            $input['prerequisite_lesson_ids'] = array_filter([
+                $input['unlock_after_lesson_id'] ?? null,
+            ]);
+        }
+        if (($input['unlock_rule'] ?? null) !== 'selected_lessons_completed') {
             unset($input['unlock_after_lesson_id']);
+            unset($input['prerequisite_match'], $input['prerequisite_lesson_ids']);
         }
         if (($input['unlock_rule'] ?? null) !== 'date_based') {
             unset($input['unlock_at']);
@@ -498,14 +577,33 @@ class CourseTemplateLessonController extends Controller
                 'required',
                 Rule::in([
                     'none',
-                    'previous_lesson_completed',
+                    'selected_lessons_completed',
+                    'all_previous_lessons_completed',
                     'date_based',
                 ]),
+            ],
+            'prerequisite_match' => [
+                'nullable',
+                'required_if:unlock_rule,selected_lessons_completed',
+                Rule::in(['all', 'any']),
+            ],
+            'prerequisite_lesson_ids' => [
+                'nullable',
+                'array',
+                'min:1',
+                'required_if:unlock_rule,selected_lessons_completed',
+            ],
+            'prerequisite_lesson_ids.*' => [
+                'integer',
+                'distinct',
+                Rule::exists('core_course_template_lessons', 'id')
+                    ->where(fn ($query) => $query
+                        ->where('customer_id', $customerId)
+                        ->where('template_id', $templateId)),
             ],
             'unlock_after_lesson_id' => [
                 'nullable',
                 'integer',
-                'required_if:unlock_rule,previous_lesson_completed',
                 Rule::exists('core_course_template_lessons', 'id')
                     ->where(fn ($query) => $query
                         ->where('customer_id', $customerId)
@@ -545,7 +643,8 @@ class CourseTemplateLessonController extends Controller
             'is_preview' => (bool) $validated['is_preview'],
             'lesson_type' => $validated['lesson_type'],
             'unlock_rule' => $validated['unlock_rule'],
-            'unlock_after_lesson_id' => $validated['unlock_after_lesson_id'] ?? null,
+            'prerequisite_match' => $validated['prerequisite_match'] ?? null,
+            'unlock_after_lesson_id' => null,
             'unlock_at' => isset($validated['unlock_at'])
                 ? Carbon::parse($validated['unlock_at'])->format('Y-m-d H:i:s')
                 : null,
@@ -556,7 +655,8 @@ class CourseTemplateLessonController extends Controller
         int $customerId,
         int $templateId,
         ?int $sectionId,
-        ?int $excludedLessonId = null
+        ?int $excludedLessonId = null,
+        ?int $prospectiveSortOrder = null
     ) {
         $lessons = DB::table('core_course_template_lessons')
             ->where('customer_id', $customerId)
@@ -566,17 +666,41 @@ class CourseTemplateLessonController extends Controller
                 fn ($query) => $query->whereNull('template_section_id'),
                 fn ($query) => $query->whereNotNull('template_section_id')
             )
-            ->when(
-                $excludedLessonId !== null,
-                fn ($query) => $query->where('id', '!=', $excludedLessonId)
-            )
             ->orderBy('template_section_id')
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
 
+        $targetLessonId = $excludedLessonId;
+        if ($prospectiveSortOrder !== null) {
+            if ($targetLessonId === null) {
+                $targetLessonId = PHP_INT_MAX;
+                $lessons->push((object) [
+                    'id' => $targetLessonId,
+                    'template_section_id' => $sectionId,
+                    'title' => '',
+                    'sort_order' => $prospectiveSortOrder,
+                ]);
+            } else {
+                $target = $lessons->firstWhere('id', $targetLessonId);
+                if ($target) {
+                    $target->sort_order = $prospectiveSortOrder;
+                }
+            }
+        }
+
         if ($sectionId === null) {
-            return $lessons;
+            $ordered = $lessons->sortBy(fn (object $lesson): string => sprintf(
+                '%010d:%020d',
+                $lesson->sort_order,
+                $lesson->id
+            ))->values();
+
+            return $targetLessonId === null
+                ? $ordered
+                : $ordered->takeUntil(
+                    fn (object $lesson): bool => (int) $lesson->id === $targetLessonId
+                )->values();
         }
 
         $sections = DB::table('core_course_template_sections')
@@ -624,10 +748,16 @@ class CourseTemplateLessonController extends Controller
             $lesson->option_label = implode(' › ', [...$labels, $lesson->title]);
         }
 
-        return $lessons->sortBy(function (object $lesson) use ($sectionOrderKeys): string {
+        $ordered = $lessons->sortBy(function (object $lesson) use ($sectionOrderKeys): string {
             return ($sectionOrderKeys[$lesson->template_section_id] ?? '')
                 .sprintf('/L%010d:%020d', $lesson->sort_order, $lesson->id);
         })->values();
+
+        return $targetLessonId === null
+            ? $ordered
+            : $ordered->takeUntil(
+                fn (object $lesson): bool => (int) $lesson->id === $targetLessonId
+            )->values();
     }
 
     private function nextSortOrder(
@@ -647,6 +777,36 @@ class CourseTemplateLessonController extends Controller
                 )
             )
             ->max('sort_order') + 1;
+    }
+
+    private function syncPrerequisites(
+        int $customerId,
+        int $templateId,
+        int $lessonId,
+        array $validated
+    ): void {
+        DB::table('core_course_template_lesson_prerequisites')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('lesson_id', $lessonId)
+            ->delete();
+
+        if (($validated['unlock_rule'] ?? null) !== 'selected_lessons_completed') {
+            return;
+        }
+
+        $now = now();
+        foreach (array_values($validated['prerequisite_lesson_ids'] ?? []) as $order => $prerequisiteId) {
+            DB::table('core_course_template_lesson_prerequisites')->insert([
+                'customer_id' => $customerId,
+                'template_id' => $templateId,
+                'lesson_id' => $lessonId,
+                'prerequisite_lesson_id' => (int) $prerequisiteId,
+                'sort_order' => $order,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
     }
 
     private function dependencyWouldCycle(
@@ -680,6 +840,12 @@ class CourseTemplateLessonController extends Controller
         int $lessonId
     ): bool {
         if (
+            DB::table('core_course_template_lesson_prerequisites')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->where('prerequisite_lesson_id', $lessonId)
+                ->exists()
+            ||
             DB::table('core_course_template_lessons')
                 ->where('customer_id', $customerId)
                 ->where('template_id', $templateId)

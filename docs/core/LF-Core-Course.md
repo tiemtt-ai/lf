@@ -91,6 +91,24 @@ the exact same tenant, Enrollment, Product, Version and student context.
 `date_based` compares the frozen UTC timestamp; unknown/inconsistent rules fail
 closed.
 
+## Rule 5 Amendment — Multiple Lesson Prerequisites
+
+[ADR-0015 — Course Lesson Multiple Prerequisites](../adr/ADR-0015-Course-Lesson-Multiple-Prerequisites.md),
+replaces the single-prerequisite rule with:
+
+* `all_previous_lessons_completed`;
+* `selected_lessons_completed` with match policy `all` or `any`.
+
+Direct and Sectioned Lessons use separate content lanes. Direct Lessons consider
+earlier direct Lessons only. Sectioned Lessons use depth-first Section-tree
+order, then Lesson `sort_order`, then Lesson `id`. Selected prerequisites must
+precede the dependent Lesson in the same lane.
+
+Publish freezes the effective set as immutable Version Lesson prerequisite
+rows. Runtime evaluates completed Lesson Progress only in the exact tenant,
+student, Enrollment, Product and Version context. Missing or inconsistent
+prerequisite graphs fail closed.
+
 ## Rule 6 — No Runtime Course
 
 Không tạo:

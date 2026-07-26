@@ -76,6 +76,14 @@ class CourseTemplateVersionDetailPresenter
                 'previous_lesson_completed' => $lessonTitles->has($lesson->unlock_after_version_lesson_id)
                     ? __('lf.LF_version_detail_lesson_after', ['title' => $lessonTitles->get($lesson->unlock_after_version_lesson_id)])
                     : __('lf.LF_version_detail_lesson_unavailable'),
+                'all_previous_lessons_completed' => __(
+                    'lf.LF_version_detail_lesson_after_all_previous'
+                ),
+                'selected_lessons_completed' => __(
+                    $lesson->prerequisite_match_snapshot === 'any'
+                        ? 'lf.LF_version_detail_lesson_after_any_selected'
+                        : 'lf.LF_version_detail_lesson_after_all_selected'
+                ),
                 'date_based' => $lesson->unlock_at_snapshot ? __('lf.LF_version_detail_available_from', ['datetime' => $this->date($lesson->unlock_at_snapshot)]) : __('lf.LF_version_detail_unlock_invalid'),
                 default => __('lf.LF_version_detail_unlock_invalid'),
             };

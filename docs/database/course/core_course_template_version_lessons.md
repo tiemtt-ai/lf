@@ -1,6 +1,6 @@
 # Table: core_course_template_version_lessons
 
-Version: 2.0
+Version: 2.1
 
 Status: Approved
 
@@ -69,6 +69,23 @@ core_course_template_lessons 1 → N version_lessons (logical lineage)
 | `created_by_snapshot` | BIGINT UNSIGNED | nullable | Source author identifier captured for audit. |
 | `created_at` | TIMESTAMP | nullable | Snapshot creation time. |
 | `updated_at` | TIMESTAMP | nullable | Creation/finalization audit timestamp only. |
+
+## ADR-0015 Amendment
+
+[ADR-0015](../../adr/ADR-0015-Course-Lesson-Multiple-Prerequisites.md),
+defines `unlock_rule_snapshot` values `none`,
+`all_previous_lessons_completed`, `selected_lessons_completed`, and
+`date_based`.
+
+The Version Lesson adds nullable
+`prerequisite_match_snapshot VARCHAR(10)` with values `all` or `any`.
+The exact effective prerequisite set is stored immutably in
+`core_course_template_version_lesson_prerequisites`.
+
+Legacy `previous_lesson_completed` and
+`unlock_after_version_lesson_id` remain only for the additive
+migration/backfill window and are removed only by a later reviewed cleanup
+migration.
 
 # Suggested Indexes
 

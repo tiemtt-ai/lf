@@ -3,7 +3,14 @@
     $selectedPreview = (string) old('is_preview', $formLesson?->is_preview ?? 0);
     $selectedLessonType = old('lesson_type', $formLesson?->lesson_type ?? 'regular');
     $selectedUnlockRule = old('unlock_rule', $formLesson?->unlock_rule ?? 'none');
-    $selectedPrerequisiteId = old('unlock_after_lesson_id', $formLesson?->unlock_after_lesson_id);
+    $selectedPrerequisites = collect(old(
+        'prerequisite_lesson_ids',
+        $selectedPrerequisiteIds ?? []
+    ))->map(fn ($id) => (string) $id)->all();
+    $selectedPrerequisiteMatch = old(
+        'prerequisite_match',
+        $formLesson?->prerequisite_match ?? 'all'
+    );
     $unlockAt = old('unlock_at', $formLesson?->unlock_at
         ? \Illuminate\Support\Carbon::parse($formLesson->unlock_at)->format('Y-m-d\TH:i') : null);
 @endphp
@@ -13,7 +20,6 @@
         unlockRule: @js($selectedUnlockRule),
         changeRule(value) {
             this.unlockRule = value;
-            if (value !== 'previous_lesson_completed') this.$refs.prerequisite.value = '';
             if (value !== 'date_based') this.$refs.unlockAt.value = '';
         }
      }">
@@ -99,21 +105,39 @@
                 <x-form-label for="unlock_rule" :value="__('lf.LF_course_template_lesson_common_unlock_rule')" :required="true" />
                 <select id="unlock_rule" name="unlock_rule" class="lf-form-control" required
                         x-model="unlockRule" @change="changeRule($event.target.value)">
-                    @foreach (['none', 'previous_lesson_completed', 'date_based'] as $unlockRule)
-                        <option value="{{ $unlockRule }}">{{ __('lf.LF_course_template_lesson_common_unlock_'.$unlockRule) }}</option>
+                    @foreach (['none', 'all_previous_lessons_completed', 'selected_lessons_completed', 'date_based'] as $unlockRule)
+                        <option value="{{ $unlockRule }}"
+                                @disabled($unlockRule === 'all_previous_lessons_completed' && $prerequisiteLessons->isEmpty())>
+                            {{ __('lf.LF_course_template_lesson_common_unlock_'.$unlockRule) }}
+                        </option>
                     @endforeach
                 </select>
             </div>
 
-            <div class="lf-form-group" x-show="unlockRule === 'previous_lesson_completed'" x-cloak>
-                <x-form-label for="unlock_after_lesson_id" :value="__('lf.LF_course_template_lesson_common_unlock_after_lesson')" />
-                <select id="unlock_after_lesson_id" name="unlock_after_lesson_id" class="lf-form-control" x-ref="prerequisite">
-                    <option value="">{{ __('lf.LF_course_template_lesson_common_no_prerequisite') }}</option>
-                    @foreach ($prerequisiteLessons as $prerequisiteLesson)
-                        <option value="{{ $prerequisiteLesson->id }}" @selected((string) $selectedPrerequisiteId === (string) $prerequisiteLesson->id)>{{ $prerequisiteLesson->option_label ?? $prerequisiteLesson->title }}</option>
-                    @endforeach
+            <div class="lf-form-group" x-show="unlockRule === 'selected_lessons_completed'" x-cloak>
+                <x-form-label for="prerequisite_match" :value="__('lf.LF_course_template_lesson_common_prerequisite_match')" />
+                <select id="prerequisite_match" name="prerequisite_match" class="lf-form-control">
+                    <option value="all" @selected($selectedPrerequisiteMatch === 'all')>{{ __('lf.LF_course_template_lesson_common_prerequisite_match_all') }}</option>
+                    <option value="any" @selected($selectedPrerequisiteMatch === 'any')>{{ __('lf.LF_course_template_lesson_common_prerequisite_match_any') }}</option>
                 </select>
             </div>
+
+            <fieldset class="lf-form-group admin-form-field--full"
+                      x-show="unlockRule === 'selected_lessons_completed'" x-cloak>
+                <input type="hidden" name="unlock_after_lesson_id" value="">
+                <legend class="lf-form-label">{{ __('lf.LF_course_template_lesson_common_unlock_after_lessons') }}</legend>
+                <div class="course-template-prerequisite-list">
+                    @foreach ($prerequisiteLessons as $prerequisiteLesson)
+                        <label class="lf-checkbox-option">
+                            <input type="checkbox" name="prerequisite_lesson_ids[]"
+                                   value="{{ $prerequisiteLesson->id }}"
+                                   @checked(in_array((string) $prerequisiteLesson->id, $selectedPrerequisites, true))>
+                            <span>{{ $prerequisiteLesson->option_label ?? $prerequisiteLesson->title }}</span>
+                        </label>
+                    @endforeach
+                </div>
+                @error('prerequisite_lesson_ids')<p class="lf-form-error">{{ $message }}</p>@enderror
+            </fieldset>
 
             <div class="lf-form-group" x-show="unlockRule === 'date_based'" x-cloak>
                 <x-form-label for="unlock_at" :value="__('lf.LF_course_template_lesson_common_unlock_at')" />

@@ -250,6 +250,7 @@ class CourseTemplatePublishingService
                     ->where('template_lesson_id', $lesson->id)
                     ->count(),
                 'unlock_rule_snapshot' => $lesson->unlock_rule,
+                'prerequisite_match_snapshot' => $lesson->prerequisite_match,
                 'unlock_after_version_lesson_id' => null,
                 'unlock_at_snapshot' => $lesson->unlock_at,
                 'created_by_snapshot' => $lesson->created_by,
@@ -258,30 +259,105 @@ class CourseTemplatePublishingService
             ]);
         }
 
+        $selected = DB::table('core_course_template_lesson_prerequisites')
+            ->where('customer_id', $customerId)
+            ->whereIn('lesson_id', $lessons->pluck('id'))
+            ->orderBy('sort_order')
+            ->get()
+            ->groupBy('lesson_id');
+        $orderedIds = $this->orderedLessonIds($lessons, $sections);
+        $positions = array_flip($orderedIds);
+
         foreach ($lessons as $lesson) {
-            if (! $lesson->unlock_after_lesson_id) {
-                continue;
-            }
+            $prerequisiteIds = match ($lesson->unlock_rule) {
+                'previous_lesson_completed' => array_filter([
+                    (int) $lesson->unlock_after_lesson_id,
+                ]),
+                'selected_lessons_completed' => $selected
+                    ->get($lesson->id, collect())
+                    ->pluck('prerequisite_lesson_id')
+                    ->map(fn ($id): int => (int) $id)
+                    ->all(),
+                'all_previous_lessons_completed' => array_values(array_filter(
+                    $orderedIds,
+                    fn (int $id): bool =>
+                        $positions[$id] < $positions[$lesson->id]
+                        && (($lessons->firstWhere('id', $id)->template_section_id === null)
+                            === ($lesson->template_section_id === null))
+                )),
+                default => [],
+            };
 
-            $this->assertMapped(
-                $map,
-                $lesson->unlock_after_lesson_id,
-                'publish'
-            );
+            foreach ($prerequisiteIds as $order => $prerequisiteId) {
+                $this->assertMapped($map, $prerequisiteId, 'publish');
+                if ($lesson->unlock_rule === 'previous_lesson_completed') {
+                    DB::table('core_course_template_version_lessons')
+                        ->where('customer_id', $customerId)
+                        ->where('template_version_id', $versionId)
+                        ->where('id', $map[$lesson->id])
+                        ->update([
+                            'unlock_after_version_lesson_id' => $map[
+                                $prerequisiteId
+                            ],
+                            'updated_at' => $now,
+                        ]);
 
-            DB::table('core_course_template_version_lessons')
-                ->where('customer_id', $customerId)
-                ->where('template_version_id', $versionId)
-                ->where('id', $map[$lesson->id])
-                ->update([
-                    'unlock_after_version_lesson_id' => $map[
-                        $lesson->unlock_after_lesson_id
-                    ],
+                    continue;
+                }
+                DB::table(
+                    'core_course_template_version_lesson_prerequisites'
+                )->insert([
+                    'customer_id' => $customerId,
+                    'template_version_id' => $versionId,
+                    'version_lesson_id' => $map[$lesson->id],
+                    'prerequisite_version_lesson_id' => $map[$prerequisiteId],
+                    'sort_order' => $order,
+                    'created_at' => $now,
                     'updated_at' => $now,
                 ]);
+            }
         }
 
         return $map;
+    }
+
+    private function orderedLessonIds(
+        Collection $lessons,
+        Collection $sections
+    ): array {
+        $sectionKeys = [];
+        $children = $sections->groupBy(
+            fn (object $section): int => (int) ($section->parent_section_id ?? 0)
+        );
+        $walk = function (int $parentId, string $prefix = '') use (
+            &$walk,
+            &$sectionKeys,
+            $children
+        ): void {
+            foreach ($children->get($parentId, collect())->sortBy(
+                fn (object $section): string => sprintf(
+                    '%010d:%020d',
+                    $section->display_order,
+                    $section->id
+                )
+            ) as $section) {
+                $key = $prefix.sprintf(
+                    '/S%010d:%020d',
+                    $section->display_order,
+                    $section->id
+                );
+                $sectionKeys[$section->id] = $key;
+                $walk((int) $section->id, $key);
+            }
+        };
+        $walk(0);
+
+        return $lessons->sortBy(fn (object $lesson): string =>
+            ($lesson->template_section_id === null
+                ? '0'
+                : '1'.($sectionKeys[$lesson->template_section_id] ?? ''))
+            .sprintf('/L%010d:%020d', $lesson->sort_order, $lesson->id)
+        )->pluck('id')->map(fn ($id): int => (int) $id)->values()->all();
     }
 
     private function snapshotActivities(

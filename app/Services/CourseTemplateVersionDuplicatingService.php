@@ -55,12 +55,17 @@ class CourseTemplateVersionDuplicatingService
 
             $sections = $this->versionSections($customerId, $versionId);
             $lessons = $this->versionLessons($customerId, $versionId);
+            $lessonPrerequisites = $this->versionLessonPrerequisites(
+                $customerId,
+                $versionId
+            );
             $activities = $this->versionActivities($customerId, $versionId);
 
             $this->validateSnapshotGraph(
                 $sections,
                 $lessons,
-                $activities
+                $activities,
+                $lessonPrerequisites
             );
 
             $beforeCounts = $this->draftCounts($customerId, $templateId);
@@ -128,6 +133,7 @@ class CourseTemplateVersionDuplicatingService
                 $templateId,
                 $lessons,
                 $sectionMap,
+                $lessonPrerequisites,
                 $now
             );
             $this->restoreActivities(
@@ -212,10 +218,25 @@ class CourseTemplateVersionDuplicatingService
             ->get();
     }
 
+    private function versionLessonPrerequisites(
+        int $customerId,
+        int $versionId
+    ): Collection {
+        return DB::table(
+            'core_course_template_version_lesson_prerequisites'
+        )
+            ->where('customer_id', $customerId)
+            ->where('template_version_id', $versionId)
+            ->orderBy('version_lesson_id')
+            ->orderBy('sort_order')
+            ->get();
+    }
+
     private function validateSnapshotGraph(
         Collection $sections,
         Collection $lessons,
-        Collection $activities
+        Collection $activities,
+        Collection $lessonPrerequisites
     ): void {
         $sectionIds = $sections->pluck('id')->flip();
         $lessonIds = $lessons->pluck('id')->flip();
@@ -256,6 +277,15 @@ class CourseTemplateVersionDuplicatingService
                     $lesson->unlock_after_version_lesson_id
                 )
             ) {
+                $this->invalidStructure();
+            }
+        }
+
+        foreach ($lessonPrerequisites as $edge) {
+            if (! $lessonIds->has($edge->version_lesson_id)
+                || ! $lessonIds->has($edge->prerequisite_version_lesson_id)
+                || (int) $edge->version_lesson_id
+                    === (int) $edge->prerequisite_version_lesson_id) {
                 $this->invalidStructure();
             }
         }
@@ -376,6 +406,11 @@ class CourseTemplateVersionDuplicatingService
         int $customerId,
         int $templateId
     ): void {
+        DB::table('core_course_template_lesson_prerequisites')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->delete();
+
         DB::table('core_course_template_activities')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
@@ -460,9 +495,11 @@ class CourseTemplateVersionDuplicatingService
         int $templateId,
         Collection $lessons,
         array $sectionMap,
+        Collection $lessonPrerequisites,
         $now
     ): array {
         $map = [];
+        $lessonsById = $lessons->keyBy('id');
 
         foreach ($lessons as $lesson) {
             $map[$lesson->id] = DB::table(
@@ -483,6 +520,7 @@ class CourseTemplateVersionDuplicatingService
                 'duration_seconds' => $lesson->duration_seconds,
                 'activity_count' => $lesson->activity_count,
                 'unlock_rule' => $lesson->unlock_rule_snapshot,
+                'prerequisite_match' => $lesson->prerequisite_match_snapshot,
                 'unlock_after_lesson_id' => null,
                 'unlock_at' => $lesson->unlock_at_snapshot,
                 'created_by' => $lesson->created_by_snapshot,
@@ -491,11 +529,34 @@ class CourseTemplateVersionDuplicatingService
             ]);
         }
 
-        foreach ($lessons as $lesson) {
-            if (! $lesson->unlock_after_version_lesson_id) {
+        foreach ($lessonPrerequisites as $edge) {
+            $dependentLesson = $lessonsById->get(
+                $edge->version_lesson_id
+            );
+            if (! $dependentLesson
+                || $dependentLesson->unlock_rule_snapshot
+                    !== 'selected_lessons_completed') {
                 continue;
             }
 
+            DB::table('core_course_template_lesson_prerequisites')->insert([
+                'customer_id' => $customerId,
+                'template_id' => $templateId,
+                'lesson_id' => $map[$edge->version_lesson_id],
+                'prerequisite_lesson_id' => $map[
+                    $edge->prerequisite_version_lesson_id
+                ],
+                'sort_order' => $edge->sort_order,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
+        foreach ($lessons as $lesson) {
+            if ($lesson->unlock_rule_snapshot !== 'previous_lesson_completed'
+                || ! $lesson->unlock_after_version_lesson_id) {
+                continue;
+            }
             DB::table('core_course_template_lessons')
                 ->where('customer_id', $customerId)
                 ->where('template_id', $templateId)

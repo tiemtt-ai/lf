@@ -784,6 +784,217 @@ class CourseTemplateLessonManagementTest extends TestCase
         ]);
     }
 
+    public function test_create_rejects_a_prerequisite_that_would_follow_the_new_lesson_in_direct_and_section_lanes(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Prospective Create Course',
+            'prospective-create-course'
+        );
+        $sectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Prospective Section'
+        );
+        $directFutureId = $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'Direct Future'
+        );
+        $sectionFutureId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'Section Future'
+        );
+        DB::table('core_course_template_lessons')
+            ->whereIn('id', [$directFutureId, $sectionFutureId])
+            ->update(['sort_order' => 10]);
+
+        $this->actingAs($admin)
+            ->post(
+                $this->directLessonCollectionUrl('admin', $templateId),
+                $this->validLessonData([
+                    'title' => 'Invalid Direct Earlier',
+                    'sort_order' => 5,
+                    'unlock_rule' => 'selected_lessons_completed',
+                    'prerequisite_match' => 'all',
+                    'prerequisite_lesson_ids' => [$directFutureId],
+                ])
+            )
+            ->assertSessionHasErrors('prerequisite_lesson_ids');
+
+        $this->actingAs($admin)
+            ->post(
+                $this->lessonCollectionUrl(
+                    'admin',
+                    $templateId,
+                    $sectionId
+                ),
+                $this->validLessonData([
+                    'title' => 'Invalid Section Earlier',
+                    'sort_order' => 5,
+                    'unlock_rule' => 'selected_lessons_completed',
+                    'prerequisite_match' => 'all',
+                    'prerequisite_lesson_ids' => [$sectionFutureId],
+                ])
+            )
+            ->assertSessionHasErrors('prerequisite_lesson_ids');
+
+        $this->assertDatabaseMissing('core_course_template_lessons', [
+            'template_id' => $templateId,
+            'title' => 'Invalid Direct Earlier',
+        ]);
+        $this->assertDatabaseMissing('core_course_template_lessons', [
+            'template_id' => $templateId,
+            'title' => 'Invalid Section Earlier',
+        ]);
+    }
+
+    public function test_update_rejects_moving_a_lesson_before_its_selected_prerequisite_in_direct_and_section_lanes(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Prospective Update Course',
+            'prospective-update-course'
+        );
+        $sectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Prospective Section'
+        );
+        $directPrerequisiteId = $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'Direct Prerequisite'
+        );
+        $directDependentId = $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'Direct Dependent'
+        );
+        $sectionPrerequisiteId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'Section Prerequisite'
+        );
+        $sectionDependentId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'Section Dependent'
+        );
+        DB::table('core_course_template_lessons')
+            ->whereIn('id', [$directPrerequisiteId, $sectionPrerequisiteId])
+            ->update(['sort_order' => 5]);
+        DB::table('core_course_template_lessons')
+            ->whereIn('id', [$directDependentId, $sectionDependentId])
+            ->update(['sort_order' => 10]);
+
+        $this->actingAs($admin)
+            ->put(
+                $this->directLessonCollectionUrl(
+                    'admin',
+                    $templateId
+                )."/{$directDependentId}",
+                $this->validLessonData([
+                    'title' => 'Direct Dependent',
+                    'sort_order' => 1,
+                    'unlock_rule' => 'selected_lessons_completed',
+                    'prerequisite_match' => 'all',
+                    'prerequisite_lesson_ids' => [$directPrerequisiteId],
+                ])
+            )
+            ->assertSessionHasErrors('prerequisite_lesson_ids');
+
+        $this->actingAs($admin)
+            ->put(
+                $this->lessonCollectionUrl(
+                    'admin',
+                    $templateId,
+                    $sectionId
+                )."/{$sectionDependentId}",
+                $this->validLessonData([
+                    'title' => 'Section Dependent',
+                    'sort_order' => 1,
+                    'unlock_rule' => 'selected_lessons_completed',
+                    'prerequisite_match' => 'all',
+                    'prerequisite_lesson_ids' => [$sectionPrerequisiteId],
+                ])
+            )
+            ->assertSessionHasErrors('prerequisite_lesson_ids');
+
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'id' => $directDependentId,
+            'sort_order' => 10,
+            'unlock_rule' => 'none',
+        ]);
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'id' => $sectionDependentId,
+            'sort_order' => 10,
+            'unlock_rule' => 'none',
+        ]);
+        $this->assertSame(
+            0,
+            DB::table('core_course_template_lesson_prerequisites')
+                ->whereIn('lesson_id', [
+                    $directDependentId,
+                    $sectionDependentId,
+                ])
+                ->count()
+        );
+
+        $this->actingAs($admin)
+            ->put(
+                $this->directLessonCollectionUrl(
+                    'admin',
+                    $templateId
+                )."/{$directDependentId}",
+                $this->validLessonData([
+                    'title' => 'Direct Dependent',
+                    'sort_order' => 20,
+                    'unlock_rule' => 'selected_lessons_completed',
+                    'prerequisite_match' => 'all',
+                    'prerequisite_lesson_ids' => [$directPrerequisiteId],
+                ])
+            )
+            ->assertSessionDoesntHaveErrors();
+
+        $this->actingAs($admin)
+            ->put(
+                $this->lessonCollectionUrl(
+                    'admin',
+                    $templateId,
+                    $sectionId
+                )."/{$sectionDependentId}",
+                $this->validLessonData([
+                    'title' => 'Section Dependent',
+                    'sort_order' => 20,
+                    'unlock_rule' => 'selected_lessons_completed',
+                    'prerequisite_match' => 'all',
+                    'prerequisite_lesson_ids' => [$sectionPrerequisiteId],
+                ])
+            )
+            ->assertSessionDoesntHaveErrors();
+
+        $this->assertDatabaseHas('core_course_template_lesson_prerequisites', [
+            'lesson_id' => $directDependentId,
+            'prerequisite_lesson_id' => $directPrerequisiteId,
+        ]);
+        $this->assertDatabaseHas('core_course_template_lesson_prerequisites', [
+            'lesson_id' => $sectionDependentId,
+            'prerequisite_lesson_id' => $sectionPrerequisiteId,
+        ]);
+    }
+
     public function test_delete_is_blocked_when_another_lesson_uses_the_prerequisite(): void
     {
         $customerId = $this->createTenant();

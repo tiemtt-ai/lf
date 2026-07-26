@@ -1,6 +1,6 @@
 # Table: core_course_template_lessons
 
-Version: 1.2
+Version: 1.3
 
 Status: Official Foundation
 
@@ -216,6 +216,25 @@ Lesson phải hoàn thành trước.
 TIMESTAMP NULL
 
 Ngày mở khóa nếu dùng date_based.
+
+## ADR-0015 Amendment
+
+[ADR-0015](../../adr/ADR-0015-Course-Lesson-Multiple-Prerequisites.md),
+defines these canonical values:
+
+* `none`
+* `all_previous_lessons_completed`
+* `selected_lessons_completed`
+* `date_based`
+
+The Lesson adds nullable `prerequisite_match VARCHAR(10)` with allowed values
+`all` and `any`; it is required only for `selected_lessons_completed`.
+Normalized selected edges belong to
+`core_course_template_lesson_prerequisites`.
+
+Legacy `previous_lesson_completed` and `unlock_after_lesson_id` remain only for
+the additive migration/backfill window. New application writes stop using the
+single-reference column after the ADR is approved and implemented.
 
 ---
 

@@ -87,6 +87,84 @@ class CourseLessonProgressRuntimeTest extends TestCase
         $this->assertFalse($service->decide($context['student']->id, $enrollmentId, $lessonId)->allowed);
     }
 
+    public function test_multiple_lesson_prerequisites_support_all_and_any_matching(): void
+    {
+        $context = $this->learningContext();
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        $firstId = $this->createVersionLesson(
+            $context['customer_id'],
+            $context['version_id']
+        );
+        $secondId = $this->createVersionLesson(
+            $context['customer_id'],
+            $context['version_id']
+        );
+        $targetId = $this->createVersionLesson(
+            $context['customer_id'],
+            $context['version_id']
+        );
+        DB::table('core_course_template_version_lessons')
+            ->where('id', $targetId)
+            ->update([
+                'unlock_rule_snapshot' => 'selected_lessons_completed',
+                'prerequisite_match_snapshot' => 'all',
+            ]);
+        foreach ([$firstId, $secondId] as $order => $prerequisiteId) {
+            DB::table(
+                'core_course_template_version_lesson_prerequisites'
+            )->insert([
+                'customer_id' => $context['customer_id'],
+                'template_version_id' => $context['version_id'],
+                'version_lesson_id' => $targetId,
+                'prerequisite_version_lesson_id' => $prerequisiteId,
+                'sort_order' => $order,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $enrollmentId = $this->createEnrollment(
+            $context['customer_id'],
+            $context['student']->id,
+            $context['product_id'],
+            $context['version_id']
+        );
+        $progressId = $this->createProgressFromEnrollment(
+            $context['customer_id'],
+            $enrollmentId
+        );
+        $this->createLessonProgressFromCourseProgress(
+            $context['customer_id'],
+            $progressId,
+            $firstId,
+            [
+                'status' => 'completed',
+                'completed_at' => now(),
+                'progress_percentage' => 100,
+            ]
+        );
+
+        $service = app(VersionLessonAccessService::class);
+        $this->assertFalse(
+            $service->decide(
+                $context['student']->id,
+                $enrollmentId,
+                $targetId
+            )->allowed
+        );
+
+        DB::table('core_course_template_version_lessons')
+            ->where('id', $targetId)
+            ->update(['prerequisite_match_snapshot' => 'any']);
+        $this->assertTrue(
+            $service->decide(
+                $context['student']->id,
+                $enrollmentId,
+                $targetId
+            )->allowed
+        );
+    }
+
     public function test_runtime_lesson_progress_can_be_created_from_course_progress_context(): void
     {
         $context = $this->learningContext();

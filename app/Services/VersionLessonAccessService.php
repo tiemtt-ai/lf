@@ -32,9 +32,71 @@ class VersionLessonAccessService
             'previous_lesson_completed' => $this->manualPrerequisite(
                 $customerId, $studentId, $enrollment, $lesson
             ),
+            'selected_lessons_completed',
+            'all_previous_lessons_completed' => $this->multiplePrerequisites(
+                $customerId, $studentId, $enrollment, $lesson
+            ),
             'date_based' => $this->dateBased($lesson),
             default => $this->invalidRule($lesson->unlock_rule_snapshot),
         };
+    }
+
+    private function multiplePrerequisites(
+        int $customerId,
+        int $studentId,
+        object $enrollment,
+        object $lesson
+    ): LessonAccessDecision {
+        $prerequisiteIds = DB::table(
+            'core_course_template_version_lesson_prerequisites'
+        )
+            ->where('customer_id', $customerId)
+            ->where('template_version_id', $enrollment->version_id)
+            ->where('version_lesson_id', $lesson->id)
+            ->orderBy('sort_order')
+            ->pluck('prerequisite_version_lesson_id')
+            ->map(fn ($id): int => (int) $id);
+
+        if ($prerequisiteIds->isEmpty()) {
+            return $this->deny('missing_prerequisite');
+        }
+
+        $validCount = DB::table('core_course_template_version_lessons')
+            ->where('customer_id', $customerId)
+            ->where('template_version_id', $enrollment->version_id)
+            ->whereIn('id', $prerequisiteIds)
+            ->count();
+        if ($validCount !== $prerequisiteIds->count()) {
+            return $this->deny('invalid_prerequisite_context');
+        }
+
+        $completedCount = DB::table('core_course_lesson_progress')
+            ->where('customer_id', $customerId)
+            ->where('enrollment_id', $enrollment->id)
+            ->where('product_id', $enrollment->product_id)
+            ->where('version_id', $enrollment->version_id)
+            ->where('student_id', $studentId)
+            ->whereIn('version_lesson_id', $prerequisiteIds)
+            ->where('status', 'completed')
+            ->whereNotNull('completed_at')
+            ->distinct()
+            ->count('version_lesson_id');
+
+        $match = $lesson->unlock_rule_snapshot === 'all_previous_lessons_completed'
+            ? 'all'
+            : $lesson->prerequisite_match_snapshot;
+        if (! in_array($match, ['all', 'any'], true)) {
+            return $this->deny('invalid_unlock_rule');
+        }
+
+        $completed = $match === 'all'
+            ? $completedCount === $prerequisiteIds->count()
+            : $completedCount > 0;
+
+        return new LessonAccessDecision(
+            $completed,
+            $completed ? 'prerequisites_completed' : 'prerequisites_incomplete'
+        );
     }
 
     private function manualPrerequisite(int $customerId, int $studentId, object $enrollment, object $lesson): LessonAccessDecision

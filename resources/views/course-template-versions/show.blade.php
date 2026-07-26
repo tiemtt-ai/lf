@@ -323,6 +323,14 @@
                     {{ __('lf.LF_course_template_structure_tab_sections') }}
                 </button>
             </div>
+            <p class="course-version-structure-tab-help" aria-live="polite">
+                <span x-show="activeContentTab === 'direct'">
+                    {{ __('lf.LF_course_template_structure_tab_direct_help') }}
+                </span>
+                <span x-show="activeContentTab === 'sections'" x-cloak>
+                    {{ __('lf.LF_course_template_structure_tab_sections_help') }}
+                </span>
+            </p>
 
             <div id="course-version-direct-panel"
                  class="course-template-structure-panel"

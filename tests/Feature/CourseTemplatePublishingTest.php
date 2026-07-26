@@ -2117,6 +2117,175 @@ class CourseTemplatePublishingTest extends TestCase
         );
     }
 
+    public function test_all_previous_can_publish_duplicate_and_republish_without_restoring_expanded_working_edges(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser(
+            $customerId,
+            'customer_admin',
+            'Prerequisite Duplicate Admin'
+        );
+        $templateId = $this->createTemplate(
+            $customerId,
+            $admin->id,
+            'Prerequisite Duplicate Course'
+        );
+
+        $lessonIds = [];
+        foreach ([
+            'First Lesson',
+            'Second Lesson',
+            'All Previous Lesson',
+            'Selected Lesson',
+        ] as $order => $title) {
+            $lessonIds[$title] = $this->createLesson(
+                $customerId,
+                $templateId,
+                null,
+                $title,
+                $order + 1,
+                $admin->id
+            );
+            $this->createActivity(
+                $customerId,
+                $templateId,
+                $lessonIds[$title],
+                $title.' Activity',
+                1,
+                $admin->id
+            );
+        }
+
+        DB::table('core_course_template_lessons')
+            ->where('id', $lessonIds['All Previous Lesson'])
+            ->update([
+                'unlock_rule' => 'all_previous_lessons_completed',
+                'prerequisite_match' => null,
+            ]);
+        DB::table('core_course_template_lessons')
+            ->where('id', $lessonIds['Selected Lesson'])
+            ->update([
+                'unlock_rule' => 'selected_lessons_completed',
+                'prerequisite_match' => 'all',
+            ]);
+        foreach ([
+            $lessonIds['First Lesson'],
+            $lessonIds['All Previous Lesson'],
+        ] as $order => $prerequisiteId) {
+            DB::table('core_course_template_lesson_prerequisites')->insert([
+                'customer_id' => $customerId,
+                'template_id' => $templateId,
+                'lesson_id' => $lessonIds['Selected Lesson'],
+                'prerequisite_lesson_id' => $prerequisiteId,
+                'sort_order' => $order,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $publishUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish";
+        $this->actingAs($admin)
+            ->post($publishUrl)
+            ->assertSessionDoesntHaveErrors();
+
+        $firstVersion = DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('version_number', 1)
+            ->first();
+        $this->assertNotNull($firstVersion);
+
+        $firstVersionLessons = DB::table(
+            'core_course_template_version_lessons'
+        )
+            ->where('customer_id', $customerId)
+            ->where('template_version_id', $firstVersion->id)
+            ->get()
+            ->keyBy('title_snapshot');
+        $this->assertSame(
+            2,
+            DB::table('core_course_template_version_lesson_prerequisites')
+                ->where(
+                    'version_lesson_id',
+                    $firstVersionLessons['All Previous Lesson']->id
+                )
+                ->count()
+        );
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/versions/{$firstVersion->id}/duplicate-to-draft"
+            )
+            ->assertSessionDoesntHaveErrors();
+
+        $restoredLessons = DB::table('core_course_template_lessons')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->get()
+            ->keyBy('title');
+        $restoredAllPrevious = $restoredLessons['All Previous Lesson'];
+        $restoredSelected = $restoredLessons['Selected Lesson'];
+
+        $this->assertSame(
+            'all_previous_lessons_completed',
+            $restoredAllPrevious->unlock_rule
+        );
+        $this->assertSame(
+            0,
+            DB::table('core_course_template_lesson_prerequisites')
+                ->where('lesson_id', $restoredAllPrevious->id)
+                ->count()
+        );
+        $this->assertSame(
+            2,
+            DB::table('core_course_template_lesson_prerequisites')
+                ->where('lesson_id', $restoredSelected->id)
+                ->count()
+        );
+
+        DB::table('core_course_templates')
+            ->where('customer_id', $customerId)
+            ->where('id', $templateId)
+            ->update(['status' => 'active']);
+
+        $this->actingAs($admin)
+            ->post($publishUrl)
+            ->assertSessionDoesntHaveErrors();
+
+        $secondVersion = DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('version_number', 2)
+            ->first();
+        $this->assertNotNull($secondVersion);
+
+        $secondVersionLessons = DB::table(
+            'core_course_template_version_lessons'
+        )
+            ->where('customer_id', $customerId)
+            ->where('template_version_id', $secondVersion->id)
+            ->get()
+            ->keyBy('title_snapshot');
+        $this->assertSame(
+            2,
+            DB::table('core_course_template_version_lesson_prerequisites')
+                ->where(
+                    'version_lesson_id',
+                    $secondVersionLessons['All Previous Lesson']->id
+                )
+                ->count()
+        );
+        $this->assertSame(
+            2,
+            DB::table('core_course_template_version_lesson_prerequisites')
+                ->where(
+                    'version_lesson_id',
+                    $secondVersionLessons['Selected Lesson']->id
+                )
+                ->count()
+        );
+    }
+
     public function test_non_admin_users_cannot_duplicate_version_to_draft(): void
     {
         $customerId = $this->createTenant();
