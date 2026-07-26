@@ -19,6 +19,8 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $role = $request->role ?? 'customer_admin';
+        $keyword = trim((string) $request->query('keyword', ''));
+        $status = $request->query('status');
 
         $validRoles = [
             'customer_admin',
@@ -30,9 +32,31 @@ class UserController extends Controller
             $role = 'customer_admin';
         }
 
-        $users = DB::table('users')
-            ->where('customer_id', TenantContext::customerId())
+        if (! in_array($status, ['active', 'inactive'], true)) {
+            $status = null;
+        }
+
+        $customerId = TenantContext::customerId();
+        $baseQuery = DB::table('users')
+            ->where('customer_id', $customerId);
+
+        $roleCounts = (clone $baseQuery)
+            ->whereIn('role', $validRoles)
+            ->select('role', DB::raw('COUNT(*) as aggregate'))
+            ->groupBy('role')
+            ->pluck('aggregate', 'role');
+
+        $users = (clone $baseQuery)
             ->where('role', $role)
+            ->when($keyword !== '', function ($query) use ($keyword): void {
+                $query->where(function ($query) use ($keyword): void {
+                    $query
+                        ->where('name', 'like', '%'.$keyword.'%')
+                        ->orWhere('email', 'like', '%'.$keyword.'%')
+                        ->orWhere('phone', 'like', '%'.$keyword.'%');
+                });
+            })
+            ->when($status, fn ($query) => $query->where('status', $status))
             ->orderBy('name')
             ->paginate(10)
             ->withQueryString();
@@ -40,12 +64,19 @@ class UserController extends Controller
         return view('admin.users.index', [
             'users' => $users,
             'role' => $role,
+            'roleCounts' => $roleCounts,
+            'keyword' => $keyword,
+            'status' => $status,
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        return view('admin.users.create');
+        $role = in_array($request->query('role'), ['customer_admin', 'teacher', 'student'], true)
+            ? $request->query('role')
+            : 'customer_admin';
+
+        return view('admin.users.create', compact('role'));
     }
 
     public function store(Request $request)

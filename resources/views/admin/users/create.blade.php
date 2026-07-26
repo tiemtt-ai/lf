@@ -84,9 +84,9 @@
                             <x-form-label for="role" :value="__('lf.LF_common_label_role')" :required="true" />
                             <select id="role" name="role" class="lf-form-control" required
                                     @if($errors->has('role')) aria-invalid="true" aria-describedby="role_error" @endif>
-                                <option value="customer_admin" @selected(old('role') === 'customer_admin')>{{ __('lf.LF_common_role_admin_customer_admin') }}</option>
-                                <option value="teacher" @selected(old('role') === 'teacher')>{{ __('lf.LF_common_role_teacher_teacher') }}</option>
-                                <option value="student" @selected(old('role') === 'student')>{{ __('lf.LF_common_role_student_student') }}</option>
+                                <option value="customer_admin" @selected(old('role', $role) === 'customer_admin')>{{ __('lf.LF_common_role_admin_customer_admin') }}</option>
+                                <option value="teacher" @selected(old('role', $role) === 'teacher')>{{ __('lf.LF_common_role_teacher_teacher') }}</option>
+                                <option value="student" @selected(old('role', $role) === 'student')>{{ __('lf.LF_common_role_student_student') }}</option>
                             </select>
                             @error('role')<p id="role_error" class="lf-form-error">{{ $message }}</p>@enderror
                         </div>

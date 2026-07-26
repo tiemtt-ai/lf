@@ -3636,3 +3636,237 @@
     }
 
 }
+.admin-user-tabs {
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+
+.admin-user-tabs .admin-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.admin-user-tab-count {
+    min-width: 24px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    color: var(--admin-text-muted);
+    background: var(--admin-surface-subtle);
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.admin-user-tabs .admin-tab.is-active .admin-user-tab-count {
+    color: var(--admin-active);
+    background: var(--admin-primary-contrast);
+}
+
+.admin-user-toolbar {
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.admin-user-toolbar-title,
+.admin-user-toolbar-count {
+    display: block;
+}
+
+.admin-user-toolbar-title {
+    color: var(--admin-text);
+    font-size: 16px;
+}
+
+.admin-user-toolbar-count {
+    margin-top: 3px;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+}
+
+.admin-user-filter-card {
+    margin-bottom: 16px;
+    padding: 18px;
+}
+
+.admin-user-filter-grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 2fr) minmax(190px, 1fr) auto;
+    align-items: end;
+    gap: 14px;
+}
+
+.admin-user-filter-grid .lf-form-group {
+    margin: 0;
+}
+
+.admin-user-filter-actions {
+    min-height: 42px;
+    margin: 0;
+    padding: 0 !important;
+}
+
+.admin-user-identity {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-user-avatar {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    color: var(--admin-primary);
+    background: var(--admin-sidebar);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.admin-user-empty-state {
+    display: grid;
+    justify-items: center;
+    gap: 7px;
+    padding: 38px 20px;
+    color: var(--admin-text-muted);
+    text-align: center;
+}
+
+.admin-user-empty-icon {
+    margin-bottom: 5px;
+    font-size: 30px;
+    filter: grayscale(1);
+    opacity: .7;
+}
+
+.admin-user-empty-state strong {
+    color: var(--admin-text);
+    font-size: 15px;
+}
+
+.admin-user-empty-state > span:not(.admin-user-empty-icon) {
+    max-width: 460px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.admin-user-empty-state .btn,
+.admin-user-empty-state .admin-text-action {
+    margin-top: 8px;
+}
+
+@media (max-width: 1024px) {
+    .admin-user-filter-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(180px, .55fr);
+    }
+
+    .admin-user-filter-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 767px) {
+    .admin-user-tabs {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .admin-user-tabs .admin-tab {
+        justify-content: space-between;
+    }
+
+    .admin-user-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .admin-user-toolbar .btn {
+        justify-content: center;
+    }
+
+    .admin-user-filter-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-user-filter-actions {
+        grid-column: auto;
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .admin-user-filter-actions .btn {
+        justify-content: center;
+    }
+
+    .admin-user-table-wrap {
+        overflow: visible;
+        border: 0;
+        background: transparent;
+    }
+
+    .admin-user-table thead {
+        display: none;
+    }
+
+    .admin-user-table,
+    .admin-user-table tbody,
+    .admin-user-table tr,
+    .admin-user-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .admin-user-table tr {
+        margin-bottom: 12px;
+        overflow: hidden;
+        border: 1px solid var(--admin-border);
+        border-radius: 8px;
+        background: var(--admin-surface);
+    }
+
+    .lf-admin-page .admin-user-table td {
+        display: grid;
+        grid-template-columns: minmax(105px, .45fr) minmax(0, 1fr);
+        align-items: center;
+        gap: 12px;
+        text-align: right;
+    }
+
+    .lf-admin-page .admin-user-table td::before {
+        color: var(--admin-text-muted);
+        content: attr(data-label);
+        font-size: 12px;
+        font-weight: 700;
+        text-align: left;
+    }
+
+    .lf-admin-page .admin-user-table .admin-table-sequence {
+        display: none;
+    }
+
+    .admin-user-identity,
+    .admin-user-table .admin-table-actions {
+        justify-content: flex-end;
+    }
+
+    .lf-admin-page .admin-user-table .admin-user-empty-cell {
+        display: block;
+        padding: 0;
+    }
+
+    .lf-admin-page .admin-user-table .admin-user-empty-cell::before {
+        content: none;
+    }
+
+    .admin-user-empty-state {
+        padding: 32px 18px;
+    }
+}
