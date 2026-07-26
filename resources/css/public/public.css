@@ -497,12 +497,32 @@
     outline: none;
 }
 
-.public-form-control::placeholder,
-select.public-form-control:required:invalid {
+.public-form-control::placeholder {
     color: color-mix(in srgb, var(--public-muted) 58%, #ffffff);
     font-size: 14px;
     font-weight: 300;
     opacity: 1;
+}
+
+.public-page .public-form-control.is-lf-placeholder:not(:focus),
+.public-page select.public-form-control:has(option[value=""]:checked):not(:focus) {
+    color: color-mix(in srgb, var(--public-muted) 58%, #ffffff);
+    font-size: 1rem;
+    font-weight: 400;
+    opacity: 1;
+}
+
+.public-page select.public-form-control:focus,
+.public-page .public-form-control.is-lf-placeholder:focus {
+    color: #101828;
+    font-size: 1rem;
+    font-weight: 400;
+}
+
+.public-page select.public-form-control option {
+    color: #101828;
+    font-size: 1rem;
+    font-weight: 400;
 }
 
 .public-password-control {

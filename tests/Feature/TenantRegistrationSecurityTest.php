@@ -88,6 +88,26 @@ class TenantRegistrationSecurityTest extends TestCase
             $response->getContent(),
             'aria-required="true"'
         ));
+
+        $publicCss = file_get_contents(resource_path('css/public/public.css'));
+        $appJs = file_get_contents(resource_path('js/app.js'));
+
+        $this->assertStringContainsString(
+            '.public-page .public-form-control.is-lf-placeholder:not(:focus),',
+            $publicCss
+        );
+        $this->assertStringContainsString(
+            '.public-page .public-form-control.is-lf-placeholder:focus {',
+            $publicCss
+        );
+        $this->assertStringContainsString(
+            '.public-page select.public-form-control',
+            $appJs
+        );
+        $this->assertStringContainsString(
+            '.public-page input.public-form-control[type="datetime-local"]',
+            $appJs
+        );
     }
 
     public function test_backend_derives_and_normalizes_slug_from_organization_name(): void

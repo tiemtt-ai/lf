@@ -20,6 +20,75 @@ window.tenantRegistrationForm = (initialSlug = '') => ({
     },
 });
 
+const formPlaceholderControlSelector = [
+    '.lf-admin-page select.lf-form-control',
+    '.lf-admin-page input.lf-form-control[type="date"]',
+    '.lf-admin-page input.lf-form-control[type="datetime-local"]',
+    '.lf-admin-page input.lf-form-control[type="month"]',
+    '.lf-admin-page input.lf-form-control[type="time"]',
+    '.public-page select.public-form-control',
+    '.public-page input.public-form-control[type="date"]',
+    '.public-page input.public-form-control[type="datetime-local"]',
+    '.public-page input.public-form-control[type="month"]',
+    '.public-page input.public-form-control[type="time"]',
+    '.auth-page select.auth-input',
+    '.auth-page input.auth-input[type="date"]',
+    '.auth-page input.auth-input[type="datetime-local"]',
+    '.auth-page input.auth-input[type="month"]',
+    '.auth-page input.auth-input[type="time"]',
+].join(',');
+
+const syncFormPlaceholderControl = (control) => {
+    if (! (control instanceof Element) || ! control.matches(formPlaceholderControlSelector)) {
+        return;
+    }
+
+    const placeholderValues = (control.dataset.placeholderValues || '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+    const isPlaceholder = control.value === '' || placeholderValues.includes(control.value);
+
+    control.classList.toggle('is-lf-placeholder', isPlaceholder);
+};
+
+const initializeFormPlaceholderControls = (root = document) => {
+    if (root.matches?.(formPlaceholderControlSelector)) {
+        syncFormPlaceholderControl(root);
+    }
+
+    root.querySelectorAll?.(formPlaceholderControlSelector)
+        .forEach(syncFormPlaceholderControl);
+};
+
+const bootFormPlaceholderControls = () => {
+    initializeFormPlaceholderControls();
+
+    document.addEventListener('input', (event) => syncFormPlaceholderControl(event.target));
+    document.addEventListener('change', (event) => syncFormPlaceholderControl(event.target));
+    document.addEventListener('reset', (event) => {
+        window.setTimeout(() => initializeFormPlaceholderControls(event.target), 0);
+    });
+
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+                if (node instanceof Element) {
+                    initializeFormPlaceholderControls(node);
+                }
+            });
+        });
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootFormPlaceholderControls, { once: true });
+} else {
+    bootFormPlaceholderControls();
+}
+
 window.backendSidebar = () => ({
     sidebarCollapsed: false,
     storageKey: 'lf.backend.sidebar.collapsed',

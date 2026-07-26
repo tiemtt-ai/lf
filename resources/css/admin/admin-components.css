@@ -28,12 +28,33 @@
     line-height: 1.45;
 }
 
-.lf-admin-page .lf-form-control::placeholder,
-.lf-admin-page select.lf-form-control.lf-select-placeholder {
+.lf-admin-page .lf-form-control::placeholder {
     color: color-mix(in srgb, var(--admin-text-muted) 58%, var(--admin-surface));
     font-size: 14px;
     font-weight: 300;
     opacity: 1;
+}
+
+.lf-admin-page .lf-form-control.is-lf-placeholder:not(:focus),
+.lf-admin-page select.lf-form-control:has(option[value=""]:checked):not(:focus),
+.lf-admin-page select.lf-form-control[data-placeholder-values="all"]:has(option[value="all"]:checked):not(:focus) {
+    color: color-mix(in srgb, var(--admin-text-muted) 58%, var(--admin-surface));
+    font-size: 1rem;
+    font-weight: 400;
+    opacity: 1;
+}
+
+.lf-admin-page select.lf-form-control:focus,
+.lf-admin-page .lf-form-control.is-lf-placeholder:focus {
+    color: var(--admin-control-text);
+    font-size: 1rem;
+    font-weight: 400;
+}
+
+.lf-admin-page select.lf-form-control option {
+    color: var(--admin-control-text);
+    font-size: 1rem;
+    font-weight: 400;
 }
 
 .lf-line-clamp-2 {

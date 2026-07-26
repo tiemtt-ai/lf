@@ -2278,6 +2278,7 @@ class CourseProductManagementTest extends TestCase
     {
         $css = file_get_contents(resource_path('css/admin/admin-components.css'));
         $pageCss = file_get_contents(resource_path('css/admin/admin-pages.css'));
+        $appJs = file_get_contents(resource_path('js/app.js'));
 
         $this->assertStringContainsString('.admin-form-standard,', $css);
         $this->assertStringContainsString('.admin-form-card.admin-form-surface {', $css);
@@ -2300,7 +2301,12 @@ class CourseProductManagementTest extends TestCase
         $this->assertStringContainsString('.lf-admin-page .lf-form-help,', $css);
         $this->assertStringContainsString('font-size: 13px;', $css);
         $this->assertStringContainsString(".lf-admin-page .lf-form-help {\n    color: var(--admin-text-muted);", $css);
-        $this->assertStringContainsString(".lf-admin-page .lf-form-control::placeholder,\n.lf-admin-page select.lf-form-control.lf-select-placeholder {", $css);
+        $this->assertStringContainsString('.lf-admin-page .lf-form-control.is-lf-placeholder:not(:focus),', $css);
+        $this->assertStringContainsString('.lf-admin-page .lf-form-control.is-lf-placeholder:focus {', $css);
+        $this->assertStringContainsString('.lf-admin-page select.lf-form-control option {', $css);
+        $this->assertStringContainsString('formPlaceholderControlSelector', $appJs);
+        $this->assertStringContainsString('input.lf-form-control[type="datetime-local"]', $appJs);
+        $this->assertStringContainsString("control.classList.toggle('is-lf-placeholder', isPlaceholder);", $appJs);
         $this->assertStringContainsString('font-size: 14px;', $css);
         $this->assertStringContainsString('font-weight: 300;', $css);
         $this->assertStringContainsString('.admin-form-footer-danger,', $css);

@@ -41,6 +41,9 @@ class RoleProfileTest extends TestCase
             ->assertSee('class="admin-form-standard"', false)
             ->assertSee('class="admin-form-flow"', false)
             ->assertSee('class="admin-form-footer"', false)
+            ->assertSee('<body class="lf-admin-page">', false)
+            ->assertSee('type="date" name="date_of_birth" class="lf-form-control"', false)
+            ->assertSee('<select id="teacher-gender" name="gender" class="lf-form-control"', false)
             ->assertSee('class="lf-modal-card admin-password-modal"', false)
             ->assertSee('class="admin-password-eye"', false)
             ->assertSeeText(__('lf.LF_common_label_name'))
@@ -50,6 +53,26 @@ class RoleProfileTest extends TestCase
             ->assertSeeText(__('lf.LF_common_label_gender'))
             ->assertSeeText(__('lf.LF_common_label_role'))
             ->assertSee('value="'.__('lf.LF_common_role_teacher_teacher').'"', false);
+
+        $componentCss = file_get_contents(resource_path('css/admin/admin-components.css'));
+        $appJs = file_get_contents(resource_path('js/app.js'));
+
+        $this->assertStringContainsString(
+            '.lf-admin-page .lf-form-control.is-lf-placeholder:not(:focus),',
+            $componentCss
+        );
+        $this->assertStringContainsString(
+            '.lf-admin-page .lf-form-control.is-lf-placeholder:focus {',
+            $componentCss
+        );
+        $this->assertStringContainsString(
+            '.lf-admin-page input.lf-form-control[type="date"]',
+            $appJs
+        );
+        $this->assertStringContainsString(
+            '.lf-admin-page select.lf-form-control',
+            $appJs
+        );
 
         $teacherProfileResponse
             ->assertSee('href="https://tenant-a.localhost/teacher"', false)

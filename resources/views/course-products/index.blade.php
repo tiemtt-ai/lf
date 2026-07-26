@@ -48,7 +48,7 @@
                 <label class="lf-form-label" for="status">
                     {{ __('lf.LF_course_product_common_status') }}
                 </label>
-                <select id="status" name="status" class="lf-form-control">
+                <select id="status" name="status" class="lf-form-control" data-placeholder-values="all">
                     <option value="all" @selected($status === 'all')>{{ __('lf.LF_course_product_common_all_statuses') }}</option>
                     @foreach (['draft', 'active', 'inactive', 'archived'] as $productStatus)
                         <option value="{{ $productStatus }}" @selected($status === $productStatus)>

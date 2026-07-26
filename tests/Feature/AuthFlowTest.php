@@ -117,6 +117,23 @@ class AuthFlowTest extends TestCase
             ->assertSee('class="auth-field-help"', false)
             ->assertSeeText(__('lf.LF_auth_reset_title'));
 
+        $authCss = file_get_contents(resource_path('css/auth/login.css'));
+        $appJs = file_get_contents(resource_path('js/app.js'));
+
+        $this->assertStringContainsString(
+            '.auth-page .auth-input.is-lf-placeholder:not(:focus) {',
+            $authCss
+        );
+        $this->assertStringContainsString(
+            '.auth-page .auth-input.is-lf-placeholder:focus {',
+            $authCss
+        );
+        $this->assertStringContainsString('.auth-page select.auth-input', $appJs);
+        $this->assertStringContainsString(
+            '.auth-page input.auth-input[type="date"]',
+            $appJs
+        );
+
         $this->post('https://tenant-a.localhost/reset-password', [
             'token' => $token,
             'email' => $user->email,
