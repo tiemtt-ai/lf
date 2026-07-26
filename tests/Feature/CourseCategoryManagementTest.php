@@ -57,16 +57,24 @@ class CourseCategoryManagementTest extends TestCase
             ->assertSee('course-category-index-table', false)
             ->assertSee('course-category-index-meta', false)
             ->assertSee('course-category-status-badge', false)
+            ->assertDontSee('class="admin-table-action-icon"', false)
             ->assertDontSeeText(__('lf.LF_course_category_common_thumbnail_image'))
             ->assertDontSeeText('Private Tenant Category');
         $this->assertSame(
-            __('lf.table_no'),
+            __('lf.LF_course_category_common_name'),
             $this->tableHeaderText($adminResponse->getContent(), 1)
         );
         $this->assertSame(
-            __('lf.LF_course_category_common_name'),
+            __('lf.LF_course_category_common_parent'),
             $this->tableHeaderText($adminResponse->getContent(), 2)
         );
+        $this->assertSame(
+            __('lf.LF_course_category_index_sort_order'),
+            $this->tableHeaderText($adminResponse->getContent(), 3)
+        );
+        $adminResponse
+            ->assertDontSee('<th class="admin-table-sequence">', false)
+            ->assertSee('course-category-index-parent is-root', false);
 
         $teacherResponse = $this->actingAs($teacher)
             ->get('https://tenant-a.localhost/teacher/course-categories')
@@ -77,11 +85,11 @@ class CourseCategoryManagementTest extends TestCase
             ->assertDontSeeText('Admin Category')
             ->assertDontSeeText('Private Tenant Category');
         $this->assertSame(
-            __('lf.table_no'),
+            __('lf.LF_course_category_common_name'),
             $this->tableHeaderText($teacherResponse->getContent(), 1)
         );
         $this->assertSame(
-            __('lf.LF_course_category_common_name'),
+            __('lf.LF_course_category_common_parent'),
             $this->tableHeaderText($teacherResponse->getContent(), 2)
         );
     }

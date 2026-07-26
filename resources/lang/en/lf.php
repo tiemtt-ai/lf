@@ -252,6 +252,7 @@ return [
     'LF_course_category_common_slug' => 'Slug',
     'LF_course_category_common_automatic' => 'Automatic',
     'LF_course_category_common_sort_order' => 'Sort order',
+    'LF_course_category_index_sort_order' => 'Order',
     'LF_course_category_common_featured' => 'Featured category',
     'LF_course_category_common_root' => 'Root category',
     'LF_course_category_select_parent' => 'Select parent category',

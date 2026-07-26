@@ -1509,14 +1509,32 @@
     vertical-align: middle;
 }
 
-.course-category-index-table .course-category-index-order {
-    width: 160px;
+.course-category-index-table .course-category-index-name {
+    width: 38%;
+}
+
+.course-category-index-table .course-category-index-parent {
+    width: 30%;
+}
+
+.course-category-index-table .course-category-index-parent.is-root {
+    color: var(--admin-text-muted);
+}
+
+.course-category-index-table th.course-category-index-order,
+.course-category-index-table td.course-category-index-order {
+    width: 120px;
     text-align: center;
 }
 
 .course-category-index-table .course-category-index-status,
 .course-template-index-table .course-template-index-status {
     width: 132px;
+}
+
+.course-category-index-table th.course-category-index-status,
+.course-category-index-table td.course-category-index-status {
+    text-align: center;
 }
 
 .course-category-index-table .course-category-index-actions,
@@ -3221,11 +3239,6 @@
 }
 
 .lf-admin-page .course-cohort-index-table .admin-table-sequence {
-    width: 72px;
-    min-width: 72px;
-}
-
-.lf-admin-page .course-category-index-table .admin-table-sequence {
     width: 72px;
     min-width: 72px;
 }

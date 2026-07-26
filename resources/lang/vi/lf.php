@@ -252,6 +252,7 @@ return [
     'LF_course_category_common_slug' => 'Slug',
     'LF_course_category_common_automatic' => 'Tự động',
     'LF_course_category_common_sort_order' => 'Thứ tự hiển thị',
+    'LF_course_category_index_sort_order' => 'Thứ tự',
     'LF_course_category_common_featured' => 'Danh mục nổi bật',
     'LF_course_category_common_root' => 'Danh mục gốc',
     'LF_course_category_select_parent' => 'Chọn danh mục cha',
