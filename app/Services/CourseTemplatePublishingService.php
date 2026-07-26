@@ -280,8 +280,7 @@ class CourseTemplatePublishingService
                     ->all(),
                 'all_previous_lessons_completed' => array_values(array_filter(
                     $orderedIds,
-                    fn (int $id): bool =>
-                        $positions[$id] < $positions[$lesson->id]
+                    fn (int $id): bool => $positions[$id] < $positions[$lesson->id]
                         && (($lessons->firstWhere('id', $id)->template_section_id === null)
                             === ($lesson->template_section_id === null))
                 )),
@@ -352,8 +351,7 @@ class CourseTemplatePublishingService
         };
         $walk(0);
 
-        return $lessons->sortBy(fn (object $lesson): string =>
-            ($lesson->template_section_id === null
+        return $lessons->sortBy(fn (object $lesson): string => ($lesson->template_section_id === null
                 ? '0'
                 : '1'.($sectionKeys[$lesson->template_section_id] ?? ''))
             .sprintf('/L%010d:%020d', $lesson->sort_order, $lesson->id)

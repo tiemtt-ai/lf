@@ -1257,6 +1257,68 @@ class CourseTemplateLessonManagementTest extends TestCase
         );
     }
 
+    public function test_wildcard_prerequisite_error_is_rendered_adjacent_to_the_accessible_control(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Wildcard Error Course',
+            'wildcard-error-course'
+        );
+        $otherTemplateId = $this->createTemplate(
+            $otherCustomerId,
+            'Other Wildcard Course',
+            'other-wildcard-course'
+        );
+        $otherLessonId = $this->createLesson(
+            $otherCustomerId,
+            $otherTemplateId,
+            null,
+            'Foreign Prerequisite'
+        );
+        $collectionUrl = $this->directLessonCollectionUrl(
+            'admin',
+            $templateId
+        );
+        $createUrl = $collectionUrl.'/create';
+
+        $this->actingAs($admin)
+            ->from($createUrl)
+            ->post(
+                $collectionUrl,
+                $this->validLessonData([
+                    'title' => 'Invalid Foreign Prerequisite',
+                    'sort_order' => 2,
+                    'unlock_rule' => 'selected_lessons_completed',
+                    'prerequisite_match' => 'all',
+                    'prerequisite_lesson_ids' => [$otherLessonId],
+                ])
+            )
+            ->assertRedirect($createUrl)
+            ->assertSessionHasErrors('prerequisite_lesson_ids.0');
+
+        $response = $this->actingAs($admin)
+            ->get($createUrl)
+            ->assertOk();
+        $xpath = $this->xpath($response->getContent());
+        $this->assertSame(
+            1,
+            $xpath->query(
+                '//fieldset[@aria-invalid="true" and '
+                .'@aria-describedby="prerequisite_lesson_ids_error"]'
+            )->length
+        );
+        $this->assertSame(
+            1,
+            $xpath->query(
+                '//fieldset//p[@id="prerequisite_lesson_ids_error" '
+                .'and contains(@class, "lf-form-error")]'
+            )->length
+        );
+    }
+
     public function test_delete_is_blocked_when_another_lesson_uses_the_prerequisite(): void
     {
         $customerId = $this->createTenant();
@@ -1409,6 +1471,7 @@ class CourseTemplateLessonManagementTest extends TestCase
             'is_preview',
             'lesson_type',
             'unlock_rule',
+            'prerequisite_match',
         ] as $field) {
             $this->assertSame(
                 1,

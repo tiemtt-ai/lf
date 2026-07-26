@@ -11,6 +11,8 @@
         'prerequisite_match',
         $formLesson?->prerequisite_match ?? 'all'
     );
+    $prerequisiteError = $errors->first('prerequisite_lesson_ids')
+        ?: $errors->first('prerequisite_lesson_ids.*');
     $unlockAt = old('unlock_at', $formLesson?->unlock_at
         ? \Illuminate\Support\Carbon::parse($formLesson->unlock_at)->format('Y-m-d\TH:i') : null);
 @endphp
@@ -115,15 +117,18 @@
             </div>
 
             <div class="lf-form-group" x-show="unlockRule === 'selected_lessons_completed'" x-cloak>
-                <x-form-label for="prerequisite_match" :value="__('lf.LF_course_template_lesson_common_prerequisite_match')" />
-                <select id="prerequisite_match" name="prerequisite_match" class="lf-form-control">
+                <x-form-label for="prerequisite_match" :value="__('lf.LF_course_template_lesson_common_prerequisite_match')" :required="true" />
+                <select id="prerequisite_match" name="prerequisite_match" class="lf-form-control"
+                        x-bind:required="unlockRule === 'selected_lessons_completed'"
+                        x-bind:aria-required="unlockRule === 'selected_lessons_completed' ? 'true' : 'false'">
                     <option value="all" @selected($selectedPrerequisiteMatch === 'all')>{{ __('lf.LF_course_template_lesson_common_prerequisite_match_all') }}</option>
                     <option value="any" @selected($selectedPrerequisiteMatch === 'any')>{{ __('lf.LF_course_template_lesson_common_prerequisite_match_any') }}</option>
                 </select>
             </div>
 
             <fieldset class="lf-form-group admin-form-field--full"
-                      x-show="unlockRule === 'selected_lessons_completed'" x-cloak>
+                      x-show="unlockRule === 'selected_lessons_completed'" x-cloak
+                      @if($prerequisiteError) aria-invalid="true" aria-describedby="prerequisite_lesson_ids_error" @endif>
                 <input type="hidden" name="unlock_after_lesson_id" value="">
                 <legend class="lf-form-label">{{ __('lf.LF_course_template_lesson_common_unlock_after_lessons') }}</legend>
                 <div class="course-template-prerequisite-list">
@@ -136,7 +141,9 @@
                         </label>
                     @endforeach
                 </div>
-                @error('prerequisite_lesson_ids')<p class="lf-form-error">{{ $message }}</p>@enderror
+                @if($prerequisiteError)
+                    <p id="prerequisite_lesson_ids_error" class="lf-form-error">{{ $prerequisiteError }}</p>
+                @endif
             </fieldset>
 
             <div class="lf-form-group" x-show="unlockRule === 'date_based'" x-cloak>

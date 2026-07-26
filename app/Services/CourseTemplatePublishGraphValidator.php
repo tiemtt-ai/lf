@@ -140,8 +140,7 @@ class CourseTemplatePublishGraphValidator
                 ->map(fn ($id): int => (int) $id);
             $effective = $rule === 'all_previous_lessons_completed'
                 ? collect($order)->filter(
-                    fn (int $position, int $id): bool =>
-                        $position < ($order[$lesson->id] ?? -1)
+                    fn (int $position, int $id): bool => $position < ($order[$lesson->id] ?? -1)
                         && (($map[$id]->template_section_id === null)
                             === ($lesson->template_section_id === null))
                 )->keys()
@@ -210,8 +209,7 @@ class CourseTemplatePublishGraphValidator
         };
         $walk(0);
 
-        return $lessons->sortBy(fn (object $lesson): string =>
-            ($lesson->template_section_id === null
+        return $lessons->sortBy(fn (object $lesson): string => ($lesson->template_section_id === null
                 ? '0'
                 : '1'.($sectionKeys[$lesson->template_section_id] ?? ''))
             .sprintf('/L%010d:%020d', $lesson->sort_order, $lesson->id)
