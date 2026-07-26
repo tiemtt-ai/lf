@@ -1494,13 +1494,23 @@ class CourseMediaIntegrationTest extends TestCase
             ->assertSee('data-version-media-slot="document"', false)
             ->assertSee('openVersionPreview', false)
             ->assertSee('x-ref="versionPreviewVideo"', false)
-            ->assertSee('course-version-document-preview', false)
-            ->assertSee('data-preview-type="document"', false)
+            ->assertSee('authoring-media-current-row', false)
+            ->assertSee('authoring-media-overlay-action', false)
+            ->assertSee('target="_blank"', false)
+            ->assertSee('rel="noopener noreferrer"', false)
             ->assertSee('allow="autoplay; fullscreen; picture-in-picture"', false)
             ->assertDontSeeText(__('lf.LF_version_detail_document_fallback'))
             ->assertSee("/versions/{$version->id}/media/image/", false)
             ->assertSee("/versions/{$version->id}/media/video/", false)
             ->assertSee("/versions/{$version->id}/media/document/", false);
+        $this->assertSame(0, $this->htmlElementCount(
+            $response->getContent(),
+            '//div[@data-version-media-slot="document"]//button'
+        ));
+        $this->assertSame(1, $this->htmlElementCount(
+            $response->getContent(),
+            '//div[@data-version-media-slot="document"]//a[@target="_blank"]'
+        ));
 
         foreach ([
             'image' => $version->intro_image_media_file_id_snapshot,

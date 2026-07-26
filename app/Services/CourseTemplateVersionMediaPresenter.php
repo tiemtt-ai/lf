@@ -60,7 +60,7 @@ class CourseTemplateVersionMediaPresenter
         $viewMode = match ($slot) {
             'image' => 'modal_image',
             'video' => 'modal_video',
-            'document' => $this->documentViewMode($media),
+            'document' => 'new_tab_document',
         };
 
         return compact('media', 'thumbnail', 'url', 'viewMode')
@@ -95,16 +95,6 @@ class CourseTemplateVersionMediaPresenter
             'provider' => $normalized['provider'],
             'thumbnail' => $this->thumbnails->embeddedVideo($normalized['url']),
         ];
-    }
-
-    private function documentViewMode(object $media): string
-    {
-        $mime = strtolower((string) $media->mime_type);
-        $extension = strtolower((string) $media->extension);
-
-        return $mime === 'application/pdf' && $extension === 'pdf'
-            ? 'modal_document'
-            : 'new_tab_document';
     }
 
     private function autoplayEmbedUrl(string $url): string

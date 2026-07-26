@@ -405,6 +405,27 @@ Audio popup cũng phải pause và release resource khi đóng. Popup chỉ đư
 hoặc nạp media sau explicit user action; list/form không autoplay hoặc preload
 toàn bộ media.
 
+### Shared Preview Modal Geometry
+
+Mọi popup preview media trong Admin và Teacher phải dùng trực tiếp shared
+`media-library-modal`, `media-library-modal-panel`,
+`media-library-modal-body`, `media-library-modal-image` và
+`media-library-modal-video`.
+
+Kích thước popup, viewport spacing, header, backdrop, image containment và
+tỉ lệ video phải được định nghĩa duy nhất trong shared Admin CSS. Domain hoặc
+form không được tạo class riêng để thay đổi width, height, aspect ratio hay
+padding của popup. Thay đổi thiết kế popup phải cập nhật shared definition và
+áp dụng đồng thời cho mọi nơi sử dụng Media LF.
+
+Canonical geometry hiện tại:
+
+* modal max-width: `1280px`;
+* modal luôn chừa viewport gutter `24px`;
+* image dùng `object-fit: contain`;
+* video/embed dùng tỉ lệ `16:9`, `object-fit: contain`;
+* chiều cao media không vượt viewport sau khi trừ modal header và spacing.
+
 Document không được ép vào iframe/modal. PDF và các document khác phải dùng
 authorized/signed URL trong tab mới để browser quyết định inline rendering hoặc
 download dựa trên MIME và `Content-Disposition`.

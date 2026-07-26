@@ -24,6 +24,7 @@
         'file-spreadsheet' => '<path d="M6 2h8l4 4v16H6Z"></path><path d="M14 2v5h5"></path><path d="M9 11h6v7H9Z"></path><path d="M12 11v7"></path><path d="M9 14.5h6"></path>',
         'file-presentation' => '<path d="M6 2h8l4 4v16H6Z"></path><path d="M14 2v5h5"></path><path d="M9 17v-6h6v6"></path><path d="m10 15 2-2 2 2"></path>',
         'chart-bar' => '<path d="M4 19V5"></path><path d="M4 19h16"></path><path d="M8 17v-6"></path><path d="M12 17V8"></path><path d="M16 17v-3"></path>',
+        'hierarchy' => '<rect x="8" y="1.5" width="8" height="4" rx="1"></rect><rect x="8" y="9.5" width="8" height="4" rx="1"></rect><rect x="1" y="18" width="8" height="4" rx="1"></rect><rect x="15" y="18" width="8" height="4" rx="1"></rect><path d="M12 5.5v4"></path><path d="M12 13.5V16"></path><path d="M5 18v-2h14v2"></path>',
         'sparkles' => '<path d="m12 3 1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5Z"></path><path d="m19 14 .75 2.25L22 17l-2.25.75L19 20l-.75-2.25L16 17l2.25-.75Z"></path><path d="m5 14 .75 2.25L8 17l-2.25.75L5 20l-.75-2.25L2 17l2.25-.75Z"></path>',
         'cog' => '<circle cx="12" cy="12" r="3"></circle><path d="M12 2v3"></path><path d="M12 19v3"></path><path d="m4.93 4.93 2.12 2.12"></path><path d="m16.95 16.95 2.12 2.12"></path><path d="M2 12h3"></path><path d="M19 12h3"></path><path d="m4.93 19.07 2.12-2.12"></path><path d="m16.95 7.05 2.12-2.12"></path>',
         'circle' => '<circle cx="12" cy="12" r="8"></circle>',

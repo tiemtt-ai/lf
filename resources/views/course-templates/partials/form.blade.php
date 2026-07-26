@@ -318,7 +318,7 @@
                             x-bind:src="videoSrc"
                             x-bind:type="preview.mimeType">
                 </video>
-                <iframe class="media-library-modal-video course-template-embed-preview"
+                <iframe class="media-library-modal-video"
                         x-show="previewLoaded && preview.mediaType === 'embed'"
                         x-bind:src="preview.mediaType === 'embed' ? preview.url : ''"
                         x-bind:title="preview.name"

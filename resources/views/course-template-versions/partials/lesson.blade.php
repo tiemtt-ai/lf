@@ -51,23 +51,27 @@
                         <span class="course-template-activity-title-text">
                             {{ $activity->title_snapshot }}
                         </span>
-                        <span class="lf-secondary-text">
-                            {{ __('lf.LF_course_template_activity_learning_availability_summary', [
-                                'phases' => $activityView['availability'],
-                            ]) }}
-                        </span>
                     </div>
                     @if ($activityView['mediaUrl'] || $activityView['embeddedUrl'])
                         <div class="admin-table-actions">
-                            <button type="button"
-                                    class="admin-link-button admin-text-action"
-                                    data-preview-name="{{ $activity->title_snapshot }}"
-                                    data-preview-url="{{ $activityView['mediaUrl'] ?: $activityView['embeddedUrl'] }}"
-                                    data-preview-type="{{ $activityView['mediaUrl'] ? $activity->activity_type : 'embed' }}"
-                                    data-preview-mime="{{ $activityView['embeddedUrl'] ? 'text/html' : '' }}"
-                                    x-on:click="openVersionPreview($el.dataset.previewName, $el.dataset.previewUrl, $el.dataset.previewType, $el.dataset.previewMime)">
-                                {{ __('lf.LF_media_file_common_preview_action') }}
-                            </button>
+                            @if ($activity->activity_type === 'document')
+                                <a class="admin-text-action"
+                                   href="{{ $activityView['mediaUrl'] }}"
+                                   target="_blank"
+                                   rel="noopener noreferrer">
+                                    {{ __('lf.LF_common_button_view') }}
+                                </a>
+                            @else
+                                <button type="button"
+                                        class="admin-link-button admin-text-action"
+                                        data-preview-name="{{ $activity->title_snapshot }}"
+                                        data-preview-url="{{ $activityView['mediaUrl'] ?: $activityView['embeddedUrl'] }}"
+                                        data-preview-type="{{ $activityView['mediaUrl'] ? $activity->activity_type : 'embed' }}"
+                                        data-preview-mime="{{ $activityView['embeddedUrl'] ? 'text/html' : '' }}"
+                                        x-on:click="openVersionPreview($el.dataset.previewName, $el.dataset.previewUrl, $el.dataset.previewType, $el.dataset.previewMime)">
+                                    {{ __('lf.LF_common_button_view') }}
+                                </button>
+                            @endif
                         </div>
                     @endif
                 </div>

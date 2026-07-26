@@ -157,15 +157,19 @@
 
             @if ($version->short_description_snapshot)
                 <div class="course-version-copy">
-                    <h3>{{ __('lf.LF_course_template_common_short_description') }}</h3>
-                    <p>{{ $version->short_description_snapshot }}</p>
+                    <p class="course-version-copy-label">
+                        {{ __('lf.LF_course_template_common_short_description') }}
+                    </p>
+                    <div class="course-version-copy-content">{{ $version->short_description_snapshot }}</div>
                 </div>
             @endif
 
             @if ($version->description_snapshot)
                 <div class="course-version-copy">
-                    <h3>{{ __('lf.LF_course_template_common_description') }}</h3>
-                    <p>{{ $version->description_snapshot }}</p>
+                    <p class="course-version-copy-label">
+                        {{ __('lf.LF_course_template_common_description') }}
+                    </p>
+                    <div class="course-version-copy-content">{{ $version->description_snapshot }}</div>
                 </div>
             @endif
 
@@ -181,73 +185,52 @@
                     @php
                         $snapshot = $templateVersionMedia[$slot];
                     @endphp
-                    <div class="course-version-media-item" data-version-media-slot="{{ $slot }}">
-                        <strong>{{ $label }}</strong>
-                        <div class="course-version-media-value">
-                            @if ($snapshot['state'] === 'empty')
+                    <div class="course-version-media-field" data-version-media-slot="{{ $slot }}">
+                        <p class="authoring-media-field-title">{{ $label }}</p>
+                        @if ($snapshot['state'] === 'empty')
+                            <p class="course-version-media-empty">
                                 {{ __('lf.LF_course_template_version_detail_no_media') }}
-                            @elseif ($snapshot['state'] === 'unavailable')
+                            </p>
+                        @elseif ($snapshot['state'] === 'unavailable')
+                            <p class="course-version-media-empty is-unavailable">
                                 {{ __('lf.LF_version_detail_media_unavailable') }}
-                            @elseif ($snapshot['viewMode'] === 'modal_embed')
-                                <button type="button"
-                                        class="course-version-media-thumbnail-button"
-                                        data-preview-name="{{ $label }}"
-                                        data-preview-url="{{ $snapshot['url'] }}"
-                                        data-preview-type="embed"
-                                        data-preview-mime="text/html"
-                                        x-on:click="openVersionPreview($el.dataset.previewName, $el.dataset.previewUrl, $el.dataset.previewType, $el.dataset.previewMime)">
-                                    <x-media-thumbnail :presentation="$snapshot['thumbnail']" :alt="$label" />
-                                </button>
-                                <button type="button" class="admin-link-button admin-text-action"
-                                        data-preview-name="{{ $label }}"
-                                        data-preview-url="{{ $snapshot['url'] }}"
-                                        data-preview-type="embed"
-                                        data-preview-mime="text/html"
-                                        x-on:click="openVersionPreview($el.dataset.previewName, $el.dataset.previewUrl, $el.dataset.previewType, $el.dataset.previewMime)">
-                                    {{ __('lf.LF_media_file_common_preview_action') }}
-                                </button>
-                            @elseif ($snapshot['viewMode'] === 'new_tab_document')
-                                <a class="course-version-media-thumbnail-button"
-                                   href="{{ $snapshot['url'] }}"
-                                   target="_blank"
-                                   rel="noopener noreferrer">
-                                    <x-media-thumbnail :presentation="$snapshot['thumbnail']" :alt="$snapshot['media']->display_name" />
-                                </a>
-                                <span class="course-version-media-name">{{ $snapshot['media']->display_name }}</span>
-                                <a class="admin-text-action"
-                                   href="{{ $snapshot['url'] }}"
-                                   target="_blank"
-                                   rel="noopener noreferrer">
-                                    {{ __('lf.LF_media_file_common_preview_action') }}
-                                </a>
-                            @else
-                                @php
-                                    $previewType = match ($snapshot['viewMode']) {
-                                        'modal_image' => 'image',
-                                        'modal_video' => 'video',
-                                        'modal_document' => 'document',
-                                    };
-                                @endphp
-                                <button type="button"
-                                        class="course-version-media-thumbnail-button"
-                                        data-preview-name="{{ $snapshot['media']->display_name }}"
-                                        data-preview-url="{{ $snapshot['url'] }}"
-                                        data-preview-type="{{ $previewType }}"
-                                        data-preview-mime="{{ $snapshot['media']->mime_type }}"
-                                        x-on:click="openVersionPreview($el.dataset.previewName, $el.dataset.previewUrl, $el.dataset.previewType, $el.dataset.previewMime)">
-                                    <x-media-thumbnail :presentation="$snapshot['thumbnail']" :alt="$snapshot['media']->display_name" />
-                                </button>
-                                <span class="course-version-media-name">{{ $snapshot['media']->display_name }}</span>
-                                <button type="button" class="admin-link-button admin-text-action"
-                                        data-preview-name="{{ $snapshot['media']->display_name }}"
-                                        data-preview-url="{{ $snapshot['url'] }}"
-                                        data-preview-type="{{ $previewType }}"
-                                        data-preview-mime="{{ $snapshot['media']->mime_type }}"
-                                        x-on:click="openVersionPreview($el.dataset.previewName, $el.dataset.previewUrl, $el.dataset.previewType, $el.dataset.previewMime)">
-                                    {{ __('lf.LF_media_file_common_preview_action') }}
-                                </button>
-                            @endif
-                        </div>
+                            </p>
+                        @else
+                            @php
+                                $mediaName = $snapshot['media']->display_name ?? $label;
+                                $previewType = match ($snapshot['viewMode']) {
+                                    'modal_image' => 'image',
+                                    'modal_video' => 'video',
+                                    'modal_embed' => 'embed',
+                                    default => null,
+                                };
+                            @endphp
+                            <x-authoring-media-row
+                                :presentation="$snapshot['thumbnail']"
+                                :alt="$mediaName"
+                                :display-name="$mediaName">
+                                @if ($snapshot['viewMode'] === 'new_tab_document')
+                                    <a class="authoring-media-overlay-action"
+                                       href="{{ $snapshot['url'] }}"
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       aria-label="{{ __('lf.LF_media_file_common_preview_action') }}">
+                                        <x-backend-icon name="eye" class="authoring-media-action-icon" />
+                                    </a>
+                                @else
+                                    <button type="button"
+                                            class="authoring-media-overlay-action"
+                                            data-preview-name="{{ $mediaName }}"
+                                            data-preview-url="{{ $snapshot['url'] }}"
+                                            data-preview-type="{{ $previewType }}"
+                                            data-preview-mime="{{ $snapshot['media']->mime_type ?? 'text/html' }}"
+                                            aria-label="{{ __('lf.LF_media_file_common_preview_action') }}"
+                                            x-on:click="openVersionPreview($el.dataset.previewName, $el.dataset.previewUrl, $el.dataset.previewType, $el.dataset.previewMime)">
+                                        <x-backend-icon name="eye" class="authoring-media-action-icon" />
+                                    </button>
+                                @endif
+                            </x-authoring-media-row>
+                        @endif
                     </div>
                 @endforeach
             </div>
@@ -283,7 +266,7 @@
                 );
             @endphp
 
-            <header class="course-template-section-header">
+            <header class="course-template-section-header course-version-structure-header">
                 <h2 id="course-version-content-title" class="admin-form-section-title">
                     {{ __('lf.LF_course_template_version_detail_content') }}
                 </h2>
@@ -323,7 +306,7 @@
                     {{ __('lf.LF_course_template_structure_tab_sections') }}
                 </button>
             </div>
-            <p class="course-version-structure-tab-help" aria-live="polite">
+            <p class="course-template-structure-tab-help" aria-live="polite">
                 <span x-show="activeContentTab === 'direct'">
                     {{ __('lf.LF_course_template_structure_tab_direct_help') }}
                 </span>
@@ -339,19 +322,16 @@
                  x-show="activeContentTab === 'direct'"
                  x-cloak>
                 <section id="course-version-direct-lessons"
-                         class="course-template-lesson-panel"
+                         class="course-template-lesson-panel course-template-direct-lesson-panel"
                          aria-labelledby="course-version-direct-lessons-title">
-                    <div class="course-template-section-action-bar">
-                        <div>
-                            <strong id="course-version-direct-lessons-title">
-                                {{ __('lf.LF_course_template_structure_tab_direct') }}
-                            </strong>
-                            <div class="lf-secondary-text">
-                                {{ __('lf.LF_course_template_lesson_common_direct_total', [
-                                    'count' => $directLessons->count(),
-                                ]) }}
-                            </div>
-                        </div>
+                    <div class="course-template-section-action-bar course-template-content-toolbar">
+                        <strong id="course-version-direct-lessons-title">
+                            {{ trans_choice(
+                                'lf.LF_course_template_lesson_common_count',
+                                $directLessons->count(),
+                                ['count' => $directLessons->count()]
+                            ) }}
+                        </strong>
                     </div>
                     <div class="course-template-lesson-list">
                         @forelse ($directLessons as $lesson)
@@ -371,18 +351,27 @@
                  aria-labelledby="course-version-sections-tab"
                  x-show="activeContentTab === 'sections'"
                  x-cloak>
-                <div class="course-template-section-action-bar">
-                    <strong>{{ __('lf.LF_course_template_section_common_area_title') }}</strong>
-                </div>
+                @if ($sections->isNotEmpty())
+                    <div class="course-template-section-action-bar course-template-content-toolbar">
+                        <strong>
+                            {{ trans_choice(
+                                'lf.LF_course_template_section_common_count',
+                                $sections->count(),
+                                ['count' => $sections->count()]
+                            ) }}
+                        </strong>
+                    </div>
+                @endif
                 <div class="course-template-outline-sections">
                     @forelse ($sectionsByParent->get('root', collect()) as $section)
                         @include('course-template-versions.partials.section-node', [
                             'depth' => 0,
                         ])
                     @empty
-                        <p class="course-template-outline-empty">
-                            {{ __('lf.LF_version_detail_no_sections') }}
-                        </p>
+                        <div class="course-template-content-empty course-version-content-empty">
+                            <strong>{{ __('lf.LF_version_detail_no_sections') }}</strong>
+                            <p>{{ __('lf.LF_version_detail_no_sections_help') }}</p>
+                        </div>
                     @endforelse
                 </div>
             </div>
@@ -414,10 +403,10 @@
                     <audio x-ref="versionPreviewAudio" x-show="preview.type === 'audio'"
                            x-bind:src="preview.type === 'audio' ? preview.url : ''"
                            controls preload="metadata" class="course-activity-media-audio-player"></audio>
-                    <iframe x-show="['embed', 'document'].includes(preview.type)"
-                            x-bind:src="['embed', 'document'].includes(preview.type) ? preview.url : ''"
+                    <iframe x-show="preview.type === 'embed'"
+                            x-bind:src="preview.type === 'embed' ? preview.url : ''"
                             x-bind:title="preview.name"
-                            class="media-library-modal-video course-version-document-preview"
+                            class="media-library-modal-video"
                             loading="lazy"
                             sandbox="allow-scripts allow-same-origin allow-presentation"
                             allow="autoplay; fullscreen; picture-in-picture"></iframe>

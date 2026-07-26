@@ -1162,6 +1162,7 @@ return [
     'LF_version_detail_mode_mixed_help' => 'Chọn từng tab để xem bài học trực tiếp hoặc bài học theo phần học.',
     'LF_version_detail_no_direct_lessons' => 'Chưa có bài học trực tiếp.',
     'LF_version_detail_no_sections' => 'Chưa có phần học.',
+    'LF_version_detail_no_sections_help' => 'Phiên bản này không có nội dung được tổ chức theo phần.',
     'LF_course_template_section_common_structure_title' => 'Cấu trúc khóa học',
     'LF_course_template_section_common_structure_help' => 'Chọn cách sắp xếp bài học trong Template khóa học.',
     'LF_course_template_structure_tabs_label' => 'Cách hiển thị cấu trúc khóa học',

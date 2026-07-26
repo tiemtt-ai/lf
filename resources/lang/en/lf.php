@@ -1162,6 +1162,7 @@ return [
     'LF_version_detail_mode_mixed_help' => 'Select a tab to review direct lessons or lessons organized by section.',
     'LF_version_detail_no_direct_lessons' => 'No direct lessons.',
     'LF_version_detail_no_sections' => 'No sections.',
+    'LF_version_detail_no_sections_help' => 'This version has no content organized into sections.',
     'LF_course_template_section_common_structure_title' => 'Course Structure',
     'LF_course_template_section_common_structure_help' => 'Choose how lessons are organized in the Course Template.',
     'LF_course_template_structure_tabs_label' => 'Course structure views',

@@ -59,12 +59,20 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertSame('Organize by section', __('lf.LF_course_template_structure_tab_sections'));
         $this->assertSame('No direct lessons.', __('lf.LF_version_detail_no_direct_lessons'));
         $this->assertSame('No sections.', __('lf.LF_version_detail_no_sections'));
+        $this->assertSame(
+            'This version has no content organized into sections.',
+            __('lf.LF_version_detail_no_sections_help')
+        );
 
         app()->setLocale('vi');
         $this->assertSame('Bài học độc lập', __('lf.LF_course_template_structure_tab_direct'));
         $this->assertSame('Chia theo phần', __('lf.LF_course_template_structure_tab_sections'));
         $this->assertSame('Chưa có bài học trực tiếp.', __('lf.LF_version_detail_no_direct_lessons'));
         $this->assertSame('Chưa có phần học.', __('lf.LF_version_detail_no_sections'));
+        $this->assertSame(
+            'Phiên bản này không có nội dung được tổ chức theo phần.',
+            __('lf.LF_version_detail_no_sections_help')
+        );
     }
 
     public function test_only_active_working_template_status_can_publish(): void
@@ -327,6 +335,14 @@ class CourseTemplatePublishingTest extends TestCase
             $this->assertStringContainsString($class, $authoringStructure);
             $this->assertStringContainsString($class, $version);
         }
+        $this->assertStringContainsString(
+            'course-version-structure-header',
+            $version
+        );
+        $this->assertStringNotContainsString(
+            'course-version-structure-header',
+            $authoringStructure
+        );
 
         foreach ([
             'course-template-outline-section',
@@ -696,7 +712,7 @@ class CourseTemplatePublishingTest extends TestCase
         $xpath = new \DOMXPath($document);
         $this->assertSame(2, $xpath->query(
             '//table[contains(@class, "course-template-history-table")]'
-            .'//tbody/tr/td[6][normalize-space()="Đã xuất bản"]'
+            .'//tbody/tr/td[5][normalize-space()="Đã xuất bản"]'
         )->length);
 
         app()->setLocale('en');
@@ -710,7 +726,7 @@ class CourseTemplatePublishingTest extends TestCase
         $englishXpath = new \DOMXPath($englishDocument);
         $this->assertSame(2, $englishXpath->query(
             '//table[contains(@class, "course-template-history-table")]'
-            .'//tbody/tr/td[6][normalize-space()="Published"]'
+            .'//tbody/tr/td[5][normalize-space()="Published"]'
         )->length);
     }
 
@@ -1681,16 +1697,31 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertSeeText('Quay lại lịch sử khóa học')
             ->assertSeeText('Sao chép vào bản nháp')
             ->assertSee('class="course-template-version-detail"', false)
+            ->assertSee('class="course-version-copy-label"', false)
+            ->assertSee('class="course-version-copy-content"', false)
+            ->assertSee('class="media-library-modal-panel"', false)
+            ->assertDontSee('course-version-preview-modal-panel', false)
             ->assertSee('role="tablist"', false)
             ->assertSee('id="course-version-direct-tab"', false)
             ->assertSee('id="course-version-sections-tab"', false)
             ->assertSee('role="tabpanel"', false)
+            ->assertSee('class="course-template-structure-tab-help"', false)
+            ->assertDontSee('course-version-structure-tab-help', false)
             ->assertSee('x-on:keydown.right.prevent', false)
             ->assertSee('x-on:keydown.left.prevent', false)
             ->assertSee('class="course-template-outline-section"', false)
+            ->assertSee(
+                'class="course-template-lesson-panel course-template-direct-lesson-panel"',
+                false
+            )
+            ->assertSee(
+                'class="course-template-section-action-bar course-template-content-toolbar"',
+                false
+            )
             ->assertSee('class="course-template-lesson-item"', false)
             ->assertSee('class="course-template-activity-item"', false)
             ->assertSee('openVersionPreview', false)
+            ->assertDontSeeText('Thời điểm có thể học')
             ->assertDontSeeText('Giáo viên được phân công')
             ->assertDontSeeText('Lưu thay đổi')
             ->assertDontSeeText('Xóa');
@@ -1711,6 +1742,17 @@ class CourseTemplatePublishingTest extends TestCase
         $xpath = new \DOMXPath($document);
         $contentCard = $xpath->query('//*[@id="course-version-content"]')->item(0);
         $this->assertNotNull($contentCard);
+        $descriptionValues = $xpath->query(
+            '//*[contains(concat(" ", normalize-space(@class), " "),'
+            .' " course-version-copy-content ")]'
+        );
+        $this->assertSame(2, $descriptionValues->length);
+        foreach ($descriptionValues as $descriptionValue) {
+            $this->assertFalse(str_starts_with(
+                $descriptionValue->textContent,
+                "\n"
+            ));
+        }
         $this->assertSame(0, $xpath->query('.//form', $contentCard)->length);
         $this->assertSame(0, $xpath->query('.//input|.//select|.//textarea', $contentCard)->length);
         $this->assertSame(0, $xpath->query('.//*[contains(@class, "course-version-role-badge")]', $contentCard)->length);

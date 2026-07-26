@@ -122,7 +122,9 @@
                 ])
             @empty
                 <div class="course-template-content-empty">
-                    <span class="course-template-content-empty-icon" aria-hidden="true">§</span>
+                    <span class="course-template-content-empty-icon" aria-hidden="true">
+                        <x-backend-icon name="hierarchy" />
+                    </span>
                     <strong>{{ __('lf.LF_course_template_section_common_empty_title') }}</strong>
                     <p>{{ __('lf.LF_course_template_section_common_empty') }}</p>
                     <a href="{{ route($sectionRoutePrefix.'.create', $template->id) }}"

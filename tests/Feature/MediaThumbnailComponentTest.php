@@ -26,6 +26,18 @@ class MediaThumbnailComponentTest extends TestCase
         $this->assertStringNotContainsString('<circle cx="12" cy="12" r="8"', $html);
     }
 
+    public function test_hierarchy_icon_expresses_parent_and_child_structure(): void
+    {
+        $html = Blade::render('<x-backend-icon name="hierarchy" />');
+
+        $this->assertStringContainsString(
+            '<rect x="8" y="1.5" width="8" height="4" rx="1">',
+            $html
+        );
+        $this->assertStringContainsString('<path d="M5 18v-2h14v2">', $html);
+        $this->assertStringNotContainsString('<circle cx="12" cy="12" r="8">', $html);
+    }
+
     public function test_youtube_thumbnail_is_resolved_server_side_and_rendered_as_image(): void
     {
         $presentation = app(MediaThumbnailPresenter::class)
@@ -76,6 +88,12 @@ class MediaThumbnailComponentTest extends TestCase
             $this->assertStringContainsString($rule, $css);
         }
         $this->assertStringContainsString('.media-thumbnail-compact > .media-thumbnail-image', $css);
+        $this->assertStringContainsString('--lf-media-preview-max-width: 1280px;', $css);
+        $this->assertStringContainsString(
+            'width: min(var(--lf-media-preview-max-width), 100%);',
+            $css
+        );
+        $this->assertStringContainsString('aspect-ratio: 16 / 9;', $css);
         $this->assertStringContainsString('class="media-library-modal-image"', $form);
     }
 

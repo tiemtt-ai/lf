@@ -111,7 +111,7 @@
             <div class="media-library-modal-body">
                 <template x-if="previewLoaded && preview.mediaType === 'image'"><img :src="preview.url" :alt="preview.name" class="media-library-modal-image"></template>
                 <video x-ref="introductionPreviewVideoPlayer" x-show="previewLoaded && preview.mediaType === 'video'" controls preload="metadata" class="media-library-modal-video"><source x-ref="introductionPreviewVideoSource" :src="videoSrc" :type="preview.mimeType"></video>
-                <iframe class="media-library-modal-video course-template-embed-preview" x-show="previewLoaded && preview.mediaType === 'embed'" :src="preview.mediaType === 'embed' ? preview.url : ''" :title="preview.name" loading="lazy" sandbox="allow-scripts allow-same-origin allow-presentation" allow="fullscreen; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                <iframe class="media-library-modal-video" x-show="previewLoaded && preview.mediaType === 'embed'" :src="preview.mediaType === 'embed' ? preview.url : ''" :title="preview.name" loading="lazy" sandbox="allow-scripts allow-same-origin allow-presentation" allow="fullscreen; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin"></iframe>
             </div>
         </div>
     </div>
