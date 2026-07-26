@@ -63,6 +63,7 @@ class MediaLibraryManagementTest extends TestCase
             ->assertSeeText(__('lf.LF_media_file_common_title'))
             ->assertSeeText(__('lf.LF_navigation_menu_admin_media'))
             ->assertSee('media-library-filter-grid', false)
+            ->assertSee('media-library-tab-count', false)
             ->assertSee('media-library-index-table', false)
             ->assertSee('media-library-index-actions', false)
             ->assertSee('media-library-sequence-number', false)
@@ -91,6 +92,10 @@ class MediaLibraryManagementTest extends TestCase
         );
         $this->assertStringContainsString(
             '.media-library-index-table tbody tr:hover .media-library-preview-button .media-library-preview-overlay',
+            $pagesCss
+        );
+        $this->assertStringContainsString(
+            '.media-library-tabs .admin-tab.is-active .media-library-tab-count',
             $pagesCss
         );
 
