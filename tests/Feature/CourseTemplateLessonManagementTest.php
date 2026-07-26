@@ -995,6 +995,268 @@ class CourseTemplateLessonManagementTest extends TestCase
         ]);
     }
 
+    public function test_http_authoring_persists_selected_all_any_and_all_previous_rules_idempotently(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Prerequisite Authoring Course',
+            'prerequisite-authoring-course',
+            null,
+            $teacher->id
+        );
+        $firstId = $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'First Direct'
+        );
+        $secondId = $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'Second Direct'
+        );
+        DB::table('core_course_template_lessons')
+            ->where('id', $firstId)
+            ->update(['sort_order' => 1]);
+        DB::table('core_course_template_lessons')
+            ->where('id', $secondId)
+            ->update(['sort_order' => 2]);
+        $collectionUrl = $this->directLessonCollectionUrl(
+            'admin',
+            $templateId
+        );
+
+        $this->actingAs($admin)
+            ->post(
+                $collectionUrl,
+                $this->validLessonData([
+                    'title' => 'Selected Direct',
+                    'sort_order' => 3,
+                    'unlock_rule' => 'selected_lessons_completed',
+                    'prerequisite_match' => 'all',
+                    'prerequisite_lesson_ids' => [$firstId, $secondId],
+                ])
+            )
+            ->assertSessionDoesntHaveErrors();
+        $selectedId = (int) DB::table('core_course_template_lessons')
+            ->where('template_id', $templateId)
+            ->where('title', 'Selected Direct')
+            ->value('id');
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'id' => $selectedId,
+            'unlock_rule' => 'selected_lessons_completed',
+            'prerequisite_match' => 'all',
+        ]);
+        $this->assertSame(
+            [$firstId, $secondId],
+            DB::table('core_course_template_lesson_prerequisites')
+                ->where('lesson_id', $selectedId)
+                ->orderBy('sort_order')
+                ->pluck('prerequisite_lesson_id')
+                ->map(fn ($id): int => (int) $id)
+                ->all()
+        );
+
+        $update = $this->validLessonData([
+            'title' => 'Selected Direct',
+            'sort_order' => 3,
+            'unlock_rule' => 'selected_lessons_completed',
+            'prerequisite_match' => 'any',
+            'prerequisite_lesson_ids' => [$firstId, $secondId],
+        ]);
+        $teacherCollectionUrl = $this->directLessonCollectionUrl(
+            'teacher',
+            $templateId
+        );
+        foreach ([1, 2] as $attempt) {
+            $this->actingAs($teacher)
+                ->put("{$teacherCollectionUrl}/{$selectedId}", $update)
+                ->assertSessionDoesntHaveErrors();
+        }
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'id' => $selectedId,
+            'prerequisite_match' => 'any',
+        ]);
+        $this->assertSame(
+            2,
+            DB::table('core_course_template_lesson_prerequisites')
+                ->where('lesson_id', $selectedId)
+                ->count()
+        );
+
+        $this->actingAs($admin)
+            ->post(
+                $collectionUrl,
+                $this->validLessonData([
+                    'title' => 'All Previous Direct',
+                    'sort_order' => 4,
+                    'unlock_rule' => 'all_previous_lessons_completed',
+                ])
+            )
+            ->assertSessionDoesntHaveErrors();
+        $allPreviousId = (int) DB::table('core_course_template_lessons')
+            ->where('template_id', $templateId)
+            ->where('title', 'All Previous Direct')
+            ->value('id');
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'id' => $allPreviousId,
+            'unlock_rule' => 'all_previous_lessons_completed',
+            'prerequisite_match' => null,
+        ]);
+        $this->assertSame(
+            0,
+            DB::table('core_course_template_lesson_prerequisites')
+                ->where('lesson_id', $allPreviousId)
+                ->count()
+        );
+    }
+
+    public function test_selected_prerequisite_request_tampering_is_rejected_by_tenant_lane_and_role(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Tampering Course',
+            'tampering-course'
+        );
+        $sectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Section Lane'
+        );
+        $sectionLessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            $sectionId,
+            'Section Prerequisite'
+        );
+        $otherTemplateId = $this->createTemplate(
+            $otherCustomerId,
+            'Other Tenant Course',
+            'other-tenant-course'
+        );
+        $otherLessonId = $this->createLesson(
+            $otherCustomerId,
+            $otherTemplateId,
+            null,
+            'Other Tenant Prerequisite'
+        );
+        $collectionUrl = $this->directLessonCollectionUrl(
+            'admin',
+            $templateId
+        );
+        $data = $this->validLessonData([
+            'title' => 'Tampered Direct',
+            'sort_order' => 10,
+            'unlock_rule' => 'selected_lessons_completed',
+            'prerequisite_match' => 'all',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(
+                $collectionUrl,
+                array_merge($data, [
+                    'prerequisite_lesson_ids' => [$otherLessonId],
+                ])
+            )
+            ->assertSessionHasErrors('prerequisite_lesson_ids.0');
+        $this->actingAs($admin)
+            ->post(
+                $collectionUrl,
+                array_merge($data, [
+                    'prerequisite_lesson_ids' => [$sectionLessonId],
+                ])
+            )
+            ->assertSessionHasErrors('prerequisite_lesson_ids');
+        $this->actingAs($student)
+            ->post(
+                $collectionUrl,
+                array_merge($data, [
+                    'prerequisite_lesson_ids' => [$sectionLessonId],
+                ])
+            )
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('core_course_template_lessons', [
+            'template_id' => $templateId,
+            'title' => 'Tampered Direct',
+        ]);
+        $this->assertSame(
+            0,
+            DB::table('core_course_template_lesson_prerequisites')
+                ->where('template_id', $templateId)
+                ->count()
+        );
+    }
+
+    public function test_prerequisite_validation_renders_error_and_preserves_old_selected_input(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Prerequisite UI Course',
+            'prerequisite-ui-course'
+        );
+        $futureId = $this->createLesson(
+            $customerId,
+            $templateId,
+            null,
+            'Future Prerequisite'
+        );
+        DB::table('core_course_template_lessons')
+            ->where('id', $futureId)
+            ->update(['sort_order' => 10]);
+        $collectionUrl = $this->directLessonCollectionUrl(
+            'admin',
+            $templateId
+        );
+        $createUrl = $collectionUrl.'/create';
+
+        $this->actingAs($admin)
+            ->from($createUrl)
+            ->post(
+                $collectionUrl,
+                $this->validLessonData([
+                    'title' => 'Preserved Invalid Lesson',
+                    'sort_order' => 5,
+                    'unlock_rule' => 'selected_lessons_completed',
+                    'prerequisite_match' => 'any',
+                    'prerequisite_lesson_ids' => [$futureId],
+                ])
+            )
+            ->assertRedirect($createUrl)
+            ->assertSessionHasErrors('prerequisite_lesson_ids');
+
+        $response = $this->actingAs($admin)
+            ->get($createUrl)
+            ->assertOk()
+            ->assertSeeText(
+                __('lf.LF_course_template_lesson_common_invalid_prerequisite')
+            );
+        $xpath = $this->xpath($response->getContent());
+        $this->assertSame(
+            'any',
+            $xpath->query(
+                '//select[@name="prerequisite_match"]/option[@selected]'
+            )->item(0)?->getAttribute('value')
+        );
+        $this->assertSame(
+            'checked',
+            $xpath->query(
+                '//input[@name="prerequisite_lesson_ids[]" and @value="'
+                .$futureId.'"]'
+            )->item(0)?->getAttribute('checked')
+        );
+    }
+
     public function test_delete_is_blocked_when_another_lesson_uses_the_prerequisite(): void
     {
         $customerId = $this->createTenant();

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -183,6 +184,46 @@ class CourseLessonPrerequisiteMigrationTest extends TestCase
                 ->where('lesson_id', $lessonId)
                 ->count()
         );
+    }
+
+    public function test_working_prerequisite_unique_constraint_rejects_duplicate_edge(): void
+    {
+        $context = $this->createCourseContext();
+        $prerequisiteId = $this->createWorkingLesson(
+            $context,
+            'Unique working prerequisite',
+            1
+        );
+        $lessonId = $this->createWorkingLesson(
+            $context,
+            'Unique working dependent',
+            2,
+            'selected_lessons_completed'
+        );
+        $this->createWorkingEdge($context, $lessonId, $prerequisiteId);
+
+        $this->expectException(QueryException::class);
+        $this->createWorkingEdge($context, $lessonId, $prerequisiteId, 1);
+    }
+
+    public function test_version_prerequisite_unique_constraint_rejects_duplicate_edge(): void
+    {
+        $context = $this->createCourseContext();
+        $prerequisiteId = $this->createVersionLesson(
+            $context,
+            'Unique version prerequisite',
+            1
+        );
+        $lessonId = $this->createVersionLesson(
+            $context,
+            'Unique version dependent',
+            2,
+            'selected_lessons_completed'
+        );
+        $this->createVersionEdge($context, $lessonId, $prerequisiteId);
+
+        $this->expectException(QueryException::class);
+        $this->createVersionEdge($context, $lessonId, $prerequisiteId);
     }
 
     private function migration(): object

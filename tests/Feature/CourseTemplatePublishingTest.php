@@ -2203,6 +2203,23 @@ class CourseTemplatePublishingTest extends TestCase
             ->get()
             ->keyBy('title_snapshot');
         $this->assertSame(
+            'all_previous_lessons_completed',
+            $firstVersionLessons['All Previous Lesson']->unlock_rule_snapshot
+        );
+        $this->assertNull(
+            $firstVersionLessons['All Previous Lesson']
+                ->prerequisite_match_snapshot
+        );
+        $this->assertSame(
+            'selected_lessons_completed',
+            $firstVersionLessons['Selected Lesson']->unlock_rule_snapshot
+        );
+        $this->assertSame(
+            'all',
+            $firstVersionLessons['Selected Lesson']
+                ->prerequisite_match_snapshot
+        );
+        $this->assertSame(
             2,
             DB::table('core_course_template_version_lesson_prerequisites')
                 ->where(
@@ -2210,6 +2227,34 @@ class CourseTemplatePublishingTest extends TestCase
                     $firstVersionLessons['All Previous Lesson']->id
                 )
                 ->count()
+        );
+        $this->assertSame(
+            [
+                $firstVersionLessons['First Lesson']->id,
+                $firstVersionLessons['Second Lesson']->id,
+            ],
+            DB::table('core_course_template_version_lesson_prerequisites')
+                ->where(
+                    'version_lesson_id',
+                    $firstVersionLessons['All Previous Lesson']->id
+                )
+                ->orderBy('sort_order')
+                ->pluck('prerequisite_version_lesson_id')
+                ->all()
+        );
+        $this->assertSame(
+            [
+                $firstVersionLessons['First Lesson']->id,
+                $firstVersionLessons['All Previous Lesson']->id,
+            ],
+            DB::table('core_course_template_version_lesson_prerequisites')
+                ->where(
+                    'version_lesson_id',
+                    $firstVersionLessons['Selected Lesson']->id
+                )
+                ->orderBy('sort_order')
+                ->pluck('prerequisite_version_lesson_id')
+                ->all()
         );
 
         $this->actingAs($admin)
