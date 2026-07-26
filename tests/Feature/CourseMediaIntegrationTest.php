@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\MediaMetadataProbe;
 use App\Services\MediaService;
 use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,6 +31,7 @@ class CourseMediaIntegrationTest extends TestCase
             'media.bucket' => 'lf-test-media',
             'media.region' => 'ap-southeast-1',
             'media.signed_url_ttl_minutes' => 5,
+            'media.ffprobe_binary' => '/usr/bin/false',
         ]);
 
         Carbon::setTestNow('2026-07-05 09:00:00');
@@ -1845,6 +1847,219 @@ class CourseMediaIntegrationTest extends TestCase
                 .'//a[normalize-space()="Teacher Media Activity" or contains(@class, "course-template-activity-title")]'
             )
         );
+    }
+
+    public function test_uploaded_activity_media_sets_automatic_duration_and_preserves_it_without_replacement(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Automatic Duration Template',
+            'automatic-duration-template',
+            $admin->id
+        );
+        $lessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            'Automatic Duration Lesson',
+            'automatic-duration-lesson'
+        );
+        $collection = "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities";
+
+        $probe = \Mockery::mock(MediaMetadataProbe::class);
+        $probe->shouldReceive('durationSeconds')
+            ->once()
+            ->with(\Mockery::type(UploadedFile::class), 'video')
+            ->andReturn(125);
+        $probe->shouldReceive('durationSeconds')
+            ->once()
+            ->with(\Mockery::type(UploadedFile::class), 'audio')
+            ->andReturn(61);
+        $this->app->instance(MediaMetadataProbe::class, $probe);
+
+        $this->actingAs($admin)->post($collection, $this->validActivityData([
+            'title' => 'Automatic Video',
+            'activity_type' => 'video',
+            'activity_video_file' => UploadedFile::fake()->create(
+                'automatic.mp4',
+                32,
+                'video/mp4'
+            ),
+        ]))->assertRedirect();
+
+        $activity = DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)
+            ->where('title', 'Automatic Video')
+            ->sole();
+        $mediaId = DB::table('media_file_usages')
+            ->where('customer_id', $customerId)
+            ->where('owner_type', 'course_activity')
+            ->where('owner_id', $activity->id)
+            ->where('usage_type', 'video')
+            ->where('status', 'active')
+            ->value('media_file_id');
+
+        $this->assertDatabaseHas('media_files', [
+            'id' => $mediaId,
+            'customer_id' => $customerId,
+            'duration_seconds' => 125,
+        ]);
+        $this->assertDatabaseHas('core_course_template_activities', [
+            'id' => $activity->id,
+            'duration_seconds' => 125,
+            'estimated_duration_seconds' => 180,
+        ]);
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'id' => $lessonId,
+            'duration_seconds' => 180,
+        ]);
+
+        $editUrl = "{$collection}/{$activity->id}/edit";
+        $this->actingAs($admin)->get($editUrl)
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_media_duration'))
+            ->assertSee('storedDurationSeconds: 125', false)
+            ->assertSee('storedEstimateMinutes: 3', false)
+            ->assertSee('x-model.number="estimatedDurationMinutes"', false)
+            ->assertSee(
+                "this.estimatedDurationMinutes = unchanged\n                 ? this.storedEstimateMinutes\n                 : null;",
+                false
+            )
+            ->assertSeeText(__('lf.LF_course_template_activity_media_actual_duration'))
+            ->assertDontSee('course-template-activity-auto-duration', false)
+            ->assertSee(
+                'name="activity_audio_file" class="lf-form-control authoring-media-upload admin-file-upload" accept=".mp3,.wav,.m4a,.aac,.ogg"',
+                false
+            )
+            ->assertDontSee('accept=".mp3,.wav,.webm', false)
+            ->assertDontSee('audio/mp4', false);
+
+        $this->actingAs($admin)->put(
+            "{$collection}/{$activity->id}",
+            $this->validActivityData([
+                'title' => 'Automatic Video Updated',
+                'activity_type' => 'video',
+                'estimated_duration_minutes' => 7,
+            ])
+        )->assertRedirect($editUrl);
+
+        $this->assertDatabaseHas('core_course_template_activities', [
+            'id' => $activity->id,
+            'title' => 'Automatic Video Updated',
+            'duration_seconds' => 125,
+            'estimated_duration_seconds' => 420,
+        ]);
+
+        $this->actingAs($admin)->put(
+            "{$collection}/{$activity->id}",
+            $this->validActivityData([
+                'title' => 'Automatic Audio Replacement',
+                'activity_type' => 'audio',
+                'activity_audio_file' => UploadedFile::fake()->create(
+                    'automatic.m4a',
+                    24,
+                    'audio/mp4'
+                ),
+            ])
+        )->assertRedirect($editUrl);
+
+        $this->assertDatabaseHas('core_course_template_activities', [
+            'id' => $activity->id,
+            'title' => 'Automatic Audio Replacement',
+            'activity_type' => 'audio',
+            'duration_seconds' => 61,
+            'estimated_duration_seconds' => 120,
+        ]);
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'id' => $lessonId,
+            'duration_seconds' => 120,
+        ]);
+        $this->assertDatabaseHas('media_file_usages', [
+            'customer_id' => $customerId,
+            'owner_type' => 'course_activity',
+            'owner_id' => $activity->id,
+            'usage_type' => 'video',
+            'status' => 'detached',
+        ]);
+    }
+
+    public function test_video_estimate_can_be_overridden_and_unknown_probe_stays_unknown(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            'Unknown Duration Template',
+            'unknown-duration-template',
+            $admin->id
+        );
+        $lessonId = $this->createLesson(
+            $customerId,
+            $templateId,
+            'Unknown Duration Lesson',
+            'unknown-duration-lesson'
+        );
+        $collection = "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities";
+
+        $probe = \Mockery::mock(MediaMetadataProbe::class);
+        $probe->shouldReceive('durationSeconds')->once()->andReturnNull();
+        $this->app->instance(MediaMetadataProbe::class, $probe);
+
+        $this->actingAs($admin)->post($collection, $this->validActivityData([
+            'title' => 'Unknown Video',
+            'activity_type' => 'video',
+            'activity_video_file' => UploadedFile::fake()->create(
+                'unknown.mp4',
+                32,
+                'video/mp4'
+            ),
+        ]))->assertRedirect();
+
+        $activityId = DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)
+            ->where('title', 'Unknown Video')
+            ->value('id');
+
+        $this->assertDatabaseHas('core_course_template_activities', [
+            'id' => $activityId,
+            'duration_seconds' => 0,
+            'estimated_duration_seconds' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->put("{$collection}/{$activityId}", $this->validActivityData([
+                'title' => 'Unknown Video With Estimate',
+                'activity_type' => 'video',
+                'estimated_duration_minutes' => 99,
+            ]))
+            ->assertRedirect("{$collection}/{$activityId}/edit");
+
+        $this->assertDatabaseHas('core_course_template_activities', [
+            'id' => $activityId,
+            'title' => 'Unknown Video With Estimate',
+            'duration_seconds' => 0,
+            'estimated_duration_seconds' => 5940,
+        ]);
+
+        $this->actingAs($admin)
+            ->from($collection)
+            ->post($collection, $this->validActivityData([
+                'title' => 'Video Disguised As Audio',
+                'activity_type' => 'audio',
+                'activity_audio_file' => UploadedFile::fake()->create(
+                    'wrong.mp4',
+                    32,
+                    'video/mp4'
+                ),
+            ]))
+            ->assertRedirect($collection)
+            ->assertSessionHasErrors('file');
+
+        $this->assertDatabaseMissing('core_course_template_activities', [
+            'customer_id' => $customerId,
+            'title' => 'Video Disguised As Audio',
+        ]);
     }
 
     public function test_activity_edit_displays_exact_current_video_audio_and_document_separately_from_upload_inputs(): void

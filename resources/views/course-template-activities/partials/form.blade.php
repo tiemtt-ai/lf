@@ -18,8 +18,13 @@
             : ['anytime'];
     }
     $storedEstimateMinutes = $formActivity?->estimated_duration_seconds !== null
-        && $formActivity->estimated_duration_seconds % 60 === 0
-            ? intdiv($formActivity->estimated_duration_seconds, 60) : null;
+        ? (int) ceil($formActivity->estimated_duration_seconds / 60)
+        : null;
+    $selectedEstimateMinutes = old(
+        'estimated_duration_minutes',
+        $storedEstimateMinutes
+    );
+    $storedDurationSeconds = (int) ($formActivity?->duration_seconds ?? 0);
     $completionRules = [
         'video' => ['view', 'watch_percent', 'manual'], 'audio' => ['view', 'watch_percent', 'manual'],
         'document' => ['view', 'manual'], 'embedded_video' => ['view', 'manual'],
@@ -33,11 +38,88 @@
 <div class="course-template-activity-form admin-form-flow"
      x-data="{
          activityType: @js($selectedActivityType ?? ''),
+         initialActivityType: @js($formActivity?->activity_type),
+         storedDurationSeconds: @js($storedDurationSeconds),
+         storedEstimateMinutes: @js($storedEstimateMinutes),
+         estimatedDurationMinutes: @js($selectedEstimateMinutes),
+         mediaDurationSeconds: @js($storedDurationSeconds > 0 ? $storedDurationSeconds : null),
+         mediaDurationState: @js($storedDurationSeconds > 0 ? 'ready' : 'empty'),
+         mediaTypeError: '',
          completionRule: @js($selectedCompletionRule),
          unlockRule: @js($selectedUnlockRule),
          learningPhases: @js(array_values((array) $selectedLearningPhases)),
          completionRules: @js($completionRules),
          completionRuleLabels: @js($completionRuleLabels),
+         activityTypeChanged() {
+             this.completionRule = '';
+             const automatic = ['video', 'audio'].includes(this.activityType);
+             const unchanged = this.activityType === this.initialActivityType;
+             this.mediaDurationSeconds = automatic && unchanged && this.storedDurationSeconds > 0
+                 ? this.storedDurationSeconds
+                 : null;
+             this.mediaDurationState = this.mediaDurationSeconds ? 'ready' : 'empty';
+             this.mediaTypeError = '';
+             this.estimatedDurationMinutes = unchanged
+                 ? this.storedEstimateMinutes
+                 : null;
+         },
+         readMediaDuration(event, expectedType) {
+             const file = event.target.files?.[0];
+             if (! file) {
+                 this.activityTypeChanged();
+                 return;
+             }
+             const extension = file.name.split('.').pop()?.toLowerCase() || '';
+             const allowedExtensions = {
+                 video: ['mp4', 'webm', 'mov', 'avi'],
+                 audio: ['mp3', 'wav', 'm4a', 'aac', 'ogg'],
+             };
+             const matchesType = file.type.startsWith(`${expectedType}/`)
+                 && allowedExtensions[expectedType].includes(extension);
+             if (! matchesType) {
+                 event.target.value = '';
+                 this.mediaDurationSeconds = null;
+                 this.mediaDurationState = 'invalid_type';
+                 this.mediaTypeError = expectedType;
+                 return;
+             }
+             this.mediaTypeError = '';
+             this.mediaDurationState = 'probing';
+             this.mediaDurationSeconds = null;
+             const objectUrl = URL.createObjectURL(file);
+             const media = document.createElement(
+                 this.activityType === 'audio' ? 'audio' : 'video'
+             );
+             media.preload = 'metadata';
+             media.onloadedmetadata = () => {
+                 const duration = Number.isFinite(media.duration) && media.duration > 0
+                     ? Math.ceil(media.duration)
+                     : null;
+                 this.mediaDurationSeconds = duration;
+                 this.mediaDurationState = duration ? 'ready' : 'unavailable';
+                 this.estimatedDurationMinutes = duration
+                     ? Math.ceil(duration / 60)
+                     : null;
+                 URL.revokeObjectURL(objectUrl);
+             };
+             media.onerror = () => {
+                 this.mediaDurationSeconds = null;
+                 this.mediaDurationState = 'unavailable';
+                 URL.revokeObjectURL(objectUrl);
+             };
+             media.src = objectUrl;
+         },
+         formattedMediaDuration() {
+             if (! this.mediaDurationSeconds) return '—';
+             const hours = Math.floor(this.mediaDurationSeconds / 3600);
+             const minutes = Math.floor((this.mediaDurationSeconds % 3600) / 60);
+             const seconds = this.mediaDurationSeconds % 60;
+             return [
+                 hours ? `${hours} giờ` : '',
+                 minutes ? `${minutes} phút` : '',
+                 seconds || (! hours && ! minutes) ? `${seconds} giây` : '',
+             ].filter(Boolean).join(' ');
+         },
          toggleLearningPhase(phase) {
              if (phase === 'anytime' && this.learningPhases.includes('anytime')) {
                  this.learningPhases = ['anytime'];
@@ -85,7 +167,7 @@
                 {{ __('lf.LF_course_template_activity_section_information_help') }}
             </p>
         </header>
-        <div class="admin-form-field-grid">
+        <div class="admin-form-field-grid course-template-activity-information-grid">
     <div class="lf-form-group admin-form-field--full">
         <x-form-label for="title" :value="__('lf.LF_course_template_activity_common_name')" :required="true" />
         <input id="title" type="text" name="title" class="lf-form-control" value="{{ old('title', $formActivity?->title) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_name') }}" required maxlength="255">
@@ -94,38 +176,73 @@
         <x-form-label for="description" :value="__('lf.LF_course_template_activity_common_description')" />
         <textarea id="description" name="description" class="lf-form-control" rows="4" placeholder="{{ __('lf.LF_course_template_activity_placeholder_description') }}">{{ old('description', $formActivity?->description) }}</textarea>
     </div>
-    <div class="lf-form-group">
+    <div class="lf-form-group course-template-activity-type-field">
         <x-form-label for="activity_type" :value="__('lf.LF_course_template_activity_common_type')" :required="true" />
-        <select id="activity_type" name="activity_type" class="lf-form-control" x-model="activityType" :class="{ 'lf-select-placeholder': activityType === '' }" @change="completionRule = ''" required>
+        <select id="activity_type" name="activity_type" class="lf-form-control" x-model="activityType" :class="{ 'lf-select-placeholder': activityType === '' }" @change="activityTypeChanged()" required>
             <option value="" disabled @selected(blank($selectedActivityType))>{{ __('lf.LF_course_template_activity_common_select_type') }}</option>
             @foreach ($activityTypes as $activityType)<option value="{{ $activityType }}" @selected($selectedActivityType === $activityType)>{{ __('lf.LF_course_template_activity_common_type_'.$activityType) }}</option>@endforeach
         </select>
     </div>
-    <div class="lf-form-group admin-form-field--full admin-form-conditional" x-show="activityType === 'video'" x-cloak>
+    <div class="lf-form-group admin-form-conditional course-template-activity-source-field" x-show="activityType === 'video'" x-cloak>
         <x-form-label for="activity_video_file" :value="__('lf.LF_course_template_activity_media_replacement_video')" />
         @include('course-template-activities.partials.current-media', ['mediaType' => 'video'])
-        <input id="activity_video_file" type="file" name="activity_video_file" class="lf-form-control authoring-media-upload admin-file-upload" accept="video/*">
+        <input id="activity_video_file" type="file" name="activity_video_file" class="lf-form-control authoring-media-upload admin-file-upload" accept=".mp4,.webm,.mov,.avi,video/mp4,video/webm,video/quicktime,video/x-msvideo" x-on:change="readMediaDuration($event, 'video')">
         <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']" />
+        <p class="lf-form-error"
+           role="alert"
+           x-show="mediaDurationState === 'invalid_type' && mediaTypeError === 'video'">
+            {{ __('lf.LF_course_template_activity_media_invalid_video') }}
+        </p>
     </div>
-    <div class="lf-form-group admin-form-field--full admin-form-conditional" x-show="activityType === 'embedded_video'" x-cloak><x-form-label for="external_video_url" value="External video URL" /><input id="external_video_url" type="url" name="external_video_url" class="lf-form-control" value="{{ old('external_video_url', $formActivity?->external_video_url) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_video_url') }}"></div>
-    <div class="lf-form-group admin-form-field--full admin-form-conditional" x-show="activityType === 'audio'" x-cloak>
+    <div class="lf-form-group admin-form-conditional course-template-activity-source-field" x-show="activityType === 'embedded_video'" x-cloak><x-form-label for="external_video_url" value="External video URL" /><input id="external_video_url" type="url" name="external_video_url" class="lf-form-control" value="{{ old('external_video_url', $formActivity?->external_video_url) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_video_url') }}"></div>
+    <div class="lf-form-group admin-form-conditional course-template-activity-source-field" x-show="activityType === 'audio'" x-cloak>
         <x-form-label for="activity_audio_file" :value="__('lf.LF_course_template_activity_media_replacement_audio')" />
         @include('course-template-activities.partials.current-media', ['mediaType' => 'audio'])
-        <input id="activity_audio_file" type="file" name="activity_audio_file" class="lf-form-control authoring-media-upload admin-file-upload" accept="audio/*">
+        <input id="activity_audio_file" type="file" name="activity_audio_file" class="lf-form-control authoring-media-upload admin-file-upload" accept=".mp3,.wav,.m4a,.aac,.ogg" x-on:change="readMediaDuration($event, 'audio')">
         <x-upload-hint :formats="['MP3', 'WAV', 'M4A', 'AAC', 'OGG']" />
+        <p class="lf-form-error"
+           role="alert"
+           x-show="mediaDurationState === 'invalid_type' && mediaTypeError === 'audio'">
+            {{ __('lf.LF_course_template_activity_media_invalid_audio') }}
+        </p>
     </div>
-    <div class="lf-form-group admin-form-field--full admin-form-conditional" x-show="activityType === 'document'" x-cloak>
+    <div class="lf-form-group admin-form-conditional course-template-activity-source-field" x-show="activityType === 'document'" x-cloak>
         <x-form-label for="activity_document_file" :value="__('lf.LF_course_template_activity_media_replacement_document')" />
         @include('course-template-activities.partials.current-media', ['mediaType' => 'document'])
         <input id="activity_document_file" type="file" name="activity_document_file" class="lf-form-control authoring-media-upload admin-file-upload" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf">
         <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX', 'TXT']" />
     </div>
-    <div class="lf-form-group admin-form-field--full admin-form-conditional" x-show="activityType === 'quiz'" x-cloak><x-form-label for="assessment_quiz_id" value="Assessment Quiz ID" /><input id="assessment_quiz_id" type="number" min="1" name="assessment_quiz_id" class="lf-form-control" value="{{ old('assessment_quiz_id', $formActivity?->assessment_quiz_id) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_assessment') }}"></div>
-    <div class="lf-form-group admin-form-field--full admin-form-conditional" x-show="activityType === 'live_class'" x-cloak><x-form-label for="live_class_url" value="Live class URL" /><input id="live_class_url" type="url" name="live_class_url" class="lf-form-control" value="{{ old('live_class_url', $formActivity?->live_class_url) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_live_class_url') }}"></div>
-    <div class="lf-form-group">
+    <div class="lf-form-group admin-form-conditional course-template-activity-source-field" x-show="activityType === 'quiz'" x-cloak><x-form-label for="assessment_quiz_id" value="Assessment Quiz ID" /><input id="assessment_quiz_id" type="number" min="1" name="assessment_quiz_id" class="lf-form-control" value="{{ old('assessment_quiz_id', $formActivity?->assessment_quiz_id) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_assessment') }}"></div>
+    <div class="lf-form-group admin-form-conditional course-template-activity-source-field" x-show="activityType === 'live_class'" x-cloak><x-form-label for="live_class_url" value="Live class URL" /><input id="live_class_url" type="url" name="live_class_url" class="lf-form-control" value="{{ old('live_class_url', $formActivity?->live_class_url) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_live_class_url') }}"></div>
+    <div class="lf-form-group course-template-activity-duration-field">
         <x-form-label for="estimated_duration_minutes" :value="__('lf.LF_course_template_activity_common_estimated_duration_minutes')" />
-        <input id="estimated_duration_minutes" type="number" min="1" step="1" name="estimated_duration_minutes" class="lf-form-control" value="{{ old('estimated_duration_minutes', $storedEstimateMinutes) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_estimated_duration') }}">
-        <p class="lf-form-help lf-secondary-text">{{ __('lf.LF_course_template_activity_common_estimated_duration_help') }}</p>
+        <input id="estimated_duration_minutes"
+               type="number"
+               min="1"
+               step="1"
+               name="estimated_duration_minutes"
+               class="lf-form-control"
+               x-model.number="estimatedDurationMinutes"
+               placeholder="{{ __('lf.LF_course_template_activity_placeholder_estimated_duration') }}">
+        <p class="lf-form-help lf-secondary-text"
+           x-show="!['video', 'audio'].includes(activityType)">
+            {{ __('lf.LF_course_template_activity_common_estimated_duration_help') }}
+        </p>
+        <p class="lf-form-help lf-secondary-text"
+           aria-live="polite"
+           x-show="['video', 'audio'].includes(activityType) && mediaDurationState === 'ready'">
+            {{ __('lf.LF_course_template_activity_media_actual_duration') }}
+            <strong x-text="formattedMediaDuration()"></strong>.
+            {{ __('lf.LF_course_template_activity_media_estimated_duration_help') }}
+        </p>
+        <p class="lf-form-help lf-secondary-text"
+           x-show="['video', 'audio'].includes(activityType) && mediaDurationState === 'probing'">
+            {{ __('lf.LF_course_template_activity_media_duration_probing') }}
+        </p>
+        <p class="lf-form-help lf-secondary-text"
+           x-show="['video', 'audio'].includes(activityType) && ['empty', 'unavailable'].includes(mediaDurationState)">
+            {{ __('lf.LF_course_template_activity_media_duration_unknown') }}
+        </p>
     </div>
         </div>
     </section>

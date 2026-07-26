@@ -18,6 +18,13 @@ use Throwable;
 
 class MediaService
 {
+    private ?MediaMetadataProbe $metadataProbe = null;
+
+    public function __construct(?MediaMetadataProbe $metadataProbe = null)
+    {
+        $this->metadataProbe = $metadataProbe;
+    }
+
     public function upload(
         UploadedFile $file,
         array $attributes,
@@ -46,6 +53,12 @@ class MediaService
         $this->validateFileContent($validated['file_type'], $mimeType, $extension);
         $fileSizeBytes = $file->getSize() ?: 0;
         $checksum = 'sha256:'.hash_file('sha256', $file->getRealPath());
+        $durationSeconds = $validated['duration_seconds']
+            ?? ($this->metadataProbe ?? app(MediaMetadataProbe::class))
+                ->durationSeconds(
+                    $file,
+                    $validated['file_type']
+                );
 
         $duplicate = $this->findDuplicateMediaFile(
             $customerId,
@@ -55,6 +68,21 @@ class MediaService
         );
 
         if ($duplicate) {
+            if ($duplicate->duration_seconds === null
+                && $durationSeconds !== null
+                && in_array($validated['file_type'], ['video', 'audio'], true)) {
+                DB::table('media_files')
+                    ->where('customer_id', $customerId)
+                    ->where('id', $duplicate->id)
+                    ->whereNull('duration_seconds')
+                    ->update([
+                        'duration_seconds' => $durationSeconds,
+                        'updated_at' => now(),
+                    ]);
+
+                $duplicate->duration_seconds = $durationSeconds;
+            }
+
             return $duplicate;
         }
 
@@ -97,7 +125,7 @@ class MediaService
                 'public_url' => null,
                 'checksum' => $checksum,
                 'file_size_bytes' => $fileSizeBytes,
-                'duration_seconds' => $validated['duration_seconds'] ?? null,
+                'duration_seconds' => $durationSeconds,
                 'width' => $validated['width'] ?? null,
                 'height' => $validated['height'] ?? null,
                 'page_count' => $validated['page_count'] ?? null,

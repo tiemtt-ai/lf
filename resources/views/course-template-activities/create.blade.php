@@ -22,8 +22,8 @@
 
     <section class="course-template-tab-panel course-template-activity-form-page">
     <div class="admin-card admin-form-card admin-form-surface course-template-activity-form-card">
-        <p class="course-template-activity-context">
-            {{ __('lf.LF_course_template_activity_common_location') }}:
+        <div class="course-template-activity-context" role="note">
+            <span>{{ __('lf.LF_course_template_activity_common_location') }}</span>
             <strong>
                 {{ $template->title }} →
                 @if ($section)
@@ -31,7 +31,7 @@
                 @endif
                 {{ $lesson->title }}
             </strong>
-        </p>
+        </div>
 
         <form method="POST"
               class="admin-form-standard"

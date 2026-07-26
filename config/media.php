@@ -10,6 +10,8 @@ return [
     'storage_class' => env('MEDIA_AWS_STORAGE_CLASS'),
     'signed_url_ttl_minutes' => (int) env('MEDIA_SIGNED_URL_TTL_MINUTES', 10),
     'max_upload_kilobytes' => (int) env('MEDIA_MAX_UPLOAD_KILOBYTES', 102400),
+    'ffprobe_binary' => env('MEDIA_FFPROBE_BINARY', 'ffprobe'),
+    'ffprobe_timeout_seconds' => (int) env('MEDIA_FFPROBE_TIMEOUT_SECONDS', 15),
     'file_types' => [
         'image',
         'video',

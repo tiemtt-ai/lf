@@ -34,6 +34,11 @@ class CourseTemplateActivityController extends Controller
     private const MANUAL_DURATION_TYPES = [
     ];
 
+    private const AUTO_MEDIA_DURATION_TYPES = [
+        'video',
+        'audio',
+    ];
+
     public function __construct(
         private readonly MediaService $mediaService,
         private readonly CourseActivityMediaPresenter $activityMediaPresenter,
@@ -345,7 +350,12 @@ class CourseTemplateActivityController extends Controller
                 'updated_at' => $now,
             ]));
             $this->detachInactiveMedia($activityId, $validated['activity_type'], $request);
-            $this->attachUploadedMedia($request, $activityId);
+            $uploadedMedia = $this->attachUploadedMedia($request, $activityId);
+            $this->synchronizeUploadedMediaDuration(
+                $activityId,
+                $validated['activity_type'],
+                $uploadedMedia
+            );
             $this->recalculateLessonDuration($customerId, $templateId, $lessonId);
 
             return $activityId;
@@ -477,7 +487,7 @@ class CourseTemplateActivityController extends Controller
             $sectionId,
             $lessonId
         );
-        $this->findActivity(
+        $activity = $this->findActivity(
             $customerId,
             $templateId,
             $lessonId,
@@ -491,18 +501,25 @@ class CourseTemplateActivityController extends Controller
             $lessonId
         );
 
-        DB::transaction(function () use ($request, $customerId, $templateId, $lessonId, $activityId, $validated): void {
+        DB::transaction(function () use ($request, $customerId, $templateId, $lessonId, $activityId, $validated, $activity): void {
             $this->lockTemplate($customerId, $templateId);
             DB::table('core_course_template_activities')
                 ->where('customer_id', $customerId)
                 ->where('template_id', $templateId)
                 ->where('template_lesson_id', $lessonId)
                 ->where('id', $activityId)
-                ->update($this->activityValues($validated, [
-                    'updated_at' => now(),
-                ]));
+                ->update($this->activityValues(
+                    $validated,
+                    ['updated_at' => now()],
+                    $activity
+                ));
             $this->detachInactiveMedia($activityId, $validated['activity_type'], $request);
-            $this->attachUploadedMedia($request, $activityId);
+            $uploadedMedia = $this->attachUploadedMedia($request, $activityId);
+            $this->synchronizeUploadedMediaDuration(
+                $activityId,
+                $validated['activity_type'],
+                $uploadedMedia
+            );
             $this->recalculateLessonDuration($customerId, $templateId, $lessonId);
         });
 
@@ -784,7 +801,12 @@ class CourseTemplateActivityController extends Controller
                     )
                 ),
             ],
-            'estimated_duration_minutes' => ['nullable', 'integer', 'min:1', 'max:525600'],
+            'estimated_duration_minutes' => [
+                'nullable',
+                'integer',
+                'min:1',
+                'max:525600',
+            ],
             'learning_phases' => ['required', 'array', 'min:1'],
             'learning_phases.*' => ['required', 'string', Rule::in(self::LEARNING_PHASES), 'distinct'],
             'is_required' => ['required', 'boolean'],
@@ -860,8 +882,17 @@ class CourseTemplateActivityController extends Controller
 
     private function activityValues(
         array $validated,
-        array $extra = []
+        array $extra = [],
+        ?object $existingActivity = null
     ): array {
+        $usesAutomaticMediaDuration = in_array(
+            $validated['activity_type'],
+            self::AUTO_MEDIA_DURATION_TYPES,
+            true
+        );
+        $preserveAutomaticDuration = $usesAutomaticMediaDuration
+            && $existingActivity?->activity_type === $validated['activity_type'];
+
         return array_merge(array_filter([
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
@@ -870,13 +901,14 @@ class CourseTemplateActivityController extends Controller
             'external_video_url' => $validated['external_video_url'] ?? null,
             'live_class_url' => $validated['live_class_url'] ?? null,
             'assessment_quiz_id' => $validated['assessment_quiz_id'] ?? null,
-            'duration_seconds' => in_array(
-                $validated['activity_type'],
-                self::MANUAL_DURATION_TYPES,
-                true
-            ) ? ($validated['duration_seconds'] ?? 0) : 0,
+            'duration_seconds' => $preserveAutomaticDuration
+                ? (int) $existingActivity->duration_seconds
+                : 0,
             'estimated_duration_seconds' => isset($validated['estimated_duration_minutes'])
-                ? $validated['estimated_duration_minutes'] * 60 : null,
+                ? $validated['estimated_duration_minutes'] * 60
+                : ($preserveAutomaticDuration
+                    ? $existingActivity->estimated_duration_seconds
+                    : null),
             'available_anytime' => in_array('anytime', $validated['learning_phases'], true),
             'available_before_session' => in_array('before_session', $validated['learning_phases'], true),
             'available_during_session' => in_array('during_session', $validated['learning_phases'], true),
@@ -1020,8 +1052,10 @@ class CourseTemplateActivityController extends Controller
         return $activity;
     }
 
-    private function attachUploadedMedia(Request $request, int $activityId): void
-    {
+    private function attachUploadedMedia(
+        Request $request,
+        int $activityId
+    ): ?object {
         foreach ([
             'activity_video_file' => ['video', 'video'],
             'activity_audio_file' => ['audio', 'audio'],
@@ -1050,7 +1084,41 @@ class CourseTemplateActivityController extends Controller
                 $activityId,
                 $usageType
             );
+
+            return $mediaFile;
         }
+
+        return null;
+    }
+
+    private function synchronizeUploadedMediaDuration(
+        int $activityId,
+        string $activityType,
+        ?object $mediaFile
+    ): void {
+        if ($mediaFile === null
+            || ! in_array(
+                $activityType,
+                self::AUTO_MEDIA_DURATION_TYPES,
+                true
+            )) {
+            return;
+        }
+
+        $durationSeconds = $mediaFile->duration_seconds !== null
+            ? (int) $mediaFile->duration_seconds
+            : null;
+
+        DB::table('core_course_template_activities')
+            ->where('customer_id', $this->customerId())
+            ->where('id', $activityId)
+            ->update([
+                'duration_seconds' => $durationSeconds ?? 0,
+                'estimated_duration_seconds' => $durationSeconds !== null
+                    ? (int) ceil($durationSeconds / 60) * 60
+                    : null,
+                'updated_at' => now(),
+            ]);
     }
 
     private function detachInactiveMedia(int $activityId, string $activityType, Request $request): void

@@ -920,7 +920,8 @@
     min-width: 0;
 }
 
-.course-template-lesson-context {
+.course-template-lesson-context,
+.course-template-activity-context {
     margin: 0 0 24px;
     padding: 12px 14px;
     display: flex;
@@ -935,7 +936,8 @@
     line-height: 1.5;
 }
 
-.course-template-lesson-context strong {
+.course-template-lesson-context strong,
+.course-template-activity-context strong {
     color: var(--admin-control-text);
     font-size: 14px;
     font-weight: 500;
@@ -953,8 +955,35 @@
 .course-template-activity-form { width: 100%; min-width: 0; display: block; }
 .course-template-activity-form-wide { grid-column: 1 / -1; }
 .course-template-activity-form-card > form { width: 100%; min-width: 0; }
-.course-template-activity-context { margin: 0 0 24px; overflow-wrap: anywhere; }
 .course-template-activity-form-card .admin-form-actions { margin-top: 6px; }
+.course-template-activity-information-grid > .course-template-activity-source-field {
+    margin-top: 0;
+}
+.course-template-activity-duration-field .lf-form-help strong {
+    color: var(--admin-control-text);
+    font-weight: 600;
+}
+
+@media (min-width: 1200px) {
+    .lf-admin-page .course-template-activity-information-grid,
+    :root.is-backend-sidebar-collapsed .backend-shell .course-template-activity-information-grid,
+    .backend-shell.is-sidebar-collapsed .course-template-activity-information-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 901px) and (max-width: 1199.98px) {
+    .lf-admin-page .course-template-activity-information-grid,
+    :root.is-backend-sidebar-collapsed .backend-shell .course-template-activity-information-grid,
+    .backend-shell.is-sidebar-collapsed .course-template-activity-information-grid {
+        grid-auto-flow: row dense;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .course-template-activity-information-grid .course-template-activity-source-field {
+        grid-column: 1 / -1;
+    }
+}
 
 .course-template-section-form {
     width: 100%;
