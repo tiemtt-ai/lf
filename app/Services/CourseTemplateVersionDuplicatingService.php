@@ -62,6 +62,8 @@ class CourseTemplateVersionDuplicatingService
             $activities = $this->versionActivities($customerId, $versionId);
 
             $this->validateSnapshotGraph(
+                $customerId,
+                $versionId,
                 $sections,
                 $lessons,
                 $activities,
@@ -233,6 +235,8 @@ class CourseTemplateVersionDuplicatingService
     }
 
     private function validateSnapshotGraph(
+        int $customerId,
+        int $versionId,
         Collection $sections,
         Collection $lessons,
         Collection $activities,
@@ -242,8 +246,16 @@ class CourseTemplateVersionDuplicatingService
         $lessonIds = $lessons->pluck('id')->flip();
         $activityIds = $activities->pluck('id')->flip();
         $activitiesById = $activities->keyBy('id');
+        $lessonsById = $lessons->keyBy('id');
+        $lessonOrder = $this->versionLessonOrder($lessons, $sections);
+        $edgesByLesson = $lessonPrerequisites
+            ->groupBy('version_lesson_id');
 
         foreach ($sections as $section) {
+            if ((int) $section->customer_id !== $customerId
+                || (int) $section->template_version_id !== $versionId) {
+                $this->invalidStructure();
+            }
             if (
                 $section->parent_version_section_id
                 && ! $sectionIds->has($section->parent_version_section_id)
@@ -258,6 +270,10 @@ class CourseTemplateVersionDuplicatingService
         $this->assertValidOrderValues($activities, 'sort_order');
 
         foreach ($lessons as $lesson) {
+            if ((int) $lesson->customer_id !== $customerId
+                || (int) $lesson->template_version_id !== $versionId) {
+                $this->invalidStructure();
+            }
             if (
                 $lesson->version_section_id
                 && ! $sectionIds->has($lesson->version_section_id)
@@ -282,16 +298,89 @@ class CourseTemplateVersionDuplicatingService
         }
 
         foreach ($lessonPrerequisites as $edge) {
-            if (! $lessonIds->has($edge->version_lesson_id)
+            $dependent = $lessonsById->get($edge->version_lesson_id);
+            $prerequisite = $lessonsById->get(
+                $edge->prerequisite_version_lesson_id
+            );
+            if ((int) $edge->customer_id !== $customerId
+                || (int) $edge->template_version_id !== $versionId
+                || ! $lessonIds->has($edge->version_lesson_id)
                 || ! $lessonIds->has($edge->prerequisite_version_lesson_id)
                 || (int) $edge->version_lesson_id
-                    === (int) $edge->prerequisite_version_lesson_id) {
+                    === (int) $edge->prerequisite_version_lesson_id
+                || (($dependent->version_section_id === null)
+                    !== ($prerequisite->version_section_id === null))
+                || ($lessonOrder[$edge->prerequisite_version_lesson_id]
+                    ?? PHP_INT_MAX)
+                    >= ($lessonOrder[$edge->version_lesson_id] ?? -1)) {
+                $this->invalidStructure();
+            }
+        }
+
+        foreach ($lessons as $lesson) {
+            $lessonEdges = $edgesByLesson->get($lesson->id, collect())
+                ->sortBy('sort_order')
+                ->values();
+            $expectedSortOrders = $lessonEdges->isEmpty()
+                ? []
+                : range(0, $lessonEdges->count() - 1);
+            if ($lessonEdges->pluck('sort_order')->map(
+                fn ($order): int => (int) $order
+            )->all() !== $expectedSortOrders) {
+                $this->invalidStructure();
+            }
+
+            $edgeIds = $lessonEdges
+                ->pluck('prerequisite_version_lesson_id')
+                ->map(fn ($id): int => (int) $id)
+                ->all();
+            $rule = $lesson->unlock_rule_snapshot;
+            $match = $lesson->prerequisite_match_snapshot;
+            $legacyPrerequisiteId = $lesson
+                ->unlock_after_version_lesson_id;
+            $hasDate = (bool) $lesson->unlock_at_snapshot;
+
+            $valid = match ($rule) {
+                'none' => $edgeIds === []
+                    && $match === null
+                    && ! $legacyPrerequisiteId
+                    && ! $hasDate,
+                'date_based' => $edgeIds === []
+                    && $match === null
+                    && ! $legacyPrerequisiteId
+                    && $hasDate,
+                'previous_lesson_completed' => $edgeIds === []
+                    && $match === null
+                    && $this->validLegacyPrerequisite(
+                        $lesson,
+                        $lessonsById,
+                        $lessonOrder
+                    )
+                    && ! $hasDate,
+                'selected_lessons_completed' => $edgeIds !== []
+                    && in_array($match, ['all', 'any'], true)
+                    && ! $legacyPrerequisiteId
+                    && ! $hasDate,
+                'all_previous_lessons_completed' => $match === null
+                    && ! $legacyPrerequisiteId
+                    && ! $hasDate
+                    && $edgeIds === $this->allPreviousVersionLessonIds(
+                        $lesson,
+                        $lessons,
+                        $lessonOrder
+                    ),
+                default => false,
+            };
+
+            if (! $valid) {
                 $this->invalidStructure();
             }
         }
 
         foreach ($activities as $activity) {
-            if (! $lessonIds->has($activity->version_lesson_id)) {
+            if ((int) $activity->customer_id !== $customerId
+                || (int) $activity->template_version_id !== $versionId
+                || ! $lessonIds->has($activity->version_lesson_id)) {
                 $this->invalidStructure();
             }
 
@@ -342,6 +431,88 @@ class CourseTemplateVersionDuplicatingService
                 $this->invalidStructure();
             }
         }
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function versionLessonOrder(
+        Collection $lessons,
+        Collection $sections
+    ): array {
+        $sectionKeys = [];
+        $children = $sections->groupBy(
+            fn (object $section): int => (int) ($section->parent_version_section_id ?? 0)
+        );
+        $walk = function (int $parentId, string $prefix = '') use (
+            &$walk,
+            &$sectionKeys,
+            $children
+        ): void {
+            foreach ($children->get($parentId, collect())->sortBy(
+                fn (object $section): string => sprintf(
+                    '%010d:%020d',
+                    $section->display_order,
+                    $section->id
+                )
+            ) as $section) {
+                $key = $prefix.sprintf(
+                    '/S%010d:%020d',
+                    $section->display_order,
+                    $section->id
+                );
+                $sectionKeys[$section->id] = $key;
+                $walk((int) $section->id, $key);
+            }
+        };
+        $walk(0);
+
+        return $lessons->sortBy(
+            fn (object $lesson): string => ($lesson->version_section_id === null
+                    ? '0'
+                    : '1'.($sectionKeys[$lesson->version_section_id] ?? ''))
+                .sprintf(
+                    '/L%010d:%020d',
+                    $lesson->sort_order,
+                    $lesson->id
+                )
+        )->values()->pluck('id')->flip()->all();
+    }
+
+    private function validLegacyPrerequisite(
+        object $lesson,
+        Collection $lessonsById,
+        array $lessonOrder
+    ): bool {
+        $prerequisite = $lessonsById->get(
+            $lesson->unlock_after_version_lesson_id
+        );
+
+        return $prerequisite
+            && (($prerequisite->version_section_id === null)
+                === ($lesson->version_section_id === null))
+            && ($lessonOrder[$prerequisite->id] ?? PHP_INT_MAX)
+                < ($lessonOrder[$lesson->id] ?? -1);
+    }
+
+    /**
+     * @return array<int>
+     */
+    private function allPreviousVersionLessonIds(
+        object $lesson,
+        Collection $lessons,
+        array $lessonOrder
+    ): array {
+        return collect($lessonOrder)
+            ->filter(
+                fn (int $position, int $lessonId): bool => $position < ($lessonOrder[$lesson->id] ?? -1)
+                    && (($lessons->firstWhere('id', $lessonId)
+                        ->version_section_id === null)
+                        === ($lesson->version_section_id === null))
+            )
+            ->keys()
+            ->map(fn ($id): int => (int) $id)
+            ->all();
     }
 
     private function assertVideoState(object $version): void

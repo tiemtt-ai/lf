@@ -2483,6 +2483,198 @@ class CourseTemplatePublishingTest extends TestCase
         ]);
     }
 
+    public function test_duplicate_rejects_semantically_invalid_prerequisite_snapshots_without_changing_draft(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate(
+            $customerId,
+            $admin->id,
+            'Invalid Prerequisite Snapshot'
+        );
+        $sectionId = $this->createSection(
+            $customerId,
+            $templateId,
+            'Section Lane'
+        );
+        $lessonIds = [];
+        foreach ([
+            ['First Direct', null],
+            ['Second Direct', null],
+            ['Dependent Direct', null],
+            ['Future Direct', null],
+            ['Section Lesson', $sectionId],
+        ] as $order => [$title, $lessonSectionId]) {
+            $lessonIds[$title] = $this->createLesson(
+                $customerId,
+                $templateId,
+                $lessonSectionId,
+                $title,
+                $order + 1,
+                $admin->id
+            );
+            $this->createActivity(
+                $customerId,
+                $templateId,
+                $lessonIds[$title],
+                $title.' Activity',
+                1,
+                $admin->id
+            );
+        }
+        DB::table('core_course_template_lessons')
+            ->where('id', $lessonIds['Dependent Direct'])
+            ->update([
+                'unlock_rule' => 'selected_lessons_completed',
+                'prerequisite_match' => 'all',
+            ]);
+        DB::table('core_course_template_lesson_prerequisites')->insert([
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'lesson_id' => $lessonIds['Dependent Direct'],
+            'prerequisite_lesson_id' => $lessonIds['First Direct'],
+            'sort_order' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish"
+            )
+            ->assertSessionDoesntHaveErrors();
+        $this->actingAs($admin)
+            ->post(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish"
+            )
+            ->assertSessionDoesntHaveErrors();
+
+        $version = DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('version_number', 1)
+            ->first();
+        $otherVersionId = (int) DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('version_number', 2)
+            ->value('id');
+        $versionLessons = DB::table('core_course_template_version_lessons')
+            ->where('customer_id', $customerId)
+            ->where('template_version_id', $version->id)
+            ->get()
+            ->keyBy('title_snapshot');
+        $edge = DB::table(
+            'core_course_template_version_lesson_prerequisites'
+        )
+            ->where(
+                'version_lesson_id',
+                $versionLessons['Dependent Direct']->id
+            )
+            ->first();
+        $this->assertNotNull($edge);
+
+        DB::table('core_course_templates')
+            ->where('id', $templateId)
+            ->update([
+                'title' => 'Current Draft Must Survive Graph Validation',
+                'working_revision' => 9,
+            ]);
+        $draftBefore = $this->draftState($customerId, $templateId);
+        $duplicateUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/versions/{$version->id}/duplicate-to-draft";
+        $assertRejected = function () use (
+            $admin,
+            $customerId,
+            $templateId,
+            $duplicateUrl,
+            $draftBefore
+        ): void {
+            $this->actingAs($admin)
+                ->from(
+                    "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=history"
+                )
+                ->post($duplicateUrl)
+                ->assertSessionHasErrors('duplicate');
+            $this->assertSame(
+                $draftBefore,
+                $this->draftState($customerId, $templateId)
+            );
+        };
+
+        DB::table('core_course_template_version_lessons')
+            ->where('id', $versionLessons['Dependent Direct']->id)
+            ->update(['prerequisite_match_snapshot' => null]);
+        $assertRejected();
+        DB::table('core_course_template_version_lessons')
+            ->where('id', $versionLessons['Dependent Direct']->id)
+            ->update(['prerequisite_match_snapshot' => 'all']);
+
+        DB::table('core_course_template_version_lesson_prerequisites')
+            ->where('id', $edge->id)
+            ->update([
+                'prerequisite_version_lesson_id' => $versionLessons['Future Direct']->id,
+            ]);
+        $assertRejected();
+        DB::table('core_course_template_version_lesson_prerequisites')
+            ->where('id', $edge->id)
+            ->update([
+                'prerequisite_version_lesson_id' => $versionLessons['First Direct']->id,
+            ]);
+
+        DB::table('core_course_template_version_lesson_prerequisites')
+            ->where('id', $edge->id)
+            ->update([
+                'prerequisite_version_lesson_id' => $versionLessons['Section Lesson']->id,
+            ]);
+        $assertRejected();
+        DB::table('core_course_template_version_lesson_prerequisites')
+            ->where('id', $edge->id)
+            ->update([
+                'prerequisite_version_lesson_id' => $versionLessons['First Direct']->id,
+            ]);
+
+        DB::table('core_course_template_version_lesson_prerequisites')
+            ->where('id', $edge->id)
+            ->update(['sort_order' => 3]);
+        $assertRejected();
+        DB::table('core_course_template_version_lesson_prerequisites')
+            ->where('id', $edge->id)
+            ->update(['sort_order' => 0]);
+
+        DB::table('core_course_template_version_lessons')
+            ->where('id', $versionLessons['Dependent Direct']->id)
+            ->update([
+                'unlock_rule_snapshot' => 'all_previous_lessons_completed',
+                'prerequisite_match_snapshot' => null,
+            ]);
+        $assertRejected();
+        DB::table('core_course_template_version_lessons')
+            ->where('id', $versionLessons['Dependent Direct']->id)
+            ->update([
+                'unlock_rule_snapshot' => 'selected_lessons_completed',
+                'prerequisite_match_snapshot' => 'all',
+            ]);
+
+        DB::table('core_course_template_version_lesson_prerequisites')
+            ->where('id', $edge->id)
+            ->update(['template_version_id' => $otherVersionId]);
+        $assertRejected();
+        DB::table('core_course_template_version_lesson_prerequisites')
+            ->where('id', $edge->id)
+            ->update(['template_version_id' => $version->id]);
+
+        DB::table('core_course_template_version_lesson_prerequisites')
+            ->where('id', $edge->id)
+            ->update(['customer_id' => $otherCustomerId]);
+        $assertRejected();
+
+        $this->assertDatabaseMissing('saas_audit_logs', [
+            'customer_id' => $customerId,
+            'action' => 'course_template_version_duplicated_to_draft',
+        ]);
+    }
+
     public function test_publish_information_category_is_tenant_scoped_active_and_locked(): void
     {
         $customerId = $this->createTenant();
