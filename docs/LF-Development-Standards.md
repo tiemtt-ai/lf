@@ -1,6 +1,6 @@
 # LF Development Standards
 
-Version: 1.0
+Version: 1.1
 
 Status: Official Foundation
 
@@ -63,6 +63,102 @@ Before modifying LearnForge code, AI Agents must:
 * Preserve `customer_id` tenant isolation.
 * Prefer `DB::table()` unless Eloquent is clearly needed.
 * Add or update Feature Tests when behavior changes.
+
+---
+
+# Existing-Feature Change Safety Protocol
+
+## Automatic Trigger — Mandatory
+
+Khi người dùng yêu cầu sửa đổi hoặc nâng cấp một nghiệp vụ đã tồn tại, AI Agent
+phải tự động kích hoạt quy trình rà soát thay đổi an toàn. Việc kích hoạt không
+phụ thuộc vào việc người dùng có yêu cầu review, audit, regression test hay chỉ
+định tài liệu/chính sách cần đọc hay không.
+
+Mọi yêu cầu sửa, cập nhật, mở rộng, nâng cấp hoặc bổ sung hành vi vào form,
+flow, module hay nghiệp vụ hiện có phải được phân loại là:
+
+```text
+Existing-Feature Change
+```
+
+Trigger này bao gồm cả thay đổi nhỏ hoặc yêu cầu ngắn liên quan đến field,
+validation, server-resolved/readonly data, action, query/filter, lifecycle,
+status, role/access, route/redirect/middleware, data structure, module
+integration, bug fix, refactor hoặc logic hiện có. Độ sâu kiểm tra phải tỷ lệ
+với rủi ro, nhưng không được bỏ qua bước nhận diện và phân tích tác động.
+
+AI Agent phải tự xác định policy, dependency và consumer liên quan; không được
+yêu cầu người dùng liệt kê thay.
+
+## Before Implementation Gate
+
+Trước khi viết code, AI Agent phải:
+
+1. Xác nhận hành vi hiện tại từ tài liệu, source code và tests.
+2. Xác định source of truth, invariant và public contract liên quan.
+3. Đọc Guardrails, tài liệu domain/ADR/schema và các tài liệu được
+   [LF-INDEX](LF-INDEX.md) định tuyến.
+4. Kiểm tra các route, middleware, controller, service, request/validation,
+   authorization, tenant scope, model/query, schema, lifecycle, view,
+   job/event, shared component, test và consumer có liên quan.
+5. Lập impact analysis cho tác động trực tiếp, gián tiếp, regression và backward
+   compatibility.
+6. Chạy baseline tests phù hợp khi khả thi; bổ sung characterization tests nếu
+   hành vi cũ quan trọng nhưng chưa được bảo vệ.
+7. Dùng checklist chi tiết tại
+   [LF Regression Audit](quality/LF-Regression-Audit.md).
+
+## During Implementation Gate
+
+Trong khi triển khai, AI Agent phải:
+
+* Giữ thay đổi nhỏ nhất đáp ứng đúng nghiệp vụ và ưu tiên file/architecture hiện
+  có.
+* Không tự tạo abstraction, migration, tài liệu hoặc refactor ngoài phạm vi.
+* Bảo toàn source of truth, tenant isolation, authorization, lifecycle,
+  historical data, public contract và backward compatibility.
+* Dùng transaction, database constraint, lock hoặc idempotency khi invariant yêu
+  cầu.
+* Không sửa test chỉ để hợp thức hóa implementation sai.
+
+## After Implementation Gate
+
+Sau khi triển khai, AI Agent phải thực hiện theo mức rủi ro:
+
+1. Baseline hoặc characterization tests liên quan.
+2. Targeted tests và module/shared tests.
+3. Full suite khi khả thi hoặc khi rủi ro yêu cầu.
+4. Lint, formatter, build, migration verification và `git diff --check` nếu áp
+   dụng.
+5. Review final diff theo
+   [LF Regression Audit](quality/LF-Regression-Audit.md).
+
+Báo cáo hoàn thành phải nêu: classification, current/requested behavior,
+documents reviewed, source of truth, invariants, impact, files changed/new,
+implementation, tests/commands/results, requirement-to-test traceability,
+unverified items, remaining risks và final verdict. Nếu không tạo file mới,
+phải ghi rõ `New files: None`.
+
+## Mandatory Stop Conditions
+
+AI Agent phải dừng trước implementation và báo cáo khi:
+
+* policy, Guardrails, ADR, domain hoặc database documentation xung đột;
+* source of truth chưa xác định hoặc implementation lệch đáng kể khỏi tài liệu;
+* thay đổi invariant/lifecycle, historical data hoặc public contract chưa được
+  review;
+* có nguy cơ mất dữ liệu, silent migration, destructive migration hoặc cleanup
+  chưa được duyệt;
+* baseline test liên quan đang fail nhưng chưa phân loại được;
+* phạm vi thực tế lớn hơn đáng kể yêu cầu hoặc có nhiều lựa chọn nghiệp vụ cho
+  kết quả khác nhau;
+* cần kiến trúc/file mới trong khi giải pháp hiện có chưa được loại trừ.
+
+Thay đổi có tác động kiến trúc phải đi qua
+[Architecture Review Checklist](governance/LF-Architecture-Review-Checklist.md)
+và tuân thủ
+[Architecture Guardrails](governance/LF-Architecture-Guardrails.md).
 
 ---
 

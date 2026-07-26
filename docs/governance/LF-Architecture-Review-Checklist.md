@@ -1,10 +1,10 @@
 # Architecture Review Checklist
 
-Version: 1.0
+Version: 1.1
 
 Status: Official Governance
 
-Last Updated: 2026-06
+Last Updated: 2026-07
 
 ---
 
@@ -15,6 +15,26 @@ Checklist review chuẩn cho mọi Domain mới của LearnForge.
 Tài liệu này không định nghĩa Architecture hoặc Database Design. Reviewer dùng
 checklist để xác nhận proposal đã tuân thủ các tài liệu governance và Domain
 docs liên quan.
+
+---
+
+# Existing-Feature Architecture Gate
+
+Với `Existing-Feature Change`, checklist này chỉ bắt buộc khi impact analysis
+cho thấy thay đổi chạm boundary kiến trúc. Trước khi approve implementation,
+reviewer phải xác nhận:
+
+- [ ] Source of truth và domain ownership không bị thay đổi ngoài chủ đích?
+- [ ] Lifecycle/state transition và invariant đã được review?
+- [ ] Tenant isolation, authentication và authorization boundary được bảo toàn?
+- [ ] Public contract, route/API/event và backward compatibility đã được review?
+- [ ] Historical data, snapshot/versioning và audit evidence được bảo toàn?
+- [ ] Schema, migration, rollback và data backfill là lossless hoặc rủi ro đã
+      được duyệt?
+
+Nếu một mục chưa xác định hoặc chưa được approve, kết quả phải là `Blocked`;
+không được chuyển tiếp sang implementation. Regression verification chi tiết
+thuộc [LF Regression Audit](../quality/LF-Regression-Audit.md).
 
 ---
 

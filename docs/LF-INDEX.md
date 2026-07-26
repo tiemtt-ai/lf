@@ -1,6 +1,6 @@
 # LF-INDEX.md
 
-Version: 2.0
+Version: 2.1
 
 Status: Official
 
@@ -94,6 +94,24 @@ Do not silently replace:
 - runtime authority
 
 without documentation approval.
+
+---
+
+## Rule 5 — Route Existing-Feature Changes
+
+Khi sửa đổi hoặc nâng cấp nghiệp vụ hiện có, đọc:
+
+1. [LF Development Standards](LF-Development-Standards.md) để kích hoạt
+   `Existing-Feature Change Safety Protocol`.
+2. [LF Regression Audit](quality/LF-Regression-Audit.md) để thực hiện checklist
+   kiểm chứng theo mức rủi ro.
+3. [Architecture Review Checklist](governance/LF-Architecture-Review-Checklist.md)
+   khi impact analysis chạm source of truth, domain/lifecycle, tenant/auth,
+   public contract, historical data, schema/migration hoặc backward
+   compatibility.
+
+Quy tắc định tuyến này áp dụng ngay cả khi người dùng không yêu cầu review,
+audit hoặc regression test.
 
 ---
 
@@ -350,8 +368,9 @@ docs/quality/
 10. [Architecture Decision Records](adr/README.md)
 
 The [Regression Audit](quality/LF-Regression-Audit.md) is a Quality document
-and is additionally required for the major change categories defined by the
-Documentation Routing Guide.
+required for every `Existing-Feature Change`; audit depth is proportional to
+risk. Architecture review is additionally required only when the change affects
+an architecture boundary.
 
 ---
 
@@ -496,6 +515,25 @@ Use when:
 * changing middleware
 * writing tests
 * modifying existing implementation
+
+---
+
+## Existing-Feature Change
+
+Read:
+
+* LF-Development-Standards.md
+* quality/LF-Regression-Audit.md
+* relevant domain/ADR/database documentation
+* governance/LF-Architecture-Review-Checklist.md when an architecture boundary
+  is affected
+
+Use automatically when:
+
+* modifying, fixing, extending or upgrading an existing form, flow, module or
+  business behavior
+* changing existing validation, query/filter, lifecycle, role/access,
+  route/middleware, data structure or integration
 
 ---
 

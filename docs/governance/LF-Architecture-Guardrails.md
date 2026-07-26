@@ -1,6 +1,6 @@
 # LF-Architecture-Guardrails.md
 
-Version: 1.1
+Version: 1.2
 
 Status: Mandatory
 
@@ -34,6 +34,30 @@ Then Implement
 ```
 
 Không được tự ý thay đổi.
+
+---
+
+# Existing-Feature Change Guardrail
+
+Không được âm thầm thay đổi source of truth, domain ownership, tenant/auth
+boundary, public contract, lifecycle, historical data hoặc backward
+compatibility của nghiệp vụ hiện có.
+
+Nếu một `Existing-Feature Change` tác động đến bất kỳ boundary nào trên:
+
+```text
+STOP
+
+Review
+
+Approve
+
+Then Implement
+```
+
+Quy trình kích hoạt và kiểm chứng được định nghĩa tại
+[LF Development Standards](../LF-Development-Standards.md) và
+[LF Regression Audit](../quality/LF-Regression-Audit.md).
 
 ---
 

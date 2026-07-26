@@ -1,6 +1,6 @@
 # LF-Regression-Audit.md
 
-Version: 1.1
+Version: 1.2
 
 Status: Mandatory
 
@@ -10,7 +10,12 @@ Last Updated: 2026-07
 
 # Purpose
 
-Checklist bắt buộc phải chạy sau:
+Checklist bắt buộc cho mọi thay đổi được phân loại
+`Existing-Feature Change` theo
+[LF Development Standards](../LF-Development-Standards.md), không phụ thuộc
+người dùng có yêu cầu audit hay regression test hay không.
+
+Checklist cũng bắt buộc cho:
 
 ```text
 Refactor
@@ -27,6 +32,109 @@ UI Changes
 
 I18N Changes
 ```
+
+Phạm vi kiểm tra phải tỷ lệ với rủi ro. Mọi hạng mục không áp dụng hoặc chưa thể
+chạy phải có lý do và được ghi trong báo cáo; không được âm thầm bỏ qua.
+
+---
+
+# CHANGE SAFETY AUDIT
+
+## Impact Analysis
+
+```text
+[ ] Current behavior và requested behavior đã được xác nhận
+
+[ ] Source of truth và invariants đã được xác định
+
+[ ] Direct dependencies và indirect consumers đã được rà soát
+
+[ ] Tenant, role, authorization, lifecycle và historical-data impact đã được rà soát
+
+[ ] Public contract, backward compatibility và migration impact đã được rà soát
+```
+
+## Baseline And Characterization
+
+```text
+[ ] Related baseline tests đã được chạy trước thay đổi khi khả thi
+
+[ ] Baseline failure đã được phân loại trước implementation
+
+[ ] Risky existing behavior thiếu coverage đã có characterization test
+```
+
+## Requirement Traceability
+
+Mỗi yêu cầu và invariant phải ánh xạ đến implementation evidence và ít nhất một
+test hoặc một lý do có thể kiểm chứng khi test không khả thi.
+
+```text
+[ ] Requirement -> implementation -> verification mapping đầy đủ
+
+[ ] Negative path và request tampering đã được kiểm tra khi áp dụng
+
+[ ] Authorization và tenant isolation đã được kiểm tra khi áp dụng
+```
+
+## Test Coverage Matrix
+
+```text
+[ ] Happy path
+
+[ ] Validation và old input/error rendering
+
+[ ] Authorization, role và tenant isolation
+
+[ ] Lifecycle/state transition và historical snapshot
+
+[ ] Transaction rollback, constraint, idempotency/double-submit khi áp dụng
+
+[ ] Targeted tests
+
+[ ] Module/shared tests
+
+[ ] Full suite khi khả thi hoặc theo mức rủi ro
+
+[ ] Lint/formatter/build/migration verification khi áp dụng
+```
+
+## Final Diff Review
+
+```text
+[ ] Diff chỉ chứa thay đổi trong phạm vi
+
+[ ] Không có file/abstraction/migration/refactor không cần thiết
+
+[ ] Không có debug code, secret, tenant bypass hoặc authorization bypass
+
+[ ] Không sửa test để hợp thức hóa behavior sai
+
+[ ] git diff --check đạt
+```
+
+## Finding Severity And Verdict
+
+Phân loại finding:
+
+```text
+BLOCKER
+HIGH
+MEDIUM
+LOW
+```
+
+Final verdict chỉ được dùng một trong:
+
+```text
+PASS
+PASS WITH DOCUMENTED RISKS
+FAIL
+BLOCKED
+```
+
+`PASS` yêu cầu không còn finding `BLOCKER` hoặc `HIGH`, mọi yêu cầu có
+traceability và không còn hạng mục bắt buộc chưa kiểm chứng.
 
 ---
 
@@ -366,17 +474,23 @@ git diff --check
 Codex phải báo:
 
 ```text
-Issues Found
-
+Classification
+Current Behavior
+Requested Behavior
+Documents Reviewed
+Source Of Truth
+Invariants
+Impact Analysis
 Files Changed
-
-Tests Added
-
-Tests Updated
-
-Suspicious Routes
-
-Remaining References
+New Files
+Implementation Summary
+Tests Added Or Updated
+Commands And Results
+Requirement-To-Test Traceability
+Unverified Items
+Remaining Risks
+Findings By Severity
+Final Verdict
 ```
 
 ---
@@ -399,7 +513,8 @@ và:
 
 # Final Statement
 
-Không được merge hoặc commit các thay đổi lớn khi chưa hoàn thành Regression Audit.
+Không được merge hoặc commit `Existing-Feature Change` khi chưa hoàn thành
+Regression Audit theo mức rủi ro.
 
 Regression Audit là bước bắt buộc để bảo vệ kiến trúc LearnForge khỏi regression ngoài ý muốn.
 
