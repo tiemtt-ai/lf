@@ -204,14 +204,16 @@
                     <section class="admin-alert admin-alert-danger course-template-readiness course-template-readiness-blockers"
                              role="alert"
                              aria-labelledby="course-template-readiness-blockers-title">
-                        <h3 id="course-template-readiness-blockers-title" class="admin-alert-title">
-                            {{ trans_choice(
-                                'lf.LF_course_template_readiness_blocked_count',
-                                $publishReadiness->blockers()->count(),
-                                ['count' => $publishReadiness->blockers()->count()]
-                            ) }}
-                        </h3>
-                        <p class="admin-alert-guidance">{{ __('lf.LF_course_template_readiness_blocked_help') }}</p>
+                        <header class="course-template-readiness-header">
+                            <h3 id="course-template-readiness-blockers-title" class="admin-alert-title">
+                                {{ trans_choice(
+                                    'lf.LF_course_template_readiness_blocked_count',
+                                    $publishReadiness->blockers()->count(),
+                                    ['count' => $publishReadiness->blockers()->count()]
+                                ) }}
+                            </h3>
+                            <p class="admin-alert-guidance">{{ __('lf.LF_course_template_readiness_blocked_help') }}</p>
+                        </header>
                         <ol class="course-template-readiness-list">
                             @foreach ($publishReadiness->blockers() as $issue)
                                 <li data-readiness-code="{{ $issue->code }}">
@@ -236,14 +238,16 @@
                              role="status"
                              aria-live="polite"
                              aria-labelledby="course-template-readiness-warnings-title">
-                        <h3 id="course-template-readiness-warnings-title" class="admin-alert-title">
-                            {{ trans_choice(
-                                'lf.LF_course_template_readiness_warning_count',
-                                $publishReadiness->warnings()->count(),
-                                ['count' => $publishReadiness->warnings()->count()]
-                            ) }}
-                        </h3>
-                        <p class="admin-alert-guidance">{{ __('lf.LF_course_template_readiness_warning_help') }}</p>
+                        <header class="course-template-readiness-header">
+                            <h3 id="course-template-readiness-warnings-title" class="admin-alert-title">
+                                {{ trans_choice(
+                                    'lf.LF_course_template_readiness_warning_count',
+                                    $publishReadiness->warnings()->count(),
+                                    ['count' => $publishReadiness->warnings()->count()]
+                                ) }}
+                            </h3>
+                            <p class="admin-alert-guidance">{{ __('lf.LF_course_template_readiness_warning_help') }}</p>
+                        </header>
                         <ul class="course-template-readiness-list course-template-readiness-warning-list">
                             @foreach ($publishReadiness->warnings() as $issue)
                                 <li data-readiness-warning-code="{{ $issue->code }}">
@@ -267,8 +271,10 @@
                     <section class="admin-alert admin-alert-success course-template-readiness course-template-readiness-ready"
                              role="status"
                              aria-labelledby="course-template-readiness-ready-title">
-                        <h3 id="course-template-readiness-ready-title" class="admin-alert-title">{{ __('lf.LF_course_template_readiness_ready') }}</h3>
-                        <p class="admin-alert-guidance">{{ __('lf.LF_course_template_readiness_ready_help') }}</p>
+                        <header class="course-template-readiness-header">
+                            <h3 id="course-template-readiness-ready-title" class="admin-alert-title">{{ __('lf.LF_course_template_readiness_ready') }}</h3>
+                            <p class="admin-alert-guidance">{{ __('lf.LF_course_template_readiness_ready_help') }}</p>
+                        </header>
                     </section>
                 @endif
 

@@ -44,13 +44,14 @@ return new class extends Migration
                 ['customer_id', 'template_id', 'prerequisite_lesson_id'],
                 'idx_cctlp_prerequisite'
             );
-            $table->foreign('customer_id')->references('id')
+            $table->foreign('customer_id', 'fk_cctlp_customer')->references('id')
                 ->on('saas_customers')->restrictOnDelete();
-            $table->foreign('template_id')->references('id')
+            $table->foreign('template_id', 'fk_cctlp_template')->references('id')
                 ->on('core_course_templates')->restrictOnDelete();
-            $table->foreign('lesson_id')->references('id')
+            $table->foreign('lesson_id', 'fk_cctlp_lesson')->references('id')
                 ->on('core_course_template_lessons')->restrictOnDelete();
-            $table->foreign('prerequisite_lesson_id')->references('id')
+            $table->foreign('prerequisite_lesson_id', 'fk_cctlp_prerequisite')
+                ->references('id')
                 ->on('core_course_template_lessons')->restrictOnDelete();
         });
 
@@ -79,13 +80,18 @@ return new class extends Migration
                 ['customer_id', 'template_version_id', 'prerequisite_version_lesson_id'],
                 'idx_cctvlp_prerequisite'
             );
-            $table->foreign('customer_id')->references('id')
+            $table->foreign('customer_id', 'fk_cctvlp_customer')->references('id')
                 ->on('saas_customers')->restrictOnDelete();
-            $table->foreign('template_version_id')->references('id')
+            $table->foreign('template_version_id', 'fk_cctvlp_version')
+                ->references('id')
                 ->on('core_course_template_versions')->restrictOnDelete();
-            $table->foreign('version_lesson_id')->references('id')
+            $table->foreign('version_lesson_id', 'fk_cctvlp_lesson')
+                ->references('id')
                 ->on('core_course_template_version_lessons')->restrictOnDelete();
-            $table->foreign('prerequisite_version_lesson_id')->references('id')
+            $table->foreign(
+                'prerequisite_version_lesson_id',
+                'fk_cctvlp_prerequisite'
+            )->references('id')
                 ->on('core_course_template_version_lessons')->restrictOnDelete();
         });
 
