@@ -4,7 +4,7 @@ Version: 1.2
 
 Status: Official Implementation Rule
 
-Last Updated: 2026-07-03
+Last Updated: 2026-07-26
 
 ---
 
