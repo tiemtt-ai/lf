@@ -46,7 +46,7 @@
          },
      }"
      x-on:keydown.escape.window="closeIntroductionPreview()">
-    <div class="lf-form-group course-template-information-media">
+    <div class="lf-form-group admin-form-field course-template-information-media">
         <p class="authoring-media-field-title">{{ __('lf.LF_course_template_intro_image') }}</p>
         <div class="authoring-media-picker-row">
         @if($imageMedia)
@@ -54,13 +54,19 @@
                 <button type="button" class="authoring-media-overlay-action" x-on:click.stop="openIntroductionPreview(@js($imageMedia->display_name), @js($imageMedia->signed_url), @js($imageMedia->mime_type), 'image')"><x-backend-icon name="eye" class="authoring-media-action-icon" /><span class="sr-only">{{ __('lf.LF_media_file_common_preview_action') }}</span></button>
             </x-authoring-media-row>
         @endif
-        <x-authoring-media-upload id="intro_image_file" name="intro_image_file" :label="$imageMedia ? __('lf.LF_media_replace_image') : __('lf.LF_media_upload_image')" accept="image/*" @error('intro_image_file') aria-invalid="true" aria-describedby="intro_image_file_error" @enderror />
+        <x-authoring-media-upload
+            id="intro_image_file"
+            name="intro_image_file"
+            :label="$imageMedia ? __('lf.LF_media_replace_image') : __('lf.LF_media_upload_image')"
+            accept="image/*"
+            :aria-invalid="$errors->has('intro_image_file') ? 'true' : null"
+            :aria-describedby="$errors->has('intro_image_file') ? 'intro_image_file_error' : null" />
         </div>
         @error('intro_image_file')<p id="intro_image_file_error" class="lf-form-error">{{ $message }}</p>@enderror
         <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
     </div>
 
-    <div class="lf-form-group course-template-information-media">
+    <div class="lf-form-group admin-form-field course-template-information-media">
         <p class="authoring-media-field-title">{{ __('lf.LF_course_template_intro_video') }}</p>
         <label for="intro_video_source" class="sr-only">{{ __('lf.LF_course_template_video_source') }}</label>
         <select id="intro_video_source" name="intro_video_source" class="lf-form-control" x-model="selectedVideoSource" :class="{ 'lf-select-placeholder': !selectedVideoSource }" @error('intro_video_source') aria-invalid="true" aria-describedby="intro_video_source_error" @enderror>
@@ -79,7 +85,16 @@
                 @endif
             </x-authoring-media-row>
         @endif
-        <div class="authoring-media-upload-wrapper" x-show="selectedVideoSource === 'upload'"><x-authoring-media-upload id="intro_video_file" name="intro_video_file" :label="($videoMedia || $videoEmbedUrl) ? __('lf.LF_media_replace_video') : __('lf.LF_media_upload_video')" accept="video/*" x-bind:disabled="selectedVideoSource !== 'upload'" @error('intro_video_file') aria-invalid="true" aria-describedby="intro_video_file_error" @enderror /></div>
+        <div class="authoring-media-upload-wrapper" x-show="selectedVideoSource === 'upload'">
+            <x-authoring-media-upload
+                id="intro_video_file"
+                name="intro_video_file"
+                :label="($videoMedia || $videoEmbedUrl) ? __('lf.LF_media_replace_video') : __('lf.LF_media_upload_video')"
+                accept="video/*"
+                x-bind:disabled="selectedVideoSource !== 'upload'"
+                :aria-invalid="$errors->has('intro_video_file') ? 'true' : null"
+                :aria-describedby="$errors->has('intro_video_file') ? 'intro_video_file_error' : null" />
+        </div>
         </div>
         @error('intro_video_file')<p id="intro_video_file_error" class="lf-form-error">{{ $message }}</p>@enderror
         <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']" x-show="selectedVideoSource === 'upload'" />
@@ -87,7 +102,7 @@
         @error('intro_video_embed_url')<p id="intro_video_embed_url_error" class="lf-form-error">{{ $message }}</p>@enderror
     </div>
 
-    <div class="lf-form-group course-template-information-media">
+    <div class="lf-form-group admin-form-field course-template-information-media">
         <p class="authoring-media-field-title">{{ __('lf.LF_course_template_intro_document') }}</p>
         <div class="authoring-media-picker-row">
         @if($documentMedia)
@@ -95,7 +110,13 @@
                 <a class="authoring-media-overlay-action" href="{{ $documentMedia->signed_url }}" target="_blank" rel="noopener noreferrer"><x-backend-icon name="eye" class="authoring-media-action-icon" /><span class="sr-only">{{ __('lf.LF_media_file_common_preview_action') }}</span></a>
             </x-authoring-media-row>
         @endif
-        <x-authoring-media-upload id="intro_document_file" name="intro_document_file" :label="$documentMedia ? __('lf.LF_media_replace_document') : __('lf.LF_media_upload_document')" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx" @error('intro_document_file') aria-invalid="true" aria-describedby="intro_document_file_error" @enderror />
+        <x-authoring-media-upload
+            id="intro_document_file"
+            name="intro_document_file"
+            :label="$documentMedia ? __('lf.LF_media_replace_document') : __('lf.LF_media_upload_document')"
+            accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+            :aria-invalid="$errors->has('intro_document_file') ? 'true' : null"
+            :aria-describedby="$errors->has('intro_document_file') ? 'intro_document_file_error' : null" />
         </div>
         @error('intro_document_file')<p id="intro_document_file_error" class="lf-form-error">{{ $message }}</p>@enderror
         <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'PPT', 'PPTX', 'XLS', 'XLSX']" />

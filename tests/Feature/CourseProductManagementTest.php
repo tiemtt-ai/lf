@@ -399,6 +399,8 @@ class CourseProductManagementTest extends TestCase
 
         $response->assertOk()
             ->assertSee('course-template-information-grid product-introduction-media', false)
+            ->assertSee('authoring-media-upload-tile', false)
+            ->assertSee('authoring-media-upload-trigger', false)
             ->assertSee('name="intro_image_file"', false)
             ->assertSee('name="intro_video_source"', false)
             ->assertSee('name="intro_video_file"', false)
@@ -2162,7 +2164,8 @@ class CourseProductManagementTest extends TestCase
             $this->assertStringContainsString('admin-form-field-grid', $content);
             $this->assertStringContainsString('admin-form-field-grid--three', $content);
             $this->assertStringContainsString('admin-form-option-panel--compact', $content);
-            $this->assertSame(3, substr_count($content, '<x-authoring-media-upload'));
+            $this->assertSame(3, substr_count($content, 'class="authoring-media-upload-tile"'));
+            $this->assertStringNotContainsString('<x-authoring-media-upload', $content);
             $this->assertStringContainsString('admin-form-field--full', $content);
             $this->assertStringContainsString('admin-form-subsection', $content);
             $this->assertStringContainsString('id="product-course-content"', $content);
