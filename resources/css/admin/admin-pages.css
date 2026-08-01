@@ -2509,6 +2509,33 @@
     overflow-wrap: anywhere;
 }
 
+.course-enrollment-status-badge.badge-success {
+    border: 1px solid #86efac;
+}
+
+.lf-admin-page .badge.course-enrollment-status-badge {
+    width: 96px;
+    height: 30px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    line-height: 1.2;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.course-enrollment-status-badge--suspended {
+    border: 1px solid #fcd34d;
+    color: #92400e;
+    background: #fef3c7;
+}
+
+.course-enrollment-status-badge.badge-danger {
+    border: 1px solid #fecaca;
+}
+
 .course-enrollment-information-line {
     display: block;
     line-height: 1.45;
@@ -3388,11 +3415,38 @@
     white-space: nowrap;
 }
 
+.lf-admin-page .course-enrollment-bulk-action--suspend {
+    border-color: #fcd34d;
+    color: #92400e;
+    background: #fef3c7;
+}
+
+.lf-admin-page .course-enrollment-bulk-action--suspend:hover:not(:disabled),
+.lf-admin-page .course-enrollment-bulk-action--suspend:focus-visible:not(:disabled) {
+    border-color: #f59e0b;
+    background: #fde68a;
+}
+
+.lf-admin-page .course-enrollment-bulk-action--reactivate {
+    border-color: #86efac;
+    color: #166534;
+    background: #dcfce7;
+}
+
+.lf-admin-page .course-enrollment-bulk-action--reactivate:hover:not(:disabled),
+.lf-admin-page .course-enrollment-bulk-action--reactivate:focus-visible:not(:disabled) {
+    border-color: #22c55e;
+    background: #bbf7d0;
+}
+
 .course-enrollment-bulk-actions .btn:disabled {
-    opacity: 0.42;
+    border-color: #d1d5db;
+    color: #9ca3af;
+    background: #f3f4f6;
+    opacity: 1;
     cursor: not-allowed;
     box-shadow: none;
-    filter: saturate(0.35);
+    filter: none;
 }
 
 @media (min-width: 901px) {
@@ -3447,102 +3501,6 @@
     margin: 0;
     color: var(--admin-text);
     font-size: 20px;
-}
-
-.course-enrollment-bulk-modal {
-    width: min(680px, 100%);
-    overflow: hidden;
-}
-
-.course-enrollment-bulk-modal__body {
-    display: grid;
-    gap: 22px;
-    padding: 20px 22px 24px;
-}
-
-.course-enrollment-bulk-modal__selection {
-    width: fit-content;
-    margin: 0;
-    padding: 7px 12px;
-    border-radius: 999px;
-    color: var(--admin-primary);
-    background: color-mix(in srgb, var(--admin-primary) 9%, var(--admin-surface));
-    font-size: 14px;
-    font-weight: 600;
-}
-
-.course-enrollment-bulk-modal__intro {
-    display: grid;
-    gap: 10px;
-}
-
-.course-enrollment-bulk-modal__help {
-    max-width: 58ch;
-    margin: 0;
-    color: var(--admin-text-muted);
-    font-size: 13px;
-    line-height: 1.5;
-}
-
-.course-enrollment-bulk-modal__group {
-    display: grid;
-    gap: 12px;
-}
-
-.course-enrollment-bulk-modal__group + .course-enrollment-bulk-modal__group {
-    padding-top: 20px;
-    border-top: 1px solid var(--admin-border);
-}
-
-.course-enrollment-bulk-modal__group h3 {
-    margin: 0;
-    color: var(--admin-text);
-    font-size: 15px;
-    font-weight: 600;
-}
-
-.course-enrollment-bulk-modal__grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-}
-
-.course-enrollment-bulk-field {
-    display: flex;
-    min-width: 0;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.course-enrollment-bulk-field .lf-form-label {
-    margin: 0;
-    color: var(--admin-text-muted);
-    font-size: 13px;
-    font-weight: 500;
-}
-
-.course-enrollment-bulk-field--notes {
-    max-width: 100%;
-}
-
-.lf-admin-page .course-enrollment-bulk-modal .lf-form-control:hover:not(:focus) {
-    border-color: color-mix(in srgb, var(--admin-primary) 28%, var(--border-color, #ced4da));
-}
-
-.lf-admin-page .course-enrollment-bulk-modal .lf-form-control:focus {
-    border-color: color-mix(in srgb, var(--admin-primary) 72%, #ffffff);
-    outline: none;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-primary) 10%, transparent);
-}
-
-.course-enrollment-bulk-modal__footer {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 14px 20px 16px;
-}
-
-.course-enrollment-bulk-modal__footer .admin-form-footer-primary {
-    justify-content: flex-end;
 }
 
 .course-enrollment-lifecycle-modal {
@@ -3622,8 +3580,7 @@
     }
 
     .course-enrollment-filter-grid,
-    .course-enrollment-advanced-filter-grid,
-    .course-enrollment-bulk-modal__grid {
+    .course-enrollment-advanced-filter-grid {
         grid-template-columns: minmax(0, 1fr);
     }
 
@@ -3674,9 +3631,7 @@
     }
 
     .course-enrollment-lifecycle-modal__footer .admin-form-footer-primary,
-    .course-enrollment-lifecycle-modal__footer .btn,
-    .course-enrollment-bulk-modal__footer .admin-form-footer-primary,
-    .course-enrollment-bulk-modal__footer .btn {
+    .course-enrollment-lifecycle-modal__footer .btn {
         width: 100%;
     }
 

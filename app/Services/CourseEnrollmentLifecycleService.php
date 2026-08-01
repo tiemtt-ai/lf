@@ -244,7 +244,7 @@ class CourseEnrollmentLifecycleService
             ->when($requireActiveProduct, fn ($query) => $query->where('status', 'active'))->lockForUpdate()->first(['id']);
         $version = DB::table('core_course_template_versions')->where('customer_id', $customerId)
             ->where('id', $enrollment->version_id)->where('status', 'published')->exists();
-        if (! $product || ! $version || ($enrollment->access_ends_at && Carbon::parse($enrollment->access_ends_at)->isPast())) {
+        if (! $product || ! $version || $this->learningWindowHasEnded($enrollment)) {
             throw ValidationException::withMessages(['lifecycle' => __('lf.LF_course_enrollment_lifecycle_activation_ineligible')]);
         }
     }
@@ -260,8 +260,15 @@ class CourseEnrollmentLifecycleService
 
         if ($products->count() !== $productIds->count()
             || $enrollments->contains(fn (object $enrollment): bool => ! in_array((int) $enrollment->version_id, $publishedVersionIds, true)
-                || ($enrollment->access_ends_at && Carbon::parse($enrollment->access_ends_at)->isPast()))) {
+                || $this->learningWindowHasEnded($enrollment))) {
             throw ValidationException::withMessages(['enrollment_ids' => __('lf.LF_course_enrollment_lifecycle_activation_ineligible')]);
         }
+    }
+
+    private function learningWindowHasEnded(object $enrollment): bool
+    {
+        $learningWindowEndsAt = $enrollment->review_ends_at ?? $enrollment->access_ends_at;
+
+        return $learningWindowEndsAt !== null && Carbon::parse($learningWindowEndsAt)->isPast();
     }
 }

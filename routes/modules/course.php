@@ -133,9 +133,6 @@ if ($registerCourseProductRoutes ?? false) {
     Route::post('/course-enrollments/bulk/invalidate', [CourseEnrollmentController::class, 'bulkInvalidate'])
         ->name('course-enrollments.bulk-invalidate');
 
-    Route::post('/course-enrollments/bulk-update', [CourseEnrollmentController::class, 'bulkUpdate'])
-        ->name('course-enrollments.bulk-update');
-
     Route::post('/course-enrollments/bulk-lifecycle', [CourseEnrollmentController::class, 'bulkLifecycle'])
         ->name('course-enrollments.bulk-lifecycle');
 

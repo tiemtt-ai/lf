@@ -86,10 +86,10 @@ introduced.
 
 ## Bulk lifecycle actions
 
-The Admin Enrollment list exposes lifecycle mutations independently from the
-bulk common-information update. The common-information request continues to
-prohibit `status`, lifecycle timestamps, binding fields, source fields and
-cross-domain state. Bulk lifecycle accepts only a canonical action:
+The Admin Enrollment list exposes only explicit bulk lifecycle mutations.
+Generic bulk common-information updates are not exposed; notes and other
+editable metadata remain individual Enrollment edits. Bulk lifecycle accepts
+only a canonical action:
 
 ```text
 suspend     active -> suspended

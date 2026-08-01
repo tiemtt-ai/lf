@@ -6,11 +6,9 @@ use App\Exceptions\BulkEnrollmentAtomicException;
 use App\Http\Requests\BulkEnrollmentLifecycleRequest;
 use App\Http\Requests\BulkEnrollmentPreflightRequest;
 use App\Http\Requests\BulkEnrollmentRequest;
-use App\Http\Requests\BulkEnrollmentUpdateRequest;
 use App\Services\BulkEnrollmentPayload;
 use App\Services\BulkEnrollmentService;
 use App\Services\BulkEnrollmentSubmissionToken;
-use App\Services\BulkEnrollmentUpdateService;
 use App\Services\CourseEnrollmentLifecycleService;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -124,10 +122,20 @@ class CourseEnrollmentController extends Controller
                 'products.product_code',
                 'versions.title_snapshot as version_title',
                 'versions.version_number',
-                'versions.version_code'
+                'versions.version_code',
+                'versions.status as version_status'
             )
             ->paginate(10)
             ->withQueryString();
+
+        $enrollments->setCollection($enrollments->getCollection()->map(function (object $enrollment): object {
+            $learningWindowEndsAt = $enrollment->review_ends_at ?? $enrollment->access_ends_at;
+            $enrollment->reactivation_eligible = $enrollment->status === 'suspended'
+                && $enrollment->version_status === 'published'
+                && ($learningWindowEndsAt === null || Carbon::parse($learningWindowEndsAt)->isFuture());
+
+            return $enrollment;
+        }));
 
         return view('course-enrollments.index', [
             'enrollments' => $enrollments,
@@ -141,18 +149,6 @@ class CourseEnrollmentController extends Controller
             'filterCreators' => DB::table('users')->where('customer_id', $customerId)->whereIn('role', ['customer_admin', 'teacher'])->orderBy('name')->get(['id', 'name']),
             'routePrefix' => $this->routePrefix($request),
         ]);
-    }
-
-    public function bulkUpdate(BulkEnrollmentUpdateRequest $request, BulkEnrollmentUpdateService $service)
-    {
-        $count = $service->update(
-            $this->customerId(),
-            $request->validated('enrollment_ids'),
-            $request->changes()
-        );
-
-        return redirect()->route($this->routePrefix($request).'.index')
-            ->with('success', __('lf.LF_course_enrollment_bulk_updated', ['count' => $count]));
     }
 
     public function bulkLifecycle(BulkEnrollmentLifecycleRequest $request, CourseEnrollmentLifecycleService $service)
