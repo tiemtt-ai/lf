@@ -2311,6 +2311,10 @@ class CourseProductManagementTest extends TestCase
         $this->assertStringContainsString('.lf-admin-page select.lf-form-control option {', $css);
         $this->assertStringContainsString('formPlaceholderControlSelector', $appJs);
         $this->assertStringContainsString('input.lf-form-control[type="datetime-local"]', $appJs);
+        $this->assertStringContainsString('.course-product-date-input.has-value', $pageCss);
+        $this->assertStringContainsString('.course-product-discount-type.has-value', $pageCss);
+        $this->assertStringContainsString('.course-product-offering-type.has-value', $pageCss);
+        $this->assertStringContainsString('.introduction-video-source.has-value', $pageCss);
         $this->assertStringContainsString("control.classList.toggle('is-lf-placeholder', isPlaceholder);", $appJs);
         $this->assertStringContainsString('font-size: 14px;', $css);
         $this->assertStringContainsString('font-weight: 300;', $css);

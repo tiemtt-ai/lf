@@ -291,7 +291,7 @@
             <h3 id="product-identity" class="admin-form-subsection-title">{{ __('lf.LF_product_v2_group_identity') }}</h3>
             <div class="admin-form-field-grid">
                 <div class="lf-form-group"><x-form-label for="title" :value="__('lf.LF_course_product_common_title_field')" :required="true" /><input id="title" name="title" class="lf-form-control" maxlength="255" required value="{{ old('title', $formProduct?->title) }}" placeholder="{{ __('lf.LF_product_v2_placeholder_name') }}" @input="generatedSlug = slugify($event.target.value)"></div>
-                <div class="lf-form-group"><x-form-label for="offering_type" :value="__('lf.LF_product_v2_offering_type')" :required="true" /><select id="offering_type" name="offering_type" class="lf-form-control" x-model="offering" :class="{ 'lf-select-placeholder': offering === '' }" required><option value="">{{ __('lf.LF_product_v2_select_offering') }}</option>@foreach(\App\Support\CourseProductV2::OFFERING_TYPES as $type)<option value="{{ $type }}">{{ __('lf.LF_product_v2_offering_'.$type) }}</option>@endforeach</select></div>
+                <div class="lf-form-group"><x-form-label for="offering_type" :value="__('lf.LF_product_v2_offering_type')" :required="true" /><select id="offering_type" name="offering_type" class="lf-form-control course-product-offering-type" x-model="offering" :class="{ 'lf-select-placeholder': offering === '', 'has-value': offering }" required><option value="">{{ __('lf.LF_product_v2_select_offering') }}</option>@foreach(\App\Support\CourseProductV2::OFFERING_TYPES as $type)<option value="{{ $type }}">{{ __('lf.LF_product_v2_offering_'.$type) }}</option>@endforeach</select></div>
                 <div @class(['lf-form-group', 'admin-form-field--full' => ! $formProduct])>
                     <div class="admin-form-label-row">
                         <x-form-label for="slug" :value="__('lf.LF_course_product_common_slug')" />
@@ -362,14 +362,16 @@
                 <div class="admin-form-field-grid">
                     <div class="lf-form-group">
                         <x-form-label for="registration_starts_at" :value="__('lf.LF_course_product_common_registration_starts_at')" />
-                        <input id="registration_starts_at" name="registration_starts_at" type="datetime-local" class="lf-form-control"
+                        <input id="registration_starts_at" name="registration_starts_at" type="datetime-local" class="lf-form-control course-product-date-input"
+                               :class="{ 'has-value': registrationStart }"
                                x-ref="registrationStart" x-model="registrationStart" @input="$el.setCustomValidity('')"
                                @error('registration_starts_at') aria-invalid="true" aria-describedby="registration_starts_at_error" @enderror>
                         @error('registration_starts_at')<p id="registration_starts_at_error" class="lf-form-error">{{ $message }}</p>@enderror
                     </div>
                     <div class="lf-form-group">
                         <x-form-label for="registration_ends_at" :value="__('lf.LF_course_product_common_registration_ends_at')" />
-                        <input id="registration_ends_at" name="registration_ends_at" type="datetime-local" class="lf-form-control"
+                        <input id="registration_ends_at" name="registration_ends_at" type="datetime-local" class="lf-form-control course-product-date-input"
+                               :class="{ 'has-value': registrationEnd }"
                                x-ref="registrationEnd" x-model="registrationEnd" @input="$el.setCustomValidity('')"
                                @error('registration_ends_at') aria-invalid="true" aria-describedby="registration_ends_at_error" @enderror>
                         @error('registration_ends_at')<p id="registration_ends_at_error" class="lf-form-error">{{ $message }}</p>@enderror
@@ -397,7 +399,8 @@
                     <p class="lf-form-help admin-form-field--full">{{ __('lf.LF_product_v2_promotion_registration_help') }}</p>
                     <div class="lf-form-group">
                         <x-form-label for="discount_type" :value="__('lf.LF_product_v2_discount_type')" />
-                        <select id="discount_type" name="discount_type" class="lf-form-control" x-model="discountType" @change="refreshMoneyDisplays()"
+                        <select id="discount_type" name="discount_type" class="lf-form-control course-product-discount-type" x-model="discountType"
+                                :class="{ 'has-value': discountType }" @change="refreshMoneyDisplays()"
                                 @error('discount_type') aria-invalid="true" aria-describedby="discount_type_error" @enderror>
                             <option value="">{{ __('lf.LF_product_v2_select_discount') }}</option>
                             <option value="percentage">{{ __('lf.LF_product_v2_percentage') }}</option>
@@ -415,14 +418,16 @@
                     </div>
                     <div class="lf-form-group">
                         <x-form-label for="sale_starts_at" :value="__('lf.LF_product_v2_promotion_starts_at')" />
-                        <input id="sale_starts_at" name="sale_starts_at" type="datetime-local" class="lf-form-control"
+                        <input id="sale_starts_at" name="sale_starts_at" type="datetime-local" class="lf-form-control course-product-date-input"
+                               :class="{ 'has-value': promotionStart }"
                                x-ref="promotionStart" x-model="promotionStart" @input="$el.setCustomValidity('')"
                                @error('sale_starts_at') aria-invalid="true" aria-describedby="sale_starts_at_error" @enderror>
                         @error('sale_starts_at')<p id="sale_starts_at_error" class="lf-form-error">{{ $message }}</p>@enderror
                     </div>
                     <div class="lf-form-group">
                         <x-form-label for="sale_ends_at" :value="__('lf.LF_product_v2_promotion_ends_at')" />
-                        <input id="sale_ends_at" name="sale_ends_at" type="datetime-local" class="lf-form-control"
+                        <input id="sale_ends_at" name="sale_ends_at" type="datetime-local" class="lf-form-control course-product-date-input"
+                               :class="{ 'has-value': promotionEnd }"
                                x-ref="promotionEnd" x-model="promotionEnd" @input="$el.setCustomValidity('')"
                                @error('sale_ends_at') aria-invalid="true" aria-describedby="sale_ends_at_error" @enderror>
                         @error('sale_ends_at')<p id="sale_ends_at_error" class="lf-form-error">{{ $message }}</p>@enderror

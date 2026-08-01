@@ -1531,6 +1531,8 @@ class CourseEnrollmentManagementTest extends TestCase
             ->get('https://tenant-a.localhost/admin/course-enrollments/'.$enrollment->id.'/edit')
             ->assertOk()
             ->assertSee('course-enrollment-time-impact', false)
+            ->assertSee('class="lf-form-control course-enrollment-edit-date-input"', false)
+            ->assertSee("'has-value': enrolledAt", false)
             ->assertDontSee('enrollment-edit-access-window', false)
             ->assertDontSee('enrollment-edit-review-window', false)
             ->assertSeeText(__('lf.LF_course_enrollment_time_impact_title'))

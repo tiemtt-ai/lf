@@ -335,7 +335,9 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertFalse($this->selectOptionIsSelected($create->getContent(), 'category_id', (string) $categoryId));
         $create->assertSee("'lf-select-placeholder': selectedCategoryId === null || selectedCategoryId === ''", false)
             ->assertSee("'lf-select-placeholder': selectedDifficulty === null || selectedDifficulty === ''", false)
-            ->assertSee("'lf-select-placeholder': selectedVideoSource === null || selectedVideoSource === ''", false);
+            ->assertSee("'lf-select-placeholder': selectedVideoSource === null || selectedVideoSource === ''", false)
+            ->assertSee("'has-value': selectedVideoSource", false)
+            ->assertSee('class="lf-form-control introduction-video-source"', false);
 
         $templateId = $this->createTemplate($customerId, 'Saved Selects', 'unused', $admin->id);
         DB::table('core_course_templates')->where('id', $templateId)->update([

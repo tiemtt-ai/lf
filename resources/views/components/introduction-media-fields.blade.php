@@ -69,7 +69,7 @@
     <div class="lf-form-group admin-form-field course-template-information-media">
         <p class="authoring-media-field-title">{{ __('lf.LF_course_template_intro_video') }}</p>
         <label for="intro_video_source" class="sr-only">{{ __('lf.LF_course_template_video_source') }}</label>
-        <select id="intro_video_source" name="intro_video_source" class="lf-form-control" x-model="selectedVideoSource" :class="{ 'lf-select-placeholder': !selectedVideoSource }" @error('intro_video_source') aria-invalid="true" aria-describedby="intro_video_source_error" @enderror>
+        <select id="intro_video_source" name="intro_video_source" class="lf-form-control introduction-video-source" x-model="selectedVideoSource" :class="{ 'lf-select-placeholder': !selectedVideoSource, 'has-value': selectedVideoSource }" @error('intro_video_source') aria-invalid="true" aria-describedby="intro_video_source_error" @enderror>
             <option value="">{{ __('lf.LF_course_template_select_video_source') }}</option>
             <option value="upload">{{ __('lf.LF_course_template_video_upload') }}</option>
             <option value="embed">{{ __('lf.LF_course_template_video_embed') }}</option>

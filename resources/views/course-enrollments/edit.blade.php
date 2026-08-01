@@ -57,7 +57,8 @@
                         <div class="lf-form-group admin-form-field course-enrollment-enrolled-at-field">
                             <label class="lf-form-label" for="enrolled_at">{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</label>
                             @if ($enrollment->access_duration_days !== null)
-                                <input id="enrolled_at" name="enrolled_at" type="datetime-local" class="lf-form-control" x-model="enrolledAt" required>
+                                <input id="enrolled_at" name="enrolled_at" type="datetime-local" class="lf-form-control course-enrollment-edit-date-input"
+                                       x-model="enrolledAt" :class="{ 'has-value': enrolledAt }" required>
                             @else
                                 <div id="enrolled_at" class="admin-form-readonly lf-form-control">{{ \Illuminate\Support\Carbon::parse($enrollment->enrolled_at)->format('d/m/Y H:i') }}</div>
                                 <p class="lf-form-error" role="status">{{ __('lf.LF_course_enrollment_legacy_duration_missing') }}</p>

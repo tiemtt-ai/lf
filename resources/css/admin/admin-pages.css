@@ -4123,6 +4123,36 @@
     opacity: 1;
 }
 
+.lf-admin-page .course-enrollment-edit-date-input.has-value,
+.lf-admin-page .course-enrollment-edit-date-input.has-value:not(:focus) {
+    color: var(--admin-control-text, #495057);
+    font-weight: 400;
+    opacity: 1;
+}
+
+.lf-admin-page .course-product-date-input.has-value,
+.lf-admin-page .course-product-date-input.has-value:not(:focus) {
+    color: var(--admin-control-text, #495057);
+    font-weight: 400;
+    opacity: 1;
+}
+
+.lf-admin-page .course-product-discount-type.has-value,
+.lf-admin-page .course-product-discount-type.has-value:not(:focus) {
+    color: var(--admin-control-text, #495057);
+    font-weight: 400;
+    opacity: 1;
+}
+
+.lf-admin-page .course-product-offering-type.has-value,
+.lf-admin-page .course-product-offering-type.has-value:not(:focus),
+.lf-admin-page .introduction-video-source.has-value,
+.lf-admin-page .introduction-video-source.has-value:not(:focus) {
+    color: var(--admin-control-text, #495057);
+    font-weight: 400;
+    opacity: 1;
+}
+
 .bulk-enrollment-start-guide {
     display: flex;
     width: 100%;
