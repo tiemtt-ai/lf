@@ -162,7 +162,7 @@
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_enrollment_common_student') }}</th>
                 <th>{{ __('lf.LF_course_enrollment_common_product') }}</th>
-                <th>{{ __('lf.LF_course_enrollment_common_source') }}</th>
+                <th>{{ __('lf.LF_course_enrollment_information') }}</th>
                 <th class="course-cohort-index-status">{{ __('lf.LF_course_enrollment_common_status') }}</th>
                 <th class="course-cohort-index-actions">{{ __('lf.table_actions') }}</th>
             </tr>
@@ -192,9 +192,15 @@
                             · {{ $enrollment->version_code }}
                         </span>
                     </td>
-                    <td data-label="{{ __('lf.LF_course_enrollment_common_source') }}">
-                        {{ __('lf.LF_course_enrollment_common_source_'.$enrollment->source) }}
-                        <span class="course-enrollment-source-meta">{{ $enrollment->enrolled_at }}</span>
+                    <td data-label="{{ __('lf.LF_course_enrollment_information') }}">
+                        <span class="course-enrollment-information-line">
+                            <strong>{{ __('lf.LF_course_enrollment_information_source') }}:</strong>
+                            {{ __('lf.LF_course_enrollment_common_source_'.$enrollment->source) }}
+                        </span>
+                        <span class="course-enrollment-information-line course-enrollment-source-meta">
+                            <strong>{{ __('lf.LF_course_enrollment_information_date') }}:</strong>
+                            {{ \Illuminate\Support\Carbon::parse($enrollment->enrolled_at)->format('d/m/Y H:i') }}
+                        </span>
                     </td>
                     <td class="course-cohort-index-status" data-label="{{ __('lf.LF_course_enrollment_common_status') }}">
                         <span @class([

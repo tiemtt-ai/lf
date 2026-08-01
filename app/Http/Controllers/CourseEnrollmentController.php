@@ -15,6 +15,7 @@ use App\Services\CourseEnrollmentLifecycleService;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -202,7 +203,7 @@ class CourseEnrollmentController extends Controller
                 });
             })
             ->orderBy('name')->orderBy('id')
-            ->paginate(15, ['id', 'name', 'email', 'status']);
+            ->paginate(10, ['id', 'name', 'email', 'status']);
 
         $studentItems = collect($students->items());
         $states = $request->integer('product_id') > 0
@@ -257,7 +258,7 @@ class CourseEnrollmentController extends Controller
                 });
             })
             ->orderBy('products.title')->orderBy('products.id')
-            ->paginate(15);
+            ->paginate(10);
         $productItems = collect($products->items());
         $states = $request->integer('student_id') > 0
             ? $this->pairEnrollmentStates($customerId, [$request->integer('student_id')], $productItems->pluck('id')->all())
@@ -389,8 +390,21 @@ class CourseEnrollmentController extends Controller
             ->first(['result']);
         abort_unless($submission, 404);
 
+        $result = json_decode($submission->result, true, flags: JSON_THROW_ON_ERROR);
+        $items = collect($result['items'] ?? []);
+        $lastPage = max(1, (int) ceil($items->count() / 10));
+        $page = min(max(1, $request->integer('page', 1)), $lastPage);
+        $itemsPaginator = new LengthAwarePaginator(
+            $items->forPage($page, 10)->values(),
+            $items->count(),
+            10,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
         return view('course-enrollments.bulk-result', [
-            'result' => json_decode($submission->result, true, flags: JSON_THROW_ON_ERROR),
+            'result' => $result,
+            'itemsPaginator' => $itemsPaginator,
             'routePrefix' => $this->routePrefix($request),
         ]);
     }

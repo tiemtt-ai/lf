@@ -36,9 +36,16 @@
             @endif
             <section class="admin-form-standard-section" aria-labelledby="bulk-result-detail-title">
                 <h2 id="bulk-result-detail-title" class="admin-form-section-title">{{ __('lf.LF_bulk_enrollment_result_details') }}</h2>
-                <div class="admin-table-wrap bulk-enrollment-result__table"><table class="table"><thead><tr><th>{{ __('lf.LF_course_enrollment_common_student') }}</th><th>{{ __('lf.LF_course_enrollment_common_product') }}</th><th>{{ __('lf.LF_course_enrollment_common_version') }}</th><th>{{ __('lf.LF_bulk_enrollment_enrollment_id') }}</th><th>{{ __('lf.LF_course_enrollment_common_status') }}</th></tr></thead>
-                    <tbody>@foreach ($result['items'] as $item)<tr><td><strong>{{ $item['student_name'] }}</strong></td><td>{{ $item['product_title'] }}</td><td>{{ $item['version_code'] ?? '—' }}</td><td><a class="admin-text-action" href="{{ route($routePrefix.'.show', $item['enrollment_id']) }}">#{{ $item['enrollment_id'] }}</a></td><td><span class="badge badge-success">{{ __('lf.LF_bulk_enrollment_status_'.$item['status']) }}</span></td></tr>@endforeach</tbody>
+                <div class="admin-table-wrap bulk-enrollment-result__table"><table class="table"><thead><tr><th class="bulk-enrollment-result__number">{{ __('lf.table_no') }}</th><th>{{ __('lf.LF_bulk_enrollment_enrollment_id') }}</th><th>{{ __('lf.LF_course_enrollment_common_student') }}</th><th>{{ __('lf.LF_course_enrollment_common_product') }}</th><th>{{ __('lf.LF_course_enrollment_common_version') }}</th><th>{{ __('lf.LF_course_enrollment_common_status') }}</th></tr></thead>
+                    <tbody>@foreach ($itemsPaginator as $item)<tr><td class="bulk-enrollment-result__number">{{ $itemsPaginator->firstItem() + $loop->index }}</td><td><a class="admin-text-action" href="{{ route($routePrefix.'.show', $item['enrollment_id']) }}">#{{ $item['enrollment_id'] }}</a></td><td><strong>{{ $item['student_name'] }}</strong></td><td>{{ $item['product_title'] }}</td><td>{{ $item['version_code'] ?? '—' }}</td><td><span class="badge badge-success">{{ __('lf.LF_bulk_enrollment_status_'.$item['status']) }}</span></td></tr>@endforeach</tbody>
                 </table></div>
+                @if ($itemsPaginator->hasPages())
+                    <nav class="bulk-enrollment-pagination" aria-label="{{ __('lf.LF_bulk_enrollment_page') }}">
+                        <a @class(['bulk-enrollment-pagination__button', 'is-disabled' => $itemsPaginator->onFirstPage()]) href="{{ $itemsPaginator->previousPageUrl() ?? '#' }}" @if($itemsPaginator->onFirstPage()) aria-disabled="true" tabindex="-1" @endif><span aria-hidden="true">←</span><span>{{ __('lf.LF_bulk_enrollment_previous') }}</span></a>
+                        <span class="bulk-enrollment-pagination__status">{{ $itemsPaginator->currentPage() }} / {{ $itemsPaginator->lastPage() }}</span>
+                        <a @class(['bulk-enrollment-pagination__button', 'is-disabled' => ! $itemsPaginator->hasMorePages()]) href="{{ $itemsPaginator->nextPageUrl() ?? '#' }}" @if(! $itemsPaginator->hasMorePages()) aria-disabled="true" tabindex="-1" @endif><span>{{ __('lf.LF_bulk_enrollment_next') }}</span><span aria-hidden="true">→</span></a>
+                    </nav>
+                @endif
             </section>
             @if ($context)
                 <section class="admin-form-standard-section" aria-labelledby="bulk-applied-settings-title">

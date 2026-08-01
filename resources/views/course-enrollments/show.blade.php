@@ -80,6 +80,14 @@
                     <div class="course-enrollment-detail-information-panel">
                         <div class="admin-form-field-grid course-enrollment-detail-metadata-grid">
                             <div class="lf-form-group admin-form-field course-enrollment-detail-item">
+                                <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</span>
+                                <div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ $formatDateTime($enrollment->enrolled_at) }}</strong></div>
+                            </div>
+                            <div class="lf-form-group admin-form-field course-enrollment-detail-item">
+                                <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_source') }}</span>
+                                <div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ __('lf.LF_course_enrollment_common_source_'.$enrollment->source) }}</strong></div>
+                            </div>
+                            <div class="lf-form-group admin-form-field course-enrollment-detail-item">
                                 <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_status') }}</span>
                                 <div class="cohort-edit-readonly-row">
                                     <span @class([
@@ -88,14 +96,6 @@
                                         'badge-danger' => in_array($enrollment->status, ['expired', 'cancelled'], true),
                                     ])>{{ __('lf.LF_course_enrollment_common_'.$enrollment->status) }}</span>
                                 </div>
-                            </div>
-                            <div class="lf-form-group admin-form-field course-enrollment-detail-item">
-                                <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_source') }}</span>
-                                <div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ __('lf.LF_course_enrollment_common_source_'.$enrollment->source) }}</strong></div>
-                            </div>
-                            <div class="lf-form-group admin-form-field course-enrollment-detail-item">
-                                <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</span>
-                                <div class="cohort-edit-readonly-stack"><strong class="cohort-edit-readonly-value">{{ $formatDateTime($enrollment->enrolled_at) }}</strong></div>
                             </div>
                         </div>
                         <div class="course-enrollment-detail-window-grid">

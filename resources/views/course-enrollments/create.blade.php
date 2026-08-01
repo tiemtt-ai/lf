@@ -72,23 +72,25 @@
                     <p class="admin-form-section-help">{{ __('lf.LF_bulk_enrollment_cartesian_help') }}</p>
                 </header>
 
-                <div class="admin-form-field-grid">
-                    <div class="lf-form-group admin-form-field admin-form-field--full">
-                        <label class="lf-form-label" for="bulk-enrolled-at">{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</label>
-                        <input id="bulk-enrolled-at" name="configuration[enrolled_at]" type="datetime-local"
-                               class="lf-form-control" x-model="configuration.enrolled_at"
-                               x-on:change="enrollmentDateChanged" required>
-                        <p class="lf-form-help">{{ __('lf.LF_course_enrollment_enrolled_at_help') }}</p>
+                <div class="bulk-enrollment-entry-row">
+                    <div class="bulk-enrollment-date-setting">
+                        <div class="lf-form-group admin-form-field">
+                            <label class="lf-form-label" for="bulk-enrolled-at">{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</label>
+                            <input id="bulk-enrolled-at" name="configuration[enrolled_at]" type="datetime-local"
+                                   class="lf-form-control" x-model="configuration.enrolled_at"
+                                   x-on:change="enrollmentDateChanged" required>
+                            <p class="lf-form-help">{{ __('lf.LF_course_enrollment_enrolled_at_help') }}</p>
+                        </div>
                     </div>
-                </div>
 
-                <div x-show="selectedStudents.length === 0" class="admin-alert admin-alert-info" role="status" x-cloak>
-                    <strong class="admin-alert-title">{{ __('lf.LF_bulk_enrollment_start_title') }}</strong>
-                    <p class="admin-alert-guidance">{{ __('lf.LF_bulk_enrollment_start_content') }}</p>
-                </div>
-                <div x-show="selectedStudents.length > 0 && selectedProducts.length === 0" class="admin-alert admin-alert-info" role="status" x-cloak>
-                    <strong class="admin-alert-title">{{ __('lf.LF_bulk_enrollment_select_products_title') }}</strong>
-                    <p class="admin-alert-guidance">{{ __('lf.LF_bulk_enrollment_select_products_content') }}</p>
+                    <div x-show="selectedStudents.length === 0" class="admin-alert admin-alert-info bulk-enrollment-start-guide" role="status" x-cloak>
+                        <strong class="admin-alert-title">{{ __('lf.LF_bulk_enrollment_start_title') }}</strong>
+                        <p class="admin-alert-guidance">{{ __('lf.LF_bulk_enrollment_start_content') }}</p>
+                    </div>
+                    <div x-show="selectedStudents.length > 0 && selectedProducts.length === 0" class="admin-alert admin-alert-info bulk-enrollment-start-guide" role="status" x-cloak>
+                        <strong class="admin-alert-title">{{ __('lf.LF_bulk_enrollment_select_products_title') }}</strong>
+                        <p class="admin-alert-guidance">{{ __('lf.LF_bulk_enrollment_select_products_content') }}</p>
+                    </div>
                 </div>
 
                 <div class="bulk-enrollment-dual-selectors">
@@ -123,7 +125,7 @@
                         </nav>
                     </section>
 
-                    <section x-ref="productPanel" class="bulk-enrollment-selector" :class="{ 'is-onboarding-highlight': productGuidanceHighlighted }" aria-labelledby="bulk-products-title" :aria-busy="productLoading">
+                    <section x-ref="productPanel" class="bulk-enrollment-selector bulk-enrollment-product-selector" :class="{ 'is-onboarding-highlight': productGuidanceHighlighted }" aria-labelledby="bulk-products-title" :aria-busy="productLoading">
                         <div class="bulk-enrollment-transfer__panel-header">
                             <h3 x-ref="productHeading" id="bulk-products-title" tabindex="-1">{{ __('lf.LF_bulk_enrollment_products_panel') }}</h3>
                             <span x-text="selectedProductsLabel" aria-live="polite"></span>
@@ -157,9 +159,12 @@
                                         <span x-show="item.version?.code"><span class="bulk-enrollment-product-meta__label">{{ __('lf.LF_course_enrollment_common_version') }}</span><span x-text="item.version?.code"></span></span>
                                         <span x-show="item.access_duration_days"><span x-text="@js(__('lf.LF_course_enrollment_duration_source')).replace(':access_days', item.access_duration_days).replace(':review_days', item.review_duration_days || 0)"></span></span>
                                     </span>
-                                    <span class="bulk-enrollment-eligibility-badge" :class="`is-${item.eligibility || 'unchecked'}`" x-text="eligibilityLabel(item)"></span>
-                                    <span :id="`product-reason-${item.id}`" x-show="item.eligibility === 'ineligible'" class="course-cohort-index-meta" x-text="eligibilityReason(item)" x-cloak></span>
-                                    <button x-show="hasProduct(item.id) && item.eligibility === 'ineligible'" type="button" class="admin-text-action" x-on:click="toggleProduct(item, false)" x-cloak>{{ __('lf.LF_bulk_enrollment_deselect') }}</button>
+                                    <div class="bulk-enrollment-product-eligibility">
+                                        <span x-show="!productEligibilityReady && selectedStudents.length > 0" class="bulk-enrollment-eligibility-badge is-checking" x-cloak>{{ __('lf.LF_bulk_enrollment_eligibility_loading') }}</span>
+                                        <span x-show="productEligibilityReady" class="bulk-enrollment-eligibility-badge" :class="`is-${item.eligibility || 'unchecked'}`" x-text="eligibilityLabel(item)" x-cloak></span>
+                                        <span :id="`product-reason-${item.id}`" x-show="productEligibilityReady && item.eligibility === 'ineligible'" class="course-cohort-index-meta" x-text="eligibilityReason(item)" x-cloak></span>
+                                        <button x-show="productEligibilityReady && hasProduct(item.id) && item.eligibility === 'ineligible'" type="button" class="admin-text-action" x-on:click="toggleProduct(item, false)" x-cloak>{{ __('lf.LF_bulk_enrollment_deselect') }}</button>
+                                    </div>
                                 </td>
                             </tr></template>
                             <tr x-show="!productLoading && productResults.length === 0" x-cloak><td>{{ __('lf.LF_course_enrollment_search_empty') }}</td></tr>
@@ -194,8 +199,9 @@
                     <div class="bulk-enrollment-pair-summary bulk-enrollment-confirmation__summary"><strong x-text="pairCountLabel"></strong><button type="button" class="admin-text-action" x-on:click="backToSelection">{{ __('lf.LF_bulk_enrollment_change') }}</button></div>
                     <button x-show="reenrollmentPairs.length > 1" type="button" class="btn btn-secondary" x-on:click="confirmAllReenrollments">{{ __('lf.LF_bulk_enrollment_confirm_all_reenrollments') }}</button>
                     <div class="admin-table-wrap bulk-enrollment-review-table"><table class="table">
-                        <thead><tr><th>{{ __('lf.LF_course_enrollment_common_student') }}</th><th>{{ __('lf.LF_course_enrollment_common_product') }}</th><th>{{ __('lf.LF_bulk_enrollment_expected_result') }}</th></tr></thead>
-                        <tbody><template x-for="pair in pairs" :key="`${pair.student_id}:${pair.product_id}`"><tr>
+                        <thead><tr><th class="bulk-enrollment-review-table__number">{{ __('lf.table_no') }}</th><th>{{ __('lf.LF_course_enrollment_common_student') }}</th><th>{{ __('lf.LF_course_enrollment_common_product') }}</th><th>{{ __('lf.LF_bulk_enrollment_expected_result') }}</th></tr></thead>
+                        <tbody><template x-for="(pair, pairIndex) in paginatedPairs" :key="`${pair.student_id}:${pair.product_id}`"><tr>
+                            <td class="bulk-enrollment-review-table__number" x-text="(confirmationPage - 1) * confirmationPerPage + pairIndex + 1"></td>
                             <td x-text="pair.student_name"></td><td x-text="pair.product_title"></td>
                             <td><span x-show="pair.status === 'creatable'" class="bulk-enrollment-pair-status is-new">{{ __('lf.LF_bulk_enrollment_new') }}</span>
                                 <label x-show="pair.status === 'reenrollment_eligible'"><input type="checkbox" x-model="confirmedPairKeys" :value="`${pair.student_id}:${pair.product_id}`"> {{ __('lf.LF_bulk_enrollment_confirm_reenroll') }} #<span x-text="pair.previous_enrollment_id"></span></label>
@@ -203,6 +209,11 @@
                             </td>
                         </tr></template></tbody>
                     </table></div>
+                    <nav x-show="confirmationLastPage > 1" class="bulk-enrollment-pagination" aria-label="{{ __('lf.LF_bulk_enrollment_page') }}" x-cloak>
+                        <button type="button" class="bulk-enrollment-pagination__button" x-on:click="goToConfirmationPage(confirmationPage - 1)" :disabled="confirmationPage <= 1"><span aria-hidden="true">←</span><span>{{ __('lf.LF_bulk_enrollment_previous') }}</span></button>
+                        <span class="bulk-enrollment-pagination__status"><span class="sr-only">{{ __('lf.LF_bulk_enrollment_page') }}</span><span x-text="`${confirmationPage} / ${confirmationLastPage}`"></span></span>
+                        <button type="button" class="bulk-enrollment-pagination__button" x-on:click="goToConfirmationPage(confirmationPage + 1)" :disabled="confirmationPage >= confirmationLastPage"><span>{{ __('lf.LF_bulk_enrollment_next') }}</span><span aria-hidden="true">→</span></button>
+                    </nav>
                     <dl class="bulk-enrollment-confirmation__facts">
                         <div><dt>{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</dt><dd x-text="formatDateTime(configuration.enrolled_at)"></dd></div>
                         <div><dt>{{ __('lf.LF_bulk_enrollment_status_after_creation') }}</dt><dd><span class="badge badge-success">{{ __('lf.LF_course_enrollment_common_active') }}</span></dd></div>
@@ -250,7 +261,7 @@
             return {
                 step: 1, selectedStudents: [], selectedProducts: [], studentResults: [], productResults: [],
                 studentQuery: '', productQuery: '', studentPage: 1, productPage: 1, studentLastPage: 1, productLastPage: 1,
-                studentLoading: false, productLoading: false, loading: false, submitting: false, pairs: [],
+                studentLoading: false, productLoading: false, loading: false, submitting: false, pairs: [], confirmationPage: 1, confirmationPerPage: 10,
                 confirmedPairKeys: [], submissionToken: '', errorMessage: '', productEligibilityError: false,
                 productEligibilityReady: false, productRequestVersion: 0, productEligibilityTimer: null, productAbortController: null,
                 productOnboardingShown: false, productGuidanceHighlighted: false, productHighlightTimer: null, productSelectionPromptVisible: false, productPromptTrigger: null,
@@ -264,6 +275,8 @@
                 get hasInvalidSelectedProducts() { return this.selectedProducts.some(item => item.eligibility === 'ineligible') },
                 get productEligibilityAnnouncement() { if (this.productLoading && this.selectedStudents.length) return @js(__('lf.LF_bulk_enrollment_eligibility_loading')); if (!this.productEligibilityReady) return ''; const eligible = this.productResults.filter(item => item.eligibility === 'eligible').length; return @js(__('lf.LF_bulk_enrollment_eligibility_result')).replace(':eligible', eligible).replace(':total', this.productResults.length) },
                 get reenrollmentPairs() { return this.pairs.filter(pair => pair.status === 'reenrollment_eligible') },
+                get confirmationLastPage() { return Math.max(1, Math.ceil(this.pairs.length / this.confirmationPerPage)) },
+                get paginatedPairs() { const offset = (this.confirmationPage - 1) * this.confirmationPerPage; return this.pairs.slice(offset, offset + this.confirmationPerPage) },
                 get confirmedPairs() { return this.reenrollmentPairs.filter(pair => this.confirmedPairKeys.includes(`${pair.student_id}:${pair.product_id}`)).map(pair => ({ student_id: pair.student_id, product_id: pair.product_id, previous_enrollment_id: pair.previous_enrollment_id })) },
                 hasStudent(id) { return this.selectedStudents.some(item => String(item.id) === String(id)) },
                 hasProduct(id) { return this.selectedProducts.some(item => String(item.id) === String(id)) },
@@ -273,7 +286,8 @@
                 toggleVisibleStudents(checked) { for (const item of this.studentResults) { if (checked && !this.hasStudent(item.id)) this.toggleStudent(item, true); if (!checked && this.hasStudent(item.id)) this.toggleStudent(item, false) } },
                 toggleVisibleProducts(checked) { for (const item of this.eligibleVisibleProducts) { if (checked && !this.hasProduct(item.id)) this.toggleProduct(item, true); if (!checked && this.hasProduct(item.id)) this.toggleProduct(item, false) } },
                 enrollmentDateChanged() { this.resetPreflight(); this.scheduleProductEligibility() },
-                formatDateTime(value) { if (!value) return '—'; return new Intl.DateTimeFormat(document.documentElement.lang || 'vi', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) },
+                formatDateTime(value) { if (!value) return '—'; return new Intl.DateTimeFormat(document.documentElement.lang || 'vi', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) },
+                goToConfirmationPage(page) { if (page < 1 || page > this.confirmationLastPage) return; this.confirmationPage = page },
                 limitError() { this.errorMessage = @js(__('lf.LF_bulk_enrollment_validation_pair_limit')) },
                 async promptForStudentSelection(trigger) { if (this.selectedStudents.length > 0 || this.productSelectionPromptVisible) return; this.productPromptTrigger = trigger; this.productSelectionPromptVisible = true; await this.$nextTick(); this.$refs.productPromptClose.focus() },
                 async closeProductSelectionPrompt() { if (!this.productSelectionPromptVisible) return; this.productSelectionPromptVisible = false; await this.$nextTick(); this.productPromptTrigger?.focus(); this.productPromptTrigger = null },
@@ -282,13 +296,13 @@
                 scheduleProductEligibility() { clearTimeout(this.productEligibilityTimer); this.productRequestVersion++; this.productAbortController?.abort(); this.productEligibilityReady = false; this.productEligibilityError = false; this.productEligibilityTimer = setTimeout(() => this.loadProducts(1), 300) },
                 removeInvalidProducts() { this.selectedProducts = this.selectedProducts.filter(item => item.eligibility !== 'ineligible'); this.resetPreflight() },
                 eligibilityLabel(item) { if (!item.eligibility) return @js(__('lf.LF_bulk_enrollment_eligibility_unchecked')); return item.eligibility === 'eligible' ? @js(__('lf.LF_bulk_enrollment_eligible')) : @js(__('lf.LF_bulk_enrollment_ineligible')) },
-                eligibilityReason(item) { if (!item.invalid_pairs?.length) return @js(__('lf.LF_bulk_enrollment_ineligible_generic')); return item.invalid_pairs.map(pair => `${pair.student_name}: ${pair.reason}`).join(' · ') },
+                eligibilityReason(item) { if (!item.invalid_pairs?.length) return @js(__('lf.LF_bulk_enrollment_ineligible_generic')); const groups = item.invalid_pairs.reduce((result, pair) => { const reason = pair.reason || @js(__('lf.LF_bulk_enrollment_ineligible_generic')); if (!result[reason]) result[reason] = []; result[reason].push(pair.student_name); return result }, {}); return Object.entries(groups).map(([reason, students]) => students.length === this.selectedStudents.length ? reason : `${students.join(', ')}: ${reason}`).join(' · ') },
                 async loadStudents(page) { if (page < 1) return; this.studentLoading = true; try { const data = await this.fetchSearch(config.studentUrl, this.studentQuery, page); this.studentResults = data.data; this.studentPage = data.pagination.current_page; this.studentLastPage = data.pagination.last_page } finally { this.studentLoading = false } },
                 async loadProducts(page) { if (page < 1) return; const requestVersion = ++this.productRequestVersion; this.productAbortController?.abort(); this.productAbortController = new AbortController(); this.productLoading = true; this.productEligibilityReady = false; this.productEligibilityError = false; try { const params = new URLSearchParams({ q: this.productQuery, page: String(page), enrolled_at: this.configuration.enrolled_at }); [...this.selectedStudents].map(item => Number(item.id)).sort((a, b) => a - b).forEach(id => params.append('student_ids[]', String(id))); [...this.selectedProducts].map(item => Number(item.id)).sort((a, b) => a - b).forEach(id => params.append('selected_product_ids[]', String(id))); const response = await fetch(`${config.productUrl}?${params}`, { headers: { Accept: 'application/json' }, signal: this.productAbortController.signal }); if (!response.ok) throw new Error(); const data = await response.json(); if (requestVersion !== this.productRequestVersion) return; this.productResults = data.data; this.productPage = data.pagination.current_page; this.productLastPage = data.pagination.last_page; this.selectedProducts = this.selectedStudents.length === 0 ? this.selectedProducts.map(item => ({ ...item, eligibility: null, invalid_pairs: [] })) : this.selectedProducts.map(item => ({ ...item, ...(data.selected_eligibility?.[String(item.id)] || { eligibility: 'ineligible', invalid_pair_count: this.selectedStudents.length, invalid_pairs: [] }) })); this.productEligibilityReady = this.selectedStudents.length > 0 } catch (error) { if (error.name === 'AbortError' || requestVersion !== this.productRequestVersion) return; this.productEligibilityError = true; this.productEligibilityReady = false } finally { if (requestVersion === this.productRequestVersion) this.productLoading = false } },
                 async fetchSearch(url, query, page) { const response = await fetch(`${url}?q=${encodeURIComponent(query)}&page=${page}`, { headers: { Accept: 'application/json' } }); if (!response.ok) throw new Error(); return response.json() },
                 payload(finalize) { return { student_ids: this.selectedStudents.map(item => item.id), product_ids: this.selectedProducts.map(item => item.id), reenrollment_confirmations: this.confirmedPairs, configuration: this.configuration, finalize } },
                 async runPreflight(finalize) { this.loading = true; this.errorMessage = ''; try { const response = await fetch(config.preflightUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': config.csrf }, body: JSON.stringify(this.payload(finalize)) }); const data = await response.json(); if (!response.ok) { this.errorMessage = Object.values(data.errors || {}).flat().join(' '); return null } return data } catch (error) { this.errorMessage = @js(__('lf.LF_bulk_enrollment_search_error')); return null } finally { this.loading = false } },
-                async continueToSetup() { if (this.hasInvalidSelectedProducts) { await this.$nextTick(); this.$refs.selectionError.focus(); return } const result = await this.runPreflight(false); if (!result) return; this.pairs = result.pairs; if (!result.can_continue) { this.errorMessage = @js(__('lf.LF_bulk_enrollment_preflight_blocked')); return } this.step = 2; window.scrollTo({ top: 0, behavior: 'smooth' }) },
+                async continueToSetup() { if (this.hasInvalidSelectedProducts) { await this.$nextTick(); this.$refs.selectionError.focus(); return } const result = await this.runPreflight(false); if (!result) return; this.pairs = result.pairs; this.confirmationPage = 1; if (!result.can_continue) { this.errorMessage = @js(__('lf.LF_bulk_enrollment_preflight_blocked')); return } this.step = 2; window.scrollTo({ top: 0, behavior: 'smooth' }) },
                 confirmAllReenrollments() { if (window.confirm(@js(__('lf.LF_bulk_enrollment_confirm_all_warning')))) this.confirmedPairKeys = this.reenrollmentPairs.map(pair => `${pair.student_id}:${pair.product_id}`) },
                 async commit() { if (this.submitting) return; this.submitting = true; const result = await this.runPreflight(true); if (!result || !result.valid || !result.submission_token) { if (result) { this.pairs = result.pairs; this.errorMessage = @js(__('lf.LF_bulk_enrollment_confirmation_required')) } this.submitting = false; return } this.submissionToken = result.submission_token; await this.$nextTick(); this.$refs.form.submit() },
                 async backToSelection() { await this.invalidateToken(); this.step = 1; this.submitting = false; window.scrollTo({ top: 0, behavior: 'smooth' }) },
