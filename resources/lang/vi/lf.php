@@ -1749,7 +1749,7 @@ return [
     'LF_product_v2_placeholder_short_description' => 'Nhập mô tả ngắn', 'LF_product_v2_placeholder_description' => 'Nhập mô tả chi tiết',
     'LF_product_v2_intro_image' => 'Ảnh giới thiệu', 'LF_product_v2_intro_video' => 'Video giới thiệu', 'LF_product_v2_intro_document' => 'Tài liệu giới thiệu',
     'LF_product_v2_remove' => 'Xóa', 'LF_product_v2_video_source' => 'Nguồn video', 'LF_product_v2_select_video_source' => 'Chọn nguồn video', 'LF_product_v2_upload' => 'Tải lên',
-    'LF_product_v2_access_days' => 'Thời hạn học (ngày)', 'LF_product_v2_review_days' => 'Thời gian ôn tập bổ sung (ngày)',
+    'LF_product_v2_access_days' => 'Thời hạn truy cập (ngày)', 'LF_product_v2_review_days' => 'Thời hạn ôn tập (ngày)',
     'LF_product_v2_placeholder_access_days' => 'Nhập số ngày học', 'LF_product_v2_placeholder_review_days' => 'Nhập số ngày ôn tập bổ sung',
     'LF_product_v2_configuration_deferred' => 'Cấu hình riêng cho loại sản phẩm này sẽ được triển khai sau.',
     'LF_product_v2_list_price' => 'Giá niêm yết', 'LF_product_v2_apply_promotion' => 'Áp dụng khuyến mãi',

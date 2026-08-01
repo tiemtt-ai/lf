@@ -2525,14 +2525,14 @@ class CourseProductManagementTest extends TestCase
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-products/create')
             ->assertOk()
-            ->assertSeeText('Thời hạn học (ngày)')
-            ->assertSeeText('Thời gian ôn tập bổ sung (ngày)');
+            ->assertSeeText('Thời hạn truy cập (ngày)')
+            ->assertSeeText('Thời hạn ôn tập (ngày)');
 
         $this->withSession(['locale' => 'en'])->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-products/create')
             ->assertOk()
-            ->assertSeeText('Study access duration (days)')
-            ->assertSeeText('Additional review duration (days)');
+            ->assertSeeText('Access duration (days)')
+            ->assertSeeText('Review duration (days)');
     }
 
     public function test_create_product_keeps_template_enabled_and_persists_selected_published_version(): void

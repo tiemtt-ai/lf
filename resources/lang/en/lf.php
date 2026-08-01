@@ -1749,7 +1749,7 @@ return [
     'LF_product_v2_placeholder_short_description' => 'Enter a short description', 'LF_product_v2_placeholder_description' => 'Enter a detailed description',
     'LF_product_v2_intro_image' => 'Introduction image', 'LF_product_v2_intro_video' => 'Introduction video', 'LF_product_v2_intro_document' => 'Introduction document',
     'LF_product_v2_remove' => 'Remove', 'LF_product_v2_video_source' => 'Video source', 'LF_product_v2_select_video_source' => 'Select a video source', 'LF_product_v2_upload' => 'Upload',
-    'LF_product_v2_access_days' => 'Study access duration (days)', 'LF_product_v2_review_days' => 'Additional review duration (days)',
+    'LF_product_v2_access_days' => 'Access duration (days)', 'LF_product_v2_review_days' => 'Review duration (days)',
     'LF_product_v2_placeholder_access_days' => 'Enter study days', 'LF_product_v2_placeholder_review_days' => 'Enter additional review days',
     'LF_product_v2_configuration_deferred' => 'Type-specific configuration for this Product type is deferred.',
     'LF_product_v2_list_price' => 'List price', 'LF_product_v2_apply_promotion' => 'Apply promotion',
