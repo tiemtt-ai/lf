@@ -37,13 +37,11 @@ class MediaFileController extends Controller
         $customerId = $this->customerId();
         $tab = $this->normalizedTab($request);
         $type = $this->normalizedType($request);
+        $keyword = $this->normalizedKeyword($request);
+        $ownerTypeOptions = $this->ownerTypeOptions($customerId);
         $ownerType = $this->normalizedValue(
             $request->query('owner_type'),
-            $this->usageOptions($customerId, 'owner_type')->keys()->all()
-        );
-        $usageType = $this->normalizedValue(
-            $request->query('usage_type'),
-            $this->usageOptions($customerId, 'usage_type')->keys()->all()
+            $ownerTypeOptions->keys()->all()
         );
         $usageStatus = $this->normalizedValue(
             $request->query('usage_status'),
@@ -51,7 +49,7 @@ class MediaFileController extends Controller
         );
         $fileType = $type ?? self::TAB_TYPES[$tab] ?? null;
 
-        $mediaFiles = $this->mediaQuery($customerId, $fileType, $ownerType, $usageType, $usageStatus)
+        $mediaFiles = $this->mediaQuery($customerId, $fileType, $keyword, $ownerType, $usageStatus)
             ->orderByDesc('media_files.created_at')
             ->orderByDesc('media_files.id')
             ->paginate(10)
@@ -87,11 +85,10 @@ class MediaFileController extends Controller
             'tabs' => self::TABS,
             'tab' => $tab,
             'type' => $type,
+            'keyword' => $keyword,
             'ownerType' => $ownerType,
-            'usageType' => $usageType,
             'usageStatus' => $usageStatus,
-            'ownerTypeOptions' => $this->usageOptions($customerId, 'owner_type'),
-            'usageTypeOptions' => $this->usageOptions($customerId, 'usage_type'),
+            'ownerTypeOptions' => $ownerTypeOptions,
             'tabCounts' => $this->tabCounts($customerId),
         ]);
     }
@@ -128,8 +125,8 @@ class MediaFileController extends Controller
     private function mediaQuery(
         int $customerId,
         ?string $fileType,
+        ?string $keyword,
         ?string $ownerType,
-        ?string $usageType,
         ?string $usageStatus
     ) {
         $usageCounts = DB::table('media_file_usages')
@@ -149,6 +146,15 @@ class MediaFileController extends Controller
             ->where('media_files.customer_id', $customerId)
             ->where('media_files.status', '!=', 'deleted')
             ->when($fileType, fn ($query) => $query->where('media_files.file_type', $fileType))
+            ->when($keyword, function ($query) use ($keyword): void {
+                $query->where(function ($keywordQuery) use ($keyword): void {
+                    $pattern = '%'.$keyword.'%';
+
+                    $keywordQuery
+                        ->where('media_files.display_name', 'like', $pattern)
+                        ->orWhere('media_files.original_name', 'like', $pattern);
+                });
+            })
             ->when($usageStatus === 'in_use', fn ($query) => $query->whereRaw('COALESCE(usage_counts.usage_count, 0) > 0'))
             ->when($usageStatus === 'unused', fn ($query) => $query->whereRaw('COALESCE(usage_counts.usage_count, 0) = 0'))
             ->when($ownerType, function ($query) use ($customerId, $ownerType): void {
@@ -157,17 +163,7 @@ class MediaFileController extends Controller
                         ->from('media_file_usages')
                         ->whereColumn('media_file_usages.media_file_id', 'media_files.id')
                         ->where('media_file_usages.customer_id', $customerId)
-                        ->where('media_file_usages.owner_type', $ownerType)
-                        ->where('media_file_usages.status', 'active');
-                });
-            })
-            ->when($usageType, function ($query) use ($customerId, $usageType): void {
-                $query->whereExists(function ($usageQuery) use ($customerId, $usageType): void {
-                    $usageQuery->selectRaw('1')
-                        ->from('media_file_usages')
-                        ->whereColumn('media_file_usages.media_file_id', 'media_files.id')
-                        ->where('media_file_usages.customer_id', $customerId)
-                        ->where('media_file_usages.usage_type', $usageType)
+                        ->whereIn('media_file_usages.owner_type', $this->physicalOwnerTypes($ownerType))
                         ->where('media_file_usages.status', 'active');
                 });
             })
@@ -316,17 +312,38 @@ class MediaFileController extends Controller
         return $names;
     }
 
-    private function usageOptions(int $customerId, string $field): Collection
+    private function ownerTypeOptions(int $customerId): Collection
     {
         return DB::table('media_file_usages')
             ->where('customer_id', $customerId)
             ->where('status', 'active')
-            ->whereNotNull($field)
+            ->whereNotNull('owner_type')
             ->distinct()
-            ->orderBy($field)
-            ->pluck($field)
-            ->mapWithKeys(fn (string $value): array => [$value => $this->usageLabel($value)])
+            ->pluck('owner_type')
+            ->map(fn (string $ownerType): string => $this->logicalOwnerType($ownerType))
+            ->unique()
+            ->mapWithKeys(fn (string $ownerType): array => [
+                $ownerType => $this->usageLabel($ownerType),
+            ])
             ->sort();
+    }
+
+    private function logicalOwnerType(string $ownerType): string
+    {
+        return match ($ownerType) {
+            'course_template_version' => 'course_template',
+            'course_version_activity' => 'course_activity',
+            default => $ownerType,
+        };
+    }
+
+    private function physicalOwnerTypes(string $ownerType): array
+    {
+        return match ($ownerType) {
+            'course_template' => ['course_template', 'course_template_version'],
+            'course_activity' => ['course_activity', 'course_version_activity'],
+            default => [$ownerType],
+        };
     }
 
     private function tabCounts(int $customerId): array
@@ -370,6 +387,13 @@ class MediaFileController extends Controller
         $type = (string) $request->query('type', '');
 
         return in_array($type, self::FILTER_TYPES, true) ? $type : null;
+    }
+
+    private function normalizedKeyword(Request $request): ?string
+    {
+        $keyword = trim((string) $request->query('keyword', ''));
+
+        return $keyword === '' ? null : mb_substr($keyword, 0, 100);
     }
 
     private function normalizedValue(mixed $value, array $allowed): ?string

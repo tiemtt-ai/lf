@@ -321,6 +321,8 @@ return [
     'LF_media_file_common_filters' => 'Filters',
     'LF_media_file_common_type' => 'Type',
     'LF_media_file_common_all_types' => 'All types',
+    'LF_media_file_common_keyword' => 'Keyword',
+    'LF_media_file_common_keyword_placeholder' => 'Search by Media name or file name',
     'LF_media_file_common_owner_type' => 'Owner type',
     'LF_media_file_common_all_owner_types' => 'All owner types',
     'LF_media_file_common_usage_type' => 'Usage type',

@@ -321,6 +321,8 @@ return [
     'LF_media_file_common_filters' => 'Bộ lọc',
     'LF_media_file_common_type' => 'Loại',
     'LF_media_file_common_all_types' => 'Tất cả loại',
+    'LF_media_file_common_keyword' => 'Từ khóa',
+    'LF_media_file_common_keyword_placeholder' => 'Tìm theo tên Media hoặc tên tệp',
     'LF_media_file_common_owner_type' => 'Loại đối tượng',
     'LF_media_file_common_all_owner_types' => 'Tất cả loại đối tượng',
     'LF_media_file_common_usage_type' => 'Mục đích sử dụng',

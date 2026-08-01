@@ -70,14 +70,13 @@ class MediaLibraryManagementTest extends TestCase
             ->assertSee('media-library-preview-button', false)
             ->assertDontSee('name="type"', false)
             ->assertSeeTextInOrder([
+                __('lf.LF_media_file_common_keyword'),
                 __('lf.LF_media_file_common_owner_type'),
-                __('lf.LF_media_file_common_usage_type'),
                 __('lf.LF_media_file_usage_status'),
             ])
+            ->assertDontSee('name="usage_type"', false)
             ->assertSeeText('TOPIK Beginner')
-            ->assertSeeText(__('lf.LF_media_usage_label_course_category'))
-            ->assertSeeText(__('lf.LF_media_usage_label_thumbnail'))
-            ->assertSeeText(__('lf.LF_media_usage_label_banner_image'));
+            ->assertSeeText(__('lf.LF_media_usage_label_course_category'));
 
         $componentsCss = file_get_contents(resource_path('css/admin/admin-components.css'));
         $pagesCss = file_get_contents(resource_path('css/admin/admin-pages.css'));
@@ -85,7 +84,7 @@ class MediaLibraryManagementTest extends TestCase
             '.lf-admin-page .media-library-index-table .admin-table-sequence',
             $componentsCss
         );
-        $this->assertStringContainsString('max-width: 92px;', $componentsCss);
+        $this->assertStringContainsString('max-width: 72px;', $componentsCss);
         $this->assertStringContainsString(
             '.media-library-index-table tbody tr:hover > td',
             $pagesCss
@@ -329,7 +328,7 @@ class MediaLibraryManagementTest extends TestCase
         $this->assertStringContainsString('.media-library-preview-button:focus-visible {', $css);
     }
 
-    public function test_media_library_filters_by_owner_and_usage_type(): void
+    public function test_media_library_filters_by_owner_and_keyword(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -339,6 +338,8 @@ class MediaLibraryManagementTest extends TestCase
         TenantContext::set((object) ['id' => $customerId]);
         $this->uploadManagedMedia($admin, 'Category Thumbnail', 'image', 'category.png', 'course_category', $categoryId, 'thumbnail');
         $this->uploadManagedMedia($admin, 'Activity Document', 'document', 'activity.pdf', 'course_activity', 301, 'document');
+        $this->uploadManagedMedia($admin, 'Published Template Asset', 'audio', 'published-template.mp3', 'course_template_version', 901, 'audio');
+        $this->uploadManagedMedia($admin, 'Published Activity Asset', 'video', 'published-activity.mp4', 'course_version_activity', 902, 'video');
 
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/media?owner_type=course_category')
@@ -349,10 +350,31 @@ class MediaLibraryManagementTest extends TestCase
             ->assertDontSeeText('Lesson Document');
 
         $this->actingAs($admin)
-            ->get('https://tenant-a.localhost/admin/media?usage_type=document')
+            ->get('https://tenant-a.localhost/admin/media?owner_type=course_template')
+            ->assertOk()
+            ->assertSeeText('Published Template Asset')
+            ->assertDontSeeText('Published Activity Asset')
+            ->assertDontSee('value="course_template_version"', false)
+            ->assertDontSee('value="course_version_activity"', false);
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/media?owner_type=course_activity')
+            ->assertOk()
+            ->assertSeeText('Activity Document')
+            ->assertSeeText('Published Activity Asset')
+            ->assertDontSeeText('Published Template Asset');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/media?keyword=Activity')
             ->assertOk()
             ->assertSeeText('Activity Document')
             ->assertDontSeeText('Category Thumbnail');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/media?keyword=category.png')
+            ->assertOk()
+            ->assertSeeText('Category Thumbnail')
+            ->assertDontSeeText('Activity Document');
     }
 
     public function test_existing_category_uploads_remain_functional_after_media_library_enhancement(): void
