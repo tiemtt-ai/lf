@@ -44,10 +44,9 @@
                 <section class="admin-form-standard-section" aria-labelledby="bulk-applied-settings-title">
                     <h2 id="bulk-applied-settings-title" class="admin-form-section-title">{{ __('lf.LF_bulk_enrollment_applied_settings') }}</h2>
                     <dl class="bulk-enrollment-result__settings">
-                        <div><dt>{{ __('lf.LF_course_enrollment_access_window') }}</dt><dd>{{ $configuration['access_starts_at'] ? $formatDateTime($configuration['access_starts_at']) : __('lf.LF_bulk_enrollment_access_immediate') }} <span aria-hidden="true">→</span> {{ $configuration['access_ends_at'] ? $formatDateTime($configuration['access_ends_at']) : __('lf.LF_bulk_enrollment_access_unlimited') }}</dd></div>
-                        <div><dt>{{ __('lf.LF_course_enrollment_review_window') }}</dt><dd>{{ $configuration['review_starts_at'] ? $formatDateTime($configuration['review_starts_at']) : __('lf.LF_bulk_enrollment_not_configured') }} <span aria-hidden="true">→</span> {{ $configuration['review_ends_at'] ? $formatDateTime($configuration['review_ends_at']) : __('lf.LF_bulk_enrollment_not_configured') }}</dd></div>
                         <div><dt>{{ __('lf.LF_course_enrollment_common_status') }}</dt><dd><span class="badge badge-success">{{ __('lf.LF_course_enrollment_common_active') }}</span></dd></div>
                         <div><dt>{{ __('lf.LF_course_enrollment_common_source') }}</dt><dd>{{ __('lf.LF_course_enrollment_common_source_admin') }}</dd></div>
+                        <div><dt>{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</dt><dd>{{ $formatDateTime($configuration['enrolled_at'] ?? $context['completed_at']) }}</dd></div>
                         @if (filled($configuration['notes'] ?? null))
                             <div><dt>{{ __('lf.LF_course_enrollment_internal_notes') }}</dt><dd>{{ __('lf.LF_bulk_enrollment_has_notes') }}</dd></div>
                         @endif

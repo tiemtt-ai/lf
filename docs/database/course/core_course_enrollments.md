@@ -107,6 +107,12 @@ core_course_progress
   promotion, import hoặc api.
 * Enrollment quyết định quyền truy cập học tập.
 * Product quyết định nội dung, giá, thời hạn học và quyền truy cập.
+* Enrollment mới snapshot `access_duration_days` và
+  `review_duration_days` từ Product tại thời điểm tạo.
+* Product đổi duration không được cập nhật duration snapshot hoặc timestamp
+  của historical Enrollment.
+* Enrollment legacy có duration snapshot `NULL` giữ nguyên timestamp và không
+  được đổi `enrolled_at`.
 * Enrollment không lưu tiến độ học chi tiết.
 * Tiến độ học lưu ở nhóm Learning Progress.
 * Nếu product có thời hạn học, enrollment cần lưu ngày bắt đầu và ngày hết hạn riêng.
@@ -296,6 +302,40 @@ NOT NULL
 ```
 
 Thời điểm học viên được cấp quyền học.
+
+---
+
+### access_duration_days
+
+```text
+INTEGER UNSIGNED
+NULL
+```
+
+Snapshot thời hạn truy cập của Product tại thời điểm tạo Enrollment.
+
+Enrollment mới bắt buộc có giá trị lớn hơn `0`. `NULL` chỉ dùng để tương thích
+Enrollment legacy và không được backfill từ Product hiện tại.
+
+Giá trị không thay đổi khi Product thay đổi. Khi một workflow được phép đổi
+`enrolled_at`, hệ thống dùng snapshot này để tính lại `access_ends_at`.
+
+---
+
+### review_duration_days
+
+```text
+INTEGER UNSIGNED
+NULL
+```
+
+Snapshot thời hạn ôn tập của Product tại thời điểm tạo Enrollment.
+
+Giá trị hợp lệ là `NULL`, `0` hoặc số nguyên dương theo Product contract.
+`NULL` trên Enrollment legacy không được suy diễn từ Product hiện tại.
+
+Giá trị không thay đổi khi Product thay đổi. Khi một workflow được phép đổi
+`enrolled_at`, hệ thống dùng snapshot này để tính lại chuỗi thời gian ôn tập.
 
 ---
 
@@ -554,6 +594,10 @@ source_id = 5001
 enrolled_by = NULL
 
 enrolled_at = 2026-06-24 09:00:00
+
+access_duration_days = 90
+
+review_duration_days = 30
 
 access_starts_at = 2026-06-24 09:00:00
 

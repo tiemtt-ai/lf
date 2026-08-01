@@ -8,7 +8,7 @@ use Illuminate\Validation\Validator;
 
 class BulkEnrollmentUpdateRequest extends FormRequest
 {
-    private const FIELDS = ['access_starts_at', 'access_ends_at', 'review_starts_at', 'review_ends_at', 'notes'];
+    private const FIELDS = ['notes'];
 
     public function authorize(): bool
     {
@@ -24,6 +24,10 @@ class BulkEnrollmentUpdateRequest extends FormRequest
             'product_id' => ['prohibited'], 'version_id' => ['prohibited'],
             'source' => ['prohibited'], 'source_id' => ['prohibited'], 'enrolled_by' => ['prohibited'],
             'status' => ['prohibited'], 'cancelled_at' => ['prohibited'], 'enrolled_at' => ['prohibited'],
+            'access_starts_at_action' => ['prohibited'], 'access_starts_at_value' => ['prohibited'],
+            'access_ends_at_action' => ['prohibited'], 'access_ends_at_value' => ['prohibited'],
+            'review_starts_at_action' => ['prohibited'], 'review_starts_at_value' => ['prohibited'],
+            'review_ends_at_action' => ['prohibited'], 'review_ends_at_value' => ['prohibited'],
         ];
         foreach (self::FIELDS as $field) {
             $rules[$field.'_action'] = ['required', Rule::in(['preserve', 'set', 'clear'])];

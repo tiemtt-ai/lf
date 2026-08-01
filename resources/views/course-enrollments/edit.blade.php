@@ -21,7 +21,11 @@
 
     <div class="admin-card admin-form-card admin-form-surface course-enrollment-edit">
         <form class="admin-form-standard" method="POST" action="{{ route($routePrefix.'.update', $enrollment->id) }}"
-              x-data="{ submitting: false }" x-on:submit="if (submitting) { $event.preventDefault(); return } submitting = true">
+              x-data="enrollmentTimeEditor({
+                  enrolledAt: @js(old('enrolled_at', \Illuminate\Support\Carbon::parse($enrollment->enrolled_at)->format('Y-m-d\TH:i'))),
+                  accessDays: @js($enrollment->access_duration_days),
+                  reviewDays: @js($enrollment->review_duration_days),
+              })" x-on:submit="if (submitting) { $event.preventDefault(); return } submitting = true">
             @csrf
             @method('PUT')
 
@@ -59,8 +63,14 @@
                             <div class="admin-form-readonly lf-form-control">{{ __('lf.LF_course_enrollment_common_source_'.$enrollment->source) }}</div>
                         </div>
                         <div class="lf-form-group admin-form-field">
-                            <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</span>
-                            <div class="admin-form-readonly lf-form-control">{{ $enrollment->enrolled_at ? \Illuminate\Support\Carbon::parse($enrollment->enrolled_at)->format('d/m/Y H:i') : '—' }}</div>
+                            <label class="lf-form-label" for="enrolled_at">{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</label>
+                            @if ($enrollment->access_duration_days !== null)
+                                <input id="enrolled_at" name="enrolled_at" type="datetime-local" class="lf-form-control" x-model="enrolledAt" required>
+                                <p class="lf-form-help">{{ __('lf.LF_course_enrollment_enrolled_at_help') }}</p>
+                            @else
+                                <div id="enrolled_at" class="admin-form-readonly lf-form-control">{{ \Illuminate\Support\Carbon::parse($enrollment->enrolled_at)->format('d/m/Y H:i') }}</div>
+                                <p class="lf-form-error" role="status">{{ __('lf.LF_course_enrollment_legacy_duration_missing') }}</p>
+                            @endif
                         </div>
                     </div>
                 </section>
@@ -70,9 +80,8 @@
                     <div class="admin-form-field-grid">
                         @foreach (['access_starts_at', 'access_ends_at'] as $field)
                             <div class="lf-form-group admin-form-field">
-                                <label class="lf-form-label" for="{{ $field }}">{{ __('lf.LF_course_enrollment_common_'.$field) }}</label>
-                                <input id="{{ $field }}" type="datetime-local" name="{{ $field }}" class="lf-form-control" value="{{ old($field, optional($enrollment->{$field} ? \Illuminate\Support\Carbon::parse($enrollment->{$field}) : null)->format('Y-m-d\\TH:i')) }}" @error($field) aria-invalid="true" @enderror>
-                                @error($field)<p class="lf-form-error" role="alert">{{ $message }}</p>@enderror
+                                <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_'.$field) }}</span>
+                                <div id="{{ $field }}" class="admin-form-readonly lf-form-control" x-text="preview('{{ $field }}')"></div>
                             </div>
                         @endforeach
                     </div>
@@ -83,9 +92,8 @@
                     <div class="admin-form-field-grid">
                         @foreach (['review_starts_at', 'review_ends_at'] as $field)
                             <div class="lf-form-group admin-form-field">
-                                <label class="lf-form-label" for="{{ $field }}">{{ __('lf.LF_course_enrollment_common_'.$field) }}</label>
-                                <input id="{{ $field }}" type="datetime-local" name="{{ $field }}" class="lf-form-control" value="{{ old($field, optional($enrollment->{$field} ? \Illuminate\Support\Carbon::parse($enrollment->{$field}) : null)->format('Y-m-d\\TH:i')) }}" @error($field) aria-invalid="true" @enderror>
-                                @error($field)<p class="lf-form-error" role="alert">{{ $message }}</p>@enderror
+                                <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_'.$field) }}</span>
+                                <div id="{{ $field }}" class="admin-form-readonly lf-form-control" x-text="preview('{{ $field }}')"></div>
                             </div>
                         @endforeach
                     </div>
@@ -112,4 +120,31 @@
             </footer>
         </form>
     </div>
+
+    <script>
+        function enrollmentTimeEditor(config) {
+            return {
+                submitting: false,
+                enrolledAt: config.enrolledAt,
+                accessDays: config.accessDays,
+                reviewDays: config.reviewDays,
+                addDays(value, days) { const date = new Date(value); date.setDate(date.getDate() + Number(days)); return date },
+                display(value) { return value ? new Intl.DateTimeFormat(document.documentElement.lang || 'vi', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '—' },
+                preview(field) {
+                    if (this.accessDays === null) return @js([
+                        'access_starts_at' => $enrollment->access_starts_at ? \Illuminate\Support\Carbon::parse($enrollment->access_starts_at)->format('d/m/Y H:i') : '—',
+                        'access_ends_at' => $enrollment->access_ends_at ? \Illuminate\Support\Carbon::parse($enrollment->access_ends_at)->format('d/m/Y H:i') : '—',
+                        'review_starts_at' => $enrollment->review_starts_at ? \Illuminate\Support\Carbon::parse($enrollment->review_starts_at)->format('d/m/Y H:i') : '—',
+                        'review_ends_at' => $enrollment->review_ends_at ? \Illuminate\Support\Carbon::parse($enrollment->review_ends_at)->format('d/m/Y H:i') : '—',
+                    ])[field];
+                    const accessEnd = this.addDays(this.enrolledAt, this.accessDays);
+                    if (field === 'access_starts_at') return this.display(this.enrolledAt);
+                    if (field === 'access_ends_at') return this.display(accessEnd);
+                    if (!this.reviewDays) return '—';
+                    if (field === 'review_starts_at') return this.display(accessEnd);
+                    return this.display(this.addDays(accessEnd, this.reviewDays));
+                },
+            }
+        }
+    </script>
 @endsection

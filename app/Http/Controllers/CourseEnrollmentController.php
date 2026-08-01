@@ -15,6 +15,7 @@ use App\Services\CourseEnrollmentLifecycleService;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
@@ -233,7 +234,11 @@ class CourseEnrollmentController extends Controller
             'student_ids.*' => ['integer', 'min:1', 'distinct'],
             'selected_product_ids' => ['sometimes', 'array', 'max:100'],
             'selected_product_ids.*' => ['integer', 'min:1', 'distinct'],
+            'enrolled_at' => ['nullable', 'date'],
         ])->validate();
+        $enrolledAt = filled($selection['enrolled_at'] ?? null)
+            ? Carbon::parse($selection['enrolled_at'])
+            : now();
         $studentIds = collect($selection['student_ids'] ?? [])->map(fn ($id): int => (int) $id)
             ->unique()->sort()->values();
         $selectedProductIds = collect($selection['selected_product_ids'] ?? [])->map(fn ($id): int => (int) $id)
@@ -257,8 +262,8 @@ class CourseEnrollmentController extends Controller
         $states = $request->integer('student_id') > 0
             ? $this->pairEnrollmentStates($customerId, [$request->integer('student_id')], $productItems->pluck('id')->all())
             : [];
-        $data = $productItems->map(function (object $product) use ($request, $states): array {
-            $payload = $this->productSearchPayload($product);
+        $data = $productItems->map(function (object $product) use ($request, $states, $enrolledAt): array {
+            $payload = $this->productSearchPayload($product, $enrolledAt);
             $payload['enrollment_state'] = $states[$request->integer('student_id').':'.$product->id] ?? 'none';
 
             return $payload;
@@ -267,7 +272,9 @@ class CourseEnrollmentController extends Controller
         $selectedEligibility = [];
         if ($studentIds->isNotEmpty()) {
             $eligibilityProductIds = $productItems->pluck('id')->merge($selectedProductIds)->unique()->sort()->values();
-            $preflightPayload = $payloads->canonical($studentIds->all(), $eligibilityProductIds->all(), [], []);
+            $preflightPayload = $payloads->canonical($studentIds->all(), $eligibilityProductIds->all(), [], [
+                'enrolled_at' => $enrolledAt->format('Y-m-d H:i:s'),
+            ]);
             $preflight = $service->preflight($customerId, $preflightPayload);
             $pairsByProduct = collect($preflight['pairs'])->groupBy('product_id');
             $eligibility = $eligibilityProductIds->mapWithKeys(function (int $productId) use ($pairsByProduct, $studentIds): array {
@@ -388,19 +395,24 @@ class CourseEnrollmentController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, CourseEnrollmentLifecycleService $enrollmentPolicy)
     {
         $this->authorizeAdmin($request);
 
         $customerId = $this->customerId();
         $validated = $this->validatedCreateData($request, $customerId);
         $now = now();
+        $enrolledAt = isset($validated['enrolled_at'])
+            ? Carbon::parse($validated['enrolled_at'])
+            : $now->copy();
 
         $enrollmentId = DB::transaction(function () use (
             $request,
             $customerId,
             $validated,
             $now,
+            $enrolledAt,
+            $enrollmentPolicy,
         ): int {
             DB::table('core_course_products')
                 ->where('customer_id', $customerId)
@@ -408,6 +420,12 @@ class CourseEnrollmentController extends Controller
                 ->where('status', 'active')
                 ->lockForUpdate()
                 ->firstOrFail(['id']);
+            $timeWindows = $enrollmentPolicy->projectTimeWindows(
+                $customerId,
+                (int) $validated['product_id'],
+                $enrolledAt,
+                true
+            );
             $version = $this->resolveVersion(
                 $customerId,
                 (int) $validated['product_id'],
@@ -421,11 +439,13 @@ class CourseEnrollmentController extends Controller
                 'source' => 'admin',
                 'source_id' => null,
                 'enrolled_by' => $request->user()?->id,
-                'enrolled_at' => $now,
-                'access_starts_at' => $validated['access_starts_at'] ?? null,
-                'access_ends_at' => $validated['access_ends_at'] ?? null,
-                'review_starts_at' => $validated['review_starts_at'] ?? null,
-                'review_ends_at' => $validated['review_ends_at'] ?? null,
+                'enrolled_at' => $enrolledAt,
+                'access_duration_days' => $timeWindows['access_duration_days'],
+                'review_duration_days' => $timeWindows['review_duration_days'],
+                'access_starts_at' => $timeWindows['access_starts_at'],
+                'access_ends_at' => $timeWindows['access_ends_at'],
+                'review_starts_at' => $timeWindows['review_starts_at'],
+                'review_ends_at' => $timeWindows['review_ends_at'],
                 'status' => 'active',
                 'notes' => $validated['notes'] ?? null,
                 'completed_at' => null,
@@ -478,7 +498,7 @@ class CourseEnrollmentController extends Controller
         ]);
     }
 
-    public function update(Request $request, int $id)
+    public function update(Request $request, int $id, CourseEnrollmentLifecycleService $enrollmentPolicy)
     {
         $this->authorizeAdmin($request);
 
@@ -486,19 +506,28 @@ class CourseEnrollmentController extends Controller
         $this->findEnrollment($customerId, $id);
         $validated = $this->validatedUpdateData($request);
 
-        DB::transaction(function () use ($customerId, $id, $validated): void {
+        DB::transaction(function () use ($customerId, $id, $validated, $enrollmentPolicy): void {
             $enrollment = DB::table('core_course_enrollments')->where('customer_id', $customerId)
                 ->where('id', $id)->lockForUpdate()->first();
             abort_if(! $enrollment, 404);
             abort_if(! in_array($enrollment->status, ['pending', 'active', 'suspended'], true), 422);
-            DB::table('core_course_enrollments')->where('customer_id', $customerId)->where('id', $id)->update([
-                'access_starts_at' => $validated['access_starts_at'] ?? null,
-                'access_ends_at' => $validated['access_ends_at'] ?? null,
-                'review_starts_at' => $validated['review_starts_at'] ?? null,
-                'review_ends_at' => $validated['review_ends_at'] ?? null,
+            $updates = [
                 'notes' => $validated['notes'] ?? null,
                 'updated_at' => now(),
-            ]);
+            ];
+            if (isset($validated['enrolled_at'])
+                && ! Carbon::parse($validated['enrolled_at'])->equalTo(Carbon::parse($enrollment->enrolled_at))) {
+                $enrolledAt = Carbon::parse($validated['enrolled_at']);
+                $timeWindows = $enrollmentPolicy->reprojectEnrollment($enrollment, $enrolledAt);
+                $updates = array_merge($updates, [
+                    'enrolled_at' => $enrolledAt,
+                    'access_starts_at' => $timeWindows['access_starts_at'],
+                    'access_ends_at' => $timeWindows['access_ends_at'],
+                    'review_starts_at' => $timeWindows['review_starts_at'],
+                    'review_ends_at' => $timeWindows['review_ends_at'],
+                ]);
+            }
+            DB::table('core_course_enrollments')->where('customer_id', $customerId)->where('id', $id)->update($updates);
         }, 3);
 
         return redirect()
@@ -531,17 +560,17 @@ class CourseEnrollmentController extends Controller
         $validator = Validator::make($request->all(), [
             'student_id' => ['required', 'integer', 'min:1'],
             'product_id' => ['required', 'integer', 'min:1'],
-            'access_starts_at' => ['nullable', 'date'],
-            'access_ends_at' => ['nullable', 'date', 'after_or_equal:access_starts_at'],
-            'review_starts_at' => ['nullable', 'date'],
-            'review_ends_at' => ['nullable', 'date', 'after_or_equal:review_starts_at'],
+            'access_starts_at' => ['prohibited'],
+            'access_ends_at' => ['prohibited'],
+            'review_starts_at' => ['prohibited'],
+            'review_ends_at' => ['prohibited'],
             'notes' => ['nullable', 'string'],
             'customer_id' => ['prohibited'],
             'version_id' => ['prohibited'],
             'source' => ['prohibited'],
             'source_id' => ['prohibited'],
             'status' => ['prohibited'],
-            'enrolled_at' => ['prohibited'],
+            'enrolled_at' => ['nullable', 'date'],
         ]);
 
         $validator->after(function ($validator) use ($request, $customerId): void {
@@ -590,10 +619,11 @@ class CourseEnrollmentController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'status' => ['prohibited'],
-            'access_starts_at' => ['nullable', 'date'],
-            'access_ends_at' => ['nullable', 'date', 'after_or_equal:access_starts_at'],
-            'review_starts_at' => ['nullable', 'date'],
-            'review_ends_at' => ['nullable', 'date', 'after_or_equal:review_starts_at'],
+            'access_starts_at' => ['prohibited'],
+            'access_ends_at' => ['prohibited'],
+            'review_starts_at' => ['prohibited'],
+            'review_ends_at' => ['prohibited'],
+            'enrolled_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
         ]);
 
@@ -686,7 +716,6 @@ class CourseEnrollmentController extends Controller
                 'products.title as product_title',
                 'products.product_code',
                 'products.offering_type',
-                'products.review_duration_days',
                 'products.registration_starts_at',
                 'products.registration_ends_at',
                 'versions.title_snapshot as version_title',
@@ -732,6 +761,7 @@ class CourseEnrollmentController extends Controller
                 'products.title',
                 'products.product_code',
                 'products.offering_type',
+                'products.access_duration_days',
                 'products.review_duration_days',
                 'products.registration_starts_at',
                 'products.registration_ends_at',
@@ -743,17 +773,23 @@ class CourseEnrollmentController extends Controller
             );
     }
 
-    private function productSearchPayload(object $product): array
+    private function productSearchPayload(object $product, ?Carbon $enrolledAt = null): array
     {
-        $now = now();
-        $outsideRegistration = ($product->registration_starts_at && $now->timestamp < strtotime($product->registration_starts_at))
-            || ($product->registration_ends_at && $now->timestamp >= strtotime($product->registration_ends_at));
+        $enrolledAt ??= now();
+        $hasRegistrationStart = filled($product->registration_starts_at);
+        $hasRegistrationEnd = filled($product->registration_ends_at);
+        $outsideRegistration = $hasRegistrationStart !== $hasRegistrationEnd
+            || ($hasRegistrationStart && strtotime($product->registration_starts_at) >= strtotime($product->registration_ends_at))
+            || ($hasRegistrationStart && $enrolledAt->timestamp < strtotime($product->registration_starts_at))
+            || ($hasRegistrationEnd && $enrolledAt->timestamp > strtotime($product->registration_ends_at));
 
         return [
             'id' => $product->id,
             'title' => $product->title,
             'code' => $product->product_code,
             'offering_type' => $product->offering_type,
+            'access_duration_days' => $product->access_duration_days,
+            'review_duration_days' => $product->review_duration_days,
             'supports_review' => $product->offering_type === 'self_paced_course'
                 && (int) $product->review_duration_days > 0,
             'outside_registration_window' => $outsideRegistration,

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -20,6 +21,143 @@ class CourseEnrollmentLifecycleService
         'suspended' => ['active', 'cancelled'],
         'completed' => [], 'expired' => [], 'cancelled' => [],
     ];
+
+    public function projectTimeWindows(int $customerId, int $productId, CarbonInterface $enrolledAt, bool $lock = false): array
+    {
+        $product = DB::table('core_course_products')
+            ->where('customer_id', $customerId)
+            ->where('id', $productId)
+            ->when($lock, fn ($query) => $query->lockForUpdate())
+            ->first([
+                'registration_starts_at', 'registration_ends_at',
+                'access_duration_days', 'review_duration_days',
+            ]);
+        if (! $product) {
+            throw ValidationException::withMessages(['product_id' => __('lf.LF_course_enrollment_validation_product')]);
+        }
+
+        $this->assertRegistrationWindow($product, $enrolledAt);
+
+        return $this->projectFromDurations(
+            $enrolledAt,
+            $product->access_duration_days,
+            $product->review_duration_days,
+        );
+    }
+
+    public function reprojectEnrollment(object $enrollment, CarbonInterface $enrolledAt): array
+    {
+        if ($enrollment->access_duration_days === null) {
+            throw ValidationException::withMessages([
+                'enrolled_at' => __('lf.LF_course_enrollment_legacy_duration_missing'),
+            ]);
+        }
+
+        $product = DB::table('core_course_products')
+            ->where('customer_id', $enrollment->customer_id)
+            ->where('id', $enrollment->product_id)
+            ->where('status', 'active')
+            ->lockForUpdate()
+            ->first(['registration_starts_at', 'registration_ends_at']);
+        if (! $product) {
+            throw ValidationException::withMessages(['enrolled_at' => __('lf.LF_course_enrollment_validation_product')]);
+        }
+
+        $studentIsEligible = DB::table('users')
+            ->where('customer_id', $enrollment->customer_id)
+            ->where('id', $enrollment->student_id)
+            ->where('role', 'student')
+            ->where('status', 'active')
+            ->exists();
+        if (! $studentIsEligible) {
+            throw ValidationException::withMessages(['enrolled_at' => __('lf.LF_course_enrollment_validation_student')]);
+        }
+
+        $bindings = DB::table('core_course_product_items as items')
+            ->join('core_course_template_versions as versions', function ($join) use ($enrollment): void {
+                $join->on('versions.id', '=', 'items.version_id')
+                    ->where('versions.customer_id', $enrollment->customer_id);
+            })
+            ->where('items.customer_id', $enrollment->customer_id)
+            ->where('items.product_id', $enrollment->product_id)
+            ->where('items.status', 'active')
+            ->lockForUpdate()
+            ->get(['versions.status']);
+        if ($bindings->count() !== 1) {
+            throw ValidationException::withMessages(['enrolled_at' => __('lf.LF_course_enrollment_validation_active_item')]);
+        }
+        if ($bindings->first()->status !== 'published') {
+            throw ValidationException::withMessages(['enrolled_at' => __('lf.LF_course_enrollment_validation_published_version')]);
+        }
+
+        $this->assertRegistrationWindow($product, $enrolledAt, 'enrolled_at');
+
+        return $this->projectFromDurations(
+            $enrolledAt,
+            $enrollment->access_duration_days,
+            $enrollment->review_duration_days,
+            'enrolled_at',
+        );
+    }
+
+    private function assertRegistrationWindow(object $product, CarbonInterface $enrolledAt, string $field = 'product_id'): void
+    {
+        $registrationStart = $product->registration_starts_at ? Carbon::parse($product->registration_starts_at) : null;
+        $registrationEnd = $product->registration_ends_at ? Carbon::parse($product->registration_ends_at) : null;
+        if (($registrationStart === null) !== ($registrationEnd === null)
+            || ($registrationStart && $registrationStart->greaterThanOrEqualTo($registrationEnd))) {
+            throw ValidationException::withMessages([$field => __('lf.LF_course_enrollment_registration_invalid')]);
+        }
+        if ($registrationStart && ($enrolledAt->lt($registrationStart) || $enrolledAt->gt($registrationEnd))) {
+            throw ValidationException::withMessages([$field => __('lf.LF_course_enrollment_registration_closed', [
+                'start' => $registrationStart->format('d/m/Y H:i'),
+                'end' => $registrationEnd->format('d/m/Y H:i'),
+                'enrolled_at' => $enrolledAt->format('d/m/Y H:i'),
+            ])]);
+        }
+    }
+
+    private function projectFromDurations(CarbonInterface $enrolledAt, mixed $accessDuration, mixed $reviewDuration, string $field = 'product_id'): array
+    {
+        $accessDays = (int) $accessDuration;
+        if ($accessDays < 1) {
+            throw ValidationException::withMessages([$field => __('lf.LF_course_enrollment_access_duration_invalid')]);
+        }
+        $reviewDays = $reviewDuration === null ? null : (int) $reviewDuration;
+        if ($reviewDays !== null && $reviewDays < 0) {
+            throw ValidationException::withMessages([$field => __('lf.LF_course_enrollment_review_duration_invalid')]);
+        }
+
+        $accessStart = Carbon::instance($enrolledAt)->copy();
+        $accessEnd = $accessStart->copy()->addDays($accessDays);
+        $reviewStart = $reviewDays > 0 ? $accessEnd->copy() : null;
+        $reviewEnd = $reviewStart?->copy()->addDays($reviewDays);
+
+        return [
+            'access_starts_at' => $accessStart,
+            'access_ends_at' => $accessEnd,
+            'review_starts_at' => $reviewStart,
+            'review_ends_at' => $reviewEnd,
+            'access_duration_days' => $accessDays,
+            'review_duration_days' => $reviewDays,
+        ];
+    }
+
+    public function allowsLearningAccessAt(object $enrollment, CarbonInterface $at): bool
+    {
+        if (! $enrollment->access_starts_at && ! $enrollment->access_ends_at) {
+            return true;
+        }
+
+        $inAccess = $enrollment->access_starts_at && $enrollment->access_ends_at
+            && $at->gte(Carbon::parse($enrollment->access_starts_at))
+            && $at->lt(Carbon::parse($enrollment->access_ends_at));
+        $inReview = $enrollment->review_starts_at && $enrollment->review_ends_at
+            && $at->gte(Carbon::parse($enrollment->review_starts_at))
+            && $at->lt(Carbon::parse($enrollment->review_ends_at));
+
+        return $inAccess || $inReview;
+    }
 
     public function activate(int $customerId, int $id): void
     {

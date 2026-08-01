@@ -26,10 +26,11 @@ class BulkEnrollmentRequest extends FormRequest
             'reenrollment_confirmations.*.previous_enrollment_id' => ['required', 'integer', 'min:1'],
             'submission_token' => ['required', 'string', 'size:64'],
             'configuration' => ['required', 'array'],
-            'configuration.access_starts_at' => ['nullable', 'date'],
-            'configuration.access_ends_at' => ['nullable', 'date', 'after_or_equal:configuration.access_starts_at'],
-            'configuration.review_starts_at' => ['nullable', 'date'],
-            'configuration.review_ends_at' => ['nullable', 'date', 'after_or_equal:configuration.review_starts_at'],
+            'configuration.access_starts_at' => ['prohibited'],
+            'configuration.access_ends_at' => ['prohibited'],
+            'configuration.review_starts_at' => ['prohibited'],
+            'configuration.review_ends_at' => ['prohibited'],
+            'configuration.enrolled_at' => ['nullable', 'date'],
             'configuration.notes' => ['nullable', 'string'],
             'customer_id' => ['prohibited'],
             'version_id' => ['prohibited'],
@@ -45,7 +46,7 @@ class BulkEnrollmentRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $configuration = (array) $this->input('configuration', []);
-        foreach (['access_starts_at', 'access_ends_at', 'review_starts_at', 'review_ends_at', 'notes'] as $field) {
+        foreach (['enrolled_at', 'notes'] as $field) {
             $value = $configuration[$field] ?? null;
             $configuration[$field] = is_string($value) && trim($value) === '' ? null : $value;
         }

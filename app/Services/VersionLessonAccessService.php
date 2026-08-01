@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Log;
 
 class VersionLessonAccessService
 {
+    public function __construct(private readonly CourseEnrollmentLifecycleService $enrollmentPolicy) {}
+
     public function decide(int $studentId, int $enrollmentId, int $versionLessonId): LessonAccessDecision
     {
         $customerId = TenantContext::customerId();
@@ -22,6 +24,9 @@ class VersionLessonAccessService
             ->where('student_id', $studentId)->first();
         if (! $enrollment || $enrollment->status !== 'active') {
             return $this->deny('inactive_or_invalid_enrollment');
+        }
+        if (! $this->enrollmentPolicy->allowsLearningAccessAt($enrollment, Carbon::now())) {
+            return $this->deny('outside_enrollment_access_window');
         }
 
         $lesson = DB::table('core_course_template_version_lessons')

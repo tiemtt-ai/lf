@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\CourseEnrollmentLifecycleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
@@ -66,8 +68,6 @@ class CourseEnrollmentManagementTest extends TestCase
                 $this->validEnrollmentData([
                     'student_id' => $student->id,
                     'product_id' => $productId,
-                    'access_starts_at' => '2026-07-04 09:00:00',
-                    'access_ends_at' => '2026-10-04 23:59:59',
                     'notes' => 'Manual admin assignment.',
                 ])
             )
@@ -90,6 +90,12 @@ class CourseEnrollmentManagementTest extends TestCase
                 ->where('customer_id', $customerId)
                 ->where('id', $productId)
                 ->value('enrollment_count')
+        );
+        $enrollment = DB::table('core_course_enrollments')->where('product_id', $productId)->first();
+        $this->assertSame($enrollment->enrolled_at, $enrollment->access_starts_at);
+        $this->assertSame(
+            Carbon::parse($enrollment->enrolled_at)->addDays(30)->format('Y-m-d H:i:s'),
+            $enrollment->access_ends_at
         );
     }
 
@@ -194,7 +200,7 @@ class CourseEnrollmentManagementTest extends TestCase
             ->assertDontSee('<table', false);
     }
 
-    public function test_edit_matches_create_form_and_persists_review_window(): void
+    public function test_edit_shows_computed_windows_readonly_and_preserves_them_when_notes_change(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -208,8 +214,10 @@ class CourseEnrollmentManagementTest extends TestCase
             ->assertOk()
             ->assertSee('class="admin-form-standard"', false)
             ->assertSee('class="admin-form-footer"', false)
-            ->assertSee('name="review_starts_at"', false)
-            ->assertSee('name="review_ends_at"', false)
+            ->assertSee('id="review_starts_at"', false)
+            ->assertSee('id="review_ends_at"', false)
+            ->assertDontSee('name="review_starts_at"', false)
+            ->assertDontSee('name="review_ends_at"', false)
             ->assertDontSee('name="status"', false)
             ->assertDontSee('<table', false);
 
@@ -229,28 +237,24 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->actingAs($admin)
             ->from("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")
             ->put("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}", [
-                'access_starts_at' => '2026-07-01 09:00:00',
-                'access_ends_at' => '2026-07-31 18:00:00',
-                'review_starts_at' => '2026-08-01 09:00:00',
-                'review_ends_at' => '2026-08-31 18:00:00',
                 'notes' => 'Review window approved.',
             ])
             ->assertRedirect("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}");
 
         $this->assertDatabaseHas('core_course_enrollments', [
             'id' => $enrollmentId,
-            'review_starts_at' => '2026-08-01 09:00:00',
-            'review_ends_at' => '2026-08-31 18:00:00',
+            'review_starts_at' => null,
+            'review_ends_at' => null,
+            'notes' => 'Review window approved.',
         ]);
 
         $this->actingAs($admin)
             ->from("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")
             ->put("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}", [
                 'review_starts_at' => '2026-09-01 09:00:00',
-                'review_ends_at' => '2026-08-01 09:00:00',
             ])
             ->assertRedirect("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")
-            ->assertSessionHasErrors('review_ends_at');
+            ->assertSessionHasErrors('review_starts_at');
     }
 
     public function test_admin_cannot_submit_version_id_manually(): void
@@ -622,11 +626,12 @@ class CourseEnrollmentManagementTest extends TestCase
             ->assertSeeText(__('lf.LF_bulk_enrollment_select_students_products'))
             ->assertSeeText(__('lf.LF_bulk_enrollment_setup_confirm'))
             ->assertSee('aria-label="'.__('lf.LF_bulk_enrollment_information_section').'"', false)
-            ->assertSee('configuration[access_starts_at]', false)
-            ->assertSee('configuration[access_ends_at]', false)
-            ->assertSee('configuration[review_starts_at]', false)
-            ->assertSee('configuration[review_ends_at]', false)
+            ->assertDontSee('configuration[access_starts_at]', false)
+            ->assertDontSee('configuration[access_ends_at]', false)
+            ->assertDontSee('configuration[review_starts_at]', false)
+            ->assertDontSee('configuration[review_ends_at]', false)
             ->assertSee('configuration[notes]', false)
+            ->assertSeeText(__('lf.LF_course_enrollment_times_automatic'))
             ->assertDontSee('name="version_id"', false)
             ->assertDontSee('name="source"', false)
             ->assertDontSee('name="source_id"', false)
@@ -723,7 +728,7 @@ class CourseEnrollmentManagementTest extends TestCase
         );
         $this->assertStringNotContainsString('id="bulk-enrollment-information"', $html);
         $this->assertLessThan(
-            strpos($html, 'id="bulk-access-window"'),
+            strpos($html, 'id="bulk-enrollment-automatic-times"'),
             strpos($html, 'class="admin-table-wrap bulk-enrollment-review-table"')
         );
         $response->assertSeeText(__('lf.LF_bulk_enrollment_submit'));
@@ -1012,15 +1017,14 @@ class CourseEnrollmentManagementTest extends TestCase
         ]);
 
         $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk-update', $this->bulkUpdateData($ids, [
-            'access_ends_at_action' => 'set', 'access_ends_at_value' => '2026-07-20 18:00:00',
-            'review_starts_at_action' => 'clear', 'notes_action' => 'set', 'notes_value' => 'Shared note',
+            'notes_action' => 'set', 'notes_value' => 'Shared note',
         ]))->assertRedirect('https://tenant-a.localhost/admin/course-enrollments');
 
         foreach ($ids as $id) {
             $this->assertDatabaseHas('core_course_enrollments', [
                 'id' => $id, 'student_id' => $student->id, 'product_id' => $productId, 'version_id' => $versionId,
                 'status' => 'active', 'access_starts_at' => '2026-07-01 09:00:00',
-                'access_ends_at' => '2026-07-20 18:00:00', 'review_starts_at' => null,
+                'access_ends_at' => '2026-07-31 18:00:00', 'review_starts_at' => '2026-08-01 09:00:00',
                 'review_ends_at' => '2026-08-31 18:00:00', 'notes' => 'Shared note',
             ]);
         }
@@ -1050,7 +1054,7 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk-update', $this->bulkUpdateData([$activeId], [
             'access_starts_at_action' => 'set', 'access_starts_at_value' => '2026-08-02 10:00:00',
             'access_ends_at_action' => 'set', 'access_ends_at_value' => '2026-08-01 10:00:00',
-        ]))->assertSessionHasErrors('access_ends_at');
+        ]))->assertSessionHasErrors(['access_starts_at_action', 'access_ends_at_action']);
         $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk-update', $this->bulkUpdateData([$activeId], [
             'notes_action' => 'set', 'notes_value' => 'Rejected forged authority',
             'status' => 'cancelled', 'cancelled_at' => now(), 'source_id' => 99,
@@ -1291,7 +1295,7 @@ class CourseEnrollmentManagementTest extends TestCase
                 'enrolled_at' => '2000-01-01 00:00:00',
                 'version_id' => 999,
             ])
-            ->assertSessionHasErrors(['source', 'source_id', 'status', 'enrolled_at', 'version_id']);
+            ->assertSessionHasErrors(['source', 'source_id', 'status', 'version_id']);
 
         $this->actingAs($admin)
             ->post('https://tenant-a.localhost/admin/course-enrollments', [
@@ -1302,7 +1306,9 @@ class CourseEnrollmentManagementTest extends TestCase
                 'review_starts_at' => '2026-09-02 10:00:00',
                 'review_ends_at' => '2026-09-01 10:00:00',
             ])
-            ->assertSessionHasErrors(['access_ends_at', 'review_ends_at']);
+            ->assertSessionHasErrors([
+                'access_starts_at', 'access_ends_at', 'review_starts_at', 'review_ends_at',
+            ]);
 
         $this->actingAs($admin)
             ->post('https://tenant-a.localhost/admin/course-enrollments', [
@@ -1347,6 +1353,165 @@ class CourseEnrollmentManagementTest extends TestCase
             ->assertOk()
             ->assertJsonMissing(['id' => $productId]);
         $this->assertDatabaseCount('core_course_enrollments', 0);
+    }
+
+    public function test_registration_boundaries_are_inclusive_and_projected_windows_are_frozen(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $students = collect(range(1, 4))->map(fn () => $this->createUser($customerId, 'student'));
+        $productId = $this->createProduct($customerId, 'Timed Product', 'timed-product');
+        $this->createProductItem($customerId, $productId, $this->createVersion($customerId, $admin->id));
+        DB::table('core_course_products')->where('id', $productId)->update([
+            'registration_starts_at' => '2026-08-10 09:00:00',
+            'registration_ends_at' => '2026-08-12 09:00:00',
+            'access_duration_days' => 30,
+            'review_duration_days' => 5,
+        ]);
+
+        try {
+            Carbon::setTestNow('2026-08-10 08:59:59');
+            $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
+                'student_id' => $students[0]->id, 'product_id' => $productId,
+            ])->assertSessionHasErrors('product_id');
+
+            Carbon::setTestNow('2026-08-10 09:00:00');
+            $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
+                'student_id' => $students[1]->id, 'product_id' => $productId,
+            ])->assertRedirect();
+
+            Carbon::setTestNow('2026-08-12 09:00:00');
+            $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
+                'student_id' => $students[2]->id, 'product_id' => $productId,
+            ])->assertRedirect();
+
+            Carbon::setTestNow('2026-08-12 09:00:01');
+            $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
+                'student_id' => $students[3]->id, 'product_id' => $productId,
+            ])->assertSessionHasErrors('product_id');
+        } finally {
+            Carbon::setTestNow();
+        }
+
+        $enrollment = DB::table('core_course_enrollments')->where('student_id', $students[1]->id)->first();
+        $this->assertSame('2026-08-10 09:00:00', $enrollment->access_starts_at);
+        $this->assertSame('2026-09-09 09:00:00', $enrollment->access_ends_at);
+        $this->assertSame($enrollment->access_ends_at, $enrollment->review_starts_at);
+        $this->assertSame('2026-09-14 09:00:00', $enrollment->review_ends_at);
+
+        DB::table('core_course_products')->where('id', $productId)->update([
+            'access_duration_days' => 60, 'review_duration_days' => 10,
+        ]);
+        $frozen = DB::table('core_course_enrollments')->where('id', $enrollment->id)->first();
+        $this->assertSame($enrollment->access_ends_at, $frozen->access_ends_at);
+        $this->assertSame($enrollment->review_ends_at, $frozen->review_ends_at);
+    }
+
+    public function test_registration_configuration_fails_closed_and_runtime_windows_are_half_open(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Invalid Window', 'invalid-window');
+        $this->createProductItem($customerId, $productId, $this->createVersion($customerId, $admin->id));
+        DB::table('core_course_products')->where('id', $productId)->update([
+            'registration_starts_at' => now()->subDay(), 'registration_ends_at' => null,
+        ]);
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
+            'student_id' => $student->id, 'product_id' => $productId,
+        ])->assertSessionHasErrors('product_id');
+
+        $policy = app(CourseEnrollmentLifecycleService::class);
+        $enrollment = (object) [
+            'access_starts_at' => '2026-08-01 00:00:00',
+            'access_ends_at' => '2026-08-02 00:00:00',
+            'review_starts_at' => '2026-08-02 00:00:00',
+            'review_ends_at' => '2026-08-03 00:00:00',
+        ];
+        $this->assertTrue($policy->allowsLearningAccessAt($enrollment, Carbon::parse('2026-08-01 00:00:00')));
+        $this->assertTrue($policy->allowsLearningAccessAt($enrollment, Carbon::parse('2026-08-02 00:00:00')));
+        $this->assertFalse($policy->allowsLearningAccessAt($enrollment, Carbon::parse('2026-08-03 00:00:00')));
+    }
+
+    public function test_selected_enrollment_date_snapshots_durations_and_edit_reprojects_from_snapshots(): void
+    {
+        $this->assertTrue(Schema::hasColumns('core_course_enrollments', [
+            'access_duration_days', 'review_duration_days',
+        ]));
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Snapshot Product', 'snapshot-product');
+        $this->createProductItem($customerId, $productId, $this->createVersion($customerId, $admin->id));
+        DB::table('core_course_products')->where('id', $productId)->update([
+            'registration_starts_at' => '2026-07-01 00:00:00',
+            'registration_ends_at' => '2026-12-31 23:59:59',
+            'access_duration_days' => 30,
+            'review_duration_days' => 5,
+        ]);
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
+            'student_id' => $student->id,
+            'product_id' => $productId,
+            'enrolled_at' => '2026-08-05 10:00:00',
+        ])->assertRedirect();
+
+        $enrollment = DB::table('core_course_enrollments')->where('student_id', $student->id)->first();
+        $this->assertSame(30, $enrollment->access_duration_days);
+        $this->assertSame(5, $enrollment->review_duration_days);
+        $this->assertSame('2026-08-05 10:00:00', $enrollment->access_starts_at);
+
+        DB::table('core_course_products')->where('id', $productId)->update([
+            'access_duration_days' => 60,
+            'review_duration_days' => 10,
+        ]);
+        $this->actingAs($admin)->put('https://tenant-a.localhost/admin/course-enrollments/'.$enrollment->id, [
+            'enrolled_at' => '2026-08-10 10:00:00',
+            'notes' => 'Changed date',
+        ])->assertRedirect();
+
+        $updated = DB::table('core_course_enrollments')->where('id', $enrollment->id)->first();
+        $this->assertSame(30, $updated->access_duration_days);
+        $this->assertSame(5, $updated->review_duration_days);
+        $this->assertSame('2026-08-10 10:00:00', $updated->access_starts_at);
+        $this->assertSame('2026-09-09 10:00:00', $updated->access_ends_at);
+        $this->assertSame('2026-09-09 10:00:00', $updated->review_starts_at);
+        $this->assertSame('2026-09-14 10:00:00', $updated->review_ends_at);
+
+        $this->actingAs($admin)->put('https://tenant-a.localhost/admin/course-enrollments/'.$enrollment->id, [
+            'enrolled_at' => '2027-01-01 00:00:00',
+        ])->assertSessionHasErrors('enrolled_at');
+        $this->assertSame('2026-08-10 10:00:00', DB::table('core_course_enrollments')->where('id', $enrollment->id)->value('enrolled_at'));
+    }
+
+    public function test_legacy_enrollment_cannot_change_enrollment_date_and_product_search_uses_selected_date(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Dated Product', 'dated-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $this->createProductItem($customerId, $productId, $versionId);
+        DB::table('core_course_products')->where('id', $productId)->update([
+            'registration_starts_at' => '2026-08-10 09:00:00',
+            'registration_ends_at' => '2026-08-12 09:00:00',
+        ]);
+        $legacyId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+
+        $this->actingAs($admin)->put('https://tenant-a.localhost/admin/course-enrollments/'.$legacyId, [
+            'enrolled_at' => '2026-08-11 09:00:00',
+        ])->assertSessionHasErrors('enrolled_at');
+
+        $inside = $this->actingAs($admin)->getJson(
+            'https://tenant-a.localhost/admin/course-enrollments/products/search?student_ids[]='.$student->id.'&enrolled_at=2026-08-11%2009:00:00'
+        )->assertOk();
+        $outside = $this->actingAs($admin)->getJson(
+            'https://tenant-a.localhost/admin/course-enrollments/products/search?student_ids[]='.$student->id.'&selected_product_ids[]='.$productId.'&enrolled_at=2026-08-13%2009:00:00'
+        )->assertOk();
+        $this->assertFalse($inside->json('data.0.outside_registration_window'));
+        $this->assertTrue($outside->json('data.0.outside_registration_window'));
+        $this->assertSame('ineligible', $outside->json('selected_eligibility.'.$productId.'.eligibility'));
     }
 
     public function test_course_enrollment_module_has_no_eloquent_models(): void
@@ -1431,6 +1596,38 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_enrollment_submissions', ['token_hash' => hash('sha256', $token), 'status' => 'prepared']);
     }
 
+    public function test_bulk_preflight_uses_the_shared_registration_window_policy(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Future Product', 'future-product');
+        $this->createProductItem($customerId, $productId, $this->createVersion($customerId, $admin->id));
+        DB::table('core_course_products')->where('id', $productId)->update([
+            'registration_starts_at' => '2026-08-02 09:00:00',
+            'registration_ends_at' => '2026-08-03 09:00:00',
+        ]);
+
+        try {
+            Carbon::setTestNow('2026-08-01 09:00:00');
+            $this->actingAs($admin)->postJson('https://tenant-a.localhost/admin/course-enrollments/bulk/preflight', [
+                'student_ids' => [$student->id],
+                'product_ids' => [$productId],
+                'reenrollment_confirmations' => [],
+                'configuration' => $this->bulkConfiguration(),
+                'finalize' => true,
+            ])->assertOk()->assertJson([
+                'valid' => false,
+                'submission_token' => null,
+            ]);
+        } finally {
+            Carbon::setTestNow();
+        }
+
+        $this->assertDatabaseCount('core_course_enrollments', 0);
+        $this->assertDatabaseCount('core_course_enrollment_submissions', 0);
+    }
+
     public function test_reenrollment_requires_exact_confirmation_and_completed_token_replays_result(): void
     {
         $customerId = $this->createTenant();
@@ -1463,7 +1660,7 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertDatabaseMissing('core_course_enrollment_submissions', ['token_hash' => $token]);
     }
 
-    public function test_bulk_configuration_pair_limit_payload_binding_and_review_policy_are_enforced(): void
+    public function test_bulk_configuration_pair_limit_payload_binding_and_automatic_time_policy_are_enforced(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -1476,8 +1673,7 @@ class CourseEnrollmentManagementTest extends TestCase
             $this->createProductItem($customerId, $productId, $this->createVersion($customerId, $admin->id));
         }
         $configuration = $this->bulkConfiguration([
-            'access_starts_at' => '2026-08-01 09:00:00', 'access_ends_at' => '2026-08-31 18:00:00',
-            'review_starts_at' => '2026-09-01 09:00:00', 'review_ends_at' => '2026-09-14 18:00:00',
+            'enrolled_at' => '2026-08-01 09:00:00',
             'notes' => ' Shared note ',
         ]);
         $token = $this->prepareBulkSubmission($admin, [$student->id], [$reviewProduct, $plainProduct], [], $configuration);
@@ -1488,7 +1684,16 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertDatabaseCount('core_course_enrollments', 0);
 
         $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments/bulk', $payload)->assertRedirect();
-        $this->assertDatabaseHas('core_course_enrollments', ['product_id' => $reviewProduct, 'notes' => 'Shared note', 'review_starts_at' => '2026-09-01 09:00:00']);
+        $reviewEnrollment = DB::table('core_course_enrollments')->where('product_id', $reviewProduct)->first();
+        $this->assertSame('2026-08-01 09:00:00', $reviewEnrollment->enrolled_at);
+        $this->assertSame(30, $reviewEnrollment->access_duration_days);
+        $this->assertSame(14, $reviewEnrollment->review_duration_days);
+        $this->assertSame($reviewEnrollment->access_ends_at, $reviewEnrollment->review_starts_at);
+        $this->assertEquals(
+            14,
+            now()->parse($reviewEnrollment->review_starts_at)->diffInDays(now()->parse($reviewEnrollment->review_ends_at))
+        );
+        $this->assertDatabaseHas('core_course_enrollments', ['product_id' => $reviewProduct, 'notes' => 'Shared note']);
         $this->assertDatabaseHas('core_course_enrollments', ['product_id' => $plainProduct, 'notes' => 'Shared note', 'review_starts_at' => null, 'review_ends_at' => null]);
 
         $this->actingAs($admin)->postJson('https://tenant-a.localhost/admin/course-enrollments/bulk/preflight', [
@@ -1513,8 +1718,7 @@ class CourseEnrollmentManagementTest extends TestCase
 
     private function bulkConfiguration(array $overrides = []): array
     {
-        return array_merge(['access_starts_at' => null, 'access_ends_at' => null,
-            'review_starts_at' => null, 'review_ends_at' => null, 'notes' => null], $overrides);
+        return array_merge(['notes' => null], $overrides);
     }
 
     private function createTenant(string $slug = 'tenant-a'): int
@@ -1571,7 +1775,7 @@ class CourseEnrollmentManagementTest extends TestCase
             'enrollment_type' => 'paid',
             'max_students' => null,
             'enrollment_count' => 0,
-            'access_duration_days' => null,
+            'access_duration_days' => 30,
             'review_duration_days' => null,
             'is_certificate_enabled' => false,
             'is_refundable' => false,
@@ -1750,14 +1954,6 @@ class CourseEnrollmentManagementTest extends TestCase
     {
         return array_merge([
             'enrollment_ids' => $enrollmentIds,
-            'access_starts_at_action' => 'preserve',
-            'access_starts_at_value' => null,
-            'access_ends_at_action' => 'preserve',
-            'access_ends_at_value' => null,
-            'review_starts_at_action' => 'preserve',
-            'review_starts_at_value' => null,
-            'review_ends_at_action' => 'preserve',
-            'review_ends_at_value' => null,
             'notes_action' => 'preserve',
             'notes_value' => null,
         ], $overrides);

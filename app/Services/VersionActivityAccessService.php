@@ -4,11 +4,14 @@ namespace App\Services;
 
 use App\Support\ActivityAccessDecision;
 use App\Support\TenantContext;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class VersionActivityAccessService
 {
+    public function __construct(private readonly CourseEnrollmentLifecycleService $enrollmentPolicy) {}
+
     public function decide(int $studentId, int $enrollmentId, int $versionActivityId): ActivityAccessDecision
     {
         $customerId = TenantContext::customerId();
@@ -23,6 +26,9 @@ class VersionActivityAccessService
             ->first();
         if (! $enrollment || $enrollment->status !== 'active') {
             return $this->deny('inactive_or_invalid_enrollment');
+        }
+        if (! $this->enrollmentPolicy->allowsLearningAccessAt($enrollment, Carbon::now())) {
+            return $this->deny('outside_enrollment_access_window');
         }
 
         $activity = DB::table('core_course_template_version_activities')

@@ -254,23 +254,6 @@
                         <p class="course-enrollment-bulk-modal__selection" x-text="selectedLabel"></p>
                         <p id="bulk-edit-actions-help" class="course-enrollment-bulk-modal__help">{{ __('lf.LF_course_enrollment_bulk_actions_help') }}</p>
                     </div>
-                    @foreach ([
-                        ['title' => 'LF_course_enrollment_access_window', 'fields' => ['access_starts_at', 'access_ends_at']],
-                        ['title' => 'LF_course_enrollment_review_window', 'fields' => ['review_starts_at', 'review_ends_at']],
-                    ] as $group)
-                        <section class="course-enrollment-bulk-modal__group" aria-labelledby="bulk-{{ $group['fields'][0] }}-title">
-                            <h3 id="bulk-{{ $group['fields'][0] }}-title">{{ __('lf.'.$group['title']) }}</h3>
-                            <div class="course-enrollment-bulk-modal__grid">
-                                @foreach ($group['fields'] as $field)
-                                    <div class="course-enrollment-bulk-field">
-                                        <label class="lf-form-label" for="{{ $field }}_action">{{ __('lf.LF_course_enrollment_common_'.$field) }}</label>
-                                        <select id="{{ $field }}_action" name="{{ $field }}_action" class="lf-form-control" x-model="actions.{{ $field }}" aria-describedby="bulk-edit-actions-help"><option value="preserve">{{ __('lf.LF_course_enrollment_bulk_preserve') }}</option><option value="set">{{ __('lf.LF_course_enrollment_bulk_set') }}</option><option value="clear">{{ __('lf.LF_course_enrollment_bulk_clear_value') }}</option></select>
-                                        <input x-cloak x-show="actions.{{ $field }} === 'set'" type="datetime-local" name="{{ $field }}_value" class="lf-form-control" :disabled="actions.{{ $field }} !== 'set'">
-                                    </div>
-                                @endforeach
-                            </div>
-                        </section>
-                    @endforeach
                     <section class="course-enrollment-bulk-modal__group" aria-labelledby="bulk-notes-title">
                         <h3 id="bulk-notes-title">{{ __('lf.LF_course_enrollment_internal_notes') }}</h3>
                         <div class="course-enrollment-bulk-field course-enrollment-bulk-field--notes">
@@ -303,7 +286,7 @@
     <script>
         function enrollmentIndexBulk(pageIds, pageStatuses, initialSelectedIds, hasValidationErrors, initialLifecycleAction, lifecycleCopy) {
             return { pageIds, pageStatuses, selectedIds: initialSelectedIds, editModalOpen: hasValidationErrors && !initialLifecycleAction && initialSelectedIds.length > 0, lifecycleModalOpen: hasValidationErrors && Boolean(initialLifecycleAction) && initialSelectedIds.length > 0, lifecycleAction: initialLifecycleAction || '', lifecycleCopy, lifecycleTrigger: null, submitting: false,
-                actions: { access_starts_at: 'preserve', access_ends_at: 'preserve', review_starts_at: 'preserve', review_ends_at: 'preserve', notes: 'preserve' },
+                actions: { notes: 'preserve' },
                 init() { if (this.lifecycleModalOpen) this.$nextTick(() => this.$refs.lifecycleCancel.focus()) },
                 get allPageSelected() { return this.pageIds.length > 0 && this.pageIds.every(id => this.selectedIds.includes(id)) },
                 get selectedLabel() { return @js(__('lf.LF_course_enrollment_bulk_selected')).replace(':count', this.selectedIds.length) },

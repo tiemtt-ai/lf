@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Exceptions\BulkEnrollmentAtomicException;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -11,6 +13,8 @@ class BulkEnrollmentService
     private const NON_TERMINAL = ['pending', 'active', 'suspended'];
 
     private const TERMINAL = ['completed', 'expired', 'cancelled'];
+
+    public function __construct(private readonly CourseEnrollmentLifecycleService $enrollmentPolicy) {}
 
     public function preflight(int $customerId, array $payload): array
     {
@@ -44,7 +48,11 @@ class BulkEnrollmentService
                 throw ValidationException::withMessages(['pair_count' => __('lf.LF_bulk_enrollment_validation_pair_limit')]);
             }
 
-            $preflight = $this->classify($customerId, $payload, true);
+            $now = now();
+            $enrolledAt = filled($payload['configuration']['enrolled_at'] ?? null)
+                ? Carbon::parse($payload['configuration']['enrolled_at'])
+                : $now->copy();
+            $preflight = $this->classify($customerId, $payload, true, $enrolledAt);
             if (! $preflight['valid']) {
                 throw new BulkEnrollmentAtomicException($preflight);
             }
@@ -54,15 +62,12 @@ class BulkEnrollmentService
                 ->keyBy(fn (array $item): string => $item['student_id'].':'.$item['product_id']);
             $items = [];
             $productCounts = [];
-            $now = now();
-
             foreach ($payload['student_ids'] as $studentId) {
                 foreach ($payload['product_ids'] as $productId) {
                     $pairKey = $studentId.':'.$productId;
                     $product = $versions->get($productId);
                     $reenrolled = $confirmations->has($pairKey);
-                    $supportsReview = $product['offering_type'] === 'self_paced_course'
-                        && (int) $product['review_duration_days'] > 0;
+                    $timeWindows = $product['time_windows'];
                     $enrollmentId = DB::table('core_course_enrollments')->insertGetId([
                         'customer_id' => $customerId,
                         'product_id' => $productId,
@@ -71,11 +76,13 @@ class BulkEnrollmentService
                         'source' => 'admin',
                         'source_id' => null,
                         'enrolled_by' => $adminId,
-                        'enrolled_at' => $now,
-                        'access_starts_at' => $payload['configuration']['access_starts_at'],
-                        'access_ends_at' => $payload['configuration']['access_ends_at'],
-                        'review_starts_at' => $supportsReview ? $payload['configuration']['review_starts_at'] : null,
-                        'review_ends_at' => $supportsReview ? $payload['configuration']['review_ends_at'] : null,
+                        'enrolled_at' => $enrolledAt,
+                        'access_duration_days' => $timeWindows['access_duration_days'],
+                        'review_duration_days' => $timeWindows['review_duration_days'],
+                        'access_starts_at' => $timeWindows['access_starts_at'],
+                        'access_ends_at' => $timeWindows['access_ends_at'],
+                        'review_starts_at' => $timeWindows['review_starts_at'],
+                        'review_ends_at' => $timeWindows['review_ends_at'],
                         'status' => 'active',
                         'notes' => $payload['configuration']['notes'],
                         'completed_at' => null,
@@ -134,7 +141,7 @@ class BulkEnrollmentService
         }, 3);
     }
 
-    private function classify(int $customerId, array $payload, bool $lock): array
+    private function classify(int $customerId, array $payload, bool $lock, ?CarbonInterface $enrolledAt = null): array
     {
         $studentsQuery = DB::table('users')->where('customer_id', $customerId)
             ->whereIn('id', $payload['student_ids'])->orderBy('id');
@@ -145,7 +152,23 @@ class BulkEnrollmentService
             $productsQuery->lockForUpdate();
         }
         $students = $studentsQuery->get(['id', 'name', 'email', 'role', 'status'])->keyBy('id');
-        $products = $productsQuery->get(['id', 'title', 'product_code', 'status', 'offering_type', 'review_duration_days', 'registration_starts_at', 'registration_ends_at'])->keyBy('id');
+        $products = $productsQuery->get(['id', 'title', 'product_code', 'status', 'offering_type', 'access_duration_days', 'review_duration_days', 'registration_starts_at', 'registration_ends_at'])->keyBy('id');
+        $enrolledAt ??= filled($payload['configuration']['enrolled_at'] ?? null)
+            ? Carbon::parse($payload['configuration']['enrolled_at'])
+            : now();
+        $timePolicies = $products->mapWithKeys(function (object $product) use ($customerId, $enrolledAt, $lock): array {
+            try {
+                return [(int) $product->id => [
+                    'windows' => $this->enrollmentPolicy->projectTimeWindows($customerId, (int) $product->id, $enrolledAt, $lock),
+                    'error' => null,
+                ]];
+            } catch (ValidationException $exception) {
+                return [(int) $product->id => [
+                    'windows' => null,
+                    'error' => collect($exception->errors())->flatten()->first(),
+                ]];
+            }
+        });
 
         $bindingsQuery = DB::table('core_course_product_items as items')
             ->join('core_course_template_versions as versions', function ($join) use ($customerId): void {
@@ -190,6 +213,9 @@ class BulkEnrollmentService
                 } elseif (! $product || $product->status !== 'active') {
                     $status = 'ineligible';
                     $reason = __('lf.LF_bulk_enrollment_failure_product');
+                } elseif ($timePolicies->get($productId)['error'] ?? null) {
+                    $status = 'ineligible';
+                    $reason = $timePolicies->get($productId)['error'];
                 } elseif ($productBindings->count() !== 1 || $productBindings->first()->version_status !== 'published') {
                     $status = 'ineligible';
                     $reason = __('lf.LF_bulk_enrollment_failure_binding');
@@ -235,11 +261,12 @@ class BulkEnrollmentService
             'pair_count' => count($pairs),
             'pairs' => $pairs,
             'student_labels' => $students->mapWithKeys(fn (object $row): array => [(string) $row->id => $row->name])->all(),
-            'products' => $products->map(function (object $product) use ($bindings): array {
+            'products' => $products->map(function (object $product) use ($bindings, $timePolicies): array {
                 $binding = $bindings->get($product->id, collect())->first();
 
                 return ['id' => $product->id, 'title' => $product->title, 'product_code' => $product->product_code,
                     'offering_type' => $product->offering_type, 'review_duration_days' => $product->review_duration_days,
+                    'time_windows' => $timePolicies->get((int) $product->id)['windows'],
                     'version_id' => $binding?->version_id, 'version_code' => $binding?->version_code];
             })->values()->all(),
         ];

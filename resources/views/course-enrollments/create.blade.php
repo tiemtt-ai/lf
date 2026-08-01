@@ -72,6 +72,16 @@
                     <p class="admin-form-section-help">{{ __('lf.LF_bulk_enrollment_cartesian_help') }}</p>
                 </header>
 
+                <div class="admin-form-field-grid">
+                    <div class="lf-form-group admin-form-field admin-form-field--full">
+                        <label class="lf-form-label" for="bulk-enrolled-at">{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</label>
+                        <input id="bulk-enrolled-at" name="configuration[enrolled_at]" type="datetime-local"
+                               class="lf-form-control" x-model="configuration.enrolled_at"
+                               x-on:change="enrollmentDateChanged" required>
+                        <p class="lf-form-help">{{ __('lf.LF_course_enrollment_enrolled_at_help') }}</p>
+                    </div>
+                </div>
+
                 <div x-show="selectedStudents.length === 0" class="admin-alert admin-alert-info" role="status" x-cloak>
                     <strong class="admin-alert-title">{{ __('lf.LF_bulk_enrollment_start_title') }}</strong>
                     <p class="admin-alert-guidance">{{ __('lf.LF_bulk_enrollment_start_content') }}</p>
@@ -145,6 +155,7 @@
                                     <span class="bulk-enrollment-product-meta">
                                         <span x-show="item.code"><span class="bulk-enrollment-product-meta__label">{{ __('lf.LF_course_product_common_product_code') }}</span><span x-text="item.code"></span></span>
                                         <span x-show="item.version?.code"><span class="bulk-enrollment-product-meta__label">{{ __('lf.LF_course_enrollment_common_version') }}</span><span x-text="item.version?.code"></span></span>
+                                        <span x-show="item.access_duration_days"><span x-text="@js(__('lf.LF_course_enrollment_duration_source')).replace(':access_days', item.access_duration_days).replace(':review_days', item.review_duration_days || 0)"></span></span>
                                     </span>
                                     <span class="bulk-enrollment-eligibility-badge" :class="`is-${item.eligibility || 'unchecked'}`" x-text="eligibilityLabel(item)"></span>
                                     <span :id="`product-reason-${item.id}`" x-show="item.eligibility === 'ineligible'" class="course-cohort-index-meta" x-text="eligibilityReason(item)" x-cloak></span>
@@ -193,25 +204,15 @@
                         </tr></template></tbody>
                     </table></div>
                     <dl class="bulk-enrollment-confirmation__facts">
+                        <div><dt>{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</dt><dd x-text="formatDateTime(configuration.enrolled_at)"></dd></div>
                         <div><dt>{{ __('lf.LF_bulk_enrollment_status_after_creation') }}</dt><dd><span class="badge badge-success">{{ __('lf.LF_course_enrollment_common_active') }}</span></dd></div>
                         <div><dt>{{ __('lf.LF_course_enrollment_common_source') }}</dt><dd>{{ __('lf.LF_course_enrollment_common_source_admin') }}</dd></div>
                     </dl>
                 </section>
 
-                <section class="admin-form-standard-section" aria-labelledby="bulk-access-window">
-                    <header class="admin-form-section-header"><h3 id="bulk-access-window" class="admin-form-section-title">{{ __('lf.LF_course_enrollment_access_window') }}</h3><p class="admin-form-section-help">{{ __('lf.LF_course_enrollment_access_help') }}</p></header>
+                <section class="admin-form-standard-section" aria-labelledby="bulk-enrollment-automatic-times">
+                    <header class="admin-form-section-header"><h3 id="bulk-enrollment-automatic-times" class="admin-form-section-title">{{ __('lf.LF_course_enrollment_access_window') }}</h3><p class="admin-form-section-help">{{ __('lf.LF_course_enrollment_times_automatic') }}</p></header>
                     <div class="admin-form-field-grid">
-                        @foreach (['access_starts_at', 'access_ends_at'] as $field)
-                            <div class="lf-form-group admin-form-field"><label class="lf-form-label" for="bulk-{{ $field }}">{{ __('lf.LF_course_enrollment_common_'.$field) }}</label><input id="bulk-{{ $field }}" type="datetime-local" :name="`configuration[{{ $field }}]`" class="lf-form-control" x-model="configuration.{{ $field }}"></div>
-                        @endforeach
-                    </div>
-                </section>
-                <section class="admin-form-standard-section" aria-labelledby="bulk-review-window">
-                    <header class="admin-form-section-header"><h3 id="bulk-review-window" class="admin-form-section-title">{{ __('lf.LF_course_enrollment_review_window') }}</h3><p class="admin-form-section-help">{{ __('lf.LF_course_enrollment_review_help') }}</p></header>
-                    <div class="admin-form-field-grid">
-                        @foreach (['review_starts_at', 'review_ends_at'] as $field)
-                            <div class="lf-form-group admin-form-field"><label class="lf-form-label" for="bulk-{{ $field }}">{{ __('lf.LF_course_enrollment_common_'.$field) }}</label><input id="bulk-{{ $field }}" type="datetime-local" :name="`configuration[{{ $field }}]`" class="lf-form-control" x-model="configuration.{{ $field }}"></div>
-                        @endforeach
                         <div class="lf-form-group admin-form-field admin-form-field--full"><label class="lf-form-label" for="bulk-notes">{{ __('lf.LF_course_enrollment_internal_notes') }}</label><textarea id="bulk-notes" name="configuration[notes]" class="lf-form-control" rows="3" x-model="configuration.notes"></textarea></div>
                     </div>
                 </section>
@@ -253,7 +254,7 @@
                 confirmedPairKeys: [], submissionToken: '', errorMessage: '', productEligibilityError: false,
                 productEligibilityReady: false, productRequestVersion: 0, productEligibilityTimer: null, productAbortController: null,
                 productOnboardingShown: false, productGuidanceHighlighted: false, productHighlightTimer: null, productSelectionPromptVisible: false, productPromptTrigger: null,
-                configuration: { access_starts_at: null, access_ends_at: null, review_starts_at: null, review_ends_at: null, notes: null },
+                configuration: { enrolled_at: @js(now()->format('Y-m-d\TH:i')), notes: null },
                 init() { this.loadStudents(1); this.loadProducts(1) },
                 get pairCount() { return this.selectedStudents.length * this.selectedProducts.length },
                 get pairCountLabel() { return @js(__('lf.LF_bulk_enrollment_pair_count')).replace(':students', this.selectedStudents.length).replace(':products', this.selectedProducts.length).replace(':pairs', this.pairCount) },
@@ -271,6 +272,8 @@
                 toggleProduct(item, checked) { if (checked && item.eligibility !== 'eligible') return; if (checked && !this.canProject(Math.max(1, this.selectedStudents.length), this.selectedProducts.length + 1)) return this.limitError(); this.selectedProducts = checked ? [...this.selectedProducts.filter(row => row.id !== item.id), item] : this.selectedProducts.filter(row => row.id !== item.id); this.resetPreflight() },
                 toggleVisibleStudents(checked) { for (const item of this.studentResults) { if (checked && !this.hasStudent(item.id)) this.toggleStudent(item, true); if (!checked && this.hasStudent(item.id)) this.toggleStudent(item, false) } },
                 toggleVisibleProducts(checked) { for (const item of this.eligibleVisibleProducts) { if (checked && !this.hasProduct(item.id)) this.toggleProduct(item, true); if (!checked && this.hasProduct(item.id)) this.toggleProduct(item, false) } },
+                enrollmentDateChanged() { this.resetPreflight(); this.scheduleProductEligibility() },
+                formatDateTime(value) { if (!value) return '—'; return new Intl.DateTimeFormat(document.documentElement.lang || 'vi', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) },
                 limitError() { this.errorMessage = @js(__('lf.LF_bulk_enrollment_validation_pair_limit')) },
                 async promptForStudentSelection(trigger) { if (this.selectedStudents.length > 0 || this.productSelectionPromptVisible) return; this.productPromptTrigger = trigger; this.productSelectionPromptVisible = true; await this.$nextTick(); this.$refs.productPromptClose.focus() },
                 async closeProductSelectionPrompt() { if (!this.productSelectionPromptVisible) return; this.productSelectionPromptVisible = false; await this.$nextTick(); this.productPromptTrigger?.focus(); this.productPromptTrigger = null },
@@ -281,7 +284,7 @@
                 eligibilityLabel(item) { if (!item.eligibility) return @js(__('lf.LF_bulk_enrollment_eligibility_unchecked')); return item.eligibility === 'eligible' ? @js(__('lf.LF_bulk_enrollment_eligible')) : @js(__('lf.LF_bulk_enrollment_ineligible')) },
                 eligibilityReason(item) { if (!item.invalid_pairs?.length) return @js(__('lf.LF_bulk_enrollment_ineligible_generic')); return item.invalid_pairs.map(pair => `${pair.student_name}: ${pair.reason}`).join(' · ') },
                 async loadStudents(page) { if (page < 1) return; this.studentLoading = true; try { const data = await this.fetchSearch(config.studentUrl, this.studentQuery, page); this.studentResults = data.data; this.studentPage = data.pagination.current_page; this.studentLastPage = data.pagination.last_page } finally { this.studentLoading = false } },
-                async loadProducts(page) { if (page < 1) return; const requestVersion = ++this.productRequestVersion; this.productAbortController?.abort(); this.productAbortController = new AbortController(); this.productLoading = true; this.productEligibilityReady = false; this.productEligibilityError = false; try { const params = new URLSearchParams({ q: this.productQuery, page: String(page) }); [...this.selectedStudents].map(item => Number(item.id)).sort((a, b) => a - b).forEach(id => params.append('student_ids[]', String(id))); [...this.selectedProducts].map(item => Number(item.id)).sort((a, b) => a - b).forEach(id => params.append('selected_product_ids[]', String(id))); const response = await fetch(`${config.productUrl}?${params}`, { headers: { Accept: 'application/json' }, signal: this.productAbortController.signal }); if (!response.ok) throw new Error(); const data = await response.json(); if (requestVersion !== this.productRequestVersion) return; this.productResults = data.data; this.productPage = data.pagination.current_page; this.productLastPage = data.pagination.last_page; this.selectedProducts = this.selectedStudents.length === 0 ? this.selectedProducts.map(item => ({ ...item, eligibility: null, invalid_pairs: [] })) : this.selectedProducts.map(item => ({ ...item, ...(data.selected_eligibility?.[String(item.id)] || { eligibility: 'ineligible', invalid_pair_count: this.selectedStudents.length, invalid_pairs: [] }) })); this.productEligibilityReady = this.selectedStudents.length > 0 } catch (error) { if (error.name === 'AbortError' || requestVersion !== this.productRequestVersion) return; this.productEligibilityError = true; this.productEligibilityReady = false } finally { if (requestVersion === this.productRequestVersion) this.productLoading = false } },
+                async loadProducts(page) { if (page < 1) return; const requestVersion = ++this.productRequestVersion; this.productAbortController?.abort(); this.productAbortController = new AbortController(); this.productLoading = true; this.productEligibilityReady = false; this.productEligibilityError = false; try { const params = new URLSearchParams({ q: this.productQuery, page: String(page), enrolled_at: this.configuration.enrolled_at }); [...this.selectedStudents].map(item => Number(item.id)).sort((a, b) => a - b).forEach(id => params.append('student_ids[]', String(id))); [...this.selectedProducts].map(item => Number(item.id)).sort((a, b) => a - b).forEach(id => params.append('selected_product_ids[]', String(id))); const response = await fetch(`${config.productUrl}?${params}`, { headers: { Accept: 'application/json' }, signal: this.productAbortController.signal }); if (!response.ok) throw new Error(); const data = await response.json(); if (requestVersion !== this.productRequestVersion) return; this.productResults = data.data; this.productPage = data.pagination.current_page; this.productLastPage = data.pagination.last_page; this.selectedProducts = this.selectedStudents.length === 0 ? this.selectedProducts.map(item => ({ ...item, eligibility: null, invalid_pairs: [] })) : this.selectedProducts.map(item => ({ ...item, ...(data.selected_eligibility?.[String(item.id)] || { eligibility: 'ineligible', invalid_pair_count: this.selectedStudents.length, invalid_pairs: [] }) })); this.productEligibilityReady = this.selectedStudents.length > 0 } catch (error) { if (error.name === 'AbortError' || requestVersion !== this.productRequestVersion) return; this.productEligibilityError = true; this.productEligibilityReady = false } finally { if (requestVersion === this.productRequestVersion) this.productLoading = false } },
                 async fetchSearch(url, query, page) { const response = await fetch(`${url}?q=${encodeURIComponent(query)}&page=${page}`, { headers: { Accept: 'application/json' } }); if (!response.ok) throw new Error(); return response.json() },
                 payload(finalize) { return { student_ids: this.selectedStudents.map(item => item.id), product_ids: this.selectedProducts.map(item => item.id), reenrollment_confirmations: this.confirmedPairs, configuration: this.configuration, finalize } },
                 async runPreflight(finalize) { this.loading = true; this.errorMessage = ''; try { const response = await fetch(config.preflightUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': config.csrf }, body: JSON.stringify(this.payload(finalize)) }); const data = await response.json(); if (!response.ok) { this.errorMessage = Object.values(data.errors || {}).flat().join(' '); return null } return data } catch (error) { this.errorMessage = @js(__('lf.LF_bulk_enrollment_search_error')); return null } finally { this.loading = false } },

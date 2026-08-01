@@ -629,17 +629,14 @@ terminal historical cycle requires explicit pair-level re-enrollment
 confirmation and remains unchanged when the new cycle is created. Any invalid
 pair rolls back the complete submission.
 
-Admin assignment may occur outside Product registration windows because it is
-an internal access grant, not a sale or self-registration. Automatic access
-expiry remains deferred: Product `access_duration_days` is not automatically
-projected to Enrollment `access_ends_at` in this phase.
+Admin assignment follows the same Product registration-window and automatic
+Enrollment time-projection policy as every other creation source. No source
+may bypass that policy unless a separate bypass is explicitly approved.
 
-Step 2 review and confirmation may define one shared access window, review
-window and internal note for the submission. These values apply only when the
-atomic submission creates new Enrollment cycles. Review windows apply only to self-paced Products with a
-positive `review_duration_days`; other Products remain eligible for enrollment
-with `review_starts_at` and `review_ends_at` left `NULL`. Status, source and
-enrollment time remain server-owned canonical values.
+Step 2 review and confirmation may define an internal note for the submission.
+Enrollment, access and review timestamps remain server-owned canonical values
+calculated from Product duration configuration and the official enrollment
+time; clients cannot override them.
 
 Enrollment cấp quyền học Course Product và khóa learning Version.
 
@@ -843,6 +840,105 @@ Enrollment may be created from:
 
 Regardless of the creation source, every Enrollment follows the same Version
 resolution process.
+
+### Registration And Time Projection Policy
+
+Every creation source must use one shared backend policy for Product
+registration eligibility and Enrollment time projection. This applies to
+Customer Admin, authorized Teacher, Product Purchase, Self Registration,
+Promotion/Campaign, Bulk Import, External API and any later source. No source
+may automatically bypass the Product registration window without a separately
+approved bypass policy.
+
+`enrolled_at` is the official instant used for eligibility. A Product with both
+`registration_starts_at` and `registration_ends_at` equal to `NULL` has no
+registration-time limit. Otherwise both boundaries must exist, start must be
+before end, and creation is permitted only when:
+
+```text
+registration_starts_at <= enrolled_at <= registration_ends_at
+```
+
+An incomplete or invalid Product registration window fails closed as a Product
+configuration error. Comparisons use normalized datetime values under the LF
+UTC and tenant/user timezone convention, never formatted date strings.
+
+For a Product with a valid positive `access_duration_days`, creation freezes
+both the duration inputs and the resulting access window on Enrollment:
+
+```text
+Enrollment.access_duration_days = Product.access_duration_days
+
+Enrollment.review_duration_days = Product.review_duration_days
+```
+
+These Enrollment fields are immutable historical snapshots. Product duration
+changes must never update them. New Enrollments must store both duration
+snapshots together with the calculated timestamps. The snapshot columns are
+nullable only for compatibility with legacy Enrollments created before this
+policy; a newly created Enrollment must have a positive
+`access_duration_days`, while `review_duration_days` may be `NULL`, `0`, or a
+positive integer according to the Product contract.
+
+The access window is calculated as:
+
+```text
+access_starts_at = enrolled_at
+
+access_ends_at = access_starts_at + access_duration_days
+```
+
+The main access interval is half-open:
+
+```text
+access_starts_at <= now < access_ends_at
+```
+
+If `review_duration_days > 0`, the review window immediately follows without
+overlap or gap:
+
+```text
+review_starts_at = access_ends_at
+
+review_ends_at = review_starts_at + review_duration_days
+```
+
+The review interval is also half-open:
+
+```text
+review_starts_at <= now < review_ends_at
+```
+
+If review duration is `NULL` or `0` according to the Product contract,
+`review_starts_at` and `review_ends_at` remain `NULL`. Lesson, Activity, Live
+Class or expected-session counts must never be used as duration inputs.
+Clients may preview these values but cannot submit authoritative duration or
+computed timestamps; the backend resolves Product duration and calculates the
+final Enrollment values.
+
+The stored Enrollment duration snapshots and timestamps are historical frozen
+results. Later changes to Product duration, Product Version or Product
+registration window do not change existing Enrollments and must not trigger a
+silent batch update.
+
+Editing status, Cohort, notes or other unrelated data preserves all Enrollment
+time fields and duration snapshots.
+
+An approved workflow may change `enrolled_at` only when the Enrollment has
+valid duration snapshots. The shared backend policy must revalidate the new
+instant against the Product registration window and all other current
+eligibility rules, then recompute the complete timestamp chain from the
+Enrollment snapshots, never from current Product duration values. Changing
+`enrolled_at` does not permit changing Product, Version, duration snapshots or
+extending access independently.
+
+Legacy Enrollments whose duration snapshots are `NULL` keep their stored
+timestamps and cannot change `enrolled_at`. The interface must explain that the
+historical duration cannot be reconstructed safely. Duration snapshots must
+not be backfilled from current Product values. Derivation from historical
+timestamps is permitted only under a separately reviewed data-repair policy
+that proves those timestamps were generated automatically and were never
+manually edited or extended.
 
 ### Version Resolution
 

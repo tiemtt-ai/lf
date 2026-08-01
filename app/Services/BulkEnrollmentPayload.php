@@ -15,20 +15,25 @@ class BulkEnrollmentPayload
         ])->sortBy(fn (array $item): string => sprintf('%020d:%020d:%020d', $item['student_id'], $item['product_id'], $item['previous_enrollment_id']))
             ->values()->all();
 
+        $canonicalConfiguration = collect(['notes'])
+            ->mapWithKeys(function (string $field) use ($configuration): array {
+                $value = $configuration[$field] ?? null;
+
+                if (is_string($value)) {
+                    $value = trim($value);
+                }
+
+                return [$field => $value === '' ? null : $value];
+            })->all();
+        if (filled($configuration['enrolled_at'] ?? null)) {
+            $canonicalConfiguration['enrolled_at'] = trim((string) $configuration['enrolled_at']);
+        }
+
         return [
             'student_ids' => $students,
             'product_ids' => $products,
             'reenrollment_confirmations' => $normalizedConfirmations,
-            'configuration' => collect(['access_starts_at', 'access_ends_at', 'review_starts_at', 'review_ends_at', 'notes'])
-                ->mapWithKeys(function (string $field) use ($configuration): array {
-                    $value = $configuration[$field] ?? null;
-
-                    if (is_string($value)) {
-                        $value = trim($value);
-                    }
-
-                    return [$field => $value === '' ? null : $value];
-                })->all(),
+            'configuration' => $canonicalConfiguration,
         ];
     }
 

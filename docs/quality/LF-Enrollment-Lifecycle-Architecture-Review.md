@@ -1,9 +1,9 @@
 # Enrollment Lifecycle Architecture Review
 
-Version: 1.0
+Version: 1.1
 
-Status: **Approved and Frozen — Policy 1**
-Date: 2026-07-21
+Status: **Approved and Frozen — Policy 2**
+Date: 2026-08-01
 
 ## Scope reviewed
 
@@ -128,3 +128,54 @@ event/log writer. The repository-wide SaaS audit table is not used by the
 existing single Enrollment lifecycle flow. Bulk lifecycle therefore does not
 invent a competing audit mechanism or schema; this remains an explicit audit
 infrastructure gap for a future approved architecture change.
+
+## Policy 2 addendum — Enrollment duration snapshots
+
+### Decision
+
+Approved additive nullable columns on `core_course_enrollments`:
+
+```text
+access_duration_days INTEGER UNSIGNED NULL
+review_duration_days INTEGER UNSIGNED NULL
+```
+
+They are immutable historical snapshots owned by Enrollment, copied from the
+tenant-owned Product during creation in the same transaction. They do not
+change Product or Version ownership and introduce no cross-domain write.
+
+New Enrollment invariants are enforced by the shared backend creation policy:
+
+```text
+access_duration_days > 0
+review_duration_days IS NULL OR review_duration_days >= 0
+```
+
+The database columns remain nullable for backward compatibility. Existing rows
+are not backfilled because current Product values are not reliable historical
+evidence. A legacy row with missing snapshots preserves its current timestamps
+and cannot change `enrolled_at`.
+
+### Existing-feature architecture gate
+
+- Source of truth remains Enrollment for runtime access and Product for new
+  Enrollment configuration.
+- Tenant isolation remains explicit through `customer_id` on all Product and
+  Enrollment reads/writes.
+- Product, Version, source and lifecycle invariants are unchanged.
+- Public routes do not change; create/edit request contracts add only the
+  approved `enrolled_at` behavior.
+- Historical timestamps and legacy rows are preserved without inference or
+  backfill.
+- Migration is additive and rollback removes only the two new nullable columns;
+  no historical migration may be edited.
+
+### Review result
+
+Architecture Review: **Passed**.
+
+ADR: not required because this is an additive existing-feature schema change
+inside the established Course/Enrollment ownership boundary, not a Foundation
+or cross-domain architecture decision.
+
+Owner approval: approved in the implementation request on 2026-08-01.
