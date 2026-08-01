@@ -239,7 +239,7 @@ class CourseEnrollmentController extends Controller
             abort_if($eligibleStudentCount !== $studentIds->count(), 422);
         }
         $keyword = trim((string) $request->query('q', ''));
-        $products = $this->eligibleProductQuery($customerId)
+        $productItems = $this->eligibleProductQuery($customerId)
             ->when($keyword !== '', function ($query) use ($keyword): void {
                 $query->where(function ($query) use ($keyword): void {
                     $query->where('products.title', 'like', '%'.$keyword.'%')
@@ -247,8 +247,7 @@ class CourseEnrollmentController extends Controller
                 });
             })
             ->orderBy('products.title')->orderBy('products.id')
-            ->paginate(10);
-        $productItems = collect($products->items());
+            ->get();
         $states = $request->integer('student_id') > 0
             ? $this->pairEnrollmentStates($customerId, [$request->integer('student_id')], $productItems->pluck('id')->all())
             : [];
@@ -285,13 +284,24 @@ class CourseEnrollmentController extends Controller
             $selectedEligibility = $selectedProductIds->mapWithKeys(fn (int $id): array => [(string) $id => $eligibility->get((string) $id)])->all();
             $data = $data->map(function (array $product) use ($eligibility): array {
                 return $product + $eligibility->get((string) $product['id']);
-            })->sortBy(fn (array $product): int => $product['eligibility'] === 'eligible' ? 0 : 1)->values();
+            })->values();
         }
 
-        return response()->json(['data' => $data, 'pagination' => [
-            'current_page' => $products->currentPage(), 'last_page' => $products->lastPage(),
-            'total' => $products->total(), 'per_page' => $products->perPage(),
-        ], 'selected_eligibility' => $selectedEligibility]);
+        $eligible = $studentIds->isEmpty() ? $data : $data->where('eligibility', 'eligible')->values();
+        $ineligible = $studentIds->isEmpty() ? collect() : $data->where('eligibility', 'ineligible')->values();
+        $eligiblePage = max(1, $request->integer('page', 1));
+        $ineligiblePage = max(1, $request->integer('ineligible_page', 1));
+
+        return response()->json([
+            'data' => $eligible->forPage($eligiblePage, 10)->values(),
+            'pagination' => $this->collectionPagination($eligible->count(), $eligiblePage, 10),
+            'ineligible' => [
+                'data' => $ineligible->forPage($ineligiblePage, 10)->values(),
+                'pagination' => $this->collectionPagination($ineligible->count(), $ineligiblePage, 10),
+            ],
+            'counts' => ['eligible' => $eligible->count(), 'ineligible' => $ineligible->count()],
+            'selected_eligibility' => $selectedEligibility,
+        ]);
     }
 
     public function bulkStore(
@@ -802,6 +812,19 @@ class CourseEnrollmentController extends Controller
                 'lesson_count' => (int) $product->lesson_count,
                 'activity_count' => (int) $product->activity_count,
             ],
+        ];
+    }
+
+    private function collectionPagination(int $total, int $currentPage, int $perPage): array
+    {
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $currentPage = min($currentPage, $lastPage);
+
+        return [
+            'current_page' => $currentPage,
+            'last_page' => $lastPage,
+            'total' => $total,
+            'per_page' => $perPage,
         ];
     }
 

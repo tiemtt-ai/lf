@@ -146,7 +146,13 @@
             <p class="admin-alert admin-alert-danger" x-show="errorMessage" x-text="errorMessage" role="alert" x-cloak></p>
             <div x-ref="selectionError" class="admin-alert admin-alert-danger" x-show="hasInvalidSelectedProducts"
                  tabindex="-1" role="alert" aria-labelledby="bulk-selection-error-title" x-cloak>
-                <strong id="bulk-selection-error-title">{{ __('lf.LF_bulk_enrollment_preflight_blocked') }}</strong>
+                <strong id="bulk-selection-error-title">{{ __('lf.LF_bulk_enrollment_selected_invalid_title') }}</strong>
+                <p>{{ __('lf.LF_bulk_enrollment_selected_invalid_help') }}</p>
+                <ul><template x-for="item in selectedInvalidProducts" :key="`invalid-selected-${item.id}`">
+                    <li><strong x-text="item.title"></strong>: <span x-text="eligibilityReason(item)"></span>
+                        <button type="button" class="admin-text-action" x-on:click="toggleProduct(item, false)">{{ __('lf.LF_bulk_enrollment_deselect') }}</button>
+                    </li>
+                </template></ul>
                 <button type="button" class="admin-text-action" x-on:click="removeInvalidProducts">{{ __('lf.LF_bulk_enrollment_remove_invalid_products') }}</button>
             </div>
 
@@ -229,7 +235,7 @@
                                    :disabled="!productEligibilityReady || eligibleVisibleProducts.length === 0">
                             {{ __('lf.LF_bulk_enrollment_select_eligible_visible') }}
                         </label>
-                        <div class="admin-table-wrap bulk-enrollment-selector__list"><table class="table"><tbody>
+                        <div class="admin-table-wrap bulk-enrollment-selector__list" :class="{ 'is-empty': !productLoading && productResults.length === 0 }"><table class="table"><tbody>
                             <template x-for="item in productResults" :key="item.id"><tr :class="{ 'is-selected-invalid': productEligibilityReady && hasProduct(item.id) && item.eligibility === 'ineligible' }">
                                 <td><input type="checkbox" :checked="hasProduct(item.id)"
                                            x-on:click="if (selectedStudents.length === 0) { $event.preventDefault(); promptForStudentSelection($event.currentTarget) }"
@@ -257,7 +263,12 @@
                                     </div>
                                 </td>
                             </tr></template>
-                            <tr x-show="!productLoading && productResults.length === 0" x-cloak><td>{{ __('lf.LF_course_enrollment_search_empty') }}</td></tr>
+                            <tr x-show="!productLoading && productResults.length === 0" class="bulk-enrollment-product-empty" x-cloak>
+                                <td colspan="2">
+                                    <strong>{{ __('lf.LF_bulk_enrollment_no_eligible_products') }}</strong>
+                                    <span>{{ __('lf.LF_bulk_enrollment_no_eligible_products_help') }}</span>
+                                </td>
+                            </tr>
                         </tbody></table></div>
                         <div x-show="productEligibilityError" class="admin-alert admin-alert-danger" role="alert" x-cloak>
                             <span>{{ __('lf.LF_bulk_enrollment_eligibility_error') }}</span>
@@ -268,6 +279,38 @@
                             <span class="bulk-enrollment-pagination__status"><span class="sr-only">{{ __('lf.LF_bulk_enrollment_page') }}</span><span x-text="`${productPage} / ${productLastPage}`"></span></span>
                             <button type="button" class="bulk-enrollment-pagination__button" x-on:click="loadProducts(productPage + 1)" :disabled="productPage >= productLastPage"><span>{{ __('lf.LF_bulk_enrollment_next') }}</span><span aria-hidden="true">→</span></button>
                         </nav>
+                        <div x-show="productEligibilityReady && ineligibleProductCount > 0" class="bulk-enrollment-ineligible-group" x-cloak>
+                            <button type="button" class="bulk-enrollment-ineligible-toggle"
+                                    x-on:click="ineligibleProductsVisible = !ineligibleProductsVisible"
+                                    :aria-expanded="ineligibleProductsVisible.toString()">
+                                <span x-text="ineligibleProductsVisible ? @js(__('lf.LF_bulk_enrollment_hide_ineligible')) : @js(__('lf.LF_bulk_enrollment_show_ineligible')).replace(':count', ineligibleProductCount)"></span>
+                                <span aria-hidden="true" x-text="ineligibleProductsVisible ? '−' : '+'"></span>
+                            </button>
+                            <div x-show="ineligibleProductsVisible" x-cloak>
+                                <div class="admin-table-wrap bulk-enrollment-selector__list"><table class="table"><tbody>
+                                    <template x-for="item in ineligibleProductResults" :key="`ineligible-${item.id}`"><tr :class="{ 'is-selected-invalid': hasProduct(item.id) }">
+                                        <td><input type="checkbox" :checked="hasProduct(item.id)" disabled aria-disabled="true"
+                                                   :aria-label="`${item.title} · ${eligibilityLabel(item)}`"></td>
+                                        <td><strong x-text="item.title"></strong>
+                                            <span class="bulk-enrollment-product-meta">
+                                                <span x-show="item.code"><span class="bulk-enrollment-product-meta__label">{{ __('lf.LF_course_product_common_product_code') }}</span><span x-text="item.code"></span></span>
+                                                <span x-show="item.version?.code"><span class="bulk-enrollment-product-meta__label">{{ __('lf.LF_course_enrollment_common_version') }}</span><span x-text="item.version?.code"></span></span>
+                                            </span>
+                                            <span class="bulk-enrollment-eligibility-badge is-ineligible">{{ __('lf.LF_bulk_enrollment_ineligible') }}</span>
+                                            <div class="bulk-enrollment-invalid-reason" :class="{ 'is-selected': hasProduct(item.id) }">
+                                                <span x-text="eligibilityReason(item)"></span>
+                                                <button x-show="hasProduct(item.id)" type="button" class="admin-text-action" x-on:click="toggleProduct(item, false)">{{ __('lf.LF_bulk_enrollment_deselect') }}</button>
+                                            </div>
+                                        </td>
+                                    </tr></template>
+                                </tbody></table></div>
+                                <nav x-show="ineligibleProductLastPage > 1" class="bulk-enrollment-pagination bulk-enrollment-pagination--secondary" aria-label="{{ __('lf.LF_bulk_enrollment_products_pagination') }}" x-cloak>
+                                    <button type="button" class="bulk-enrollment-pagination__button" x-on:click="loadProducts(productPage, ineligibleProductPage - 1)" :disabled="ineligibleProductPage <= 1"><span aria-hidden="true">←</span><span>{{ __('lf.LF_bulk_enrollment_previous') }}</span></button>
+                                    <span class="bulk-enrollment-pagination__status" x-text="`${ineligibleProductPage} / ${ineligibleProductLastPage}`"></span>
+                                    <button type="button" class="bulk-enrollment-pagination__button" x-on:click="loadProducts(productPage, ineligibleProductPage + 1)" :disabled="ineligibleProductPage >= ineligibleProductLastPage"><span>{{ __('lf.LF_bulk_enrollment_next') }}</span><span aria-hidden="true">→</span></button>
+                                </nav>
+                            </div>
+                        </div>
                     </section>
                 </div>
 
@@ -386,22 +429,24 @@
     <script>
         function bulkEnrollmentWizard(config) {
             return {
-                step: 1, selectedStudents: [], selectedProducts: [], studentResults: [], productResults: [],
-                studentQuery: '', productQuery: '', studentPage: 1, productPage: 1, studentLastPage: 1, productLastPage: 1,
+                step: 1, selectedStudents: [], selectedProducts: [], studentResults: [], productResults: [], ineligibleProductResults: [],
+                studentQuery: '', productQuery: '', studentPage: 1, productPage: 1, studentLastPage: 1, productLastPage: 1, ineligibleProductPage: 1, ineligibleProductLastPage: 1,
                 studentLoading: false, productLoading: false, loading: false, submitting: false, pairs: [], confirmationPage: 1, confirmationPerPage: 10,
                 confirmedPairKeys: [], submissionToken: '', errorMessage: '', productEligibilityError: false,
                 productEligibilityReady: false, productRequestVersion: 0, productEligibilityTimer: null, productAbortController: null,
                 productOnboardingShown: false, productGuidanceHighlighted: false, productHighlightTimer: null, productSelectionPromptVisible: false, productPromptTrigger: null,
                 enrollmentDatePromptVisible: false, enrollmentDatePromptTrigger: null,
+                eligibleProductCount: 0, ineligibleProductCount: 0, ineligibleProductsVisible: false,
                 configuration: { enrolled_at: @js(now()->format('Y-m-d\TH:i')), notes: null },
                 init() { this.loadStudents(1); this.loadProducts(1) },
                 get pairCount() { return this.selectedStudents.length * this.selectedProducts.length },
                 get pairCountLabel() { return @js(__('lf.LF_bulk_enrollment_pair_count')).replace(':students', this.selectedStudents.length).replace(':products', this.selectedProducts.length).replace(':pairs', this.pairCount) },
                 get selectedStudentsLabel() { return @js(__('lf.LF_bulk_enrollment_selected_students')).replace(':count', this.selectedStudents.length) },
-                get selectedProductsLabel() { return @js(__('lf.LF_bulk_enrollment_selected_products')).replace(':count', this.selectedProducts.length) },
+                get selectedProductsLabel() { return @js(__('lf.LF_bulk_enrollment_selected_products')).replace(':count', this.selectedProducts.filter(item => item.eligibility === 'eligible').length).replace(':eligible', this.eligibleProductCount) },
                 get eligibleVisibleProducts() { return this.productResults.filter(item => item.eligibility === 'eligible') },
-                get hasInvalidSelectedProducts() { return this.selectedProducts.some(item => item.eligibility === 'ineligible') },
-                get productEligibilityAnnouncement() { if (this.productLoading && this.selectedStudents.length) return @js(__('lf.LF_bulk_enrollment_eligibility_loading')); if (!this.productEligibilityReady) return ''; const eligible = this.productResults.filter(item => item.eligibility === 'eligible').length; return @js(__('lf.LF_bulk_enrollment_eligibility_result')).replace(':eligible', eligible).replace(':total', this.productResults.length) },
+                get selectedInvalidProducts() { return this.selectedProducts.filter(item => item.eligibility === 'ineligible') },
+                get hasInvalidSelectedProducts() { return this.selectedInvalidProducts.length > 0 },
+                get productEligibilityAnnouncement() { if (this.productLoading && this.selectedStudents.length) return @js(__('lf.LF_bulk_enrollment_eligibility_loading')); if (!this.productEligibilityReady) return ''; return @js(__('lf.LF_bulk_enrollment_eligibility_result')).replace(':eligible', this.eligibleProductCount).replace(':total', this.eligibleProductCount + this.ineligibleProductCount) },
                 get reenrollmentPairs() { return this.pairs.filter(pair => pair.status === 'reenrollment_eligible') },
                 get confirmationLastPage() { return Math.max(1, Math.ceil(this.pairs.length / this.confirmationPerPage)) },
                 get paginatedPairs() { const offset = (this.confirmationPage - 1) * this.confirmationPerPage; return this.pairs.slice(offset, offset + this.confirmationPerPage) },
@@ -428,7 +473,7 @@
                 eligibilityLabel(item) { if (!item.eligibility) return @js(__('lf.LF_bulk_enrollment_eligibility_unchecked')); return item.eligibility === 'eligible' ? @js(__('lf.LF_bulk_enrollment_eligible')) : @js(__('lf.LF_bulk_enrollment_ineligible')) },
                 eligibilityReason(item) { if (!item.invalid_pairs?.length) return @js(__('lf.LF_bulk_enrollment_ineligible_generic')); const groups = item.invalid_pairs.reduce((result, pair) => { const reason = pair.reason || @js(__('lf.LF_bulk_enrollment_ineligible_generic')); if (!result[reason]) result[reason] = []; result[reason].push(pair.student_name); return result }, {}); return Object.entries(groups).map(([reason, students]) => students.length === this.selectedStudents.length ? reason : `${students.join(', ')}: ${reason}`).join(' · ') },
                 async loadStudents(page) { if (page < 1) return; this.studentLoading = true; try { const data = await this.fetchSearch(config.studentUrl, this.studentQuery, page); this.studentResults = data.data; this.studentPage = data.pagination.current_page; this.studentLastPage = data.pagination.last_page } finally { this.studentLoading = false } },
-                async loadProducts(page) { if (page < 1) return; const requestVersion = ++this.productRequestVersion; this.productAbortController?.abort(); this.productAbortController = new AbortController(); this.productLoading = true; this.productEligibilityReady = false; this.productEligibilityError = false; try { const params = new URLSearchParams({ q: this.productQuery, page: String(page), enrolled_at: this.configuration.enrolled_at }); [...this.selectedStudents].map(item => Number(item.id)).sort((a, b) => a - b).forEach(id => params.append('student_ids[]', String(id))); [...this.selectedProducts].map(item => Number(item.id)).sort((a, b) => a - b).forEach(id => params.append('selected_product_ids[]', String(id))); const response = await fetch(`${config.productUrl}?${params}`, { headers: { Accept: 'application/json' }, signal: this.productAbortController.signal }); if (!response.ok) throw new Error(); const data = await response.json(); if (requestVersion !== this.productRequestVersion) return; this.productResults = data.data; this.productPage = data.pagination.current_page; this.productLastPage = data.pagination.last_page; this.selectedProducts = this.selectedStudents.length === 0 ? this.selectedProducts.map(item => ({ ...item, eligibility: null, invalid_pairs: [] })) : this.selectedProducts.map(item => ({ ...item, ...(data.selected_eligibility?.[String(item.id)] || { eligibility: 'ineligible', invalid_pair_count: this.selectedStudents.length, invalid_pairs: [] }) })); this.productEligibilityReady = this.selectedStudents.length > 0 } catch (error) { if (error.name === 'AbortError' || requestVersion !== this.productRequestVersion) return; this.productEligibilityError = true; this.productEligibilityReady = false } finally { if (requestVersion === this.productRequestVersion) this.productLoading = false } },
+                async loadProducts(page, ineligiblePage = 1) { if (page < 1 || ineligiblePage < 1) return; const requestVersion = ++this.productRequestVersion; this.productAbortController?.abort(); this.productAbortController = new AbortController(); this.productLoading = true; this.productEligibilityReady = false; this.productEligibilityError = false; try { const params = new URLSearchParams({ q: this.productQuery, page: String(page), ineligible_page: String(ineligiblePage), enrolled_at: this.configuration.enrolled_at }); [...this.selectedStudents].map(item => Number(item.id)).sort((a, b) => a - b).forEach(id => params.append('student_ids[]', String(id))); [...this.selectedProducts].map(item => Number(item.id)).sort((a, b) => a - b).forEach(id => params.append('selected_product_ids[]', String(id))); const response = await fetch(`${config.productUrl}?${params}`, { headers: { Accept: 'application/json' }, signal: this.productAbortController.signal }); if (!response.ok) throw new Error(); const data = await response.json(); if (requestVersion !== this.productRequestVersion) return; this.productResults = data.data; this.ineligibleProductResults = data.ineligible?.data || []; this.productPage = data.pagination.current_page; this.productLastPage = data.pagination.last_page; this.ineligibleProductPage = data.ineligible?.pagination?.current_page || 1; this.ineligibleProductLastPage = data.ineligible?.pagination?.last_page || 1; this.eligibleProductCount = data.counts?.eligible || 0; this.ineligibleProductCount = data.counts?.ineligible || 0; this.selectedProducts = this.selectedStudents.length === 0 ? this.selectedProducts.map(item => ({ ...item, eligibility: null, invalid_pairs: [] })) : this.selectedProducts.map(item => ({ ...item, ...(data.selected_eligibility?.[String(item.id)] || { eligibility: 'ineligible', invalid_pair_count: this.selectedStudents.length, invalid_pairs: [] }) })); this.productEligibilityReady = this.selectedStudents.length > 0 } catch (error) { if (error.name === 'AbortError' || requestVersion !== this.productRequestVersion) return; this.productEligibilityError = true; this.productEligibilityReady = false } finally { if (requestVersion === this.productRequestVersion) this.productLoading = false } },
                 async fetchSearch(url, query, page) { const response = await fetch(`${url}?q=${encodeURIComponent(query)}&page=${page}`, { headers: { Accept: 'application/json' } }); if (!response.ok) throw new Error(); return response.json() },
                 payload(finalize) { return { student_ids: this.selectedStudents.map(item => item.id), product_ids: this.selectedProducts.map(item => item.id), reenrollment_confirmations: this.confirmedPairs, configuration: this.configuration, finalize } },
                 async runPreflight(finalize, trigger = null) { if (!await this.validateEnrollmentDate(trigger)) return null; this.loading = true; this.errorMessage = ''; try { const response = await fetch(config.preflightUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': config.csrf }, body: JSON.stringify(this.payload(finalize)) }); const data = await response.json(); if (!response.ok) { this.errorMessage = Object.values(data.errors || {}).flat().join(' '); return null } return data } catch (error) { this.errorMessage = @js(__('lf.LF_bulk_enrollment_search_error')); return null } finally { this.loading = false } },

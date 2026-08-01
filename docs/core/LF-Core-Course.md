@@ -863,6 +863,34 @@ An incomplete or invalid Product registration window fails closed as a Product
 configuration error. Comparisons use normalized datetime values under the LF
 UTC and tenant/user timezone convention, never formatted date strings.
 
+Product discovery and selection for Enrollment creation must follow the same
+policy in single-create, edit and bulk workflows. Eligibility is always
+evaluated against the `enrolled_at` currently selected by the operator, never
+against the server's current time merely because the screen is being viewed.
+
+Creation selectors present eligible Products in the primary list and place
+ineligible Products in a collapsed secondary group. Ineligible Products are
+disabled and expose a precise reason: registration has not opened, registration
+has ended, the registration window is incomplete or invalid, or another
+eligibility rule failed. Products without a configured registration window are
+eligible with respect to time. The positive status label is **Eligible for
+enrollment**, not a generic Product-validity claim.
+
+Select-all affects eligible Products only, and selection counts report the
+number selected out of the eligible result set. Search and pagination may bound
+the ineligible group so expired Products do not make the primary workflow
+unwieldy. An edit workflow with one immutable Product applies the same policy
+to that Product and must display its exact failure reason rather than offering
+a different eligibility interpretation.
+
+Changing `enrolled_at` triggers a complete re-evaluation of Product eligibility,
+group counts, select-all state and all access/review previews. A previously
+selected Product that becomes ineligible remains visibly selected in a marked
+correction area; the client must not silently remove it. Continue/save remains
+blocked until the operator changes `enrolled_at` or removes that Product. The
+backend remains authoritative and repeats the same validation during preflight
+and commit/save to cover stale clients and concurrent Product changes.
+
 For a Product with a valid positive `access_duration_days`, creation freezes
 both the duration inputs and the resulting access window on Enrollment:
 

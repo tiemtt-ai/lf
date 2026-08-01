@@ -33,7 +33,7 @@
                 @include('course-enrollments.partials.lifecycle-action', ['action' => route($routePrefix.'.reactivate', $enrollment->id), 'triggerClass' => 'btn btn-primary', 'triggerLabel' => __('lf.LF_course_enrollment_lifecycle_reactivate'), 'title' => __('lf.LF_course_enrollment_lifecycle_reactivate_title'), 'body' => __('lf.LF_course_enrollment_lifecycle_reactivate_body'), 'confirmClass' => 'btn btn-primary', 'confirmLabel' => __('lf.LF_course_enrollment_lifecycle_reactivate')])
             @endif
             @if (in_array($enrollment->status, ['pending', 'active', 'suspended'], true))
-                @include('course-enrollments.partials.lifecycle-action', ['action' => route($routePrefix.'.cancel', $enrollment->id), 'triggerClass' => 'admin-danger-text-action', 'triggerLabel' => __('lf.LF_course_enrollment_lifecycle_cancel'), 'title' => __('lf.LF_course_enrollment_lifecycle_cancel_title'), 'body' => __('lf.LF_course_enrollment_lifecycle_cancel_body'), 'confirmClass' => 'btn btn-danger', 'confirmLabel' => __('lf.LF_course_enrollment_lifecycle_cancel')])
+                @include('course-enrollments.partials.lifecycle-action', ['action' => route($routePrefix.'.cancel', $enrollment->id), 'triggerClass' => 'btn btn-danger', 'triggerLabel' => __('lf.LF_course_enrollment_lifecycle_cancel'), 'title' => __('lf.LF_course_enrollment_lifecycle_cancel_title'), 'body' => __('lf.LF_course_enrollment_lifecycle_cancel_body'), 'confirmClass' => 'btn btn-danger', 'confirmLabel' => __('lf.LF_course_enrollment_lifecycle_cancel')])
             @endif
         </div>
     </div>

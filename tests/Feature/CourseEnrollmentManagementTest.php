@@ -1315,9 +1315,11 @@ class CourseEnrollmentManagementTest extends TestCase
         $oneStudent = $this->actingAs($admin)->getJson(
             'https://tenant-a.localhost/admin/course-enrollments/products/search?student_ids[]='.$studentA->id
         )->assertOk();
-        $this->assertSame(['Alpha Product', 'Gamma Product', 'Beta Product'], collect($oneStudent->json('data'))->pluck('title')->all());
-        $this->assertSame(['eligible', 'eligible', 'ineligible'], collect($oneStudent->json('data'))->pluck('eligibility')->all());
-        $this->assertSame(1, $oneStudent->json('data.2.invalid_pair_count'));
+        $this->assertSame(['Alpha Product', 'Gamma Product'], collect($oneStudent->json('data'))->pluck('title')->all());
+        $this->assertSame(['eligible', 'eligible'], collect($oneStudent->json('data'))->pluck('eligibility')->all());
+        $this->assertSame(['Beta Product'], collect($oneStudent->json('ineligible.data'))->pluck('title')->all());
+        $this->assertSame(1, $oneStudent->json('ineligible.data.0.invalid_pair_count'));
+        $this->assertSame(['eligible' => 2, 'ineligible' => 1], $oneStudent->json('counts'));
 
         $selectedOffPage = $this->actingAs($admin)->getJson(
             'https://tenant-a.localhost/admin/course-enrollments/products/search?q=Alpha&student_ids[]='.$studentA->id.'&selected_product_ids[]='.$products['Beta Product']['product']
@@ -1327,8 +1329,8 @@ class CourseEnrollmentManagementTest extends TestCase
         $manyStudents = $this->actingAs($admin)->getJson(
             'https://tenant-a.localhost/admin/course-enrollments/products/search?student_ids[]='.$studentA->id.'&student_ids[]='.$studentB->id
         )->assertOk();
-        $this->assertSame(['Alpha Product', 'Beta Product', 'Gamma Product'], collect($manyStudents->json('data'))->pluck('title')->all());
-        $this->assertSame(['eligible', 'ineligible', 'ineligible'], collect($manyStudents->json('data'))->pluck('eligibility')->all());
+        $this->assertSame(['Alpha Product'], collect($manyStudents->json('data'))->pluck('title')->all());
+        $this->assertSame(['Beta Product', 'Gamma Product'], collect($manyStudents->json('ineligible.data'))->pluck('title')->all());
         $this->assertSame(2, $manyStudents->json('data.0.valid_pair_count'));
 
         $this->actingAs($admin)->getJson(
@@ -1585,8 +1587,9 @@ class CourseEnrollmentManagementTest extends TestCase
         $outside = $this->actingAs($admin)->getJson(
             'https://tenant-a.localhost/admin/course-enrollments/products/search?student_ids[]='.$student->id.'&selected_product_ids[]='.$productId.'&enrolled_at=2026-08-13%2009:00:00'
         )->assertOk();
-        $this->assertFalse($inside->json('data.0.outside_registration_window'));
-        $this->assertTrue($outside->json('data.0.outside_registration_window'));
+        $this->assertFalse($inside->json('ineligible.data.0.outside_registration_window'));
+        $this->assertTrue($outside->json('ineligible.data.0.outside_registration_window'));
+        $this->assertStringContainsString('13/08/2026 09:00', $outside->json('ineligible.data.0.invalid_pairs.0.reason'));
         $this->assertSame('ineligible', $outside->json('selected_eligibility.'.$productId.'.eligibility'));
     }
 

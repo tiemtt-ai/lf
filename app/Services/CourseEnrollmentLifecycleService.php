@@ -108,9 +108,14 @@ class CourseEnrollmentLifecycleService
             || ($registrationStart && $registrationStart->greaterThanOrEqualTo($registrationEnd))) {
             throw ValidationException::withMessages([$field => __('lf.LF_course_enrollment_registration_invalid')]);
         }
-        if ($registrationStart && ($enrolledAt->lt($registrationStart) || $enrolledAt->gt($registrationEnd))) {
-            throw ValidationException::withMessages([$field => __('lf.LF_course_enrollment_registration_closed', [
+        if ($registrationStart && $enrolledAt->lt($registrationStart)) {
+            throw ValidationException::withMessages([$field => __('lf.LF_course_enrollment_registration_not_open', [
                 'start' => $registrationStart->format('d/m/Y H:i'),
+                'enrolled_at' => $enrolledAt->format('d/m/Y H:i'),
+            ])]);
+        }
+        if ($registrationEnd && $enrolledAt->gt($registrationEnd)) {
+            throw ValidationException::withMessages([$field => __('lf.LF_course_enrollment_registration_ended', [
                 'end' => $registrationEnd->format('d/m/Y H:i'),
                 'enrolled_at' => $enrolledAt->format('d/m/Y H:i'),
             ])]);

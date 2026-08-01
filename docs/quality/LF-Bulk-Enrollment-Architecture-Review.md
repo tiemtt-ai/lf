@@ -1,6 +1,6 @@
 # Bulk Enrollment Architecture Review
 
-Version: 2.0
+Version: 3.0
 
 Status: Approved and Frozen
 
@@ -8,12 +8,17 @@ Review Date: 2026-07-21
 
 Superseding Approval Date: 2026-07-21
 
+Enrollment-Date Eligibility Approval Date: 2026-08-01
+
 ## Review basis
 
 Approval for this review was supplied directly by the LearnForge Architecture
-Owner in the Bulk Enrollment implementation prompts dated 2026-07-21. Version
-2.0 supersedes the Version 1.0 selection-scope, wizard, partial-success and
-submission-token decisions. Decisions not explicitly superseded remain frozen.
+Owner in the Bulk Enrollment implementation prompts dated 2026-07-21 and the
+Enrollment-date eligibility decision dated 2026-08-01. Version 2.0 superseded
+the Version 1.0 selection-scope, wizard, partial-success and submission-token
+decisions. Version 3.0 supersedes the registration-window override and Product
+selector presentation decisions. Decisions not explicitly superseded remain
+frozen.
 
 Relevant contracts:
 
@@ -51,16 +56,21 @@ Relevant contracts:
 - Automatic access expiry remains **Deferred**. `access_duration_days` is not
   converted automatically to `access_ends_at`, and runtime expiry is unchanged.
 
-## Eligibility and registration override
+## Eligibility and registration window
 
 - Student must be an active `student` user in the current tenant.
 - Product must be active and resolve exactly one valid active Product Item to a
   published Version in the same tenant.
-- Admin assignment is an internal grant and may override Product registration
-  and sales windows. The UI must disclose when the selected Product is outside
-  its registration window.
-- This override does not apply to purchase, self-registration, promotion or API
-  Enrollment sources.
+- Admin assignment does not implicitly override the Product registration
+  window. Product registration eligibility is evaluated against the shared
+  `enrolled_at` selected for the submission, not against server `now`.
+- A Product with no registration boundaries is unrestricted by registration
+  time. A complete valid window is inclusive at both boundaries. A missing
+  boundary, an invalid interval, a selected instant before opening, or a
+  selected instant after closing fails closed with its exact reason.
+- Preflight and commit repeat the shared backend policy. A later separately
+  approved override must be explicit, authorized and auditable; this workflow
+  currently defines no such override.
 
 ## Preflight, existing Enrollment and re-enrollment
 
@@ -127,6 +137,17 @@ Relevant contracts:
   confirmation step.
 - Search is server-side and paginated. Selection persists across queries and
   pages. Select-all applies only to the visible result page.
+- The primary Product list contains only Products eligible for every selected
+  Student at the selected `enrolled_at`. Ineligible Products appear disabled in
+  a collapsed secondary group with exact reasons and an independent count.
+  Search and pagination may limit that secondary group.
+- Select-all affects eligible Products only. The UI reports selected Products
+  as `selected / eligible`, and uses the label **Eligible for enrollment**.
+- Changing `enrolled_at` re-evaluates both Product groups, their counts,
+  select-all state and projected access/review windows.
+- A selected Product that becomes ineligible is retained in a visible marked
+  correction area and blocks continuation. It is never silently deselected;
+  the Admin must change `enrolled_at` or remove the Product.
 - Existing and historical Enrollment states are visible in preflight;
   re-enrollment is confirmed per pair.
 - Client, preflight and commit surfaces display the exact Cartesian pair count

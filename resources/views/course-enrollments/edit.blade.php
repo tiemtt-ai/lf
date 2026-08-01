@@ -23,9 +23,12 @@
         <form class="admin-form-standard" method="POST" action="{{ route($routePrefix.'.update', $enrollment->id) }}"
               x-data="enrollmentTimeEditor({
                   enrolledAt: @js(old('enrolled_at', \Illuminate\Support\Carbon::parse($enrollment->enrolled_at)->format('Y-m-d\TH:i'))),
+                  originalEnrolledAt: @js(\Illuminate\Support\Carbon::parse($enrollment->enrolled_at)->format('Y-m-d\TH:i')),
                   accessDays: @js($enrollment->access_duration_days),
                   reviewDays: @js($enrollment->review_duration_days),
-              })" x-on:submit="if (submitting) { $event.preventDefault(); return } submitting = true">
+                  registrationStart: @js($enrollment->registration_starts_at ? \Illuminate\Support\Carbon::parse($enrollment->registration_starts_at)->format('Y-m-d\TH:i') : null),
+                  registrationEnd: @js($enrollment->registration_ends_at ? \Illuminate\Support\Carbon::parse($enrollment->registration_ends_at)->format('Y-m-d\TH:i') : null),
+              })" x-on:submit="if (submitting || registrationIssue) { $event.preventDefault(); document.getElementById('enrolled_at')?.focus(); return } submitting = true">
             @csrf
             @method('PUT')
 
@@ -59,6 +62,7 @@
                             @if ($enrollment->access_duration_days !== null)
                                 <input id="enrolled_at" name="enrolled_at" type="datetime-local" class="lf-form-control course-enrollment-edit-date-input"
                                        x-model="enrolledAt" :class="{ 'has-value': enrolledAt }" required>
+                                <p x-show="registrationIssue" x-text="registrationIssue" class="lf-form-error" role="alert" x-cloak></p>
                             @else
                                 <div id="enrolled_at" class="admin-form-readonly lf-form-control">{{ \Illuminate\Support\Carbon::parse($enrollment->enrolled_at)->format('d/m/Y H:i') }}</div>
                                 <p class="lf-form-error" role="status">{{ __('lf.LF_course_enrollment_legacy_duration_missing') }}</p>
@@ -146,8 +150,27 @@
             return {
                 submitting: false,
                 enrolledAt: config.enrolledAt,
+                originalEnrolledAt: config.originalEnrolledAt,
                 accessDays: config.accessDays,
                 reviewDays: config.reviewDays,
+                registrationStart: config.registrationStart,
+                registrationEnd: config.registrationEnd,
+                get registrationIssue() {
+                    if (this.enrolledAt === this.originalEnrolledAt) return '';
+                    if (Boolean(this.registrationStart) !== Boolean(this.registrationEnd)
+                        || (this.registrationStart && new Date(this.registrationStart) >= new Date(this.registrationEnd))) {
+                        return @js(__('lf.LF_course_enrollment_registration_invalid'));
+                    }
+                    if (this.registrationStart && new Date(this.enrolledAt) < new Date(this.registrationStart)) {
+                        return @js(__('lf.LF_course_enrollment_registration_not_open', ['start' => ':start', 'enrolled_at' => ':enrolled_at']))
+                            .replace(':start', this.display(this.registrationStart)).replace(':enrolled_at', this.display(this.enrolledAt));
+                    }
+                    if (this.registrationEnd && new Date(this.enrolledAt) > new Date(this.registrationEnd)) {
+                        return @js(__('lf.LF_course_enrollment_registration_ended', ['end' => ':end', 'enrolled_at' => ':enrolled_at']))
+                            .replace(':end', this.display(this.registrationEnd)).replace(':enrolled_at', this.display(this.enrolledAt));
+                    }
+                    return '';
+                },
                 addDays(value, days) { const date = new Date(value); date.setDate(date.getDate() + Number(days)); return date },
                 display(value) { return value ? new Intl.DateTimeFormat(document.documentElement.lang || 'vi', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '—' },
                 preview(field) {
