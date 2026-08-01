@@ -2392,6 +2392,149 @@ class CourseProductManagementTest extends TestCase
         $this->assertNotEmpty($english->getContent());
     }
 
+    public function test_product_registration_and_promotion_windows_enforce_the_canonical_policy(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $this->actingAs($admin);
+
+        $data = fn (string $title, array $overrides = []): array => $this->validProductV2Data(
+            $categoryId,
+            $templateId,
+            array_merge(['title' => $title], $overrides)
+        );
+        $promotion = [
+            'promotion_enabled' => 1,
+            'discount_type' => 'percentage',
+            'discount_value' => 10,
+        ];
+
+        $this->post('https://tenant-a.localhost/admin/course-products', $data('No windows'))
+            ->assertSessionHasNoErrors();
+
+        $this->post('https://tenant-a.localhost/admin/course-products', $data('Registration start only', [
+            'registration_starts_at' => '2026-08-01 08:00:00',
+        ]))->assertSessionHasErrors([
+            'registration_ends_at' => __('lf.LF_product_v2_registration_pair_required'),
+        ]);
+
+        foreach ([
+            ['2026-08-02 08:00:00', '2026-08-02 08:00:00'],
+            ['2026-08-03 08:00:00', '2026-08-02 08:00:00'],
+        ] as $index => [$start, $end]) {
+            $this->post('https://tenant-a.localhost/admin/course-products', $data('Invalid registration order '.$index, [
+                'registration_starts_at' => $start,
+                'registration_ends_at' => $end,
+            ]))->assertSessionHasErrors([
+                'registration_ends_at' => __('lf.LF_product_v2_registration_end_after_start'),
+            ]);
+        }
+
+        $this->post('https://tenant-a.localhost/admin/course-products', $data('Promotion start only', $promotion + [
+            'sale_starts_at' => '2026-08-02 08:00:00',
+        ]))->assertSessionHasErrors([
+            'sale_ends_at' => __('lf.LF_product_v2_promotion_pair_required'),
+        ]);
+
+        foreach ([
+            ['2026-08-02 08:00:00', '2026-08-02 08:00:00'],
+            ['2026-08-03 08:00:00', '2026-08-02 08:00:00'],
+        ] as $index => [$start, $end]) {
+            $this->post('https://tenant-a.localhost/admin/course-products', $data('Invalid promotion order '.$index, $promotion + [
+                'sale_starts_at' => $start,
+                'sale_ends_at' => $end,
+            ]))->assertSessionHasErrors([
+                'sale_ends_at' => __('lf.LF_product_v2_promotion_end_after_start'),
+            ]);
+        }
+
+        $this->post('https://tenant-a.localhost/admin/course-products', $data('Independent promotion', $promotion + [
+            'sale_starts_at' => '2026-08-02 08:00:00',
+            'sale_ends_at' => '2026-08-09 18:00:00',
+        ]))->assertSessionHasNoErrors();
+
+        $window = [
+            'registration_starts_at' => '2026-08-01 08:00:00',
+            'registration_ends_at' => '2026-08-10 18:00:00',
+        ];
+        $this->post('https://tenant-a.localhost/admin/course-products', $data('Contained promotion', $promotion + $window + [
+            'sale_starts_at' => '2026-08-02 08:00:00',
+            'sale_ends_at' => '2026-08-09 18:00:00',
+        ]))->assertSessionHasNoErrors();
+
+        foreach ([
+            'Promotion starts early' => ['2026-07-31 08:00:00', '2026-08-09 18:00:00'],
+            'Promotion ends late' => ['2026-08-02 08:00:00', '2026-08-11 18:00:00'],
+        ] as $title => [$start, $end]) {
+            $this->post('https://tenant-a.localhost/admin/course-products', $data($title, $promotion + $window + [
+                'sale_starts_at' => $start,
+                'sale_ends_at' => $end,
+            ]))->assertSessionHasErrors('sale_starts_at');
+        }
+
+        $this->post('https://tenant-a.localhost/admin/course-products', $data('Matching boundaries', $promotion + $window + [
+            'sale_starts_at' => $window['registration_starts_at'],
+            'sale_ends_at' => $window['registration_ends_at'],
+        ]))->assertSessionHasNoErrors();
+
+        $product = DB::table('core_course_products')->where('customer_id', $customerId)
+            ->where('title', 'Contained promotion')->first();
+        $this->put("https://tenant-a.localhost/admin/course-products/{$product->id}", $data('Contained promotion updated', $promotion + [
+            'registration_starts_at' => '2026-08-03 08:00:00',
+            'registration_ends_at' => '2026-08-08 18:00:00',
+            'sale_starts_at' => '2026-08-02 08:00:00',
+            'sale_ends_at' => '2026-08-09 18:00:00',
+        ]))->assertSessionHasErrors('sale_starts_at');
+
+        $this->assertDatabaseHas('core_course_products', [
+            'id' => $product->id,
+            'title' => 'Contained promotion',
+            'registration_starts_at' => '2026-08-01 08:00:00',
+            'registration_ends_at' => '2026-08-10 18:00:00',
+        ]);
+    }
+
+    public function test_registration_window_precedes_promotion_and_exposes_client_constraints(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $content = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-products/create')
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_product_v2_promotion_registration_help'))
+            ->getContent();
+
+        $this->assertLessThan(
+            strpos($content, 'id="course-product-promotion-flow"'),
+            strpos($content, 'id="product-registration-window"')
+        );
+        $this->assertStringContainsString('x-ref="registrationStart"', $content);
+        $this->assertStringContainsString('validateTimeWindows()', $content);
+        $this->assertStringContainsString('field.setCustomValidity(this.timeMessages.registrationPair)', $content);
+        $this->assertStringContainsString('this.$refs.promotionStart.setCustomValidity(message)', $content);
+        $this->assertStringNotContainsString(':min="registrationStart || null"', $content);
+        $this->assertStringNotContainsString(':max="registrationEnd || null"', $content);
+    }
+
+    public function test_self_paced_duration_labels_include_the_localized_day_unit(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-products/create')
+            ->assertOk()
+            ->assertSeeText('Thời hạn học (ngày)')
+            ->assertSeeText('Thời gian ôn tập bổ sung (ngày)');
+
+        $this->withSession(['locale' => 'en'])->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-products/create')
+            ->assertOk()
+            ->assertSeeText('Study access duration (days)')
+            ->assertSeeText('Additional review duration (days)');
+    }
+
     public function test_create_product_keeps_template_enabled_and_persists_selected_published_version(): void
     {
         $customerId = $this->createTenant();

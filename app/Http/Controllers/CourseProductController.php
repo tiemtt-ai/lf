@@ -543,8 +543,36 @@ class CourseProductController extends Controller
             'title'
         );
 
-        $validator = Validator::make($input, $this->validationRules($customerId, $productId));
+        $validator = Validator::make(
+            $input,
+            $this->validationRules($customerId, $productId),
+            $this->validationMessages()
+        );
         $validator->after(function ($validator) use ($input, $customerId, $productId, $request, $product): void {
+            $timeFields = [
+                'registration_starts_at', 'registration_ends_at',
+                'sale_starts_at', 'sale_ends_at',
+            ];
+            $validTimes = collect($timeFields)->every(
+                fn (string $field): bool => ! $validator->errors()->has($field)
+            );
+            if ($validTimes
+                && ! empty($input['registration_starts_at'])
+                && ! empty($input['registration_ends_at'])
+                && ! empty($input['sale_starts_at'])
+                && ! empty($input['sale_ends_at'])) {
+                $registrationStart = strtotime((string) $input['registration_starts_at']);
+                $registrationEnd = strtotime((string) $input['registration_ends_at']);
+                $promotionStart = strtotime((string) $input['sale_starts_at']);
+                $promotionEnd = strtotime((string) $input['sale_ends_at']);
+
+                if ($promotionStart < $registrationStart || $promotionEnd > $registrationEnd) {
+                    $validator->errors()->add('sale_starts_at', __('lf.LF_product_v2_promotion_outside_registration', [
+                        'start' => date('d/m/Y H:i', $registrationStart),
+                        'end' => date('d/m/Y H:i', $registrationEnd),
+                    ]));
+                }
+            }
             if (! array_key_exists('offering_type', $input)) {
                 return;
             }
@@ -663,8 +691,8 @@ class CourseProductController extends Controller
             'discount_type' => ['nullable', Rule::requiredIf(fn () => request()->boolean('promotion_enabled')), Rule::in(CourseProductV2::DISCOUNT_TYPES)],
             'discount_value' => ['nullable', Rule::requiredIf(fn () => request()->boolean('promotion_enabled')), 'numeric', 'gt:0', Rule::when(request('discount_type') === 'percentage', ['max:100'])],
             'sale_price' => ['nullable', 'numeric', 'min:0'],
-            'sale_starts_at' => ['nullable', 'date'],
-            'sale_ends_at' => ['nullable', 'date'],
+            'sale_starts_at' => ['nullable', 'required_with:sale_ends_at', 'date'],
+            'sale_ends_at' => ['nullable', 'required_with:sale_starts_at', 'date', 'after:sale_starts_at'],
             'currency' => ['required', 'string', 'max:10'],
             'enrollment_type' => [
                 $legacy ? 'required' : 'nullable',
@@ -687,8 +715,8 @@ class CourseProductController extends Controller
             ],
             'available_from' => ['nullable', 'date'],
             'available_until' => ['nullable', 'date'],
-            'registration_starts_at' => ['nullable', 'date'],
-            'registration_ends_at' => ['nullable', 'date', 'after:registration_starts_at'],
+            'registration_starts_at' => ['nullable', 'required_with:registration_ends_at', 'date'],
+            'registration_ends_at' => ['nullable', 'required_with:registration_starts_at', 'date', 'after:registration_starts_at'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
             'meta_keywords' => ['nullable', 'string', 'max:500'],
@@ -706,6 +734,18 @@ class CourseProductController extends Controller
             'remove_intro_image' => ['nullable', 'boolean'],
             'remove_intro_video' => ['nullable', 'boolean'],
             'remove_intro_document' => ['nullable', 'boolean'],
+        ];
+    }
+
+    private function validationMessages(): array
+    {
+        return [
+            'registration_starts_at.required_with' => __('lf.LF_product_v2_registration_pair_required'),
+            'registration_ends_at.required_with' => __('lf.LF_product_v2_registration_pair_required'),
+            'registration_ends_at.after' => __('lf.LF_product_v2_registration_end_after_start'),
+            'sale_starts_at.required_with' => __('lf.LF_product_v2_promotion_pair_required'),
+            'sale_ends_at.required_with' => __('lf.LF_product_v2_promotion_pair_required'),
+            'sale_ends_at.after' => __('lf.LF_product_v2_promotion_end_after_start'),
         ];
     }
 

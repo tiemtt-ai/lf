@@ -564,6 +564,28 @@ Product không expose working Template content.
 
 Product không sao chép Version content.
 
+## Product Registration And Promotion Windows
+
+Thời gian đăng ký và thời gian khuyến mại đều là cấu hình không bắt buộc.
+Mỗi khoảng thời gian phải tuân theo quy tắc cặp đầy đủ: hoặc cả thời điểm bắt
+đầu và kết thúc cùng để trống, hoặc cả hai cùng có giá trị. Khi có giá trị,
+thời điểm bắt đầu phải nhỏ hơn thời điểm kết thúc.
+
+Nếu Product không giới hạn thời gian đăng ký, thời gian khuyến mại được phép
+thiết lập độc lập. Nếu Product có thời gian đăng ký, toàn bộ thời gian khuyến
+mại phải nằm trong khoảng đăng ký:
+
+```text
+registration_starts_at <= sale_starts_at
+
+sale_ends_at <= registration_ends_at
+```
+
+Quy tắc này áp dụng thống nhất khi tạo và chỉnh sửa Product. Việc thay đổi
+thời gian đăng ký phải bị từ chối nếu làm cho khoảng khuyến mại hiện tại nằm
+ngoài khoảng đăng ký mới. Hệ thống không được tự động xóa hoặc điều chỉnh các
+mốc thời gian người dùng đã nhập để hợp thức hóa yêu cầu.
+
 ---
 
 # Product Version Update Policy

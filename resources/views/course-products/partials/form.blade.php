@@ -28,6 +28,17 @@
     currency: @js(old('currency', $formProduct?->currency ?? 'VND')),
     price: @js((string) old('price', $formProduct?->price ?? '0')),
     discount: @js((string) old('discount_value', $formProduct?->discount_value ?? '')),
+    registrationStart: @js($dateValue('registration_starts_at')),
+    registrationEnd: @js($dateValue('registration_ends_at')),
+    promotionStart: @js($dateValue('sale_starts_at')),
+    promotionEnd: @js($dateValue('sale_ends_at')),
+    timeMessages: @js([
+        'registrationPair' => __('lf.LF_product_v2_registration_pair_required'),
+        'registrationOrder' => __('lf.LF_product_v2_registration_end_after_start'),
+        'promotionPair' => __('lf.LF_product_v2_promotion_pair_required'),
+        'promotionOrder' => __('lf.LF_product_v2_promotion_end_after_start'),
+        'promotionOutside' => __('lf.LF_product_v2_promotion_outside_registration'),
+    ]),
     priceDisplay: '', discountDisplay: '',
     generatedSlug: @js($generatedSlug),
     persistedStatus: @js((string) ($formProduct?->status ?? '')),
@@ -69,8 +80,46 @@
         this.priceDisplay = this.formatMoneyInput(this.price)
         this.discountDisplay = this.discountType === 'fixed_amount' ? this.formatMoneyInput(this.discount) : this.discount
     },
+    formatDateTime(value) {
+        if (!value) return ''
+        return new Intl.DateTimeFormat(this.moneyLocale(), {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', hour12: false,
+        }).format(new Date(value))
+    },
+    validateTimeWindows() {
+        const fields = [this.$refs.registrationStart, this.$refs.registrationEnd, this.$refs.promotionStart, this.$refs.promotionEnd]
+        fields.forEach(field => field?.setCustomValidity(''))
+        const registrationStart = this.registrationStart ? new Date(this.registrationStart) : null
+        const registrationEnd = this.registrationEnd ? new Date(this.registrationEnd) : null
+        const promotionStart = this.promotion && this.promotionStart ? new Date(this.promotionStart) : null
+        const promotionEnd = this.promotion && this.promotionEnd ? new Date(this.promotionEnd) : null
+
+        if (!!registrationStart !== !!registrationEnd) {
+            const field = registrationStart ? this.$refs.registrationEnd : this.$refs.registrationStart
+            field.setCustomValidity(this.timeMessages.registrationPair); field.reportValidity(); return false
+        }
+        if (registrationStart && registrationStart >= registrationEnd) {
+            this.$refs.registrationEnd.setCustomValidity(this.timeMessages.registrationOrder); this.$refs.registrationEnd.reportValidity(); return false
+        }
+        if (!!promotionStart !== !!promotionEnd) {
+            const field = promotionStart ? this.$refs.promotionEnd : this.$refs.promotionStart
+            field.setCustomValidity(this.timeMessages.promotionPair); field.reportValidity(); return false
+        }
+        if (promotionStart && promotionStart >= promotionEnd) {
+            this.$refs.promotionEnd.setCustomValidity(this.timeMessages.promotionOrder); this.$refs.promotionEnd.reportValidity(); return false
+        }
+        if (registrationStart && promotionStart && (promotionStart < registrationStart || promotionEnd > registrationEnd)) {
+            const message = this.timeMessages.promotionOutside
+                .replace(':start', this.formatDateTime(this.registrationStart))
+                .replace(':end', this.formatDateTime(this.registrationEnd))
+            this.$refs.promotionStart.setCustomValidity(message); this.$refs.promotionStart.reportValidity(); return false
+        }
+        return true
+    },
     handleProductSubmit(event) {
         if (this.submittingProduct) { event.preventDefault(); return }
+        if (!this.validateTimeWindows()) { event.preventDefault(); return }
         if (this.persistedTemplate && this.template !== this.persistedTemplate && !window.confirm(@js(__('lf.LF_product_v2_template_change_confirm')))) { event.preventDefault(); return }
         const targetStatus = event.target.querySelector('[name=status]')?.value
         const transitionKey = `${this.persistedStatus}:${targetStatus}`
@@ -308,6 +357,26 @@
                 </select>
             </div>
 
+            <div class="admin-form-subsection admin-form-field--full" aria-labelledby="product-registration-window">
+                <h3 id="product-registration-window" class="admin-form-subsection-title">{{ __('lf.LF_product_v2_group_registration') }}</h3>
+                <div class="admin-form-field-grid">
+                    <div class="lf-form-group">
+                        <x-form-label for="registration_starts_at" :value="__('lf.LF_course_product_common_registration_starts_at')" />
+                        <input id="registration_starts_at" name="registration_starts_at" type="datetime-local" class="lf-form-control"
+                               x-ref="registrationStart" x-model="registrationStart" @input="$el.setCustomValidity('')"
+                               @error('registration_starts_at') aria-invalid="true" aria-describedby="registration_starts_at_error" @enderror>
+                        @error('registration_starts_at')<p id="registration_starts_at_error" class="lf-form-error">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="lf-form-group">
+                        <x-form-label for="registration_ends_at" :value="__('lf.LF_course_product_common_registration_ends_at')" />
+                        <input id="registration_ends_at" name="registration_ends_at" type="datetime-local" class="lf-form-control"
+                               x-ref="registrationEnd" x-model="registrationEnd" @input="$el.setCustomValidity('')"
+                               @error('registration_ends_at') aria-invalid="true" aria-describedby="registration_ends_at_error" @enderror>
+                        @error('registration_ends_at')<p id="registration_ends_at_error" class="lf-form-error">{{ $message }}</p>@enderror
+                    </div>
+                </div>
+            </div>
+
             <div id="course-product-promotion-flow"
                  class="admin-form-field--full admin-form-stack">
                 <div class="admin-form-option-group">
@@ -325,6 +394,7 @@
                      class="admin-form-field-grid admin-form-conditional"
                      x-show="promotion"
                      x-cloak>
+                    <p class="lf-form-help admin-form-field--full">{{ __('lf.LF_product_v2_promotion_registration_help') }}</p>
                     <div class="lf-form-group">
                         <x-form-label for="discount_type" :value="__('lf.LF_product_v2_discount_type')" />
                         <select id="discount_type" name="discount_type" class="lf-form-control" x-model="discountType" @change="refreshMoneyDisplays()"
@@ -345,13 +415,15 @@
                     </div>
                     <div class="lf-form-group">
                         <x-form-label for="sale_starts_at" :value="__('lf.LF_product_v2_promotion_starts_at')" />
-                        <input id="sale_starts_at" name="sale_starts_at" type="datetime-local" class="lf-form-control" value="{{ $dateValue('sale_starts_at') }}"
+                        <input id="sale_starts_at" name="sale_starts_at" type="datetime-local" class="lf-form-control"
+                               x-ref="promotionStart" x-model="promotionStart" @input="$el.setCustomValidity('')"
                                @error('sale_starts_at') aria-invalid="true" aria-describedby="sale_starts_at_error" @enderror>
                         @error('sale_starts_at')<p id="sale_starts_at_error" class="lf-form-error">{{ $message }}</p>@enderror
                     </div>
                     <div class="lf-form-group">
                         <x-form-label for="sale_ends_at" :value="__('lf.LF_product_v2_promotion_ends_at')" />
-                        <input id="sale_ends_at" name="sale_ends_at" type="datetime-local" class="lf-form-control" value="{{ $dateValue('sale_ends_at') }}"
+                        <input id="sale_ends_at" name="sale_ends_at" type="datetime-local" class="lf-form-control"
+                               x-ref="promotionEnd" x-model="promotionEnd" @input="$el.setCustomValidity('')"
                                @error('sale_ends_at') aria-invalid="true" aria-describedby="sale_ends_at_error" @enderror>
                         @error('sale_ends_at')<p id="sale_ends_at_error" class="lf-form-error">{{ $message }}</p>@enderror
                     </div>
@@ -383,9 +455,7 @@
     <section class="admin-form-standard-section" aria-labelledby="product-availability">
         <h2 id="product-availability" class="admin-form-section-title">{{ __('lf.LF_product_v2_group_availability') }}</h2>
         <div class="admin-form-field-grid">
-            <div class="lf-form-group"><x-form-label for="registration_starts_at" :value="__('lf.LF_course_product_common_registration_starts_at')" /><input id="registration_starts_at" name="registration_starts_at" type="datetime-local" class="lf-form-control" value="{{ $dateValue('registration_starts_at') }}" @error('registration_starts_at') aria-invalid="true" aria-describedby="registration_starts_at_error" @enderror>@error('registration_starts_at')<p id="registration_starts_at_error" class="lf-form-error">{{ $message }}</p>@enderror</div>
             <div class="admin-form-option-group course-product-featured-option"><input type="hidden" name="is_featured" value="0"><label class="admin-form-option-panel admin-form-option-panel--compact"><input type="checkbox" name="is_featured" value="1" @checked(old('is_featured',$formProduct?->is_featured))><span><strong>{{ __('lf.LF_course_product_common_is_featured') }}</strong></span></label></div>
-            <div class="lf-form-group"><x-form-label for="registration_ends_at" :value="__('lf.LF_course_product_common_registration_ends_at')" /><input id="registration_ends_at" name="registration_ends_at" type="datetime-local" class="lf-form-control" value="{{ $dateValue('registration_ends_at') }}" @error('registration_ends_at') aria-invalid="true" aria-describedby="registration_ends_at_error" @enderror>@error('registration_ends_at')<p id="registration_ends_at_error" class="lf-form-error">{{ $message }}</p>@enderror</div>
             <div class="lf-form-group"><x-form-label for="sort_order" :value="__('lf.LF_course_product_common_sort_order')" /><input id="sort_order" name="sort_order" type="number" min="0" class="lf-form-control" value="{{ old('sort_order',$formProduct?->sort_order) }}" placeholder="{{ __('lf.LF_product_v2_auto_order') }}"></div>
             <div class="lf-form-group admin-form-field--full"><x-form-label for="status" :value="__('lf.LF_course_product_common_status')" :required="true" /><select id="status" name="status" class="lf-form-control" required>@foreach(($allowedStatuses ?? ['draft']) as $status)<option value="{{ $status }}" @selected($selectedStatus===$status) @disabled($status === 'active' && ! ($hasActiveCourseVersion ?? false))>{{ __('lf.LF_course_product_common_'.$status) }}</option>@endforeach</select>@if(! ($hasActiveCourseVersion ?? false))<p class="lf-form-help">{{ __('lf.LF_product_v2_attach_before_activation') }}</p>@endif@if($formProduct && ! in_array('draft', $allowedStatuses ?? [], true) && $formProduct->status !== 'draft')<p class="lf-form-help">{{ __('lf.LF_product_status_used_draft_help') }}</p>@endif</div>
         </div>
