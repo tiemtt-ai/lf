@@ -114,13 +114,6 @@ class CourseEnrollmentController extends Controller
             ->when($enrolledBy, fn ($query) => $query->where('enrollments.enrolled_by', $enrolledBy))
             ->when($enrolledFrom, fn ($query) => $query->where('enrollments.enrolled_at', '>=', $enrolledFrom.' 00:00:00'))
             ->when($enrolledTo, fn ($query) => $query->where('enrollments.enrolled_at', '<=', $enrolledTo.' 23:59:59'))
-            ->orderByRaw("CASE enrollments.status
-                WHEN 'pending' THEN 10
-                WHEN 'active' THEN 20
-                WHEN 'suspended' THEN 30
-                WHEN 'cancelled' THEN 100
-                ELSE 50
-            END ASC")
             ->orderByDesc('enrollments.created_at')
             ->orderByDesc('enrollments.id')
             ->select(
@@ -402,8 +395,8 @@ class CourseEnrollmentController extends Controller
             ['path' => $request->url(), 'query' => $request->query()]
         );
 
-        return view('course-enrollments.bulk-result', [
-            'result' => $result,
+        return view('course-enrollments.create', [
+            'completedResult' => $result,
             'itemsPaginator' => $itemsPaginator,
             'routePrefix' => $this->routePrefix($request),
         ]);

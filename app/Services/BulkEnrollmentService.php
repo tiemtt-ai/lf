@@ -101,6 +101,7 @@ class BulkEnrollmentService
                         'version_code' => $product['version_code'],
                         'enrollment_id' => $enrollmentId,
                         'status' => $reenrolled ? 'reenrolled' : 'created',
+                        'time_windows' => $timeWindows,
                     ];
                 }
             }
@@ -239,7 +240,8 @@ class BulkEnrollmentService
                 $pairs[] = ['student_id' => $studentId, 'product_id' => $productId, 'status' => $status,
                     'previous_enrollment_id' => $previousId, 'reason' => $reason,
                     'student_name' => $student?->name ?? '#'.$studentId,
-                    'product_title' => $product?->title ?? '#'.$productId];
+                    'product_title' => $product?->title ?? '#'.$productId,
+                    'time_windows' => $timePolicies->get($productId)['windows'] ?? null];
             }
         }
 

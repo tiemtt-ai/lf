@@ -30,7 +30,7 @@ class BulkEnrollmentRequest extends FormRequest
             'configuration.access_ends_at' => ['prohibited'],
             'configuration.review_starts_at' => ['prohibited'],
             'configuration.review_ends_at' => ['prohibited'],
-            'configuration.enrolled_at' => ['nullable', 'date'],
+            'configuration.enrolled_at' => ['required', 'date'],
             'configuration.notes' => ['nullable', 'string'],
             'customer_id' => ['prohibited'],
             'version_id' => ['prohibited'],
@@ -40,6 +40,13 @@ class BulkEnrollmentRequest extends FormRequest
             'source' => ['prohibited'],
             'status' => ['prohibited'],
             'enrolled_at' => ['prohibited'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'configuration.enrolled_at.required' => __('lf.LF_course_enrollment_enrolled_at_required'),
         ];
     }
 

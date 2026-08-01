@@ -24,12 +24,12 @@ class BulkEnrollmentPreflightRequest extends FormRequest
             'reenrollment_confirmations.*.student_id' => ['required', 'integer', 'min:1'],
             'reenrollment_confirmations.*.product_id' => ['required', 'integer', 'min:1'],
             'reenrollment_confirmations.*.previous_enrollment_id' => ['required', 'integer', 'min:1'],
-            'configuration' => ['sometimes', 'array'],
+            'configuration' => ['required', 'array'],
             'configuration.access_starts_at' => ['prohibited'],
             'configuration.access_ends_at' => ['prohibited'],
             'configuration.review_starts_at' => ['prohibited'],
             'configuration.review_ends_at' => ['prohibited'],
-            'configuration.enrolled_at' => ['nullable', 'date'],
+            'configuration.enrolled_at' => ['required', 'date'],
             'configuration.notes' => ['nullable', 'string'],
             'finalize' => ['sometimes', 'boolean'],
             'customer_id' => ['prohibited'],
@@ -40,6 +40,13 @@ class BulkEnrollmentPreflightRequest extends FormRequest
             'source' => ['prohibited'],
             'status' => ['prohibited'],
             'enrolled_at' => ['prohibited'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'configuration.enrolled_at.required' => __('lf.LF_course_enrollment_enrolled_at_required'),
         ];
     }
 
