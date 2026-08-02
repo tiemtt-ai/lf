@@ -3147,17 +3147,23 @@
 .bulk-enrollment-confirmation__facts dt {
     margin: 0;
     color: var(--admin-text-muted);
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 300;
+    line-height: 1.4;
     white-space: nowrap;
 }
 
 .bulk-enrollment-confirmation__facts dd {
     margin: 0;
     color: var(--admin-text);
-    font-size: 0.925rem;
+    font-size: 13px;
     font-weight: 600;
     line-height: 1.4;
+}
+
+.bulk-enrollment-confirmation__facts .badge {
+    font-size: inherit;
+    font-weight: 600;
 }
 
 .lf-admin-page .bulk-enrollment-wizard-section .admin-form-field .lf-form-control:hover:not(:focus) {
