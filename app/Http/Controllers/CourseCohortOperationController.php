@@ -20,7 +20,26 @@ class CourseCohortOperationController extends Controller
     public function storeTeacher(Request $request, int $cohort): RedirectResponse
     {
         $customerId = $this->authorizeAdmin($request);
-        $this->setupCohort($customerId, $cohort);
+        $cohortRow = $this->setupCohort($customerId, $cohort);
+        $assignedTeacherIds = DB::table('core_course_cohort_teachers')
+            ->where('customer_id', $customerId)
+            ->where('cohort_id', $cohort)
+            ->where('status', 'active')
+            ->pluck('teacher_id')
+            ->all();
+        $assignedFromRules = ['nullable', 'date'];
+        $assignedToRules = ['nullable', 'date', 'after_or_equal:assigned_from'];
+
+        if ($cohortRow->start_date) {
+            $assignedFromRules[] = 'after_or_equal:'.$cohortRow->start_date;
+            $assignedToRules[] = 'after_or_equal:'.$cohortRow->start_date;
+        }
+
+        if ($cohortRow->end_date) {
+            $assignedFromRules[] = 'before_or_equal:'.$cohortRow->end_date;
+            $assignedToRules[] = 'before_or_equal:'.$cohortRow->end_date;
+        }
+
         $validated = $request->validate([
             'teacher_id' => [
                 'required',
@@ -29,10 +48,24 @@ class CourseCohortOperationController extends Controller
                     ->where('customer_id', $customerId)
                     ->where('role', 'teacher')
                     ->where('status', 'active')),
+                Rule::notIn($assignedTeacherIds),
             ],
             'role' => ['required', Rule::in(['primary_teacher', 'teacher', 'assistant'])],
-            'assigned_from' => ['nullable', 'date'],
-            'assigned_to' => ['nullable', 'date', 'after_or_equal:assigned_from'],
+            'assigned_from' => $assignedFromRules,
+            'assigned_to' => $assignedToRules,
+        ], [
+            'teacher_id.required' => __('lf.LF_course_cohort_teacher_validation_teacher_required'),
+            'teacher_id.integer' => __('lf.LF_course_cohort_teacher_validation_teacher_invalid'),
+            'teacher_id.exists' => __('lf.LF_course_cohort_teacher_validation_teacher_invalid'),
+            'teacher_id.not_in' => __('lf.LF_course_cohort_teacher_validation_teacher_assigned'),
+            'role.required' => __('lf.LF_course_cohort_teacher_validation_role_required'),
+            'role.in' => __('lf.LF_course_cohort_teacher_validation_role_invalid'),
+            'assigned_from.date' => __('lf.LF_course_cohort_teacher_validation_date_invalid'),
+            'assigned_from.after_or_equal' => __('lf.LF_course_cohort_teacher_validation_period_outside'),
+            'assigned_from.before_or_equal' => __('lf.LF_course_cohort_teacher_validation_period_outside'),
+            'assigned_to.date' => __('lf.LF_course_cohort_teacher_validation_date_invalid'),
+            'assigned_to.after_or_equal' => __('lf.LF_course_cohort_teacher_validation_end_before_start'),
+            'assigned_to.before_or_equal' => __('lf.LF_course_cohort_teacher_validation_period_outside'),
         ]);
 
         DB::transaction(function () use ($customerId, $cohort, $validated, $request): void {

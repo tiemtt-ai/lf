@@ -813,6 +813,8 @@ class CourseCohortManagementTest extends TestCase
             ->assertSeeText(__('lf.LF_course_cohort_action_edit_overview'))
             ->assertSeeText(__('lf.LF_course_cohort_common_archive'))
             ->assertSeeText(__('lf.LF_course_cohort_lifecycle_activate_body'));
+        $this->assertStringContainsString('cohort-overview-heading-actions', $draft->getContent());
+        $this->assertStringContainsString('btn btn-secondary', $draft->getContent());
         $this->assertStringContainsString('cohort-lifecycle-dialog', $draft->getContent());
         $this->assertStringContainsString('x-bind:aria-busy="submitting"', $draft->getContent());
 
@@ -929,6 +931,7 @@ class CourseCohortManagementTest extends TestCase
         $cohortId = $this->createCohort($customerId, 'Live Cohort');
         DB::table('core_course_cohorts')->where('id', $cohortId)->update([
             'product_id' => $productId, 'version_id' => $versionId,
+            'start_date' => '2026-08-01', 'end_date' => '2026-08-14',
         ]);
         $lessonId = DB::table('core_course_template_version_lessons')->insertGetId([
             'customer_id' => $customerId, 'template_version_id' => $versionId,
@@ -950,11 +953,34 @@ class CourseCohortManagementTest extends TestCase
         foreach (['overview', 'students', 'teachers', 'sessions', 'attendance', 'recordings'] as $tab) {
             $detail->assertSee(__('lf.LF_course_cohort_tab_'.$tab));
         }
+        $detail->assertSee('min="2026-08-01"', false)
+            ->assertSee('max="2026-08-14"', false);
+
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers", [
+                'teacher_id' => $teacher->id,
+                'role' => 'primary_teacher',
+                'assigned_from' => '2026-07-31',
+                'assigned_to' => '2026-08-05',
+            ])->assertSessionHasErrors([
+                'assigned_from' => __('lf.LF_course_cohort_teacher_validation_period_outside'),
+            ]);
 
         $this->actingAs($admin)
             ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers", [
                 'teacher_id' => $teacher->id, 'role' => 'primary_teacher',
+                'assigned_from' => '2026-08-01', 'assigned_to' => '2026-08-05',
             ])->assertSessionHasNoErrors();
+
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers", [
+                'teacher_id' => $teacher->id, 'role' => 'teacher',
+            ])->assertSessionHasErrors('teacher_id');
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=teachers")
+            ->assertOk()
+            ->assertDontSee('<option value="'.$teacher->id.'"', false);
 
         $this->actingAs($admin)
             ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", [

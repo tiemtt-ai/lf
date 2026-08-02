@@ -22,9 +22,11 @@
         <nav class="admin-form-actions cohort-student-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
             @foreach ($cohortTabs as $tab)
                 <span class="sr-only">{{ $tab['note'] }}</span>
-                @php($editRoute = in_array($tab['key'], ['overview', 'students'], true)
-                    ? route($routePrefix.'.edit', $tab['key'] === 'overview' ? ['id' => $cohort->id] : ['id' => $cohort->id, 'tab' => $tab['key']])
-                    : $tab['route'])
+                @php($editRoute = $tab['key'] === 'overview'
+                    ? route($routePrefix.'.edit', $cohort->id)
+                    : ($tab['key'] === 'students'
+                        ? route('admin.course-cohorts.students.edit', $cohort->id)
+                        : $tab['route']))
                 @if ($tab['accessible'])
                     <a @class(['btn', 'btn-primary' => $activeTab === $tab['key'], 'btn-secondary' => $activeTab !== $tab['key']])
                        href="{{ $editRoute }}" @if($activeTab === $tab['key']) aria-current="page" @endif>

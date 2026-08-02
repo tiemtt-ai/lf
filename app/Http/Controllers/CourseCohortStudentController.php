@@ -116,13 +116,13 @@ class CourseCohortStudentController extends Controller
         $eligibilityError = $this->cohortEligibilityError($customerId, $contextCohort);
 
         if ($eligibilityError) {
-            return redirect()->route('admin.course-cohort-students.index', ['cohort_id' => $contextCohort->id])
+            return redirect()->route('admin.course-cohorts.show', ['id' => $contextCohort->id, 'tab' => 'students'])
                 ->with('error', $eligibilityError);
         }
 
         $oldEnrollmentIds = array_filter(array_map('intval', (array) old('enrollment_ids', [])));
         $selectedEnrollments = $oldEnrollmentIds
-            ? $this->eligibleEnrollmentsQuery($customerId, $contextCohort)
+            ? $this->manageableEnrollmentsQuery($customerId, $contextCohort)
                 ->whereIn('enrollments.id', $oldEnrollmentIds)->get()
             : collect();
 
@@ -130,6 +130,41 @@ class CourseCohortStudentController extends Controller
             'cohort' => $contextCohort,
             'selectedEnrollments' => $selectedEnrollments,
             'eligibleEnrollmentCount' => $this->eligibleEnrollmentsQuery($customerId, $contextCohort)->count(),
+            'mode' => 'create',
+        ]);
+    }
+
+    public function students(Request $request, int $cohort): RedirectResponse
+    {
+        $this->authorizeAdmin($request);
+        $this->cohortSummary($this->customerId(), $cohort);
+
+        return redirect()->route('admin.course-cohorts.show', ['id' => $cohort, 'tab' => 'students']);
+    }
+
+    public function manage(Request $request, int $cohort): View|RedirectResponse
+    {
+        $this->authorizeAdmin($request);
+        $customerId = $this->customerId();
+        $contextCohort = $this->cohortSummary($customerId, $cohort);
+
+        if (! $this->cohortAcceptsMembership($contextCohort)) {
+            return redirect()->route('admin.course-cohorts.show', ['id' => $cohort, 'tab' => 'students'])
+                ->with('error', __('lf.LF_course_cohort_student_validation_active_cohort'));
+        }
+
+        $oldEnrollmentIds = old('enrollment_ids');
+        $selectedEnrollments = $oldEnrollmentIds !== null
+            ? $this->manageableEnrollmentsQuery($customerId, $contextCohort)
+                ->whereIn('enrollments.id', array_filter(array_map('intval', (array) $oldEnrollmentIds)))->get()
+            : $this->manageableEnrollmentsQuery($customerId, $contextCohort)
+                ->whereNotNull('current_memberships.id')->get();
+
+        return view('course-cohort-students.create', [
+            'cohort' => $contextCohort,
+            'selectedEnrollments' => $selectedEnrollments,
+            'eligibleEnrollmentCount' => $this->manageableEnrollmentsQuery($customerId, $contextCohort)->count(),
+            'mode' => 'edit',
         ]);
     }
 
@@ -164,7 +199,7 @@ class CourseCohortStudentController extends Controller
             })
             ->orderBy('students.name')
             ->orderBy('enrollments.id')
-            ->paginate(15);
+            ->paginate(10);
 
         $data = collect($enrollments->items())->map(fn (object $enrollment): array => [
             'id' => $enrollment->id,
@@ -181,6 +216,7 @@ class CourseCohortStudentController extends Controller
             'review_ends_at' => $this->formatEnrollmentDateTime($enrollment->review_ends_at),
             'detail_url' => route('admin.course-enrollments.show', $enrollment->id),
             'current' => (bool) ($enrollment->current_membership ?? false),
+            'eligible' => $enrollment->status === 'active' && ($enrollment->student_status ?? 'active') === 'active',
         ]);
 
         return response()->json(['data' => $data, 'pagination' => [
@@ -297,8 +333,10 @@ class CourseCohortStudentController extends Controller
         }
 
         return redirect()
-            ->route('admin.course-cohort-students.index', ['cohort_id' => $cohort])
-            ->with('success', __('lf.LF_course_cohort_student_common_created'));
+            ->route('admin.course-cohorts.show', ['id' => $cohort, 'tab' => 'students'])
+            ->with('success', __('lf.LF_course_cohort_student_common_created_count', [
+                'count' => count($validated['enrollment_ids']),
+            ]));
     }
 
     public function sync(Request $request, int $cohort): RedirectResponse
@@ -739,6 +777,8 @@ class CourseCohortStudentController extends Controller
             $checkEligibility && ! $this->cohortAcceptsMembership($cohort) => __('lf.LF_course_cohort_student_validation_active_cohort'),
             $extraAccepted !== null && $this->cohortIsFull($customerId, $cohort, null, $extraAccepted) => __('lf.LF_course_cohort_student_validation_capacity'),
             $enrollment->status !== 'active' => __('lf.LF_course_cohort_student_validation_active_enrollment'),
+            ! DB::table('users')->where('customer_id', $customerId)->where('id', $enrollment->student_id)
+                ->where('role', 'student')->where('status', 'active')->lockForUpdate()->first(['id']) => __('lf.LF_course_cohort_student_validation_active_student'),
             (int) $cohort->product_id !== (int) $enrollment->product_id => __('lf.LF_course_cohort_student_validation_product_mismatch'),
             (int) $cohort->version_id !== (int) $enrollment->version_id => __('lf.LF_course_cohort_student_validation_version_mismatch'),
             $this->activeMembershipExists($customerId, $enrollment->id) => __('lf.LF_course_cohort_student_validation_duplicate'),
@@ -875,6 +915,7 @@ class CourseCohortStudentController extends Controller
                 'enrollments.review_ends_at',
                 'students.name as student_name',
                 'students.email as student_email',
+                'students.status as student_status',
                 DB::raw('CASE WHEN current_memberships.id IS NULL THEN 0 ELSE 1 END as current_membership')
             );
     }
@@ -919,5 +960,4 @@ class CourseCohortStudentController extends Controller
             )
             ->get();
     }
-
 }

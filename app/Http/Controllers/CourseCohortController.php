@@ -7,6 +7,7 @@ use App\Services\CourseCohortLifecycleService;
 use App\Services\CourseCohortVersionResolver;
 use App\Services\LiveClassSessionPolicy;
 use App\Support\SequentialCodeGenerator;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -265,7 +266,12 @@ class CourseCohortController extends Controller
             ->orderByRaw("CASE assignments.role WHEN 'primary_teacher' THEN 0 WHEN 'teacher' THEN 1 ELSE 2 END")
             ->orderBy('teachers.name')->get();
 
-        return ['teachers' => $teachers, 'availableTeachers' => $this->availableTeachersQuery($customerId)];
+        return [
+            'teachers' => $teachers,
+            'availableTeachers' => $this->availableTeachersQuery($customerId)
+                ->reject(fn (object $teacher): bool => $teachers->contains('teacher_id', $teacher->id))
+                ->values(),
+        ];
     }
 
     private function sessionTabData(int $customerId, object $cohort): array
@@ -335,12 +341,16 @@ class CourseCohortController extends Controller
         return ['sessions' => $sessions, 'recordings' => $recordings];
     }
 
-    public function edit(Request $request, int $id): View
+    public function edit(Request $request, int $id): View|RedirectResponse
     {
         $this->authorizeAdmin($request);
 
         $customerId = $this->customerId();
         $cohort = $this->findCohort($customerId, $id);
+
+        if ($request->query('tab') === 'students') {
+            return redirect()->route('admin.course-cohorts.students.edit', $cohort->id);
+        }
 
         $selectedEnrollments = DB::table('core_course_cohort_students as memberships')
             ->join('core_course_enrollments as enrollments', function ($join) use ($customerId): void {
