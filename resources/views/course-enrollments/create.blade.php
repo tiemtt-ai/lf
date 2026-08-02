@@ -33,11 +33,11 @@
                     </header>
 
                     <div class="admin-table-wrap bulk-enrollment-review-table bulk-enrollment-result__table"><table class="table">
-                        <thead><tr><th class="bulk-enrollment-review-table__number">{{ __('lf.table_no') }}</th><th>{{ __('lf.LF_course_enrollment_common_student') }}</th><th>{{ __('lf.LF_course_enrollment_common_product') }}</th><th>{{ __('lf.LF_bulk_enrollment_enrollment_id') }}</th></tr></thead>
+                        <thead><tr><th class="bulk-enrollment-result__number">{{ __('lf.table_no') }}</th><th>{{ __('lf.LF_course_enrollment_common_student') }}</th><th>{{ __('lf.LF_course_enrollment_common_product') }}</th><th class="bulk-enrollment-result__enrollment-id">{{ __('lf.LF_bulk_enrollment_enrollment_id') }}</th></tr></thead>
                         <tbody>@foreach ($itemsPaginator as $item)
                             @php($itemTimeWindows = $item['time_windows'] ?? null)
                             <tr>
-                                <td class="bulk-enrollment-review-table__number">{{ $itemsPaginator->firstItem() + $loop->index }}</td>
+                                <td class="bulk-enrollment-result__number">{{ $itemsPaginator->firstItem() + $loop->index }}</td>
                                 <td>{{ $item['student_name'] }}</td>
                                 <td>
                                     <strong class="bulk-enrollment-review-product">{{ $item['product_title'] }}</strong>
@@ -58,7 +58,7 @@
                                         </dl>
                                     @endif
                                 </td>
-                                <td><a class="admin-text-action bulk-enrollment-result__enrollment-link" href="{{ route($routePrefix.'.show', $item['enrollment_id']) }}">#{{ $item['enrollment_id'] }}</a></td>
+                                <td class="bulk-enrollment-result__enrollment-id"><a class="admin-text-action bulk-enrollment-result__enrollment-link" href="{{ route($routePrefix.'.show', $item['enrollment_id']) }}">#{{ $item['enrollment_id'] }}</a></td>
                             </tr>
                         @endforeach</tbody>
                     </table></div>
@@ -332,7 +332,7 @@
                     <div class="bulk-enrollment-pair-summary bulk-enrollment-confirmation__summary"><strong x-text="pairCountLabel"></strong><button type="button" class="admin-text-action" x-on:click="backToSelection">{{ __('lf.LF_bulk_enrollment_change') }}</button></div>
                     <button x-show="reenrollmentPairs.length > 1" type="button" class="btn btn-secondary" x-on:click="confirmAllReenrollments">{{ __('lf.LF_bulk_enrollment_confirm_all_reenrollments') }}</button>
                     <div class="admin-table-wrap bulk-enrollment-review-table"><table class="table">
-                        <thead><tr><th class="bulk-enrollment-review-table__number">{{ __('lf.table_no') }}</th><th>{{ __('lf.LF_course_enrollment_common_student') }}</th><th>{{ __('lf.LF_course_enrollment_common_product') }}</th><th>{{ __('lf.LF_bulk_enrollment_expected_result') }}</th></tr></thead>
+                        <thead><tr><th class="bulk-enrollment-review-table__number">{{ __('lf.table_no') }}</th><th>{{ __('lf.LF_course_enrollment_common_student') }}</th><th>{{ __('lf.LF_course_enrollment_common_product') }}</th><th class="bulk-enrollment-review-table__result">{{ __('lf.LF_bulk_enrollment_expected_result') }}</th></tr></thead>
                         <tbody><template x-for="(pair, pairIndex) in paginatedPairs" :key="`${pair.student_id}:${pair.product_id}`"><tr>
                             <td class="bulk-enrollment-review-table__number" x-text="(confirmationPage - 1) * confirmationPerPage + pairIndex + 1"></td>
                             <td x-text="pair.student_name"></td>
@@ -356,7 +356,7 @@
                                     </div>
                                 </dl>
                             </td>
-                            <td><span x-show="pair.status === 'creatable'" class="bulk-enrollment-pair-status is-new">{{ __('lf.LF_bulk_enrollment_new') }}</span>
+                            <td class="bulk-enrollment-review-table__result"><span x-show="pair.status === 'creatable'" class="bulk-enrollment-pair-status is-new">{{ __('lf.LF_bulk_enrollment_new') }}</span>
                                 <div x-show="pair.status === 'reenrollment_eligible'" class="bulk-enrollment-reenrollment-confirmation">
                                     <label><input type="checkbox" x-model="confirmedPairKeys" :value="`${pair.student_id}:${pair.product_id}`"> {{ __('lf.LF_bulk_enrollment_confirm_reenroll') }}</label>
                                     <p x-text="@js(__('lf.LF_bulk_enrollment_confirm_reenroll_help')).replace(':id', pair.previous_enrollment_id)"></p>

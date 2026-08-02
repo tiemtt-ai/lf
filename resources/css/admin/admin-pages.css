@@ -2906,14 +2906,24 @@
 }
 
 .bulk-enrollment-result__number {
-    width: 64px;
+    width: 1%;
+    min-width: 48px;
     text-align: center;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.lf-admin-page .bulk-enrollment-result__table th.bulk-enrollment-result__number,
+.lf-admin-page .bulk-enrollment-result__table td.bulk-enrollment-result__number,
+.lf-admin-page .bulk-enrollment-result__table th.bulk-enrollment-result__enrollment-id,
+.lf-admin-page .bulk-enrollment-result__table td.bulk-enrollment-result__enrollment-id {
+    text-align: center;
 }
 
 .bulk-enrollment-result__enrollment-link {
     display: block;
     width: fit-content;
+    margin-inline: auto;
     font-size: 0.875rem;
     font-weight: 600;
 }
@@ -3034,9 +3044,16 @@
 }
 
 .bulk-enrollment-confirmation .bulk-enrollment-review-table__number {
-    width: 64px;
+    width: 1%;
+    min-width: 48px;
     text-align: center;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.lf-admin-page .bulk-enrollment-confirmation .bulk-enrollment-review-table th.bulk-enrollment-review-table__result,
+.lf-admin-page .bulk-enrollment-confirmation .bulk-enrollment-review-table td.bulk-enrollment-review-table__result {
+    text-align: center;
 }
 
 .bulk-enrollment-confirmation .bulk-enrollment-review-table th:nth-child(2) {

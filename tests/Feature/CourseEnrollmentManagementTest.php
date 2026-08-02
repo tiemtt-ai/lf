@@ -1711,7 +1711,7 @@ class CourseEnrollmentManagementTest extends TestCase
             ->assertDontSee('Result Student 11');
 
         $this->actingAs($admin)->get($url.'&page=2')->assertOk()
-            ->assertSee('<td class="bulk-enrollment-review-table__number">11</td>', false)
+            ->assertSee('<td class="bulk-enrollment-result__number">11</td>', false)
             ->assertSee('Result Student 11')
             ->assertDontSee('Result Student 10');
     }
