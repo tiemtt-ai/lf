@@ -69,6 +69,80 @@ Decision:
 This keeps Cohort as an operational grouping layer without making it a learning
 source, runtime authority or student membership table.
 
+### Cohort Draft Setup And Tab UX Amendment — 2026-08-02
+
+The lifecycle remains:
+
+```text
+draft -> active -> completed -> archived
+draft -> archived
+```
+
+`draft` and `active` Cohorts may perform authorized setup operations: edit
+Overview data, add/remove/transfer eligible Student membership, assign Cohort
+Teachers and prepare Sessions/schedules. Only an `active` Cohort may perform
+runtime operations such as Attendance, operational learning evidence and
+completion. Setup never activates a Cohort, changes Enrollment status or grants
+learning access.
+
+Activation is a separate `draft -> active` action. In one server-authoritative
+transaction it must revalidate the locked Cohort, Product and active Product
+Item, published Version binding, capacity, every membership's active
+Enrollment and tenant/Product/Version consistency, required teacher and
+schedule readiness, valid operating time and actor authorization. Any failure
+keeps the Cohort in `draft` and returns the complete list of unmet or invalid
+conditions; activation must not silently remove invalid membership.
+
+#### Canonical Cohort Tabs
+
+Create, Edit and Show use the same unnumbered order:
+
+```text
+Overview | Students | Teachers | Sessions | Attendance | Recordings / Replay
+```
+
+Tabs are not a sequential wizard and are not hidden because a dependency is
+unmet. Before Overview creates the Cohort, only Overview is accessible. After
+the Cohort is created as `draft`, Students, Teachers and Sessions are
+independently accessible subject to authorization; Attendance remains locked
+until runtime requirements are met. An authorized Recordings/Replay area with
+no data uses an empty state rather than a lock. Completed and archived Cohorts
+retain every historical tab in read-only mode where mutation is no longer
+allowed.
+
+Every tab displays an explanatory note. A locked tab exposes its actual reason
+on keyboard focus or click without navigating or mutating state. The UI uses
+text/icon semantics in addition to color and may use `aria-disabled="true"`;
+it must not use an HTML disabled state that prevents the explanation from
+being reached. Server authorization and lifecycle enforcement remain
+authoritative for direct requests.
+
+Canonical notes:
+
+* Overview: “Thiết lập thông tin cơ bản, sản phẩm, phiên bản khóa học và sức
+  chứa của lớp. Cần lưu Tổng quan để tạo lớp ở trạng thái Nháp trước khi tiếp
+  tục.”
+* Students: “Thêm và quản lý học viên của lớp. Có thể sử dụng sau khi lớp được
+  tạo ở trạng thái Nháp; chỉ các ghi danh đang hoạt động và đáp ứng điều kiện
+  mới được thêm vào lớp.” Before creation, the locked reason is “Tab Học viên
+  đang bị khóa vì lớp chưa được tạo. Vui lòng lưu thông tin Tổng quan trước.”
+* Teachers: “Phân công và quản lý giáo viên phụ trách lớp. Có thể thiết lập sau
+  khi lớp được tạo ở trạng thái Nháp.” Before creation, the locked reason is
+  “Tab Giáo viên đang bị khóa vì lớp chưa được tạo. Vui lòng lưu thông tin Tổng
+  quan trước.”
+* Sessions: “Thiết lập lịch và các buổi học của lớp. Có thể sử dụng sau khi lớp
+  được tạo ở trạng thái Nháp và có thể là điều kiện bắt buộc để kích hoạt lớp.”
+  Before creation, the locked reason is “Tab Lịch học/Buổi học đang bị khóa vì
+  lớp chưa được tạo. Vui lòng lưu thông tin Tổng quan trước.”
+* Attendance: “Ghi nhận tình trạng tham gia của học viên theo từng buổi học.
+  Chức năng này chỉ được sử dụng khi lớp đã hoạt động và có buổi học phù hợp.”
+  Its locked reason reflects the actual lifecycle, missing Session or
+  authorization condition.
+* Recordings/Replay: “Quản lý bản ghi và nội dung xem lại phát sinh từ các buổi
+  học.” Its locked reason reflects the actual lifecycle, dependency or
+  authorization condition; absence of data alone produces an empty state when
+  access is otherwise allowed.
+
 ---
 
 ## Relationships

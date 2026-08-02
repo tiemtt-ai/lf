@@ -79,8 +79,19 @@ core_course_cohort_students
 * Không dùng field `is_current`.
 * Nếu Cohort đầy, không cho thêm student mới. Foundation không có admin override.
 * Nếu student bị remove khỏi Cohort, enrollment vẫn có thể còn active.
-* Chỉ Enrollment `active` được thêm hoặc chuyển vào Cohort `active`.
+* Chỉ Enrollment `active` được thêm hoặc chuyển vào Cohort `draft` hoặc
+  `active`.
+* Cohort `draft` và `active` cho phép thêm, xóa và chuyển membership như setup
+  operation theo authorization và validation hiện hành. Cohort `completed` và
+  `archived` không cho phép thay đổi membership.
+* Membership trong Cohort `draft` không kích hoạt Cohort, không thay đổi
+  Enrollment status và không tự cấp learning access.
 * Capacity được kiểm tra trong transaction sau khi lock Cohort parent row.
+* Server phải kiểm tra lại cùng tenant, Product, Version, duplicate protection
+  và Enrollment status trong transaction khi thêm hoặc chuyển membership.
+* Activation Cohort phải revalidate toàn bộ membership. Nếu bất kỳ Enrollment
+  nào không còn `active` hoặc sai tenant/Product/Version, activation thất bại,
+  Cohort giữ nguyên `draft` và membership không bị tự động xóa.
 * Enrollment status transitions do not mutate Membership. A current Membership
   continues to count toward Cohort capacity regardless of Enrollment status.
   Only explicit Membership Remove or Transfer changes or releases capacity.

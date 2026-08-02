@@ -1335,7 +1335,16 @@ Marketing/display cache không được dùng cho Completion, Certificate, Billi
   đúng một active Product Item hợp lệ. Request không được chọn Version. Product
   đổi Version không cập nhật Cohort hoặc Enrollment đã có.
 * Cohort lifecycle là `draft -> active -> completed -> archived`, cùng nhánh
-  `draft -> archived`. Chỉ Cohort `active` quản lý membership.
+  `draft -> archived`. Cohort `draft` và `active` được quản lý membership như
+  setup operation theo authorization và validation hiện hành; chỉ Cohort
+  `active` được thực hiện runtime operations.
+* Chỉ Enrollment `active` được thêm hoặc chuyển vào Cohort `draft` hoặc
+  `active`. Membership trong Cohort `draft` không kích hoạt Cohort, không đổi
+  Enrollment status và không tự cấp learning access.
+* Activation `draft -> active` là action riêng và phải revalidate toàn bộ
+  membership, tenant/Product/Version binding, capacity cùng các readiness
+  requirements áp dụng. Nếu có lỗi, Cohort giữ nguyên `draft` và server trả về
+  đầy đủ các điều kiện chưa đạt.
 * Cohort legacy thiếu Product/Version không được activate, nhận membership hoặc
   làm runtime context cho tới khi binding được resolve chắc chắn.
 * Notes và Bookmarks chỉ được tạo hoặc cập nhật khi Enrollment `active`; không

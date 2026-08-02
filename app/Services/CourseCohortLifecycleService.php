@@ -33,6 +33,14 @@ class CourseCohortLifecycleService
         $this->transition($customerId, $cohortId, 'archived');
     }
 
+    public function activationIssues(int $customerId, int $cohortId): array
+    {
+        $cohort = DB::table('core_course_cohorts')->where('customer_id', $customerId)
+            ->where('id', $cohortId)->firstOrFail();
+
+        return $this->collectActivationIssues($customerId, $cohort, false);
+    }
+
     private function transition(int $customerId, int $cohortId, string $targetStatus): void
     {
         DB::transaction(function () use ($customerId, $cohortId, $targetStatus): void {
@@ -72,22 +80,73 @@ class CourseCohortLifecycleService
 
     private function assertActivationEligible(int $customerId, object $cohort): void
     {
+        $errors = $this->collectActivationIssues($customerId, $cohort, true);
+        if ($errors !== []) {
+            $this->failActivation($errors);
+        }
+    }
+
+    private function collectActivationIssues(int $customerId, object $cohort, bool $lock): array
+    {
+        $errors = [];
+
         if (! $cohort->product_id || ! $cohort->version_id) {
-            $this->failActivation();
+            $errors[] = __('lf.LF_course_cohort_activation_binding_invalid');
         }
 
         if ($cohort->capacity !== null && (int) $cohort->capacity < 1) {
-            $this->failActivation();
+            $errors[] = __('lf.LF_course_cohort_activation_capacity_invalid');
         }
 
         if ($cohort->start_date && $cohort->end_date && $cohort->end_date < $cohort->start_date) {
-            $this->failActivation();
+            $errors[] = __('lf.LF_course_cohort_activation_dates_invalid');
         }
 
-        $resolved = $this->versionResolver->resolve($customerId, (int) $cohort->product_id, true);
-        if (! $resolved || (int) $resolved->version_id !== (int) $cohort->version_id) {
-            $this->failActivation();
+        if ($cohort->product_id && $cohort->version_id) {
+            $resolved = $this->versionResolver->resolve($customerId, (int) $cohort->product_id, true);
+            if (! $resolved || (int) $resolved->version_id !== (int) $cohort->version_id) {
+                $errors[] = __('lf.LF_course_cohort_activation_product_version_invalid');
+            }
         }
+
+        $membershipQuery = DB::table('core_course_cohort_students as memberships')
+            ->leftJoin('core_course_enrollments as enrollments', function ($join) use ($customerId): void {
+                $join->on('enrollments.id', '=', 'memberships.enrollment_id')
+                    ->where('enrollments.customer_id', '=', $customerId);
+            })
+            ->where('memberships.customer_id', $customerId)
+            ->where('memberships.cohort_id', $cohort->id)
+            ->where('memberships.status', 'active');
+        if ($lock) {
+            $membershipQuery->lockForUpdate();
+        }
+        $memberships = $membershipQuery->get([
+            'memberships.enrollment_id', 'memberships.product_id',
+            'enrollments.status as enrollment_status',
+            'enrollments.product_id as enrollment_product_id',
+            'enrollments.version_id as enrollment_version_id',
+        ]);
+
+        if ($cohort->capacity !== null && $memberships->count() > (int) $cohort->capacity) {
+            $errors[] = __('lf.LF_course_cohort_activation_capacity_exceeded');
+        }
+
+        foreach ($memberships as $membership) {
+            if ($membership->enrollment_status !== 'active') {
+                $errors[] = __('lf.LF_course_cohort_activation_enrollment_inactive', [
+                    'id' => $membership->enrollment_id,
+                ]);
+            }
+            if ((int) $membership->product_id !== (int) $cohort->product_id
+                || (int) $membership->enrollment_product_id !== (int) $cohort->product_id
+                || (int) $membership->enrollment_version_id !== (int) $cohort->version_id) {
+                $errors[] = __('lf.LF_course_cohort_activation_membership_binding_invalid', [
+                    'id' => $membership->enrollment_id,
+                ]);
+            }
+        }
+
+        return array_values(array_unique($errors));
     }
 
     private function assertDraftArchiveEligible(int $customerId, int $cohortId): void
@@ -107,10 +166,10 @@ class CourseCohortLifecycleService
         }
     }
 
-    private function failActivation(): never
+    private function failActivation(array $errors): never
     {
         throw ValidationException::withMessages([
-            'lifecycle' => __('lf.LF_course_cohort_lifecycle_activation_ineligible'),
+            'lifecycle' => $errors,
         ]);
     }
 }

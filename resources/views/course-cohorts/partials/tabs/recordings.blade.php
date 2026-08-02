@@ -6,7 +6,7 @@
                 <h2 class="admin-form-section-title">{{ __('lf.LF_course_cohort_recording_title') }}</h2>
                 <p class="admin-form-section-help">{{ __('lf.LF_course_cohort_recording_help') }}</p>
             </header>
-            @if ($sessions->isNotEmpty())
+            @if ($cohort->status === 'active' && $sessions->isNotEmpty())
                 <form method="POST" x-bind:action="`${base}/${sessionId}/recordings`" class="admin-form-field-grid">
                     @csrf
                     <div class="lf-form-group">
@@ -18,8 +18,8 @@
                         <input id="recording_title" name="title" class="lf-form-control" required>
                     </div>
                     <div class="lf-form-group admin-form-field--full">
-                        <x-form-label for="recording_url" :value="__('lf.LF_course_cohort_recording_url')" />
-                        <input id="recording_url" type="url" name="recording_url" class="lf-form-control">
+                        <x-form-label for="recording_url" :value="__('lf.LF_course_cohort_recording_url')" :required="true" />
+                        <input id="recording_url" type="url" name="recording_url" class="lf-form-control" required>
                     </div>
                     <div class="admin-form-actions admin-form-field--full"><button type="submit" class="btn btn-primary">{{ __('lf.LF_course_cohort_recording_add') }}</button></div>
                 </form>
@@ -30,7 +30,7 @@
                 <thead><tr><th>{{ __('lf.LF_course_cohort_attendance_session') }}</th><th>{{ __('lf.LF_course_cohort_recording_name') }}</th><th>{{ __('lf.LF_course_cohort_common_status') }}</th><th>{{ __('lf.LF_course_cohort_recording_window') }}</th></tr></thead>
                 <tbody>
                 @forelse($recordings as $recording)
-                    <tr><td>#{{ $recording->session_no }} · {{ $recording->session_title }}</td><td><strong>{{ $recording->title }}</strong>@if($recording->recording_url)<br><a href="{{ $recording->recording_url }}" target="_blank" rel="noopener noreferrer">{{ __('lf.LF_course_cohort_recording_open') }}</a>@endif</td><td>{{ $recording->status }}</td><td>{{ $recording->replay_available_from ?: '—' }} → {{ $recording->replay_available_until ?: '—' }}</td></tr>
+                    <tr><td>#{{ $recording->session_no }} · {{ $recording->session_title }}</td><td><strong>{{ $recording->title }}</strong>@if($recording->recording_url)<br><a href="{{ $recording->recording_url }}" target="_blank" rel="noopener noreferrer">{{ __('lf.LF_course_cohort_recording_open') }}</a>@endif</td><td>{{ __('lf.LF_course_cohort_recording_status_'.$recording->status) }}</td><td>{{ $recording->replay_available_from ?: '—' }} → {{ $recording->replay_available_until ?: '—' }}</td></tr>
                 @empty
                     <tr><td colspan="4"><div class="course-cohort-empty-state">{{ __('lf.LF_course_cohort_recording_empty') }}</div></td></tr>
                 @endforelse

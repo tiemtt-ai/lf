@@ -17,6 +17,7 @@
         </section>
         @if ($selectedSessionId)
             <section class="admin-form-standard-section">
+                @if ($cohort->status === 'active')
                 <form method="POST" action="{{ route('admin.course-cohorts.sessions.attendance', [$cohort->id, $selectedSessionId]) }}">
                     @csrf @method('PUT')
                     <div class="admin-table-wrap"><table class="table">
@@ -34,6 +35,21 @@
                     </table></div>
                     <div class="admin-form-footer" data-actions-align="end"><div class="admin-form-footer-primary"><button type="submit" class="btn btn-primary">{{ __('lf.LF_course_cohort_attendance_save') }}</button></div></div>
                 </form>
+                @else
+                    <div class="admin-table-wrap"><table class="table">
+                        <thead><tr><th>{{ __('lf.LF_course_cohort_student_common_student') }}</th><th>{{ __('lf.LF_course_cohort_attendance_status') }}</th><th>{{ __('lf.LF_course_cohort_attendance_mode') }}</th><th>{{ __('lf.LF_course_cohort_attendance_notes') }}</th></tr></thead>
+                        <tbody>
+                        @foreach ($attendance as $row)
+                            <tr>
+                                <td><strong>{{ $row->student_name }}</strong><br><span class="lf-secondary-text">{{ $row->student_email }}</span></td>
+                                <td>{{ __('lf.LF_course_cohort_attendance_status_'.($row->attendance_status ?: 'registered')) }}</td>
+                                <td>{{ $row->attendance_mode ? __('lf.LF_course_cohort_session_mode_'.$row->attendance_mode) : '—' }}</td>
+                                <td>{{ $row->notes ?: '—' }}</td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table></div>
+                @endif
             </section>
         @else
             <div class="course-cohort-empty-state">{{ __('lf.LF_course_cohort_attendance_empty') }}</div>

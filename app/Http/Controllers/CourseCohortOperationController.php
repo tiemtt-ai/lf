@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\TenantContext;
+use App\Http\Controllers\Concerns\AuthorizesCourseCohortAdmin;
+use App\Services\LiveClassSessionPolicy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -10,10 +11,16 @@ use Illuminate\Validation\Rule;
 
 class CourseCohortOperationController extends Controller
 {
+    use AuthorizesCourseCohortAdmin;
+
+    public function __construct(
+        private readonly LiveClassSessionPolicy $sessionPolicy
+    ) {}
+
     public function storeTeacher(Request $request, int $cohort): RedirectResponse
     {
         $customerId = $this->authorizeAdmin($request);
-        $this->cohort($customerId, $cohort);
+        $this->setupCohort($customerId, $cohort);
         $validated = $request->validate([
             'teacher_id' => [
                 'required',
@@ -62,7 +69,7 @@ class CourseCohortOperationController extends Controller
     public function removeTeacher(Request $request, int $cohort, int $assignment): RedirectResponse
     {
         $customerId = $this->authorizeAdmin($request);
-        $this->cohort($customerId, $cohort);
+        $this->setupCohort($customerId, $cohort);
         abort_unless(DB::table('core_course_cohort_teachers')
             ->where('customer_id', $customerId)->where('cohort_id', $cohort)
             ->where('id', $assignment)->update([
@@ -77,7 +84,7 @@ class CourseCohortOperationController extends Controller
     public function storeSession(Request $request, int $cohort): RedirectResponse
     {
         $customerId = $this->authorizeAdmin($request);
-        $cohortRow = $this->cohort($customerId, $cohort);
+        $cohortRow = $this->setupCohort($customerId, $cohort);
         abort_if(! $cohortRow->version_id, 422);
 
         $validated = $request->validate($this->sessionRules($customerId, (int) $cohortRow->version_id));
@@ -138,17 +145,20 @@ class CourseCohortOperationController extends Controller
     public function updateSchedule(Request $request, int $cohort, int $session): RedirectResponse
     {
         $customerId = $this->authorizeAdmin($request);
-        $this->cohort($customerId, $cohort);
-        $sessionRow = DB::table('core_liveclass_sessions')
-            ->where('customer_id', $customerId)->where('cohort_id', $cohort)
-            ->where('id', $session)->firstOrFail();
+        $this->setupCohort($customerId, $cohort);
         $validated = $request->validate([
             'scheduled_start_at' => ['required', 'date'],
             'scheduled_end_at' => ['required', 'date', 'after:scheduled_start_at'],
             'reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        DB::transaction(function () use ($customerId, $session, $sessionRow, $validated, $request): void {
+        DB::transaction(function () use ($customerId, $cohort, $session, $validated, $request): void {
+            $sessionRow = DB::table('core_liveclass_sessions')
+                ->where('customer_id', $customerId)->where('cohort_id', $cohort)
+                ->where('id', $session)->lockForUpdate()->firstOrFail();
+            abort_unless($this->sessionPolicy->canReschedule($sessionRow), 422,
+                __('lf.LF_course_cohort_session_reschedule_status_invalid'));
+
             DB::table('core_liveclass_session_schedule_changes')->insert([
                 'customer_id' => $customerId,
                 'session_id' => $session,
@@ -176,10 +186,12 @@ class CourseCohortOperationController extends Controller
     public function saveAttendance(Request $request, int $cohort, int $session): RedirectResponse
     {
         $customerId = $this->authorizeAdmin($request);
-        $this->cohort($customerId, $cohort);
+        $this->activeCohort($customerId, $cohort);
         $sessionRow = DB::table('core_liveclass_sessions')
             ->where('customer_id', $customerId)->where('cohort_id', $cohort)
             ->where('id', $session)->firstOrFail();
+        abort_unless($this->sessionPolicy->canRecordAttendance($sessionRow, now()), 422,
+            __('lf.LF_course_cohort_attendance_session_invalid'));
         $validated = $request->validate([
             'attendance' => ['required', 'array'],
             'attendance.*.enrollment_id' => ['required', 'integer'],
@@ -223,13 +235,15 @@ class CourseCohortOperationController extends Controller
     public function storeRecording(Request $request, int $cohort, int $session): RedirectResponse
     {
         $customerId = $this->authorizeAdmin($request);
-        $this->cohort($customerId, $cohort);
-        abort_unless(DB::table('core_liveclass_sessions')
+        $this->activeCohort($customerId, $cohort);
+        $sessionRow = DB::table('core_liveclass_sessions')
             ->where('customer_id', $customerId)->where('cohort_id', $cohort)
-            ->where('id', $session)->exists(), 404);
+            ->where('id', $session)->firstOrFail();
+        abort_unless($this->sessionPolicy->canCreateRecording($sessionRow, now()), 422,
+            __('lf.LF_course_cohort_recording_session_invalid'));
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'recording_url' => ['nullable', 'url', 'max:2000'],
+            'recording_url' => ['required', 'url', 'max:2000'],
             'replay_available_from' => ['nullable', 'date'],
             'replay_available_until' => ['nullable', 'date', 'after:replay_available_from'],
         ]);
@@ -242,7 +256,7 @@ class CourseCohortOperationController extends Controller
             'replay_available_from' => $validated['replay_available_from'] ?? null,
             'replay_available_until' => $validated['replay_available_until'] ?? null,
             'visibility' => 'cohort',
-            'status' => 'ready',
+            'status' => 'processing',
             'created_by' => $request->user()->id,
             'created_at' => now(),
             'updated_at' => now(),
@@ -291,11 +305,22 @@ class CourseCohortOperationController extends Controller
             ->where('customer_id', $customerId)->where('id', $id)->firstOrFail();
     }
 
-    private function authorizeAdmin(Request $request): int
+    private function setupCohort(int $customerId, int $id): object
     {
-        abort_unless($request->user()?->role === 'customer_admin', 403);
+        $cohort = $this->cohort($customerId, $id);
+        abort_unless(in_array($cohort->status, ['draft', 'active'], true), 422,
+            __('lf.LF_course_cohort_setup_status_invalid'));
 
-        return TenantContext::customerId();
+        return $cohort;
+    }
+
+    private function activeCohort(int $customerId, int $id): object
+    {
+        $cohort = $this->cohort($customerId, $id);
+        abort_unless($cohort->status === 'active', 422,
+            __('lf.LF_course_cohort_runtime_requires_active'));
+
+        return $cohort;
     }
 
     private function tab(int $cohort, string $tab, array $query = []): RedirectResponse

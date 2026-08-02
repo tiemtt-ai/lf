@@ -6,6 +6,8 @@ Status: Approved Review
 
 Review Date: 2026-07-20
 
+Amendment Review Date: 2026-08-02
+
 ## Review Information
 
 | Field | Value |
@@ -24,7 +26,15 @@ Review Date: 2026-07-20
 - [x] Legacy nullable bindings remain nullable physically. Only deterministic membership-derived bindings may be backfilled.
 - [x] `teacher_id` remains for backward compatibility and is deprecated as an authority.
 - [x] Lifecycle is `draft -> active -> completed -> archived`, plus `draft -> archived`.
-- [x] Only active Cohorts accept membership operations.
+- [x] Draft and active Cohorts accept authorized membership setup operations;
+      only active Cohorts accept runtime operations.
+- [x] Only active Enrollments may be added or transferred to a draft or active
+      Cohort, with tenant, Product, Version, capacity and duplicate invariants
+      preserved under the existing transaction/locking contract.
+- [x] Draft membership does not grant runtime access, change Enrollment status
+      or activate the Cohort.
+- [x] Activation remains a separate `draft -> active` action and revalidates
+      all membership and applicable readiness conditions fail-closed.
 - [x] Capacity is nullable or at least one and is enforced under a locked Cohort row.
 - [x] Membership uses `enrollment_id`, updates the current record on transfer, and creates no history or `is_current` state.
 - [x] Admin navigation exposes one Cohort entry; membership management is contextual to Cohort detail.
@@ -44,3 +54,15 @@ Approved — Cohort Foundation hardening and contextual membership UI authorized
 ```
 
 Owner approval was supplied at the Architecture Gate on 2026-07-20.
+
+## Cohort Draft Setup Amendment Result — 2026-08-02
+
+```text
+Approved and Frozen — draft setup operations and canonical Cohort tab UX are
+authorized; runtime operations remain active-only
+```
+
+Owner approval was supplied by the LearnForge Architecture Owner on
+2026-08-02. The amendment changes only the operations permitted in `draft`; it
+does not change Cohort transitions, Enrollment lifecycle, tenant ownership,
+Product/Version binding or historical-data ownership.

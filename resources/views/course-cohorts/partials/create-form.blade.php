@@ -126,7 +126,7 @@
     <div class="admin-form-footer-primary">
         <a href="{{ route($routePrefix.'.index') }}" class="btn btn-secondary">{{ __('lf.LF_common_button_cancel') }}</a>
         <button type="submit" class="btn btn-primary" x-bind:disabled="submitting" aria-live="polite">
-            <span x-show="!submitting">{{ __('lf.LF_course_cohort_common_create') }}</span>
+            <span x-show="!submitting">{{ __('lf.LF_course_cohort_create_and_continue') }}</span>
             <span x-show="submitting" x-cloak>{{ __('lf.LF_course_cohort_create_submitting') }}</span>
         </button>
     </div>

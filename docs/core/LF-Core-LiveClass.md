@@ -85,6 +85,16 @@ offline or hybrid delivery values. Session Teachers, Attendance, Recording and
 Replay are children of Session. Course remains the only owner of Progress and
 Completion.
 
+### Cohort Draft Setup Boundary — 2026-08-02
+
+A `draft` Cohort may prepare Sessions, schedules and teacher assignments as
+setup data. Creating or editing this setup does not activate the Cohort and
+must not produce Attendance, Replay evidence or another runtime operation.
+Attendance and other operational evidence may be created only when the Cohort
+is `active` and the existing Session, Enrollment, authorization and tenant
+requirements are satisfied. Historical data remains readable according to the
+applicable authorization policy after completion or archival.
+
 ## LiveClass Operational Data Principle
 
 LiveClass là Operational Domain.

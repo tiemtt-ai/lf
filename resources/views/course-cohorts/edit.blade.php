@@ -18,16 +18,31 @@
         </div>
     @endif
 
-    <nav class="admin-form-actions cohort-student-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
-        <a @class(['btn', 'btn-primary' => $activeTab === 'overview', 'btn-secondary' => $activeTab !== 'overview'])
-           href="{{ route($routePrefix.'.edit', $cohort->id) }}" @if($activeTab === 'overview') aria-current="page" @endif>
-            {{ __('lf.LF_course_cohort_tab_overview') }}
-        </a>
-        <a @class(['btn', 'btn-primary' => $activeTab === 'students', 'btn-secondary' => $activeTab !== 'students'])
-           href="{{ route($routePrefix.'.edit', ['id' => $cohort->id, 'tab' => 'students']) }}" @if($activeTab === 'students') aria-current="page" @endif>
-            {{ __('lf.LF_course_cohort_tab_students') }}
-        </a>
-    </nav>
+    <div x-data="{ lockedReason: '' }">
+        <nav class="admin-form-actions cohort-student-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
+            @foreach ($cohortTabs as $tab)
+                <span class="sr-only">{{ $tab['note'] }}</span>
+                @php($editRoute = in_array($tab['key'], ['overview', 'students'], true)
+                    ? route($routePrefix.'.edit', $tab['key'] === 'overview' ? ['id' => $cohort->id] : ['id' => $cohort->id, 'tab' => $tab['key']])
+                    : $tab['route'])
+                @if ($tab['accessible'])
+                    <a @class(['btn', 'btn-primary' => $activeTab === $tab['key'], 'btn-secondary' => $activeTab !== $tab['key']])
+                       href="{{ $editRoute }}" @if($activeTab === $tab['key']) aria-current="page" @endif>
+                        {{ $tab['label'] }} @if($tab['read_only']) · {{ __('lf.LF_course_cohort_tab_read_only') }} @endif
+                    </a>
+                @else
+                    <button type="button" class="btn btn-secondary" aria-disabled="true"
+                            x-on:click="lockedReason = @js($tab['locked_reason'])"
+                            x-on:focus="lockedReason = @js($tab['locked_reason'])">
+                        <span aria-hidden="true">🔒</span> {{ $tab['label'] }}
+                    </button>
+                    <span class="sr-only">{{ $tab['locked_reason'] }}</span>
+                @endif
+            @endforeach
+        </nav>
+        <p class="admin-form-section-help" role="status" aria-live="polite"
+           x-text="lockedReason || @js(collect($cohortTabs)->firstWhere('key', $activeTab)['note'])"></p>
+    </div>
 
     <div class="cohort-student-edit-back">
         <a class="cohort-detail-back" href="{{ route($routePrefix.'.show', $cohort->id) }}">

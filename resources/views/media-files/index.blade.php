@@ -279,6 +279,7 @@
                 <th class="media-library-index-actions">
                     <div class="media-library-status-heading">
                         <span>{{ __('lf.LF_media_file_common_status') }}</span>
+                        <span class="sr-only">{{ __('lf.table_actions') }}</span>
                         @if ($unusedMediaIds !== [])
                             <input type="checkbox"
                                    class="media-library-selection-checkbox"
@@ -366,7 +367,7 @@
                                     <span class="media-library-status-badge media-library-status-badge--unused">
                                         {{ __('lf.LF_media_file_common_unused') }}
                                     </span>
-                                    <button class="admin-link-button admin-danger-text-action"
+                                    <button class="admin-link-button admin-text-action admin-danger-text-action"
                                             type="button"
                                             data-delete-action="{{ route('admin.media.destroy', $mediaFile->id) }}"
                                             x-on:click="openMediaDelete(

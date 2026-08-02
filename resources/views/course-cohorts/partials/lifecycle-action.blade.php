@@ -11,7 +11,9 @@
     <button type="button"
             x-ref="trigger"
             class="{{ $triggerClass }}"
-            x-on:click="open()">
+            x-on:click="open()"
+            @disabled($disabled ?? false)
+            @if($disabled ?? false) aria-describedby="{{ $dialogId }}-requirements" @endif>
         {{ $triggerLabel }}
     </button>
 

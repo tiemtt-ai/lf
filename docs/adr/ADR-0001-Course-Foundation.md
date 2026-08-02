@@ -20,6 +20,20 @@ Approved
 
 Course Blueprint V2 amendment: 2026-07-03 — Approved.
 
+Cohort Draft Setup Operations amendment: 2026-08-02 — Approved.
+
+This amendment preserves the Cohort lifecycle `draft -> active -> completed ->
+archived` and the separate activation action. A `draft` Cohort may perform
+setup operations for eligible Student membership, Cohort teacher assignment
+and Session/schedule preparation. Runtime operations, including Attendance and
+completion, still require an `active` Cohort.
+
+Only an `active` Enrollment may be added or transferred to a `draft` or
+`active` Cohort. Membership remains operational preparation: it does not grant
+learning access, change Enrollment status or activate the Cohort. Activation
+must revalidate every membership, tenant/Product/Version binding, capacity and
+all other applicable readiness requirements in one server-authoritative gate.
+
 ---
 
 ## 1. Architecture Summary

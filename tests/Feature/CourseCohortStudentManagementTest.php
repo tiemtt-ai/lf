@@ -626,7 +626,7 @@ class CourseCohortStudentManagementTest extends TestCase
             ->assertJsonPath('data.0.current', true);
     }
 
-    public function test_show_class_students_tab_is_read_only_and_links_to_student_management(): void
+    public function test_show_class_students_tab_links_directly_to_setup_operations(): void
     {
         [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
         $cohortId = $this->createCohort($customerId, $productId, $versionId, capacity: 12);
@@ -646,8 +646,9 @@ class CourseCohortStudentManagementTest extends TestCase
             ->assertSee('cohort-enrollment-detail-modal', false)
             ->assertSee('data-label="Học viên"', false)
             ->assertDontSee('class="admin-table-sequence"', false)
-            ->assertDontSee(route('admin.course-cohort-students.show', $membershipId), false)
-            ->assertSee(route('admin.course-cohorts.edit', ['id' => $cohortId, 'tab' => 'students']), false)
+            ->assertSee(route('admin.course-cohort-students.edit', $membershipId), false)
+            ->assertSee(route('admin.course-cohorts.students.create', $cohortId), false)
+            ->assertDontSee(route('admin.course-cohorts.edit', ['id' => $cohortId, 'tab' => 'students']), false)
             ->assertDontSee('name="enrollment_ids[]"', false);
 
         $response->assertSeeText('1/12');

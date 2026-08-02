@@ -81,8 +81,8 @@ class CourseCohortManagementTest extends TestCase
         );
 
         $response
-            ->assertRedirect('https://tenant-a.localhost/admin/course-cohorts')
-            ->assertSessionHas('success', 'Tạo lớp học thành công.');
+            ->assertRedirect('https://tenant-a.localhost/admin/course-cohorts/2')
+            ->assertSessionHas('success', __('lf.LF_course_cohort_common_created'));
 
         $this->assertDatabaseHas('core_course_cohorts', [
             'customer_id' => $customerId,
@@ -808,8 +808,9 @@ class CourseCohortManagementTest extends TestCase
         }
 
         $draft = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$ids['draft']}")->assertOk();
-        $draft->assertSeeText(__('lf.LF_course_cohort_action_activate'))
-            ->assertSeeText(__('lf.LF_course_cohort_action_edit'))
+        $draft->assertSeeText(__('lf.LF_course_cohort_setup_title'))
+            ->assertSeeText(__('lf.LF_course_cohort_action_activate'))
+            ->assertSeeText(__('lf.LF_course_cohort_action_edit_overview'))
             ->assertSeeText(__('lf.LF_course_cohort_common_archive'))
             ->assertSeeText(__('lf.LF_course_cohort_lifecycle_activate_body'));
         $this->assertStringContainsString('cohort-lifecycle-dialog', $draft->getContent());
@@ -817,7 +818,7 @@ class CourseCohortManagementTest extends TestCase
 
         $active = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$ids['active']}")->assertOk();
         $active->assertSeeText(__('lf.LF_course_cohort_action_complete'))
-            ->assertSeeText(__('lf.LF_course_cohort_action_edit'))
+            ->assertSeeText(__('lf.LF_course_cohort_action_edit_overview'))
             ->assertDontSeeText(__('lf.LF_course_cohort_common_archive'));
 
         $completed = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$ids['completed']}")->assertOk();
@@ -852,6 +853,7 @@ class CourseCohortManagementTest extends TestCase
             ->get('https://tenant-a.localhost/admin/course-cohorts/create')
             ->assertOk()
             ->assertSeeText('Tạo lớp học')
+            ->assertSeeText(__('lf.LF_course_cohort_create_and_continue'))
             ->assertDontSeeText('Tạo Cohort')
             ->assertSeeText('Bảng điều khiển')
             ->assertSeeText('Lớp học')
@@ -959,8 +961,8 @@ class CourseCohortManagementTest extends TestCase
                 'title' => 'Session 1', 'version_lesson_id' => $lessonId,
                 'version_activity_id' => $activityId, 'primary_teacher_id' => $teacher->id,
                 'delivery_mode' => 'online',
-                'scheduled_start_at' => '2026-08-01 19:00:00',
-                'scheduled_end_at' => '2026-08-01 20:30:00',
+                'scheduled_start_at' => now()->subHours(3)->format('Y-m-d H:i:s'),
+                'scheduled_end_at' => now()->subHours(2)->format('Y-m-d H:i:s'),
                 'online_provider' => 'zoom', 'meeting_url' => 'https://example.com/meeting',
             ])->assertSessionHasNoErrors();
         $sessionId = (int) DB::table('core_liveclass_sessions')->value('id');
@@ -971,8 +973,8 @@ class CourseCohortManagementTest extends TestCase
         ]);
         $this->actingAs($admin)
             ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}/schedule", [
-                'scheduled_start_at' => '2026-08-02 19:00:00',
-                'scheduled_end_at' => '2026-08-02 20:30:00',
+                'scheduled_start_at' => now()->subHours(2)->format('Y-m-d H:i:s'),
+                'scheduled_end_at' => now()->subHour()->format('Y-m-d H:i:s'),
                 'reason' => 'Teacher availability',
             ])->assertSessionHasNoErrors();
         $this->assertDatabaseHas('core_liveclass_session_schedule_changes', [
@@ -981,7 +983,7 @@ class CourseCohortManagementTest extends TestCase
         ]);
         $this->assertDatabaseHas('core_liveclass_sessions', [
             'id' => $sessionId, 'status' => 'scheduled',
-            'scheduled_start_at' => '2026-08-02 19:00:00',
+            'scheduled_start_at' => now()->subHours(2)->format('Y-m-d H:i:s'),
         ]);
 
         $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
@@ -1004,7 +1006,150 @@ class CourseCohortManagementTest extends TestCase
             ])->assertSessionHasNoErrors();
         $this->assertDatabaseHas('core_liveclass_recordings', [
             'customer_id' => $customerId, 'session_id' => $sessionId,
-            'title' => 'Session replay',
+            'title' => 'Session replay', 'status' => 'processing',
+        ]);
+    }
+
+    public function test_runtime_session_operations_fail_closed_for_ineligible_states(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Runtime Product', 'runtime-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $cohortId = $this->createCohort($customerId, status: 'active');
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'product_id' => $productId, 'version_id' => $versionId,
+        ]);
+        $lessonId = DB::table('core_course_template_version_lessons')->insertGetId([
+            'customer_id' => $customerId, 'template_version_id' => $versionId,
+            'source_template_lesson_id' => 9201, 'title_snapshot' => 'Runtime Lesson',
+            'sort_order' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $sessionId = DB::table('core_liveclass_sessions')->insertGetId([
+            'customer_id' => $customerId, 'cohort_id' => $cohortId,
+            'template_version_id' => $versionId, 'version_lesson_id' => $lessonId,
+            'title' => 'Future Session', 'session_no' => 1, 'delivery_mode' => 'online',
+            'scheduled_start_at' => now()->addDay(), 'scheduled_end_at' => now()->addDay()->addHour(),
+            'timezone' => config('app.timezone'), 'status' => 'scheduled',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $this->createMembership($customerId, $cohortId, $enrollmentId, $productId, $student->id);
+
+        $attendancePayload = ['attendance' => [[
+            'enrollment_id' => $enrollmentId, 'status' => 'present',
+        ]]];
+        $this->actingAs($admin)
+            ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}/attendance", $attendancePayload)
+            ->assertUnprocessable();
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}/recordings", [
+                'title' => 'Too early', 'recording_url' => 'https://example.com/future-replay',
+            ])->assertUnprocessable();
+
+        DB::table('core_liveclass_sessions')->where('id', $sessionId)->update(['status' => 'cancelled']);
+        $this->actingAs($admin)
+            ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}/schedule", [
+                'scheduled_start_at' => now()->addDays(2),
+                'scheduled_end_at' => now()->addDays(2)->addHour(),
+            ])->assertUnprocessable();
+
+        $this->assertDatabaseCount('core_liveclass_attendances', 0);
+        $this->assertDatabaseCount('core_liveclass_recordings', 0);
+        $this->assertDatabaseCount('core_liveclass_session_schedule_changes', 0);
+        $this->assertDatabaseHas('core_liveclass_sessions', ['id' => $sessionId, 'status' => 'cancelled']);
+    }
+
+    public function test_create_and_draft_detail_use_canonical_accessibility_aware_tabs(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Tab Product', 'tab-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+
+        $create = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-cohorts/create')->assertOk();
+        foreach (['overview', 'students', 'teachers', 'sessions', 'attendance', 'recordings'] as $tab) {
+            $create->assertSeeText(__('lf.LF_course_cohort_tab_'.$tab));
+        }
+        $create->assertSee('aria-disabled="true"', false)
+            ->assertSeeText(__('lf.LF_course_cohort_tab_students_locked_create'));
+
+        $cohortId = $this->createCohort($customerId, status: 'draft');
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'product_id' => $productId,
+            'version_id' => $versionId,
+        ]);
+        $detail = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=attendance")
+            ->assertOk();
+        $detail->assertSeeText(__('lf.LF_course_cohort_tab_attendance_locked_active'))
+            ->assertSeeText(__('lf.LF_course_cohort_tab_students_detail_note'))
+            ->assertSeeText(__('lf.LF_course_cohort_tab_overview_detail_note'))
+            ->assertDontSeeText(__('lf.LF_course_cohort_tab_overview_note'));
+
+        $students = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=students")
+            ->assertOk();
+        $students->assertSee(route('admin.course-cohorts.students.create', $cohortId), false)
+            ->assertDontSee(route('admin.course-cohorts.edit', ['id' => $cohortId, 'tab' => 'students']), false);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=teachers")
+            ->assertOk()
+            ->assertSee(route('admin.course-cohorts.teachers.store', $cohortId), false);
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")
+            ->assertOk()
+            ->assertSee(route('admin.course-cohorts.sessions.store', $cohortId), false);
+    }
+
+    public function test_draft_allows_setup_but_rejects_runtime_operations(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $cohortId = $this->createCohort($customerId, status: 'draft');
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers", [
+            'teacher_id' => $teacher->id,
+            'role' => 'teacher',
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_cohort_teachers', [
+            'customer_id' => $customerId, 'cohort_id' => $cohortId,
+            'teacher_id' => $teacher->id, 'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)
+            ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/999/attendance", ['attendance' => []])
+            ->assertStatus(422);
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/999/recordings", ['title' => 'Draft recording'])
+            ->assertStatus(422);
+    }
+
+    public function test_activation_revalidates_memberships_and_keeps_draft_on_failure(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Activation Product', 'activation-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $cohortId = $this->createCohort($customerId, status: 'draft');
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'product_id' => $productId, 'version_id' => $versionId,
+        ]);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $this->createMembership($customerId, $cohortId, $enrollmentId, $productId, $student->id);
+        DB::table('core_course_enrollments')->where('id', $enrollmentId)->update(['status' => 'suspended']);
+
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/activate")
+            ->assertSessionHasErrors('lifecycle');
+        $this->assertDatabaseHas('core_course_cohorts', ['id' => $cohortId, 'status' => 'draft']);
+        $this->assertDatabaseHas('core_course_cohort_students', [
+            'cohort_id' => $cohortId, 'enrollment_id' => $enrollmentId, 'status' => 'active',
         ]);
     }
 

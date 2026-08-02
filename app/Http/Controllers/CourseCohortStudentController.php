@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\TenantContext;
+use App\Http\Controllers\Concerns\AuthorizesCourseCohortAdmin;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -15,12 +16,16 @@ use Illuminate\View\View;
 
 class CourseCohortStudentController extends Controller
 {
+    use AuthorizesCourseCohortAdmin;
+
     private const STATUSES = [
         'active',
         'removed',
         'completed',
         'cancelled',
     ];
+
+    private string $cohortRoutePrefix = 'admin.course-cohort-students';
 
     public function index(Request $request): View
     {
@@ -240,7 +245,7 @@ class CourseCohortStudentController extends Controller
                     throw_if(! $enrollment, ValidationException::withMessages([
                         "enrollment_ids.{$index}" => __('lf.LF_course_cohort_student_validation_enrollment'),
                     ]));
-                    $this->validateLockedAssignment($customerId, $cohort, $enrollment, $acceptedCount, "enrollment_ids.{$index}");
+                    $this->throwIfAssignmentIssue($customerId, $cohort, $enrollment, true, $acceptedCount, "enrollment_ids.{$index}");
                     $existingMembership = $existingMemberships->get($enrollmentId);
 
                     if ($existingMembership) {
@@ -358,7 +363,7 @@ class CourseCohortStudentController extends Controller
                 throw_if(! $enrollment, ValidationException::withMessages([
                     "enrollment_ids.{$index}" => __('lf.LF_course_cohort_student_validation_enrollment'),
                 ]));
-                $this->validateLockedAssignmentForSync($customerId, $lockedCohort, $enrollment, "enrollment_ids.{$index}");
+                $this->throwIfAssignmentIssue($customerId, $lockedCohort, $enrollment, false, null, "enrollment_ids.{$index}");
                 $existingMembership = $existingMemberships->get($enrollmentId);
 
                 if ($existingMembership) {
@@ -538,7 +543,7 @@ class CourseCohortStudentController extends Controller
                 );
             }
 
-            if ($cohort && $cohort->status !== 'active') {
+            if ($cohort && ! in_array($cohort->status, ['draft', 'active'], true)) {
                 $validator->errors()->add(
                     'cohort_id',
                     __('lf.LF_course_cohort_student_validation_archived_cohort')
@@ -704,9 +709,14 @@ class CourseCohortStudentController extends Controller
         return ($query->count() + $extra) >= (int) $cohort->capacity;
     }
 
+    private function cohortAcceptsMembership(object $cohort): bool
+    {
+        return in_array($cohort->status, ['draft', 'active'], true) && $cohort->product_id && $cohort->version_id;
+    }
+
     private function assertAssignmentAllowed(int $customerId, object $cohort, object $enrollment, ?int $ignoreMembershipId = null): void
     {
-        abort_if(! in_array($cohort->status, ['draft', 'active'], true) || ! $cohort->product_id || ! $cohort->version_id, 422,
+        abort_if(! $this->cohortAcceptsMembership($cohort), 422,
             __('lf.LF_course_cohort_student_validation_active_cohort'));
         abort_if($enrollment->status !== 'active', 422,
             __('lf.LF_course_cohort_student_validation_active_enrollment'));
@@ -718,32 +728,27 @@ class CourseCohortStudentController extends Controller
             __('lf.LF_course_cohort_student_validation_capacity'));
     }
 
-    private function validateLockedAssignment(int $customerId, object $cohort, object $enrollment, int $extraAccepted = 0, string $errorField = 'enrollment_id'): void
+    /**
+     * Shared by store() (per-enrollment, batch capacity via $extraAccepted, cohort
+     * eligibility not yet checked) and sync() (per-enrollment, cohort eligibility and
+     * capacity already validated once for the whole batch by the caller).
+     */
+    private function assignmentIssue(int $customerId, object $cohort, object $enrollment, bool $checkEligibility, ?int $extraAccepted = null): ?string
     {
-        $message = match (true) {
-            ! in_array($cohort->status, ['draft', 'active'], true) || ! $cohort->product_id || ! $cohort->version_id => __('lf.LF_course_cohort_student_validation_active_cohort'),
-            $this->cohortIsFull($customerId, $cohort, null, $extraAccepted) => __('lf.LF_course_cohort_student_validation_capacity'),
+        return match (true) {
+            $checkEligibility && ! $this->cohortAcceptsMembership($cohort) => __('lf.LF_course_cohort_student_validation_active_cohort'),
+            $extraAccepted !== null && $this->cohortIsFull($customerId, $cohort, null, $extraAccepted) => __('lf.LF_course_cohort_student_validation_capacity'),
             $enrollment->status !== 'active' => __('lf.LF_course_cohort_student_validation_active_enrollment'),
             (int) $cohort->product_id !== (int) $enrollment->product_id => __('lf.LF_course_cohort_student_validation_product_mismatch'),
             (int) $cohort->version_id !== (int) $enrollment->version_id => __('lf.LF_course_cohort_student_validation_version_mismatch'),
             $this->activeMembershipExists($customerId, $enrollment->id) => __('lf.LF_course_cohort_student_validation_duplicate'),
             default => null,
         };
-
-        if ($message) {
-            throw ValidationException::withMessages([$errorField => $message]);
-        }
     }
 
-    private function validateLockedAssignmentForSync(int $customerId, object $cohort, object $enrollment, string $errorField): void
+    private function throwIfAssignmentIssue(int $customerId, object $cohort, object $enrollment, bool $checkEligibility, ?int $extraAccepted, string $errorField): void
     {
-        $message = match (true) {
-            $enrollment->status !== 'active' => __('lf.LF_course_cohort_student_validation_active_enrollment'),
-            (int) $cohort->product_id !== (int) $enrollment->product_id => __('lf.LF_course_cohort_student_validation_product_mismatch'),
-            (int) $cohort->version_id !== (int) $enrollment->version_id => __('lf.LF_course_cohort_student_validation_version_mismatch'),
-            $this->activeMembershipExists($customerId, $enrollment->id) => __('lf.LF_course_cohort_student_validation_duplicate'),
-            default => null,
-        };
+        $message = $this->assignmentIssue($customerId, $cohort, $enrollment, $checkEligibility, $extraAccepted);
 
         if ($message) {
             throw ValidationException::withMessages([$errorField => $message]);
@@ -784,7 +789,7 @@ class CourseCohortStudentController extends Controller
 
     private function cohortEligibilityError(int $customerId, object $cohort): ?string
     {
-        if (! in_array($cohort->status, ['draft', 'active'], true) || ! $cohort->product_id || ! $cohort->version_id) {
+        if (! $this->cohortAcceptsMembership($cohort)) {
             return __('lf.LF_course_cohort_student_validation_active_cohort');
         }
 
@@ -876,7 +881,7 @@ class CourseCohortStudentController extends Controller
 
     private function formatEnrollmentDateTime(mixed $value): string
     {
-        return $value ? \Illuminate\Support\Carbon::parse($value)->format('d/m/Y H:i') : '—';
+        return $value ? Carbon::parse($value)->format('d/m/Y H:i') : '—';
     }
 
     private function cohorts(int $customerId)
@@ -915,25 +920,4 @@ class CourseCohortStudentController extends Controller
             ->get();
     }
 
-    private function customerId(): int
-    {
-        $customerId = TenantContext::customerId();
-
-        abort_if(! $customerId, 404);
-
-        return $customerId;
-    }
-
-    private function authorizeAdmin(Request $request): void
-    {
-        abort_unless($request->user()?->role === 'customer_admin', 403);
-    }
-
-    private function routePrefix(Request $request): string
-    {
-        return match ($request->user()?->role) {
-            'customer_admin' => 'admin.course-cohort-students',
-            default => abort(403),
-        };
-    }
 }

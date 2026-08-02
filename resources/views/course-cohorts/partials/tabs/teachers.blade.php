@@ -57,10 +57,14 @@
                             <td>{{ __('lf.LF_course_cohort_teacher_role_'.$teacher->role) }}</td>
                             <td>{{ $teacher->assigned_from ?: '—' }} → {{ $teacher->assigned_to ?: '—' }}</td>
                             <td>
-                                <form method="POST" action="{{ route('admin.course-cohorts.teachers.destroy', [$cohort->id, $teacher->id]) }}">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="admin-danger-text-action">{{ __('lf.LF_common_button_remove') }}</button>
-                                </form>
+                                @if (in_array($cohort->status, ['draft', 'active'], true))
+                                    <form method="POST" action="{{ route('admin.course-cohorts.teachers.destroy', [$cohort->id, $teacher->id]) }}">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="admin-text-action admin-danger-text-action">{{ __('lf.LF_common_button_remove') }}</button>
+                                    </form>
+                                @else
+                                    {{ __('lf.LF_course_cohort_tab_read_only') }}
+                                @endif
                             </td>
                         </tr>
                     @empty
