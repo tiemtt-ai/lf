@@ -917,13 +917,14 @@ CSS Build Optimization
 
 ---
 
-# LF Admin Form Standard
+# LF Admin Form And List Standard
 
-Chuẩn canonical cho LF Admin Create/Edit forms nằm tại
+Chuẩn canonical cho LF Admin Create/Edit forms và List/Index pages nằm tại
 [LF-Admin-Form-Design-Standard.md](LF-Admin-Form-Design-Standard.md).
 
-Khi task yêu cầu “Áp dụng thiết kế tiêu chuẩn” hoặc standard Create/Edit form
-design, đọc tài liệu đó trước, sau đó dùng CSS architecture trong tài liệu này.
+Khi task yêu cầu “Áp dụng thiết kế tiêu chuẩn”, “Áp dụng chuẩn danh
+sách”, standard Create/Edit form hoặc List/Index design, đọc tài liệu đó
+trước, sau đó dùng CSS architecture trong tài liệu này.
 
 # Final Statement
 

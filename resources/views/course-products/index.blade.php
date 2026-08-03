@@ -28,7 +28,8 @@
         <span class="course-product-index-count">
             {{ trans_choice('lf.LF_course_product_index_count', $products->total(), ['count' => $products->total()]) }}
         </span>
-        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
+        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary course-product-create-action">
+            <span aria-hidden="true">+</span>
             {{ __('lf.LF_course_product_common_create') }}
         </a>
     </div>
@@ -92,8 +93,8 @@
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_product_common_title_field') }}</th>
                 <th>{{ __('lf.LF_course_product_common_product_type') }}</th>
-                <th>{{ __('lf.LF_course_product_common_price') }}</th>
-                <th>{{ __('lf.LF_course_product_common_visibility') }}</th>
+                <th class="course-product-index-price">{{ __('lf.LF_course_product_common_price') }}</th>
+                <th class="course-product-index-visibility">{{ __('lf.LF_course_product_common_visibility') }}</th>
                 <th class="course-product-index-status">{{ __('lf.LF_course_product_common_status') }}</th>
                 <th class="course-product-index-actions">{{ __('lf.table_actions') }}</th>
             </tr>
@@ -113,10 +114,10 @@
                             ? __('lf.LF_product_v2_offering_'.$product->offering_type)
                             : '—' }}
                     </td>
-                    <td data-label="{{ __('lf.LF_course_product_common_price') }}">
+                    <td class="course-product-index-price" data-label="{{ __('lf.LF_course_product_common_price') }}">
                         {{ number_format((float) $product->price, 0) }} {{ $product->currency }}
                     </td>
-                    <td data-label="{{ __('lf.LF_course_product_common_visibility') }}">
+                    <td class="course-product-index-visibility" data-label="{{ __('lf.LF_course_product_common_visibility') }}">
                         {{ __('lf.LF_course_product_common_visibility_'.$product->visibility) }}
                     </td>
                     <td class="course-product-index-status" data-label="{{ __('lf.LF_course_product_common_status') }}">

@@ -594,37 +594,44 @@
 :root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group-label::after,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-link::after,
 .backend-shell.is-sidebar-collapsed .admin-sidebar-group-label::after {
-    position: absolute;
-    top: 50%;
-    left: calc(100% + 10px);
+    display: none;
+}
+
+.backend-sidebar-tooltip {
+    position: fixed;
     z-index: 60;
     max-width: 220px;
-    padding: 7px 9px;
-    border-radius: 6px;
+    padding: 7px 10px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 7px;
     color: #ffffff;
-    background: #1f2937;
-    content: attr(data-sidebar-label);
-    font-size: 12px;
-    line-height: 1.2;
-    opacity: 0;
-    overflow: hidden;
+    background: #1e293b;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, .18);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.25;
     pointer-events: none;
-    text-overflow: ellipsis;
-    transform: translateY(-50%) translateX(-4px);
-    transition: opacity .18s ease, transform .18s ease;
+    transform: translateY(-50%);
     white-space: nowrap;
 }
 
-:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-link:hover::after,
-:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-link:focus-visible::after,
-:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group-label:hover::after,
-:root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group-label:focus-visible::after,
-.backend-shell.is-sidebar-collapsed .admin-sidebar-link:hover::after,
-.backend-shell.is-sidebar-collapsed .admin-sidebar-link:focus-visible::after,
-.backend-shell.is-sidebar-collapsed .admin-sidebar-group-label:hover::after,
-.backend-shell.is-sidebar-collapsed .admin-sidebar-group-label:focus-visible::after {
-    opacity: 1;
-    transform: translateY(-50%) translateX(0);
+.backend-sidebar-tooltip > span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.backend-sidebar-tooltip::before {
+    position: absolute;
+    top: 50%;
+    right: 100%;
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-right: 6px solid #1e293b;
+    border-bottom: 5px solid transparent;
+    content: "";
+    transform: translateY(-50%);
 }
 
 :root.is-backend-sidebar-collapsed .backend-shell .admin-sidebar-group.is-active,

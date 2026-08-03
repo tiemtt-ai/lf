@@ -58,7 +58,8 @@
         <span class="course-enrollment-index-count">
             {{ trans_choice('lf.LF_course_enrollment_index_count', $enrollments->total(), ['count' => $enrollments->total()]) }}
         </span>
-        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
+        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary course-enrollment-create-action">
+            <span aria-hidden="true">+</span>
             {{ __('lf.LF_course_enrollment_common_create') }}
         </a>
     </div>
@@ -188,7 +189,7 @@
                         <strong class="course-cohort-index-primary">{{ $enrollment->product_title }}</strong>
                         <span class="course-cohort-index-meta">{{ $enrollment->product_code }}</span>
                         <span class="course-enrollment-version-meta">
-                            {{ __('lf.LF_course_enrollment_index_release') }}:
+                            {{ __('lf.LF_course_enrollment_locked_version_label') }}:
                             {{ __('lf.LF_course_product_item_common_version_number', ['number' => $enrollment->version_number]) }}
                             · {{ $enrollment->version_code }}
                         </span>

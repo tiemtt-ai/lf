@@ -232,7 +232,7 @@
 
     <main class="layout-content">
         <div class="admin-container admin-content-wrap">
-            <aside id="backend-sidebar" class="layout-sidebar">
+            <aside id="backend-sidebar" class="layout-sidebar" x-on:scroll="hideSidebarTooltip()">
                 <nav @class([
                     'admin-sidebar-menu',
                     'is-teacher' => $isTeacher,
@@ -280,10 +280,14 @@
                                 </script>
                                 <button class="admin-sidebar-group-label"
                                         type="button"
+                                        aria-label="{{ $item['label'] }}"
                                         data-sidebar-icon="{{ $item['icon'] ?? 'circle' }}"
                                         data-sidebar-label="{{ $item['label'] }}"
-                                        title="{{ $item['label'] }}"
                                         x-bind:aria-expanded="isSidebarGroupOpen('{{ $groupKey }}').toString()"
+                                        x-on:mouseenter="showSidebarTooltip($event, @js($item['label']))"
+                                        x-on:mouseleave="hideSidebarTooltip()"
+                                        x-on:focus="showSidebarTooltip($event, @js($item['label']))"
+                                        x-on:blur="hideSidebarTooltip()"
                                         x-on:click="toggleSidebarGroup('{{ $groupKey }}')">
                                     <x-backend-icon :name="$item['icon'] ?? 'circle'" />
                                     <span class="admin-sidebar-link-label">{{ $item['label'] }}</span>
@@ -314,7 +318,10 @@
                                aria-label="{{ $item['label'] }}"
                                data-sidebar-icon="{{ $item['icon'] ?? 'circle' }}"
                                data-sidebar-label="{{ $item['label'] }}"
-                               title="{{ $item['label'] }}">
+                               x-on:mouseenter="showSidebarTooltip($event, @js($item['label']))"
+                               x-on:mouseleave="hideSidebarTooltip()"
+                               x-on:focus="showSidebarTooltip($event, @js($item['label']))"
+                               x-on:blur="hideSidebarTooltip()">
                                 <x-backend-icon :name="$item['icon'] ?? 'circle'" />
                                 <span class="admin-sidebar-link-label">{{ $item['label'] }}</span>
                             </a>
@@ -330,6 +337,12 @@
             </section>
         </div>
     </main>
+
+    <div class="backend-sidebar-tooltip"
+         x-cloak
+         x-show="sidebarTooltip.visible"
+         x-bind:style="`top: ${sidebarTooltip.top}px; left: ${sidebarTooltip.left}px`"
+         role="tooltip"><span x-text="sidebarTooltip.label"></span></div>
 
     <footer class="layout-footer">
         <div class="admin-footer-wrap">

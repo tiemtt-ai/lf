@@ -1,10 +1,10 @@
-# LearnForge Create/Edit Form Design Standard
+# LearnForge Admin Form And List Design Standard
 
-Version: 1.1
+Version: 1.2
 
 Status: Official Standard
 
-Scope: LF Admin Create/Edit Forms
+Scope: LF Admin Create/Edit Forms And List/Index Pages
 
 Last Updated: 2026-07
 
@@ -12,8 +12,9 @@ Last Updated: 2026-07
 
 # 1. Purpose And Authority
 
-Tài liệu này là chuẩn presentation canonical cho form Create/Edit trong LF
-Admin và các form Teacher Authoring sử dụng cùng LF admin form primitives.
+Tài liệu này là chuẩn presentation canonical cho form Create/Edit,
+trang List/Index và filter toolbar trong LF Admin; đồng thời áp dụng cho
+các màn hình Teacher Authoring sử dụng cùng LF admin primitives.
 
 Tài liệu kiểm soát layout, visual hierarchy, responsive behavior,
 accessibility presentation và verification của form. Module vẫn là authority
@@ -48,6 +49,8 @@ Các câu sau kích hoạt chuẩn này:
 Áp dụng thiết kế tiêu chuẩn cho form tạo mới/edit
 Apply the LF standard form design
 Apply the standard Create/Edit form design
+Áp dụng chuẩn danh sách
+Apply the LF standard list design
 ```
 
 Khi nhận trigger, AI agent **MUST**:
@@ -71,12 +74,13 @@ Trigger phrase **MUST NOT** được hiểu là quyền thay đổi business log
 * Admin Create forms.
 * Admin Edit forms.
 * Teacher-authoring Create/Edit forms khi dùng LF admin form primitives.
+* Admin và Teacher-authoring List/Index pages.
+* Search/filter toolbar gắn với List/Index page.
 
 ## Not Automatically Covered
 
 * Public registration hoặc checkout.
 * Student learning runtime.
-* Search/filter toolbars.
 * Read-only detail pages.
 * Modal-only micro-forms, trừ khi task yêu cầu áp dụng rõ ràng.
 
@@ -750,6 +754,151 @@ Khi user nói “Áp dụng thiết kế tiêu chuẩn”:
 5. Verify width/sidebar/responsive matrix.
 6. Chạy relevant checks.
 7. Report deviations và visual acceptance.
+
+---
+
+# 25. Canonical List/Index Page Standard
+
+## 25.1 Scope And Invariants
+
+Chuẩn này áp dụng cho trang danh sách quản trị có toolbar, filter,
+table, pagination và empty state. Presentation **MUST NOT** thay đổi query,
+filter semantics, authorization, tenant isolation, lifecycle hoặc data source.
+
+Mỗi trang List/Index **SHOULD** có thứ tự:
+
+```text
+Page title
+↓
+Count + primary create action
+↓
+Compact filter surface
+↓
+Table / responsive cards
+↓
+Pagination
+```
+
+Không tạo nhiều create action trên cùng populated state. Empty state
+**MAY** lặp lại create action thay cho toolbar khi danh sách rỗng.
+
+## 25.2 Canonical Primitives
+
+Shared implementation hiện hành nằm trong
+`resources/css/admin/admin-components.css`.
+
+| Responsibility | Canonical pattern |
+| --- | --- |
+| Count/action row | `<module>-index-toolbar`, `<module>-index-count` |
+| Primary create action | `btn btn-primary` với compact module class |
+| Filter surface | `admin-card admin-form-card <module>-filter-card` |
+| Filter layout | `<module>-filter-grid` |
+| Filter actions | `admin-form-actions <module>-filter-actions` |
+| Table surface | `admin-table-wrap <module>-index-table-wrap` |
+| Table | `table <module>-index-table` |
+| Sequence | `admin-table-sequence` hoặc scoped equivalent |
+| Primary cell text | `<module>-index-primary` |
+| Secondary metadata | `<module>-index-meta` |
+| Status | `badge` và domain status class |
+| Actions | `admin-table-actions <module>-index-action-list` |
+| Empty state | `<module>-empty-row`, `-empty-cell`, `-empty-state` |
+
+Module prefix là namespace, không phải quyền nhân bản toàn bộ shared CSS.
+Khi nhiều module có cùng contract, **SHOULD** gom selector hoặc tạo
+shared primitive thay vì drift từng module.
+
+## 25.3 Toolbar And Filter
+
+* Toolbar **MUST** đặt count bên trái và primary create action bên phải
+  trên desktop; mobile xếp dọc và button full width.
+* Count **SHOULD** dùng `14px`, muted color và weight `600`.
+* Create action **SHOULD** có min-height `40px`, horizontal padding `16px`;
+  dấu `+` trang trí **MAY** được dùng và phải `aria-hidden`.
+* Filter card **SHOULD** compact: padding `14px 16px`, radius `10px`, margin
+  bottom `16px`.
+* Filter label **SHOULD** dùng `13px/600`; control min-height `42px`.
+* Filter grid **MUST** dùng `minmax(0, ...)`, canh controls theo bottom và
+  collapse về một cột trên mobile.
+* Search button **SHOULD** có stable hit area; clear-filter chỉ hiển thị khi
+  có active filter.
+
+Filter **MUST NOT** dùng fixed width làm tràn content area, đặt Search
+tách khỏi nhịp controls hoặc dùng placeholder thay cho persistent label.
+
+## 25.4 Desktop Table Hierarchy
+
+* Table header **SHOULD** dùng `13px/700`, slate/muted color và subtle
+  background; không cạnh tranh với row data.
+* Cell **SHOULD** dùng padding `14px 16px`, vertically centered.
+* Primary text **SHOULD** dùng `14px/600`; metadata `12px/400-500` và
+  muted color.
+* Mã Product, Version hoặc identifier không được dính thành một
+  chuỗi khó quét; khi có nhiều semantic unit, **SHOULD** tách thành
+  các metadata line.
+* Sequence column **SHOULD** compact, centered và không chiếm business width.
+* Price, date hoặc short state **MAY** `nowrap` trên desktop nếu không gây
+  horizontal overflow.
+* Status **MUST** dùng canonical badge, không dùng raw color text.
+* Row **MAY** có hover/focus background rất nhẹ; sticky status/action cells
+  phải đồng bộ background với row state.
+* Text actions **SHOULD** có padding `6px 8px`, radius `6px`, font
+  `13px/600` và visible hover/focus hit area.
+
+Không dùng font lớn, row quá cao, action text không có hit area hoặc
+sticky column che business data.
+
+## 25.5 Responsive Contract
+
+Từ `767px` trở xuống, canonical table **SHOULD** chuyển thành card rows:
+
+* table wrapper bỏ horizontal border/overflow presentation;
+* `thead` ẩn, `tbody` thành grid;
+* mỗi `tr` là bordered card;
+* mỗi `td` hiển thị label từ `data-label` và value;
+* sticky cells trở về `position: static`;
+* actions canh trái;
+* sequence và desktop-only `nowrap` trở về flow bình thường;
+* long VI/EN text, code và currency không được tràn card.
+
+Tablet có thể giữ table và horizontal scrolling nếu business columns còn
+rõ ràng. Responsive behavior **MUST NOT** ẩn business data hoặc action.
+
+## 25.6 Empty, Loading And Accessibility States
+
+* Empty state **MUST** phân biệt empty business data và no filter result.
+* No-result state **SHOULD** cung cấp clear-filter action.
+* Default empty state **SHOULD** cung cấp create action khi authorized.
+* Filter inputs **MUST** có label, table **MUST** giữ semantic markup và
+  mobile cells **MUST** có `data-label`.
+* Hover affordance phải có focus-visible equivalent.
+* Status không được chỉ truyền đạt bằng màu.
+
+## 25.7 List/Index Acceptance Checklist
+
+- [ ] Toolbar có một count và một primary create action.
+- [ ] Filter compact, persistent labels, controls và actions canh hàng.
+- [ ] Header, primary text và metadata có hierarchy rõ.
+- [ ] Sequence/status/actions không chiếm business width quá mức.
+- [ ] Action hit area có hover và keyboard focus.
+- [ ] Empty/no-result states đúng business context.
+- [ ] Desktop expanded/collapsed sidebar không overflow bất thường.
+- [ ] Tablet và mobile không mất field/action.
+- [ ] Mobile card labels lấy từ `data-label`.
+- [ ] Long VI/EN strings, identifiers, currency wrap an toàn.
+- [ ] Relevant Feature tests, frontend build khi cần và `git diff --check` pass.
+
+## 25.8 Approved References
+
+Approved List/Index references hiện hành:
+
+* Course Cohort: `resources/views/course-cohorts/index.blade.php`.
+* Course Product: `resources/views/course-products/index.blade.php`.
+* Shared CSS: `resources/css/admin/admin-components.css`.
+* Cohort tests: `tests/Feature/CourseCohortManagementTest.php`.
+* Product tests: `tests/Feature/CourseProductManagementTest.php`.
+
+Agent **MUST** inspect current implementation thay vì copy cứng class name.
+Business columns, filters và actions vẫn do module policy quyết định.
 
 ---
 

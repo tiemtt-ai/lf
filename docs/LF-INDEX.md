@@ -253,7 +253,7 @@ docs/tech/
 | [tech/LF-Tech-Stack.md](tech/LF-Tech-Stack.md) | Technology stack |
 | [tech/LF-Tech-Architecture.md](tech/LF-Tech-Architecture.md) | System architecture |
 | [tech/LF-Tech-CSS.md](tech/LF-Tech-CSS.md) | CSS architecture |
-| [tech/LF-Admin-Form-Design-Standard.md](tech/LF-Admin-Form-Design-Standard.md) | Canonical presentation standard cho LF Admin Create/Edit forms; kích hoạt bởi “Áp dụng thiết kế tiêu chuẩn” và các trigger tương đương |
+| [tech/LF-Admin-Form-Design-Standard.md](tech/LF-Admin-Form-Design-Standard.md) | Canonical presentation standard cho LF Admin Create/Edit forms và List/Index pages; kích hoạt bởi “Áp dụng thiết kế tiêu chuẩn”, “Áp dụng chuẩn danh sách” và các trigger tương đương |
 | [tech/LF-Tech-AWS.md](tech/LF-Tech-AWS.md) | AWS infrastructure |
 
 ---
@@ -648,7 +648,8 @@ Read:
 * tech/LF-Tech-CSS.md
 * business/LF-Navigation.md
 
-Create/Edit form design hoặc user nói “Áp dụng thiết kế tiêu chuẩn”:
+Create/Edit form design, List/Index design hoặc user nói “Áp dụng thiết kế
+tiêu chuẩn”/“Áp dụng chuẩn danh sách”:
 
 1. Đọc `tech/LF-Admin-Form-Design-Standard.md`.
 2. Inspect target module và current reference implementation.

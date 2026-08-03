@@ -20,22 +20,25 @@
         <h2 id="admin-dashboard-quick-actions" class="admin-dashboard-subsection-title">{{ __('lf.LF_admin_title_quick_actions') }}</h2>
         <div class="admin-dashboard-quick-grid">
             <a class="admin-dashboard-quick-action" href="{{ route('admin.organization.edit') }}">
-                <strong>{{ __('lf.LF_admin_action_manage_organization') }}</strong>
-                <span>{{ __('lf.LF_admin_action_manage_organization_help') }}</span>
+                <span class="admin-dashboard-quick-action-icon"><x-backend-icon name="cog" /></span>
+                <span class="admin-dashboard-quick-action-copy"><strong>{{ __('lf.LF_admin_action_manage_organization') }}</strong><span>{{ __('lf.LF_admin_action_manage_organization_help') }}</span></span>
+                <span class="admin-dashboard-quick-action-arrow" aria-hidden="true">→</span>
             </a>
             <a class="admin-dashboard-quick-action" href="{{ route('admin.users.index') }}">
-                <strong>{{ __('lf.LF_admin_action_manage_users') }}</strong>
-                <span>{{ __('lf.LF_admin_action_manage_users_help') }}</span>
+                <span class="admin-dashboard-quick-action-icon"><x-backend-icon name="users" /></span>
+                <span class="admin-dashboard-quick-action-copy"><strong>{{ __('lf.LF_admin_action_manage_users') }}</strong><span>{{ __('lf.LF_admin_action_manage_users_help') }}</span></span>
+                <span class="admin-dashboard-quick-action-arrow" aria-hidden="true">→</span>
             </a>
             <a class="admin-dashboard-quick-action" href="{{ route('admin.my-account.edit') }}">
-                <strong>{{ __('lf.LF_admin_action_manage_account') }}</strong>
-                <span>{{ __('lf.LF_admin_action_manage_account_help') }}</span>
+                <span class="admin-dashboard-quick-action-icon"><x-backend-icon name="user-cog" /></span>
+                <span class="admin-dashboard-quick-action-copy"><strong>{{ __('lf.LF_admin_action_manage_account') }}</strong><span>{{ __('lf.LF_admin_action_manage_account_help') }}</span></span>
+                <span class="admin-dashboard-quick-action-arrow" aria-hidden="true">→</span>
             </a>
         </div>
     </section>
 
     <div class="admin-dashboard-info-grid">
-        <section class="admin-card">
+        <section class="admin-card admin-dashboard-info-card">
             <header class="admin-dashboard-card-header">
                 <h2 class="admin-dashboard-section-title">{{ __('lf.LF_admin_title_tenant_information') }}</h2>
                 <a class="admin-text-action" href="{{ route('admin.organization.edit') }}">{{ __('lf.LF_common_button_edit') }}</a>
@@ -71,7 +74,7 @@
             </dl>
         </section>
 
-        <section class="admin-card">
+        <section class="admin-card admin-dashboard-info-card">
             <header class="admin-dashboard-card-header">
                 <h2 class="admin-dashboard-section-title">{{ __('lf.LF_admin_title_current_user') }}</h2>
                 <a class="admin-text-action" href="{{ route('admin.my-account.edit') }}">{{ __('lf.LF_common_button_edit') }}</a>

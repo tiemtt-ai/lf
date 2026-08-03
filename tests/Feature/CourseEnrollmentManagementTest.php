@@ -985,7 +985,7 @@ class CourseEnrollmentManagementTest extends TestCase
             ->assertSeeText(__('lf.LF_course_enrollment_information'))
             ->assertSeeText(__('lf.LF_course_enrollment_information_source').':')
             ->assertSeeText(__('lf.LF_course_enrollment_information_date').':')
-            ->assertSeeText(__('lf.LF_course_enrollment_index_release').':')
+            ->assertSeeText(__('lf.LF_course_enrollment_locked_version_label').':')
             ->assertSeeText(__('lf.LF_course_product_item_common_version_number', ['number' => 1]))
             ->assertSeeText($versionCode)
             ->assertDontSeeText('TOPIK Version')

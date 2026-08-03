@@ -1497,7 +1497,7 @@
 }
 
 .course-cohort-index-toolbar {
-    margin: 0 0 14px;
+    margin: 0 0 16px;
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -1508,11 +1508,25 @@
     margin-right: auto;
     color: var(--admin-text-muted);
     font-size: 14px;
+    font-weight: 600;
+}
+
+.course-cohort-create-action {
+    min-height: 40px;
+    padding: 0 16px;
+    gap: 7px;
+}
+
+.course-cohort-create-action > span {
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1;
 }
 
 .course-cohort-filter-card {
     margin-bottom: 16px;
-    padding: 18px;
+    padding: 14px 16px;
+    border-radius: 10px;
 }
 
 .course-cohort-filter-grid {
@@ -1526,11 +1540,26 @@
     margin: 0;
 }
 
+.course-cohort-filter-grid .lf-form-label {
+    margin-bottom: 6px;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.course-cohort-filter-grid .lf-form-control {
+    min-height: 42px;
+}
+
 .course-cohort-filter-actions {
     min-height: 42px;
     margin: 0;
     align-items: center;
     flex-wrap: nowrap;
+}
+
+.course-cohort-filter-actions .btn {
+    min-width: 108px;
 }
 
 .course-category-index-toolbar,
@@ -1550,11 +1579,77 @@
     font-size: 14px;
 }
 
+.course-product-index-count {
+    font-weight: 600;
+}
+
+.course-template-index-count {
+    font-weight: 600;
+}
+
+.course-category-index-count {
+    font-weight: 600;
+}
+
+.course-category-create-action {
+    min-height: 40px;
+    padding: 0 16px;
+    gap: 7px;
+}
+
+.course-category-create-action > span {
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1;
+}
+
+.course-template-create-action {
+    min-height: 40px;
+    padding: 0 16px;
+    gap: 7px;
+}
+
+.course-template-create-action > span {
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1;
+}
+
+.course-product-create-action {
+    min-height: 40px;
+    padding: 0 16px;
+    gap: 7px;
+}
+
+.course-product-create-action > span {
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1;
+}
+
 .course-category-filter-card,
 .course-template-filter-card,
 .course-product-filter-card {
     margin-bottom: 20px;
     padding: 16px 18px;
+}
+
+.course-template-filter-card {
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    border-radius: 10px;
+}
+
+.course-category-filter-card {
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    border-radius: 10px;
+}
+
+.course-product-filter-card {
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    border-radius: 10px;
 }
 
 .course-category-filter-grid,
@@ -1568,6 +1663,36 @@
 .course-category-filter-grid .lf-form-group,
 .course-template-filter-grid .lf-form-group {
     margin: 0;
+}
+
+.course-category-filter-grid .lf-form-label {
+    margin-bottom: 6px;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.course-category-filter-grid .lf-form-control {
+    min-height: 42px;
+}
+
+.course-category-filter-actions .btn {
+    min-width: 108px;
+}
+
+.course-template-filter-grid .lf-form-label {
+    margin-bottom: 6px;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.course-template-filter-grid .lf-form-control {
+    min-height: 42px;
+}
+
+.course-template-filter-actions .btn {
+    min-width: 108px;
 }
 
 .course-category-filter-actions,
@@ -1588,6 +1713,21 @@
 
 .course-product-filter-grid .lf-form-group {
     margin: 0;
+}
+
+.course-product-filter-grid .lf-form-label {
+    margin-bottom: 6px;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.course-product-filter-grid .lf-form-control {
+    min-height: 42px;
+}
+
+.course-product-filter-actions .btn {
+    min-width: 108px;
 }
 
 .course-category-index-table,
@@ -1638,8 +1778,51 @@
     text-align: right;
 }
 
+.lf-admin-page .course-category-index-table th,
+.lf-admin-page .course-category-index-table td {
+    padding: 14px 16px;
+}
+
+.lf-admin-page .course-category-index-table th {
+    color: #475569;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .01em;
+}
+
+.course-category-index-table tbody tr {
+    transition: background-color .15s ease;
+}
+
+.course-category-index-table tbody tr:not(.course-category-empty-row):hover,
+.course-category-index-table tbody tr:not(.course-category-empty-row):focus-within {
+    background: #fafcff;
+}
+
+.lf-admin-page .course-template-index-table th,
+.lf-admin-page .course-template-index-table td {
+    padding: 14px 16px;
+}
+
+.lf-admin-page .course-template-index-table th {
+    color: #475569;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .01em;
+}
+
+.course-template-index-table tbody tr {
+    transition: background-color .15s ease;
+}
+
+.course-template-index-table tbody tr:not(.course-template-empty-row):hover,
+.course-template-index-table tbody tr:not(.course-template-empty-row):focus-within {
+    background: #fafcff;
+}
+
 .course-category-index-primary {
     color: #1f2937;
+    font-size: 14px;
     font-weight: 600;
     line-height: 1.35;
 }
@@ -1670,9 +1853,23 @@
 }
 
 .admin-table-actions.course-category-index-action-list {
+    gap: 4px;
     justify-content: flex-end;
     flex-wrap: nowrap;
     white-space: nowrap;
+}
+
+.course-category-index-action-list .admin-table-action-link {
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.course-category-index-action-list .admin-table-action-link:hover,
+.course-category-index-action-list .admin-table-action-link:focus-visible {
+    background: #eef2ff;
+    outline: 0;
 }
 
 .course-product-index-table {
@@ -1682,8 +1879,24 @@
 
 .lf-admin-page .course-product-index-table th,
 .lf-admin-page .course-product-index-table td {
-    padding: 12px 14px;
+    padding: 14px 16px;
     vertical-align: middle;
+}
+
+.lf-admin-page .course-product-index-table th {
+    color: #475569;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .01em;
+}
+
+.course-product-index-table tbody tr {
+    transition: background-color .15s ease;
+}
+
+.course-product-index-table tbody tr:not(.course-product-empty-row):hover,
+.course-product-index-table tbody tr:not(.course-product-empty-row):focus-within {
+    background: #fafcff;
 }
 
 .course-product-index-table .course-product-index-status {
@@ -1695,11 +1908,24 @@
     text-align: right;
 }
 
+.course-product-index-table .course-product-index-price,
+.course-product-index-table .course-product-index-visibility {
+    white-space: nowrap;
+}
+
 .course-template-index-primary,
 .course-product-index-primary {
     color: #1f2937;
     font-weight: 600;
     line-height: 1.35;
+}
+
+.course-template-index-primary {
+    font-size: 14px;
+}
+
+.course-product-index-primary {
+    font-size: 14px;
 }
 
 .course-template-status-badge,
@@ -1727,8 +1953,42 @@
     white-space: nowrap;
 }
 
+.admin-table-actions.course-template-index-action-list {
+    gap: 4px;
+}
+
+.course-template-index-action-list .admin-table-action-link {
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.course-template-index-action-list .admin-table-action-link:hover,
+.course-template-index-action-list .admin-table-action-link:focus-visible {
+    background: #eef2ff;
+    outline: 0;
+}
+
+.admin-table-actions.course-product-index-action-list {
+    gap: 4px;
+}
+
+.course-product-index-action-list .admin-table-action-link {
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.course-product-index-action-list .admin-table-action-link:hover,
+.course-product-index-action-list .admin-table-action-link:focus-visible {
+    background: #eef2ff;
+    outline: 0;
+}
+
 .media-library-table.media-library-index-table {
-    min-width: 1040px;
+    min-width: 1100px;
     table-layout: fixed;
 }
 
@@ -1741,19 +2001,30 @@
 
 .lf-admin-page .media-library-index-table th,
 .lf-admin-page .media-library-index-table td {
-    padding: 12px 14px;
+    padding: 14px 16px;
     vertical-align: middle;
+}
+
+.lf-admin-page .media-library-index-table th {
+    color: #475569;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .01em;
 }
 
 .media-library-index-table th:nth-child(2),
 .media-library-index-table td:nth-child(2) {
-    width: 32%;
+    width: 30%;
 }
 
 .media-library-index-table th:nth-child(3),
 .media-library-index-table td:nth-child(3) {
-    width: 150px;
+    width: 190px;
     text-align: left;
+}
+
+.media-library-index-table th:nth-child(3) {
+    white-space: nowrap;
 }
 
 .media-library-index-table th:nth-child(4),
@@ -1763,14 +2034,14 @@
 
 .media-library-index-table th:nth-child(5),
 .media-library-index-table td:nth-child(5) {
-    width: 30%;
+    width: 24%;
 }
 
 .media-library-index-table .media-library-index-actions {
     position: sticky;
     z-index: 2;
     right: 0;
-    width: 156px;
+    width: 144px;
     background: #ffffff;
     box-shadow: -1px 0 0 #e5e7eb;
     text-align: center;
@@ -2587,6 +2858,29 @@
 }
 
 @media (max-width: 767px) {
+    .lf-admin-page .course-category-index-table .admin-table-sequence {
+        width: auto;
+        min-width: 0;
+        text-align: left;
+    }
+
+    .lf-admin-page .course-template-index-table .admin-table-sequence {
+        width: auto;
+        min-width: 0;
+        text-align: left;
+    }
+
+    .lf-admin-page .course-product-index-table .admin-table-sequence {
+        width: auto;
+        min-width: 0;
+        text-align: left;
+    }
+
+    .course-product-index-table .course-product-index-price,
+    .course-product-index-table .course-product-index-visibility {
+        white-space: normal;
+    }
+
     .course-cohort-students-readonly .admin-form-section-header {
         align-items: stretch;
         flex-direction: column;
@@ -2749,8 +3043,37 @@
 
 .lf-admin-page .course-cohort-index-table th,
 .lf-admin-page .course-cohort-index-table td {
-    padding: 12px 14px;
+    padding: 14px 16px;
     vertical-align: middle;
+}
+
+.lf-admin-page .course-cohort-index-table th {
+    color: #475569;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .01em;
+}
+
+.course-cohort-index-table tbody tr {
+    transition: background-color .15s ease;
+}
+
+.course-cohort-index-table tbody tr:not(.course-cohort-empty-row):hover,
+.course-cohort-index-table tbody tr:not(.course-cohort-empty-row):focus-within {
+    background: #fafcff;
+}
+
+.course-cohort-index-table tbody tr:not(.course-cohort-empty-row):hover .course-cohort-index-status,
+.course-cohort-index-table tbody tr:not(.course-cohort-empty-row):hover .course-cohort-index-actions,
+.course-cohort-index-table tbody tr:not(.course-cohort-empty-row):focus-within .course-cohort-index-status,
+.course-cohort-index-table tbody tr:not(.course-cohort-empty-row):focus-within .course-cohort-index-actions {
+    background: #fafcff;
+}
+
+.course-cohort-index-table .course-cohort-index-sequence {
+    width: 64px;
+    color: #64748b;
+    text-align: center;
 }
 
 .course-cohort-index-table .course-cohort-index-status {
@@ -2790,6 +3113,7 @@
 .course-cohort-index-primary {
     display: block;
     color: #1f2937;
+    font-size: 14px;
     font-weight: 600;
     line-height: 1.35;
 }
@@ -2799,6 +3123,15 @@
     display: block;
     color: #6b7280;
     font-size: 12px;
+    line-height: 1.4;
+}
+
+.course-cohort-index-version {
+    margin-top: 2px;
+    display: block;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 500;
     line-height: 1.4;
 }
 
@@ -2818,12 +3151,31 @@
 }
 
 .admin-table-actions.course-cohort-index-action-list {
+    gap: 4px;
     justify-content: flex-end;
     flex-wrap: nowrap;
     white-space: nowrap;
 }
 
+.course-cohort-index-action-list .admin-table-action-link {
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.course-cohort-index-action-list .admin-table-action-link:hover,
+.course-cohort-index-action-list .admin-table-action-link:focus-visible {
+    background: #eef2ff;
+    outline: 0;
+}
+
 @media (max-width: 767px) {
+    .course-cohort-index-table .course-cohort-index-sequence {
+        width: auto;
+        text-align: left;
+    }
+
     .course-cohort-index-toolbar,
     .course-category-index-toolbar,
     .course-template-index-toolbar,

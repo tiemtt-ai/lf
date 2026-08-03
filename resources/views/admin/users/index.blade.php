@@ -57,7 +57,7 @@
                 {{ trans_choice('lf.LF_admin_user_result_count', $users->total(), ['count' => $users->total()]) }}
             </span>
         </div>
-        <a href="{{ route('admin.users.create', ['role' => $role]) }}" class="btn btn-primary">
+        <a href="{{ route('admin.users.create', ['role' => $role]) }}" class="btn btn-primary admin-user-create-action">
             {{ __('lf.LF_admin_button_add_role', ['role' => mb_strtolower($roleLabels[$role])]) }}
         </a>
     </div>
@@ -119,7 +119,7 @@
                         </span>
                     </td>
                     <td data-label="{{ __('lf.table_actions') }}">
-                        <div class="admin-table-actions">
+                        <div class="admin-table-actions admin-user-index-action-list">
                             <a class="admin-table-action-link admin-text-action" href="{{ route('admin.users.edit', $user->id) }}">
                                 {{ __('lf.action_edit') }}
                             </a>

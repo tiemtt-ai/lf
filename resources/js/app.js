@@ -97,6 +97,7 @@ window.backendSidebar = () => ({
     hasManualPreference: false,
     sidebarGroups: {},
     activeSidebarGroups: {},
+    sidebarTooltip: { visible: false, label: '', top: 0, left: 0 },
 
     init() {
         let storedPreference = null;
@@ -132,7 +133,27 @@ window.backendSidebar = () => ({
     },
 
     toggleSidebar() {
+        this.hideSidebarTooltip();
         this.setManualSidebarState(! this.sidebarCollapsed);
+    },
+
+    showSidebarTooltip(event, label) {
+        if (! this.sidebarCollapsed) {
+            return;
+        }
+
+        const rect = event.currentTarget.getBoundingClientRect();
+
+        this.sidebarTooltip = {
+            visible: true,
+            label,
+            top: rect.top + (rect.height / 2),
+            left: rect.right + 10,
+        };
+    },
+
+    hideSidebarTooltip() {
+        this.sidebarTooltip.visible = false;
     },
 
     registerSidebarGroup(groupKey, isActive) {

@@ -18,7 +18,8 @@
         <span class="course-cohort-index-count">
             {{ trans_choice('lf.LF_course_cohort_index_count', $cohorts->total(), ['count' => $cohorts->total()]) }}
         </span>
-        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
+        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary course-cohort-create-action">
+            <span aria-hidden="true">+</span>
             {{ __('lf.LF_course_cohort_common_create') }}
         </a>
     </div>
@@ -68,7 +69,7 @@
         <table class="table course-cohort-index-table">
             <thead>
             <tr>
-                <th>{{ __('lf.table_no') }}</th>
+                <th class="course-cohort-index-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_cohort_common_name') }}</th>
                 <th>
                     {{ __('lf.LF_course_cohort_common_product') }}
@@ -81,7 +82,7 @@
             <tbody>
             @forelse ($cohorts as $cohort)
                 <tr>
-                    <td data-label="{{ __('lf.table_no') }}">
+                    <td class="course-cohort-index-sequence" data-label="{{ __('lf.table_no') }}">
                         {{ $cohorts->firstItem() + $loop->index }}
                     </td>
                     <td data-label="{{ __('lf.LF_course_cohort_common_name') }}">
@@ -91,13 +92,13 @@
                     <td data-label="{{ __('lf.LF_course_cohort_common_product') }}">
                         @if ($cohort->product_id)
                             <strong class="course-cohort-index-primary">{{ $cohort->product_title }}</strong>
-                            <span class="course-cohort-index-meta">
-                                {{ $cohort->product_code }}
-                                @if ($cohort->version_id)
-                                    · {{ __('lf.LF_course_product_item_common_version_number', ['number' => $cohort->version_number]) }}
+                            <span class="course-cohort-index-meta">{{ $cohort->product_code }}</span>
+                            @if ($cohort->version_id)
+                                <span class="course-cohort-index-version">
+                                    {{ __('lf.LF_course_product_item_common_version_number', ['number' => $cohort->version_number]) }}
                                     · {{ $cohort->version_code }}
-                                @endif
-                            </span>
+                                </span>
+                            @endif
                         @else
                             —
                         @endif

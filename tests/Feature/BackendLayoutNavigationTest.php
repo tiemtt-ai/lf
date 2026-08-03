@@ -220,7 +220,12 @@ class BackendLayoutNavigationTest extends TestCase
         );
         $this->assertStringContainsString('transition: none;', $css);
         $this->assertStringContainsString('display: none;', $css);
-        $this->assertStringContainsString('content: attr(data-sidebar-label);', $css);
+        $this->assertStringContainsString('.backend-sidebar-tooltip {', $css);
+        $this->assertStringContainsString('position: fixed;', $css);
+
+        $script = file_get_contents(resource_path('js/app.js'));
+        $this->assertStringContainsString('showSidebarTooltip(event, label)', $script);
+        $this->assertStringContainsString('getBoundingClientRect()', $script);
     }
 
     public function test_backend_sidebar_uses_shared_sticky_layout_css(): void

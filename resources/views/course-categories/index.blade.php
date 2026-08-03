@@ -28,7 +28,8 @@
         <span class="course-category-index-count">
             {{ trans_choice('lf.LF_course_category_index_count', $categories->total(), ['count' => $categories->total()]) }}
         </span>
-        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary">
+        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary course-category-create-action">
+            <span aria-hidden="true">+</span>
             {{ __('lf.LF_course_category_common_create') }}
         </a>
     </div>
