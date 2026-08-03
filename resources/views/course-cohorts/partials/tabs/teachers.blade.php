@@ -13,7 +13,7 @@
 
             @if (in_array($cohort->status, ['draft', 'active'], true))
                 <div class="course-cohort-teacher-assignment" x-data="{ open: @js($errors->hasAny(['teacher_id', 'role', 'assigned_from', 'assigned_to'])) }">
-                    <button type="button" class="btn btn-primary course-cohort-teacher-assignment__toggle"
+                    <button type="button" class="btn admin-primary-outline-action course-cohort-teacher-assignment__toggle"
                             x-on:click="open = !open" x-bind:aria-expanded="open.toString()" aria-controls="cohort-teacher-assignment-form">
                         <span x-text="open ? @js(__('lf.LF_course_cohort_teacher_close_form')) : @js(__('lf.LF_course_cohort_teacher_assign'))"></span>
                         <svg aria-hidden="true" viewBox="0 0 20 20" x-bind:class="{ 'is-open': open }">
@@ -74,7 +74,7 @@
             @endif
 
             <div class="admin-table-wrap course-cohort-teachers__table">
-                <table class="table">
+                <table class="table course-cohort-roster-table">
                     <thead><tr>
                         <th>{{ __('lf.LF_course_cohort_teacher_teacher') }}</th>
                         <th>{{ __('lf.LF_course_cohort_teacher_role') }}</th>
@@ -84,28 +84,38 @@
                     <tbody>
                     @forelse ($teachers as $teacher)
                         <tr>
-                            <td><strong>{{ $teacher->teacher_name }}</strong><span class="cohort-student-option-meta">{{ $teacher->teacher_email }}</span></td>
-                            <td><span @class(['badge', 'course-cohort-teacher-role-badge', 'badge-success' => $teacher->role === 'primary_teacher'])>{{ __('lf.LF_course_cohort_teacher_role_'.$teacher->role) }}</span></td>
-                            <td>
+                            <td data-label="{{ __('lf.LF_course_cohort_teacher_teacher') }}">
+                                <div class="course-cohort-teacher-identity">
+                                    <span class="course-cohort-teacher-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr(trim($teacher->teacher_name), 0, 1)) }}</span>
+                                    <span class="course-cohort-teacher-identity__content">
+                                        <strong>{{ $teacher->teacher_name }}</strong>
+                                        <span class="cohort-student-option-meta">{{ $teacher->teacher_email }}</span>
+                                    </span>
+                                </div>
+                            </td>
+                            <td data-label="{{ __('lf.LF_course_cohort_teacher_role') }}"><span @class(['badge', 'course-cohort-teacher-role-badge', 'badge-success' => $teacher->role === 'primary_teacher'])>{{ __('lf.LF_course_cohort_teacher_role_'.$teacher->role) }}</span></td>
+                            <td data-label="{{ __('lf.LF_course_cohort_teacher_period') }}">
                                 <span class="course-cohort-teachers__period">
                                     <span>{{ $teacher->assigned_from ? \Illuminate\Support\Carbon::parse($teacher->assigned_from)->format('d/m/Y') : '—' }}</span>
                                     <span aria-hidden="true">→</span>
                                     <span>{{ $teacher->assigned_to ? \Illuminate\Support\Carbon::parse($teacher->assigned_to)->format('d/m/Y') : '—' }}</span>
                                 </span>
                             </td>
-                            <td class="course-cohort-teachers__actions">
+                            <td class="course-cohort-teachers__actions" data-label="{{ __('lf.table_actions') }}">
                                 @if (in_array($cohort->status, ['draft', 'active'], true))
-                                    <form method="POST" action="{{ route('admin.course-cohorts.teachers.destroy', [$cohort->id, $teacher->id]) }}" onsubmit="return confirm(@js(__('lf.LF_course_cohort_teacher_remove_confirm', ['name' => $teacher->teacher_name])))">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="admin-text-action admin-danger-text-action">{{ __('lf.LF_common_button_remove') }}</button>
-                                    </form>
+                                    <div class="admin-table-actions course-cohort-teacher-action-list">
+                                        <form method="POST" action="{{ route('admin.course-cohorts.teachers.destroy', [$cohort->id, $teacher->id]) }}" onsubmit="return confirm(@js(__('lf.LF_course_cohort_teacher_remove_confirm', ['name' => $teacher->teacher_name])))">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="admin-link-button admin-text-action admin-table-action-link">{{ __('lf.LF_common_button_remove') }}</button>
+                                        </form>
+                                    </div>
                                 @else
                                     <span class="lf-secondary-text">{{ __('lf.LF_course_cohort_tab_read_only') }}</span>
                                 @endif
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="4"><div class="course-cohort-empty-state">{{ __('lf.LF_course_cohort_teacher_empty') }}</div></td></tr>
+                        <tr class="course-cohort-teachers__empty-row"><td class="course-cohort-teachers__empty-cell" colspan="4"><div class="course-cohort-empty-state">{{ __('lf.LF_course_cohort_teacher_empty') }}</div></td></tr>
                     @endforelse
                     </tbody>
                 </table>

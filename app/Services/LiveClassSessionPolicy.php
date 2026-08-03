@@ -6,6 +6,14 @@ use Carbon\CarbonInterface;
 
 class LiveClassSessionPolicy
 {
+    public function canEdit(object $session, bool $hasEvidence, CarbonInterface $now): bool
+    {
+        return ! $hasEvidence
+            && in_array($session->status, ['draft', 'scheduled'], true)
+            && ! $session->actual_start_at
+            && $session->scheduled_start_at > $now->format('Y-m-d H:i:s');
+    }
+
     public function canReschedule(object $session): bool
     {
         return $session->status === 'scheduled';

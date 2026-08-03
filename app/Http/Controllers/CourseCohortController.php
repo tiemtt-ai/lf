@@ -202,7 +202,7 @@ class CourseCohortController extends Controller
     private function cohortSessionsQuery(int $customerId, int $cohortId)
     {
         return DB::table('core_liveclass_sessions as sessions')
-            ->join('core_course_template_version_lessons as lessons', 'lessons.id', '=', 'sessions.version_lesson_id')
+            ->leftJoin('core_course_template_version_lessons as lessons', 'lessons.id', '=', 'sessions.version_lesson_id')
             ->leftJoin('core_course_template_version_activities as activities', 'activities.id', '=', 'sessions.version_activity_id')
             ->leftJoin('users as teachers', 'teachers.id', '=', 'sessions.primary_teacher_id')
             ->where('sessions.customer_id', $customerId)->where('sessions.cohort_id', $cohortId)
@@ -289,11 +289,26 @@ class CourseCohortController extends Controller
                 ->get(['id', 'version_lesson_id', 'title_snapshot']);
         }
 
+        $sessions = $this->cohortSessionsQuery($customerId, $cohort->id);
+        $sessionIds = $sessions->pluck('id');
+        $sessionsWithEvidence = $sessionIds->isEmpty() ? collect() : DB::table('core_liveclass_attendances')
+            ->where('customer_id', $customerId)->whereIn('session_id', $sessionIds)->pluck('session_id')
+            ->merge(DB::table('core_liveclass_recordings')
+                ->where('customer_id', $customerId)->whereIn('session_id', $sessionIds)->pluck('session_id'))
+            ->map(fn ($id): int => (int) $id)->unique();
+        $sessions->each(function (object $session) use ($sessionsWithEvidence): void {
+            $session->can_edit = $this->sessionPolicy->canEdit(
+                $session,
+                $sessionsWithEvidence->contains((int) $session->id),
+                now()
+            );
+        });
+
         return [
             'versionLessons' => $versionLessons,
             'versionActivities' => $versionActivities,
             'availableTeachers' => $this->availableTeachersQuery($customerId),
-            'sessions' => $this->cohortSessionsQuery($customerId, $cohort->id),
+            'sessions' => $sessions,
         ];
     }
 

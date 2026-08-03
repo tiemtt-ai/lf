@@ -14,6 +14,67 @@ Approved
 
 2026-06-27
 
+## Curriculum And Operational Session Amendment
+
+Approved: 2026-08-03
+
+This amendment supersedes the requirement in the 2026-07-25 amendment that
+every Session must reference a Version Lesson. Every Session still belongs to
+one same-tenant Cohort and freezes the Cohort's immutable
+`template_version_id`, but it now declares exactly one canonical
+`session_type`:
+
+```text
+curriculum
+operational
+```
+
+A `curriculum` Session realizes one published Live Class Activity and requires
+the complete authority chain:
+
+```text
+Cohort
+→ locked Template Version
+→ Version Lesson
+→ Version Activity (activity_type = live_class)
+→ Session
+```
+
+Its `version_lesson_id` and `version_activity_id` are both required. The Lesson
+must belong to the Cohort Version. The Activity must belong to that Lesson and
+Version, must share `customer_id`, and must have `activity_type = live_class`.
+One Version Lesson may contain zero, one or many Live Class Activities, and one
+Live Class Activity may be realized by zero, one or many Sessions. Non-live
+Activities never create or require Sessions automatically.
+
+An `operational` Session represents orientation, class administration,
+supplementary support, workshops, non-replacement make-up meetings, closing
+events or another event outside published learning content. Both
+`version_lesson_id` and `version_activity_id` must be `NULL`. It may retain the
+Cohort's locked `template_version_id` as immutable context, but it cannot
+produce Activity Progress, Lesson Completion or Course Completion evidence.
+Attendance and other operational history may still be recorded when the
+applicable Cohort and Session lifecycle permits it.
+
+Session type and curriculum binding are canonical columns, not inferred from
+title, nullable metadata or Working Template identifiers. Switching to
+`operational` must clear both Version IDs on the client and be canonicalized or
+rejected by the server. Create and edit must share the same validation policy.
+
+Session title remains editable. For a curriculum Session, the UI may suggest a
+title from the selected Version Lesson and Live Class Activity only while the
+user has not manually edited the title. Operational Sessions require a
+user-provided title.
+
+Cancelled and no-show Sessions are retained. A Session with Attendance,
+Recording, Replay, Progress evidence or other operational history must not be
+hard deleted. Binding fields become immutable once evidence exists; scheduling
+changes follow the append-only schedule-change policy.
+
+This amendment does not change the Cohort Version binding, published Version
+content, Enrollment, Product policy or Course ownership of Progress and
+Completion.
+
 ## Cohort-Centered Session Amendment
 
 Approved: 2026-07-25

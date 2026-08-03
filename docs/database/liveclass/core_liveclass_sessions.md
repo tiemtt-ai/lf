@@ -1,5 +1,54 @@
 # Table: core_liveclass_sessions
 
+## Curriculum And Operational Session Amendment — 2026-08-03
+
+This section supersedes the Session binding nullability in the 2026-07-25
+amendment and every conflicting legacy field description below.
+
+Add the canonical column:
+
+```text
+session_type VARCHAR(50) NOT NULL
+```
+
+Allowed values are `curriculum` and `operational`.
+
+Required for every Session: `customer_id`, `cohort_id`,
+`template_version_id`, `session_type`, `title`, `session_no`, `delivery_mode`,
+`scheduled_start_at`, `scheduled_end_at`, `timezone` and `status`.
+
+Conditional binding:
+
+| session_type | version_lesson_id | version_activity_id |
+| --- | --- | --- |
+| `curriculum` | required | required |
+| `operational` | `NULL` | `NULL` |
+
+Both binding columns are therefore nullable at database level and protected by
+a database check constraint where supported plus mandatory transactional
+application validation. Curriculum references must share `customer_id` and
+`template_version_id`; the Activity must belong to the Lesson and have
+`activity_type = live_class`.
+
+Existing rows require deterministic backfill before adding the constraint:
+
+* rows with a valid `version_activity_id` become `curriculum` after validating
+  the complete locked Version/Lesson/Activity chain;
+* rows with `version_activity_id IS NULL` become `operational` and their legacy
+  `version_lesson_id` is cleared only after an audit confirms they are not
+  Course evidence anchors;
+* invalid or ambiguous rows block deployment and require manual remediation;
+* cancelled/no-show rows and all evidence history are retained.
+
+Recommended indexes remain tenant-first and include
+`(customer_id, cohort_id, session_type, scheduled_start_at)`,
+`(customer_id, version_lesson_id)` and
+`(customer_id, version_activity_id)`. Foreign keys retain `RESTRICT` behavior.
+No Working Template identifier is permitted.
+
+This document describes the approved target contract. Implementation must use
+a new forward migration; the historical migration must not be edited.
+
 ## Cohort-Centered Amendment — 2026-07-25
 
 This section supersedes all conflicting fields and cardinalities below.

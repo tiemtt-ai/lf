@@ -378,8 +378,10 @@ display order and does not define availability.
 
 This declaration belongs to the Course definition and is frozen into the
 Version Activity at publish. It does not reference or require a Live Class
-Activity in the Template. The real Cohort Session mapped to the Version Lesson
-is the future runtime time anchor.
+Activity in the Template. Only a curriculum Cohort Session bound to the
+relevant Version Lesson is a runtime time anchor. An operational Session
+outside published content is not a Lesson/Activity availability anchor and
+cannot affect Course Progress or Completion.
 
 Learning availability is independent from `is_required`, completion rules,
 unlock rules and Progress. The Course Template feature records and snapshots

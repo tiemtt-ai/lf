@@ -1,10 +1,10 @@
 # LF-Core-LiveClass.md
 
-Version: 2.1
+Version: 2.2
 
 Status: Official Foundation
 
-Last Updated: 2026-06
+Last Updated: 2026-08
 
 ---
 
@@ -71,14 +71,15 @@ chỉ gắn với Course thông qua published Version context.
 
 ## Cohort-Centered Session Policy
 
-The 2026-07-25 approved policy supersedes the earlier Room-owned Session
-description in this document.
+The 2026-08-03 curriculum/operational amendment supersedes the Session binding
+rules in the earlier Room-owned and 2026-07-25 descriptions.
 
 `core_liveclass_sessions` belongs directly to one `core_course_cohorts` row.
-Every Session freezes the Cohort's `template_version_id` and one
-`version_lesson_id`. `version_activity_id` is conditionally required only when
-the Session realizes a Version Activity of type `live_class`; operational
-events may leave it `NULL` and cannot produce Activity Completion Evidence.
+Every Session freezes the Cohort's `template_version_id` and declares
+`session_type = curriculum|operational`. A curriculum Session requires one
+same-tenant Version Lesson and one `live_class` Version Activity in that Lesson
+and locked Version. An operational Session requires both bindings to be
+`NULL` and cannot produce Activity Completion Evidence.
 
 Room is an optional reusable delivery resource. Session snapshots its online,
 offline or hybrid delivery values. Session Teachers, Attendance, Recording and
@@ -305,6 +306,46 @@ Cohort 1 → N Sessions
 Room 1 → 0..N Sessions
 ```
 
+## Session Types And Authority
+
+### Curriculum Session
+
+`session_type = curriculum` requires:
+
+```text
+Cohort → locked Template Version → Version Lesson
+       → Live Class Version Activity → Session
+```
+
+The Lesson and Activity must share tenant and Version with the Cohort, and the
+Activity must belong to the selected Lesson with `activity_type = live_class`.
+A Lesson does not imply exactly one Session. Only Live Class Activities may be
+scheduled, and one Activity may have multiple Sessions.
+
+### Operational Session
+
+`session_type = operational` is outside published Course content. It is used
+for orientation, class meetings, supplementary support, workshops,
+non-replacement make-up meetings, closing events and similar operations.
+`version_lesson_id` and `version_activity_id` must both be `NULL`. The Session
+must be labelled as outside the curriculum and cannot create Activity Progress
+or complete a Lesson or Course.
+
+Session type is explicit and must not be inferred from title or metadata.
+Create and edit share the same server-side validation. Client-side switching
+to operational clears stale Lesson and Activity IDs, and the server must reject
+or canonicalize any remaining curriculum binding.
+
+For curriculum Sessions the UI may suggest, but never lock, a title derived
+from the Version Lesson and Live Class Activity. The suggestion may change only
+until the user manually edits the title. Operational Session title is required
+and entered by the user.
+
+List and detail presentation must show Session type. Curriculum Sessions show
+the locked Version, Version Lesson and Live Class Activity. Operational
+Sessions show “Outside curriculum” and must not render an empty Lesson cell
+that implies missing data.
+
 Session tách:
 
 ```text
@@ -329,6 +370,26 @@ no_show
 
 Session bị cancel hoặc no-show vẫn được giữ để bảo toàn lịch sử. `ended` không
 đồng nghĩa Activity đã completed.
+
+Binding fields are immutable after Attendance, Recording, Replay, Progress
+evidence or other operational history exists. Such Sessions are never hard
+deleted. Rescheduling must retain the schedule-change audit trail. Draft and
+active Cohorts may prepare schedule setup; runtime evidence still requires an
+active Cohort and an eligible Session under the existing lifecycle policy.
+
+Session setup follows these mutation boundaries:
+
+* a `draft` or `active` Cohort may create Sessions;
+* title, type, curriculum binding and delivery fields may be edited only while
+  the Session has not started, remains in a pre-runtime state and has no
+  Attendance, Recording, Replay, Progress evidence or other operational child;
+* schedule changes use the dedicated reschedule workflow and append audit
+  history rather than silently replacing history;
+* a live, ended/completed, cancelled or no-show Session keeps its type and
+  binding immutable;
+* completed or archived Cohorts expose historical Sessions read-only and do
+  not accept new Sessions;
+* cancelled and no-show Sessions remain visible and are never hard deleted.
 
 ---
 

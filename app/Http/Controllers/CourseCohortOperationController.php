@@ -121,42 +121,29 @@ class CourseCohortOperationController extends Controller
         abort_if(! $cohortRow->version_id, 422);
 
         $validated = $request->validate($this->sessionRules($customerId, (int) $cohortRow->version_id));
-        $lesson = DB::table('core_course_template_version_lessons')
-            ->where('customer_id', $customerId)
-            ->where('template_version_id', $cohortRow->version_id)
-            ->where('id', $validated['version_lesson_id'])
-            ->firstOrFail();
-        $this->validateActivity($customerId, (int) $cohortRow->version_id, (int) $lesson->id, $validated['version_activity_id'] ?? null);
+        $validated = $this->canonicalSessionBinding(
+            $customerId,
+            (int) $cohortRow->version_id,
+            $validated
+        );
 
         DB::transaction(function () use ($customerId, $cohort, $cohortRow, $validated, $request): void {
             $sessionNo = (int) DB::table('core_liveclass_sessions')
                 ->where('customer_id', $customerId)->where('cohort_id', $cohort)
                 ->lockForUpdate()->max('session_no') + 1;
 
-            $sessionId = DB::table('core_liveclass_sessions')->insertGetId([
+            $sessionId = DB::table('core_liveclass_sessions')->insertGetId(array_merge([
                 'customer_id' => $customerId,
                 'cohort_id' => $cohort,
                 'template_version_id' => $cohortRow->version_id,
-                'version_lesson_id' => $validated['version_lesson_id'],
-                'version_activity_id' => $validated['version_activity_id'] ?? null,
                 'room_id' => null,
-                'primary_teacher_id' => $validated['primary_teacher_id'] ?? null,
-                'title' => trim($validated['title']),
                 'session_no' => $sessionNo,
-                'delivery_mode' => $validated['delivery_mode'],
-                'scheduled_start_at' => $validated['scheduled_start_at'],
-                'scheduled_end_at' => $validated['scheduled_end_at'],
                 'timezone' => config('app.timezone'),
                 'status' => 'scheduled',
-                'online_provider' => $validated['online_provider'] ?? null,
-                'meeting_url_snapshot' => $validated['meeting_url'] ?? null,
-                'facility_name_snapshot' => $validated['facility_name'] ?? null,
-                'room_name_snapshot' => $validated['room_name'] ?? null,
-                'address_snapshot' => $validated['address'] ?? null,
                 'created_by' => $request->user()->id,
                 'created_at' => now(),
                 'updated_at' => now(),
-            ]);
+            ], $this->sessionPayload($validated)));
 
             if (! empty($validated['primary_teacher_id'])) {
                 DB::table('core_liveclass_session_teachers')->insert([
@@ -173,6 +160,65 @@ class CourseCohortOperationController extends Controller
 
         return $this->tab($cohort, 'sessions')
             ->with('success', __('lf.LF_course_cohort_session_created'));
+    }
+
+    public function updateSession(Request $request, int $cohort, int $session): RedirectResponse
+    {
+        $customerId = $this->authorizeAdmin($request);
+        $cohortRow = $this->setupCohort($customerId, $cohort);
+        abort_if(! $cohortRow->version_id, 422);
+
+        $validated = $request->validate($this->sessionRules($customerId, (int) $cohortRow->version_id));
+        $validated = $this->canonicalSessionBinding(
+            $customerId,
+            (int) $cohortRow->version_id,
+            $validated
+        );
+
+        DB::transaction(function () use ($customerId, $cohort, $session, $validated, $request): void {
+            $sessionRow = DB::table('core_liveclass_sessions')
+                ->where('customer_id', $customerId)
+                ->where('cohort_id', $cohort)
+                ->where('id', $session)
+                ->lockForUpdate()
+                ->firstOrFail();
+            abort_unless(
+                $this->sessionPolicy->canEdit(
+                    $sessionRow,
+                    $this->sessionHasEvidence($customerId, $session),
+                    now()
+                ),
+                422,
+                __('lf.LF_course_cohort_session_edit_locked')
+            );
+
+            DB::table('core_liveclass_sessions')
+                ->where('customer_id', $customerId)
+                ->where('id', $session)
+                ->update(array_merge($this->sessionPayload($validated), [
+                    'updated_at' => now(),
+                ]));
+
+            DB::table('core_liveclass_session_teachers')
+                ->where('customer_id', $customerId)
+                ->where('session_id', $session)
+                ->delete();
+
+            if (! empty($validated['primary_teacher_id'])) {
+                DB::table('core_liveclass_session_teachers')->insert([
+                    'customer_id' => $customerId,
+                    'session_id' => $session,
+                    'teacher_id' => $validated['primary_teacher_id'],
+                    'role' => 'primary_teacher',
+                    'created_by' => $request->user()->id,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        });
+
+        return $this->tab($cohort, 'sessions')
+            ->with('success', __('lf.LF_course_cohort_session_updated'));
     }
 
     public function updateSchedule(Request $request, int $cohort, int $session): RedirectResponse
@@ -303,9 +349,10 @@ class CourseCohortOperationController extends Controller
     {
         return [
             'title' => ['required', 'string', 'max:255'],
-            'version_lesson_id' => ['required', 'integer', Rule::exists('core_course_template_version_lessons', 'id')
+            'session_type' => ['required', Rule::in(['curriculum', 'operational'])],
+            'version_lesson_id' => ['nullable', 'required_if:session_type,curriculum', 'integer', Rule::exists('core_course_template_version_lessons', 'id')
                 ->where(fn ($query) => $query->where('customer_id', $customerId)->where('template_version_id', $versionId))],
-            'version_activity_id' => ['nullable', 'integer'],
+            'version_activity_id' => ['nullable', 'required_if:session_type,curriculum', 'integer'],
             'primary_teacher_id' => ['nullable', 'integer', Rule::exists('users', 'id')
                 ->where(fn ($query) => $query->where('customer_id', $customerId)->where('role', 'teacher')->where('status', 'active'))],
             'delivery_mode' => ['required', Rule::in(['online', 'offline', 'hybrid'])],
@@ -319,17 +366,63 @@ class CourseCohortOperationController extends Controller
         ];
     }
 
-    private function validateActivity(int $customerId, int $versionId, int $lessonId, ?int $activityId): void
+    private function canonicalSessionBinding(int $customerId, int $versionId, array $validated): array
     {
-        if (! $activityId) {
-            return;
+        if ($validated['session_type'] === 'operational') {
+            $validated['version_lesson_id'] = null;
+            $validated['version_activity_id'] = null;
+
+            return $validated;
         }
+
+        $lessonId = (int) $validated['version_lesson_id'];
+        $activityId = (int) $validated['version_activity_id'];
+        abort_unless(DB::table('core_course_template_version_lessons')
+            ->where('customer_id', $customerId)
+            ->where('template_version_id', $versionId)
+            ->where('id', $lessonId)
+            ->exists(), 422);
         abort_unless(DB::table('core_course_template_version_activities')
             ->where('customer_id', $customerId)
             ->where('template_version_id', $versionId)
             ->where('version_lesson_id', $lessonId)
             ->where('activity_type', 'live_class')
             ->where('id', $activityId)->exists(), 422);
+
+        $validated['version_lesson_id'] = $lessonId;
+        $validated['version_activity_id'] = $activityId;
+
+        return $validated;
+    }
+
+    private function sessionPayload(array $validated): array
+    {
+        $online = in_array($validated['delivery_mode'], ['online', 'hybrid'], true);
+        $offline = in_array($validated['delivery_mode'], ['offline', 'hybrid'], true);
+
+        return [
+            'session_type' => $validated['session_type'],
+            'version_lesson_id' => $validated['version_lesson_id'],
+            'version_activity_id' => $validated['version_activity_id'],
+            'primary_teacher_id' => $validated['primary_teacher_id'] ?? null,
+            'title' => trim($validated['title']),
+            'delivery_mode' => $validated['delivery_mode'],
+            'scheduled_start_at' => $validated['scheduled_start_at'],
+            'scheduled_end_at' => $validated['scheduled_end_at'],
+            'online_provider' => $online ? ($validated['online_provider'] ?? null) : null,
+            'meeting_url_snapshot' => $online ? ($validated['meeting_url'] ?? null) : null,
+            'facility_name_snapshot' => $offline ? ($validated['facility_name'] ?? null) : null,
+            'room_name_snapshot' => $offline ? ($validated['room_name'] ?? null) : null,
+            'address_snapshot' => $offline ? ($validated['address'] ?? null) : null,
+        ];
+    }
+
+    private function sessionHasEvidence(int $customerId, int $sessionId): bool
+    {
+        return DB::table('core_liveclass_attendances')
+            ->where('customer_id', $customerId)->where('session_id', $sessionId)->exists()
+            || DB::table('core_liveclass_recordings')
+                ->where('customer_id', $customerId)->where('session_id', $sessionId)->exists();
     }
 
     private function cohort(int $customerId, int $id): object

@@ -984,7 +984,7 @@ class CourseCohortManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", [
-                'title' => 'Session 1', 'version_lesson_id' => $lessonId,
+                'title' => 'Session 1', 'session_type' => 'curriculum', 'version_lesson_id' => $lessonId,
                 'version_activity_id' => $activityId, 'primary_teacher_id' => $teacher->id,
                 'delivery_mode' => 'online',
                 'scheduled_start_at' => now()->subHours(3)->format('Y-m-d H:i:s'),
@@ -1054,7 +1054,8 @@ class CourseCohortManagementTest extends TestCase
         ]);
         $sessionId = DB::table('core_liveclass_sessions')->insertGetId([
             'customer_id' => $customerId, 'cohort_id' => $cohortId,
-            'template_version_id' => $versionId, 'version_lesson_id' => $lessonId,
+            'template_version_id' => $versionId, 'session_type' => 'operational',
+            'version_lesson_id' => null, 'version_activity_id' => null,
             'title' => 'Future Session', 'session_no' => 1, 'delivery_mode' => 'online',
             'scheduled_start_at' => now()->addDay(), 'scheduled_end_at' => now()->addDay()->addHour(),
             'timezone' => config('app.timezone'), 'status' => 'scheduled',
@@ -1085,6 +1086,109 @@ class CourseCohortManagementTest extends TestCase
         $this->assertDatabaseCount('core_liveclass_recordings', 0);
         $this->assertDatabaseCount('core_liveclass_session_schedule_changes', 0);
         $this->assertDatabaseHas('core_liveclass_sessions', ['id' => $sessionId, 'status' => 'cancelled']);
+    }
+
+    public function test_session_types_enforce_locked_version_activity_binding_and_operational_null_binding(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $versionId = $this->createVersion($customerId, $admin->id, 'Locked Version');
+        $otherVersionId = $this->createVersion($customerId, $admin->id, 'Other Version');
+        $cohortId = $this->createCohort($customerId, status: 'draft');
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['version_id' => $versionId]);
+
+        $makeLesson = function (int $tenantId, int $version, string $title, int $source): int {
+            return DB::table('core_course_template_version_lessons')->insertGetId([
+                'customer_id' => $tenantId, 'template_version_id' => $version,
+                'source_template_lesson_id' => $source, 'title_snapshot' => $title,
+                'sort_order' => 1, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        };
+        $makeActivity = function (int $tenantId, int $version, int $lesson, string $type, string $title, int $source): int {
+            return DB::table('core_course_template_version_activities')->insertGetId([
+                'customer_id' => $tenantId, 'template_version_id' => $version,
+                'version_lesson_id' => $lesson, 'source_template_activity_id' => $source,
+                'title_snapshot' => $title, 'activity_type' => $type,
+                'completion_rule' => 'manual', 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        };
+
+        $lessonId = $makeLesson($customerId, $versionId, 'Locked Lesson', 30001);
+        $secondLessonId = $makeLesson($customerId, $versionId, 'Second Lesson', 30002);
+        $otherLessonId = $makeLesson($customerId, $otherVersionId, 'Foreign Version Lesson', 30003);
+        $activityId = $makeActivity($customerId, $versionId, $lessonId, 'live_class', 'Conversation Practice', 31001);
+        $otherLessonActivityId = $makeActivity($customerId, $versionId, $secondLessonId, 'live_class', 'Other Lesson Live', 31002);
+        $videoActivityId = $makeActivity($customerId, $versionId, $lessonId, 'video', 'Recorded Video', 31003);
+
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $otherAdmin = $this->createUser($otherCustomerId, 'customer_admin');
+        $crossVersionId = $this->createVersion($otherCustomerId, $otherAdmin->id, 'Cross Tenant Version');
+        $crossLessonId = $makeLesson($otherCustomerId, $crossVersionId, 'Cross Tenant Lesson', 32001);
+
+        $tab = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")
+            ->assertOk()
+            ->assertSee('Locked Lesson')
+            ->assertSee('Conversation Practice')
+            ->assertDontSee('Foreign Version Lesson')
+            ->assertDontSee('Recorded Video')
+            ->assertSee('admin-form-footer--sticky', false)
+            ->assertSee('if (this.submitting)', false)
+            ->assertSee('titleDirty', false);
+
+        $payload = [
+            'title' => 'Locked Lesson – Conversation Practice',
+            'session_type' => 'curriculum',
+            'version_lesson_id' => $lessonId,
+            'version_activity_id' => $activityId,
+            'delivery_mode' => 'online',
+            'scheduled_start_at' => now()->addDays(2)->format('Y-m-d H:i:s'),
+            'scheduled_end_at' => now()->addDays(2)->addHour()->format('Y-m-d H:i:s'),
+            'online_provider' => 'zoom',
+            'meeting_url' => 'https://example.com/live',
+        ];
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", $payload)
+            ->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", array_merge($payload, [
+            'title' => 'Second realization',
+            'scheduled_start_at' => now()->addDays(3)->format('Y-m-d H:i:s'),
+            'scheduled_end_at' => now()->addDays(3)->addHour()->format('Y-m-d H:i:s'),
+        ]))->assertSessionHasNoErrors();
+        $this->assertSame(2, DB::table('core_liveclass_sessions')->where('version_activity_id', $activityId)->count());
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", array_merge($payload, [
+            'version_lesson_id' => $otherLessonId,
+        ]))->assertSessionHasErrors('version_lesson_id');
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", array_merge($payload, [
+            'version_activity_id' => $otherLessonActivityId,
+        ]))->assertUnprocessable();
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", array_merge($payload, [
+            'version_activity_id' => $videoActivityId,
+        ]))->assertUnprocessable();
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", array_merge($payload, [
+            'version_lesson_id' => $crossLessonId,
+        ]))->assertSessionHasErrors('version_lesson_id');
+
+        $progressCount = DB::table('core_course_activity_progress')->count();
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", array_merge($payload, [
+            'title' => 'Orientation', 'session_type' => 'operational',
+        ]))->assertSessionHasNoErrors();
+        $operationalId = (int) DB::table('core_liveclass_sessions')->where('title', 'Orientation')->value('id');
+        $this->assertDatabaseHas('core_liveclass_sessions', [
+            'id' => $operationalId, 'session_type' => 'operational',
+            'version_lesson_id' => null, 'version_activity_id' => null,
+        ]);
+        $this->assertSame($progressCount, DB::table('core_course_activity_progress')->count());
+
+        $curriculumId = (int) DB::table('core_liveclass_sessions')->where('title', 'Second realization')->value('id');
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$curriculumId}", array_merge($payload, [
+            'title' => 'Workshop', 'session_type' => 'operational',
+        ]))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_liveclass_sessions', [
+            'id' => $curriculumId, 'title' => 'Workshop', 'session_type' => 'operational',
+            'version_lesson_id' => null, 'version_activity_id' => null,
+        ]);
     }
 
     public function test_create_and_draft_detail_use_canonical_accessibility_aware_tabs(): void

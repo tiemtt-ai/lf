@@ -546,6 +546,33 @@ Existing confirmation, loading, disabled và double-submit guard **MUST** đư�
 giữ nguyên. External buttons có thể dùng thuộc tính `form` để submit canonical
 form khi cấu trúc module yêu cầu.
 
+## 15.1 Long-Form Sticky Action Bar
+
+A long, repeatable or multi-item form **SHOULD** reuse `admin-form-footer` with
+the shared `admin-form-footer--sticky` modifier when the canonical submit action
+would otherwise leave the viewport during normal editing.
+
+The sticky action bar:
+
+* uses `position: sticky`, never viewport `fixed`;
+* remains inside the main content width and must not cover the sidebar;
+* provides enough bottom spacing so the last field/item remains visible;
+* keeps the same DOM and visual order as the canonical footer: Cancel/Back
+  before the primary submit;
+* may show an exact item count, exact unsaved-change count or validation state
+  on the left, but must not display an inferred or stale count;
+* disables submit while submitting, exposes a loading state and prevents
+  double submit;
+* scrolls/focuses the first invalid field after validation failure;
+* becomes a non-overflowing stacked or wrapped action row on mobile while the
+  primary action remains easy to reach;
+* must represent a real page-level save. A page that persists each item
+  independently must not invent a “Save all” action.
+
+Do not duplicate identical action groups at both the top and bottom of the
+form. Modules **SHOULD** reuse the shared modifier instead of copying sticky
+CSS or action markup into module-specific implementations.
+
 ---
 
 # 16. Accessibility
