@@ -1,6 +1,7 @@
 <div class="admin-card admin-form-card admin-form-surface course-cohort-sessions"
      x-data="{
-         formOpen: @js($errors->any()), editingId: null, submitting: false,
+         formOpen: @js($errors->any()), editingId: null, submitting: false, detailSession: null,
+         rescheduleSession: null, rescheduleStart: '', rescheduleEnd: '',
          sessionType: @js(old('session_type', 'curriculum')),
          lessonId: @js((string) old('version_lesson_id', '')),
          activityId: @js((string) old('version_activity_id', '')),
@@ -14,6 +15,7 @@
          sessions: @js($sessions),
          storeUrl: @js(route('admin.course-cohorts.sessions.store', $cohort->id)),
          updateUrl: @js(route('admin.course-cohorts.sessions.update', [$cohort->id, '__SESSION__'])),
+         rescheduleUrl: @js(route('admin.course-cohorts.sessions.schedule', [$cohort->id, '__SESSION__'])),
          availableActivities() {
              return this.activities.filter(item => String(item.version_lesson_id) === String(this.lessonId))
          },
@@ -61,6 +63,18 @@
              this.title = lesson && activity ? `${lesson.title_snapshot} – ${activity.title_snapshot}` : ''
          },
          cancelForm() { this.formOpen = false; this.resetForm() },
+         openDetail(item) {
+             this.detailSession = item
+             this.$nextTick(() => this.$refs.sessionDetailClose?.focus())
+         },
+         closeDetail() { this.detailSession = null },
+         openReschedule(item) {
+             this.rescheduleSession = item
+             this.rescheduleStart = item.scheduled_start_at.slice(0, 16).replace(' ', 'T')
+             this.rescheduleEnd = item.scheduled_end_at.slice(0, 16).replace(' ', 'T')
+             this.$nextTick(() => this.$refs.rescheduleStart?.focus())
+         },
+         closeReschedule() { this.rescheduleSession = null },
          submitForm(event) {
              if (this.submitting) { event.preventDefault(); return }
              this.submitting = true
@@ -256,31 +270,18 @@
                             </td>
                             <td class="course-cohort-session-table__actions" data-label="{{ __('lf.table_actions') }}">
                                 <div class="admin-table-actions course-cohort-session-action-list">
-                                    <details>
-                                        <summary class="admin-text-action admin-table-action-link">{{ __('lf.LF_course_cohort_session_details') }}</summary>
-                                        <div class="course-cohort-session-detail-popover">
-                                            <strong>{{ __('lf.LF_course_cohort_session_version') }}</strong><span>{{ $cohort->version_code }}</span>
-                                            <strong>{{ __('lf.LF_course_cohort_session_lesson') }}</strong><span>{{ $session->lesson_title ?: __('lf.LF_course_cohort_session_outside_content') }}</span>
-                                            <strong>{{ __('lf.LF_course_cohort_session_activity') }}</strong><span>{{ $session->activity_title ?: '—' }}</span>
-                                        </div>
-                                    </details>
+                                    <button type="button" class="admin-link-button admin-text-action admin-table-action-link"
+                                            x-on:click="openDetail(@js($session))">
+                                        {{ __('lf.LF_course_cohort_session_details') }}
+                                    </button>
                                     @if ($session->can_edit)
                                         <button type="button" class="admin-link-button admin-text-action admin-table-action-link" x-on:click="editSession(@js($session))">{{ __('lf.LF_course_cohort_session_edit') }}</button>
                                     @endif
                                     @if ($session->status === 'scheduled' && in_array($cohort->status, ['draft', 'active'], true))
-                                        <details>
-                                            <summary class="admin-text-action admin-table-action-link">{{ __('lf.LF_course_cohort_session_change_schedule') }}</summary>
-                                            <form method="POST" action="{{ route('admin.course-cohorts.sessions.schedule', [$cohort->id, $session->id]) }}" class="course-cohort-session-detail-popover course-cohort-session-reschedule-form">
-                                                @csrf @method('PUT')
-                                                <label class="lf-form-label">{{ __('lf.LF_course_cohort_session_start') }}</label>
-                                                <input type="datetime-local" name="scheduled_start_at" class="lf-form-control" value="{{ \Illuminate\Support\Carbon::parse($session->scheduled_start_at)->format('Y-m-d\TH:i') }}" required>
-                                                <label class="lf-form-label">{{ __('lf.LF_course_cohort_session_end') }}</label>
-                                                <input type="datetime-local" name="scheduled_end_at" class="lf-form-control" value="{{ \Illuminate\Support\Carbon::parse($session->scheduled_end_at)->format('Y-m-d\TH:i') }}" required>
-                                                <label class="lf-form-label">{{ __('lf.LF_course_cohort_session_change_reason') }}</label>
-                                                <textarea name="reason" class="lf-form-control" rows="2" maxlength="1000"></textarea>
-                                                <button type="submit" class="btn btn-primary">{{ __('lf.LF_course_cohort_session_save_schedule') }}</button>
-                                            </form>
-                                        </details>
+                                        <button type="button" class="admin-link-button admin-text-action admin-table-action-link"
+                                                x-on:click="openReschedule(@js($session))">
+                                            {{ __('lf.LF_course_cohort_session_change_schedule') }}
+                                        </button>
                                     @endif
                                 </div>
                             </td>
@@ -292,5 +293,76 @@
                 </table>
             </div>
         </section>
+    </div>
+
+    <div x-cloak x-show="detailSession" class="admin-modal-backdrop"
+         x-on:click.self="closeDetail()" x-on:keydown.escape.window="closeDetail()">
+        <section class="admin-modal course-cohort-session-modal" role="dialog" aria-modal="true"
+                 aria-labelledby="course-cohort-session-detail-title">
+            <header class="admin-modal-header">
+                <div>
+                    <span class="course-cohort-session-modal__eyebrow">{{ __('lf.LF_course_cohort_session_details') }}</span>
+                    <h2 id="course-cohort-session-detail-title" x-text="detailSession?.title"></h2>
+                </div>
+                <button x-ref="sessionDetailClose" type="button"
+                        class="course-enrollment-lifecycle-modal__close" x-on:click="closeDetail()"
+                        aria-label="{{ __('lf.LF_common_button_close') }}"><span aria-hidden="true">×</span></button>
+            </header>
+            <div class="course-cohort-session-modal__body">
+                <dl class="course-cohort-session-modal__grid">
+                    <div><dt>{{ __('lf.LF_course_cohort_session_version') }}</dt><dd>{{ $cohort->version_code }}</dd></div>
+                    <div><dt>{{ __('lf.LF_course_cohort_session_lesson') }}</dt><dd x-text="detailSession?.lesson_title || @js(__('lf.LF_course_cohort_session_outside_content'))"></dd></div>
+                    <div><dt>{{ __('lf.LF_course_cohort_session_activity') }}</dt><dd x-text="detailSession?.activity_title || '—'"></dd></div>
+                    <div><dt>{{ __('lf.LF_course_cohort_session_primary_teacher') }}</dt><dd x-text="detailSession?.primary_teacher_name || '—'"></dd></div>
+                </dl>
+            </div>
+            <footer class="admin-form-footer" data-actions-align="end">
+                <div class="admin-form-footer-primary">
+                    <button type="button" class="btn btn-secondary" x-on:click="closeDetail()">{{ __('lf.LF_common_button_close') }}</button>
+                </div>
+            </footer>
+        </section>
+    </div>
+
+    <div x-cloak x-show="rescheduleSession" class="admin-modal-backdrop"
+         x-on:click.self="closeReschedule()" x-on:keydown.escape.window="closeReschedule()">
+        <form method="POST"
+              x-bind:action="rescheduleSession ? rescheduleUrl.replace('__SESSION__', rescheduleSession.id) : ''"
+              class="admin-modal course-cohort-session-modal course-cohort-session-reschedule-modal"
+              role="dialog" aria-modal="true" aria-labelledby="course-cohort-session-reschedule-title">
+            @csrf @method('PUT')
+            <header class="admin-modal-header">
+                <div>
+                    <span class="course-cohort-session-modal__eyebrow">{{ __('lf.LF_course_cohort_session_change_schedule') }}</span>
+                    <h2 id="course-cohort-session-reschedule-title" x-text="rescheduleSession?.title"></h2>
+                </div>
+                <button type="button" class="course-enrollment-lifecycle-modal__close"
+                        x-on:click="closeReschedule()" aria-label="{{ __('lf.LF_common_button_close') }}">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </header>
+            <div class="course-cohort-session-modal__body course-cohort-session-reschedule-modal__body">
+                <div class="lf-form-group">
+                    <x-form-label for="reschedule_start_at" :value="__('lf.LF_course_cohort_session_start')" :required="true" />
+                    <input x-ref="rescheduleStart" id="reschedule_start_at" type="datetime-local"
+                           name="scheduled_start_at" class="lf-form-control" x-model="rescheduleStart" required>
+                </div>
+                <div class="lf-form-group">
+                    <x-form-label for="reschedule_end_at" :value="__('lf.LF_course_cohort_session_end')" :required="true" />
+                    <input id="reschedule_end_at" type="datetime-local" name="scheduled_end_at"
+                           class="lf-form-control" x-model="rescheduleEnd" required>
+                </div>
+                <div class="lf-form-group admin-form-field--full">
+                    <x-form-label for="reschedule_reason" :value="__('lf.LF_course_cohort_session_change_reason')" />
+                    <textarea id="reschedule_reason" name="reason" class="lf-form-control" rows="3" maxlength="1000"></textarea>
+                </div>
+            </div>
+            <footer class="admin-form-footer" data-actions-align="end">
+                <div class="admin-form-footer-primary">
+                    <button type="button" class="btn btn-secondary" x-on:click="closeReschedule()">{{ __('lf.LF_common_button_cancel') }}</button>
+                    <button type="submit" class="btn btn-primary">{{ __('lf.LF_course_cohort_session_save_schedule') }}</button>
+                </div>
+            </footer>
+        </form>
     </div>
 </div>

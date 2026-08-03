@@ -4103,6 +4103,68 @@
     font-weight: 600;
 }
 
+.course-cohort-session-modal {
+    width: min(560px, calc(100vw - 32px));
+}
+
+.course-cohort-session-modal__eyebrow {
+    color: var(--admin-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.course-cohort-session-modal__body {
+    padding: 20px 24px;
+}
+
+.course-cohort-session-modal__grid {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 24px;
+}
+
+.course-cohort-session-modal__grid div {
+    min-width: 0;
+}
+
+.course-cohort-session-modal__grid dt {
+    margin-bottom: 5px;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.course-cohort-session-modal__grid dd {
+    margin: 0;
+    color: var(--admin-text);
+    font-size: 14px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.course-cohort-session-modal > .admin-form-footer {
+    margin: 0;
+    padding: 14px 24px;
+}
+
+.course-cohort-session-reschedule-modal__body {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.course-cohort-session-reschedule-modal__body .lf-form-group {
+    min-width: 0;
+    margin: 0;
+}
+
+.course-cohort-session-reschedule-modal__body .admin-form-field--full {
+    grid-column: 1 / -1;
+}
+
 .course-cohort-session-reschedule-form {
     grid-template-columns: minmax(0, 1fr);
 }
@@ -4194,6 +4256,9 @@
     .course-cohort-session-table__actions,
     .course-cohort-session-action-list { justify-content: flex-start; text-align: left; }
     .course-cohort-session-detail-popover { right: auto; left: 0; max-width: calc(100vw - 64px); }
+    .course-cohort-session-modal__grid { grid-template-columns: minmax(0, 1fr); }
+    .course-cohort-session-reschedule-modal__body { grid-template-columns: minmax(0, 1fr); }
+    .course-cohort-session-reschedule-modal__body .admin-form-field--full { grid-column: auto; }
     .course-cohort-session-empty-row { border: 0 !important; }
     .lf-admin-page .course-cohort-session-empty-cell { display: block; border: 0; }
     .course-cohort-session-empty-cell::before { display: none; }
