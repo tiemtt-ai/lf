@@ -248,6 +248,7 @@
                                     <span class="bulk-enrollment-product-meta">
                                         <span x-show="item.code"><span class="bulk-enrollment-product-meta__label">{{ __('lf.LF_course_product_common_product_code') }}</span><span x-text="item.code"></span></span>
                                         <span x-show="item.version?.code"><span class="bulk-enrollment-product-meta__label">{{ __('lf.LF_course_enrollment_common_version') }}</span><span x-text="item.version?.code"></span></span>
+                                        <span x-show="item.version?.number" class="bulk-enrollment-version-lock-preview"><strong x-text="@js(__('lf.LF_course_enrollment_version_preview', ['number' => '__NUMBER__'])).replace('__NUMBER__', item.version?.number)"></strong><small>{{ __('lf.LF_course_enrollment_version_preview_help') }}</small></span>
                                         <span x-show="item.access_duration_days"><span x-text="@js(__('lf.LF_course_enrollment_duration_source')).replace(':access_days', item.access_duration_days).replace(':review_days', item.review_duration_days || 0)"></span></span>
                                     </span>
                                     <div class="bulk-enrollment-product-eligibility">
@@ -295,6 +296,7 @@
                                             <span class="bulk-enrollment-product-meta">
                                                 <span x-show="item.code"><span class="bulk-enrollment-product-meta__label">{{ __('lf.LF_course_product_common_product_code') }}</span><span x-text="item.code"></span></span>
                                                 <span x-show="item.version?.code"><span class="bulk-enrollment-product-meta__label">{{ __('lf.LF_course_enrollment_common_version') }}</span><span x-text="item.version?.code"></span></span>
+                                                <span x-show="item.version?.number" class="bulk-enrollment-version-lock-preview"><strong x-text="@js(__('lf.LF_course_enrollment_version_preview', ['number' => '__NUMBER__'])).replace('__NUMBER__', item.version?.number)"></strong><small>{{ __('lf.LF_course_enrollment_version_preview_help') }}</small></span>
                                             </span>
                                             <span class="bulk-enrollment-eligibility-badge is-ineligible">{{ __('lf.LF_bulk_enrollment_ineligible') }}</span>
                                             <div class="bulk-enrollment-invalid-reason" :class="{ 'is-selected': hasProduct(item.id) }">

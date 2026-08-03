@@ -1895,6 +1895,36 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.course-enrollment-binding-note {
+    margin: 0;
+    padding: 10px 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: var(--admin-text-muted);
+    border-radius: 8px;
+    background: #f1f5f9;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+.course-enrollment-binding-note__icon {
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+    display: inline-flex;
+    flex: 0 0 16px;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    border: 1px solid #94a3b8;
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+}
+
 .course-enrollment-detail-information-panel {
     padding: 14px 16px;
     border: 1px solid var(--admin-border);
@@ -2651,6 +2681,11 @@
 }
 
 @media (max-width: 640px) {
+    .course-enrollment-edit .course-enrollment-identity-section .admin-form-field-grid,
+    .course-enrollment-detail .course-enrollment-identity-section .admin-form-field-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
     .course-enrollment-detail .admin-form-field-grid,
     .course-enrollment-detail .course-enrollment-detail-metadata-grid,
     .course-enrollment-edit .course-enrollment-identity-section .admin-form-field-grid,

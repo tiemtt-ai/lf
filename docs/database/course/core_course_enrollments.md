@@ -96,12 +96,26 @@ core_course_progress
 * Version phải là published Version mà Product bán tại thời điểm Enrollment.
 * Enrollment và Version phải thuộc cùng `customer_id`.
 * `version_id` frozen sau khi tạo Enrollment.
+* `product_id` và `version_id` bất biến ở mọi Enrollment status, kể cả
+  `pending`; activation không phải thời điểm khóa binding.
 * Product đổi Version không được âm thầm thay đổi historical Enrollments.
 * Enrollment không được tham chiếu editable Course Template làm learning source.
 * Một Enrollment là một Learning Cycle.
 * Student có thể hoàn thành Product rồi Enrollment lại để bắt đầu cycle mới.
 * Re-enrollment được phép; không tạo unique vĩnh viễn theo Student/Product hoặc
   `(customer_id, student_id, product_id)`.
+* Existing `pending`, `active` hoặc `suspended` Enrollment chặn cycle mới cho
+  cùng tenant, Student và Product. Existing `completed`, `expired` hoặc
+  `cancelled` cho phép tạo một Enrollment mới và không bị sửa/reset.
+* Mọi creation source phải dùng chung backend creation policy, eligibility
+  policy và Product Course Version resolver. Bulk giữ một atomic transaction
+  cho toàn submission; shared pair core không tự commit.
+* Resolver phải kiểm tra Product Item, Product, Template và Version cùng tenant,
+  `product_item.template_id = version.template_id`, đúng một active Product Item
+  và Version status `published`.
+* Application writers phải whitelist update field và từ chối thay đổi binding.
+  MySQL persistence guard chặn UPDATE thực sự làm đổi `product_id` hoặc
+  `version_id`; guard này không thay thế validation khi INSERT.
 * Mỗi Progress, Completion và Product-based Certificate phải tham chiếu `enrollment_id`.
 * Enrollment có thể được tạo từ admin, teacher, self_registration, purchase,
   promotion, import hoặc api.

@@ -10,6 +10,7 @@ use App\Services\BulkEnrollmentPayload;
 use App\Services\BulkEnrollmentService;
 use App\Services\BulkEnrollmentSubmissionToken;
 use App\Services\CourseEnrollmentLifecycleService;
+use App\Services\EnrollmentCreationAction;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -408,74 +409,17 @@ class CourseEnrollmentController extends Controller
         ]);
     }
 
-    public function store(Request $request, CourseEnrollmentLifecycleService $enrollmentPolicy)
+    public function store(Request $request, EnrollmentCreationAction $creation)
     {
         $this->authorizeAdmin($request);
 
         $customerId = $this->customerId();
         $validated = $this->validatedCreateData($request, $customerId);
-        $now = now();
-        $enrolledAt = isset($validated['enrolled_at'])
-            ? Carbon::parse($validated['enrolled_at'])
-            : $now->copy();
-
-        $enrollmentId = DB::transaction(function () use (
-            $request,
+        $enrollmentId = $creation->create(
             $customerId,
-            $validated,
-            $now,
-            $enrolledAt,
-            $enrollmentPolicy,
-        ): int {
-            DB::table('core_course_products')
-                ->where('customer_id', $customerId)
-                ->where('id', $validated['product_id'])
-                ->where('status', 'active')
-                ->lockForUpdate()
-                ->firstOrFail(['id']);
-            $timeWindows = $enrollmentPolicy->projectTimeWindows(
-                $customerId,
-                (int) $validated['product_id'],
-                $enrolledAt,
-                true
-            );
-            $version = $this->resolveVersion(
-                $customerId,
-                (int) $validated['product_id'],
-                true
-            );
-            $id = DB::table('core_course_enrollments')->insertGetId([
-                'customer_id' => $customerId,
-                'product_id' => $validated['product_id'],
-                'version_id' => $version->id,
-                'student_id' => $validated['student_id'],
-                'source' => 'admin',
-                'source_id' => null,
-                'enrolled_by' => $request->user()?->id,
-                'enrolled_at' => $enrolledAt,
-                'access_duration_days' => $timeWindows['access_duration_days'],
-                'review_duration_days' => $timeWindows['review_duration_days'],
-                'access_starts_at' => $timeWindows['access_starts_at'],
-                'access_ends_at' => $timeWindows['access_ends_at'],
-                'review_starts_at' => $timeWindows['review_starts_at'],
-                'review_ends_at' => $timeWindows['review_ends_at'],
-                'status' => 'active',
-                'notes' => $validated['notes'] ?? null,
-                'completed_at' => null,
-                'cancelled_at' => null,
-                'expired_at' => null,
-                'metadata' => null,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-
-            DB::table('core_course_products')
-                ->where('customer_id', $customerId)
-                ->where('id', $validated['product_id'])
-                ->increment('enrollment_count');
-
-            return $id;
-        });
+            (int) $request->user()->id,
+            $validated
+        );
 
         return redirect()
             ->route($this->routePrefix($request).'.show', $enrollmentId)
@@ -604,25 +548,6 @@ class CourseEnrollmentController extends Controller
                 );
             }
 
-            if ($productId > 0 && $this->productExists($customerId, $productId)) {
-                $version = $this->resolvedVersionCandidate($customerId, $productId);
-
-                if (! $version) {
-                    $validator->errors()->add(
-                        'product_id',
-                        __('lf.LF_course_enrollment_validation_active_item')
-                    );
-
-                    return;
-                }
-
-                if ($version->version_status !== 'published') {
-                    $validator->errors()->add(
-                        'product_id',
-                        __('lf.LF_course_enrollment_validation_published_version')
-                    );
-                }
-            }
         });
 
         return $validator->validate();
@@ -670,39 +595,12 @@ class CourseEnrollmentController extends Controller
             if ($request->has($field) && $request->input($field) !== null) {
                 $validator->errors()->add(
                     $field,
-                    __('lf.LF_course_enrollment_validation_immutable')
+                    in_array($field, ['product_id', 'version_id'], true)
+                        ? __('lf.LF_course_enrollment_validation_binding_immutable')
+                        : __('lf.LF_course_enrollment_validation_immutable')
                 );
             }
         }
-    }
-
-    private function resolveVersion(int $customerId, int $productId, bool $lock = false): object
-    {
-        $version = $this->resolvedVersionCandidate($customerId, $productId, $lock);
-
-        abort_if(! $version || $version->version_status !== 'published', 422);
-
-        return $version;
-    }
-
-    private function resolvedVersionCandidate(int $customerId, int $productId, bool $lock = false): ?object
-    {
-        $versions = DB::table('core_course_product_items as items')
-            ->join('core_course_template_versions as versions', function ($join) use ($customerId): void {
-                $join->on('versions.id', '=', 'items.version_id')
-                    ->where('versions.customer_id', '=', $customerId);
-            })
-            ->where('items.customer_id', $customerId)
-            ->where('items.product_id', $productId)
-            ->where('items.status', 'active')
-            ->when($lock, fn ($query) => $query->lockForUpdate())
-            ->orderBy('items.sort_order')
-            ->orderBy('items.id')
-            ->select('versions.id', 'versions.status as version_status')
-            ->limit(2)
-            ->get();
-
-        return $versions->count() === 1 ? $versions->first() : null;
     }
 
     private function findEnrollment(int $customerId, int $id): object
@@ -766,8 +664,13 @@ class CourseEnrollmentController extends Controller
                     ->where('versions.customer_id', $customerId)
                     ->where('versions.status', 'published');
             })
+            ->join('core_course_templates as templates', function ($join) use ($customerId): void {
+                $join->on('templates.id', '=', 'items.template_id')
+                    ->where('templates.customer_id', $customerId);
+            })
             ->where('products.customer_id', $customerId)
             ->where('products.status', 'active')
+            ->whereColumn('versions.template_id', 'items.template_id')
             ->whereRaw('(select count(*) from core_course_product_items active_items where active_items.customer_id = products.customer_id and active_items.product_id = products.id and active_items.status = ?) = 1', ['active'])
             ->select(
                 'products.id',
@@ -808,6 +711,7 @@ class CourseEnrollmentController extends Controller
             'outside_registration_window' => $outsideRegistration,
             'version' => [
                 'code' => $product->version_code,
+                'number' => (int) $product->version_number,
                 'status' => __('lf.LF_course_enrollment_version_published'),
                 'lesson_count' => (int) $product->lesson_count,
                 'activity_count' => (int) $product->activity_count,

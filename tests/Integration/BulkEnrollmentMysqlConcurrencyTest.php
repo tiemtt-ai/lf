@@ -7,8 +7,10 @@ use App\Models\User;
 use App\Services\BulkEnrollmentPayload;
 use App\Services\BulkEnrollmentService;
 use App\Services\BulkEnrollmentSubmissionToken;
+use App\Services\EnrollmentCreationAction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Tests\TestCase;
 use Throwable;
@@ -48,7 +50,8 @@ class BulkEnrollmentMysqlConcurrencyTest extends TestCase
         ], $context['product']);
         $this->assertSame(['created', 'created'], $this->resultStatuses($case1));
         $this->assertSame(1, $this->nonTerminalCount($context));
-        $this->assertSame(1, DB::table('core_course_enrollment_submissions')->where('status', 'completed')->count());
+        $this->assertSame(1, DB::table('core_course_enrollment_submissions')
+            ->where('customer_id', $context['customer'])->where('status', 'completed')->count());
 
         $context = $this->context('two-admins');
         [$tokenA, $payloadA] = $this->preparedSubmission($context, $context['admin_a']);
@@ -76,6 +79,52 @@ class BulkEnrollmentMysqlConcurrencyTest extends TestCase
         $this->assertSame(['atomic_failed', 'reenrolled'], $statuses);
         $this->assertSame('completed', DB::table('core_course_enrollments')->where('id', $terminalId)->value('status'));
         $this->assertSame(1, $this->nonTerminalCount($context));
+    }
+
+    public function test_single_bulk_and_product_transition_concurrency_matrix(): void
+    {
+        $context = $this->context('single-single');
+        $single = $this->singleSpec($context, $context['admin_a']);
+        $statuses = $this->resultStatuses($this->runPairWorkers([$single, $single], $context['product']));
+        sort($statuses);
+        $this->assertSame(['created', 'validation_failed'], $statuses);
+        $this->assertSame(1, $this->nonTerminalCount($context));
+
+        $context = $this->context('single-bulk');
+        [$token, $payload] = $this->preparedSubmission($context, $context['admin_b']);
+        $statuses = $this->resultStatuses($this->runPairWorkers([
+            $this->singleSpec($context, $context['admin_a']),
+            $this->pairSpec($context, $context['admin_b'], $token, $payload),
+        ], $context['product']));
+        sort($statuses);
+        $this->assertTrue(in_array($statuses, [
+            ['atomic_failed', 'created'], ['created', 'validation_failed'],
+        ], true));
+        $this->assertSame(1, $this->nonTerminalCount($context));
+
+        $context = $this->context('version-switch');
+        $version2 = $this->createVersion($context['customer'], $context['admin_a'], $context['template'], 2);
+        $results = $this->runPairWorkers([
+            $this->singleSpec($context, $context['admin_a']),
+        ], $context['product'], function ($connection) use ($context, $version2): void {
+            $connection->table('core_course_product_items')->where('id', $context['item'])
+                ->lockForUpdate()->first();
+            $connection->table('core_course_product_items')->where('id', $context['item'])
+                ->update(['version_id' => $version2, 'updated_at' => now()]);
+        });
+        $this->assertSame(['created'], $this->resultStatuses($results));
+        $this->assertSame($version2, (int) DB::table('core_course_enrollments')
+            ->where('student_id', $context['student'])->value('version_id'));
+
+        $context = $this->context('product-inactive');
+        $results = $this->runPairWorkers([
+            $this->singleSpec($context, $context['admin_a']),
+        ], $context['product'], function ($connection) use ($context): void {
+            $connection->table('core_course_products')->where('id', $context['product'])
+                ->update(['status' => 'inactive', 'updated_at' => now()]);
+        });
+        $this->assertSame(['validation_failed'], $this->resultStatuses($results));
+        $this->assertSame(0, $this->nonTerminalCount($context));
     }
 
     private function runPairWorkers(array $specs, int $lockedProductId, ?callable $lockedMutation = null): array
@@ -128,6 +177,16 @@ class BulkEnrollmentMysqlConcurrencyTest extends TestCase
     private function executeSpec(array $spec): array
     {
         try {
+            if (($spec['type'] ?? 'bulk') === 'single') {
+                app(EnrollmentCreationAction::class)->create(
+                    $spec['customer'], $spec['admin'], [
+                        'student_id' => $spec['student'], 'product_id' => $spec['product'],
+                        'enrolled_at' => now()->format('Y-m-d H:i:s'), 'notes' => null,
+                    ]
+                );
+
+                return ['status' => 'created'];
+            }
             $result = app(BulkEnrollmentService::class)->commit(
                 $spec['customer'], $spec['admin'], $spec['token'], $spec['payload']
             );
@@ -135,6 +194,8 @@ class BulkEnrollmentMysqlConcurrencyTest extends TestCase
             return ['status' => $result['items'][0]['status']];
         } catch (BulkEnrollmentAtomicException) {
             return ['status' => 'atomic_failed'];
+        } catch (ValidationException) {
+            return ['status' => 'validation_failed'];
         } catch (Throwable $exception) {
             return ['status' => 'worker_error', 'error' => $exception->getMessage()];
         }
@@ -153,7 +214,12 @@ class BulkEnrollmentMysqlConcurrencyTest extends TestCase
         string $token,
         array $payload
     ): array {
-        return $context + compact('admin', 'token', 'payload');
+        return $context + compact('admin', 'token', 'payload') + ['type' => 'bulk'];
+    }
+
+    private function singleSpec(array $context, int $admin): array
+    {
+        return $context + compact('admin') + ['type' => 'single'];
     }
 
     private function preparedSubmission(array $context, int $admin, array $confirmations = []): array

@@ -36,7 +36,6 @@
                 <section class="admin-form-standard-section course-enrollment-identity-section" aria-labelledby="enrollment-edit-access">
                     <header class="admin-form-section-header">
                         <h2 id="enrollment-edit-access" class="admin-form-section-title">{{ __('lf.LF_course_enrollment_group_access') }}</h2>
-                        <p class="admin-form-section-help">{{ __('lf.LF_course_enrollment_common_frozen_help') }}</p>
                     </header>
                     <div class="admin-form-field-grid">
                         <div class="lf-form-group admin-form-field">
@@ -48,9 +47,10 @@
                             <div class="admin-form-calculated-summary"><strong class="admin-form-calculated-summary-value">{{ $enrollment->product_title }}</strong><span class="admin-form-calculated-summary-meta">{{ $enrollment->product_code }}</span></div>
                         </div>
                         <div class="lf-form-group admin-form-field">
-                            <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_version') }}</span>
+                            <span class="lf-form-label">{{ __('lf.LF_course_enrollment_locked_version_label') }}</span>
                             <div class="admin-form-calculated-summary"><strong class="admin-form-calculated-summary-value">{{ $enrollment->version_title }}</strong><span class="admin-form-calculated-summary-meta">{{ __('lf.LF_course_product_item_common_version_number', ['number' => $enrollment->version_number]) }} · {{ $enrollment->version_code }}</span></div>
                         </div>
+                        <div class="admin-form-field--full course-enrollment-binding-note" role="note"><span class="course-enrollment-binding-note__icon" aria-hidden="true">i</span><span>{{ __('lf.LF_course_enrollment_common_frozen_help') }}</span></div>
                     </div>
                 </section>
 

@@ -61,7 +61,7 @@
                             </div>
                         </div>
                         <div class="lf-form-group admin-form-field course-enrollment-detail-item">
-                            <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_version') }}</span>
+                            <span class="lf-form-label">{{ __('lf.LF_course_enrollment_locked_version_label') }}</span>
                             <div class="admin-form-calculated-summary">
                                 <strong class="admin-form-calculated-summary-value">{{ $enrollment->version_title }}</strong>
                                 <span class="admin-form-calculated-summary-meta">
@@ -70,6 +70,7 @@
                                 </span>
                             </div>
                         </div>
+                        <div class="admin-form-field--full course-enrollment-binding-note" role="note"><span class="course-enrollment-binding-note__icon" aria-hidden="true">i</span><span>{{ __('lf.LF_course_enrollment_common_frozen_help') }}</span></div>
                     </div>
                 </section>
 

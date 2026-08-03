@@ -449,8 +449,7 @@ class CourseEnrollmentManagementTest extends TestCase
         DB::table('core_course_product_items')
             ->where('customer_id', $customerId)
             ->where('id', $itemId)
-            ->update(['status' => 'inactive', 'updated_at' => now()]);
-        $this->createProductItem($customerId, $productId, $version8Id);
+            ->update(['version_id' => $version8Id, 'updated_at' => now()]);
 
         $this->actingAs($admin)
             ->post(
@@ -588,7 +587,7 @@ class CourseEnrollmentManagementTest extends TestCase
         ]);
     }
 
-    public function test_re_enrollment_for_same_student_and_product_is_allowed(): void
+    public function test_non_terminal_cycle_blocks_duplicate_and_terminal_cycle_allows_re_enrollment(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -597,17 +596,21 @@ class CourseEnrollmentManagementTest extends TestCase
         $versionId = $this->createVersion($customerId, $admin->id);
         $this->createProductItem($customerId, $productId, $versionId);
 
-        foreach ([1, 2] as $cycle) {
-            $this->actingAs($admin)
-                ->post(
-                    'https://tenant-a.localhost/admin/course-enrollments',
-                    $this->validEnrollmentData([
-                        'student_id' => $student->id,
-                        'product_id' => $productId,
-                    ])
-                )
-                ->assertRedirect();
-        }
+        $payload = $this->validEnrollmentData([
+            'student_id' => $student->id,
+            'product_id' => $productId,
+        ]);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', $payload)
+            ->assertRedirect();
+        $this->actingAs($admin)->from('https://tenant-a.localhost/admin/course-enrollments/create')
+            ->post('https://tenant-a.localhost/admin/course-enrollments', $payload)
+            ->assertSessionHasErrors('student_id');
+        $firstId = (int) DB::table('core_course_enrollments')->value('id');
+        DB::table('core_course_enrollments')->where('id', $firstId)->update([
+            'status' => 'completed', 'completed_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', $payload)
+            ->assertRedirect();
 
         $this->assertSame(
             2,
@@ -1418,6 +1421,65 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertDatabaseCount('core_course_enrollments', 0);
     }
 
+    public function test_product_item_and_version_template_mismatch_is_rejected_by_single_and_bulk(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Corrupt Binding', 'corrupt-binding');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $itemId = $this->createProductItem($customerId, $productId, $versionId);
+        $otherTemplateId = $this->createTemplate($customerId, $admin->id, 'Other Template');
+        DB::table('core_course_product_items')->where('id', $itemId)->update([
+            'template_id' => $otherTemplateId,
+        ]);
+
+        $this->actingAs($admin)->from('https://tenant-a.localhost/admin/course-enrollments/create')
+            ->post('https://tenant-a.localhost/admin/course-enrollments', $this->validEnrollmentData([
+                'student_id' => $student->id, 'product_id' => $productId,
+            ]))->assertSessionHasErrors('product_id');
+
+        $this->actingAs($admin)->postJson('https://tenant-a.localhost/admin/course-enrollments/bulk/preflight', [
+            'student_ids' => [$student->id], 'product_ids' => [$productId],
+            'reenrollment_confirmations' => [], 'configuration' => $this->bulkConfiguration(),
+            'finalize' => true,
+        ])->assertOk()->assertJson(['valid' => false, 'submission_token' => null]);
+        $this->assertDatabaseCount('core_course_enrollments', 0);
+    }
+
+    public function test_enrollment_ui_explains_preview_and_locked_historical_version(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Locked Product', 'locked-product');
+        $versionId = $this->createVersion($customerId, $admin->id, versionNumber: 7);
+        $this->createProductItem($customerId, $productId, $versionId);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-enrollments/create')
+            ->assertOk()->assertSeeText(__('lf.LF_course_enrollment_version_preview_help'));
+        foreach (['show', 'edit'] as $page) {
+            $url = 'https://tenant-a.localhost/admin/course-enrollments/'.$enrollmentId
+                .($page === 'edit' ? '/edit' : '');
+            $this->actingAs($admin)->get($url)->assertOk()
+                ->assertSeeInOrder([
+                    __('lf.LF_course_enrollment_common_student'),
+                    __('lf.LF_course_enrollment_common_product'),
+                    __('lf.LF_course_enrollment_locked_version_label'),
+                    __('lf.LF_course_enrollment_common_frozen_help'),
+                ])
+                ->assertSeeText(__('lf.LF_course_enrollment_common_frozen_help'))
+                ->assertSeeText(__('lf.LF_course_enrollment_locked_version_label'))
+                ->assertDontSeeText(__('lf.LF_course_enrollment_locked_badge'))
+                ->assertSee('admin-form-field--full course-enrollment-binding-note', false)
+                ->assertDontSeeText(__('lf.LF_course_enrollment_locked_history_help', ['number' => 7]))
+                ->assertDontSeeText('Học viên, sản phẩm và phiên bản đã phát hành được khóa cho ghi danh này và không thể chỉnh sửa.')
+                ->assertDontSee('name="product_id"', false)
+                ->assertDontSee('name="version_id"', false);
+        }
+    }
+
     public function test_registration_boundaries_are_inclusive_and_projected_windows_are_frozen(): void
     {
         $customerId = $this->createTenant();
@@ -2042,10 +2104,13 @@ class CourseEnrollmentManagementTest extends TestCase
         int $sortOrder = 0
     ): int {
         $now = now();
+        $templateId = DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)->where('id', $versionId)->value('template_id');
 
         return DB::table('core_course_product_items')->insertGetId([
             'customer_id' => $customerId,
             'product_id' => $productId,
+            'template_id' => $templateId,
             'version_id' => $versionId,
             'title_override' => null,
             'short_description_override' => null,

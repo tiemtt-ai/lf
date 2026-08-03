@@ -614,6 +614,75 @@ Product versioning so với tạo Product mới cần owner xác nhận theo t�
 
 # Enrollment
 
+## Enrollment Creation And Immutable Binding
+
+Every Enrollment is one learning cycle. Every current and future creation
+source must use the same backend creation policy:
+
+```text
+Entry point
+
+↓
+
+Enrollment Creation Action
+
+↓
+
+Enrollment Eligibility Policy
+
+↓
+
+Product Course Version Resolver
+
+↓
+
+Locked Product and Version binding
+
+↓
+
+Enrollment insert
+```
+
+The request may provide Student, Product, enrollment time, source and approved
+optional configuration, but never `version_id`. Inside the creation transaction,
+the backend reloads and validates the tenant-owned active Student and Product,
+registration window, exactly one active Product Item, matching Product Item
+Template and Version Template, and the tenant-owned `published` immutable
+Version. Preview data is never commit authority.
+
+`product_id` and `version_id` become immutable when the Enrollment row is
+inserted. They cannot be changed while the Enrollment is `pending`, `active`,
+`suspended`, `completed`, `expired` or `cancelled`. Product Version changes do
+not migrate historical Enrollments. Changing Product or Version requires the
+current cycle to end through its approved lifecycle and a new eligible
+Enrollment to be created.
+
+Duplicate and re-enrollment policy:
+
+| Existing cycle status | New cycle for the same tenant, Student and Product |
+| --- | --- |
+| `pending` | Rejected |
+| `active` | Rejected |
+| `suspended` | Rejected |
+| `completed` | Allowed as a new Enrollment |
+| `expired` | Allowed as a new Enrollment |
+| `cancelled` | Allowed as a new Enrollment |
+
+No permanent unique constraint may be added on Student and Product because it
+would block valid re-enrollment. Creation correctness instead uses deterministic
+authority-row locks and duplicate revalidation. Lock order is submission or
+idempotency authority when applicable, Student IDs ascending, Product IDs
+ascending, Product Items by Product and Item ID, Versions by ID, then Enrollment
+history by ID. Bulk owns one transaction for its complete atomic submission;
+the shared creation core must not open or commit a pair-level transaction when
+called by Bulk.
+
+Application request/update whitelists reject attempts to change the binding.
+The production MySQL database additionally rejects an actual update that changes
+`product_id` or `version_id`; this persistence guard does not replace complete
+binding validation on insert. Runtime learning always uses
+`enrollment.version_id` and never falls back to the Product's current Version.
+
 ## Admin Bulk Enrollment
 
 Customer Admin uses one unified Bulk Enrollment flow supporting one or many
