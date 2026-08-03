@@ -887,7 +887,7 @@ return [
     'LF_course_cohort_tab_sessions_note' => 'Thiết lập lịch và các buổi học của lớp. Có thể sử dụng sau khi lớp được tạo ở trạng thái Nháp và có thể là điều kiện bắt buộc để kích hoạt lớp.',
     'LF_course_cohort_tab_attendance_note' => 'Ghi nhận tình trạng tham gia của học viên theo từng buổi học. Chức năng này chỉ được sử dụng khi lớp đã hoạt động và có buổi học phù hợp.',
     'LF_course_cohort_tab_recordings_note' => 'Quản lý bản ghi và nội dung xem lại phát sinh từ các buổi học.',
-    'LF_course_cohort_tab_overview_detail_note' => 'Xem thông tin cơ bản, sản phẩm, phiên bản nội dung và sức chứa của lớp. Bạn có thể tiếp tục thiết lập học viên, giáo viên và lịch học trước khi kích hoạt lớp.',
+    'LF_course_cohort_tab_overview_detail_note' => 'Kiểm tra thông tin lớp và hoàn tất học viên, giáo viên, lịch học trước khi kích hoạt.',
     'LF_course_cohort_tab_students_detail_note' => 'Thêm và quản lý học viên của lớp. Chỉ các ghi danh đang hoạt động và đáp ứng đầy đủ điều kiện mới được thêm vào lớp.',
     'LF_course_cohort_tab_teachers_detail_note' => 'Phân công và quản lý giáo viên phụ trách lớp. Có thể thiết lập trong khi lớp đang ở trạng thái Nháp.',
     'LF_course_cohort_tab_sessions_detail_note' => 'Thiết lập lịch và các buổi học của lớp. Đây có thể là điều kiện bắt buộc trước khi kích hoạt lớp.',

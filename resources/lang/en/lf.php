@@ -887,7 +887,7 @@ return [
     'LF_course_cohort_tab_sessions_note' => 'Prepare the schedule and class sessions after the class is created as a Draft. A schedule may be required for activation.',
     'LF_course_cohort_tab_attendance_note' => 'Record student participation by session. Attendance is available only when the class is active and has an eligible session.',
     'LF_course_cohort_tab_recordings_note' => 'Manage recordings and replay content produced by class sessions.',
-    'LF_course_cohort_tab_overview_detail_note' => 'View the class basics, product, content version, and capacity. You can continue setting up students, teachers, and the schedule before activating the class.',
+    'LF_course_cohort_tab_overview_detail_note' => 'Review the class details and finish setting up students, teachers, and the schedule before activation.',
     'LF_course_cohort_tab_students_detail_note' => 'Add and manage class students. Only active enrollments that meet every eligibility requirement may be assigned.',
     'LF_course_cohort_tab_teachers_detail_note' => 'Assign and manage the teaching team while the class is still in Draft.',
     'LF_course_cohort_tab_sessions_detail_note' => 'Set up the class schedule and sessions. This may be required before the class can be activated.',

@@ -683,6 +683,50 @@
     border-bottom: 1px solid var(--admin-border);
 }
 
+.course-cohort-detail-tabs {
+    margin-top: 16px;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.course-cohort-detail-tabs .btn {
+    min-height: 40px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.35;
+}
+
+.course-cohort-detail-tabs-help {
+    width: 100%;
+    max-width: none;
+    margin-top: 8px;
+    padding: 7px 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    border-radius: 7px;
+    color: var(--admin-text-muted);
+    background: var(--admin-surface-subtle);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.course-cohort-detail-tabs-help__icon {
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+    flex: 0 0 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid color-mix(in srgb, var(--admin-text-muted) 55%, transparent);
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+}
+
 .cohort-detail-back {
     display: inline-flex;
     align-items: center;
@@ -706,6 +750,29 @@
 
 .cohort-detail-action-group form {
     margin: 0;
+}
+
+.course-cohort-activation-alert {
+    max-width: 440px;
+    margin: 0;
+    padding: 9px 12px;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.45;
+}
+
+.course-cohort-activation-alert strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.course-cohort-activation-alert ul {
+    margin-top: 3px;
+    padding-left: 18px;
 }
 
 .cohort-lifecycle-action {
@@ -783,6 +850,11 @@
     .cohort-detail-action-group {
         justify-content: flex-start;
         flex-wrap: wrap;
+    }
+
+    .course-cohort-activation-alert {
+        width: 100%;
+        max-width: none;
     }
 }
 
@@ -2464,7 +2536,24 @@
 }
 
 .cohort-overview-identity {
-    padding-bottom: 22px;
+    padding-bottom: 20px;
+}
+
+.admin-card.course-cohort-detail {
+    padding: 22px 24px;
+}
+
+.course-cohort-detail .cohort-overview-section {
+    padding-bottom: 20px;
+}
+
+.course-cohort-detail .cohort-overview-section + .cohort-overview-section,
+.course-cohort-detail .cohort-overview-identity + .cohort-overview-section {
+    padding-top: 20px;
+}
+
+.course-cohort-detail .admin-form-section-header {
+    margin-bottom: 12px;
 }
 
 .cohort-overview-heading {
@@ -2483,7 +2572,7 @@
 .cohort-overview-heading h2 {
     margin: 4px 0 0;
     color: var(--admin-text);
-    font-size: 24px;
+    font-size: 22px;
     line-height: 1.3;
 }
 
@@ -2491,7 +2580,7 @@
     display: flex;
     align-items: flex-end;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
     flex: 0 0 auto;
 }
 
@@ -2506,7 +2595,7 @@
 }
 
 .cohort-overview-context {
-    margin: 20px 0 0;
+    margin: 16px 0 0;
     padding: 0;
     display: grid;
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(140px, .55fr);
@@ -2517,7 +2606,7 @@
 
 .cohort-overview-context > div {
     min-width: 0;
-    padding: 15px 18px;
+    padding: 13px 16px;
 }
 
 .cohort-overview-context > div + div {
@@ -2557,25 +2646,28 @@
 }
 
 .cohort-overview-dates > div {
-    padding: 14px 16px;
-    border-left: 3px solid color-mix(in srgb, var(--admin-primary) 55%, transparent);
+    padding: 12px 14px;
+    border-left: 2px solid color-mix(in srgb, var(--admin-primary) 55%, transparent);
+    border-radius: 0 8px 8px 0;
     background: var(--admin-surface-subtle);
 }
 
 .cohort-overview-dates dd {
     margin: 0;
     color: var(--admin-text);
-    font-size: 16px;
-    font-weight: 700;
+    font-size: 15px;
+    font-weight: 650;
 }
 
 .cohort-overview-notes {
-    padding: 14px 16px;
-    border-left: 3px solid var(--admin-border);
+    min-height: 0;
+    padding: 12px 14px;
+    border-left: 2px solid var(--admin-border);
+    border-radius: 0 8px 8px 0;
     background: var(--admin-surface-subtle);
     color: var(--admin-text-muted);
+    font-size: 13px;
     line-height: 1.6;
-    white-space: pre-wrap;
 }
 
 .cohort-overview-notes > span {
@@ -2587,6 +2679,7 @@
 
 .cohort-overview-notes > p {
     margin: 0;
+    white-space: pre-wrap;
 }
 
 .admin-card.course-cohort-edit-overview {
@@ -2756,8 +2849,12 @@
     padding-bottom: 0;
 }
 
+.admin-card.course-cohort-students-readonly {
+    padding: 22px 24px;
+}
+
 .course-cohort-students-readonly .admin-form-section-header {
-    margin-bottom: 16px;
+    margin-bottom: 14px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2766,14 +2863,21 @@
 
 .cohort-student-list-heading-main {
     min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .cohort-student-list-count {
-    margin-top: 5px;
-    display: block;
-    color: var(--admin-text-muted);
-    font-size: 14px;
+    padding: 3px 8px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    color: var(--admin-primary);
+    background: color-mix(in srgb, var(--admin-primary) 9%, #fff);
+    font-size: 12px;
     font-weight: 600;
+    line-height: 1.4;
 }
 
 .cohort-student-list-heading-actions {
@@ -2784,8 +2888,16 @@
     gap: 10px;
 }
 
+.cohort-student-list-heading-actions .btn {
+    min-height: 40px;
+    padding: 8px 14px;
+    font-size: 14px;
+}
+
 .cohort-student-list-filter {
-    margin-bottom: 14px;
+    width: 100%;
+    max-width: none;
+    margin-bottom: 16px;
     display: grid;
     grid-template-columns: minmax(260px, 1fr) auto;
     align-items: center;
@@ -2798,7 +2910,7 @@
 }
 
 .cohort-student-list-filter__actions {
-    min-height: 42px;
+    min-height: 38px;
     align-items: center;
     flex-wrap: nowrap;
 }
@@ -2807,21 +2919,41 @@
     table-layout: fixed;
 }
 
+.cohort-student-list-table tbody tr {
+    transition: background-color 150ms ease;
+}
+
+.cohort-student-list-table tbody tr:hover {
+    background: color-mix(in srgb, var(--admin-primary) 3%, var(--admin-surface));
+}
+
 .cohort-student-list-table th:nth-child(1) {
-    width: 36%;
+    width: 35%;
 }
 
 .cohort-student-list-table th:nth-child(2) {
-    width: 30%;
+    width: 31%;
 }
 
 .cohort-student-list-table th:nth-child(3) {
-    width: 16%;
+    width: 20%;
+    white-space: nowrap;
 }
 
 .cohort-student-list-table .cohort-student-list-actions {
-    width: 18%;
+    width: 14%;
     text-align: right;
+}
+
+.lf-admin-page .cohort-student-list-table th {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    font-size: 13px;
+}
+
+.lf-admin-page .cohort-student-list-table td {
+    padding-top: 13px;
+    padding-bottom: 13px;
 }
 
 .cohort-student-list-status .badge {
@@ -2832,6 +2964,48 @@
     justify-content: flex-end;
     flex-wrap: nowrap;
     white-space: nowrap;
+}
+
+.cohort-student-list-view-action.btn {
+    min-height: 34px;
+    padding: 6px 10px;
+    border-color: transparent;
+    color: var(--admin-primary);
+    background: transparent;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.cohort-student-list-view-action.btn:hover,
+.cohort-student-list-view-action.btn:focus-visible {
+    border-color: color-mix(in srgb, var(--admin-primary) 18%, transparent);
+    color: var(--admin-primary);
+    background: color-mix(in srgb, var(--admin-primary) 7%, #fff);
+}
+
+.cohort-student-identity {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cohort-student-avatar {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--admin-primary);
+    background: color-mix(in srgb, var(--admin-primary) 10%, #fff);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.cohort-student-identity__content {
+    min-width: 0;
 }
 
 .cohort-student-enrollment-code {
@@ -2885,6 +3059,12 @@
         align-items: stretch;
         flex-direction: column;
         gap: 12px;
+    }
+
+    .cohort-student-list-heading-main {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 6px;
     }
 
     .cohort-student-list-heading-actions {

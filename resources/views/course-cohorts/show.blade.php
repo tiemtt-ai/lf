@@ -23,7 +23,7 @@
     @endif
 
     <div x-data="{ lockedReason: '' }">
-        <nav class="admin-form-actions" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
+        <nav class="admin-form-actions course-cohort-detail-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
             @foreach ($cohortTabs as $tab)
                 <span class="sr-only">{{ $tab['note'] }}</span>
                 @if ($tab['accessible'])
@@ -43,8 +43,10 @@
                 @endif
             @endforeach
         </nav>
-        <p class="admin-form-section-help" role="status" aria-live="polite"
-           x-text="lockedReason || @js(collect($cohortTabs)->firstWhere('key', $activeTab)['note'])"></p>
+        <p class="admin-form-section-help course-cohort-detail-tabs-help" role="status" aria-live="polite">
+            <span class="course-cohort-detail-tabs-help__icon" aria-hidden="true">i</span>
+            <span x-text="lockedReason || @js(collect($cohortTabs)->firstWhere('key', $activeTab)['note'])"></span>
+        </p>
     </div>
 
     <div class="cohort-detail-toolbar">
@@ -55,7 +57,7 @@
         <div class="cohort-detail-action-group">
             @if ($cohort->status === 'draft')
                 @if ($activationIssues !== [])
-                    <div id="cohort-activate-requirements" class="admin-alert admin-alert-danger" role="alert">
+                    <div id="cohort-activate-requirements" class="admin-alert admin-alert-danger course-cohort-activation-alert" role="alert">
                         <strong>{{ __('lf.LF_course_cohort_activation_requirements') }}</strong>
                         <ul>@foreach ($activationIssues as $issue)<li>{{ $issue }}</li>@endforeach</ul>
                     </div>
@@ -163,7 +165,7 @@
                 </dl>
             </section>
 
-            <section class="admin-form-standard-section" aria-labelledby="cohort-show-dates">
+            <section class="admin-form-standard-section cohort-overview-section" aria-labelledby="cohort-show-dates">
                 <header class="admin-form-section-header">
                     <h2 id="cohort-show-dates" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_dates') }}</h2>
                 </header>
@@ -173,7 +175,7 @@
                 </dl>
             </section>
 
-            <section class="admin-form-standard-section" aria-labelledby="cohort-show-additional">
+            <section class="admin-form-standard-section cohort-overview-section" aria-labelledby="cohort-show-additional">
                 <header class="admin-form-section-header">
                     <h2 id="cohort-show-additional" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_additional') }}</h2>
                 </header>
@@ -204,16 +206,14 @@
                 <header class="admin-form-section-header">
                     <div class="cohort-student-list-heading-main">
                         <h2 id="cohort-show-students" class="admin-form-section-title">{{ __('lf.LF_course_cohort_student_view_title') }}</h2>
-                        <span class="cohort-student-list-count">{{ trans_choice('lf.LF_course_cohort_student_current_count', $activeMembershipCount, ['count' => $activeMembershipCount]) }}</span>
+                        <span class="cohort-student-list-count">{{ $activeMembershipCount }}/{{ $cohort->capacity ?? '∞' }}</span>
                     </div>
                     @if (in_array($cohort->status, ['draft', 'active'], true))
                         <div class="cohort-student-list-heading-actions">
-                            @if ($activeMembershipCount > 0)
-                                <a class="btn btn-primary" href="{{ route('admin.course-cohorts.students.edit', $cohort->id) }}">{{ __('lf.LF_course_cohort_student_edit_list_title') }}</a>
-                                <a class="btn btn-secondary" href="{{ route('admin.course-cohorts.students.create', $cohort->id) }}">{{ __('lf.LF_course_cohort_student_common_create') }}</a>
-                            @else
-                                <a class="btn btn-primary" href="{{ route('admin.course-cohorts.students.create', $cohort->id) }}">{{ __('lf.LF_course_cohort_student_common_create') }}</a>
-                            @endif
+                            <a class="btn btn-primary"
+                               href="{{ $activeMembershipCount > 0 ? route('admin.course-cohorts.students.edit', $cohort->id) : route('admin.course-cohorts.students.create', $cohort->id) }}">
+                                {{ __('lf.LF_course_cohort_student_manage_heading') }}
+                            </a>
                         </div>
                     @endif
                 </header>
@@ -247,8 +247,13 @@
                         @forelse ($students as $student)
                             <tr>
                                 <td data-label="{{ __('lf.LF_course_cohort_student_common_student') }}">
-                                    <strong class="course-cohort-index-primary">{{ $student->student_name }}</strong>
-                                    <span class="course-cohort-index-meta">{{ $student->student_email }}</span>
+                                    <div class="cohort-student-identity">
+                                        <span class="cohort-student-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr(trim($student->student_name), 0, 1)) }}</span>
+                                        <span class="cohort-student-identity__content">
+                                            <strong class="course-cohort-index-primary">{{ $student->student_name }}</strong>
+                                            <span class="course-cohort-index-meta">{{ $student->student_email }}</span>
+                                        </span>
+                                    </div>
                                 </td>
                                 <td data-label="{{ __('lf.LF_course_cohort_student_common_enrollment') }}">
                                     <strong class="cohort-student-enrollment-code">ENR-{{ str_pad((string) $student->enrollment_id, 6, '0', STR_PAD_LEFT) }}</strong>
@@ -267,7 +272,7 @@
                                 <td class="cohort-student-list-actions" data-label="{{ __('lf.table_actions') }}">
                                     <div class="admin-table-actions">
                                         <button type="button"
-                                                class="admin-text-action"
+                                                class="btn btn-secondary cohort-student-list-view-action"
                                                 x-on:click="openDetail(@js([
                                                     'id' => $student->enrollment_id,
                                                     'name' => $student->student_name,
