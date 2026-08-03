@@ -24,7 +24,7 @@
         </div>
     @endif
 
-    <div class="admin-card admin-form-card admin-form-surface">
+    <div class="admin-card admin-form-card admin-form-surface admin-organization-form">
         <form id="organization-update-form"
               class="admin-form-standard"
               method="POST"
@@ -94,18 +94,18 @@
                         <p class="admin-form-section-help">{{ __('lf.LF_admin_help_organization_system') }}</p>
                     </header>
 
-                    <dl class="admin-profile-summary admin-profile-summary--three admin-readonly-summary admin-readonly-summary--standalone">
+                    <dl class="admin-profile-summary admin-profile-summary--three admin-readonly-summary admin-readonly-summary--standalone admin-organization-system-grid">
                             <div>
                                 <dt>{{ __('lf.LF_admin_label_tenant_customer_id') }}</dt>
-                                <dd>{{ $tenant->id }}</dd>
+                                <dd><code class="admin-organization-system-code">{{ $tenant->id }}</code></dd>
                             </div>
                             <div>
                                 <dt>{{ __('lf.LF_admin_label_tenant_slug') }}</dt>
-                                <dd>{{ $tenant->slug ?? $emptyValue }}</dd>
+                                <dd><code class="admin-organization-system-code">{{ $tenant->slug ?? $emptyValue }}</code></dd>
                             </div>
                             <div>
                                 <dt>{{ __('lf.LF_admin_label_tenant_subdomain') }}</dt>
-                                <dd>{{ $tenant->subdomain ?? $emptyValue }}</dd>
+                                <dd><code class="admin-organization-system-code">{{ $tenant->subdomain ?? $emptyValue }}</code></dd>
                             </div>
                             <div>
                                 <dt>{{ __('lf.LF_admin_label_tenant_status') }}</dt>
@@ -119,7 +119,7 @@
                             </div>
                             <div>
                                 <dt>{{ __('lf.LF_admin_label_tenant_logo') }}</dt>
-                                <dd>{{ __('lf.LF_admin_value_future_ready') }}</dd>
+                                <dd><span class="admin-organization-future-value">{{ __('lf.LF_admin_value_future_ready') }}</span></dd>
                             </div>
                             <div>
                                 <dt>{{ __('lf.LF_admin_label_tenant_theme') }}</dt>
@@ -127,7 +127,7 @@
                             </div>
                             <div>
                                 <dt>{{ __('lf.LF_admin_label_tenant_language') }}</dt>
-                                <dd>{{ __('lf.LF_admin_value_future_ready') }}</dd>
+                                <dd><span class="admin-organization-future-value">{{ __('lf.LF_admin_value_future_ready') }}</span></dd>
                             </div>
                     </dl>
                 </section>
@@ -136,7 +136,7 @@
             <footer class="admin-form-footer">
                 <div class="admin-form-footer-danger"></div>
                 <div class="admin-form-footer-primary">
-                    <button type="submit" class="btn btn-primary">{{ __('lf.LF_common_button_save_changes') }}</button>
+                    <button type="submit" class="btn btn-primary admin-organization-save-action">{{ __('lf.LF_common_button_save_changes') }}</button>
                 </div>
             </footer>
         </form>

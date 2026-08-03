@@ -4821,6 +4821,86 @@
     margin-top: 8px;
 }
 
+.admin-organization-form .admin-form-standard-section {
+    padding-bottom: 22px;
+}
+
+.admin-organization-form .admin-form-standard-section + .admin-form-standard-section {
+    padding-top: 22px;
+}
+
+.admin-organization-form .lf-form-label {
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.admin-organization-form .lf-form-control {
+    min-height: 42px;
+}
+
+.admin-organization-system-grid {
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface-subtle);
+}
+
+.admin-organization-system-grid > div {
+    min-width: 0;
+    padding: 14px 16px;
+    border-right: 1px solid var(--admin-border);
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-organization-system-grid > div:last-child {
+    border-bottom: 0;
+}
+
+.admin-organization-system-grid dt {
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.admin-organization-system-grid dd {
+    margin-top: 5px;
+    font-size: 14px;
+}
+
+.admin-organization-system-code {
+    padding: 2px 6px;
+    border-radius: 5px;
+    color: #334155;
+    background: #ffffff;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.admin-organization-future-value {
+    color: #64748b;
+    font-size: 13px;
+}
+
+.admin-organization-save-action {
+    min-width: 132px;
+}
+
+@media (min-width: 1200px) {
+    :root.is-backend-sidebar-collapsed .backend-shell .admin-organization-system-grid > div:nth-child(3n),
+    .backend-shell.is-sidebar-collapsed .admin-organization-system-grid > div:nth-child(3n) {
+        border-right: 0;
+    }
+}
+
+@media (max-width: 1199px) {
+    .admin-organization-system-grid > div {
+        border-right: 0;
+    }
+}
+
 @media (max-width: 1024px) {
     .admin-user-filter-grid {
         grid-template-columns: minmax(0, 1fr) minmax(180px, .55fr);

@@ -278,7 +278,7 @@ class AdminProfileTest extends TestCase
         $response = $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/organization')
             ->assertOk()
-            ->assertSee('class="admin-card admin-form-card admin-form-surface"', false)
+            ->assertSee('class="admin-card admin-form-card admin-form-surface admin-organization-form"', false)
             ->assertSee('id="organization-update-form"', false)
             ->assertSee('class="admin-form-standard"', false)
             ->assertSee('class="admin-form-flow"', false)
