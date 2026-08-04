@@ -419,5 +419,6 @@
             <img src="{{ asset('assets/admin/download.svg') }}" alt="{{ __('lf.LF_common_image_common_download') }}">
         </div>
     </div>
+    <x-confirm-dialog />
     </div>
 @endsection

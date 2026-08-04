@@ -1640,7 +1640,7 @@ class CourseProductManagementTest extends TestCase
         ]);
         $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$sourceId}/edit")
             ->assertOk()->assertSeeText('Sản phẩm liên quan (2)')
-            ->assertSee('G\u1ee1 li\u00ean k\u1ebft s\u1ea3n ph\u1ea9m?\\n\\nThao t\u00e1c n\u00e0y ch\u1ec9 x\u00f3a quan h\u1ec7 marketing\/b\u00e1n h\u00e0ng', false);
+            ->assertSee('data-lf-confirm=', false);
     }
 
     public function test_archived_product_relations_are_read_only_and_keep_historical_targets_visible(): void

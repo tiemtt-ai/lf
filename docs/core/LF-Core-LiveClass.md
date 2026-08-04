@@ -1,6 +1,6 @@
 # LF-Core-LiveClass.md
 
-Version: 2.2
+Version: 2.3
 
 Status: Official Foundation
 
@@ -95,6 +95,47 @@ Attendance and other operational evidence may be created only when the Cohort
 is `active` and the existing Session, Enrollment, authorization and tenant
 requirements are satisfied. Historical data remains readable according to the
 applicable authorization policy after completion or archival.
+
+### Cohort Primary Teacher Assignment Policy — 2026-08-04
+
+Một Cohort chỉ được có tối đa một assignment `primary_teacher` đang hoạt động.
+Giáo viên chính chịu trách nhiệm toàn bộ vòng đời vận hành của lớp, vì vậy
+`assigned_from` và `assigned_to` bắt buộc lần lượt bằng
+`core_course_cohorts.start_date` và `core_course_cohorts.end_date`. Cohort phải
+có đủ hai mốc thời gian trước khi phân công giáo viên chính.
+
+Khi thay giáo viên chính, assignment chính hiện tại phải được chuyển về vai trò
+`teacher` trước khi assignment mới trở thành `primary_teacher`; không xóa lịch
+sử assignment. Khi một Cohort còn được phép sửa thời gian vận hành, mọi
+assignment `primary_teacher` đang hoạt động phải được đồng bộ trong cùng
+transaction với ngày mới của Cohort.
+
+Các vai trò `teacher` và `assistant` được phép có khoảng phụ trách ngắn hơn,
+nhưng khoảng đó phải nằm hoàn toàn trong thời gian vận hành của Cohort. Chính
+sách Cohort teacher không tự tạo hoặc thay đổi Session teacher assignment;
+giáo viên của từng Session vẫn là cấu hình vận hành riêng.
+
+Trên form Session không có khái niệm giáo viên chính và không tự động chọn
+người phụ trách. Tất cả assignment đang hoạt động của Cohort được trình bày
+trong cùng một nhóm checkbox khi toàn bộ khoảng `scheduled_start_at` đến
+`scheduled_end_at` của Session nằm
+trong khoảng phụ trách hiệu lực của assignment. Khoảng `NULL` ở một đầu được
+hiểu là không giới hạn thêm ở đầu đó nhưng vẫn chịu boundary thời gian Cohort.
+UI phải lọc theo hai mốc Session và backend phải kiểm tra lại cùng invariant;
+request trực tiếp không được vượt qua availability này.
+
+Một Session có thể có nhiều assignment `teacher`/`assistant`. Một Teacher chỉ
+xuất hiện một lần trong một Session. Đội ngũ canonical nằm tại
+`core_liveclass_session_teachers`; implementation mới phải ghi
+`core_liveclass_sessions.primary_teacher_id = NULL`. Cột này chỉ được giữ để
+đọc dữ liệu legacy và không đại diện cho policy hiện hành.
+Đổi lịch Session phải tái kiểm tra availability của tất cả giáo viên trước khi
+ghi schedule change.
+
+Khoảng lịch của Session phải nằm hoàn toàn trong thời gian vận hành Cohort.
+Ngày bắt đầu tối thiểu là ngày lớn hơn giữa `cohort.start_date` và ngày hiện
+tại; ngày kết thúc tối đa là cuối ngày `cohort.end_date`. Cùng boundary phải
+được áp dụng ở date picker và backend cho cả tạo, sửa và đổi lịch.
 
 ## LiveClass Operational Data Principle
 

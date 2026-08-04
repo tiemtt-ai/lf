@@ -249,4 +249,79 @@ window.courseTemplateSectionCollapse = (tenantId, templateId, sectionId) => ({
     },
 });
 
+const bootLfConfirmDialog = () => {
+    const dialog = document.querySelector('[data-lf-confirm-dialog]');
+
+    if (! (dialog instanceof HTMLDialogElement)) {
+        return;
+    }
+
+    const title = dialog.querySelector('[data-lf-confirm-title]');
+    const message = dialog.querySelector('[data-lf-confirm-message]');
+    const cancel = dialog.querySelector('[data-lf-confirm-cancel]');
+    const accept = dialog.querySelector('[data-lf-confirm-accept]');
+    let resolvePending = null;
+    let returnFocus = null;
+
+    const finish = (confirmed) => {
+        if (! resolvePending) return;
+        const resolve = resolvePending;
+        resolvePending = null;
+        dialog.close();
+        resolve(confirmed);
+        window.setTimeout(() => returnFocus?.focus?.(), 0);
+    };
+
+    window.LFConfirm = {
+        open(options = {}) {
+            if (resolvePending) finish(false);
+
+            title.textContent = options.title || dialog.dataset.defaultTitle || '';
+            message.textContent = options.message || '';
+            accept.textContent = options.confirmLabel || accept.dataset.defaultLabel || '';
+            dialog.classList.toggle('is-danger', options.tone === 'danger');
+            accept.classList.toggle('btn-danger', options.tone === 'danger');
+            accept.classList.toggle('btn-primary', options.tone !== 'danger');
+            returnFocus = options.trigger || document.activeElement;
+            dialog.showModal();
+            window.setTimeout(() => cancel.focus(), 0);
+
+            return new Promise((resolve) => { resolvePending = resolve; });
+        },
+    };
+
+    cancel.addEventListener('click', () => finish(false));
+    accept.addEventListener('click', () => finish(true));
+    dialog.addEventListener('cancel', (event) => { event.preventDefault(); finish(false); });
+    dialog.addEventListener('click', (event) => { if (event.target === dialog) finish(false); });
+
+    const bypassedForms = new WeakSet();
+    document.addEventListener('submit', async (event) => {
+        const form = event.target;
+        if (! (form instanceof HTMLFormElement) || ! form.dataset.lfConfirm || bypassedForms.has(form)) return;
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const submitter = event.submitter;
+        const confirmed = await window.LFConfirm.open({
+            title: form.dataset.lfConfirmTitle,
+            message: form.dataset.lfConfirm,
+            confirmLabel: form.dataset.lfConfirmLabel,
+            tone: form.dataset.lfConfirmTone,
+            trigger: submitter,
+        });
+        if (! confirmed) return;
+
+        bypassedForms.add(form);
+        form.requestSubmit(submitter || undefined);
+        window.setTimeout(() => bypassedForms.delete(form), 0);
+    }, true);
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootLfConfirmDialog, { once: true });
+} else {
+    bootLfConfirmDialog();
+}
+
 Alpine.start();

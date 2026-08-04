@@ -56,23 +56,30 @@
         </a>
         <div class="cohort-detail-action-group">
             @if ($cohort->status === 'draft')
-                @if ($activationIssues !== [])
-                    <div id="cohort-activate-requirements" class="admin-alert admin-alert-danger course-cohort-activation-alert" role="alert">
-                        <strong>{{ __('lf.LF_course_cohort_activation_requirements') }}</strong>
-                        <ul>@foreach ($activationIssues as $issue)<li>{{ $issue }}</li>@endforeach</ul>
-                    </div>
-                @endif
-                @include('course-cohorts.partials.lifecycle-action', [
-                    'dialogId' => 'cohort-activate',
-                    'action' => route($routePrefix.'.activate', $cohort->id),
-                    'triggerClass' => 'btn btn-secondary',
-                    'triggerLabel' => __('lf.LF_course_cohort_action_activate'),
-                    'title' => __('lf.LF_course_cohort_lifecycle_activate_title'),
-                    'body' => __('lf.LF_course_cohort_lifecycle_activate_body'),
-                    'confirmClass' => 'btn btn-primary',
-                    'confirmLabel' => __('lf.LF_course_cohort_lifecycle_activate_confirm'),
-                    'disabled' => $activationIssues !== [],
-                ])
+                <div class="course-cohort-activation-action">
+                    @include('course-cohorts.partials.lifecycle-action', [
+                        'dialogId' => 'cohort-activate',
+                        'action' => route($routePrefix.'.activate', $cohort->id),
+                        'triggerClass' => 'btn btn-secondary',
+                        'triggerLabel' => __('lf.LF_course_cohort_action_activate'),
+                        'title' => __('lf.LF_course_cohort_lifecycle_activate_title'),
+                        'body' => __('lf.LF_course_cohort_lifecycle_activate_body'),
+                        'confirmClass' => 'btn btn-primary',
+                        'confirmLabel' => __('lf.LF_course_cohort_lifecycle_activate_confirm'),
+                        'disabled' => $activationIssues !== [],
+                    ])
+                    @if ($activationIssues !== [])
+                        <div id="cohort-activate-requirements"
+                             class="admin-alert admin-alert-danger course-cohort-activation-alert"
+                             role="alert">
+                            <span class="course-cohort-activation-alert__icon" aria-hidden="true">!</span>
+                            <div>
+                                <strong>{{ __('lf.LF_course_cohort_activation_requirements') }}</strong>
+                                <ul>@foreach ($activationIssues as $issue)<li>{{ $issue }}</li>@endforeach</ul>
+                            </div>
+                        </div>
+                    @endif
+                </div>
                 @include('course-cohorts.partials.lifecycle-action', [
                     'dialogId' => 'cohort-archive',
                     'action' => route($routePrefix.'.archive', $cohort->id),
@@ -120,11 +127,13 @@
                         <div class="cohort-overview-code" x-data="{ copied: false }">
                             <span>{{ $cohort->code ?: '—' }}</span>
                             @if ($cohort->code)
-                                <button type="button" class="cohort-edit-copy-action"
+                                <button type="button" class="admin-copy-action"
+                                        x-bind:class="{ 'is-copied': copied }"
+                                        x-bind:title="copied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_edit_copy_code'))"
                                         x-bind:aria-label="copied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_edit_copy_code'))"
                                         x-on:click="navigator.clipboard.writeText(@js($cohort->code)).then(() => { copied = true; setTimeout(() => copied = false, 1600) })">
-                                    <span x-show="!copied">{{ __('lf.LF_course_cohort_edit_copy') }}</span>
-                                    <span x-cloak x-show="copied">{{ __('lf.LF_course_cohort_edit_copied') }}</span>
+                                    <span x-show="!copied"><x-backend-icon name="copy" /></span>
+                                    <span x-cloak x-show="copied"><x-backend-icon name="check" /></span>
                                 </button>
                             @endif
                         </div>
@@ -189,6 +198,7 @@
     @elseif ($activeTab === 'students')
     <div class="admin-card admin-form-card admin-form-surface course-cohort-students-readonly"
          x-data="{
+             formOpen: @js($errors->any() || request()->boolean('manage')),
              detail: null,
              detailTrigger: null,
              openDetail(item, event) {
@@ -206,17 +216,20 @@
                 <header class="admin-form-section-header">
                     <div class="cohort-student-list-heading-main">
                         <h2 id="cohort-show-students" class="admin-form-section-title">{{ __('lf.LF_course_cohort_student_view_title') }}</h2>
-                        <span class="cohort-student-list-count">{{ $activeMembershipCount }}/{{ $cohort->capacity ?? '∞' }}</span>
                     </div>
-                    @if (in_array($cohort->status, ['draft', 'active'], true))
-                        <div class="cohort-student-list-heading-actions">
-                            <a class="btn btn-primary"
-                               href="{{ $activeMembershipCount > 0 ? route('admin.course-cohorts.students.edit', $cohort->id) : route('admin.course-cohorts.students.create', $cohort->id) }}">
+                    <div class="cohort-student-list-heading-actions">
+                        <span class="cohort-student-list-count">{{ __('lf.LF_course_cohort_student_capacity_count', ['current' => $activeMembershipCount, 'capacity' => $cohort->capacity ?? '∞']) }}</span>
+                        @if (in_array($cohort->status, ['draft', 'active'], true))
+                            <button type="button" class="btn btn-primary" x-on:click="formOpen = !formOpen" x-bind:aria-expanded="formOpen.toString()">
                                 {{ __('lf.LF_course_cohort_student_manage_heading') }}
-                            </a>
-                        </div>
-                    @endif
+                            </button>
+                        @endif
+                    </div>
                 </header>
+
+                @if (in_array($cohort->status, ['draft', 'active'], true))
+                    @include('course-cohorts.partials.tabs.student-manager')
+                @endif
 
                 <form method="GET"
                       action="{{ route($routePrefix.'.show', $cohort->id) }}"

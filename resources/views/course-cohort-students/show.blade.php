@@ -147,7 +147,8 @@
                               action="{{ route($routePrefix.'.archive', $membership->id) }}"
                               x-data="{ submitting: false }"
                               x-on:submit="submitting = true"
-                              onsubmit="return confirm('{{ __('lf.LF_course_cohort_student_common_archive_confirm') }}')">
+                              data-lf-confirm="{{ __('lf.LF_course_cohort_student_common_archive_confirm') }}"
+                              data-lf-confirm-tone="danger">
                             @csrf
                             <button type="submit" class="admin-danger-text-action" x-bind:disabled="submitting">
                                 {{ __('lf.LF_course_cohort_student_common_archive') }}

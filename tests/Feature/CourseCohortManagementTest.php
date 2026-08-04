@@ -677,6 +677,22 @@ class CourseCohortManagementTest extends TestCase
         ]);
 
         DB::table('core_course_products')->where('id', $productId)->update(['status' => 'inactive']);
+        $blockedView = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}")
+            ->assertOk()
+            ->assertSee('course-cohort-activation-action', false)
+            ->assertSee('id="cohort-activate-requirements"', false)
+            ->assertSee('aria-describedby="cohort-activate-requirements"', false)
+            ->assertSee('course-cohort-activation-alert__icon', false);
+        $blockedDocument = new \DOMDocument;
+        @$blockedDocument->loadHTML($blockedView->getContent());
+        $blockedXpath = new \DOMXPath($blockedDocument);
+        $this->assertSame(1, $blockedXpath->query(
+            '//div[contains(concat(" ", normalize-space(@class), " "), " course-cohort-activation-action ")]'
+            .'/*[1][contains(concat(" ", normalize-space(@class), " "), " cohort-lifecycle-action ")]'
+            .'/following-sibling::div[@id="cohort-activate-requirements"]'
+        )->length);
+
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/activate")
             ->assertSessionHasErrors('lifecycle');
 
@@ -922,9 +938,12 @@ class CourseCohortManagementTest extends TestCase
 
     public function test_cohort_operational_tabs_manage_session_evidence(): void
     {
+        Carbon::setTestNow('2026-08-04 12:00:00');
+
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
         $teacher = $this->createUser($customerId, 'teacher');
+        $replacementTeacher = $this->createUser($customerId, 'teacher');
         $student = $this->createUser($customerId, 'student');
         $productId = $this->createProduct($customerId, 'Live Product', 'live-product');
         $versionId = $this->createVersion($customerId, $admin->id, 'Live Version');
@@ -954,7 +973,20 @@ class CourseCohortManagementTest extends TestCase
             $detail->assertSee(__('lf.LF_course_cohort_tab_'.$tab));
         }
         $detail->assertSee('min="2026-08-01"', false)
-            ->assertSee('max="2026-08-14"', false);
+            ->assertSee('max="2026-08-14"', false)
+            ->assertSee('x-bind:readonly="role === \'primary_teacher\'"', false)
+            ->assertSeeText(__('lf.LF_course_cohort_teacher_primary_period_summary', [
+                'from' => '01/08/2026',
+                'to' => '14/08/2026',
+            ]));
+
+        $undatedCohortId = $this->createCohort($customerId, 'Undated Cohort');
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-cohorts/{$undatedCohortId}/teachers", [
+                'teacher_id' => $teacher->id, 'role' => 'primary_teacher',
+            ])->assertSessionHasErrors([
+                'role' => __('lf.LF_course_cohort_teacher_validation_primary_period_required'),
+            ]);
 
         $this->actingAs($admin)
             ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers", [
@@ -962,15 +994,12 @@ class CourseCohortManagementTest extends TestCase
                 'role' => 'primary_teacher',
                 'assigned_from' => '2026-07-31',
                 'assigned_to' => '2026-08-05',
-            ])->assertSessionHasErrors([
-                'assigned_from' => __('lf.LF_course_cohort_teacher_validation_period_outside'),
-            ]);
-
-        $this->actingAs($admin)
-            ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers", [
-                'teacher_id' => $teacher->id, 'role' => 'primary_teacher',
-                'assigned_from' => '2026-08-01', 'assigned_to' => '2026-08-05',
             ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_cohort_teachers', [
+            'cohort_id' => $cohortId, 'teacher_id' => $teacher->id,
+            'role' => 'primary_teacher', 'status' => 'active',
+            'assigned_from' => '2026-08-01', 'assigned_to' => '2026-08-14',
+        ]);
 
         $this->actingAs($admin)
             ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers", [
@@ -978,17 +1007,85 @@ class CourseCohortManagementTest extends TestCase
             ])->assertSessionHasErrors('teacher_id');
 
         $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers", [
+                'teacher_id' => $replacementTeacher->id, 'role' => 'primary_teacher',
+            ])->assertSessionHasNoErrors();
+        $this->assertSame(1, DB::table('core_course_cohort_teachers')
+            ->where('cohort_id', $cohortId)->where('role', 'primary_teacher')
+            ->where('status', 'active')->count());
+        $this->assertDatabaseHas('core_course_cohort_teachers', [
+            'cohort_id' => $cohortId, 'teacher_id' => $teacher->id, 'role' => 'teacher',
+        ]);
+        $this->assertDatabaseHas('core_course_cohort_teachers', [
+            'cohort_id' => $cohortId, 'teacher_id' => $replacementTeacher->id,
+            'role' => 'primary_teacher', 'assigned_from' => '2026-08-01', 'assigned_to' => '2026-08-14',
+        ]);
+
+        $this->actingAs($admin)
+            ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}", [
+                'name' => 'Live Cohort', 'capacity' => 20,
+                'start_date' => '2026-08-02', 'end_date' => '2026-08-20',
+            ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_cohort_teachers', [
+            'cohort_id' => $cohortId, 'teacher_id' => $replacementTeacher->id,
+            'role' => 'primary_teacher', 'assigned_from' => '2026-08-02', 'assigned_to' => '2026-08-20',
+        ]);
+
+        $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=teachers")
             ->assertOk()
             ->assertDontSee('<option value="'.$teacher->id.'"', false);
 
         $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")
+            ->assertOk()
+            ->assertDontSee('name="primary_teacher_id"', false)
+            ->assertSee('name="teacher_ids[]"', false)
+            ->assertSee('selectableTeachers()', false)
+            ->assertSeeText(__('lf.LF_course_cohort_session_teachers_time_help'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_teachers'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_start'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_end'))
+            ->assertSee('scheduleMin:', false)
+            ->assertSee('scheduleMax:', false)
+            ->assertSee('x-bind:min="scheduleMin"', false)
+            ->assertSee('x-bind:max="scheduleMax"', false)
+            ->assertSee("'has-value': startsAt", false)
+            ->assertSee("'has-value': endsAt", false);
+
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", [
+                'title' => 'Elapsed session', 'session_type' => 'curriculum',
+                'version_lesson_id' => $lessonId, 'version_activity_id' => $activityId,
+                'delivery_mode' => 'online',
+                'scheduled_start_at' => '2026-08-03 09:00:00',
+                'scheduled_end_at' => '2026-08-03 10:00:00',
+            ])->assertSessionHasErrors([
+                'scheduled_start_at' => __('lf.LF_course_cohort_session_schedule_before_minimum'),
+            ]);
+
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", [
+                'title' => 'Unavailable auxiliary teacher',
+                'session_type' => 'curriculum',
+                'version_lesson_id' => $lessonId,
+                'version_activity_id' => $activityId,
+                'teacher_ids' => [$teacher->id],
+                'delivery_mode' => 'online',
+                'scheduled_start_at' => '2026-08-15 09:00:00',
+                'scheduled_end_at' => '2026-08-15 10:00:00',
+            ])->assertSessionHasErrors([
+                'teacher_ids' => __('lf.LF_course_cohort_session_teacher_unavailable'),
+            ]);
+
+        $this->actingAs($admin)
             ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", [
                 'title' => 'Session 1', 'session_type' => 'curriculum', 'version_lesson_id' => $lessonId,
-                'version_activity_id' => $activityId, 'primary_teacher_id' => $teacher->id,
+                'version_activity_id' => $activityId,
+                'teacher_ids' => [$teacher->id, $replacementTeacher->id],
                 'delivery_mode' => 'online',
-                'scheduled_start_at' => now()->subHours(3)->format('Y-m-d H:i:s'),
-                'scheduled_end_at' => now()->subHours(2)->format('Y-m-d H:i:s'),
+                'scheduled_start_at' => '2026-08-05 09:00:00',
+                'scheduled_end_at' => '2026-08-05 10:00:00',
                 'online_provider' => 'zoom', 'meeting_url' => 'https://example.com/meeting',
             ])->assertSessionHasNoErrors();
         $sessionId = (int) DB::table('core_liveclass_sessions')->value('id');
@@ -996,11 +1093,37 @@ class CourseCohortManagementTest extends TestCase
             'id' => $sessionId, 'cohort_id' => $cohortId,
             'template_version_id' => $versionId, 'version_lesson_id' => $lessonId,
             'version_activity_id' => $activityId,
+            'primary_teacher_id' => null,
         ]);
+        $this->assertDatabaseHas('core_liveclass_session_teachers', [
+            'customer_id' => $customerId, 'session_id' => $sessionId,
+            'teacher_id' => $teacher->id, 'role' => 'teacher',
+        ]);
+        $this->assertDatabaseHas('core_liveclass_session_teachers', [
+            'customer_id' => $customerId, 'session_id' => $sessionId,
+            'teacher_id' => $replacementTeacher->id, 'role' => 'teacher',
+        ]);
+        $this->assertSame(2, DB::table('core_liveclass_session_teachers')
+            ->where('customer_id', $customerId)->where('session_id', $sessionId)->count());
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")
+            ->assertOk()
+            ->assertSeeText($replacementTeacher->name)
+            ->assertSee('teacher_ids', false);
+
         $this->actingAs($admin)
             ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}/schedule", [
-                'scheduled_start_at' => now()->subHours(2)->format('Y-m-d H:i:s'),
-                'scheduled_end_at' => now()->subHour()->format('Y-m-d H:i:s'),
+                'scheduled_start_at' => '2026-08-15 09:00:00',
+                'scheduled_end_at' => '2026-08-15 10:00:00',
+                'reason' => 'Outside auxiliary availability',
+            ])->assertSessionHasErrors([
+                'scheduled_start_at' => __('lf.LF_course_cohort_session_teacher_unavailable'),
+            ]);
+        $this->actingAs($admin)
+            ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}/schedule", [
+                'scheduled_start_at' => '2026-08-06 05:00:00',
+                'scheduled_end_at' => '2026-08-06 06:00:00',
                 'reason' => 'Teacher availability',
             ])->assertSessionHasNoErrors();
         $this->assertDatabaseHas('core_liveclass_session_schedule_changes', [
@@ -1009,9 +1132,10 @@ class CourseCohortManagementTest extends TestCase
         ]);
         $this->assertDatabaseHas('core_liveclass_sessions', [
             'id' => $sessionId, 'status' => 'scheduled',
-            'scheduled_start_at' => now()->subHours(2)->format('Y-m-d H:i:s'),
+            'scheduled_start_at' => '2026-08-06 05:00:00',
         ]);
 
+        Carbon::setTestNow('2026-08-07 12:00:00');
         $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
         $this->createMembership($customerId, $cohortId, $enrollmentId, $productId, $student->id);
         $this->actingAs($admin)
@@ -1095,7 +1219,11 @@ class CourseCohortManagementTest extends TestCase
         $versionId = $this->createVersion($customerId, $admin->id, 'Locked Version');
         $otherVersionId = $this->createVersion($customerId, $admin->id, 'Other Version');
         $cohortId = $this->createCohort($customerId, status: 'draft');
-        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['version_id' => $versionId]);
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'version_id' => $versionId,
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addMonth()->toDateString(),
+        ]);
 
         $makeLesson = function (int $tenantId, int $version, string $title, int $source): int {
             return DB::table('core_course_template_version_lessons')->insertGetId([
@@ -1109,6 +1237,7 @@ class CourseCohortManagementTest extends TestCase
                 'customer_id' => $tenantId, 'template_version_id' => $version,
                 'version_lesson_id' => $lesson, 'source_template_activity_id' => $source,
                 'title_snapshot' => $title, 'activity_type' => $type,
+                'live_class_url_snapshot' => $type === 'live_class' ? 'https://meet.google.com/source-room' : null,
                 'completion_rule' => 'manual', 'created_at' => now(), 'updated_at' => now(),
             ]);
         };
@@ -1134,7 +1263,14 @@ class CourseCohortManagementTest extends TestCase
             ->assertDontSee('Recorded Video')
             ->assertSee('admin-form-footer--sticky', false)
             ->assertSee('if (this.submitting)', false)
-            ->assertSee('titleDirty', false);
+            ->assertSee('titleDirty', false)
+            ->assertDontSee('if (matches.length === 1)', false)
+            ->assertDontSee('`${lesson.title_snapshot} – ${activity.title_snapshot}`', false)
+            ->assertSeeText(__('lf.LF_course_cohort_session_curriculum_meeting_help'))
+            ->assertSee('course-cohort-session-copy-control__button', false)
+            ->assertSee("'is-copied': meetingLinkCopied", false)
+            ->assertSee('copyCurriculumMeetingLink()', false)
+            ->assertSeeText(__('lf.LF_course_cohort_session_operational_meeting_help'));
 
         $payload = [
             'title' => 'Locked Lesson – Conversation Practice',
@@ -1150,6 +1286,11 @@ class CourseCohortManagementTest extends TestCase
 
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", $payload)
             ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_liveclass_sessions', [
+            'title' => 'Locked Lesson – Conversation Practice',
+            'online_provider' => 'Google Meet',
+            'meeting_url_snapshot' => 'https://meet.google.com/source-room',
+        ]);
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", array_merge($payload, [
             'title' => 'Second realization',
             'scheduled_start_at' => now()->addDays(3)->format('Y-m-d H:i:s'),
@@ -1171,13 +1312,15 @@ class CourseCohortManagementTest extends TestCase
         ]))->assertSessionHasErrors('version_lesson_id');
 
         $progressCount = DB::table('core_course_activity_progress')->count();
-        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", array_merge($payload, [
+        $operationalPayload = array_diff_key($payload, array_flip(['online_provider', 'meeting_url']));
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", array_merge($operationalPayload, [
             'title' => 'Orientation', 'session_type' => 'operational',
         ]))->assertSessionHasNoErrors();
         $operationalId = (int) DB::table('core_liveclass_sessions')->where('title', 'Orientation')->value('id');
         $this->assertDatabaseHas('core_liveclass_sessions', [
             'id' => $operationalId, 'session_type' => 'operational',
             'version_lesson_id' => null, 'version_activity_id' => null,
+            'online_provider' => null, 'meeting_url_snapshot' => null,
         ]);
         $this->assertSame($progressCount, DB::table('core_course_activity_progress')->count());
 
@@ -1222,7 +1365,8 @@ class CourseCohortManagementTest extends TestCase
         $students = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=students")
             ->assertOk();
-        $students->assertSee(route('admin.course-cohorts.students.create', $cohortId), false)
+        $students->assertSee(route('admin.course-cohorts.students.sync', $cohortId), false)
+            ->assertSee('course-cohort-student-inline-form', false)
             ->assertDontSee(route('admin.course-cohorts.edit', ['id' => $cohortId, 'tab' => 'students']), false);
 
         $this->actingAs($admin)

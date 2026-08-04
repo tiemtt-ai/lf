@@ -110,10 +110,12 @@
                     <div class="admin-form-footer-danger">
                         @if ($template->status === \App\Support\CourseTemplateStatus::INACTIVE
                             && \Illuminate\Support\Facades\Route::has($routePrefix.'.archive'))
-                        <form method="POST"
+                            <form method="POST"
                               action="{{ route($routePrefix.'.archive', $template->id) }}"
                               x-data="{ submitting: false }"
-                              @submit="if (submitting || !window.confirm(@js(__('lf.LF_course_template_status_archive_confirm')))) { $event.preventDefault(); return } submitting = true">
+                              data-lf-confirm="{{ __('lf.LF_course_template_status_archive_confirm') }}"
+                              data-lf-confirm-tone="danger"
+                              @submit="if (submitting) { $event.preventDefault(); return } submitting = true">
                             @csrf
                             <button type="submit"
                                     class="btn btn-danger"
@@ -339,48 +341,45 @@
                         <table class="table course-template-history-table">
                             <thead>
                             <tr>
-                                <th>{{ __('lf.table_code') }}</th>
                                 <th>{{ __('lf.LF_course_template_history_version') }}</th>
                                 <th>{{ __('lf.LF_course_template_history_published_at') }}</th>
                                 <th>{{ __('lf.LF_course_template_history_published_by') }}</th>
                                 <th>{{ __('lf.LF_course_template_history_status') }}</th>
-                                <th class="course-template-history-current-column">
-                                    {{ __('lf.LF_course_template_history_current') }}
-                                </th>
-                                <th>{{ __('lf.table_actions') }}</th>
+                                <th class="course-template-history-actions-column">{{ __('lf.table_actions') }}</th>
                             </tr>
                             </thead>
                             <tbody>
                             @foreach ($versions as $version)
                                 <tr>
-                                    <td>{{ $version->version_code }}</td>
-                                    <td>
-                                        {{ __('lf.LF_course_template_version_number', [
+                                    <td data-label="{{ __('lf.LF_course_template_history_version') }}">
+                                        <strong class="course-template-history-primary">{{ __('lf.LF_course_template_version_number', [
                                             'version' => $version->version_number,
-                                        ]) }}
+                                        ]) }}</strong>
+                                        <span class="course-template-history-meta">{{ $version->version_code }}</span>
                                     </td>
-                                    <td>
+                                    <td data-label="{{ __('lf.LF_course_template_history_published_at') }}" class="course-template-history-date">
                                         {{ \Illuminate\Support\Carbon::parse(
                                             $version->published_at
                                         )->format('d/m/Y H:i') }}
                                     </td>
-                                    <td>
+                                    <td data-label="{{ __('lf.LF_course_template_history_published_by') }}">
                                         {{ $version->published_by_name
                                             ?? __('lf.LF_course_template_history_unknown_publisher') }}
                                     </td>
-                                    <td>
-                                        {{ __('lf.LF_course_template_version_status_'.$version->status) }}
-                                    </td>
-                                    <td class="course-template-history-current-column">
+                                    <td data-label="{{ __('lf.LF_course_template_history_status') }}">
+                                        <div class="course-template-history-statuses">
                                         @if ($version->is_current)
-                                            <span class="badge badge-success">
-                                                {{ __('lf.LF_course_template_version_current') }}
+                                            <span class="badge badge-success course-template-version-current-badge">
+                                                {{ __('lf.LF_course_template_version_in_use') }}
                                             </span>
                                         @else
-                                            —
+                                            <span class="badge admin-status-badge--neutral course-template-version-status-badge">
+                                                {{ __('lf.LF_course_template_version_status_'.$version->status) }}
+                                            </span>
                                         @endif
+                                        </div>
                                     </td>
-                                    <td>
+                                    <td data-label="{{ __('lf.table_actions') }}" class="course-template-history-actions-column">
                                         @if (request()->user()?->role === 'customer_admin')
                                             <div class="admin-table-actions course-template-version-actions">
                                                 <a class="admin-table-action-link admin-text-action"
@@ -407,9 +406,8 @@
                                                                   'versionId' => $version->id,
                                                               ]
                                                           ) }}"
-                                                          onsubmit="return window.confirm(@js(
-                                                              __('lf.LF_course_template_duplicate_confirmation')
-                                                          ))">
+                                                          data-lf-confirm="{{ __('lf.LF_course_template_duplicate_confirmation') }}"
+                                                          data-lf-confirm-label="{{ __('lf.LF_course_template_duplicate_action') }}">
                                                         @csrf
                                                         <button type="submit"
                                                                 class="admin-link-button admin-text-action">

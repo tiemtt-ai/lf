@@ -126,7 +126,9 @@
                             <form method="POST"
                                   action="{{ route($routePrefix.'.archive', $product->id) }}"
                                   x-data="{ submitting: false }"
-                                  @submit="if (submitting || !window.confirm(@js(__('lf.LF_product_status_archive_confirm')))) { $event.preventDefault(); return } submitting = true">
+                                  data-lf-confirm="{{ __('lf.LF_product_status_archive_confirm') }}"
+                                  data-lf-confirm-tone="danger"
+                                  @submit="if (submitting) { $event.preventDefault(); return } submitting = true">
                                 @csrf
                                 <button type="submit"
                                         class="btn course-product-danger-outline-action"
@@ -139,7 +141,8 @@
                             <form method="POST"
                                   action="{{ route($routePrefix.'.restore', $product->id) }}"
                                   x-data="{ submitting: false }"
-                                  @submit="if (submitting || !window.confirm(@js(__('lf.LF_product_status_restore_confirm')))) { $event.preventDefault(); return } submitting = true">
+                                  data-lf-confirm="{{ __('lf.LF_product_status_restore_confirm') }}"
+                                  @submit="if (submitting) { $event.preventDefault(); return } submitting = true">
                                 @csrf
                                 <button type="submit" class="btn btn-primary" :disabled="submitting" :aria-busy="submitting">
                                     {{ __('lf.LF_product_status_restore_action') }}
@@ -215,7 +218,8 @@
                           class="course-product-version-replace-form"
                           method="POST" action="{{ route($routePrefix.'.items.store', $product->id) }}"
                           x-show="replacing" x-cloak
-                          @submit="if (submitting || !selected || selected === current) { $event.preventDefault(); return } if (!window.confirm(@js(__('lf.LF_course_product_item_common_replace_confirm')))) { $event.preventDefault(); return } submitting = true">
+                          data-lf-confirm="{{ __('lf.LF_course_product_item_common_replace_confirm') }}"
+                          @submit="if (submitting || !selected || selected === current) { $event.preventDefault(); return } submitting = true">
                         @csrf
                         <div class="lf-form-group">
                             <x-form-label for="version_id"
@@ -374,7 +378,10 @@
                                 </a>
                                 @if($product->status !== 'archived')
                                 <form method="POST" class="admin-inline-form" x-data="{ submitting: false }"
-                                      @submit="if (submitting || !window.confirm(@js(__('lf.LF_course_product_relation_common_remove_confirm')))) { $event.preventDefault(); return } submitting = true"
+                                      data-lf-confirm="{{ __('lf.LF_course_product_relation_common_remove_confirm') }}"
+                                      data-lf-confirm-tone="danger"
+                                      data-lf-confirm-label="{{ __('lf.LF_common_button_remove') }}"
+                                      @submit="if (submitting) { $event.preventDefault(); return } submitting = true"
                                       action="{{ route($routePrefix.'.relations.destroy', [$product->id, $relation->id]) }}">
                                     @csrf
                                     @method('DELETE')

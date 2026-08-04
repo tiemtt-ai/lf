@@ -743,6 +743,10 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertStringContainsString('class="bulk-enrollment-pagination"', $html);
         $this->assertStringContainsString('aria-label="'.__('lf.LF_bulk_enrollment_students_pagination').'"', $html);
         $this->assertStringContainsString('aria-label="'.__('lf.LF_bulk_enrollment_products_pagination').'"', $html);
+        $this->assertStringContainsString('x-show="studentLastPage > 1"', $html);
+        $this->assertStringContainsString('x-show="productLastPage > 1"', $html);
+        $this->assertStringContainsString('x-show="ineligibleProductLastPage > 1"', $html);
+        $this->assertStringContainsString('x-show="confirmationLastPage > 1"', $html);
         $this->assertStringNotContainsString('item.product_code', $html);
         $this->assertStringNotContainsString('item.version?.version_code', $html);
         $this->assertStringNotContainsString('LF_course_enrollment_common_students', $html);

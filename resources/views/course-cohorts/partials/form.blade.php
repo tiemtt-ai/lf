@@ -8,11 +8,13 @@
             <div id="cohort-edit-code" class="cohort-edit-readonly-row" x-data="{ copied: false }">
                 <span class="cohort-edit-overview-meta-label">{{ __('lf.LF_course_cohort_common_code') }}:</span>
                 <strong class="cohort-edit-readonly-value">{{ $cohort->code }}</strong>
-                <button type="button" class="cohort-edit-copy-action"
+                <button type="button" class="admin-copy-action"
                         x-on:click="navigator.clipboard.writeText(@js($cohort->code)).then(() => { copied = true; setTimeout(() => copied = false, 1600) })"
+                        x-bind:class="{ 'is-copied': copied }"
+                        x-bind:title="copied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_edit_copy_code'))"
                         x-bind:aria-label="copied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_edit_copy_code'))">
-                    <span x-show="!copied">{{ __('lf.LF_course_cohort_edit_copy') }}</span>
-                    <span x-cloak x-show="copied">{{ __('lf.LF_course_cohort_edit_copied') }}</span>
+                    <span x-show="!copied"><x-backend-icon name="copy" /></span>
+                    <span x-cloak x-show="copied"><x-backend-icon name="check" /></span>
                 </button>
             </div>
         </div>

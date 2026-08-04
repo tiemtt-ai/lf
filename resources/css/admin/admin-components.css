@@ -443,6 +443,51 @@
     grid-column: 1 / -1;
 }
 
+.course-cohort-session-teacher-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+.course-cohort-session-teacher-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    padding: 0.75rem 0.875rem;
+    border: 1px solid var(--admin-border-color, #d9dee8);
+    border-radius: 0.625rem;
+    background: #fff;
+    cursor: pointer;
+}
+
+.course-cohort-session-teacher-option:hover {
+    border-color: var(--admin-primary, #4f67d8);
+    background: #f8f9ff;
+}
+
+.course-cohort-session-teacher-option > span {
+    display: grid;
+    min-width: 0;
+}
+
+.course-cohort-session-teacher-option strong,
+.course-cohort-session-teacher-option small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.course-cohort-session-teacher-option small {
+    color: var(--admin-text-muted, #687386);
+}
+
+@media (max-width: 700px) {
+    .course-cohort-session-teacher-options {
+        grid-template-columns: 1fr;
+    }
+}
+
 .admin-form-stack {
     min-width: 0;
     display: grid;
@@ -680,25 +725,39 @@
     line-height: 1.45;
 }
 
-.cohort-edit-copy-action {
-    padding: 3px 0;
+.admin-copy-action {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border: 0;
-    color: var(--admin-primary);
+    border-radius: 6px;
+    color: var(--admin-text-muted);
     background: transparent;
-    font: inherit;
-    font-size: 13px;
-    font-weight: 600;
     cursor: pointer;
 }
 
-.cohort-edit-copy-action:hover {
-    text-decoration: underline;
+.admin-copy-action:hover,
+.admin-copy-action:focus-visible {
+    color: var(--admin-primary);
+    background: var(--admin-surface-subtle);
 }
 
-.cohort-edit-copy-action:focus-visible {
-    border-radius: 4px;
+.admin-copy-action:focus-visible {
     outline: 2px solid var(--admin-primary);
     outline-offset: 2px;
+}
+
+.admin-copy-action.is-copied {
+    color: var(--admin-success, #15803d);
+    background: #ecfdf5;
+}
+
+.admin-copy-action .backend-sidebar-icon {
+    width: 20px;
+    height: 20px;
 }
 
 .cohort-detail-toolbar {
@@ -773,7 +832,7 @@
 
 .cohort-detail-action-group {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: flex-end;
     gap: 10px;
 }
@@ -782,15 +841,40 @@
     margin: 0;
 }
 
+.course-cohort-activation-action {
+    max-width: 440px;
+    display: grid;
+    justify-items: end;
+    gap: 8px;
+}
+
 .course-cohort-activation-alert {
+    width: 100%;
     max-width: 440px;
     margin: 0;
     padding: 9px 12px;
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr);
+    align-items: start;
+    gap: 9px;
     border: 1px solid #fecaca;
     border-radius: 8px;
     font-size: 13px;
     font-weight: 400;
     line-height: 1.45;
+}
+
+.course-cohort-activation-alert__icon {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
 }
 
 .course-cohort-activation-alert strong {
@@ -853,6 +937,85 @@
     border-top: 1px solid var(--admin-border);
 }
 
+.lf-confirm-dialog {
+    width: min(480px, calc(100% - 32px));
+    max-width: none;
+    padding: 0;
+    border: 0;
+    border-radius: 12px;
+    color: var(--admin-text);
+    background: var(--admin-surface);
+    box-shadow: 0 24px 64px rgb(15 23 42 / 24%);
+}
+
+.lf-confirm-dialog::backdrop {
+    background: rgb(15 23 42 / 48%);
+}
+
+.lf-confirm-dialog__panel {
+    padding: 24px;
+}
+
+.lf-confirm-dialog__heading {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+}
+
+.lf-confirm-dialog__icon {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    color: #b45309;
+    background: #fffbeb;
+}
+
+.lf-confirm-dialog__icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+.lf-confirm-dialog.is-danger .lf-confirm-dialog__icon {
+    color: var(--admin-danger);
+    background: #fef2f2;
+}
+
+.lf-confirm-dialog__heading h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 650;
+    line-height: 1.35;
+}
+
+.lf-confirm-dialog__heading p {
+    margin: 8px 0 0;
+    color: var(--admin-text-muted);
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-line;
+}
+
+.lf-confirm-dialog__actions {
+    margin-top: 22px;
+    padding-top: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    border-top: 1px solid var(--admin-border);
+}
+
+@media (max-width: 479px) {
+    .lf-confirm-dialog__panel { padding: 20px; }
+    .lf-confirm-dialog__heading { grid-template-columns: 32px minmax(0, 1fr); gap: 12px; }
+    .lf-confirm-dialog__icon { width: 32px; height: 32px; }
+    .lf-confirm-dialog__actions { align-items: stretch; flex-direction: column-reverse; }
+    .lf-confirm-dialog__actions .btn { width: 100%; }
+}
+
 .lf-admin-page .btn.btn-danger {
     color: #fff;
     border-color: var(--admin-danger);
@@ -882,9 +1045,11 @@
         flex-wrap: wrap;
     }
 
+    .course-cohort-activation-action,
     .course-cohort-activation-alert {
         width: 100%;
         max-width: none;
+        justify-items: start;
     }
 }
 
@@ -2912,15 +3077,17 @@
 }
 
 .cohort-student-list-count {
-    padding: 3px 8px;
+    flex: 0 0 auto;
+    padding: 6px 10px;
     display: inline-flex;
     align-items: center;
     border-radius: 999px;
     color: var(--admin-primary);
     background: color-mix(in srgb, var(--admin-primary) 9%, #fff);
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 1.4;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: normal;
+    white-space: nowrap;
 }
 
 .cohort-student-list-heading-actions {
@@ -2934,7 +3101,6 @@
 .cohort-student-list-heading-actions .btn {
     min-height: 40px;
     padding: 8px 14px;
-    font-size: 14px;
 }
 
 .cohort-student-list-filter {
@@ -3122,11 +3288,12 @@
     }
 
     .cohort-student-list-heading-actions {
-        justify-content: flex-start;
+        width: 100%;
+        justify-content: space-between;
     }
 
     .cohort-student-list-heading-actions .btn {
-        flex: 1 1 180px;
+        flex: 0 0 auto;
         justify-content: center;
     }
 
@@ -3676,6 +3843,13 @@
     min-width: 0;
 }
 
+.course-cohort-teachers__toolbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .course-cohort-teachers__count {
     flex: 0 0 auto;
     padding: 6px 10px;
@@ -3688,6 +3862,11 @@
 
 .course-cohort-teacher-assignment {
     margin: 18px 0 20px;
+}
+
+.course-cohort-teacher-assignment__open {
+    min-height: 40px;
+    padding: 8px 16px;
 }
 
 .course-cohort-teacher-assignment__toggle {
@@ -3739,12 +3918,30 @@
 }
 
 .course-cohort-teacher-assignment__date-help {
-    grid-column: 1 / 4;
+    grid-column: 1 / -1;
     align-self: center;
     margin: 0;
     color: var(--admin-text-muted);
     font-size: 12px;
     line-height: 1.5;
+}
+
+.course-cohort-teacher-assignment__footer {
+    width: calc(100% + 32px);
+    min-height: 64px;
+    grid-column: 1 / -1;
+    margin: 2px -16px -16px;
+    padding: 12px 16px;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 -6px 18px rgb(15 23 42 / 6%);
+}
+
+.course-cohort-teacher-assignment__footer .btn {
+    min-height: 40px;
+    padding-inline: 16px;
 }
 
 .course-cohort-teacher-assignment__date-errors {
@@ -3909,12 +4106,13 @@
 }
 
 .course-cohort-sessions__count {
-    padding: 4px 9px;
+    flex: 0 0 auto;
+    padding: 6px 10px;
     border-radius: 999px;
     color: var(--admin-primary);
     background: color-mix(in srgb, var(--admin-primary) 9%, #fff);
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 700;
     white-space: nowrap;
 }
 
@@ -3967,6 +4165,79 @@
     margin-left: -18px;
 }
 
+.course-cohort-session-form__footer {
+    width: calc(100% + 36px);
+    min-height: 72px;
+    padding: 12px 18px;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 -6px 18px rgb(15 23 42 / 6%);
+}
+
+.course-cohort-session-form__footer-context {
+    color: var(--admin-text-muted);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.course-cohort-session-form__footer .admin-form-footer-primary {
+    gap: 10px;
+}
+
+.course-cohort-session-form__footer .btn {
+    min-height: 40px;
+    padding-inline: 16px;
+}
+
+.course-cohort-student-inline-form {
+    min-width: 0;
+    margin: 16px 0 24px;
+    padding: 18px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface-subtle);
+}
+
+.course-cohort-student-inline-form .cohort-student-transfer-intro {
+    margin-bottom: 16px;
+}
+
+.course-cohort-student-inline-form .bulk-enrollment-transfer {
+    align-items: start;
+}
+
+.course-cohort-student-inline-form .bulk-enrollment-transfer__panel {
+    align-self: start;
+}
+
+.course-cohort-student-inline-form .bulk-enrollment-selector__list,
+.course-cohort-student-inline-form .cohort-student-selected-list {
+    max-height: 360px;
+    overflow-y: auto;
+}
+
+.course-cohort-student-inline-form .cohort-student-empty-state--selected {
+    min-height: 140px;
+    padding: 20px 16px;
+}
+
+.course-cohort-student-inline-form__footer {
+    width: calc(100% + 36px);
+    min-height: 64px;
+    margin-right: -18px;
+    margin-bottom: -18px;
+    margin-left: -18px;
+    padding: 12px 18px;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 -6px 18px rgb(15 23 42 / 6%);
+}
+
 .course-cohort-session-table {
     width: 100%;
     min-width: 960px;
@@ -3979,6 +4250,14 @@
     vertical-align: middle;
 }
 
+.lf-admin-page .course-cohort-session-table tbody tr {
+    transition: background-color .15s ease;
+}
+
+.lf-admin-page .course-cohort-session-table tbody tr:hover {
+    background: color-mix(in srgb, var(--admin-primary) 3%, var(--admin-surface));
+}
+
 .lf-admin-page .course-cohort-session-table th {
     color: #475569;
     background: #f8fafc;
@@ -3987,12 +4266,14 @@
 }
 
 .course-cohort-session-table__col-sequence { width: 4%; }
-.course-cohort-session-table__col-name { width: 20%; }
-.course-cohort-session-table__col-content { width: 22%; }
-.course-cohort-session-table__col-schedule { width: 17%; }
-.course-cohort-session-table__col-teacher { width: 13%; }
-.course-cohort-session-table__col-status { width: 10%; }
-.course-cohort-session-table__col-actions { width: 14%; }
+.course-cohort-session-table__col-name { width: 19%; }
+.course-cohort-session-table__col-content { width: 19%; }
+.course-cohort-session-table__col-schedule { width: 19%; }
+.course-cohort-session-table__col-teacher { width: 15%; }
+.course-cohort-session-table__col-status { width: 12%; }
+.course-cohort-session-table__col-actions { width: 12%; }
+.course-cohort-session-table .admin-table-sequence,
+.course-cohort-session-table__status { text-align: center; }
 .course-cohort-session-table__actions { text-align: right; }
 
 .course-cohort-session-table__primary,
@@ -4015,9 +4296,30 @@
 }
 
 .course-cohort-session-table__schedule {
-    font-size: 13px;
-    line-height: 1.55;
+    margin: 0;
+    display: grid;
+    gap: 5px;
     white-space: nowrap;
+}
+
+.course-cohort-session-table__schedule div {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    align-items: baseline;
+    gap: 8px;
+}
+
+.course-cohort-session-table__schedule dt {
+    color: var(--admin-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.course-cohort-session-table__schedule dd {
+    margin: 0;
+    color: var(--admin-text);
+    font-size: 13px;
+    font-weight: 500;
 }
 
 .course-cohort-session-type-badge {
@@ -4052,37 +4354,100 @@
     background: #fee2e2;
 }
 
-.course-cohort-session-action-list {
-    gap: 4px;
+.course-cohort-session-action-menu {
+    position: relative;
+    display: inline-flex;
     justify-content: flex-end;
-    flex-wrap: wrap;
 }
 
-.course-cohort-session-action-list .admin-table-action-link {
-    padding: 6px 8px;
-    border-radius: 6px;
+.course-cohort-session-action-menu__trigger {
+    min-height: 36px;
+    padding: 6px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid var(--admin-border);
+    border-radius: 7px;
+    background: var(--admin-surface);
+    color: var(--admin-primary);
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
-    list-style: none;
     white-space: nowrap;
 }
 
-.course-cohort-session-action-list .admin-table-action-link:hover {
-    background: color-mix(in srgb, var(--admin-primary) 8%, transparent);
+.course-cohort-session-action-menu__trigger:hover,
+.course-cohort-session-action-menu__trigger:focus-visible,
+.course-cohort-session-action-menu__trigger.is-open {
+    border-color: color-mix(in srgb, var(--admin-primary) 35%, var(--admin-border));
+    background: color-mix(in srgb, var(--admin-primary) 7%, var(--admin-surface));
 }
 
-.course-cohort-session-action-list .admin-table-action-link:focus-visible {
+.course-cohort-session-action-menu__trigger:focus-visible {
     outline: 2px solid var(--admin-primary);
-    outline-offset: 1px;
+    outline-offset: 2px;
 }
 
-.course-cohort-session-action-list summary::-webkit-details-marker {
-    display: none;
+.course-cohort-session-action-menu__chevron {
+    width: 7px;
+    height: 7px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: translateY(-2px) rotate(45deg);
+    transition: transform .15s ease;
 }
 
-.course-cohort-session-action-list details {
-    position: relative;
+.course-cohort-session-action-menu__trigger.is-open .course-cohort-session-action-menu__chevron {
+    transform: translateY(2px) rotate(225deg);
+}
+
+.course-cohort-session-action-menu__panel {
+    width: max-content;
+    min-width: 184px;
+    padding: 5px;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 30;
+    display: grid;
+    gap: 2px;
+    border: 1px solid var(--admin-border);
+    border-radius: 9px;
+    background: var(--admin-surface);
+    box-shadow: 0 12px 28px rgb(15 23 42 / 14%);
+    text-align: left;
+}
+
+.course-cohort-session-table tbody tr:last-child .course-cohort-session-action-menu__panel {
+    top: auto;
+    bottom: calc(100% + 6px);
+}
+
+.course-cohort-session-action-menu__panel .admin-table-action-link {
+    width: 100%;
+    min-height: 36px;
+    padding: 7px 9px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 9px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.25;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.course-cohort-session-action-menu__icon {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .course-cohort-session-detail-popover {
@@ -4191,14 +4556,20 @@
 }
 
 @media (max-width: 767px) {
-    .course-cohort-sessions__header,
-    .course-cohort-sessions__toolbar {
+    .course-cohort-sessions__header {
         align-items: stretch;
         flex-direction: column;
     }
 
-    .course-cohort-sessions__toolbar .btn {
+    .course-cohort-sessions__toolbar {
         width: 100%;
+        align-items: center;
+        flex-direction: row;
+        justify-content: space-between;
+    }
+
+    .course-cohort-sessions__toolbar .btn {
+        width: auto;
         justify-content: center;
     }
 
@@ -4261,7 +4632,8 @@
     }
 
     .course-cohort-session-table__actions,
-    .course-cohort-session-action-list { justify-content: flex-start; text-align: left; }
+    .course-cohort-session-action-menu { justify-content: flex-start; text-align: left; }
+    .course-cohort-session-action-menu__panel { right: auto; left: 0; }
     .course-cohort-session-detail-popover { right: auto; left: 0; max-width: calc(100vw - 64px); }
     .course-cohort-session-modal__grid { grid-template-columns: minmax(0, 1fr); }
     .course-cohort-session-reschedule-modal__body { grid-template-columns: minmax(0, 1fr); }
@@ -4281,7 +4653,7 @@
     }
 
     .course-cohort-teacher-assignment__date-help {
-        grid-column: 1;
+        grid-column: 1 / -1;
     }
 
     .course-cohort-teacher-assignment__date-errors {
@@ -4293,6 +4665,11 @@
     .course-cohort-teachers__header {
         flex-direction: column;
         gap: 10px;
+    }
+
+    .course-cohort-teachers__toolbar {
+        width: 100%;
+        justify-content: space-between;
     }
 
     .course-cohort-teacher-assignment__form {
@@ -4444,6 +4821,80 @@
     background: var(--admin-surface-subtle);
 }
 
+.cohort-student-empty-state {
+    min-height: 250px;
+    padding: 32px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--admin-text-muted);
+    text-align: center;
+}
+
+.cohort-student-empty-state__icon {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 4px;
+    color: var(--admin-primary);
+}
+
+.cohort-student-empty-state strong {
+    color: var(--admin-text);
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.cohort-student-empty-state p {
+    max-width: 420px;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.cohort-student-empty-state .btn {
+    margin-top: 10px;
+}
+
+.cohort-student-empty-state--selected {
+    min-height: 250px;
+}
+
+.course-cohort-session-copy-control {
+    position: relative;
+}
+
+.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value {
+    color: var(--admin-control-text);
+    -webkit-text-fill-color: var(--admin-control-text);
+    opacity: 1;
+}
+
+.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value::-webkit-datetime-edit,
+.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value::-webkit-datetime-edit-fields-wrapper,
+.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value::-webkit-datetime-edit-text,
+.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value::-webkit-datetime-edit-month-field,
+.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value::-webkit-datetime-edit-day-field,
+.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value::-webkit-datetime-edit-year-field,
+.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value::-webkit-datetime-edit-hour-field,
+.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value::-webkit-datetime-edit-minute-field {
+    color: var(--admin-control-text);
+    opacity: 1;
+}
+
+.course-cohort-session-copy-control .lf-form-control {
+    padding-right: 48px;
+}
+
+.course-cohort-session-copy-control__button {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+}
+
+
 .cohort-student-create .admin-form-footer {
     margin-top: 4px;
 }
@@ -4564,7 +5015,7 @@
 
 .cohort-student-selected-list {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: .5rem;
     margin: 0;
     padding: 0;
@@ -4817,6 +5268,10 @@
 }
 
 .admin-table-action-link {
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
     text-decoration: none;
 }
 
@@ -4829,6 +5284,19 @@
 .admin-text-action:focus,
 .admin-text-action:focus-visible {
     text-decoration: underline;
+}
+
+.admin-text-action.admin-table-action-link:hover,
+.admin-text-action.admin-table-action-link:focus,
+.admin-text-action.admin-table-action-link:focus-visible {
+    background: color-mix(in srgb, var(--admin-primary) 8%, transparent);
+    text-decoration: none;
+}
+
+.admin-danger-text-action.admin-table-action-link:hover,
+.admin-danger-text-action.admin-table-action-link:focus,
+.admin-danger-text-action.admin-table-action-link:focus-visible {
+    background: color-mix(in srgb, var(--admin-danger) 8%, transparent);
 }
 
 .admin-text-action:focus-visible {

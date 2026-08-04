@@ -569,6 +569,40 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringNotContainsString("{!! __('results') !!}", $paginationView);
     }
 
+    public function test_backend_confirmations_use_the_shared_localized_dialog(): void
+    {
+        $layout = file_get_contents(base_path('resources/views/layouts/backend.blade.php'));
+        $component = file_get_contents(base_path('resources/views/components/confirm-dialog.blade.php'));
+        $script = file_get_contents(base_path('resources/js/app.js'));
+
+        $this->assertStringContainsString('<x-confirm-dialog />', $layout);
+        $this->assertStringContainsString('data-lf-confirm-dialog', $component);
+        $this->assertStringContainsString('aria-labelledby=', $component);
+        $this->assertStringContainsString('aria-describedby=', $component);
+        $this->assertStringContainsString('window.LFConfirm', $script);
+        $this->assertStringContainsString("document.addEventListener('submit'", $script);
+
+        $bladeFiles = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(
+            base_path('resources/views'),
+            \FilesystemIterator::SKIP_DOTS
+        ));
+        foreach ($bladeFiles as $bladeFile) {
+            if (! $bladeFile->isFile() || ! str_ends_with($bladeFile->getFilename(), '.blade.php')) {
+                continue;
+            }
+            $blade = file_get_contents($bladeFile);
+            $this->assertStringNotContainsString('window.confirm', $blade, $bladeFile->getPathname());
+        }
+
+        app()->setLocale('vi');
+        $this->assertSame('Xác nhận thao tác', __('lf.LF_common_title_confirm_action'));
+        $this->assertSame('Xác nhận', __('lf.LF_common_button_confirm'));
+
+        app()->setLocale('en');
+        $this->assertSame('Confirm action', __('lf.LF_common_title_confirm_action'));
+        $this->assertSame('Confirm', __('lf.LF_common_button_confirm'));
+    }
+
     public function test_backend_adaptive_form_markup_prioritizes_left_column(): void
     {
         $templateForm = file_get_contents(
@@ -732,7 +766,6 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringNotContainsString('handleBreadcrumbNavigation', $script);
         $this->assertStringNotContainsString('expandSidebarFromNavigation', $script);
         $this->assertStringNotContainsString('this.setManualSidebarState(false);', $script);
-        $this->assertStringNotContainsString('event.preventDefault();', $script);
     }
 
     public function test_sidebar_group_script_toggles_and_persists_submenus(): void

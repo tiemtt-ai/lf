@@ -1,12 +1,12 @@
 # LearnForge Admin Form And List Design Standard
 
-Version: 1.2
+Version: 1.4
 
 Status: Official Standard
 
 Scope: LF Admin Create/Edit Forms And List/Index Pages
 
-Last Updated: 2026-07
+Last Updated: 2026-08
 
 ---
 
@@ -926,6 +926,143 @@ Approved List/Index references hiện hành:
 
 Agent **MUST** inspect current implementation thay vì copy cứng class name.
 Business columns, filters và actions vẫn do module policy quyết định.
+
+# 26. Confirmation Dialog Standard
+
+## 26.1 Scope And Canonical Primitive
+
+Mọi thao tác cần người dùng xác nhận trong LF Admin và Teacher Authoring
+**MUST** dùng shared LF confirmation dialog. Không dùng `window.confirm()`,
+inline `confirm()` hoặc hộp thoại mặc định của trình duyệt.
+
+Canonical implementation:
+
+```text
+resources/views/components/confirm-dialog.blade.php
+resources/js/app.js — window.LFConfirm
+resources/css/admin/admin-components.css — .lf-confirm-dialog
+```
+
+Form xác nhận tĩnh **SHOULD** dùng `data-lf-confirm`. Luồng động **MUST** gọi
+`await window.LFConfirm.open(...)`. Module không được tạo bản sao modal chỉ để
+xác nhận một hành động.
+
+## 26.2 Content And Action Hierarchy
+
+Dialog **MUST** có:
+
+* tiêu đề mô tả mục đích, mặc định là “Xác nhận thao tác”;
+* nội dung nêu rõ đối tượng, hậu quả và khả năng hoàn tác khi liên quan;
+* nút hủy dùng nhãn i18n “Hủy”, đặt trước nút xác nhận;
+* nút xác nhận dùng động từ cụ thể như “Gỡ”, “Lưu trữ”, “Sao chép”; chỉ dùng
+  “Xác nhận” khi không có động từ chính xác hơn;
+* tone `danger` và nút danger cho thao tác phá hủy hoặc khó hoàn tác;
+* không dùng nhãn chung chung “OK”, domain trình duyệt hoặc text khác ngôn ngữ.
+
+Tiêu đề **SHOULD** ngắn; nội dung **SHOULD** là một đoạn, không lặp lại nguyên
+nhãn nút. Màu không được là tín hiệu duy nhất về mức độ rủi ro.
+
+## 26.3 Interaction And Accessibility
+
+Dialog **MUST**:
+
+* dùng semantic `<dialog>`, `aria-labelledby` và `aria-describedby`;
+* khóa tương tác nền bằng modal backdrop;
+* mở focus tại nút Hủy để tránh xác nhận nhầm;
+* hỗ trợ Escape và click backdrop để hủy khi chưa submit;
+* trả focus về trigger sau khi đóng;
+* có focus-visible rõ ràng và hit area theo button primitive;
+* chặn double-submit nhưng không thay đổi validation hoặc authorization;
+* responsive, không tràn viewport và xếp nút dọc trên mobile hẹp.
+
+## 26.4 Usage
+
+Form tĩnh:
+
+```html
+<form data-lf-confirm="Nội dung xác nhận"
+      data-lf-confirm-label="Gỡ"
+      data-lf-confirm-tone="danger">
+</form>
+```
+
+Luồng động:
+
+```js
+const confirmed = await window.LFConfirm.open({
+    title: 'Xác nhận thao tác',
+    message: 'Nội dung xác nhận',
+    confirmLabel: 'Gỡ',
+    tone: 'danger',
+    trigger: event.currentTarget,
+})
+```
+
+## 26.5 Acceptance Checklist
+
+- [ ] Không còn `window.confirm()` hoặc inline `confirm()` trong LF backend.
+- [ ] VI/EN đầy đủ cho title, content và actions.
+- [ ] Cancel, Escape, backdrop và focus return hoạt động.
+- [ ] Danger action có semantic text và danger treatment.
+- [ ] Form validation, lifecycle, authorization và tenant boundary không đổi.
+- [ ] Desktop, sidebar collapsed, tablet và mobile không overflow.
+- [ ] Shared tests, frontend build và `git diff --check` pass.
+
+# 27. Clipboard Copy Action Standard
+
+## 27.1 Scope And Canonical Primitive
+
+Chuẩn này áp dụng cho mọi nghiệp vụ sao chép dữ liệu trong LF Admin và các
+màn hình dùng chung LF admin primitives, bao gồm mã định danh, URL, token công
+khai và giá trị read-only. Module **MUST** dùng nút icon với class
+`admin-copy-action` cùng icon `copy`/`check` từ `x-backend-icon`; **MUST NOT**
+tạo biến thể nút chữ hoặc thông báo thành công làm thay đổi chiều cao bố cục.
+
+## 27.2 Interaction And Feedback
+
+* Nút sao chép **MUST** nằm sát giá trị hoặc trong mép phải của read-only
+  control; không được che nội dung và chỉ hiển thị khi có giá trị hợp lệ.
+* Trạng thái mặc định dùng icon `copy`. Sau khi Clipboard API thành công, icon
+  **MUST** đổi thành `check` với treatment `is-copied` trong khoảng 1.5–2 giây.
+* Phản hồi thành công **MUST** xuất hiện ngay tại vị trí nút; **MUST NOT** thêm
+  dòng status làm form/table dịch chuyển.
+* Nút **MUST** có `type="button"`, tooltip `title` và `aria-label` đa ngôn ngữ.
+  Khi thành công, tooltip và accessible name phải đổi thành “Đã sao chép” hoặc
+  bản dịch tương ứng.
+* Implementation **MUST NOT** báo thành công nếu Clipboard API thất bại và
+  **MUST NOT** thay đổi giá trị nghiệp vụ, submit form hoặc điều hướng trang.
+* Giá trị read-only **SHOULD** vẫn cho phép người dùng focus/chọn thủ công khi
+  control gốc hỗ trợ.
+
+## 27.3 Canonical Example
+
+```blade
+<div x-data="{ copied: false }">
+    <span>VALUE</span>
+    <button type="button" class="admin-copy-action"
+            x-bind:class="{ 'is-copied': copied }"
+            x-bind:title="copied ? copiedLabel : copyLabel"
+            x-bind:aria-label="copied ? copiedLabel : copyLabel"
+            x-on:click="navigator.clipboard.writeText(value).then(() => {
+                copied = true
+                setTimeout(() => copied = false, 1600)
+            })">
+        <span x-show="!copied"><x-backend-icon name="copy" /></span>
+        <span x-show="copied" x-cloak><x-backend-icon name="check" /></span>
+    </button>
+</div>
+```
+
+## 27.4 Acceptance Checklist
+
+- [ ] Không còn nút chữ cho thao tác copy trong LF Admin.
+- [ ] Copy/check icon dùng cùng component, kích thước và màu semantic.
+- [ ] Success feedback tại chỗ, không gây layout shift.
+- [ ] Tooltip và `aria-label` có VI/EN và đổi theo trạng thái.
+- [ ] Nút chỉ xuất hiện khi có dữ liệu có thể sao chép.
+- [ ] Clipboard failure không bị báo thành công.
+- [ ] Keyboard focus và visible focus đạt yêu cầu.
+- [ ] Targeted tests, frontend build và `git diff --check` pass.
 
 ---
 

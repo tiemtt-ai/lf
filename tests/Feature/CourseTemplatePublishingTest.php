@@ -248,7 +248,8 @@ class CourseTemplatePublishingTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
             ->assertOk()
             ->assertSeeText('Lưu trữ Template')
-            ->assertSee('window.confirm', false)
+            ->assertSee('data-lf-confirm=', false)
+            ->assertDontSee('window.confirm', false)
             ->assertSee(':aria-busy="submitting"', false);
 
         $this->actingAs($teacher)->post($archiveUrl)->assertForbidden();
@@ -705,14 +706,21 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertSeeText('Phiên bản 1')
             ->assertSeeText('Version Admin')
             ->assertSeeText('Đã xuất bản')
-            ->assertSeeText('Hiện tại');
+            ->assertSeeText('Đang sử dụng');
 
         $document = new \DOMDocument;
         @$document->loadHTML($historyResponse->getContent());
         $xpath = new \DOMXPath($document);
-        $this->assertSame(2, $xpath->query(
+        $this->assertSame(1, $xpath->query(
             '//table[contains(@class, "course-template-history-table")]'
-            .'//tbody/tr/td[5][normalize-space()="Đã xuất bản"]'
+            .'//tbody/tr/td[4]//span[contains(@class, "course-template-version-status-badge")][normalize-space()="Đã xuất bản"]'
+        )->length);
+        $this->assertSame(1, $xpath->query(
+            '//table[contains(@class, "course-template-history-table")]'
+            .'//tbody/tr/td[4]//span[contains(@class, "course-template-version-current-badge")][normalize-space()="Đang sử dụng"]'
+        )->length);
+        $this->assertSame(0, $xpath->query(
+            '//div[contains(concat(" ", normalize-space(@class), " "), " course-template-history-pagination ")]'
         )->length);
 
         app()->setLocale('en');
@@ -724,9 +732,13 @@ class CourseTemplatePublishingTest extends TestCase
         $englishDocument = new \DOMDocument;
         @$englishDocument->loadHTML($englishHistory->getContent());
         $englishXpath = new \DOMXPath($englishDocument);
-        $this->assertSame(2, $englishXpath->query(
+        $this->assertSame(1, $englishXpath->query(
             '//table[contains(@class, "course-template-history-table")]'
-            .'//tbody/tr/td[5][normalize-space()="Published"]'
+            .'//tbody/tr/td[4]//span[contains(@class, "course-template-version-status-badge")][normalize-space()="Published"]'
+        )->length);
+        $this->assertSame(1, $englishXpath->query(
+            '//table[contains(@class, "course-template-history-table")]'
+            .'//tbody/tr/td[4]//span[contains(@class, "course-template-version-current-badge")][normalize-space()="In use"]'
         )->length);
     }
 
@@ -753,12 +765,13 @@ class CourseTemplatePublishingTest extends TestCase
             '//table[contains(@class, "course-template-history-table")]//tbody/tr'
         )->length);
         $firstPage->assertSeeText('11 phiên bản đã phát hành');
+        $firstPage->assertSeeText('Hiển thị 1–10 / 11 bản ghi');
         $firstPage->assertSeeText('Phiên bản 11');
         $this->assertSame(0, $firstXpath->query(
             '//table[contains(@class, "course-template-history-table")]'
-            .'//tbody/tr/td[2][normalize-space()="Phiên bản 1"]'
+            .'//tbody/tr/td[1]//strong[normalize-space()="Phiên bản 1"]'
         )->length);
-        $this->assertSame(7, $firstXpath->query(
+        $this->assertSame(5, $firstXpath->query(
             '//table[contains(@class, "course-template-history-table")]//thead/tr/th'
         )->length);
         $firstPage->assertSee('history_page=2', false)->assertSee('tab=history', false);
@@ -774,8 +787,9 @@ class CourseTemplatePublishingTest extends TestCase
             '//table[contains(@class, "course-template-history-table")]//tbody/tr'
         )->length);
         $secondPage->assertSeeText('11 phiên bản đã phát hành');
+        $secondPage->assertSeeText('Hiển thị 11–11 / 11 bản ghi');
         $this->assertSame('Phiên bản 1', trim($secondXpath->query(
-            '//table[contains(@class, "course-template-history-table")]//tbody/tr[1]/td[2]'
+            '//table[contains(@class, "course-template-history-table")]//tbody/tr[1]/td[1]//strong'
         )->item(0)->textContent));
         $secondPage->assertSeeText('Phiên bản 1');
     }

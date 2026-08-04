@@ -57,7 +57,14 @@ class CourseCohortStudentManagementTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/edit")
             ->assertOk()
             ->assertSee('cohort-student-transfer-intro', false)
-            ->assertSee('paginatedSelected()', false);
+            ->assertSee('paginatedSelected()', false)
+            ->assertSee('x-show="lastPage > 1"', false)
+            ->assertSee('x-show="selectedLastPage() > 1"', false);
+
+        $legacyEditView = file_get_contents(resource_path('views/course-cohorts/edit.blade.php'));
+        $this->assertStringNotContainsString('selectedEnrollments', $legacyEditView);
+        $this->assertStringNotContainsString('course-cohorts.students.sync', $legacyEditView);
+        $this->assertStringNotContainsString('bulk-enrollment-pagination', $legacyEditView);
     }
 
     public function test_student_workspace_translations_exist_in_vietnamese_and_english(): void
@@ -196,8 +203,11 @@ class CourseCohortStudentManagementTest extends TestCase
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/create")
             ->assertOk()
-            ->assertSeeText(__('lf.LF_course_cohort_student_search_no_eligible'))
+            ->assertSeeText(__('lf.LF_course_cohort_student_empty_title'))
+            ->assertSeeText(__('lf.LF_course_cohort_student_empty_help'))
             ->assertSeeText(__('lf.LF_course_cohort_student_create_enrollment_action'))
+            ->assertDontSee('id="eligible_student_search"', false)
+            ->assertDontSeeText(__('lf.LF_bulk_enrollment_select_visible'))
             ->assertDontSee('role="combobox"', false)
             ->assertDontSee('name="cohort_id"', false)
             ->assertDontSee('name="status"', false)
@@ -764,10 +774,12 @@ class CourseCohortStudentManagementTest extends TestCase
             ->assertSee('data-label="Học viên"', false)
             ->assertDontSee('class="admin-table-sequence"', false)
             ->assertDontSee(route('admin.course-cohort-students.edit', $membershipId), false)
-            ->assertSee(route('admin.course-cohorts.students.edit', $cohortId), false)
-            ->assertSee(route('admin.course-cohorts.students.create', $cohortId), false)
+            ->assertDontSee(route('admin.course-cohorts.students.edit', $cohortId), false)
+            ->assertDontSee(route('admin.course-cohorts.students.create', $cohortId), false)
+            ->assertSee(route('admin.course-cohorts.students.sync', $cohortId), false)
+            ->assertSee('course-cohort-student-inline-form', false)
             ->assertDontSee(route('admin.course-cohorts.edit', ['id' => $cohortId, 'tab' => 'students']), false)
-            ->assertDontSee('name="enrollment_ids[]"', false);
+            ->assertSee('name="enrollment_ids[]"', false);
 
         $response->assertSeeText('1/12');
 

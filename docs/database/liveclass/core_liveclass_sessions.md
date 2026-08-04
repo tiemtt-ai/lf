@@ -1,5 +1,46 @@
 # Table: core_liveclass_sessions
 
+## Cohort Schedule Boundary Amendment — 2026-08-04
+
+A Cohort Session interval must be fully contained in the Cohort operating
+period. Its minimum selectable date is `MAX(cohort.start_date, CURRENT_DATE)`;
+its maximum is the end of `cohort.end_date`. Create, edit and reschedule must
+enforce the same boundary in both UI controls and authoritative backend
+validation. A request cannot create or move a Session into an elapsed date or
+outside its Cohort period.
+
+## Session Teacher Availability Amendment — 2026-08-04
+
+This section is the canonical contract for resolving the Session teaching team.
+New Cohort Session writes set nullable `primary_teacher_id` to `NULL`; non-null
+values are read-only legacy compatibility data. Every selected Teacher must:
+
+1. belong to the same `customer_id`;
+2. be an active `teacher` User;
+3. have an active `core_course_cohort_teachers` assignment for the Session's
+   `cohort_id`;
+4. satisfy the assignment availability rule below.
+
+An active Cohort `primary_teacher`, `teacher` or `assistant` assignment is
+eligible only when the complete Session interval is covered:
+
+```text
+assigned_from IS NULL OR DATE(scheduled_start_at) >= assigned_from
+
+AND
+
+assigned_to IS NULL OR DATE(scheduled_end_at) <= assigned_to
+```
+
+The UI must defer all checkbox options until both scheduled timestamps are
+available and filter them with this rule. No Teacher is selected automatically.
+Backend validation is mandatory and authoritative; a direct or tampered request
+must not select an unassigned or unavailable Teacher.
+
+This availability check does not mutate Cohort assignments. Persisting a
+Session Teacher continues to create the Session-level operational assignment
+and does not change the Teacher's Cohort role or assignment period.
+
 ## Curriculum And Operational Session Amendment — 2026-08-03
 
 This section supersedes the Session binding nullability in the 2026-07-25

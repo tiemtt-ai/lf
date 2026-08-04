@@ -1,4 +1,18 @@
-<div class="admin-card admin-form-card admin-form-surface course-cohort-teachers">
+@php($hasOperatingPeriod = ! empty($cohort->start_date) && ! empty($cohort->end_date))
+<div class="admin-card admin-form-card admin-form-surface course-cohort-teachers"
+     x-data="{
+         open: @js($errors->hasAny(['teacher_id', 'role', 'assigned_from', 'assigned_to'])),
+         role: @js(old('role', $hasOperatingPeriod ? 'primary_teacher' : 'teacher')),
+         assignedFrom: @js(old('assigned_from', $hasOperatingPeriod ? $cohort->start_date : '')),
+         assignedTo: @js(old('assigned_to', $hasOperatingPeriod ? $cohort->end_date : '')),
+         classStart: @js($cohort->start_date ?? ''), classEnd: @js($cohort->end_date ?? ''),
+         syncPrimaryPeriod() {
+             if (this.role === 'primary_teacher') {
+                 this.assignedFrom = this.classStart
+                 this.assignedTo = this.classEnd
+             }
+         }
+     }" x-init="syncPrimaryPeriod()">
     <div class="admin-form-standard">
         <section class="admin-form-standard-section">
             <header class="admin-form-section-header course-cohort-teachers__header">
@@ -6,20 +20,21 @@
                     <h2 class="admin-form-section-title">{{ __('lf.LF_course_cohort_teacher_title') }}</h2>
                     <p class="admin-form-section-help">{{ __('lf.LF_course_cohort_teacher_help') }}</p>
                 </div>
-                <span class="course-cohort-teachers__count">
-                    {{ trans_choice('lf.LF_course_cohort_teacher_count', $teachers->count(), ['count' => $teachers->count()]) }}
-                </span>
+                <div class="course-cohort-teachers__toolbar">
+                    <span class="course-cohort-teachers__count">
+                        {{ trans_choice('lf.LF_course_cohort_teacher_count', $teachers->count(), ['count' => $teachers->count()]) }}
+                    </span>
+                    @if (in_array($cohort->status, ['draft', 'active'], true))
+                        <button type="button" class="btn btn-primary course-cohort-teacher-assignment__open"
+                                x-show="!open" x-cloak x-on:click="open = true" aria-controls="cohort-teacher-assignment-form">
+                            {{ __('lf.LF_course_cohort_teacher_assign') }}
+                        </button>
+                    @endif
+                </div>
             </header>
 
             @if (in_array($cohort->status, ['draft', 'active'], true))
-                <div class="course-cohort-teacher-assignment" x-data="{ open: @js($errors->hasAny(['teacher_id', 'role', 'assigned_from', 'assigned_to'])) }">
-                    <button type="button" class="btn admin-primary-outline-action course-cohort-teacher-assignment__toggle"
-                            x-on:click="open = !open" x-bind:aria-expanded="open.toString()" aria-controls="cohort-teacher-assignment-form">
-                        <span x-text="open ? @js(__('lf.LF_course_cohort_teacher_close_form')) : @js(__('lf.LF_course_cohort_teacher_assign'))"></span>
-                        <svg aria-hidden="true" viewBox="0 0 20 20" x-bind:class="{ 'is-open': open }">
-                            <path d="m5 7.5 5 5 5-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/>
-                        </svg>
-                    </button>
+                <div class="course-cohort-teacher-assignment">
                     <form id="cohort-teacher-assignment-form" method="POST" action="{{ route('admin.course-cohorts.teachers.store', $cohort->id) }}"
                           class="course-cohort-teacher-assignment__form" x-show="open" x-cloak x-transition.opacity.duration.150ms>
                         @csrf
@@ -35,21 +50,23 @@
                         </div>
                         <div class="lf-form-group">
                             <x-form-label for="teacher_role" :value="__('lf.LF_course_cohort_teacher_role')" :required="true" />
-                            <select id="teacher_role" name="role" class="lf-form-control" required>
+                            <select id="teacher_role" name="role" class="lf-form-control" x-model="role" x-on:change="syncPrimaryPeriod()" required>
                                 @foreach (['primary_teacher', 'teacher', 'assistant'] as $role)
-                                    <option value="{{ $role }}" @selected(old('role', 'primary_teacher') === $role)>{{ __('lf.LF_course_cohort_teacher_role_'.$role) }}</option>
+                                    <option value="{{ $role }}" @disabled($role === 'primary_teacher' && ! $hasOperatingPeriod)>{{ __('lf.LF_course_cohort_teacher_role_'.$role) }}</option>
                                 @endforeach
                             </select>
                             @error('role')<p class="lf-form-error" role="alert">{{ $message }}</p>@enderror
                         </div>
                         <div class="lf-form-group">
                             <x-form-label for="assigned_from" :value="__('lf.LF_course_cohort_teacher_from')" />
-                            <input id="assigned_from" type="date" name="assigned_from" class="lf-form-control" value="{{ old('assigned_from') }}"
+                            <input id="assigned_from" type="date" name="assigned_from" class="lf-form-control" x-model="assignedFrom"
+                                   x-bind:readonly="role === 'primary_teacher'"
                                    @if($cohort->start_date) min="{{ $cohort->start_date }}" @endif @if($cohort->end_date) max="{{ $cohort->end_date }}" @endif>
                         </div>
                         <div class="lf-form-group">
                             <x-form-label for="assigned_to" :value="__('lf.LF_course_cohort_teacher_to')" />
-                            <input id="assigned_to" type="date" name="assigned_to" class="lf-form-control" value="{{ old('assigned_to') }}"
+                            <input id="assigned_to" type="date" name="assigned_to" class="lf-form-control" x-model="assignedTo"
+                                   x-bind:readonly="role === 'primary_teacher'"
                                    @if($cohort->start_date) min="{{ $cohort->start_date }}" @endif @if($cohort->end_date) max="{{ $cohort->end_date }}" @endif>
                         </div>
                         @if($errors->has('assigned_from') || $errors->has('assigned_to'))
@@ -58,17 +75,27 @@
                                 @error('assigned_to')<p>{{ $message }}</p>@enderror
                             </div>
                         @endif
-                        @if($cohort->start_date || $cohort->end_date)
-                            <p class="course-cohort-teacher-assignment__date-help">
+                        <p class="course-cohort-teacher-assignment__date-help">
+                            <span x-show="role !== 'primary_teacher'">
                                 {{ __('lf.LF_course_cohort_teacher_operating_period', [
                                     'from' => $cohort->start_date ? \Illuminate\Support\Carbon::parse($cohort->start_date)->format('d/m/Y') : '—',
                                     'to' => $cohort->end_date ? \Illuminate\Support\Carbon::parse($cohort->end_date)->format('d/m/Y') : '—',
                                 ]) }}
-                            </p>
-                        @endif
-                        <div class="admin-form-actions course-cohort-teacher-assignment__actions">
-                            <button class="btn btn-primary" type="submit">{{ __('lf.LF_course_cohort_teacher_add') }}</button>
-                        </div>
+                            </span>
+                            <span x-show="role === 'primary_teacher'" x-cloak>
+                                {{ __('lf.LF_course_cohort_teacher_primary_period_summary', [
+                                    'from' => $cohort->start_date ? \Illuminate\Support\Carbon::parse($cohort->start_date)->format('d/m/Y') : '—',
+                                    'to' => $cohort->end_date ? \Illuminate\Support\Carbon::parse($cohort->end_date)->format('d/m/Y') : '—',
+                                ]) }}
+                            </span>
+                        </p>
+                        <footer class="admin-form-footer course-cohort-teacher-assignment__footer">
+                            <strong class="course-cohort-session-form__footer-context">{{ __('lf.LF_course_cohort_teacher_assign') }}</strong>
+                            <div class="admin-form-footer-primary">
+                                <button type="button" class="btn btn-secondary" x-on:click="open = false">{{ __('lf.LF_common_button_cancel') }}</button>
+                                <button class="btn btn-primary" type="submit">{{ __('lf.LF_course_cohort_teacher_add') }}</button>
+                            </div>
+                        </footer>
                     </form>
                 </div>
             @endif
@@ -104,7 +131,11 @@
                             <td class="course-cohort-teachers__actions" data-label="{{ __('lf.table_actions') }}">
                                 @if (in_array($cohort->status, ['draft', 'active'], true))
                                     <div class="admin-table-actions course-cohort-teacher-action-list">
-                                        <form method="POST" action="{{ route('admin.course-cohorts.teachers.destroy', [$cohort->id, $teacher->id]) }}" onsubmit="return confirm(@js(__('lf.LF_course_cohort_teacher_remove_confirm', ['name' => $teacher->teacher_name])))">
+                                        <form method="POST"
+                                              action="{{ route('admin.course-cohorts.teachers.destroy', [$cohort->id, $teacher->id]) }}"
+                                              data-lf-confirm="{{ __('lf.LF_course_cohort_teacher_remove_confirm', ['name' => $teacher->teacher_name]) }}"
+                                              data-lf-confirm-tone="danger"
+                                              data-lf-confirm-label="{{ __('lf.LF_common_button_remove') }}">
                                             @csrf @method('DELETE')
                                             <button type="submit" class="admin-link-button admin-text-action admin-table-action-link">{{ __('lf.LF_common_button_remove') }}</button>
                                         </form>

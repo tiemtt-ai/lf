@@ -117,10 +117,10 @@
         }
         return true
     },
-    handleProductSubmit(event) {
+    productSubmitConfirmed: false,
+    async handleProductSubmit(event) {
         if (this.submittingProduct) { event.preventDefault(); return }
         if (!this.validateTimeWindows()) { event.preventDefault(); return }
-        if (this.persistedTemplate && this.template !== this.persistedTemplate && !window.confirm(@js(__('lf.LF_product_v2_template_change_confirm')))) { event.preventDefault(); return }
         const targetStatus = event.target.querySelector('[name=status]')?.value
         const transitionKey = `${this.persistedStatus}:${targetStatus}`
         const confirmations = @js([
@@ -130,7 +130,18 @@
             'draft:active' => __('lf.LF_product_status_activate_confirm'),
             'inactive:active' => __('lf.LF_product_status_activate_confirm'),
         ]);
-        if (this.persistedStatus && targetStatus !== this.persistedStatus && confirmations[transitionKey] && !window.confirm(confirmations[transitionKey])) { event.preventDefault(); return }
+        const confirmationMessages = []
+        if (this.persistedTemplate && this.template !== this.persistedTemplate) confirmationMessages.push(@js(__('lf.LF_product_v2_template_change_confirm')))
+        if (this.persistedStatus && targetStatus !== this.persistedStatus && confirmations[transitionKey]) confirmationMessages.push(confirmations[transitionKey])
+        if (!this.productSubmitConfirmed && confirmationMessages.length) {
+            event.preventDefault()
+            for (const message of confirmationMessages) {
+                if (!await window.LFConfirm.open({ message, trigger: event.submitter })) return
+            }
+            this.productSubmitConfirmed = true
+            event.target.requestSubmit(event.submitter || undefined)
+            return
+        }
         if (this.$refs.priceInput) this.$refs.priceInput.value = this.price
         if (this.$refs.discountInput) this.$refs.discountInput.value = this.discount
         this.submittingProduct = true

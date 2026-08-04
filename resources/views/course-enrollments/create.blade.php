@@ -209,7 +209,10 @@
                             </tr></template>
                             <tr x-show="!studentLoading && studentResults.length === 0" x-cloak><td>{{ __('lf.LF_course_enrollment_search_empty') }}</td></tr>
                         </tbody></table></div>
-                        <nav class="bulk-enrollment-pagination" aria-label="{{ __('lf.LF_bulk_enrollment_students_pagination') }}">
+                        <nav x-show="studentLastPage > 1"
+                             class="bulk-enrollment-pagination"
+                             aria-label="{{ __('lf.LF_bulk_enrollment_students_pagination') }}"
+                             x-cloak>
                             <button type="button" class="bulk-enrollment-pagination__button" x-on:click="loadStudents(studentPage - 1)" :disabled="studentPage <= 1"><span aria-hidden="true">←</span><span>{{ __('lf.LF_bulk_enrollment_previous') }}</span></button>
                             <span class="bulk-enrollment-pagination__status"><span class="sr-only">{{ __('lf.LF_bulk_enrollment_page') }}</span><span x-text="`${studentPage} / ${studentLastPage}`"></span></span>
                             <button type="button" class="bulk-enrollment-pagination__button" x-on:click="loadStudents(studentPage + 1)" :disabled="studentPage >= studentLastPage"><span>{{ __('lf.LF_bulk_enrollment_next') }}</span><span aria-hidden="true">→</span></button>
@@ -275,7 +278,10 @@
                             <span>{{ __('lf.LF_bulk_enrollment_eligibility_error') }}</span>
                             <button type="button" class="admin-text-action" x-on:click="loadProducts(productPage)">{{ __('lf.LF_bulk_enrollment_retry') }}</button>
                         </div>
-                        <nav class="bulk-enrollment-pagination" aria-label="{{ __('lf.LF_bulk_enrollment_products_pagination') }}">
+                        <nav x-show="productLastPage > 1"
+                             class="bulk-enrollment-pagination"
+                             aria-label="{{ __('lf.LF_bulk_enrollment_products_pagination') }}"
+                             x-cloak>
                             <button type="button" class="bulk-enrollment-pagination__button" x-on:click="loadProducts(productPage - 1)" :disabled="productPage <= 1"><span aria-hidden="true">←</span><span>{{ __('lf.LF_bulk_enrollment_previous') }}</span></button>
                             <span class="bulk-enrollment-pagination__status"><span class="sr-only">{{ __('lf.LF_bulk_enrollment_page') }}</span><span x-text="`${productPage} / ${productLastPage}`"></span></span>
                             <button type="button" class="bulk-enrollment-pagination__button" x-on:click="loadProducts(productPage + 1)" :disabled="productPage >= productLastPage"><span>{{ __('lf.LF_bulk_enrollment_next') }}</span><span aria-hidden="true">→</span></button>
@@ -480,7 +486,7 @@
                 payload(finalize) { return { student_ids: this.selectedStudents.map(item => item.id), product_ids: this.selectedProducts.map(item => item.id), reenrollment_confirmations: this.confirmedPairs, configuration: this.configuration, finalize } },
                 async runPreflight(finalize, trigger = null) { if (!await this.validateEnrollmentDate(trigger)) return null; this.loading = true; this.errorMessage = ''; try { const response = await fetch(config.preflightUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': config.csrf }, body: JSON.stringify(this.payload(finalize)) }); const data = await response.json(); if (!response.ok) { this.errorMessage = Object.values(data.errors || {}).flat().join(' '); return null } return data } catch (error) { this.errorMessage = @js(__('lf.LF_bulk_enrollment_search_error')); return null } finally { this.loading = false } },
                 async continueToSetup() { if (this.hasInvalidSelectedProducts) { await this.$nextTick(); this.$refs.selectionError.focus(); return } const result = await this.runPreflight(false, document.activeElement); if (!result) return; this.pairs = result.pairs; this.confirmationPage = 1; if (!result.can_continue) { this.errorMessage = @js(__('lf.LF_bulk_enrollment_preflight_blocked')); return } this.step = 2; window.scrollTo({ top: 0, behavior: 'smooth' }) },
-                confirmAllReenrollments() { if (window.confirm(@js(__('lf.LF_bulk_enrollment_confirm_all_warning')))) this.confirmedPairKeys = this.reenrollmentPairs.map(pair => `${pair.student_id}:${pair.product_id}`) },
+                async confirmAllReenrollments() { if (await window.LFConfirm.open({ message: @js(__('lf.LF_bulk_enrollment_confirm_all_warning')), trigger: document.activeElement })) this.confirmedPairKeys = this.reenrollmentPairs.map(pair => `${pair.student_id}:${pair.product_id}`) },
                 async commit() { if (this.submitting) return; this.submitting = true; const result = await this.runPreflight(true, document.activeElement); if (!result || !result.valid || !result.submission_token) { if (result) { this.pairs = result.pairs; this.errorMessage = @js(__('lf.LF_bulk_enrollment_confirmation_required')) } this.submitting = false; return } this.submissionToken = result.submission_token; await this.$nextTick(); this.$refs.form.submit() },
                 async backToSelection() { await this.invalidateToken(); this.step = 1; this.submitting = false; window.scrollTo({ top: 0, behavior: 'smooth' }) },
                 async invalidateToken() { if (!this.submissionToken) return; const token = this.submissionToken; this.submissionToken = ''; await fetch(config.invalidateUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': config.csrf }, body: JSON.stringify({ submission_token: token }) }) },

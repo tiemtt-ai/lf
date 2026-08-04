@@ -55,9 +55,8 @@
                               'versionId' => $version->id,
                           ]
                       ) }}"
-                      onsubmit="return window.confirm(@js(
-                          __('lf.LF_course_template_duplicate_confirmation')
-                      ))">
+                      data-lf-confirm="{{ __('lf.LF_course_template_duplicate_confirmation') }}"
+                      data-lf-confirm-label="{{ __('lf.LF_course_template_duplicate_action') }}">
                     @csrf
                     <button type="submit" class="btn btn-secondary">
                         {{ __('lf.LF_course_template_duplicate_action') }}
