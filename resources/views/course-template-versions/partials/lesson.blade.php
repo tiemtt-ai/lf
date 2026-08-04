@@ -35,19 +35,22 @@
                 @php
                     $activityView = $presentedActivities[$activity->id];
                     $activityIcon = match ($activity->activity_type) {
-                        'video', 'embedded_video', 'live_class' => '🎥',
-                        'quiz', 'assignment' => '📝',
-                        'audio' => '🎧',
-                        'external_link' => '🔗',
-                        default => '📄',
+                        'video' => 'file-video',
+                        'embedded_video' => 'square-play',
+                        'external_link' => 'link',
+                        'audio' => 'audio',
+                        'quiz', 'assignment' => 'clipboard-check',
+                        'live_class', 'liveclass' => 'video',
+                        default => 'document',
                     };
                 @endphp
 
                 <div class="course-template-activity-item"
                      data-version-activity-id="{{ $activity->id }}">
                     <div class="course-template-activity-identity">
-                        <span class="course-template-activity-icon"
-                              aria-hidden="true">{{ $activityIcon }}</span>
+                        <span class="course-template-activity-icon" aria-hidden="true">
+                            <x-backend-icon :name="$activityIcon" class="course-template-activity-type-icon" />
+                        </span>
                         <span class="course-template-activity-title-text">
                             {{ $activity->title_snapshot }}
                         </span>
