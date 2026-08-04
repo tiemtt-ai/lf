@@ -481,6 +481,9 @@ class CourseCohortManagementTest extends TestCase
             ->assertSeeText('Sản phẩm')
             ->assertSeeText('Phiên bản nội dung')
             ->assertSee('class="admin-form-standard"', false)
+            ->assertSee('course-cohort-edit-tabs', false)
+            ->assertSee('course-cohort-detail-tabs-help', false)
+            ->assertSee('cohort-edit-status-panel', false)
             ->assertDontSee('name="code"', false)
             ->assertDontSee('name="status"', false)
             ->assertDontSee('name="product_id"', false)
@@ -1036,7 +1039,7 @@ class CourseCohortManagementTest extends TestCase
             ->assertOk()
             ->assertDontSee('<option value="'.$teacher->id.'"', false);
 
-        $this->actingAs($admin)
+        $sessionsPage = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")
             ->assertOk()
             ->assertDontSee('name="primary_teacher_id"', false)
@@ -1053,6 +1056,10 @@ class CourseCohortManagementTest extends TestCase
             ->assertSee("'has-value': startsAt", false)
             ->assertSee("'has-value': endsAt", false);
 
+        $this->assertSame(
+            2,
+            substr_count($sessionsPage->getContent(), 'course-cohort-session-form__bound-control')
+        );
         $this->actingAs($admin)
             ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", [
                 'title' => 'Elapsed session', 'session_type' => 'curriculum',
@@ -1110,7 +1117,18 @@ class CourseCohortManagementTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")
             ->assertOk()
             ->assertSeeText($replacementTeacher->name)
-            ->assertSee('teacher_ids', false);
+            ->assertSee('teacher_ids', false)
+            ->assertSee('course-cohort-session-action-menu__dots', false)
+            ->assertDontSee('course-cohort-session-action-menu__chevron', false)
+            ->assertSeeText(__('lf.LF_course_cohort_session_detail_schedule'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_detail_content'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_detail_join'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_current_schedule'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_change_reason_help'))
+            ->assertSee('formatSessionDateTime(detailSession?.scheduled_start_at)', false)
+            ->assertSee('activity_meeting_url', false)
+            ->assertSee("'has-value': rescheduleStart", false)
+            ->assertSee("'has-value': rescheduleEnd", false);
 
         $this->actingAs($admin)
             ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}/schedule", [

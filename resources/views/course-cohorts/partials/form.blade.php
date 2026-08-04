@@ -18,7 +18,7 @@
                 </button>
             </div>
         </div>
-        <div id="cohort-edit-status">
+        <div id="cohort-edit-status" class="cohort-edit-status-panel">
             <span class="cohort-edit-overview-meta-label">{{ __('lf.LF_course_cohort_common_status') }}</span>
             <span @class([
                 'badge',
@@ -51,7 +51,7 @@
         </div>
     </dl>
 
-    <div class="admin-form-field-grid cohort-edit-overview-fields">
+    <div class="admin-form-field-grid cohort-edit-overview-fields" aria-label="{{ __('lf.LF_course_cohort_create_group_information') }}">
         <div class="lf-form-group admin-form-field">
             <x-form-label for="name" :value="__('lf.LF_course_cohort_common_name')" required />
             <input id="name" type="text" name="name" class="lf-form-control" value="{{ old('name', $cohort->name) }}"

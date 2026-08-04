@@ -2891,15 +2891,16 @@
 }
 
 .admin-card.course-cohort-edit-overview {
-    padding: 24px 28px;
+    padding: 0;
+    overflow: hidden;
 }
 
 .course-cohort-edit-overview .admin-form-standard-section {
-    padding-bottom: 24px;
+    padding: 22px 28px;
 }
 
 .course-cohort-edit-overview .admin-form-standard-section + .admin-form-standard-section {
-    padding-top: 24px;
+    padding-top: 22px;
 }
 
 .course-cohort-edit-overview .admin-form-section-header {
@@ -2911,6 +2912,10 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 24px;
+}
+
+.cohort-edit-overview-section {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--admin-primary) 5%, white), white 52%);
 }
 
 .cohort-edit-overview-eyebrow {
@@ -2943,19 +2948,39 @@
     gap: 6px;
 }
 
+.cohort-edit-status-panel {
+    min-width: 116px;
+    padding: 10px 12px;
+    border: 1px solid color-mix(in srgb, var(--admin-primary) 18%, var(--admin-border));
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--admin-primary) 5%, white);
+}
+
 .cohort-edit-overview-context {
-    margin: 18px 0;
+    margin: 18px 0 20px;
     padding: 0;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     border: 1px solid var(--admin-border);
-    border-radius: 10px;
+    border-radius: 12px;
     overflow: hidden;
+    background: var(--admin-surface, #fff);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--admin-text) 5%, transparent);
 }
 
 .cohort-edit-overview-context > div {
     min-width: 0;
     padding: 14px 16px;
+}
+
+.cohort-edit-overview-context > div::before {
+    width: 28px;
+    height: 3px;
+    margin-bottom: 10px;
+    display: block;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--admin-primary) 55%, transparent);
+    content: '';
 }
 
 .cohort-edit-overview-context > div + div {
@@ -2987,7 +3012,11 @@
 }
 
 .cohort-edit-overview-fields {
-    gap: 16px;
+    gap: 20px;
+    padding: 18px;
+    border: 1px solid var(--admin-border);
+    border-radius: 12px;
+    background: var(--admin-surface, #fff);
 }
 
 .course-cohort-edit-overview textarea.lf-form-control {
@@ -2996,7 +3025,12 @@
 
 .course-cohort-edit-overview .admin-form-footer {
     margin-top: 0;
-    padding-top: 18px;
+    padding: 18px 28px;
+    background: var(--admin-surface-subtle);
+}
+
+.course-cohort-edit-tabs {
+    margin-top: 8px;
 }
 
 .admin-card.course-cohort-create {
@@ -3398,7 +3432,15 @@
     }
 
     .admin-card.course-cohort-edit-overview {
+        padding: 0;
+    }
+
+    .course-cohort-edit-overview .admin-form-standard-section {
         padding: 20px;
+    }
+
+    .course-cohort-edit-overview .admin-form-footer {
+        padding: 16px 20px;
     }
 
     .admin-card.course-cohort-create {
@@ -3414,6 +3456,10 @@
         justify-items: start;
     }
 
+    .cohort-edit-status-panel {
+        width: 100%;
+    }
+
     .cohort-edit-overview-context {
         grid-template-columns: minmax(0, 1fr);
     }
@@ -3421,6 +3467,10 @@
     .cohort-edit-overview-context > div + div {
         border-top: 1px solid var(--admin-border);
         border-left: 0;
+    }
+
+    .cohort-edit-overview-fields {
+        padding: 14px;
     }
 
     .cohort-overview-context,
@@ -4154,6 +4204,27 @@
     margin: 0;
 }
 
+/* Curriculum bindings may be temporarily disabled while Alpine resolves the
+   selected lesson. Keep resolved business values legible in that state. */
+.lf-admin-page .course-cohort-session-form__bound-control.has-value,
+.lf-admin-page .course-cohort-session-form__bound-control.has-value:disabled {
+    opacity: 1;
+    color: var(--admin-text);
+    -webkit-text-fill-color: var(--admin-text);
+    font-weight: 500;
+}
+
+.lf-admin-page .course-cohort-session-form__bound-control.has-value:disabled {
+    border-color: #cbd5e1;
+    background-color: #f8fafc;
+    cursor: default;
+}
+
+.lf-admin-page .course-cohort-session-form__bound-control.has-value option {
+    color: var(--admin-text);
+    -webkit-text-fill-color: var(--admin-text);
+}
+
 .course-cohort-session-form__binding-help {
     color: var(--admin-text-muted);
     line-height: 1.45;
@@ -4266,15 +4337,19 @@
 }
 
 .course-cohort-session-table__col-sequence { width: 4%; }
-.course-cohort-session-table__col-name { width: 19%; }
-.course-cohort-session-table__col-content { width: 19%; }
+.course-cohort-session-table__col-name { width: 20%; }
+.course-cohort-session-table__col-content { width: 18%; }
 .course-cohort-session-table__col-schedule { width: 19%; }
-.course-cohort-session-table__col-teacher { width: 15%; }
+.course-cohort-session-table__col-teacher { width: 17%; }
 .course-cohort-session-table__col-status { width: 12%; }
-.course-cohort-session-table__col-actions { width: 12%; }
+.course-cohort-session-table__col-actions { width: 10%; }
 .course-cohort-session-table .admin-table-sequence,
-.course-cohort-session-table__status { text-align: center; }
-.course-cohort-session-table__actions { text-align: right; }
+.course-cohort-session-table__status,
+.course-cohort-session-table__actions { text-align: center; }
+
+.course-cohort-session-table th.course-cohort-session-table__actions {
+    white-space: nowrap;
+}
 
 .course-cohort-session-table__primary,
 .course-cohort-session-table__meta {
@@ -4357,23 +4432,21 @@
 .course-cohort-session-action-menu {
     position: relative;
     display: inline-flex;
-    justify-content: flex-end;
+    justify-content: center;
 }
 
 .course-cohort-session-action-menu__trigger {
+    width: 36px;
     min-height: 36px;
-    padding: 6px 10px;
+    padding: 0;
     display: inline-flex;
+    justify-content: center;
     align-items: center;
-    gap: 7px;
     border: 1px solid var(--admin-border);
-    border-radius: 7px;
+    border-radius: 8px;
     background: var(--admin-surface);
-    color: var(--admin-primary);
-    font-size: 13px;
-    font-weight: 700;
+    color: var(--admin-text-muted);
     cursor: pointer;
-    white-space: nowrap;
 }
 
 .course-cohort-session-action-menu__trigger:hover,
@@ -4381,6 +4454,7 @@
 .course-cohort-session-action-menu__trigger.is-open {
     border-color: color-mix(in srgb, var(--admin-primary) 35%, var(--admin-border));
     background: color-mix(in srgb, var(--admin-primary) 7%, var(--admin-surface));
+    color: var(--admin-primary);
 }
 
 .course-cohort-session-action-menu__trigger:focus-visible {
@@ -4388,17 +4462,10 @@
     outline-offset: 2px;
 }
 
-.course-cohort-session-action-menu__chevron {
-    width: 7px;
-    height: 7px;
-    border-right: 1.5px solid currentColor;
-    border-bottom: 1.5px solid currentColor;
-    transform: translateY(-2px) rotate(45deg);
-    transition: transform .15s ease;
-}
-
-.course-cohort-session-action-menu__trigger.is-open .course-cohort-session-action-menu__chevron {
-    transform: translateY(2px) rotate(225deg);
+.course-cohort-session-action-menu__dots {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
 }
 
 .course-cohort-session-action-menu__panel {
@@ -4476,7 +4543,16 @@
 }
 
 .course-cohort-session-modal {
-    width: min(560px, calc(100vw - 32px));
+    width: min(720px, calc(100vw - 32px));
+}
+
+.course-cohort-session-modal .admin-modal-header {
+    align-items: flex-start;
+}
+
+.course-cohort-session-modal .admin-modal-header > div:first-child {
+    min-width: 0;
+    flex: 1;
 }
 
 .course-cohort-session-modal__eyebrow {
@@ -4487,15 +4563,53 @@
     text-transform: uppercase;
 }
 
+.course-cohort-session-modal__summary {
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.course-cohort-session-modal__status {
+    margin: 3px 8px 0 auto;
+    white-space: nowrap;
+}
+
 .course-cohort-session-modal__body {
-    padding: 20px 24px;
+    padding: 0 24px;
+}
+
+.course-cohort-session-modal__section {
+    padding: 18px 0;
+}
+
+.course-cohort-session-modal__section + .course-cohort-session-modal__section {
+    border-top: 1px solid var(--admin-border);
+}
+
+.course-cohort-session-modal__section h3 {
+    margin: 0 0 12px;
+    color: var(--admin-primary);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.4;
 }
 
 .course-cohort-session-modal__grid {
     margin: 0;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 18px 24px;
+    gap: 16px 24px;
+}
+
+.course-cohort-session-modal__grid--schedule > div {
+    padding: 12px 14px;
+    border-radius: 9px;
+    background: var(--admin-surface-subtle);
 }
 
 .course-cohort-session-modal__grid div {
@@ -4517,6 +4631,12 @@
     overflow-wrap: anywhere;
 }
 
+.course-cohort-session-modal__join-link {
+    display: inline-flex;
+    align-items: center;
+    font-weight: 700;
+}
+
 .course-cohort-session-modal > .admin-form-footer {
     margin: 0;
     padding: 14px 24px;
@@ -4535,6 +4655,28 @@
 
 .course-cohort-session-reschedule-modal__body .admin-form-field--full {
     grid-column: 1 / -1;
+}
+
+.course-cohort-session-reschedule-current {
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-radius: 8px;
+    color: var(--admin-text-muted);
+    background: var(--admin-surface-subtle);
+    font-size: 12px;
+}
+
+.course-cohort-session-reschedule-current strong {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+    color: var(--admin-text);
+    font-size: 13px;
 }
 
 .course-cohort-session-reschedule-form {
@@ -4636,6 +4778,7 @@
     .course-cohort-session-action-menu__panel { right: auto; left: 0; }
     .course-cohort-session-detail-popover { right: auto; left: 0; max-width: calc(100vw - 64px); }
     .course-cohort-session-modal__grid { grid-template-columns: minmax(0, 1fr); }
+    .course-cohort-session-modal__status { margin-right: 4px; }
     .course-cohort-session-reschedule-modal__body { grid-template-columns: minmax(0, 1fr); }
     .course-cohort-session-reschedule-modal__body .admin-form-field--full { grid-column: auto; }
     .course-cohort-session-empty-row { border: 0 !important; }
@@ -4865,20 +5008,20 @@
     position: relative;
 }
 
-.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value {
+.lf-admin-page :is(.course-cohort-session-form, .course-cohort-session-reschedule-modal) input[type='datetime-local'].has-value {
     color: var(--admin-control-text);
     -webkit-text-fill-color: var(--admin-control-text);
     opacity: 1;
 }
 
-.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value::-webkit-datetime-edit,
-.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value::-webkit-datetime-edit-fields-wrapper,
-.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value::-webkit-datetime-edit-text,
-.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value::-webkit-datetime-edit-month-field,
-.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value::-webkit-datetime-edit-day-field,
-.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value::-webkit-datetime-edit-year-field,
-.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value::-webkit-datetime-edit-hour-field,
-.lf-admin-page .course-cohort-session-form input[type='datetime-local'].has-value::-webkit-datetime-edit-minute-field {
+.lf-admin-page :is(.course-cohort-session-form, .course-cohort-session-reschedule-modal) input[type='datetime-local'].has-value::-webkit-datetime-edit,
+.lf-admin-page :is(.course-cohort-session-form, .course-cohort-session-reschedule-modal) input[type='datetime-local'].has-value::-webkit-datetime-edit-fields-wrapper,
+.lf-admin-page :is(.course-cohort-session-form, .course-cohort-session-reschedule-modal) input[type='datetime-local'].has-value::-webkit-datetime-edit-text,
+.lf-admin-page :is(.course-cohort-session-form, .course-cohort-session-reschedule-modal) input[type='datetime-local'].has-value::-webkit-datetime-edit-month-field,
+.lf-admin-page :is(.course-cohort-session-form, .course-cohort-session-reschedule-modal) input[type='datetime-local'].has-value::-webkit-datetime-edit-day-field,
+.lf-admin-page :is(.course-cohort-session-form, .course-cohort-session-reschedule-modal) input[type='datetime-local'].has-value::-webkit-datetime-edit-year-field,
+.lf-admin-page :is(.course-cohort-session-form, .course-cohort-session-reschedule-modal) input[type='datetime-local'].has-value::-webkit-datetime-edit-hour-field,
+.lf-admin-page :is(.course-cohort-session-form, .course-cohort-session-reschedule-modal) input[type='datetime-local'].has-value::-webkit-datetime-edit-minute-field {
     color: var(--admin-control-text);
     opacity: 1;
 }

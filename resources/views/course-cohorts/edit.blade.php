@@ -18,7 +18,7 @@
     @endif
 
     <div x-data="{ lockedReason: '' }">
-        <nav class="admin-form-actions cohort-student-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
+        <nav class="admin-form-actions course-cohort-detail-tabs course-cohort-edit-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
             @foreach ($cohortTabs as $tab)
                 <span class="sr-only">{{ $tab['note'] }}</span>
                 @php($editRoute = $tab['key'] === 'overview'
@@ -41,8 +41,10 @@
                 @endif
             @endforeach
         </nav>
-        <p class="admin-form-section-help" role="status" aria-live="polite"
-           x-text="lockedReason || @js(collect($cohortTabs)->firstWhere('key', 'overview')['note'])"></p>
+        <p class="admin-form-section-help course-cohort-detail-tabs-help" role="status" aria-live="polite">
+            <span class="course-cohort-detail-tabs-help__icon" aria-hidden="true">i</span>
+            <span x-text="lockedReason || @js(collect($cohortTabs)->firstWhere('key', 'overview')['note'])"></span>
+        </p>
     </div>
 
     <div class="cohort-student-edit-back">

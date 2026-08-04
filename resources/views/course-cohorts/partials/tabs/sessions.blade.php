@@ -19,6 +19,9 @@
          scheduleMax: @js($maximumSessionEnd->format('Y-m-d\TH:i')),
          provider: @js(old('online_provider', '')), meetingUrl: @js(old('meeting_url', '')),
          roomName: @js(old('room_name', '')), address: @js(old('address', '')),
+         statusLabels: @js(collect(['draft', 'scheduled', 'live', 'completed', 'cancelled', 'no_show'])->mapWithKeys(fn ($status) => [$status => __('lf.LF_course_cohort_session_status_'.$status)])),
+         typeLabels: @js(collect(['curriculum', 'operational'])->mapWithKeys(fn ($type) => [$type => __('lf.LF_course_cohort_session_type_'.$type)])),
+         modeLabels: @js(collect(['online', 'offline', 'hybrid'])->mapWithKeys(fn ($mode) => [$mode => __('lf.LF_course_cohort_session_mode_'.$mode)])),
          lessons: @js($versionLessons), activities: @js($versionActivities),
          teachers: @js($availableTeachers->map(fn ($teacher) => [
              'id' => (string) $teacher->id,
@@ -69,6 +72,14 @@
                  if (host.includes('teams.microsoft.com') || host.includes('teams.live.com')) return 'Microsoft Teams'
                  return host.replace(/^www\./, '')
              } catch (_) { return '' }
+         },
+         formatSessionDateTime(value) {
+             if (!value) return '—'
+             const date = new Date(String(value).replace(' ', 'T'))
+             if (Number.isNaN(date.getTime())) return value
+             return new Intl.DateTimeFormat(document.documentElement.lang === 'en' ? 'en-GB' : 'vi-VN', {
+                 dateStyle: 'short', timeStyle: 'short'
+             }).format(date)
          },
          copyCurriculumMeetingLink() {
              const url = this.curriculumMeetingUrl()
@@ -185,8 +196,9 @@
                     <div class="course-cohort-session-form__grid" x-show="sessionType === 'curriculum'">
                         <div class="lf-form-group">
                             <x-form-label for="version_lesson_id" :value="__('lf.LF_course_cohort_session_lesson')" :required="true" />
-                            <select id="version_lesson_id" name="version_lesson_id" class="lf-form-control"
-                                    x-model="lessonId" x-on:change="lessonChanged()" x-bind:required="sessionType === 'curriculum'">
+                            <select id="version_lesson_id" name="version_lesson_id" class="lf-form-control course-cohort-session-form__bound-control"
+                                    x-model="lessonId" x-on:change="lessonChanged()" x-bind:required="sessionType === 'curriculum'"
+                                    x-bind:class="{ 'has-value': lessonId }">
                                 <option value="">{{ __('lf.LF_course_cohort_session_select_lesson') }}</option>
                                 @foreach ($versionLessons as $lesson)<option value="{{ $lesson->id }}">{{ $lesson->title_snapshot }}</option>@endforeach
                             </select>
@@ -194,8 +206,9 @@
                         </div>
                         <div class="lf-form-group">
                             <x-form-label for="version_activity_id" :value="__('lf.LF_course_cohort_session_activity')" :required="true" />
-                            <select id="version_activity_id" name="version_activity_id" class="lf-form-control"
-                                    x-model="activityId" x-on:change="activityChanged()" x-bind:required="sessionType === 'curriculum'" x-bind:disabled="!lessonId">
+                            <select id="version_activity_id" name="version_activity_id" class="lf-form-control course-cohort-session-form__bound-control"
+                                    x-model="activityId" x-on:change="activityChanged()" x-bind:required="sessionType === 'curriculum'" x-bind:disabled="!lessonId"
+                                    x-bind:class="{ 'has-value': activityId }">
                                 <option value="">{{ __('lf.LF_course_cohort_session_select_activity') }}</option>
                                 <template x-for="activity in availableActivities()" :key="activity.id">
                                     <option :value="activity.id" x-text="activity.title_snapshot"></option>
@@ -371,9 +384,13 @@
                                             x-on:click="actionsOpen = !actionsOpen"
                                             x-bind:class="{ 'is-open': actionsOpen }"
                                             x-bind:aria-expanded="actionsOpen.toString()"
+                                            aria-label="{{ __('lf.table_actions') }}: {{ $session->title }}"
                                             aria-haspopup="menu">
-                                        <span>{{ __('lf.table_actions') }}</span>
-                                        <span class="course-cohort-session-action-menu__chevron" aria-hidden="true"></span>
+                                        <svg class="course-cohort-session-action-menu__dots" viewBox="0 0 24 24" aria-hidden="true">
+                                            <circle cx="5" cy="12" r="1.75" />
+                                            <circle cx="12" cy="12" r="1.75" />
+                                            <circle cx="19" cy="12" r="1.75" />
+                                        </svg>
                                     </button>
                                     <div class="course-cohort-session-action-menu__panel" role="menu"
                                          x-show="actionsOpen" x-cloak x-transition.opacity.duration.120ms>
@@ -426,18 +443,54 @@
                 <div>
                     <span class="course-cohort-session-modal__eyebrow">{{ __('lf.LF_course_cohort_session_details') }}</span>
                     <h2 id="course-cohort-session-detail-title" x-text="detailSession?.title"></h2>
+                    <div class="course-cohort-session-modal__summary">
+                        <span x-text="typeLabels[detailSession?.session_type] || '—'"></span>
+                        <span aria-hidden="true">•</span>
+                        <span x-text="modeLabels[detailSession?.delivery_mode] || '—'"></span>
+                    </div>
                 </div>
+                <span class="badge course-cohort-session-modal__status"
+                      x-bind:class="detailSession ? 'course-cohort-session-status-badge--' + detailSession.status : ''"
+                      x-text="statusLabels[detailSession?.status] || '—'"></span>
                 <button x-ref="sessionDetailClose" type="button"
                         class="course-enrollment-lifecycle-modal__close" x-on:click="closeDetail()"
                         aria-label="{{ __('lf.LF_common_button_close') }}"><span aria-hidden="true">×</span></button>
             </header>
             <div class="course-cohort-session-modal__body">
-                <dl class="course-cohort-session-modal__grid">
-                    <div><dt>{{ __('lf.LF_course_cohort_session_version') }}</dt><dd>{{ $cohort->version_code }}</dd></div>
-                    <div><dt>{{ __('lf.LF_course_cohort_session_lesson') }}</dt><dd x-text="detailSession?.lesson_title || @js(__('lf.LF_course_cohort_session_outside_content'))"></dd></div>
-                    <div><dt>{{ __('lf.LF_course_cohort_session_activity') }}</dt><dd x-text="detailSession?.activity_title || '—'"></dd></div>
-                    <div><dt>{{ __('lf.LF_course_cohort_session_teachers') }}</dt><dd x-text="(detailSession?.teacher_team || []).map(teacher => teacher.name).join(', ') || detailSession?.primary_teacher_name || '—'"></dd></div>
-                </dl>
+                <section class="course-cohort-session-modal__section">
+                    <h3>{{ __('lf.LF_course_cohort_session_detail_schedule') }}</h3>
+                    <dl class="course-cohort-session-modal__grid course-cohort-session-modal__grid--schedule">
+                        <div><dt>{{ __('lf.LF_course_cohort_session_start') }}</dt><dd x-text="formatSessionDateTime(detailSession?.scheduled_start_at)"></dd></div>
+                        <div><dt>{{ __('lf.LF_course_cohort_session_end') }}</dt><dd x-text="formatSessionDateTime(detailSession?.scheduled_end_at)"></dd></div>
+                    </dl>
+                </section>
+                <section class="course-cohort-session-modal__section">
+                    <h3>{{ __('lf.LF_course_cohort_session_detail_content') }}</h3>
+                    <dl class="course-cohort-session-modal__grid">
+                        <div><dt>{{ __('lf.LF_course_cohort_session_version') }}</dt><dd>{{ $cohort->version_code }}</dd></div>
+                        <div><dt>{{ __('lf.LF_course_cohort_session_lesson') }}</dt><dd x-text="detailSession?.lesson_title || @js(__('lf.LF_course_cohort_session_outside_content'))"></dd></div>
+                        <div><dt>{{ __('lf.LF_course_cohort_session_activity') }}</dt><dd x-text="detailSession?.activity_title || '—'"></dd></div>
+                        <div><dt>{{ __('lf.LF_course_cohort_session_teachers') }}</dt><dd x-text="(detailSession?.teacher_team || []).map(teacher => teacher.name).join(', ') || detailSession?.primary_teacher_name || '—'"></dd></div>
+                    </dl>
+                </section>
+                <section class="course-cohort-session-modal__section"
+                         x-show="detailSession?.delivery_mode === 'online' || detailSession?.delivery_mode === 'hybrid' || detailSession?.room_name_snapshot || detailSession?.address_snapshot">
+                    <h3>{{ __('lf.LF_course_cohort_session_detail_join') }}</h3>
+                    <dl class="course-cohort-session-modal__grid">
+                        <div x-show="detailSession?.delivery_mode === 'online' || detailSession?.delivery_mode === 'hybrid'">
+                            <dt>{{ __('lf.LF_course_cohort_session_provider') }}</dt>
+                            <dd x-text="detailSession?.online_provider || meetingProvider(detailSession?.meeting_url_snapshot || detailSession?.activity_meeting_url) || @js(__('lf.LF_course_cohort_session_meeting_not_available'))"></dd>
+                        </div>
+                        <div x-show="detailSession?.meeting_url_snapshot || detailSession?.activity_meeting_url">
+                            <dt>{{ __('lf.LF_course_cohort_session_meeting_url') }}</dt>
+                            <dd><a class="admin-text-action course-cohort-session-modal__join-link"
+                                   x-bind:href="detailSession?.meeting_url_snapshot || detailSession?.activity_meeting_url"
+                                   target="_blank" rel="noopener noreferrer">{{ __('lf.LF_course_cohort_session_join') }}</a></dd>
+                        </div>
+                        <div x-show="detailSession?.room_name_snapshot"><dt>{{ __('lf.LF_course_cohort_session_room') }}</dt><dd x-text="detailSession?.room_name_snapshot"></dd></div>
+                        <div x-show="detailSession?.address_snapshot"><dt>{{ __('lf.LF_course_cohort_session_address') }}</dt><dd x-text="detailSession?.address_snapshot"></dd></div>
+                    </dl>
+                </section>
             </div>
             <footer class="admin-form-footer" data-actions-align="end">
                 <div class="admin-form-footer-primary">
@@ -465,21 +518,32 @@
                 </button>
             </header>
             <div class="course-cohort-session-modal__body course-cohort-session-reschedule-modal__body">
+                <div class="course-cohort-session-reschedule-current admin-form-field--full">
+                    <span>{{ __('lf.LF_course_cohort_session_current_schedule') }}</span>
+                    <strong>
+                        <span x-text="formatSessionDateTime(rescheduleSession?.scheduled_start_at)"></span>
+                        <span aria-hidden="true">→</span>
+                        <span x-text="formatSessionDateTime(rescheduleSession?.scheduled_end_at)"></span>
+                    </strong>
+                </div>
                 <div class="lf-form-group">
                     <x-form-label for="reschedule_start_at" :value="__('lf.LF_course_cohort_session_start')" :required="true" />
                     <input x-ref="rescheduleStart" id="reschedule_start_at" type="datetime-local"
                            name="scheduled_start_at" class="lf-form-control" x-model="rescheduleStart"
-                           x-on:change="rescheduleStartChanged()" x-bind:min="scheduleMin" x-bind:max="scheduleMax" required>
+                           x-on:change="rescheduleStartChanged()" x-bind:min="scheduleMin" x-bind:max="scheduleMax"
+                           x-bind:class="{ 'has-value': rescheduleStart }" required>
                 </div>
                 <div class="lf-form-group">
                     <x-form-label for="reschedule_end_at" :value="__('lf.LF_course_cohort_session_end')" :required="true" />
                     <input id="reschedule_end_at" type="datetime-local" name="scheduled_end_at"
                            class="lf-form-control" x-model="rescheduleEnd"
-                           x-bind:min="rescheduleStart || scheduleMin" x-bind:max="scheduleMax" required>
+                           x-bind:min="rescheduleStart || scheduleMin" x-bind:max="scheduleMax"
+                           x-bind:class="{ 'has-value': rescheduleEnd }" required>
                 </div>
                 <div class="lf-form-group admin-form-field--full">
                     <x-form-label for="reschedule_reason" :value="__('lf.LF_course_cohort_session_change_reason')" />
                     <textarea id="reschedule_reason" name="reason" class="lf-form-control" rows="3" maxlength="1000"></textarea>
+                    <p class="lf-form-help">{{ __('lf.LF_course_cohort_session_change_reason_help') }}</p>
                 </div>
             </div>
             <footer class="admin-form-footer" data-actions-align="end">

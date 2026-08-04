@@ -208,7 +208,13 @@ class CourseCohortController extends Controller
             ->leftJoin('users as teachers', 'teachers.id', '=', 'sessions.primary_teacher_id')
             ->where('sessions.customer_id', $customerId)->where('sessions.cohort_id', $cohortId)
             ->orderBy('sessions.scheduled_start_at')->orderBy('sessions.id')
-            ->select('sessions.*', 'lessons.title_snapshot as lesson_title', 'activities.title_snapshot as activity_title', 'teachers.name as primary_teacher_name')
+            ->select(
+                'sessions.*',
+                'lessons.title_snapshot as lesson_title',
+                'activities.title_snapshot as activity_title',
+                'activities.live_class_url_snapshot as activity_meeting_url',
+                'teachers.name as primary_teacher_name'
+            )
             ->get();
 
         if ($sessions->isEmpty()) {
