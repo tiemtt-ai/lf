@@ -837,6 +837,35 @@
     gap: 10px;
 }
 
+.cohort-detail-action-group .cohort-lifecycle-action {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+}
+
+.cohort-detail-action-group > .cohort-lifecycle-action .admin-danger-text-action {
+    min-height: 40px;
+    padding: 8px 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 6px;
+    color: var(--admin-danger);
+    background: transparent;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.35;
+    cursor: pointer;
+}
+
+.cohort-detail-action-group > .cohort-lifecycle-action .admin-danger-text-action:hover,
+.cohort-detail-action-group > .cohort-lifecycle-action .admin-danger-text-action:focus-visible {
+    background: color-mix(in srgb, var(--admin-danger) 7%, transparent);
+    text-decoration: none;
+}
+
 .cohort-detail-action-group form {
     margin: 0;
 }
@@ -2752,12 +2781,12 @@
 }
 
 .course-cohort-detail .cohort-overview-section {
-    padding-bottom: 20px;
+    padding-bottom: 16px;
 }
 
 .course-cohort-detail .cohort-overview-section + .cohort-overview-section,
 .course-cohort-detail .cohort-overview-identity + .cohort-overview-section {
-    padding-top: 20px;
+    padding-top: 16px;
 }
 
 .course-cohort-detail .admin-form-section-header {
@@ -2792,6 +2821,29 @@
     flex: 0 0 auto;
 }
 
+.cohort-overview-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cohort-overview-status > span {
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.cohort-overview-edit-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.cohort-overview-edit-action .backend-sidebar-icon {
+    width: 16px;
+    height: 16px;
+}
+
 .cohort-overview-code {
     margin-top: 5px;
     display: flex;
@@ -2810,6 +2862,20 @@
     border: 1px solid var(--admin-border);
     border-radius: 10px;
     overflow: hidden;
+}
+
+.cohort-overview-summary {
+    margin-top: 16px;
+    overflow: hidden;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface, #fff);
+}
+
+.cohort-overview-summary .cohort-overview-context {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
 }
 
 .cohort-overview-context > div {
@@ -2850,14 +2916,27 @@
     margin: 0;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    position: relative;
+    gap: 0;
+    overflow: hidden;
+    border-left: 3px solid color-mix(in srgb, var(--admin-primary) 55%, transparent);
+    border-radius: 0 8px 8px 0;
+    background: var(--admin-surface-subtle);
 }
 
 .cohort-overview-dates > div {
-    padding: 12px 14px;
-    border-left: 2px solid color-mix(in srgb, var(--admin-primary) 55%, transparent);
-    border-radius: 0 8px 8px 0;
-    background: var(--admin-surface-subtle);
+    position: relative;
+    padding: 11px 14px;
+}
+
+.cohort-overview-dates > div:first-child::after {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    color: var(--admin-text-muted);
+    font-size: 18px;
+    content: '\2192';
+    transform: translate(50%, -50%);
 }
 
 .cohort-overview-dates dd {
@@ -2869,7 +2948,11 @@
 
 .cohort-overview-notes {
     min-height: 0;
-    padding: 12px 14px;
+    padding: 10px 14px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
+    gap: 10px;
     border-left: 2px solid var(--admin-border);
     border-radius: 0 8px 8px 0;
     background: var(--admin-surface-subtle);
@@ -2880,7 +2963,7 @@
 
 .cohort-overview-notes > span {
     display: block;
-    margin-bottom: 4px;
+    margin: 0;
     font-size: 12px;
     font-weight: 600;
 }
@@ -2896,11 +2979,11 @@
 }
 
 .course-cohort-edit-overview .admin-form-standard-section {
-    padding: 22px 28px;
+    padding: 18px 28px;
 }
 
 .course-cohort-edit-overview .admin-form-standard-section + .admin-form-standard-section {
-    padding-top: 22px;
+    padding-top: 18px;
 }
 
 .course-cohort-edit-overview .admin-form-section-header {
@@ -2943,44 +3026,41 @@
 }
 
 #cohort-edit-status {
-    display: grid;
-    justify-items: end;
-    gap: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .cohort-edit-status-panel {
-    min-width: 116px;
-    padding: 10px 12px;
-    border: 1px solid color-mix(in srgb, var(--admin-primary) 18%, var(--admin-border));
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.cohort-edit-readonly-summary {
+    margin: 16px 0;
+    overflow: hidden;
+    border: 1px solid var(--admin-border);
     border-radius: 10px;
-    background: color-mix(in srgb, var(--admin-primary) 5%, white);
+    background: var(--admin-surface, #fff);
 }
 
 .cohort-edit-overview-context {
-    margin: 18px 0 20px;
+    margin: 0;
     padding: 0;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    border: 1px solid var(--admin-border);
-    border-radius: 12px;
+    border: 0;
+    border-radius: 0;
     overflow: hidden;
     background: var(--admin-surface, #fff);
-    box-shadow: 0 1px 2px color-mix(in srgb, var(--admin-text) 5%, transparent);
+    box-shadow: none;
 }
 
 .cohort-edit-overview-context > div {
     min-width: 0;
     padding: 14px 16px;
-}
-
-.cohort-edit-overview-context > div::before {
-    width: 28px;
-    height: 3px;
-    margin-bottom: 10px;
-    display: block;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--admin-primary) 55%, transparent);
-    content: '';
 }
 
 .cohort-edit-overview-context > div + div {
@@ -3013,10 +3093,137 @@
 
 .cohort-edit-overview-fields {
     gap: 20px;
-    padding: 18px;
+    padding: 16px;
     border: 1px solid var(--admin-border);
     border-radius: 12px;
     background: var(--admin-surface, #fff);
+}
+
+.cohort-edit-readonly-summary .cohort-product-registration-window--compact {
+    margin: 0;
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: minmax(210px, .7fr) minmax(320px, 1.3fr) minmax(260px, 1fr);
+    align-items: center;
+    gap: 12px 24px;
+    border: 0;
+    border-top: 1px solid var(--admin-border);
+    border-left: 3px solid color-mix(in srgb, var(--admin-primary) 62%, transparent);
+    border-radius: 0;
+    background: color-mix(in srgb, var(--admin-primary) 3%, var(--admin-surface));
+}
+
+.cohort-edit-date-fields {
+    position: relative;
+    gap: 28px;
+    padding: 14px 16px;
+    border-left: 3px solid color-mix(in srgb, var(--admin-primary) 55%, transparent);
+    border-radius: 0 8px 8px 0;
+    background: var(--admin-surface-subtle);
+}
+
+.cohort-edit-additional-section textarea.lf-form-control {
+    min-height: 88px;
+}
+
+.cohort-product-registration-window {
+    margin: 0 0 20px;
+    padding: 14px 16px;
+    border: 1px solid color-mix(in srgb, var(--admin-primary) 18%, var(--admin-border));
+    border-left: 3px solid color-mix(in srgb, var(--admin-primary) 62%, transparent);
+    border-radius: 0 10px 10px 0;
+    background: color-mix(in srgb, var(--admin-primary) 4%, var(--admin-surface));
+}
+
+.cohort-product-registration-window__heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.cohort-product-registration-window__source {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--admin-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.cohort-product-registration-window h3 {
+    margin: 0;
+    color: var(--admin-text);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.cohort-product-registration-window__badge {
+    color: #475569;
+    background: #e2e8f0;
+    white-space: nowrap;
+}
+
+.cohort-product-registration-window__dates {
+    margin: 12px 0 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.cohort-product-registration-window__dates > div {
+    min-width: 0;
+}
+
+.cohort-product-registration-window__dates dt {
+    margin-bottom: 3px;
+    color: var(--admin-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.cohort-product-registration-window__dates dd {
+    margin: 0;
+    color: var(--admin-text);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.cohort-product-registration-window > p {
+    margin: 10px 0 0;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.cohort-overview-summary .cohort-product-registration-window--compact {
+    margin: 0;
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: minmax(210px, .7fr) minmax(320px, 1.3fr) minmax(260px, 1fr);
+    align-items: center;
+    gap: 12px 24px;
+    border: 0;
+    border-top: 1px solid var(--admin-border);
+    border-left: 3px solid color-mix(in srgb, var(--admin-primary) 62%, transparent);
+    border-radius: 0;
+    background: color-mix(in srgb, var(--admin-primary) 3%, var(--admin-surface));
+}
+
+.cohort-product-registration-window--compact .cohort-product-registration-window__source {
+    margin-bottom: 1px;
+}
+
+.cohort-product-registration-window--compact .cohort-product-registration-window__dates {
+    margin: 0;
+    gap: 20px;
+}
+
+.cohort-product-registration-window--compact > p {
+    margin: 0;
+    font-size: 11px;
 }
 
 .course-cohort-edit-overview textarea.lf-form-control {
@@ -3453,11 +3660,11 @@
     }
 
     #cohort-edit-status {
-        justify-items: start;
+        justify-content: flex-start;
     }
 
     .cohort-edit-status-panel {
-        width: 100%;
+        width: auto;
     }
 
     .cohort-edit-overview-context {
@@ -3473,6 +3680,30 @@
         padding: 14px;
     }
 
+    .cohort-product-registration-window__heading {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .cohort-product-registration-window__dates {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .cohort-overview-summary .cohort-product-registration-window--compact {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+    }
+
+    .cohort-edit-readonly-summary .cohort-product-registration-window--compact {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+    }
+
+    .cohort-edit-date-fields {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 14px;
+    }
+
     .cohort-overview-context,
     .cohort-overview-dates {
         grid-template-columns: minmax(0, 1fr);
@@ -3481,6 +3712,19 @@
     .cohort-overview-context > div + div {
         border-top: 1px solid var(--admin-border);
         border-left: 0;
+    }
+
+    .cohort-overview-dates > div:first-child::after {
+        top: auto;
+        right: 50%;
+        bottom: 0;
+        content: '\2193';
+        transform: translate(50%, 50%);
+    }
+
+    .cohort-overview-notes {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 3px;
     }
 
     .course-enrollment-detail-window-grid {
@@ -4646,6 +4890,11 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
+    padding-bottom: 20px;
+}
+
+.course-cohort-session-reschedule-modal {
+    width: min(680px, calc(100vw - 32px));
 }
 
 .course-cohort-session-reschedule-modal__body .lf-form-group {
@@ -4659,24 +4908,53 @@
 
 .course-cohort-session-reschedule-current {
     padding: 10px 12px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
     border-radius: 8px;
     color: var(--admin-text-muted);
     background: var(--admin-surface-subtle);
-    font-size: 12px;
 }
 
-.course-cohort-session-reschedule-current strong {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 6px;
+.course-cohort-session-reschedule-current h3,
+.course-cohort-session-reschedule-new-heading {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.course-cohort-session-reschedule-current dl {
+    margin: 8px 0 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.course-cohort-session-reschedule-current dl > div {
+    min-width: 0;
+}
+
+.course-cohort-session-reschedule-current dt {
+    margin-bottom: 3px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.course-cohort-session-reschedule-current dd {
+    margin: 0;
     color: var(--admin-text);
     font-size: 13px;
+    font-weight: 700;
+}
+
+.course-cohort-session-reschedule-new-heading {
+    color: var(--admin-primary);
+}
+
+.course-cohort-session-reschedule-modal textarea.lf-form-control {
+    min-height: 96px;
+}
+
+.course-cohort-session-reschedule-modal textarea.lf-form-control + .lf-form-help {
+    margin-top: 8px;
+    line-height: 1.5;
 }
 
 .course-cohort-session-reschedule-form {
@@ -4779,6 +5057,7 @@
     .course-cohort-session-detail-popover { right: auto; left: 0; max-width: calc(100vw - 64px); }
     .course-cohort-session-modal__grid { grid-template-columns: minmax(0, 1fr); }
     .course-cohort-session-modal__status { margin-right: 4px; }
+    .course-cohort-session-reschedule-current dl { grid-template-columns: minmax(0, 1fr); }
     .course-cohort-session-reschedule-modal__body { grid-template-columns: minmax(0, 1fr); }
     .course-cohort-session-reschedule-modal__body .admin-form-field--full { grid-column: auto; }
     .course-cohort-session-empty-row { border: 0 !important; }
@@ -5496,6 +5775,16 @@
 .lf-admin-page .badge-danger {
     color: #991b1b;
     background: #fee2e2;
+}
+
+.lf-admin-page .badge-neutral {
+    color: #475569;
+    background: #e2e8f0;
+}
+
+.lf-admin-page .badge-info {
+    color: #1e40af;
+    background: #dbeafe;
 }
 
 .lf-admin-page .lf-modal-card {

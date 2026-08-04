@@ -51,10 +51,22 @@ class CourseCohortStudentManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/edit?tab=students")
-            ->assertRedirect(route('admin.course-cohorts.students.edit', $cohortId));
+            ->assertRedirect(route('admin.course-cohorts.show', [
+                'id' => $cohortId,
+                'tab' => 'students',
+                'manage' => 1,
+            ]));
 
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/edit")
+            ->assertRedirect(route('admin.course-cohorts.show', [
+                'id' => $cohortId,
+                'tab' => 'students',
+                'manage' => 1,
+            ]));
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=students&manage=1")
             ->assertOk()
             ->assertSee('cohort-student-transfer-intro', false)
             ->assertSee('paginatedSelected()', false)
@@ -594,9 +606,9 @@ class CourseCohortStudentManagementTest extends TestCase
         $newEnrollmentId = $this->createEnrollment($customerId, $newStudent->id, $productId, $versionId);
 
         $studentTab = $this->actingAs($admin)
-            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/edit")
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=students&manage=1")
             ->assertOk()
-            ->assertSeeText(__('lf.LF_course_cohort_student_edit_list_title'))
+            ->assertSeeText(__('lf.LF_course_cohort_student_view_title'))
             ->assertSeeText(__('lf.LF_course_cohort_student_eligible_heading'))
             ->assertSeeText(__('lf.LF_course_cohort_student_selected_search'))
             ->assertSee(route('admin.course-cohorts.show', ['id' => $cohortId, 'tab' => 'students']), false)
@@ -698,7 +710,7 @@ class CourseCohortStudentManagementTest extends TestCase
         DB::table('core_course_enrollments')->where('id', $enrollmentId)->update(['status' => 'suspended']);
 
         $this->actingAs($admin)
-            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/edit")
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=students&manage=1")
             ->assertOk()
             ->assertSee($student->name)
             ->assertSeeText(__('lf.LF_course_cohort_student_inactive_warning'));

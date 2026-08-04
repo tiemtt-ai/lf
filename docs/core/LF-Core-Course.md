@@ -909,6 +909,26 @@ Enrollment may be created from:
 * Bulk Import;
 * External API.
 
+### Product Registration Authority Amendment — 2026-08-04
+
+`core_course_products.registration_starts_at` and
+`core_course_products.registration_ends_at` are the only registration-window
+authority for every Enrollment creation source. This includes Product context,
+Cohort context, admin single and bulk creation, self-registration, purchase,
+import, API and future sources.
+
+A Cohort never owns or overrides a registration window. Cohort
+`start_date`/`end_date` describe only the class operating period and must not be
+used to infer, replace or validate Product registration eligibility. Businesses
+that need different recruitment windows create distinct Products; those
+Products may reuse the same Course Template/Version and operate different
+Cohorts.
+
+Starting from Cohort context only preselects the Cohort's Product for the shared
+Enrollment creation flow. It does not introduce a Cohort-specific eligibility
+policy or bypass. Assigning an already-created active Enrollment to a Cohort is
+membership management, not a new Enrollment decision.
+
 Regardless of the creation source, every Enrollment follows the same Version
 resolution process.
 

@@ -153,18 +153,10 @@ class CourseCohortStudentController extends Controller
                 ->with('error', __('lf.LF_course_cohort_student_validation_active_cohort'));
         }
 
-        $oldEnrollmentIds = old('enrollment_ids');
-        $selectedEnrollments = $oldEnrollmentIds !== null
-            ? $this->manageableEnrollmentsQuery($customerId, $contextCohort)
-                ->whereIn('enrollments.id', array_filter(array_map('intval', (array) $oldEnrollmentIds)))->get()
-            : $this->manageableEnrollmentsQuery($customerId, $contextCohort)
-                ->whereNotNull('current_memberships.id')->get();
-
-        return view('course-cohort-students.create', [
-            'cohort' => $contextCohort,
-            'selectedEnrollments' => $selectedEnrollments,
-            'eligibleEnrollmentCount' => $this->manageableEnrollmentsQuery($customerId, $contextCohort)->count(),
-            'mode' => 'edit',
+        return redirect()->route('admin.course-cohorts.show', [
+            'id' => $contextCohort->id,
+            'tab' => 'students',
+            'manage' => 1,
         ]);
     }
 

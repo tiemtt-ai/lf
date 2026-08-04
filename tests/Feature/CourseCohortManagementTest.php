@@ -471,6 +471,10 @@ class CourseCohortManagementTest extends TestCase
             'product_id' => $productId,
             'version_id' => $versionId,
         ]);
+        DB::table('core_course_products')->where('id', $productId)->update([
+            'registration_starts_at' => '2026-08-01 09:00:00',
+            'registration_ends_at' => '2026-08-15 18:00:00',
+        ]);
 
         $response = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/edit")
@@ -480,6 +484,11 @@ class CourseCohortManagementTest extends TestCase
             ->assertSeeText('Trạng thái')
             ->assertSeeText('Sản phẩm')
             ->assertSeeText('Phiên bản nội dung')
+            ->assertSeeText(__('lf.LF_course_cohort_product_registration_window'))
+            ->assertSeeText('01/08/2026 09:00')
+            ->assertSeeText('15/08/2026 18:00')
+            ->assertSeeText(__('lf.LF_course_cohort_product_registration_help'))
+            ->assertSeeText(__('lf.LF_course_cohort_create_group_dates'))
             ->assertSee('class="admin-form-standard"', false)
             ->assertSee('course-cohort-edit-tabs', false)
             ->assertSee('course-cohort-detail-tabs-help', false)
@@ -488,6 +497,8 @@ class CourseCohortManagementTest extends TestCase
             ->assertDontSee('name="status"', false)
             ->assertDontSee('name="product_id"', false)
             ->assertDontSee('name="version_id"', false)
+            ->assertDontSee('name="registration_starts_at"', false)
+            ->assertDontSee('name="registration_ends_at"', false)
             ->assertDontSee('name="description"', false)
             ->assertDontSee('name="cohort_document_file"', false)
             ->assertDontSee('name="cohort_attachment_file"', false);
@@ -830,6 +841,8 @@ class CourseCohortManagementTest extends TestCase
         $draft->assertSeeText(__('lf.LF_course_cohort_setup_title'))
             ->assertSeeText(__('lf.LF_course_cohort_action_activate'))
             ->assertSeeText(__('lf.LF_course_cohort_action_edit_overview'))
+            ->assertSeeText(__('lf.LF_course_cohort_product_registration_window'))
+            ->assertSeeText(__('lf.LF_course_cohort_product_registration_help'))
             ->assertSeeText(__('lf.LF_course_cohort_common_archive'))
             ->assertSeeText(__('lf.LF_course_cohort_lifecycle_activate_body'));
         $this->assertStringContainsString('cohort-overview-heading-actions', $draft->getContent());
@@ -1124,6 +1137,7 @@ class CourseCohortManagementTest extends TestCase
             ->assertSeeText(__('lf.LF_course_cohort_session_detail_content'))
             ->assertSeeText(__('lf.LF_course_cohort_session_detail_join'))
             ->assertSeeText(__('lf.LF_course_cohort_session_current_schedule'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_new_schedule'))
             ->assertSeeText(__('lf.LF_course_cohort_session_change_reason_help'))
             ->assertSee('formatSessionDateTime(detailSession?.scheduled_start_at)', false)
             ->assertSee('activity_meeting_url', false)

@@ -808,16 +808,21 @@ visibility = public OR visibility = private with permission
 
 AND
 
-current_time >= registration_starts_at OR registration_starts_at IS NULL
-
-AND
-
-current_time <= registration_ends_at OR registration_ends_at IS NULL
+registration_starts_at <= enrollment.enrolled_at <= registration_ends_at
 
 AND
 
 enrollment_count < max_students OR max_students IS NULL
 ```
+
+`enrollment.enrolled_at` là thời điểm đánh giá canonical cho mọi nguồn tạo
+Enrollment. Không được thay bằng `current_time` khi operator hoặc request đã
+chọn một thời điểm ghi danh khác.
+
+Khoảng đăng ký là một cặp optional hoàn chỉnh: cả hai giá trị cùng `NULL` nghĩa
+là không giới hạn thời gian đăng ký; chỉ một boundary có giá trị hoặc start
+không nhỏ hơn end là cấu hình không hợp lệ và phải fail closed. Cohort không có
+registration window và không được override hai field này.
 
 ---
 

@@ -3155,6 +3155,100 @@
     content: ':';
 }
 
+.bulk-enrollment-product-binding-note {
+    margin: 0.65rem 0 0;
+    padding: 0.5rem 0.65rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    border-radius: 7px;
+    color: var(--admin-text-muted);
+    background: var(--admin-surface-subtle);
+    font-size: 0.75rem;
+    line-height: 1.45;
+}
+
+.bulk-enrollment-product-binding-note > span {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    font-size: 0.65rem;
+    font-weight: 700;
+}
+
+.bulk-enrollment-registration-window {
+    margin-top: 0.65rem;
+    padding: 0.55rem 0.65rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.15rem 0.75rem;
+    border-left: 3px solid #94a3b8;
+    border-radius: 0 7px 7px 0;
+    color: var(--admin-text);
+    background: var(--admin-surface-subtle);
+}
+
+.bulk-enrollment-registration-window__label {
+    color: var(--admin-text-muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.bulk-enrollment-registration-window strong {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.bulk-enrollment-registration-window small {
+    align-self: center;
+    grid-column: 2;
+    grid-row: 1;
+    color: var(--admin-text-muted);
+    font-size: 0.72rem;
+    line-height: 1.4;
+    text-align: right;
+}
+
+.bulk-enrollment-registration-window.is-open,
+.bulk-enrollment-registration-window.is-unlimited {
+    border-left-color: #69ad83;
+    background: #f1faf4;
+}
+
+.bulk-enrollment-registration-window.is-not_open,
+.bulk-enrollment-registration-window.is-ended,
+.bulk-enrollment-registration-window.is-invalid {
+    border-left-color: #d98787;
+    background: #fff6f6;
+}
+
+@media (max-width: 767px) {
+    .bulk-enrollment-registration-window {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .bulk-enrollment-registration-window small {
+        grid-column: 1;
+        grid-row: auto;
+        text-align: left;
+    }
+
+    .bulk-enrollment-registration-window strong {
+        grid-column: 1;
+        grid-row: auto;
+    }
+}
+
 .bulk-enrollment-pagination {
     display: flex;
     align-items: center;

@@ -143,6 +143,32 @@ Canonical notes:
   authorization condition; absence of data alone produces an empty state when
   access is otherwise allowed.
 
+### Product Registration Read Model Amendment — 2026-08-04
+
+Cohort owns only its operating period:
+
+```text
+start_date
+end_date
+```
+
+Product is the sole registration-window authority:
+
+```text
+core_course_products.registration_starts_at
+core_course_products.registration_ends_at
+```
+
+Cohort must not add `registration_starts_at`, `registration_ends_at`, a class
+registration deadline or any Product-window override. Cohort `start_date` and
+`end_date` must never substitute for or imply registration eligibility.
+
+The Cohort Overview may display the bound Product registration window as a
+tenant-scoped, read-only projection. Presentation must label it explicitly as
+the Product registration window and visually separate it from the Cohort
+operating period. The projection does not transfer ownership to Cohort and is
+never submitted by the Cohort form.
+
 ---
 
 ## Relationships
@@ -530,6 +556,11 @@ meeting_provider
 meeting_url
 corporate_customer_name
 ```
+
+`enrollment_starts_at` and `enrollment_ends_at` are permanently excluded from
+the current Cohort contract by the Product Registration Read Model Amendment;
+they must not be reintroduced without a new approved policy that explicitly
+supersedes Product as the sole registration authority.
 
 They may be reintroduced later through an approved policy and database
 documentation update when Live Class, scheduling, corporate training or advanced

@@ -72,6 +72,8 @@ class CourseCohortController extends Controller
                 'cohorts.*',
                 'products.title as product_title',
                 'products.product_code',
+                'products.registration_starts_at as product_registration_starts_at',
+                'products.registration_ends_at as product_registration_ends_at',
                 'versions.title_snapshot as version_title',
                 'versions.version_number',
                 'versions.version_code'
@@ -437,7 +439,11 @@ class CourseCohortController extends Controller
         $cohort = $this->findCohort($customerId, $id);
 
         if ($request->query('tab') === 'students') {
-            return redirect()->route('admin.course-cohorts.students.edit', $cohort->id);
+            return redirect()->route('admin.course-cohorts.show', [
+                'id' => $cohort->id,
+                'tab' => 'students',
+                'manage' => 1,
+            ]);
         }
 
         $activeMembershipCount = (int) DB::table('core_course_cohort_students')
@@ -666,6 +672,8 @@ class CourseCohortController extends Controller
                 'cohorts.*',
                 'products.title as product_title',
                 'products.product_code',
+                'products.registration_starts_at as product_registration_starts_at',
+                'products.registration_ends_at as product_registration_ends_at',
                 'versions.title_snapshot as version_title',
                 'versions.version_number',
                 'versions.version_code'

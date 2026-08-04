@@ -139,15 +139,26 @@
                         </div>
                     </div>
                     <div class="cohort-overview-heading-actions">
-                        <span @class(['badge', 'badge-success' => $cohort->status === 'active', 'badge-danger' => $cohort->status === 'archived'])>{{ __('lf.LF_course_cohort_common_'.$cohort->status) }}</span>
+                        <div class="cohort-overview-status">
+                            <span>{{ __('lf.LF_course_cohort_common_status') }}</span>
+                            <strong @class([
+                                'badge',
+                                'badge-neutral' => $cohort->status === 'draft',
+                                'badge-success' => $cohort->status === 'active',
+                                'badge-info' => $cohort->status === 'completed',
+                                'badge-danger' => $cohort->status === 'archived',
+                            ])>{{ __('lf.LF_course_cohort_common_'.$cohort->status) }}</strong>
+                        </div>
                         @if (in_array($cohort->status, ['draft', 'active'], true))
-                            <a href="{{ route($routePrefix.'.edit', $cohort->id) }}" class="btn btn-secondary">
+                            <a href="{{ route($routePrefix.'.edit', $cohort->id) }}" class="btn btn-secondary cohort-overview-edit-action">
+                                <x-backend-icon name="edit" />
                                 {{ __('lf.LF_course_cohort_action_edit_overview') }}
                             </a>
                         @endif
                     </div>
                 </div>
 
+                <div class="cohort-overview-summary">
                 <dl class="cohort-overview-context">
                     <div>
                         <dt>{{ __('lf.LF_course_cohort_common_product') }}</dt>
@@ -172,6 +183,12 @@
                         <dd><strong>{{ $activeMembershipCount }}/{{ $cohort->capacity ?? '∞' }}</strong></dd>
                     </div>
                 </dl>
+
+                @include('course-cohorts.partials.product-registration-window', [
+                    'registrationWindowTitleId' => 'cohort-show-product-registration-window',
+                    'compact' => true,
+                ])
+                </div>
             </section>
 
             <section class="admin-form-standard-section cohort-overview-section" aria-labelledby="cohort-show-dates">

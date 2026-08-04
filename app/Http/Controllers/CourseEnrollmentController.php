@@ -694,10 +694,17 @@ class CourseEnrollmentController extends Controller
         $enrolledAt ??= now();
         $hasRegistrationStart = filled($product->registration_starts_at);
         $hasRegistrationEnd = filled($product->registration_ends_at);
-        $outsideRegistration = $hasRegistrationStart !== $hasRegistrationEnd
-            || ($hasRegistrationStart && strtotime($product->registration_starts_at) >= strtotime($product->registration_ends_at))
-            || ($hasRegistrationStart && $enrolledAt->timestamp < strtotime($product->registration_starts_at))
-            || ($hasRegistrationEnd && $enrolledAt->timestamp > strtotime($product->registration_ends_at));
+        $registrationStart = $hasRegistrationStart ? Carbon::parse($product->registration_starts_at) : null;
+        $registrationEnd = $hasRegistrationEnd ? Carbon::parse($product->registration_ends_at) : null;
+        $registrationStatus = match (true) {
+            ! $hasRegistrationStart && ! $hasRegistrationEnd => 'unlimited',
+            $hasRegistrationStart !== $hasRegistrationEnd
+                || $registrationStart->greaterThanOrEqualTo($registrationEnd) => 'invalid',
+            $enrolledAt->lt($registrationStart) => 'not_open',
+            $enrolledAt->gt($registrationEnd) => 'ended',
+            default => 'open',
+        };
+        $outsideRegistration = in_array($registrationStatus, ['invalid', 'not_open', 'ended'], true);
 
         return [
             'id' => $product->id,
@@ -706,6 +713,11 @@ class CourseEnrollmentController extends Controller
             'offering_type' => $product->offering_type,
             'access_duration_days' => $product->access_duration_days,
             'review_duration_days' => $product->review_duration_days,
+            'registration_window' => [
+                'starts_at' => $registrationStart?->toIso8601String(),
+                'ends_at' => $registrationEnd?->toIso8601String(),
+                'status' => $registrationStatus,
+            ],
             'supports_review' => $product->offering_type === 'self_paced_course'
                 && (int) $product->review_duration_days > 0,
             'outside_registration_window' => $outsideRegistration,

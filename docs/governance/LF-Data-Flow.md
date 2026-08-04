@@ -212,6 +212,10 @@ Registration / Purchase / Assignment
 
 ↓
 
+Shared Product registration policy
+
+↓ evaluate Enrollment.enrolled_at against Product window
+
 Enrollment
 
 ↓ validate access window
@@ -225,6 +229,10 @@ Locked Template Version
 
 Enrollment là một learning cycle và khóa Version. Product đổi Version không
 làm thay đổi flow của Enrollment hiện có.
+
+Cohort context may preselect a Product or assign an existing Enrollment, but
+does not own, override or bypass the Product registration window. Cohort
+`start_date`/`end_date` remain operational scheduling data only.
 
 ---
 

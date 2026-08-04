@@ -17,6 +17,7 @@
         'square-play' => '<rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="m10 9 5 3-5 3Z"></path>',
         'link' => '<path d="M10 13a5 5 0 0 0 7.54.54l2-2a5 5 0 0 0-7.07-7.07l-1.15 1.15"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-2 2a5 5 0 0 0 7.07 7.07l1.15-1.15"></path>',
         'copy' => '<rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"></path>',
+        'edit' => '<path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"></path>',
         'check' => '<path d="m5 12 4 4L19 6"></path>',
         'audio' => '<path d="M4 14v-2a8 8 0 0 1 16 0v2"></path><path d="M4 14h3v7H6a2 2 0 0 1-2-2Z"></path><path d="M20 14h-3v7h1a2 2 0 0 0 2-2Z"></path>',
         'image' => '<rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="8" cy="10" r="2"></circle><path d="m21 15-5-5L5 19"></path>',

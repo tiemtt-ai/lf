@@ -23,9 +23,7 @@
                 <span class="sr-only">{{ $tab['note'] }}</span>
                 @php($editRoute = $tab['key'] === 'overview'
                     ? route($routePrefix.'.edit', $cohort->id)
-                    : ($tab['key'] === 'students'
-                        ? route('admin.course-cohorts.students.edit', $cohort->id)
-                        : $tab['route']))
+                    : $tab['route'])
                 @if ($tab['accessible'])
                     <a @class(['btn', 'btn-primary' => $tab['key'] === 'overview', 'btn-secondary' => $tab['key'] !== 'overview'])
                        href="{{ $editRoute }}" @if($tab['key'] === 'overview') aria-current="page" @endif>

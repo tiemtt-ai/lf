@@ -22,12 +22,15 @@
             <span class="cohort-edit-overview-meta-label">{{ __('lf.LF_course_cohort_common_status') }}</span>
             <span @class([
                 'badge',
+                'badge-neutral' => $cohort->status === 'draft',
                 'badge-success' => $cohort->status === 'active',
+                'badge-info' => $cohort->status === 'completed',
                 'badge-danger' => $cohort->status === 'archived',
             ])>{{ __('lf.LF_course_cohort_common_'.$cohort->status) }}</span>
         </div>
     </div>
 
+    <div class="cohort-edit-readonly-summary">
     <dl class="cohort-edit-overview-context">
         <div id="cohort-edit-product">
             <dt>{{ __('lf.LF_course_cohort_common_product') }}</dt>
@@ -51,6 +54,12 @@
         </div>
     </dl>
 
+    @include('course-cohorts.partials.product-registration-window', [
+        'registrationWindowTitleId' => 'cohort-edit-product-registration-window',
+        'compact' => true,
+    ])
+    </div>
+
     <div class="admin-form-field-grid cohort-edit-overview-fields" aria-label="{{ __('lf.LF_course_cohort_create_group_information') }}">
         <div class="lf-form-group admin-form-field">
             <x-form-label for="name" :value="__('lf.LF_course_cohort_common_name')" required />
@@ -68,11 +77,11 @@
     </div>
 </section>
 
-<section class="admin-form-standard-section" aria-labelledby="cohort-edit-dates">
+<section class="admin-form-standard-section cohort-edit-dates-section" aria-labelledby="cohort-edit-dates">
     <header class="admin-form-section-header">
         <h2 id="cohort-edit-dates" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_dates') }}</h2>
     </header>
-    <div class="admin-form-field-grid">
+    <div class="admin-form-field-grid cohort-edit-date-fields">
         <div class="lf-form-group admin-form-field">
             <x-form-label for="start_date" :value="__('lf.LF_course_cohort_common_start_date')" />
             <input id="start_date" type="date" name="start_date" class="lf-form-control" value="{{ old('start_date', $cohort->start_date) }}" @readonly(! $isEditable)>
@@ -86,7 +95,7 @@
     </div>
 </section>
 
-<section class="admin-form-standard-section" aria-labelledby="cohort-edit-additional">
+<section class="admin-form-standard-section cohort-edit-additional-section" aria-labelledby="cohort-edit-additional">
     <header class="admin-form-section-header">
         <h2 id="cohort-edit-additional" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_additional') }}</h2>
     </header>

@@ -695,7 +695,7 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertStringContainsString("document.getElementById('bulk-enrolled-at')?.focus()", $html);
         $this->assertStringContainsString(__('lf.LF_course_enrollment_enrolled_at_popup_title'), $html);
         $this->assertStringContainsString('class="bulk-enrollment-entry-row"', $html);
-        $this->assertStringContainsString("year: 'numeric'", $html);
+        $this->assertStringContainsString("String(number).padStart(2, '0')", $html);
         $this->assertStringContainsString('students.length === this.selectedStudents.length ? reason', $html);
         $this->assertStringContainsString("'is-selected-invalid': productEligibilityReady && hasProduct(item.id) && item.eligibility === 'ineligible'", $html);
         $this->assertStringContainsString('class="bulk-enrollment-invalid-reason"', $html);
@@ -707,6 +707,10 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertStringContainsString('in paginatedPairs', $html);
         $this->assertStringContainsString('bulk-enrollment-review-table__number', $html);
         $this->assertStringContainsString('class="bulk-enrollment-product-window"', $html);
+        $this->assertStringContainsString('class="bulk-enrollment-registration-window"', $html);
+        $this->assertStringContainsString('registrationWindowLabel(item)', $html);
+        $this->assertStringContainsString('registrationWindowStatusLabel(item)', $html);
+        $this->assertStringContainsString(__('lf.LF_bulk_enrollment_registration_window'), $html);
         $this->assertStringContainsString('pair.time_windows?.access_starts_at', $html);
         $this->assertStringContainsString('pair.time_windows?.review_ends_at', $html);
         $this->assertStringContainsString(__('lf.LF_bulk_enrollment_access_time'), $html);
@@ -738,8 +742,10 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertStringContainsString('item.eligibility !== \'eligible\'', $html);
         $this->assertStringContainsString('eligibleVisibleProducts', $html);
         $this->assertStringContainsString('x-text="item.code"', $html);
-        $this->assertStringContainsString('x-text="item.version?.code"', $html);
+        $this->assertStringContainsString('x-text="`· ${item.version?.code}`"', $html);
         $this->assertStringContainsString('class="bulk-enrollment-product-meta__label"', $html);
+        $this->assertStringContainsString('class="bulk-enrollment-product-binding-note"', $html);
+        $this->assertSame(1, substr_count($html, __('lf.LF_course_enrollment_version_preview_help')));
         $this->assertStringContainsString('class="bulk-enrollment-pagination"', $html);
         $this->assertStringContainsString('aria-label="'.__('lf.LF_bulk_enrollment_students_pagination').'"', $html);
         $this->assertStringContainsString('aria-label="'.__('lf.LF_bulk_enrollment_products_pagination').'"', $html);
@@ -1488,7 +1494,7 @@ class CourseEnrollmentManagementTest extends TestCase
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
-        $students = collect(range(1, 4))->map(fn () => $this->createUser($customerId, 'student'));
+        $students = collect(range(1, 5))->map(fn () => $this->createUser($customerId, 'student'));
         $productId = $this->createProduct($customerId, 'Timed Product', 'timed-product');
         $this->createProductItem($customerId, $productId, $this->createVersion($customerId, $admin->id));
         DB::table('core_course_products')->where('id', $productId)->update([
@@ -1518,9 +1524,22 @@ class CourseEnrollmentManagementTest extends TestCase
             $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
                 'student_id' => $students[3]->id, 'product_id' => $productId,
             ])->assertSessionHasErrors('product_id');
+
+            Carbon::setTestNow('2026-08-20 09:00:00');
+            $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
+                'student_id' => $students[4]->id,
+                'product_id' => $productId,
+                'enrolled_at' => '2026-08-11 10:30:00',
+            ])->assertRedirect();
         } finally {
             Carbon::setTestNow();
         }
+
+        $this->assertDatabaseHas('core_course_enrollments', [
+            'student_id' => $students[4]->id,
+            'product_id' => $productId,
+            'enrolled_at' => '2026-08-11 10:30:00',
+        ]);
 
         $enrollment = DB::table('core_course_enrollments')->where('student_id', $students[1]->id)->first();
         $this->assertSame('2026-08-10 09:00:00', $enrollment->access_starts_at);
@@ -1655,6 +1674,10 @@ class CourseEnrollmentManagementTest extends TestCase
         )->assertOk();
         $this->assertFalse($inside->json('ineligible.data.0.outside_registration_window'));
         $this->assertTrue($outside->json('ineligible.data.0.outside_registration_window'));
+        $this->assertSame('open', $inside->json('ineligible.data.0.registration_window.status'));
+        $this->assertSame('ended', $outside->json('ineligible.data.0.registration_window.status'));
+        $this->assertStringStartsWith('2026-08-10T09:00:00', $inside->json('ineligible.data.0.registration_window.starts_at'));
+        $this->assertStringStartsWith('2026-08-12T09:00:00', $inside->json('ineligible.data.0.registration_window.ends_at'));
         $this->assertStringContainsString('13/08/2026 09:00', $outside->json('ineligible.data.0.invalid_pairs.0.reason'));
         $this->assertSame('ineligible', $outside->json('selected_eligibility.'.$productId.'.eligibility'));
     }

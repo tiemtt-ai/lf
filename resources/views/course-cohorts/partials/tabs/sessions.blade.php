@@ -77,9 +77,8 @@
              if (!value) return '—'
              const date = new Date(String(value).replace(' ', 'T'))
              if (Number.isNaN(date.getTime())) return value
-             return new Intl.DateTimeFormat(document.documentElement.lang === 'en' ? 'en-GB' : 'vi-VN', {
-                 dateStyle: 'short', timeStyle: 'short'
-             }).format(date)
+             const pad = number => String(number).padStart(2, '0')
+             return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`
          },
          copyCurriculumMeetingLink() {
              const url = this.curriculumMeetingUrl()
@@ -518,14 +517,15 @@
                 </button>
             </header>
             <div class="course-cohort-session-modal__body course-cohort-session-reschedule-modal__body">
-                <div class="course-cohort-session-reschedule-current admin-form-field--full">
-                    <span>{{ __('lf.LF_course_cohort_session_current_schedule') }}</span>
-                    <strong>
-                        <span x-text="formatSessionDateTime(rescheduleSession?.scheduled_start_at)"></span>
-                        <span aria-hidden="true">→</span>
-                        <span x-text="formatSessionDateTime(rescheduleSession?.scheduled_end_at)"></span>
-                    </strong>
-                </div>
+                <section class="course-cohort-session-reschedule-current admin-form-field--full"
+                         aria-labelledby="course-cohort-session-current-schedule">
+                    <h3 id="course-cohort-session-current-schedule">{{ __('lf.LF_course_cohort_session_current_schedule') }}</h3>
+                    <dl>
+                        <div><dt>{{ __('lf.LF_course_cohort_session_start') }}</dt><dd x-text="formatSessionDateTime(rescheduleSession?.scheduled_start_at)"></dd></div>
+                        <div><dt>{{ __('lf.LF_course_cohort_session_end') }}</dt><dd x-text="formatSessionDateTime(rescheduleSession?.scheduled_end_at)"></dd></div>
+                    </dl>
+                </section>
+                <h3 class="course-cohort-session-reschedule-new-heading admin-form-field--full">{{ __('lf.LF_course_cohort_session_new_schedule') }}</h3>
                 <div class="lf-form-group">
                     <x-form-label for="reschedule_start_at" :value="__('lf.LF_course_cohort_session_start')" :required="true" />
                     <input x-ref="rescheduleStart" id="reschedule_start_at" type="datetime-local"
@@ -542,7 +542,7 @@
                 </div>
                 <div class="lf-form-group admin-form-field--full">
                     <x-form-label for="reschedule_reason" :value="__('lf.LF_course_cohort_session_change_reason')" />
-                    <textarea id="reschedule_reason" name="reason" class="lf-form-control" rows="3" maxlength="1000"></textarea>
+                    <textarea id="reschedule_reason" name="reason" class="lf-form-control" rows="2" maxlength="1000"></textarea>
                     <p class="lf-form-help">{{ __('lf.LF_course_cohort_session_change_reason_help') }}</p>
                 </div>
             </div>
