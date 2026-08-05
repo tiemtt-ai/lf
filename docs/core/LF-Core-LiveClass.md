@@ -1,6 +1,6 @@
 # LF-Core-LiveClass.md
 
-Version: 2.3
+Version: 2.4
 
 Status: Official Foundation
 
@@ -13,6 +13,7 @@ Last Updated: 2026-08
 LiveClass Domain quản lý hoạt động học đồng bộ và hybrid:
 
 * LiveClass Rooms
+* LiveClass Schedules
 * LiveClass Sessions
 * Attendance
 * Recording references
@@ -50,7 +51,7 @@ Version Activity (immutable)
 
 ↓
 
-LiveClass Room / Session
+LiveClass Schedule / Room / Session
 
 ↓
 
@@ -88,9 +89,11 @@ Completion.
 
 ### Cohort Draft Setup Boundary — 2026-08-02
 
-A `draft` Cohort may prepare Sessions, schedules and teacher assignments as
-setup data. Creating or editing this setup does not activate the Cohort and
-must not produce Attendance, Replay evidence or another runtime operation.
+A `draft` Cohort may prepare LiveClass Schedules, Sessions and teacher
+assignments as setup data. Schedule is the recurring planning entity; Session
+is a concrete class meeting. Creating or editing either setup entity does not
+activate the Cohort and must not produce Attendance, Replay evidence or another
+runtime operation.
 Attendance and other operational evidence may be created only when the Cohort
 is `active` and the existing Session, Enrollment, authorization and tenant
 requirements are satisfied. Historical data remains readable according to the
@@ -145,6 +148,12 @@ LiveClass chỉ sinh:
 
 ```text
 Room
+
+Schedule
+
+Schedule Slot
+
+Schedule Exclusion
 
 Session
 
@@ -285,6 +294,12 @@ Core tables:
 ```text
 core_liveclass_rooms
 
+core_liveclass_schedules
+
+core_liveclass_schedule_slots
+
+core_liveclass_schedule_exclusions
+
 core_liveclass_sessions
 
 core_liveclass_attendances
@@ -335,6 +350,104 @@ Future WebRTC
 ```
 
 Provider credentials và signing secrets không thuộc Room record.
+
+---
+
+# LiveClass Schedules
+
+`core_liveclass_schedules` là source of truth cho kế hoạch lặp của một Cohort.
+Schedule thuộc trực tiếp một same-tenant Cohort và không thuộc Course Template,
+Template Version hoặc Room.
+
+```text
+Cohort 1 → N Schedules
+Schedule 1 → N Slots
+Schedule 1 → N Exclusions
+```
+
+Schedule là setup/planning data, không phải một buổi học cụ thể và không phải
+operational evidence. Schedule không được publish vào immutable Version, không
+tạo quyền học và không sở hữu Progress, Completion, Attendance, Recording hoặc
+Replay.
+
+## Schedule Source Of Truth
+
+Canonical persistence:
+
+```text
+core_liveclass_schedules
+core_liveclass_schedule_slots
+core_liveclass_schedule_exclusions
+```
+
+Không lưu recurring Schedule trong:
+
+```text
+core_liveclass_sessions
+core_course_cohorts.metadata
+Course Template / Template Version
+LiveClass Room
+JSON recurrence metadata
+```
+
+Một Schedule có inclusive date range, IANA timezone và ít nhất một Slot. Mỗi
+Slot biểu diễn riêng một ISO weekday và một same-day time interval; các ngày có
+thể dùng giờ khác nhau. Exact duplicate và interval overlap trên cùng weekday
+trong cùng Schedule bị từ chối. Exclusion là một ngày duy nhất trong range và
+chỉ loại occurrence dự kiến khỏi preview.
+
+## Cohort Operating Period And Schedule Application Range
+
+`core_course_cohorts.start_date` và `core_course_cohorts.end_date` là inclusive
+operating period do Cohort sở hữu. `Schedule.starts_on` và `Schedule.ends_on`
+chỉ là inclusive application range của riêng Schedule đó. Một Cohort có thể có
+nhiều Schedule với các khoảng con khác nhau, nhưng mọi Schedule phải thỏa:
+
+```text
+cohort.start_date <= schedule.starts_on <= schedule.ends_on <= cohort.end_date
+```
+
+Không suy ra operating period từ Schedule, không dùng Schedule đầu/cuối để
+backfill Cohort và không cho Schedule tự mở rộng operating period. Khi sửa
+operating period, request phải bị từ chối nếu bất kỳ Schedule hiện có nào không
+còn nằm trọn trong khoảng mới; không tự cắt ngắn, sửa hoặc xóa Schedule.
+Cohort legacy thiếu một hoặc cả hai ngày vẫn đọc được, nhưng không thể tạo, sửa
+hoặc preview Schedule cho tới khi có đủ operating period. Database giữ hai ngày
+nullable chỉ để tương thích legacy; Cohort mới bắt buộc đủ hai ngày. IANA
+timezone tiếp tục thuộc Schedule và là authority của preview.
+
+Lưu Cohort hoặc Schedule không tạo, sửa, xóa hay đồng bộ Session và không tạo
+Attendance, Recording, Replay, Progress hoặc Completion.
+
+## Schedule Preview
+
+Preview là read model do backend tính canonical:
+
+```text
+Schedule + Slots + Exclusions + timezone
+→ danh sách ngày giờ dự kiến
+```
+
+Preview bao gồm `starts_on` và `ends_on`, loại mọi `excluded_on`, không lưu từng
+occurrence, không cấp Session ID và không tạo `core_liveclass_sessions`. UI phải
+ghi rõ “Các Buổi học thực tế chưa được tạo”. Client-side preview chỉ được dùng
+để hỗ trợ presentation; request/backend vẫn là calculation authority.
+
+## Schedule Lifecycle
+
+* Cohort `draft`: authorized actor được tạo và sửa Schedule.
+* Cohort `active`: authorized actor được tạo và sửa Schedule.
+* Cohort `completed|archived`: Schedule chỉ đọc.
+* Tạo/sửa Schedule không activate Cohort và không tạo runtime data.
+* Persisted Schedule status không tồn tại; presentation suy ra `upcoming`,
+  `current` hoặc `ended` từ ngày hiện tại trong timezone của Schedule.
+* Schedule deletion chưa được approved; implementation không được hard-delete
+  hoặc tự thêm soft delete/status để giả lập lifecycle.
+
+Schedule-to-Session provenance, bulk generation, synchronization, individually
+edited Session handling, shared holiday calendars and schedule-driven
+reschedule audit are deferred to a later amendment. Until then, Schedule
+mutation has no side effect on any Session.
 
 ---
 
@@ -418,7 +531,8 @@ deleted. Rescheduling must retain the schedule-change audit trail. Draft and
 active Cohorts may prepare schedule setup; runtime evidence still requires an
 active Cohort and an eligible Session under the existing lifecycle policy.
 
-Session setup follows these mutation boundaries:
+Session setup follows these mutation boundaries and remains independent from
+recurring Schedule persistence:
 
 * a `draft` or `active` Cohort may create Sessions;
 * title, type, curriculum binding and delivery fields may be edited only while
@@ -667,8 +781,10 @@ Offline
 Hybrid
 ```
 
-Room/Session model cho phép lịch đơn, lịch lặp hoặc hybrid delivery trong các
-phase sau mà không thay đổi Course Foundation binding.
+Schedule/Room/Session boundaries cho phép recurring planning và hybrid
+delivery mà không thay đổi Course Foundation binding. Schedule CRUD và Preview
+đã được Foundation approved; generation/synchronization từ Schedule sang
+Session vẫn thuộc phase sau.
 
 ---
 
@@ -676,6 +792,12 @@ phase sau mà không thay đổi Course Foundation binding.
 
 ```text
 Rooms
+
+Schedules
+
+Schedule Slots
+
+Schedule Exclusions
 
 Sessions
 
@@ -698,6 +820,10 @@ Whiteboard
 Breakout Rooms
 
 Calendar Sync
+
+Schedule → Session generation and synchronization
+
+Shared Holiday Calendar
 
 Transcript Pipeline
 

@@ -1,10 +1,10 @@
 # LF-Navigation.md
 
-Version: 1.0
+Version: 1.1
 
 Status: Official Foundation
 
-Last Updated: 2026-07
+Last Updated: 2026-08
 
 ---
 
@@ -16,9 +16,14 @@ Last Updated: 2026-07
 > Cartesian Student–Product pairs. Cohort assignment remains a
 > separate contextual workflow.
 
-> Course Cohort amendment (2026-07): Admin navigation exposes one `Lớp học` /
-> `Cohorts` entry. Cohort detail contains only `Tổng quan` / `Overview` and
-> `Học viên` / `Students`; membership is managed in Cohort context.
+> Course Cohort Schedule amendment (2026-08-05): Admin navigation exposes one
+> `Lớp học` / `Cohorts` entry. Cohort detail uses the canonical tab order:
+> `Tổng quan` / `Overview`, `Học viên` / `Students`, `Giáo viên` / `Teachers`,
+> `Lịch học` / `Schedules`, `Buổi học` / `Sessions`, `Điểm danh` /
+> `Attendance`, `Bản ghi/Xem lại` / `Recordings/Replay`. Schedules and Sessions
+> have separate LiveClass sources of truth. The Sessions tab retains its current
+> behavior; Cohort Attendance and Recordings/Replay aggregate records from the
+> Cohort's Sessions.
 
 ## Overview
 

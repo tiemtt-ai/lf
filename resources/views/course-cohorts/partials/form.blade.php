@@ -80,6 +80,7 @@
 <section class="admin-form-standard-section cohort-edit-dates-section" aria-labelledby="cohort-edit-dates">
     <header class="admin-form-section-header">
         <h2 id="cohort-edit-dates" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_dates') }}</h2>
+        <p class="admin-form-section-help">{{ __('lf.LF_course_cohort_operation_period_help') }}</p>
     </header>
     <div class="admin-form-field-grid cohort-edit-date-fields">
         <div class="lf-form-group admin-form-field">

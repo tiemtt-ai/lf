@@ -4410,6 +4410,785 @@
     white-space: nowrap;
 }
 
+.admin-card.course-cohort-schedules {
+    padding: 22px 24px;
+}
+
+.course-cohort-schedules__header,
+.course-cohort-schedules__toolbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.course-cohort-schedules__header > div:first-child {
+    min-width: 0;
+}
+
+.course-cohort-schedules__toolbar {
+    align-items: center;
+    flex: 0 0 auto;
+}
+
+.course-cohort-schedules__count,
+.course-cohort-schedule-preview__count {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--admin-primary) 9%, #fff);
+    color: var(--admin-primary);
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.course-cohort-schedule-preview__summary {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.course-cohort-schedule-preview__timezone {
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.course-cohort-schedule-preview__timezone strong {
+    color: var(--admin-text);
+    font-weight: 600;
+}
+
+.course-cohort-schedules__table {
+    min-width: 980px;
+    table-layout: fixed;
+}
+
+.course-cohort-schedules__col-sequence { width: 64px; }
+.course-cohort-schedules__col-name { width: 18%; }
+.course-cohort-schedules__col-slots { width: 26%; }
+.course-cohort-schedules__col-period { width: 19%; }
+.course-cohort-schedules__col-count { width: 13%; }
+.course-cohort-schedules__col-status { width: 14%; }
+.course-cohort-schedules__col-actions { width: 150px; }
+
+.course-cohort-schedules__table th,
+.course-cohort-schedules__table td {
+    padding: 14px 16px;
+    vertical-align: middle;
+    text-align: left;
+}
+
+.lf-admin-page .course-cohort-schedules__table th {
+    color: #475569;
+    background: #f8fafc;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .01em;
+    line-height: 1.35;
+}
+
+.course-cohort-schedules__table tbody tr {
+    transition: background-color 150ms ease;
+}
+
+.course-cohort-schedules__table tbody tr:hover {
+    background: color-mix(in srgb, var(--admin-primary) 3%, var(--admin-surface));
+}
+
+.course-cohort-schedules__table th:first-child,
+.course-cohort-schedules__table td:first-child,
+.course-cohort-schedules__table th:nth-child(5),
+.course-cohort-schedules__table td:nth-child(5),
+.course-cohort-schedules__table th:nth-child(6),
+.course-cohort-schedules__table td:nth-child(6) {
+    text-align: center;
+}
+
+.course-cohort-schedules__actions {
+    text-align: right;
+}
+
+.course-cohort-schedules__table th:last-child,
+.course-cohort-schedules__table td:last-child {
+    text-align: right;
+}
+
+.course-cohort-schedules__primary,
+.course-cohort-schedules__meta,
+.course-cohort-schedules__slot-list span {
+    display: block;
+}
+
+.course-cohort-schedules__primary {
+    color: var(--admin-text);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.course-cohort-schedules__meta,
+.course-cohort-schedules__slot-list,
+.course-cohort-schedules__period {
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.4;
+}
+
+.course-cohort-schedules__meta {
+    margin-top: 3px;
+    overflow-wrap: anywhere;
+}
+
+.course-cohort-schedules__slot-list {
+    display: grid;
+    gap: 4px;
+}
+
+.course-cohort-schedules__more-slots {
+    color: var(--admin-primary);
+    font-weight: 500;
+}
+
+.course-cohort-schedules__period {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.course-cohort-schedules__period-arrow {
+    color: #94a3b8;
+}
+
+.course-cohort-schedules__action-list {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.course-cohort-schedules__action-list .admin-table-action-link {
+    min-height: 32px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.course-cohort-schedules__action-list .admin-table-action-link:hover,
+.course-cohort-schedules__action-list .admin-table-action-link:focus-visible {
+    background: color-mix(in srgb, var(--admin-primary) 13%, var(--admin-surface));
+    text-decoration: none;
+}
+
+.course-cohort-schedules__expected-count > strong {
+    color: var(--admin-text);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.course-cohort-schedules__status-badge {
+    min-width: 104px;
+    border: 1px solid var(--admin-control-border);
+    background: var(--admin-surface-subtle);
+    text-align: center;
+    white-space: nowrap;
+}
+
+.course-cohort-schedules__status-badge.is-upcoming {
+    border-color: color-mix(in srgb, var(--admin-primary) 24%, var(--admin-border));
+    color: var(--admin-primary);
+    background: color-mix(in srgb, var(--admin-primary) 7%, var(--admin-surface));
+}
+
+.course-cohort-schedules__status-badge.is-completed {
+    color: var(--admin-text-muted);
+}
+
+.course-cohort-schedules__inline-editor {
+    scroll-margin-top: 24px;
+    margin: 18px 0 20px;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface-subtle);
+    box-shadow: 0 8px 22px rgb(15 23 42 / 5%);
+    outline: none;
+}
+
+.course-cohort-schedules__inline-editor > .admin-alert {
+    margin: 16px 18px 0;
+}
+
+.course-cohort-schedules__operation-window {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--admin-primary) 9%, var(--admin-surface));
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.course-cohort-schedules__operation-window strong {
+    color: var(--admin-primary);
+}
+
+.course-cohort-schedules__inline-form > .course-cohort-schedule-form > .admin-form-standard-section,
+.course-cohort-schedules__inline-editor > .course-cohort-schedule-detail--inline > .admin-form-standard-section {
+    margin: 0;
+    padding: 18px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.course-cohort-schedules__inline-form > .course-cohort-schedule-form > .admin-form-standard-section + .admin-form-standard-section,
+.course-cohort-schedules__inline-editor > .course-cohort-schedule-detail--inline > .admin-form-standard-section + .admin-form-standard-section {
+    border-top: 1px solid var(--admin-border);
+}
+
+.course-cohort-schedules__inline-form > .course-cohort-schedule-form > .admin-form-footer,
+.course-cohort-schedules__inline-editor > .course-cohort-schedule-detail--inline > .admin-form-footer {
+    min-height: 64px;
+    margin: 0;
+    padding: 12px 18px;
+    border-top: 1px solid var(--admin-border);
+    background: var(--admin-surface);
+    box-shadow: 0 -6px 18px rgb(15 23 42 / 5%);
+}
+
+.course-cohort-schedule-form__cohort-summary {
+    margin: 0;
+}
+
+.course-cohort-schedule-form__general-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 20px;
+}
+
+.course-cohort-schedule-form__section > .admin-form-section-header {
+    margin-bottom: 14px;
+}
+
+.course-cohort-schedule-form__section .lf-form-group {
+    margin-bottom: 0;
+}
+
+.course-cohort-schedule-form__repeaters {
+    display: grid;
+    gap: 12px;
+}
+
+.course-cohort-schedule-form__slot-row,
+.course-cohort-schedule-form__exclusion-row {
+    display: grid;
+    grid-template-columns: 30px minmax(180px, 1.2fr) minmax(150px, 1fr) minmax(150px, 1fr) 38px;
+    align-items: end;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface-muted);
+}
+
+.course-cohort-schedule-form__exclusion-row {
+    grid-template-columns: 30px minmax(190px, .7fr) minmax(260px, 1.8fr) 38px;
+}
+
+.course-cohort-schedule-form__row-number {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    align-items: center;
+    align-self: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--admin-primary) 9%, var(--admin-surface));
+    color: var(--admin-primary);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.course-cohort-schedule-form__row-actions {
+    display: flex;
+    align-self: end;
+    gap: 4px;
+    margin-bottom: 3px;
+}
+
+.course-cohort-schedule-form__row-action {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+}
+
+.course-cohort-schedule-form__slot-row > .course-cohort-schedule-form__row-action {
+    align-self: end;
+    margin-bottom: 3px;
+}
+
+.course-cohort-schedule-form__exclusion-row > .course-cohort-schedule-form__row-action {
+    align-self: end;
+    margin-bottom: 3px;
+}
+
+.course-cohort-schedule-form__slot-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.course-cohort-schedule-form__append {
+    display: inline-flex;
+    min-height: 36px;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 11px;
+    border: 1px solid color-mix(in srgb, var(--admin-primary) 28%, var(--admin-border));
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--admin-primary) 7%, var(--admin-surface));
+    color: var(--admin-primary);
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.course-cohort-schedule-form__append:hover:not(:disabled),
+.course-cohort-schedule-form__append:focus-visible {
+    border-color: var(--admin-primary);
+    background: color-mix(in srgb, var(--admin-primary) 12%, var(--admin-surface));
+}
+
+.course-cohort-schedule-form__append:disabled {
+    cursor: not-allowed;
+    opacity: .5;
+}
+
+.course-cohort-schedule-form__append svg {
+    width: 17px;
+    height: 17px;
+}
+
+.course-cohort-schedule-form__row-action svg,
+.course-cohort-schedule-form__empty-add svg {
+    width: 17px;
+    height: 17px;
+}
+
+.course-cohort-schedule-form__row-action--add {
+    color: var(--admin-primary);
+}
+
+.course-cohort-schedule-form__row-action--add:hover,
+.course-cohort-schedule-form__row-action--add:focus-visible {
+    background: color-mix(in srgb, var(--admin-primary) 9%, var(--admin-surface));
+}
+
+.course-cohort-schedule-form__row-action--remove {
+    color: var(--admin-danger);
+}
+
+.course-cohort-schedule-form__row-action--remove:hover,
+.course-cohort-schedule-form__row-action--remove:focus-visible {
+    background: color-mix(in srgb, var(--admin-danger) 9%, var(--admin-surface));
+}
+
+.course-cohort-schedule-form__empty-repeater {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px dashed var(--admin-border);
+    border-radius: 8px;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+}
+
+.course-cohort-schedule-form__empty-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 9px;
+    border: 0;
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--admin-primary) 8%, var(--admin-surface));
+    color: var(--admin-primary);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.course-cohort-schedule-preview__list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.course-cohort-schedule-form__preview {
+    min-height: 0;
+}
+
+.course-cohort-schedule-preview__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 14px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    background: var(--admin-surface);
+    transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.course-cohort-schedule-preview__item:hover {
+    border-color: color-mix(in srgb, var(--admin-primary) 22%, var(--admin-border));
+    background: color-mix(in srgb, var(--admin-primary) 2%, var(--admin-surface));
+}
+
+.course-cohort-schedule-preview__item strong {
+    font-size: 13px;
+}
+
+.course-cohort-schedule-preview__item span,
+.course-cohort-schedule-preview__empty {
+    color: var(--admin-text-muted);
+    font-size: 12px;
+}
+
+.course-cohort-schedule-detail__header,
+.course-cohort-schedule-detail__section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.course-cohort-schedule-detail__header > div,
+.course-cohort-schedule-detail__section-header > div {
+    min-width: 0;
+}
+
+.course-cohort-schedule-detail__eyebrow {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--admin-primary);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.course-cohort-schedule-detail__header .admin-form-section-title {
+    font-size: 20px;
+    line-height: 1.35;
+}
+
+.course-cohort-schedule-detail__header .course-cohort-schedules__status-badge {
+    flex: 0 0 auto;
+}
+
+.course-cohort-schedule-detail__section-header {
+    margin-bottom: 12px;
+}
+
+.course-cohort-schedule-detail__section-header .admin-form-section-title {
+    font-size: 16px;
+}
+
+.course-cohort-schedule-detail__section-count {
+    display: inline-flex;
+    min-width: 30px;
+    min-height: 28px;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 9px;
+    border-radius: 999px;
+    color: var(--admin-primary);
+    background: color-mix(in srgb, var(--admin-primary) 8%, var(--admin-surface));
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.course-cohort-schedule-detail__facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0;
+}
+
+.course-cohort-schedule-detail__facts > div {
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    background: var(--admin-surface);
+}
+
+.course-cohort-schedule-detail__facts dt {
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.course-cohort-schedule-detail__facts dd {
+    margin: 5px 0 0;
+    color: var(--admin-text);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.course-cohort-schedule-detail__facts dd span {
+    margin-inline: 3px;
+    color: var(--admin-text-muted);
+}
+
+.course-cohort-schedule-detail__table-wrap {
+    border-radius: 8px;
+}
+
+.lf-admin-page .course-cohort-schedule-detail__table th,
+.lf-admin-page .course-cohort-schedule-detail__table td {
+    padding: 11px 14px;
+    vertical-align: middle;
+}
+
+.lf-admin-page .course-cohort-schedule-detail__table th {
+    color: #475569;
+    background: #f8fafc;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.course-cohort-schedule-detail__table td {
+    color: var(--admin-text-muted);
+    font-size: 13px;
+}
+
+.course-cohort-schedule-detail__table td strong {
+    color: var(--admin-text);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.course-cohort-schedule-detail__table--exclusions th:first-child,
+.course-cohort-schedule-detail__table--exclusions td:first-child {
+    width: 35%;
+}
+
+.course-cohort-schedule-detail__empty {
+    padding: 14px 16px;
+    border: 1px dashed var(--admin-border);
+    border-radius: 8px;
+    color: var(--admin-text-muted);
+    background: var(--admin-surface);
+    font-size: 13px;
+    text-align: center;
+}
+
+.course-cohort-schedule-detail__footer {
+    z-index: 4;
+}
+
+@media (max-width: 991px) {
+    .course-cohort-schedule-form__slot-row,
+    .course-cohort-schedule-form__exclusion-row,
+    .course-cohort-schedule-preview__list,
+    .course-cohort-schedule-detail__facts {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 767px) {
+    .course-cohort-schedules__header,
+    .course-cohort-schedules__toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .course-cohort-schedules__create {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .course-cohort-schedules__table-wrap {
+        overflow: visible;
+        border: 0;
+        background: transparent;
+    }
+
+    .course-cohort-schedules__table {
+        min-width: 0;
+        display: block;
+    }
+
+    .course-cohort-schedules__table colgroup,
+    .course-cohort-schedules__table thead {
+        display: none;
+    }
+
+    .course-cohort-schedules__table tbody {
+        display: grid;
+        gap: 12px;
+    }
+
+    .course-cohort-schedules__table tr {
+        display: block;
+        overflow: hidden;
+        border: 1px solid var(--admin-border);
+        border-radius: 10px;
+        background: var(--admin-surface);
+    }
+
+    .lf-admin-page .course-cohort-schedules__table td {
+        width: auto;
+        min-width: 0;
+        padding: 11px 14px;
+        display: grid;
+        grid-template-columns: minmax(100px, .42fr) minmax(0, 1fr);
+        gap: 12px;
+        border-bottom: 1px solid #f3f4f6;
+        text-align: left;
+    }
+
+    .course-cohort-schedules__table td::before {
+        content: attr(data-label);
+        color: var(--admin-text-muted);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.4;
+    }
+
+    .course-cohort-schedules__table .course-cohort-schedules__actions,
+    .course-cohort-schedules__table .course-cohort-schedules__status,
+    .course-cohort-schedules__table .course-cohort-schedules__expected-count,
+    .course-cohort-schedules__table .admin-table-sequence {
+        width: auto;
+        text-align: left;
+    }
+
+    .course-cohort-schedules__action-list {
+        justify-content: flex-start;
+    }
+
+    .course-cohort-schedules__period {
+        white-space: normal;
+    }
+
+    .course-cohort-schedules__empty-row {
+        border: 0 !important;
+    }
+
+    .lf-admin-page .course-cohort-schedules__empty-cell {
+        display: block;
+        padding: 0;
+        border: 0;
+    }
+
+    .course-cohort-schedule-form__general-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .course-cohort-schedule-form__name {
+        grid-column: auto;
+    }
+
+    .course-cohort-schedule-preview__item {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .course-cohort-schedule-preview__summary {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .course-cohort-schedule-detail__header,
+    .course-cohort-schedule-detail__section-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .course-cohort-schedule-detail__table-wrap {
+        overflow: visible;
+        border: 0;
+        background: transparent;
+    }
+
+    .course-cohort-schedule-detail__table {
+        min-width: 0;
+        display: block;
+    }
+
+    .course-cohort-schedule-detail__table thead {
+        display: none;
+    }
+
+    .course-cohort-schedule-detail__table tbody {
+        display: grid;
+        gap: 8px;
+    }
+
+    .course-cohort-schedule-detail__table tr {
+        display: block;
+        overflow: hidden;
+        border: 1px solid var(--admin-border);
+        border-radius: 8px;
+        background: var(--admin-surface);
+    }
+
+    .lf-admin-page .course-cohort-schedule-detail__table td {
+        width: auto;
+        padding: 9px 12px;
+        display: grid;
+        grid-template-columns: minmax(100px, .42fr) minmax(0, 1fr);
+        gap: 10px;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .course-cohort-schedule-detail__table td::before {
+        content: attr(data-label);
+        color: var(--admin-text-muted);
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .course-cohort-schedule-detail__footer .admin-form-footer-primary {
+        width: 100%;
+    }
+
+    .course-cohort-schedule-detail__footer .btn {
+        flex: 1;
+        justify-content: center;
+    }
+}
+
 .course-cohort-session-form {
     min-width: 0;
     padding: 18px;
@@ -5054,7 +5833,7 @@
     .course-cohort-session-table__actions,
     .course-cohort-session-action-menu { justify-content: flex-start; text-align: left; }
     .course-cohort-session-action-menu__panel { right: auto; left: 0; }
-    .course-cohort-session-detail-popover { right: auto; left: 0; max-width: calc(100vw - 64px); }
+    .course-cohort-session-detail-popover { right: auto; left: 0; max-width: calc(100dvw - 64px); }
     .course-cohort-session-modal__grid { grid-template-columns: minmax(0, 1fr); }
     .course-cohort-session-modal__status { margin-right: 4px; }
     .course-cohort-session-reschedule-current dl { grid-template-columns: minmax(0, 1fr); }

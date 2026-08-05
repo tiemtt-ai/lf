@@ -8,6 +8,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class CourseCohortManagementTest extends TestCase
@@ -936,12 +937,14 @@ class CourseCohortManagementTest extends TestCase
 
         $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-cohorts', [
             'product_id' => $productId, 'name' => '', 'code' => 'FORGED', 'status' => 'active',
+            'start_date' => '2026-08-01', 'end_date' => '2026-08-31',
         ])->assertSessionHasErrors('name');
         $this->assertDatabaseCount('core_course_cohorts', 0);
 
         $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-cohorts', [
             'product_id' => $productId, 'name' => 'Secure Class', 'code' => 'FORGED',
             'status' => 'active', 'description' => 'Must be ignored', 'notes' => 'Admin only',
+            'start_date' => '2026-08-01', 'end_date' => '2026-08-31',
         ])->assertRedirect();
 
         $this->assertDatabaseHas('core_course_cohorts', [
@@ -985,7 +988,7 @@ class CourseCohortManagementTest extends TestCase
         $detail = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=teachers")
             ->assertOk();
-        foreach (['overview', 'students', 'teachers', 'sessions', 'attendance', 'recordings'] as $tab) {
+        foreach (['overview', 'students', 'teachers', 'schedules', 'sessions', 'attendance', 'recordings'] as $tab) {
             $detail->assertSee(__('lf.LF_course_cohort_tab_'.$tab));
         }
         $detail->assertSee('min="2026-08-01"', false)
@@ -1375,7 +1378,7 @@ class CourseCohortManagementTest extends TestCase
 
         $create = $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-cohorts/create')->assertOk();
-        foreach (['overview', 'students', 'teachers', 'sessions', 'attendance', 'recordings'] as $tab) {
+        foreach (['overview', 'students', 'teachers', 'schedules', 'sessions', 'attendance', 'recordings'] as $tab) {
             $create->assertSeeText(__('lf.LF_course_cohort_tab_'.$tab));
         }
         $create->assertSee('aria-disabled="true"', false)
@@ -1457,6 +1460,721 @@ class CourseCohortManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_cohort_students', [
             'cohort_id' => $cohortId, 'enrollment_id' => $enrollmentId, 'status' => 'active',
         ]);
+    }
+
+    public function test_schedule_schema_routes_and_navigation_are_separate_from_sessions(): void
+    {
+        foreach (['core_liveclass_schedules', 'core_liveclass_schedule_slots', 'core_liveclass_schedule_exclusions'] as $table) {
+            $this->assertTrue(Schema::hasTable($table));
+            $this->assertTrue(Schema::hasColumns($table, ['id', 'customer_id', 'created_by', 'created_at', 'updated_at']));
+        }
+        $this->assertFalse(Schema::hasColumn('core_liveclass_schedules', 'status'));
+        $this->assertFalse(Schema::hasColumn('core_liveclass_schedules', 'deleted_at'));
+        $this->assertFalse(Schema::hasColumn('core_liveclass_schedules', 'recurrence'));
+        foreach (['create', 'store', 'preview', 'show', 'edit', 'update'] as $route) {
+            $this->assertTrue(Route::has("admin.course-cohorts.schedules.{$route}"));
+        }
+        $this->assertFalse(Route::has('admin.course-cohorts.schedules.destroy'));
+
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohortWithOperatingPeriod($customerId);
+        $response = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules")
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_tab_schedules'))
+            ->assertSeeText(__('lf.LF_course_cohort_tab_sessions'))
+            ->assertSeeText(__('lf.LF_course_cohort_schedule_empty'))
+            ->assertSeeText(__('lf.LF_course_cohort_schedule_empty_help'));
+        $this->assertTrue(
+            strpos($response->getContent(), '?tab=schedules')
+                < strpos($response->getContent(), '?tab=sessions')
+        );
+        $response->assertSee(route('admin.course-cohorts.show', ['id' => $cohortId, 'tab' => 'sessions']), false);
+    }
+
+    public function test_admin_can_create_schedule_with_slots_exclusion_and_canonical_preview(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohortWithOperatingPeriod($customerId, status: 'draft');
+        $payload = $this->validScheduleData([
+            'starts_on' => '2026-08-03',
+            'ends_on' => '2026-08-05',
+            'slots' => [
+                ['weekday' => 1, 'start_time' => '19:00', 'end_time' => '21:00'],
+                ['weekday' => 3, 'start_time' => '18:30', 'end_time' => '20:00'],
+            ],
+            'exclusions' => [['excluded_on' => '2026-08-05', 'reason' => 'Holiday']],
+        ]);
+
+        $preview = $this->actingAs($admin)->postJson(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules/preview",
+            $payload
+        )->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('count', 1);
+        $this->assertSame('2026-08-03', $preview->json('data.0.date'));
+        $this->assertSame('2026-08-03T19:00:00+07:00', $preview->json('data.0.starts_at'));
+
+        $response = $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules",
+            $payload
+        )->assertSessionHasNoErrors();
+        $scheduleId = (int) DB::table('core_liveclass_schedules')->value('id');
+        $response->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules")
+            ->assertSessionHas('success', __('lf.LF_course_cohort_schedule_created'));
+        $this->assertDatabaseHas('core_liveclass_schedules', [
+            'id' => $scheduleId, 'customer_id' => $customerId, 'cohort_id' => $cohortId,
+            'name' => 'Evening schedule', 'timezone' => 'Asia/Ho_Chi_Minh',
+        ]);
+        $this->assertDatabaseCount('core_liveclass_schedule_slots', 2);
+        $this->assertDatabaseHas('core_liveclass_schedule_exclusions', [
+            'schedule_id' => $scheduleId, 'excluded_on' => '2026-08-05', 'reason' => 'Holiday',
+        ]);
+        $this->assertDatabaseCount('core_liveclass_sessions', 0);
+        $this->assertDatabaseCount('core_liveclass_attendances', 0);
+        $this->assertDatabaseCount('core_liveclass_recordings', 0);
+        $this->assertDatabaseCount('core_liveclass_replays', 0);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules/{$scheduleId}")
+            ->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules&schedule_form=view&schedule_id={$scheduleId}#cohort-schedule-editor");
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules&schedule_form=view&schedule_id={$scheduleId}")
+            ->assertOk()
+            ->assertSeeText('Evening schedule')
+            ->assertSeeText(__('lf.LF_course_cohort_schedule_list_name'))
+            ->assertSeeText(__('lf.LF_course_cohort_schedule_days_and_times'))
+            ->assertSeeText(__('lf.LF_course_cohort_schedule_expected_count'))
+            ->assertSeeText(__('lf.LF_course_cohort_schedule_detail_notice'))
+            ->assertSeeText(__('lf.LF_course_cohort_schedule_status_upcoming'))
+            ->assertSee('course-cohort-schedule-detail--inline', false)
+            ->assertSee('course-cohort-schedule-detail__eyebrow', false)
+            ->assertSee('course-cohort-schedule-detail__section-header', false)
+            ->assertSee('admin-form-footer--sticky course-cohort-schedule-detail__footer', false)
+            ->assertSee('course-cohort-schedules__table-wrap', false);
+    }
+
+    public function test_schedule_preview_includes_both_date_boundaries_and_multiple_slots_per_day(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohortWithOperatingPeriod($customerId, status: 'draft');
+        $payload = $this->validScheduleData([
+            'starts_on' => '2026-08-03',
+            'ends_on' => '2026-08-10',
+            'slots' => [
+                ['weekday' => 1, 'start_time' => '08:00', 'end_time' => '09:00'],
+                ['weekday' => 1, 'start_time' => '19:00', 'end_time' => '21:00'],
+            ],
+        ]);
+
+        $response = $this->actingAs($admin)->postJson(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules/preview",
+            $payload
+        )->assertOk()->assertJsonCount(4, 'data')->assertJsonPath('count', 4);
+
+        $this->assertSame(
+            ['2026-08-03', '2026-08-03', '2026-08-10', '2026-08-10'],
+            collect($response->json('data'))->pluck('date')->all()
+        );
+        $this->assertSame(
+            ['08:00', '19:00', '08:00', '19:00'],
+            collect($response->json('data'))->pluck('start_time')->all()
+        );
+    }
+
+    public function test_schedule_create_and_edit_forms_render_with_canonical_preview_controls(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohortWithOperatingPeriod($customerId, status: 'draft');
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules/create")
+            ->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules&schedule_form=create#cohort-schedule-editor");
+
+        $createResponse = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules&schedule_form=create")
+            ->assertOk()
+            ->assertDontSee('course-cohort-schedules__editor-header', false)
+            ->assertSeeText(__('lf.LF_course_cohort_schedule_preview'))
+            ->assertSeeText(__('lf.LF_course_cohort_schedule_preview_notice'))
+            ->assertSeeText(__('lf.LF_course_cohort_schedule_preview_empty'))
+            ->assertSee('placeholder="'.__('lf.LF_course_cohort_schedule_name_placeholder').'"', false)
+            ->assertSee('placeholder="'.__('lf.LF_course_cohort_schedule_reason_placeholder').'"', false)
+            ->assertSee('course-cohort-schedule-preview__timezone', false)
+            ->assertSee('course-cohort-schedule-preview__summary', false)
+            ->assertSee('course-cohort-schedules__col-slots', false)
+            ->assertSee('id="schedule_starts_on"', false)
+            ->assertSee('min="2026-08-01"', false)
+            ->assertSee('max="2026-08-31"', false)
+            ->assertSee("'is-lf-placeholder': !startsOn", false)
+            ->assertSee('x-show="!formOpen"', false)
+            ->assertSee('course-cohort-schedules__operation-window', false)
+            ->assertDontSee('id="schedule_starts_on" disabled', false)
+            ->assertDontSee('id="schedule_starts_on" readonly', false);
+        $this->assertTrue(
+            strpos($createResponse->getContent(), 'id="cohort-schedule-editor"')
+                < strpos($createResponse->getContent(), 'course-cohort-schedules__table-wrap')
+        );
+        $this->assertSame(
+            2,
+            substr_count($createResponse->getContent(), 'class="course-cohort-schedule-form__append')
+        );
+        $this->assertSame(
+            1,
+            substr_count($createResponse->getContent(), 'course-cohort-schedule-form__append--exclusion')
+        );
+        $createResponse
+            ->assertSee('this.slots.push', false)
+            ->assertSee('this.slots.splice(index, 1)', false)
+            ->assertSee('if (this.slots.length <= 1) return', false)
+            ->assertSee('field?.focus()', false)
+            ->assertSee('scrollIntoView', false)
+            ->assertSee('maxSlots: 50', false)
+            ->assertSee('maxExclusions: 366', false)
+            ->assertSee('this.exclusions.push', false)
+            ->assertDontSee('addExclusion(index)', false)
+            ->assertSee('this.exclusions.length - 1', false)
+            ->assertSee("closest('.course-cohort-schedule-form__exclusion-row')", false)
+            ->assertSee('nextErrors[current - 1] = value', false);
+
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules",
+            $this->validScheduleData()
+        );
+        $scheduleId = (int) DB::table('core_liveclass_schedules')->value('id');
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules/{$scheduleId}/edit")
+            ->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules&schedule_form=edit&schedule_id={$scheduleId}#cohort-schedule-editor");
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules&schedule_form=edit&schedule_id={$scheduleId}")
+            ->assertOk()
+            ->assertDontSee('course-cohort-schedules__editor-header', false)
+            ->assertSee('course-cohort-schedules__status-badge', false)
+            ->assertSee('course-cohort-schedules__expected-count', false)
+            ->assertSee('Evening schedule', false);
+    }
+
+    public function test_schedule_validation_rejects_invalid_ranges_slots_and_exclusions(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohortWithOperatingPeriod($customerId);
+        $url = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules";
+
+        $this->actingAs($admin)->post($url, $this->validScheduleData(['slots' => []]))
+            ->assertSessionHasErrors('slots');
+        $this->actingAs($admin)->post($url, $this->validScheduleData([
+            'slots' => [['weekday' => 1, 'start_time' => '20:00', 'end_time' => '19:00']],
+        ]))->assertSessionHasErrors('slots.0.end_time');
+        $this->actingAs($admin)->post($url, $this->validScheduleData([
+            'slots' => [
+                ['weekday' => 1, 'start_time' => '19:00', 'end_time' => '21:00'],
+                ['weekday' => 1, 'start_time' => '20:00', 'end_time' => '22:00'],
+            ],
+        ]))->assertSessionHasErrors('slots');
+        $this->actingAs($admin)->post($url, $this->validScheduleData([
+            'slots' => [
+                ['weekday' => 1, 'start_time' => '19:00', 'end_time' => '21:00'],
+                ['weekday' => 1, 'start_time' => '19:00', 'end_time' => '21:00'],
+            ],
+        ]))->assertSessionHasErrors('slots');
+        $this->actingAs($admin)->post($url, $this->validScheduleData([
+            'starts_on' => '2026-07-31',
+        ]))->assertSessionHasErrors('starts_on');
+        $this->actingAs($admin)->post($url, $this->validScheduleData([
+            'exclusions' => [['excluded_on' => '2026-09-01', 'reason' => null]],
+        ]))->assertSessionHasErrors('exclusions.0.excluded_on');
+        $this->actingAs($admin)->post($url, $this->validScheduleData([
+            'exclusions' => [
+                ['excluded_on' => '2026-08-10', 'reason' => null],
+                ['excluded_on' => '2026-08-10', 'reason' => null],
+            ],
+        ]))->assertSessionHasErrors('exclusions.1.excluded_on');
+        $this->actingAs($admin)->post($url, array_merge($this->validScheduleData(), [
+            'customer_id' => $customerId,
+            'status' => 'active',
+        ]))->assertSessionHasErrors(['customer_id', 'status']);
+        $this->assertDatabaseCount('core_liveclass_schedules', 0);
+    }
+
+    public function test_new_cohort_requires_a_complete_valid_inclusive_operating_period(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Operating Period Product', 'operating-period-product');
+        $this->createVersion($customerId, $admin->id);
+        $url = 'https://tenant-a.localhost/admin/course-cohorts';
+
+        $this->actingAs($admin)->post($url, $this->validCohortData([
+            'product_id' => $productId, 'start_date' => null, 'end_date' => null,
+        ]))->assertSessionHasErrors(['start_date', 'end_date']);
+        $this->actingAs($admin)->post($url, $this->validCohortData([
+            'product_id' => $productId, 'start_date' => '2026-08-02', 'end_date' => '2026-08-01',
+        ]))->assertSessionHasErrors('end_date');
+
+        $this->actingAs($admin)->post($url, $this->validCohortData([
+            'product_id' => $productId,
+            'name' => 'One day cohort',
+            'start_date' => '2026-08-01',
+            'end_date' => '2026-08-01',
+        ]))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_cohorts', [
+            'customer_id' => $customerId,
+            'name' => 'One day cohort',
+            'start_date' => '2026-08-01',
+            'end_date' => '2026-08-01',
+        ]);
+    }
+
+    public function test_legacy_cohort_without_operating_period_remains_readable_but_schedule_actions_fail_closed(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohort($customerId, status: 'draft');
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}")
+            ->assertOk();
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules/create")
+            ->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules&schedule_form=create#cohort-schedule-editor");
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules&schedule_form=create")
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_schedule_operation_required'))
+            ->assertSee(route('admin.course-cohorts.edit', $cohortId), false);
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules", $this->validScheduleData())
+            ->assertSessionHasErrors('starts_on');
+        $this->actingAs($admin)
+            ->postJson("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules/preview", $this->validScheduleData())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('starts_on');
+        $this->assertDatabaseCount('core_liveclass_schedules', 0);
+    }
+
+    public function test_schedule_range_is_an_inclusive_subrange_of_cohort_operating_period_for_store_update_and_preview(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohortWithOperatingPeriod($customerId, status: 'draft');
+        $baseUrl = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules";
+
+        $this->actingAs($admin)->post($baseUrl, $this->validScheduleData([
+            'name' => 'Full boundary schedule',
+        ]))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post($baseUrl, $this->validScheduleData([
+            'name' => 'Inner schedule', 'starts_on' => '2026-08-02', 'ends_on' => '2026-08-30',
+        ]))->assertSessionHasNoErrors();
+        $innerId = (int) DB::table('core_liveclass_schedules')->where('name', 'Inner schedule')->value('id');
+
+        foreach ([
+            ['starts_on' => '2026-07-31'],
+            ['ends_on' => '2026-09-01'],
+            ['starts_on' => '2026-07-31', 'ends_on' => '2026-09-01'],
+        ] as $invalidRange) {
+            $this->actingAs($admin)->post($baseUrl, $this->validScheduleData($invalidRange))
+                ->assertSessionHasErrors('starts_on');
+            $this->actingAs($admin)->postJson("{$baseUrl}/preview", $this->validScheduleData($invalidRange))
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('starts_on');
+        }
+
+        $this->actingAs($admin)->put("{$baseUrl}/{$innerId}", $this->validScheduleData([
+            'name' => 'Invalid update', 'starts_on' => '2026-07-31',
+        ]))->assertSessionHasErrors('starts_on');
+        $this->assertDatabaseHas('core_liveclass_schedules', [
+            'id' => $innerId, 'name' => 'Inner schedule', 'starts_on' => '2026-08-02', 'ends_on' => '2026-08-30',
+        ]);
+        $this->assertDatabaseCount('core_liveclass_sessions', 0);
+    }
+
+    public function test_cohort_operating_period_cannot_shrink_past_existing_schedules_and_never_mutates_them(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohortWithOperatingPeriod($customerId, status: 'draft');
+        $scheduleUrl = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules";
+        $cohortUrl = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}";
+
+        $this->actingAs($admin)->post($scheduleUrl, $this->validScheduleData([
+            'name' => 'First schedule', 'starts_on' => '2026-08-03', 'ends_on' => '2026-08-10',
+        ]))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post($scheduleUrl, $this->validScheduleData([
+            'name' => 'Second schedule', 'starts_on' => '2026-08-20', 'ends_on' => '2026-08-29',
+        ]))->assertSessionHasNoErrors();
+        $before = DB::table('core_liveclass_schedules')->orderBy('id')->get()->map(fn ($row) => (array) $row)->all();
+
+        $this->actingAs($admin)->put($cohortUrl, $this->validCohortData([
+            'start_date' => '2026-08-04', 'end_date' => '2026-08-28',
+        ]))->assertSessionHasErrors('start_date');
+        $this->assertDatabaseHas('core_course_cohorts', [
+            'id' => $cohortId, 'start_date' => '2026-08-01', 'end_date' => '2026-08-31',
+        ]);
+
+        $this->actingAs($admin)->put($cohortUrl, $this->validCohortData([
+            'start_date' => '2026-08-03', 'end_date' => '2026-08-29',
+        ]))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->put($cohortUrl, $this->validCohortData([
+            'start_date' => '2026-07-01', 'end_date' => '2026-09-30',
+        ]))->assertSessionHasNoErrors();
+
+        $after = DB::table('core_liveclass_schedules')->orderBy('id')->get()->map(fn ($row) => (array) $row)->all();
+        $this->assertSame($before, $after);
+        $this->assertDatabaseCount('core_liveclass_schedules', 2);
+        $this->assertDatabaseCount('core_liveclass_sessions', 0);
+        $this->assertDatabaseCount('core_liveclass_attendances', 0);
+        $this->assertDatabaseCount('core_liveclass_recordings', 0);
+        $this->assertDatabaseCount('core_liveclass_replays', 0);
+    }
+
+    public function test_schedule_update_replaces_children_atomically_without_touching_sessions(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohortWithOperatingPeriod($customerId);
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules",
+            $this->validScheduleData()
+        );
+        $scheduleId = (int) DB::table('core_liveclass_schedules')->value('id');
+        $sessionCount = DB::table('core_liveclass_sessions')->count();
+
+        $this->actingAs($admin)->put(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules/{$scheduleId}",
+            $this->validScheduleData([
+                'name' => 'Updated schedule',
+                'slots' => [
+                    ['weekday' => 2, 'start_time' => '08:00', 'end_time' => '10:00'],
+                    ['weekday' => 4, 'start_time' => '13:00', 'end_time' => '15:00'],
+                ],
+                'exclusions' => [['excluded_on' => '2026-08-11', 'reason' => 'Break']],
+            ])
+        )->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules")
+            ->assertSessionHas('success', __('lf.LF_course_cohort_schedule_updated'));
+        $this->assertDatabaseHas('core_liveclass_schedules', ['id' => $scheduleId, 'name' => 'Updated schedule']);
+        $this->assertSame(2, DB::table('core_liveclass_schedule_slots')->where('schedule_id', $scheduleId)->count());
+        $this->assertSame(1, DB::table('core_liveclass_schedule_exclusions')->where('schedule_id', $scheduleId)->count());
+        $this->assertSame($sessionCount, DB::table('core_liveclass_sessions')->count());
+
+        $this->actingAs($admin)->put(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules/{$scheduleId}",
+            $this->validScheduleData(['slots' => []])
+        )->assertSessionHasErrors('slots');
+        $this->assertDatabaseHas('core_liveclass_schedules', ['id' => $scheduleId, 'name' => 'Updated schedule']);
+        $this->assertSame(2, DB::table('core_liveclass_schedule_slots')->where('schedule_id', $scheduleId)->count());
+    }
+
+    public function test_schedule_create_and_update_change_only_schedule_domain_data(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Boundary Product', 'boundary-product');
+        $versionId = $this->createVersion($customerId, $admin->id, 'Boundary Version');
+        $cohortId = $this->createCohortWithOperatingPeriod($customerId, status: 'active');
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'product_id' => $productId,
+            'version_id' => $versionId,
+            'capacity' => 20,
+        ]);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $membershipId = $this->createMembership(
+            $customerId,
+            $cohortId,
+            $enrollmentId,
+            $productId,
+            $student->id
+        );
+        $teacherAssignmentId = DB::table('core_course_cohort_teachers')->insertGetId([
+            'customer_id' => $customerId,
+            'cohort_id' => $cohortId,
+            'teacher_id' => $teacher->id,
+            'role' => 'primary_teacher',
+            'assigned_from' => '2026-08-01',
+            'assigned_to' => '2026-08-31',
+            'status' => 'active',
+            'created_by' => $admin->id,
+            'created_at' => '2026-08-01 00:00:00',
+            'updated_at' => '2026-08-01 00:00:00',
+        ]);
+        $lessonId = DB::table('core_course_template_version_lessons')->insertGetId([
+            'customer_id' => $customerId,
+            'template_version_id' => $versionId,
+            'source_template_lesson_id' => 9801,
+            'title_snapshot' => 'Boundary Lesson',
+            'sort_order' => 1,
+            'created_at' => '2026-08-01 00:00:00',
+            'updated_at' => '2026-08-01 00:00:00',
+        ]);
+        $activityId = DB::table('core_course_template_version_activities')->insertGetId([
+            'customer_id' => $customerId,
+            'template_version_id' => $versionId,
+            'version_lesson_id' => $lessonId,
+            'source_template_activity_id' => 9802,
+            'title_snapshot' => 'Boundary Live Activity',
+            'activity_type' => 'live_class',
+            'completion_rule' => 'attendance',
+            'created_at' => '2026-08-01 00:00:00',
+            'updated_at' => '2026-08-01 00:00:00',
+        ]);
+        $sessionId = DB::table('core_liveclass_sessions')->insertGetId([
+            'customer_id' => $customerId,
+            'cohort_id' => $cohortId,
+            'template_version_id' => $versionId,
+            'session_type' => 'curriculum',
+            'version_lesson_id' => $lessonId,
+            'version_activity_id' => $activityId,
+            'room_id' => null,
+            'primary_teacher_id' => null,
+            'superseded_by_session_id' => null,
+            'title' => 'Existing Session',
+            'session_no' => 1,
+            'delivery_mode' => 'online',
+            'scheduled_start_at' => '2026-08-10 19:00:00',
+            'scheduled_end_at' => '2026-08-10 21:00:00',
+            'actual_start_at' => null,
+            'actual_end_at' => null,
+            'timezone' => 'Asia/Ho_Chi_Minh',
+            'status' => 'scheduled',
+            'online_provider' => 'zoom',
+            'meeting_url_snapshot' => 'https://example.test/existing-session',
+            'meeting_id_snapshot' => 'existing-001',
+            'facility_name_snapshot' => null,
+            'room_name_snapshot' => null,
+            'address_snapshot' => null,
+            'cancellation_reason' => null,
+            'metadata' => json_encode(['preserve' => true]),
+            'created_by' => $admin->id,
+            'created_at' => '2026-08-01 01:00:00',
+            'updated_at' => '2026-08-01 01:00:00',
+        ]);
+        $sessionTeacherId = DB::table('core_liveclass_session_teachers')->insertGetId([
+            'customer_id' => $customerId,
+            'session_id' => $sessionId,
+            'teacher_id' => $teacher->id,
+            'role' => 'teacher',
+            'assigned_from' => '2026-08-10 19:00:00',
+            'assigned_to' => '2026-08-10 21:00:00',
+            'created_by' => $admin->id,
+            'created_at' => '2026-08-01 01:00:00',
+            'updated_at' => '2026-08-01 01:00:00',
+        ]);
+        $attendanceId = DB::table('core_liveclass_attendances')->insertGetId([
+            'customer_id' => $customerId,
+            'session_id' => $sessionId,
+            'enrollment_id' => $enrollmentId,
+            'user_id' => $student->id,
+            'version_activity_id' => $activityId,
+            'status' => 'registered',
+            'attendance_mode' => 'online',
+            'duration_seconds' => 0,
+            'attendance_percentage' => 0,
+            'attendance_source' => 'manual',
+            'created_at' => '2026-08-01 01:00:00',
+            'updated_at' => '2026-08-01 01:00:00',
+        ]);
+        $recordingId = DB::table('core_liveclass_recordings')->insertGetId([
+            'customer_id' => $customerId,
+            'session_id' => $sessionId,
+            'title' => 'Existing Recording',
+            'recording_url' => 'https://example.test/recording',
+            'duration_seconds' => 3600,
+            'visibility' => 'cohort',
+            'status' => 'ready',
+            'created_by' => $admin->id,
+            'created_at' => '2026-08-01 01:00:00',
+            'updated_at' => '2026-08-01 01:00:00',
+        ]);
+        $replayId = DB::table('core_liveclass_replays')->insertGetId([
+            'customer_id' => $customerId,
+            'recording_id' => $recordingId,
+            'session_id' => $sessionId,
+            'enrollment_id' => $enrollmentId,
+            'user_id' => $student->id,
+            'version_activity_id' => $activityId,
+            'watched_seconds' => 120,
+            'watched_percentage' => 3.33,
+            'last_watched_at' => '2026-08-01 02:00:00',
+            'created_at' => '2026-08-01 02:00:00',
+            'updated_at' => '2026-08-01 02:00:00',
+        ]);
+        $progressId = DB::table('core_course_progress')->insertGetId([
+            'customer_id' => $customerId,
+            'enrollment_id' => $enrollmentId,
+            'product_id' => $productId,
+            'version_id' => $versionId,
+            'student_id' => $student->id,
+            'progress_percentage' => 100,
+            'status' => 'completed',
+            'completed_at' => '2026-08-01 03:00:00',
+            'created_at' => '2026-08-01 03:00:00',
+            'updated_at' => '2026-08-01 03:00:00',
+        ]);
+        $completionId = DB::table('core_course_completions')->insertGetId([
+            'customer_id' => $customerId,
+            'enrollment_id' => $enrollmentId,
+            'course_progress_id' => $progressId,
+            'product_id' => $productId,
+            'version_id' => $versionId,
+            'student_id' => $student->id,
+            'completion_rule' => 'progress',
+            'final_progress_percentage' => 100,
+            'completed_at' => '2026-08-01 03:00:00',
+            'completion_source' => 'system',
+            'status' => 'completed',
+            'created_at' => '2026-08-01 03:00:00',
+            'updated_at' => '2026-08-01 03:00:00',
+        ]);
+
+        $snapshotQueries = [
+            'cohort' => ['core_course_cohorts', 'id', $cohortId],
+            'enrollment' => ['core_course_enrollments', 'id', $enrollmentId],
+            'membership' => ['core_course_cohort_students', 'id', $membershipId],
+            'teacher_assignment' => ['core_course_cohort_teachers', 'id', $teacherAssignmentId],
+            'session' => ['core_liveclass_sessions', 'id', $sessionId],
+            'session_teacher' => ['core_liveclass_session_teachers', 'id', $sessionTeacherId],
+            'attendance' => ['core_liveclass_attendances', 'id', $attendanceId],
+            'recording' => ['core_liveclass_recordings', 'id', $recordingId],
+            'replay' => ['core_liveclass_replays', 'id', $replayId],
+            'progress' => ['core_course_progress', 'id', $progressId],
+            'completion' => ['core_course_completions', 'id', $completionId],
+        ];
+        $before = $this->snapshotRows($snapshotQueries);
+
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules",
+            $this->validScheduleData()
+        )->assertSessionHasNoErrors();
+        $scheduleId = (int) DB::table('core_liveclass_schedules')->where('cohort_id', $cohortId)->value('id');
+
+        $this->assertSame($before, $this->snapshotRows($snapshotQueries));
+        $this->assertDatabaseCount('core_liveclass_schedules', 1);
+        $this->assertDatabaseCount('core_liveclass_schedule_slots', 1);
+        $this->assertDatabaseCount('core_liveclass_schedule_exclusions', 0);
+
+        $this->actingAs($admin)->put(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules/{$scheduleId}",
+            $this->validScheduleData([
+                'name' => 'Updated isolated schedule',
+                'slots' => [
+                    ['weekday' => 2, 'start_time' => '08:00', 'end_time' => '10:00'],
+                    ['weekday' => 4, 'start_time' => '19:00', 'end_time' => '21:00'],
+                ],
+                'exclusions' => [['excluded_on' => '2026-08-13', 'reason' => 'Holiday']],
+            ])
+        )->assertSessionHasNoErrors();
+
+        $this->assertSame($before, $this->snapshotRows($snapshotQueries));
+        $this->assertDatabaseHas('core_liveclass_schedules', [
+            'id' => $scheduleId,
+            'name' => 'Updated isolated schedule',
+        ]);
+        $this->assertDatabaseCount('core_liveclass_schedule_slots', 2);
+        $this->assertDatabaseCount('core_liveclass_schedule_exclusions', 1);
+    }
+
+    public function test_schedule_authorization_lifecycle_and_tenant_scope_fail_closed(): void
+    {
+        $customerA = $this->createTenant('tenant-a');
+        $customerB = $this->createTenant('tenant-b');
+        $adminA = $this->createUser($customerA, 'customer_admin');
+        $adminB = $this->createUser($customerB, 'customer_admin');
+        $teacher = $this->createUser($customerA, 'teacher');
+        $draft = $this->createCohortWithOperatingPeriod($customerA, status: 'draft');
+        $active = $this->createCohortWithOperatingPeriod($customerA, status: 'active');
+        $completed = $this->createCohortWithOperatingPeriod($customerA, status: 'completed');
+        $archived = $this->createCohortWithOperatingPeriod($customerA, status: 'archived');
+
+        foreach ([$draft, $active] as $cohortId) {
+            $this->actingAs($adminA)->post(
+                "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules",
+                $this->validScheduleData()
+            )->assertSessionHasNoErrors();
+        }
+        foreach ([$completed, $archived] as $cohortId) {
+            $this->actingAs($adminA)->post(
+                "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules",
+                $this->validScheduleData()
+            )->assertForbidden();
+        }
+        $this->actingAs($teacher)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$draft}/schedules",
+            $this->validScheduleData()
+        )->assertForbidden();
+        $scheduleId = (int) DB::table('core_liveclass_schedules')->where('cohort_id', $draft)->value('id');
+        $this->actingAs($adminB)
+            ->get("https://tenant-b.localhost/admin/course-cohorts/{$draft}/schedules/{$scheduleId}")
+            ->assertNotFound();
+        $this->actingAs($adminB)->put(
+            "https://tenant-b.localhost/admin/course-cohorts/{$draft}/schedules/{$scheduleId}",
+            $this->validScheduleData(['name' => 'Forged'])
+        )->assertForbidden();
+        $this->assertDatabaseMissing('core_liveclass_schedules', ['id' => $scheduleId, 'name' => 'Forged']);
+    }
+
+    public function test_completed_schedule_is_readonly_and_has_no_delete_ui_or_endpoint(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohortWithOperatingPeriod($customerId, status: 'active');
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules",
+            $this->validScheduleData()
+        );
+        $scheduleId = (int) DB::table('core_liveclass_schedules')->value('id');
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['status' => 'completed']);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules/{$scheduleId}")
+            ->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules&schedule_form=view&schedule_id={$scheduleId}#cohort-schedule-editor");
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules&schedule_form=view&schedule_id={$scheduleId}")
+            ->assertOk()
+            ->assertDontSee('schedule_form=edit', false)
+            ->assertDontSeeText(__('lf.LF_common_button_delete'));
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules/{$scheduleId}/edit")
+            ->assertForbidden();
+    }
+
+    private function createCohortWithOperatingPeriod(
+        int $customerId,
+        string $status = 'active'
+    ): int {
+        $cohortId = $this->createCohort($customerId, status: $status);
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'start_date' => '2026-08-01',
+            'end_date' => '2026-08-31',
+        ]);
+
+        return $cohortId;
+    }
+
+    private function validScheduleData(array $overrides = []): array
+    {
+        return array_replace([
+            'name' => 'Evening schedule',
+            'starts_on' => '2026-08-01',
+            'ends_on' => '2026-08-31',
+            'timezone' => 'Asia/Ho_Chi_Minh',
+            'slots' => [['weekday' => 1, 'start_time' => '19:00', 'end_time' => '21:00']],
+            'exclusions' => [],
+        ], $overrides);
+    }
+
+    private function snapshotRows(array $queries): array
+    {
+        return collect($queries)->mapWithKeys(function (array $query, string $key): array {
+            [$table, $column, $value] = $query;
+
+            return [$key => (array) DB::table($table)->where($column, $value)->firstOrFail()];
+        })->all();
     }
 
     private function createTenant(string $slug = 'tenant-a'): int
@@ -1719,8 +2437,8 @@ class CourseCohortManagementTest extends TestCase
             'description' => null,
             'status' => 'active',
             'capacity' => null,
-            'start_date' => null,
-            'end_date' => null,
+            'start_date' => '2026-08-01',
+            'end_date' => '2026-08-31',
             'notes' => null,
         ], $overrides);
     }

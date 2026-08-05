@@ -1,8 +1,10 @@
 # MIỀN NGHIỆP VỤ LIVECLASS
 
-> **Implementation scope approved 2026-07-25**: Cohort-centered Session,
-> optional delivery resource, Session teachers, Attendance and Recording/
-> Replay foundation are authorized for migration and implementation.
+> **Implementation scope approved 2026-08-05**: Cohort-centered recurring
+> Schedule CRUD/Preview is Foundation approved in addition to the existing
+> Session, optional delivery resource, Session teachers, Attendance and
+> Recording/Replay foundation. Schedule-to-Session generation or
+> synchronization is not approved by this amendment.
 
 Miền nghiệp vụ LiveClass quản lý Activity đồng bộ và kết hợp. Miền
 nghiệp vụ này kết nối các Activity của Course đã phát hành với
@@ -15,8 +17,8 @@ trò chuyện mà không sở hữu Progress của Course hoặc tài sản Medi
 
 - **Trách nhiệm nghiệp vụ:** Vận hành trải nghiệm học trực tiếp và tạo bằng
   chứng tham dự và xem lại.
-- **Phạm vi:** Phòng, phiên học, dữ liệu tham dự, tham chiếu bản ghi, tổng hợp
-  hoạt động xem lại và trò chuyện trong phiên học.
+- **Phạm vi:** Lịch định kỳ của Cohort, phòng, phiên học, dữ liệu tham dự, tham
+  chiếu bản ghi, tổng hợp hoạt động xem lại và trò chuyện trong phiên học.
 - **Sở hữu:** Trạng thái vận hành LiveClass và bằng chứng tham gia.
 - **Không sở hữu:** Cấu trúc Course, Progress, Hoàn thành khóa học,
   điều kiện cấp Certificate, tệp bản ghi, Event Track hoặc quyết định AI.
@@ -27,12 +29,15 @@ trò chuyện mà không sở hữu Progress của Course hoặc tài sản Medi
 
 ## Các nhóm cơ sở dữ liệu
 
-## 1. Phòng và lịch học
+## 1. Kế hoạch lịch, phòng và buổi học
 
 | Bảng | Mô tả |
 |------|------|
+| **core_liveclass_schedules** | Cấu hình lịch định kỳ thuộc trực tiếp Cohort |
+| **core_liveclass_schedule_slots** | Quy tắc weekday và khung giờ của Schedule |
+| **core_liveclass_schedule_exclusions** | Ngày loại khỏi Schedule preview |
 | **core_liveclass_rooms** | Phòng vận hành cho các Activity trực tiếp đã phát hành |
-| **core_liveclass_sessions** | Các buổi học trực tiếp đã lên lịch và hoàn tất |
+| **core_liveclass_sessions** | Các Buổi học cụ thể đã lên lịch và hoàn tất |
 | **core_liveclass_session_teachers** | Đội ngũ giảng dạy của từng Session |
 | **core_liveclass_session_schedule_changes** | Audit append-only khi đổi lịch |
 
@@ -60,8 +65,11 @@ trò chuyện mà không sở hữu Progress của Course hoặc tài sản Medi
 
 ```mermaid
 erDiagram
-    VERSION_ACTIVITY ||--o| LIVECLASS_ROOM : activates
-    LIVECLASS_ROOM ||--o{ LIVECLASS_SESSION : schedules
+    COHORT ||--o{ LIVECLASS_SCHEDULE : plans
+    LIVECLASS_SCHEDULE ||--|{ SCHEDULE_SLOT : contains
+    LIVECLASS_SCHEDULE ||--o{ SCHEDULE_EXCLUSION : excludes
+    COHORT ||--o{ LIVECLASS_SESSION : operates
+    LIVECLASS_ROOM ||--o{ LIVECLASS_SESSION : delivers
     LIVECLASS_SESSION ||--o{ ATTENDANCE : records
     LIVECLASS_SESSION ||--o{ CHAT_LOG : contains
     LIVECLASS_SESSION ||--o{ RECORDING : creates
@@ -77,8 +85,9 @@ erDiagram
 
 ```mermaid
 flowchart LR
-    A[Published Version Activity] --> B[LiveClass Room]
-    B --> C[LiveClass Session]
+    A[Cohort] --> B[Schedule + Slots + Exclusions]
+    B --> P[Read-only occurrence preview]
+    A --> C[LiveClass Session]
     C --> D[Attendance and Chat]
     C --> E[Recording]
     E --> F[Replay]
@@ -103,6 +112,8 @@ LiveClass → AI để cung cấp các bản tổng hợp và thông tin chuyên
 ## Nguyên tắc thiết kế
 
 - LiveClass là một miền nghiệp vụ vận hành.
+- Schedule là setup/planning data thuộc LiveClass và trực tiếp thuộc Cohort.
+- Schedule preview không lưu occurrence và không tạo Session.
 - Hoạt động học tại thời gian chạy luôn liên kết với Version Hoạt động học
   tập đã phát hành.
 - Phòng và phiên học là hai khái niệm nghiệp vụ riêng biệt.

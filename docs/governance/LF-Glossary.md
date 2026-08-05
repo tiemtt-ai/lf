@@ -1,10 +1,10 @@
 # LearnForge Glossary
 
-Version: 1.0
+Version: 1.1
 
 Status: Official Governance
 
-Last Updated: 2026-07
+Last Updated: 2026-08
 
 ---
 
@@ -58,8 +58,11 @@ tạo thêm Domain ownership; ownership luôn phải phù hợp với ADR và
 
 | Term | Definition | Owner Domain | Source of Truth | Related ADR |
 | --- | --- | --- | --- | --- |
+| Schedule | Kế hoạch lịch định kỳ thuộc trực tiếp một Cohort, gồm khoảng áp dụng, múi giờ, các Slot theo thứ trong tuần và ngày loại trừ. Schedule chỉ tạo bản xem trước ngày học dự kiến; không phải Session và không tự tạo Session. | LiveClass | LiveClass Schedule, Schedule Slot và Schedule Exclusion | [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md) |
+| Schedule Slot | Quy tắc thứ trong tuần và khoảng giờ nội ngày thuộc một Schedule. | LiveClass | LiveClass Schedule Slot | [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md) |
+| Schedule Exclusion | Ngày cục bộ bị loại khỏi bản xem trước của một Schedule; không cập nhật hay xóa Session. | LiveClass | LiveClass Schedule Exclusion | [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md) |
 | Room | Cấu hình không gian live có thể tái sử dụng và liên kết với Version Activity. | LiveClass | LiveClass Room | [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md) |
-| Session | Một lần diễn ra cụ thể, có lịch và lifecycle riêng, bên trong Room. | LiveClass | LiveClass Session | [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md) |
+| Session | Một Buổi học cụ thể thuộc Cohort, có thời gian và lifecycle riêng; có thể dùng Room hoặc delivery resource nhưng không thuộc Schedule. | LiveClass | LiveClass Session | [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md) |
 | Attendance | Bằng chứng tham dự của một learner trong một Session; không tự quyết định Course Completion. | LiveClass | LiveClass Attendance | [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md) |
 | Replay | Bằng chứng learner truy cập hoặc xem lại nội dung của Session; không tự quyết định Course Completion. | LiveClass | LiveClass Replay | [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md) |
 | Recording | Reference vận hành từ Session đến Media File chứa bản ghi; binary và delivery thuộc Media. | LiveClass | LiveClass Recording reference; Media File cho asset | [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md), [ADR-0004](../adr/ADR-0004-Media-Foundation.md) |

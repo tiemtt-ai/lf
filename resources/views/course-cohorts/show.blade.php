@@ -237,7 +237,11 @@
                     <div class="cohort-student-list-heading-actions">
                         <span class="cohort-student-list-count">{{ __('lf.LF_course_cohort_student_capacity_count', ['current' => $activeMembershipCount, 'capacity' => $cohort->capacity ?? '∞']) }}</span>
                         @if (in_array($cohort->status, ['draft', 'active'], true))
-                            <button type="button" class="btn btn-primary" x-on:click="formOpen = !formOpen" x-bind:aria-expanded="formOpen.toString()">
+                            <button type="button" class="btn btn-primary"
+                                    x-show="!formOpen" x-cloak
+                                    x-on:click="formOpen = true"
+                                    x-bind:aria-expanded="formOpen.toString()"
+                                    aria-controls="cohort-student-manager-form">
                                 {{ __('lf.LF_course_cohort_student_manage_heading') }}
                             </button>
                         @endif
@@ -346,6 +350,8 @@
     </div>
     @elseif ($activeTab === 'teachers')
         @include('course-cohorts.partials.tabs.teachers')
+    @elseif ($activeTab === 'schedules')
+        @include('course-cohorts.partials.tabs.schedules')
     @elseif ($activeTab === 'sessions')
         @include('course-cohorts.partials.tabs.sessions')
     @elseif ($activeTab === 'attendance')

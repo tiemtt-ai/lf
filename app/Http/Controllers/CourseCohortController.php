@@ -5,12 +5,15 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\AuthorizesCourseCohortAdmin;
 use App\Services\CourseCohortLifecycleService;
 use App\Services\CourseCohortVersionResolver;
+use App\Services\LiveClassSchedulePreviewService;
 use App\Services\LiveClassSessionPolicy;
 use App\Support\SequentialCodeGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class CourseCohortController extends Controller
@@ -29,7 +32,8 @@ class CourseCohortController extends Controller
     public function __construct(
         private readonly CourseCohortVersionResolver $versionResolver,
         private readonly CourseCohortLifecycleService $lifecycleService,
-        private readonly LiveClassSessionPolicy $sessionPolicy
+        private readonly LiveClassSessionPolicy $sessionPolicy,
+        private readonly LiveClassSchedulePreviewService $schedulePreviewService
     ) {}
 
     public function index(Request $request): View
@@ -141,7 +145,7 @@ class CourseCohortController extends Controller
         $customerId = $this->customerId();
         $cohort = $this->findCohort($customerId, $id);
         $requestedTab = in_array($request->query('tab'), [
-            'students', 'teachers', 'sessions', 'attendance', 'recordings',
+            'students', 'teachers', 'schedules', 'sessions', 'attendance', 'recordings',
         ], true) ? $request->query('tab') : 'overview';
 
         $activeMembershipCount = (int) DB::table('core_course_cohort_students')
@@ -154,9 +158,12 @@ class CourseCohortController extends Controller
         $recordingCount = (int) DB::table('core_liveclass_recordings as recordings')
             ->join('core_liveclass_sessions as sessions', 'sessions.id', '=', 'recordings.session_id')
             ->where('recordings.customer_id', $customerId)->where('sessions.cohort_id', $id)->count();
+        $scheduleCount = (int) DB::table('core_liveclass_schedules')
+            ->where('customer_id', $customerId)->where('cohort_id', $id)->count();
 
         $tabs = $this->cohortTabs($cohort, $routePrefix = $this->routePrefix($request), $requestedTab, [
             'students' => $activeMembershipCount,
+            'schedules' => $scheduleCount,
             'sessions' => $eligibleAttendanceSessions->count(),
             'recordings' => $recordingCount,
         ]);
@@ -165,6 +172,7 @@ class CourseCohortController extends Controller
         $tabData = match ($activeTab) {
             'students' => $this->studentTabData($request, $customerId, $id),
             'teachers' => $this->teacherTabData($customerId, $id),
+            'schedules' => $this->scheduleTabData($request, $customerId, $id),
             'sessions' => $this->sessionTabData($customerId, $cohort),
             'attendance' => $this->attendanceTabData($request, $customerId, $id, $eligibleAttendanceSessions),
             'recordings' => $this->recordingTabData($customerId, $id),
@@ -177,6 +185,7 @@ class CourseCohortController extends Controller
             'selectedEnrollments' => collect(),
             'teachers' => collect(),
             'availableTeachers' => collect(),
+            'schedules' => collect(),
             'versionLessons' => collect(),
             'versionActivities' => collect(),
             'sessions' => collect(),
@@ -333,6 +342,91 @@ class CourseCohortController extends Controller
         ];
     }
 
+    private function scheduleTabData(Request $request, int $customerId, int $cohortId): array
+    {
+        $schedules = DB::table('core_liveclass_schedules')
+            ->where('customer_id', $customerId)
+            ->where('cohort_id', $cohortId)
+            ->orderBy('starts_on')
+            ->orderBy('id')
+            ->paginate(10, ['*'], 'schedule_page')
+            ->withQueryString();
+        $scheduleIds = $schedules->getCollection()->pluck('id');
+        $slots = $scheduleIds->isEmpty() ? collect() : DB::table('core_liveclass_schedule_slots')
+            ->where('customer_id', $customerId)->whereIn('schedule_id', $scheduleIds)
+            ->orderBy('sort_order')->orderBy('id')->get()->groupBy('schedule_id');
+        $exclusions = $scheduleIds->isEmpty() ? collect() : DB::table('core_liveclass_schedule_exclusions')
+            ->where('customer_id', $customerId)->whereIn('schedule_id', $scheduleIds)
+            ->orderBy('excluded_on')->orderBy('id')->get()->groupBy('schedule_id');
+
+        $schedules->getCollection()->each(function (object $schedule) use ($slots, $exclusions): void {
+            $schedule->slots = $slots->get($schedule->id, collect())->values();
+            $schedule->exclusions = $exclusions->get($schedule->id, collect())->values();
+            $schedule->preview_count = $this->schedulePreviewService->calculate(
+                $schedule->starts_on,
+                $schedule->ends_on,
+                $schedule->timezone,
+                $schedule->slots,
+                $schedule->exclusions
+            )->count();
+            $schedule->derived_status = $this->schedulePreviewService->derivedStatus(
+                $schedule->starts_on,
+                $schedule->ends_on,
+                $schedule->timezone
+            );
+        });
+
+        $formMode = in_array($request->query('schedule_form'), ['create', 'view', 'edit'], true)
+            ? $request->query('schedule_form')
+            : null;
+        $formSchedule = null;
+        $formSlots = collect();
+        $formExclusions = collect();
+        $formPreview = collect();
+        $formDerivedStatus = null;
+
+        if (in_array($formMode, ['view', 'edit'], true)) {
+            $formSchedule = DB::table('core_liveclass_schedules')
+                ->where('customer_id', $customerId)
+                ->where('cohort_id', $cohortId)
+                ->where('id', $request->integer('schedule_id'))
+                ->firstOrFail();
+            $formSlots = DB::table('core_liveclass_schedule_slots')
+                ->where('customer_id', $customerId)
+                ->where('schedule_id', $formSchedule->id)
+                ->orderBy('sort_order')->orderBy('id')->get();
+            $formExclusions = DB::table('core_liveclass_schedule_exclusions')
+                ->where('customer_id', $customerId)
+                ->where('schedule_id', $formSchedule->id)
+                ->orderBy('excluded_on')->orderBy('id')->get();
+            if ($formMode === 'view') {
+                $formPreview = $this->schedulePreviewService->calculate(
+                    $formSchedule->starts_on,
+                    $formSchedule->ends_on,
+                    $formSchedule->timezone,
+                    $formSlots,
+                    $formExclusions
+                );
+                $formDerivedStatus = $this->schedulePreviewService->derivedStatus(
+                    $formSchedule->starts_on,
+                    $formSchedule->ends_on,
+                    $formSchedule->timezone
+                );
+            }
+        }
+
+        return [
+            'schedules' => $schedules,
+            'scheduleFormMode' => $formMode,
+            'scheduleFormSchedule' => $formSchedule,
+            'scheduleFormSlots' => $formSlots,
+            'scheduleFormExclusions' => $formExclusions,
+            'scheduleFormPreview' => $formPreview,
+            'scheduleFormDerivedStatus' => $formDerivedStatus,
+            'scheduleTimezones' => timezone_identifiers_list(),
+        ];
+    }
+
     private function sessionTabData(int $customerId, object $cohort): array
     {
         $versionLessons = collect();
@@ -457,6 +551,8 @@ class CourseCohortController extends Controller
             'cohortTabs' => $this->cohortTabs($cohort, $this->routePrefix($request),
                 'overview', [
                     'students' => $activeMembershipCount,
+                    'schedules' => (int) DB::table('core_liveclass_schedules')
+                        ->where('customer_id', $customerId)->where('cohort_id', $id)->count(),
                     'sessions' => (int) DB::table('core_liveclass_sessions')->where('customer_id', $customerId)
                         ->where('cohort_id', $id)->count(),
                     'recordings' => (int) DB::table('core_liveclass_recordings as recordings')
@@ -484,6 +580,16 @@ class CourseCohortController extends Controller
                 ->where('cohort_id', $id)->where('status', 'active')->count();
             abort_if($validated['capacity'] !== null && (int) $validated['capacity'] < $activeCount, 422,
                 __('lf.LF_course_cohort_validation_capacity_below_membership'));
+
+            $scheduleWindowErrors = $this->scheduleWindowErrors(
+                $customerId,
+                $id,
+                $validated['start_date'] ?? null,
+                $validated['end_date'] ?? null
+            );
+            if ($scheduleWindowErrors !== []) {
+                throw ValidationException::withMessages(['start_date' => $scheduleWindowErrors]);
+            }
 
             $values = [
                 'name' => $validated['name'],
@@ -558,8 +664,8 @@ class CourseCohortController extends Controller
             'product_id' => ['required', 'integer', 'min:1'],
             'name' => ['required', 'string', 'max:255'],
             'capacity' => ['nullable', 'integer', 'min:1'],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'notes' => ['nullable', 'string'],
         ]);
 
@@ -591,8 +697,8 @@ class CourseCohortController extends Controller
         $validator = Validator::make($input, [
             'name' => ['required', 'string', 'max:255'],
             'capacity' => ['nullable', 'integer', 'min:1'],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'start_date' => ['nullable', 'required_with:end_date', 'date'],
+            'end_date' => ['nullable', 'required_with:start_date', 'date', 'after_or_equal:start_date'],
             'notes' => ['nullable', 'string'],
         ]);
 
@@ -627,9 +733,55 @@ class CourseCohortController extends Controller
             if ($hasPrimaryTeacher && (empty($input['start_date']) || empty($input['end_date']))) {
                 $validator->errors()->add('start_date', __('lf.LF_course_cohort_teacher_validation_primary_period_required'));
             }
+
+            if (! $validator->errors()->hasAny(['start_date', 'end_date'])) {
+                foreach ($this->scheduleWindowErrors(
+                    $customerId,
+                    (int) $cohort->id,
+                    $input['start_date'] ?? null,
+                    $input['end_date'] ?? null
+                ) as $message) {
+                    $validator->errors()->add('start_date', $message);
+                }
+            }
         });
 
         return $validator->validate();
+    }
+
+    private function scheduleWindowErrors(
+        int $customerId,
+        int $cohortId,
+        ?string $startsOn,
+        ?string $endsOn
+    ): array {
+        $schedules = DB::table('core_liveclass_schedules')
+            ->where('customer_id', $customerId)
+            ->where('cohort_id', $cohortId)
+            ->when($startsOn && $endsOn, function ($query) use ($startsOn, $endsOn): void {
+                $query->where(function ($query) use ($startsOn, $endsOn): void {
+                    $query->where('starts_on', '<', $startsOn)
+                        ->orWhere('ends_on', '>', $endsOn);
+                });
+            })
+            ->orderBy('starts_on')
+            ->orderBy('id')
+            ->get(['name', 'starts_on', 'ends_on']);
+
+        if ($startsOn && $endsOn) {
+            return $schedules->map(fn (object $schedule): string => __(
+                'lf.LF_course_cohort_validation_schedule_outside_operation',
+                [
+                    'name' => $schedule->name,
+                    'from' => Carbon::parse($schedule->starts_on)->format('d/m/Y'),
+                    'to' => Carbon::parse($schedule->ends_on)->format('d/m/Y'),
+                ]
+            ))->all();
+        }
+
+        return $schedules->isEmpty()
+            ? []
+            : [__('lf.LF_course_cohort_validation_schedule_requires_operation')];
     }
 
     private function cohortValues(array $validated, array $extra = []): array
@@ -698,6 +850,7 @@ class CourseCohortController extends Controller
             'overview' => [true, null],
             'students' => [$exists, 'LF_course_cohort_tab_students_locked_create'],
             'teachers' => [$exists, 'LF_course_cohort_tab_teachers_locked_create'],
+            'schedules' => [$exists, 'LF_course_cohort_tab_schedules_locked_create'],
             'sessions' => [$exists, 'LF_course_cohort_tab_sessions_locked_create'],
             'attendance' => [$historical || ($active && $hasSessions), ! $exists
                 ? 'LF_course_cohort_tab_attendance_locked_create'

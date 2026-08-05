@@ -325,3 +325,7 @@ if (document.readyState === 'loading') {
 }
 
 Alpine.start();
+
+// Alpine can populate a date/time control after the initial placeholder scan.
+// Reconcile once more so a real model value always uses the normal text style.
+window.requestAnimationFrame(() => initializeFormPlaceholderControls());

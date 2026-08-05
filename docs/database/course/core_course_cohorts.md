@@ -44,14 +44,16 @@ The Cohort detail workflow is organized as:
 Overview
 Students
 Teachers
+Schedules
 Sessions
 Attendance
 Recordings / Replay
 ```
 
 Cohort owns its Product/Version binding, membership and Cohort teacher team.
-LiveClass owns Sessions and downstream operational evidence. A Session must use
-the immutable `version_id` locked by Cohort. This amendment supersedes the
+LiveClass owns recurring Schedules, Sessions and downstream operational
+evidence. Schedule and Session have separate sources of truth. A Session must
+use the immutable `version_id` locked by Cohort. This amendment supersedes the
 earlier statement that Session and teacher-team integration are deferred.
 
 Foundation v1 aligns `core_course_cohorts` with the current Course Domain Phase
@@ -64,7 +66,9 @@ Decision:
 * The cohort code field is named `code`.
 * `code` is nullable.
 * Foundation statuses are `draft`, `active`, `completed`, `archived`.
-* Advanced delivery, schedule, meeting and corporate fields are deferred.
+* Advanced delivery, meeting and corporate fields on Cohort remain deferred.
+  Recurring planning is normalized in LiveClass Schedule tables and must not
+  be added to Cohort columns or metadata.
 
 This keeps Cohort as an operational grouping layer without making it a learning
 source, runtime authority or student membership table.
@@ -80,10 +84,10 @@ draft -> archived
 
 `draft` and `active` Cohorts may perform authorized setup operations: edit
 Overview data, add/remove/transfer eligible Student membership, assign Cohort
-Teachers and prepare Sessions/schedules. Only an `active` Cohort may perform
-runtime operations such as Attendance, operational learning evidence and
-completion. Setup never activates a Cohort, changes Enrollment status or grants
-learning access.
+Teachers and prepare LiveClass Schedules and Sessions. Only an `active` Cohort
+may perform runtime operations such as Attendance, operational learning
+evidence and completion. Setup never activates a Cohort, changes Enrollment
+status or grants learning access.
 
 Activation is a separate `draft -> active` action. In one server-authoritative
 transaction it must revalidate the locked Cohort, Product and active Product
@@ -98,13 +102,14 @@ conditions; activation must not silently remove invalid membership.
 Create, Edit and Show use the same unnumbered order:
 
 ```text
-Overview | Students | Teachers | Sessions | Attendance | Recordings / Replay
+Overview | Students | Teachers | Schedules | Sessions | Attendance |
+Recordings / Replay
 ```
 
 Tabs are not a sequential wizard and are not hidden because a dependency is
 unmet. Before Overview creates the Cohort, only Overview is accessible. After
-the Cohort is created as `draft`, Students, Teachers and Sessions are
-independently accessible subject to authorization; Attendance remains locked
+the Cohort is created as `draft`, Students, Teachers, Schedules and Sessions
+are independently accessible subject to authorization; Attendance remains locked
 until runtime requirements are met. An authorized Recordings/Replay area with
 no data uses an empty state rather than a lock. Completed and archived Cohorts
 retain every historical tab in read-only mode where mutation is no longer
@@ -130,10 +135,14 @@ Canonical notes:
   khi lớp được tạo ở trạng thái Nháp.” Before creation, the locked reason is
   “Tab Giáo viên đang bị khóa vì lớp chưa được tạo. Vui lòng lưu thông tin Tổng
   quan trước.”
-* Sessions: “Thiết lập lịch và các buổi học của lớp. Có thể sử dụng sau khi lớp
-  được tạo ở trạng thái Nháp và có thể là điều kiện bắt buộc để kích hoạt lớp.”
-  Before creation, the locked reason is “Tab Lịch học/Buổi học đang bị khóa vì
-  lớp chưa được tạo. Vui lòng lưu thông tin Tổng quan trước.”
+* Schedules: “Thiết lập quy tắc lịch định kỳ và xem trước các ngày học dự kiến.
+  Các Buổi học thực tế chưa được tạo.” Before creation, the locked reason is
+  “Tab Lịch học đang bị khóa vì lớp chưa được tạo. Vui lòng lưu thông tin Tổng
+  quan trước.”
+* Sessions: “Quản lý các Buổi học cụ thể thuộc lớp. Chức năng Session hiện hành
+  không được thay đổi bởi Schedule Foundation amendment.” Before creation, the
+  locked reason is “Tab Buổi học đang bị khóa vì lớp chưa được tạo. Vui lòng
+  lưu thông tin Tổng quan trước.”
 * Attendance: “Ghi nhận tình trạng tham gia của học viên theo từng buổi học.
   Chức năng này chỉ được sử dụng khi lớp đã hoạt động và có buổi học phù hợp.”
   Its locked reason reflects the actual lifecycle, missing Session or
@@ -449,7 +458,12 @@ Optional maximum number of students for the Cohort.
 DATE NULL
 ```
 
-Optional planned start date.
+Inclusive local start date of the Cohort operating period. This is not an
+activation timestamp and is not a Product registration boundary.
+
+The column remains nullable only for legacy compatibility. New Cohorts require
+both `start_date` and `end_date`. A legacy Cohort with an incomplete operating
+period remains readable but cannot create or preview a Schedule.
 
 ---
 
@@ -459,7 +473,17 @@ Optional planned start date.
 DATE NULL
 ```
 
-Optional planned end date.
+Inclusive local end date of the Cohort operating period. When present it must
+be greater than or equal to `start_date`.
+
+A Cohort may own many Schedules. Every Schedule application range must be fully
+contained in this operating period. Updating these dates must fail if the new
+range does not contain every existing Schedule. The update must never truncate,
+rewrite or delete a Schedule and must never create or mutate a Session.
+
+The Cohort operating period must not be inferred or backfilled from Schedule,
+Product, Enrollment, lifecycle timestamps or the current date. Schedule keeps
+its own timezone authority for canonical occurrence preview.
 
 ---
 
@@ -562,9 +586,13 @@ the current Cohort contract by the Product Registration Read Model Amendment;
 they must not be reintroduced without a new approved policy that explicitly
 supersedes Product as the sole registration authority.
 
-They may be reintroduced later through an approved policy and database
-documentation update when Live Class, scheduling, corporate training or advanced
-delivery management requires them.
+`schedule_summary` is permanently excluded as a recurring Schedule source of
+truth by the 2026-08-05 Schedule Foundation amendment. Recurring planning uses
+the normalized `core_liveclass_schedules`, `core_liveclass_schedule_slots` and
+`core_liveclass_schedule_exclusions` tables. Other deferred fields may be
+reintroduced later through an approved policy and database documentation
+update when Live Class, corporate training or advanced delivery management
+requires them.
 
 ---
 

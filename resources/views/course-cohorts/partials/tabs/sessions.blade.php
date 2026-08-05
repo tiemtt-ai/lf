@@ -379,7 +379,7 @@
                             <td class="course-cohort-session-table__actions" data-label="{{ __('lf.table_actions') }}">
                                 <div class="course-cohort-session-action-menu" x-data="{ actionsOpen: false }"
                                      x-on:click.outside="actionsOpen = false" x-on:keydown.escape.stop="actionsOpen = false">
-                                    <button type="button" class="admin-link-button course-cohort-session-action-menu__trigger"
+                                    <button type="button" class="admin-link-button admin-text-action course-cohort-session-action-menu__trigger"
                                             x-on:click="actionsOpen = !actionsOpen"
                                             x-bind:class="{ 'is-open': actionsOpen }"
                                             x-bind:aria-expanded="actionsOpen.toString()"

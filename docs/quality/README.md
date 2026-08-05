@@ -1,10 +1,10 @@
 # LearnForge Quality
 
-Version: 1.0
+Version: 1.1
 
 Status: Official Directory Guide
 
-Last Updated: 2026-07
+Last Updated: 2026-08
 
 ---
 
@@ -50,6 +50,9 @@ criteria hay không.
   remove behavior inside Product management.
 * [LF-Course-Cohort-Architecture-Review.md](LF-Course-Cohort-Architecture-Review.md)
   — approved Cohort binding, lifecycle, membership and legacy migration review.
+* [LF-LiveClass-Cohort-Schedule-Architecture-Review.md](LF-LiveClass-Cohort-Schedule-Architecture-Review.md)
+  — approved and frozen LiveClass recurring Cohort Schedule CRUD/Preview
+  review; Schedule-to-Session generation remains deferred.
 * [LF-Bulk-Enrollment-Architecture-Review.md](LF-Bulk-Enrollment-Architecture-Review.md)
   — approved and frozen architecture review for Admin bulk Enrollment
   creation, re-enrollment and atomic-submission idempotency.

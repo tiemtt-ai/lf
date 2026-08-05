@@ -1,4 +1,4 @@
-<form method="POST"
+<form id="cohort-student-manager-form" method="POST"
       action="{{ route('admin.course-cohorts.students.sync', $cohort->id) }}"
       class="course-cohort-student-inline-form"
       x-show="formOpen"

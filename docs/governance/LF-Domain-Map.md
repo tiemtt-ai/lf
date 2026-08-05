@@ -1,10 +1,10 @@
 # LearnForge Domain Map
 
-Version: 1.0
+Version: 1.1
 
 Status: Official Governance
 
-Last Updated: 2026-07
+Last Updated: 2026-08
 
 ---
 
@@ -84,16 +84,19 @@ Completion và context cho Certificate/Track/AI.
 
 ### LiveClass
 
-**Responsibility:** Room, Session, Attendance, Recording reference, Replay và
-Chat operational data.
+**Responsibility:** Cohort Schedule, Room, Session, Attendance, Recording
+reference, Replay và Chat operational data.
 
-**Source Of Truth:** LiveClass operational state và Attendance.
+**Source Of Truth:** Kế hoạch lịch định kỳ của Cohort, LiveClass operational
+state và Attendance. Schedule thuộc trực tiếp Cohort nhưng được sở hữu bởi
+LiveClass; Schedule không phải Session và không được lưu trong Cohort metadata.
 
 **Consumes:** Course Version Activity/Enrollment context, User identity và Media
 assets.
 
-**Produces:** Attendance/Replay evidence, operational events và recording
-references.
+**Produces:** Bản xem trước ngày học dự kiến, Attendance/Replay evidence,
+operational events và recording references. Preview không tạo Session; cơ chế
+sinh hoặc đồng bộ Session từ Schedule chưa thuộc Foundation hiện tại.
 
 **ADR:** [ADR-0002 — LiveClass Foundation](../adr/ADR-0002-LiveClass-Foundation.md)
 — Approved.

@@ -91,14 +91,16 @@
         </header>
         <div class="admin-form-field-grid">
             <div class="lf-form-group admin-form-field">
-                <x-form-label for="start_date" :value="__('lf.LF_course_cohort_common_start_date')" />
+                <x-form-label for="start_date" :value="__('lf.LF_course_cohort_common_start_date')" required />
                 <input id="start_date" type="date" name="start_date" class="lf-form-control" value="{{ old('start_date') }}"
+                       required
                        @error('start_date') aria-invalid="true" aria-describedby="start_date_error" @enderror>
                 @error('start_date')<p id="start_date_error" class="lf-form-error">{{ $message }}</p>@enderror
             </div>
             <div class="lf-form-group admin-form-field">
-                <x-form-label for="end_date" :value="__('lf.LF_course_cohort_common_end_date')" />
+                <x-form-label for="end_date" :value="__('lf.LF_course_cohort_common_end_date')" required />
                 <input id="end_date" type="date" name="end_date" class="lf-form-control" value="{{ old('end_date') }}"
+                       required min="{{ old('start_date') }}"
                        @error('end_date') aria-invalid="true" aria-describedby="end_date_error" @enderror>
                 @error('end_date')<p id="end_date_error" class="lf-form-error">{{ $message }}</p>@enderror
             </div>

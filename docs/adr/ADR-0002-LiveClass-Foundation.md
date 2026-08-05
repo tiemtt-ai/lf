@@ -14,6 +14,101 @@ Approved
 
 2026-06-27
 
+## Cohort Schedule Foundation Amendment
+
+Approved: 2026-08-05
+
+This amendment separates recurring Cohort planning from concrete LiveClass
+Sessions. LiveClass owns both concepts, but they have different sources of
+truth and lifecycles:
+
+```text
+Cohort 1 → N LiveClass Schedules
+Schedule 1 → N Schedule Slots
+Schedule 1 → N Schedule Exclusions
+
+Cohort 1 → N LiveClass Sessions
+```
+
+A Schedule belongs directly to one same-tenant Cohort. The Cohort supplies
+tenant, Product, locked Template Version and lifecycle context. A Schedule is
+LiveClass setup/planning data; it is not Course content, is not published into
+an immutable Template Version and does not own Progress, Completion,
+Attendance, Recording or Replay.
+
+The Cohort owns its inclusive operating period through the existing canonical
+`core_course_cohorts.start_date` and `core_course_cohorts.end_date` fields. Each
+Schedule owns only its own inclusive application range. A Cohort may have many
+Schedules, and every Schedule must satisfy:
+
+```text
+cohort.start_date <= schedule.starts_on
+schedule.starts_on <= schedule.ends_on
+schedule.ends_on <= cohort.end_date
+```
+
+The Cohort operating period is never inferred from a Schedule, and Schedule
+create/update never expands or changes it. Updating the Cohort operating period
+must fail when the proposed range no longer contains every existing Schedule;
+the application must not truncate, update or delete those Schedules. Both
+operating dates remain nullable at database level only for legacy compatibility.
+New Cohorts must provide both dates, while a legacy Cohort without a complete
+operating period remains readable but cannot create or preview a Schedule until
+the period is completed. Schedule remains the timezone authority for preview;
+this amendment does not move timezone ownership to Cohort.
+
+Canonical Schedule persistence is normalized across:
+
+```text
+core_liveclass_schedules
+core_liveclass_schedule_slots
+core_liveclass_schedule_exclusions
+```
+
+Schedule data must not be stored in `core_liveclass_sessions`, Cohort metadata,
+Course Template/Version, Room or a JSON recurrence payload. A Schedule has one
+inclusive application range and IANA timezone. Its Slots store individual ISO
+weekdays and same-day time intervals; a Schedule must retain at least one Slot,
+exact duplicates and overlaps on the same weekday are rejected, and
+`end_time > start_time`. Exclusions store unique dates within the Schedule
+range and remove those dates from preview only.
+
+The canonical preview is a backend-calculated read model:
+
+```text
+Schedule + Slots + Exclusions + timezone
+→ projected occurrence timestamps
+```
+
+Preview includes both range endpoints, excludes configured dates, stores no
+occurrence rows, creates no Session and displays that concrete Sessions have
+not yet been created. Client-side calculation may assist presentation but is
+never authoritative.
+
+Schedule lifecycle follows its Cohort: `draft` and `active` Cohorts permit
+authorized create/update; `completed` and `archived` Cohorts are read-only.
+Schedule status is derived from the current date in its timezone and is not a
+persisted column. Schedule mutation never activates a Cohort and never creates
+or mutates runtime or learning evidence.
+
+The canonical Cohort detail navigation is now:
+
+```text
+Overview | Students | Teachers | Schedules | Sessions | Attendance |
+Recordings / Replay
+```
+
+Schedules and Sessions are independent tabs. The Sessions tab retains the
+current Session Foundation and behavior without redesign in this amendment.
+Cohort Attendance and Recordings/Replay remain aggregate views over Sessions
+that belong to the Cohort.
+
+Schedule deletion, Schedule-to-Session provenance, bulk generation,
+idempotency, future-Session synchronization, handling individually edited
+Sessions, shared holiday calendars and schedule-driven reschedule audit are
+deferred. They require a later approved amendment. Until then, creating or
+updating a Schedule must not create, update, cancel or delete any Session.
+
 ## Curriculum And Operational Session Amendment
 
 Approved: 2026-08-03
@@ -129,6 +224,7 @@ directly.
 LearnForge cần một Domain độc lập để quản lý hoạt động học đồng bộ và hybrid:
 
 * Live Room
+* Recurring Cohort Schedule
 * Session
 * Attendance
 * Replay
@@ -173,19 +269,14 @@ Template Activity
 
 ↓ publish
 
-Template Version
+Template Version / Version Activity
 
-↓
+↓ locked context
 
-Version Activity
+Cohort
 
-↓
-
-LiveClass Room
-
-↓
-
-LiveClass Session
+├── LiveClass Schedule → read-only occurrence preview
+└── LiveClass Session → optional Room / delivery resource
 
 ↓
 
@@ -210,6 +301,7 @@ context. Session is the Cohort-owned operational instance; Room is optional.
 LiveClass chỉ sở hữu:
 
 * Rooms
+* Cohort Schedules, Slots and Exclusions
 * Sessions
 * Attendance
 * Replay
@@ -328,6 +420,8 @@ không tự chuyển Course business state.
 ## Foundation Decisions
 
 * LiveClass là Operational Domain.
+* Schedule là LiveClass-owned recurring planning data thuộc trực tiếp Cohort.
+* Schedule và Session có source of truth riêng; preview không tạo Session.
 * Room không kế thừa Course và không sở hữu Session.
 * Không tạo Runtime Course tables cho LiveClass.
 * Working Template Activity chỉ định nghĩa `activity_type = live_class`.

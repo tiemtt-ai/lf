@@ -15,6 +15,7 @@ use App\Http\Controllers\CourseTemplateMediaPreviewController;
 use App\Http\Controllers\CourseTemplateSectionController;
 use App\Http\Controllers\CourseTemplateTeacherController;
 use App\Http\Controllers\CourseTemplateVersionMediaPreviewController;
+use App\Http\Controllers\LiveClassScheduleController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/course-categories', [CourseCategoryController::class, 'index'])
@@ -67,6 +68,18 @@ if ($registerCourseProductRoutes ?? false) {
         ->name('course-cohorts.teachers.store');
     Route::delete('/course-cohorts/{cohort}/teachers/{assignment}', [CourseCohortOperationController::class, 'removeTeacher'])
         ->name('course-cohorts.teachers.destroy');
+    Route::get('/course-cohorts/{cohort}/schedules/create', [LiveClassScheduleController::class, 'create'])
+        ->name('course-cohorts.schedules.create');
+    Route::post('/course-cohorts/{cohort}/schedules/preview', [LiveClassScheduleController::class, 'preview'])
+        ->name('course-cohorts.schedules.preview');
+    Route::post('/course-cohorts/{cohort}/schedules', [LiveClassScheduleController::class, 'store'])
+        ->name('course-cohorts.schedules.store');
+    Route::get('/course-cohorts/{cohort}/schedules/{schedule}', [LiveClassScheduleController::class, 'show'])
+        ->name('course-cohorts.schedules.show');
+    Route::get('/course-cohorts/{cohort}/schedules/{schedule}/edit', [LiveClassScheduleController::class, 'edit'])
+        ->name('course-cohorts.schedules.edit');
+    Route::put('/course-cohorts/{cohort}/schedules/{schedule}', [LiveClassScheduleController::class, 'update'])
+        ->name('course-cohorts.schedules.update');
     Route::post('/course-cohorts/{cohort}/sessions', [CourseCohortOperationController::class, 'storeSession'])
         ->name('course-cohorts.sessions.store');
     Route::put('/course-cohorts/{cohort}/sessions/{session}', [CourseCohortOperationController::class, 'updateSession'])
