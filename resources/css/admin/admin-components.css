@@ -316,6 +316,48 @@
     min-width: 0;
 }
 
+/* Canonical typography for LF Admin create, edit and read-only detail
+   surfaces. List filters remain governed by their list-page primitives. */
+.lf-admin-page .admin-form-standard .lf-form-label,
+.lf-admin-page .admin-form-surface .lf-form-label {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.lf-admin-page .admin-form-standard .lf-form-control,
+.lf-admin-page .admin-form-surface .lf-form-control {
+    min-height: 40px;
+    height: 40px;
+    padding: 7px 11px;
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.lf-admin-page .admin-form-standard textarea.lf-form-control,
+.lf-admin-page .admin-form-surface textarea.lf-form-control {
+    height: auto;
+}
+
+.lf-admin-page .admin-form-standard .lf-form-control::placeholder,
+.lf-admin-page .admin-form-surface .lf-form-control::placeholder,
+.lf-admin-page .admin-form-standard .lf-form-control.is-lf-placeholder:not(:focus),
+.lf-admin-page .admin-form-surface .lf-form-control.is-lf-placeholder:not(:focus),
+.lf-admin-page .admin-form-standard select.lf-form-control,
+.lf-admin-page .admin-form-surface select.lf-form-control,
+.lf-admin-page .admin-form-standard select.lf-form-control option,
+.lf-admin-page .admin-form-surface select.lf-form-control option {
+    font-size: 15px;
+}
+
+.lf-admin-page .admin-form-standard .lf-form-help,
+.lf-admin-page .admin-form-standard .lf-form-error,
+.lf-admin-page .admin-form-surface .lf-form-help,
+.lf-admin-page .admin-form-surface .lf-form-error {
+    font-size: 13px;
+    line-height: 1.45;
+}
+
 .admin-form-flow {
     display: block;
 }
@@ -659,7 +701,7 @@
 .admin-form-calculated-summary-value {
     min-width: 0;
     overflow-wrap: anywhere;
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 600;
     line-height: 1.35;
 }
@@ -4650,7 +4692,7 @@
 .course-cohort-schedules__inline-form > .course-cohort-schedule-form > .admin-form-standard-section,
 .course-cohort-schedules__inline-editor > .course-cohort-schedule-detail--inline > .admin-form-standard-section {
     margin: 0;
-    padding: 18px;
+    padding: 16px 18px;
     border: 0;
     border-radius: 0;
     background: transparent;
@@ -4678,20 +4720,51 @@
 .course-cohort-schedule-form__general-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px 20px;
+    gap: 14px 20px;
 }
 
 .course-cohort-schedule-form__section > .admin-form-section-header {
-    margin-bottom: 14px;
+    margin-bottom: 12px;
+}
+
+.course-cohort-schedule-form__section .admin-form-section-title {
+    font-size: 16px;
+    line-height: 1.35;
+}
+
+.course-cohort-schedule-form__section .admin-form-section-help {
+    font-size: 13px;
+    line-height: 1.45;
 }
 
 .course-cohort-schedule-form__section .lf-form-group {
     margin-bottom: 0;
 }
 
+.course-cohort-schedule-form__section .lf-form-label {
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.lf-admin-page .course-cohort-schedule-form__section .lf-form-control {
+    min-height: 40px;
+    height: 40px;
+    padding: 7px 11px;
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.course-cohort-schedule-form__section .lf-form-error,
+.course-cohort-schedule-form__section .lf-form-help {
+    font-size: 13px;
+    line-height: 1.45;
+}
+
 .course-cohort-schedule-form__repeaters {
     display: grid;
-    gap: 12px;
+    gap: 10px;
 }
 
 .course-cohort-schedule-form__slot-row,
@@ -4699,8 +4772,8 @@
     display: grid;
     grid-template-columns: 30px minmax(180px, 1.2fr) minmax(150px, 1fr) minmax(150px, 1fr) 38px;
     align-items: end;
-    gap: 12px;
-    padding: 14px;
+    gap: 10px;
+    padding: 10px 12px;
     border: 1px solid var(--admin-border);
     border-radius: 10px;
     background: var(--admin-surface-muted);
@@ -4733,8 +4806,8 @@
 
 .course-cohort-schedule-form__row-action {
     display: inline-flex;
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     align-items: center;
     justify-content: center;
     border: 0;
@@ -4857,7 +4930,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    padding: 12px 14px;
+    padding: 10px 12px;
     border: 1px solid var(--admin-border);
     border-radius: 8px;
     background: var(--admin-surface);

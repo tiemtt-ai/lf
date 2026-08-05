@@ -2301,6 +2301,11 @@ class CourseProductManagementTest extends TestCase
         $this->assertStringContainsString('.admin-form-stack > .admin-form-conditional {', $css);
         $this->assertStringContainsString('margin-top: 0;', $css);
         $this->assertStringContainsString('.admin-form-calculated-summary {', $css);
+        $this->assertStringContainsString('.lf-admin-page .admin-form-standard .lf-form-label,', $css);
+        $this->assertStringContainsString('.lf-admin-page .admin-form-surface .lf-form-control {', $css);
+        $this->assertMatchesRegularExpression('/\.lf-admin-page \.admin-form-standard \.lf-form-label,[\s\S]*?font-size: 14px;/', $css);
+        $this->assertMatchesRegularExpression('/\.lf-admin-page \.admin-form-standard \.lf-form-control,[\s\S]*?height: 40px;[\s\S]*?font-size: 15px;/', $css);
+        $this->assertMatchesRegularExpression('/\.admin-form-calculated-summary-value \{[\s\S]*?font-size: 16px;/', $css);
         $this->assertStringContainsString('.admin-form-option-panel:has(> input:focus-visible) {', $css);
         $this->assertStringContainsString('box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-primary) 18%, transparent);', $css);
         $this->assertStringContainsString('.lf-admin-page .lf-form-help,', $css);
