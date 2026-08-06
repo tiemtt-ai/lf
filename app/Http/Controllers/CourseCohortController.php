@@ -214,6 +214,10 @@ class CourseCohortController extends Controller
     private function cohortSessionsQuery(int $customerId, int $cohortId)
     {
         $sessions = DB::table('core_liveclass_sessions as sessions')
+            ->leftJoin('core_liveclass_session_schedule_origins as origins', function ($join) use ($customerId): void {
+                $join->on('origins.session_id', '=', 'sessions.id')
+                    ->where('origins.customer_id', $customerId);
+            })
             ->leftJoin('core_course_template_version_lessons as lessons', 'lessons.id', '=', 'sessions.version_lesson_id')
             ->leftJoin('core_course_template_version_activities as activities', 'activities.id', '=', 'sessions.version_activity_id')
             ->leftJoin('users as teachers', 'teachers.id', '=', 'sessions.primary_teacher_id')
@@ -224,7 +228,8 @@ class CourseCohortController extends Controller
                 'lessons.title_snapshot as lesson_title',
                 'activities.title_snapshot as activity_title',
                 'activities.live_class_url_snapshot as activity_meeting_url',
-                'teachers.name as primary_teacher_name'
+                'teachers.name as primary_teacher_name', 'origins.id as schedule_origin_id', 'origins.schedule_id as source_schedule_id',
+                'origins.source_start_at', 'origins.source_end_at', 'origins.source_timezone'
             )
             ->get();
 
@@ -252,6 +257,17 @@ class CourseCohortController extends Controller
                 $teacherIds->prepend((string) $session->primary_teacher_id);
             }
             $session->teacher_ids = $teacherIds->unique()->values();
+            if ($session->schedule_origin_id) {
+                $currentStart = Carbon::parse($session->scheduled_start_at, $session->timezone)->utc();
+                $currentEnd = Carbon::parse($session->scheduled_end_at, $session->timezone)->utc();
+                $session->schedule_relation = $currentStart->equalTo(Carbon::parse($session->source_start_at, 'UTC'))
+                    && $currentEnd->equalTo(Carbon::parse($session->source_end_at, 'UTC'))
+                        ? 'on_schedule' : 'rescheduled';
+            } else {
+                $session->schedule_relation = Carbon::parse($session->created_at)
+                    ->lt(Carbon::parse(config('liveclass.schedule_origin_rollout_at')))
+                        ? 'source_unknown' : 'off_schedule';
+            }
         });
 
         return $sessions;
@@ -473,11 +489,39 @@ class CourseCohortController extends Controller
             );
         });
 
+        $plannedOccurrences = collect();
+        $schedules = DB::table('core_liveclass_schedules')
+            ->where('customer_id', $customerId)->where('cohort_id', $cohort->id)
+            ->whereDate('ends_on', '>=', now()->toDateString())->orderBy('starts_on')->get();
+        $consumed = DB::table('core_liveclass_session_schedule_origins')
+            ->where('customer_id', $customerId)->whereIn('schedule_id', $schedules->pluck('id'))
+            ->get()->mapWithKeys(fn ($origin) => [implode('|', [$origin->schedule_id, $origin->schedule_slot_id, $origin->source_local_date]) => true]);
+        foreach ($schedules as $schedule) {
+            $slots = DB::table('core_liveclass_schedule_slots')->where('customer_id', $customerId)
+                ->where('schedule_id', $schedule->id)->orderBy('sort_order')->get();
+            $exclusions = DB::table('core_liveclass_schedule_exclusions')->where('customer_id', $customerId)
+                ->where('schedule_id', $schedule->id)->get();
+            $preview = $this->schedulePreviewService->calculate(
+                max($schedule->starts_on, now($schedule->timezone)->toDateString()),
+                $schedule->ends_on, $schedule->timezone, $slots, $exclusions
+            );
+            foreach ($preview as $occurrence) {
+                $key = implode('|', [$schedule->id, $occurrence['schedule_slot_id'], $occurrence['date']]);
+                if (! $consumed->has($key)) {
+                    $plannedOccurrences->push(array_merge($occurrence, [
+                        'schedule_id' => (int) $schedule->id,
+                        'schedule_name' => $schedule->name,
+                    ]));
+                }
+            }
+        }
+
         return [
             'versionLessons' => $versionLessons,
             'versionActivities' => $versionActivities,
             'availableTeachers' => $availableTeachers,
             'sessions' => $sessions,
+            'plannedOccurrences' => $plannedOccurrences->take(100)->values(),
         ];
     }
 

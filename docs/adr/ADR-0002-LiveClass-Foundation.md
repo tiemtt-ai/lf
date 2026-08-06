@@ -14,6 +14,93 @@ Approved
 
 2026-06-27
 
+## Schedule-To-Session Origin Amendment
+
+Approved: 2026-08-05
+
+This amendment authorizes explicit, immutable provenance when an authorized
+actor creates one or more concrete Sessions from selected projected Schedule
+occurrences. It supersedes only the clauses that deferred Schedule-to-Session
+provenance, confirmed generation and idempotency. Automatic generation,
+Schedule-driven synchronization, replacement Sessions and Schedule deletion
+remain unapproved.
+
+Canonical ownership is:
+
+```text
+Schedule + Slot + local date
+→ projected occurrence
+→ confirmed Session
+→ immutable Session Schedule Origin
+```
+
+Lineage is stored only in
+`core_liveclass_session_schedule_origins`. No lineage column is added to
+`core_liveclass_sessions`. Every Origin belongs to exactly one same-tenant
+Session, Schedule and Schedule Slot. A Session has zero or one Origin. Absence
+of an Origin means either an explicitly manual Session or a legacy Session;
+the application distinguishes those cases by the immutable feature rollout
+cutover: no-Origin Sessions created before the cutover are legacy; no-Origin
+Sessions created through the manual workflow at or after the cutover are
+manual. The cutover instant is deployment configuration, not client input, and
+must not move after rollout. The application must not infer or backfill
+historical lineage from coincident timestamps.
+
+Canonical occurrence identity is:
+
+```text
+customer_id + schedule_id + schedule_slot_id + source_local_date
+```
+
+This tuple is unique for all history. A cancelled or no-show Session retains
+its Origin and continues to consume the occurrence identity. Replacement and
+superseded occurrence reuse are not authorized. A make-up Session must use the
+existing reschedule workflow or be created manually outside the Schedule.
+
+Origin snapshots are immutable and include the source local date, local start
+and end times, IANA timezone and absolute start/end instants. The local tuple
+is interpreted in `source_timezone`. `source_start_at` and `source_end_at` are
+the resulting UTC instants stored as timezone-free UTC `DATETIME` values. A
+Session created from an occurrence receives the Schedule timezone and the
+corresponding planned interval under the existing Session time convention.
+Presentation and comparison must parse the Session interval in its recorded
+timezone and compare normalized UTC instants; browser or server timezone is
+never an authority.
+
+Origin foreign keys to Session, Schedule and Schedule Slot use `RESTRICT`.
+Schedule deletion remains unavailable. A Slot referenced by an Origin cannot
+be hard-deleted; Schedule mutation must preserve stable Slot identity and may
+not implement child replacement by deleting referenced Slots. Editing a
+Schedule or Slot never updates an existing Origin snapshot or Session.
+
+Creating Sessions from occurrences is an explicit preview, selection and
+confirmation workflow. Preview creates no row. Confirmation runs in one
+atomic transaction, locks the relevant same-tenant Cohort, Schedule, Slots and
+occurrence identities, recalculates every occurrence with the canonical
+Schedule preview rules and trusts no client-provided occurrence timestamp,
+timezone or metadata. If any selected row is invalid, excluded, outside the
+Schedule/Cohort window, already consumed or fails Session binding validation,
+the whole batch fails and creates no Session or Origin. Database uniqueness is
+the final double-submit guard.
+
+Session curriculum/operational binding, teacher eligibility, delivery,
+lifecycle and authorization remain unchanged. Confirmation creates only
+Session, Session Teacher assignments when explicitly selected, and Origin. It
+must not create Attendance, Recording, Replay, Progress or Completion.
+
+Canonical relationship labels are:
+
+* Origin exists and the normalized current Session interval equals its source
+  snapshot: `on_schedule` / “Theo lịch”.
+* Origin exists and the normalized interval differs: `rescheduled` / “Đã điều chỉnh”.
+* A newly created manual Session without Origin: `off_schedule` / “Ngoài lịch”.
+* A legacy Session without Origin: `source_unknown` / “Không có dữ liệu nguồn”.
+* A projected occurrence without Session/Origin: `planned_occurrence` / “Ngày dự kiến”.
+
+Rescheduling retains the Origin, updates only the Session planned interval and
+appends `core_liveclass_session_schedule_changes`. It never mutates Schedule,
+Slot or Origin.
+
 ## Cohort Schedule Foundation Amendment
 
 Approved: 2026-08-05
@@ -103,11 +190,11 @@ current Session Foundation and behavior without redesign in this amendment.
 Cohort Attendance and Recordings/Replay remain aggregate views over Sessions
 that belong to the Cohort.
 
-Schedule deletion, Schedule-to-Session provenance, bulk generation,
-idempotency, future-Session synchronization, handling individually edited
-Sessions, shared holiday calendars and schedule-driven reschedule audit are
-deferred. They require a later approved amendment. Until then, creating or
-updating a Schedule must not create, update, cancel or delete any Session.
+Schedule deletion, automatic generation, future-Session synchronization,
+shared holiday calendars and Schedule-driven bulk rescheduling remain
+deferred. Explicit preview/selection/confirmation and immutable provenance are
+authorized only by the Schedule-To-Session Origin Amendment above. Creating or
+updating a Schedule still must not create, update, cancel or delete any Session.
 
 ## Curriculum And Operational Session Amendment
 

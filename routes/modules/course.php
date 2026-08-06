@@ -82,6 +82,8 @@ if ($registerCourseProductRoutes ?? false) {
         ->name('course-cohorts.schedules.update');
     Route::post('/course-cohorts/{cohort}/sessions', [CourseCohortOperationController::class, 'storeSession'])
         ->name('course-cohorts.sessions.store');
+    Route::post('/course-cohorts/{cohort}/sessions/batch', [CourseCohortOperationController::class, 'storeSessionBatch'])
+        ->name('course-cohorts.sessions.batch.store');
     Route::put('/course-cohorts/{cohort}/sessions/{session}', [CourseCohortOperationController::class, 'updateSession'])
         ->name('course-cohorts.sessions.update');
     Route::put('/course-cohorts/{cohort}/sessions/{session}/schedule', [CourseCohortOperationController::class, 'updateSchedule'])

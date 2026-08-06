@@ -444,10 +444,88 @@ ghi rõ “Các Buổi học thực tế chưa được tạo”. Client-side pr
 * Schedule deletion chưa được approved; implementation không được hard-delete
   hoặc tự thêm soft delete/status để giả lập lifecycle.
 
-Schedule-to-Session provenance, bulk generation, synchronization, individually
-edited Session handling, shared holiday calendars and schedule-driven
-reschedule audit are deferred to a later amendment. Until then, Schedule
-mutation has no side effect on any Session.
+Automatic generation, synchronization, shared holiday calendars and
+Schedule-driven bulk rescheduling remain deferred. Explicit confirmed creation
+from selected occurrences is governed by the immutable Origin policy below.
+Schedule mutation has no side effect on any Session or Origin.
+
+## Schedule Occurrence To Session Origin
+
+`core_liveclass_session_schedule_origins` is the only source of truth for a
+Session created from a projected Schedule occurrence. Lineage is not stored in
+Session metadata or inferred from matching dates.
+
+```text
+Schedule 1 → N Origins
+Schedule Slot 1 → N Origins
+Session 1 → 0..1 Origin
+```
+
+Occurrence identity is immutable and tenant-scoped:
+
+```text
+customer_id + schedule_id + schedule_slot_id + source_local_date
+```
+
+One identity may create at most one Session for all history. Cancelled and
+no-show Sessions keep the Origin. There is no replacement or reuse workflow.
+The same Session is rescheduled through the existing append-only audit flow,
+or a separate manual Session is created outside the Schedule.
+
+Origin freezes:
+
+```text
+source_local_date
+source_local_start_time
+source_local_end_time
+source_timezone
+source_start_at
+source_end_at
+```
+
+The local tuple is interpreted in the IANA `source_timezone` and is never
+changed. Absolute source timestamps are UTC instants stored as UTC `DATETIME`.
+Session classification compares its planned interval, interpreted through the
+Session timezone, with the normalized Origin instants. It must not compare
+against the current mutable Schedule.
+
+An Origin and all parents share `customer_id`. Session, Schedule and Slot
+foreign keys use `RESTRICT`. A referenced Slot must retain its identity and
+cannot be hard-deleted. Schedule edit therefore updates child rows by stable
+identity/diff and must not delete-and-recreate referenced Slots. Updating
+Schedule/Slot changes only future projected occurrences; it never changes an
+existing Origin or Session.
+
+Creation is an explicit four-stage operation:
+
+1. Select one Schedule and a range within both Schedule and Cohort windows.
+2. Recalculate projected occurrences with canonical Slots, exclusions and
+   Schedule timezone; preview persists nothing.
+3. Select occurrences and explicitly assign valid curriculum/operational
+   Session data. Schedule never guesses Lesson or Activity.
+4. Confirm one atomic batch. Backend recalculates and locks canonical data,
+   rejects the whole batch on any invalid row and writes Sessions plus Origins.
+
+Client occurrence timestamps, timezone and tenant metadata are never trusted.
+Uniqueness on the occurrence identity provides the final double-submit guard.
+This flow creates no Attendance, Recording, Replay, Progress or Completion.
+
+Presentation labels are derived from immutable lineage:
+
+* `on_schedule`: Origin exists and normalized current Session times equal it.
+* `rescheduled`: Origin exists but normalized Session times differ.
+* `off_schedule`: a newly created manual Session has no Origin.
+* `source_unknown`: a legacy Session has no Origin and is not backfilled.
+* `planned_occurrence`: projected occurrence has no Origin/Session.
+
+The manual/legacy boundary uses one immutable server-configured rollout
+instant. A no-Origin Session created before that cutover is `source_unknown`;
+a no-Origin Session created by the manual workflow at or after it is
+`off_schedule`. Client input cannot set or override this classification. The
+cutover must remain fixed after deployment.
+
+Rescheduling retains Origin, modifies only Session planned times and appends
+the existing schedule-change audit. Schedule, Slot and Origin are unchanged.
 
 ---
 
@@ -782,9 +860,10 @@ Hybrid
 ```
 
 Schedule/Room/Session boundaries cho phép recurring planning và hybrid
-delivery mà không thay đổi Course Foundation binding. Schedule CRUD và Preview
-đã được Foundation approved; generation/synchronization từ Schedule sang
-Session vẫn thuộc phase sau.
+delivery mà không thay đổi Course Foundation binding. Schedule CRUD/Preview và
+explicit atomic creation từ selected occurrence với immutable Origin đã được
+Foundation approved. Automatic generation và synchronization vẫn thuộc phase
+sau.
 
 ---
 
@@ -821,7 +900,7 @@ Breakout Rooms
 
 Calendar Sync
 
-Schedule → Session generation and synchronization
+Automatic Schedule → Session generation and synchronization
 
 Shared Holiday Calendar
 

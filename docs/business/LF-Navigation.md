@@ -21,9 +21,12 @@ Last Updated: 2026-08
 > `Tổng quan` / `Overview`, `Học viên` / `Students`, `Giáo viên` / `Teachers`,
 > `Lịch học` / `Schedules`, `Buổi học` / `Sessions`, `Điểm danh` /
 > `Attendance`, `Bản ghi/Xem lại` / `Recordings/Replay`. Schedules and Sessions
-> have separate LiveClass sources of truth. The Sessions tab retains its current
-> behavior; Cohort Attendance and Recordings/Replay aggregate records from the
-> Cohort's Sessions.
+> have separate LiveClass sources of truth. The Sessions tab may combine
+> concrete Sessions with non-persisted planned occurrences, but must label them
+> distinctly and may create a Session only after explicit selection and atomic
+> confirmation. Immutable Origin, not timestamp coincidence, supplies the
+> Schedule relationship. Cohort Attendance and Recordings/Replay aggregate
+> records from the Cohort's concrete Sessions only.
 
 ## Overview
 

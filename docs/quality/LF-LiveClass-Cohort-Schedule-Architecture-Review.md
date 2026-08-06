@@ -4,6 +4,12 @@ Version: 1.0
 
 Status: Approved Review
 
+> Historical scope note (2026-08-05): the deferred provenance, occurrence
+> identity and explicit confirmed bulk-creation clauses in this review are
+> superseded by
+> `LF-LiveClass-Schedule-Session-Origin-Architecture-Review.md`. Automatic
+> generation/synchronization and Schedule deletion remain deferred.
+
 Review Date: 2026-08-05
 
 ## Review Information
@@ -97,7 +103,9 @@ PASS — Foundation Ready
 
 The three normalized Schedule tables and Schedule CRUD/Preview may proceed in
 a later implementation task using forward-only additive migrations.
-Schedule-to-Session generation/synchronization remains blocked.
+Automatic Schedule-to-Session generation/synchronization remains blocked.
+Explicit selected-occurrence confirmation is governed by the later Origin
+amendment.
 ```
 
 Owner Approval:

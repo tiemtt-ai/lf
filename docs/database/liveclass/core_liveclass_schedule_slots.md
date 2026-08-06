@@ -42,6 +42,9 @@ normalized rows so different weekdays may use different time intervals.
   transactional and locks the relevant Schedule/Slot set before authoritative
   overlap validation.
 * Slot mutation changes preview only and has no Session side effect.
+* A Slot referenced by `core_liveclass_session_schedule_origins` has stable
+  occurrence identity and cannot be hard-deleted. Its edit changes only future
+  projection; existing Origin snapshots and Sessions remain unchanged.
 
 ## Keys, Constraints And Indexes
 
@@ -52,6 +55,9 @@ FOREIGN KEY (customer_id) REFERENCES saas_customers(id) ON DELETE RESTRICT
 FOREIGN KEY (schedule_id) REFERENCES core_liveclass_schedules(id)
     ON DELETE RESTRICT
 FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT
+
+Referenced by core_liveclass_session_schedule_origins.schedule_slot_id
+    ON DELETE RESTRICT
 
 CHECK (weekday BETWEEN 1 AND 7)
 CHECK (end_time > start_time)

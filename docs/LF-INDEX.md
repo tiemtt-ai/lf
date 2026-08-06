@@ -349,7 +349,8 @@ docs/quality/
 | [quality/LF-Course-Product-Relations-Architecture-Review.md](quality/LF-Course-Product-Relations-Architecture-Review.md) | Approved Course Product Relations architecture review |
 | [quality/LF-Course-Cohort-Architecture-Review.md](quality/LF-Course-Cohort-Architecture-Review.md) | Approved Cohort binding, lifecycle, membership and legacy migration review |
 | [quality/LF-LiveClass-Cohort-Session-Architecture-Review.md](quality/LF-LiveClass-Cohort-Session-Architecture-Review.md) | Approved Cohort-centered Session, optional delivery resource and evidence boundary review |
-| [quality/LF-LiveClass-Cohort-Schedule-Architecture-Review.md](quality/LF-LiveClass-Cohort-Schedule-Architecture-Review.md) | Approved and frozen recurring Cohort Schedule CRUD/Preview architecture review; Session generation remains deferred |
+| [quality/LF-LiveClass-Cohort-Schedule-Architecture-Review.md](quality/LF-LiveClass-Cohort-Schedule-Architecture-Review.md) | Approved and frozen recurring Cohort Schedule CRUD/Preview architecture review |
+| [quality/LF-LiveClass-Schedule-Session-Origin-Architecture-Review.md](quality/LF-LiveClass-Schedule-Session-Origin-Architecture-Review.md) | Approved explicit atomic Schedule occurrence confirmation and immutable Session Origin review |
 | [quality/LF-Enrollment-Lifecycle-Architecture-Review.md](quality/LF-Enrollment-Lifecycle-Architecture-Review.md) | Approved and frozen single and bulk Enrollment lifecycle transition review |
 | [quality/LF-Bulk-Enrollment-Architecture-Review.md](quality/LF-Bulk-Enrollment-Architecture-Review.md) | Approved and frozen Admin Bulk Enrollment creation, re-enrollment and atomic-submission idempotency review |
 

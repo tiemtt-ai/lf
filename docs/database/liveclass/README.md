@@ -1,10 +1,9 @@
 # MIỀN NGHIỆP VỤ LIVECLASS
 
 > **Implementation scope approved 2026-08-05**: Cohort-centered recurring
-> Schedule CRUD/Preview is Foundation approved in addition to the existing
-> Session, optional delivery resource, Session teachers, Attendance and
-> Recording/Replay foundation. Schedule-to-Session generation or
-> synchronization is not approved by this amendment.
+> Schedule CRUD/Preview and explicit atomic creation of Sessions from selected
+> occurrences with immutable Origin are Foundation approved. Automatic
+> generation and Schedule-driven synchronization remain unapproved.
 
 Miền nghiệp vụ LiveClass quản lý Activity đồng bộ và kết hợp. Miền
 nghiệp vụ này kết nối các Activity của Course đã phát hành với
@@ -38,6 +37,7 @@ trò chuyện mà không sở hữu Progress của Course hoặc tài sản Medi
 | **core_liveclass_schedule_exclusions** | Ngày loại khỏi Schedule preview |
 | **core_liveclass_rooms** | Phòng vận hành cho các Activity trực tiếp đã phát hành |
 | **core_liveclass_sessions** | Các Buổi học cụ thể đã lên lịch và hoàn tất |
+| **core_liveclass_session_schedule_origins** | Lineage bất biến của Session được xác nhận từ Schedule occurrence |
 | **core_liveclass_session_teachers** | Đội ngũ giảng dạy của từng Session |
 | **core_liveclass_session_schedule_changes** | Audit append-only khi đổi lịch |
 
@@ -69,6 +69,9 @@ erDiagram
     LIVECLASS_SCHEDULE ||--|{ SCHEDULE_SLOT : contains
     LIVECLASS_SCHEDULE ||--o{ SCHEDULE_EXCLUSION : excludes
     COHORT ||--o{ LIVECLASS_SESSION : operates
+    LIVECLASS_SCHEDULE ||--o{ SESSION_SCHEDULE_ORIGIN : sources
+    SCHEDULE_SLOT ||--o{ SESSION_SCHEDULE_ORIGIN : identifies
+    LIVECLASS_SESSION ||--o| SESSION_SCHEDULE_ORIGIN : traces
     LIVECLASS_ROOM ||--o{ LIVECLASS_SESSION : delivers
     LIVECLASS_SESSION ||--o{ ATTENDANCE : records
     LIVECLASS_SESSION ||--o{ CHAT_LOG : contains
@@ -87,6 +90,8 @@ erDiagram
 flowchart LR
     A[Cohort] --> B[Schedule + Slots + Exclusions]
     B --> P[Read-only occurrence preview]
+    P -->|Explicit selection and confirmation| O[Immutable Session Origin]
+    O --> C
     A --> C[LiveClass Session]
     C --> D[Attendance and Chat]
     C --> E[Recording]

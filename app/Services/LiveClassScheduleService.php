@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 
 class LiveClassScheduleService
 {
@@ -53,9 +55,8 @@ class LiveClassScheduleService
                 ]);
             DB::table('core_liveclass_schedule_exclusions')->where('customer_id', $customerId)
                 ->where('schedule_id', $scheduleId)->delete();
-            DB::table('core_liveclass_schedule_slots')->where('customer_id', $customerId)
-                ->where('schedule_id', $scheduleId)->delete();
-            $this->replaceChildren($customerId, $scheduleId, $actorId, $data, $now);
+            $this->syncSlots($customerId, $scheduleId, $actorId, $data['slots'], $now);
+            $this->insertExclusions($customerId, $scheduleId, $actorId, $data, $now);
         }, 3);
     }
 
@@ -80,6 +81,11 @@ class LiveClassScheduleService
             ])->all()
         );
 
+        $this->insertExclusions($customerId, $scheduleId, $actorId, $data, $now);
+    }
+
+    private function insertExclusions(int $customerId, int $scheduleId, int $actorId, array $data, mixed $now): void
+    {
         $exclusions = collect($data['exclusions'] ?? [])->filter(
             fn (array $exclusion): bool => filled($exclusion['excluded_on'] ?? null)
         )->values();
@@ -96,5 +102,48 @@ class LiveClassScheduleService
                 ])->all()
             );
         }
+    }
+
+    private function syncSlots(int $customerId, int $scheduleId, int $actorId, array $slots, mixed $now): void
+    {
+        $existing = DB::table('core_liveclass_schedule_slots')
+            ->where('customer_id', $customerId)->where('schedule_id', $scheduleId)
+            ->lockForUpdate()->get()->keyBy(fn ($slot): string => implode('|', [
+                $slot->weekday, substr($slot->start_time, 0, 5), substr($slot->end_time, 0, 5),
+            ]));
+        $keptIds = [];
+
+        foreach (array_values($slots) as $index => $slot) {
+            $key = implode('|', [(int) $slot['weekday'], substr($slot['start_time'], 0, 5), substr($slot['end_time'], 0, 5)]);
+            if ($current = $existing->get($key)) {
+                $keptIds[] = (int) $current->id;
+                DB::table('core_liveclass_schedule_slots')->where('id', $current->id)->update([
+                    'sort_order' => $index + 1, 'updated_at' => $now,
+                ]);
+
+                continue;
+            }
+
+            $keptIds[] = DB::table('core_liveclass_schedule_slots')->insertGetId([
+                'customer_id' => $customerId, 'schedule_id' => $scheduleId,
+                'weekday' => (int) $slot['weekday'], 'start_time' => $slot['start_time'],
+                'end_time' => $slot['end_time'], 'sort_order' => $index + 1,
+                'created_by' => $actorId, 'created_at' => $now, 'updated_at' => $now,
+            ]);
+        }
+
+        $remove = DB::table('core_liveclass_schedule_slots')->where('customer_id', $customerId)
+            ->where('schedule_id', $scheduleId)->whereNotIn('id', $keptIds);
+        if (Schema::hasTable('core_liveclass_session_schedule_origins')) {
+            $referenced = DB::table('core_liveclass_session_schedule_origins')
+                ->where('customer_id', $customerId)->whereIn('schedule_slot_id', (clone $remove)->pluck('id'))
+                ->exists();
+            if ($referenced) {
+                throw ValidationException::withMessages([
+                    'slots' => __('lf.LF_course_cohort_schedule_slot_referenced'),
+                ]);
+            }
+        }
+        $remove->delete();
     }
 }

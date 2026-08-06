@@ -1,5 +1,24 @@
 # Table: core_liveclass_sessions
 
+## Schedule Origin Amendment — 2026-08-05
+
+Schedule lineage is not stored on this table. A Session explicitly confirmed
+from a projected occurrence has exactly one immutable row in
+`core_liveclass_session_schedule_origins`; manual and legacy Sessions have no
+Origin. No existing Session is backfilled by timestamp inference.
+
+An Origin-backed Session records the source Schedule timezone. Its relationship
+label is derived by normalizing the current planned interval through the
+Session timezone and comparing it with the immutable Origin UTC instants:
+equal is `on_schedule`, different is `rescheduled`. A new manual Session is
+`off_schedule`; a legacy Session without Origin is `source_unknown`.
+
+Reschedule updates this table through the existing dedicated workflow, appends
+`core_liveclass_session_schedule_changes` and leaves Origin, Schedule and Slot
+unchanged. Cancelled/no-show Sessions retain Origin and occurrence uniqueness.
+Bulk confirmation creates no Attendance, Recording, Replay, Progress or
+Completion.
+
 ## Cohort Schedule Boundary Amendment — 2026-08-04
 
 A Cohort Session interval must be fully contained in the Cohort operating

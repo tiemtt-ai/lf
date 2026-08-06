@@ -28,6 +28,31 @@
     line-height: 1.45;
 }
 
+/* Keep checkbox focus consistent across LF Admin forms. Native/Tailwind focus
+   borders can render as a dark double border once the control is checked;
+   keyboard focus remains visible through a soft outer halo instead. */
+.lf-admin-page input[type='checkbox'] {
+    accent-color: var(--admin-primary);
+}
+
+.lf-admin-page input[type='checkbox']:focus,
+.lf-admin-page input[type='checkbox']:focus-visible {
+    outline: 0;
+}
+
+.lf-admin-page input[type='checkbox']:checked:focus,
+.lf-admin-page input[type='checkbox']:checked:focus-visible {
+    border-color: transparent;
+}
+
+.lf-admin-page input[type='checkbox']:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-primary) 20%, transparent);
+}
+
+.lf-admin-page input[type='checkbox']:focus:not(:focus-visible) {
+    box-shadow: none;
+}
+
 .lf-admin-page .lf-form-control::placeholder {
     color: color-mix(in srgb, var(--admin-text-muted) 50%, var(--admin-surface));
     font-size: 1rem;
@@ -2815,20 +2840,27 @@
 }
 
 .cohort-overview-identity {
-    padding-bottom: 20px;
+    padding: 22px;
+    border: 1px solid color-mix(in srgb, var(--admin-primary) 12%, var(--admin-border));
+    border-radius: 12px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--admin-primary) 4%, var(--admin-surface)) 0%, var(--admin-surface) 46%);
 }
 
 .admin-card.course-cohort-detail {
-    padding: 22px 24px;
+    padding: 20px;
 }
 
 .course-cohort-detail .cohort-overview-section {
-    padding-bottom: 16px;
+    min-width: 0;
+    padding: 18px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface);
 }
 
 .course-cohort-detail .cohort-overview-section + .cohort-overview-section,
 .course-cohort-detail .cohort-overview-identity + .cohort-overview-section {
-    padding-top: 16px;
+    padding-top: 18px;
 }
 
 .course-cohort-detail .admin-form-section-header {
@@ -2851,7 +2883,7 @@
 .cohort-overview-heading h2 {
     margin: 4px 0 0;
     color: var(--admin-text);
-    font-size: 22px;
+    font-size: clamp(22px, 2vw, 28px);
     line-height: 1.3;
 }
 
@@ -2954,6 +2986,49 @@
     line-height: 1.45;
 }
 
+.cohort-overview-capacity__track {
+    width: min(100%, 140px);
+    height: 6px;
+    display: block;
+    overflow: hidden;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--admin-primary) 10%, var(--admin-border));
+}
+
+.cohort-overview-context .cohort-overview-capacity strong {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.45;
+}
+
+.cohort-overview-context .cohort-overview-capacity > span:not(.cohort-overview-capacity__track) {
+    font-size: 12px;
+}
+
+.cohort-overview-capacity__track > span {
+    height: 100%;
+    display: block;
+    border-radius: inherit;
+    background: var(--admin-primary);
+}
+
+.cohort-overview-secondary-grid {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr);
+    gap: 16px;
+}
+
+.cohort-overview-secondary-grid .cohort-overview-section + .cohort-overview-section {
+    padding-top: 18px;
+}
+
+@media (max-width: 900px) {
+    .cohort-overview-secondary-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 .cohort-overview-dates {
     margin: 0;
     display: grid;
@@ -2989,7 +3064,7 @@
 }
 
 .cohort-overview-notes {
-    min-height: 0;
+    min-height: 70px;
     padding: 10px 14px;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
@@ -3680,6 +3755,14 @@
         align-items: flex-start;
     }
 
+    .cohort-overview-identity {
+        padding: 18px;
+    }
+
+    .admin-card.course-cohort-detail {
+        padding: 14px;
+    }
+
     .admin-card.course-cohort-edit-overview {
         padding: 0;
     }
@@ -3734,6 +3817,10 @@
     .cohort-overview-summary .cohort-product-registration-window--compact {
         grid-template-columns: minmax(0, 1fr);
         gap: 10px;
+    }
+
+    .cohort-overview-secondary-grid {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .cohort-edit-readonly-summary .cohort-product-registration-window--compact {
@@ -5277,6 +5364,255 @@
     padding: 0;
     border: 0;
 }
+
+.course-cohort-session-source {
+    min-width: 0;
+    margin: 0 0 20px;
+    padding: 0 0 20px;
+    border: 0;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.course-cohort-session-source > .lf-form-help {
+    margin: 4px 0 10px;
+}
+
+.course-cohort-session-occurrence {
+    margin-top: 14px !important;
+}
+
+.course-cohort-session-batch-form {
+    min-width: 0;
+    margin-bottom: 22px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    scroll-margin-top: 16px;
+}
+
+.course-cohort-session-batch-location {
+    display: grid;
+    gap: 14px 16px;
+}
+
+.course-cohort-session-batch-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--admin-border);
+    border-radius: 9px;
+    background: var(--admin-surface);
+}
+
+.course-cohort-session-batch-table {
+    min-width: 1050px;
+    margin: 0;
+    table-layout: fixed;
+    font-family: inherit;
+}
+
+.course-cohort-session-batch-table__col-check { width: 48px; }
+.course-cohort-session-batch-table__col-occurrence { width: 155px; }
+.course-cohort-session-batch-table__col-lesson { width: 190px; }
+.course-cohort-session-batch-table__col-activity { width: 230px; }
+.course-cohort-session-batch-table__col-teachers { width: 290px; }
+.course-cohort-session-batch-table__col-mode { width: 137px; }
+
+.lf-admin-page .course-cohort-session-batch-table th {
+    padding: 11px 12px;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: normal;
+}
+
+.lf-admin-page .course-cohort-session-batch-table td {
+    padding: 12px;
+}
+
+.course-cohort-session-batch-table th,
+.course-cohort-session-batch-table td { vertical-align: middle; }
+.course-cohort-session-batch-table__check { width: 48px; text-align: center; }
+.course-cohort-session-batch-table__check input[type='checkbox'] { width: 16px; height: 16px; }
+.course-cohort-session-batch-table__occurrence { min-width: 0; }
+.course-cohort-session-batch-table__occurrence strong,
+.course-cohort-session-batch-table__occurrence span,
+.course-cohort-session-batch-table__occurrence small { display: block; }
+.course-cohort-session-batch-table__occurrence strong {
+    color: var(--admin-text);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+.course-cohort-session-batch-table__occurrence span,
+.course-cohort-session-batch-table__occurrence small {
+    margin-top: 3px;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.4;
+}
+.course-cohort-session-batch-table tr.is-unselected { opacity: .52; }
+.lf-admin-page .admin-form-standard .course-cohort-session-batch-table .lf-form-control,
+.lf-admin-page .admin-form-standard .course-cohort-session-batch-table select.lf-form-control,
+.lf-admin-page .admin-form-standard .course-cohort-session-batch-table select.lf-form-control option {
+    min-width: 0;
+    height: 38px;
+    min-height: 38px;
+    padding: 6px 9px;
+    overflow: hidden;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.4;
+    text-overflow: ellipsis;
+}
+
+.course-cohort-session-batch-teachers {
+    position: relative;
+    min-width: 0;
+}
+
+.course-cohort-session-batch-teachers__control {
+    min-height: 38px;
+    padding: 5px 34px 5px 7px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    position: relative;
+    border: 1px solid var(--admin-border);
+    border-radius: 7px;
+    background: var(--admin-surface);
+    cursor: pointer;
+}
+
+.course-cohort-session-batch-teachers__control::after {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    color: var(--admin-text-muted);
+    content: '\2304';
+    transform: translateY(-55%);
+}
+
+.course-cohort-session-batch-teachers__control:focus {
+    border-color: color-mix(in srgb, var(--admin-primary) 72%, #fff);
+    outline: 0;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-primary) 10%, transparent);
+}
+
+.course-cohort-session-batch-teachers__placeholder {
+    padding: 3px 5px;
+    color: var(--admin-text-muted);
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.course-cohort-session-batch-teachers__chip {
+    max-width: 100%;
+    padding: 3px 5px 3px 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid color-mix(in srgb, var(--admin-primary) 12%, var(--admin-border));
+    border-radius: 5px;
+    background: var(--admin-surface-subtle);
+    color: var(--admin-text);
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.course-cohort-session-batch-teachers__chip > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.course-cohort-session-batch-teachers__chip button {
+    padding: 0 2px;
+    border: 0;
+    background: transparent;
+    color: var(--admin-text-muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.course-cohort-session-batch-teachers__options {
+    position: absolute;
+    z-index: 40;
+    top: calc(100% + 4px);
+    right: 0;
+    left: 0;
+    max-height: 220px;
+    padding: 5px;
+    overflow-y: auto;
+    border: 1px solid var(--admin-border);
+    border-radius: 7px;
+    background: var(--admin-surface);
+    box-shadow: 0 10px 24px rgb(15 23 42 / 12%);
+}
+
+.course-cohort-session-batch-teachers__option {
+    width: 100%;
+    padding: 8px 9px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--admin-text);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.4;
+    text-align: left;
+    cursor: pointer;
+}
+
+.course-cohort-session-batch-teachers__option:hover,
+.course-cohort-session-batch-teachers__option.is-selected {
+    background: color-mix(in srgb, var(--admin-primary) 7%, var(--admin-surface));
+}
+
+.course-cohort-session-batch-teachers__option.is-selected {
+    color: var(--admin-primary);
+    font-weight: 600;
+}
+
+.course-cohort-session-batch-teachers__empty {
+    margin: 0;
+    padding: 9px;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+}
+
+.course-cohort-session-batch-location {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 16px;
+}
+
+.course-cohort-session-batch-form .admin-form-footer--sticky {
+    width: 100%;
+    margin: 18px 0 0;
+}
+
+@media (max-width: 900px) {
+    .course-cohort-session-batch-location { grid-template-columns: minmax(0, 1fr); }
+}
+
+.course-cohort-session-origin-badge {
+    display: inline-flex;
+    width: fit-content;
+    margin-top: 7px;
+    font-weight: 400;
+}
+
+.course-cohort-session-origin-badge--on_schedule { color: #166534; background: #dcfce7; }
+.course-cohort-session-origin-badge--rescheduled { color: #92400e; background: #fef3c7; }
+.course-cohort-session-origin-badge--off_schedule { color: #3730a3; background: #eef2ff; }
+.course-cohort-session-origin-badge--source_unknown { color: #475569; background: #f1f5f9; }
 
 .course-cohort-session-type__options,
 .course-cohort-session-form__grid {

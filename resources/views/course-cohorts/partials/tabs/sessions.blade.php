@@ -3,10 +3,11 @@
     $todayScheduleStart = now()->startOfDay();
     $minimumSessionStart = $todayScheduleStart->greaterThan($cohortScheduleStart) ? $todayScheduleStart : $cohortScheduleStart;
     $maximumSessionEnd = \Illuminate\Support\Carbon::parse($cohort->end_date)->endOfDay();
+    $batchHasErrors = collect($errors->keys())->contains(fn ($key) => str_starts_with($key, 'occurrences'));
 @endphp
 <div class="admin-card admin-form-card admin-form-surface course-cohort-sessions"
      x-data="{
-         formOpen: @js($errors->any()), editingId: null, submitting: false, detailSession: null, meetingLinkCopied: false,
+         formOpen: @js($errors->any() && ! $batchHasErrors), batchOpen: @js($batchHasErrors), editingId: null, submitting: false, detailSession: null, meetingLinkCopied: false,
          rescheduleSession: null, rescheduleStart: '', rescheduleEnd: '',
          sessionType: @js(old('session_type', 'curriculum')),
          lessonId: @js((string) old('version_lesson_id', '')),
@@ -23,6 +24,8 @@
          typeLabels: @js(collect(['curriculum', 'operational'])->mapWithKeys(fn ($type) => [$type => __('lf.LF_course_cohort_session_type_'.$type)])),
          modeLabels: @js(collect(['online', 'offline', 'hybrid'])->mapWithKeys(fn ($mode) => [$mode => __('lf.LF_course_cohort_session_mode_'.$mode)])),
          lessons: @js($versionLessons), activities: @js($versionActivities),
+         occurrences: @js($plannedOccurrences),
+         batchRows: @js($plannedOccurrences->map(fn ($item) => array_merge($item, ['selected' => true, 'title' => '', 'lessonId' => '', 'activityId' => '', 'teacherIds' => [], 'teacherOpen' => false, 'mode' => 'online']))->values()),
          teachers: @js($availableTeachers->map(fn ($teacher) => [
              'id' => (string) $teacher->id,
              'name' => $teacher->name,
@@ -60,6 +63,21 @@
              this.endsAt = ''
              this.syncTeacherAvailability()
          },
+         batchActivities(row) { return this.activities.filter(item => String(item.version_lesson_id) === String(row.lessonId)) },
+         batchLessonChanged(row) { row.activityId = ''; const lesson = this.lessons.find(item => String(item.id) === String(row.lessonId)); row.title = lesson?.title_snapshot || '' },
+         batchSelectableTeachers(row) {
+             return this.teachers.filter(teacher => (!teacher.assigned_from || row.date >= teacher.assigned_from) && (!teacher.assigned_to || row.date <= teacher.assigned_to))
+         },
+         selectedBatchTeachers(row) { return this.teachers.filter(teacher => row.teacherIds.includes(String(teacher.id))) },
+         toggleBatchTeacher(row, teacherId) {
+             const id = String(teacherId)
+             row.teacherIds = row.teacherIds.includes(id) ? row.teacherIds.filter(item => item !== id) : [...row.teacherIds, id]
+         },
+         toggleAllBatch(event) { this.batchRows.forEach(row => row.selected = event.target.checked) },
+         selectedBatchCount() { return this.batchRows.filter(row => row.selected).length },
+         readyBatchCount() { return this.batchRows.filter(row => row.selected && row.title && row.lessonId && row.activityId && row.mode).length },
+         openBatch() { this.formOpen = false; this.batchOpen = true; this.submitting = false; this.$nextTick(() => this.$refs.batchForm?.scrollIntoView({ behavior: 'smooth', block: 'start' })) },
+         closeBatch() { this.batchOpen = false; this.submitting = false },
          curriculumMeetingUrl() {
              return this.selectedActivity()?.live_class_url_snapshot || ''
          },
@@ -95,11 +113,11 @@
              this.roomName = ''; this.address = ''; this.submitting = false; this.meetingLinkCopied = false
          },
          openCreate() {
-             this.resetForm(); this.formOpen = true
+             this.resetForm(); this.batchOpen = false; this.formOpen = true
              this.$nextTick(() => this.$refs.sessionTypeCurriculum?.focus())
          },
          editSession(item) {
-             this.editingId = item.id; this.formOpen = true; this.sessionType = item.session_type
+             this.editingId = item.id; this.batchOpen = false; this.formOpen = true; this.sessionType = item.session_type
              this.lessonId = item.version_lesson_id ? String(item.version_lesson_id) : ''
              this.activityId = item.version_activity_id ? String(item.version_activity_id) : ''
              this.title = item.title; this.titleDirty = true; this.mode = item.delivery_mode
@@ -148,27 +166,132 @@
         <section class="admin-form-standard-section">
             <header class="admin-form-section-header course-cohort-sessions__header">
                 <div>
-                    <h2 class="admin-form-section-title">{{ __('lf.LF_course_cohort_session_title') }}</h2>
-                    <p class="admin-form-section-help">{{ __('lf.LF_course_cohort_session_help') }}</p>
+                    <h2 class="admin-form-section-title">
+                        <span x-show="!batchOpen">{{ __('lf.LF_course_cohort_session_title') }}</span>
+                        <span x-show="batchOpen" x-cloak>{{ __('lf.LF_course_cohort_session_batch_title') }}</span>
+                    </h2>
+                    <p class="admin-form-section-help">
+                        <span x-show="!batchOpen">{{ __('lf.LF_course_cohort_session_help') }}</span>
+                        <span x-show="batchOpen" x-cloak>{{ __('lf.LF_course_cohort_session_batch_help') }}</span>
+                    </p>
                 </div>
                 <div class="course-cohort-sessions__toolbar">
-                    <span class="course-cohort-sessions__count">{{ __('lf.LF_course_cohort_session_count', ['count' => $sessions->count()]) }}</span>
+                    <span class="course-cohort-sessions__count" x-show="!batchOpen">{{ __('lf.LF_course_cohort_session_count', ['count' => $sessions->count()]) }}</span>
+                    <span class="course-cohort-sessions__count" x-show="batchOpen" x-cloak x-text="`${selectedBatchCount()} / ${batchRows.length}`"></span>
                     @if (in_array($cohort->status, ['draft', 'active'], true))
-                        <button type="button" class="btn btn-primary"
-                                x-show="!formOpen" x-on:click="openCreate()">
-                            {{ __('lf.LF_course_cohort_session_create') }}
-                        </button>
+                        @if($plannedOccurrences->isNotEmpty())
+                            <button type="button" class="btn btn-primary" x-show="!formOpen && !batchOpen" x-on:click="openBatch()">{{ __('lf.LF_course_cohort_session_batch_open') }}</button>
+                        @endif
+                        <button type="button" class="btn btn-secondary" x-show="!formOpen && !batchOpen" x-on:click="openCreate()">{{ __('lf.LF_course_cohort_session_manual_open') }}</button>
                     @endif
                 </div>
             </header>
 
             @if ($errors->any())
                 <div class="admin-alert admin-alert-danger course-cohort-session-error-summary" role="alert">
-                    <a class="admin-text-action" href="#session_title">{{ $errors->first() }}</a>
+                    <a class="admin-text-action" href="{{ $batchHasErrors ? '#session-batch-form' : '#session_title' }}">{{ $errors->first() }}</a>
                 </div>
             @endif
 
             @if (in_array($cohort->status, ['draft', 'active'], true))
+                <form id="session-batch-form" x-show="batchOpen" x-cloak x-ref="batchForm" method="POST"
+                      action="{{ route('admin.course-cohorts.sessions.batch.store', $cohort->id) }}"
+                      class="course-cohort-session-batch-form" x-on:submit="submitForm($event)">
+                    @csrf
+                    <div class="course-cohort-session-batch-table-wrap">
+                        <table class="table course-cohort-session-batch-table">
+                            <colgroup>
+                                <col class="course-cohort-session-batch-table__col-check">
+                                <col class="course-cohort-session-batch-table__col-occurrence">
+                                <col class="course-cohort-session-batch-table__col-lesson">
+                                <col class="course-cohort-session-batch-table__col-activity">
+                                <col class="course-cohort-session-batch-table__col-teachers">
+                                <col class="course-cohort-session-batch-table__col-mode">
+                            </colgroup>
+                            <thead><tr>
+                                <th class="course-cohort-session-batch-table__check"><input type="checkbox" checked x-on:change="toggleAllBatch($event)" aria-label="{{ __('lf.LF_course_cohort_session_batch_select_all') }}"></th>
+                                <th>{{ __('lf.LF_course_cohort_session_batch_occurrence') }}</th>
+                                <th>{{ __('lf.LF_course_cohort_session_lesson') }}</th>
+                                <th>{{ __('lf.LF_course_cohort_session_activity') }}</th>
+                                <th>{{ __('lf.LF_course_cohort_session_teachers') }}</th>
+                                <th>{{ __('lf.LF_course_cohort_session_mode') }}</th>
+                            </tr></thead>
+                            <tbody>
+                            @foreach($plannedOccurrences as $index => $occurrence)
+                                <tr x-bind:class="{ 'is-unselected': !batchRows[{{ $index }}].selected }">
+                                    <td class="course-cohort-session-batch-table__check">
+                                        <input type="hidden" name="occurrences[{{ $index }}][selected]" value="0">
+                                        <input type="checkbox" name="occurrences[{{ $index }}][selected]" value="1" x-model="batchRows[{{ $index }}].selected">
+                                        <input type="hidden" name="occurrences[{{ $index }}][schedule_id]" value="{{ $occurrence['schedule_id'] }}">
+                                        <input type="hidden" name="occurrences[{{ $index }}][schedule_slot_id]" value="{{ $occurrence['schedule_slot_id'] }}">
+                                        <input type="hidden" name="occurrences[{{ $index }}][source_local_date]" value="{{ $occurrence['date'] }}">
+                                    </td>
+                                    <td class="course-cohort-session-batch-table__occurrence">
+                                        <strong>{{ \Illuminate\Support\Carbon::parse($occurrence['date'])->format('d/m/Y') }}</strong>
+                                        <span>{{ $occurrence['start_time'] }}–{{ $occurrence['end_time'] }}</span><small>{{ $occurrence['schedule_name'] }}</small>
+                                        <input type="hidden" name="occurrences[{{ $index }}][title]" x-model="batchRows[{{ $index }}].title">
+                                    </td>
+                                    <td><select class="lf-form-control" name="occurrences[{{ $index }}][version_lesson_id]" x-model="batchRows[{{ $index }}].lessonId" x-on:change="batchLessonChanged(batchRows[{{ $index }}])" x-bind:required="batchRows[{{ $index }}].selected"><option value="">{{ __('lf.LF_course_cohort_session_select_lesson') }}</option>@foreach($versionLessons as $lesson)<option value="{{ $lesson->id }}">{{ $lesson->title_snapshot }}</option>@endforeach</select></td>
+                                    <td><select class="lf-form-control" name="occurrences[{{ $index }}][version_activity_id]" x-model="batchRows[{{ $index }}].activityId" x-bind:disabled="!batchRows[{{ $index }}].lessonId" x-bind:required="batchRows[{{ $index }}].selected"><option value="">{{ __('lf.LF_course_cohort_session_select_activity') }}</option><template x-for="activity in batchActivities(batchRows[{{ $index }}])" :key="activity.id"><option :value="String(activity.id)" x-text="activity.title_snapshot"></option></template></select></td>
+                                    <td>
+                                        <div class="course-cohort-session-batch-teachers" x-on:click.outside="batchRows[{{ $index }}].teacherOpen = false">
+                                            <div class="course-cohort-session-batch-teachers__control"
+                                                 role="combobox" tabindex="0"
+                                                 aria-haspopup="listbox"
+                                                 x-bind:aria-expanded="batchRows[{{ $index }}].teacherOpen.toString()"
+                                                 aria-controls="batch-teacher-options-{{ $index }}"
+                                                 x-on:click="batchRows[{{ $index }}].teacherOpen = !batchRows[{{ $index }}].teacherOpen"
+                                                 x-on:keydown.enter.prevent="batchRows[{{ $index }}].teacherOpen = !batchRows[{{ $index }}].teacherOpen"
+                                                 x-on:keydown.escape.stop="batchRows[{{ $index }}].teacherOpen = false">
+                                                <span class="course-cohort-session-batch-teachers__placeholder"
+                                                      x-show="batchRows[{{ $index }}].teacherIds.length === 0">{{ __('lf.LF_course_cohort_session_batch_no_teacher') }}</span>
+                                                <template x-for="teacher in selectedBatchTeachers(batchRows[{{ $index }}])" :key="teacher.id">
+                                                    <span class="course-cohort-session-batch-teachers__chip">
+                                                        <span x-text="teacher.name"></span>
+                                                        <button type="button" x-on:click.stop="toggleBatchTeacher(batchRows[{{ $index }}], teacher.id)" x-bind:aria-label="`{{ __('lf.LF_common_button_remove') }} ${teacher.name}`">×</button>
+                                                    </span>
+                                                </template>
+                                            </div>
+                                            <div id="batch-teacher-options-{{ $index }}"
+                                                 class="course-cohort-session-batch-teachers__options"
+                                                 role="listbox" aria-multiselectable="true"
+                                                 x-show="batchRows[{{ $index }}].teacherOpen" x-cloak>
+                                                <template x-for="teacher in batchSelectableTeachers(batchRows[{{ $index }}])" :key="teacher.id">
+                                                    <button type="button" role="option"
+                                                            class="course-cohort-session-batch-teachers__option"
+                                                            x-bind:aria-selected="batchRows[{{ $index }}].teacherIds.includes(String(teacher.id)).toString()"
+                                                            x-bind:class="{ 'is-selected': batchRows[{{ $index }}].teacherIds.includes(String(teacher.id)) }"
+                                                            x-on:click="toggleBatchTeacher(batchRows[{{ $index }}], teacher.id)">
+                                                        <span x-text="teacher.name"></span>
+                                                        <span aria-hidden="true" x-show="batchRows[{{ $index }}].teacherIds.includes(String(teacher.id))">✓</span>
+                                                    </button>
+                                                </template>
+                                                <p class="course-cohort-session-batch-teachers__empty"
+                                                   x-show="batchSelectableTeachers(batchRows[{{ $index }}]).length === 0">{{ __('lf.LF_course_cohort_session_teachers_empty') }}</p>
+                                            </div>
+                                            <template x-for="teacherId in batchRows[{{ $index }}].teacherIds" :key="teacherId">
+                                                <input type="hidden" name="occurrences[{{ $index }}][teacher_ids][]" x-bind:value="teacherId">
+                                            </template>
+                                        </div>
+                                    </td>
+                                    <td><select class="lf-form-control" name="occurrences[{{ $index }}][delivery_mode]" x-model="batchRows[{{ $index }}].mode" x-bind:required="batchRows[{{ $index }}].selected">@foreach(['online','offline','hybrid'] as $deliveryMode)<option value="{{ $deliveryMode }}">{{ __('lf.LF_course_cohort_session_mode_'.$deliveryMode) }}</option>@endforeach</select></td>
+                                </tr>
+                            @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="course-cohort-session-batch-location" x-show="batchRows.some(row => row.selected && (row.mode === 'offline' || row.mode === 'hybrid'))" x-cloak>
+                        <div class="lf-form-group"><x-form-label for="batch_room_name" :value="__('lf.LF_course_cohort_session_room')" :required="true" /><input id="batch_room_name" name="room_name" class="lf-form-control"></div>
+                        <div class="lf-form-group"><x-form-label for="batch_address" :value="__('lf.LF_course_cohort_session_address')" :required="true" /><input id="batch_address" name="address" class="lf-form-control"></div>
+                    </div>
+                    @error('occurrences')<p class="lf-form-error" role="alert">{{ $message }}</p>@enderror
+                    <footer class="admin-form-footer admin-form-footer--sticky course-cohort-session-form__footer">
+                        <strong class="course-cohort-session-form__footer-context"><span x-text="readyBatchCount()"></span> {{ __('lf.LF_course_cohort_session_batch_ready') }}</strong>
+                        <div class="admin-form-footer-primary"><button type="button" class="btn btn-secondary" x-on:click="closeBatch()">{{ __('lf.LF_common_button_cancel') }}</button><button type="submit" class="btn btn-primary" x-bind:disabled="submitting || selectedBatchCount() === 0 || readyBatchCount() !== selectedBatchCount()">{{ __('lf.LF_course_cohort_session_batch_create') }}</button></div>
+                    </footer>
+                </form>
+
                 <form x-show="formOpen" x-cloak x-ref="sessionForm" method="POST"
                       action="{{ route('admin.course-cohorts.sessions.store', $cohort->id) }}"
                       x-bind:action="editingId ? updateUrl.replace('__SESSION__', editingId) : storeUrl"
@@ -346,6 +469,7 @@
                             <td data-label="{{ __('lf.LF_course_cohort_session_name') }}">
                                 <strong class="course-cohort-session-table__primary">{{ $session->title }}</strong>
                                 <span class="course-cohort-session-table__meta">{{ __('lf.LF_course_cohort_session_type_'.$session->session_type) }} · {{ __('lf.LF_course_cohort_session_mode_'.$session->delivery_mode) }}</span>
+                                <span class="badge course-cohort-session-origin-badge course-cohort-session-origin-badge--{{ $session->schedule_relation }}">{{ __('lf.LF_course_cohort_session_relation_'.$session->schedule_relation) }}</span>
                             </td>
                             <td data-label="{{ __('lf.LF_course_cohort_session_content') }}">
                                 @if($session->session_type === 'curriculum')

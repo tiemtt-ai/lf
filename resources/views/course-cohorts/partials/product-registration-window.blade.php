@@ -17,7 +17,9 @@
        aria-labelledby="{{ $registrationWindowTitleId }}">
     <div class="cohort-product-registration-window__heading">
         <div>
-            <span class="cohort-product-registration-window__source">{{ __('lf.LF_course_cohort_common_product') }}</span>
+            @if (! ($compact ?? false))
+                <span class="cohort-product-registration-window__source">{{ __('lf.LF_course_cohort_common_product') }}</span>
+            @endif
             <h3 id="{{ $registrationWindowTitleId }}">{{ __('lf.LF_course_cohort_product_registration_window') }}</h3>
         </div>
         @if ($registrationUnlimited)

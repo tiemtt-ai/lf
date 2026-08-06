@@ -43,6 +43,7 @@ class LiveClassSchedulePreviewService
                 $endsAt = CarbonImmutable::createFromFormat('!Y-m-d H:i', "{$localDate} {$endTime}", $timezone);
 
                 $occurrences->push([
+                    'schedule_slot_id' => $this->value($slot, 'id'),
                     'date' => $localDate,
                     'weekday' => $date->isoWeekday(),
                     'start_time' => $startTime,

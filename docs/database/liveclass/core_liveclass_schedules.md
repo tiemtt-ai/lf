@@ -64,7 +64,13 @@ No soft-delete column is approved. Delete behavior remains deferred.
 * A Schedule must contain at least one valid Slot. Create writes Schedule and
   its Slots in one transaction; update cannot remove the final Slot.
 * Schedule create/update never activates Cohort and never creates, updates,
-  cancels or deletes Session, Attendance, Recording, Replay or Progress data.
+  cancels or deletes Session, Origin, Attendance, Recording, Replay or Progress
+  data.
+* Explicit Session creation from selected preview occurrences is a separate
+  confirmation transaction governed by
+  `core_liveclass_session_schedule_origins`.
+* A Slot referenced by an Origin has stable identity and cannot be hard-deleted.
+  Schedule update must not delete/recreate referenced Slot rows.
 * Schedule names are not globally or Cohort-unique; identity is the primary
   key. Presentation may warn about similar names but persistence must not infer
   recurrence identity from a name.
@@ -101,5 +107,6 @@ the Cohort lifecycle/date invariants.
 ## Explicitly Deferred
 
 `default_teacher_id`, `default_room_id`, default delivery configuration,
-Schedule deletion, Schedule-to-Session provenance, generation, synchronization
-and idempotency are not part of this table contract.
+Schedule deletion, automatic generation and synchronization are not part of
+this table contract. Explicit confirmation, provenance and idempotency are
+owned by `core_liveclass_session_schedule_origins` and its application service.

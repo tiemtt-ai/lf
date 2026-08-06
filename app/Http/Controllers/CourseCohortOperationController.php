@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseCohortAdmin;
+use App\Services\LiveClassSessionOriginService;
 use App\Services\LiveClassSessionPolicy;
-use Illuminate\Support\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -16,7 +18,8 @@ class CourseCohortOperationController extends Controller
     use AuthorizesCourseCohortAdmin;
 
     public function __construct(
-        private readonly LiveClassSessionPolicy $sessionPolicy
+        private readonly LiveClassSessionPolicy $sessionPolicy,
+        private readonly LiveClassSessionOriginService $sessionOriginService
     ) {}
 
     public function storeTeacher(Request $request, int $cohort): RedirectResponse
@@ -144,6 +147,18 @@ class CourseCohortOperationController extends Controller
         $cohortRow = $this->setupCohort($customerId, $cohort);
         abort_if(! $cohortRow->version_id, 422);
 
+        $origin = null;
+        if ($request->filled(['schedule_id', 'schedule_slot_id', 'source_local_date'])) {
+            $origin = $this->sessionOriginService->resolve(
+                $customerId, $cohort, $request->integer('schedule_id'),
+                $request->integer('schedule_slot_id'), (string) $request->input('source_local_date')
+            );
+            $request->merge([
+                'scheduled_start_at' => $origin['scheduled_start_at'],
+                'scheduled_end_at' => $origin['scheduled_end_at'],
+            ]);
+        }
+
         $validated = $request->validate($this->sessionRules($customerId, (int) $cohortRow->version_id));
         $validated = $this->canonicalSessionBinding(
             $customerId,
@@ -153,7 +168,15 @@ class CourseCohortOperationController extends Controller
         $this->validateSessionScheduleWindow($cohortRow, $validated);
         $sessionTeachers = $this->canonicalSessionTeacherTeam($customerId, $cohort, $validated);
 
-        DB::transaction(function () use ($customerId, $cohort, $cohortRow, $validated, $sessionTeachers, $request): void {
+        DB::transaction(function () use ($customerId, $cohort, $cohortRow, $validated, $sessionTeachers, $request, $origin): void {
+            if ($origin) {
+                $origin = $this->sessionOriginService->resolve(
+                    $customerId, $cohort, (int) $origin['schedule_id'],
+                    (int) $origin['schedule_slot_id'], $origin['source_local_date'], true
+                );
+                $validated['scheduled_start_at'] = $origin['scheduled_start_at'];
+                $validated['scheduled_end_at'] = $origin['scheduled_end_at'];
+            }
             $sessionNo = (int) DB::table('core_liveclass_sessions')
                 ->where('customer_id', $customerId)->where('cohort_id', $cohort)
                 ->lockForUpdate()->max('session_no') + 1;
@@ -164,7 +187,7 @@ class CourseCohortOperationController extends Controller
                 'template_version_id' => $cohortRow->version_id,
                 'room_id' => null,
                 'session_no' => $sessionNo,
-                'timezone' => config('app.timezone'),
+                'timezone' => $origin['timezone'] ?? config('app.timezone'),
                 'status' => 'scheduled',
                 'created_by' => $request->user()->id,
                 'created_at' => now(),
@@ -172,10 +195,155 @@ class CourseCohortOperationController extends Controller
             ], $this->sessionPayload($validated)));
 
             $this->replaceSessionTeacherTeam($customerId, $sessionId, $sessionTeachers, (int) $request->user()->id);
+
+            if ($origin) {
+                DB::table('core_liveclass_session_schedule_origins')->insert([
+                    'customer_id' => $customerId,
+                    'session_id' => $sessionId,
+                    'schedule_id' => $origin['schedule_id'],
+                    'schedule_slot_id' => $origin['schedule_slot_id'],
+                    'source_local_date' => $origin['source_local_date'],
+                    'source_local_start_time' => $origin['source_local_start_time'],
+                    'source_local_end_time' => $origin['source_local_end_time'],
+                    'source_timezone' => $origin['source_timezone'],
+                    'source_start_at' => $origin['source_start_at'],
+                    'source_end_at' => $origin['source_end_at'],
+                    'created_by' => $request->user()->id,
+                    'created_at' => now(),
+                ]);
+            }
         });
 
         return $this->tab($cohort, 'sessions')
             ->with('success', __('lf.LF_course_cohort_session_created'));
+    }
+
+    public function storeSessionBatch(Request $request, int $cohort): RedirectResponse
+    {
+        $customerId = $this->authorizeAdmin($request);
+        $cohortRow = $this->setupCohort($customerId, $cohort);
+        abort_if(! $cohortRow->version_id, 422);
+
+        $validated = $request->validate([
+            'occurrences' => ['required', 'array', 'min:1', 'max:100'],
+            'occurrences.*.selected' => ['nullable', 'boolean'],
+            'occurrences.*.schedule_id' => ['required', 'integer'],
+            'occurrences.*.schedule_slot_id' => ['required', 'integer'],
+            'occurrences.*.source_local_date' => ['required', 'date_format:Y-m-d'],
+            'occurrences.*.title' => ['required_if:occurrences.*.selected,1', 'nullable', 'string', 'max:255'],
+            'occurrences.*.version_lesson_id' => ['required_if:occurrences.*.selected,1', 'nullable', 'integer'],
+            'occurrences.*.version_activity_id' => ['required_if:occurrences.*.selected,1', 'nullable', 'integer'],
+            'occurrences.*.teacher_ids' => ['nullable', 'array'],
+            'occurrences.*.teacher_ids.*' => ['integer', 'distinct', Rule::exists('users', 'id')
+                ->where(fn ($query) => $query->where('customer_id', $customerId)->where('role', 'teacher')->where('status', 'active'))],
+            'occurrences.*.delivery_mode' => ['required_if:occurrences.*.selected,1', 'nullable', Rule::in(['online', 'offline', 'hybrid'])],
+            'room_name' => ['nullable', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $selected = collect($validated['occurrences'])
+            ->filter(fn (array $item): bool => (bool) ($item['selected'] ?? false))->values();
+        if ($selected->isEmpty()) {
+            throw ValidationException::withMessages([
+                'occurrences' => __('lf.LF_course_cohort_session_batch_select_required'),
+            ]);
+        }
+
+        $prepared = $selected->map(function (array $item, int $index) use ($customerId, $cohort, $cohortRow, $validated): array {
+            try {
+                $origin = $this->sessionOriginService->resolve(
+                    $customerId, $cohort, (int) $item['schedule_id'],
+                    (int) $item['schedule_slot_id'], $item['source_local_date']
+                );
+            } catch (ValidationException) {
+                throw ValidationException::withMessages([
+                    "occurrences.$index.source_local_date" => __('lf.LF_course_cohort_session_occurrence_invalid'),
+                ]);
+            }
+            $session = $this->canonicalSessionBinding($customerId, (int) $cohortRow->version_id, [
+                'session_type' => 'curriculum',
+                'version_lesson_id' => $item['version_lesson_id'],
+                'version_activity_id' => $item['version_activity_id'],
+                'title' => $item['title'],
+                'delivery_mode' => $item['delivery_mode'],
+                'scheduled_start_at' => $origin['scheduled_start_at'],
+                'scheduled_end_at' => $origin['scheduled_end_at'],
+                'teacher_ids' => $item['teacher_ids'] ?? [],
+                'room_name' => $validated['room_name'] ?? null,
+                'address' => $validated['address'] ?? null,
+            ]);
+            if (in_array($session['delivery_mode'], ['offline', 'hybrid'], true)
+                && (blank($session['room_name']) || blank($session['address']))) {
+                throw ValidationException::withMessages([
+                    "occurrences.$index.delivery_mode" => __('lf.LF_course_cohort_session_batch_location_required'),
+                ]);
+            }
+            $this->validateSessionScheduleWindow($cohortRow, $session);
+
+            return [
+                'origin' => $origin,
+                'session' => $session,
+                'teachers' => $this->canonicalSessionTeacherTeam(
+                    $customerId, $cohort, $session, "occurrences.$index.teacher_ids"
+                ),
+            ];
+        });
+
+        try {
+            DB::transaction(function () use ($customerId, $cohort, $cohortRow, $prepared, $request): void {
+                DB::table('core_course_cohorts')->where('customer_id', $customerId)
+                    ->where('id', $cohort)->lockForUpdate()->firstOrFail();
+                $nextSessionNo = (int) DB::table('core_liveclass_sessions')
+                    ->where('customer_id', $customerId)->where('cohort_id', $cohort)
+                    ->lockForUpdate()->max('session_no') + 1;
+
+                foreach ($prepared as $row) {
+                    $origin = $this->sessionOriginService->resolve(
+                        $customerId, $cohort, $row['origin']['schedule_id'],
+                        $row['origin']['schedule_slot_id'], $row['origin']['source_local_date'], true
+                    );
+                    $session = $row['session'];
+                    $session['scheduled_start_at'] = $origin['scheduled_start_at'];
+                    $session['scheduled_end_at'] = $origin['scheduled_end_at'];
+                    $sessionId = DB::table('core_liveclass_sessions')->insertGetId(array_merge([
+                        'customer_id' => $customerId,
+                        'cohort_id' => $cohort,
+                        'template_version_id' => $cohortRow->version_id,
+                        'room_id' => null,
+                        'session_no' => $nextSessionNo++,
+                        'timezone' => $origin['timezone'],
+                        'status' => 'scheduled',
+                        'created_by' => $request->user()->id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ], $this->sessionPayload($session)));
+                    $this->replaceSessionTeacherTeam(
+                        $customerId, $sessionId, $row['teachers'], (int) $request->user()->id
+                    );
+                    DB::table('core_liveclass_session_schedule_origins')->insert([
+                        'customer_id' => $customerId, 'session_id' => $sessionId,
+                        'schedule_id' => $origin['schedule_id'], 'schedule_slot_id' => $origin['schedule_slot_id'],
+                        'source_local_date' => $origin['source_local_date'],
+                        'source_local_start_time' => $origin['source_local_start_time'],
+                        'source_local_end_time' => $origin['source_local_end_time'],
+                        'source_timezone' => $origin['source_timezone'],
+                        'source_start_at' => $origin['source_start_at'], 'source_end_at' => $origin['source_end_at'],
+                        'created_by' => $request->user()->id, 'created_at' => now(),
+                    ]);
+                }
+            }, 3);
+        } catch (QueryException $exception) {
+            if (in_array((string) $exception->getCode(), ['23000', '23505'], true)) {
+                throw ValidationException::withMessages([
+                    'occurrences' => __('lf.LF_course_cohort_session_batch_conflict'),
+                ]);
+            }
+            throw $exception;
+        }
+
+        return $this->tab($cohort, 'sessions')->with(
+            'success', __('lf.LF_course_cohort_session_batch_created', ['count' => $prepared->count()])
+        );
     }
 
     public function updateSession(Request $request, int $cohort, int $session): RedirectResponse
@@ -231,6 +399,9 @@ class CourseCohortOperationController extends Controller
         $validated = $request->validate([
             'scheduled_start_at' => ['required', 'date'],
             'scheduled_end_at' => ['required', 'date', 'after:scheduled_start_at'],
+            'schedule_id' => ['nullable', 'required_with:schedule_slot_id,source_local_date', 'integer'],
+            'schedule_slot_id' => ['nullable', 'required_with:schedule_id,source_local_date', 'integer'],
+            'source_local_date' => ['nullable', 'required_with:schedule_id,schedule_slot_id', 'date_format:Y-m-d'],
             'reason' => ['nullable', 'string', 'max:1000'],
         ]);
         DB::transaction(function () use ($customerId, $cohort, $cohortRow, $session, $validated, $request): void {
@@ -458,8 +629,7 @@ class CourseCohortOperationController extends Controller
         int $cohortId,
         array $validated,
         string $scheduleErrorField = 'teacher_ids'
-    ): array
-    {
+    ): array {
         $teacherIds = collect($validated['teacher_ids'] ?? [])
             ->map(fn ($id): int => (int) $id)->values();
         if ($teacherIds->isEmpty()) {
@@ -483,11 +653,8 @@ class CourseCohortOperationController extends Controller
                 && (! $assignment->assigned_from || $startsOn->gte(Carbon::parse($assignment->assigned_from)->startOfDay()))
                 && (! $assignment->assigned_to || $endsOn->lte(Carbon::parse($assignment->assigned_to)->startOfDay()));
             if (! $available) {
-                $errorField = $scheduleErrorField === 'scheduled_start_at'
-                    ? $scheduleErrorField
-                    : 'teacher_ids';
                 throw ValidationException::withMessages([
-                    $errorField => __('lf.LF_course_cohort_session_teacher_unavailable'),
+                    $scheduleErrorField => __('lf.LF_course_cohort_session_teacher_unavailable'),
                 ]);
             }
 

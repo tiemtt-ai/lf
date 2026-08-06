@@ -179,8 +179,24 @@
                         </dd>
                     </div>
                     <div>
-                        <dt>{{ __('lf.LF_course_cohort_common_capacity') }}</dt>
-                        <dd><strong>{{ $activeMembershipCount }}/{{ $cohort->capacity ?? '∞' }}</strong></dd>
+                        <dt>{{ __('lf.LF_course_cohort_overview_students') }}</dt>
+                        <dd class="cohort-overview-capacity">
+                            <strong>{{ trans_choice('lf.LF_course_cohort_overview_students_count', $activeMembershipCount, ['current' => $activeMembershipCount]) }}</strong>
+                            @if ($cohort->capacity)
+                                <span>{{ __('lf.LF_course_cohort_overview_students_limit', ['capacity' => $cohort->capacity]) }}</span>
+                                @php($capacityPercentage = min(100, round(($activeMembershipCount / $cohort->capacity) * 100)))
+                                <span class="cohort-overview-capacity__track"
+                                      role="progressbar"
+                                      aria-valuemin="0"
+                                      aria-valuemax="{{ $cohort->capacity }}"
+                                      aria-valuenow="{{ $activeMembershipCount }}"
+                                      aria-label="{{ __('lf.LF_course_cohort_student_capacity_summary', ['current' => $activeMembershipCount, 'capacity' => $cohort->capacity]) }}">
+                                    <span style="width: {{ $capacityPercentage }}%"></span>
+                                </span>
+                            @else
+                                <span>{{ __('lf.LF_course_cohort_student_capacity_unlimited') }}</span>
+                            @endif
+                        </dd>
                     </div>
                 </dl>
 
@@ -191,25 +207,27 @@
                 </div>
             </section>
 
-            <section class="admin-form-standard-section cohort-overview-section" aria-labelledby="cohort-show-dates">
-                <header class="admin-form-section-header">
-                    <h2 id="cohort-show-dates" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_dates') }}</h2>
-                </header>
-                <dl class="cohort-overview-dates">
-                    <div><dt>{{ __('lf.LF_course_cohort_common_start_date') }}</dt><dd>{{ $cohort->start_date ? \Illuminate\Support\Carbon::parse($cohort->start_date)->format('d/m/Y') : '—' }}</dd></div>
-                    <div><dt>{{ __('lf.LF_course_cohort_common_end_date') }}</dt><dd>{{ $cohort->end_date ? \Illuminate\Support\Carbon::parse($cohort->end_date)->format('d/m/Y') : '—' }}</dd></div>
-                </dl>
-            </section>
+            <div class="cohort-overview-secondary-grid">
+                <section class="admin-form-standard-section cohort-overview-section" aria-labelledby="cohort-show-dates">
+                    <header class="admin-form-section-header">
+                        <h2 id="cohort-show-dates" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_dates') }}</h2>
+                    </header>
+                    <dl class="cohort-overview-dates">
+                        <div><dt>{{ __('lf.LF_course_cohort_common_start_date') }}</dt><dd>{{ $cohort->start_date ? \Illuminate\Support\Carbon::parse($cohort->start_date)->format('d/m/Y') : '—' }}</dd></div>
+                        <div><dt>{{ __('lf.LF_course_cohort_common_end_date') }}</dt><dd>{{ $cohort->end_date ? \Illuminate\Support\Carbon::parse($cohort->end_date)->format('d/m/Y') : '—' }}</dd></div>
+                    </dl>
+                </section>
 
-            <section class="admin-form-standard-section cohort-overview-section" aria-labelledby="cohort-show-additional">
-                <header class="admin-form-section-header">
-                    <h2 id="cohort-show-additional" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_additional') }}</h2>
-                </header>
-                <div class="cohort-overview-notes">
-                    <span>{{ __('lf.LF_course_cohort_common_notes') }}</span>
-                    <p>{{ $cohort->notes ?: __('lf.LF_course_cohort_empty_notes') }}</p>
-                </div>
-            </section>
+                <section class="admin-form-standard-section cohort-overview-section" aria-labelledby="cohort-show-additional">
+                    <header class="admin-form-section-header">
+                        <h2 id="cohort-show-additional" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_additional') }}</h2>
+                    </header>
+                    <div class="cohort-overview-notes">
+                        <span>{{ __('lf.LF_course_cohort_common_notes') }}</span>
+                        <p>{{ $cohort->notes ?: __('lf.LF_course_cohort_empty_notes') }}</p>
+                    </div>
+                </section>
+            </div>
         </div>
     </div>
     @elseif ($activeTab === 'students')

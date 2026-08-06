@@ -52,7 +52,11 @@ criteria hay không.
   — approved Cohort binding, lifecycle, membership and legacy migration review.
 * [LF-LiveClass-Cohort-Schedule-Architecture-Review.md](LF-LiveClass-Cohort-Schedule-Architecture-Review.md)
   — approved and frozen LiveClass recurring Cohort Schedule CRUD/Preview
-  review; Schedule-to-Session generation remains deferred.
+  review; its deferred explicit-confirmation boundary is superseded by the
+  Origin review below.
+* [LF-LiveClass-Schedule-Session-Origin-Architecture-Review.md](LF-LiveClass-Schedule-Session-Origin-Architecture-Review.md)
+  — approved and frozen immutable Schedule-occurrence to Session lineage,
+  atomic confirmation and legacy-classification review.
 * [LF-Bulk-Enrollment-Architecture-Review.md](LF-Bulk-Enrollment-Architecture-Review.md)
   — approved and frozen architecture review for Admin bulk Enrollment
   creation, re-enrollment and atomic-submission idempotency.
