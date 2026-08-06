@@ -1170,6 +1170,10 @@ class CourseCohortManagementTest extends TestCase
             ->assertSee('course-cohort-session-modal__schedule-source', false)
             ->assertSee('formatSessionDateTime(detailSession?.scheduled_start_at)', false)
             ->assertSee('activity_meeting_url', false)
+            ->assertSee('batchMeetingProvider(row)', false)
+            ->assertSee('batchMeetingUrl(row)', false)
+            ->assertSee('copyBatchMeetingLink(row)', false)
+            ->assertSeeText(__('lf.LF_course_cohort_session_join'))
             ->assertSee("'has-value': rescheduleStart", false)
             ->assertSee("'has-value': rescheduleEnd", false);
 
@@ -1409,7 +1413,7 @@ class CourseCohortManagementTest extends TestCase
             ->assertSee('selectedBatchCount()', false)
             ->assertSee('row.expanded = checked', false)
             ->assertSee('batchRows[0].expanded = !batchRows[0].expanded', false)
-            ->assertSee('x-show="batchRows[0].expanded"', false)
+            ->assertSee('!batchRows[0].consumed', false)
             ->assertSee('$el.indeterminate = selectedBatchCount() > 0', false)
             ->assertSeeText(__('lf.LF_course_cohort_session_batch_selected_count'))
             ->assertSeeText(__('lf.LF_course_cohort_session_batch_timezone', ['timezone' => 'Asia/Ho_Chi_Minh']))
@@ -1449,10 +1453,11 @@ class CourseCohortManagementTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")
             ->assertOk()
             ->assertSeeText(__('lf.LF_course_cohort_session_batch_created_state'))
-            ->assertSeeText(__('lf.LF_course_cohort_session_batch_created_reason'))
+            ->assertDontSeeText(__('lf.LF_course_cohort_session_batch_created_reason'))
             ->assertSee('course-cohort-session-table__date', false)
             ->assertSee('course-cohort-session-table__time', false)
-            ->assertSee('x-bind:disabled="batchRows[0].consumed"', false);
+            ->assertSee('x-bind:disabled="batchRows[0].consumed"', false)
+            ->assertSee('!batchRows[0].consumed', false);
         $sessionCount = DB::table('core_liveclass_sessions')->count();
         $this->actingAs($admin)
             ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", array_merge($originPayload, [
@@ -1525,7 +1530,11 @@ class CourseCohortManagementTest extends TestCase
                 ],
             ])->assertSessionHasNoErrors();
         $this->assertDatabaseCount('core_liveclass_session_schedule_origins', 3);
-        $this->assertDatabaseHas('core_liveclass_sessions', ['title' => 'Batch lesson 1']);
+        $this->assertDatabaseHas('core_liveclass_sessions', [
+            'title' => 'Batch lesson 1',
+            'online_provider' => 'Google Meet',
+            'meeting_url_snapshot' => 'https://meet.google.com/source-room',
+        ]);
         $this->assertDatabaseHas('core_liveclass_sessions', ['title' => 'Batch lesson 2']);
         $batchSessionId = (int) DB::table('core_liveclass_sessions')->where('title', 'Batch lesson 1')->value('id');
         $this->assertSame(2, DB::table('core_liveclass_session_teachers')

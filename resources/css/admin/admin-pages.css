@@ -1734,6 +1734,8 @@
 }
 
 .course-template-history-table tbody td {
+    font-size: 14px;
+    line-height: 1.5;
     transition: background-color .15s ease;
 }
 

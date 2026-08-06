@@ -774,6 +774,16 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertSame(5, $firstXpath->query(
             '//table[contains(@class, "course-template-history-table")]//thead/tr/th'
         )->length);
+        $this->assertSame(10, $firstXpath->query(
+            '//table[contains(@class, "course-template-history-table")]'
+            .'//form/button[contains(concat(" ", normalize-space(@class), " "), " admin-table-action-link ")]'
+            .'/*[local-name()="svg" and contains(concat(" ", normalize-space(@class), " "), " admin-action-menu__item-icon ")]'
+        )->length);
+        $historyCss = file_get_contents(resource_path('css/admin/admin-pages.css'));
+        $this->assertMatchesRegularExpression(
+            '/\.course-template-history-table tbody td\s*\{[^}]*font-size:\s*14px;[^}]*line-height:\s*1\.5;/s',
+            $historyCss
+        );
         $firstPage->assertSee('history_page=2', false)->assertSee('tab=history', false);
 
         $secondPage = $this->actingAs($admin)->get(

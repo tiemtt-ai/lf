@@ -411,7 +411,8 @@
                                                           data-lf-confirm-label="{{ __('lf.LF_course_template_duplicate_action') }}">
                                                         @csrf
                                                         <button type="submit"
-                                                                class="admin-link-button admin-text-action">
+                                                                class="admin-link-button admin-text-action admin-table-action-link">
+                                                            <x-admin-action-icon name="duplicate" />
                                                             {{ __('lf.LF_course_template_duplicate_action') }}
                                                         </button>
                                                     </form>

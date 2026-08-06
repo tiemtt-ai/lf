@@ -23,6 +23,7 @@
             'teacherIds' => array_map('strval', $old['teacher_ids'] ?? []),
             'teacherOpen' => false,
             'mode' => (string) ($old['delivery_mode'] ?? ''),
+            'meetingCopied' => false,
         ]);
     })->values();
     $batchTimezones = $plannedOccurrences->pluck('timezone')->filter()->unique()->values();
@@ -88,6 +89,17 @@
              this.syncTeacherAvailability()
          },
          batchActivities(row) { return this.activities.filter(item => String(item.version_lesson_id) === String(row.lessonId)) },
+         selectedBatchActivity(row) { return this.activities.find(item => String(item.id) === String(row.activityId)) || null },
+         batchMeetingUrl(row) { return this.selectedBatchActivity(row)?.live_class_url_snapshot || '' },
+         batchMeetingProvider(row) { return this.meetingProvider(this.batchMeetingUrl(row)) },
+         copyBatchMeetingLink(row) {
+             const url = this.batchMeetingUrl(row)
+             if (!url) return
+             navigator.clipboard.writeText(url).then(() => {
+                 row.meetingCopied = true
+                 setTimeout(() => row.meetingCopied = false, 1600)
+             })
+         },
          batchLessonChanged(row) { row.activityId = ''; const lesson = this.lessons.find(item => String(item.id) === String(row.lessonId)); row.title = lesson?.title_snapshot || '' },
          batchSelectableTeachers(row) {
              return this.teachers.filter(teacher => (!teacher.assigned_from || row.date >= teacher.assigned_from) && (!teacher.assigned_to || row.date <= teacher.assigned_to))
@@ -99,7 +111,7 @@
          },
          resetBatchRow(row) {
              row.title = ''; row.lessonId = ''; row.activityId = ''; row.teacherIds = []
-             row.teacherOpen = false; row.mode = ''; row.hasError = false
+             row.teacherOpen = false; row.mode = ''; row.hasError = false; row.meetingCopied = false
          },
          toggleBatchRow(row, checked) {
              row.selected = checked
@@ -316,11 +328,12 @@
                                     <button id="batch_occurrence_trigger_{{ $index }}" type="button"
                                             class="course-cohort-session-batch-item__trigger"
                                             x-bind:aria-expanded="batchRows[{{ $index }}].expanded.toString()"
+                                            x-bind:disabled="batchRows[{{ $index }}].consumed"
                                             aria-controls="batch_occurrence_panel_{{ $index }}"
-                                            x-on:click="batchRows[{{ $index }}].expanded = !batchRows[{{ $index }}].expanded">
+                                            x-on:click="if (!batchRows[{{ $index }}].consumed) batchRows[{{ $index }}].expanded = !batchRows[{{ $index }}].expanded">
                                         <span class="course-cohort-session-batch-item__date">
                                             <strong>{{ \Illuminate\Support\Carbon::parse($occurrence['date'])->format('d/m/Y') }}</strong>
-                                            <span>{{ \Illuminate\Support\Carbon::parse($occurrence['date'])->translatedFormat('l') }}</span>
+                                            <span>{{ \Illuminate\Support\Str::ucfirst(\Illuminate\Support\Carbon::parse($occurrence['date'])->translatedFormat('l')) }}</span>
                                             <span>{{ $occurrence['start_time'] }}–{{ $occurrence['end_time'] }}</span>
                                         </span>
                                         <span class="course-cohort-session-batch-item__meta">
@@ -332,16 +345,13 @@
                                             <small class="course-cohort-session-batch-item__hint" x-show="batchRowHint(batchRows[{{ $index }}])" x-text="batchRowHint(batchRows[{{ $index }}])"></small>
                                         </span>
                                         <span class="course-cohort-session-batch-item__state" x-text="batchRowState(batchRows[{{ $index }}])"></span>
-                                        <span class="course-cohort-session-batch-item__chevron" aria-hidden="true"></span>
+                                        <span class="course-cohort-session-batch-item__chevron" x-show="!batchRows[{{ $index }}].consumed" aria-hidden="true"></span>
                                     </button>
                                 </div>
-                                @if($occurrence['consumed'])
-                                    <p class="course-cohort-session-batch-item__disabled-reason">{{ __('lf.LF_course_cohort_session_batch_created_reason') }}</p>
-                                @endif
 
                                 <div id="batch_occurrence_panel_{{ $index }}" class="course-cohort-session-batch-item__form"
                                      role="region" aria-labelledby="batch_occurrence_trigger_{{ $index }}"
-                                     x-show="batchRows[{{ $index }}].expanded" x-cloak>
+                                     x-show="!batchRows[{{ $index }}].consumed && batchRows[{{ $index }}].expanded" x-cloak>
                                     <div class="course-cohort-session-batch-item__form-heading">
                                         <strong>{{ __('lf.LF_course_cohort_session_batch_configuration') }}</strong>
                                         <button type="button" class="admin-text-action course-cohort-session-batch-item__reset" x-show="batchRowHasDraft(batchRows[{{ $index }}])" x-cloak x-on:click="resetBatchRow(batchRows[{{ $index }}])" aria-label="{{ __('lf.LF_course_cohort_session_batch_reset_occurrence', ['date' => \Illuminate\Support\Carbon::parse($occurrence['date'])->format('d/m/Y')]) }}">{{ __('lf.LF_course_cohort_session_batch_reset_configuration') }}</button>
@@ -405,6 +415,45 @@
                                         <select id="batch_mode_{{ $index }}" class="lf-form-control" x-model="batchRows[{{ $index }}].mode" x-bind:disabled="!batchRows[{{ $index }}].selected" @error("occurrences.$index.delivery_mode") aria-invalid="true" aria-describedby="batch_mode_error_{{ $index }}" @enderror><option value="">{{ __('lf.LF_course_cohort_session_select_mode') }}</option>@foreach(['online','offline','hybrid'] as $deliveryMode)<option value="{{ $deliveryMode }}">{{ __('lf.LF_course_cohort_session_mode_'.$deliveryMode) }}</option>@endforeach</select>
                                         @error("occurrences.$index.delivery_mode")<p id="batch_mode_error_{{ $index }}" class="lf-form-error" role="alert">{{ $message }}</p>@enderror
                                     </div>
+                                    <div class="lf-form-group"
+                                         x-show="batchRows[{{ $index }}].mode === 'online' || batchRows[{{ $index }}].mode === 'hybrid'"
+                                         x-cloak>
+                                        <label class="lf-form-label" for="batch_provider_{{ $index }}">{{ __('lf.LF_course_cohort_session_provider') }}</label>
+                                        <input id="batch_provider_{{ $index }}" class="lf-form-control" readonly
+                                               x-bind:value="batchMeetingProvider(batchRows[{{ $index }}])"
+                                               placeholder="{{ __('lf.LF_course_cohort_session_meeting_not_available') }}">
+                                    </div>
+                                    <div class="lf-form-group"
+                                         x-show="batchRows[{{ $index }}].mode === 'online' || batchRows[{{ $index }}].mode === 'hybrid'"
+                                         x-cloak>
+                                        <label class="lf-form-label" for="batch_meeting_url_{{ $index }}">{{ __('lf.LF_course_cohort_session_meeting_url') }}</label>
+                                        <div class="course-cohort-session-batch-meeting-link">
+                                            <div class="course-cohort-session-copy-control">
+                                                <input id="batch_meeting_url_{{ $index }}" type="url" class="lf-form-control" readonly
+                                                       x-bind:value="batchMeetingUrl(batchRows[{{ $index }}])"
+                                                       placeholder="{{ __('lf.LF_course_cohort_session_meeting_not_available') }}">
+                                                <button type="button" class="admin-copy-action course-cohort-session-copy-control__button"
+                                                        x-show="batchMeetingUrl(batchRows[{{ $index }}])"
+                                                        x-on:click="copyBatchMeetingLink(batchRows[{{ $index }}])"
+                                                        x-bind:class="{ 'is-copied': batchRows[{{ $index }}].meetingCopied }"
+                                                        x-bind:title="batchRows[{{ $index }}].meetingCopied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_session_copy_meeting_url'))"
+                                                        x-bind:aria-label="batchRows[{{ $index }}].meetingCopied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_session_copy_meeting_url'))">
+                                                    <span x-show="!batchRows[{{ $index }}].meetingCopied"><x-backend-icon name="copy" /></span>
+                                                    <span x-cloak x-show="batchRows[{{ $index }}].meetingCopied"><x-backend-icon name="check" /></span>
+                                                </button>
+                                            </div>
+                                            <a class="btn btn-secondary course-cohort-session-open-link"
+                                               x-show="batchMeetingUrl(batchRows[{{ $index }}])"
+                                               x-bind:href="batchMeetingUrl(batchRows[{{ $index }}])"
+                                               target="_blank" rel="noopener noreferrer">
+                                                <x-backend-icon name="external-link" />
+                                                {{ __('lf.LF_course_cohort_session_join') }}
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <p class="course-cohort-session-batch-meeting-help"
+                                       x-show="batchRows[{{ $index }}].mode === 'online' || batchRows[{{ $index }}].mode === 'hybrid'"
+                                       x-cloak>{{ __('lf.LF_course_cohort_session_curriculum_meeting_help') }}</p>
                                 </div>
                             </article>
                         @endforeach
@@ -754,7 +803,7 @@
                             <dt>{{ __('lf.LF_course_cohort_session_meeting_url') }}</dt>
                             <dd><a class="admin-text-action course-cohort-session-modal__join-link"
                                    x-bind:href="detailSession?.meeting_url_snapshot || detailSession?.activity_meeting_url"
-                                   target="_blank" rel="noopener noreferrer">{{ __('lf.LF_course_cohort_session_join') }}</a></dd>
+                                   target="_blank" rel="noopener noreferrer"><x-backend-icon name="external-link" />{{ __('lf.LF_course_cohort_session_join') }}</a></dd>
                         </div>
                         <div x-show="detailSession?.room_name_snapshot"><dt>{{ __('lf.LF_course_cohort_session_room') }}</dt><dd x-text="detailSession?.room_name_snapshot"></dd></div>
                         <div x-show="detailSession?.address_snapshot"><dt>{{ __('lf.LF_course_cohort_session_address') }}</dt><dd x-text="detailSession?.address_snapshot"></dd></div>

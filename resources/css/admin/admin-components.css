@@ -5580,13 +5580,6 @@
     cursor: default;
 }
 
-.course-cohort-session-batch-item__disabled-reason {
-    margin: -7px 16px 12px 48px;
-    color: var(--admin-text-muted);
-    font-size: 12px;
-    line-height: 1.4;
-}
-
 .course-cohort-session-batch-item__form {
     padding: 16px 44px 18px;
     display: grid;
@@ -5628,6 +5621,37 @@
     font-size: 13px;
     font-weight: 600;
     line-height: 1.35;
+}
+
+.course-cohort-session-batch-meeting-link {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+}
+
+.course-cohort-session-batch-meeting-link .btn {
+    min-height: 40px;
+    padding-inline: 14px;
+    white-space: nowrap;
+}
+
+.course-cohort-session-open-link {
+    gap: 6px;
+}
+
+.course-cohort-session-open-link .backend-sidebar-icon,
+.course-cohort-session-modal__join-link .backend-sidebar-icon {
+    width: 17px;
+    height: 17px;
+    flex: 0 0 auto;
+}
+
+.course-cohort-session-batch-meeting-help {
+    grid-column: 1 / -1;
+    margin: -4px 0 0;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    line-height: 1.5;
 }
 
 .course-cohort-session-batch-item__reset {
@@ -5814,6 +5838,10 @@
         grid-template-columns: minmax(0, 1fr);
     }
 
+    .course-cohort-session-batch-meeting-help {
+        grid-column: auto;
+    }
+
 }
 
 @media (max-width: 575.98px) {
@@ -5843,6 +5871,10 @@
 
     .course-cohort-session-batch-item__form {
         padding: 16px;
+    }
+
+    .course-cohort-session-batch-meeting-link {
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 
@@ -6487,6 +6519,7 @@
 .course-cohort-session-modal__join-link {
     display: inline-flex;
     align-items: center;
+    gap: 6px;
     font-weight: 700;
 }
 
@@ -6894,7 +6927,8 @@
     min-height: 250px;
 }
 
-.course-cohort-session-copy-control {
+.course-cohort-session-copy-control,
+.admin-copy-control {
     position: relative;
 }
 
@@ -6916,11 +6950,13 @@
     opacity: 1;
 }
 
-.course-cohort-session-copy-control .lf-form-control {
+.course-cohort-session-copy-control .lf-form-control,
+.admin-copy-control .lf-form-control {
     padding-right: 48px;
 }
 
-.course-cohort-session-copy-control__button {
+.course-cohort-session-copy-control__button,
+.admin-copy-control__button {
     position: absolute;
     top: 50%;
     right: 8px;

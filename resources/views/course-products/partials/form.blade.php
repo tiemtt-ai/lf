@@ -308,9 +308,32 @@
                         <x-form-label for="slug" :value="__('lf.LF_course_product_common_slug')" />
                         <span class="admin-form-label-metadata">{{ __('lf.LF_product_v2_automatic') }}</span>
                     </div>
-                    <input id="slug" name="slug" class="lf-form-control admin-form-readonly" readonly x-model="generatedSlug" placeholder="{{ __('lf.LF_product_v2_generated_slug') }}">
+                    <div class="admin-copy-control" x-data="{ copied: false }">
+                        <input id="slug" name="slug" class="lf-form-control admin-form-readonly" readonly x-model="generatedSlug" placeholder="{{ __('lf.LF_product_v2_generated_slug') }}">
+                        <button type="button" class="admin-copy-action admin-copy-control__button"
+                                x-show="generatedSlug" x-on:click="navigator.clipboard.writeText(generatedSlug).then(() => { copied = true; setTimeout(() => copied = false, 1600) })"
+                                x-bind:class="{ 'is-copied': copied }"
+                                x-bind:title="copied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_product_v2_copy_slug'))"
+                                x-bind:aria-label="copied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_product_v2_copy_slug'))">
+                            <span x-show="!copied"><x-backend-icon name="copy" /></span><span x-cloak x-show="copied"><x-backend-icon name="check" /></span>
+                        </button>
+                    </div>
                 </div>
-                @if($formProduct)<div class="lf-form-group"><x-form-label for="product_code" :value="__('lf.LF_course_product_common_product_code')" /><input id="product_code" class="lf-form-control admin-form-readonly course-product-code-control" readonly value="{{ $formProduct->product_code }}"></div>@endif
+                @if($formProduct)
+                    <div class="lf-form-group" x-data="{ copied: false }">
+                        <x-form-label for="product_code" :value="__('lf.LF_course_product_common_product_code')" />
+                        <div class="admin-copy-control">
+                            <input id="product_code" class="lf-form-control admin-form-readonly course-product-code-control" readonly value="{{ $formProduct->product_code }}">
+                            <button type="button" class="admin-copy-action admin-copy-control__button"
+                                    x-on:click="navigator.clipboard.writeText(@js($formProduct->product_code)).then(() => { copied = true; setTimeout(() => copied = false, 1600) })"
+                                    x-bind:class="{ 'is-copied': copied }"
+                                    x-bind:title="copied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_product_v2_copy_code'))"
+                                    x-bind:aria-label="copied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_product_v2_copy_code'))">
+                                <span x-show="!copied"><x-backend-icon name="copy" /></span><span x-cloak x-show="copied"><x-backend-icon name="check" /></span>
+                            </button>
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
     </section>

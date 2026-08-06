@@ -10,6 +10,10 @@
             <path d="m4 16.5-.8 4.3 4.3-.8L19 8.5 15.5 5 4 16.5Z" />
             <path d="m13.8 6.7 3.5 3.5" />
             @break
+        @case('duplicate')
+            <rect x="8" y="8" width="11" height="11" rx="2" />
+            <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+            @break
         @case('delete')
             <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" />
             @break

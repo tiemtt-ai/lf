@@ -381,9 +381,14 @@ class CourseProductManagementTest extends TestCase
             ->assertDontSee('name="product_code"', false)
             ->assertSee('id="product_code"', false)
             ->assertSee('value="TOPIK"', false)
+            ->assertSee('admin-copy-control__button', false)
+            ->assertSee('navigator.clipboard.writeText(generatedSlug)', false)
             ->assertSee('name="slug"', false)
             ->assertSee('readonly', false)
             ->assertSeeText('TOPIK');
+
+        $this->assertSame('Sao chép mã sản phẩm', __('lf.LF_product_v2_copy_code'));
+        $this->assertSame('Sao chép đường dẫn', __('lf.LF_product_v2_copy_slug'));
     }
 
     public function test_product_v2_custom_media_ui_restores_source_and_uses_template_media_structure(): void
