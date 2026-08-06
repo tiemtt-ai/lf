@@ -41,7 +41,7 @@
                                 <td>{{ $item['student_name'] }}</td>
                                 <td>
                                     <strong class="bulk-enrollment-review-product">{{ $item['product_title'] }}</strong>
-                                    @if ($itemTimeWindows)
+                                    @if (($itemTimeWindows['access_duration_days'] ?? null) !== null)
                                         <dl class="bulk-enrollment-product-window">
                                             <div>
                                                 <dt>{{ __('lf.LF_bulk_enrollment_access_time') }}</dt>
@@ -364,7 +364,7 @@
                             <td x-text="pair.student_name"></td>
                             <td>
                                 <strong class="bulk-enrollment-review-product" x-text="pair.product_title"></strong>
-                                <dl x-show="pair.time_windows" class="bulk-enrollment-product-window">
+                                <dl x-show="pair.time_windows?.access_duration_days != null" class="bulk-enrollment-product-window">
                                     <div>
                                         <dt>{{ __('lf.LF_bulk_enrollment_access_time') }}</dt>
                                         <dd>

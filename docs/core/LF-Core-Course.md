@@ -982,8 +982,10 @@ blocked until the operator changes `enrolled_at` or removes that Product. The
 backend remains authoritative and repeats the same validation during preflight
 and commit/save to cover stale clients and concurrent Product changes.
 
-For a Product with a valid positive `access_duration_days`, creation freezes
-both the duration inputs and the resulting access window on Enrollment:
+Duration projection branches by the Product's authoritative `offering_type`.
+For `self_paced_course`, `access_duration_days` must be a positive integer.
+Creation freezes both duration inputs and the resulting access window on
+Enrollment:
 
 ```text
 Enrollment.access_duration_days = Product.access_duration_days
@@ -992,12 +994,9 @@ Enrollment.review_duration_days = Product.review_duration_days
 ```
 
 These Enrollment fields are immutable historical snapshots. Product duration
-changes must never update them. New Enrollments must store both duration
-snapshots together with the calculated timestamps. The snapshot columns are
-nullable only for compatibility with legacy Enrollments created before this
-policy; a newly created Enrollment must have a positive
-`access_duration_days`, while `review_duration_days` may be `NULL`, `0`, or a
-positive integer according to the Product contract.
+changes must never update them. A new self-paced Enrollment must have a
+positive `access_duration_days`; `review_duration_days` may be `NULL`, `0`, or
+a positive integer according to the Product contract.
 
 The access window is calculated as:
 
@@ -1034,6 +1033,18 @@ Class or expected-session counts must never be used as duration inputs.
 Clients may preview these values but cannot submit authoritative duration or
 computed timestamps; the backend resolves Product duration and calculates the
 final Enrollment values.
+
+For `live_online_course`, Product and Enrollment store both duration fields as
+`NULL`; `access_starts_at`, `access_ends_at`, `review_starts_at`, and
+`review_ends_at` are also `NULL`. Enrollment creation does not reject that
+state and expiry automation must not interpret it as expired. The system must
+not infer live duration from Lessons, Live Class Activities, Sessions,
+Schedules, or Cohort dates. Runtime access still requires an active Enrollment
+and all applicable Cohort, Session, and LiveClass authorization checks.
+
+All Enrollment creation sources use this same offering-aware backend policy.
+This includes admin single and bulk workflows and any self-registration,
+purchase, import, or API source.
 
 The stored Enrollment duration snapshots and timestamps are historical frozen
 results. Later changes to Product duration, Product Version or Product

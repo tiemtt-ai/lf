@@ -4699,13 +4699,13 @@
     text-align: center;
 }
 
-.course-cohort-schedules__actions {
-    text-align: right;
+.lf-admin-page .course-cohort-schedules__table .course-cohort-schedules__actions {
+    text-align: center;
 }
 
-.course-cohort-schedules__table th:last-child,
-.course-cohort-schedules__table td:last-child {
-    text-align: right;
+.lf-admin-page .course-cohort-schedules__table th:last-child,
+.lf-admin-page .course-cohort-schedules__table td:last-child {
+    text-align: center;
 }
 
 .course-cohort-schedules__table tbody tr:last-child .course-cohort-session-action-menu__panel {

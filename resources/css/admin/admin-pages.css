@@ -3056,7 +3056,7 @@
     transform: translateY(-50%);
 }
 
-.bulk-enrollment-search .lf-form-control {
+.lf-admin-page .admin-form-standard .bulk-enrollment-search .lf-form-control {
     min-height: 44px;
     margin: 0;
     padding: 0.65rem 2.5rem 0.65rem 2.5rem;
@@ -3435,7 +3435,12 @@
 }
 
 .bulk-enrollment-confirmation__summary strong {
-    font-size: 1rem;
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.bulk-enrollment-confirmation__summary .admin-text-action {
+    font-size: 14px;
     line-height: 1.4;
 }
 
@@ -3447,6 +3452,12 @@
 .bulk-enrollment-confirmation .bulk-enrollment-review-table td {
     padding-top: 10px;
     padding-bottom: 10px;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.bulk-enrollment-confirmation .bulk-enrollment-review-table th {
+    font-weight: 600;
 }
 
 .bulk-enrollment-confirmation .bulk-enrollment-review-table__number {
@@ -3477,7 +3488,9 @@
 .bulk-enrollment-review-product {
     display: block;
     color: var(--admin-text);
+    font-size: 14px;
     font-weight: 600;
+    line-height: 1.45;
 }
 
 .bulk-enrollment-product-window {
@@ -3527,7 +3540,7 @@
     align-items: center;
     padding: 0.2rem 0.55rem;
     border-radius: 999px;
-    font-size: 0.78rem;
+    font-size: 12px;
     font-weight: 600;
     line-height: 1.35;
 }
@@ -4537,6 +4550,10 @@
 .bulk-enrollment-wizard-section > .admin-form-section-header .admin-form-section-title {
     font-size: 1.05rem;
     line-height: 1.35;
+}
+
+.bulk-enrollment-wizard-section > .admin-form-section-header #bulk-setup-title {
+    font-size: 16px;
 }
 
 .bulk-enrollment-wizard-section > .admin-form-section-header .admin-form-section-help {

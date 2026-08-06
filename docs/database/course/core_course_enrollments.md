@@ -121,8 +121,10 @@ core_course_progress
   promotion, import hoặc api.
 * Enrollment quyết định quyền truy cập học tập.
 * Product quyết định nội dung, giá, thời hạn học và quyền truy cập.
-* Enrollment mới snapshot `access_duration_days` và
+* Enrollment self-paced mới snapshot `access_duration_days` và
   `review_duration_days` từ Product tại thời điểm tạo.
+* Enrollment live mới lưu hai duration snapshot và bốn timestamp phát sinh từ
+  duration là `NULL`.
 * Product đổi duration không được cập nhật duration snapshot hoặc timestamp
   của historical Enrollment.
 * Enrollment legacy có duration snapshot `NULL` giữ nguyên timestamp và không
@@ -328,8 +330,9 @@ NULL
 
 Snapshot thời hạn truy cập của Product tại thời điểm tạo Enrollment.
 
-Enrollment mới bắt buộc có giá trị lớn hơn `0`. `NULL` chỉ dùng để tương thích
-Enrollment legacy và không được backfill từ Product hiện tại.
+Enrollment `self_paced_course` mới bắt buộc có giá trị lớn hơn `0`.
+Enrollment `live_online_course` mới bắt buộc lưu `NULL`; đây là trạng thái
+Foundation hợp lệ, không chỉ là tương thích legacy.
 
 Giá trị không thay đổi khi Product thay đổi. Khi một workflow được phép đổi
 `enrolled_at`, hệ thống dùng snapshot này để tính lại `access_ends_at`.
@@ -345,8 +348,9 @@ NULL
 
 Snapshot thời hạn ôn tập của Product tại thời điểm tạo Enrollment.
 
-Giá trị hợp lệ là `NULL`, `0` hoặc số nguyên dương theo Product contract.
-`NULL` trên Enrollment legacy không được suy diễn từ Product hiện tại.
+Với self-paced, giá trị hợp lệ là `NULL`, `0` hoặc số nguyên dương theo Product
+contract. Với live online, giá trị bắt buộc là `NULL`. `NULL` không được suy
+diễn từ Cohort, Schedule, Session, Lesson hoặc Product hiện tại.
 
 Giá trị không thay đổi khi Product thay đổi. Khi một workflow được phép đổi
 `enrolled_at`, hệ thống dùng snapshot này để tính lại chuỗi thời gian ôn tập.

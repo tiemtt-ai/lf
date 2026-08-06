@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Services\CourseEnrollmentLifecycleService;
+use App\Services\EnrollmentCreationAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -770,6 +771,10 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertStringContainsString('width: min(720px, 100%);', $transferCss);
         $this->assertStringContainsString('justify-items: center;', $transferCss);
         $this->assertStringContainsString('margin: 0 auto 18px;', $transferCss);
+        $this->assertMatchesRegularExpression('/#bulk-setup-title\s*\{[^}]*font-size:\s*16px;/s', $transferCss);
+        $this->assertMatchesRegularExpression('/\.bulk-enrollment-confirmation__summary strong\s*\{[^}]*font-size:\s*15px;/s', $transferCss);
+        $this->assertMatchesRegularExpression('/\.bulk-enrollment-confirmation \.bulk-enrollment-review-table th,\s*\.bulk-enrollment-confirmation \.bulk-enrollment-review-table td\s*\{[^}]*font-size:\s*14px;/s', $transferCss);
+        $this->assertMatchesRegularExpression('/\.bulk-enrollment-pair-status\s*\{[^}]*font-size:\s*12px;/s', $transferCss);
         $this->assertLessThan(strpos($html, 'class="admin-card admin-form-card admin-form-surface"'), strpos($html, 'class="bulk-enrollment-stepper"'));
         $this->assertLessThan(
             strpos($html, 'class="admin-table-wrap bulk-enrollment-review-table"'),
@@ -1582,6 +1587,149 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertFalse($policy->allowsLearningAccessAt($enrollment, Carbon::parse('2026-08-03 00:00:00')));
     }
 
+    public function test_offering_aware_policy_rejects_invalid_self_paced_and_allows_live_with_null_windows_in_single_and_bulk(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $singleStudent = $this->createUser($customerId, 'student');
+        $bulkStudent = $this->createUser($customerId, 'student');
+        $outsideStudent = $this->createUser($customerId, 'student');
+
+        $selfPacedId = $this->createProduct($customerId, 'Invalid Self Paced', 'invalid-self-paced');
+        $selfPacedVersionId = $this->createVersion($customerId, $admin->id);
+        $this->createProductItem($customerId, $selfPacedId, $selfPacedVersionId);
+        DB::table('core_course_products')->where('id', $selfPacedId)->update([
+            'offering_type' => 'self_paced_course',
+            'access_duration_days' => null,
+        ]);
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
+            'student_id' => $singleStudent->id,
+            'product_id' => $selfPacedId,
+            'enrolled_at' => '2026-08-10 09:00:00',
+        ])->assertSessionHasErrors('product_id');
+
+        $liveId = $this->createProduct($customerId, 'Live Product', 'live-product');
+        $liveVersionId = $this->createVersion($customerId, $admin->id);
+        $this->createProductItem($customerId, $liveId, $liveVersionId);
+        DB::table('core_course_template_versions')->where('id', $liveVersionId)->update([
+            'lesson_count_snapshot' => 99,
+            'estimated_lesson_count_snapshot' => 120,
+        ]);
+        DB::table('core_course_products')->where('id', $liveId)->update([
+            'offering_type' => 'live_online_course',
+            'access_duration_days' => null,
+            'review_duration_days' => null,
+            'registration_starts_at' => '2026-08-01 00:00:00',
+            'registration_ends_at' => '2026-08-31 23:59:59',
+        ]);
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
+            'student_id' => $singleStudent->id,
+            'product_id' => $liveId,
+            'enrolled_at' => '2026-08-10 09:00:00',
+        ])->assertRedirect();
+
+        $singleEnrollment = DB::table('core_course_enrollments')
+            ->where('student_id', $singleStudent->id)->where('product_id', $liveId)->first();
+        $this->assertSame($liveVersionId, (int) $singleEnrollment->version_id);
+        foreach ([
+            'access_duration_days', 'review_duration_days',
+            'access_starts_at', 'access_ends_at', 'review_starts_at', 'review_ends_at',
+        ] as $field) {
+            $this->assertNull($singleEnrollment->{$field}, $field.' must remain null for live enrollment');
+        }
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-enrollments/'.$singleEnrollment->id.'/edit')
+            ->assertOk()
+            ->assertSee('name="enrolled_at"', false)
+            ->assertDontSeeText(__('lf.LF_course_enrollment_legacy_duration_missing'));
+        $this->actingAs($admin)->put(
+            'https://tenant-a.localhost/admin/course-enrollments/'.$singleEnrollment->id,
+            ['enrolled_at' => '2026-08-11 09:00:00']
+        )->assertRedirect();
+        $reprojectedLive = DB::table('core_course_enrollments')->where('id', $singleEnrollment->id)->first();
+        $this->assertSame($liveVersionId, (int) $reprojectedLive->version_id);
+        $this->assertSame('2026-08-11 09:00:00', $reprojectedLive->enrolled_at);
+        foreach ([
+            'access_duration_days', 'review_duration_days',
+            'access_starts_at', 'access_ends_at', 'review_starts_at', 'review_ends_at',
+        ] as $field) {
+            $this->assertNull($reprojectedLive->{$field});
+        }
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
+            'student_id' => $outsideStudent->id,
+            'product_id' => $liveId,
+            'enrolled_at' => '2026-09-01 00:00:00',
+        ])->assertSessionHasErrors('product_id');
+
+        $configuration = $this->bulkConfiguration(['enrolled_at' => '2026-08-10 09:00:00']);
+        $preflight = $this->actingAs($admin)->postJson('https://tenant-a.localhost/admin/course-enrollments/bulk/preflight', [
+            'student_ids' => [$bulkStudent->id],
+            'product_ids' => [$liveId],
+            'reenrollment_confirmations' => [],
+            'configuration' => $configuration,
+        ])->assertOk()->assertJson(['valid' => true]);
+        foreach ([
+            'access_duration_days', 'review_duration_days',
+            'access_starts_at', 'access_ends_at', 'review_starts_at', 'review_ends_at',
+        ] as $field) {
+            $this->assertNull($preflight->json('pairs.0.time_windows.'.$field));
+        }
+
+        $token = $this->prepareBulkSubmission($admin, [$bulkStudent->id], [$liveId], [], $configuration);
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-enrollments/bulk',
+            $this->bulkStoreData([$bulkStudent->id], [$liveId], $token, [], $configuration)
+        )->assertRedirect();
+        $bulkEnrollment = DB::table('core_course_enrollments')
+            ->where('student_id', $bulkStudent->id)->where('product_id', $liveId)->first();
+        $this->assertSame($liveVersionId, (int) $bulkEnrollment->version_id);
+        $this->assertNull($bulkEnrollment->access_duration_days);
+        $this->assertNull($bulkEnrollment->access_ends_at);
+
+        $policySource = file_get_contents(app_path('Services/CourseEnrollmentLifecycleService.php'));
+        foreach (['core_course_cohorts', 'core_liveclass_', 'core_course_template_version_lessons'] as $forbiddenSource) {
+            $this->assertStringNotContainsString($forbiddenSource, $policySource);
+        }
+    }
+
+    public function test_all_creation_sources_use_the_same_live_duration_policy(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $liveId = $this->createProduct($customerId, 'Shared Live Policy', 'shared-live-policy');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $this->createProductItem($customerId, $liveId, $versionId);
+        DB::table('core_course_products')->where('id', $liveId)->update([
+            'offering_type' => 'live_online_course',
+            'access_duration_days' => null,
+            'review_duration_days' => null,
+        ]);
+
+        $creation = app(EnrollmentCreationAction::class);
+        foreach (['admin', 'teacher', 'self_registration', 'purchase', 'promotion', 'import', 'api'] as $source) {
+            $student = $this->createUser($customerId, 'student');
+            $enrollmentId = $creation->create($customerId, $admin->id, [
+                'student_id' => $student->id,
+                'product_id' => $liveId,
+                'enrolled_at' => '2026-08-10 09:00:00',
+            ], $source, 1000 + $student->id);
+            $enrollment = DB::table('core_course_enrollments')->where('id', $enrollmentId)->first();
+
+            $this->assertSame($source, $enrollment->source);
+            $this->assertSame($versionId, (int) $enrollment->version_id);
+            foreach ([
+                'access_duration_days', 'review_duration_days',
+                'access_starts_at', 'access_ends_at', 'review_starts_at', 'review_ends_at',
+            ] as $field) {
+                $this->assertNull($enrollment->{$field}, $source.' must use the shared live policy');
+            }
+        }
+    }
+
     public function test_selected_enrollment_date_snapshots_durations_and_edit_reprojects_from_snapshots(): void
     {
         $this->assertTrue(Schema::hasColumns('core_course_enrollments', [
@@ -2001,6 +2149,7 @@ class CourseEnrollmentManagementTest extends TestCase
             'customer_id' => $customerId,
             'product_code' => strtoupper($slug),
             'product_type' => 'single_course',
+            'offering_type' => 'self_paced_course',
             'title' => $title,
             'slug' => $slug,
             'short_description' => null,

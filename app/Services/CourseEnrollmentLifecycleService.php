@@ -9,6 +9,8 @@ use Illuminate\Validation\ValidationException;
 
 class CourseEnrollmentLifecycleService
 {
+    private const SELF_PACED_OFFERING = 'self_paced_course';
+
     private const BULK_ACTIONS = [
         'suspend' => ['target' => 'suspended', 'sources' => ['active']],
         'reactivate' => ['target' => 'active', 'sources' => ['suspended']],
@@ -29,6 +31,7 @@ class CourseEnrollmentLifecycleService
             ->where('id', $productId)
             ->when($lock, fn ($query) => $query->lockForUpdate())
             ->first([
+                'offering_type',
                 'registration_starts_at', 'registration_ends_at',
                 'access_duration_days', 'review_duration_days',
             ]);
@@ -38,8 +41,9 @@ class CourseEnrollmentLifecycleService
 
         $this->assertRegistrationWindow($product, $enrolledAt);
 
-        return $this->projectFromDurations(
+        return $this->projectFromOffering(
             $enrolledAt,
+            $product->offering_type,
             $product->access_duration_days,
             $product->review_duration_days,
         );
@@ -47,18 +51,12 @@ class CourseEnrollmentLifecycleService
 
     public function reprojectEnrollment(object $enrollment, CarbonInterface $enrolledAt): array
     {
-        if ($enrollment->access_duration_days === null) {
-            throw ValidationException::withMessages([
-                'enrolled_at' => __('lf.LF_course_enrollment_legacy_duration_missing'),
-            ]);
-        }
-
         $product = DB::table('core_course_products')
             ->where('customer_id', $enrollment->customer_id)
             ->where('id', $enrollment->product_id)
             ->where('status', 'active')
             ->lockForUpdate()
-            ->first(['registration_starts_at', 'registration_ends_at']);
+            ->first(['offering_type', 'registration_starts_at', 'registration_ends_at']);
         if (! $product) {
             throw ValidationException::withMessages(['enrolled_at' => __('lf.LF_course_enrollment_validation_product')]);
         }
@@ -92,11 +90,45 @@ class CourseEnrollmentLifecycleService
 
         $this->assertRegistrationWindow($product, $enrolledAt, 'enrolled_at');
 
-        return $this->projectFromDurations(
+        if ($product->offering_type === self::SELF_PACED_OFFERING
+            && $enrollment->access_duration_days === null) {
+            throw ValidationException::withMessages([
+                'enrolled_at' => __('lf.LF_course_enrollment_legacy_duration_missing'),
+            ]);
+        }
+
+        return $this->projectFromOffering(
             $enrolledAt,
+            $product->offering_type,
             $enrollment->access_duration_days,
             $enrollment->review_duration_days,
             'enrolled_at',
+        );
+    }
+
+    private function projectFromOffering(
+        CarbonInterface $enrolledAt,
+        mixed $offeringType,
+        mixed $accessDuration,
+        mixed $reviewDuration,
+        string $field = 'product_id',
+    ): array {
+        if ($offeringType !== self::SELF_PACED_OFFERING) {
+            return [
+                'access_starts_at' => null,
+                'access_ends_at' => null,
+                'review_starts_at' => null,
+                'review_ends_at' => null,
+                'access_duration_days' => null,
+                'review_duration_days' => null,
+            ];
+        }
+
+        return $this->projectFromDurations(
+            $enrolledAt,
+            $accessDuration,
+            $reviewDuration,
+            $field,
         );
     }
 

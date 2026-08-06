@@ -1,10 +1,10 @@
 # Table: core_course_products
 
-Version: 1.4
+Version: 1.5
 
 Status: Official Foundation
 
-Last Updated: 2026-07
+Last Updated: 2026-08
 
 ---
 
@@ -483,7 +483,12 @@ Ví dụ:
 * 180
 * 365
 
-NULL = không giới hạn.
+Field này chỉ active khi `offering_type = self_paced_course`; khi đó giá trị
+bắt buộc là số nguyên lớn hơn hoặc bằng `1` trước khi tạo Enrollment.
+
+Với `live_online_course`, field bắt buộc lưu `NULL`. `NULL` trong trường hợp
+này không được thay bằng duration suy ra từ Lesson, Live Class Activity,
+Session, Schedule hoặc Cohort.
 
 ---
 
@@ -846,13 +851,15 @@ Review Period
 review_duration_days
 ```
 
-Nếu:
+Nếu Product là `live_online_course` và:
 
 ```text
 access_duration_days = NULL
 ```
 
-thì học viên có quyền học không giới hạn thời gian.
+thì duration policy không tự đặt ngày hết hạn và không tự chuyển Enrollment
+sang `expired`. Quyền runtime vẫn phụ thuộc Enrollment active cùng các kiểm tra
+Cohort, Session và LiveClass authorization áp dụng cho nghiệp vụ.
 
 ---
 

@@ -8,14 +8,23 @@ use Illuminate\Validation\ValidationException;
 
 class EnrollmentCreationAction
 {
+    private const SOURCES = [
+        'admin', 'teacher', 'self_registration', 'purchase', 'promotion', 'import', 'api',
+    ];
+
     public function __construct(
         private readonly EnrollmentEligibilityPolicy $eligibility,
         private readonly ProductCourseVersionResolver $resolver,
     ) {}
 
-    public function create(int $customerId, int $actorId, array $input): int
-    {
-        return DB::transaction(function () use ($customerId, $actorId, $input): int {
+    public function create(
+        int $customerId,
+        ?int $actorId,
+        array $input,
+        string $source = 'admin',
+        ?int $sourceId = null,
+    ): int {
+        return DB::transaction(function () use ($customerId, $actorId, $input, $source, $sourceId): int {
             $payload = [
                 'student_ids' => [(int) $input['student_id']],
                 'product_ids' => [(int) $input['product_id']],
@@ -33,7 +42,14 @@ class EnrollmentCreationAction
                 ]);
             }
 
-            return $this->insertPrepared($customerId, $actorId, $prepared, $payload)[0]['enrollment_id'];
+            return $this->insertPrepared(
+                $customerId,
+                $actorId,
+                $prepared,
+                $payload,
+                $source,
+                $sourceId,
+            )[0]['enrollment_id'];
         }, 3);
     }
 
@@ -164,13 +180,22 @@ class EnrollmentCreationAction
         ];
     }
 
-    public function insertPrepared(int $customerId, int $actorId, array $prepared, array $payload): array
-    {
+    public function insertPrepared(
+        int $customerId,
+        ?int $actorId,
+        array $prepared,
+        array $payload,
+        string $source = 'admin',
+        ?int $sourceId = null,
+    ): array {
         if (DB::transactionLevel() < 1) {
             throw new \LogicException('Enrollment insert requires an active transaction.');
         }
         if (! $prepared['valid']) {
             throw new \LogicException('Cannot insert an invalid Enrollment preparation.');
+        }
+        if (! in_array($source, self::SOURCES, true)) {
+            throw new \InvalidArgumentException('Unsupported Enrollment source.');
         }
 
         $products = collect($prepared['products'])->keyBy('id');
@@ -185,7 +210,7 @@ class EnrollmentCreationAction
             $enrollmentId = DB::table('core_course_enrollments')->insertGetId([
                 'customer_id' => $customerId, 'product_id' => $pair['product_id'],
                 'version_id' => $product['version_id'], 'student_id' => $pair['student_id'],
-                'source' => 'admin', 'source_id' => null, 'enrolled_by' => $actorId,
+                'source' => $source, 'source_id' => $sourceId, 'enrolled_by' => $actorId,
                 'enrolled_at' => $prepared['enrolled_at'],
                 'access_duration_days' => $windows['access_duration_days'],
                 'review_duration_days' => $windows['review_duration_days'],

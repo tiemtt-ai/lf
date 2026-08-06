@@ -4,6 +4,10 @@
 @section('page_title', __('lf.LF_course_enrollment_common_edit'))
 
 @section('content')
+    @php
+        $usesDurationPolicy = $enrollment->offering_type === 'self_paced_course';
+        $canEditEnrollmentDate = ! $usesDurationPolicy || $enrollment->access_duration_days !== null;
+    @endphp
     @if ($errors->any())
         <div class="admin-alert admin-alert-danger admin-form-card" role="alert">
             <ul>
@@ -59,7 +63,7 @@
                     <div class="admin-form-field-grid course-enrollment-information-grid">
                         <div class="lf-form-group admin-form-field course-enrollment-enrolled-at-field">
                             <label class="lf-form-label" for="enrolled_at">{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</label>
-                            @if ($enrollment->access_duration_days !== null)
+                            @if ($canEditEnrollmentDate)
                                 <input id="enrolled_at" name="enrolled_at" type="datetime-local" class="lf-form-control course-enrollment-edit-date-input"
                                        x-model="enrolledAt" :class="{ 'has-value': enrolledAt }" required>
                                 <p x-show="registrationIssue" x-text="registrationIssue" class="lf-form-error" role="alert" x-cloak></p>
@@ -76,7 +80,7 @@
                             <span class="lf-form-label">{{ __('lf.LF_course_enrollment_common_status') }}</span>
                             <div class="admin-form-readonly lf-form-control"><span @class(['badge', 'badge-success' => $enrollment->status === 'active'])>{{ __('lf.LF_course_enrollment_common_'.$enrollment->status) }}</span></div>
                         </div>
-                        @if ($enrollment->access_duration_days !== null)
+                        @if ($usesDurationPolicy && $enrollment->access_duration_days !== null)
                             <div class="course-enrollment-time-impact" aria-live="polite">
                                 <p class="course-enrollment-time-impact__title">{{ __('lf.LF_course_enrollment_time_impact_title') }}</p>
                                 <p>{{ $enrollment->review_duration_days > 0
@@ -97,7 +101,7 @@
                     </div>
                 </section>
 
-                @if ($enrollment->access_duration_days === null)
+                @if ($usesDurationPolicy && $enrollment->access_duration_days === null)
                 <section class="admin-form-standard-section" aria-labelledby="enrollment-edit-access-window">
                     <header class="admin-form-section-header"><h2 id="enrollment-edit-access-window" class="admin-form-section-title">{{ __('lf.LF_course_enrollment_access_window') }}</h2><p class="admin-form-section-help">{{ __('lf.LF_course_enrollment_access_help') }}</p></header>
                     <div class="admin-form-field-grid">

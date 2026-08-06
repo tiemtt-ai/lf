@@ -1,12 +1,14 @@
 # ADR-0014 — Product Offering and Draft Content Binding
 
-Version: 1.0
+Version: 1.1
 
 Status: Approved
 
 Decision: Accepted
 
 Date: 2026-07-15
+
+Last Updated: 2026-08-06
 
 ---
 
@@ -72,6 +74,35 @@ the phase-one contract is small, stable, and relationally validated.
 Changing away from `self_paced_course` clears both columns in the same Product
 transaction. Persisting the values does not enforce Enrollment expiry. Runtime
 access-expiry enforcement is deferred.
+
+## Enrollment duration policy amendment
+
+This approved amendment makes Product offering type authoritative for
+Enrollment duration projection:
+
+* `access_duration_days` and `review_duration_days` apply only to
+  `self_paced_course`;
+* a self-paced Product requires an integer `access_duration_days >= 1` and an
+  Enrollment freezes the Product durations and calculated access/review
+  timestamps;
+* a `live_online_course` stores both Product durations as `NULL`; a new
+  Enrollment also stores both duration snapshots and all four duration-derived
+  timestamps as `NULL`;
+* live enrollment creation must not be rejected because
+  `access_duration_days` is `NULL` and must not be automatically expired by a
+  missing duration window;
+* live duration must not be inferred from Template Lessons, Live Class
+  Activities, expected Session count, Schedule, or Cohort dates.
+
+Live runtime authority remains independent: Enrollment must be active, and
+applicable Cohort membership, Cohort lifecycle, Session and LiveClass
+authorization continue to apply. Completion, cancellation, or any future live
+access-ending policy belongs to its explicit workflow.
+
+Every current or future Enrollment creation source, including admin single,
+bulk, self-registration, purchase, import and API, must use the same shared
+offering-aware backend policy. A source may not implement its own duration
+interpretation.
 
 # Alternatives rejected
 
