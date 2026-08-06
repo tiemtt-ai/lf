@@ -1199,6 +1199,11 @@
     margin-bottom: 18px;
 }
 
+.course-category-featured-option {
+    align-self: end;
+    margin-bottom: 18px;
+}
+
 .course-product-danger-outline-action {
     border-color: var(--admin-danger);
     color: var(--admin-danger);

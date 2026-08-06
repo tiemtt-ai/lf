@@ -313,8 +313,8 @@ class CourseCohortController extends Controller
                         ->orWhere('enrollments.id', preg_replace('/\D+/', '', $studentKeyword) ?: 0);
                 });
             })
-            ->orderBy('students.name')
-            ->orderBy('memberships.id')
+            ->orderByDesc('memberships.joined_at')
+            ->orderByDesc('memberships.id')
             ->select(
                 'memberships.id as membership_id',
                 'memberships.joined_at',

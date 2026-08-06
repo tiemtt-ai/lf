@@ -20,21 +20,19 @@
         </div>
     @endif
 
-    <div class="admin-card admin-form-card">
-        <form method="POST" action="{{ route('admin.media-categories.update', $category->id) }}">
+    <div class="admin-card admin-form-card admin-form-surface">
+        <form class="admin-form-standard" method="POST" action="{{ route('admin.media-categories.update', $category->id) }}">
             @csrf
             @method('PUT')
 
             @include('media-categories.partials.form')
 
-            <div class="admin-form-actions">
-                <button type="submit" class="btn btn-primary">
-                    {{ __('lf.LF_common_button_save_changes') }}
-                </button>
-                <a href="{{ route('admin.media-categories.index') }}">
-                    {{ __('lf.LF_common_button_cancel') }}
-                </a>
-            </div>
+            <footer class="admin-form-footer" data-actions-align="end">
+                <div class="admin-form-footer-primary">
+                    <a href="{{ route('admin.media-categories.index') }}" class="btn btn-secondary">{{ __('lf.LF_common_button_cancel') }}</a>
+                    <button type="submit" class="btn btn-primary">{{ __('lf.LF_common_button_save_changes') }}</button>
+                </div>
+            </footer>
         </form>
     </div>
 @endsection

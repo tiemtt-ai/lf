@@ -44,6 +44,10 @@
     persistedStatus: @js((string) ($formProduct?->status ?? '')),
     persistedTemplate: @js($persistedTemplate), templateVersion: @js((string) old('template_version_id', '')), submittingProduct: false,
     templates: @js($templates),
+    selectedVersion() {
+        const selectedTemplate = this.templates.find(item => String(item.id) === String(this.template))
+        return selectedTemplate?.published_versions?.find(version => String(version.id) === String(this.templateVersion)) ?? null
+    },
     slugify(v) { return v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') },
     sellingPrice() { let p=Number(this.price||0), d=Number(this.discount||0); if(!this.promotion) return p.toFixed(2); return Math.max(0,this.discountType==='percentage'?p-(p*d/100):p-d).toFixed(2) },
     discountAmount() { return Math.max(0, Number(this.price||0) - Number(this.sellingPrice())) },
@@ -228,6 +232,33 @@
                                 @endforeach
                             @endforeach
                         </select>
+                        <template x-if="selectedVersion()">
+                            <aside class="lf-product-version-summary lf-product-version-summary--selected" aria-live="polite">
+                                <div class="lf-product-version-summary-copy">
+                                    <p class="lf-product-version-summary-heading">{{ __('lf.LF_product_v2_selected_version') }}</p>
+                                    <p class="lf-product-version-summary-primary">
+                                        <span class="lf-product-version-summary-main" x-text="selectedVersion().number_label"></span>
+                                        <span class="lf-product-version-summary-separator" aria-hidden="true">·</span>
+                                        <span x-text="selectedVersion().code"></span>
+                                        <template x-if="selectedVersion().published_at">
+                                            <span>
+                                                <span class="lf-product-version-summary-separator" aria-hidden="true">·</span>
+                                                <span x-text="selectedVersion().published_at"></span>
+                                            </span>
+                                        </template>
+                                    </p>
+                                </div>
+                                <a x-show="selectedVersion().view_url"
+                                   :href="selectedVersion().view_url"
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   class="admin-text-action admin-table-action-link lf-product-version-summary-action"
+                                   aria-label="{{ __('lf.LF_product_v2_view_version_new_tab') }}">
+                                    <x-backend-icon name="external-link" />
+                                    {{ __('lf.LF_product_v2_view_version') }}
+                                </a>
+                            </aside>
+                        </template>
                         <p id="template_version_id_help" class="lf-form-help">{{ __('lf.LF_product_v2_course_version_help') }}</p>
                         @error('template_version_id')<p id="template_version_id_error" class="lf-form-error">{{ $message }}</p>@enderror
                     </div>
@@ -246,6 +277,33 @@
                                 @endforeach
                             @endforeach
                         </select>
+                        <template x-if="selectedVersion()">
+                            <aside class="lf-product-version-summary lf-product-version-summary--selected" aria-live="polite">
+                                <div class="lf-product-version-summary-copy">
+                                    <p class="lf-product-version-summary-heading">{{ __('lf.LF_product_v2_selected_version') }}</p>
+                                    <p class="lf-product-version-summary-primary">
+                                        <span class="lf-product-version-summary-main" x-text="selectedVersion().number_label"></span>
+                                        <span class="lf-product-version-summary-separator" aria-hidden="true">·</span>
+                                        <span x-text="selectedVersion().code"></span>
+                                        <template x-if="selectedVersion().published_at">
+                                            <span>
+                                                <span class="lf-product-version-summary-separator" aria-hidden="true">·</span>
+                                                <span x-text="selectedVersion().published_at"></span>
+                                            </span>
+                                        </template>
+                                    </p>
+                                </div>
+                                <a x-show="selectedVersion().view_url"
+                                   :href="selectedVersion().view_url"
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   class="admin-text-action admin-table-action-link lf-product-version-summary-action"
+                                   aria-label="{{ __('lf.LF_product_v2_view_version_new_tab') }}">
+                                    <x-backend-icon name="external-link" />
+                                    {{ __('lf.LF_product_v2_view_version') }}
+                                </a>
+                            </aside>
+                        </template>
                         @error('template_version_id')<p class="lf-form-error">{{ $message }}</p>@enderror
                     </div>
                 @endif
@@ -255,7 +313,7 @@
                         <template x-for="item in templates.filter(t => String(t.id) === String(template))" :key="`version-${item.id}`">
                             <div>
                                 <template x-if="item.version_summary">
-                                    <aside class="lf-product-version-summary" aria-live="polite">
+                                    <aside class="lf-product-version-summary lf-product-version-summary--in-use" aria-live="polite">
                                         <div class="lf-product-version-summary-copy">
                                             <p class="lf-product-version-summary-heading">{{ __('lf.LF_product_v2_version_in_use') }}</p>
                                             <p class="lf-product-version-summary-primary">
@@ -265,7 +323,15 @@
                                             </p>
                                             <p class="lf-secondary-text"><span x-text="item.version_summary.number_label"></span> · <span x-text="item.version_summary.lesson_text"></span> · <span x-text="item.version_summary.activity_text"></span></p>
                                         </div>
-                                        <a x-show="item.version_summary.view_url" :href="item.version_summary.view_url" target="_blank" rel="noopener noreferrer" class="admin-text-action">{{ __('lf.LF_product_v2_view_version') }}</a>
+                                        <a x-show="item.version_summary.view_url"
+                                           :href="item.version_summary.view_url"
+                                           target="_blank"
+                                           rel="noopener noreferrer"
+                                           class="admin-text-action admin-table-action-link lf-product-version-summary-action"
+                                           aria-label="{{ __('lf.LF_product_v2_view_version_new_tab') }}">
+                                            <x-backend-icon name="external-link" />
+                                            {{ __('lf.LF_product_v2_view_version') }}
+                                        </a>
                                     </aside>
                                 </template>
                                 <p x-show="!item.version_summary" class="lf-product-version-summary-heading">{{ __('lf.LF_product_v2_version_in_use') }}</p>
@@ -275,7 +341,7 @@
                         </template>
                         <noscript>
                             @if($initialTemplateState?->version_summary)
-                                <aside class="lf-product-version-summary">
+                                <aside class="lf-product-version-summary lf-product-version-summary--in-use">
                                     <div class="lf-product-version-summary-copy">
                                         <p class="lf-product-version-summary-heading">{{ __('lf.LF_product_v2_version_in_use') }}</p>
                                         <p class="lf-product-version-summary-primary">
@@ -285,7 +351,16 @@
                                         </p>
                                         <p class="lf-secondary-text">{{ $initialTemplateState->version_summary['number_label'] }} · {{ $initialTemplateState->version_summary['lesson_text'] }} · {{ $initialTemplateState->version_summary['activity_text'] }}</p>
                                     </div>
-                                    @if($initialTemplateState->version_summary['view_url'])<a href="{{ $initialTemplateState->version_summary['view_url'] }}" target="_blank" rel="noopener noreferrer" class="admin-text-action">{{ __('lf.LF_product_v2_view_version') }}</a>@endif
+                                    @if($initialTemplateState->version_summary['view_url'])
+                                        <a href="{{ $initialTemplateState->version_summary['view_url'] }}"
+                                           target="_blank"
+                                           rel="noopener noreferrer"
+                                           class="admin-text-action admin-table-action-link lf-product-version-summary-action"
+                                           aria-label="{{ __('lf.LF_product_v2_view_version_new_tab') }}">
+                                            <x-backend-icon name="external-link" />
+                                            {{ __('lf.LF_product_v2_view_version') }}
+                                        </a>
+                                    @endif
                                 </aside>
                             @elseif($initialTemplateState?->integrity_warning)
                                 <p class="lf-form-error" role="alert">{{ $initialTemplateState->integrity_warning }}</p>
@@ -302,7 +377,22 @@
             <h3 id="product-identity" class="admin-form-subsection-title">{{ __('lf.LF_product_v2_group_identity') }}</h3>
             <div class="admin-form-field-grid">
                 <div class="lf-form-group"><x-form-label for="title" :value="__('lf.LF_course_product_common_title_field')" :required="true" /><input id="title" name="title" class="lf-form-control" maxlength="255" required value="{{ old('title', $formProduct?->title) }}" placeholder="{{ __('lf.LF_product_v2_placeholder_name') }}" @input="generatedSlug = slugify($event.target.value)"></div>
-                <div class="lf-form-group"><x-form-label for="offering_type" :value="__('lf.LF_product_v2_offering_type')" :required="true" /><select id="offering_type" name="offering_type" class="lf-form-control course-product-offering-type" x-model="offering" :class="{ 'lf-select-placeholder': offering === '', 'has-value': offering }" required><option value="">{{ __('lf.LF_product_v2_select_offering') }}</option>@foreach(\App\Support\CourseProductV2::OFFERING_TYPES as $type)<option value="{{ $type }}">{{ __('lf.LF_product_v2_offering_'.$type) }}</option>@endforeach</select></div>
+                <div class="lf-form-group">
+                    <x-form-label for="offering_type" :value="__('lf.LF_product_v2_offering_type')" :required="true" />
+                    <select id="offering_type"
+                            name="offering_type"
+                            class="lf-form-control"
+                            x-model="offering"
+                            :class="{ 'lf-select-placeholder': offering === '' }"
+                            required>
+                        <option value="">{{ __('lf.LF_product_v2_select_offering') }}</option>
+                        @foreach(\App\Support\CourseProductV2::OFFERING_TYPES as $type)
+                            <option value="{{ $type }}" @selected($selectedOffering === $type)>
+                                {{ __('lf.LF_product_v2_offering_'.$type) }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
                 <div @class(['lf-form-group', 'admin-form-field--full' => ! $formProduct])>
                     <div class="admin-form-label-row">
                         <x-form-label for="slug" :value="__('lf.LF_course_product_common_slug')" />
@@ -373,7 +463,32 @@
         <div hidden aria-hidden="true"><span>Cover image upload</span>@if($coverImageMedia ?? null)<a href="{{ $coverImageMedia->signed_url }}">{{ $coverImageMedia->display_name }}</a>@endif<input type="file" name="cover_image_file" accept="image/*"><x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" /></div>
     </section>
 
-    <section class="admin-form-standard-section" aria-labelledby="product-config"><h2 id="product-config" class="admin-form-section-title">{{ __('lf.LF_product_v2_group_configuration') }}</h2><p x-show="!offering" class="admin-form-empty-state">{{ __('lf.LF_product_v2_select_type_configuration') }}</p><div class="admin-form-field-grid" x-show="offering==='self_paced_course'"><div class="lf-form-group"><x-form-label for="access_duration_days" :value="__('lf.LF_product_v2_access_days')" /><input id="access_duration_days" name="access_duration_days" type="number" min="1" class="lf-form-control" value="{{ old('access_duration_days', $formProduct?->access_duration_days) }}" placeholder="{{ __('lf.LF_product_v2_placeholder_access_days') }}" @error('access_duration_days') aria-invalid="true" aria-describedby="access_duration_days_error" @enderror>@error('access_duration_days')<p id="access_duration_days_error" class="lf-form-error">{{ $message }}</p>@enderror</div><div class="lf-form-group"><x-form-label for="review_duration_days" :value="__('lf.LF_product_v2_review_days')" /><input id="review_duration_days" name="review_duration_days" type="number" min="0" class="lf-form-control" value="{{ old('review_duration_days', $formProduct?->review_duration_days) }}" placeholder="{{ __('lf.LF_product_v2_placeholder_review_days') }}" @error('review_duration_days') aria-invalid="true" aria-describedby="review_duration_days_error" @enderror>@error('review_duration_days')<p id="review_duration_days_error" class="lf-form-error">{{ $message }}</p>@enderror</div></div><p x-show="offering && offering!=='self_paced_course'" class="admin-form-empty-state">{{ __('lf.LF_product_v2_configuration_deferred') }}</p></section>
+    <section class="admin-form-standard-section"
+             aria-labelledby="product-config"
+             x-show="offering === 'self_paced_course'"
+             x-cloak>
+        <h2 id="product-config" class="admin-form-section-title">{{ __('lf.LF_product_v2_group_configuration') }}</h2>
+        <div class="admin-form-field-grid">
+            <div class="lf-form-group">
+                <x-form-label for="access_duration_days" :value="__('lf.LF_product_v2_access_days')" />
+                <input id="access_duration_days" name="access_duration_days" type="number" min="1"
+                       class="lf-form-control"
+                       value="{{ old('access_duration_days', $formProduct?->access_duration_days) }}"
+                       placeholder="{{ __('lf.LF_product_v2_placeholder_access_days') }}"
+                       @error('access_duration_days') aria-invalid="true" aria-describedby="access_duration_days_error" @enderror>
+                @error('access_duration_days')<p id="access_duration_days_error" class="lf-form-error">{{ $message }}</p>@enderror
+            </div>
+            <div class="lf-form-group">
+                <x-form-label for="review_duration_days" :value="__('lf.LF_product_v2_review_days')" />
+                <input id="review_duration_days" name="review_duration_days" type="number" min="0"
+                       class="lf-form-control"
+                       value="{{ old('review_duration_days', $formProduct?->review_duration_days) }}"
+                       placeholder="{{ __('lf.LF_product_v2_placeholder_review_days') }}"
+                       @error('review_duration_days') aria-invalid="true" aria-describedby="review_duration_days_error" @enderror>
+                @error('review_duration_days')<p id="review_duration_days_error" class="lf-form-error">{{ $message }}</p>@enderror
+            </div>
+        </div>
+    </section>
 
     <section class="admin-form-standard-section" aria-labelledby="product-pricing">
         <h2 id="product-pricing" class="admin-form-section-title">{{ __('lf.LF_product_v2_group_pricing') }}</h2>
@@ -430,7 +545,6 @@
                      class="admin-form-field-grid admin-form-conditional"
                      x-show="promotion"
                      x-cloak>
-                    <p class="lf-form-help admin-form-field--full">{{ __('lf.LF_product_v2_promotion_registration_help') }}</p>
                     <div class="lf-form-group">
                         <x-form-label for="discount_type" :value="__('lf.LF_product_v2_discount_type')" />
                         <select id="discount_type" name="discount_type" class="lf-form-control course-product-discount-type" x-model="discountType"
@@ -454,6 +568,7 @@
                         <x-form-label for="sale_starts_at" :value="__('lf.LF_product_v2_promotion_starts_at')" />
                         <input id="sale_starts_at" name="sale_starts_at" type="datetime-local" class="lf-form-control course-product-date-input"
                                :class="{ 'has-value': promotionStart }"
+                               :min="registrationStart || null" :max="registrationEnd || null"
                                x-ref="promotionStart" x-model="promotionStart" @input="$el.setCustomValidity('')"
                                @error('sale_starts_at') aria-invalid="true" aria-describedby="sale_starts_at_error" @enderror>
                         @error('sale_starts_at')<p id="sale_starts_at_error" class="lf-form-error">{{ $message }}</p>@enderror
@@ -462,6 +577,7 @@
                         <x-form-label for="sale_ends_at" :value="__('lf.LF_product_v2_promotion_ends_at')" />
                         <input id="sale_ends_at" name="sale_ends_at" type="datetime-local" class="lf-form-control course-product-date-input"
                                :class="{ 'has-value': promotionEnd }"
+                               :min="registrationStart || null" :max="registrationEnd || null"
                                x-ref="promotionEnd" x-model="promotionEnd" @input="$el.setCustomValidity('')"
                                @error('sale_ends_at') aria-invalid="true" aria-describedby="sale_ends_at_error" @enderror>
                         @error('sale_ends_at')<p id="sale_ends_at_error" class="lf-form-error">{{ $message }}</p>@enderror
@@ -494,8 +610,7 @@
     <section class="admin-form-standard-section" aria-labelledby="product-availability">
         <h2 id="product-availability" class="admin-form-section-title">{{ __('lf.LF_product_v2_group_availability') }}</h2>
         <div class="admin-form-field-grid">
-            <div class="admin-form-option-group course-product-featured-option"><input type="hidden" name="is_featured" value="0"><label class="admin-form-option-panel admin-form-option-panel--compact"><input type="checkbox" name="is_featured" value="1" @checked(old('is_featured',$formProduct?->is_featured))><span><strong>{{ __('lf.LF_course_product_common_is_featured') }}</strong></span></label></div>
-            <div class="lf-form-group"><x-form-label for="sort_order" :value="__('lf.LF_course_product_common_sort_order')" /><input id="sort_order" name="sort_order" type="number" min="0" class="lf-form-control" value="{{ old('sort_order',$formProduct?->sort_order) }}" placeholder="{{ __('lf.LF_product_v2_auto_order') }}"></div>
+            <div id="course-product-featured-field" class="admin-form-option-group course-product-featured-option admin-form-field--full"><input type="hidden" name="is_featured" value="0"><label class="admin-form-option-panel admin-form-option-panel--compact"><input type="checkbox" name="is_featured" value="1" @checked(old('is_featured',$formProduct?->is_featured))><span><strong>{{ __('lf.LF_course_product_common_is_featured') }}</strong></span></label></div>
             <div class="lf-form-group admin-form-field--full"><x-form-label for="status" :value="__('lf.LF_course_product_common_status')" :required="true" /><select id="status" name="status" class="lf-form-control" required>@foreach(($allowedStatuses ?? ['draft']) as $status)<option value="{{ $status }}" @selected($selectedStatus===$status) @disabled($status === 'active' && ! ($hasActiveCourseVersion ?? false))>{{ __('lf.LF_course_product_common_'.$status) }}</option>@endforeach</select>@if(! ($hasActiveCourseVersion ?? false))<p class="lf-form-help">{{ __('lf.LF_product_v2_attach_before_activation') }}</p>@endif@if($formProduct && ! in_array('draft', $allowedStatuses ?? [], true) && $formProduct->status !== 'draft')<p class="lf-form-help">{{ __('lf.LF_product_status_used_draft_help') }}</p>@endif</div>
         </div>
     </section>

@@ -102,6 +102,10 @@ class CourseProductVersionSummaryPresenter
                     'code' => $version->version_code,
                     'published_at' => $version->published_at
                         ? date('d/m/Y', strtotime($version->published_at)) : null,
+                    'view_url' => $canView ? route('admin.course-templates.versions.show', [
+                        'templateId' => $version->template_id,
+                        'versionId' => $version->id,
+                    ]) : null,
                 ];
             }
         }

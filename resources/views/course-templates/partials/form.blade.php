@@ -4,11 +4,6 @@
     $selectedVideoSource = old('intro_video_source', $formTemplate?->intro_video_source);
     $selectedDifficulty = old('difficulty_level', $formTemplate?->difficulty_level);
     $selectedStatus = old('status', $formTemplate?->status ?? \App\Support\CourseTemplateStatus::DEFAULT);
-    $selectedSortOrder = old(
-        'sort_order',
-        $formTemplate?->sort_order
-            ?? ($nextSortOrders[(int) $selectedCategoryId] ?? $initialSortOrder)
-    );
     $isRequired = static fn (string $field): bool => in_array($field, $requiredFields, true);
 @endphp
 
@@ -17,14 +12,6 @@
          selectedVideoSource: @js($selectedVideoSource),
          selectedCategoryId: @js($selectedCategoryId),
          selectedDifficulty: @js($selectedDifficulty),
-         selectedSortOrder: @js((int) $selectedSortOrder),
-         nextSortOrders: @js($nextSortOrders),
-         sortOrderTouched: @js(old('sort_order') !== null || $formTemplate !== null),
-         syncDefaultSortOrder(categoryId) {
-             if (! this.sortOrderTouched) {
-                 this.selectedSortOrder = Number(this.nextSortOrders[categoryId] ?? @js($initialSortOrder));
-             }
-         },
          previewOpen: false,
          previewLoaded: false,
          videoSrc: '',
@@ -111,7 +98,7 @@
                 <x-form-label for="category_id"
                               :value="__('lf.LF_course_template_common_category')"
                               :required="$isRequired('category_id')" />
-                <select id="category_id" name="category_id" class="lf-form-control" x-model="selectedCategoryId" x-on:change="syncDefaultSortOrder($event.target.value)" :class="{ 'lf-select-placeholder': selectedCategoryId === null || selectedCategoryId === '' }">
+                <select id="category_id" name="category_id" class="lf-form-control" x-model="selectedCategoryId" :class="{ 'lf-select-placeholder': selectedCategoryId === null || selectedCategoryId === '' }">
                     <option value="" @selected($selectedCategoryId === null || $selectedCategoryId === '')>{{ __('lf.LF_course_template_select_category') }}</option>
                     @foreach ($categories as $category)
                         <option value="{{ $category->id }}"
@@ -250,20 +237,7 @@
             <h2 id="course-template-display" class="admin-form-section-title">{{ __('lf.LF_course_template_group_display') }}</h2>
         </header>
         <div class="admin-form-field-grid">
-            <div class="lf-form-group admin-form-field">
-                <div class="admin-form-label-row">
-                    <x-form-label for="sort_order" :value="__('lf.LF_course_template_common_sort_order')" />
-                    @if (! $formTemplate)
-                        <span class="admin-form-label-metadata">{{ __('lf.LF_course_template_common_automatic') }}</span>
-                    @endif
-                </div>
-                <input id="sort_order" type="number" min="0" name="sort_order" @class(['lf-form-control', 'admin-form-readonly' => ! $formTemplate])
-                       x-model.number="selectedSortOrder" x-on:input="sortOrderTouched = true"
-                       value="{{ $selectedSortOrder }}"
-                       @if (! $formTemplate) readonly @endif
-                       placeholder="{{ __('lf.LF_course_template_placeholder_sort_order') }}">
-            </div>
-            <div class="lf-form-group admin-form-field">
+            <div class="lf-form-group admin-form-field--full">
                 @if ($selectedStatus === \App\Support\CourseTemplateStatus::ARCHIVED)
                     <span class="lf-form-label">{{ __('lf.LF_course_template_common_status') }}</span>
                     <span class="badge badge-danger">{{ __('lf.LF_course_template_common_archived') }}</span>

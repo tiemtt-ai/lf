@@ -8,6 +8,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class CourseCategoryManagementTest extends TestCase
@@ -57,6 +58,7 @@ class CourseCategoryManagementTest extends TestCase
             ->assertSee('course-category-index-table', false)
             ->assertSee('course-category-index-meta', false)
             ->assertSee('course-category-status-badge', false)
+            ->assertDontSeeText(__('lf.LF_course_category_index_sort_order'))
             ->assertDontSee('class="admin-table-action-icon"', false)
             ->assertDontSeeText(__('lf.LF_course_category_common_thumbnail_image'))
             ->assertDontSeeText('Private Tenant Category');
@@ -72,6 +74,7 @@ class CourseCategoryManagementTest extends TestCase
             __('lf.LF_course_category_common_parent'),
             $this->tableHeaderText($adminResponse->getContent(), 3)
         );
+        $this->assertSame(5, preg_match_all('/<th\b/', $adminResponse->getContent()));
         $adminResponse
             ->assertSee('<th class="admin-table-sequence">', false)
             ->assertSee('course-category-index-parent is-root', false);
@@ -120,14 +123,15 @@ class CourseCategoryManagementTest extends TestCase
         $firstPage = $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-categories')
             ->assertOk()
-            ->assertSeeText('Paginated Category 01')
+            ->assertSeeText('Paginated Category 11')
             ->assertSeeText('Paginated Category 10')
-            ->assertDontSeeText('Paginated Category 11');
+            ->assertDontSeeText('Paginated Category 01')
+            ->assertSeeTextInOrder(['Paginated Category 11', 'Paginated Category 10']);
 
         $secondPage = $this->get('https://tenant-a.localhost/admin/course-categories?page=2')
             ->assertOk()
-            ->assertSeeText('Paginated Category 11')
-            ->assertDontSeeText('Paginated Category 01');
+            ->assertSeeText('Paginated Category 01')
+            ->assertDontSeeText('Paginated Category 11');
 
         $firstPageDocument = new \DOMDocument;
         @$firstPageDocument->loadHTML($firstPage->getContent());
@@ -235,6 +239,16 @@ class CourseCategoryManagementTest extends TestCase
             $this->assertStringContainsString('aria-labelledby="course-category-general"', $content);
             $this->assertStringContainsString('aria-labelledby="course-category-media"', $content);
             $this->assertStringContainsString('aria-labelledby="course-category-display"', $content);
+            $displaySection = Str::between(
+                $content,
+                'aria-labelledby="course-category-display"',
+                'class="media-library-modal"'
+            );
+            $this->assertStringContainsString('admin-form-option-panel--compact', $displaySection);
+            $this->assertMatchesRegularExpression(
+                '/class="admin-form-field-grid"[\s\S]*?class="admin-form-option-group course-category-featured-option admin-form-field--full"[\s\S]*?class="lf-form-group admin-form-field--full"[\s\S]*?<select id="status"/',
+                $displaySection
+            );
             $this->assertStringNotContainsString('aria-labelledby="course-category-description"', $content);
             $this->assertStringContainsString('class="admin-form-footer"', $content);
             $this->assertStringContainsString('class="admin-form-footer-primary"', $content);
@@ -247,10 +261,11 @@ class CourseCategoryManagementTest extends TestCase
                 'LF_course_category_placeholder_name',
                 'LF_course_category_placeholder_slug',
                 'LF_course_category_placeholder_description',
-                'LF_course_category_placeholder_sort_order',
             ] as $translation) {
                 $this->assertStringContainsString('placeholder="'.__('lf.'.$translation).'"', $content);
             }
+            $this->assertStringNotContainsString('name="sort_order"', $content);
+            $this->assertStringNotContainsString('id="sort_order"', $content);
             $this->assertManualSeoControlsNotRendered(
                 $content,
                 'course-category-seo-title',
@@ -259,7 +274,7 @@ class CourseCategoryManagementTest extends TestCase
         }
     }
 
-    public function test_create_order_displays_and_persists_the_tenant_maximum_plus_one(): void
+    public function test_create_order_is_server_assigned_and_ignores_forged_input(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -269,9 +284,8 @@ class CourseCategoryManagementTest extends TestCase
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-categories/create')
             ->assertOk()
-            ->assertSee('value="9"', false)
-            ->assertSee('name="sort_order"', false)
-            ->assertSee('readonly', false);
+            ->assertDontSee('name="sort_order"', false)
+            ->assertDontSee('id="sort_order"', false);
 
         $this->post(
             'https://tenant-a.localhost/admin/course-categories',
@@ -597,7 +611,6 @@ class CourseCategoryManagementTest extends TestCase
             ->assertRedirect('https://tenant-a.localhost/admin/course-categories/create')
             ->assertSessionHasErrors([
                 'name',
-                'sort_order',
                 'is_featured',
                 'status',
             ]);

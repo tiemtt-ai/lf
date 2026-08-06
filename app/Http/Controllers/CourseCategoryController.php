@@ -49,8 +49,8 @@ class CourseCategoryController extends Controller
                 $request->user()?->role === 'teacher',
                 fn ($query) => $query->where('categories.created_by', $request->user()->id)
             )
-            ->orderBy('categories.sort_order')
-            ->orderBy('categories.name')
+            ->orderByDesc('categories.created_at')
+            ->orderByDesc('categories.id')
             ->select('categories.*', 'parent.name as parent_name')
             ->paginate(10)
             ->withQueryString();
@@ -77,7 +77,6 @@ class CourseCategoryController extends Controller
 
         return view('course-categories.create', [
             'parentCategories' => $this->parentCategories(),
-            'initialSortOrder' => $this->nextSortOrder($customerId),
             'routePrefix' => $this->routePrefix($request),
             'thumbnailMedia' => null,
             'bannerMedia' => null,
@@ -133,7 +132,6 @@ class CourseCategoryController extends Controller
         return view('course-categories.edit', [
             'category' => $category,
             'parentCategories' => $this->parentCategories($excludedIds),
-            'initialSortOrder' => (int) $category->sort_order,
             'routePrefix' => $this->routePrefix($request),
             'thumbnailMedia' => $thumbnailMedia,
             'bannerMedia' => $bannerMedia,
@@ -155,7 +153,6 @@ class CourseCategoryController extends Controller
             'description' => $validated['description'] ?? null,
             'thumbnail_image' => $validated['thumbnail_image'] ?? null,
             'banner_image' => $validated['banner_image'] ?? null,
-            'sort_order' => $validated['sort_order'],
             'is_featured' => (bool) $validated['is_featured'],
             'status' => $validated['status'],
             'updated_at' => now(),
@@ -248,7 +245,6 @@ class CourseCategoryController extends Controller
             ],
             'remove_thumbnail_image_media' => ['nullable', 'boolean'],
             'remove_banner_image_media' => ['nullable', 'boolean'],
-            'sort_order' => ['required', 'integer'],
             'is_featured' => ['required', 'boolean'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
@@ -290,7 +286,6 @@ class CourseCategoryController extends Controller
             'banner_image',
             'remove_thumbnail_image_media',
             'remove_banner_image_media',
-            'sort_order',
             'is_featured',
             'meta_title',
             'meta_description',

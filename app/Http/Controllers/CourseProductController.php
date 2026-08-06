@@ -2,24 +2,24 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\CourseProductMediaAuthorizer;
 use App\Services\CourseProductLifecyclePolicy;
+use App\Services\CourseProductMediaAuthorizer;
 use App\Services\CourseProductTemplateChangePolicy;
 use App\Services\MediaService;
 use App\Services\MediaThumbnailPresenter;
 use App\Services\TrustedVideoUrlService;
-use App\Support\CourseProductV2;
 use App\Support\AuditLog;
+use App\Support\CourseProductV2;
 use App\Support\CourseProductVersionSummaryPresenter;
 use App\Support\SequentialCodeGenerator;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -76,8 +76,8 @@ class CourseProductController extends Controller
             ->when($visibility, function ($query) use ($visibility): void {
                 $query->where('visibility', $visibility);
             })
-            ->orderBy('sort_order')
-            ->orderBy('title')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(10)
             ->withQueryString();
 
@@ -214,18 +214,7 @@ class CourseProductController extends Controller
         $product = $this->findProduct($customerId, $id);
         $validated = $this->validatedData($request, $customerId, $id, $product);
 
-        $values = $this->withoutMissingSeoValues(
-            $request,
-            $this->productValues($validated, [
-                'published_at' => $product->published_at === null
-                    && $validated['status'] === 'active'
-                        ? now()
-                        : $product->published_at,
-                'updated_at' => now(),
-            ])
-        );
-
-        DB::transaction(function () use ($request, $validated, $values, $customerId, $id): void {
+        DB::transaction(function () use ($request, $validated, $customerId, $id): void {
             $lockedProduct = DB::table('core_course_products')->where('customer_id', $customerId)
                 ->where('id', $id)->lockForUpdate()->first();
             abort_if(! $lockedProduct, 404);
@@ -250,6 +239,20 @@ class CourseProductController extends Controller
             if (! $this->bindingRequestIsUnchanged($lockedProduct, $beforeItem, $validated)) {
                 $this->assertEligibleTemplateVersionBinding($customerId, $validated, true);
             }
+
+            $validated['sort_order'] = (int) $validated['category_id'] === (int) $lockedProduct->category_id
+                ? (int) $lockedProduct->sort_order
+                : $this->nextSortOrder((int) $validated['category_id']);
+            $values = $this->withoutMissingSeoValues(
+                $request,
+                $this->productValues($validated, [
+                    'published_at' => $lockedProduct->published_at === null
+                        && $validated['status'] === 'active'
+                            ? now()
+                            : $lockedProduct->published_at,
+                    'updated_at' => now(),
+                ])
+            );
             DB::table('core_course_products')->where('customer_id', $customerId)->where('id', $id)->update($values);
             if (! empty($validated['template_id'])) {
                 $this->syncPhaseOneItem($customerId, $id, $validated, $request->user()?->id);
@@ -383,15 +386,15 @@ class CourseProductController extends Controller
             }
             DB::table('core_course_product_items')->where('customer_id', $customerId)
                 ->where('product_id', $productId)->where('id', $item->id)->update([
-                'version_id' => $version->id,
-                'title_override' => $validated['title_override'] ?? $item->title_override ?? null,
-                'short_description_override' => $validated['short_description_override'] ?? $item->short_description_override ?? null,
-                'sort_order' => $product->product_type === 'single_course' ? 0 : $validated['sort_order'],
-                'is_required' => $product->product_type === 'single_course' ? true : (bool) $validated['is_required'],
-                'status' => $product->product_type === 'single_course' ? 'active' : $validated['status'],
-                'created_by' => $request->user()?->id,
-                'updated_at' => $now,
-            ]);
+                    'version_id' => $version->id,
+                    'title_override' => $validated['title_override'] ?? $item->title_override ?? null,
+                    'short_description_override' => $validated['short_description_override'] ?? $item->short_description_override ?? null,
+                    'sort_order' => $product->product_type === 'single_course' ? 0 : $validated['sort_order'],
+                    'is_required' => $product->product_type === 'single_course' ? true : (bool) $validated['is_required'],
+                    'status' => $product->product_type === 'single_course' ? 'active' : $validated['status'],
+                    'created_by' => $request->user()?->id,
+                    'updated_at' => $now,
+                ]);
         });
 
         return redirect()
@@ -426,6 +429,7 @@ class CourseProductController extends Controller
             if ($product->status === 'active' && ! $hasActiveVersion) {
                 DB::table('core_course_products')->where('customer_id', $customerId)
                     ->where('id', $productId)->update(['status' => 'draft', 'updated_at' => now()]);
+
                 return true;
             }
 
@@ -708,7 +712,6 @@ class CourseProductController extends Controller
             'show_enrollment_count' => [$legacy ? 'required' : 'nullable', 'boolean'],
             'display_enrollment_count' => ['nullable', 'integer', 'min:0'],
             'is_featured' => ['required', 'boolean'],
-            'sort_order' => [$legacy ? 'required' : 'nullable', 'integer', 'min:0'],
             'visibility' => [
                 $legacy ? 'required' : 'nullable',
                 Rule::in(['public', 'private', 'hidden']),
@@ -780,7 +783,6 @@ class CourseProductController extends Controller
             'show_enrollment_count',
             'display_enrollment_count',
             'is_featured',
-            'sort_order',
             'visibility',
             'available_from',
             'available_until',
@@ -1120,6 +1122,7 @@ class CourseProductController extends Controller
 
         $latestVersionId = $versions->first()?->id;
         $inUseVersionId = $item->status === 'active' ? $item->version_id : null;
+
         return $versions->each(function ($version) use ($latestVersionId, $inUseVersionId): void {
             $version->is_latest_published = (int) $version->id === (int) $latestVersionId;
             $version->is_in_use = $inUseVersionId !== null
@@ -1220,6 +1223,7 @@ class CourseProductController extends Controller
                             'updated_at' => now(),
                         ]);
                 }
+
                 return;
             }
             $decision = $this->templateChangePolicy->decision($product, $customerId, $validated['status']);
@@ -1252,6 +1256,7 @@ class CourseProductController extends Controller
                     'status' => 'active',
                     'updated_at' => now(),
                 ]);
+
             return;
         }
 

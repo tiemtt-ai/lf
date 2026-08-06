@@ -37,8 +37,8 @@ class MediaCategoryController extends Controller
                 });
             })
             ->when($status, fn ($query) => $query->where('categories.status', $status))
-            ->orderBy('categories.sort_order')
-            ->orderBy('categories.name')
+            ->orderByDesc('categories.created_at')
+            ->orderByDesc('categories.id')
             ->select('categories.*', 'parent.name as parent_name')
             ->paginate(10)
             ->withQueryString();
@@ -63,20 +63,23 @@ class MediaCategoryController extends Controller
         $validated = $this->validatedData($request, $customerId);
         $now = now();
 
-        DB::table('media_categories')->insert([
-            'customer_id' => $customerId,
-            'parent_id' => $validated['parent_id'] ?? null,
-            'name' => $validated['name'],
-            'slug' => $validated['slug'],
-            'description' => $validated['description'] ?? null,
-            'icon' => $validated['icon'] ?? null,
-            'color' => $validated['color'] ?? null,
-            'sort_order' => $validated['sort_order'],
-            'status' => $validated['status'],
-            'metadata' => $validated['metadata'] ?? null,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+        DB::transaction(function () use ($customerId, $validated, $now): void {
+            $sortOrder = $this->nextSortOrder($customerId, $validated['parent_id'] ?? null, true);
+            DB::table('media_categories')->insert([
+                'customer_id' => $customerId,
+                'parent_id' => $validated['parent_id'] ?? null,
+                'name' => $validated['name'],
+                'slug' => $validated['slug'],
+                'description' => $validated['description'] ?? null,
+                'icon' => $validated['icon'] ?? null,
+                'color' => $validated['color'] ?? null,
+                'sort_order' => $sortOrder,
+                'status' => $validated['status'],
+                'metadata' => $validated['metadata'] ?? null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        });
 
         return redirect()
             ->route('admin.media-categories.index')
@@ -98,24 +101,32 @@ class MediaCategoryController extends Controller
     public function update(Request $request, int $id)
     {
         $customerId = $this->customerId();
-        $this->findCategory($customerId, $id);
+        $category = $this->findCategory($customerId, $id);
         $validated = $this->validatedData($request, $customerId, $id);
 
-        DB::table('media_categories')
-            ->where('customer_id', $customerId)
-            ->where('id', $id)
-            ->update([
-                'parent_id' => $validated['parent_id'] ?? null,
-                'name' => $validated['name'],
-                'slug' => $validated['slug'],
-                'description' => $validated['description'] ?? null,
-                'icon' => $validated['icon'] ?? null,
-                'color' => $validated['color'] ?? null,
-                'sort_order' => $validated['sort_order'],
-                'status' => $validated['status'],
-                'metadata' => $validated['metadata'] ?? null,
-                'updated_at' => now(),
-            ]);
+        DB::transaction(function () use ($customerId, $id, $category, $validated): void {
+            $parentId = $validated['parent_id'] ?? null;
+            $parentChanged = (int) ($category->parent_id ?? 0) !== (int) ($parentId ?? 0);
+            $sortOrder = $parentChanged
+                ? $this->nextSortOrder($customerId, $parentId, true)
+                : (int) $category->sort_order;
+
+            DB::table('media_categories')
+                ->where('customer_id', $customerId)
+                ->where('id', $id)
+                ->update([
+                    'parent_id' => $validated['parent_id'] ?? null,
+                    'name' => $validated['name'],
+                    'slug' => $validated['slug'],
+                    'description' => $validated['description'] ?? null,
+                    'icon' => $validated['icon'] ?? null,
+                    'color' => $validated['color'] ?? null,
+                    'sort_order' => $sortOrder,
+                    'status' => $validated['status'],
+                    'metadata' => $validated['metadata'] ?? null,
+                    'updated_at' => now(),
+                ]);
+        });
 
         return redirect()
             ->route('admin.media-categories.edit', $id)
@@ -167,7 +178,6 @@ class MediaCategoryController extends Controller
             'description' => ['nullable', 'string'],
             'icon' => ['nullable', 'string', 'max:100'],
             'color' => ['nullable', 'string', 'max:32'],
-            'sort_order' => ['required', 'integer', 'min:0'],
             'status' => ['required', Rule::in(self::STATUSES)],
             'metadata' => ['nullable', 'json'],
         ]);
@@ -193,6 +203,20 @@ class MediaCategoryController extends Controller
         }
 
         return $validator->validate();
+    }
+
+    private function nextSortOrder(int $customerId, ?int $parentId, bool $lockTenant = false): int
+    {
+        if ($lockTenant) {
+            DB::table('saas_customers')->where('id', $customerId)->lockForUpdate()->first(['id']);
+        }
+
+        $maximum = DB::table('media_categories')
+            ->where('customer_id', $customerId)
+            ->where('parent_id', $parentId)
+            ->max('sort_order');
+
+        return $maximum === null ? 1 : (int) $maximum + 1;
     }
 
     private function parentCategories(array $excludedIds = [])

@@ -80,7 +80,6 @@
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                 <th class="course-category-index-name">{{ __('lf.LF_course_category_common_name') }}</th>
                 <th class="course-category-index-parent">{{ __('lf.LF_course_category_common_parent') }}</th>
-                <th class="course-category-index-order">{{ __('lf.LF_course_category_index_sort_order') }}</th>
                 <th class="course-category-index-status">{{ __('lf.LF_course_category_common_status') }}</th>
                 <th class="course-category-index-actions">{{ __('lf.table_actions') }}</th>
             </tr>
@@ -93,17 +92,14 @@
                     </td>
                     <td class="course-category-index-name" data-label="{{ __('lf.LF_course_category_common_name') }}">
                         <strong class="course-category-index-primary">{{ $category->name }}</strong>
+                        @if ($category->is_featured)
+                            <span class="course-category-featured-badge">{{ __('lf.LF_course_category_common_featured') }}</span>
+                        @endif
                         <span class="course-category-index-meta">{{ $category->slug }}</span>
                     </td>
                     <td @class(['course-category-index-parent', 'is-root' => ! $category->parent_name])
                         data-label="{{ __('lf.LF_course_category_common_parent') }}">
                         {{ $category->parent_name ?? __('lf.LF_course_category_common_root') }}
-                    </td>
-                    <td class="course-category-index-order" data-label="{{ __('lf.LF_course_category_index_sort_order') }}">
-                        <strong>{{ $category->sort_order }}</strong>
-                        @if ($category->is_featured)
-                            <span class="course-category-featured-badge">{{ __('lf.LF_course_category_common_featured') }}</span>
-                        @endif
                     </td>
                     <td class="course-category-index-status" data-label="{{ __('lf.LF_course_category_common_status') }}">
                         <span class="badge course-category-status-badge {{ $category->status === 'active' ? 'badge-success' : 'badge-danger' }}">
@@ -123,7 +119,7 @@
                 </tr>
             @empty
                 <tr class="course-category-empty-row">
-                    <td class="course-category-empty-cell" colspan="6">
+                    <td class="course-category-empty-cell" colspan="5">
                         <div class="course-category-empty-state" role="status">
                             <strong>{{ $hasActiveFilters ? __('lf.LF_course_category_filter_empty') : __('lf.LF_course_category_common_empty') }}</strong>
                             <span>{{ $hasActiveFilters ? __('lf.LF_course_category_filter_empty_help') : __('lf.LF_course_category_empty_help') }}</span>

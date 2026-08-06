@@ -9,7 +9,6 @@
     $selectedParentId = old('parent_id', $formCategory?->parent_id);
     $selectedStatus = old('status', $formCategory?->status ?? 'active');
     $isFeatured = (bool) old('is_featured', $formCategory?->is_featured ?? false);
-    $selectedSortOrder = old('sort_order', $formCategory?->sort_order ?? $initialSortOrder);
 @endphp
 
 <div class="admin-form-flow"
@@ -178,26 +177,16 @@
             <h2 id="course-category-display" class="admin-form-section-title">{{ __('lf.LF_course_category_group_display') }}</h2>
         </header>
         <div class="admin-form-field-grid">
-            <div class="lf-form-group admin-form-field--full">
+            <div class="admin-form-option-group course-category-featured-option admin-form-field--full">
                 <input type="hidden" name="is_featured" value="0">
-                <div class="admin-radio-group">
+                <label class="admin-form-option-panel admin-form-option-panel--compact">
                     <input id="is_featured" type="checkbox" name="is_featured" value="1"
                            @checked($isFeatured)>
-                    <label for="is_featured">{{ __('lf.LF_course_category_common_featured') }}</label>
-                </div>
+                    <span><strong>{{ __('lf.LF_course_category_common_featured') }}</strong></span>
+                </label>
             </div>
 
-            <div class="lf-form-group admin-form-field">
-                <x-form-label for="sort_order"
-                              :value="__('lf.LF_course_category_common_sort_order')"
-                              required />
-                <input id="sort_order" type="number" name="sort_order" class="lf-form-control"
-                       value="{{ $selectedSortOrder }}"
-                       @if (! $formCategory) readonly @endif
-                       placeholder="{{ __('lf.LF_course_category_placeholder_sort_order') }}" required>
-            </div>
-
-            <div class="lf-form-group admin-form-field">
+            <div class="lf-form-group admin-form-field--full">
                 <x-form-label for="status"
                               :value="__('lf.LF_course_category_common_status')"
                               required />

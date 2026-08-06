@@ -4,10 +4,14 @@
     $selectedStatus = old('status', $formCategory?->status ?? 'active');
 @endphp
 
-<div class="lf-form-group">
-    <label class="lf-form-label" for="parent_id">
-        {{ __('lf.LF_media_category_common_parent') }}
-    </label>
+<div class="admin-form-flow">
+<section class="admin-form-standard-section" aria-labelledby="media-category-general">
+    <header class="admin-form-section-header">
+        <h2 id="media-category-general" class="admin-form-section-title">{{ __('lf.LF_media_category_group_general') }}</h2>
+    </header>
+    <div class="admin-form-field-grid">
+<div class="lf-form-group admin-form-field">
+    <x-form-label for="parent_id" :value="__('lf.LF_media_category_common_parent')" />
     <select id="parent_id" name="parent_id" class="lf-form-control">
         <option value="">{{ __('lf.LF_media_category_common_root') }}</option>
         @foreach ($parentCategories as $parentCategory)
@@ -19,58 +23,45 @@
     </select>
 </div>
 
-<div class="lf-form-group">
-    <label class="lf-form-label" for="name">
-        {{ __('lf.LF_media_category_common_name') }}
-    </label>
+<div class="lf-form-group admin-form-field">
+    <x-form-label for="name" :value="__('lf.LF_media_category_common_name')" required />
     <input id="name" type="text" name="name" class="lf-form-control"
            value="{{ old('name', $formCategory?->name) }}" required maxlength="255">
 </div>
 
-<div class="lf-form-group">
-    <label class="lf-form-label" for="slug">
-        {{ __('lf.LF_media_category_common_slug') }}
-    </label>
+<div class="lf-form-group admin-form-field--full">
+    <x-form-label for="slug" :value="__('lf.LF_media_category_common_slug')" required />
     <input id="slug" type="text" name="slug" class="lf-form-control"
            value="{{ old('slug', $formCategory?->slug) }}" required maxlength="255">
 </div>
 
-<div class="lf-form-group">
-    <label class="lf-form-label" for="description">
-        {{ __('lf.LF_media_category_common_description') }}
-    </label>
+<div class="lf-form-group admin-form-field--full">
+    <x-form-label for="description" :value="__('lf.LF_media_category_common_description')" />
     <textarea id="description" name="description" class="lf-form-control"
               rows="4">{{ old('description', $formCategory?->description) }}</textarea>
 </div>
+    </div>
+</section>
 
-<div class="lf-form-group">
-    <label class="lf-form-label" for="icon">
-        {{ __('lf.LF_media_category_common_icon') }}
-    </label>
+<section class="admin-form-standard-section" aria-labelledby="media-category-display">
+    <header class="admin-form-section-header">
+        <h2 id="media-category-display" class="admin-form-section-title">{{ __('lf.LF_media_category_group_display') }}</h2>
+    </header>
+    <div class="admin-form-field-grid">
+<div class="lf-form-group admin-form-field">
+    <x-form-label for="icon" :value="__('lf.LF_media_category_common_icon')" />
     <input id="icon" type="text" name="icon" class="lf-form-control"
            value="{{ old('icon', $formCategory?->icon) }}" maxlength="100">
 </div>
 
-<div class="lf-form-group">
-    <label class="lf-form-label" for="color">
-        {{ __('lf.LF_media_category_common_color') }}
-    </label>
+<div class="lf-form-group admin-form-field">
+    <x-form-label for="color" :value="__('lf.LF_media_category_common_color')" />
     <input id="color" type="text" name="color" class="lf-form-control"
            value="{{ old('color', $formCategory?->color) }}" maxlength="32">
 </div>
 
-<div class="lf-form-group">
-    <label class="lf-form-label" for="sort_order">
-        {{ __('lf.LF_media_category_common_sort_order') }}
-    </label>
-    <input id="sort_order" type="number" name="sort_order" class="lf-form-control"
-           value="{{ old('sort_order', $formCategory?->sort_order ?? 1) }}" required min="0">
-</div>
-
-<div class="lf-form-group">
-    <label class="lf-form-label" for="status">
-        {{ __('lf.LF_media_category_common_status') }}
-    </label>
+<div class="lf-form-group admin-form-field">
+    <x-form-label for="status" :value="__('lf.LF_media_category_common_status')" required />
     <select id="status" name="status" class="lf-form-control" required>
         <option value="active" @selected($selectedStatus === 'active')>
             {{ __('lf.LF_media_category_common_active') }}
@@ -81,10 +72,11 @@
     </select>
 </div>
 
-<div class="lf-form-group">
-    <label class="lf-form-label" for="metadata">
-        {{ __('lf.LF_media_category_common_metadata') }}
-    </label>
+<div class="lf-form-group admin-form-field--full">
+    <x-form-label for="metadata" :value="__('lf.LF_media_category_common_metadata')" />
     <textarea id="metadata" name="metadata" class="lf-form-control"
               rows="4">{{ old('metadata', $formCategory?->metadata) }}</textarea>
+</div>
+    </div>
+</section>
 </div>

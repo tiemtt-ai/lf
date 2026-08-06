@@ -59,12 +59,14 @@ class MediaCategoryManagementTest extends TestCase
         $this->createCategory($customerId, 'Learning Videos', 'learning-videos');
         $this->createCategory($otherCustomerId, 'Private Media', 'private-media');
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/media-categories')
             ->assertOk()
             ->assertSeeText('Learning Videos')
             ->assertSeeText(__('lf.LF_media_category_common_title'))
+            ->assertDontSeeText(__('lf.LF_media_category_common_sort_order'))
             ->assertDontSeeText('Private Media');
+        $this->assertSame(6, preg_match_all('/<th\b/', $response->getContent()));
     }
 
     public function test_admin_can_create_media_category_with_documented_fields(): void
@@ -72,7 +74,19 @@ class MediaCategoryManagementTest extends TestCase
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
 
-        $this->actingAs($admin)
+        $createResponse = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/media-categories/create')
+            ->assertOk()
+            ->assertDontSee('name="sort_order"', false)
+            ->assertDontSee('id="sort_order"', false);
+        $createContent = $createResponse->getContent();
+        $this->assertStringContainsString('class="admin-form-standard"', $createContent);
+        $this->assertStringContainsString('class="admin-form-flow"', $createContent);
+        $this->assertStringContainsString('aria-labelledby="media-category-general"', $createContent);
+        $this->assertStringContainsString('aria-labelledby="media-category-display"', $createContent);
+        $this->assertStringContainsString('class="admin-form-footer"', $createContent);
+
+        $this
             ->post('https://tenant-a.localhost/admin/media-categories', $this->validCategoryData([
                 'name' => 'Learning Videos',
                 'slug' => 'learning-videos',
@@ -92,7 +106,7 @@ class MediaCategoryManagementTest extends TestCase
             'description' => 'Video assets',
             'icon' => 'video',
             'color' => '#2563EB',
-            'sort_order' => 10,
+            'sort_order' => 1,
             'status' => 'active',
             'metadata' => '{"purpose":"lesson"}',
         ]);
@@ -138,7 +152,6 @@ class MediaCategoryManagementTest extends TestCase
             ->assertSessionHasErrors([
                 'name',
                 'slug',
-                'sort_order',
                 'status',
                 'metadata',
             ]);

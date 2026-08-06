@@ -76,10 +76,8 @@ class CourseTemplateController extends Controller
                     });
                 }
             )
-            ->orderBy('categories.sort_order')
-            ->orderBy('categories.id')
-            ->orderBy('templates.sort_order')
-            ->orderBy('templates.id')
+            ->orderByDesc('templates.created_at')
+            ->orderByDesc('templates.id')
             ->select('templates.*', 'categories.name as category_name')
             ->paginate(10)
             ->withQueryString();
@@ -98,8 +96,6 @@ class CourseTemplateController extends Controller
 
         return view('course-templates.create', [
             'categories' => $this->categories(),
-            'nextSortOrders' => $this->nextSortOrders($customerId),
-            'initialSortOrder' => $this->nextTenantSortOrder($customerId),
             'requiredFields' => $this->requiredFields($customerId),
             'introImageMedia' => null,
             'introVideoMedia' => null,
@@ -165,6 +161,9 @@ class CourseTemplateController extends Controller
         $template = $this->findTemplate($customerId, $id);
         $versionsQuery = $this->versionsQuery($customerId, $id);
         $versions = (clone $versionsQuery)
+            ->reorder()
+            ->orderByDesc('versions.created_at')
+            ->orderByDesc('versions.id')
             ->paginate(10, ['*'], 'history_page')
             ->withQueryString();
         $latestVersion = (clone $versionsQuery)->first();
@@ -195,8 +194,6 @@ class CourseTemplateController extends Controller
             'currentVersion' => $currentVersion,
             'publishReadiness' => $publishReadiness,
             'categories' => $this->categories(),
-            'nextSortOrders' => $this->nextSortOrders($customerId),
-            'initialSortOrder' => (int) $template->sort_order,
             'sections' => $publishGraph->sections,
             'directLessons' => $publishGraph->lessons->whereNull('template_section_id'),
             'lessonsBySection' => $publishGraph->lessons->whereNotNull('template_section_id')->groupBy('template_section_id'),
@@ -373,10 +370,7 @@ class CourseTemplateController extends Controller
 
         DB::transaction(function () use ($customerId, $id, $request, $validated, $template): void {
             $categoryChanged = (int) $validated['category_id'] !== (int) $template->category_id;
-            $sortOrderUnchanged = ! array_key_exists('sort_order', $validated)
-                || (int) $validated['sort_order'] === (int) $template->sort_order;
-
-            if ($categoryChanged && $sortOrderUnchanged) {
+            if ($categoryChanged) {
                 $validated['sort_order'] = $this->nextSortOrder(
                     $customerId,
                     (int) $validated['category_id']
@@ -646,7 +640,6 @@ class CourseTemplateController extends Controller
                 'required',
                 Rule::in(CourseTemplateStatus::EDITABLE_VALUES),
             ],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
             'intro_image_file' => [
                 'nullable',
                 'file',
@@ -712,30 +705,6 @@ class CourseTemplateController extends Controller
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
-    }
-
-    private function nextSortOrders(int $customerId): array
-    {
-        return DB::table('core_course_categories as categories')
-            ->leftJoin('core_course_templates as templates', function ($join): void {
-                $join->on('templates.category_id', '=', 'categories.id')
-                    ->on('templates.customer_id', '=', 'categories.customer_id');
-            })
-            ->where('categories.customer_id', $customerId)
-            ->groupBy('categories.id')
-            ->selectRaw('categories.id, COALESCE(MAX(templates.sort_order), 0) + 1 as next_sort_order')
-            ->pluck('next_sort_order', 'id')
-            ->map(fn ($value): int => (int) $value)
-            ->all();
-    }
-
-    private function nextTenantSortOrder(int $customerId): int
-    {
-        $maximum = DB::table('core_course_templates')
-            ->where('customer_id', $customerId)
-            ->max('sort_order');
-
-        return $maximum === null ? 1 : (int) $maximum + 1;
     }
 
     private function nextSortOrder(int $customerId, int $categoryId): int

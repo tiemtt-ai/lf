@@ -292,6 +292,71 @@
     flex: 0 0 auto;
 }
 
+.lf-admin-page .lf-product-version-summary--selected {
+    margin-top: 8px;
+    padding: 10px 12px;
+    border-color: color-mix(in srgb, var(--admin-primary) 22%, var(--admin-border));
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--admin-primary) 4%, var(--admin-surface));
+}
+
+.lf-admin-page .lf-product-version-summary--selected .lf-product-version-summary-heading {
+    color: var(--admin-primary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.lf-admin-page .lf-product-version-summary--selected .lf-product-version-summary-primary {
+    margin-top: 2px;
+    font-size: 14px;
+}
+
+.lf-admin-page .lf-product-version-summary--in-use {
+    margin-top: 8px;
+    padding: 12px;
+    border-radius: 8px;
+}
+
+.lf-admin-page .lf-product-version-summary--in-use .lf-product-version-summary-heading {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.lf-admin-page .lf-product-version-summary--in-use .lf-product-version-summary-primary {
+    margin-top: 2px;
+    font-size: 14px;
+}
+
+.lf-admin-page .lf-product-version-summary--in-use .lf-secondary-text {
+    margin-top: 2px;
+    font-size: 13px;
+}
+
+.lf-admin-page .lf-product-version-summary-action {
+    min-height: 34px;
+    padding: 6px 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid color-mix(in srgb, var(--admin-primary) 28%, var(--admin-border));
+    background: var(--admin-surface);
+    white-space: nowrap;
+}
+
+.lf-admin-page .lf-product-version-summary-action .backend-sidebar-icon {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+}
+
+.lf-admin-page .lf-product-version-summary-action:hover,
+.lf-admin-page .lf-product-version-summary-action:focus,
+.lf-admin-page .lf-product-version-summary-action:focus-visible {
+    border-color: var(--admin-primary);
+    text-decoration: none;
+}
+
 @media (max-width: 575.98px) {
     .lf-admin-page .lf-product-version-summary {
         align-items: flex-start;
@@ -2130,12 +2195,6 @@
 
 .course-category-index-table .course-category-index-parent.is-root {
     color: var(--admin-text-muted);
-}
-
-.course-category-index-table th.course-category-index-order,
-.course-category-index-table td.course-category-index-order {
-    width: 120px;
-    text-align: center;
 }
 
 .course-category-index-table .course-category-index-status,

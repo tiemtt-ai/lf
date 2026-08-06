@@ -71,7 +71,6 @@
                 <th>{{ __('lf.LF_media_category_common_name') }}</th>
                 <th>{{ __('lf.LF_media_category_common_parent') }}</th>
                 <th>{{ __('lf.LF_media_category_common_slug') }}</th>
-                <th>{{ __('lf.LF_media_category_common_sort_order') }}</th>
                 <th>{{ __('lf.LF_media_category_common_status') }}</th>
                 <th>{{ __('lf.table_actions') }}</th>
             </tr>
@@ -83,7 +82,6 @@
                     <td>{{ $category->name }}</td>
                     <td>{{ $category->parent_name ?? __('lf.LF_media_category_common_root') }}</td>
                     <td>{{ $category->slug }}</td>
-                    <td>{{ $category->sort_order }}</td>
                     <td>
                         <span class="badge {{ $category->status === 'active' ? 'badge-success' : 'badge-danger' }}">
                             {{ $category->status === 'active'
@@ -102,7 +100,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="7">
+                    <td colspan="6">
                         {{ __('lf.LF_media_category_common_empty') }}
                     </td>
                 </tr>

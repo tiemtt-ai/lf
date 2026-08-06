@@ -191,7 +191,7 @@ class CourseProductManagementTest extends TestCase
             'show_enrollment_count' => 1,
             'display_enrollment_count' => 83,
             'is_featured' => 1,
-            'sort_order' => 10,
+            'sort_order' => 1,
             'visibility' => 'public',
             'meta_title' => 'TOPIK Beginner',
             'meta_description' => 'Learn TOPIK from the beginning.',
@@ -2175,12 +2175,23 @@ class CourseProductManagementTest extends TestCase
             $this->assertStringContainsString('admin-form-subsection', $content);
             $this->assertStringContainsString('id="product-course-content"', $content);
             $this->assertStringContainsString('id="product-identity"', $content);
+            $this->assertMatchesRegularExpression(
+                '/<section(?=[^>]*aria-labelledby="product-config")(?=[^>]*x-show="offering === \'self_paced_course\'")(?=[^>]*x-cloak)[^>]*>/',
+                $content
+            );
+            $this->assertStringNotContainsString('LF_product_v2_configuration_deferred', $content);
             $this->assertMatchesRegularExpression('/<input id="slug"[^>]+readonly[^>]+admin-form-readonly|<input id="slug"[^>]+admin-form-readonly[^>]+readonly/', $content);
             $this->assertStringNotContainsString('course-product-form-grid', $content);
             $this->assertStringNotContainsString('course-product-option-panel', $content);
-            foreach (['uses_custom_description', 'uses_custom_intro_media', 'promotion_enabled', 'price', 'currency', 'registration_starts_at', 'registration_ends_at', 'is_featured', 'sort_order', 'status'] as $name) {
+            foreach (['uses_custom_description', 'uses_custom_intro_media', 'promotion_enabled', 'price', 'currency', 'registration_starts_at', 'registration_ends_at', 'is_featured', 'status'] as $name) {
                 $this->assertStringContainsString('name="'.$name.'"', $content);
             }
+            $this->assertStringNotContainsString('name="sort_order"', $content);
+            $this->assertStringNotContainsString('id="sort_order"', $content);
+            $this->assertMatchesRegularExpression(
+                '/id="course-product-featured-field"[^>]+class="[^"]*admin-form-field--full[^"]*"/',
+                $content
+            );
             $statusMarkup = Str::between($content, '<select id="status"', '</select>');
             $this->assertStringNotContainsString('value="archived"', $statusMarkup);
         }
@@ -2266,19 +2277,59 @@ class CourseProductManagementTest extends TestCase
         $this->assertStringContainsString('@change="templateVersion = \'\'"', $content);
         $this->assertStringContainsString("template=''; templateVersion=''", $content);
         $this->assertStringContainsString('value="'.$versionId.'"', $content);
+        $this->assertStringContainsString('selectedVersion() {', $content);
+        $this->assertStringContainsString('String(item.id) === String(this.template)', $content);
+        $this->assertStringContainsString('String(version.id) === String(this.templateVersion)', $content);
+        $this->assertStringContainsString('x-if="selectedVersion()"', $content);
+        $this->assertStringContainsString(':href="selectedVersion().view_url"', $content);
+        $this->assertStringContainsString('target="_blank"', $content);
+        $this->assertStringContainsString('rel="noopener noreferrer"', $content);
+        $this->assertStringContainsString('lf-product-version-summary--selected', $content);
+        $this->assertStringContainsString('lf-product-version-summary-action', $content);
+        $this->assertStringContainsString('<path d="M15 3h6v6"></path>', $content);
+        $this->assertStringContainsString('aria-label="Xem phiên bản khóa học trong tab mới"', $content);
+        $this->assertStringContainsString(
+            'Phiên bản đã chọn sẽ được sử dụng khi sản phẩm được kích hoạt. Hãy kiểm tra nội dung phiên bản trước khi tiếp tục.',
+            $content
+        );
+
+        $versionState = app(CourseProductVersionSummaryPresenter::class)
+            ->present($customerId, null, true);
+        $presentedVersion = collect($versionState['templates'])
+            ->firstWhere('id', $templateId)
+            ->published_versions[0];
+        $this->assertSame($versionId, $presentedVersion['id']);
+        $this->assertSame(route('admin.course-templates.versions.show', [
+            'templateId' => $templateId,
+            'versionId' => $versionId,
+        ]), $presentedVersion['view_url']);
+
+        $hiddenVersionState = app(CourseProductVersionSummaryPresenter::class)
+            ->present($customerId, null, false);
+        $this->assertNull(collect($hiddenVersionState['templates'])
+            ->firstWhere('id', $templateId)
+            ->published_versions[0]['view_url']);
 
         $identityMarkup = Str::between($content, 'id="product-identity"', '</section>');
         $this->assertMatchesRegularExpression('/<div[^>]+admin-form-field--full[^>]*>.*id="slug"/s', $identityMarkup);
+        $this->assertMatchesRegularExpression(
+            '/<select(?=[^>]*\bid="offering_type")(?=[^>]*\bclass="lf-form-control")[^>]*>/',
+            $identityMarkup
+        );
+        $this->assertStringNotContainsString('course-product-offering-type', $identityMarkup);
+        $this->assertStringNotContainsString("'has-value': offering", $identityMarkup);
 
         $englishContent = $this->withSession(['locale' => 'en'])->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-products/create')
             ->assertOk()
             ->assertSeeText('Course version')
             ->assertSeeText('Select a published version')
-            ->assertSeeText('The selected version will be used when the product is activated.')
+            ->assertSeeText('The selected version will be used when the product is activated. Review the version content before continuing.')
+            ->assertSeeText('View version')
             ->assertDontSeeText('This product does not have a course version in use.')
             ->getContent();
         $this->assertStringContainsString('name="template_version_id"', $englishContent);
+        $this->assertStringContainsString('aria-label="View course version in a new tab"', $englishContent);
         $this->assertGreaterThan(0, $categoryId);
     }
 
@@ -2325,6 +2376,12 @@ class CourseProductManagementTest extends TestCase
         $this->assertStringContainsString('.course-product-discount-type.has-value', $pageCss);
         $this->assertStringContainsString('.course-product-offering-type.has-value', $pageCss);
         $this->assertStringContainsString('.introduction-video-source.has-value', $pageCss);
+        $this->assertStringContainsString('.lf-admin-page .lf-product-version-summary--selected {', $css);
+        $this->assertStringContainsString('.lf-admin-page .lf-product-version-summary-action:hover,', $css);
+        $this->assertMatchesRegularExpression(
+            '/\.lf-admin-page \.lf-product-version-summary-action:hover,[\s\S]*?text-decoration:\s*none;/',
+            $css
+        );
         $this->assertStringContainsString("control.classList.toggle('is-lf-placeholder', isPlaceholder);", $appJs);
         $this->assertStringContainsString('font-size: 14px;', $css);
         $this->assertStringContainsString('font-weight: 300;', $css);
@@ -2382,6 +2439,13 @@ class CourseProductManagementTest extends TestCase
         );
         $this->assertStringContainsString('class="admin-form-option-group"', $promotionFlow);
         $this->assertStringContainsString('class="admin-form-field-grid admin-form-conditional"', $promotionFlow);
+        $promotionOption = Str::between(
+            $promotionFlow,
+            'class="admin-form-option-group"',
+            'id="course-product-promotion-fields"'
+        );
+        $this->assertStringNotContainsString('course-product-promotion-registration-note', $promotionOption);
+        $this->assertStringNotContainsString('admin-form-inline-notice--boxed', $promotionFlow);
         $this->assertStringContainsString('class="admin-form-calculated-summary"', $promotionFlow);
         $this->assertTrue(
             strpos($promotionFlow, 'class="admin-form-option-group"')
@@ -2516,7 +2580,6 @@ class CourseProductManagementTest extends TestCase
         $content = $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-products/create')
             ->assertOk()
-            ->assertSeeText(__('lf.LF_product_v2_promotion_registration_help'))
             ->getContent();
 
         $this->assertLessThan(
@@ -2527,8 +2590,12 @@ class CourseProductManagementTest extends TestCase
         $this->assertStringContainsString('validateTimeWindows()', $content);
         $this->assertStringContainsString('field.setCustomValidity(this.timeMessages.registrationPair)', $content);
         $this->assertStringContainsString('this.$refs.promotionStart.setCustomValidity(message)', $content);
-        $this->assertStringNotContainsString(':min="registrationStart || null"', $content);
-        $this->assertStringNotContainsString(':max="registrationEnd || null"', $content);
+        foreach (['sale_starts_at', 'sale_ends_at'] as $field) {
+            $this->assertMatchesRegularExpression(
+                '/<input(?=[^>]*id="'.preg_quote($field, '/').'")(?=[^>]*:min="registrationStart \|\| null")(?=[^>]*:max="registrationEnd \|\| null")[^>]*>/',
+                $content
+            );
+        }
     }
 
     public function test_self_paced_duration_labels_include_the_localized_day_unit(): void
@@ -2913,6 +2980,9 @@ class CourseProductManagementTest extends TestCase
                 'templateId' => $templateId, 'versionId' => $newerVersionId,
             ]), false);
         $this->assertStringNotContainsString('lf-product-version-summary-number', $response->getContent());
+        $this->assertStringContainsString('lf-product-version-summary--in-use', $response->getContent());
+        $this->assertStringContainsString('lf-product-version-summary-action', $response->getContent());
+        $this->assertStringContainsString('<path d="M15 3h6v6"></path>', $response->getContent());
 
         $this->withSession(['locale' => 'en'])->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")

@@ -57,7 +57,8 @@ class UserController extends Controller
                 });
             })
             ->when($status, fn ($query) => $query->where('status', $status))
-            ->orderBy('name')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(10)
             ->withQueryString();
 

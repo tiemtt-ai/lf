@@ -84,15 +84,16 @@ class CourseTemplateManagementTest extends TestCase
         $firstPage = $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-templates')
             ->assertOk()
-            ->assertSeeText('Paginated Template 01')
+            ->assertSeeText('Paginated Template 11')
             ->assertSeeText('Paginated Template 10')
-            ->assertDontSeeText('Paginated Template 11')
+            ->assertDontSeeText('Paginated Template 01')
+            ->assertSeeTextInOrder(['Paginated Template 11', 'Paginated Template 10'])
             ->assertSee('admin-table-sequence', false);
 
         $secondPage = $this->get('https://tenant-a.localhost/admin/course-templates?page=2')
             ->assertOk()
-            ->assertSeeText('Paginated Template 11')
-            ->assertDontSeeText('Paginated Template 01')
+            ->assertSeeText('Paginated Template 01')
+            ->assertDontSeeText('Paginated Template 11')
             ->assertSee('admin-table-sequence', false);
 
         $firstPageDocument = new \DOMDocument;
@@ -251,7 +252,11 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertStringContainsString('aria-labelledby="course-template-learning"', $formPartial);
         $this->assertStringContainsString('aria-labelledby="course-template-introduction"', $formPartial);
         $this->assertStringContainsString('aria-labelledby="course-template-display"', $formPartial);
-        $this->assertSame(3, substr_count($formPartial, 'admin-form-field--full'));
+        $this->assertMatchesRegularExpression(
+            '/aria-labelledby="course-template-display"[\s\S]*?<div class="lf-form-group admin-form-field--full">[\s\S]*?(?:id="status"|LF_course_template_common_status)/',
+            $formPartial
+        );
+        $this->assertSame(4, substr_count($formPartial, 'admin-form-field--full'));
         $this->assertStringNotContainsString('admin-form-subsection', $formPartial);
         $this->assertSame(3, substr_count($formPartial, '<x-authoring-media-row'));
         $this->assertSame(3, substr_count($formPartial, '<x-authoring-media-upload'));
@@ -262,8 +267,8 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertStringNotContainsString('course-template-preview-name', $formPartial);
         $this->assertStringNotContainsString('course-template-preview-actions', $formPartial);
         $this->assertStringContainsString("preview.mediaType === 'embed'", $formPartial);
-        $this->assertStringContainsString('syncDefaultSortOrder($event.target.value)', $formPartial);
-        $this->assertStringContainsString('admin-form-readonly', $responses[0]->getContent());
+        $this->assertStringNotContainsString('syncDefaultSortOrder', $formPartial);
+        $this->assertStringNotContainsString('name="sort_order"', $formPartial);
 
         foreach ($responses as $response) {
             foreach ([
@@ -404,19 +409,21 @@ class CourseTemplateManagementTest extends TestCase
             ])
         )->assertRedirect();
 
-        $this->assertSame(3, (int) DB::table('core_course_templates')->where('id', $secondId)->value('sort_order'));
+        $this->assertSame(8, (int) DB::table('core_course_templates')->where('id', $secondId)->value('sort_order'));
     }
 
-    public function test_template_order_validation_and_list_tie_breaker_are_stable(): void
+    public function test_template_order_validation_and_list_show_newest_records_first(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
         $categoryId = $this->createCategory($customerId, 'Ordering', 'ordering');
 
-        $this->actingAs($admin)->post(
+        $location = $this->actingAs($admin)->post(
             'https://tenant-a.localhost/admin/course-templates',
             $this->validTemplateData(['category_id' => $categoryId, 'sort_order' => -1])
-        )->assertSessionHasErrors('sort_order');
+        )->assertRedirect()->headers->get('Location');
+        $forgedId = (int) basename(dirname((string) parse_url($location, PHP_URL_PATH)));
+        $this->assertSame(1, (int) DB::table('core_course_templates')->where('id', $forgedId)->value('sort_order'));
 
         $firstId = $this->createTemplate($customerId, 'Tie A', 'unused-a', $admin->id);
         $secondId = $this->createTemplate($customerId, 'Tie B', 'unused-b', $admin->id);
@@ -427,10 +434,10 @@ class CourseTemplateManagementTest extends TestCase
 
         $this->get('https://tenant-a.localhost/admin/course-templates')
             ->assertOk()
-            ->assertSeeInOrder(['Tie A', 'Tie B']);
+            ->assertSeeInOrder(['Tie B', 'Tie A']);
     }
 
-    public function test_create_initial_order_uses_the_tenant_maximum_before_category_selection(): void
+    public function test_create_form_does_not_expose_template_order(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -440,8 +447,8 @@ class CourseTemplateManagementTest extends TestCase
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-templates/create')
             ->assertOk()
-            ->assertSee('selectedSortOrder: 9', false)
-            ->assertSee('value="9"', false);
+            ->assertDontSee('selectedSortOrder', false)
+            ->assertDontSee('name="sort_order"', false);
     }
 
     public function test_create_and_edit_use_contextual_primary_action_labels(): void
