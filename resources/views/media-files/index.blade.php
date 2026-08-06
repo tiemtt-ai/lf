@@ -268,7 +268,7 @@
     </div>
 
     <div class="admin-table-wrap media-library-table-wrap media-library-index-table-wrap">
-        <table class="table media-library-table media-library-index-table">
+        <table class="table media-library-table media-library-index-table admin-table-has-actions">
             <thead>
             <tr>
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
@@ -276,10 +276,10 @@
                 <th>{{ __('lf.LF_media_file_common_type_and_size') }}</th>
                 <th>{{ __('lf.LF_media_file_common_upload_information') }}</th>
                 <th>{{ __('lf.LF_media_file_common_usage') }}</th>
+                <th class="media-library-index-status">{{ __('lf.LF_media_file_common_status') }}</th>
                 <th class="media-library-index-actions">
-                    <div class="media-library-status-heading">
-                        <span>{{ __('lf.LF_media_file_common_status') }}</span>
-                        <span class="sr-only">{{ __('lf.table_actions') }}</span>
+                    <div class="media-library-action-heading">
+                        <span>{{ __('lf.table_actions') }}</span>
                         @if ($unusedMediaIds !== [])
                             <input type="checkbox"
                                    class="media-library-selection-checkbox"
@@ -360,42 +360,46 @@
                             </div>
                         @endif
                     </td>
-                    <td class="media-library-index-actions" data-label="{{ __('lf.LF_media_file_common_status') }}">
+                    <td class="media-library-index-status" data-label="{{ __('lf.LF_media_file_common_status') }}">
                         <div class="media-library-status-cell">
                             @if ((int) $mediaFile->usage_count === 0)
-                                <div class="media-library-status-stack">
-                                    <span class="media-library-status-badge media-library-status-badge--unused">
-                                        {{ __('lf.LF_media_file_common_unused') }}
-                                    </span>
-                                    <button class="admin-link-button admin-text-action admin-danger-text-action"
-                                            type="button"
-                                            data-delete-action="{{ route('admin.media.destroy', $mediaFile->id) }}"
-                                            x-on:click="openMediaDelete(
-                                                @js($mediaFile->display_name),
-                                                $el.dataset.deleteAction
-                                            )">
-                                        {{ __('lf.LF_media_file_common_delete') }}
-                                    </button>
-                                </div>
+                                <span class="media-library-status-badge media-library-status-badge--unused">
+                                    {{ __('lf.LF_media_file_common_unused') }}
+                                </span>
                             @else
                                 <span class="media-library-status-badge media-library-status-badge--in-use">
                                     {{ __('lf.LF_media_file_common_in_use') }}
                                 </span>
                             @endif
 
-                            @if ((int) $mediaFile->usage_count === 0)
+                        </div>
+                    </td>
+                    <td class="media-library-index-actions" data-label="{{ __('lf.table_actions') }}">
+                        @if ((int) $mediaFile->usage_count === 0)
+                            <div class="media-library-action-cell">
                                 <input type="checkbox"
                                        class="media-library-selection-checkbox"
                                        value="{{ $mediaFile->id }}"
                                        x-model.number="selectedMediaIds"
                                        aria-label="{{ __('lf.LF_media_file_select_unused_named', ['name' => $mediaFile->display_name]) }}">
-                            @endif
-                        </div>
+                                <x-admin-action-menu :label="__('lf.table_actions').': '.$mediaFile->display_name">
+                                    <button class="admin-link-button admin-text-action admin-danger-text-action"
+                                            type="button"
+                                            data-delete-action="{{ route('admin.media.destroy', $mediaFile->id) }}"
+                                            x-on:click="open = false; openMediaDelete(@js($mediaFile->display_name), $el.dataset.deleteAction)">
+                                        <x-admin-action-icon name="delete" />
+                                        {{ __('lf.LF_media_file_common_delete') }}
+                                    </button>
+                                </x-admin-action-menu>
+                            </div>
+                        @else
+                            <span class="lf-secondary-text">—</span>
+                        @endif
                     </td>
                 </tr>
             @empty
                 <tr class="media-library-empty-row">
-                    <td colspan="6" class="media-library-empty-cell">
+                    <td colspan="7" class="media-library-empty-cell">
                         <div class="media-library-empty-state" role="status">
                             <strong>{{ $hasActiveFilters ? __('lf.LF_media_file_filter_empty') : __('lf.LF_media_file_common_empty') }}</strong>
                             <span>{{ $hasActiveFilters ? __('lf.LF_media_file_filter_empty_help') : __('lf.LF_media_file_empty_help') }}</span>

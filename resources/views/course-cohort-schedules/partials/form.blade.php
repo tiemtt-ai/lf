@@ -45,14 +45,13 @@
             if (this.slots.length <= 1) return
             const slot = this.slots[index]
             if (slot.persisted || slot.weekday || slot.start_time || slot.end_time) {
-                const confirmed = window.LFConfirm
-                    ? await window.LFConfirm.open({
-                        title: @js(__('lf.LF_course_cohort_schedule_remove_slot_title')),
-                        message: @js(__('lf.LF_course_cohort_schedule_remove_slot_confirm')),
-                        confirmLabel: @js(__('lf.LF_common_button_remove')),
-                        tone: 'danger'
-                    })
-                    : window.confirm(@js(__('lf.LF_course_cohort_schedule_remove_slot_confirm')))
+                if (!window.LFConfirm) return
+                const confirmed = await window.LFConfirm.open({
+                    title: @js(__('lf.LF_course_cohort_schedule_remove_slot_title')),
+                    message: @js(__('lf.LF_course_cohort_schedule_remove_slot_confirm')),
+                    confirmLabel: @js(__('lf.LF_common_button_remove')),
+                    tone: 'danger'
+                })
                 if (!confirmed) return
             }
             this.slots.splice(index, 1)

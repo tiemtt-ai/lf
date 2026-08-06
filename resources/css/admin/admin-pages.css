@@ -310,7 +310,9 @@
 }
 
 .media-library-table {
-    min-width: 900px;
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
 }
 
 .media-library-media-cell {
@@ -568,6 +570,18 @@
     display: grid;
     justify-items: center;
     gap: 10px;
+}
+
+.media-library-action-heading,
+.media-library-action-cell {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.media-library-action-heading {
+    justify-content: center;
 }
 
 .media-library-status-stack .admin-danger-text-action {

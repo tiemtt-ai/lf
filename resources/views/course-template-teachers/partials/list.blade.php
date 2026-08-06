@@ -34,7 +34,7 @@
             ) }}
         </div>
         <div class="admin-table-wrap">
-            <table class="table">
+            <table class="table admin-table-has-actions">
                 <thead>
                 <tr>
                     <th>{{ __('lf.LF_course_template_teacher_common_name') }}</th>
@@ -62,11 +62,12 @@
                             </span>
                         </td>
                         <td>
-                            <div class="admin-table-actions">
+                            <x-admin-action-menu :label="__('lf.table_actions').': '.$assignment->teacher_name">
                                 <a class="admin-table-action-link admin-text-action" href="{{ route(
                                     $teacherRoutePrefix.'.edit',
                                     [$template->id, $assignment->id]
                                 ) }}">
+                                    <x-admin-action-icon name="edit" />
                                     {{ __('lf.LF_course_template_teacher_common_edit') }}
                                 </a>
                                 @if ($assignment->status === 'active')
@@ -77,10 +78,11 @@
                                                 'open-modal',
                                                 'remove-course-template-teacher-{{ $assignment->id }}'
                                             )">
+                                        <x-admin-action-icon name="remove" />
                                         {{ __('lf.LF_course_template_teacher_common_remove') }}
                                     </button>
                                 @endif
-                            </div>
+                            </x-admin-action-menu>
 
                             @if ($assignment->status === 'active')
                                 <x-modal name="remove-course-template-teacher-{{ $assignment->id }}"

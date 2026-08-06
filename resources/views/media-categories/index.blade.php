@@ -64,7 +64,7 @@
     </div>
 
     <div class="admin-table-wrap">
-        <table class="table">
+        <table class="table admin-table-has-actions">
             <thead>
             <tr>
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
@@ -92,11 +92,12 @@
                         </span>
                     </td>
                     <td>
-                        <div class="admin-table-actions">
+                        <x-admin-action-menu :label="__('lf.table_actions').': '.$category->name">
                             <a class="admin-table-action-link admin-text-action" href="{{ route('admin.media-categories.edit', $category->id) }}">
+                                <x-admin-action-icon name="edit" />
                                 {{ __('lf.action_edit') }}
                             </a>
-                        </div>
+                        </x-admin-action-menu>
                     </td>
                 </tr>
             @empty

@@ -2249,7 +2249,7 @@
 }
 
 .course-product-index-table {
-    min-width: 920px;
+    min-width: 820px;
     table-layout: fixed;
 }
 
@@ -2364,14 +2364,15 @@
 }
 
 .media-library-table.media-library-index-table {
-    min-width: 1100px;
+    width: 100%;
+    min-width: 820px;
     table-layout: fixed;
 }
 
 .media-library-index-table .admin-table-sequence {
-    width: 72px;
-    min-width: 72px;
-    max-width: 72px;
+    width: 56px;
+    min-width: 56px;
+    max-width: 56px;
     text-align: center;
 }
 
@@ -2390,12 +2391,12 @@
 
 .media-library-index-table th:nth-child(2),
 .media-library-index-table td:nth-child(2) {
-    width: 30%;
+    width: 158px;
 }
 
 .media-library-index-table th:nth-child(3),
 .media-library-index-table td:nth-child(3) {
-    width: 190px;
+    width: 140px;
     text-align: left;
 }
 
@@ -2405,19 +2406,24 @@
 
 .media-library-index-table th:nth-child(4),
 .media-library-index-table td:nth-child(4) {
-    width: 170px;
+    width: 135px;
 }
 
 .media-library-index-table th:nth-child(5),
 .media-library-index-table td:nth-child(5) {
-    width: 24%;
+    width: 100px;
+}
+
+.media-library-index-table .media-library-index-status {
+    width: 112px;
+    text-align: center;
 }
 
 .media-library-index-table .media-library-index-actions {
     position: sticky;
     z-index: 2;
     right: 0;
-    width: 144px;
+    width: 112px;
     background: #ffffff;
     box-shadow: -1px 0 0 #e5e7eb;
     text-align: center;
@@ -2440,7 +2446,7 @@
 }
 
 .course-enrollment-index-table {
-    min-width: 980px;
+    min-width: 860px;
 }
 
 .course-enrollment-detail .admin-form-field-grid {
@@ -3902,11 +3908,7 @@
 
 .course-cohort-index-table .course-cohort-index-status {
     width: 138px;
-    position: sticky;
-    right: 112px;
-    z-index: 2;
     background: #ffffff;
-    box-shadow: -1px 0 0 #e5e7eb;
 }
 
 .course-cohort-index-table .course-cohort-index-actions {
@@ -4597,13 +4599,13 @@
     table-layout: fixed;
 }
 
-.course-cohort-schedules__col-sequence { width: 64px; }
-.course-cohort-schedules__col-name { width: 18%; }
-.course-cohort-schedules__col-slots { width: 26%; }
-.course-cohort-schedules__col-period { width: 19%; }
-.course-cohort-schedules__col-count { width: 13%; }
-.course-cohort-schedules__col-status { width: 14%; }
-.course-cohort-schedules__col-actions { width: 150px; }
+.course-cohort-schedules__col-sequence { width: 6%; }
+.course-cohort-schedules__col-name { width: 23%; }
+.course-cohort-schedules__col-slots { width: 24%; }
+.course-cohort-schedules__col-period { width: 18%; }
+.course-cohort-schedules__col-count { width: 9%; }
+.course-cohort-schedules__col-status { width: 13%; }
+.course-cohort-schedules__col-actions { width: 7%; }
 
 .course-cohort-schedules__table th,
 .course-cohort-schedules__table td {
@@ -4645,6 +4647,11 @@
 .course-cohort-schedules__table th:last-child,
 .course-cohort-schedules__table td:last-child {
     text-align: right;
+}
+
+.course-cohort-schedules__table tbody tr:last-child .course-cohort-session-action-menu__panel {
+    top: auto;
+    bottom: calc(100% + 6px);
 }
 
 .course-cohort-schedules__primary,
@@ -5390,78 +5397,265 @@
     scroll-margin-top: 16px;
 }
 
+.course-cohort-session-batch-timezone {
+    margin-left: 8px;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
 .course-cohort-session-batch-location {
     display: grid;
     gap: 14px 16px;
 }
 
-.course-cohort-session-batch-table-wrap {
-    overflow-x: auto;
+.course-cohort-session-batch-list {
     border: 1px solid var(--admin-border);
     border-radius: 9px;
     background: var(--admin-surface);
+    overflow: visible;
 }
 
-.course-cohort-session-batch-table {
-    min-width: 1050px;
-    margin: 0;
-    table-layout: fixed;
-    font-family: inherit;
-}
-
-.course-cohort-session-batch-table__col-check { width: 48px; }
-.course-cohort-session-batch-table__col-occurrence { width: 155px; }
-.course-cohort-session-batch-table__col-lesson { width: 190px; }
-.course-cohort-session-batch-table__col-activity { width: 230px; }
-.course-cohort-session-batch-table__col-teachers { width: 290px; }
-.course-cohort-session-batch-table__col-mode { width: 137px; }
-
-.lf-admin-page .course-cohort-session-batch-table th {
-    padding: 11px 12px;
+.course-cohort-session-batch-select-all {
+    min-height: 46px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--admin-border);
     color: #475569;
-    font-size: 13px;
+    background: var(--admin-surface-subtle);
+    font-size: 14px;
     font-weight: 600;
-    line-height: 1.4;
-    white-space: normal;
+    cursor: pointer;
 }
 
-.lf-admin-page .course-cohort-session-batch-table td {
-    padding: 12px;
+.course-cohort-session-batch-select-all input,
+.course-cohort-session-batch-item__selection input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    flex: 0 0 16px;
 }
 
-.course-cohort-session-batch-table th,
-.course-cohort-session-batch-table td { vertical-align: middle; }
-.course-cohort-session-batch-table__check { width: 48px; text-align: center; }
-.course-cohort-session-batch-table__check input[type='checkbox'] { width: 16px; height: 16px; }
-.course-cohort-session-batch-table__occurrence { min-width: 0; }
-.course-cohort-session-batch-table__occurrence strong,
-.course-cohort-session-batch-table__occurrence span,
-.course-cohort-session-batch-table__occurrence small { display: block; }
-.course-cohort-session-batch-table__occurrence strong {
+.course-cohort-session-batch-item + .course-cohort-session-batch-item {
+    border-top: 1px solid var(--admin-border);
+}
+
+.course-cohort-session-batch-item__summary {
+    min-height: 68px;
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    align-items: center;
+    color: var(--admin-text);
+    background: var(--admin-surface);
+}
+
+.course-cohort-session-batch-item.is-selected .course-cohort-session-batch-item__summary {
+    background: color-mix(in srgb, var(--admin-primary) 3%, var(--admin-surface));
+}
+
+.course-cohort-session-batch-item__selection {
+    align-self: stretch;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+}
+
+.course-cohort-session-batch-item__trigger {
+    width: 100%;
+    min-width: 0;
+    min-height: 68px;
+    padding: 12px 16px 12px 0;
+    display: grid;
+    grid-template-columns: minmax(220px, .75fr) minmax(180px, 1fr) auto 16px;
+    align-items: center;
+    gap: 14px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.course-cohort-session-batch-item__trigger:focus-visible {
+    border-radius: 6px;
+    outline: 2px solid color-mix(in srgb, var(--admin-primary) 58%, transparent);
+    outline-offset: -4px;
+}
+
+.course-cohort-session-batch-item__date {
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 5px 12px;
+}
+
+.course-cohort-session-batch-item__date strong {
     color: var(--admin-text);
     font-size: 14px;
     font-weight: 600;
     line-height: 1.4;
 }
-.course-cohort-session-batch-table__occurrence span,
-.course-cohort-session-batch-table__occurrence small {
-    margin-top: 3px;
+
+.course-cohort-session-batch-item__date span,
+.course-cohort-session-batch-item__meta {
     color: var(--admin-text-muted);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 400;
     line-height: 1.4;
 }
-.course-cohort-session-batch-table tr.is-unselected { opacity: .52; }
-.lf-admin-page .admin-form-standard .course-cohort-session-batch-table .lf-form-control,
-.lf-admin-page .admin-form-standard .course-cohort-session-batch-table select.lf-form-control,
-.lf-admin-page .admin-form-standard .course-cohort-session-batch-table select.lf-form-control option {
+
+.course-cohort-session-batch-item__meta {
     min-width: 0;
-    height: 38px;
-    min-height: 38px;
-    padding: 6px 9px;
+    display: grid;
+    gap: 3px;
+}
+
+.course-cohort-session-batch-item__meta span,
+.course-cohort-session-batch-item__meta small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.course-cohort-session-batch-item__meta .course-cohort-session-batch-item__hint {
+    color: var(--admin-text-muted);
+    font-weight: 400;
+}
+
+.course-cohort-session-batch-item__meta small {
+    color: var(--admin-text);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.course-cohort-session-batch-item__state {
+    padding: 4px 9px;
+    border-radius: 999px;
+    color: var(--admin-text-muted);
+    background: var(--admin-surface-subtle);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.course-cohort-session-batch-item.is-configured .course-cohort-session-batch-item__state {
+    color: var(--admin-primary);
+    background: color-mix(in srgb, var(--admin-primary) 9%, var(--admin-surface));
+}
+
+.course-cohort-session-batch-item.is-incomplete .course-cohort-session-batch-item__state {
+    color: #92400e;
+    background: #fef3c7;
+}
+
+.course-cohort-session-batch-item__chevron {
+    width: 8px;
+    height: 8px;
+    border-right: 1.5px solid var(--admin-text-muted);
+    border-bottom: 1.5px solid var(--admin-text-muted);
+    transform: rotate(45deg) translate(-2px, -2px);
+    transition: transform 150ms ease;
+}
+
+.course-cohort-session-batch-item.is-expanded .course-cohort-session-batch-item__chevron {
+    transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.course-cohort-session-batch-item.has-error .course-cohort-session-batch-item__state {
+    color: #b42318;
+    background: #fef3f2;
+}
+
+.course-cohort-session-batch-item.is-disabled .course-cohort-session-batch-item__summary {
+    background: var(--admin-surface-subtle);
+}
+
+.course-cohort-session-batch-item.is-disabled .course-cohort-session-batch-item__selection,
+.course-cohort-session-batch-item.is-disabled .course-cohort-session-batch-item__trigger {
+    cursor: default;
+}
+
+.course-cohort-session-batch-item__disabled-reason {
+    margin: -7px 16px 12px 48px;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.course-cohort-session-batch-item__form {
+    padding: 16px 44px 18px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 16px;
+    border-top: 1px solid color-mix(in srgb, var(--admin-primary) 12%, var(--admin-border));
+    background: var(--admin-surface);
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--admin-primary) 45%, transparent);
+}
+
+.course-cohort-session-batch-item__form .lf-form-group {
+    min-width: 0;
+    margin: 0;
+}
+
+.course-cohort-session-batch-item__form .lf-form-label {
+    margin-bottom: 6px;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.35;
+}
+
+.course-cohort-session-batch-item__form .lf-form-label [aria-hidden="true"] {
+    color: #dc2626;
+}
+
+.course-cohort-session-batch-item__form-heading {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 2px;
+}
+
+.course-cohort-session-batch-item__form-heading strong {
+    color: var(--admin-text);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.course-cohort-session-batch-item__reset {
+    flex: 0 0 auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-size: 12px;
+    color: var(--admin-text-muted);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.course-cohort-session-batch-item__reset:hover,
+.course-cohort-session-batch-item__reset:focus-visible {
+    color: var(--admin-primary);
+}
+
+.lf-admin-page .admin-form-standard .course-cohort-session-batch-item__form .lf-form-control,
+.lf-admin-page .admin-form-standard .course-cohort-session-batch-item__form select.lf-form-control,
+.lf-admin-page .admin-form-standard .course-cohort-session-batch-item__form select.lf-form-control option {
+    min-width: 0;
+    height: 40px;
+    min-height: 40px;
+    padding: 7px 11px;
     overflow: hidden;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 400;
     line-height: 1.4;
     text-overflow: ellipsis;
@@ -5593,13 +5787,63 @@
     margin-top: 16px;
 }
 
+.course-cohort-session-batch-message {
+    margin: 12px 0 0;
+}
+
 .course-cohort-session-batch-form .admin-form-footer--sticky {
     width: 100%;
     margin: 18px 0 0;
 }
 
 @media (max-width: 900px) {
-    .course-cohort-session-batch-location { grid-template-columns: minmax(0, 1fr); }
+    .course-cohort-session-batch-item__summary {
+        grid-template-columns: 44px minmax(0, 1fr);
+    }
+
+    .course-cohort-session-batch-item__trigger {
+        grid-template-columns: minmax(0, 1fr) auto 16px;
+    }
+
+    .course-cohort-session-batch-item__meta {
+        grid-column: 1 / 2;
+    }
+
+    .course-cohort-session-batch-item__form,
+    .course-cohort-session-batch-location {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+}
+
+@media (max-width: 575.98px) {
+    .course-cohort-session-batch-item__summary {
+        grid-template-columns: 40px minmax(0, 1fr);
+        gap: 10px;
+    }
+
+    .course-cohort-session-batch-item__trigger {
+        padding-right: 12px;
+        grid-template-columns: minmax(0, 1fr) 16px;
+        gap: 8px;
+    }
+
+    .course-cohort-session-batch-item__state {
+        display: none;
+    }
+
+    .course-cohort-session-batch-item__date {
+        display: grid;
+        gap: 2px;
+    }
+
+    .course-cohort-session-batch-item__meta {
+        display: none;
+    }
+
+    .course-cohort-session-batch-item__form {
+        padding: 16px;
+    }
 }
 
 .course-cohort-session-origin-badge {
@@ -5722,6 +5966,12 @@
     overflow-y: auto;
 }
 
+.lf-admin-page .course-cohort-student-inline-form .course-cohort-student-name {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
 .course-cohort-student-inline-form .cohort-student-empty-state--selected {
     min-height: 140px;
     padding: 20px 16px;
@@ -5768,13 +6018,13 @@
     font-weight: 700;
 }
 
-.course-cohort-session-table__col-sequence { width: 4%; }
-.course-cohort-session-table__col-name { width: 20%; }
+.course-cohort-session-table__col-sequence { width: 5%; }
+.course-cohort-session-table__col-name { width: 21%; }
 .course-cohort-session-table__col-content { width: 18%; }
-.course-cohort-session-table__col-schedule { width: 19%; }
+.course-cohort-session-table__col-schedule { width: 18%; }
 .course-cohort-session-table__col-teacher { width: 17%; }
-.course-cohort-session-table__col-status { width: 12%; }
-.course-cohort-session-table__col-actions { width: 10%; }
+.course-cohort-session-table__col-status { width: 13%; }
+.course-cohort-session-table__col-actions { width: 8%; }
 .course-cohort-session-table .admin-table-sequence,
 .course-cohort-session-table__status,
 .course-cohort-session-table__actions { text-align: center; }
@@ -5805,13 +6055,12 @@
 .course-cohort-session-table__schedule {
     margin: 0;
     display: grid;
-    gap: 5px;
-    white-space: nowrap;
+    gap: 4px;
 }
 
 .course-cohort-session-table__schedule div {
-    display: grid;
-    grid-template-columns: 52px minmax(0, 1fr);
+    min-width: 0;
+    display: flex;
     align-items: baseline;
     gap: 8px;
 }
@@ -5827,6 +6076,32 @@
     color: var(--admin-text);
     font-size: 13px;
     font-weight: 500;
+}
+
+.course-cohort-session-table__schedule .course-cohort-session-table__date dd {
+    color: var(--admin-text);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.course-cohort-session-table__schedule .course-cohort-session-table__date dt {
+    font-weight: 400;
+}
+
+.course-cohort-session-table__schedule .course-cohort-session-table__time dd {
+    font-variant-numeric: tabular-nums;
+}
+
+.course-cohort-session-table__schedule .course-cohort-session-table__date-range {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    white-space: nowrap;
+}
+
+.course-cohort-session-table__empty-value {
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    font-weight: 400;
 }
 
 .course-cohort-session-type-badge {
@@ -5974,6 +6249,147 @@
     font-weight: 600;
 }
 
+/* Canonical admin table action column and overflow menu. */
+.lf-admin-page .admin-table-wrap .table > thead > tr > th {
+    white-space: nowrap;
+}
+
+.admin-table-has-actions > thead > tr > th:last-child,
+.admin-table-has-actions > tbody > tr > td:last-child {
+    width: 80px;
+    min-width: 80px;
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background: var(--admin-surface);
+    box-shadow: -1px 0 0 var(--admin-border);
+    text-align: right;
+}
+
+.admin-table-has-actions > thead > tr > th:last-child {
+    z-index: 4;
+    background: #f8fafc;
+}
+
+.lf-admin-page .admin-table-wrap table.admin-table-has-actions > tbody > tr:hover > td,
+.lf-admin-page .admin-table-wrap table.admin-table-has-actions > tbody > tr:focus-within > td {
+    background: #fafcff;
+}
+
+.admin-action-menu {
+    position: relative;
+    display: inline-flex;
+    justify-content: flex-end;
+}
+
+.admin-action-menu__trigger {
+    width: 32px;
+    min-height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: var(--admin-surface-subtle);
+    color: var(--admin-text-muted);
+    cursor: pointer;
+}
+
+.admin-action-menu__trigger:hover,
+.admin-action-menu__trigger:focus-visible,
+.admin-action-menu__trigger.is-open {
+    border-color: color-mix(in srgb, var(--admin-primary) 35%, var(--admin-border));
+    background: color-mix(in srgb, var(--admin-primary) 9%, var(--admin-surface));
+    color: var(--admin-primary);
+}
+
+.admin-action-menu__trigger:focus-visible {
+    outline: 2px solid var(--admin-primary);
+    outline-offset: 2px;
+}
+
+.admin-action-menu__dots {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
+.admin-action-menu__panel {
+    width: max-content;
+    min-width: 136px;
+    padding: 5px;
+    position: fixed;
+    z-index: 1000;
+    display: grid;
+    gap: 2px;
+    border: 1px solid var(--admin-border);
+    border-radius: 9px;
+    background: var(--admin-surface);
+    box-shadow: 0 12px 28px rgb(15 23 42 / 14%);
+    text-align: left;
+}
+
+.admin-action-menu__panel > a,
+.admin-action-menu__panel > button,
+.admin-action-menu__panel > form > button {
+    width: 100%;
+    min-height: 36px;
+    padding: 7px 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.25;
+    text-align: center;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.admin-action-menu__panel > form {
+    margin: 0;
+}
+
+.admin-action-menu__item-icon {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.admin-action-menu__panel > a:hover,
+.admin-action-menu__panel > a:focus-visible,
+.admin-action-menu__panel > button:hover,
+.admin-action-menu__panel > button:focus-visible,
+.admin-action-menu__panel > form > button:hover,
+.admin-action-menu__panel > form > button:focus-visible {
+    background: color-mix(in srgb, var(--admin-primary) 9%, var(--admin-surface));
+    color: var(--admin-primary);
+    outline: none;
+}
+
+@media (max-width: 767.98px) {
+    .admin-table-has-actions > thead > tr > th:last-child,
+    .admin-table-has-actions > tbody > tr > td:last-child {
+        width: auto;
+        position: static;
+        background: transparent;
+        box-shadow: none;
+        text-align: left;
+    }
+
+    .admin-action-menu {
+        justify-content: flex-start;
+    }
+}
+
 .course-cohort-session-modal {
     width: min(720px, calc(100vw - 32px));
 }
@@ -6044,6 +6460,11 @@
     background: var(--admin-surface-subtle);
 }
 
+.course-cohort-session-modal__grid--schedule > .course-cohort-session-modal__schedule-source,
+.course-cohort-session-reschedule-current .course-cohort-session-modal__schedule-source {
+    grid-column: 1 / -1;
+}
+
 .course-cohort-session-modal__grid div {
     min-width: 0;
 }
@@ -6077,8 +6498,9 @@
 .course-cohort-session-reschedule-modal__body {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-    padding-bottom: 20px;
+    column-gap: 24px;
+    row-gap: 18px;
+    padding: 20px 24px 22px;
 }
 
 .course-cohort-session-reschedule-modal {
@@ -6134,6 +6556,7 @@
 
 .course-cohort-session-reschedule-new-heading {
     color: var(--admin-primary);
+    padding-top: 2px;
 }
 
 .course-cohort-session-reschedule-modal textarea.lf-form-control {

@@ -288,7 +288,7 @@
                 </form>
 
                 <div class="admin-table-wrap cohort-student-list-table-wrap">
-                    <table class="table cohort-student-list-table course-cohort-roster-table">
+                    <table class="table cohort-student-list-table course-cohort-roster-table admin-table-has-actions">
                         <thead><tr>
                             <th>{{ __('lf.LF_course_cohort_student_common_student') }}</th>
                             <th>{{ __('lf.LF_course_cohort_student_common_enrollment') }}</th>
@@ -322,7 +322,7 @@
                                     ])>{{ __('lf.LF_course_enrollment_common_'.$student->enrollment_status) }}</span>
                                 </td>
                                 <td class="cohort-student-list-actions" data-label="{{ __('lf.table_actions') }}">
-                                    <div class="admin-table-actions course-cohort-roster-action-list">
+                                    <x-admin-action-menu :label="__('lf.table_actions').': '.$student->student_name">
                                         <button type="button"
                                                 class="admin-link-button admin-text-action admin-table-action-link"
                                                 x-on:click="openDetail(@js([
@@ -341,9 +341,10 @@
                                                     'detail_url' => route('admin.course-enrollments.show', $student->enrollment_id),
                                                     'current' => true,
                                                 ]), $event)">
+                                            <x-admin-action-icon name="view" />
                                             {{ __('lf.LF_course_cohort_student_view_enrollment') }}
                                         </button>
-                                    </div>
+                                    </x-admin-action-menu>
                                 </td>
                             </tr>
                         @empty

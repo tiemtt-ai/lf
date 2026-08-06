@@ -514,7 +514,32 @@ class BackendLayoutNavigationTest extends TestCase
         }
 
         $this->assertGreaterThan(20, $actionTags);
-        $this->assertGreaterThan(10, $actionGroups);
+        $this->assertGreaterThan(3, $actionGroups);
+
+        $actionMenu = file_get_contents(
+            base_path('resources/views/components/admin-action-menu.blade.php')
+        );
+        $this->assertStringContainsString('admin-action-menu__trigger', $actionMenu);
+        $this->assertStringContainsString('admin-action-menu__panel', $actionMenu);
+        $this->assertStringContainsString('x-on:click.outside', $actionMenu);
+        $this->assertStringContainsString('x-on:mouseenter="openMenu()"', $actionMenu);
+        $this->assertStringContainsString('x-on:mouseleave="scheduleClose()"', $actionMenu);
+        $this->assertStringContainsString("__('lf.table_more_actions')", $actionMenu);
+        $this->assertStringContainsString('<circle cx="12" cy="5"', $actionMenu);
+        $this->assertStringContainsString('<circle cx="12" cy="19"', $actionMenu);
+
+        $actionIcon = file_get_contents(
+            base_path('resources/views/components/admin-action-icon.blade.php')
+        );
+        $this->assertStringContainsString("@case('view')", $actionIcon);
+        $this->assertStringContainsString("@case('edit')", $actionIcon);
+        $this->assertStringContainsString("@case('delete')", $actionIcon);
+        $this->assertStringContainsString("@case('remove')", $actionIcon);
+
+        $componentCss = file_get_contents(base_path('resources/css/admin/admin-components.css'));
+        $this->assertStringContainsString('.admin-table-has-actions > thead > tr > th:last-child', $componentCss);
+        $this->assertStringContainsString('.admin-table-has-actions > tbody > tr:hover > td', $componentCss);
+        $this->assertStringContainsString('.admin-action-menu__trigger:focus-visible', $componentCss);
 
         $pageCss = file_get_contents(base_path('resources/css/admin/admin-pages.css'));
         $this->assertMatchesRegularExpression(
@@ -542,6 +567,8 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringContainsString('flex-wrap: wrap;', $cssDocumentation);
         $this->assertStringContainsString('gap: 12px;', $cssDocumentation);
         $this->assertStringContainsString('admin-primary-outline-action', $cssDocumentation);
+        $this->assertStringContainsString('admin-table-has-actions', $cssDocumentation);
+        $this->assertStringContainsString('x-admin-action-menu', $cssDocumentation);
     }
 
     public function test_backend_pagination_summary_uses_lf_translations(): void
@@ -567,6 +594,47 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringNotContainsString("{!! __('to') !!}", $paginationView);
         $this->assertStringNotContainsString("{!! __('of') !!}", $paginationView);
         $this->assertStringNotContainsString("{!! __('results') !!}", $paginationView);
+    }
+
+    public function test_admin_tables_use_the_canonical_sticky_action_menu_contract(): void
+    {
+        $tableViews = [
+            'resources/views/admin/users/index.blade.php',
+            'resources/views/course-categories/index.blade.php',
+            'resources/views/course-cohort-students/index.blade.php',
+            'resources/views/course-cohorts/index.blade.php',
+            'resources/views/course-cohorts/show.blade.php',
+            'resources/views/course-cohorts/partials/tabs/teachers.blade.php',
+            'resources/views/course-cohorts/partials/tabs/schedules.blade.php',
+            'resources/views/course-cohorts/partials/tabs/sessions.blade.php',
+            'resources/views/course-enrollments/index.blade.php',
+            'resources/views/course-products/index.blade.php',
+            'resources/views/course-products/edit.blade.php',
+            'resources/views/course-template-teachers/partials/list.blade.php',
+            'resources/views/course-templates/index.blade.php',
+            'resources/views/course-templates/edit.blade.php',
+            'resources/views/media-categories/index.blade.php',
+            'resources/views/media-files/index.blade.php',
+        ];
+
+        foreach ($tableViews as $view) {
+            $blade = file_get_contents(base_path($view));
+            $this->assertStringContainsString('admin-table-has-actions', $blade, $view);
+            $this->assertStringContainsString('<x-admin-action-menu', $blade, $view);
+        }
+
+        $componentCss = file_get_contents(base_path('resources/css/admin/admin-components.css'));
+        $this->assertMatchesRegularExpression(
+            '/\.lf-admin-page \.admin-table-wrap \.table > thead > tr > th\s*\{[^}]*white-space:\s*nowrap;/s',
+            $componentCss
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.admin-table-has-actions > tbody > tr > td:last-child\s*\{[^}]*position:\s*sticky;[^}]*right:\s*0;/s',
+            $componentCss
+        );
+        $this->assertStringContainsString('x-teleport="body"', file_get_contents(
+            base_path('resources/views/components/admin-action-menu.blade.php')
+        ));
     }
 
     public function test_backend_confirmations_use_the_shared_localized_dialog(): void

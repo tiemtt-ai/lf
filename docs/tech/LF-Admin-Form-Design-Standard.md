@@ -827,7 +827,7 @@ Shared implementation hiện hành nằm trong
 | Primary cell text | `<module>-index-primary` |
 | Secondary metadata | `<module>-index-meta` |
 | Status | `badge` và domain status class |
-| Actions | `admin-table-actions <module>-index-action-list` |
+| Actions | `admin-table-has-actions` trên table và `<x-admin-action-menu>` trong action cell |
 | Empty state | `<module>-empty-row`, `-empty-cell`, `-empty-state` |
 
 Module prefix là namespace, không phải quyền nhân bản toàn bộ shared CSS.
@@ -866,10 +866,29 @@ tách khỏi nhịp controls hoặc dùng placeholder thay cho persistent label.
 * Price, date hoặc short state **MAY** `nowrap` trên desktop nếu không gây
   horizontal overflow.
 * Status **MUST** dùng canonical badge, không dùng raw color text.
-* Row **MAY** có hover/focus background rất nhẹ; sticky status/action cells
-  phải đồng bộ background với row state.
-* Text actions **SHOULD** có padding `6px 8px`, radius `6px`, font
-  `13px/600` và visible hover/focus hit area.
+* Row **MAY** có hover/focus background rất nhẹ; chỉ action cell được sticky
+  theo mặc định và phải đồng bộ background với row state. Business/status
+  columns giữ trong table flow trừ khi module có review riêng.
+* Table header labels **MUST** remain on one line on desktop. The table wrapper
+  owns horizontal overflow when the available width is insufficient.
+* Table có cột Thao tác **MUST** dùng `admin-table-has-actions`; cột này bám
+  mép phải của table khi sidebar expanded/collapsed và không được trôi vào giữa
+  business data.
+* Hành động theo dòng **MUST** dùng shared `<x-admin-action-menu>` với trigger
+  dấu ba chấm dọc. Trigger **MUST** có tooltip i18n mô tả “More actions”, có
+  nền ở default state và visible
+  hover/focus/open state; menu item nằm dưới trigger, dùng `13px/600` và có
+  visible hover/focus hit area.
+* Action column **SHOULD** giữ compact width; khi row hover/focus, sticky action
+  cell **MUST** dùng đúng background của toàn row, không tạo mảng trắng riêng.
+* Trên thiết bị có con trỏ, action menu **SHOULD** mở ngay khi hover trigger;
+  click, keyboard, Escape và click-outside vẫn phải hoạt động đầy đủ. Menu phải
+  đủ rộng theo label, căn giữa label và có visible item hover/focus background.
+* Các action phổ biến Xem, Sửa, Xóa và Gỡ **MUST** dùng semantic icon từ
+  `<x-admin-action-icon>` đặt bên trái label. Icon chỉ hỗ trợ nhận diện; label
+  text vẫn bắt buộc và cả cụm icon-label được căn giữa trong menu item.
+* Module authorization và lifecycle **MUST** quyết định item nào tồn tại trong
+  menu; shared component chỉ kiểm soát presentation và interaction.
 
 Không dùng font lớn, row quá cao, action text không có hit area hoặc
 sticky column che business data.
@@ -907,6 +926,8 @@ rõ ràng. Responsive behavior **MUST NOT** ẩn business data hoặc action.
 - [ ] Header, primary text và metadata có hierarchy rõ.
 - [ ] Sequence/status/actions không chiếm business width quá mức.
 - [ ] Action hit area có hover và keyboard focus.
+- [ ] Header labels không xuống dòng trên desktop.
+- [ ] Action column dùng `admin-table-has-actions`, bám phải và menu `…` dùng shared component.
 - [ ] Empty/no-result states đúng business context.
 - [ ] Desktop expanded/collapsed sidebar không overflow bất thường.
 - [ ] Tablet và mobile không mất field/action.

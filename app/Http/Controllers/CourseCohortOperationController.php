@@ -224,7 +224,24 @@ class CourseCohortOperationController extends Controller
         $cohortRow = $this->setupCohort($customerId, $cohort);
         abort_if(! $cohortRow->version_id, 422);
 
-        $validated = $request->validate([
+        // Configuration belonging to an unselected preview row is client-only
+        // draft state. Strip it before validation so the backend neither trusts
+        // nor validates data that cannot participate in this batch.
+        $validationInput = array_merge($request->all(), [
+            'occurrences' => collect($request->input('occurrences', []))
+                ->map(function ($item): array {
+                    $item = is_array($item) ? $item : [];
+                    if ((bool) ($item['selected'] ?? false)) {
+                        return $item;
+                    }
+
+                    return array_intersect_key($item, array_flip([
+                        'selected', 'schedule_id', 'schedule_slot_id', 'source_local_date',
+                    ]));
+                })->all(),
+        ]);
+
+        $validated = validator($validationInput, [
             'occurrences' => ['required', 'array', 'min:1', 'max:100'],
             'occurrences.*.selected' => ['nullable', 'boolean'],
             'occurrences.*.schedule_id' => ['required', 'integer'],
@@ -239,10 +256,10 @@ class CourseCohortOperationController extends Controller
             'occurrences.*.delivery_mode' => ['required_if:occurrences.*.selected,1', 'nullable', Rule::in(['online', 'offline', 'hybrid'])],
             'room_name' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:2000'],
-        ]);
+        ])->validate();
 
         $selected = collect($validated['occurrences'])
-            ->filter(fn (array $item): bool => (bool) ($item['selected'] ?? false))->values();
+            ->filter(fn (array $item): bool => (bool) ($item['selected'] ?? false));
         if ($selected->isEmpty()) {
             throw ValidationException::withMessages([
                 'occurrences' => __('lf.LF_course_cohort_session_batch_select_required'),
@@ -353,15 +370,8 @@ class CourseCohortOperationController extends Controller
         abort_if(! $cohortRow->version_id, 422);
 
         $validated = $request->validate($this->sessionRules($customerId, (int) $cohortRow->version_id));
-        $validated = $this->canonicalSessionBinding(
-            $customerId,
-            (int) $cohortRow->version_id,
-            $validated
-        );
-        $this->validateSessionScheduleWindow($cohortRow, $validated);
-        $sessionTeachers = $this->canonicalSessionTeacherTeam($customerId, $cohort, $validated);
 
-        DB::transaction(function () use ($customerId, $cohort, $session, $validated, $sessionTeachers, $request): void {
+        DB::transaction(function () use ($customerId, $cohort, $cohortRow, $session, $validated, $request): void {
             $sessionRow = DB::table('core_liveclass_sessions')
                 ->where('customer_id', $customerId)
                 ->where('cohort_id', $cohort)
@@ -377,6 +387,18 @@ class CourseCohortOperationController extends Controller
                 422,
                 __('lf.LF_course_cohort_session_edit_locked')
             );
+
+            // Schedule changes have a dedicated audited workflow. Never trust
+            // date/time values submitted through the general edit form.
+            $validated['scheduled_start_at'] = $sessionRow->scheduled_start_at;
+            $validated['scheduled_end_at'] = $sessionRow->scheduled_end_at;
+            $validated = $this->canonicalSessionBinding(
+                $customerId,
+                (int) $cohortRow->version_id,
+                $validated
+            );
+            $this->validateSessionScheduleWindow($cohortRow, $validated);
+            $sessionTeachers = $this->canonicalSessionTeacherTeam($customerId, $cohort, $validated);
 
             DB::table('core_liveclass_sessions')
                 ->where('customer_id', $customerId)

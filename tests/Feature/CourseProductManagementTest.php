@@ -1338,7 +1338,7 @@ class CourseProductManagementTest extends TestCase
             ->assertSeeText('Gỡ liên kết');
         $this->assertMatchesRegularExpression('/<span class="course-product-relation-name">TOPIK Intermediate<\/span>\s*<span class="course-product-relation-code">TOPIK-INT<\/span>/', $response->getContent());
         $this->assertStringContainsString('class="badge', $response->getContent());
-        $this->assertStringContainsString('course-product-relation-actions', $response->getContent());
+        $this->assertStringContainsString('admin-action-menu', $response->getContent());
         $this->assertStringNotContainsString('<span aria-hidden="true"> | </span>', $response->getContent());
     }
 

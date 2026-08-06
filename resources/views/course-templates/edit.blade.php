@@ -338,7 +338,7 @@
                         ) }}
                     </p>
                     <div class="admin-table-wrap">
-                        <table class="table course-template-history-table">
+                    <table class="table course-template-history-table admin-table-has-actions">
                             <thead>
                             <tr>
                                 <th>{{ __('lf.LF_course_template_history_version') }}</th>
@@ -381,7 +381,7 @@
                                     </td>
                                     <td data-label="{{ __('lf.table_actions') }}" class="course-template-history-actions-column">
                                         @if (request()->user()?->role === 'customer_admin')
-                                            <div class="admin-table-actions course-template-version-actions">
+                                            <x-admin-action-menu :label="__('lf.table_actions').': '.$version->version_code">
                                                 <a class="admin-table-action-link admin-text-action"
                                                    href="{{ route(
                                                        'admin.course-templates.versions.show',
@@ -390,6 +390,7 @@
                                                            'versionId' => $version->id,
                                                        ]
                                                    ) }}">
+                                                    <x-admin-action-icon name="view" />
                                                     {{ __('lf.LF_course_template_history_view') }}
                                                 </a>
 
@@ -415,7 +416,7 @@
                                                         </button>
                                                     </form>
                                                 @endif
-                                            </div>
+                                            </x-admin-action-menu>
                                         @else
                                             <span class="admin-link-button admin-text-action is-disabled"
                                                   aria-disabled="true">

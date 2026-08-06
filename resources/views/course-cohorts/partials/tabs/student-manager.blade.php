@@ -97,7 +97,7 @@
                     <template x-for="item in results" :key="item.id"><tr>
                         <td><input type="checkbox" :checked="isSelected(item.id)" :disabled="!item.eligible && !isSelected(item.id)"
                                    x-on:change="toggle(item, $event.target.checked)" :aria-label="`${item.name} · ${item.code}`"></td>
-                        <td><strong x-text="item.name"></strong><span class="cohort-student-option-meta"><span x-text="item.email"></span> · <span x-text="item.code"></span> · <span x-text="item.status_label"></span></span><span class="lf-form-error" x-show="item.current && !item.eligible">{{ __('lf.LF_course_cohort_student_inactive_warning') }}</span></td>
+                        <td><strong class="course-cohort-student-name" x-text="item.name"></strong><span class="cohort-student-option-meta"><span x-text="item.email"></span> · <span x-text="item.code"></span> · <span x-text="item.status_label"></span></span><span class="lf-form-error" x-show="item.current && !item.eligible">{{ __('lf.LF_course_cohort_student_inactive_warning') }}</span></td>
                     </tr></template>
                     <tr x-show="loading" x-cloak><td colspan="2" role="status">{{ __('lf.LF_course_cohort_student_search_loading') }}</td></tr>
                     <tr x-show="!loading && results.length === 0" x-cloak><td colspan="2" role="status">{{ __('lf.LF_course_cohort_student_search_empty') }}</td></tr>
@@ -127,7 +127,7 @@
             <p x-show="selectedItems.length > 0 && filteredSelected().length === 0" class="cohort-student-combobox-state" role="status">{{ __('lf.LF_course_cohort_student_search_empty') }}</p>
             <ul class="cohort-student-selected-list" x-show="filteredSelected().length > 0" x-cloak>
                 <template x-for="item in paginatedSelected()" :key="item.id"><li class="cohort-student-selected-chip">
-                    <span><strong x-text="item.name"></strong><span class="cohort-student-option-meta"><span x-text="item.email"></span> · <span x-text="item.code"></span></span><span class="lf-form-error" x-show="item.current && !item.eligible">{{ __('lf.LF_course_cohort_student_inactive_warning') }}</span></span>
+                    <span><strong class="course-cohort-student-name" x-text="item.name"></strong><span class="cohort-student-option-meta"><span x-text="item.email"></span> · <span x-text="item.code"></span></span><span class="lf-form-error" x-show="item.current && !item.eligible">{{ __('lf.LF_course_cohort_student_inactive_warning') }}</span></span>
                     <button type="button" class="cohort-student-chip-remove" x-on:click="remove(item.id)" :aria-label="`${@js(__('lf.LF_course_cohort_student_selected_remove'))} ${item.name}`">×</button>
                 </li></template>
             </ul>

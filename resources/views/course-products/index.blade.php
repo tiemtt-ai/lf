@@ -87,7 +87,7 @@
     </div>
 
     <div class="admin-table-wrap course-product-index-table-wrap">
-        <table class="table course-product-index-table">
+        <table class="table course-product-index-table admin-table-has-actions">
             <thead>
             <tr>
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
@@ -132,11 +132,12 @@
                         </span>
                     </td>
                     <td class="course-product-index-actions" data-label="{{ __('lf.table_actions') }}">
-                        <div class="admin-table-actions course-product-index-action-list">
+                        <x-admin-action-menu :label="__('lf.table_actions').': '.$product->title">
                             <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $product->id) }}">
+                                <x-admin-action-icon name="edit" />
                                 {{ __('lf.action_edit') }}
                             </a>
-                        </div>
+                        </x-admin-action-menu>
                     </td>
                 </tr>
             @empty

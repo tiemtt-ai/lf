@@ -66,7 +66,7 @@
     </div>
 
     <div class="admin-table-wrap course-cohort-index-table-wrap">
-        <table class="table course-cohort-index-table">
+        <table class="table course-cohort-index-table admin-table-has-actions">
             <thead>
             <tr>
                 <th class="course-cohort-index-sequence">{{ __('lf.table_no') }}</th>
@@ -116,16 +116,18 @@
                         </span>
                     </td>
                     <td class="course-cohort-index-actions" data-label="{{ __('lf.table_actions') }}">
-                        <div class="admin-table-actions course-cohort-index-action-list">
+                        <x-admin-action-menu :label="__('lf.table_actions').': '.$cohort->name">
                             <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.show', $cohort->id) }}">
+                                <x-admin-action-icon name="view" />
                                 {{ __('lf.action_view') }}
                             </a>
                             @if (in_array($cohort->status, ['draft', 'active'], true))
                                 <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $cohort->id) }}">
+                                    <x-admin-action-icon name="edit" />
                                     {{ __('lf.action_edit') }}
                                 </a>
                             @endif
-                        </div>
+                        </x-admin-action-menu>
                     </td>
                 </tr>
             @empty

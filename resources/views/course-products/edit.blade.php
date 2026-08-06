@@ -346,7 +346,7 @@
                     </div>
                 @else
                 <div class="admin-table-wrap course-product-relations-table-wrap">
-                    <table class="table course-product-relations-table">
+                    <table class="table course-product-relations-table admin-table-has-actions">
                     <caption class="sr-only">{{ __('lf.LF_course_product_relation_common_linked_heading', ['count' => $productRelationCount]) }}</caption>
                     <thead>
                     <tr>
@@ -372,8 +372,9 @@
                             </td>
                             <td data-label="{{ __('lf.LF_course_product_relation_common_sort_order') }}" class="course-product-relation-order">{{ $relation->sort_order }}</td>
                             <td data-label="{{ __('lf.table_actions') }}">
-                                <div class="course-product-relation-actions">
+                                <x-admin-action-menu :label="__('lf.table_actions').': '.$relation->related_product_title">
                                 <a href="{{ route($routePrefix.'.edit', $relation->related_product_id) }}" class="admin-text-action">
+                                    <x-admin-action-icon name="view" />
                                     {{ __('lf.LF_course_product_relation_common_view_product') }}
                                 </a>
                                 @if($product->status !== 'archived')
@@ -386,11 +387,12 @@
                                     @csrf
                                     @method('DELETE')
                                     <button class="admin-link-button admin-text-action admin-danger-text-action" type="submit" :disabled="submitting" :aria-busy="submitting">
+                                        <x-admin-action-icon name="remove" />
                                         {{ __('lf.LF_course_product_relation_common_remove') }}
                                     </button>
                                 </form>
                                 @endif
-                                </div>
+                                </x-admin-action-menu>
                             </td>
                         </tr>
                     @endforeach

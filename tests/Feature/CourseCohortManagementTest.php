@@ -1130,11 +1130,31 @@ class CourseCohortManagementTest extends TestCase
             ->where('customer_id', $customerId)->where('session_id', $sessionId)->count());
 
         $this->actingAs($admin)
+            ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}", [
+                'title' => 'Session 1 updated', 'session_type' => 'curriculum',
+                'version_lesson_id' => $lessonId, 'version_activity_id' => $activityId,
+                'teacher_ids' => [$teacher->id, $replacementTeacher->id],
+                'delivery_mode' => 'online',
+                // A forged general-edit request must not bypass the audited
+                // schedule-change endpoint.
+                'scheduled_start_at' => '2026-08-15 09:00:00',
+                'scheduled_end_at' => '2026-08-15 10:00:00',
+            ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_liveclass_sessions', [
+            'id' => $sessionId,
+            'title' => 'Session 1 updated',
+            'scheduled_start_at' => '2026-08-05 09:00:00',
+            'scheduled_end_at' => '2026-08-05 10:00:00',
+        ]);
+        $this->assertSame(0, DB::table('core_liveclass_session_schedule_changes')
+            ->where('customer_id', $customerId)->where('session_id', $sessionId)->count());
+
+        $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")
             ->assertOk()
             ->assertSeeText($replacementTeacher->name)
             ->assertSee('teacher_ids', false)
-            ->assertSee('course-cohort-session-action-menu__dots', false)
+            ->assertSee('admin-action-menu__dots', false)
             ->assertDontSee('course-cohort-session-action-menu__chevron', false)
             ->assertSeeText(__('lf.LF_course_cohort_session_detail_schedule'))
             ->assertSeeText(__('lf.LF_course_cohort_session_detail_content'))
@@ -1142,6 +1162,12 @@ class CourseCohortManagementTest extends TestCase
             ->assertSeeText(__('lf.LF_course_cohort_session_current_schedule'))
             ->assertSeeText(__('lf.LF_course_cohort_session_new_schedule'))
             ->assertSeeText(__('lf.LF_course_cohort_session_change_reason_help'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_edit_scope_help'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_edit_schedule_help'))
+            ->assertSee('x-bind:readonly="Boolean(editingId)"', false)
+            ->assertSee('relationLabels[detailSession?.schedule_relation]', false)
+            ->assertSee('relationLabels[rescheduleSession?.schedule_relation]', false)
+            ->assertSee('course-cohort-session-modal__schedule-source', false)
             ->assertSee('formatSessionDateTime(detailSession?.scheduled_start_at)', false)
             ->assertSee('activity_meeting_url', false)
             ->assertSee("'has-value': rescheduleStart", false)
@@ -1251,6 +1277,8 @@ class CourseCohortManagementTest extends TestCase
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $replacementTeacher = $this->createUser($customerId, 'teacher');
         $versionId = $this->createVersion($customerId, $admin->id, 'Locked Version');
         $otherVersionId = $this->createVersion($customerId, $admin->id, 'Other Version');
         $cohortId = $this->createCohort($customerId, status: 'draft');
@@ -1259,6 +1287,15 @@ class CourseCohortManagementTest extends TestCase
             'start_date' => now()->toDateString(),
             'end_date' => now()->addMonth()->toDateString(),
         ]);
+        foreach ([[$teacher->id, 'teacher'], [$replacementTeacher->id, 'primary_teacher']] as [$teacherId, $role]) {
+            DB::table('core_course_cohort_teachers')->insert([
+                'customer_id' => $customerId, 'cohort_id' => $cohortId,
+                'teacher_id' => $teacherId, 'role' => $role, 'status' => 'active',
+                'assigned_from' => now()->toDateString(),
+                'assigned_to' => now()->addMonth()->toDateString(),
+                'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
 
         $makeLesson = function (int $tenantId, int $version, string $title, int $source): int {
             return DB::table('core_course_template_version_lessons')->insertGetId([
@@ -1349,6 +1386,12 @@ class CourseCohortManagementTest extends TestCase
             'end_time' => '10:00:00', 'sort_order' => 1, 'created_by' => $admin->id,
             'created_at' => now(), 'updated_at' => now(),
         ]);
+        $secondSlotId = DB::table('core_liveclass_schedule_slots')->insertGetId([
+            'customer_id' => $customerId, 'schedule_id' => $scheduleId,
+            'weekday' => $occurrenceDate->isoWeekday(), 'start_time' => '11:00:00',
+            'end_time' => '12:00:00', 'sort_order' => 2, 'created_by' => $admin->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")
             ->assertOk()
@@ -1356,10 +1399,29 @@ class CourseCohortManagementTest extends TestCase
             ->assertSeeText(__('lf.LF_course_cohort_session_batch_title'))
             ->assertSee('id="session-batch-form"', false)
             ->assertSee('occurrences[0][schedule_slot_id]', false)
+            ->assertSee('occurrences[1][schedule_slot_id]', false)
+            ->assertSee('batch_occurrence_0', false)
+            ->assertSee('batch_occurrence_1', false)
+            ->assertSee('aria-controls="batch_occurrence_panel_0"', false)
             ->assertSee('occurrences[0][teacher_ids][]', false)
             ->assertSee('course-cohort-session-batch-teachers__control', false)
             ->assertDontSee('applyBatchDefaults()', false)
-            ->assertSee('selectedBatchCount()', false);
+            ->assertSee('selectedBatchCount()', false)
+            ->assertSee('row.expanded = checked', false)
+            ->assertSee('batchRows[0].expanded = !batchRows[0].expanded', false)
+            ->assertSee('x-show="batchRows[0].expanded"', false)
+            ->assertSee('$el.indeterminate = selectedBatchCount() > 0', false)
+            ->assertSeeText(__('lf.LF_course_cohort_session_batch_selected_count'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_batch_timezone', ['timezone' => 'Asia/Ho_Chi_Minh']))
+            ->assertSee('batchRowHint(row)', false)
+            ->assertSee('x-show="batchRowHasDraft(batchRows[0])"', false)
+            ->assertSeeText(__('lf.LF_course_cohort_session_batch_configuration'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_batch_reset_configuration'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_batch_reset'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_table_date_time'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_table_content'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_table_teachers'))
+            ->assertSeeText('Asia/Ho_Chi_Minh');
         $originPayload = array_merge($payload, [
             'title' => 'Scheduled realization',
             'scheduled_start_at' => now()->addDays(10)->format('Y-m-d H:i:s'),
@@ -1383,6 +1445,14 @@ class CourseCohortManagementTest extends TestCase
             'schedule_id' => $scheduleId, 'schedule_slot_id' => $slotId,
             'source_local_date' => $occurrenceDate->toDateString(),
         ]);
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_session_batch_created_state'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_batch_created_reason'))
+            ->assertSee('course-cohort-session-table__date', false)
+            ->assertSee('course-cohort-session-table__time', false)
+            ->assertSee('x-bind:disabled="batchRows[0].consumed"', false);
         $sessionCount = DB::table('core_liveclass_sessions')->count();
         $this->actingAs($admin)
             ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", array_merge($originPayload, [
@@ -1412,11 +1482,46 @@ class CourseCohortManagementTest extends TestCase
             'replay' => DB::table('core_liveclass_replays')->count(),
             'progress' => DB::table('core_course_activity_progress')->count(),
         ];
+        $incompleteSelectedOccurrence = $batchOccurrence($batchDates[0], 'Needs configuration');
+        $incompleteSelectedOccurrence['version_lesson_id'] = null;
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/batch", [
+                'occurrences' => [
+                    $incompleteSelectedOccurrence,
+                    [
+                        'selected' => 0,
+                        'schedule_id' => $scheduleId,
+                        'schedule_slot_id' => $secondSlotId,
+                        'source_local_date' => $batchDates[0]->toDateString(),
+                        'title' => 'Retained client draft',
+                        'version_lesson_id' => 'not-an-id',
+                        'version_activity_id' => 'not-an-id',
+                        'teacher_ids' => ['invalid-draft-teacher'],
+                        'delivery_mode' => 'invalid-draft-mode',
+                    ],
+                ],
+            ])
+            ->assertSessionHasErrors('occurrences.0.version_lesson_id')
+            ->assertSessionHasInput('occurrences.1.title', 'Retained client draft')
+            ->assertSessionHasInput('occurrences.1.delivery_mode', 'invalid-draft-mode');
+        $this->assertSame($sessionCount, DB::table('core_liveclass_sessions')->count());
+
         $this->actingAs($admin)
             ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/batch", [
                 'occurrences' => [
                     $batchOccurrence($batchDates[0], 'Batch lesson 1', [$teacher->id, $replacementTeacher->id]),
                     $batchOccurrence($batchDates[1], 'Batch lesson 2'),
+                    [
+                        'selected' => 0,
+                        'schedule_id' => $scheduleId,
+                        'schedule_slot_id' => $secondSlotId,
+                        'source_local_date' => $batchDates[0]->toDateString(),
+                        'title' => '',
+                        'version_lesson_id' => 'not-an-id',
+                        'version_activity_id' => 'not-an-id',
+                        'teacher_ids' => ['cross-tenant-or-invalid'],
+                        'delivery_mode' => 'invalid',
+                    ],
                 ],
             ])->assertSessionHasNoErrors();
         $this->assertDatabaseCount('core_liveclass_session_schedule_origins', 3);
@@ -1511,6 +1616,7 @@ class CourseCohortManagementTest extends TestCase
             ->assertOk();
         $students->assertSee(route('admin.course-cohorts.students.sync', $cohortId), false)
             ->assertSee('course-cohort-student-inline-form', false)
+            ->assertSee('course-cohort-student-name', false)
             ->assertDontSee(route('admin.course-cohorts.edit', ['id' => $cohortId, 'tab' => 'students']), false);
 
         $this->actingAs($admin)
@@ -1660,6 +1766,8 @@ class CourseCohortManagementTest extends TestCase
             ->assertSee('course-cohort-schedule-detail__eyebrow', false)
             ->assertSee('course-cohort-schedule-detail__section-header', false)
             ->assertSee('admin-form-footer--sticky course-cohort-schedule-detail__footer', false)
+            ->assertSee('admin-action-menu__trigger', false)
+            ->assertSee('admin-action-menu__dots', false)
             ->assertSee('course-cohort-schedules__table-wrap', false);
     }
 

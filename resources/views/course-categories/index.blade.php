@@ -74,7 +74,7 @@
     </div>
 
     <div class="admin-table-wrap course-category-index-table-wrap">
-        <table class="table course-category-index-table">
+        <table class="table course-category-index-table admin-table-has-actions">
             <thead>
             <tr>
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
@@ -113,11 +113,12 @@
                         </span>
                     </td>
                     <td class="course-category-index-actions" data-label="{{ __('lf.table_actions') }}">
-                        <div class="admin-table-actions course-category-index-action-list">
+                        <x-admin-action-menu :label="__('lf.table_actions').': '.$category->name">
                             <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $category->id) }}">
+                                <x-admin-action-icon name="edit" />
                                 {{ __('lf.action_edit') }}
                             </a>
-                        </div>
+                        </x-admin-action-menu>
                     </td>
                 </tr>
             @empty

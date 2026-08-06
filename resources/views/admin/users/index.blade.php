@@ -90,7 +90,7 @@
     </div>
 
     <div class="admin-table-wrap admin-user-table-wrap">
-        <table class="table admin-user-table">
+        <table class="table admin-user-table admin-table-has-actions">
             <thead>
             <tr>
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
@@ -119,11 +119,12 @@
                         </span>
                     </td>
                     <td data-label="{{ __('lf.table_actions') }}">
-                        <div class="admin-table-actions admin-user-index-action-list">
+                        <x-admin-action-menu :label="__('lf.table_actions').': '.$user->name">
                             <a class="admin-table-action-link admin-text-action" href="{{ route('admin.users.edit', $user->id) }}">
+                                <x-admin-action-icon name="edit" />
                                 {{ __('lf.action_edit') }}
                             </a>
-                        </div>
+                        </x-admin-action-menu>
                     </td>
                 </tr>
             @empty

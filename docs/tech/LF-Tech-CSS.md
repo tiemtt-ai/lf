@@ -351,6 +351,32 @@ phân cách hoặc khoảng trắng thủ công:
 Không dùng `|`, `/`, `•`, `·`, `&nbsp;` hoặc margin theo từng page để phân cách
 action. Action group phải wrap trên màn hình hẹp mà không overlap hoặc phá layout.
 
+Riêng action theo dòng trong semantic `<table>` phải dùng canonical overflow
+menu, không hiển thị các text link cạnh nhau:
+
+```blade
+<table class="table admin-table-has-actions">
+    ...
+    <td data-label="{{ __('lf.table_actions') }}">
+        <x-admin-action-menu :label="__('lf.table_actions').': '.$record->name">
+            <a class="admin-table-action-link admin-text-action" href="...">...</a>
+        </x-admin-action-menu>
+    </td>
+</table>
+```
+
+`admin-table-has-actions` giữ action column ở mép phải trên desktop và trả về
+normal flow trên mobile. Trigger ba chấm dọc phải có tooltip i18n, nền mặc định,
+visible hover/focus/open state; sticky action cell phải đồng bộ màu với row khi
+hover/focus. Menu mở khi hover trigger, vẫn hỗ trợ click/keyboard; action label
+căn giữa và menu item phải nằm dưới trigger. Table header label
+giữ một dòng trên desktop; `admin-table-wrap` sở hữu horizontal overflow khi
+không đủ chiều rộng. `admin-table-actions` tiếp tục dùng cho card, tree hoặc
+non-table action group.
+
+Các action phổ biến `view`, `edit`, `delete`, `remove` dùng
+`<x-admin-action-icon>`; không copy SVG riêng tại từng module.
+
 Rule này áp dụng cho action link và button được trình bày như text link trong
 table, card, media area, form và detail page. Breadcrumb, navigation link,
 normal content link, filled button, status label, badge và heading không phải

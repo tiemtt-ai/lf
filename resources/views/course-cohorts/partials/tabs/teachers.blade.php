@@ -101,7 +101,7 @@
             @endif
 
             <div class="admin-table-wrap course-cohort-teachers__table">
-                <table class="table course-cohort-roster-table">
+                <table class="table course-cohort-roster-table admin-table-has-actions">
                     <thead><tr>
                         <th>{{ __('lf.LF_course_cohort_teacher_teacher') }}</th>
                         <th>{{ __('lf.LF_course_cohort_teacher_role') }}</th>
@@ -130,16 +130,19 @@
                             </td>
                             <td class="course-cohort-teachers__actions" data-label="{{ __('lf.table_actions') }}">
                                 @if (in_array($cohort->status, ['draft', 'active'], true))
-                                    <div class="admin-table-actions course-cohort-teacher-action-list">
+                                    <x-admin-action-menu :label="__('lf.table_actions').': '.$teacher->teacher_name">
                                         <form method="POST"
                                               action="{{ route('admin.course-cohorts.teachers.destroy', [$cohort->id, $teacher->id]) }}"
                                               data-lf-confirm="{{ __('lf.LF_course_cohort_teacher_remove_confirm', ['name' => $teacher->teacher_name]) }}"
                                               data-lf-confirm-tone="danger"
                                               data-lf-confirm-label="{{ __('lf.LF_common_button_remove') }}">
                                             @csrf @method('DELETE')
-                                            <button type="submit" class="admin-link-button admin-text-action admin-table-action-link">{{ __('lf.LF_common_button_remove') }}</button>
+                                            <button type="submit" class="admin-link-button admin-text-action admin-table-action-link">
+                                                <x-admin-action-icon name="remove" />
+                                                {{ __('lf.LF_common_button_remove') }}
+                                            </button>
                                         </form>
-                                    </div>
+                                    </x-admin-action-menu>
                                 @else
                                     <span class="lf-secondary-text">{{ __('lf.LF_course_cohort_tab_read_only') }}</span>
                                 @endif

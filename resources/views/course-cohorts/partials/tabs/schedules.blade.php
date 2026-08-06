@@ -77,7 +77,7 @@
             @endif
 
             <div class="admin-table-wrap course-cohort-schedules__table-wrap">
-                <table class="table course-cohort-schedules__table">
+                <table class="table course-cohort-schedules__table admin-table-has-actions">
                     <colgroup>
                         <col class="course-cohort-schedules__col-sequence">
                         <col class="course-cohort-schedules__col-name">
@@ -130,12 +130,20 @@
                                 <span @class(['badge', 'course-cohort-schedules__status-badge', 'badge-success' => $schedule->derived_status === 'current', 'is-upcoming' => $schedule->derived_status === 'upcoming', 'is-completed' => $schedule->derived_status === 'completed'])>{{ __('lf.LF_course_cohort_schedule_status_'.$schedule->derived_status) }}</span>
                             </td>
                             <td class="course-cohort-schedules__actions" data-label="{{ __('lf.table_actions') }}">
-                                <div class="admin-table-actions course-cohort-schedules__action-list">
-                                    <a class="admin-text-action admin-table-action-link" href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'view', 'schedule_id' => $schedule->id]) }}#cohort-schedule-editor">{{ __('lf.LF_common_button_view') }}</a>
-                                    @if (in_array($cohort->status, ['draft', 'active'], true))
-                                        <a class="admin-text-action admin-table-action-link" href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'edit', 'schedule_id' => $schedule->id]) }}#cohort-schedule-editor">{{ __('lf.LF_common_button_edit') }}</a>
-                                    @endif
-                                </div>
+                                <x-admin-action-menu :label="__('lf.table_actions').': '.$schedule->name">
+                                        <a role="menuitem" class="admin-text-action admin-table-action-link"
+                                           href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'view', 'schedule_id' => $schedule->id]) }}#cohort-schedule-editor">
+                                            <svg class="course-cohort-session-action-menu__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></svg>
+                                            {{ __('lf.LF_common_button_view') }}
+                                        </a>
+                                        @if (in_array($cohort->status, ['draft', 'active'], true))
+                                            <a role="menuitem" class="admin-text-action admin-table-action-link"
+                                               href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'edit', 'schedule_id' => $schedule->id]) }}#cohort-schedule-editor">
+                                                <svg class="course-cohort-session-action-menu__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16.5-.8 4.3 4.3-.8L19 8.5 15.5 5 4 16.5Z" /><path d="m13.8 6.7 3.5 3.5" /></svg>
+                                                {{ __('lf.LF_common_button_edit') }}
+                                            </a>
+                                        @endif
+                                </x-admin-action-menu>
                             </td>
                         </tr>
                     @empty

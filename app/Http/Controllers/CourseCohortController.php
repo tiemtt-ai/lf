@@ -507,12 +507,12 @@ class CourseCohortController extends Controller
             );
             foreach ($preview as $occurrence) {
                 $key = implode('|', [$schedule->id, $occurrence['schedule_slot_id'], $occurrence['date']]);
-                if (! $consumed->has($key)) {
-                    $plannedOccurrences->push(array_merge($occurrence, [
-                        'schedule_id' => (int) $schedule->id,
-                        'schedule_name' => $schedule->name,
-                    ]));
-                }
+                $plannedOccurrences->push(array_merge($occurrence, [
+                    'schedule_id' => (int) $schedule->id,
+                    'schedule_name' => $schedule->name,
+                    'timezone' => $schedule->timezone,
+                    'consumed' => $consumed->has($key),
+                ]));
             }
         }
 
