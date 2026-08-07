@@ -1937,6 +1937,19 @@
     background: #ffffff;
 }
 
+/* When a table overflows horizontally (JS toggles .is-scrollable after
+   measuring scrollWidth vs. clientWidth), hint that the whole row can be
+   click-dragged/swiped to reveal the rest of the columns. */
+.admin-table-wrap.is-scrollable {
+    cursor: grab;
+}
+
+.admin-table-wrap.is-scrollable.is-dragging {
+    cursor: grabbing;
+    scroll-behavior: auto;
+    user-select: none;
+}
+
 .course-cohort-index-toolbar {
     margin: 0 0 16px;
     display: flex;
@@ -4654,17 +4667,21 @@
 }
 
 .course-cohort-schedules__table {
-    min-width: 980px;
+    min-width: 1040px;
     table-layout: fixed;
 }
 
-.course-cohort-schedules__col-sequence { width: 6%; }
-.course-cohort-schedules__col-name { width: 23%; }
-.course-cohort-schedules__col-slots { width: 24%; }
-.course-cohort-schedules__col-period { width: 18%; }
-.course-cohort-schedules__col-count { width: 9%; }
-.course-cohort-schedules__col-status { width: 13%; }
-.course-cohort-schedules__col-actions { width: 7%; }
+/* Column widths are sized to their actual content (header label vs. longest
+   realistic cell value), not even percentages, so compact columns (sequence,
+   count, status, actions) stay tight and business columns (name, slots,
+   period) get the room their data needs. */
+.course-cohort-schedules__col-sequence { width: 64px; }
+.course-cohort-schedules__col-name { width: 210px; }
+.course-cohort-schedules__col-slots { width: 190px; }
+.course-cohort-schedules__col-period { width: 190px; }
+.course-cohort-schedules__col-count { width: 140px; }
+.course-cohort-schedules__col-status { width: 148px; }
+.course-cohort-schedules__col-actions { width: 92px; }
 
 .course-cohort-schedules__table th,
 .course-cohort-schedules__table td {
@@ -5044,13 +5061,14 @@
 .course-cohort-schedule-form__empty-repeater {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     gap: 12px;
     padding: 12px 14px;
     border: 1px dashed var(--admin-border);
     border-radius: 8px;
     color: var(--admin-text-muted);
     font-size: 13px;
+    text-align: center;
 }
 
 .course-cohort-schedule-form__empty-add {

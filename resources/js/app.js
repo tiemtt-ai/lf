@@ -329,3 +329,103 @@ Alpine.start();
 // Alpine can populate a date/time control after the initial placeholder scan.
 // Reconcile once more so a real model value always uses the normal text style.
 window.requestAnimationFrame(() => initializeFormPlaceholderControls());
+
+// Canonical admin tables (`.admin-table-wrap`) overflow horizontally on
+// narrow viewports/zoom levels. Let users click-and-drag (mouse) to reveal
+// the rest of the columns instead of hunting for the thin scrollbar; touch
+// devices already get native swipe-to-scroll for free from overflow-x:auto.
+const ADMIN_TABLE_WRAP_SELECTOR = '.admin-table-wrap';
+
+const refreshAdminTableWrapScrollable = (wrap) => {
+    if (! (wrap instanceof Element)) return;
+    wrap.classList.toggle('is-scrollable', wrap.scrollWidth > wrap.clientWidth + 1);
+};
+
+const refreshAdminTableWraps = (root = document) => {
+    if (root instanceof Element && root.matches?.(ADMIN_TABLE_WRAP_SELECTOR)) {
+        refreshAdminTableWrapScrollable(root);
+    }
+
+    root.querySelectorAll?.(ADMIN_TABLE_WRAP_SELECTOR).forEach(refreshAdminTableWrapScrollable);
+};
+
+const bootAdminTableDragScroll = () => {
+    refreshAdminTableWraps();
+
+    window.addEventListener('resize', () => refreshAdminTableWraps());
+
+    if (typeof ResizeObserver !== 'undefined') {
+        const resizeObserver = new ResizeObserver((entries) => {
+            entries.forEach((entry) => refreshAdminTableWrapScrollable(entry.target));
+        });
+        const observeWrap = (wrap) => resizeObserver.observe(wrap);
+
+        document.querySelectorAll(ADMIN_TABLE_WRAP_SELECTOR).forEach(observeWrap);
+
+        new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (! (node instanceof Element)) return;
+
+                    if (node.matches?.(ADMIN_TABLE_WRAP_SELECTOR)) observeWrap(node);
+                    node.querySelectorAll?.(ADMIN_TABLE_WRAP_SELECTOR).forEach(observeWrap);
+                    refreshAdminTableWraps(node);
+                });
+            });
+        }).observe(document.body, { childList: true, subtree: true });
+    }
+
+    let drag = null;
+
+    document.addEventListener('mousedown', (event) => {
+        if (event.button !== 0) return;
+
+        const wrap = event.target.closest?.(ADMIN_TABLE_WRAP_SELECTOR);
+        if (! wrap || ! wrap.classList.contains('is-scrollable')) return;
+
+        drag = { wrap, startX: event.pageX, startScrollLeft: wrap.scrollLeft, moved: false };
+    });
+
+    document.addEventListener('mousemove', (event) => {
+        if (! drag) return;
+
+        const dx = event.pageX - drag.startX;
+        if (! drag.moved && Math.abs(dx) < 4) return;
+
+        if (! drag.moved) {
+            drag.moved = true;
+            drag.wrap.classList.add('is-dragging');
+        }
+
+        event.preventDefault();
+        drag.wrap.scrollLeft = drag.startScrollLeft - dx;
+    });
+
+    const endDrag = () => {
+        if (! drag) return;
+
+        const { wrap, moved } = drag;
+        wrap.classList.remove('is-dragging');
+        drag = null;
+
+        if (! moved) return;
+
+        // A drag just ended under the pointer: swallow the click it would
+        // otherwise fire so links/buttons touched mid-drag don't activate.
+        const suppressClick = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        };
+        wrap.addEventListener('click', suppressClick, { capture: true, once: true });
+        window.setTimeout(() => wrap.removeEventListener('click', suppressClick, { capture: true }), 0);
+    };
+
+    document.addEventListener('mouseup', endDrag);
+    window.addEventListener('blur', endDrag);
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootAdminTableDragScroll, { once: true });
+} else {
+    bootAdminTableDragScroll();
+}
