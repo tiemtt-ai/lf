@@ -744,7 +744,25 @@
                             </td>
                         </tr>
                     @empty
-                        <tr class="course-cohort-session-empty-row"><td class="course-cohort-session-empty-cell" colspan="7"><div class="course-cohort-empty-state">{{ __('lf.LF_course_cohort_session_empty') }}</div></td></tr>
+                        <tr class="course-cohort-session-empty-row">
+                            <td class="course-cohort-session-empty-cell" colspan="7">
+                                <div class="course-cohort-empty-state" role="status">
+                                    <strong>{{ __('lf.LF_course_cohort_session_empty') }}</strong>
+                                    <span>{{ __('lf.LF_course_cohort_session_empty_help') }}</span>
+                                    @if (in_array($cohort->status, ['draft', 'active'], true))
+                                        @if($plannedOccurrences->isNotEmpty())
+                                            <button type="button" class="btn btn-primary" x-on:click="openBatch()">
+                                                {{ __('lf.LF_course_cohort_session_batch_open') }}
+                                            </button>
+                                        @else
+                                            <button type="button" class="btn btn-primary" x-on:click="openCreate()">
+                                                {{ __('lf.LF_course_cohort_session_manual_open') }}
+                                            </button>
+                                        @endif
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
                     @endforelse
                     </tbody>
                 </table>

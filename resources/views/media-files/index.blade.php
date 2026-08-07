@@ -393,7 +393,7 @@
                                 </x-admin-action-menu>
                             </div>
                         @else
-                            <span class="lf-secondary-text">—</span>
+                            <span class="lf-secondary-text media-library-action-empty" aria-label="{{ __('lf.LF_media_file_common_no_actions') }}">—</span>
                         @endif
                     </td>
                 </tr>

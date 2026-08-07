@@ -45,15 +45,17 @@
                 <h2 class="admin-form-section-title">{{ __('lf.LF_course_cohort_schedule_slots') }}</h2>
                 <p class="admin-form-section-help">{{ __('lf.LF_course_cohort_schedule_slots_help') }}</p>
             </div>
-            <span class="course-cohort-schedule-detail__section-count">{{ $slots->count() }}</span>
+            <span class="course-cohort-schedule-detail__section-count">
+                {{ __('lf.LF_course_cohort_schedule_slots_count', ['count' => $slots->count()]) }}
+            </span>
         </header>
         <div class="admin-table-wrap course-cohort-schedule-detail__table-wrap">
             <table class="table course-cohort-schedule-detail__table">
                 <thead>
                 <tr>
                     <th scope="col">{{ __('lf.LF_course_cohort_schedule_weekday') }}</th>
-                    <th scope="col">{{ __('lf.LF_course_cohort_schedule_start_time') }}</th>
-                    <th scope="col">{{ __('lf.LF_course_cohort_schedule_end_time') }}</th>
+                    <th scope="col" class="course-cohort-schedule-detail__table-col-time">{{ __('lf.LF_course_cohort_schedule_start_time') }}</th>
+                    <th scope="col" class="course-cohort-schedule-detail__table-col-time">{{ __('lf.LF_course_cohort_schedule_end_time') }}</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -62,8 +64,8 @@
                         <td data-label="{{ __('lf.LF_course_cohort_schedule_weekday') }}">
                             <strong>{{ __('lf.LF_course_cohort_schedule_weekday_'.$slot->weekday) }}</strong>
                         </td>
-                        <td data-label="{{ __('lf.LF_course_cohort_schedule_start_time') }}">{{ substr($slot->start_time, 0, 5) }}</td>
-                        <td data-label="{{ __('lf.LF_course_cohort_schedule_end_time') }}">{{ substr($slot->end_time, 0, 5) }}</td>
+                        <td class="course-cohort-schedule-detail__table-col-time" data-label="{{ __('lf.LF_course_cohort_schedule_start_time') }}">{{ substr($slot->start_time, 0, 5) }}</td>
+                        <td class="course-cohort-schedule-detail__table-col-time" data-label="{{ __('lf.LF_course_cohort_schedule_end_time') }}">{{ substr($slot->end_time, 0, 5) }}</td>
                     </tr>
                 @endforeach
                 </tbody>
@@ -78,7 +80,9 @@
                 <p class="admin-form-section-help">{{ __('lf.LF_course_cohort_schedule_exclusions_help') }}</p>
             </div>
             @if($exclusions->isNotEmpty())
-                <span class="course-cohort-schedule-detail__section-count">{{ $exclusions->count() }}</span>
+                <span class="course-cohort-schedule-detail__section-count">
+                    {{ __('lf.LF_course_cohort_schedule_exclusions_count', ['count' => $exclusions->count()]) }}
+                </span>
             @endif
         </header>
 

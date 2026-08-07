@@ -66,6 +66,7 @@ class MediaLibraryManagementTest extends TestCase
             ->assertSee('media-library-tab-count', false)
             ->assertSee('media-library-index-table', false)
             ->assertSee('media-library-index-actions', false)
+            ->assertSee('media-library-action-empty', false)
             ->assertSee('media-library-sequence-number', false)
             ->assertSee('media-library-preview-button', false)
             ->assertDontSee('name="type"', false)
@@ -84,7 +85,7 @@ class MediaLibraryManagementTest extends TestCase
             '.lf-admin-page .media-library-index-table .admin-table-sequence',
             $componentsCss
         );
-        $this->assertStringContainsString('max-width: 72px;', $componentsCss);
+        $this->assertStringContainsString('max-width: 64px;', $componentsCss);
         $this->assertStringContainsString(
             '.media-library-index-table tbody tr:hover > td',
             $pagesCss

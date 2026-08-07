@@ -34,10 +34,12 @@
                         @if ($tab['read_only']) · {{ __('lf.LF_course_cohort_tab_read_only') }} @endif
                     </a>
                 @else
-                    <button type="button" class="btn btn-secondary" aria-disabled="true"
+                    <button type="button" class="btn btn-secondary course-cohort-detail-tab--locked" aria-disabled="true"
+                            title="{{ $tab['locked_reason'] }}"
                             x-on:click="lockedReason = @js($tab['locked_reason'])"
                             x-on:focus="lockedReason = @js($tab['locked_reason'])">
-                        <span aria-hidden="true">🔒</span> {{ $tab['label'] }}
+                        <span>{{ $tab['label'] }}</span>
+                        <x-backend-icon name="lock" class="course-cohort-detail-tab__lock-icon" />
                     </button>
                     <span class="sr-only">{{ $tab['locked_reason'] }}</span>
                 @endif

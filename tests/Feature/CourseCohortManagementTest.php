@@ -493,6 +493,9 @@ class CourseCohortManagementTest extends TestCase
             ->assertSee('class="admin-form-standard"', false)
             ->assertSee('course-cohort-edit-tabs', false)
             ->assertSee('course-cohort-detail-tabs-help', false)
+            ->assertSee('course-cohort-detail-tab--locked', false)
+            ->assertSee('course-cohort-detail-tab__lock-icon', false)
+            ->assertDontSee('🔒', false)
             ->assertSee('cohort-edit-status-panel', false)
             ->assertDontSee('name="code"', false)
             ->assertDontSee('name="status"', false)
@@ -520,6 +523,14 @@ class CourseCohortManagementTest extends TestCase
         $sorted = $positions;
         sort($sorted);
         $this->assertSame($sorted, $positions);
+
+        $componentsCss = file_get_contents(resource_path('css/admin/admin-components.css'));
+        $this->assertStringContainsString('.cohort-edit-overview-heading h2', $componentsCss);
+        $this->assertStringContainsString('font-size: 26px;', $componentsCss);
+        $this->assertStringContainsString(
+            '.course-cohort-edit-overview .cohort-edit-overview-fields .lf-form-label',
+            $componentsCss
+        );
 
         DB::table('core_course_cohorts')->where('id', $cohortId)->update(['status' => 'completed']);
         $this->actingAs($admin)
@@ -984,6 +995,13 @@ class CourseCohortManagementTest extends TestCase
             'completion_rule' => 'manual',
             'created_at' => now(), 'updated_at' => now(),
         ]);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_session_empty'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_empty_help'))
+            ->assertSeeText(__('lf.LF_course_cohort_session_manual_open'));
 
         $detail = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=teachers")
