@@ -1,6 +1,6 @@
 # Table: core_liveclass_session_teachers
 
-Version: 1.2
+Version: 1.3
 
 Status: Approved
 
@@ -17,12 +17,15 @@ Required: `customer_id`, `session_id`, `teacher_id`, `role`
 Optional assignment window: `assigned_from`, `assigned_to`.
 
 Session and Teacher must share tenant; Teacher must be an active teacher.
-One Teacher has one assignment per Session.
+A Teacher may teach any number of Sessions. The unique key represents canonical
+storage only: repeated input for the same Teacher and Session is normalized to
+one assignment and is not a business validation error.
 
 ## Cohort Session Team Policy — 2026-08-04
 
-A Session may have multiple `teacher` and `assistant` rows. A Teacher may occur
-only once in the Session team. New Cohort Session operations do not create a
+A Session may have multiple `teacher` and `assistant` rows. Repeated references
+to the same Teacher in one request are normalized to one canonical row; the
+same Teacher may appear in any number of different Sessions. New Cohort Session operations do not create a
 `primary_teacher` row: a Cohort `primary_teacher` selected for a Session is
 stored as `teacher`, while a Cohort `assistant` remains `assistant`.
 

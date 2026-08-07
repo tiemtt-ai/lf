@@ -1,6 +1,6 @@
 # LF-Core-LiveClass.md
 
-Version: 2.4
+Version: 2.5
 
 Status: Official Foundation
 
@@ -127,8 +127,12 @@ hiểu là không giới hạn thêm ở đầu đó nhưng vẫn chịu boundar
 UI phải lọc theo hai mốc Session và backend phải kiểm tra lại cùng invariant;
 request trực tiếp không được vượt qua availability này.
 
-Một Session có thể có nhiều assignment `teacher`/`assistant`. Một Teacher chỉ
-xuất hiện một lần trong một Session. Đội ngũ canonical nằm tại
+Một Session có thể có nhiều assignment `teacher`/`assistant`. Một giáo viên
+được phép phụ trách nhiều Session trong cùng Cohort hoặc giữa các Cohort; việc
+lặp lại giáo viên giữa các buổi không phải xung đột nghiệp vụ. Trong một
+Session, nhiều giá trị đầu vào cùng tham chiếu một Teacher phải được tự động
+chuẩn hóa thành một assignment canonical và không được trả lỗi validation cho
+người dùng. Đội ngũ canonical nằm tại
 `core_liveclass_session_teachers`; implementation mới phải ghi
 `core_liveclass_sessions.primary_teacher_id = NULL`. Cột này chỉ được giữ để
 đọc dữ liệu legacy và không đại diện cho policy hiện hành.
@@ -613,11 +617,20 @@ Session setup follows these mutation boundaries and remains independent from
 recurring Schedule persistence:
 
 * a `draft` or `active` Cohort may create Sessions;
+* a Session may be saved without a teacher during setup and is shown as
+  unassigned, but every non-cancelled/non-no-show Session must have at least
+  one assigned teacher before Cohort activation;
+* an unassigned Session in an already active Cohort cannot accept runtime
+  evidence such as Attendance or Recording until a teacher is assigned;
 * title, type, curriculum binding and delivery fields may be edited only while
   the Session has not started, remains in a pre-runtime state and has no
   Attendance, Recording, Replay, Progress evidence or other operational child;
 * schedule changes use the dedicated reschedule workflow and append audit
   history rather than silently replacing history;
+* active Session time ranges in the same Cohort must not overlap, regardless
+  of whether a Session originates from a Schedule, is created off-schedule, or
+  is rescheduled; boundary-touching ranges are allowed, while cancelled and
+  no-show Sessions no longer reserve the time range;
 * a live, ended/completed, cancelled or no-show Session keeps its type and
   binding immutable;
 * completed or archived Cohorts expose historical Sessions read-only and do

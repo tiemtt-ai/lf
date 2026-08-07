@@ -146,6 +146,24 @@ class CourseCohortLifecycleService
             }
         }
 
+        $unassignedSessionCount = DB::table('core_liveclass_sessions as sessions')
+            ->where('sessions.customer_id', $customerId)
+            ->where('sessions.cohort_id', $cohort->id)
+            ->whereNotIn('sessions.status', ['cancelled', 'no_show'])
+            ->whereNull('sessions.primary_teacher_id')
+            ->whereNotExists(function ($query) use ($customerId): void {
+                $query->selectRaw('1')
+                    ->from('core_liveclass_session_teachers as session_teachers')
+                    ->whereColumn('session_teachers.session_id', 'sessions.id')
+                    ->where('session_teachers.customer_id', $customerId);
+            })
+            ->count();
+        if ($unassignedSessionCount > 0) {
+            $errors[] = __('lf.LF_course_cohort_activation_sessions_unassigned', [
+                'count' => $unassignedSessionCount,
+            ]);
+        }
+
         return array_values(array_unique($errors));
     }
 

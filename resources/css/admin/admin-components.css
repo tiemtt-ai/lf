@@ -907,17 +907,24 @@
 .admin-form-actions.course-cohort-detail-tabs {
     max-width: 100%;
     margin-top: 10px;
+    padding-bottom: 3px;
     gap: 6px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
 }
 
 .course-cohort-detail-tabs .btn {
     min-height: 36px;
     padding: 7px 10px;
-    flex: 0 0 auto;
+    flex: 1 0 auto;
     border-radius: 7px;
     font-size: 13px;
     line-height: 1.35;
+    text-align: center;
     white-space: nowrap;
 }
 
@@ -1091,6 +1098,9 @@
 
 .cohort-lifecycle-dialog-panel {
     padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
 }
 
 .cohort-lifecycle-dialog-title {
@@ -1109,7 +1119,7 @@
 }
 
 .cohort-lifecycle-dialog-actions {
-    margin-top: 22px;
+    margin-top: 0;
     padding-top: 18px;
     display: flex;
     align-items: center;
@@ -1162,6 +1172,11 @@
 .lf-confirm-dialog.is-danger .lf-confirm-dialog__icon {
     color: var(--admin-danger);
     background: #fef2f2;
+}
+
+.lf-confirm-dialog.is-positive .lf-confirm-dialog__icon {
+    color: var(--admin-success, #15803d);
+    background: #ecfdf5;
 }
 
 .lf-confirm-dialog__heading h2 {
@@ -3722,10 +3737,11 @@
 
 @media (max-width: 767px) {
     .admin-form-actions.course-cohort-detail-tabs {
-        padding-bottom: 3px;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        scrollbar-width: thin;
+        scroll-snap-type: inline proximity;
+    }
+
+    .course-cohort-detail-tabs .btn {
+        scroll-snap-align: start;
     }
 
     .cohort-edit-overview-fields {
@@ -5735,6 +5751,43 @@
     box-shadow: inset 3px 0 0 color-mix(in srgb, var(--admin-primary) 45%, transparent);
 }
 
+.course-cohort-session-batch-item__selection-notice {
+    grid-column: 1 / -1;
+    min-height: 52px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border: 1px solid color-mix(in srgb, var(--admin-primary) 16%, var(--admin-border));
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--admin-primary) 3%, var(--admin-surface));
+}
+
+.course-cohort-session-batch-item__selection-notice p {
+    margin: 0;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.course-cohort-session-batch-item__selection-notice .btn {
+    min-height: 34px;
+    padding: 6px 12px;
+    flex: 0 0 auto;
+    font-size: 13px;
+}
+
+.course-cohort-session-batch-item__form.is-awaiting-selection > :not(.course-cohort-session-batch-item__selection-notice) {
+    opacity: .68;
+    transition: opacity 150ms ease;
+}
+
+.course-cohort-session-batch-item__form.is-awaiting-selection:focus-within > :not(.course-cohort-session-batch-item__selection-notice),
+.course-cohort-session-batch-item__form.is-awaiting-selection:hover > :not(.course-cohort-session-batch-item__selection-notice) {
+    opacity: .86;
+}
+
 .course-cohort-session-batch-item__form .lf-form-group {
     min-width: 0;
     margin: 0;
@@ -5987,6 +6040,11 @@
         grid-column: auto;
     }
 
+    .course-cohort-session-batch-item__selection-notice {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
 }
 
 @media (max-width: 575.98px) {
@@ -6045,6 +6103,10 @@
 
 .course-cohort-session-type__options {
     margin-top: 7px;
+}
+
+.course-cohort-session-form .admin-form-inline-notice + .course-cohort-session-type {
+    margin-top: 16px;
 }
 
 .course-cohort-session-form__grid + .course-cohort-session-form__grid,
@@ -6199,12 +6261,11 @@
 }
 
 .course-cohort-session-table__col-sequence { width: 64px; }
-.course-cohort-session-table__col-name { width: 240px; }
-.course-cohort-session-table__col-content { width: 220px; }
+.course-cohort-session-table__col-summary { width: 420px; }
 .course-cohort-session-table__col-schedule { width: 220px; }
 .course-cohort-session-table__col-teacher { width: 200px; }
 .course-cohort-session-table__col-status { width: 146px; }
-.course-cohort-session-table__col-actions { width: 76px; }
+.course-cohort-session-table__col-actions { width: 92px; }
 .course-cohort-session-table .admin-table-sequence,
 .course-cohort-session-table__status,
 .course-cohort-session-table__actions { text-align: center; }
@@ -6460,6 +6521,23 @@
     background: #fafcff;
 }
 
+.lf-admin-page .admin-table-wrap .course-cohort-session-table > thead > tr > th.course-cohort-session-table__actions,
+.lf-admin-page .admin-table-wrap .course-cohort-session-table > tbody > tr > td.course-cohort-session-table__actions {
+    width: 92px;
+    min-width: 92px;
+    padding-right: 10px;
+    padding-left: 10px;
+    text-align: center;
+}
+
+.lf-admin-page .admin-table-wrap .course-cohort-session-table > thead > tr > th.course-cohort-session-table__status {
+    text-align: center;
+}
+
+.course-cohort-session-table__actions .admin-action-menu {
+    justify-content: center;
+}
+
 .admin-action-menu {
     position: relative;
     display: inline-flex;
@@ -6587,6 +6665,10 @@
     flex: 1;
 }
 
+.course-cohort-session-modal .admin-modal-header h2 {
+    margin-top: 6px;
+}
+
 .course-cohort-session-modal__eyebrow {
     color: var(--admin-text-muted);
     font-size: 11px;
@@ -6596,7 +6678,7 @@
 }
 
 .course-cohort-session-modal__summary {
-    margin-top: 5px;
+    margin-top: 8px;
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -6638,15 +6720,15 @@
     gap: 16px 24px;
 }
 
+.course-cohort-session-modal__grid--schedule {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
 .course-cohort-session-modal__grid--schedule > div {
     padding: 12px 14px;
     border-radius: 9px;
     background: var(--admin-surface-subtle);
-}
-
-.course-cohort-session-modal__grid--schedule > .course-cohort-session-modal__schedule-source,
-.course-cohort-session-reschedule-current .course-cohort-session-modal__schedule-source {
-    grid-column: 1 / -1;
 }
 
 .course-cohort-session-modal__grid div {
@@ -6681,15 +6763,18 @@
 }
 
 .course-cohort-session-reschedule-modal__body {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 24px;
-    row-gap: 18px;
-    padding: 20px 24px 22px;
+    padding: 0 24px;
 }
 
 .course-cohort-session-reschedule-modal {
-    width: min(680px, calc(100vw - 32px));
+    width: min(720px, calc(100vw - 32px));
+}
+
+.course-cohort-session-reschedule-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 24px;
+    row-gap: 0;
 }
 
 .course-cohort-session-reschedule-modal__body .lf-form-group {
@@ -6697,33 +6782,40 @@
     margin: 0;
 }
 
-.course-cohort-session-reschedule-modal__body .admin-form-field--full {
+.course-cohort-session-reschedule-error-slot {
+    min-height: 26px;
+    padding-top: 7px;
+    box-sizing: border-box;
+}
+
+.course-cohort-session-reschedule-error-slot .lf-form-error {
+    margin: 0;
+}
+
+.course-cohort-session-reschedule-grid .admin-form-field--full {
     grid-column: 1 / -1;
 }
 
 .course-cohort-session-reschedule-current {
-    padding: 10px 12px;
-    border-radius: 8px;
     color: var(--admin-text-muted);
-    background: var(--admin-surface-subtle);
-}
-
-.course-cohort-session-reschedule-current h3,
-.course-cohort-session-reschedule-new-heading {
-    margin: 0;
-    font-size: 12px;
-    font-weight: 700;
 }
 
 .course-cohort-session-reschedule-current dl {
-    margin: 8px 0 0;
+    margin: 0;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
 }
 
 .course-cohort-session-reschedule-current dl > div {
     min-width: 0;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: var(--admin-surface-subtle);
+}
+
+.course-cohort-session-reschedule-current .course-cohort-session-modal__schedule-source {
+    grid-column: auto;
 }
 
 .course-cohort-session-reschedule-current dt {
@@ -6739,13 +6831,8 @@
     font-weight: 700;
 }
 
-.course-cohort-session-reschedule-new-heading {
-    color: var(--admin-primary);
-    padding-top: 2px;
-}
-
 .course-cohort-session-reschedule-modal textarea.lf-form-control {
-    min-height: 96px;
+    min-height: 88px;
 }
 
 .course-cohort-session-reschedule-modal textarea.lf-form-control + .lf-form-help {
@@ -6854,8 +6941,8 @@
     .course-cohort-session-modal__grid { grid-template-columns: minmax(0, 1fr); }
     .course-cohort-session-modal__status { margin-right: 4px; }
     .course-cohort-session-reschedule-current dl { grid-template-columns: minmax(0, 1fr); }
-    .course-cohort-session-reschedule-modal__body { grid-template-columns: minmax(0, 1fr); }
-    .course-cohort-session-reschedule-modal__body .admin-form-field--full { grid-column: auto; }
+    .course-cohort-session-reschedule-grid { grid-template-columns: minmax(0, 1fr); }
+    .course-cohort-session-reschedule-grid .admin-form-field--full { grid-column: auto; }
     .course-cohort-session-empty-row { border: 0 !important; }
     .lf-admin-page .course-cohort-session-empty-cell { display: block; border: 0; }
     .course-cohort-session-empty-cell::before { display: none; }

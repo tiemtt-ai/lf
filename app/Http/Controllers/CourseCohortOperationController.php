@@ -147,6 +147,10 @@ class CourseCohortOperationController extends Controller
         $cohortRow = $this->setupCohort($customerId, $cohort);
         abort_if(! $cohortRow->version_id, 422);
 
+        if ($request->has('teacher_ids')) {
+            $request->merge(['teacher_ids' => $this->deduplicateTeacherIds($request->input('teacher_ids'))]);
+        }
+
         $origin = null;
         if ($request->filled(['schedule_id', 'schedule_slot_id', 'source_local_date'])) {
             $origin = $this->sessionOriginService->resolve(
@@ -166,9 +170,12 @@ class CourseCohortOperationController extends Controller
             $validated
         );
         $this->validateSessionScheduleWindow($cohortRow, $validated);
+        $this->validateSessionDoesNotOverlap($customerId, $cohort, $validated);
         $sessionTeachers = $this->canonicalSessionTeacherTeam($customerId, $cohort, $validated);
 
         DB::transaction(function () use ($customerId, $cohort, $cohortRow, $validated, $sessionTeachers, $request, $origin): void {
+            DB::table('core_course_cohorts')->where('customer_id', $customerId)
+                ->where('id', $cohort)->lockForUpdate()->firstOrFail();
             if ($origin) {
                 $origin = $this->sessionOriginService->resolve(
                     $customerId, $cohort, (int) $origin['schedule_id'],
@@ -177,6 +184,7 @@ class CourseCohortOperationController extends Controller
                 $validated['scheduled_start_at'] = $origin['scheduled_start_at'];
                 $validated['scheduled_end_at'] = $origin['scheduled_end_at'];
             }
+            $this->validateSessionDoesNotOverlap($customerId, $cohort, $validated);
             $sessionNo = (int) DB::table('core_liveclass_sessions')
                 ->where('customer_id', $customerId)->where('cohort_id', $cohort)
                 ->lockForUpdate()->max('session_no') + 1;
@@ -232,6 +240,8 @@ class CourseCohortOperationController extends Controller
                 ->map(function ($item): array {
                     $item = is_array($item) ? $item : [];
                     if ((bool) ($item['selected'] ?? false)) {
+                        $item['teacher_ids'] = $this->deduplicateTeacherIds($item['teacher_ids'] ?? []);
+
                         return $item;
                     }
 
@@ -251,7 +261,10 @@ class CourseCohortOperationController extends Controller
             'occurrences.*.version_lesson_id' => ['required_if:occurrences.*.selected,1', 'nullable', 'integer'],
             'occurrences.*.version_activity_id' => ['required_if:occurrences.*.selected,1', 'nullable', 'integer'],
             'occurrences.*.teacher_ids' => ['nullable', 'array'],
-            'occurrences.*.teacher_ids.*' => ['integer', 'distinct', Rule::exists('users', 'id')
+            // A teacher may teach multiple occurrences in the same batch. Each
+            // row is already normalized above, so a wildcard-level `distinct`
+            // rule would incorrectly compare IDs across different sessions.
+            'occurrences.*.teacher_ids.*' => ['integer', Rule::exists('users', 'id')
                 ->where(fn ($query) => $query->where('customer_id', $customerId)->where('role', 'teacher')->where('status', 'active'))],
             'occurrences.*.delivery_mode' => ['required_if:occurrences.*.selected,1', 'nullable', Rule::in(['online', 'offline', 'hybrid'])],
             'room_name' => ['nullable', 'string', 'max:255'],
@@ -298,6 +311,7 @@ class CourseCohortOperationController extends Controller
             $this->validateSessionScheduleWindow($cohortRow, $session);
 
             return [
+                'input_index' => $index,
                 'origin' => $origin,
                 'session' => $session,
                 'teachers' => $this->canonicalSessionTeacherTeam(
@@ -322,6 +336,13 @@ class CourseCohortOperationController extends Controller
                     $session = $row['session'];
                     $session['scheduled_start_at'] = $origin['scheduled_start_at'];
                     $session['scheduled_end_at'] = $origin['scheduled_end_at'];
+                    $this->validateSessionDoesNotOverlap(
+                        $customerId,
+                        $cohort,
+                        $session,
+                        null,
+                        "occurrences.{$row['input_index']}.scheduled_start_at"
+                    );
                     $sessionId = DB::table('core_liveclass_sessions')->insertGetId(array_merge([
                         'customer_id' => $customerId,
                         'cohort_id' => $cohort,
@@ -368,6 +389,10 @@ class CourseCohortOperationController extends Controller
         $customerId = $this->authorizeAdmin($request);
         $cohortRow = $this->setupCohort($customerId, $cohort);
         abort_if(! $cohortRow->version_id, 422);
+
+        if ($request->has('teacher_ids')) {
+            $request->merge(['teacher_ids' => $this->deduplicateTeacherIds($request->input('teacher_ids'))]);
+        }
 
         $validated = $request->validate($this->sessionRules($customerId, (int) $cohortRow->version_id));
 
@@ -427,12 +452,15 @@ class CourseCohortOperationController extends Controller
             'reason' => ['nullable', 'string', 'max:1000'],
         ]);
         DB::transaction(function () use ($customerId, $cohort, $cohortRow, $session, $validated, $request): void {
+            DB::table('core_course_cohorts')->where('customer_id', $customerId)
+                ->where('id', $cohort)->lockForUpdate()->firstOrFail();
             $sessionRow = DB::table('core_liveclass_sessions')
                 ->where('customer_id', $customerId)->where('cohort_id', $cohort)
                 ->where('id', $session)->lockForUpdate()->firstOrFail();
             abort_unless($this->sessionPolicy->canReschedule($sessionRow), 422,
                 __('lf.LF_course_cohort_session_reschedule_status_invalid'));
             $this->validateSessionScheduleWindow($cohortRow, $validated);
+            $this->validateSessionDoesNotOverlap($customerId, $cohort, $validated, $session);
 
             $teacherIds = DB::table('core_liveclass_session_teachers')
                 ->where('customer_id', $customerId)
@@ -478,6 +506,8 @@ class CourseCohortOperationController extends Controller
         $sessionRow = DB::table('core_liveclass_sessions')
             ->where('customer_id', $customerId)->where('cohort_id', $cohort)
             ->where('id', $session)->firstOrFail();
+        abort_unless($this->sessionHasAssignedTeacher($customerId, $sessionRow), 422,
+            __('lf.LF_course_cohort_session_runtime_teacher_required'));
         abort_unless($this->sessionPolicy->canRecordAttendance($sessionRow, now()), 422,
             __('lf.LF_course_cohort_attendance_session_invalid'));
         $validated = $request->validate([
@@ -527,6 +557,8 @@ class CourseCohortOperationController extends Controller
         $sessionRow = DB::table('core_liveclass_sessions')
             ->where('customer_id', $customerId)->where('cohort_id', $cohort)
             ->where('id', $session)->firstOrFail();
+        abort_unless($this->sessionHasAssignedTeacher($customerId, $sessionRow), 422,
+            __('lf.LF_course_cohort_session_runtime_teacher_required'));
         abort_unless($this->sessionPolicy->canCreateRecording($sessionRow, now()), 422,
             __('lf.LF_course_cohort_recording_session_invalid'));
         $validated = $request->validate([
@@ -563,7 +595,7 @@ class CourseCohortOperationController extends Controller
                 ->where(fn ($query) => $query->where('customer_id', $customerId)->where('template_version_id', $versionId))],
             'version_activity_id' => ['nullable', 'required_if:session_type,curriculum', 'integer'],
             'teacher_ids' => ['nullable', 'array'],
-            'teacher_ids.*' => ['integer', 'distinct', Rule::exists('users', 'id')
+            'teacher_ids.*' => ['integer', Rule::exists('users', 'id')
                 ->where(fn ($query) => $query->where('customer_id', $customerId)->where('role', 'teacher')->where('status', 'active'))],
             'delivery_mode' => ['required', Rule::in(['online', 'offline', 'hybrid'])],
             'scheduled_start_at' => ['required', 'date'],
@@ -653,7 +685,7 @@ class CourseCohortOperationController extends Controller
         string $scheduleErrorField = 'teacher_ids'
     ): array {
         $teacherIds = collect($validated['teacher_ids'] ?? [])
-            ->map(fn ($id): int => (int) $id)->values();
+            ->map(fn ($id): int => (int) $id)->uniqueStrict()->values();
         if ($teacherIds->isEmpty()) {
             return [];
         }
@@ -689,6 +721,18 @@ class CourseCohortOperationController extends Controller
         return $team;
     }
 
+    private function deduplicateTeacherIds(mixed $teacherIds): mixed
+    {
+        if (! is_array($teacherIds)) {
+            return $teacherIds;
+        }
+
+        return collect($teacherIds)
+            ->unique(fn ($teacherId) => is_scalar($teacherId) ? (string) $teacherId : serialize($teacherId))
+            ->values()
+            ->all();
+    }
+
     private function validateSessionScheduleWindow(object $cohort, array $validated): void
     {
         if (! $cohort->start_date || ! $cohort->end_date) {
@@ -713,6 +757,31 @@ class CourseCohortOperationController extends Controller
         if ($sessionEnd->gt($cohortEnd)) {
             throw ValidationException::withMessages([
                 'scheduled_end_at' => __('lf.LF_course_cohort_session_schedule_after_cohort'),
+            ]);
+        }
+    }
+
+    private function validateSessionDoesNotOverlap(
+        int $customerId,
+        int $cohortId,
+        array $validated,
+        ?int $excludeSessionId = null,
+        string $errorField = 'scheduled_start_at'
+    ): void {
+        $query = DB::table('core_liveclass_sessions')
+            ->where('customer_id', $customerId)
+            ->where('cohort_id', $cohortId)
+            ->whereNotIn('status', ['cancelled', 'no_show'])
+            ->where('scheduled_start_at', '<', $validated['scheduled_end_at'])
+            ->where('scheduled_end_at', '>', $validated['scheduled_start_at']);
+
+        if ($excludeSessionId !== null) {
+            $query->where('id', '!=', $excludeSessionId);
+        }
+
+        if ($query->exists()) {
+            throw ValidationException::withMessages([
+                $errorField => __('lf.LF_course_cohort_session_schedule_overlap'),
             ]);
         }
     }
@@ -751,6 +820,15 @@ class CourseCohortOperationController extends Controller
             ->where('customer_id', $customerId)->where('session_id', $sessionId)->exists()
             || DB::table('core_liveclass_recordings')
                 ->where('customer_id', $customerId)->where('session_id', $sessionId)->exists();
+    }
+
+    private function sessionHasAssignedTeacher(int $customerId, object $session): bool
+    {
+        return (bool) $session->primary_teacher_id
+            || DB::table('core_liveclass_session_teachers')
+                ->where('customer_id', $customerId)
+                ->where('session_id', $session->id)
+                ->exists();
     }
 
     private function cohort(int $customerId, int $id): object

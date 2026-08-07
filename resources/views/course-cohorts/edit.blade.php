@@ -24,8 +24,9 @@
         </a>
     </div>
 
-    <div x-data="{ lockedReason: '' }">
-        <nav class="admin-form-actions course-cohort-detail-tabs course-cohort-edit-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
+    <div x-data="{ lockedReason: '' }"
+         x-init="$nextTick(() => $refs.tabs.querySelector('[aria-current=page]')?.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' }))">
+        <nav x-ref="tabs" class="admin-form-actions course-cohort-detail-tabs course-cohort-edit-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
             @foreach ($cohortTabs as $tab)
                 <span class="sr-only">{{ $tab['note'] }}</span>
                 @php($editRoute = $tab['key'] === 'overview'
