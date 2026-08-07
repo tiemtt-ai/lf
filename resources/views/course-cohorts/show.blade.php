@@ -278,7 +278,7 @@
                       class="cohort-student-list-filter">
                     <input type="hidden" name="tab" value="students">
                     <div class="lf-form-group">
-                        <label class="sr-only" for="student_keyword">{{ __('lf.LF_course_cohort_student_common_keyword') }}</label>
+                        <label class="lf-form-label" for="student_keyword">{{ __('lf.LF_course_cohort_student_common_keyword') }}</label>
                         <input id="student_keyword" type="search" name="student_keyword" class="lf-form-control"
                                value="{{ $studentKeyword }}" placeholder="{{ __('lf.LF_course_cohort_student_search_placeholder') }}">
                     </div>
@@ -295,7 +295,7 @@
                         <thead><tr>
                             <th>{{ __('lf.LF_course_cohort_student_common_student') }}</th>
                             <th>{{ __('lf.LF_course_cohort_student_common_enrollment') }}</th>
-                            <th>{{ __('lf.LF_course_cohort_student_enrollment_status') }}</th>
+                            <th>{{ __('lf.LF_course_cohort_student_common_status') }}</th>
                             <th class="cohort-student-list-actions">{{ __('lf.table_actions') }}</th>
                         </tr></thead>
                         <tbody>
@@ -317,7 +317,7 @@
                                         {{ \Illuminate\Support\Carbon::parse($student->joined_at)->format('d/m/Y H:i') }}
                                     </span>
                                 </td>
-                                <td class="cohort-student-list-status" data-label="{{ __('lf.LF_course_cohort_student_enrollment_status') }}">
+                                <td class="cohort-student-list-status" data-label="{{ __('lf.LF_course_cohort_student_common_status') }}">
                                     <span @class([
                                         'badge',
                                         'badge-success' => $student->enrollment_status === 'active',
