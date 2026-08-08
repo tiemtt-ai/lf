@@ -3629,23 +3629,24 @@
 }
 
 .cohort-student-list-table th:nth-child(1) {
-    width: 42%;
+    width: 34%;
+    text-align: left;
 }
 
 .cohort-student-list-table th:nth-child(2) {
-    width: 34%;
+    width: 38%;
 }
 
 .cohort-student-list-table th:nth-child(3) {
-    width: 16%;
+    width: 14%;
     text-align: center;
     white-space: nowrap;
 }
 
-.cohort-student-list-table .cohort-student-list-actions {
-    width: 8%;
-    text-align: center;
-}
+/* The action column itself is intentionally left to the shared canonical
+   rule (`.admin-table-has-actions`, further down this file) instead of a
+   per-table override, so every admin list's "Thao tác" column is sized and
+   aligned from one place. */
 
 .lf-admin-page .course-cohort-roster-table th {
     padding-top: 12px;
@@ -4543,20 +4544,25 @@
 }
 
 .course-cohort-teachers__table th:first-child {
-    width: 34%;
+    width: 30%;
 }
 
 .course-cohort-teachers__table th:nth-child(2) {
-    width: 20%;
+    width: 18%;
 }
 
 .course-cohort-teachers__table th:nth-child(3) {
-    width: 30%;
+    width: 32%;
 }
 
 .course-cohort-teachers__actions {
     text-align: right;
 }
+
+/* The action column's width comes from the shared canonical rule
+   (`.admin-table-has-actions`, further down this file) rather than a
+   per-table override, so every admin list's "Thao tác" column is sized
+   from one place. */
 
 .course-cohort-teachers__table th,
 .course-cohort-teachers__table td {
@@ -6514,8 +6520,15 @@
 
 .admin-table-has-actions > thead > tr > th:last-child,
 .admin-table-has-actions > tbody > tr > td:last-child {
-    width: 80px;
-    min-width: 80px;
+    /* Wide enough for the "Thao tác" header label to sit comfortably next
+       to the overflow-menu trigger, without any per-list override — this
+       is the single place that sizes the actions column for every admin
+       list table (users, categories, templates, products, cohorts,
+       media, enrollments, etc). */
+    width: 100px;
+    min-width: 100px;
+    padding-left: 10px;
+    padding-right: 18px;
     position: sticky;
     right: 0;
     z-index: 2;
