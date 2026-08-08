@@ -5,23 +5,27 @@
 
 @section('content')
     <div x-data="{ lockedReason: '' }">
-        <nav class="admin-form-actions cohort-student-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
+        <nav class="admin-form-actions course-cohort-detail-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
             @foreach ($cohortTabs as $tab)
                 <span class="sr-only">{{ $tab['note'] }}</span>
                 @if ($tab['accessible'])
                     <button type="button" class="btn btn-primary" aria-current="page">{{ $tab['label'] }}</button>
                 @else
-                    <button type="button" class="btn btn-secondary" aria-disabled="true"
+                    <button type="button" class="btn btn-secondary course-cohort-detail-tab--locked" aria-disabled="true"
+                            title="{{ $tab['locked_reason'] }}"
                             x-on:click="lockedReason = @js($tab['locked_reason'])"
                             x-on:focus="lockedReason = @js($tab['locked_reason'])">
-                        <span aria-hidden="true">🔒</span> {{ $tab['label'] }}
+                        <span>{{ $tab['label'] }}</span>
+                        <x-backend-icon name="lock" class="course-cohort-detail-tab__lock-icon" />
                     </button>
                     <span class="sr-only">{{ $tab['locked_reason'] }}</span>
                 @endif
             @endforeach
         </nav>
-        <p class="admin-form-section-help" role="status"
-           x-text="lockedReason || @js($cohortTabs[0]['note'])"></p>
+        <p class="admin-form-section-help course-cohort-detail-tabs-help" role="status" aria-live="polite">
+            <span class="course-cohort-detail-tabs-help__icon" aria-hidden="true">i</span>
+            <span x-text="lockedReason || @js($cohortTabs[0]['note'])"></span>
+        </p>
     </div>
 
     @if ($errors->any())
