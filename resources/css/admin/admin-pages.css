@@ -528,17 +528,20 @@
     white-space: nowrap;
 }
 
-.media-library-type-label {
+.media-library-type-label,
+.media-library-uploader-name {
     display: block;
     color: var(--admin-text);
+    font-size: 14px;
+    font-weight: 600;
     line-height: 1.4;
 }
 
 .media-library-usage-summary {
     display: grid;
-    gap: 6px;
+    gap: 4px;
     min-width: 0;
-    margin-top: 8px;
+    margin-top: 3px;
 }
 
 .media-library-usage-summary-item {
@@ -547,16 +550,82 @@
 
 .media-library-usage-summary-item span {
     min-width: 0;
+    display: block;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 400;
+    overflow-wrap: anywhere;
+}
+
+/* "+N nơi khác" trigger — hover or click reveals the full usage list in a
+   teleported panel, same interaction pattern as `.admin-action-menu`
+   (hover-to-open with a short close delay, click also opens/toggles,
+   positioned via getBoundingClientRect so it never gets clipped by the
+   table's sticky columns/overflow). */
+.media-library-usage-more {
+    position: relative;
+    display: inline-flex;
+}
+
+.media-library-usage-more__trigger {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--admin-primary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.media-library-usage-more__trigger:hover,
+.media-library-usage-more__trigger:focus-visible {
+    text-decoration: underline;
+}
+
+.media-library-usage-more__panel {
+    width: max-content;
+    max-width: 260px;
+    padding: 10px 12px;
+    position: fixed;
+    z-index: 1000;
+    display: grid;
+    gap: 6px;
+    border: 1px solid var(--admin-border);
+    border-radius: 9px;
+    background: var(--admin-surface);
+    box-shadow: 0 12px 28px rgb(15 23 42 / 14%);
+    text-align: left;
+}
+
+.media-library-usage-more__panel strong {
+    color: var(--admin-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+}
+
+.media-library-usage-more__panel ul {
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 4px;
+    list-style: none;
+}
+
+.media-library-usage-more__panel li {
     color: var(--admin-text);
     font-size: 13px;
-    font-weight: 500;
+    line-height: 1.4;
     overflow-wrap: anywhere;
 }
 
 .media-library-usage-count {
+    display: block;
     color: var(--admin-text);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
+    line-height: 1.4;
 }
 
 .media-library-status-stack {

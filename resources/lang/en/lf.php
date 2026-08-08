@@ -355,6 +355,8 @@ return [
     'LF_media_file_common_unused' => 'Unused',
     'LF_media_file_preview_named' => 'Preview :name',
     'LF_media_file_usage_count' => '{0} Not in use|{1} :count usage location|[2,*] :count usage locations',
+    'LF_media_file_usage_more' => '+:count more',
+    'LF_media_file_usage_all_places' => 'All usage locations',
     'LF_media_file_common_no_preview' => 'No preview',
     'LF_media_file_common_empty' => 'No media files found.',
     'LF_media_file_empty_help' => 'Media uploaded from templates, products, and course activities will appear here.',

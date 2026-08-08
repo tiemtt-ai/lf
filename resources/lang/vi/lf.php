@@ -355,6 +355,8 @@ return [
     'LF_media_file_common_unused' => 'Chưa sử dụng',
     'LF_media_file_preview_named' => 'Xem trước :name',
     'LF_media_file_usage_count' => '{0} Chưa sử dụng|[1,*] :count nơi sử dụng',
+    'LF_media_file_usage_more' => '+:count nơi khác',
+    'LF_media_file_usage_all_places' => 'Tất cả nơi sử dụng',
     'LF_media_file_common_no_preview' => 'Không có xem trước',
     'LF_media_file_common_empty' => 'Chưa có Media File.',
     'LF_media_file_empty_help' => 'Media được tải từ Template, sản phẩm và hoạt động khóa học sẽ xuất hiện tại đây.',

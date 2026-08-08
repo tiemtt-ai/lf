@@ -343,20 +343,85 @@
                         <span class="media-library-file-meta media-library-size-meta">{{ number_format(((int) $mediaFile->file_size_bytes) / 1024, 1) }} KB</span>
                     </td>
                     <td data-label="{{ __('lf.LF_media_file_common_upload_information') }}">
-                        {{ $mediaFile->uploaded_by_name ?? '—' }}
+                        <span class="media-library-uploader-name">{{ $mediaFile->uploaded_by_name ?? '—' }}</span>
                         <span class="media-library-file-meta media-library-upload-date">{{ \Illuminate\Support\Carbon::parse($mediaFile->created_at)->format('d/m/Y H:i') }}</span>
                     </td>
                     <td data-label="{{ __('lf.LF_media_file_common_usage') }}">
                         <span class="media-library-usage-count">
                             {{ trans_choice('lf.LF_media_file_usage_count', $mediaFile->active_usages->count(), ['count' => $mediaFile->active_usages->count()]) }}
                         </span>
-                        @if ($mediaFile->active_usages->isNotEmpty())
+                        @php
+                            $usageOwnerLabels = $mediaFile->active_usages
+                                ->groupBy('owner_type')
+                                ->keys()
+                                ->map(fn ($logicalOwnerType) => $ownerTypeOptions[$logicalOwnerType] ?? str($logicalOwnerType)->replace('_', ' ')->headline())
+                                ->values();
+                        @endphp
+                        @if ($usageOwnerLabels->isNotEmpty())
                             <div class="media-library-usage-summary">
-                                @foreach ($mediaFile->active_usages->groupBy('owner_type')->keys() as $logicalOwnerType)
-                                    <div class="media-library-usage-summary-item">
-                                        <span>{{ $ownerTypeOptions[$logicalOwnerType] ?? str($logicalOwnerType)->replace('_', ' ')->headline() }}</span>
+                                <div class="media-library-usage-summary-item">
+                                    <span>{{ $usageOwnerLabels->first() }}</span>
+                                </div>
+                                @if ($usageOwnerLabels->count() > 1)
+                                    <div class="media-library-usage-more"
+                                         x-data="{
+                                             open: false,
+                                             panelStyle: '',
+                                             closeTimer: null,
+                                             openPanel() {
+                                                 clearTimeout(this.closeTimer)
+                                                 if (this.open) return
+                                                 this.open = true
+                                                 this.$nextTick(() => this.place())
+                                             },
+                                             scheduleClose() {
+                                                 clearTimeout(this.closeTimer)
+                                                 this.closeTimer = setTimeout(() => this.open = false, 120)
+                                             },
+                                             cancelClose() {
+                                                 clearTimeout(this.closeTimer)
+                                             },
+                                             place() {
+                                                 const trigger = this.$refs.trigger?.getBoundingClientRect()
+                                                 const panel = this.$refs.panel
+                                                 if (!trigger || !panel) return
+                                                 const gap = 6
+                                                 const edge = 8
+                                                 let top = trigger.bottom + gap
+                                                 if (top + panel.offsetHeight > window.innerHeight - edge) {
+                                                     top = Math.max(edge, trigger.top - panel.offsetHeight - gap)
+                                                 }
+                                                 const left = Math.min(
+                                                     window.innerWidth - panel.offsetWidth - edge,
+                                                     Math.max(edge, trigger.left)
+                                                 )
+                                                 this.panelStyle = `top:${top}px;left:${left}px`
+                                             }
+                                         }"
+                                         x-on:click.outside="open = false" x-on:keydown.escape.stop="open = false"
+                                         x-on:mouseenter="openPanel()" x-on:mouseleave="scheduleClose()"
+                                         x-on:resize.window="open = false" x-on:scroll.window="open = false">
+                                        <button type="button" class="media-library-usage-more__trigger"
+                                                x-ref="trigger" x-on:click="openPanel()"
+                                                x-bind:aria-expanded="open.toString()"
+                                                aria-haspopup="true">
+                                            {{ __('lf.LF_media_file_usage_more', ['count' => $usageOwnerLabels->count() - 1]) }}
+                                        </button>
+                                        <template x-teleport="body">
+                                            <div class="media-library-usage-more__panel" role="tooltip" x-ref="panel"
+                                                 x-bind:style="panelStyle" x-show="open" x-cloak
+                                                 x-on:mouseenter="cancelClose()" x-on:mouseleave="scheduleClose()"
+                                                 x-transition.opacity.duration.120ms>
+                                                <strong>{{ __('lf.LF_media_file_usage_all_places') }}</strong>
+                                                <ul>
+                                                    @foreach ($usageOwnerLabels as $usageOwnerLabel)
+                                                        <li>{{ $usageOwnerLabel }}</li>
+                                                    @endforeach
+                                                </ul>
+                                            </div>
+                                        </template>
                                     </div>
-                                @endforeach
+                                @endif
                             </div>
                         @endif
                     </td>
@@ -377,11 +442,6 @@
                     <td class="media-library-index-actions" data-label="{{ __('lf.table_actions') }}">
                         @if ((int) $mediaFile->usage_count === 0)
                             <div class="media-library-action-cell">
-                                <input type="checkbox"
-                                       class="media-library-selection-checkbox"
-                                       value="{{ $mediaFile->id }}"
-                                       x-model.number="selectedMediaIds"
-                                       aria-label="{{ __('lf.LF_media_file_select_unused_named', ['name' => $mediaFile->display_name]) }}">
                                 <x-admin-action-menu :label="__('lf.table_actions').': '.$mediaFile->display_name">
                                     <button class="admin-link-button admin-text-action admin-danger-text-action"
                                             type="button"
@@ -391,6 +451,11 @@
                                         {{ __('lf.LF_media_file_common_delete') }}
                                     </button>
                                 </x-admin-action-menu>
+                                <input type="checkbox"
+                                       class="media-library-selection-checkbox"
+                                       value="{{ $mediaFile->id }}"
+                                       x-model.number="selectedMediaIds"
+                                       aria-label="{{ __('lf.LF_media_file_select_unused_named', ['name' => $mediaFile->display_name]) }}">
                             </div>
                         @else
                             <span class="lf-secondary-text media-library-action-empty" aria-label="{{ __('lf.LF_media_file_common_no_actions') }}">—</span>

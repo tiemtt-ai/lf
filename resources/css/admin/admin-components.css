@@ -1963,6 +1963,13 @@
 .lf-admin-page .table td {
     padding: 14px 16px;
     border-bottom: 1px solid #f3f4f6;
+    /* Baseline for every admin list's data cells. `.lf-admin-page` itself
+       is 16px, so any cell text with no more specific font-size (plain
+       text, an unstyled <strong>/<small>, etc.) was silently inheriting
+       16px instead of the 14px used by the tables that do set it
+       explicitly. Any column that needs a different size (e.g. a 12px
+       meta line) still wins via its own more specific selector. */
+    font-size: 14px;
 }
 
 .admin-table-wrap {
@@ -2477,9 +2484,9 @@
 }
 
 .media-library-index-table .admin-table-sequence {
-    width: 64px;
-    min-width: 64px;
-    max-width: 64px;
+    width: 50px;
+    min-width: 50px;
+    max-width: 50px;
     text-align: center;
 }
 
@@ -2496,33 +2503,49 @@
     letter-spacing: .01em;
 }
 
+/* "Media" absorbs whatever width the STT/type/status/actions columns give
+   up below, since its thumbnail + file name/meta is the column that
+   actually needs the room. */
 .media-library-index-table th:nth-child(2),
 .media-library-index-table td:nth-child(2) {
-    width: 158px;
+    width: 226px;
 }
 
+/* Sized to the data ("Hình ảnh" / "276.3 KB"), not the longer header
+   label — the header is allowed to wrap to two lines instead of forcing
+   the column wide. */
 .media-library-index-table th:nth-child(3),
 .media-library-index-table td:nth-child(3) {
-    width: 140px;
-    text-align: left;
+    width: 110px;
+    text-align: center;
 }
 
-.media-library-index-table th:nth-child(3) {
-    white-space: nowrap;
+.lf-admin-page .admin-table-wrap .media-library-index-table th:nth-child(3) {
+    white-space: normal;
+    line-height: 1.3;
 }
 
 .media-library-index-table th:nth-child(4),
 .media-library-index-table td:nth-child(4) {
-    width: 135px;
+    width: 125px;
+    padding-left: 10px;
+    padding-right: 10px;
 }
 
 .media-library-index-table th:nth-child(5),
 .media-library-index-table td:nth-child(5) {
-    width: 100px;
+    width: 110px;
 }
 
 .media-library-index-table .media-library-index-status {
-    width: 112px;
+    width: 104px;
+    text-align: center;
+}
+
+/* Higher specificity than the generic `.lf-admin-page .table th
+   { text-align: left }` rule, which otherwise wins the tie against the
+   rule above and left-aligns just the header label. */
+.lf-admin-page .media-library-index-table th.media-library-index-status {
     text-align: center;
 }
 
@@ -2530,7 +2553,7 @@
     position: sticky;
     z-index: 2;
     right: 0;
-    width: 112px;
+    width: 96px;
     background: #ffffff;
     box-shadow: -1px 0 0 #e5e7eb;
     text-align: center;
@@ -4822,18 +4845,24 @@
     line-height: 1.35;
 }
 
-.course-cohort-schedules__meta,
-.course-cohort-schedules__slot-list,
-.course-cohort-schedules__period {
+.course-cohort-schedules__meta {
     color: var(--admin-text-muted);
     font-size: 12px;
     font-weight: 400;
     line-height: 1.4;
-}
-
-.course-cohort-schedules__meta {
     margin-top: 3px;
     overflow-wrap: anywhere;
+}
+
+/* "Days & times" and "Period" are each their own column's only/primary
+   value (not a secondary meta line under something else), so they take
+   the 14px primary-data size instead of the 12px meta size above. */
+.course-cohort-schedules__slot-list,
+.course-cohort-schedules__period {
+    color: var(--admin-text-muted);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.4;
 }
 
 .course-cohort-schedules__slot-list {
@@ -5317,12 +5346,12 @@
 
 .course-cohort-schedule-detail__table td {
     color: var(--admin-text-muted);
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .course-cohort-schedule-detail__table td strong {
     color: var(--admin-text);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
 }
 
@@ -6338,7 +6367,7 @@
 .course-cohort-session-table__schedule dd {
     margin: 0;
     color: var(--admin-text);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
 }
 
@@ -6364,7 +6393,7 @@
 
 .course-cohort-session-table__empty-value {
     color: var(--admin-text-muted);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 400;
 }
 
@@ -7600,9 +7629,9 @@
 }
 
 .lf-admin-page .media-library-index-table .admin-table-sequence {
-    width: 64px;
-    min-width: 64px;
-    max-width: 64px;
+    width: 50px;
+    min-width: 50px;
+    max-width: 50px;
     text-align: center;
 }
 
