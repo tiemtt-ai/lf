@@ -18,9 +18,22 @@ class SchemaDriftCommandTest extends TestCase
 
     public function test_fresh_mode_rejects_sqlite(): void
     {
-        $this->artisan('schema:drift --fresh')
-            ->expectsOutputToContain('SQLite is intentionally rejected')
-            ->assertFailed();
+        // This guard keys off config('database.default'), not phpunit.xml's
+        // <env> block: a real DB_CONNECTION in the process environment (as
+        // set by the schema-drift CI job, which needs mysql for the other
+        // commands sharing that step) wins over phpunit.xml's unforced
+        // <env>, so the test must pin its own default here rather than
+        // assume sqlite ambiently.
+        $default = config('database.default');
+        config(['database.default' => 'sqlite']);
+
+        try {
+            $this->artisan('schema:drift --fresh')
+                ->expectsOutputToContain('SQLite is intentionally rejected')
+                ->assertFailed();
+        } finally {
+            config(['database.default' => $default]);
+        }
     }
 
     public function test_json_error_output_does_not_expose_credentials(): void
