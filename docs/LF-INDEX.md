@@ -1,6 +1,6 @@
 # LF-INDEX.md
 
-Version: 2.5
+Version: 2.6
 
 Document Status: Approved
 
@@ -35,6 +35,12 @@ not replace this routing guide; agents must still read selected sources and
 check the conflict register when inconsistency appears. Its canonical schema
 and maintenance rules are defined in
 [Documentation Manifest Standard](governance/LF-Documentation-Manifest.md).
+
+Database drift phải route qua
+[LearnForge Schema Drift Standard](database/LF-Schema-Drift.md) và
+[`LF-SCHEMA-CONTRACT.json`](database/LF-SCHEMA-CONTRACT.json). Documentation,
+migration intent, fresh reconstruction và selected read-only database luôn là
+các nguồn evidence riêng biệt.
 
 ---
 
@@ -181,6 +187,7 @@ docs/
 | --- | --- |
 | [LF-Data-Modeling.md](LF-Data-Modeling.md) | Database design methodology |
 | [LF-Development-Standards.md](LF-Development-Standards.md) | Implementation and development standards |
+| [database/LF-Schema-Drift.md](database/LF-Schema-Drift.md) | Canonical non-destructive schema-drift gate và contract maintenance |
 
 ---
 

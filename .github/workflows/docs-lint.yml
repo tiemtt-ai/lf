@@ -10,6 +10,12 @@ on:
       - config/docs-lint.php
       - tests/Feature/DocsLintCommandTest.php
       - tests/Feature/DocsManifestLintCommandTest.php
+      - tests/Feature/SchemaDriftCommandTest.php
+      - tests/Unit/SchemaDriftAnalyzerTest.php
+      - app/Console/Commands/SchemaDrift.php
+      - app/Support/SchemaDrift/**
+      - config/schema-drift.php
+      - database/migrations/**
       - composer.json
       - composer.lock
       - .github/workflows/docs-lint.yml
@@ -22,6 +28,12 @@ on:
       - config/docs-lint.php
       - tests/Feature/DocsLintCommandTest.php
       - tests/Feature/DocsManifestLintCommandTest.php
+      - tests/Feature/SchemaDriftCommandTest.php
+      - tests/Unit/SchemaDriftAnalyzerTest.php
+      - app/Console/Commands/SchemaDrift.php
+      - app/Support/SchemaDrift/**
+      - config/schema-drift.php
+      - database/migrations/**
       - composer.json
       - composer.lock
       - .github/workflows/docs-lint.yml
@@ -76,3 +88,50 @@ jobs:
 
       - name: Run documentation quality gate
         run: php artisan docs:lint
+
+  schema-drift:
+    name: Schema Drift (MariaDB 11.4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mariadb:
+        image: mariadb:11.4.3
+        env:
+          MARIADB_ROOT_PASSWORD: root-test-only
+          MARIADB_DATABASE: lf_ci_bootstrap
+          MARIADB_USER: lf_ci
+          MARIADB_PASSWORD: lf-ci-test-only
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: ctype, curl, dom, fileinfo, mbstring, openssl, pdo_mysql, tokenizer, xml
+          coverage: none
+          tools: composer:v2
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Grant ephemeral database lifecycle only
+        run: mysql -h 127.0.0.1 -u root -proot-test-only -e "GRANT CREATE, DROP ON *.* TO 'lf_ci'@'%'; FLUSH PRIVILEGES;"
+      - name: Run schema-drift tests and fresh reconstruction
+        env:
+          APP_ENV: testing
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          # Use Laravel's mysql driver against MariaDB so MySQL-family raw SQL
+          # guards in released migrations (checks/triggers) are exercised.
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: lf_ci_bootstrap
+          DB_USERNAME: lf_ci
+          DB_PASSWORD: lf-ci-test-only
+        run: |
+          php artisan schema:drift --docs-only
+          php artisan schema:drift --fresh
+          php artisan test tests/Unit/SchemaDriftAnalyzerTest.php tests/Feature/SchemaDriftCommandTest.php

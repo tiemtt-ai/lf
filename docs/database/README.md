@@ -17,6 +17,11 @@ Document Path: database/README.md
 Thư mục `database/` chỉ chứa schema và table documentation, được tổ chức theo
 Domain.
 
+Schema-drift automation, safe command modes, ownership và maintenance workflow
+được định nghĩa tại [LearnForge Schema Drift Standard](LF-Schema-Drift.md).
+Input máy đọc được là [`LF-SCHEMA-CONTRACT.json`](LF-SCHEMA-CONTRACT.json);
+contract này bổ sung và không thay thế table documentation.
+
 Ví dụ:
 
 ```text

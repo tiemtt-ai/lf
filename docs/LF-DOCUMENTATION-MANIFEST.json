@@ -5,7 +5,7 @@
     "default_locale": "vi",
     "fallback_locale": "en",
     "source_of_truth": "docs/LF-INDEX.md",
-    "document_count": 205,
+    "document_count": 206,
     "documents": [
         {
             "path": "LF-Core-Overview.md",
@@ -1313,6 +1313,38 @@
             "routing_source": "LF-INDEX.md"
         },
         {
+            "path": "database/LF-Schema-Drift.md",
+            "title": "LearnForge Schema Drift Standard",
+            "area": "database",
+            "document_type": "table_schema",
+            "document_status": "Approved",
+            "implementation_status": "Implemented",
+            "metadata_complete": true,
+            "authority": "database",
+            "canonical_for": [],
+            "topics": [
+                "lf-schema-drift"
+            ],
+            "keywords": {
+                "vi": [
+                    "lược đồ bảng",
+                    "tài liệu cơ sở dữ liệu"
+                ],
+                "en": [
+                    "table schema",
+                    "database documentation"
+                ]
+            },
+            "identifiers": [
+                "LF-Schema-Drift"
+            ],
+            "related_documents": [
+                "database/README.md"
+            ],
+            "superseded_by": null,
+            "routing_source": "LF-INDEX.md"
+        },
+        {
             "path": "database/README.md",
             "title": "LearnForge Database Documentation",
             "area": "database",
@@ -1340,6 +1372,7 @@
                 "adr/ADR-0011-Certificate-Foundation.md",
                 "adr/README.md",
                 "core/README.md",
+                "database/LF-Schema-Drift.md",
                 "platform/README.md"
             ],
             "superseded_by": null,
