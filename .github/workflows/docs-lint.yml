@@ -1,0 +1,76 @@
+name: Documentation Lint
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - docs/**
+      - app/Console/Commands/DocsLint.php
+      - config/docs-lint.php
+      - tests/Feature/DocsLintCommandTest.php
+      - composer.json
+      - composer.lock
+      - .github/workflows/docs-lint.yml
+  push:
+    branches:
+      - main
+    paths:
+      - docs/**
+      - app/Console/Commands/DocsLint.php
+      - config/docs-lint.php
+      - tests/Feature/DocsLintCommandTest.php
+      - composer.json
+      - composer.lock
+      - .github/workflows/docs-lint.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-lint-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs-lint:
+    name: Documentation Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: ctype, curl, dom, fileinfo, mbstring, openssl, pdo_sqlite, tokenizer, xml
+          coverage: none
+          tools: composer:v2
+
+      - name: Resolve Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-php-8.3-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-8.3-composer-
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare Laravel application
+        run: |
+          cp .env.example .env
+          php artisan key:generate --no-interaction
+
+      - name: Run documentation lint tests
+        run: php artisan test tests/Feature/DocsLintCommandTest.php
+
+      - name: Run documentation quality gate
+        run: php artisan docs:lint
