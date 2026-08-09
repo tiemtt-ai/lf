@@ -16,7 +16,10 @@ use Symfony\Component\Finder\Finder;
  */
 class DocsLint extends Command
 {
-    protected $signature = 'docs:lint {--path= : Alternate docs root for isolated validation} {--metadata-only : Run only metadata and ADR consistency checks}';
+    protected $signature = 'docs:lint
+        {--path= : Alternate docs root for isolated validation}
+        {--metadata-only : Run only metadata and ADR consistency checks}
+        {--manifest-only : Run only documentation manifest checks}';
 
     protected $description = 'Lint LearnForge documentation (docs/) for catalog completeness, status vocabulary, and metadata.';
 
@@ -25,6 +28,18 @@ class DocsLint extends Command
     private const DOCUMENT_STATUSES = ['Draft', 'Review', 'Approved', 'Frozen', 'Archived'];
 
     private const IMPLEMENTATION_STATUSES = ['Not Implemented', 'Partial', 'Implemented', 'Not Applicable', 'Unknown'];
+
+    private const MANIFEST_DOCUMENT_TYPES = [
+        'index', 'directory_guide', 'governance', 'adr', 'domain_policy',
+        'database_overview', 'table_schema', 'technical_standard',
+        'business_document', 'implementation_rule', 'quality_standard',
+        'architecture_review', 'conflict_register',
+    ];
+
+    private const MANIFEST_AUTHORITIES = [
+        'routing', 'governance', 'architecture_decision', 'domain', 'database',
+        'engineering', 'quality', 'historical',
+    ];
 
     private string $docsPath;
 
@@ -39,13 +54,22 @@ class DocsLint extends Command
             return self::FAILURE;
         }
 
-        $issues = [
-            ...($this->option('metadata-only') ? [] : $this->checkCatalogLinks()),
-            ...$this->checkAdrStatusVocabulary(),
-            ...$this->checkAdrSelfContradiction(),
-            ...($this->option('metadata-only') ? [] : $this->checkSupersededHasLink()),
-            ...$this->checkRequiredMetadata(),
-        ];
+        if ($this->option('metadata-only') && $this->option('manifest-only')) {
+            $this->error('docs:lint options --metadata-only and --manifest-only are mutually exclusive.');
+
+            return self::FAILURE;
+        }
+
+        $issues = $this->option('manifest-only')
+            ? $this->checkDocumentationManifest()
+            : [
+                ...($this->option('metadata-only') ? [] : $this->checkCatalogLinks()),
+                ...$this->checkAdrStatusVocabulary(),
+                ...$this->checkAdrSelfContradiction(),
+                ...($this->option('metadata-only') ? [] : $this->checkSupersededHasLink()),
+                ...$this->checkRequiredMetadata(),
+                ...($this->option('metadata-only') ? [] : $this->checkDocumentationManifest()),
+            ];
 
         if ($issues === []) {
             $this->info('docs:lint passed — no issues found.');
@@ -273,6 +297,7 @@ class DocsLint extends Command
 
             if (array_key_exists($relative, $configuredAllowlist)) {
                 $seenAllowlist[] = $relative;
+
                 continue;
             }
 
@@ -325,6 +350,208 @@ class DocsLint extends Command
         $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
 
         return $date !== false && $date->format('Y-m-d') === $value;
+    }
+
+    /**
+     * Validate the machine-readable bilingual inventory without attempting to
+     * judge keyword semantics or infer documentation authority.
+     */
+    private function checkDocumentationManifest(): array
+    {
+        $issues = [];
+        $manifestPath = $this->docsPath.'/LF-DOCUMENTATION-MANIFEST.json';
+
+        if (! is_file($manifestPath)) {
+            return ['LF-DOCUMENTATION-MANIFEST.json: manifest không tồn tại'];
+        }
+
+        try {
+            $manifest = json_decode(file_get_contents($manifestPath), true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $exception) {
+            return ['LF-DOCUMENTATION-MANIFEST.json: JSON không hợp lệ — '.$exception->getMessage()];
+        }
+
+        if (! is_array($manifest) || array_is_list($manifest)) {
+            return ['LF-DOCUMENTATION-MANIFEST.json: root phải là JSON object'];
+        }
+
+        if (($manifest['schema_version'] ?? null) !== '1.0') {
+            $issues[] = 'LF-DOCUMENTATION-MANIFEST.json: schema_version phải là 1.0';
+        }
+
+        foreach (['generated_or_updated_at', 'root', 'default_locale', 'fallback_locale', 'source_of_truth', 'document_count', 'documents'] as $field) {
+            if (! array_key_exists($field, $manifest)) {
+                $issues[] = "LF-DOCUMENTATION-MANIFEST.json: thiếu field '$field'";
+            }
+        }
+
+        if (($manifest['root'] ?? null) !== 'docs'
+            || ($manifest['default_locale'] ?? null) !== 'vi'
+            || ($manifest['fallback_locale'] ?? null) !== 'en'
+            || ($manifest['source_of_truth'] ?? null) !== 'docs/LF-INDEX.md') {
+            $issues[] = 'LF-DOCUMENTATION-MANIFEST.json: root/locale/source_of_truth không đúng canonical contract';
+        }
+
+        if (! is_string($manifest['generated_or_updated_at'] ?? null)
+            || ! $this->isValidDate($manifest['generated_or_updated_at'] ?? '')) {
+            $issues[] = 'LF-DOCUMENTATION-MANIFEST.json: generated_or_updated_at phải là ngày YYYY-MM-DD hợp lệ';
+        }
+
+        $documents = $manifest['documents'] ?? null;
+        if (! is_array($documents) || ! array_is_list($documents)) {
+            return [...$issues, 'LF-DOCUMENTATION-MANIFEST.json: documents phải là JSON array'];
+        }
+
+        if (! is_int($manifest['document_count'] ?? null) || $manifest['document_count'] !== count($documents)) {
+            $issues[] = 'LF-DOCUMENTATION-MANIFEST.json: document_count không bằng số record thực tế';
+        }
+
+        $markdownPaths = [];
+        foreach (Finder::create()->files()->in($this->docsPath)->name('*.md') as $file) {
+            $markdownPaths[] = ltrim(str_replace($this->docsPath, '', $file->getRealPath()), '/');
+        }
+        sort($markdownPaths);
+
+        $recordPaths = [];
+        foreach ($documents as $index => $record) {
+            $label = 'LF-DOCUMENTATION-MANIFEST.json record #'.($index + 1);
+            if (! is_array($record) || array_is_list($record)) {
+                $issues[] = "$label: record phải là object";
+
+                continue;
+            }
+
+            foreach (['path', 'title', 'area', 'document_type', 'document_status', 'implementation_status', 'metadata_complete', 'authority', 'canonical_for', 'topics', 'keywords', 'identifiers', 'related_documents', 'superseded_by', 'routing_source'] as $field) {
+                if (! array_key_exists($field, $record)) {
+                    $issues[] = "$label: thiếu field '$field'";
+                }
+            }
+
+            $path = $record['path'] ?? null;
+            if (! is_string($path) || $path === '') {
+                $issues[] = "$label: path phải là non-empty string";
+
+                continue;
+            }
+            $label = "manifest record '$path'";
+            $recordPaths[] = $path;
+
+            foreach (['title', 'area', 'routing_source'] as $field) {
+                if (! is_string($record[$field] ?? null) || trim($record[$field]) === '') {
+                    $issues[] = "$label: $field phải là non-empty string";
+                }
+            }
+
+            if (! in_array($record['document_type'] ?? null, self::MANIFEST_DOCUMENT_TYPES, true)) {
+                $issues[] = "$label: document_type không hợp lệ";
+            }
+            if (! in_array($record['authority'] ?? null, self::MANIFEST_AUTHORITIES, true)) {
+                $issues[] = "$label: authority không hợp lệ";
+            }
+            if (! is_bool($record['metadata_complete'] ?? null)) {
+                $issues[] = "$label: metadata_complete phải là boolean";
+            }
+
+            $allowedDocumentStatuses = ($record['metadata_complete'] ?? false)
+                ? self::DOCUMENT_STATUSES
+                : [...self::DOCUMENT_STATUSES, 'Unknown'];
+            if (! in_array($record['document_status'] ?? null, $allowedDocumentStatuses, true)) {
+                $issues[] = "$label: document_status không hợp lệ";
+            }
+            if (! in_array($record['implementation_status'] ?? null, self::IMPLEMENTATION_STATUSES, true)) {
+                $issues[] = "$label: implementation_status không hợp lệ";
+            }
+
+            if (is_file($this->docsPath.'/'.$path)) {
+                $source = file_get_contents($this->docsPath.'/'.$path);
+                $sourceHead = implode("\n", array_slice(preg_split('/\R/', $source), 0, 35));
+                preg_match('/^#\s+(.+)$/m', $source, $sourceTitleMatch);
+                if (($record['title'] ?? null) !== trim($sourceTitleMatch[1] ?? '')) {
+                    $issues[] = "$label: title không khớp H1 của Markdown";
+                }
+
+                if ($record['metadata_complete'] ?? false) {
+                    preg_match('/^(?:Document Status|Status):\s*(.+)$/mi', $sourceHead, $sourceStatusMatch);
+                    preg_match('/^Implementation Status:\s*(.+)$/mi', $sourceHead, $sourceImplementationMatch);
+                    if (($record['document_status'] ?? null) !== trim($sourceStatusMatch[1] ?? '')
+                        || ($record['implementation_status'] ?? null) !== trim($sourceImplementationMatch[1] ?? '')) {
+                        $issues[] = "$label: status metadata không khớp Markdown header";
+                    }
+                } elseif (($record['document_status'] ?? null) !== 'Unknown'
+                    || ($record['implementation_status'] ?? null) !== 'Unknown') {
+                    $issues[] = "$label: legacy metadata chưa đầy đủ phải dùng status Unknown";
+                }
+            }
+
+            foreach (['canonical_for', 'topics', 'identifiers', 'related_documents'] as $field) {
+                if (! is_array($record[$field] ?? null) || ! array_is_list($record[$field])) {
+                    $issues[] = "$label: $field phải là array";
+                }
+            }
+
+            $keywords = $record['keywords'] ?? null;
+            if (! is_array($keywords) || array_is_list($keywords)) {
+                $issues[] = "$label: keywords phải là object";
+            } else {
+                foreach (['vi', 'en'] as $locale) {
+                    $values = $keywords[$locale] ?? null;
+                    if (! is_array($values) || ! array_is_list($values) || $values === []) {
+                        $issues[] = "$label: keywords.$locale phải là non-empty array";
+
+                        continue;
+                    }
+                    $normalized = [];
+                    foreach ($values as $keyword) {
+                        if (! is_string($keyword) || trim($keyword) === '') {
+                            $issues[] = "$label: keywords.$locale chứa giá trị rỗng/không phải string";
+
+                            continue;
+                        }
+                        $key = mb_strtolower(trim($keyword));
+                        if (in_array($key, $normalized, true)) {
+                            $issues[] = "$label: keywords.$locale chứa duplicate '$keyword'";
+                        }
+                        $normalized[] = $key;
+                    }
+                }
+            }
+
+            $relatedPaths = is_array($record['related_documents'] ?? null) ? $record['related_documents'] : [];
+            foreach (array_merge($relatedPaths, [$record['routing_source'] ?? null]) as $related) {
+                if (! is_string($related) || $related === '' || ! str_ends_with($related, '.md') || ! is_file($this->docsPath.'/'.$related)) {
+                    $issues[] = "$label: related/routing path không tồn tại: ".var_export($related, true);
+                }
+            }
+
+            $supersededBy = $record['superseded_by'] ?? null;
+            if ($supersededBy !== null) {
+                if (! is_string($supersededBy) || ! is_file($this->docsPath.'/'.$supersededBy)) {
+                    $issues[] = "$label: superseded_by không tồn tại";
+                } elseif ($supersededBy === $path) {
+                    $issues[] = "$label: superseded_by không được tự trỏ chính nó";
+                }
+            }
+        }
+
+        $duplicates = array_keys(array_filter(array_count_values($recordPaths), fn (int $count) => $count > 1));
+        foreach ($duplicates as $duplicate) {
+            $issues[] = "LF-DOCUMENTATION-MANIFEST.json: duplicate path '$duplicate'";
+        }
+
+        $sortedPaths = $recordPaths;
+        sort($sortedPaths);
+        if ($recordPaths !== $sortedPaths) {
+            $issues[] = 'LF-DOCUMENTATION-MANIFEST.json: records phải sort tăng dần theo path';
+        }
+
+        foreach (array_diff($markdownPaths, array_unique($recordPaths)) as $missing) {
+            $issues[] = "LF-DOCUMENTATION-MANIFEST.json: thiếu Markdown record '$missing'";
+        }
+        foreach (array_diff(array_unique($recordPaths), $markdownPaths) as $stale) {
+            $issues[] = "LF-DOCUMENTATION-MANIFEST.json: record trỏ tới Markdown không tồn tại '$stale'";
+        }
+
+        return $issues;
     }
 
     private function adrFiles(): Finder

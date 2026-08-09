@@ -1,6 +1,6 @@
 # LearnForge Governance
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
@@ -37,6 +37,7 @@ review.
 7. [Naming Convention](LF-Naming-Convention.md)
 8. [Architecture Roadmap](LF-Architecture-Roadmap.md)
 9. [Architecture Review Checklist](LF-Architecture-Review-Checklist.md)
+10. [Documentation Manifest Standard](LF-Documentation-Manifest.md)
 
 Architecture Decision Records được lưu riêng tại
 [docs/adr](../adr/README.md).

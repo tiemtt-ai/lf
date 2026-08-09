@@ -1,6 +1,6 @@
 # LF-INDEX.md
 
-Version: 2.4
+Version: 2.5
 
 Document Status: Approved
 
@@ -28,6 +28,13 @@ near the end of this index.
 All AI agents (Codex, ChatGPT, Claude, Gemini, Cursor, Windsurf, etc.) should
 consult this catalog before making architecture, database, backend, frontend,
 infrastructure, or business decisions.
+
+[`LF-DOCUMENTATION-MANIFEST.json`](LF-DOCUMENTATION-MANIFEST.json) supports
+machine-readable inventory and Vietnamese/English candidate discovery. It does
+not replace this routing guide; agents must still read selected sources and
+check the conflict register when inconsistency appears. Its canonical schema
+and maintenance rules are defined in
+[Documentation Manifest Standard](governance/LF-Documentation-Manifest.md).
 
 ---
 
@@ -310,6 +317,7 @@ docs/governance/
 | [governance/LF-Naming-Convention.md](governance/LF-Naming-Convention.md) | Project-wide naming conventions |
 | [governance/LF-Architecture-Roadmap.md](governance/LF-Architecture-Roadmap.md) | Architecture roadmap |
 | [governance/LF-Architecture-Review-Checklist.md](governance/LF-Architecture-Review-Checklist.md) | Domain foundation review gate |
+| [governance/LF-Documentation-Manifest.md](governance/LF-Documentation-Manifest.md) | Canonical manifest schema, bilingual discovery and maintenance contract |
 
 ---
 
@@ -790,6 +798,7 @@ thức, agent vẫn phải tự kiểm tra source code hiện tại trước khi
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Tenant Isolation & Data Ownership (`customer_id`) | Cross-cutting | Áp dụng cho mọi ADR có Foundation Table (xem `Foundation Tables` trong từng ADR liên quan) | [LF-Development-Standards.md](LF-Development-Standards.md) (§ Tenant Scope), [core/LF-Core-Auth.md#tenant-isolation-rules](core/LF-Core-Auth.md#tenant-isolation-rules) | Áp dụng cho mọi bảng business data (`customer_id` bắt buộc) | Chưa có review chuyên biệt | governance/LF-Architecture-Guardrails.md (Tenant Guardrails) | Guardrails (Tenant Guardrails) → LF-Development-Standards.md → core/LF-Core-Auth.md#tenant-isolation-rules |
 | Naming & Documentation Metadata | Cross-cutting | Không áp dụng | [governance/LF-Naming-Convention.md](governance/LF-Naming-Convention.md) | — | — | app/Console/Commands/DocsLint.php (kiểm tra tự động) | Guardrails → governance/LF-Naming-Convention.md |
+| Documentation Manifest & Bilingual Discovery | Cross-cutting | Không áp dụng | [governance/LF-Documentation-Manifest.md](governance/LF-Documentation-Manifest.md) | — | — | [LF-DOCUMENTATION-MANIFEST.json](LF-DOCUMENTATION-MANIFEST.json), app/Console/Commands/DocsLint.php | LF-INDEX routing → manifest candidate discovery → read source → conflict register when needed |
 | Admin Form/List Design Standard (Frontend) | Cross-cutting | Không áp dụng | [tech/LF-Admin-Form-Design-Standard.md](tech/LF-Admin-Form-Design-Standard.md) | — | — | tech/LF-Tech-CSS.md (trước khi sửa CSS) | Guardrails → tech/LF-Admin-Form-Design-Standard.md → tech/LF-Tech-CSS.md |
 | Existing-Feature Change Safety Protocol | Cross-cutting | Không áp dụng | [LF-Development-Standards.md](LF-Development-Standards.md#existing-feature-change-safety-protocol) | — | [quality/LF-Regression-Audit.md](quality/LF-Regression-Audit.md) | governance/LF-Architecture-Review-Checklist.md (khi impact chạm architecture boundary) | Guardrails → LF-Development-Standards.md → quality/LF-Regression-Audit.md → Architecture Review Checklist (nếu cần) |
 | Documentation Conflict Registration | Cross-cutting | Không áp dụng; dùng ADR process nếu resolution thay đổi architecture | [quality/LF-Documentation-Conflicts.md](quality/LF-Documentation-Conflicts.md) | — | [quality/LF-Documentation-Conflicts.md](quality/LF-Documentation-Conflicts.md) | governance/LF-Architecture-Guardrails.md | Guardrails → verify both sources → LF-Documentation-Conflicts.md → STOP affected concern → authority/ADR/review khi áp dụng |

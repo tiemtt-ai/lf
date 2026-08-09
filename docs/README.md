@@ -1,6 +1,6 @@
 # LearnForge Documentation
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
@@ -17,15 +17,22 @@ Document Path: README.md
 Đây là entry point để Codex, developer và reviewer sử dụng tài liệu LearnForge
 đúng thứ tự và đúng phạm vi.
 
-LearnForge documentation có hai vai trò khác nhau:
+LearnForge documentation có các vai trò khác nhau:
 
 | Document | Role |
 | --- | --- |
 | `README.md` | Hướng dẫn cách đọc, sử dụng và đặt tài liệu trong từng thư mục |
 | [LF-INDEX.md](LF-INDEX.md) | Catalog liệt kê tài liệu và routing theo loại công việc |
+| [LF-DOCUMENTATION-MANIFEST.json](LF-DOCUMENTATION-MANIFEST.json) | Inventory máy đọc được và metadata tìm kiếm Việt/Anh |
 
 Đọc README để biết cách dùng hệ thống tài liệu. Dùng LF-INDEX để tìm tài liệu
 cụ thể.
+
+Manifest chỉ hỗ trợ tìm candidate theo title/topic/keyword/identifier. Luôn bắt
+đầu từ LF-INDEX, áp dụng routing, đọc trực tiếp source được chọn và kiểm tra
+conflict register khi có inconsistency. Keyword match không chứng minh policy
+đúng hoặc implementation đã hoàn thành. Schema và maintenance rules nằm tại
+[Documentation Manifest Standard](governance/LF-Documentation-Manifest.md).
 
 ---
 

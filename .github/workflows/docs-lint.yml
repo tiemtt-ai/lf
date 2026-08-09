@@ -9,6 +9,7 @@ on:
       - app/Console/Commands/DocsLint.php
       - config/docs-lint.php
       - tests/Feature/DocsLintCommandTest.php
+      - tests/Feature/DocsManifestLintCommandTest.php
       - composer.json
       - composer.lock
       - .github/workflows/docs-lint.yml
@@ -20,6 +21,7 @@ on:
       - app/Console/Commands/DocsLint.php
       - config/docs-lint.php
       - tests/Feature/DocsLintCommandTest.php
+      - tests/Feature/DocsManifestLintCommandTest.php
       - composer.json
       - composer.lock
       - .github/workflows/docs-lint.yml
@@ -70,7 +72,7 @@ jobs:
           php artisan key:generate --no-interaction
 
       - name: Run documentation lint tests
-        run: php artisan test tests/Feature/DocsLintCommandTest.php
+        run: php artisan test tests/Feature/DocsLintCommandTest.php tests/Feature/DocsManifestLintCommandTest.php
 
       - name: Run documentation quality gate
         run: php artisan docs:lint
