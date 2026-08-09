@@ -1,12 +1,12 @@
 # LearnForge Schema Drift Standard
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-10
 
 Document Path: database/LF-Schema-Drift.md
 
@@ -100,9 +100,15 @@ infrastructure tables và hai released LiveClass migrations trùng timestamp
 4. Chạy docs-only, fresh MySQL/MariaDB, targeted tests, docs lint và formatter.
 5. Review drift mà không tự chọn nguồn thắng.
 
-Pull request dùng MariaDB service được pin version và CI user chỉ có quyền tạo,
-drop ephemeral database; không dùng production credentials. So sánh database
-thật là manual/scheduled trên target read-only đã được phê duyệt.
+Pull request dùng MariaDB service được pin version. CI user (`lf_ci`) chỉ có
+quyền trên đúng pattern `lf_schema_drift_%` (không phải `*.*`): `CREATE`,
+`DROP` để tạo/xoá ephemeral database, cộng `ALTER`, `INDEX`, `REFERENCES`,
+`TRIGGER`, `SELECT`, `INSERT`, `UPDATE`, `DELETE` — bắt buộc vì `--fresh`
+chạy migration thật bên trong database đó (`Schema::table`, foreign key,
+trigger, backfill và migrations ledger đều cần các quyền này). Không có
+quyền nào vượt ra ngoài pattern đó, và không dùng production credentials. So
+sánh database thật là manual/scheduled trên target read-only đã được phê
+duyệt.
 
 ## Owner
 
