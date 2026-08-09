@@ -12,7 +12,12 @@ class MySqlSchemaInspector
         $database = (string) $connection->getDatabaseName();
         $tables = [];
 
-        foreach ($schema->getTables() as $metadata) {
+        $databaseTables = array_filter(
+            $schema->getTables(),
+            fn ($metadata) => ($metadata['schema'] ?? $database) === $database
+        );
+
+        foreach ($databaseTables as $metadata) {
             $name = $metadata['name'];
             $columns = array_map(fn ($column) => [
                 'name' => $column['name'],
@@ -69,7 +74,10 @@ class MySqlSchemaInspector
             ];
         }
 
-        $views = array_map(fn ($view) => ['name' => $view['name'], 'definition' => $view['definition'] ?? null], $schema->getViews());
+        $views = array_map(
+            fn ($view) => ['name' => $view['name'], 'definition' => $view['definition'] ?? null],
+            array_filter($schema->getViews(), fn ($view) => ($view['schema'] ?? $database) === $database)
+        );
 
         return ['database_family' => 'mysql', 'tables' => $tables, 'views' => $views];
     }

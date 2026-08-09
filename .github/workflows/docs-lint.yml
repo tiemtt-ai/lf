@@ -12,6 +12,7 @@ on:
       - tests/Feature/DocsManifestLintCommandTest.php
       - tests/Feature/SchemaDriftCommandTest.php
       - tests/Unit/SchemaDriftAnalyzerTest.php
+      - tests/Unit/MySqlSchemaInspectorTest.php
       - app/Console/Commands/SchemaDrift.php
       - app/Support/SchemaDrift/**
       - config/schema-drift.php
@@ -30,6 +31,7 @@ on:
       - tests/Feature/DocsManifestLintCommandTest.php
       - tests/Feature/SchemaDriftCommandTest.php
       - tests/Unit/SchemaDriftAnalyzerTest.php
+      - tests/Unit/MySqlSchemaInspectorTest.php
       - app/Console/Commands/SchemaDrift.php
       - app/Support/SchemaDrift/**
       - config/schema-drift.php
@@ -134,4 +136,4 @@ jobs:
         run: |
           php artisan schema:drift --docs-only
           php artisan schema:drift --fresh
-          php artisan test tests/Unit/SchemaDriftAnalyzerTest.php tests/Feature/SchemaDriftCommandTest.php
+          php artisan test tests/Unit/SchemaDriftAnalyzerTest.php tests/Unit/MySqlSchemaInspectorTest.php tests/Feature/SchemaDriftCommandTest.php

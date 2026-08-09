@@ -951,7 +951,7 @@ class CourseCohortManagementTest extends TestCase
         $orderedIds = ['product_id', 'cohort-create-content-version', 'name', 'capacity', 'start_date', 'end_date', 'notes'];
         $positions = [
             strpos($html, 'id="product_id"'),
-            strpos($html, 'aria-live="polite"'),
+            strpos($html, 'id="cohort-create-content-version"'),
             strpos($html, 'id="name"'),
             strpos($html, 'id="capacity"'),
             strpos($html, 'id="start_date"'),

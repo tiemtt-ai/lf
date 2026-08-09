@@ -42,7 +42,8 @@
 
             <div class="lf-form-group admin-form-field cohort-create-version-field">
                 <span class="lf-form-label">{{ __('lf.LF_course_cohort_create_content_version') }}</span>
-                <div class="admin-form-calculated-summary" aria-live="polite" aria-atomic="true">
+                <div id="cohort-create-content-version"
+                     class="admin-form-calculated-summary" aria-live="polite" aria-atomic="true">
                     <template x-if="!selectedVersion">
                         <span class="admin-form-calculated-summary-meta">{{ __('lf.LF_course_cohort_create_select_product_for_version') }}</span>
                     </template>

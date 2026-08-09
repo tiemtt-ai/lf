@@ -85,7 +85,7 @@ class MediaLibraryManagementTest extends TestCase
             '.lf-admin-page .media-library-index-table .admin-table-sequence',
             $componentsCss
         );
-        $this->assertStringContainsString('max-width: 64px;', $componentsCss);
+        $this->assertStringContainsString('max-width: 50px;', $componentsCss);
         $this->assertStringContainsString(
             '.media-library-index-table tbody tr:hover > td',
             $pagesCss

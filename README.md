@@ -1,59 +1,101 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# LearnForge
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+LearnForge (LF) là LMS SaaS đa tenant, AI-native, phục vụ trải nghiệm public,
+học viên, giáo viên và quản trị khách hàng trên cùng một Laravel monolith.
 
-## About Laravel
+## Stack chính
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- PHP 8.3+, Laravel 12
+- Blade, Livewire, Alpine.js, Vite
+- MySQL/MariaDB cho runtime; Redis cho cache, queue và session
+- PHPUnit; SQLite in-memory là baseline test mặc định
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Yêu cầu local
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Cài PHP 8.3 với các extension Laravel cần thiết, Composer 2, Node.js/npm,
+MySQL hoặc MariaDB và Redis. FFmpeg/ffprobe cần thiết cho chức năng đọc metadata
+media. Host tenant local dùng dạng `<tenant>.localhost`.
 
-## Learning Laravel
+## Cài đặt tối thiểu
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+```bash
+composer install
+npm install
+cp .env.example .env
+php artisan key:generate
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Tạo một database local riêng, sau đó chỉnh `.env`. Không commit credential:
 
-## Laravel Sponsors
+```dotenv
+APP_ENV=local
+APP_URL=http://localhost:8000
+APP_BASE_DOMAIN=localhost
+APP_TENANT_SCHEME=http
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=your_local_database
+DB_USERNAME=your_local_user
+DB_PASSWORD=your_local_password
+```
 
-### Premium Partners
+Chỉ chạy migration khi đã xác minh database đích là database local/test phù
+hợp và migration đã qua quy trình tài liệu/review của LF:
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```bash
+php artisan migrate
+```
 
-## Contributing
+## Chạy ứng dụng
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Chạy backend và frontend riêng:
 
-## Code of Conduct
+```bash
+php artisan serve --host=0.0.0.0 --port=8000
+npm run dev
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Hoặc dùng script local tổng hợp, có thêm queue và Reverb:
 
-## Security Vulnerabilities
+```bash
+npm run dev:all
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Sau khi có tenant, truy cập `http://<tenant>.localhost:8000/login`.
 
-## License
+## Quality gates
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+php artisan test
+php artisan docs:lint
+php artisan schema:drift --docs-only
+php artisan schema:drift --connection=mysql
+```
+
+`schema:drift --connection=mysql` chỉ nên chạy trên connection đã xác minh;
+command đọc schema metadata và migration ledger, không tự chạy migration.
+
+> **Cảnh báo dữ liệu:** không chạy `migrate:fresh`, `db:wipe`, `DROP`,
+> `TRUNCATE` hoặc migration thử nghiệm trên database LF thật. Các lệnh này có
+> thể xóa dữ liệu không thể phục hồi.
+
+## Tài liệu và quyết định
+
+Bắt đầu mọi công việc architecture, schema hoặc implementation tại
+[`docs/LF-INDEX.md`](docs/LF-INDEX.md), rồi đi theo Documentation Routing Guide.
+
+`Document/Policy Status` cho biết tài liệu đã được duyệt đến đâu;
+`Implementation Status` cho biết mức triển khai đã được xác minh. Hai trạng
+thái độc lập. Khi tài liệu, source hoặc database xung đột: **STOP**, ghi nhận
+bằng chứng và không tự đoán nguồn thắng.
+
+## Workflow tối giản cho một developer
+
+1. Kiểm tra `git status`, đọc `docs/LF-INDEX.md` và tài liệu được route tới.
+2. Xác nhận hành vi hiện tại từ source, tests và database khi áp dụng.
+3. Thay đổi nhỏ nhất có thể; giữ tenant isolation và `customer_id` ownership.
+4. Chạy targeted tests trong lúc sửa, sau đó chạy các quality gate ở trên.
+5. Review diff, commit theo một mục đích rõ ràng và chỉ push khi gate bắt buộc
+   đã PASS hoặc rủi ro còn lại đã được ghi nhận.
