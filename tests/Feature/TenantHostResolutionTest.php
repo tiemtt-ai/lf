@@ -81,7 +81,12 @@ class TenantHostResolutionTest extends TestCase
         $response
             ->assertSee('action="http://localhost:8000/language/en"', false)
             ->assertDontSee('href="http://unknown.localhost:8000/', false)
-            ->assertDontSee('action="http://unknown.localhost:8000/', false);
+            ->assertDontSee('action="http://unknown.localhost:8000/', false)
+            // @vite() and asset() (used for the compiled CSS/JS and the
+            // language-switcher icon) resolve independently of the
+            // hand-written nav links above and previously leaked the
+            // invalid subdomain into src="" the same way.
+            ->assertDontSee('src="http://unknown.localhost:8000/', false);
     }
 
     public function test_invalid_tenant_subdomain_does_not_display_root_pages(): void
