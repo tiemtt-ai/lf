@@ -1,6 +1,6 @@
 # LF-INDEX.md
 
-Version: 2.3
+Version: 2.4
 
 Document Status: Approved
 
@@ -199,6 +199,9 @@ STOP.
 
 Report the conflict.
 
+Verify and register confirmed documentation conflicts in
+[LF Documentation Conflict Register](quality/LF-Documentation-Conflicts.md).
+
 Do not guess.
 
 ---
@@ -351,6 +354,7 @@ docs/quality/
 | --- | --- |
 | [quality/README.md](quality/README.md) | Quality area usage and boundaries |
 | [quality/LF-Regression-Audit.md](quality/LF-Regression-Audit.md) | Mandatory `LOW`/`MEDIUM`/`HIGH` audit for every Existing-Feature Change |
+| [quality/LF-Documentation-Conflicts.md](quality/LF-Documentation-Conflicts.md) | Canonical classification, STOP rule and traceable register for verified documentation conflicts |
 | [quality/LF-Course-Template-Version-Snapshot-Architecture-Review.md](quality/LF-Course-Template-Version-Snapshot-Architecture-Review.md) | Approved Course Template Version snapshot architecture review |
 | [quality/LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md](quality/LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md) | Approved Course Template Version duplicate-to-draft architecture review |
 | [quality/LF-Course-Template-Ordering-Architecture-Review.md](quality/LF-Course-Template-Ordering-Architecture-Review.md) | Approved and frozen Course Template tenant/category ordering review |
@@ -788,6 +792,7 @@ thức, agent vẫn phải tự kiểm tra source code hiện tại trước khi
 | Naming & Documentation Metadata | Cross-cutting | Không áp dụng | [governance/LF-Naming-Convention.md](governance/LF-Naming-Convention.md) | — | — | app/Console/Commands/DocsLint.php (kiểm tra tự động) | Guardrails → governance/LF-Naming-Convention.md |
 | Admin Form/List Design Standard (Frontend) | Cross-cutting | Không áp dụng | [tech/LF-Admin-Form-Design-Standard.md](tech/LF-Admin-Form-Design-Standard.md) | — | — | tech/LF-Tech-CSS.md (trước khi sửa CSS) | Guardrails → tech/LF-Admin-Form-Design-Standard.md → tech/LF-Tech-CSS.md |
 | Existing-Feature Change Safety Protocol | Cross-cutting | Không áp dụng | [LF-Development-Standards.md](LF-Development-Standards.md#existing-feature-change-safety-protocol) | — | [quality/LF-Regression-Audit.md](quality/LF-Regression-Audit.md) | governance/LF-Architecture-Review-Checklist.md (khi impact chạm architecture boundary) | Guardrails → LF-Development-Standards.md → quality/LF-Regression-Audit.md → Architecture Review Checklist (nếu cần) |
+| Documentation Conflict Registration | Cross-cutting | Không áp dụng; dùng ADR process nếu resolution thay đổi architecture | [quality/LF-Documentation-Conflicts.md](quality/LF-Documentation-Conflicts.md) | — | [quality/LF-Documentation-Conflicts.md](quality/LF-Documentation-Conflicts.md) | governance/LF-Architecture-Guardrails.md | Guardrails → verify both sources → LF-Documentation-Conflicts.md → STOP affected concern → authority/ADR/review khi áp dụng |
 | Documentation Governance & ADR Process | Cross-cutting | [adr/README.md](adr/README.md) (không phải ADR, là quy trình) | [governance/README.md](governance/README.md), [governance/LF-Architecture-Review-Checklist.md](governance/LF-Architecture-Review-Checklist.md) | — | — | — | Guardrails → governance/README.md → adr/README.md |
 
 ---

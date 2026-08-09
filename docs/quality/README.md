@@ -1,6 +1,6 @@
 # LearnForge Quality
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
@@ -27,6 +27,9 @@ criteria hay không.
 * [LF-Regression-Audit.md](LF-Regression-Audit.md) — checklist bắt buộc cho mọi
   `Existing-Feature Change`; canonical Audit Level là `LOW`, `MEDIUM`, `HIGH`
   và độ sâu kiểm chứng theo mức cao nhất áp dụng.
+* [LF-Documentation-Conflicts.md](LF-Documentation-Conflicts.md) — canonical
+  register cho inconsistency đã xác minh; kiểm tra register và dừng affected
+  concern khi hai official sources không thể đồng thời được thỏa mãn.
 * [LF-Course-Template-Version-Snapshot-Architecture-Review.md](LF-Course-Template-Version-Snapshot-Architecture-Review.md)
   — approved architecture conformance review for the Course Template published
   snapshot documentation.
