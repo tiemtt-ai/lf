@@ -1,5 +1,7 @@
 # Table: saas_audit_logs
 
+Document Path: database/saas/saas_audit_logs.md
+
 ## Purpose
 
 Append-only Tenant-level audit trail.

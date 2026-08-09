@@ -6,6 +6,8 @@ Status: Approved
 
 Last Updated: 2026-08-05
 
+Document Path: database/liveclass/core_liveclass_schedule_slots.md
+
 ## Purpose
 
 Stores one weekday/time recurrence rule for a LiveClass Schedule. Slots are

@@ -6,6 +6,8 @@ Status: Approved
 
 Last Updated: 2026-08-05
 
+Document Path: database/liveclass/core_liveclass_schedule_exclusions.md
+
 ## Purpose
 
 Stores a local calendar date excluded from a LiveClass Schedule preview.

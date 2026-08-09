@@ -6,6 +6,8 @@ Status: Official Foundation
 
 Last Updated: 2026-06
 
+Document Path: database/course/core_course_categories.md
+
 ---
 
 # Purpose

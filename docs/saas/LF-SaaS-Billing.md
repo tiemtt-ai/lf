@@ -6,6 +6,8 @@ Status: Foundation Approved and Frozen
 
 Last Updated: 2026-06
 
+Document Path: saas/LF-SaaS-Billing.md
+
 ---
 
 # LF SaaS Billing Architecture

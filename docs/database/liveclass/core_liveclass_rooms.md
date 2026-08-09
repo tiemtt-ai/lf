@@ -1,5 +1,7 @@
 # Table: core_liveclass_rooms
 
+Document Path: database/liveclass/core_liveclass_rooms.md
+
 ## Cohort-Centered Amendment — 2026-07-25
 
 This section supersedes all conflicting fields and cardinalities below.

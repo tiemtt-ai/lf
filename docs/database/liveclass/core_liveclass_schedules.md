@@ -6,6 +6,8 @@ Status: Approved
 
 Last Updated: 2026-08-05
 
+Document Path: database/liveclass/core_liveclass_schedules.md
+
 ## Purpose
 
 Stores one recurring planning configuration owned by LiveClass and belonging

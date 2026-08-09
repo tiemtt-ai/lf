@@ -6,6 +6,8 @@ Status: Official Foundation
 
 Last Updated: 2026-06
 
+Document Path: core/LF-Core-User.md
+
 ---
 
 # LF-Core User Domain

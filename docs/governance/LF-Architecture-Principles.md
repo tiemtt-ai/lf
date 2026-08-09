@@ -6,6 +6,8 @@ Status: Official Governance — Approved
 
 Last Updated: 2026-06
 
+Document Path: governance/LF-Architecture-Principles.md
+
 ---
 
 ## Purpose

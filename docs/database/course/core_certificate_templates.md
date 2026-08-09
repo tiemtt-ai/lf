@@ -1,5 +1,7 @@
 # Table: core_certificate_templates
 
+Document Path: database/course/core_certificate_templates.md
+
 ## Purpose
 
 Lưu mẫu chứng chỉ của Tenant.

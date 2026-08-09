@@ -1,5 +1,7 @@
 # MIỀN NGHIỆP VỤ LIVECLASS
 
+Document Path: database/liveclass/README.md
+
 > **Implementation scope approved 2026-08-05**: Cohort-centered recurring
 > Schedule CRUD/Preview and explicit atomic creation of Sessions from selected
 > occurrences with immutable Origin are Foundation approved. Automatic

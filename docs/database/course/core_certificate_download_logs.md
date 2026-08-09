@@ -1,5 +1,7 @@
 # Table: core_certificate_download_logs
 
+Document Path: database/course/core_certificate_download_logs.md
+
 ## Purpose
 
 Lưu lịch sử truy cập và tải xuống chứng chỉ.

@@ -1,5 +1,7 @@
 # Table: core_course_bookmarks
 
+Document Path: database/course/core_course_bookmarks.md
+
 ## Purpose
 
 Lưu các vị trí hoặc nội dung học tập mà học viên đánh dấu để quay lại sau.

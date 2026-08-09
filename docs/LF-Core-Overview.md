@@ -6,6 +6,8 @@ Status: Official Foundation
 
 Last Updated: 2026-06
 
+Document Path: LF-Core-Overview.md
+
 ---
 
 # LF-Core

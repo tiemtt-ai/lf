@@ -1,5 +1,7 @@
 # LearnForge Implementation Rules
 
+Document Path: prompts/README.md
+
 This directory contains the implementation rules for Developers and AI agents.
 
 - LF-Implementation-Rules.md

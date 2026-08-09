@@ -8,6 +8,8 @@ Scope: LF Admin Create/Edit Forms And List/Index Pages
 
 Last Updated: 2026-08
 
+Document Path: tech/LF-Admin-Form-Design-Standard.md
+
 ---
 
 # 1. Purpose And Authority

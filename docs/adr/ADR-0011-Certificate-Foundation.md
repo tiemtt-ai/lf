@@ -22,6 +22,8 @@ Frozen
 
 ---
 
+Document Path: adr/ADR-0011-Certificate-Foundation.md
+
 ## Related ADRs
 
 * [ADR-0001 — Course Foundation](ADR-0001-Course-Foundation.md)

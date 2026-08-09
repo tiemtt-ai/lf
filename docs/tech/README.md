@@ -6,6 +6,8 @@ Status: Official Directory Guide
 
 Last Updated: 2026-06
 
+Document Path: tech/README.md
+
 ---
 
 # Purpose

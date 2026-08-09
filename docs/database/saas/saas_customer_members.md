@@ -1,5 +1,7 @@
 # Table: saas_customer_members
 
+Document Path: database/saas/saas_customer_members.md
+
 ## Purpose
 
 Source Of Truth for membership between User and Customer/Tenant.

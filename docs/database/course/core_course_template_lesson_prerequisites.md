@@ -6,6 +6,8 @@ Status: Approved Foundation
 
 Last Updated: 2026-07-26
 
+Document Path: database/course/core_course_template_lesson_prerequisites.md
+
 Related ADR:
 [ADR-0015 — Course Lesson Multiple Prerequisites](../../adr/ADR-0015-Course-Lesson-Multiple-Prerequisites.md)
 

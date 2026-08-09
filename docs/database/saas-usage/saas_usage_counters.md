@@ -1,5 +1,7 @@
 # Table: saas_usage_counters
 
+Document Path: database/saas-usage/saas_usage_counters.md
+
 ## Purpose
 
 Current accumulated Usage projection by Customer, feature, period and unit.

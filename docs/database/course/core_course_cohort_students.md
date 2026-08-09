@@ -1,5 +1,7 @@
 # Table: core_course_cohort_students
 
+Document Path: database/course/core_course_cohort_students.md
+
 ## Purpose
 
 Lưu danh sách học viên thuộc một Cohort / Batch / Class.

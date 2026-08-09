@@ -1,5 +1,7 @@
 # Table: core_liveclass_sessions
 
+Document Path: database/liveclass/core_liveclass_sessions.md
+
 ## Schedule Origin Amendment — 2026-08-05
 
 Schedule lineage is not stored on this table. A Session explicitly confirmed

@@ -1,5 +1,7 @@
 # Table: saas_credit_notes
 
+Document Path: database/saas-billing/saas_credit_notes.md
+
 ## Purpose
 
 Independent financial document for Invoice adjustment or refund.

@@ -6,6 +6,8 @@ Status: Official Foundation
 
 Last Updated: 2026-07-12
 
+Document Path: database/course/core_course_templates.md
+
 Related ADR:
 [ADR-0013 — Course Template Version Duplicate to Draft](../../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md)
 

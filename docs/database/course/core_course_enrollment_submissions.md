@@ -6,6 +6,8 @@ Status: Approved and Frozen
 
 Approval Date: 2026-07-21
 
+Document Path: database/course/core_course_enrollment_submissions.md
+
 ## Purpose
 
 Stores the durable preflight and idempotency authority for one Customer Admin

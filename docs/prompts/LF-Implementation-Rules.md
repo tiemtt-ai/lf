@@ -6,6 +6,8 @@ Status: Official Implementation Rule
 
 Last Updated: 2026-07-26
 
+Document Path: prompts/LF-Implementation-Rules.md
+
 ---
 
 # 1. Purpose

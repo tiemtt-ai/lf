@@ -1,5 +1,7 @@
 # Table: ai_assistant_sessions
 
+Document Path: database/ai/ai_assistant_sessions.md
+
 ## Purpose
 
 Runtime orchestration session cho một AI role; không phải login session hoặc

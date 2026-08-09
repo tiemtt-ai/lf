@@ -1,5 +1,7 @@
 # Table: media_processing_jobs
 
+Document Path: database/media/media_processing_jobs.md
+
 ## Purpose
 
 Theo dõi tác vụ xử lý Media độc lập với business Domain sử dụng asset.

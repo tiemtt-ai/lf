@@ -9,6 +9,8 @@ Review Date: 2026-07-03
 Nested Section Capability Review Date: 2026-07-10
 Information Model Review Date: 2026-07-12
 
+Document Path: quality/LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md
+
 ---
 
 # Review Information

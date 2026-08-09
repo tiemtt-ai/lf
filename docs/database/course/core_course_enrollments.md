@@ -1,5 +1,7 @@
 # Table: core_course_enrollments
 
+Document Path: database/course/core_course_enrollments.md
+
 ## Purpose
 
 Lưu quan hệ giữa học viên và Course Product.

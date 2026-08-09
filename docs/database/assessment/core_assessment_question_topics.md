@@ -1,5 +1,7 @@
 # Table: core_assessment_question_topics
 
+Document Path: database/assessment/core_assessment_question_topics.md
+
 ## Purpose
 
 Mapping many-to-many giữa Questions và Topics.

@@ -1,5 +1,7 @@
 # Table: core_liveclass_chat_logs
 
+Document Path: database/liveclass/core_liveclass_chat_logs.md
+
 ## Cohort-Centered Amendment — 2026-07-25
 
 Chat remains a Session child. Session now belongs directly to Cohort and Room

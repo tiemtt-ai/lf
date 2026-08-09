@@ -1,5 +1,7 @@
 # Table: saas_invoices
 
+Document Path: database/saas-billing/saas_invoices.md
+
 ## Purpose
 
 Official Customer Invoice representing a Billing payment obligation.

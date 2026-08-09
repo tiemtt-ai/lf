@@ -1,5 +1,7 @@
 # Table: core_assessment_quiz_sections
 
+Document Path: database/assessment/core_assessment_quiz_sections.md
+
 ## Purpose
 
 Phân phần trong Quiz như Listening, Reading hoặc Writing.

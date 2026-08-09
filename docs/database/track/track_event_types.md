@@ -1,5 +1,7 @@
 # Table: track_event_types
 
+Document Path: database/track/track_event_types.md
+
 ## Purpose
 
 Master catalog cho learning behavior event types. Bảng định nghĩa taxonomy ổn

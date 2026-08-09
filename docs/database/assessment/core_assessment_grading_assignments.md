@@ -1,5 +1,7 @@
 # Table: core_assessment_grading_assignments
 
+Document Path: database/assessment/core_assessment_grading_assignments.md
+
 ## Purpose
 
 Phân công chấm toàn Attempt hoặc một Answer cho teacher/grader.

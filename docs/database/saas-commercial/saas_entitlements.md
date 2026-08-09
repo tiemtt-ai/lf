@@ -1,5 +1,7 @@
 # Table: saas_entitlements
 
+Document Path: database/saas-commercial/saas_entitlements.md
+
 ## Purpose
 
 Source Of Truth for a Customer's effective right to use a feature — “Can Use?”.

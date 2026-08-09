@@ -1,5 +1,7 @@
 # Table: core_course_notes
 
+Document Path: database/course/core_course_notes.md
+
 ## Purpose
 
 Lưu ghi chú cá nhân của học viên trong quá trình học Course Product.

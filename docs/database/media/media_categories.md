@@ -1,5 +1,7 @@
 # Table: media_categories
 
+Document Path: database/media/media_categories.md
+
 ## Purpose
 
 Phân loại nghiệp vụ cho Digital Assets. Category không phải storage folder.

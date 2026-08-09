@@ -1,5 +1,7 @@
 # Table: core_course_learning_path_items
 
+Document Path: database/course/core_course_learning_path_items.md
+
 ## Purpose
 
 Lưu danh sách Course Products nằm trong một Learning Path.

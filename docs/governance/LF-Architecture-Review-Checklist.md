@@ -6,6 +6,8 @@ Status: Official Governance
 
 Last Updated: 2026-07
 
+Document Path: governance/LF-Architecture-Review-Checklist.md
+
 ---
 
 # Purpose

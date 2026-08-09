@@ -10,6 +10,8 @@ Parent: [core_course_products](core_course_products.md) v1.3
 
 ADR: [ADR-0014](../../adr/ADR-0014-Product-Offering-And-Draft-Binding.md)
 
+Document Path: database/course/core_course_products_v2.md
+
 ---
 
 # Purpose and compatibility

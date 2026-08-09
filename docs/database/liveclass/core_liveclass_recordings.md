@@ -1,5 +1,7 @@
 # Table: core_liveclass_recordings
 
+Document Path: database/liveclass/core_liveclass_recordings.md
+
 ## Cohort-Centered Amendment — 2026-07-25
 
 Recording belongs directly to Session. It may reference a Media File after

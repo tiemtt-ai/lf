@@ -6,6 +6,8 @@ Status: Official Foundation
 
 Last Updated: 2026-06
 
+Document Path: tech/LF-Tech-Stack.md
+
 ---
 
 # LearnForge Technology Stack

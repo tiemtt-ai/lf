@@ -1,5 +1,7 @@
 # Table: saas_customer_settings
 
+Document Path: database/saas/saas_customer_settings.md
+
 ## Purpose
 
 Grouped key-value Tenant configuration.

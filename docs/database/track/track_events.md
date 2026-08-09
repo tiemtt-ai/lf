@@ -1,5 +1,7 @@
 # Table: track_events
 
+Document Path: database/track/track_events.md
+
 ## Purpose
 
 Append-only event store cho learning behavior observations.

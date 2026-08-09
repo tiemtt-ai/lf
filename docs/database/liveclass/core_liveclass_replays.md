@@ -1,5 +1,7 @@
 # Table: core_liveclass_replays
 
+Document Path: database/liveclass/core_liveclass_replays.md
+
 ## Cohort-Centered Amendment — 2026-07-25
 
 Replay belongs to a Recording, Session and Enrollment. Enrollment must match a

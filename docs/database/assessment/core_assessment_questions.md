@@ -1,5 +1,7 @@
 # Table: core_assessment_questions
 
+Document Path: database/assessment/core_assessment_questions.md
+
 ## Purpose
 
 Đơn vị câu hỏi gốc trong Question Bank.

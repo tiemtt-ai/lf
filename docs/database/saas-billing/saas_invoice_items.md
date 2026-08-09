@@ -1,5 +1,7 @@
 # Table: saas_invoice_items
 
+Document Path: database/saas-billing/saas_invoice_items.md
+
 ## Purpose
 
 Immutable line-item snapshot describing each charge in an Invoice.

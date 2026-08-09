@@ -1,5 +1,7 @@
 # Table: media_files
 
+Document Path: database/media/media_files.md
+
 ## Purpose
 
 Bảng trung tâm lưu identity, metadata, storage locator và lifecycle của Digital Asset.

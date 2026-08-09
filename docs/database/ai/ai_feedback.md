@@ -1,5 +1,7 @@
 # Table: ai_feedback
 
+Document Path: database/ai/ai_feedback.md
+
 ## Purpose
 
 User/reviewer feedback on AI Message, Recommendation, Insight or Model Run.

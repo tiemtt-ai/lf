@@ -1,5 +1,7 @@
 # Table: core_assessment_quizzes
 
+Document Path: database/assessment/core_assessment_quizzes.md
+
 ## Purpose
 
 Assessment object immutable khi publish, dùng bởi một Course Version Activity.

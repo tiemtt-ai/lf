@@ -1,5 +1,7 @@
 # Table: core_assessment_rubric_items
 
+Document Path: database/assessment/core_assessment_rubric_items.md
+
 ## Purpose
 
 Tiêu chí chấm điểm thuộc Rubric template.

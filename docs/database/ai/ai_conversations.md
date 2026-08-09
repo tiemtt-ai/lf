@@ -1,5 +1,7 @@
 # Table: ai_conversations
 
+Document Path: database/ai/ai_conversations.md
+
 ## Purpose
 
 Conversation container giữa User và một AI role trong tenant/learning context.

@@ -6,6 +6,8 @@ Status: Official Foundation
 
 Last Updated: 2026-07
 
+Document Path: core/LF-Core-Course.md
+
 ---
 
 # LF-Core Course Architecture

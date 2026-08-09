@@ -6,6 +6,8 @@ Status: Official Entry Point
 
 Last Updated: 2026-07
 
+Document Path: README.md
+
 ---
 
 # Purpose

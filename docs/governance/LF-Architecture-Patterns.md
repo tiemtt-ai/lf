@@ -6,6 +6,8 @@ Status: Official Governance
 
 Last Updated: 2026-06
 
+Document Path: governance/LF-Architecture-Patterns.md
+
 ---
 
 # Purpose

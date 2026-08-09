@@ -1,5 +1,7 @@
 # Table: ai_prompt_templates
 
+Document Path: database/ai/ai_prompt_templates.md
+
 ## Purpose
 
 Versioned, governed Prompt Templates for approved AI roles and purposes.

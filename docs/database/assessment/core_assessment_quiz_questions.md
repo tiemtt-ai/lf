@@ -1,5 +1,7 @@
 # Table: core_assessment_quiz_questions
 
+Document Path: database/assessment/core_assessment_quiz_questions.md
+
 ## Purpose
 
 Map Question vào Quiz Section và đóng băng nội dung/scoring cho lịch sử.

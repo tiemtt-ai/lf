@@ -6,6 +6,8 @@ Status: Foundation Approved
 
 Last Updated: 2026-06
 
+Document Path: platform/LF-Track.md
+
 ---
 
 # LF Track Architecture

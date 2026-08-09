@@ -1,5 +1,7 @@
 # MIỀN NGHIỆP VỤ ASSESSMENT
 
+Document Path: database/assessment/README.md
+
 > ⚠️ **Chưa triển khai**: Đây là spec kiến trúc đã duyệt (ADR-0003, Approved)
 > nhưng hiện chưa có migration/model thực tế trong codebase — xem
 > `database/migrations/` để biết trạng thái triển khai thật.

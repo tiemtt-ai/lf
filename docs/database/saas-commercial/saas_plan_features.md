@@ -1,5 +1,7 @@
 # Table: saas_plan_features
 
+Document Path: database/saas-commercial/saas_plan_features.md
+
 ## Purpose
 
 Defines feature defaults and limits included in a Commercial Plan.

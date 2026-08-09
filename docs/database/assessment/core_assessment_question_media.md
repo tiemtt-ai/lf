@@ -1,5 +1,7 @@
 # Table: core_assessment_question_media
 
+Document Path: database/assessment/core_assessment_question_media.md
+
 ## Purpose
 
 Gắn Media File vào Question authoring source.

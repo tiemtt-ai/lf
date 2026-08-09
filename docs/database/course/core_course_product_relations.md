@@ -6,6 +6,8 @@ Status: Official Foundation
 
 Last Updated: 2026-07
 
+Document Path: database/course/core_course_product_relations.md
+
 ---
 
 # Purpose

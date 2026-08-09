@@ -6,6 +6,8 @@ Status: Approved Review
 
 Review Date: 2026-07-25
 
+Document Path: quality/LF-LiveClass-Cohort-Session-Architecture-Review.md
+
 ## Approved Contract
 
 - [x] Session belongs directly to same-tenant Cohort.

@@ -1,5 +1,7 @@
 # Table: ai_knowledge_chunks
 
+Document Path: database/ai/ai_knowledge_chunks.md
+
 ## Purpose
 
 Derived text chunks phục vụ tenant-scoped retrieval/RAG.

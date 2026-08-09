@@ -6,6 +6,8 @@ Status: Approved — Post-Implementation Verified
 
 Review Date: 2026-07-26
 
+Document Path: quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md
+
 ---
 
 # Review Information

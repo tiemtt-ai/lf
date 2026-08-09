@@ -1,5 +1,7 @@
 # Table: core_assessment_question_banks
 
+Document Path: database/assessment/core_assessment_question_banks.md
+
 ## Purpose
 
 Kho câu hỏi nguồn do tenant và owner quản lý.

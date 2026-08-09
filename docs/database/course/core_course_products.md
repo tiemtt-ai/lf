@@ -6,6 +6,8 @@ Status: Official Foundation
 
 Last Updated: 2026-08
 
+Document Path: database/course/core_course_products.md
+
 ---
 
 # Purpose

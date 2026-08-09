@@ -1,5 +1,7 @@
 # Table: media_captions
 
+Document Path: database/media/media_captions.md
+
 ## Purpose
 
 Lưu metadata và storage locator của caption/subtitle asset.

@@ -1,5 +1,7 @@
 # Table: saas_payment_methods
 
+Document Path: database/saas-billing/saas_payment_methods.md
+
 ## Purpose
 
 Stores safe provider references for Customer payment methods.

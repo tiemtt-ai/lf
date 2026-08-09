@@ -8,6 +8,8 @@ Review Date: 2026-07-20
 
 Amendment Review Date: 2026-08-02
 
+Document Path: quality/LF-Course-Cohort-Architecture-Review.md
+
 ## Review Information
 
 | Field | Value |

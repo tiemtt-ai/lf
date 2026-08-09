@@ -1,5 +1,7 @@
 # Table: saas_customer_invitations
 
+Document Path: database/saas/saas_customer_invitations.md
+
 ## Purpose
 
 Secure invitation lifecycle for joining a Tenant.

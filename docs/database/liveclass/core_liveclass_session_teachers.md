@@ -6,6 +6,8 @@ Status: Approved
 
 Last Updated: 2026-07-25
 
+Document Path: database/liveclass/core_liveclass_session_teachers.md
+
 ## Purpose
 
 Stores the complete teaching team for one Session.

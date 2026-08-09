@@ -1,5 +1,7 @@
 # Table: ai_insights
 
+Document Path: database/ai/ai_insights.md
+
 ## Purpose
 
 Explainable AI observation/insight for learner, teacher or dashboard decision

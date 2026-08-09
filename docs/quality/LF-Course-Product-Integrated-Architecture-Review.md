@@ -6,6 +6,8 @@ Status: Approved Review
 
 Review Date: 2026-07-15
 
+Document Path: quality/LF-Course-Product-Integrated-Architecture-Review.md
+
 ---
 
 # Review basis

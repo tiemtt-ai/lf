@@ -1,5 +1,7 @@
 # Table: track_ai_features
 
+Document Path: database/track/track_ai_features.md
+
 ## Purpose
 
 Current AI-ready feature record theo User và optional

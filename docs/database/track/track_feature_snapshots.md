@@ -1,5 +1,7 @@
 # Table: track_feature_snapshots
 
+Document Path: database/track/track_feature_snapshots.md
+
 ## Purpose
 
 Historical snapshots của AI-ready Track features để phân tích trend theo thời

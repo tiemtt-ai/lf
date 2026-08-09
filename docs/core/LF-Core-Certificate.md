@@ -6,6 +6,8 @@ Status: Foundation Approved and Frozen
 
 Last Updated: 2026-06
 
+Document Path: core/LF-Core-Certificate.md
+
 ---
 
 # LF Core Certificate Architecture

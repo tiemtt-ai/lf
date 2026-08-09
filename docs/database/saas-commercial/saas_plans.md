@@ -1,5 +1,7 @@
 # Table: saas_plans
 
+Document Path: database/saas-commercial/saas_plans.md
+
 ## Purpose
 
 Global product-plan catalog của SaaS Commercial Domain.

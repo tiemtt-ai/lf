@@ -1,5 +1,7 @@
 # MIỀN NGHIỆP VỤ MEDIA
 
+Document Path: database/media/README.md
+
 Miền nghiệp vụ Media là nền tảng tài sản số dùng chung của LearnForge. Miền
 nghiệp vụ này quản lý định danh tài sản, tham chiếu lưu trữ, xử lý, tài sản dẫn
 xuất, bản ghi lời thoại, phụ đề, ánh xạ sử dụng và lịch sử truy cập, trong khi

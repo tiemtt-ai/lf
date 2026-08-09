@@ -5,6 +5,8 @@ Version: 1.1
 Status: **Approved and Frozen — Policy 2**
 Date: 2026-08-01
 
+Document Path: quality/LF-Enrollment-Lifecycle-Architecture-Review.md
+
 ## Scope reviewed
 
 - Enrollment canonical statuses and timestamps.

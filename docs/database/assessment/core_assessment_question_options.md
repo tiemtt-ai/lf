@@ -1,5 +1,7 @@
 # Table: core_assessment_question_options
 
+Document Path: database/assessment/core_assessment_question_options.md
+
 ## Purpose
 
 Lưu lựa chọn authoring cho câu hỏi choice/true-false.

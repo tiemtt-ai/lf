@@ -1,5 +1,7 @@
 # Table: media_access_logs
 
+Document Path: database/media/media_access_logs.md
+
 ## Purpose
 
 Append-only audit log cho thao tác truy cập Media File.

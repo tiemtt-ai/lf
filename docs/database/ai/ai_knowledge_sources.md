@@ -1,5 +1,7 @@
 # Table: ai_knowledge_sources
 
+Document Path: database/ai/ai_knowledge_sources.md
+
 ## Purpose
 
 Đăng ký nguồn tri thức được AI phép sử dụng; không sao chép ownership của

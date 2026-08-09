@@ -1,5 +1,7 @@
 # Table: saas_subscription_items
 
+Document Path: database/saas-commercial/saas_subscription_items.md
+
 ## Purpose
 
 Stores add-ons or packages composing a Customer Subscription.

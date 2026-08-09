@@ -1,5 +1,7 @@
 # Table: track_activity_summaries
 
+Document Path: database/track/track_activity_summaries.md
+
 ## Purpose
 
 Rebuildable behavior read model theo User, Enrollment và Version Activity.

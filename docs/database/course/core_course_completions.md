@@ -1,5 +1,7 @@
 # Table: core_course_completions
 
+Document Path: database/course/core_course_completions.md
+
 ## Purpose
 
 Lưu kết quả hoàn thành Course Product của học viên.

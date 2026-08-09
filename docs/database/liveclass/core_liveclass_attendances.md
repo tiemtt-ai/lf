@@ -1,5 +1,7 @@
 # Table: core_liveclass_attendances
 
+Document Path: database/liveclass/core_liveclass_attendances.md
+
 ## Cohort-Centered Amendment — 2026-07-25
 
 Attendance always belongs to a Session and an Enrollment that is an active

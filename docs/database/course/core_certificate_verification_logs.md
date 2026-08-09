@@ -1,5 +1,7 @@
 # Table: core_certificate_verification_logs
 
+Document Path: database/course/core_certificate_verification_logs.md
+
 ## Purpose
 
 Lưu lịch sử xác thực chứng chỉ.

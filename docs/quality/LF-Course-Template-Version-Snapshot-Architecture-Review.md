@@ -10,6 +10,8 @@ Nested Section Capability Review Date: 2026-07-10
 Information Model Review Date: 2026-07-12
 Activity Learning Availability Review Date: 2026-07-25
 
+Document Path: quality/LF-Course-Template-Version-Snapshot-Architecture-Review.md
+
 ---
 
 # Review Information

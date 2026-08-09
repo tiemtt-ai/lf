@@ -1,5 +1,7 @@
 # Table: saas_usage_events
 
+Document Path: database/saas-usage/saas_usage_events.md
+
 ## Purpose
 
 Append-only Source Of Truth for tenant resource-consumption measurements.

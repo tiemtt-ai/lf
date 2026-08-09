@@ -1,5 +1,7 @@
 # MIỀN NGHIỆP VỤ SAAS TENANT
 
+Document Path: database/saas/README.md
+
 Miền nghiệp vụ SaaS Tenant là nền tảng đa tenant của LearnForge. Miền nghiệp vụ
 này xác định từng Customer, phân giải miền của yêu cầu, quản lý cấu hình
 tenant và tư cách thành viên, kiểm soát vòng đời của lời mời, đồng thời lưu giữ

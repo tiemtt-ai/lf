@@ -6,6 +6,8 @@ Status: Approved
 
 Last Updated: 2026-07-25
 
+Document Path: database/course/core_course_cohort_teachers.md
+
 ## Purpose
 
 Stores the complete teacher team assigned to one Cohort. Template teacher

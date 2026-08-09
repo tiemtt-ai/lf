@@ -6,6 +6,8 @@ Status: Official Governance
 
 Last Updated: 2026-08
 
+Document Path: governance/LF-Glossary.md
+
 ---
 
 # Purpose

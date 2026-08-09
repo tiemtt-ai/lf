@@ -1,5 +1,7 @@
 # Table: core_course_learning_paths
 
+Document Path: database/course/core_course_learning_paths.md
+
 ## Purpose
 
 Quản lý lộ trình học tập (Learning Path).

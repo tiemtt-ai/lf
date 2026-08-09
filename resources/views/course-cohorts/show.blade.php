@@ -215,10 +215,11 @@
                     <header class="admin-form-section-header">
                         <h2 id="cohort-show-dates" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_dates') }}</h2>
                     </header>
-                    <dl class="cohort-overview-dates">
-                        <div><dt>{{ __('lf.LF_course_cohort_common_start_date') }}</dt><dd>{{ $cohort->start_date ? \Illuminate\Support\Carbon::parse($cohort->start_date)->format('d/m/Y') : '—' }}</dd></div>
-                        <div><dt>{{ __('lf.LF_course_cohort_common_end_date') }}</dt><dd>{{ $cohort->end_date ? \Illuminate\Support\Carbon::parse($cohort->end_date)->format('d/m/Y') : '—' }}</dd></div>
-                    </dl>
+                    <div class="cohort-overview-dates">
+                        <dl><dt>{{ __('lf.LF_course_cohort_common_start_date') }}</dt><dd>{{ $cohort->start_date ? \Illuminate\Support\Carbon::parse($cohort->start_date)->format('d/m/Y') : '—' }}</dd></dl>
+                        <span class="cohort-overview-dates__arrow" aria-hidden="true">→</span>
+                        <dl><dt>{{ __('lf.LF_course_cohort_common_end_date') }}</dt><dd>{{ $cohort->end_date ? \Illuminate\Support\Carbon::parse($cohort->end_date)->format('d/m/Y') : '—' }}</dd></dl>
+                    </div>
                 </section>
 
                 <section class="admin-form-standard-section cohort-overview-section" aria-labelledby="cohort-show-additional">

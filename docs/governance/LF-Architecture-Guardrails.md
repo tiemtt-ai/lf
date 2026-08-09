@@ -6,6 +6,8 @@ Status: Mandatory
 
 Last Updated: 2026-07
 
+Document Path: governance/LF-Architecture-Guardrails.md
+
 ---
 
 # Purpose

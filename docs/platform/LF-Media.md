@@ -6,6 +6,8 @@ Status: Foundation Approved
 
 Last Updated: 2026-07
 
+Document Path: platform/LF-Media.md
+
 ---
 
 # LF Media Architecture

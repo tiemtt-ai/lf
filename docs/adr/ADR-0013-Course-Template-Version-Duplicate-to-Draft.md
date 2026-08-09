@@ -10,6 +10,8 @@ Scope Amendment Date: 2026-07-10
 Nested Section Amendment Date: 2026-07-10
 Information Model Amendment Date: 2026-07-12
 
+Document Path: adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md
+
 Extends:
 
 * [ADR-0001 — Course Foundation](ADR-0001-Course-Foundation.md)

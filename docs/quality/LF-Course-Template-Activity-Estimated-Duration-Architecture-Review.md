@@ -6,6 +6,8 @@ Status: Approved Review
 
 Review Date: 2026-07-12
 
+Document Path: quality/LF-Course-Template-Activity-Estimated-Duration-Architecture-Review.md
+
 Product-approved additive amendment. PASS: Course ownership, tenant isolation,
 immutable snapshot, duplicate restoration, nullable seconds representation,
 existing ordering and manual prerequisite semantics. Implementation authorized

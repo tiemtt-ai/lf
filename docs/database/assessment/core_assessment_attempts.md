@@ -1,5 +1,7 @@
 # Table: core_assessment_attempts
 
+Document Path: database/assessment/core_assessment_attempts.md
+
 ## Purpose
 
 Một lần làm Quiz của một Enrollment.

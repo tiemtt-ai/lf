@@ -6,6 +6,8 @@ Status: Strategic Document
 
 Last Updated: 2026-07
 
+Document Path: business/LF-Business-Model.md
+
 ---
 
 # LearnForge Business Model

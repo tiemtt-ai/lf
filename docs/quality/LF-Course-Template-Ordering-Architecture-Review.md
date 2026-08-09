@@ -6,6 +6,8 @@ Status: Approved and Frozen
 
 Review Date: 2026-07-18
 
+Document Path: quality/LF-Course-Template-Ordering-Architecture-Review.md
+
 ## Review Information
 
 | Field | Value |

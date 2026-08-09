@@ -1,5 +1,7 @@
 # Table: track_learning_sessions
 
+Document Path: database/track/track_learning_sessions.md
+
 ## Purpose
 
 Nhóm behavior events thành một phiên học tập có ý nghĩa cho Analytics và AI;

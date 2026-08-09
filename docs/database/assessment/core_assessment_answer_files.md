@@ -1,5 +1,7 @@
 # Table: core_assessment_answer_files
 
+Document Path: database/assessment/core_assessment_answer_files.md
+
 ## Purpose
 
 Liên kết file bài làm của Student với Answer.

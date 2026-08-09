@@ -16,6 +16,8 @@ Approved
 
 ---
 
+Document Path: adr/ADR-0001-Course-Foundation.md
+
 ## Amendments
 
 Course Blueprint V2 amendment: 2026-07-03 — Approved.

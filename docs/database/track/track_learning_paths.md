@@ -1,5 +1,7 @@
 # Table: track_learning_paths
 
+Document Path: database/track/track_learning_paths.md
+
 ## Purpose
 
 Observed learning journey/path được reconstruct từ behavior events. Đây không

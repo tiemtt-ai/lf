@@ -1,5 +1,7 @@
 # Table: core_assessment_answers
 
+Document Path: database/assessment/core_assessment_answers.md
+
 ## Purpose
 
 Câu trả lời cho một Quiz Question trong Attempt.

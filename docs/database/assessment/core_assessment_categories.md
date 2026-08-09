@@ -1,5 +1,7 @@
 # Table: core_assessment_categories
 
+Document Path: database/assessment/core_assessment_categories.md
+
 ## Purpose
 
 Phân loại Assessment theo tenant bằng cây category.

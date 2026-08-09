@@ -1,5 +1,7 @@
 # Table: core_course_progress
 
+Document Path: database/course/core_course_progress.md
+
 ## Purpose
 
 Lưu tiến độ tổng hợp của học viên trên một Course Product.

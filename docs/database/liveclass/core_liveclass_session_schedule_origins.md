@@ -6,6 +6,8 @@ Status: Approved
 
 Last Updated: 2026-08-05
 
+Document Path: database/liveclass/core_liveclass_session_schedule_origins.md
+
 ## Purpose
 
 Stores immutable lineage for a concrete Session explicitly confirmed from one

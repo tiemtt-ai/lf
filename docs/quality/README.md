@@ -6,6 +6,8 @@ Status: Official Directory Guide
 
 Last Updated: 2026-08
 
+Document Path: quality/README.md
+
 ---
 
 # Purpose

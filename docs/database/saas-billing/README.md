@@ -1,5 +1,7 @@
 # MIỀN NGHIỆP VỤ SAAS BILLING
 
+Document Path: database/saas-billing/README.md
+
 > ⚠️ **Chưa triển khai**: Đây là spec kiến trúc đã duyệt (ADR-0010, Frozen)
 > nhưng hiện chưa có migration/model thực tế trong codebase — xem
 > `database/migrations/` để biết trạng thái triển khai thật.

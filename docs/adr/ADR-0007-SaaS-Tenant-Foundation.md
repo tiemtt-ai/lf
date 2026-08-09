@@ -22,6 +22,8 @@ Frozen
 
 ---
 
+Document Path: adr/ADR-0007-SaaS-Tenant-Foundation.md
+
 ## Related ADRs
 
 * [ADR-0001 — Course Foundation](ADR-0001-Course-Foundation.md)

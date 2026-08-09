@@ -1,5 +1,7 @@
 # Table: core_assessment_question_contents
 
+Document Path: database/assessment/core_assessment_question_contents.md
+
 ## Purpose
 
 Lưu prompt, explanation và correct-answer authoring text theo locale.

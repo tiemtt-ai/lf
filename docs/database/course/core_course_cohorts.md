@@ -1,5 +1,7 @@
 # Table: core_course_cohorts
 
+Document Path: database/course/core_course_cohorts.md
+
 ## Purpose
 
 `core_course_cohorts` stores operational learning groups for the Course

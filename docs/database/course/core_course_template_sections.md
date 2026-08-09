@@ -6,6 +6,8 @@ Status: Approved
 
 Last Updated: 2026-07-10
 
+Document Path: database/course/core_course_template_sections.md
+
 Related ADR:
 [ADR-0001 — Course Foundation](../../adr/ADR-0001-Course-Foundation.md)
 

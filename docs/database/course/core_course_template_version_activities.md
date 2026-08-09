@@ -6,6 +6,8 @@ Status: Approved
 
 Last Updated: 2026-07-03
 
+Document Path: database/course/core_course_template_version_activities.md
+
 Related ADR:
 [ADR-0012 — Course Template Published Version Snapshot Architecture](../../adr/ADR-0012-Course-Template-Published-Version-Snapshot.md)
 

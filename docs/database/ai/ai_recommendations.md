@@ -1,5 +1,7 @@
 # Table: ai_recommendations
 
+Document Path: database/ai/ai_recommendations.md
+
 ## Purpose
 
 AI-owned decision-support recommendation with target, evidence and provenance.

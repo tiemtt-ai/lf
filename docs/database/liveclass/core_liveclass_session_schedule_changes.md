@@ -6,6 +6,8 @@ Status: Approved
 
 Last Updated: 2026-07-25
 
+Document Path: database/liveclass/core_liveclass_session_schedule_changes.md
+
 ## Purpose
 
 Append-only audit evidence for Session schedule changes.

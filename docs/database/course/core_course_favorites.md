@@ -1,5 +1,7 @@
 # Table: core_course_favorites
 
+Document Path: database/course/core_course_favorites.md
+
 ## Purpose
 
 Lưu danh sách Course Product mà học viên yêu thích hoặc muốn xem lại sau.

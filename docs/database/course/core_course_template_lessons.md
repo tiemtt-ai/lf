@@ -6,6 +6,8 @@ Status: Official Foundation
 
 Last Updated: 2026-07
 
+Document Path: database/course/core_course_template_lessons.md
+
 ---
 
 # Purpose

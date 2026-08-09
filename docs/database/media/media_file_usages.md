@@ -6,6 +6,8 @@ Status: Approved
 
 Last Updated: 2026-07-12
 
+Document Path: database/media/media_file_usages.md
+
 ## Purpose
 
 Generic mapping giữa Media File và owner record ở Domain sử dụng.

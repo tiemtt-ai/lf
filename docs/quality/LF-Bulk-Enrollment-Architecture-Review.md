@@ -10,6 +10,8 @@ Superseding Approval Date: 2026-07-21
 
 Enrollment-Date Eligibility Approval Date: 2026-08-01
 
+Document Path: quality/LF-Bulk-Enrollment-Architecture-Review.md
+
 ## Review basis
 
 Approval for this review was supplied directly by the LearnForge Architecture

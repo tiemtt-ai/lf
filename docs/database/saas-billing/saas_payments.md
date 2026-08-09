@@ -1,5 +1,7 @@
 # Table: saas_payments
 
+Document Path: database/saas-billing/saas_payments.md
+
 ## Purpose
 
 Stores Customer Payment transactions and reconciliation lifecycle.

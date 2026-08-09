@@ -12,6 +12,8 @@ Information Model Amendment Date: 2026-07-12
 Lifecycle Clarification Date: 2026-07-17
 Activity Learning Availability Amendment Date: 2026-07-25
 
+Document Path: adr/ADR-0012-Course-Template-Published-Version-Snapshot.md
+
 Extends:
 [ADR-0001 — Course Foundation](ADR-0001-Course-Foundation.md)
 

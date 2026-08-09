@@ -4,6 +4,8 @@ Version: 1.0
 
 Status: Approved Review
 
+Document Path: quality/LF-LiveClass-Cohort-Schedule-Architecture-Review.md
+
 > Historical scope note (2026-08-05): the deferred provenance, occurrence
 > identity and explicit confirmed bulk-creation clauses in this review are
 > superseded by

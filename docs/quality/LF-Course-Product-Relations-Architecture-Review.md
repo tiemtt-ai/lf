@@ -1,5 +1,7 @@
 # Course Product Relations Architecture Review
 
+Document Path: quality/LF-Course-Product-Relations-Architecture-Review.md
+
 ## Admin mutation policy (2026-07-15 clarification)
 
 Related Products are managed only after the source Product exists, and the

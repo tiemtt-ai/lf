@@ -1,5 +1,7 @@
 # Table: media_variants
 
+Document Path: database/media/media_variants.md
+
 ## Purpose
 
 Lưu metadata và storage locator của asset phái sinh từ Media File gốc.

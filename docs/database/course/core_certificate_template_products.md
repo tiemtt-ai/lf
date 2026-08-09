@@ -6,6 +6,8 @@ Status: Foundation Approved and Frozen
 
 Last Updated: 2026-06
 
+Document Path: database/course/core_certificate_template_products.md
+
 ---
 
 ## Purpose

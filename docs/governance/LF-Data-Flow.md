@@ -6,6 +6,8 @@ Status: Official Governance
 
 Last Updated: 2026-06
 
+Document Path: governance/LF-Data-Flow.md
+
 ---
 
 ## Purpose

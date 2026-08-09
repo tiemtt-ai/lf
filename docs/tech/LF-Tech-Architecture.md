@@ -6,6 +6,8 @@ Status: Official Foundation
 
 Last Updated: 2026-06
 
+Document Path: tech/LF-Tech-Architecture.md
+
 ---
 
 # LearnForge Technical Architecture

@@ -1,5 +1,7 @@
 # Table: ai_model_runs
 
+Document Path: database/ai/ai_model_runs.md
+
 ## Purpose
 
 Audit/provenance record for every AI provider/model execution.

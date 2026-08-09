@@ -6,6 +6,8 @@ Status: Official Directory Guide
 
 Last Updated: 2026-07
 
+Document Path: adr/README.md
+
 ---
 
 # Purpose

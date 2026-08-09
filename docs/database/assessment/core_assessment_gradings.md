@@ -1,5 +1,7 @@
 # Table: core_assessment_gradings
 
+Document Path: database/assessment/core_assessment_gradings.md
+
 ## Purpose
 
 Lưu grading evidence cho Attempt hoặc Answer, gồm AI suggestion và final grading.

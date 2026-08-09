@@ -14,6 +14,8 @@ Approved
 
 2026-06-27
 
+Document Path: adr/ADR-0002-LiveClass-Foundation.md
+
 ## Schedule-To-Session Origin Amendment
 
 Approved: 2026-08-05

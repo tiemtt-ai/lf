@@ -6,6 +6,8 @@ Status: Foundation Approved
 
 Last Updated: 2026-06
 
+Document Path: core/LF-Core-Assessment.md
+
 ---
 
 # LF-Core Assessment Architecture

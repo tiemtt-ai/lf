@@ -1,5 +1,7 @@
 # Table: track_daily_summaries
 
+Document Path: database/track/track_daily_summaries.md
+
 ## Purpose
 
 Rebuildable daily behavior summary theo User và optional

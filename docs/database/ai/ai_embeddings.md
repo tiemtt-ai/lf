@@ -1,5 +1,7 @@
 # Table: ai_embeddings
 
+Document Path: database/ai/ai_embeddings.md
+
 ## Purpose
 
 Lưu metadata/reference của vector embedding; không lưu binary/vector payload

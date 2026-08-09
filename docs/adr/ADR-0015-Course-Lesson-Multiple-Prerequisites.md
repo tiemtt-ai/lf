@@ -8,6 +8,8 @@ Proposal Date: 2026-07-26
 
 Decision Date: 2026-07-26
 
+Document Path: adr/ADR-0015-Course-Lesson-Multiple-Prerequisites.md
+
 Extends:
 
 * [ADR-0001 — Course Foundation](ADR-0001-Course-Foundation.md)

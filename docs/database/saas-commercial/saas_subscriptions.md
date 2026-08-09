@@ -1,5 +1,7 @@
 # Table: saas_subscriptions
 
+Document Path: database/saas-commercial/saas_subscriptions.md
+
 ## Purpose
 
 Records which Commercial Plan a Customer uses and preserves Subscription

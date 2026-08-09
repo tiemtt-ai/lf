@@ -8,6 +8,8 @@ Last Updated: 2026-07-15
 
 Parent: [core_course_product_items](core_course_product_items.md) v1.1
 
+Document Path: database/course/core_course_product_items_v2.md
+
 ---
 
 # Scope

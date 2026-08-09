@@ -6,6 +6,8 @@ Status: Official Foundation
 
 Last Updated: 2026-08
 
+Document Path: core/LF-Core-LiveClass.md
+
 ---
 
 # LF-Core LiveClass Architecture

@@ -6,6 +6,8 @@ Status: Approved Review
 
 Review Date: 2026-07-03
 
+Document Path: quality/LF-Course-Product-Architecture-Review.md
+
 ---
 
 # Review Information

@@ -1,5 +1,7 @@
 # Table: core_course_lesson_progress
 
+Document Path: database/course/core_course_lesson_progress.md
+
 ## Purpose
 
 Lưu tiến độ học tập của học viên theo từng Lesson trong một Course Product.

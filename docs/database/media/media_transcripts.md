@@ -1,5 +1,7 @@
 # Table: media_transcripts
 
+Document Path: database/media/media_transcripts.md
+
 ## Purpose
 
 Lưu transcript text được tạo từ audio/video Media File.

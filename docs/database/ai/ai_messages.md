@@ -1,5 +1,7 @@
 # Table: ai_messages
 
+Document Path: database/ai/ai_messages.md
+
 ## Purpose
 
 Ordered conversation messages for user, assistant, system and tool roles.

@@ -1,5 +1,7 @@
 # Table: core_assessment_topics
 
+Document Path: database/assessment/core_assessment_topics.md
+
 ## Purpose
 
 Topic/knowledge tag dạng cây cho Question.

@@ -1,5 +1,7 @@
 # Table: core_assessment_rubrics
 
+Document Path: database/assessment/core_assessment_rubrics.md
+
 ## Purpose
 
 Rubric template tái sử dụng cho grading.

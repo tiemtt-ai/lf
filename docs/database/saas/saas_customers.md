@@ -1,5 +1,7 @@
 # Table: saas_customers
 
+Document Path: database/saas/saas_customers.md
+
 ## Purpose
 
 Tenant/Customer root identity and lifecycle record.

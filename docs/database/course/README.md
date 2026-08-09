@@ -1,5 +1,7 @@
 # MIỀN NGHIỆP VỤ COURSE
 
+Document Path: database/course/README.md
+
 ## Product v2 approved phase-one contracts
 
 These contracts are approved and frozen for the Product v2 phase-one

@@ -6,6 +6,8 @@ Status: Approved Review
 
 Review Date: 2026-07-12
 
+Document Path: quality/LF-Course-Template-Lesson-Role-Architecture-Review.md
+
 ## Scope
 
 Add tenant-owned semantic `lesson_type` to working and immutable Version

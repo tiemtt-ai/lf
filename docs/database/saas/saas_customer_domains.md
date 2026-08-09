@@ -1,5 +1,7 @@
 # Table: saas_customer_domains
 
+Document Path: database/saas/saas_customer_domains.md
+
 ## Purpose
 
 Canonical Tenant subdomain/custom-domain registry for request resolution.

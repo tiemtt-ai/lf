@@ -6,6 +6,8 @@ Status: Approved Review
 
 Review Date: 2026-08-05
 
+Document Path: quality/LF-LiveClass-Schedule-Session-Origin-Architecture-Review.md
+
 ## Review Information
 
 | Field | Value |

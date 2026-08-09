@@ -1,5 +1,7 @@
 # Table: saas_usage_summaries
 
+Document Path: database/saas-usage/saas_usage_summaries.md
+
 ## Purpose
 
 Versioned Usage read model for reporting and Billing consumption.
