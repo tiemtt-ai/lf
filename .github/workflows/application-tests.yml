@@ -49,10 +49,11 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
-      - name: Prepare Laravel application
-        run: |
-          cp .env.example .env
-          php artisan key:generate --no-interaction
-
       - name: Run application test suite
+        env:
+          # No .env is committed (.env is gitignored), so the runner supplies
+          # config through the environment. phpunit.xml already pins APP_ENV,
+          # the sqlite in-memory database and the array drivers; APP_KEY is the
+          # only remaining requirement. Throwaway key, never a real secret.
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
         run: php artisan test

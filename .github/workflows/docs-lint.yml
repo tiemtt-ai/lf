@@ -80,15 +80,17 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
-      - name: Prepare Laravel application
-        run: |
-          cp .env.example .env
-          php artisan key:generate --no-interaction
-
       - name: Run documentation lint tests
+        env:
+          # No .env is committed (.env is gitignored), so the runner supplies
+          # config through the environment, the same way the schema-drift job
+          # below does. Throwaway key, never a real secret.
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
         run: php artisan test tests/Feature/DocsLintCommandTest.php tests/Feature/DocsManifestLintCommandTest.php
 
       - name: Run documentation quality gate
+        env:
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
         run: php artisan docs:lint
 
   schema-drift:

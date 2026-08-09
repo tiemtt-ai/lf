@@ -21,11 +21,13 @@ media. Host tenant local dùng dạng `<tenant>.localhost`.
 ```bash
 composer install
 npm install
-cp .env.example .env
 php artisan key:generate
 ```
 
-Tạo một database local riêng, sau đó chỉnh `.env`. Không commit credential:
+`.env` không được commit (nằm trong `.gitignore`) và repository không giữ file
+`.env.example`. Tự tạo `.env` ở thư mục gốc trước khi chạy `key:generate`, dùng
+các khóa dưới đây làm mức tối thiểu. Tạo một database local riêng, sau đó chỉnh
+`.env`. Không commit credential:
 
 ```dotenv
 APP_ENV=local
