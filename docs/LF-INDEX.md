@@ -1,6 +1,6 @@
 # LF-INDEX.md
 
-Version: 2.2
+Version: 2.3
 
 Document Status: Approved
 
@@ -118,8 +118,8 @@ Khi sửa đổi hoặc nâng cấp nghiệp vụ hiện có, đọc:
 
 1. [LF Development Standards](LF-Development-Standards.md) để kích hoạt
    `Existing-Feature Change Safety Protocol`.
-2. [LF Regression Audit](quality/LF-Regression-Audit.md) để thực hiện checklist
-   kiểm chứng theo mức rủi ro.
+2. [LF Regression Audit](quality/LF-Regression-Audit.md) để chọn Audit Level
+   `LOW`, `MEDIUM` hoặc `HIGH` và thực hiện checklist theo mức cao nhất áp dụng.
 3. [Architecture Review Checklist](governance/LF-Architecture-Review-Checklist.md)
    khi impact analysis chạm source of truth, domain/lifecycle, tenant/auth,
    public contract, historical data, schema/migration hoặc backward
@@ -350,7 +350,7 @@ docs/quality/
 | Document | Purpose |
 | --- | --- |
 | [quality/README.md](quality/README.md) | Quality area usage and boundaries |
-| [quality/LF-Regression-Audit.md](quality/LF-Regression-Audit.md) | Mandatory regression checklist after major changes |
+| [quality/LF-Regression-Audit.md](quality/LF-Regression-Audit.md) | Mandatory `LOW`/`MEDIUM`/`HIGH` audit for every Existing-Feature Change |
 | [quality/LF-Course-Template-Version-Snapshot-Architecture-Review.md](quality/LF-Course-Template-Version-Snapshot-Architecture-Review.md) | Approved Course Template Version snapshot architecture review |
 | [quality/LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md](quality/LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md) | Approved Course Template Version duplicate-to-draft architecture review |
 | [quality/LF-Course-Template-Ordering-Architecture-Review.md](quality/LF-Course-Template-Ordering-Architecture-Review.md) | Approved and frozen Course Template tenant/category ordering review |
@@ -385,9 +385,9 @@ docs/quality/
 10. [Architecture Decision Records](adr/README.md)
 
 The [Regression Audit](quality/LF-Regression-Audit.md) is a Quality document
-required for every `Existing-Feature Change`; audit depth is proportional to
-risk. Architecture review is additionally required only when the change affects
-an architecture boundary.
+required for every `Existing-Feature Change`; Final Audit Level is the highest
+applicable `LOW`, `MEDIUM` or `HIGH`. Architecture review is additionally
+required only when the change affects an architecture boundary.
 
 ---
 

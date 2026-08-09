@@ -1,6 +1,6 @@
 # LearnForge Implementation Rules
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
@@ -44,8 +44,10 @@ LF-INDEX routes the task to additional documentation.
 Before modifying existing behavior, automatically activate the
 [Existing-Feature Change Safety Protocol](../LF-Development-Standards.md#existing-feature-change-safety-protocol)
 and complete the risk-proportionate
-[LF Regression Audit](../quality/LF-Regression-Audit.md). This does not depend
-on the user explicitly asking for review, audit or regression testing.
+[LF Regression Audit](../quality/LF-Regression-Audit.md). Declare `LOW`,
+`MEDIUM` or `HIGH` before implementation, reassess after the final diff, and
+use the highest applicable level. This does not depend on the user explicitly
+asking for review, audit or regression testing.
 
 ---
 

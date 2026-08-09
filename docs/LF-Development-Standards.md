@@ -1,6 +1,6 @@
 # LF Development Standards
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
@@ -95,6 +95,12 @@ với rủi ro, nhưng không được bỏ qua bước nhận diện và phân 
 AI Agent phải tự xác định policy, dependency và consumer liên quan; không được
 yêu cầu người dùng liệt kê thay.
 
+Mọi `Existing-Feature Change` phải khai báo Audit Level `LOW`, `MEDIUM` hoặc
+`HIGH` theo chuẩn canonical tại
+[LF Regression Audit](quality/LF-Regression-Audit.md#canonical-audit-level).
+Đánh giá trước implementation và đánh giá lại theo final diff; Final Audit
+Level luôn là mức cao nhất áp dụng.
+
 ## Before Implementation Gate
 
 Trước khi viết code, AI Agent phải:
@@ -128,7 +134,7 @@ Trong khi triển khai, AI Agent phải:
 
 ## After Implementation Gate
 
-Sau khi triển khai, AI Agent phải thực hiện theo mức rủi ro:
+Sau khi triển khai, AI Agent phải thực hiện theo Final Audit Level canonical:
 
 1. Baseline hoặc characterization tests liên quan.
 2. Targeted tests và module/shared tests.
@@ -138,11 +144,10 @@ Sau khi triển khai, AI Agent phải thực hiện theo mức rủi ro:
 5. Review final diff theo
    [LF Regression Audit](quality/LF-Regression-Audit.md).
 
-Báo cáo hoàn thành phải nêu: classification, current/requested behavior,
-documents reviewed, source of truth, invariants, impact, files changed/new,
-implementation, tests/commands/results, requirement-to-test traceability,
-unverified items, remaining risks và final verdict. Nếu không tạo file mới,
-phải ghi rõ `New files: None`.
+Báo cáo hoàn thành phải dùng
+[Audit Report Format](quality/LF-Regression-Audit.md#audit-report-format), gồm
+Initial/Final Audit Level, rationale, escalation, findings và verdict. Nếu
+không tạo file mới, phải ghi rõ `New Files: None`.
 
 ## Mandatory Stop Conditions
 
