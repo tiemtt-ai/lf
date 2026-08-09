@@ -120,7 +120,13 @@ jobs:
           tools: composer:v2
       - run: composer install --no-interaction --prefer-dist --no-progress
       - name: Grant ephemeral database lifecycle only
-        run: mysql -h 127.0.0.1 -u root -proot-test-only -e "GRANT CREATE, DROP ON *.* TO 'lf_ci'@'%'; FLUSH PRIVILEGES;"
+        # Scoped to the `lf_schema_drift_<16 alnum>` databases that
+        # `schema:drift --fresh` creates and drops, so the CI user can never
+        # touch any other schema. CREATE/DROP alone are not enough: --fresh
+        # runs the real migrations inside that database, which need ALTER
+        # (Schema::table), INDEX, REFERENCES (foreign keys), TRIGGER, and
+        # SELECT/INSERT/UPDATE/DELETE (migrations ledger plus backfills).
+        run: mysql -h 127.0.0.1 -u root -proot-test-only -e "GRANT CREATE, DROP, ALTER, INDEX, REFERENCES, TRIGGER, SELECT, INSERT, UPDATE, DELETE ON \`lf\_schema\_drift\_%\`.* TO 'lf_ci'@'%'; FLUSH PRIVILEGES;"
       - name: Run schema-drift tests and fresh reconstruction
         env:
           APP_ENV: testing
