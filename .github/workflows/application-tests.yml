@@ -49,6 +49,21 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        # Backend/auth/tenant layouts render @vite(...) on every request.
+        # Without a real build, Laravel throws ViteManifestNotFoundException
+        # for any test that renders one of those views (most of the suite).
+        run: npm run build
+
       - name: Run application test suite
         env:
           # No .env is committed (.env is gitignored), so the runner supplies
