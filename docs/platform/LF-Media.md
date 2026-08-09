@@ -2,9 +2,11 @@
 
 Version: 1.2
 
-Status: Foundation Approved
+Document Status: Approved
 
-Last Updated: 2026-07
+Implementation Status: Unknown
+
+Last Updated: 2026-08-09
 
 Document Path: platform/LF-Media.md
 

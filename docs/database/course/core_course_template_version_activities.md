@@ -2,9 +2,11 @@
 
 Version: 2.1
 
-Status: Approved
+Document Status: Approved
 
-Last Updated: 2026-07-03
+Implementation Status: Unknown
+
+Last Updated: 2026-08-09
 
 Document Path: database/course/core_course_template_version_activities.md
 

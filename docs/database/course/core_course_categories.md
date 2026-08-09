@@ -2,9 +2,11 @@
 
 Version: 1.1
 
-Status: Official Foundation
+Document Status: Approved
 
-Last Updated: 2026-06
+Implementation Status: Unknown
+
+Last Updated: 2026-08-09
 
 Document Path: database/course/core_course_categories.md
 

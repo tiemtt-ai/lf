@@ -1,5 +1,13 @@
 # Course Product Relations Architecture Review
 
+Version: 1.0
+
+Document Status: Approved
+
+Implementation Status: Unknown
+
+Last Updated: 2026-08-09
+
 Document Path: quality/LF-Course-Product-Relations-Architecture-Review.md
 
 ## Admin mutation policy (2026-07-15 clarification)
@@ -23,9 +31,8 @@ Removing a link does not renumber remaining rows; duplicate order values already
 present in legacy data remain stable and are ordered by relation ID as the
 canonical tie-breaker.
 
-Version: 1.0
 
-Status: Approved Review
+Last Updated: 2026-08-09
 
 Review Date: 2026-07-03
 

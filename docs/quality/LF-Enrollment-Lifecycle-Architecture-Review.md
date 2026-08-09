@@ -2,7 +2,11 @@
 
 Version: 1.1
 
-Status: **Approved and Frozen — Policy 2**
+Document Status: Frozen
+
+Implementation Status: Unknown
+
+Last Updated: 2026-08-09
 Date: 2026-08-01
 
 Document Path: quality/LF-Enrollment-Lifecycle-Architecture-Review.md

@@ -2,9 +2,11 @@
 
 Version: 1.1
 
-Status: Official Governance
+Document Status: Approved
 
-Last Updated: 2026-08
+Implementation Status: Not Applicable
+
+Last Updated: 2026-08-09
 
 Document Path: governance/LF-Domain-Map.md
 

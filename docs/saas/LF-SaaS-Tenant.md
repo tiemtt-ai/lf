@@ -2,9 +2,11 @@
 
 Version: 1.0
 
-Status: Foundation Approved and Frozen
+Document Status: Frozen
 
-Last Updated: 2026-06
+Implementation Status: Unknown
+
+Last Updated: 2026-08-09
 
 Document Path: saas/LF-SaaS-Tenant.md
 

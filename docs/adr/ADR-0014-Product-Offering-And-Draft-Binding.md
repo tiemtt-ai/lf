@@ -4,11 +4,13 @@ Version: 1.1
 
 Status: Approved
 
+Implementation Status: Unknown
+
 Decision: Accepted
 
 Date: 2026-07-15
 
-Last Updated: 2026-08-06
+Last Updated: 2026-08-09
 
 Document Path: adr/ADR-0014-Product-Offering-And-Draft-Binding.md
 

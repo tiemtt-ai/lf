@@ -2,9 +2,11 @@
 
 Version: 2.0
 
-Status: Foundation Approved and Frozen
+Document Status: Frozen
 
-Last Updated: 2026-06
+Implementation Status: Unknown
+
+Last Updated: 2026-08-09
 
 Document Path: database/course/core_certificate_issued_certificates.md
 

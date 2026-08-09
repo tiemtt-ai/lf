@@ -47,6 +47,7 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 | **core_course_template_sections** | Nhóm Lesson tùy chọn có thể chỉnh sửa |
 | **core_course_template_lessons** | Bài học trực tiếp hoặc thuộc Section |
 | **core_course_template_activities** | Activity có thể chỉnh sửa |
+| [**core_course_template_lesson_prerequisites**](core_course_template_lesson_prerequisites.md) | Prerequisite của Lesson trong draft Template |
 
 ---
 
@@ -58,6 +59,7 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 | [**core_course_template_version_sections**](core_course_template_version_sections.md) | Snapshot nhóm Lesson tùy chọn |
 | [**core_course_template_version_lessons**](core_course_template_version_lessons.md) | Snapshot bài học trực tiếp hoặc thuộc Version Section |
 | [**core_course_template_version_activities**](core_course_template_version_activities.md) | Snapshot Activity đã phát hành |
+| [**core_course_template_version_lesson_prerequisites**](core_course_template_version_lesson_prerequisites.md) | Snapshot prerequisite của Lesson đã phát hành |
 
 ---
 
@@ -79,6 +81,7 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 | [**core_course_enrollment_submissions**](core_course_enrollment_submissions.md) | Durable preflight và idempotency authority cho Bulk Enrollment |
 | **core_course_cohorts** | Cohort và nhóm học vận hành thực tế |
 | **core_course_cohort_students** | Quan hệ thành viên của học viên trong Cohort |
+| [**core_course_cohort_teachers**](core_course_cohort_teachers.md) | Quan hệ giáo viên được phân công cho Cohort |
 
 ---
 

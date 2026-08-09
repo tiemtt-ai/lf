@@ -2,9 +2,11 @@
 
 Version: 2.2
 
-Status: Official
+Document Status: Approved
 
-Last Updated: 2026-08
+Implementation Status: Not Applicable
+
+Last Updated: 2026-08-09
 
 Document Path: LF-INDEX.md
 
@@ -30,6 +32,12 @@ infrastructure, or business decisions.
 ---
 
 # Mandatory AI Agent Rules
+
+Policy/Document Status cho biết mức độ phê duyệt và hiệu lực của tài liệu.
+Implementation Status cho biết mức độ triển khai đã được xác minh trong source
+code/database. Hai trạng thái độc lập và không được suy ra lẫn nhau. Schema và
+quy tắc canonical nằm tại
+[LF Naming Convention](governance/LF-Naming-Convention.md#canonical-documentation-metadata).
 
 All AI agents must follow these rules before modifying LearnForge.
 

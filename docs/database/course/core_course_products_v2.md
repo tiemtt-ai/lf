@@ -2,9 +2,11 @@
 
 Version: 2.0
 
-Status: Foundation Approved and Frozen
+Document Status: Frozen
 
-Last Updated: 2026-07-15
+Implementation Status: Unknown
+
+Last Updated: 2026-08-09
 
 Parent: [core_course_products](core_course_products.md) v1.3
 

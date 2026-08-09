@@ -4,6 +4,10 @@ Version: 1.0
 
 Status: Approved
 
+Implementation Status: Unknown
+
+Last Updated: 2026-08-09
+
 Proposal Date: 2026-07-26
 
 Decision Date: 2026-07-26

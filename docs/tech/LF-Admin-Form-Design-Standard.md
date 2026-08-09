@@ -2,11 +2,13 @@
 
 Version: 1.4
 
-Status: Official Standard
+Document Status: Approved
+
+Implementation Status: Unknown
 
 Scope: LF Admin Create/Edit Forms And List/Index Pages
 
-Last Updated: 2026-08
+Last Updated: 2026-08-09
 
 Document Path: tech/LF-Admin-Form-Design-Standard.md
 

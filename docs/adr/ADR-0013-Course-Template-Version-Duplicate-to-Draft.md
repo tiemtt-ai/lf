@@ -4,6 +4,10 @@ Version: 1.3
 
 Status: Approved
 
+Implementation Status: Unknown
+
+Last Updated: 2026-08-09
+
 Decision Date: 2026-07-03
 
 Scope Amendment Date: 2026-07-10

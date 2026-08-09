@@ -2,9 +2,11 @@
 
 Version: 1.1
 
-Status: Official Foundation
+Document Status: Approved
 
-Last Updated: 2026-08
+Implementation Status: Unknown
+
+Last Updated: 2026-08-09
 
 Document Path: business/LF-Navigation.md
 

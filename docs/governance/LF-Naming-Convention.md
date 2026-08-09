@@ -2,9 +2,11 @@
 
 Version: 1.0
 
-Status: Official Governance
+Document Status: Approved
 
-Last Updated: 2026-07
+Implementation Status: Not Applicable
+
+Last Updated: 2026-08-09
 
 Document Path: governance/LF-Naming-Convention.md
 
@@ -29,6 +31,91 @@ Các thuật ngữ trong tên phải tuân theo [LF-Glossary](LF-Glossary.md).
 * Không mã hóa business rule tạm thời vào tên nếu lifecycle có thể mở rộng.
 * Tên mới phải giữ backward compatibility hoặc đi qua ADR và migration plan
   được phê duyệt.
+
+---
+
+# Canonical Documentation Metadata
+
+Mọi file Markdown trong `docs/` phải khai báo metadata ở phần đầu tài liệu:
+
+```text
+Version: <existing semantic/document version>
+Document Status: <Draft|Review|Approved|Frozen|Archived>
+Implementation Status: <Not Implemented|Partial|Implemented|Not Applicable|Unknown>
+Last Updated: YYYY-MM-DD
+Document Path: <path relative to docs/>
+```
+
+ADR được phép dùng trường `Status:` thay cho `Document Status:` để bảo toàn
+format lịch sử. Trong ADR, `Status:` có cùng vocabulary và ý nghĩa với
+`Document Status:`; không được khai báo cả hai với giá trị khác nhau.
+
+## Document Status
+
+`Document Status` chỉ phản ánh lifecycle và hiệu lực của tài liệu hoặc policy:
+
+| Value | Meaning |
+| --- | --- |
+| `Draft` | Đang soạn, chưa sẵn sàng để review chính thức |
+| `Review` | Đang được review, chưa được phê duyệt |
+| `Approved` | Đã được phê duyệt và có hiệu lực |
+| `Frozen` | Đã phê duyệt và được đóng băng; thay đổi phải theo governance hiện hành |
+| `Archived` | Không còn là tài liệu hiệu lực hiện tại |
+
+Các nhãn như `Official`, `Mandatory`, `Foundation`, `Directory Guide`,
+`Review Report` mô tả authority hoặc loại tài liệu, không phải lifecycle
+status. Chúng phải nằm trong nội dung, title hoặc trường mô tả phù hợp; không
+được ghép vào `Document Status`.
+
+## Implementation Status
+
+`Implementation Status` chỉ phản ánh mức độ triển khai đã được xác minh trong
+source code và database:
+
+| Value | Required meaning |
+| --- | --- |
+| `Not Implemented` | Đã kiểm tra phạm vi liên quan và chưa tìm thấy implementation |
+| `Partial` | Có bằng chứng cho một phần, nhưng chưa đủ toàn bộ phạm vi tài liệu |
+| `Implemented` | Toàn bộ phạm vi được tuyên bố đã có bằng chứng phù hợp |
+| `Not Applicable` | Governance, convention, index, directory guide hoặc tài liệu không đại diện cho chức năng triển khai |
+| `Unknown` | Chưa đủ bằng chứng để kết luận; không được đoán |
+
+`Document Status` và `Implementation Status` độc lập. `Approved` hoặc `Frozen`
+không chứng minh code đã được triển khai; `Not Implemented` hoặc `Partial` cũng
+không làm thay đổi hiệu lực của một policy đã phê duyệt.
+
+Muốn dùng `Implemented`, reviewer phải đối chiếu bằng chứng phù hợp với toàn bộ
+phạm vi tài liệu, tối thiểu gồm source code và migration/schema khi có dữ liệu,
+cùng route/controller/service và automated test khi các thành phần đó áp dụng.
+Bằng chứng phải truy vết được trong tài liệu hoặc review liên quan. Nếu bằng
+chứng thiếu hoặc không còn kiểm chứng được, dùng `Unknown`.
+
+## Templates by document type
+
+| Document type | Document Status | Implementation Status guidance |
+| --- | --- | --- |
+| Governance, convention, index, catalog, directory README | Lifecycle thực tế | `Not Applicable` |
+| ADR | `Status:` alias canonical hoặc `Document Status:` | Theo bằng chứng; mặc định `Unknown`, không suy ra từ ADR status |
+| Domain policy, database/schema, technical implementation standard | Lifecycle thực tế | Một trong năm giá trị canonical theo bằng chứng |
+| Quality/architecture review | Lifecycle của chính review | Trạng thái implementation phải dựa trên evidence của review; nếu không đủ thì `Unknown` |
+| Historical/superseded | `Archived` khi đã chính thức hết hiệu lực | Giữ kết luận có bằng chứng; nếu không đủ thì `Unknown` |
+
+## Date, path and version rules
+
+* `Last Updated` phải là ngày đầy đủ `YYYY-MM-DD` và là ngày tài liệu thực sự
+  được sửa. Không suy diễn ngày lịch sử từ Git hoặc tự bổ sung ngày giả.
+* Khi migration metadata sửa file trong đợt hiện tại, dùng ngày thực hiện
+  migration. File chưa thể xác định hoặc chưa thể sửa phải nằm trong legacy
+  allowlist có lý do rõ ràng; lint phải báo số nợ còn lại.
+* `Document Path` là đường dẫn tương đối từ `docs/`, giữ đúng chữ hoa/chữ
+  thường và phải trùng vị trí file thật. Ví dụ `LF-INDEX.md` và
+  `governance/LF-Naming-Convention.md`.
+* Chỉ thay metadata không tự động làm tăng `Version`. Chỉ tăng version theo
+  policy thay đổi nội dung nghiệp vụ/kiến trúc hoặc khi owner yêu cầu.
+* Tài liệu legacy phải được migrate hoặc đưa vào allowlist tạm thời với path và
+  lý do chính xác. File legacy mới hoặc file ngoài allowlist phải làm lint fail.
+* Tài liệu superseded phải giữ context lịch sử và liên kết tới tài liệu thay
+  thế; không cơ học đổi các kết quả lịch sử thành trạng thái triển khai hiện tại.
 
 ---
 

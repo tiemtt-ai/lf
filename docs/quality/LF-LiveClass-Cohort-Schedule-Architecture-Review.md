@@ -2,7 +2,11 @@
 
 Version: 1.0
 
-Status: Approved Review
+Document Status: Approved
+
+Implementation Status: Unknown
+
+Last Updated: 2026-08-09
 
 Document Path: quality/LF-LiveClass-Cohort-Schedule-Architecture-Review.md
 

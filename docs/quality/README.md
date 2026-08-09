@@ -2,9 +2,11 @@
 
 Version: 1.1
 
-Status: Official Directory Guide
+Document Status: Approved
 
-Last Updated: 2026-08
+Implementation Status: Not Applicable
+
+Last Updated: 2026-08-09
 
 Document Path: quality/README.md
 
@@ -59,6 +61,10 @@ criteria hay không.
 * [LF-LiveClass-Schedule-Session-Origin-Architecture-Review.md](LF-LiveClass-Schedule-Session-Origin-Architecture-Review.md)
   — approved and frozen immutable Schedule-occurrence to Session lineage,
   atomic confirmation and legacy-classification review.
+* [LF-LiveClass-Cohort-Session-Architecture-Review.md](LF-LiveClass-Cohort-Session-Architecture-Review.md)
+  — architecture review for Cohort-bound LiveClass Sessions.
+* [LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md](LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md)
+  — architecture review for multiple Lesson prerequisites.
 * [LF-Bulk-Enrollment-Architecture-Review.md](LF-Bulk-Enrollment-Architecture-Review.md)
   — approved and frozen architecture review for Admin bulk Enrollment
   creation, re-enrollment and atomic-submission idempotency.

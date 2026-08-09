@@ -2,9 +2,11 @@
 
 Version: 1.0
 
-Status: Official Directory Guide
+Document Status: Approved
 
-Last Updated: 2026-07
+Implementation Status: Not Applicable
+
+Last Updated: 2026-08-09
 
 Document Path: adr/README.md
 
@@ -75,6 +77,12 @@ Thay đổi kiến trúc lớn phải:
 * Cập nhật Governance, Domain docs và LF-INDEX sau khi quyết định được approved.
 
 ADR chỉ có hiệu lực khi status và approval rõ ràng.
+
+Metadata ADR tuân theo
+[Canonical Documentation Metadata](../governance/LF-Naming-Convention.md#canonical-documentation-metadata).
+ADR được giữ trường `Status:` như alias máy kiểm tra được của `Document Status:`.
+Trạng thái đó không cho biết implementation đã tồn tại; mọi ADR vẫn phải có
+`Implementation Status:` độc lập và dựa trên bằng chứng.
 
 ---
 

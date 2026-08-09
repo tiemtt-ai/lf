@@ -2,9 +2,11 @@
 
 Version: 1.0
 
-Status: Official Entry Point
+Document Status: Approved
 
-Last Updated: 2026-07
+Implementation Status: Not Applicable
+
+Last Updated: 2026-08-09
 
 Document Path: README.md
 

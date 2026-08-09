@@ -2,9 +2,11 @@
 
 Version: 1.0
 
-Status: Strategic Document
+Document Status: Approved
 
-Last Updated: 2026-07
+Implementation Status: Unknown
+
+Last Updated: 2026-08-09
 
 Document Path: business/LF-Business-Model.md
 

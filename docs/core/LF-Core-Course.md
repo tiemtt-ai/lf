@@ -2,9 +2,11 @@
 
 Version: 3.6
 
-Status: Official Foundation
+Document Status: Approved
 
-Last Updated: 2026-07
+Implementation Status: Unknown
+
+Last Updated: 2026-08-09
 
 Document Path: core/LF-Core-Course.md
 

@@ -2,9 +2,11 @@
 
 Version: 1.2
 
-Status: Official Implementation Rule
+Document Status: Approved
 
-Last Updated: 2026-07-26
+Implementation Status: Unknown
+
+Last Updated: 2026-08-09
 
 Document Path: prompts/LF-Implementation-Rules.md
 

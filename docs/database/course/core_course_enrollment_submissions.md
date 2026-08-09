@@ -2,7 +2,11 @@
 
 Version: 1.0
 
-Status: Approved and Frozen
+Document Status: Frozen
+
+Implementation Status: Unknown
+
+Last Updated: 2026-08-09
 
 Approval Date: 2026-07-21
 

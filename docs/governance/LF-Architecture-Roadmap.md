@@ -2,9 +2,11 @@
 
 Version: 1.0
 
-Status: Official Governance
+Document Status: Approved
 
-Last Updated: 2026-06
+Implementation Status: Not Applicable
+
+Last Updated: 2026-08-09
 
 Document Path: governance/LF-Architecture-Roadmap.md
 

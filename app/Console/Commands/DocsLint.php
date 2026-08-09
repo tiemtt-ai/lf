@@ -16,23 +16,34 @@ use Symfony\Component\Finder\Finder;
  */
 class DocsLint extends Command
 {
-    protected $signature = 'docs:lint';
+    protected $signature = 'docs:lint {--path= : Alternate docs root for isolated validation} {--metadata-only : Run only metadata and ADR consistency checks}';
 
     protected $description = 'Lint LearnForge documentation (docs/) for catalog completeness, status vocabulary, and metadata.';
 
     private const ADR_STATUSES = ['Draft', 'Review', 'Approved', 'Frozen', 'Archived'];
 
+    private const DOCUMENT_STATUSES = ['Draft', 'Review', 'Approved', 'Frozen', 'Archived'];
+
+    private const IMPLEMENTATION_STATUSES = ['Not Implemented', 'Partial', 'Implemented', 'Not Applicable', 'Unknown'];
+
     private string $docsPath;
 
     public function handle(): int
     {
-        $this->docsPath = base_path('docs');
+        $requestedPath = rtrim((string) ($this->option('path') ?: base_path('docs')), '/');
+        $this->docsPath = realpath($requestedPath) ?: $requestedPath;
+
+        if (! is_dir($this->docsPath)) {
+            $this->error("docs:lint path does not exist: {$this->docsPath}");
+
+            return self::FAILURE;
+        }
 
         $issues = [
-            ...$this->checkCatalogLinks(),
+            ...($this->option('metadata-only') ? [] : $this->checkCatalogLinks()),
             ...$this->checkAdrStatusVocabulary(),
             ...$this->checkAdrSelfContradiction(),
-            ...$this->checkSupersededHasLink(),
+            ...($this->option('metadata-only') ? [] : $this->checkSupersededHasLink()),
             ...$this->checkRequiredMetadata(),
         ];
 
@@ -246,74 +257,82 @@ class DocsLint extends Command
     }
 
     /**
-     * Every document must carry Version + Status + (Last Updated or Review
-     * Date) in its header (ADRs use the "## Status" / "## Date" section
-     * format instead of flat "Field:" lines).
+     * Validate the canonical metadata header. Known pre-migration files may
+     * only be skipped through the exact, reasoned allowlist in config/docs-lint.php.
      */
     private function checkRequiredMetadata(): array
     {
         $issues = [];
-        $legacySkipped = [];
+        $configuredAllowlist = $this->option('path') ? [] : config('docs-lint.legacy_metadata_allowlist', []);
+        $seenAllowlist = [];
 
         foreach (Finder::create()->files()->in($this->docsPath)->name('*.md') as $file) {
             $content = file_get_contents($file->getRealPath());
             $relative = ltrim(str_replace($this->docsPath, '', $file->getRealPath()), '/');
             $head = implode("\n", array_slice(preg_split('/\R/', $content), 0, 20));
 
-            if (str_starts_with($relative, 'adr/ADR-')) {
-                if (! preg_match('/^##\s*Status\s*$/mi', $head) && ! preg_match('/^Status:/mi', $head)) {
-                    $issues[] = "$relative: thiếu section '## Status' hoặc dòng 'Status:' (ADR format)";
-                }
-
-                if (! preg_match('/^##\s*Date\s*$/mi', $head) && ! str_contains($head, 'Date:')) {
-                    $issues[] = "$relative: thiếu section '## Date' hoặc dòng '...Date:' (ADR format)";
-                }
-
+            if (array_key_exists($relative, $configuredAllowlist)) {
+                $seenAllowlist[] = $relative;
                 continue;
             }
 
-            // Accepts any "...Date:" field (Last Updated:, Review Date:,
-            // Approval Date:, Decision Date:, bare Date:, ...) — this corpus
-            // uses several equally-valid date-field names, not just one.
-            $hasVersion = str_contains($content, 'Version:');
-            $hasStatus = str_contains($content, 'Status:');
-            $hasDate = str_contains($content, 'Last Updated:') || preg_match('/\bDate:/i', $content) === 1;
-
-            if (! $hasVersion && ! $hasStatus && ! $hasDate) {
-                // Known legacy "# Table Name" format used by unimplemented
-                // spec-only domains — no metadata header exists at all. This
-                // is pre-existing technical debt tracked separately; v1 does
-                // not re-flag it file-by-file to keep the gate readable.
-                $legacySkipped[] = $relative;
-
-                continue;
-            }
-
-            if (! $hasVersion) {
+            if (! preg_match('/^Version:\s*\S.+$/mi', $head)) {
                 $issues[] = "$relative: thiếu metadata 'Version:'";
             }
 
-            if (! $hasStatus) {
-                $issues[] = "$relative: thiếu metadata 'Status:'";
+            $isAdr = str_starts_with($relative, 'adr/ADR-');
+            $statusPattern = $isAdr
+                ? '/^(?:Document Status|Status):\s*(.+)$/mi'
+                : '/^Document Status:\s*(.+)$/mi';
+
+            if (! preg_match($statusPattern, $head, $statusMatch)) {
+                $issues[] = "$relative: thiếu metadata 'Document Status:'".($isAdr ? " hoặc alias ADR 'Status:'" : '');
+            } elseif (! in_array(trim($statusMatch[1]), self::DOCUMENT_STATUSES, true)) {
+                $issues[] = "$relative: Document Status '{$statusMatch[1]}' không hợp lệ (".implode('/', self::DOCUMENT_STATUSES).')';
             }
 
-            if (! $hasDate) {
-                $issues[] = "$relative: thiếu metadata ngày tháng ('Last Updated:', 'Review Date:', ... 'Date:')";
+            if (! preg_match('/^Implementation Status:\s*(.+)$/mi', $head, $implementationMatch)) {
+                $issues[] = "$relative: thiếu metadata 'Implementation Status:'";
+            } elseif (! in_array(trim($implementationMatch[1]), self::IMPLEMENTATION_STATUSES, true)) {
+                $issues[] = "$relative: Implementation Status '{$implementationMatch[1]}' không hợp lệ (".implode('/', self::IMPLEMENTATION_STATUSES).')';
+            }
+
+            if (! preg_match('/^Last Updated:\s*(\d{4}-\d{2}-\d{2})$/mi', $head, $dateMatch)
+                || ! $this->isValidDate($dateMatch[1] ?? '')) {
+                $issues[] = "$relative: 'Last Updated' phải là ngày hợp lệ theo YYYY-MM-DD";
+            }
+
+            if (! preg_match('/^Document Path:\s*(.+)$/mi', $head, $pathMatch)) {
+                $issues[] = "$relative: thiếu metadata 'Document Path:'";
+            } elseif (trim($pathMatch[1]) !== $relative) {
+                $issues[] = "$relative: Document Path '".trim($pathMatch[1])."' không trùng đường dẫn thật '$relative'";
             }
         }
 
-        if ($legacySkipped !== []) {
-            $this->comment(sprintf(
-                '[docs:lint] Ghi chú: %d file dùng legacy format không có Version/Status/Last Updated (nợ kỹ thuật đã biết, không tính vào issue count).',
-                count($legacySkipped)
-            ));
+        foreach (array_diff(array_keys($configuredAllowlist), $seenAllowlist) as $stale) {
+            $issues[] = "$stale: legacy allowlist entry không còn trỏ tới file tồn tại";
+        }
+
+        if ($seenAllowlist !== []) {
+            $this->comment(sprintf('[docs:lint] Legacy metadata debt: %d file trong allowlist tạm thời.', count($seenAllowlist)));
         }
 
         return $issues;
     }
 
+    private function isValidDate(string $value): bool
+    {
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+
+        return $date !== false && $date->format('Y-m-d') === $value;
+    }
+
     private function adrFiles(): Finder
     {
+        if (! is_dir("$this->docsPath/adr")) {
+            return Finder::create()->files()->in($this->docsPath)->name('*.docs-lint-no-adr');
+        }
+
         return Finder::create()->files()->in("$this->docsPath/adr")->name('ADR-*.md')->depth('== 0');
     }
 
