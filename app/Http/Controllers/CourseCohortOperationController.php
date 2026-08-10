@@ -151,9 +151,8 @@ class CourseCohortOperationController extends Controller
             $blocking = $this->upcomingSessionsForTeacher($customerId, $cohort, (int) $assignmentRow->teacher_id);
             if ($blocking !== []) {
                 throw ValidationException::withMessages([
-                    'teacher_id' => __('lf.LF_course_cohort_teacher_remove_blocked', [
-                        'sessions' => implode(', ', $blocking),
-                    ]),
+                    'remove_teacher_'.$assignment => __('lf.LF_course_cohort_teacher_remove_blocked'),
+                    'remove_teacher_sessions_'.$assignment => $blocking,
                 ]);
             }
 

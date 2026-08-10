@@ -2872,18 +2872,38 @@ class CourseCohortManagementTest extends TestCase
 
         // now() trong bộ test là 2026-07-04, nên buổi tháng 8 là "sắp diễn ra".
         $upcomingSessionId = $makeSession('Upcoming class', 1, '2026-08-10 19:00:00', '2026-08-10 21:00:00', $teacher->id);
+        $additionalUpcomingSessionIds = [
+            $makeSession('Second upcoming class', 3, '2026-08-12 19:00:00', '2026-08-12 21:00:00', $teacher->id),
+            $makeSession('Third upcoming class', 4, '2026-08-14 19:00:00', '2026-08-14 21:00:00', $teacher->id),
+            $makeSession('Fourth upcoming class', 5, '2026-08-16 19:00:00', '2026-08-16 21:00:00', $teacher->id),
+        ];
         // Buổi đã diễn ra: assignment là bằng chứng lịch sử, không được chặn.
         $makeSession('Past class', 2, '2026-06-10 19:00:00', '2026-06-10 21:00:00', $historyTeacher->id);
 
-        $this->actingAs($admin)->delete(
-            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers/{$assignmentIds[$teacher->id]}"
-        )->assertSessionHasErrors('teacher_id');
+        $blockedResponse = $this->followingRedirects()->actingAs($admin)
+            ->from("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=teachers")
+            ->delete(
+                "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers/{$assignmentIds[$teacher->id]}"
+            )->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_teacher_remove_blocked_title', ['name' => $teacher->name]))
+            ->assertSeeText('#1 Upcoming class')
+            ->assertSeeText('#5 Fourth upcoming class')
+            ->assertSeeText(trans_choice('lf.LF_course_cohort_teacher_remove_blocked_count', 4, ['count' => 4]))
+            ->assertSeeText(__('lf.LF_course_cohort_teacher_remove_show_more', ['count' => 1]))
+            ->assertSeeText(__('lf.LF_course_cohort_teacher_remove_collapse'))
+            ->assertSeeText(__('lf.LF_course_cohort_teacher_remove_reassign', ['count' => 4]))
+            ->assertSee('tab=sessions', false);
         $this->assertDatabaseHas('core_course_cohort_teachers', [
             'id' => $assignmentIds[$teacher->id], 'status' => 'active',
         ]);
         $this->assertDatabaseHas('core_liveclass_session_teachers', [
             'session_id' => $upcomingSessionId, 'teacher_id' => $teacher->id,
         ]);
+
+        $this->assertLessThan(
+            strpos($blockedResponse->getContent(), 'data-for="cohort-teacher-row-'.$assignmentIds[$teacher->id].'"'),
+            strpos($blockedResponse->getContent(), 'id="cohort-teacher-row-'.$assignmentIds[$teacher->id].'"')
+        );
 
         // Giáo viên chỉ còn dính buổi quá khứ vẫn gỡ được, và dòng lịch sử ở
         // cấp Session không bị xóa theo.
@@ -2910,6 +2930,8 @@ class CourseCohortManagementTest extends TestCase
             'title' => 'Evidence recording', 'status' => 'processing', 'visibility' => 'cohort',
             'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
         ]);
+        DB::table('core_liveclass_sessions')->whereIn('id', $additionalUpcomingSessionIds)
+            ->update(['status' => 'cancelled', 'updated_at' => now()]);
         $this->actingAs($admin)->delete(
             "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers/{$assignmentIds[$teacher->id]}"
         )->assertSessionHasNoErrors();

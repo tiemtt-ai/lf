@@ -4686,6 +4686,148 @@
     white-space: nowrap;
 }
 
+.course-cohort-teachers__table tbody tr.course-cohort-teacher-removal-error-row,
+.course-cohort-teachers__table tbody tr.course-cohort-teacher-removal-error-row:hover {
+    background: transparent;
+}
+
+.course-cohort-teacher-removal-error-row td {
+    padding: 0 14px 14px !important;
+    border-top: 0;
+    text-align: left !important;
+}
+
+.course-cohort-teacher-removal-error {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid color-mix(in srgb, var(--admin-danger) 22%, var(--admin-border));
+    border-left: 3px solid var(--admin-danger);
+    border-radius: 8px;
+    color: var(--admin-text);
+    background: color-mix(in srgb, var(--admin-danger) 4%, var(--admin-surface));
+    text-align: left;
+}
+
+.course-cohort-teacher-removal-error__icon {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: #fff;
+    background: var(--admin-danger);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.course-cohort-teacher-removal-error__content {
+    min-width: 0;
+    text-align: left;
+}
+
+.course-cohort-teacher-removal-error__heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.course-cohort-teacher-removal-error__heading strong {
+    color: var(--admin-danger);
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.course-cohort-teacher-removal-error__close {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    margin: -5px -5px 0 0;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    color: var(--admin-text-muted);
+    background: transparent;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.course-cohort-teacher-removal-error__close:hover,
+.course-cohort-teacher-removal-error__close:focus-visible {
+    color: var(--admin-danger);
+    background: color-mix(in srgb, var(--admin-danger) 9%, transparent);
+    outline: none;
+}
+
+.course-cohort-teacher-removal-error__content p {
+    margin: 4px 0 0;
+    color: var(--admin-text);
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.course-cohort-teacher-removal-error__summary {
+    display: block;
+    margin-top: 10px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.course-cohort-teacher-removal-error__sessions {
+    margin: 7px 0 0;
+    padding-left: 20px;
+    color: var(--admin-text);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.course-cohort-teacher-removal-error__sessions.is-expanded {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 28px;
+    row-gap: 3px;
+}
+
+.course-cohort-teacher-removal-error__sessions.is-expanded li + li {
+    margin-top: 0;
+}
+
+.course-cohort-teacher-removal-error__sessions li + li {
+    margin-top: 3px;
+}
+
+.course-cohort-teacher-removal-error__more {
+    display: block;
+    width: fit-content;
+    margin-top: 7px;
+    padding: 0;
+    border: 0;
+    color: var(--admin-primary);
+    background: transparent;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.course-cohort-teacher-removal-error__more:hover,
+.course-cohort-teacher-removal-error__more:focus-visible {
+    text-decoration: underline;
+    outline: none;
+}
+
+.course-cohort-teacher-removal-error__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+}
+
 .admin-card.course-cohort-sessions {
     padding: 22px 24px;
 }
@@ -7124,6 +7266,35 @@
 
     .course-cohort-teachers__empty-cell::before {
         display: none;
+    }
+
+    .course-cohort-teachers__table .course-cohort-teacher-removal-error-row {
+        border: 0;
+    }
+
+    .lf-admin-page .course-cohort-teachers__table .course-cohort-teacher-removal-error-row td {
+        display: block;
+        padding: 0 !important;
+        border: 0;
+    }
+
+    .course-cohort-teacher-removal-error-row td::before {
+        display: none;
+    }
+
+    .course-cohort-teacher-removal-error {
+        grid-template-columns: 20px minmax(0, 1fr);
+        gap: 10px;
+        padding: 13px;
+    }
+
+    .course-cohort-teacher-removal-error__sessions.is-expanded {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .course-cohort-teacher-removal-error__actions {
+        justify-content: flex-end;
+        flex-wrap: wrap;
     }
 }
 

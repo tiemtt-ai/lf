@@ -110,7 +110,9 @@
                     </tr></thead>
                     <tbody>
                     @forelse ($teachers as $teacher)
-                        <tr>
+                        @php($removeErrorKey = 'remove_teacher_'.$teacher->id)
+                        @php($removeSessionErrorKey = 'remove_teacher_sessions_'.$teacher->id)
+                        <tr id="cohort-teacher-row-{{ $teacher->id }}">
                             <td data-label="{{ __('lf.LF_course_cohort_teacher_teacher') }}">
                                 <div class="course-cohort-teacher-identity">
                                     <span class="course-cohort-teacher-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr(trim($teacher->teacher_name), 0, 1)) }}</span>
@@ -148,6 +150,49 @@
                                 @endif
                             </td>
                         </tr>
+                        @if ($errors->has($removeErrorKey))
+                            @php($blockedSessions = collect($errors->get($removeSessionErrorKey)))
+                            <tr class="course-cohort-teacher-removal-error-row"
+                                data-for="cohort-teacher-row-{{ $teacher->id }}"
+                                x-data="{ visible: true, expanded: false }" x-show="visible">
+                                <td colspan="4">
+                                    <div class="course-cohort-teacher-removal-error" role="alert" aria-live="assertive">
+                                        <span class="course-cohort-teacher-removal-error__icon" aria-hidden="true">!</span>
+                                        <div class="course-cohort-teacher-removal-error__content">
+                                            <div class="course-cohort-teacher-removal-error__heading">
+                                                <strong>{{ __('lf.LF_course_cohort_teacher_remove_blocked_title', ['name' => $teacher->teacher_name]) }}</strong>
+                                                <button type="button" class="course-cohort-teacher-removal-error__close"
+                                                        x-on:click="visible = false"
+                                                        aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
+                                            </div>
+                                            <p>{{ $errors->first($removeErrorKey) }}</p>
+                                            <strong class="course-cohort-teacher-removal-error__summary">
+                                                {{ trans_choice('lf.LF_course_cohort_teacher_remove_blocked_count', $blockedSessions->count(), ['count' => $blockedSessions->count()]) }}
+                                            </strong>
+                                            <ul class="course-cohort-teacher-removal-error__sessions"
+                                                x-bind:class="{ 'is-expanded': expanded }">
+                                                @foreach ($blockedSessions as $session)
+                                                    <li @if ($loop->index >= 3) x-show="expanded" x-cloak @endif>{{ $session }}</li>
+                                                @endforeach
+                                            </ul>
+                                            @if ($blockedSessions->count() > 3)
+                                                <button type="button" class="course-cohort-teacher-removal-error__more"
+                                                        x-on:click="expanded = !expanded"
+                                                        x-bind:aria-expanded="expanded">
+                                                    <span x-show="!expanded">▸ {{ __('lf.LF_course_cohort_teacher_remove_show_more', ['count' => $blockedSessions->count() - 3]) }}</span>
+                                                    <span x-show="expanded" x-cloak>▾ {{ __('lf.LF_course_cohort_teacher_remove_collapse') }}</span>
+                                                </button>
+                                            @endif
+                                            <div class="course-cohort-teacher-removal-error__actions">
+                                                <a class="btn btn-primary btn-sm" href="{{ route('admin.course-cohorts.show', $cohort->id) }}?tab=sessions">
+                                                    {{ __('lf.LF_course_cohort_teacher_remove_reassign', ['count' => $blockedSessions->count()]) }}
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endif
                     @empty
                         <tr class="course-cohort-teachers__empty-row"><td class="course-cohort-teachers__empty-cell" colspan="4"><div class="course-cohort-empty-state">{{ __('lf.LF_course_cohort_teacher_empty') }}</div></td></tr>
                     @endforelse
