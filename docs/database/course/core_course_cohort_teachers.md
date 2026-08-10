@@ -1,12 +1,12 @@
 # Table: core_course_cohort_teachers
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
-Implementation Status: Unknown
+Implementation Status: Partial
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-10
 
 Document Path: database/course/core_course_cohort_teachers.md
 
@@ -44,6 +44,45 @@ lệ. Assignment `teacher` hoặc `assistant` chỉ hợp lệ nếu toàn bộ 
 Session nằm trong `assigned_from`/`assigned_to`; đầu mút `NULL` không bổ sung
 giới hạn ở phía tương ứng. Validation phải được thực hiện lại ở backend trong
 tenant và Cohort hiện hành.
+
+## Assignment Deactivation Policy — 2026-08-10
+
+Approved: 2026-08-10 bởi LearnForge Architecture Owner. Amendment này lấp
+`DOC-CONFLICT-0004`: trước đây không tài liệu nào quy định điều gì xảy ra với
+`core_liveclass_session_teachers` khi một assignment cấp Cohort bị vô hiệu hóa.
+
+Gỡ giáo viên khỏi Cohort là chuyển `status` sang `inactive`. Không xóa dòng
+assignment và không xóa lịch sử.
+
+Thao tác này **fail-closed**. Nó phải bị từ chối khi giáo viên còn được phân
+công ở bất kỳ Session nào của Cohort thỏa **đồng thời** ba điều kiện:
+
+```text
+status ∉ (cancelled, no_show)
+
+scheduled_end_at còn ở tương lai theo quy ước thời gian canonical của Session
+
+Session chưa có Attendance, Recording, Replay hoặc operational evidence khác
+```
+
+Thông báo lỗi phải liệt kê đầy đủ các Session chặn thao tác để người dùng thay
+giáo viên trước, thay vì chỉ báo một lỗi chung.
+
+Assignment cấp Session của các Session **đã diễn ra hoặc đã có evidence** là
+bằng chứng lịch sử về người đã dạy. Chúng không bị xóa, không bị sửa và không
+chặn việc gỡ assignment cấp Cohort. Một giáo viên chỉ còn liên quan tới Session
+quá khứ vì vậy vẫn gỡ được bình thường và không bị khóa vĩnh viễn.
+
+Không dùng cascade delete cho assignment cấp Session. Việc âm thầm biến nhiều
+Session thành chưa phân công sẽ đẩy lỗi ra xa nguyên nhân — Cohort activation
+sau đó thất bại với thông báo "Session chưa có giáo viên" ở một màn hình khác —
+và là thao tác phá hủy khó đảo ngược. Nguyên tắc này nhất quán với
+[ADR-0001](../../adr/ADR-0001-Course-Foundation.md): activation không được âm
+thầm loại bỏ membership không hợp lệ.
+
+Kiểm tra chạy trong cùng transaction với thao tác gỡ, sau khi lock dòng Cohort.
+Hợp đồng phía Session nằm tại
+[core_liveclass_session_teachers](../liveclass/core_liveclass_session_teachers.md).
 
 ## Indexes
 

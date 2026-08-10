@@ -24,7 +24,7 @@
                     <span class="course-cohort-teachers__count">
                         {{ trans_choice('lf.LF_course_cohort_teacher_count', $teachers->count(), ['count' => $teachers->count()]) }}
                     </span>
-                    @if (in_array($cohort->status, ['draft', 'active'], true))
+                    @if ($cohort->is_mutable)
                         <button type="button" class="btn btn-primary course-cohort-teacher-assignment__open"
                                 x-show="!open" x-cloak x-on:click="open = true" aria-controls="cohort-teacher-assignment-form">
                             {{ __('lf.LF_course_cohort_teacher_assign') }}
@@ -33,7 +33,7 @@
                 </div>
             </header>
 
-            @if (in_array($cohort->status, ['draft', 'active'], true))
+            @if ($cohort->is_mutable)
                 <div class="course-cohort-teacher-assignment">
                     <form id="cohort-teacher-assignment-form" method="POST" action="{{ route('admin.course-cohorts.teachers.store', $cohort->id) }}"
                           class="course-cohort-teacher-assignment__form" x-show="open" x-cloak x-transition.opacity.duration.150ms>
@@ -129,7 +129,7 @@
                                 </span>
                             </td>
                             <td class="course-cohort-teachers__actions" data-label="{{ __('lf.table_actions') }}">
-                                @if (in_array($cohort->status, ['draft', 'active'], true))
+                                @if ($cohort->is_mutable)
                                     <x-admin-action-menu :label="__('lf.table_actions').': '.$teacher->teacher_name">
                                         <form method="POST"
                                               action="{{ route('admin.course-cohorts.teachers.destroy', [$cohort->id, $teacher->id]) }}"

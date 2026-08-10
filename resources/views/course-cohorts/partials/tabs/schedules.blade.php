@@ -24,7 +24,7 @@
                 </div>
                 <div class="course-cohort-schedules__toolbar">
                     <span class="course-cohort-schedules__count">{{ trans_choice('lf.LF_course_cohort_schedule_count', $schedules->total(), ['count' => $schedules->total()]) }}</span>
-                    @if (in_array($cohort->status, ['draft', 'active'], true) && $cohort->start_date && $cohort->end_date)
+                    @if ($cohort->is_mutable && $cohort->start_date && $cohort->end_date)
                         <button type="button" class="btn btn-primary course-cohort-schedules__create"
                                 x-show="!formOpen" x-cloak
                                 x-on:click="openForm()" x-bind:aria-expanded="formOpen.toString()"
@@ -35,14 +35,14 @@
                 </div>
             </header>
 
-            @if(in_array($cohort->status, ['draft', 'active'], true) && (! $cohort->start_date || ! $cohort->end_date))
+            @if($cohort->is_mutable && (! $cohort->start_date || ! $cohort->end_date))
                 <div class="admin-alert admin-alert-warning course-cohort-schedules__operation-required" role="status">
                     <span>{{ __('lf.LF_course_cohort_schedule_operation_required') }}</span>
                     <a class="admin-text-action" href="{{ route('admin.course-cohorts.edit', $cohort->id) }}">{{ __('lf.LF_course_cohort_schedule_operation_action') }}</a>
                 </div>
             @endif
 
-            @if(in_array($cohort->status, ['draft', 'active'], true) && $cohort->start_date && $cohort->end_date)
+            @if($cohort->is_mutable && $cohort->start_date && $cohort->end_date)
                 <div id="cohort-schedule-editor" class="course-cohort-schedules__inline-editor" tabindex="-1"
                      x-ref="editor" x-show="formOpen" x-cloak x-transition.opacity.duration.150ms>
                     @if($inlineScheduleMode === 'view')
@@ -52,7 +52,7 @@
                             'exclusions' => $scheduleFormExclusions,
                             'preview' => $scheduleFormPreview,
                             'derivedStatus' => $scheduleFormDerivedStatus,
-                            'canMutate' => in_array($cohort->status, ['draft', 'active'], true),
+                            'canMutate' => $cohort->is_mutable,
                         ])
                     @else
                     @include('course-cohort-schedules.partials.errors')
@@ -136,7 +136,7 @@
                                             <svg class="course-cohort-session-action-menu__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></svg>
                                             {{ __('lf.LF_common_button_view') }}
                                         </a>
-                                        @if (in_array($cohort->status, ['draft', 'active'], true))
+                                        @if ($cohort->is_mutable)
                                             <a role="menuitem" class="admin-text-action admin-table-action-link"
                                                href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'edit', 'schedule_id' => $schedule->id]) }}#cohort-schedule-editor">
                                                 <svg class="course-cohort-session-action-menu__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16.5-.8 4.3 4.3-.8L19 8.5 15.5 5 4 16.5Z" /><path d="m13.8 6.7 3.5 3.5" /></svg>
@@ -151,7 +151,7 @@
                             <div class="course-cohort-empty-state" role="status">
                                 <strong>{{ __('lf.LF_course_cohort_schedule_empty') }}</strong>
                                 <span>{{ __('lf.LF_course_cohort_schedule_empty_help') }}</span>
-                                @if (in_array($cohort->status, ['draft', 'active'], true) && $cohort->start_date && $cohort->end_date)
+                                @if ($cohort->is_mutable && $cohort->start_date && $cohort->end_date)
                                     <button type="button" class="btn btn-primary" x-show="!formOpen" x-cloak x-on:click="openForm()">{{ __('lf.LF_course_cohort_schedule_add') }}</button>
                                 @endif
                             </div>

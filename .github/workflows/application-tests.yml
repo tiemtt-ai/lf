@@ -72,3 +72,67 @@ jobs:
           # only remaining requirement. Throwaway key, never a real secret.
           APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
         run: php artisan test
+
+  integration-mysql:
+    name: Database Constraint Integration (MariaDB 11.4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mariadb:
+        image: mariadb:11.4.3
+        env:
+          MARIADB_ROOT_PASSWORD: root-test-only
+          MARIADB_DATABASE: lf_ci_integration
+          MARIADB_USER: lf_ci
+          MARIADB_PASSWORD: lf-ci-test-only
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: ctype, curl, dom, fileinfo, mbstring, openssl, pdo_mysql, tokenizer, xml
+          coverage: none
+          tools: composer:v2
+
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run database-constraint integration tests against MariaDB
+        # These self-skip unless the driver is `mysql`, so on the sqlite job
+        # above they pass without asserting anything. This job is what actually
+        # exercises the released CHECK constraints, tenant-first unique keys and
+        # RESTRICT foreign keys — none of which SQLite creates, because the
+        # migrations guard that DDL behind a mysql driver check.
+        #
+        # Named files rather than the whole directory on purpose:
+        # BulkEnrollmentMysqlConcurrencyTest gates itself on one hard-coded
+        # dedicated database name plus an atomic (non-array) cache store, and
+        # throws rather than skips when either is absent. It needs its own job
+        # with a Redis service and that exact schema name; adding it here would
+        # only make this one red.
+        #
+        # No `npm run build` step: neither file renders a Blade view, so Vite's
+        # manifest is never needed.
+        env:
+          APP_ENV: testing
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          # Laravel's mysql driver against MariaDB, matching the schema-drift
+          # job, so MySQL-family raw SQL in released migrations is exercised.
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: lf_ci_integration
+          DB_USERNAME: lf_ci
+          DB_PASSWORD: lf-ci-test-only
+        run: |
+          php artisan test \
+            tests/Integration/LiveClassSchemaConstraintMysqlTest.php \
+            tests/Integration/EnrollmentBindingTriggerMysqlTest.php

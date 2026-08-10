@@ -1,12 +1,12 @@
 # Table: core_liveclass_session_teachers
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Approved
 
-Implementation Status: Unknown
+Implementation Status: Partial
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-10
 
 Document Path: database/liveclass/core_liveclass_session_teachers.md
 
@@ -40,3 +40,19 @@ Cohort primary, must cover the complete Session scheduled interval according to 
 complete team transactionally. New writes set
 `core_liveclass_sessions.primary_teacher_id` to `NULL`; non-null values are
 legacy compatibility data only.
+
+## Cohort Assignment Deactivation — 2026-08-10
+
+Approved: 2026-08-10 bởi LearnForge Architecture Owner.
+
+Quy tắc "mọi dòng phải resolve qua một assignment `core_course_cohort_teachers`
+đang `active`" chỉ ràng buộc **Session còn ở phía trước và chưa có evidence**.
+Với Session đã diễn ra hoặc đã có Attendance/Recording/Replay, dòng assignment
+tại đây là bằng chứng lịch sử về người đã dạy: nó được giữ nguyên vĩnh viễn kể
+cả khi assignment cấp Cohort tương ứng đã chuyển sang `inactive`.
+
+Vì vậy việc vô hiệu hóa một assignment cấp Cohort **không** cascade xuống bảng
+này. Thao tác đó bị chặn fail-closed khi còn Session tương lai chưa có evidence
+đang gán giáo viên. Hợp đồng đầy đủ và điều kiện chặn nằm tại
+[core_course_cohort_teachers](../course/core_course_cohort_teachers.md)
+§ Assignment Deactivation Policy — 2026-08-10.

@@ -1,8 +1,7 @@
 @php
-    $cohortScheduleStart = \Illuminate\Support\Carbon::parse($cohort->start_date)->startOfDay();
-    $todayScheduleStart = now()->startOfDay();
-    $minimumSessionStart = $todayScheduleStart->greaterThan($cohortScheduleStart) ? $todayScheduleStart : $cohortScheduleStart;
-    $maximumSessionEnd = \Illuminate\Support\Carbon::parse($cohort->end_date)->endOfDay();
+    // Khoảng lịch hợp lệ do backend quyết định (CourseCohortSessionWindow) và
+    // được dùng chung với validation; view không tự suy ra. NULL nghĩa là lớp
+    // legacy chưa đủ thời gian vận hành.
     $batchHasErrors = collect($errors->keys())->contains(fn ($key) => str_starts_with($key, 'occurrences'));
     $rescheduleHasErrors = old('form_context') === 'reschedule'
         && collect($errors->keys())->contains(fn ($key) => in_array($key, ['scheduled_start_at', 'scheduled_end_at', 'reason'], true));
@@ -55,11 +54,11 @@
          mode: @js(old('delivery_mode', 'online')),
          teacherIds: @js($uniqueTeacherIds(old('teacher_ids', []))), teacherOpen: false,
          startsAt: @js(old('scheduled_start_at', '')), endsAt: @js(old('scheduled_end_at', '')),
-         scheduleMin: @js($minimumSessionStart->format('Y-m-d\TH:i')),
-         scheduleMax: @js($maximumSessionEnd->format('Y-m-d\TH:i')),
+         scheduleMin: @js($sessionWindow ? $sessionWindow['min']->format('Y-m-d\TH:i') : ''),
+         scheduleMax: @js($sessionWindow ? $sessionWindow['max']->format('Y-m-d\TH:i') : ''),
          provider: @js(old('online_provider', '')), meetingUrl: @js(old('meeting_url', '')),
          roomName: @js(old('room_name', '')), address: @js(old('address', '')),
-         statusLabels: @js(collect(['draft', 'scheduled', 'live', 'completed', 'cancelled', 'no_show'])->mapWithKeys(fn ($status) => [$status => __('lf.LF_course_cohort_session_status_'.$status)])),
+         statusLabels: @js(collect(['scheduled', 'live', 'completed', 'cancelled', 'no_show'])->mapWithKeys(fn ($status) => [$status => __('lf.LF_course_cohort_session_status_'.$status)])),
          typeLabels: @js(collect(['curriculum', 'operational'])->mapWithKeys(fn ($type) => [$type => __('lf.LF_course_cohort_session_type_'.$type)])),
          modeLabels: @js(collect(['online', 'offline', 'hybrid'])->mapWithKeys(fn ($mode) => [$mode => __('lf.LF_course_cohort_session_mode_'.$mode)])),
          relationLabels: @js(collect(['on_schedule', 'rescheduled', 'off_schedule', 'source_unknown'])->mapWithKeys(fn ($relation) => [$relation => __('lf.LF_course_cohort_session_relation_'.$relation)])),
@@ -345,7 +344,7 @@
                 <div class="course-cohort-sessions__toolbar">
                     <span class="course-cohort-sessions__count" x-show="!batchOpen">{{ __('lf.LF_course_cohort_session_count', ['count' => $sessions->count()]) }}</span>
                     <span class="course-cohort-sessions__count" x-show="batchOpen" x-cloak x-text="`${selectedBatchCount()}/${selectableBatchCount()} ${@js(__('lf.LF_course_cohort_session_batch_selected_count'))}`"></span>
-                    @if (in_array($cohort->status, ['draft', 'active'], true))
+                    @if ($cohort->is_mutable)
                         @if($plannedOccurrences->isNotEmpty())
                             <button type="button" class="btn btn-primary" x-show="!formOpen && !batchOpen" x-on:click="openBatch()">{{ __('lf.LF_course_cohort_session_batch_open') }}</button>
                         @endif
@@ -360,7 +359,7 @@
                 </div>
             @endif
 
-            @if (in_array($cohort->status, ['draft', 'active'], true))
+            @if ($cohort->is_mutable)
                 <form id="session-batch-form" x-show="batchOpen" x-cloak x-ref="batchForm" method="POST"
                       action="{{ route('admin.course-cohorts.sessions.batch.store', $cohort->id) }}"
                       class="course-cohort-session-batch-form" x-on:submit="submitBatch($event)" novalidate>
@@ -856,7 +855,7 @@
                                                 {{ __('lf.LF_course_cohort_session_edit') }}
                                             </button>
                                         @endif
-                                        @if ($session->status === 'scheduled' && in_array($cohort->status, ['draft', 'active'], true))
+                                        @if ($session->status === 'scheduled' && $cohort->is_mutable)
                                             <button type="button" role="menuitem" class="admin-link-button admin-text-action admin-table-action-link"
                                                     x-on:click="actionsOpen = false; openReschedule(@js($session))">
                                                 <svg class="course-cohort-session-action-menu__icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -865,6 +864,32 @@
                                                 </svg>
                                                 {{ __('lf.LF_course_cohort_session_change_schedule') }}
                                             </button>
+                                        @endif
+                                        {{-- Session status là thao tác vận hành nên chỉ mở khi lớp đang hoạt động. --}}
+                                        @if ($cohort->status === 'active')
+                                            @foreach ([
+                                                'start' => ['scheduled'],
+                                                'complete' => ['live'],
+                                                'cancel' => ['scheduled', 'live'],
+                                                'no-show' => ['scheduled', 'live'],
+                                            ] as $action => $allowedFrom)
+                                                @if (in_array($session->status, $allowedFrom, true))
+                                                    @include('course-cohorts.partials.lifecycle-action', [
+                                                        'dialogId' => 'session-'.$action.'-'.$session->id,
+                                                        'action' => route('admin.course-cohorts.sessions.'.$action, [$cohort->id, $session->id]),
+                                                        'triggerClass' => in_array($action, ['cancel', 'no-show'], true)
+                                                            ? 'admin-danger-text-action admin-table-action-link'
+                                                            : 'admin-link-button admin-text-action admin-table-action-link',
+                                                        'triggerLabel' => __('lf.LF_course_cohort_session_action_'.$action),
+                                                        'title' => __('lf.LF_course_cohort_session_lifecycle_'.$action.'_title'),
+                                                        'body' => __('lf.LF_course_cohort_session_lifecycle_'.$action.'_body'),
+                                                        'confirmClass' => in_array($action, ['cancel', 'no-show'], true)
+                                                            ? 'btn btn-danger'
+                                                            : 'btn btn-primary',
+                                                        'confirmLabel' => __('lf.LF_course_cohort_session_action_'.$action),
+                                                    ])
+                                                @endif
+                                            @endforeach
                                         @endif
                                 </x-admin-action-menu>
                             </td>
@@ -875,7 +900,7 @@
                                 <div class="course-cohort-empty-state" role="status">
                                     <strong>{{ __('lf.LF_course_cohort_session_empty') }}</strong>
                                     <span>{{ __('lf.LF_course_cohort_session_empty_help') }}</span>
-                                    @if (in_array($cohort->status, ['draft', 'active'], true))
+                                    @if ($cohort->is_mutable)
                                         @if($plannedOccurrences->isNotEmpty())
                                             <button type="button" class="btn btn-primary" x-on:click="openBatch()">
                                                 {{ __('lf.LF_course_cohort_session_batch_open') }}

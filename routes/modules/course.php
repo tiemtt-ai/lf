@@ -88,6 +88,14 @@ if ($registerCourseProductRoutes ?? false) {
         ->name('course-cohorts.sessions.update');
     Route::put('/course-cohorts/{cohort}/sessions/{session}/schedule', [CourseCohortOperationController::class, 'updateSchedule'])
         ->name('course-cohorts.sessions.schedule');
+    Route::post('/course-cohorts/{cohort}/sessions/{session}/start', [CourseCohortOperationController::class, 'startSession'])
+        ->name('course-cohorts.sessions.start');
+    Route::post('/course-cohorts/{cohort}/sessions/{session}/complete', [CourseCohortOperationController::class, 'completeSession'])
+        ->name('course-cohorts.sessions.complete');
+    Route::post('/course-cohorts/{cohort}/sessions/{session}/cancel', [CourseCohortOperationController::class, 'cancelSession'])
+        ->name('course-cohorts.sessions.cancel');
+    Route::post('/course-cohorts/{cohort}/sessions/{session}/no-show', [CourseCohortOperationController::class, 'markSessionNoShow'])
+        ->name('course-cohorts.sessions.no-show');
     Route::put('/course-cohorts/{cohort}/sessions/{session}/attendance', [CourseCohortOperationController::class, 'saveAttendance'])
         ->name('course-cohorts.sessions.attendance');
     Route::post('/course-cohorts/{cohort}/sessions/{session}/recordings', [CourseCohortOperationController::class, 'storeRecording'])
@@ -113,12 +121,6 @@ if ($registerCourseProductRoutes ?? false) {
 
     Route::get('/course-cohort-students', [CourseCohortStudentController::class, 'index'])
         ->name('course-cohort-students.index');
-
-    Route::get('/course-cohort-students/create', [CourseCohortStudentController::class, 'create'])
-        ->name('course-cohort-students.create');
-
-    Route::post('/course-cohort-students', [CourseCohortStudentController::class, 'store'])
-        ->name('course-cohort-students.store');
 
     Route::get('/course-cohort-students/{id}', [CourseCohortStudentController::class, 'show'])
         ->name('course-cohort-students.show');

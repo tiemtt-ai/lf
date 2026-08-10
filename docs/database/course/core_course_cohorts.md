@@ -154,6 +154,36 @@ Canonical notes:
   authorization condition; absence of data alone produces an empty state when
   access is otherwise allowed.
 
+### Feature Availability Lock Amendment — 2026-08-10
+
+Approved: 2026-08-10 bởi LearnForge Architecture Owner.
+
+Ngoài các lý do khóa theo lifecycle, dependency và authorization đã quy định ở
+trên, một tab còn có thể bị khóa vì **chức năng chưa hoàn thiện**. Đây là loại
+lý do thứ tư và có độ ưu tiên **cao hơn** mọi điều kiện lifecycle: khi nó áp
+dụng, tab phải báo đúng lý do này thay vì một điều kiện lifecycle mà lớp hiện
+tại vốn đã thỏa.
+
+Điều kiện khóa phải là cấu hình phía server, không phải trạng thái client, và
+phải chi phối đồng thời hai thứ:
+
+```text
+trạng thái tab trong Cohort detail
+endpoint ghi tương ứng ở backend
+```
+
+Ẩn tab mà không đóng endpoint là vi phạm — request trực tiếp phải bị từ chối
+fail-closed.
+
+Khóa loại này là tạm thời và không được xóa hay sửa dữ liệu đã ghi nhận. Bản
+ghi hiện có chỉ trở nên không truy cập được qua UI trong thời gian khóa, và
+hiển thị lại nguyên vẹn khi chức năng được mở.
+
+Tại thời điểm amendment này, Attendance và Recordings/Replay đang bị khóa theo
+diện đó. Việc mở lại phụ thuộc `DOC-CONFLICT-0006`, `DOC-CONFLICT-0007`,
+`DOC-CONFLICT-0008` và `DOC-CONFLICT-0011` tại
+[LF Documentation Conflict Register](../../quality/LF-Documentation-Conflicts.md).
+
 ### Product Registration Read Model Amendment — 2026-08-04
 
 Cohort owns only its operating period:

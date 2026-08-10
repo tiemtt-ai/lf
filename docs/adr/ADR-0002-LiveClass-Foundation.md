@@ -16,6 +16,70 @@ Approved
 
 Document Path: adr/ADR-0002-LiveClass-Foundation.md
 
+## Session Status Vocabulary And Replacement Scope Clarification
+
+Approved: 2026-08-10
+
+This clarification resolves two registered documentation items and changes no
+ownership boundary, no source of truth and no historical data.
+
+### Session status vocabulary
+
+The canonical Session status set is:
+
+```text
+scheduled
+live
+completed
+cancelled
+no_show
+```
+
+`ended` is retired in favour of `completed`, which is the single terminal value
+for a Session that has taken place. `draft` is retired at Session level: no
+approved policy ever defined its business meaning, entry condition or exit
+transition, and a Session prepared inside a `draft` Cohort is created as
+`scheduled`. Setup state belongs to the Cohort lifecycle.
+
+This resolves `DOC-CONFLICT-0001`. The canonical contract, including allowed
+transitions, is held by
+[core_liveclass_sessions](../database/liveclass/core_liveclass_sessions.md)
+§ Session Status And Time Convention Amendment — 2026-08-10 and is reflected in
+[LF-Core-LiveClass](../core/LF-Core-LiveClass.md) v2.6.
+
+Retiring these two values does not authorize a Session lifecycle
+implementation by itself. Transition actions, their authorization and their
+effect on runtime eligibility remain governed by the existing Session
+amendments in this ADR.
+
+### Replacement Session scope
+
+The Schedule-To-Session Origin Amendment below states that "Replacement and
+superseded occurrence reuse are not authorized". That sentence is scoped to
+**occurrence identity**: no workflow may consume an occurrence identity that a
+cancelled or no-show Session already holds.
+
+It does not silently re-authorize the replacement workflow described in the
+Cohort-Centered Amendment for Sessions without an Origin. Replacement remains
+**deferred for every Session**, with or without lineage, and
+`core_liveclass_sessions.superseded_by_session_id` remains a reserved column
+that current implementation must not write.
+
+A cancelled Session is handled by one of two approved paths only:
+
+```text
+reschedule the same Session   → Origin retained, schedule-change audit appended
+create a new manual Session   → no Origin, off_schedule, new time range
+```
+
+Reopening replacement requires a separate owner-approved amendment and an
+Architecture Review, consistent with the Deferred Boundary in
+[LF-LiveClass-Cohort-Schedule-Architecture-Review](../quality/LF-LiveClass-Cohort-Schedule-Architecture-Review.md).
+The column is not dropped: dropping it would be a destructive schema change
+with no operational benefit.
+
+This resolves `DOC-CONFLICT-0005`.
+
 ## Schedule-To-Session Origin Amendment
 
 Approved: 2026-08-05

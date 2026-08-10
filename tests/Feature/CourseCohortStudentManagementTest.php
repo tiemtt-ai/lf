@@ -28,8 +28,6 @@ class CourseCohortStudentManagementTest extends TestCase
     {
         foreach ([
             'index',
-            'create',
-            'store',
             'show',
             'edit',
             'update',
@@ -37,6 +35,13 @@ class CourseCohortStudentManagementTest extends TestCase
         ] as $route) {
             $this->assertTrue(Route::has("admin.course-cohort-students.{$route}"));
             $this->assertFalse(Route::has("teacher.course-cohort-students.{$route}"));
+        }
+
+        // Thêm học viên luôn diễn ra trong ngữ cảnh một lớp cụ thể. Hai route
+        // không-ngữ-cảnh cũ chỉ redirect kèm thông báo lỗi, không bao giờ tạo
+        // được membership, nên chúng đã được gỡ khỏi public contract.
+        foreach (['create', 'store'] as $retired) {
+            $this->assertFalse(Route::has("admin.course-cohort-students.{$retired}"));
         }
 
         foreach (['index', 'create', 'edit', 'search', 'store', 'sync'] as $route) {
@@ -914,6 +919,125 @@ class CourseCohortStudentManagementTest extends TestCase
         $versionId = $this->createVersion($customerId, $admin->id, 'TOPIK Beginner');
 
         return [$customerId, $admin, $student, $productId, $versionId];
+    }
+
+    public function test_transfer_applies_the_same_eligibility_rules_as_direct_add(): void
+    {
+        // Thay đổi hành vi có chủ đích: trước đây đường chuyển lớp bỏ qua kiểm
+        // tra tài khoản học viên, nên vô hiệu hóa một học viên rồi chuyển lớp
+        // vẫn thành công, trong khi thêm trực tiếp thì bị chặn. Hai đường giờ
+        // dùng chung một bộ luật.
+        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $sourceCohortId = $this->createCohort($customerId, $productId, $versionId, name: 'Source');
+        $targetCohortId = $this->createCohort($customerId, $productId, $versionId, name: 'Target');
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $membershipId = $this->createMembership($customerId, $sourceCohortId, $enrollmentId, $productId, $student->id);
+
+        DB::table('users')->where('id', $student->id)->update(['status' => 'inactive']);
+
+        $this->actingAs($admin)
+            ->put(
+                "https://tenant-a.localhost/admin/course-cohort-students/{$membershipId}",
+                $this->validMembershipData([
+                    'cohort_id' => $targetCohortId,
+                    'enrollment_id' => null,
+                    'status' => 'active',
+                ])
+            )
+            ->assertSessionHasErrors([
+                'enrollment_id' => __('lf.LF_course_cohort_student_validation_active_student'),
+            ]);
+        $this->assertDatabaseHas('core_course_cohort_students', [
+            'id' => $membershipId, 'cohort_id' => $sourceCohortId,
+        ]);
+
+        // Tài khoản hoạt động trở lại thì chuyển lớp thành công như cũ, và
+        // membership đang chuyển không tự tính mình là trùng lặp.
+        DB::table('users')->where('id', $student->id)->update(['status' => 'active']);
+        $this->actingAs($admin)
+            ->put(
+                "https://tenant-a.localhost/admin/course-cohort-students/{$membershipId}",
+                $this->validMembershipData([
+                    'cohort_id' => $targetCohortId,
+                    'enrollment_id' => null,
+                    'status' => 'active',
+                ])
+            )
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_cohort_students', [
+            'id' => $membershipId, 'cohort_id' => $targetCohortId,
+            'transfer_from_cohort_id' => $sourceCohortId,
+        ]);
+    }
+
+    public function test_reactivated_memberships_are_not_counted_twice_against_capacity(): void
+    {
+        // Membership được reactivate bằng UPDATE ngay trong vòng lặp nên đã nằm
+        // trong COUNT capacity. Nếu nó còn được cộng thêm một lần nữa vào bộ đếm
+        // "đã nhận", một lô vẫn còn chỗ sẽ bị từ chối nhầm.
+        [$customerId, $admin, $productId, $versionId] = $this->tenantWithProduct();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId, capacity: 3);
+
+        $seated = $this->createUser($customerId, 'student');
+        $seatedEnrollment = $this->createEnrollment($customerId, $seated->id, $productId, $versionId);
+        $this->createMembership($customerId, $cohortId, $seatedEnrollment, $productId, $seated->id);
+
+        $returning = [];
+        foreach (range(1, 2) as $index) {
+            $student = $this->createUser($customerId, 'student');
+            $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+            $membershipId = $this->createMembership($customerId, $cohortId, $enrollmentId, $productId, $student->id);
+            DB::table('core_course_cohort_students')->where('id', $membershipId)
+                ->update(['status' => 'removed', 'left_at' => now()]);
+            $returning[] = $enrollmentId;
+        }
+
+        // 1 chỗ đang dùng + 2 chỗ quay lại = 3, vừa đúng capacity.
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students",
+            ['enrollment_ids' => $returning]
+        )->assertSessionHasNoErrors();
+
+        $this->assertSame(3, DB::table('core_course_cohort_students')
+            ->where('cohort_id', $cohortId)->where('status', 'active')->count());
+    }
+
+    public function test_capacity_still_blocks_a_batch_that_does_not_fit(): void
+    {
+        [$customerId, $admin, $productId, $versionId] = $this->tenantWithProduct();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId, capacity: 2);
+
+        $seated = $this->createUser($customerId, 'student');
+        $seatedEnrollment = $this->createEnrollment($customerId, $seated->id, $productId, $versionId);
+        $this->createMembership($customerId, $cohortId, $seatedEnrollment, $productId, $seated->id);
+
+        $newcomers = [];
+        foreach (range(1, 2) as $index) {
+            $student = $this->createUser($customerId, 'student');
+            $newcomers[] = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        }
+
+        // 1 chỗ đang dùng + 2 chỗ mới = 3 > capacity 2.
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students",
+            ['enrollment_ids' => $newcomers]
+        )->assertSessionHasErrors();
+
+        $this->assertSame(1, DB::table('core_course_cohort_students')
+            ->where('cohort_id', $cohortId)->where('status', 'active')->count());
+    }
+
+    /**
+     * @return array{0: int, 1: User, 2: int, 3: int}
+     */
+    private function tenantWithProduct(): array
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Capacity Product', 'capacity-product');
+        $versionId = $this->createVersion($customerId, $admin->id, 'Capacity Version');
+
+        return [$customerId, $admin, $productId, $versionId];
     }
 
     private function createTenant(string $slug = 'tenant-a'): int

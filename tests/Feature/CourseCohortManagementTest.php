@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\CourseCohortLifecycleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -570,6 +571,14 @@ class CourseCohortManagementTest extends TestCase
     {
         $this->assertFileDoesNotExist(app_path('Models/CoreCourseCohort.php'));
         $this->assertFileDoesNotExist(app_path('Models/CourseCohort.php'));
+
+        // Ba model Schedule từng tồn tại nhưng không có caller nào: module dùng
+        // DB::table() xuyên suốt. Chúng là kiến trúc chết, và vì dùng $guarded
+        // (blacklist) nên còn là rủi ro mass-assignment tiềm ẩn nếu ai đó sau
+        // này vô tình dùng tới.
+        foreach (['LiveClassSchedule', 'LiveClassScheduleSlot', 'LiveClassScheduleExclusion'] as $model) {
+            $this->assertFileDoesNotExist(app_path("Models/{$model}.php"));
+        }
     }
 
     public function test_product_item_resolution_capacity_dates_and_managed_version_contract(): void
@@ -993,6 +1002,12 @@ class CourseCohortManagementTest extends TestCase
 
     public function test_cohort_operational_tabs_manage_session_evidence(): void
     {
+        // Điểm danh và Bản ghi hiện bị khóa bằng cờ cấu hình vì chưa hoàn
+        // thiện (config/liveclass.php). Test này bảo vệ hành vi của tính năng
+        // khi bật, nên nó bật cờ thay vì hạ thấp kỳ vọng — lớp bảo vệ vẫn còn
+        // nguyên cho lúc hai tab được mở lại.
+        config(['liveclass.attendance_enabled' => true, 'liveclass.recording_enabled' => true]);
+
         Carbon::setTestNow('2026-08-04 12:00:00');
 
         $customerId = $this->createTenant();
@@ -1270,6 +1285,12 @@ class CourseCohortManagementTest extends TestCase
 
     public function test_runtime_session_operations_fail_closed_for_ineligible_states(): void
     {
+        // Điểm danh và Bản ghi hiện bị khóa bằng cờ cấu hình vì chưa hoàn
+        // thiện (config/liveclass.php). Test này bảo vệ hành vi của tính năng
+        // khi bật, nên nó bật cờ thay vì hạ thấp kỳ vọng — lớp bảo vệ vẫn còn
+        // nguyên cho lúc hai tab được mở lại.
+        config(['liveclass.attendance_enabled' => true, 'liveclass.recording_enabled' => true]);
+
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
         $student = $this->createUser($customerId, 'student');
@@ -1722,6 +1743,12 @@ class CourseCohortManagementTest extends TestCase
 
     public function test_create_and_draft_detail_use_canonical_accessibility_aware_tabs(): void
     {
+        // Điểm danh và Bản ghi hiện bị khóa bằng cờ cấu hình vì chưa hoàn
+        // thiện (config/liveclass.php). Test này bảo vệ hành vi của tính năng
+        // khi bật, nên nó bật cờ thay vì hạ thấp kỳ vọng — lớp bảo vệ vẫn còn
+        // nguyên cho lúc hai tab được mở lại.
+        config(['liveclass.attendance_enabled' => true, 'liveclass.recording_enabled' => true]);
+
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
         $productId = $this->createProduct($customerId, 'Tab Product', 'tab-product');
@@ -1768,6 +1795,12 @@ class CourseCohortManagementTest extends TestCase
 
     public function test_draft_allows_setup_but_rejects_runtime_operations(): void
     {
+        // Điểm danh và Bản ghi hiện bị khóa bằng cờ cấu hình vì chưa hoàn
+        // thiện (config/liveclass.php). Test này bảo vệ hành vi của tính năng
+        // khi bật, nên nó bật cờ thay vì hạ thấp kỳ vọng — lớp bảo vệ vẫn còn
+        // nguyên cho lúc hai tab được mở lại.
+        config(['liveclass.attendance_enabled' => true, 'liveclass.recording_enabled' => true]);
+
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
         $teacher = $this->createUser($customerId, 'teacher');
@@ -2495,6 +2528,490 @@ class CourseCohortManagementTest extends TestCase
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules/{$scheduleId}/edit")
             ->assertForbidden();
+    }
+
+    public function test_sessions_tab_of_a_legacy_cohort_offers_no_scheduling_window(): void
+    {
+        // Lớp legacy thiếu thời gian vận hành: view từng tự parse NULL thành
+        // now() và dựng ra một khoảng lịch trông hợp lệ. Giờ khoảng đó là NULL
+        // và backend từ chối mọi buổi học.
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Legacy Product', 'legacy-product');
+        $versionId = $this->createVersion($customerId, $admin->id, 'Legacy Version');
+        $cohortId = $this->createCohort($customerId, status: 'active');
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'product_id' => $productId, 'version_id' => $versionId,
+            'start_date' => null, 'end_date' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")
+            ->assertOk()
+            ->assertSee("scheduleMin: ''", false)
+            ->assertSee("scheduleMax: ''", false);
+
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions",
+            $this->operationalPayload('Impossible class', '2026-08-10 19:00:00', '2026-08-10 21:00:00')
+        )->assertSessionHasErrors([
+            'scheduled_start_at' => __('lf.LF_course_cohort_session_schedule_cohort_period_required'),
+        ]);
+        $this->assertDatabaseCount('core_liveclass_sessions', 0);
+    }
+
+    public function test_sessions_tab_does_not_scale_its_query_count_with_schedule_count(): void
+    {
+        // Tab Buổi học từng chạy một truy vấn Slot và một truy vấn Exclusion cho
+        // MỖI Schedule, và nạp lại toàn bộ danh sách Session hai lần trong cùng
+        // một request. Test đếm truy vấn để hai vấn đề đó không quay lại.
+        [$customerId, $admin, $cohortId] = $this->lifecycleCohort();
+        foreach (range(1, 4) as $index) {
+            $scheduleId = DB::table('core_liveclass_schedules')->insertGetId([
+                'customer_id' => $customerId, 'cohort_id' => $cohortId,
+                'name' => "Schedule {$index}", 'starts_on' => '2026-08-01', 'ends_on' => '2026-08-31',
+                'timezone' => 'Asia/Ho_Chi_Minh', 'created_by' => $admin->id,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            DB::table('core_liveclass_schedule_slots')->insert([
+                'customer_id' => $customerId, 'schedule_id' => $scheduleId,
+                'weekday' => $index, 'start_time' => '19:00:00', 'end_time' => '21:00:00',
+                'sort_order' => 1, 'created_by' => $admin->id,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+        $this->operationalSession($customerId, $cohortId, $admin, '2026-08-11 08:00:00', '2026-08-11 09:00:00');
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")
+            ->assertOk();
+        $queries = collect(DB::getQueryLog())->pluck('query');
+        DB::disableQueryLog();
+
+        $count = fn (string $table): int => $queries
+            ->filter(fn (string $sql): bool => str_contains($sql, $table))->count();
+
+        $this->assertSame(1, $count('core_liveclass_schedule_slots'),
+            'Slot phải được nạp gộp một lần cho mọi Schedule, không phải một truy vấn mỗi Schedule.');
+        $this->assertSame(1, $count('core_liveclass_schedule_exclusions'),
+            'Exclusion phải được nạp gộp một lần cho mọi Schedule.');
+        $this->assertSame(1, $queries->filter(
+            fn (string $sql): bool => str_contains($sql, 'from "core_liveclass_sessions" as "sessions"')
+        )->count(), 'Danh sách Session chỉ được nạp một lần trong mỗi request.');
+    }
+
+    public function test_session_lifecycle_transitions_follow_the_canonical_map(): void
+    {
+        [$customerId, $admin, $cohortId] = $this->lifecycleCohort();
+        $sessionId = $this->operationalSession($customerId, $cohortId, $admin, '2026-08-10 19:00:00', '2026-08-10 21:00:00');
+        $base = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}";
+
+        // UI chỉ chào đúng các chuyển tiếp hợp lệ của trạng thái hiện tại.
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")
+            ->assertOk()
+            ->assertSee(route('admin.course-cohorts.sessions.start', [$cohortId, $sessionId]), false)
+            ->assertSee(route('admin.course-cohorts.sessions.cancel', [$cohortId, $sessionId]), false)
+            ->assertSee(route('admin.course-cohorts.sessions.no-show', [$cohortId, $sessionId]), false)
+            ->assertDontSee(route('admin.course-cohorts.sessions.complete', [$cohortId, $sessionId]), false);
+
+        // scheduled → completed không nằm trong map: phải đi qua live.
+        $this->actingAs($admin)->post("{$base}/complete")->assertSessionHasErrors('lifecycle');
+        $this->assertDatabaseHas('core_liveclass_sessions', ['id' => $sessionId, 'status' => 'scheduled']);
+
+        $this->actingAs($admin)->post("{$base}/start")->assertRedirect();
+        $session = DB::table('core_liveclass_sessions')->find($sessionId);
+        $this->assertSame('live', $session->status);
+        $this->assertNotNull($session->actual_start_at, 'Chuyển sang live phải ghi thời điểm bắt đầu thật.');
+        $this->assertNull($session->actual_end_at);
+
+        $this->actingAs($admin)->post("{$base}/complete")->assertRedirect();
+        $session = DB::table('core_liveclass_sessions')->find($sessionId);
+        $this->assertSame('completed', $session->status);
+        $this->assertNotNull($session->actual_end_at);
+
+        // Terminal: phát lại và mọi chuyển tiếp tiếp theo đều fail-closed.
+        foreach (['start', 'complete', 'cancel', 'no-show'] as $action) {
+            $this->actingAs($admin)->post("{$base}/{$action}")->assertSessionHasErrors('lifecycle');
+        }
+        $this->assertDatabaseHas('core_liveclass_sessions', ['id' => $sessionId, 'status' => 'completed']);
+
+        // Trạng thái cuối thì UI không còn chào hành động lifecycle nào.
+        $detail = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")->assertOk();
+        foreach (['start', 'complete', 'cancel', 'no-show'] as $action) {
+            $detail->assertDontSee(route('admin.course-cohorts.sessions.'.$action, [$cohortId, $sessionId]), false);
+        }
+    }
+
+    public function test_cancelling_a_session_records_the_reason_and_releases_its_time_range(): void
+    {
+        [$customerId, $admin, $cohortId] = $this->lifecycleCohort();
+        $sessionId = $this->operationalSession($customerId, $cohortId, $admin, '2026-08-10 19:00:00', '2026-08-10 21:00:00');
+
+        // Khung giờ đang bị giữ chỗ.
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions",
+            $this->operationalPayload('Clashing class', '2026-08-10 19:30:00', '2026-08-10 20:30:00')
+        )->assertSessionHasErrors([
+            'scheduled_start_at' => __('lf.LF_course_cohort_session_schedule_overlap'),
+        ]);
+
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}/cancel",
+            ['reason' => 'Giáo viên ốm']
+        )->assertRedirect();
+        $this->assertDatabaseHas('core_liveclass_sessions', [
+            'id' => $sessionId, 'status' => 'cancelled', 'cancellation_reason' => 'Giáo viên ốm',
+        ]);
+
+        // Buổi đã hủy không còn giữ chỗ, nhưng vẫn được lưu lại.
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions",
+            $this->operationalPayload('Make-up class', '2026-08-10 19:30:00', '2026-08-10 20:30:00')
+        )->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_liveclass_sessions', ['id' => $sessionId]);
+        $this->assertDatabaseHas('core_liveclass_sessions', ['title' => 'Make-up class', 'status' => 'scheduled']);
+    }
+
+    public function test_session_lifecycle_requires_an_active_cohort_and_admin_role(): void
+    {
+        [$customerId, $admin, $cohortId] = $this->lifecycleCohort();
+        $sessionId = $this->operationalSession($customerId, $cohortId, $admin, '2026-08-10 19:00:00', '2026-08-10 21:00:00');
+        $base = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}";
+
+        foreach (['teacher', 'student'] as $role) {
+            $this->actingAs($this->createUser($customerId, $role))
+                ->post("{$base}/start")->assertForbidden();
+        }
+
+        // Cohort quay về draft: Session là dữ liệu setup, không phải vận hành.
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['status' => 'draft']);
+        $this->actingAs($admin)->post("{$base}/start")->assertStatus(422);
+        $this->assertDatabaseHas('core_liveclass_sessions', ['id' => $sessionId, 'status' => 'scheduled']);
+
+        // Tenant khác không thấy Session này.
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $this->actingAs($this->createUser($otherCustomerId, 'customer_admin'))
+            ->post("https://tenant-b.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}/start")
+            ->assertNotFound();
+    }
+
+    public function test_cancelled_sessions_no_longer_block_cohort_activation(): void
+    {
+        [$customerId, $admin, $cohortId] = $this->lifecycleCohort();
+        $sessionId = $this->operationalSession($customerId, $cohortId, $admin, '2026-08-10 19:00:00', '2026-08-10 21:00:00');
+
+        // Buổi chưa có giáo viên là điều kiện chặn activation.
+        $this->assertContains(
+            __('lf.LF_course_cohort_activation_sessions_unassigned', ['count' => 1]),
+            app(CourseCohortLifecycleService::class)->activationIssues($customerId, $cohortId)
+        );
+
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}/cancel"
+        )->assertRedirect();
+
+        $this->assertSame(
+            [],
+            app(CourseCohortLifecycleService::class)->activationIssues($customerId, $cohortId),
+            'Buổi đã hủy không còn là điều kiện chặn activation.'
+        );
+    }
+
+    /**
+     * @return array{0: int, 1: User, 2: int}
+     */
+    private function lifecycleCohort(): array
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Lifecycle Product', 'lifecycle-product');
+        $versionId = $this->createVersion($customerId, $admin->id, 'Lifecycle Version');
+        $cohortId = $this->createCohortWithOperatingPeriod($customerId);
+        DB::table('core_course_cohorts')->where('id', $cohortId)
+            ->update(['product_id' => $productId, 'version_id' => $versionId]);
+
+        return [$customerId, $admin, $cohortId];
+    }
+
+    private function operationalPayload(string $title, string $start, string $end): array
+    {
+        return [
+            'title' => $title, 'session_type' => 'operational', 'delivery_mode' => 'online',
+            'scheduled_start_at' => $start, 'scheduled_end_at' => $end,
+        ];
+    }
+
+    private function operationalSession(int $customerId, int $cohortId, User $admin, string $start, string $end): int
+    {
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions",
+            $this->operationalPayload('Lifecycle class', $start, $end)
+        )->assertSessionHasNoErrors();
+
+        return (int) DB::table('core_liveclass_sessions')
+            ->where('customer_id', $customerId)->where('cohort_id', $cohortId)
+            ->where('title', 'Lifecycle class')->value('id');
+    }
+
+    public function test_attendance_and_recording_are_locked_at_the_server_while_unfinished(): void
+    {
+        // Mặc định của config/liveclass.php là khóa. Test này không bật cờ.
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $productId = $this->createProduct($customerId, 'Locked Feature', 'locked-feature');
+        $versionId = $this->createVersion($customerId, $admin->id, 'Locked Feature Version');
+        $cohortId = $this->createCohortWithOperatingPeriod($customerId);
+        DB::table('core_course_cohorts')->where('id', $cohortId)
+            ->update(['product_id' => $productId, 'version_id' => $versionId]);
+        DB::table('core_course_cohort_teachers')->insert([
+            'customer_id' => $customerId, 'cohort_id' => $cohortId, 'teacher_id' => $teacher->id,
+            'role' => 'teacher', 'status' => 'active',
+            'assigned_from' => '2026-08-01', 'assigned_to' => '2026-08-31',
+            'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        // Buổi học đã kết thúc: mọi điều kiện lifecycle cho điểm danh và bản ghi
+        // đều thỏa, nên thứ duy nhất chặn được là cờ tính năng.
+        $sessionId = DB::table('core_liveclass_sessions')->insertGetId([
+            'customer_id' => $customerId, 'cohort_id' => $cohortId,
+            'template_version_id' => $versionId, 'session_type' => 'operational',
+            'title' => 'Finished class', 'session_no' => 1, 'delivery_mode' => 'online',
+            'scheduled_start_at' => '2026-07-01 19:00:00', 'scheduled_end_at' => '2026-07-01 21:00:00',
+            'timezone' => 'Asia/Ho_Chi_Minh', 'status' => 'scheduled',
+            'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('core_liveclass_session_teachers')->insert([
+            'customer_id' => $customerId, 'session_id' => $sessionId, 'teacher_id' => $teacher->id,
+            'role' => 'teacher', 'created_by' => $admin->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $student = $this->createUser($customerId, 'student');
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $this->createMembership($customerId, $cohortId, $enrollmentId, $productId, $student->id);
+
+        // Request trực tiếp bị chặn ở backend, không chỉ ẩn trên UI.
+        $this->actingAs($admin)->put(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}/attendance",
+            ['attendance' => [['enrollment_id' => $enrollmentId, 'status' => 'present']]]
+        )->assertForbidden();
+        $this->assertDatabaseCount('core_liveclass_attendances', 0);
+
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}/recordings",
+            ['title' => 'Blocked recording', 'recording_url' => 'https://example.test/rec']
+        )->assertForbidden();
+        $this->assertDatabaseCount('core_liveclass_recordings', 0);
+
+        // Tab báo đúng lý do thật, và truy cập trực tiếp quay về Tổng quan.
+        $detail = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=attendance")
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_tab_attendance_locked_development'))
+            ->assertSeeText(__('lf.LF_course_cohort_tab_recordings_locked_development'));
+        $detail->assertDontSeeText(__('lf.LF_course_cohort_attendance_save'));
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=recordings")
+            ->assertOk()
+            ->assertDontSeeText(__('lf.LF_course_cohort_recording_add'));
+
+        // Bật cờ thì cùng request đó hoạt động trở lại — khóa là tạm thời và
+        // hoàn toàn nằm ở cấu hình.
+        config(['liveclass.attendance_enabled' => true]);
+        $this->actingAs($admin)->put(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$sessionId}/attendance",
+            ['attendance' => [['enrollment_id' => $enrollmentId, 'status' => 'present']]]
+        )->assertRedirect();
+        $this->assertDatabaseCount('core_liveclass_attendances', 1);
+    }
+
+    public function test_removing_a_cohort_teacher_is_blocked_by_upcoming_sessions_but_not_by_history(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $historyTeacher = $this->createUser($customerId, 'teacher');
+        $idleTeacher = $this->createUser($customerId, 'teacher');
+        $productId = $this->createProduct($customerId, 'Teacher Removal', 'teacher-removal');
+        $versionId = $this->createVersion($customerId, $admin->id, 'Teacher Removal Version');
+        $cohortId = $this->createCohortWithOperatingPeriod($customerId);
+        DB::table('core_course_cohorts')->where('id', $cohortId)
+            ->update(['product_id' => $productId, 'version_id' => $versionId]);
+
+        $assignmentIds = [];
+        foreach ([$teacher, $historyTeacher, $idleTeacher] as $assignable) {
+            $assignmentIds[$assignable->id] = DB::table('core_course_cohort_teachers')->insertGetId([
+                'customer_id' => $customerId, 'cohort_id' => $cohortId,
+                'teacher_id' => $assignable->id, 'role' => 'teacher', 'status' => 'active',
+                'assigned_from' => '2026-08-01', 'assigned_to' => '2026-08-31',
+                'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        $makeSession = function (string $title, int $no, string $start, string $end, int $teacherId) use ($customerId, $cohortId, $versionId, $admin): int {
+            $sessionId = DB::table('core_liveclass_sessions')->insertGetId([
+                'customer_id' => $customerId, 'cohort_id' => $cohortId,
+                'template_version_id' => $versionId, 'session_type' => 'operational',
+                'title' => $title, 'session_no' => $no, 'delivery_mode' => 'online',
+                'scheduled_start_at' => $start, 'scheduled_end_at' => $end,
+                'timezone' => 'Asia/Ho_Chi_Minh', 'status' => 'scheduled',
+                'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            DB::table('core_liveclass_session_teachers')->insert([
+                'customer_id' => $customerId, 'session_id' => $sessionId,
+                'teacher_id' => $teacherId, 'role' => 'teacher',
+                'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+
+            return $sessionId;
+        };
+
+        // now() trong bộ test là 2026-07-04, nên buổi tháng 8 là "sắp diễn ra".
+        $upcomingSessionId = $makeSession('Upcoming class', 1, '2026-08-10 19:00:00', '2026-08-10 21:00:00', $teacher->id);
+        // Buổi đã diễn ra: assignment là bằng chứng lịch sử, không được chặn.
+        $makeSession('Past class', 2, '2026-06-10 19:00:00', '2026-06-10 21:00:00', $historyTeacher->id);
+
+        $this->actingAs($admin)->delete(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers/{$assignmentIds[$teacher->id]}"
+        )->assertSessionHasErrors('teacher_id');
+        $this->assertDatabaseHas('core_course_cohort_teachers', [
+            'id' => $assignmentIds[$teacher->id], 'status' => 'active',
+        ]);
+        $this->assertDatabaseHas('core_liveclass_session_teachers', [
+            'session_id' => $upcomingSessionId, 'teacher_id' => $teacher->id,
+        ]);
+
+        // Giáo viên chỉ còn dính buổi quá khứ vẫn gỡ được, và dòng lịch sử ở
+        // cấp Session không bị xóa theo.
+        $this->actingAs($admin)->delete(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers/{$assignmentIds[$historyTeacher->id]}"
+        )->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_cohort_teachers', [
+            'id' => $assignmentIds[$historyTeacher->id], 'status' => 'inactive',
+        ]);
+        $this->assertDatabaseHas('core_liveclass_session_teachers', ['teacher_id' => $historyTeacher->id]);
+
+        // Giáo viên chưa phụ trách buổi nào: hành vi cũ được giữ nguyên.
+        $this->actingAs($admin)->delete(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers/{$assignmentIds[$idleTeacher->id]}"
+        )->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_cohort_teachers', [
+            'id' => $assignmentIds[$idleTeacher->id], 'status' => 'inactive',
+        ]);
+
+        // Buổi sắp diễn ra nhưng đã có evidence cũng không chặn: dòng phân công
+        // lúc đó đã là lịch sử vận hành.
+        DB::table('core_liveclass_recordings')->insert([
+            'customer_id' => $customerId, 'session_id' => $upcomingSessionId,
+            'title' => 'Evidence recording', 'status' => 'processing', 'visibility' => 'cohort',
+            'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->actingAs($admin)->delete(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers/{$assignmentIds[$teacher->id]}"
+        )->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_cohort_teachers', [
+            'id' => $assignmentIds[$teacher->id], 'status' => 'inactive',
+        ]);
+    }
+
+    public function test_session_overlap_is_evaluated_across_different_session_timezones(): void
+    {
+        // Session lưu giờ địa phương theo cột `timezone` của chính nó, nên hai
+        // Session trong cùng một Cohort có thể nằm ở hai múi giờ khác nhau. So
+        // sánh chuỗi thô sẽ sai theo CẢ HAI chiều; test này khóa cả hai chiều.
+        //
+        // Buổi A: Schedule Asia/Tokyo (UTC+9), thứ Hai 09:00–11:00 → 00:00–02:00 UTC.
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Cross TZ Product', 'cross-tz-product');
+        $versionId = $this->createVersion($customerId, $admin->id, 'Cross TZ Version');
+        $cohortId = $this->createCohortWithOperatingPeriod($customerId);
+        DB::table('core_course_cohorts')->where('id', $cohortId)
+            ->update(['product_id' => $productId, 'version_id' => $versionId]);
+        $lessonId = DB::table('core_course_template_version_lessons')->insertGetId([
+            'customer_id' => $customerId, 'template_version_id' => $versionId,
+            'source_template_lesson_id' => 41001, 'title_snapshot' => 'Cross TZ Lesson',
+            'sort_order' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $activityId = DB::table('core_course_template_version_activities')->insertGetId([
+            'customer_id' => $customerId, 'template_version_id' => $versionId,
+            'version_lesson_id' => $lessonId, 'source_template_activity_id' => 41101,
+            'title_snapshot' => 'Cross TZ Live', 'activity_type' => 'live_class',
+            'completion_rule' => 'manual', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $scheduleId = DB::table('core_liveclass_schedules')->insertGetId([
+            'customer_id' => $customerId, 'cohort_id' => $cohortId, 'name' => 'Tokyo schedule',
+            'starts_on' => '2026-08-01', 'ends_on' => '2026-08-31', 'timezone' => 'Asia/Tokyo',
+            'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $slotId = DB::table('core_liveclass_schedule_slots')->insertGetId([
+            'customer_id' => $customerId, 'schedule_id' => $scheduleId, 'weekday' => 1,
+            'start_time' => '09:00:00', 'end_time' => '11:00:00', 'sort_order' => 1,
+            'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $payload = fn (string $title, array $overrides = []): array => array_merge([
+            'title' => $title, 'session_type' => 'curriculum',
+            'version_lesson_id' => $lessonId, 'version_activity_id' => $activityId,
+            'delivery_mode' => 'online',
+            'scheduled_start_at' => '2026-08-03 09:00:00',
+            'scheduled_end_at' => '2026-08-03 11:00:00',
+        ], $overrides);
+
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions",
+            $payload('Tokyo session', [
+                'schedule_id' => $scheduleId, 'schedule_slot_id' => $slotId,
+                'source_local_date' => '2026-08-03',
+            ])
+        )->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_liveclass_sessions', [
+            'title' => 'Tokyo session', 'timezone' => 'Asia/Tokyo',
+            'scheduled_start_at' => '2026-08-03 09:00:00',
+        ]);
+
+        // Chiều 1 — buổi KHÔNG chồng lấn nhưng so chuỗi thô sẽ từ chối nhầm.
+        // 09:30–10:30 giờ VN = 02:30–03:30 UTC, bắt đầu sau khi buổi A kết thúc.
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions",
+            $payload('Later Hanoi session', [
+                'scheduled_start_at' => '2026-08-03 09:30:00',
+                'scheduled_end_at' => '2026-08-03 10:30:00',
+            ])
+        )->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_liveclass_sessions', [
+            'title' => 'Later Hanoi session', 'timezone' => 'Asia/Ho_Chi_Minh',
+        ]);
+
+        // Chiều 2 — buổi CHỒNG LẤN thật nhưng so chuỗi thô sẽ chấp nhận nhầm,
+        // vì '09:00' (kết thúc) không lớn hơn '09:00' (bắt đầu của buổi A).
+        // 08:00–09:00 giờ VN = 01:00–02:00 UTC, nằm trọn trong 00:00–02:00 UTC.
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions",
+            $payload('Overlapping Hanoi session', [
+                'scheduled_start_at' => '2026-08-03 08:00:00',
+                'scheduled_end_at' => '2026-08-03 09:00:00',
+            ])
+        )->assertSessionHasErrors([
+            'scheduled_start_at' => __('lf.LF_course_cohort_session_schedule_overlap'),
+        ]);
+        $this->assertDatabaseMissing('core_liveclass_sessions', ['title' => 'Overlapping Hanoi session']);
+
+        // Ranh giới chạm nhau vẫn hợp lệ: 09:00–09:30 VN = 02:00–02:30 UTC,
+        // bắt đầu đúng lúc buổi Tokyo kết thúc và kết thúc đúng lúc buổi
+        // "Later Hanoi" bắt đầu — chạm cả hai đầu, không chồng đầu nào.
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions",
+            $payload('Boundary Hanoi session', [
+                'scheduled_start_at' => '2026-08-03 09:00:00',
+                'scheduled_end_at' => '2026-08-03 09:30:00',
+            ])
+        )->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_liveclass_sessions', ['title' => 'Boundary Hanoi session']);
     }
 
     private function createCohortWithOperatingPeriod(

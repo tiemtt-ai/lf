@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseCohortAdmin;
 use App\Http\Requests\LiveClassScheduleRequest;
-use App\Services\LiveClassSchedulePolicy;
+use App\Services\CourseCohortMutationPolicy;
 use App\Services\LiveClassSchedulePreviewService;
 use App\Services\LiveClassScheduleService;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +19,6 @@ class LiveClassScheduleController extends Controller
     private string $cohortRoutePrefix = 'admin.course-cohorts';
 
     public function __construct(
-        private readonly LiveClassSchedulePolicy $policy,
         private readonly LiveClassSchedulePreviewService $previewService,
         private readonly LiveClassScheduleService $scheduleService
     ) {}
@@ -28,7 +27,7 @@ class LiveClassScheduleController extends Controller
     {
         $customerId = $this->authorizeAdmin($request);
         $cohortRow = $this->cohort($customerId, $cohort);
-        abort_unless($this->policy->canMutate($cohortRow), 403);
+        abort_unless(CourseCohortMutationPolicy::canMutate($cohortRow), 403);
 
         return redirect()->route('admin.course-cohorts.show', [
             'id' => $cohort,
@@ -68,7 +67,7 @@ class LiveClassScheduleController extends Controller
     {
         $customerId = $this->authorizeAdmin($request);
         $cohortRow = $this->cohort($customerId, $cohort);
-        abort_unless($this->policy->canMutate($cohortRow), 403);
+        abort_unless(CourseCohortMutationPolicy::canMutate($cohortRow), 403);
         $this->schedule($customerId, $cohort, $schedule);
 
         return redirect()->route('admin.course-cohorts.show', [

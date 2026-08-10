@@ -121,7 +121,7 @@
                                 <x-admin-action-icon name="view" />
                                 {{ __('lf.action_view') }}
                             </a>
-                            @if (in_array($cohort->status, ['draft', 'active'], true))
+                            @if ($cohort->is_mutable)
                                 <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $cohort->id) }}">
                                     <x-admin-action-icon name="edit" />
                                     {{ __('lf.action_edit') }}

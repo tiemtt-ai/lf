@@ -2,6 +2,83 @@
 
 Document Path: database/liveclass/core_liveclass_sessions.md
 
+## Session Status And Time Convention Amendment — 2026-08-10
+
+Approved: 2026-08-10 bởi LearnForge Architecture Owner.
+
+Amendment này là canonical cho hai concern: tập giá trị `status` và quy ước thời
+gian của Session. Nó giải quyết `DOC-CONFLICT-0001` và `DOC-CONFLICT-0002` tại
+[LF Documentation Conflict Register](../../quality/LF-Documentation-Conflicts.md)
+và thay thế mọi phát biểu trái ngược ở các mục phía dưới trong chính tài liệu
+này cũng như trong
+[LF-Core-LiveClass](../../core/LF-Core-LiveClass.md) trước phiên bản 2.6.
+
+### Canonical Status Set
+
+```text
+scheduled
+live
+completed
+cancelled
+no_show
+```
+
+`ended` bị loại bỏ khỏi hợp đồng. `completed` là giá trị terminal canonical duy
+nhất cho một Session đã diễn ra xong. Lý do: `completed` nằm trong danh sách
+status canonical tại [LF Development Standards](../../LF-Development-Standards.md)
+§ Status Fields và đồng nhất với từ vựng của Cohort, Enrollment và Cohort
+Membership; `ended` là ngoại lệ duy nhất trong toàn hệ thống.
+
+`draft` bị loại bỏ khỏi hợp đồng. Không policy nào từng định nghĩa ý nghĩa
+nghiệp vụ, điều kiện vào hoặc transition ra của `draft` ở cấp Session. Session
+được chuẩn bị trong Cohort `draft` được tạo ở trạng thái `scheduled`; trạng thái
+setup thuộc Cohort lifecycle, không thuộc Session status.
+
+### Canonical Lifecycle
+
+```text
+scheduled → live
+scheduled → cancelled
+scheduled → no_show
+live      → completed
+live      → cancelled
+live      → no_show
+```
+
+`completed`, `cancelled` và `no_show` là terminal. Session `cancelled` và
+`no_show` được giữ lại, vẫn giữ Origin và tiếp tục tiêu thụ occurrence identity,
+và không bao giờ bị hard delete. Chúng không còn giữ chỗ khoảng thời gian cho
+overlap validation.
+
+`status` không quyết định Course completion trong bất kỳ trạng thái nào.
+
+### Canonical Time Convention
+
+`scheduled_start_at`, `scheduled_end_at`, `actual_start_at` và `actual_end_at`
+lưu giờ địa phương (wall-clock) được diễn giải theo cột `timezone` của chính
+dòng đó. Chúng không phải UTC instant.
+
+Mọi phép so sánh phải parse giá trị theo `timezone` của dòng, chuẩn hóa về UTC,
+rồi mới so sánh instant đã chuẩn hóa. Quy tắc áp dụng cho overlap detection,
+Cohort operating-period boundary, edit/reschedule eligibility, runtime
+eligibility và Origin classification.
+
+Hai Session trong cùng một Cohort có thể mang hai timezone khác nhau. So sánh
+trực tiếp giá trị cột giữa chúng — kể cả trong SQL — là sai. Browser timezone và
+server default timezone không phải calculation authority.
+
+Quy ước này thay thế phát biểu tại § Design Notes phía dưới rằng thời gian
+Session "nên được lưu theo UTC".
+
+### Implementation Alignment
+
+Historical migration `2026_07_25_010000_create_cohort_liveclass_operations.php`
+đặt `status` default `draft`. Migration lịch sử không được sửa. Việc đưa default
+về `scheduled` bằng forward migration, gỡ nhánh xử lý `draft` không còn hiệu lực
+và bổ sung transition workflow được theo dõi riêng tại `DOC-CONFLICT-0009` và
+`DOC-CONFLICT-0010`; tài liệu này mô tả hợp đồng target, không khẳng định
+implementation đã hoàn tất.
+
 ## Schedule Origin Amendment — 2026-08-05
 
 Schedule lineage is not stored on this table. A Session explicitly confirmed
@@ -141,12 +218,44 @@ Lesson and Version. Only such a Session may produce Activity Completion
 Evidence.
 
 Allowed `delivery_mode`: `online`, `offline`, `hybrid`.
-Allowed `status`: `draft`, `scheduled`, `live`, `completed`, `cancelled`,
-`no_show`.
+
+The `status` list originally published in this section is superseded by
+§ Session Status And Time Convention Amendment — 2026-08-10 above, which retires
+both `draft` and `ended`. Use that section as the canonical status set.
 
 Rescheduling keeps the Session scheduled and appends
 `core_liveclass_session_schedule_changes`. Replacement uses a new Session and
 `superseded_by_session_id`.
+
+## Historical Sections — Superseding Notice
+
+Mọi mục từ đây tới hết tài liệu (`Purpose`, `Relationships`, `Business Rules`,
+`Fields`, `Indexes`, `Sample Data`, `Design Notes`) mô tả model **Room-owned**
+ban đầu và đã bị thay thế bởi bốn amendment phía trên, theo thứ tự thời gian:
+
+1. Cohort-Centered Amendment — 2026-07-25 (Session thuộc Cohort; `room_id`,
+   `product_id` và `teacher_id` không còn là ràng buộc bắt buộc của Session).
+2. Curriculum And Operational Session Amendment — 2026-08-03 (`session_type`;
+   `version_lesson_id` và `version_activity_id` là conditional binding).
+3. Schedule Origin Amendment — 2026-08-05 (lineage nằm ở
+   `core_liveclass_session_schedule_origins`).
+4. Session Status And Time Convention Amendment — 2026-08-10 (tập status và quy
+   ước thời gian canonical).
+
+Các mục lịch sử được giữ lại để tra cứu quyết định cũ. Chúng **không** phải hợp
+đồng hiện hành. Cụ thể, những phát biểu sau đã hết hiệu lực:
+
+* "Session phải thuộc một Room" và `room_id NOT NULL` — Room là delivery
+  resource tùy chọn.
+* `product_id`, `teacher_id`, `version_activity_id` là `NOT NULL`.
+* `session_no` là duy nhất trong một Room và
+  `UNIQUE (customer_id, room_id, session_no)` — khóa hiện hành là
+  `(customer_id, cohort_id, session_no)`.
+* Danh sách `status` chứa `ended`.
+* "Thời gian nên được lưu theo UTC" tại § Design Notes.
+
+Khi hợp đồng vật lý của bảng này được viết lại hoàn chỉnh, các mục lịch sử bên
+dưới sẽ được thay thế bằng một § Fields thống nhất.
 
 ## Purpose
 
@@ -191,7 +300,8 @@ LiveClass Session 1 → N Attendances / Recordings / Chat Logs
   hạn capacity/timing không thay thế authorization.
 * Session bị cancel vẫn được giữ để bảo toàn lịch sử.
 * Session không lưu hoặc quyết định Course completion.
-* Allowed `status`: `scheduled`, `live`, `ended`, `cancelled`, `no_show`.
+* Dòng "Allowed `status`" cũ tại đây (chứa `ended`) đã hết hiệu lực. Tập status
+  canonical nằm tại § Session Status And Time Convention Amendment — 2026-08-10.
 
 ## Fields
 
@@ -413,6 +523,9 @@ metadata = {"calendar_sync": "pending"}
 * `product_id`, `template_version_id` và `version_activity_id` là Course
   context denormalized từ Room để audit và truy vấn operational data. Room là
   source gần nhất; Version Activity là source of truth của learning context.
-* Thời gian nên được lưu theo UTC và render theo `timezone`.
-* Không suy ra completion chỉ từ `status = ended`; attendance/replay evidence
-  còn phải được Course progress service đánh giá theo frozen completion rule.
+* Ghi chú cũ "Thời gian nên được lưu theo UTC và render theo `timezone`" đã hết
+  hiệu lực. Quy ước canonical là wall-clock time diễn giải theo cột `timezone`;
+  xem § Session Status And Time Convention Amendment — 2026-08-10.
+* Không suy ra completion chỉ từ `status = completed`; attendance/replay
+  evidence còn phải được Course progress service đánh giá theo frozen completion
+  rule.

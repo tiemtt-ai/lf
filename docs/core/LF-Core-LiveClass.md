@@ -1,12 +1,12 @@
 # LF-Core-LiveClass.md
 
-Version: 2.5
+Version: 2.6
 
 Document Status: Approved
 
-Implementation Status: Unknown
+Implementation Status: Partial
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-10
 
 Document Path: core/LF-Core-LiveClass.md
 
@@ -601,15 +601,72 @@ scheduled
 
 live
 
-ended
+completed
 
 cancelled
 
 no_show
 ```
 
-Session bị cancel hoặc no-show vẫn được giữ để bảo toàn lịch sử. `ended` không
-đồng nghĩa Activity đã completed.
+`draft` không phải Session status. Session được chuẩn bị trong Cohort `draft`
+vẫn được tạo ở trạng thái `scheduled`; trạng thái setup thuộc Cohort lifecycle,
+không thuộc Session status.
+
+Session bị cancel hoặc no-show vẫn được giữ để bảo toàn lịch sử. `completed`
+không đồng nghĩa Activity đã completed.
+
+### Session Status Vocabulary Amendment — 2026-08-10
+
+Approved: 2026-08-10 bởi LearnForge Architecture Owner.
+
+Amendment này thay thế giá trị `ended` bằng `completed` và loại `draft` khỏi
+tập status của Session. Lý do: `completed` nằm trong danh sách status canonical
+tại [LF Development Standards](../LF-Development-Standards.md) § Status Fields
+và đồng nhất với từ vựng Cohort/Enrollment/Membership, trong khi `ended` là
+ngoại lệ duy nhất trong toàn hệ thống; `draft` chưa từng được bất kỳ policy nào
+định nghĩa ý nghĩa nghiệp vụ, điều kiện vào hay transition ra.
+
+Amendment giải quyết `DOC-CONFLICT-0001` tại
+[LF Documentation Conflict Register](../quality/LF-Documentation-Conflicts.md).
+Hợp đồng canonical đầy đủ cùng lifecycle transition nằm tại
+[core_liveclass_sessions](../database/liveclass/core_liveclass_sessions.md)
+§ Session Status And Time Convention Amendment — 2026-08-10.
+
+### Session Time Convention — 2026-08-10
+
+Approved: 2026-08-10 bởi LearnForge Architecture Owner.
+
+`scheduled_start_at`, `scheduled_end_at`, `actual_start_at` và `actual_end_at`
+lưu **giờ địa phương (wall-clock)** được diễn giải theo cột `timezone` của chính
+Session đó. Chúng không phải UTC instant và không so sánh được trực tiếp giữa
+các Session ở dạng giá trị thô.
+
+Mọi phép so sánh phải parse giá trị theo `core_liveclass_sessions.timezone`,
+chuẩn hóa về UTC, rồi mới so sánh instant. Quy tắc này áp dụng cho:
+
+```text
+overlap detection
+
+Cohort operating-period boundary
+
+edit / reschedule eligibility
+
+runtime eligibility
+
+Origin classification
+```
+
+Session xác nhận từ Schedule occurrence kế thừa timezone của Schedule. Session
+tạo thủ công lưu timezone tại thời điểm nhập khoảng thời gian dự kiến. Vì vậy
+hai Session trong cùng một Cohort có thể mang hai timezone khác nhau; so sánh
+chuỗi hoặc so sánh naive giữa chúng là sai.
+
+Browser timezone và server default timezone không bao giờ là calculation
+authority.
+
+Amendment giải quyết `DOC-CONFLICT-0002` và thay thế phát biểu cũ trong
+[core_liveclass_sessions](../database/liveclass/core_liveclass_sessions.md)
+§ Design Notes rằng thời gian Session "nên được lưu theo UTC".
 
 Binding fields are immutable after Attendance, Recording, Replay, Progress
 evidence or other operational history exists. Such Sessions are never hard
@@ -635,7 +692,7 @@ recurring Schedule persistence:
   of whether a Session originates from a Schedule, is created off-schedule, or
   is rescheduled; boundary-touching ranges are allowed, while cancelled and
   no-show Sessions no longer reserve the time range;
-* a live, ended/completed, cancelled or no-show Session keeps its type and
+* a live, completed, cancelled or no-show Session keeps its type and
   binding immutable;
 * completed or archived Cohorts expose historical Sessions read-only and do
   not accept new Sessions;

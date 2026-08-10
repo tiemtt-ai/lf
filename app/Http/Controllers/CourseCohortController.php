@@ -4,13 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseCohortAdmin;
 use App\Services\CourseCohortLifecycleService;
+use App\Services\CourseCohortMutationPolicy;
+use App\Services\CourseCohortSessionWindow;
 use App\Services\CourseCohortVersionResolver;
-use App\Services\LiveClassSchedulePreviewService;
+use App\Services\LiveClassCohortScheduleReadModel;
+use App\Services\LiveClassCohortSessionReadModel;
 use App\Services\LiveClassSessionPolicy;
 use App\Support\SequentialCodeGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -33,7 +37,8 @@ class CourseCohortController extends Controller
         private readonly CourseCohortVersionResolver $versionResolver,
         private readonly CourseCohortLifecycleService $lifecycleService,
         private readonly LiveClassSessionPolicy $sessionPolicy,
-        private readonly LiveClassSchedulePreviewService $schedulePreviewService
+        private readonly LiveClassCohortSessionReadModel $sessionReadModel,
+        private readonly LiveClassCohortScheduleReadModel $scheduleReadModel
     ) {}
 
     public function index(Request $request): View
@@ -84,6 +89,7 @@ class CourseCohortController extends Controller
             )
             ->paginate(10)
             ->withQueryString();
+        $cohorts->getCollection()->each(CourseCohortMutationPolicy::decorate(...));
 
         return view('course-cohorts.index', [
             'cohorts' => $cohorts,
@@ -114,6 +120,11 @@ class CourseCohortController extends Controller
         $validated = $this->validatedCreateData($request, $customerId);
 
         $cohortId = DB::transaction(function () use ($customerId, $validated): int {
+            // Serialises Cohort creation per tenant. SequentialCodeGenerator
+            // derives the next code by reading the current maximum and has no
+            // lock of its own, so without this two concurrent creates would
+            // generate the same code and collide on uk_ccco_customer_code with
+            // a raw driver exception instead of a controlled result.
             DB::table('saas_customers')->where('id', $customerId)->lockForUpdate()->first();
             $version = $this->versionResolver->resolve($customerId, (int) $validated['product_id'], true);
             abort_if(! $version, 422, __('lf.LF_course_cohort_validation_active_item'));
@@ -151,7 +162,7 @@ class CourseCohortController extends Controller
         $activeMembershipCount = (int) DB::table('core_course_cohort_students')
             ->where('customer_id', $customerId)->where('cohort_id', $id)
             ->where('status', 'active')->count();
-        $cohortSessions = $this->cohortSessionsQuery($customerId, $id);
+        $cohortSessions = $this->sessionReadModel->forCohort($customerId, $id);
         $eligibleAttendanceSessions = $cohortSessions
             ->filter(fn (object $session): bool => $this->sessionPolicy->canRecordAttendance($session, now()))
             ->values();
@@ -164,7 +175,8 @@ class CourseCohortController extends Controller
         $tabs = $this->cohortTabs($cohort, $routePrefix = $this->routePrefix($request), $requestedTab, [
             'students' => $activeMembershipCount,
             'schedules' => $scheduleCount,
-            'sessions' => $eligibleAttendanceSessions->count(),
+            'sessions' => $cohortSessions->count(),
+            'attendance_eligible' => $eligibleAttendanceSessions->count(),
             'recordings' => $recordingCount,
         ]);
         $activeTab = collect($tabs)->firstWhere('key', $requestedTab)['accessible'] ? $requestedTab : 'overview';
@@ -173,9 +185,9 @@ class CourseCohortController extends Controller
             'students' => $this->studentTabData($request, $customerId, $id),
             'teachers' => $this->teacherTabData($customerId, $id),
             'schedules' => $this->scheduleTabData($request, $customerId, $id),
-            'sessions' => $this->sessionTabData($customerId, $cohort),
+            'sessions' => $this->sessionTabData($customerId, $cohort, $cohortSessions),
             'attendance' => $this->attendanceTabData($request, $customerId, $id, $eligibleAttendanceSessions),
-            'recordings' => $this->recordingTabData($customerId, $id),
+            'recordings' => $this->recordingTabData($customerId, $id, $cohortSessions),
             default => [],
         };
 
@@ -189,6 +201,7 @@ class CourseCohortController extends Controller
             'versionLessons' => collect(),
             'versionActivities' => collect(),
             'sessions' => collect(),
+            'sessionWindow' => null,
             'selectedSessionId' => null,
             'attendance' => collect(),
             'recordings' => collect(),
@@ -209,68 +222,6 @@ class CourseCohortController extends Controller
         return DB::table('users')->where('customer_id', $customerId)
             ->where('role', 'teacher')->where('status', 'active')
             ->orderBy('name')->get(['id', 'name', 'email']);
-    }
-
-    private function cohortSessionsQuery(int $customerId, int $cohortId)
-    {
-        $sessions = DB::table('core_liveclass_sessions as sessions')
-            ->leftJoin('core_liveclass_session_schedule_origins as origins', function ($join) use ($customerId): void {
-                $join->on('origins.session_id', '=', 'sessions.id')
-                    ->where('origins.customer_id', $customerId);
-            })
-            ->leftJoin('core_course_template_version_lessons as lessons', 'lessons.id', '=', 'sessions.version_lesson_id')
-            ->leftJoin('core_course_template_version_activities as activities', 'activities.id', '=', 'sessions.version_activity_id')
-            ->leftJoin('users as teachers', 'teachers.id', '=', 'sessions.primary_teacher_id')
-            ->where('sessions.customer_id', $customerId)->where('sessions.cohort_id', $cohortId)
-            ->orderBy('sessions.scheduled_start_at')->orderBy('sessions.id')
-            ->select(
-                'sessions.*',
-                'lessons.title_snapshot as lesson_title',
-                'activities.title_snapshot as activity_title',
-                'activities.live_class_url_snapshot as activity_meeting_url',
-                'teachers.name as primary_teacher_name', 'origins.id as schedule_origin_id', 'origins.schedule_id as source_schedule_id',
-                'origins.source_start_at', 'origins.source_end_at', 'origins.source_timezone'
-            )
-            ->get();
-
-        if ($sessions->isEmpty()) {
-            return $sessions;
-        }
-
-        $teamBySession = DB::table('core_liveclass_session_teachers as assignments')
-            ->join('users as teachers', function ($join) use ($customerId): void {
-                $join->on('teachers.id', '=', 'assignments.teacher_id')
-                    ->where('teachers.customer_id', $customerId);
-            })
-            ->where('assignments.customer_id', $customerId)
-            ->whereIn('assignments.session_id', $sessions->pluck('id'))
-            ->orderByRaw("CASE assignments.role WHEN 'primary_teacher' THEN 0 WHEN 'teacher' THEN 1 ELSE 2 END")
-            ->orderBy('teachers.name')
-            ->get(['assignments.session_id', 'assignments.teacher_id', 'assignments.role', 'teachers.name'])
-            ->groupBy('session_id');
-
-        $sessions->each(function (object $session) use ($teamBySession): void {
-            $team = $teamBySession->get($session->id, collect())->values();
-            $session->teacher_team = $team;
-            $teacherIds = $team->pluck('teacher_id')->map(fn ($id): string => (string) $id);
-            if ($session->primary_teacher_id && ! $teacherIds->contains((string) $session->primary_teacher_id)) {
-                $teacherIds->prepend((string) $session->primary_teacher_id);
-            }
-            $session->teacher_ids = $teacherIds->unique()->values();
-            if ($session->schedule_origin_id) {
-                $currentStart = Carbon::parse($session->scheduled_start_at, $session->timezone)->utc();
-                $currentEnd = Carbon::parse($session->scheduled_end_at, $session->timezone)->utc();
-                $session->schedule_relation = $currentStart->equalTo(Carbon::parse($session->source_start_at, 'UTC'))
-                    && $currentEnd->equalTo(Carbon::parse($session->source_end_at, 'UTC'))
-                        ? 'on_schedule' : 'rescheduled';
-            } else {
-                $session->schedule_relation = Carbon::parse($session->created_at)
-                    ->lt(Carbon::parse(config('liveclass.schedule_origin_rollout_at')))
-                        ? 'source_unknown' : 'off_schedule';
-            }
-        });
-
-        return $sessions;
     }
 
     private function studentTabData(Request $request, int $customerId, int $id): array
@@ -360,90 +311,20 @@ class CourseCohortController extends Controller
 
     private function scheduleTabData(Request $request, int $customerId, int $cohortId): array
     {
-        $schedules = DB::table('core_liveclass_schedules')
-            ->where('customer_id', $customerId)
-            ->where('cohort_id', $cohortId)
-            ->orderBy('starts_on')
-            ->orderBy('id')
-            ->paginate(10, ['*'], 'schedule_page')
-            ->withQueryString();
-        $scheduleIds = $schedules->getCollection()->pluck('id');
-        $slots = $scheduleIds->isEmpty() ? collect() : DB::table('core_liveclass_schedule_slots')
-            ->where('customer_id', $customerId)->whereIn('schedule_id', $scheduleIds)
-            ->orderBy('sort_order')->orderBy('id')->get()->groupBy('schedule_id');
-        $exclusions = $scheduleIds->isEmpty() ? collect() : DB::table('core_liveclass_schedule_exclusions')
-            ->where('customer_id', $customerId)->whereIn('schedule_id', $scheduleIds)
-            ->orderBy('excluded_on')->orderBy('id')->get()->groupBy('schedule_id');
-
-        $schedules->getCollection()->each(function (object $schedule) use ($slots, $exclusions): void {
-            $schedule->slots = $slots->get($schedule->id, collect())->values();
-            $schedule->exclusions = $exclusions->get($schedule->id, collect())->values();
-            $schedule->preview_count = $this->schedulePreviewService->calculate(
-                $schedule->starts_on,
-                $schedule->ends_on,
-                $schedule->timezone,
-                $schedule->slots,
-                $schedule->exclusions
-            )->count();
-            $schedule->derived_status = $this->schedulePreviewService->derivedStatus(
-                $schedule->starts_on,
-                $schedule->ends_on,
-                $schedule->timezone
-            );
-        });
-
         $formMode = in_array($request->query('schedule_form'), ['create', 'view', 'edit'], true)
             ? $request->query('schedule_form')
             : null;
-        $formSchedule = null;
-        $formSlots = collect();
-        $formExclusions = collect();
-        $formPreview = collect();
-        $formDerivedStatus = null;
 
-        if (in_array($formMode, ['view', 'edit'], true)) {
-            $formSchedule = DB::table('core_liveclass_schedules')
-                ->where('customer_id', $customerId)
-                ->where('cohort_id', $cohortId)
-                ->where('id', $request->integer('schedule_id'))
-                ->firstOrFail();
-            $formSlots = DB::table('core_liveclass_schedule_slots')
-                ->where('customer_id', $customerId)
-                ->where('schedule_id', $formSchedule->id)
-                ->orderBy('sort_order')->orderBy('id')->get();
-            $formExclusions = DB::table('core_liveclass_schedule_exclusions')
-                ->where('customer_id', $customerId)
-                ->where('schedule_id', $formSchedule->id)
-                ->orderBy('excluded_on')->orderBy('id')->get();
-            if ($formMode === 'view') {
-                $formPreview = $this->schedulePreviewService->calculate(
-                    $formSchedule->starts_on,
-                    $formSchedule->ends_on,
-                    $formSchedule->timezone,
-                    $formSlots,
-                    $formExclusions
-                );
-                $formDerivedStatus = $this->schedulePreviewService->derivedStatus(
-                    $formSchedule->starts_on,
-                    $formSchedule->ends_on,
-                    $formSchedule->timezone
-                );
-            }
-        }
-
-        return [
-            'schedules' => $schedules,
+        return array_merge([
+            'schedules' => $this->scheduleReadModel->paginate($customerId, $cohortId),
             'scheduleFormMode' => $formMode,
-            'scheduleFormSchedule' => $formSchedule,
-            'scheduleFormSlots' => $formSlots,
-            'scheduleFormExclusions' => $formExclusions,
-            'scheduleFormPreview' => $formPreview,
-            'scheduleFormDerivedStatus' => $formDerivedStatus,
             'scheduleTimezones' => timezone_identifiers_list(),
-        ];
+        ], $this->scheduleReadModel->formState(
+            $customerId, $cohortId, $formMode, $request->integer('schedule_id')
+        ));
     }
 
-    private function sessionTabData(int $customerId, object $cohort): array
+    private function sessionTabData(int $customerId, object $cohort, Collection $sessions): array
     {
         $versionLessons = collect();
         $versionActivities = collect();
@@ -474,54 +355,14 @@ class CourseCohortController extends Controller
                 'teachers.id', 'teachers.name', 'teachers.email',
                 'assignments.role', 'assignments.assigned_from', 'assignments.assigned_to',
             ]);
-        $sessions = $this->cohortSessionsQuery($customerId, $cohort->id);
-        $sessionIds = $sessions->pluck('id');
-        $sessionsWithEvidence = $sessionIds->isEmpty() ? collect() : DB::table('core_liveclass_attendances')
-            ->where('customer_id', $customerId)->whereIn('session_id', $sessionIds)->pluck('session_id')
-            ->merge(DB::table('core_liveclass_recordings')
-                ->where('customer_id', $customerId)->whereIn('session_id', $sessionIds)->pluck('session_id'))
-            ->map(fn ($id): int => (int) $id)->unique();
-        $sessions->each(function (object $session) use ($sessionsWithEvidence): void {
-            $session->can_edit = $this->sessionPolicy->canEdit(
-                $session,
-                $sessionsWithEvidence->contains((int) $session->id),
-                now()
-            );
-        });
-
-        $plannedOccurrences = collect();
-        $schedules = DB::table('core_liveclass_schedules')
-            ->where('customer_id', $customerId)->where('cohort_id', $cohort->id)
-            ->whereDate('ends_on', '>=', now()->toDateString())->orderBy('starts_on')->get();
-        $consumed = DB::table('core_liveclass_session_schedule_origins')
-            ->where('customer_id', $customerId)->whereIn('schedule_id', $schedules->pluck('id'))
-            ->get()->mapWithKeys(fn ($origin) => [implode('|', [$origin->schedule_id, $origin->schedule_slot_id, $origin->source_local_date]) => true]);
-        foreach ($schedules as $schedule) {
-            $slots = DB::table('core_liveclass_schedule_slots')->where('customer_id', $customerId)
-                ->where('schedule_id', $schedule->id)->orderBy('sort_order')->get();
-            $exclusions = DB::table('core_liveclass_schedule_exclusions')->where('customer_id', $customerId)
-                ->where('schedule_id', $schedule->id)->get();
-            $preview = $this->schedulePreviewService->calculate(
-                max($schedule->starts_on, now($schedule->timezone)->toDateString()),
-                $schedule->ends_on, $schedule->timezone, $slots, $exclusions
-            );
-            foreach ($preview as $occurrence) {
-                $key = implode('|', [$schedule->id, $occurrence['schedule_slot_id'], $occurrence['date']]);
-                $plannedOccurrences->push(array_merge($occurrence, [
-                    'schedule_id' => (int) $schedule->id,
-                    'schedule_name' => $schedule->name,
-                    'timezone' => $schedule->timezone,
-                    'consumed' => $consumed->has($key),
-                ]));
-            }
-        }
 
         return [
             'versionLessons' => $versionLessons,
             'versionActivities' => $versionActivities,
             'availableTeachers' => $availableTeachers,
             'sessions' => $sessions,
-            'plannedOccurrences' => $plannedOccurrences->take(100)->values(),
+            'sessionWindow' => CourseCohortSessionWindow::for($cohort),
+            'plannedOccurrences' => $this->sessionReadModel->plannedOccurrences($customerId, (int) $cohort->id),
         ];
     }
 
@@ -534,11 +375,18 @@ class CourseCohortController extends Controller
         $attendance = collect();
         if ($selectedSessionId) {
             $attendance = DB::table('core_course_cohort_students as memberships')
-                ->join('core_course_enrollments as enrollments', 'enrollments.id', '=', 'memberships.enrollment_id')
-                ->join('users as students', 'students.id', '=', 'memberships.student_id')
-                ->leftJoin('core_liveclass_attendances as attendance', function ($join) use ($selectedSessionId): void {
+                ->join('core_course_enrollments as enrollments', function ($join) use ($customerId): void {
+                    $join->on('enrollments.id', '=', 'memberships.enrollment_id')
+                        ->where('enrollments.customer_id', '=', $customerId);
+                })
+                ->join('users as students', function ($join) use ($customerId): void {
+                    $join->on('students.id', '=', 'memberships.student_id')
+                        ->where('students.customer_id', '=', $customerId);
+                })
+                ->leftJoin('core_liveclass_attendances as attendance', function ($join) use ($customerId, $selectedSessionId): void {
                     $join->on('attendance.enrollment_id', '=', 'memberships.enrollment_id')
-                        ->where('attendance.session_id', $selectedSessionId);
+                        ->where('attendance.customer_id', '=', $customerId)
+                        ->where('attendance.session_id', '=', $selectedSessionId);
                 })
                 ->where('memberships.customer_id', $customerId)->where('memberships.cohort_id', $id)
                 ->where('memberships.status', 'active')
@@ -553,7 +401,7 @@ class CourseCohortController extends Controller
         return ['sessions' => $sessions, 'selectedSessionId' => $selectedSessionId, 'attendance' => $attendance];
     }
 
-    private function recordingTabData(int $customerId, int $id): array
+    private function recordingTabData(int $customerId, int $id, Collection $sessions): array
     {
         $recordings = DB::table('core_liveclass_recordings as recordings')
             ->join('core_liveclass_sessions as sessions', 'sessions.id', '=', 'recordings.session_id')
@@ -562,7 +410,7 @@ class CourseCohortController extends Controller
             ->select('recordings.*', 'sessions.title as session_title', 'sessions.session_no')
             ->get();
 
-        $sessions = $this->cohortSessionsQuery($customerId, $id)
+        $sessions = $sessions
             ->filter(fn (object $session): bool => $this->sessionPolicy->canCreateRecording($session, now()))
             ->values();
 
@@ -575,7 +423,6 @@ class CourseCohortController extends Controller
 
         $customerId = $this->customerId();
         $cohort = $this->findCohort($customerId, $id);
-
         if ($request->query('tab') === 'students') {
             return redirect()->route('admin.course-cohorts.show', [
                 'id' => $cohort->id,
@@ -625,6 +472,11 @@ class CourseCohortController extends Controller
             abort_if($validated['capacity'] !== null && (int) $validated['capacity'] < $activeCount, 422,
                 __('lf.LF_course_cohort_validation_capacity_below_membership'));
 
+            // Authoritative re-check, now that the Cohort row is locked.
+            // validatedUpdateData() already ran the same check for early UX
+            // feedback, but that pass had no lock and cannot be trusted: a
+            // Schedule may have been created in between. This is the copy that
+            // actually protects the invariant.
             $scheduleWindowErrors = $this->scheduleWindowErrors(
                 $customerId,
                 $id,
@@ -778,6 +630,11 @@ class CourseCohortController extends Controller
                 $validator->errors()->add('start_date', __('lf.LF_course_cohort_teacher_validation_primary_period_required'));
             }
 
+            // UX-only pass, run before any lock. It gives the user field-level
+            // feedback without waiting on the transaction below, which is the
+            // one that actually enforces this rule: a Schedule can be created
+            // concurrently between this check and the write, so this result is
+            // never trusted for the write itself.
             if (! $validator->errors()->hasAny(['start_date', 'end_date'])) {
                 foreach ($this->scheduleWindowErrors(
                     $customerId,
@@ -880,7 +737,7 @@ class CourseCohortController extends Controller
 
         abort_if(! $cohort, 404);
 
-        return $cohort;
+        return CourseCohortMutationPolicy::decorate($cohort);
     }
 
     private function cohortTabs(?object $cohort, string $routePrefix, string $activeTab, array $counts = []): array
@@ -888,7 +745,14 @@ class CourseCohortController extends Controller
         $exists = $cohort !== null;
         $historical = $exists && in_array($cohort->status, ['completed', 'archived'], true);
         $active = $exists && $cohort->status === 'active';
-        $hasSessions = ($counts['sessions'] ?? 0) > 0;
+        // Attendance gating asks a different question from the Sessions badge:
+        // "is any Session eligible for attendance", not "how many Sessions".
+        $hasSessions = ($counts['attendance_eligible'] ?? 0) > 0;
+        // Attendance and Recording are unfinished; see config/liveclass.php. The
+        // flag wins over every lifecycle condition so the tab reports the real
+        // reason instead of a lifecycle one it would satisfy today.
+        $attendanceEnabled = (bool) config('liveclass.attendance_enabled');
+        $recordingEnabled = (bool) config('liveclass.recording_enabled');
 
         $definitions = [
             'overview' => [true, null],
@@ -896,12 +760,17 @@ class CourseCohortController extends Controller
             'teachers' => [$exists, 'LF_course_cohort_tab_teachers_locked_create'],
             'schedules' => [$exists, 'LF_course_cohort_tab_schedules_locked_create'],
             'sessions' => [$exists, 'LF_course_cohort_tab_sessions_locked_create'],
-            'attendance' => [$historical || ($active && $hasSessions), ! $exists
-                ? 'LF_course_cohort_tab_attendance_locked_create'
-                : ($active ? 'LF_course_cohort_tab_attendance_locked_sessions' : 'LF_course_cohort_tab_attendance_locked_active')],
-            'recordings' => [$historical || $active, ! $exists
-                ? 'LF_course_cohort_tab_recordings_locked_create'
-                : 'LF_course_cohort_tab_recordings_locked_active'],
+            'attendance' => [$attendanceEnabled && ($historical || ($active && $hasSessions)), match (true) {
+                ! $attendanceEnabled => 'LF_course_cohort_tab_attendance_locked_development',
+                ! $exists => 'LF_course_cohort_tab_attendance_locked_create',
+                $active => 'LF_course_cohort_tab_attendance_locked_sessions',
+                default => 'LF_course_cohort_tab_attendance_locked_active',
+            }],
+            'recordings' => [$recordingEnabled && ($historical || $active), match (true) {
+                ! $recordingEnabled => 'LF_course_cohort_tab_recordings_locked_development',
+                ! $exists => 'LF_course_cohort_tab_recordings_locked_create',
+                default => 'LF_course_cohort_tab_recordings_locked_active',
+            }],
         ];
 
         return collect($definitions)->map(function (array $state, string $key) use ($cohort, $routePrefix, $activeTab, $historical, $counts): array {

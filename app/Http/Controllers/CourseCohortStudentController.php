@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseCohortAdmin;
+use App\Services\CourseCohortMutationPolicy;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -97,21 +98,11 @@ class CourseCohortStudentController extends Controller
         ]);
     }
 
-    public function create(Request $request, ?int $cohort = null): View|RedirectResponse
+    public function create(Request $request, int $cohort): View|RedirectResponse
     {
         $this->authorizeAdmin($request);
 
         $customerId = $this->customerId();
-
-        if (! $cohort) {
-            $legacyCohort = (int) $request->query('cohort_id', 0);
-
-            return $legacyCohort > 0
-                ? redirect()->route('admin.course-cohorts.students.create', $legacyCohort)
-                : redirect()->route('admin.course-cohorts.index')
-                    ->with('error', __('lf.LF_course_cohort_student_validation_context_required'));
-        }
-
         $contextCohort = $this->cohortSummary($customerId, $cohort);
         $eligibilityError = $this->cohortEligibilityError($customerId, $contextCohort);
 
@@ -169,7 +160,7 @@ class CourseCohortStudentController extends Controller
         $managing = $request->boolean('manage');
         abort_if(
             $managing
-                ? (! in_array($contextCohort->status, ['draft', 'active'], true) || ! $contextCohort->product_id || ! $contextCohort->version_id)
+                ? ! $this->cohortAcceptsMembership($contextCohort)
                 : $this->cohortEligibilityError($customerId, $contextCohort),
             422
         );
@@ -219,14 +210,9 @@ class CourseCohortStudentController extends Controller
         ]]);
     }
 
-    public function store(Request $request, ?int $cohort = null): RedirectResponse
+    public function store(Request $request, int $cohort): RedirectResponse
     {
         $this->authorizeAdmin($request);
-
-        if (! $cohort) {
-            return redirect()->route('admin.course-cohorts.index')
-                ->with('error', __('lf.LF_course_cohort_student_validation_context_required'));
-        }
 
         $customerId = $this->customerId();
         $validated = Validator::make($request->all(), [
@@ -255,64 +241,15 @@ class CourseCohortStudentController extends Controller
                 $enrollmentIds = array_values(array_unique(array_map('intval', $validated['enrollment_ids'])));
                 sort($enrollmentIds);
 
-                $enrollments = DB::table('core_course_enrollments')->where('customer_id', $customerId)
-                    ->whereIn('id', $enrollmentIds)->lockForUpdate()->get()->keyBy('id');
-                $existingMemberships = DB::table('core_course_cohort_students')
-                    ->where('customer_id', $customerId)
-                    ->whereIn('enrollment_id', $enrollmentIds)
-                    ->lockForUpdate()
-                    ->get()
-                    ->keyBy('enrollment_id');
-
-                $now = now();
-                $rows = [];
-                $acceptedCount = 0;
-
-                foreach ($enrollmentIds as $index => $enrollmentId) {
-                    $enrollment = $enrollments->get($enrollmentId);
-                    throw_if(! $enrollment, ValidationException::withMessages([
-                        "enrollment_ids.{$index}" => __('lf.LF_course_cohort_student_validation_enrollment'),
-                    ]));
-                    $this->throwIfAssignmentIssue($customerId, $cohort, $enrollment, true, $acceptedCount, "enrollment_ids.{$index}");
-                    $existingMembership = $existingMemberships->get($enrollmentId);
-
-                    if ($existingMembership) {
-                        DB::table('core_course_cohort_students')
-                            ->where('customer_id', $customerId)
-                            ->where('id', $existingMembership->id)
-                            ->update([
-                                'cohort_id' => $cohort->id,
-                                'product_id' => $enrollment->product_id,
-                                'student_id' => $enrollment->student_id,
-                                'assigned_by' => $request->user()?->id,
-                                'joined_at' => $now,
-                                'left_at' => null,
-                                'status' => 'active',
-                                'transfer_from_cohort_id' => (int) $existingMembership->cohort_id !== (int) $cohort->id
-                                    ? $existingMembership->cohort_id
-                                    : $existingMembership->transfer_from_cohort_id,
-                                'transfer_reason' => null,
-                                'note' => $validated['note'] ?? null,
-                                'updated_at' => $now,
-                            ]);
-                        $acceptedCount++;
-
-                        continue;
-                    }
-
-                    $rows[] = [
-                        'customer_id' => $customerId, 'cohort_id' => $cohort->id,
-                        'enrollment_id' => $enrollment->id, 'product_id' => $enrollment->product_id,
-                        'student_id' => $enrollment->student_id, 'assigned_by' => $request->user()?->id,
-                        'joined_at' => $now, 'left_at' => null, 'status' => 'active',
-                        'transfer_from_cohort_id' => null, 'transfer_reason' => null,
-                        'note' => $validated['note'] ?? null, 'metadata' => null,
-                        'created_at' => $now, 'updated_at' => $now,
-                    ];
-                    $acceptedCount++;
-                }
-
-                DB::table('core_course_cohort_students')->insert($rows);
+                $this->applyMembershipBatch(
+                    $customerId,
+                    $cohort,
+                    $enrollmentIds,
+                    $request->user()?->id,
+                    checkEligibility: true,
+                    enforceBatchCapacity: true,
+                    noteOverride: ['note' => $validated['note'] ?? null],
+                );
             }, 3);
         } catch (QueryException $exception) {
             if (in_array((string) $exception->getCode(), ['23000', '23505'], true)) {
@@ -353,7 +290,7 @@ class CourseCohortStudentController extends Controller
                 ->lockForUpdate()->first();
 
             throw_if(
-                ! $lockedCohort || ! in_array($lockedCohort->status, ['draft', 'active'], true)
+                ! $lockedCohort || ! CourseCohortMutationPolicy::canMutate($lockedCohort)
                     || ! $lockedCohort->product_id || ! $lockedCohort->version_id,
                 ValidationException::withMessages([
                     'enrollment_ids' => __('lf.LF_course_cohort_student_validation_active_cohort'),
@@ -376,67 +313,23 @@ class CourseCohortStudentController extends Controller
                 ]);
             }
 
-            $enrollments = DB::table('core_course_enrollments')
-                ->where('customer_id', $customerId)->whereIn('id', $addIds)
-                ->lockForUpdate()->get()->keyBy('id');
-            $existingMemberships = DB::table('core_course_cohort_students')
-                ->where('customer_id', $customerId)
-                ->whereIn('enrollment_id', $addIds)
-                ->lockForUpdate()
-                ->get()
-                ->keyBy('enrollment_id');
-            $now = now();
-            $rows = [];
-
-            foreach ($addIds as $index => $enrollmentId) {
-                $enrollment = $enrollments->get($enrollmentId);
-                throw_if(! $enrollment, ValidationException::withMessages([
-                    "enrollment_ids.{$index}" => __('lf.LF_course_cohort_student_validation_enrollment'),
-                ]));
-                $this->throwIfAssignmentIssue($customerId, $lockedCohort, $enrollment, false, null, "enrollment_ids.{$index}");
-                $existingMembership = $existingMemberships->get($enrollmentId);
-
-                if ($existingMembership) {
-                    DB::table('core_course_cohort_students')
-                        ->where('customer_id', $customerId)
-                        ->where('id', $existingMembership->id)
-                        ->update([
-                            'cohort_id' => $cohort,
-                            'product_id' => $enrollment->product_id,
-                            'student_id' => $enrollment->student_id,
-                            'assigned_by' => $request->user()?->id,
-                            'joined_at' => $now,
-                            'left_at' => null,
-                            'status' => 'active',
-                            'transfer_from_cohort_id' => (int) $existingMembership->cohort_id !== $cohort
-                                ? $existingMembership->cohort_id
-                                : $existingMembership->transfer_from_cohort_id,
-                            'transfer_reason' => null,
-                            'updated_at' => $now,
-                        ]);
-
-                    continue;
-                }
-
-                $rows[] = [
-                    'customer_id' => $customerId, 'cohort_id' => $cohort,
-                    'enrollment_id' => $enrollment->id, 'product_id' => $enrollment->product_id,
-                    'student_id' => $enrollment->student_id, 'assigned_by' => $request->user()?->id,
-                    'joined_at' => $now, 'left_at' => null, 'status' => 'active',
-                    'transfer_from_cohort_id' => null, 'transfer_reason' => null,
-                    'note' => null, 'metadata' => null, 'created_at' => $now, 'updated_at' => $now,
-                ];
-            }
+            // Capacity was already validated once for the whole selection above,
+            // so the per-row check is skipped here rather than re-run against
+            // counts that do not yet reflect the removals below.
+            $this->applyMembershipBatch(
+                $customerId,
+                $lockedCohort,
+                $addIds,
+                $request->user()?->id,
+                checkEligibility: false,
+                enforceBatchCapacity: false,
+            );
 
             if ($removeIds) {
                 DB::table('core_course_cohort_students')
                     ->where('customer_id', $customerId)->where('cohort_id', $cohort)
                     ->where('status', 'active')->whereIn('enrollment_id', $removeIds)
-                    ->update(['status' => 'removed', 'left_at' => $now, 'updated_at' => $now]);
-            }
-
-            if ($rows) {
-                DB::table('core_course_cohort_students')->insert($rows);
+                    ->update(['status' => 'removed', 'left_at' => now(), 'updated_at' => now()]);
             }
         }, 3);
 
@@ -489,7 +382,7 @@ class CourseCohortStudentController extends Controller
                 ->where('id', $lockedMembership->enrollment_id)->lockForUpdate()->first();
             $source = $lockedCohorts->get((int) $lockedMembership->cohort_id);
             $target = $lockedCohorts->get((int) $validated['cohort_id']);
-            abort_if(! $source || ! $target || ! $enrollment || ! in_array($source->status, ['draft', 'active'], true), 422);
+            abort_if(! $source || ! $target || ! $enrollment || ! CourseCohortMutationPolicy::canMutate($source), 422);
             $this->assertAssignmentAllowed($customerId, $target, $enrollment, $id);
 
             DB::table('core_course_cohort_students')->where('customer_id', $customerId)->where('id', $id)->update([
@@ -517,7 +410,7 @@ class CourseCohortStudentController extends Controller
             abort_if(! $membership, 404);
             $cohort = DB::table('core_course_cohorts')->where('customer_id', $customerId)
                 ->where('id', $membership->cohort_id)->lockForUpdate()->first();
-            abort_if(! $cohort || ! in_array($cohort->status, ['draft', 'active'], true) || $membership->status !== 'active', 422);
+            abort_if(! $cohort || ! CourseCohortMutationPolicy::canMutate($cohort) || $membership->status !== 'active', 422);
             DB::table('core_course_cohort_students')->where('customer_id', $customerId)->where('id', $id)
                 ->update(['status' => 'removed', 'left_at' => now(), 'updated_at' => now()]);
         }, 3);
@@ -573,7 +466,7 @@ class CourseCohortStudentController extends Controller
                 );
             }
 
-            if ($cohort && ! in_array($cohort->status, ['draft', 'active'], true)) {
+            if ($cohort && ! CourseCohortMutationPolicy::canMutate($cohort)) {
                 $validator->errors()->add(
                     'cohort_id',
                     __('lf.LF_course_cohort_student_validation_archived_cohort')
@@ -587,37 +480,23 @@ class CourseCohortStudentController extends Controller
                 );
             }
 
-            if ($enrollment && $enrollment->status !== 'active') {
-                $validator->errors()->add('enrollment_id', __('lf.LF_course_cohort_student_validation_active_enrollment'));
-            }
-
-            if (! $membership && $enrollment && $this->membershipExists($customerId, $enrollment->id)) {
-                $validator->errors()->add(
-                    'enrollment_id',
-                    __('lf.LF_course_cohort_student_validation_duplicate')
-                );
-            }
-
+            // Business invariants come from the shared rule set so this
+            // pre-transaction pass can never drift from the authoritative check
+            // inside update()'s transaction. Cohort existence/status above keeps
+            // its own field-specific errors; everything else is reported against
+            // the Enrollment being moved.
             if ($cohort && $enrollment) {
-                if ($cohort->product_id && (int) $cohort->product_id !== (int) $enrollment->product_id) {
-                    $validator->errors()->add(
-                        'enrollment_id',
-                        __('lf.LF_course_cohort_student_validation_product_mismatch')
-                    );
-                }
+                $issue = $this->assignmentIssue(
+                    $customerId,
+                    $cohort,
+                    $enrollment,
+                    false,
+                    0,
+                    $membership?->id
+                );
 
-                if ($cohort->version_id && (int) $cohort->version_id !== (int) $enrollment->version_id) {
-                    $validator->errors()->add(
-                        'enrollment_id',
-                        __('lf.LF_course_cohort_student_validation_version_mismatch')
-                    );
-                }
-
-                if ($this->cohortIsFull($customerId, $cohort, $membership?->id)) {
-                    $validator->errors()->add(
-                        'cohort_id',
-                        __('lf.LF_course_cohort_student_validation_capacity')
-                    );
+                if ($issue !== null) {
+                    $validator->errors()->add('enrollment_id', $issue);
                 }
             }
         });
@@ -704,20 +583,29 @@ class CourseCohortStudentController extends Controller
         return $enrollment;
     }
 
-    private function membershipExists(int $customerId, int $enrollmentId): bool
-    {
-        return DB::table('core_course_cohort_students')
-            ->where('customer_id', $customerId)
-            ->where('enrollment_id', $enrollmentId)
-            ->exists();
-    }
-
-    private function activeMembershipExists(int $customerId, int $enrollmentId): bool
-    {
+    private function activeMembershipExists(
+        int $customerId,
+        int $enrollmentId,
+        ?int $ignoreMembershipId = null
+    ): bool {
         return DB::table('core_course_cohort_students')
             ->where('customer_id', $customerId)
             ->where('enrollment_id', $enrollmentId)
             ->where('status', 'active')
+            ->when($ignoreMembershipId, fn ($query) => $query->where('id', '!=', $ignoreMembershipId))
+            ->exists();
+    }
+
+    private function activeStudentExists(int $customerId, int $studentId): bool
+    {
+        return DB::table('users')
+            ->where('customer_id', $customerId)
+            ->where('id', $studentId)
+            ->where('role', 'student')
+            ->where('status', 'active')
+            // Lock only where the caller is inside the authoritative write
+            // transaction; the pre-transaction validator pass is UX only.
+            ->when(DB::transactionLevel() > 0, fn ($query) => $query->lockForUpdate())
             ->exists();
     }
 
@@ -741,41 +629,153 @@ class CourseCohortStudentController extends Controller
 
     private function cohortAcceptsMembership(object $cohort): bool
     {
-        return in_array($cohort->status, ['draft', 'active'], true) && $cohort->product_id && $cohort->version_id;
+        return CourseCohortMutationPolicy::canMutate($cohort) && $cohort->product_id && $cohort->version_id;
     }
 
     private function assertAssignmentAllowed(int $customerId, object $cohort, object $enrollment, ?int $ignoreMembershipId = null): void
     {
-        abort_if(! $this->cohortAcceptsMembership($cohort), 422,
-            __('lf.LF_course_cohort_student_validation_active_cohort'));
-        abort_if($enrollment->status !== 'active', 422,
-            __('lf.LF_course_cohort_student_validation_active_enrollment'));
-        abort_if((int) $cohort->product_id !== (int) $enrollment->product_id, 422,
-            __('lf.LF_course_cohort_student_validation_product_mismatch'));
-        abort_if((int) $cohort->version_id !== (int) $enrollment->version_id, 422,
-            __('lf.LF_course_cohort_student_validation_version_mismatch'));
-        abort_if($this->cohortIsFull($customerId, $cohort, $ignoreMembershipId), 422,
-            __('lf.LF_course_cohort_student_validation_capacity'));
+        $message = $this->assignmentIssue(
+            $customerId, $cohort, $enrollment, true, 0, $ignoreMembershipId
+        );
+
+        abort_if($message !== null, 422, (string) $message);
     }
 
     /**
-     * Shared by store() (per-enrollment, batch capacity via $extraAccepted, cohort
-     * eligibility not yet checked) and sync() (per-enrollment, cohort eligibility and
-     * capacity already validated once for the whole batch by the caller).
+     * Single source of truth for "may this Enrollment sit in this Cohort".
+     *
+     * Callers differ only in two axes:
+     *
+     * - `$extraAccepted` — how many rows the caller has already accepted but not
+     *   yet made visible to the capacity COUNT. `null` skips the capacity check
+     *   entirely, which sync() needs because it validates capacity once for the
+     *   whole batch before applying its removals.
+     * - `$ignoreMembershipId` — the membership currently being transferred, which
+     *   must not count itself as either an occupied seat or a duplicate.
+     *
+     * Before this was unified, the transfer path ran a shorter list and silently
+     * skipped the active-student check, so moving a disabled student between
+     * Cohorts succeeded while adding them directly was rejected.
      */
-    private function assignmentIssue(int $customerId, object $cohort, object $enrollment, bool $checkEligibility, ?int $extraAccepted = null): ?string
-    {
+    private function assignmentIssue(
+        int $customerId,
+        object $cohort,
+        object $enrollment,
+        bool $checkEligibility,
+        ?int $extraAccepted = null,
+        ?int $ignoreMembershipId = null
+    ): ?string {
         return match (true) {
             $checkEligibility && ! $this->cohortAcceptsMembership($cohort) => __('lf.LF_course_cohort_student_validation_active_cohort'),
-            $extraAccepted !== null && $this->cohortIsFull($customerId, $cohort, null, $extraAccepted) => __('lf.LF_course_cohort_student_validation_capacity'),
+            $extraAccepted !== null && $this->cohortIsFull($customerId, $cohort, $ignoreMembershipId, $extraAccepted) => __('lf.LF_course_cohort_student_validation_capacity'),
             $enrollment->status !== 'active' => __('lf.LF_course_cohort_student_validation_active_enrollment'),
-            ! DB::table('users')->where('customer_id', $customerId)->where('id', $enrollment->student_id)
-                ->where('role', 'student')->where('status', 'active')->lockForUpdate()->first(['id']) => __('lf.LF_course_cohort_student_validation_active_student'),
+            ! $this->activeStudentExists($customerId, (int) $enrollment->student_id) => __('lf.LF_course_cohort_student_validation_active_student'),
             (int) $cohort->product_id !== (int) $enrollment->product_id => __('lf.LF_course_cohort_student_validation_product_mismatch'),
             (int) $cohort->version_id !== (int) $enrollment->version_id => __('lf.LF_course_cohort_student_validation_version_mismatch'),
-            $this->activeMembershipExists($customerId, $enrollment->id) => __('lf.LF_course_cohort_student_validation_duplicate'),
+            $this->activeMembershipExists($customerId, $enrollment->id, $ignoreMembershipId) => __('lf.LF_course_cohort_student_validation_duplicate'),
             default => null,
         };
+    }
+
+    /**
+     * Apply one batch of memberships to a Cohort, inside the caller's transaction.
+     *
+     * store() and sync() previously carried two near-identical copies of this
+     * loop. That duplication is how the capacity double-count survived in only
+     * one of them, so the two callers now differ only in the flags below.
+     *
+     * A membership that already exists for the Enrollment is moved rather than
+     * recreated: `core_course_cohort_students` keeps one row per Enrollment for
+     * all history, and a transfer updates that row instead of adding one.
+     *
+     * @param  list<int>  $enrollmentIds
+     * @param  bool  $checkEligibility  whether the Cohort itself still has to be
+     *                                  proven acceptable; sync() has already done
+     *                                  that once for the whole batch
+     * @param  bool  $enforceBatchCapacity  whether capacity is checked per row,
+     *                                      counting the inserts still pending
+     * @param  array{note?: string|null}  $noteOverride  store() applies one note to
+     *                                                   the batch; sync() must leave
+     *                                                   an existing note untouched
+     */
+    private function applyMembershipBatch(
+        int $customerId,
+        object $cohort,
+        array $enrollmentIds,
+        ?int $actorId,
+        bool $checkEligibility,
+        bool $enforceBatchCapacity,
+        array $noteOverride = []
+    ): void {
+        if ($enrollmentIds === []) {
+            return;
+        }
+
+        $cohortId = (int) $cohort->id;
+        $enrollments = DB::table('core_course_enrollments')
+            ->where('customer_id', $customerId)->whereIn('id', $enrollmentIds)
+            ->lockForUpdate()->get()->keyBy('id');
+        $existingMemberships = DB::table('core_course_cohort_students')
+            ->where('customer_id', $customerId)->whereIn('enrollment_id', $enrollmentIds)
+            ->lockForUpdate()->get()->keyBy('enrollment_id');
+        $now = now();
+        $rows = [];
+
+        foreach ($enrollmentIds as $index => $enrollmentId) {
+            $enrollment = $enrollments->get($enrollmentId);
+            throw_if(! $enrollment, ValidationException::withMessages([
+                "enrollment_ids.{$index}" => __('lf.LF_course_cohort_student_validation_enrollment'),
+            ]));
+            // Only the still-pending inserts are invisible to the capacity
+            // COUNT. A reactivated membership is UPDATEd inside this loop, so
+            // the COUNT already includes it — counting it again would reject a
+            // batch that still fits.
+            $this->throwIfAssignmentIssue(
+                $customerId,
+                $cohort,
+                $enrollment,
+                $checkEligibility,
+                $enforceBatchCapacity ? count($rows) : null,
+                "enrollment_ids.{$index}"
+            );
+            $existingMembership = $existingMemberships->get($enrollmentId);
+
+            if ($existingMembership) {
+                DB::table('core_course_cohort_students')
+                    ->where('customer_id', $customerId)
+                    ->where('id', $existingMembership->id)
+                    ->update(array_merge([
+                        'cohort_id' => $cohortId,
+                        'product_id' => $enrollment->product_id,
+                        'student_id' => $enrollment->student_id,
+                        'assigned_by' => $actorId,
+                        'joined_at' => $now,
+                        'left_at' => null,
+                        'status' => 'active',
+                        'transfer_from_cohort_id' => (int) $existingMembership->cohort_id !== $cohortId
+                            ? $existingMembership->cohort_id
+                            : $existingMembership->transfer_from_cohort_id,
+                        'transfer_reason' => null,
+                        'updated_at' => $now,
+                    ], $noteOverride));
+
+                continue;
+            }
+
+            $rows[] = array_merge([
+                'customer_id' => $customerId, 'cohort_id' => $cohortId,
+                'enrollment_id' => $enrollment->id, 'product_id' => $enrollment->product_id,
+                'student_id' => $enrollment->student_id, 'assigned_by' => $actorId,
+                'joined_at' => $now, 'left_at' => null, 'status' => 'active',
+                'transfer_from_cohort_id' => null, 'transfer_reason' => null,
+                'note' => null, 'metadata' => null,
+                'created_at' => $now, 'updated_at' => $now,
+            ], $noteOverride);
+        }
+
+        if ($rows !== []) {
+            DB::table('core_course_cohort_students')->insert($rows);
+        }
     }
 
     private function throwIfAssignmentIssue(int $customerId, object $cohort, object $enrollment, bool $checkEligibility, ?int $extraAccepted, string $errorField): void
@@ -924,32 +924,6 @@ class CourseCohortStudentController extends Controller
             ->where('status', '!=', 'archived')
             ->orderBy('name')
             ->select('id', 'name', 'code', 'product_id', 'version_id', 'status', 'capacity')
-            ->get();
-    }
-
-    private function enrollments(int $customerId)
-    {
-        return DB::table('core_course_enrollments as enrollments')
-            ->join('users as students', function ($join) use ($customerId): void {
-                $join->on('students.id', '=', 'enrollments.student_id')
-                    ->where('students.customer_id', '=', $customerId);
-            })
-            ->join('core_course_products as products', function ($join) use ($customerId): void {
-                $join->on('products.id', '=', 'enrollments.product_id')
-                    ->where('products.customer_id', '=', $customerId);
-            })
-            ->where('enrollments.customer_id', $customerId)
-            ->orderBy('students.name')
-            ->orderBy('enrollments.id')
-            ->select(
-                'enrollments.id',
-                'enrollments.product_id',
-                'enrollments.version_id',
-                'students.name as student_name',
-                'students.email as student_email',
-                'products.title as product_title',
-                'products.product_code'
-            )
             ->get();
     }
 }

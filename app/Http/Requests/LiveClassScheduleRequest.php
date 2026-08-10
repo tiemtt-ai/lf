@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Services\LiveClassSchedulePolicy;
+use App\Services\CourseCohortMutationPolicy;
 use App\Support\TenantContext;
 use DateTimeZone;
 use Illuminate\Foundation\Http\FormRequest;
@@ -24,7 +24,7 @@ class LiveClassScheduleRequest extends FormRequest
             ->where('customer_id', $customerId)
             ->where('id', (int) $this->route('cohort'))
             ->first(['id', 'status']);
-        if (! $cohort || ! app(LiveClassSchedulePolicy::class)->canMutate($cohort)) {
+        if (! $cohort || ! CourseCohortMutationPolicy::canMutate($cohort)) {
             return false;
         }
 

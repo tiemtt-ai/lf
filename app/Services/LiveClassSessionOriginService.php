@@ -8,6 +8,37 @@ use Illuminate\Validation\ValidationException;
 
 class LiveClassSessionOriginService
 {
+    /**
+     * Canonical Schedule-to-Session relationship label.
+     *
+     * ADR-0002 § Schedule-To-Session Origin Amendment defines these four values
+     * and forbids deriving them from the current mutable Schedule. Classification
+     * therefore reads only the immutable Origin snapshot, the Session's own
+     * planned interval, and one server-configured rollout instant.
+     *
+     * The row must carry the Session columns plus the joined Origin columns
+     * (`schedule_origin_id`, `source_start_at`, `source_end_at`).
+     */
+    public function classify(object $session): string
+    {
+        if (! ($session->schedule_origin_id ?? null)) {
+            // No Origin means manual or legacy, and the two are told apart only
+            // by the immutable rollout cutover — never by timestamp coincidence.
+            return CarbonImmutable::parse($session->created_at)
+                ->lt(CarbonImmutable::parse(config('liveclass.schedule_origin_rollout_at')))
+                    ? 'source_unknown'
+                    : 'off_schedule';
+        }
+
+        $start = LiveClassSessionTime::utc($session->scheduled_start_at, $session->timezone);
+        $end = LiveClassSessionTime::utc($session->scheduled_end_at, $session->timezone);
+
+        return $start->equalTo(CarbonImmutable::parse($session->source_start_at, 'UTC'))
+            && $end->equalTo(CarbonImmutable::parse($session->source_end_at, 'UTC'))
+                ? 'on_schedule'
+                : 'rescheduled';
+    }
+
     public function resolve(int $customerId, int $cohortId, int $scheduleId, int $slotId, string $localDate, bool $lock = false): array
     {
         $scheduleQuery = DB::table('core_liveclass_schedules')
