@@ -63,6 +63,7 @@ Số ADR không được tái sử dụng hoặc đổi để lấp khoảng tr�
 | [ADR-0013](ADR-0013-Course-Template-Version-Duplicate-to-Draft.md) | Course Template Version Duplicate to Draft | Approved |
 | [ADR-0014](ADR-0014-Product-Offering-And-Draft-Binding.md) | Product Offering and Draft Content Binding | Approved |
 | [ADR-0015](ADR-0015-Course-Lesson-Multiple-Prerequisites.md) | Course Lesson Multiple Prerequisites | Approved |
+| [ADR-0016](ADR-0016-Learning-Foundation.md) | Learning Foundation | Review |
 
 ---
 

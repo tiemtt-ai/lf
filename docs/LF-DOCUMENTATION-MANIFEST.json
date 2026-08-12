@@ -1,11 +1,11 @@
 {
     "schema_version": "1.0",
-    "generated_or_updated_at": "2026-08-10",
+    "generated_or_updated_at": "2026-08-11",
     "root": "docs",
     "default_locale": "vi",
     "fallback_locale": "en",
     "source_of_truth": "docs/LF-INDEX.md",
-    "document_count": 206,
+    "document_count": 208,
     "documents": [
         {
             "path": "LF-Core-Overview.md",
@@ -900,6 +900,53 @@
             "routing_source": "LF-INDEX.md"
         },
         {
+            "path": "adr/ADR-0016-Learning-Foundation.md",
+            "title": "ADR-0016 — Learning Foundation",
+            "area": "adr",
+            "document_type": "adr",
+            "document_status": "Review",
+            "implementation_status": "Not Implemented",
+            "metadata_complete": true,
+            "authority": "architecture_decision",
+            "canonical_for": [],
+            "topics": [
+                "learning",
+                "evidence",
+                "mastery"
+            ],
+            "keywords": {
+                "vi": [
+                    "quyết định kiến trúc",
+                    "quyết định nền tảng",
+                    "học tập",
+                    "khung năng lực",
+                    "bằng chứng học tập",
+                    "mức độ thành thạo"
+                ],
+                "en": [
+                    "architecture decision",
+                    "foundation decision",
+                    "learning",
+                    "competency framework",
+                    "learning evidence",
+                    "mastery"
+                ]
+            },
+            "identifiers": [
+                "ADR-0016"
+            ],
+            "related_documents": [
+                "adr/ADR-0001-Course-Foundation.md",
+                "adr/ADR-0003-Assessment-Foundation.md",
+                "adr/ADR-0005-Track-Foundation.md",
+                "adr/ADR-0006-AI-Foundation.md",
+                "adr/ADR-0011-Certificate-Foundation.md",
+                "core/LF-Core-Learning.md"
+            ],
+            "superseded_by": null,
+            "routing_source": "LF-INDEX.md"
+        },
+        {
             "path": "adr/README.md",
             "title": "LearnForge Architecture Decision Records",
             "area": "adr",
@@ -1197,6 +1244,49 @@
                 "adr/ADR-0015-Course-Lesson-Multiple-Prerequisites.md",
                 "core/LF-Core-Certificate.md",
                 "database/course/core_course_template_versions.md"
+            ],
+            "superseded_by": null,
+            "routing_source": "LF-INDEX.md"
+        },
+        {
+            "path": "core/LF-Core-Learning.md",
+            "title": "LF-Core-Learning.md",
+            "area": "core",
+            "document_type": "domain_policy",
+            "document_status": "Review",
+            "implementation_status": "Not Implemented",
+            "metadata_complete": true,
+            "authority": "domain",
+            "canonical_for": [],
+            "topics": [
+                "learning"
+            ],
+            "keywords": {
+                "vi": [
+                    "chính sách miền nghiệp vụ",
+                    "miền nghiệp vụ cốt lõi",
+                    "học tập",
+                    "khung năng lực",
+                    "bằng chứng học tập",
+                    "mức độ thành thạo"
+                ],
+                "en": [
+                    "domain policy",
+                    "core domain",
+                    "learning",
+                    "competency framework",
+                    "learning evidence",
+                    "mastery"
+                ]
+            },
+            "identifiers": [
+                "LF-Core-Learning"
+            ],
+            "related_documents": [
+                "adr/ADR-0016-Learning-Foundation.md",
+                "core/LF-Core-Assessment.md",
+                "core/LF-Core-Certificate.md",
+                "core/LF-Core-Course.md"
             ],
             "superseded_by": null,
             "routing_source": "LF-INDEX.md"

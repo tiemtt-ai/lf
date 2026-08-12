@@ -236,6 +236,7 @@ docs/core/
 | [core/LF-Core-Assessment.md](core/LF-Core-Assessment.md) | Assessment engine |
 | [core/LF-Core-LiveClass.md](core/LF-Core-LiveClass.md) | Live class engine |
 | [core/LF-Core-Certificate.md](core/LF-Core-Certificate.md) | Foundation Approved and Frozen — Version 1.0; Certificate evidence and verification |
+| [core/LF-Core-Learning.md](core/LF-Core-Learning.md) | Review — chưa Approved; Learning semantics, evidence and mastery |
 
 ---
 
@@ -354,6 +355,7 @@ docs/adr/
 | [ADR-0013](adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md) | Course Template Version Duplicate to Draft decision |
 | [ADR-0014](adr/ADR-0014-Product-Offering-And-Draft-Binding.md) | Approved Product offering and Draft binding decision |
 | [ADR-0015](adr/ADR-0015-Course-Lesson-Multiple-Prerequisites.md) | Approved Course Lesson multiple-prerequisite decision |
+| [ADR-0016](adr/ADR-0016-Learning-Foundation.md) | Learning Foundation decision — Review, chưa Approved |
 
 ---
 
