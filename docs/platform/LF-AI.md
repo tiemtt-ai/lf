@@ -473,10 +473,11 @@ AI Foundation Version 1.0 được approved và freeze tại:
 ADR-0006 là canonical decision cho Consumer Domain Boundary, Knowledge/RAG,
 Conversation, Recommendation/Insight, Prompt Governance và Model Run Audit.
 
-Một Amendment Version 1.1 mở Learning Mastery Profile làm Knowledge Source
-đang ở trạng thái **Proposed** trong ADR-0006 — xem mục "Learning Integration"
-ở trên và Amendment Record trong ADR-0006. Chưa có hiệu lực cho tới khi được
-Architecture Owner duyệt.
+Amendment Version 1.1 đề xuất cho AI đọc Learning Mastery Profile như một
+structured, read-only read-model input cho Recommendation/Insight; đây không
+phải Knowledge/RAG Source. Amendment đang ở trạng thái **Proposed** trong
+ADR-0006 — xem mục "Learning Integration" ở trên và Amendment Record trong
+ADR-0006. Chưa có hiệu lực cho tới khi được Architecture Owner duyệt.
 
 ---
 
