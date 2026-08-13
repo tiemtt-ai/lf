@@ -1,6 +1,6 @@
 # Learning Foundation Database Architecture Review
 
-Version: 1.5
+Version: 1.6
 
 Document Status: Approved
 
@@ -631,6 +631,25 @@ Trigger-free 4B cannot satisfy schema drift and is not an implementation path.
 `PENDING FOR COMBINED 4B/4C` — proceed only after the Trigger Specification is
 approved and the Architecture Owner records a combined implementation
 authorization. No migration code is authorized by this readiness review.
+
+## Combined Phase 4B/4C Implementation Authorization
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-13
+Decision: Approved combined Phase 4B/4C implementation
+Authorized scope: one combined implementation gate for the ten
+                  core_learning_* tables; their columns, primary keys,
+                  36 indexes, 51 foreign keys, 30 CHECK constraints and
+                  24 independently accepted trigger bodies; disposable
+                  MariaDB migration rehearsal, schema drift and regression tests
+Excluded scope: real LearnForge database; production deployment; Phase 4D;
+                Phase 4E; AI; Track; application runtime, API and UI
+```
+
+This authorization follows Phase 4C independent technical acceptance with
+`0 BLOCKER · 0 MAJOR`. It does not authorize standalone 4B, execution against
+the real LearnForge database, deployment or any successor phase.
 
 ---
 

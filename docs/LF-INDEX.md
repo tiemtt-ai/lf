@@ -1,6 +1,6 @@
 # LF-INDEX.md
 
-Version: 2.16
+Version: 2.17
 
 Document Status: Approved
 
@@ -791,7 +791,7 @@ thức, agent vẫn phải tự kiểm tra source code hiện tại trước khi
 
 | Chức năng | Domain/Ownership | ADR bắt buộc | Domain policy | Database/schema | Quality/Review | Tài liệu điều kiện | Trình tự đọc |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Learning Framework, Evidence & Mastery | Core/Learning | [ADR-0016](adr/ADR-0016-Learning-Foundation.md) (Frozen Version 1.1) | [core/LF-Core-Learning.md](core/LF-Core-Learning.md) (Frozen), [core/LF-Core-User.md](core/LF-Core-User.md) (Phase 4A prerequisite implemented) | [database/learning/README.md](database/learning/README.md) and ten `core_learning_*` table docs — **Phase 3 Frozen, Not Implemented**; `users` composite tenant key Phase 4A implemented | [Learning Database Review and mandatory Phase 4 boundary](quality/LF-Learning-Foundation-Database-Architecture-Review.md#phase-4-mandatory-implementation-boundary) — Phase 3 **PASS**; Phase 4A **PASS WITH DOCUMENTED RISKS**; standalone 4B is finally **BLOCKED** under the current gate; combined 4B/4C is **PENDING** Trigger Specification and Owner authorization; AI and Track remain excluded | [governance/LF-Architecture-Review-Checklist.md](governance/LF-Architecture-Review-Checklist.md), [database/LF-Schema-Drift.md](database/LF-Schema-Drift.md) | Guardrails → ADR-0016 → LF-Core-Learning → database/learning/README → Phase 4 boundary → Trigger Specification → combined 4B/4C authorization; standalone 4B is not a valid implementation route |
+| Learning Framework, Evidence & Mastery | Core/Learning | [ADR-0016](adr/ADR-0016-Learning-Foundation.md) (Frozen Version 1.1) | [core/LF-Core-Learning.md](core/LF-Core-Learning.md) (Frozen), [core/LF-Core-User.md](core/LF-Core-User.md) (Phase 4A prerequisite implemented) | [database/learning/README.md](database/learning/README.md) and ten `core_learning_*` table docs — **Phase 3 Frozen, Not Implemented**; `users` composite tenant key Phase 4A implemented | [Learning Database Review and mandatory Phase 4 boundary](quality/LF-Learning-Foundation-Database-Architecture-Review.md#phase-4-mandatory-implementation-boundary) — Phase 3 **PASS**; Phase 4A **PASS WITH DOCUMENTED RISKS**; standalone 4B is finally **BLOCKED**; combined 4B/4C has **TECHNICAL PASS AND OWNER AUTHORIZATION**; AI and Track remain excluded | [governance/LF-Architecture-Review-Checklist.md](governance/LF-Architecture-Review-Checklist.md), [database/LF-Schema-Drift.md](database/LF-Schema-Drift.md) | Guardrails → ADR-0016 → LF-Core-Learning → database/learning/README → Phase 4 boundary → Trigger Specification → combined 4B/4C authorization; standalone 4B is not a valid implementation route |
 
 ## 5. Platform & SaaS
 
