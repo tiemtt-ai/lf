@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Master Korean — Domain Contract Map</title>
+<style>
+  @page{size:A3 landscape;margin:8mm;}
+  body{margin:0;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;}
+  svg{display:block;margin:0 auto;max-width:100%;height:auto;}
+</style>
+</head>
+<body>
+<svg viewBox="0 0 1600 1240" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="aSolid" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#3b5b8c"/></marker>
+  <marker id="aGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#1f9d55"/></marker>
+  <marker id="aRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#c0392b"/></marker>
+  <marker id="aAmber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#b8860b"/></marker>
+  <marker id="aTeal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#34a06f"/></marker>
+  <!-- Filled circles mark the source end of cross-domain contracts. -->
+  <marker id="sSolid" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto">
+    <circle cx="5" cy="5" r="3" fill="#3b5b8c"/></marker>
+  <marker id="sGreen" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto">
+    <circle cx="5" cy="5" r="3" fill="#1f9d55"/></marker>
+  <marker id="sRed" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto">
+    <circle cx="5" cy="5" r="3" fill="#c0392b"/></marker>
+  <marker id="sAmber" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto">
+    <circle cx="5" cy="5" r="3" fill="#b8860b"/></marker>
+</defs>
+
+<rect width="1600" height="1240" fill="#ffffff"/>
+
+<text x="800" y="32" text-anchor="middle" font-size="22" font-weight="700" fill="#1e3a8a">Admin Site - MK V2 - B2B — DOMAIN CONTRACT MAP</text>
+<text x="800" y="51" text-anchor="middle" font-size="11.5" fill="#5b6577">Mũi tên = quan hệ hoặc hợp đồng dữ liệu; màu và nét cho biết trạng thái được phép của quan hệ đó.</text>
+<text x="800" y="68" text-anchor="middle" font-size="11.5" fill="#5b6577">Badge trên mỗi ô tách <tspan font-weight="700">trạng thái policy</tspan> khỏi <tspan font-weight="700">trạng thái kỹ thuật</tspan> — hai việc hoàn toàn khác nhau.</text>
+
+<!-- ================= BAND 1 ================= -->
+<rect x="30" y="84" width="1540" height="78" rx="9" fill="#f7f8fb" stroke="#e3e7ef"/>
+<text x="1556" y="102" text-anchor="end" font-size="10.5" font-weight="700" fill="#8a93a5" letter-spacing="1.1">① NỀN TẢNG VẬN HÀNH</text>
+
+<rect x="55" y="104" width="265" height="46" rx="7" fill="#eef3fd" stroke="#3b6fd4" stroke-width="1.5"/>
+<text x="187" y="123" text-anchor="middle" font-size="13" font-weight="700" fill="#1e3a8a">Tenant · User · Auth</text>
+<text x="187" y="140" text-anchor="middle" font-size="8.5" fill="#5b6577">Policy: Frozen / Approved · Kỹ thuật: Unknown</text>
+
+<rect x="345" y="104" width="285" height="46" rx="7" fill="#eef3fd" stroke="#3b6fd4" stroke-width="1.5"/>
+<text x="487" y="123" text-anchor="middle" font-size="13" font-weight="700" fill="#1e3a8a">Commercial · Usage · Billing</text>
+<text x="487" y="140" text-anchor="middle" font-size="8.5" fill="#5b6577">Policy: Frozen · Kỹ thuật: Unknown</text>
+
+<rect x="655" y="104" width="195" height="46" rx="7" fill="#f4f5f8" stroke="#a9b2c3" stroke-width="1.3" stroke-dasharray="5 4"/>
+<text x="752" y="123" text-anchor="middle" font-size="13" font-weight="700" fill="#6b7280">Notification</text>
+<text x="752" y="140" text-anchor="middle" font-size="8.5" fill="#8a93a5">Planned — chưa có ADR</text>
+
+<text x="885" y="120" font-size="10" fill="#5b6577">Tenant context và entitlement bao trùm mọi Domain bên dưới — là điều kiện nền, không vẽ thành mũi tên riêng.</text>
+<text x="885" y="138" font-size="10" fill="#5b6577">Không Domain nào trong bản đồ này có <tspan font-weight="700">Implementation Status = Implemented</tspan>; xem badge từng ô.</text>
+
+<!-- ================= BAND 2 ================= -->
+<rect x="30" y="172" width="1540" height="298" rx="9" fill="#f7f8fb" stroke="#e3e7ef"/>
+<text x="1556" y="190" text-anchor="end" font-size="10.5" font-weight="700" fill="#8a93a5" letter-spacing="1.1">② NỘI DUNG &amp; TRẢI NGHIỆM HỌC</text>
+
+<rect x="55" y="194" width="250" height="112" rx="7" fill="#eefaf3" stroke="#34a06f" stroke-width="1.5"/>
+<text x="180" y="218" text-anchor="middle" font-size="13.5" font-weight="700" fill="#14603c">Course</text>
+<text x="180" y="238" text-anchor="middle" font-size="9.5" fill="#3d5c4e">Nội dung · phiên bản · sản phẩm</text>
+<text x="180" y="253" text-anchor="middle" font-size="9.5" fill="#3d5c4e">Ghi danh · tiến độ · hoàn thành</text>
+<text x="180" y="273" text-anchor="middle" font-size="9" font-weight="700" fill="#34a06f">SOT: Progress / Completion</text>
+<text x="180" y="290" text-anchor="middle" font-size="8.5" fill="#6b7280">Policy: Approved · Kỹ thuật: Unknown</text>
+
+<rect x="330" y="194" width="230" height="112" rx="7" fill="#eefaf3" stroke="#34a06f" stroke-width="1.5"/>
+<text x="445" y="218" text-anchor="middle" font-size="13.5" font-weight="700" fill="#14603c">Assessment</text>
+<text x="445" y="238" text-anchor="middle" font-size="9.5" fill="#3d5c4e">Quiz · lần làm bài</text>
+<text x="445" y="253" text-anchor="middle" font-size="9.5" fill="#3d5c4e">Chấm điểm · kết quả</text>
+<text x="445" y="273" text-anchor="middle" font-size="9" font-weight="700" fill="#34a06f">SOT: Result / Grade</text>
+<text x="445" y="290" text-anchor="middle" font-size="8.5" fill="#6b7280">Policy: Approved · Kỹ thuật: Unknown</text>
+
+<rect x="585" y="194" width="230" height="112" rx="7" fill="#eefaf3" stroke="#34a06f" stroke-width="1.5"/>
+<text x="700" y="218" text-anchor="middle" font-size="13.5" font-weight="700" fill="#14603c">LiveClass</text>
+<text x="700" y="238" text-anchor="middle" font-size="9.5" fill="#3d5c4e">Lớp · lịch · buổi học</text>
+<text x="700" y="253" text-anchor="middle" font-size="9.5" fill="#3d5c4e">Giáo viên · điểm danh</text>
+<text x="700" y="273" text-anchor="middle" font-size="9" font-weight="700" fill="#34a06f">SOT: Attendance</text>
+<text x="700" y="290" text-anchor="middle" font-size="8.5" fill="#6b7280">Policy: Approved · Kỹ thuật: Partial</text>
+
+<rect x="840" y="194" width="210" height="112" rx="7" fill="#eefaf3" stroke="#34a06f" stroke-width="1.5"/>
+<text x="945" y="218" text-anchor="middle" font-size="13.5" font-weight="700" fill="#14603c">Media</text>
+<text x="945" y="238" text-anchor="middle" font-size="9.5" fill="#3d5c4e">Video · audio · tài liệu</text>
+<text x="945" y="253" text-anchor="middle" font-size="9.5" fill="#3d5c4e">Xử lý · transcript</text>
+<text x="945" y="273" text-anchor="middle" font-size="9" font-weight="700" fill="#34a06f">SOT: Processing State</text>
+<text x="945" y="290" text-anchor="middle" font-size="8.5" fill="#6b7280">Policy: Approved · Kỹ thuật: Unknown</text>
+
+<rect x="1090" y="194" width="270" height="112" rx="8" fill="#e7f8ee" stroke="#1f9d55" stroke-width="2.3"/>
+<text x="1225" y="218" text-anchor="middle" font-size="13.5" font-weight="700" fill="#14603c">Giáo viên (actor)</text>
+<text x="1225" y="237" text-anchor="middle" font-size="11" font-weight="700" fill="#1f9d55">Teacher Judgment</text>
+<rect x="1104" y="248" width="242" height="18" rx="9" fill="#1f9d55"/>
+<text x="1225" y="261" text-anchor="middle" font-size="8.5" font-weight="700" fill="#ffffff">EVIDENCE SOURCE DUY NHẤT ĐƯỢC PHÉP</text>
+<text x="1225" y="280" text-anchor="middle" font-size="9" fill="#3d5c4e">khi Learning được kích hoạt lần đầu</text>
+<text x="1225" y="295" text-anchor="middle" font-size="8" fill="#6b7280">Actor, không phải Domain · chưa chạy runtime</text>
+
+<path d="M 307 250 L 326 250" stroke="#3b5b8c" stroke-width="1.7" fill="none" marker-end="url(#aSolid)"/>
+<path d="M 838 250 L 819 250" stroke="#3b5b8c" stroke-width="1.7" fill="none" marker-end="url(#aSolid)"/>
+
+<!-- ---------- CONTRACT BUNDLE A ---------- -->
+<path d="M 150 308 C 160 318 175 324 196 328" stroke="#9aa5b8" stroke-width="1" fill="none"/>
+<path d="M 400 308 C 380 318 320 324 292 328" stroke="#9aa5b8" stroke-width="1" fill="none"/>
+<path d="M 600 308 C 520 316 380 324 300 330" stroke="#9aa5b8" stroke-width="1" fill="none"/>
+<path d="M 880 308 C 700 314 400 326 302 334" stroke="#9aa5b8" stroke-width="1" fill="none"/>
+<rect x="60" y="330" width="240" height="36" rx="12" fill="#ffffff" stroke="#3b5b8c" stroke-width="1.3" stroke-dasharray="4 3"/>
+<text x="180" y="345" text-anchor="middle" font-size="8.5" font-weight="700" fill="#3b5b8c">Approved content-domain contracts</text>
+<text x="180" y="358" text-anchor="middle" font-size="8" fill="#5b6577">Course · Assessment · LiveClass · Media</text>
+
+<!-- ---------- COURSE COMPLETION DECISION STRIP ---------- -->
+<rect x="620" y="368" width="680" height="88" rx="9" fill="#f2f9f5" stroke="#34a06f" stroke-width="1.4" stroke-dasharray="6 4"/>
+<text x="632" y="386" font-size="9" font-weight="700" fill="#14603c" letter-spacing="0.6">COURSE COMPLETION DECISION — Course giữ Source of Truth (LF-Data-Flow §3)</text>
+
+<rect x="632" y="396" width="150" height="48" rx="6" fill="#ffffff" stroke="#34a06f" stroke-width="1.1"/>
+<text x="707" y="417" text-anchor="middle" font-size="9" font-weight="700" fill="#14603c">Version Activity</text>
+<text x="707" y="431" text-anchor="middle" font-size="8" fill="#5b6577">đã publish</text>
+
+<rect x="800" y="396" width="150" height="48" rx="6" fill="#ffffff" stroke="#34a06f" stroke-width="1.1"/>
+<text x="875" y="415" text-anchor="middle" font-size="9" font-weight="700" fill="#14603c">Activity Progress</text>
+<text x="875" y="428" text-anchor="middle" font-size="9" font-weight="700" fill="#14603c">Decision</text>
+
+<rect x="968" y="396" width="150" height="48" rx="6" fill="#ffffff" stroke="#34a06f" stroke-width="1.1"/>
+<text x="1043" y="417" text-anchor="middle" font-size="9" font-weight="700" fill="#14603c">Course Progress</text>
+<text x="1043" y="431" text-anchor="middle" font-size="8" fill="#5b6577">aggregate</text>
+
+<rect x="1136" y="396" width="150" height="48" rx="6" fill="#ffffff" stroke="#34a06f" stroke-width="1.6"/>
+<text x="1211" y="417" text-anchor="middle" font-size="9" font-weight="700" fill="#14603c">Completion</text>
+<text x="1211" y="431" text-anchor="middle" font-size="8" fill="#5b6577">theo rules của Course</text>
+
+<path d="M 784 420 L 796 420" stroke="#34a06f" stroke-width="1.5" fill="none" marker-end="url(#aTeal)"/>
+<path d="M 952 420 L 964 420" stroke="#34a06f" stroke-width="1.5" fill="none" marker-end="url(#aTeal)"/>
+<path d="M 1120 420 L 1132 420" stroke="#34a06f" stroke-width="1.5" fill="none" marker-end="url(#aTeal)"/>
+
+<!-- Course -> Version Activity -->
+<path d="M 300 308 C 430 322 560 350 626 412" stroke="#3b5b8c" stroke-width="1.9" fill="none" marker-start="url(#sSolid)" marker-end="url(#aSolid)"/>
+<rect x="375" y="334" width="224" height="17" rx="8.5" fill="#ffffff" stroke="#3b5b8c"/>
+<text x="487" y="346.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="#3b5b8c">published Version Activity</text>
+
+<!-- Assessment / LiveClass / Media -> Activity Progress Decision -->
+<path d="M 500 308 C 620 332 760 356 838 392" stroke="#3b5b8c" stroke-width="1.6" fill="none" marker-start="url(#sSolid)" marker-end="url(#aSolid)"/>
+<path d="M 745 308 C 795 332 850 362 872 392" stroke="#3b5b8c" stroke-width="1.6" fill="none" marker-start="url(#sSolid)" marker-end="url(#aSolid)"/>
+<path d="M 962 308 C 952 334 920 366 908 392" stroke="#3b5b8c" stroke-width="1.6" fill="none" marker-start="url(#sSolid)" marker-end="url(#aSolid)"/>
+<rect x="749" y="350" width="252" height="17" rx="8.5" fill="#ffffff" stroke="#3b5b8c"/>
+<text x="875" y="362.5" text-anchor="middle" font-size="8" font-weight="700" fill="#3b5b8c">evidence / input — không quyết định Completion</text>
+
+<!-- ================= BAND 3 ================= -->
+<rect x="30" y="550" width="1540" height="240" rx="9" fill="#f7f8fb" stroke="#e3e7ef"/>
+<text x="1556" y="568" text-anchor="end" font-size="10.5" font-weight="700" fill="#8a93a5" letter-spacing="1.1">③ BẰNG CHỨNG &amp; NĂNG LỰC</text>
+
+<rect x="55" y="602" width="230" height="140" rx="7" fill="#f3effd" stroke="#7c5cd0" stroke-width="1.5"/>
+<text x="170" y="628" text-anchor="middle" font-size="13.5" font-weight="700" fill="#4a2f8f">Track</text>
+<text x="170" y="648" text-anchor="middle" font-size="9.5" fill="#4d4460">Sự kiện hành vi · phiên học</text>
+<text x="170" y="663" text-anchor="middle" font-size="9.5" fill="#4d4460">Summary · feature · analytics</text>
+<text x="170" y="684" text-anchor="middle" font-size="9" font-weight="700" fill="#7c5cd0">SOT: append-only event history</text>
+<text x="170" y="706" text-anchor="middle" font-size="8.5" fill="#6b7280">Policy: Approved</text>
+<text x="170" y="721" text-anchor="middle" font-size="8.5" fill="#6b7280">Kỹ thuật: Unknown</text>
+
+<rect x="350" y="578" width="620" height="172" rx="9" fill="#fef7e6" stroke="#d9a121" stroke-width="2.1"/>
+<text x="366" y="602" font-size="14" font-weight="700" fill="#8a6414">LEARNING FOUNDATION</text>
+<rect x="366" y="612" width="230" height="18" rx="9" fill="#d9a121"/>
+<text x="481" y="625" text-anchor="middle" font-size="8.5" font-weight="700" fill="#ffffff">FROZEN v1.1 · NOT IMPLEMENTED</text>
+
+<rect x="366" y="648" width="135" height="52" rx="6" fill="#fffdf7" stroke="#d9a121" stroke-width="1.1"/>
+<text x="433" y="669" text-anchor="middle" font-size="9" font-weight="700" fill="#8a6414">Framework · Node</text>
+<text x="433" y="684" text-anchor="middle" font-size="9" font-weight="700" fill="#8a6414">Node Mapping</text>
+
+<rect x="517" y="648" width="135" height="52" rx="6" fill="#fffdf7" stroke="#d9a121" stroke-width="1.6"/>
+<text x="584" y="669" text-anchor="middle" font-size="9" font-weight="700" fill="#8a6414">Learning</text>
+<text x="584" y="684" text-anchor="middle" font-size="9" font-weight="700" fill="#8a6414">Evidence</text>
+
+<rect x="668" y="648" width="135" height="52" rx="6" fill="#fffdf7" stroke="#d9a121" stroke-width="1.1"/>
+<text x="735" y="669" text-anchor="middle" font-size="9" font-weight="700" fill="#8a6414">Mastery</text>
+<text x="735" y="684" text-anchor="middle" font-size="9" font-weight="700" fill="#8a6414">Calculation</text>
+
+<rect x="819" y="648" width="135" height="52" rx="6" fill="#fffdf7" stroke="#d9a121" stroke-width="1.6"/>
+<text x="886" y="669" text-anchor="middle" font-size="9" font-weight="700" fill="#8a6414">Mastery</text>
+<text x="886" y="684" text-anchor="middle" font-size="9" font-weight="700" fill="#8a6414">Profile</text>
+
+<path d="M 503 674 L 513 674" stroke="#d9a121" stroke-width="1.5" fill="none" marker-end="url(#aAmber)"/>
+<path d="M 654 674 L 664 674" stroke="#d9a121" stroke-width="1.5" fill="none" marker-end="url(#aAmber)"/>
+<path d="M 805 674 L 815 674" stroke="#d9a121" stroke-width="1.5" fill="none" marker-end="url(#aAmber)"/>
+
+<rect x="1030" y="602" width="240" height="140" rx="7" fill="#fdeeee" stroke="#d05c5c" stroke-width="1.5"/>
+<text x="1150" y="626" text-anchor="middle" font-size="13.5" font-weight="700" fill="#8f2f2f">Certificate</text>
+<text x="1150" y="644" text-anchor="middle" font-size="9.5" fill="#5f4444">Điều kiện · cấp phát · xác minh</text>
+<text x="1150" y="661" text-anchor="middle" font-size="8.5" fill="#5f4444">Nhận: Course Completion · Assessment Evidence ·</text>
+<text x="1150" y="674" text-anchor="middle" font-size="8.5" fill="#5f4444">Product/Enrollment context · Certificate Rules</text>
+<text x="1150" y="694" text-anchor="middle" font-size="9" font-weight="700" fill="#d05c5c">SOT: Eligibility Decision / Issuance</text>
+<text x="1150" y="714" text-anchor="middle" font-size="8.5" fill="#6b7280">Policy: Frozen</text>
+<text x="1150" y="728" text-anchor="middle" font-size="8.5" fill="#6b7280">Kỹ thuật: Unknown</text>
+
+<text x="1300" y="594" font-size="9" font-weight="700" fill="#8a93a5">HAI TRẠNG THÁI TÁCH RỜI</text>
+<text x="1300" y="611" font-size="8.5" fill="#5b6577">Policy = Draft / Review / Approved / Frozen</text>
+<text x="1300" y="624" font-size="8.5" fill="#5b6577">— đã chốt về kiến trúc.</text>
+<text x="1300" y="641" font-size="8.5" fill="#5b6577">Kỹ thuật = Implemented / Partial /</text>
+<text x="1300" y="654" font-size="8.5" fill="#5b6577">Unknown / Not Implemented.</text>
+<text x="1300" y="672" font-size="8.5" font-weight="700" fill="#c0392b">Approved KHÔNG đồng nghĩa đã chạy thật.</text>
+<text x="1300" y="698" font-size="9" font-weight="700" fill="#8a93a5">CHUỖI LEARNING</text>
+<text x="1300" y="715" font-size="8.5" fill="#5b6577">Evidence và Calculation là append-only;</text>
+<text x="1300" y="728" font-size="8.5" fill="#5b6577">Profile là read model dựng lại được.</text>
+<text x="1300" y="745" font-size="8.5" fill="#5b6577">SOT: Framework semantics · qualified</text>
+<text x="1300" y="758" font-size="8.5" fill="#5b6577">Evidence · Mastery history.</text>
+
+<!-- ================= BAND 4 ================= -->
+<rect x="30" y="840" width="1540" height="140" rx="9" fill="#f7f8fb" stroke="#e3e7ef"/>
+<text x="1556" y="858" text-anchor="end" font-size="10.5" font-weight="700" fill="#8a93a5" letter-spacing="1.1">④ HỖ TRỢ QUYẾT ĐỊNH</text>
+
+<rect x="560" y="856" width="330" height="106" rx="7" fill="#f3effd" stroke="#7c5cd0" stroke-width="1.5"/>
+<text x="725" y="880" text-anchor="middle" font-size="13.5" font-weight="700" fill="#4a2f8f">AI</text>
+<text x="725" y="900" text-anchor="middle" font-size="9.5" fill="#4d4460">Hội thoại · insight · recommendation · Model Run audit</text>
+<text x="725" y="922" text-anchor="middle" font-size="9" font-weight="700" fill="#7c5cd0">Consumer Domain — chỉ đọc hợp đồng đã duyệt</text>
+<text x="725" y="942" text-anchor="middle" font-size="8.5" fill="#6b7280">SOT: chỉ Recommendation / Insight của chính AI</text>
+<text x="725" y="955" text-anchor="middle" font-size="8.5" fill="#6b7280">Policy: Frozen · Kỹ thuật: Unknown</text>
+
+<rect x="970" y="856" width="370" height="106" rx="7" fill="#eef3fd" stroke="#3b6fd4" stroke-width="1.5"/>
+<text x="1155" y="880" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1e3a8a">Người học · Giáo viên · Quản trị viên</text>
+<text x="1155" y="902" text-anchor="middle" font-size="9.5" fill="#3d4a63">Nhận đề xuất · xét duyệt · hành động</text>
+<text x="1155" y="924" text-anchor="middle" font-size="9" font-weight="700" fill="#3b6fd4">Owner Domain giữ quyết định chính thức</text>
+<text x="1155" y="946" text-anchor="middle" font-size="8.5" fill="#6b7280">AI không tự đổi Progress · Result · Attendance · Certificate</text>
+
+<!-- ================= EDGES ================= -->
+
+<!-- bundle A -> Track -->
+<path d="M 140 366 C 128 442 140 522 160 598" stroke="#3b5b8c" stroke-width="1.9" fill="none" marker-start="url(#sSolid)" marker-end="url(#aSolid)"/>
+<rect x="48" y="486" width="180" height="46" rx="9" fill="#ffffff" stroke="#3b5b8c"/>
+<text x="138" y="500" text-anchor="middle" font-size="8.5" font-weight="700" fill="#3b5b8c">approved</text>
+<text x="138" y="512" text-anchor="middle" font-size="8.5" font-weight="700" fill="#3b5b8c">source-domain</text>
+<text x="138" y="524" text-anchor="middle" font-size="8.5" font-weight="700" fill="#3b5b8c">events</text>
+
+<!-- bundle A -> AI -->
+<path d="M 300 356 C 430 404 548 464 604 512 C 740 526 950 518 1002 566 C 1008 640 1000 710 994 762 C 988 814 922 850 878 854" stroke="#3b5b8c" stroke-width="1.9" fill="none" marker-start="url(#sSolid)" marker-end="url(#aSolid)"/>
+<rect x="845" y="818" width="210" height="17" rx="8.5" fill="#ffffff" stroke="#3b5b8c"/>
+<text x="950" y="830.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="#3b5b8c">context · evidence · transcript đã duyệt</text>
+
+<!-- Completion -> Certificate -->
+<path d="M 1180 448 C 1178 502 1150 556 1130 598" stroke="#3b5b8c" stroke-width="1.9" fill="none" marker-start="url(#sSolid)" marker-end="url(#aSolid)"/>
+<rect x="1082" y="519" width="160" height="17" rx="8.5" fill="#ffffff" stroke="#3b5b8c"/>
+<text x="1162" y="531.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="#3b5b8c">Course Completion (input)</text>
+
+<!-- Assessment Evidence -> Certificate (independent input) -->
+<path d="M 555 306 C 850 312 1180 318 1332 348 C 1382 390 1388 462 1366 498" stroke="#3b5b8c" stroke-opacity="0.52" stroke-width="1.2" fill="none" stroke-dasharray="4 3" marker-start="url(#sSolid)"/>
+<rect x="1286" y="500" width="172" height="22" rx="11" fill="#ffffff" stroke="#3b5b8c" stroke-width="1.3" stroke-dasharray="4 3"/>
+<text x="1372" y="515" text-anchor="middle" font-size="8.5" font-weight="700" fill="#3b5b8c">Assessment Evidence</text>
+<path d="M 1360 524 C 1330 552 1280 580 1246 596" stroke="#3b5b8c" stroke-width="1.9" fill="none" marker-start="url(#sSolid)" marker-end="url(#aSolid)"/>
+<rect x="1214" y="556" width="182" height="17" rx="8.5" fill="#ffffff" stroke="#3b5b8c"/>
+<text x="1305" y="568.5" text-anchor="middle" font-size="8" font-weight="700" fill="#3b5b8c">input trực tiếp, không qua Course</text>
+
+<!-- Course -> Node Mapping -->
+<path d="M 300 310 C 330 382 340 482 390 582 C 405 612 414 636 418 644" stroke="#3b5b8c" stroke-width="2" fill="none" marker-start="url(#sSolid)" marker-end="url(#aSolid)"/>
+<rect x="219" y="456" width="252" height="17" rx="8.5" fill="#ffffff" stroke="#3b5b8c"/>
+<text x="345" y="468.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="#3b5b8c">Node Mapping (whitelist, không phải Evidence)</text>
+
+<!-- CLOSED evidence -> Learning Evidence -->
+<path d="M 320 310 C 392 402 464 522 530 640" stroke="#c0392b" stroke-width="1.8" fill="none" stroke-dasharray="2 5" stroke-linecap="round" marker-start="url(#sRed)" marker-end="url(#aRed)"/>
+<path d="M 358 308 C 398 420 484 540 550 640" stroke="#c0392b" stroke-width="1.8" fill="none" stroke-dasharray="2 5" stroke-linecap="round" marker-start="url(#sRed)" marker-end="url(#aRed)"/>
+<path d="M 592 308 C 572 400 582 522 596 640" stroke="#c0392b" stroke-width="1.8" fill="none" stroke-dasharray="2 5" stroke-linecap="round" marker-start="url(#sRed)" marker-end="url(#aRed)"/>
+<rect x="452" y="552" width="264" height="17" rx="8.5" fill="#fdeeee" stroke="#c0392b"/>
+<text x="584" y="564.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="#c0392b">Course · Assessment · LiveClass — ĐÓNG</text>
+
+<!-- Track -> Learning Evidence (CLOSED) -->
+<path d="M 287 716 C 372 742 480 744 545 724 C 557 719 563 709 565 700" stroke="#c0392b" stroke-width="1.8" fill="none" stroke-dasharray="2 5" stroke-linecap="round" marker-start="url(#sRed)" marker-end="url(#aRed)"/>
+<rect x="326" y="729" width="196" height="17" rx="8.5" fill="#fdeeee" stroke="#c0392b"/>
+<text x="424" y="741.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="#c0392b">Track behavioral_signal — ĐÓNG</text>
+
+<!-- Teacher Judgment -> Learning Evidence (OPEN at activation) -->
+<path d="M 1330 308 C 1352 360 1350 442 1322 478 C 1200 502 800 510 646 540 C 626 552 618 590 617 642" stroke="#1f9d55" stroke-width="2.7" fill="none" marker-start="url(#sGreen)" marker-end="url(#aGreen)"/>
+<rect x="846" y="499" width="300" height="17" rx="8.5" fill="#e7f8ee" stroke="#1f9d55"/>
+<text x="996" y="511.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="#14603c">Evidence source duy nhất được phép khi kích hoạt</text>
+
+<!-- Track Summary -> Course Progress (optional, conditional on completion policy) -->
+<path d="M 285 650 C 325 625 320 530 350 494 C 520 476 820 476 1039 472 C 1042 466 1043 456 1043 448" stroke="#3b5b8c" stroke-width="1.5" fill="none" marker-start="url(#sSolid)" marker-end="url(#aSolid)"/>
+<rect x="716" y="463" width="292" height="17" rx="8.5" fill="#ffffff" stroke="#3b5b8c"/>
+<text x="862" y="475.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="#3b5b8c">Track Summary — optional, khi Course policy yêu cầu</text>
+
+<!-- Track -> AI -->
+<path d="M 285 720 C 350 780 420 830 552 862" stroke="#3b5b8c" stroke-width="1.9" fill="none" marker-start="url(#sSolid)" marker-end="url(#aSolid)"/>
+<rect x="307" y="818" width="236" height="17" rx="8.5" fill="#ffffff" stroke="#3b5b8c"/>
+<text x="425" y="830.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="#3b5b8c">hành vi · xu hướng · AI-ready feature</text>
+
+<!-- Mastery Profile -> AI : PROPOSED -->
+<path d="M 886 700 C 886 772 850 830 814 852" stroke="#b8860b" stroke-width="2.1" fill="none" stroke-dasharray="8 5" marker-start="url(#sAmber)" marker-end="url(#aAmber)"/>
+<rect x="654" y="792" width="292" height="17" rx="8.5" fill="#fef7e6" stroke="#b8860b"/>
+<text x="800" y="804.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="#8a6414">Mastery Profile — PROPOSED, chưa được duyệt</text>
+
+<!-- AI -> Actors -->
+<path d="M 892 910 L 966 910" stroke="#3b5b8c" stroke-width="1.9" fill="none" marker-start="url(#sSolid)" marker-end="url(#aSolid)"/>
+<text x="929" y="902" text-anchor="middle" font-size="8" font-weight="600" fill="#3b5b8c">gợi ý · insight</text>
+
+<!-- ================= LEGEND ================= -->
+<rect x="30" y="1000" width="1540" height="152" rx="9" fill="#fbfcfe" stroke="#e3e7ef"/>
+<text x="50" y="1021" font-size="11" font-weight="700" fill="#1e3a8a">CHÚ GIẢI — MỖI QUAN HỆ MANG TRẠNG THÁI ĐƯỢC PHÉP CỦA CHÍNH NÓ</text>
+
+<path d="M 52 1045 L 108 1045" stroke="#3b5b8c" stroke-width="2.1" fill="none" marker-end="url(#aSolid)"/>
+<text x="120" y="1042" font-size="10" font-weight="700" fill="#1f2937">Approved domain contract</text>
+<text x="120" y="1056" font-size="8.5" fill="#5b6577">Hợp đồng dữ liệu đã được ADR duyệt và đang mở. Không</text>
+<text x="120" y="1069" font-size="8.5" fill="#5b6577">khẳng định code đã chạy — xem badge kỹ thuật của từng ô.</text>
+
+<path d="M 52 1095 L 108 1095" stroke="#1f9d55" stroke-width="2.9" fill="none" marker-end="url(#aGreen)"/>
+<text x="120" y="1092" font-size="10" font-weight="700" fill="#14603c">Evidence source duy nhất được phép</text>
+<text x="120" y="1106" font-size="8.5" fill="#5b6577">khi Learning được kích hoạt lần đầu — Phase 1 chỉ mở</text>
+<text x="120" y="1119" font-size="8.5" fill="#5b6577"><tspan font-family="monospace">teacher_judgment</tspan>. Learning chưa triển khai nên chưa chạy runtime.</text>
+
+<rect x="52" y="1132" width="90" height="15" rx="7.5" fill="#ffffff" stroke="#3b5b8c" stroke-dasharray="4 3"/>
+<text x="97" y="1143" text-anchor="middle" font-size="8" font-weight="700" fill="#3b5b8c">bundle</text>
+<text x="152" y="1143" font-size="8.5" fill="#5b6577">Gom nhiều nguồn thành một hợp đồng; đường mảnh xám là nguồn góp vào.</text>
+
+<path d="M 600 1045 L 656 1045" stroke="#c0392b" stroke-width="2.1" fill="none" stroke-dasharray="2 5" stroke-linecap="round" marker-end="url(#aRed)"/>
+<text x="668" y="1042" font-size="10" font-weight="700" fill="#c0392b">ĐÓNG — chưa được phép</text>
+<text x="668" y="1056" font-size="8.5" fill="#5b6577">Mỗi nguồn có điều kiện mở RIÊNG, không dùng chung điều kiện của nhau:</text>
+<text x="678" y="1070" font-size="8.5" fill="#5b6577">· <tspan font-weight="700">Course-derived Evidence</tspan> — mở sau khi có append-only event contract được implement và qua Database/Architecture Review.</text>
+<text x="678" y="1083" font-size="8.5" fill="#5b6577">· <tspan font-weight="700">Assessment · LiveClass · Track</tspan> — vẫn đóng; mỗi nguồn cần contract và qualification policy được approval riêng.</text>
+
+<path d="M 600 1108 L 656 1108" stroke="#b8860b" stroke-width="2.1" fill="none" stroke-dasharray="8 5" marker-end="url(#aAmber)"/>
+<text x="668" y="1105" font-size="10" font-weight="700" fill="#8a6414">PROPOSED — mới là đề xuất</text>
+<text x="668" y="1119" font-size="8.5" fill="#5b6577">AI đọc Mastery Profile là Amendment ADR-0006 chưa được Architecture Owner duyệt. Nếu mở, đó là structured</text>
+<text x="668" y="1132" font-size="8.5" fill="#5b6577">read-model input cho Recommendation/Insight — KHÔNG phải Knowledge/RAG source.</text>
+
+<rect x="1330" y="1032" width="180" height="18" rx="9" fill="#f2f9f5" stroke="#34a06f" stroke-dasharray="6 4"/>
+<text x="1420" y="1045" text-anchor="middle" font-size="8" font-weight="700" fill="#14603c">chuỗi nội bộ một Domain</text>
+<text x="1330" y="1066" font-size="8.5" fill="#5b6577">Khối nét đứt xanh lá là chuỗi quyết định</text>
+<text x="1330" y="1079" font-size="8.5" fill="#5b6577">bên trong một Domain, không phải hợp</text>
+<text x="1330" y="1092" font-size="8.5" fill="#5b6577">đồng liên Domain.</text>
+<text x="1330" y="1112" font-size="8.5" font-weight="700" fill="#c0392b">Bản đồ này liệt kê hợp đồng theo trạng</text>
+<text x="1330" y="1125" font-size="8.5" font-weight="700" fill="#c0392b">thái được phép, chưa phải bản kê đủ</text>
+<text x="1330" y="1138" font-size="8.5" font-weight="700" fill="#c0392b">mọi dependency đang mở.</text>
+
+<text x="800" y="1182" text-anchor="middle" font-size="11" font-weight="700" fill="#8f2f2f">Nguyên tắc chung: mỗi Domain sở hữu dữ liệu nghiệp vụ của mình; consumer chỉ đọc dữ liệu ĐÃ ĐƯỢC DUYỆT và không tự đổi trạng thái Domain khác.</text>
+<text x="800" y="1202" text-anchor="middle" font-size="9.5" fill="#5b6577">Một quan hệ chỉ được vẽ nét liền khi hợp đồng của nó đã được duyệt. Quan hệ mong muốn không bao giờ được vẽ giống quan hệ đang có hiệu lực.</text>
+
+</svg>
+</body>
+</html>
