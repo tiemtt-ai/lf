@@ -197,6 +197,10 @@ Approved source examples:
 * Track Summary/AI-ready Feature.
 * LiveClass transcript or operational evidence reference.
 
+**Proposed, not yet approved:** Learning Mastery Profile — xem mục
+"Learning Integration" bên dưới. Không được coi là approved source cho tới
+khi ADR-0006 Amendment được duyệt và Learning Foundation được implement.
+
 Generic source reference không miễn tenant validation, source existence,
 authorization hoặc retention policy.
 
@@ -300,6 +304,26 @@ state.
 
 Media sở hữu binary, transcript, caption, processing và delivery. AI chỉ giữ
 knowledge reference/chunk/embedding derived từ authorized Media content.
+
+---
+
+# Learning Integration
+
+**Proposed — see ADR-0006 Amendment Record. Mục này chưa có hiệu lực.** Đây
+là mô tả cho Amendment Version 1.1 đề xuất
+của [ADR-0006](../adr/ADR-0006-AI-Foundation.md), chỉ có hiệu lực sau khi
+Amendment được Architecture Owner duyệt, và chỉ áp dụng được khi Learning
+Foundation ([ADR-0016](../adr/ADR-0016-Learning-Foundation.md),
+[LF-Core-Learning](../core/LF-Core-Learning.md)) đã implement — hiện tại
+Learning vẫn `Not Implemented`, chỉ Frozen ở mức database design (Phase 3).
+
+Khi cả hai điều kiện trên đạt: AI được phép đọc
+`core_learning_mastery_profiles` (Mastery Profile), read-only, để tạo
+Recommendation/Insight. AI không ghi Learning Evidence, Mastery Calculation,
+Mastery Profile, Framework hoặc Node state, và không tự resolve basis
+Framework Version thay Learning. Learning vẫn là Source Of Truth cho
+Framework semantics, Evidence và Mastery; AI chỉ tiêu thụ Profile projection
+mà Learning đã resolve và publish sẵn.
 
 ---
 
@@ -444,6 +468,11 @@ AI Foundation Version 1.0 được approved và freeze tại:
 ADR-0006 là canonical decision cho Consumer Domain Boundary, Knowledge/RAG,
 Conversation, Recommendation/Insight, Prompt Governance và Model Run Audit.
 
+Một Amendment Version 1.1 mở Learning Mastery Profile làm Knowledge Source
+đang ở trạng thái **Proposed** trong ADR-0006 — xem mục "Learning Integration"
+ở trên và Amendment Record trong ADR-0006. Chưa có hiệu lực cho tới khi được
+Architecture Owner duyệt.
+
 ---
 
 # Final Statement
@@ -452,7 +481,8 @@ AI hỗ trợ quyết định; AI không sở hữu business state.
 
 Course giữ Progress/Completion. Assessment giữ Result. LiveClass giữ
 Attendance. Media giữ Processing State. Track giữ Behavior Events/Features.
-Certificate giữ Eligibility/Issuance. Billing giữ commercial state.
+Certificate giữ Eligibility/Issuance. Billing giữ commercial state. Learning
+giữ Framework semantics, Evidence và Mastery.
 
 ```text
 Foundation Approved and Frozen

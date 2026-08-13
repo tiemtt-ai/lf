@@ -364,6 +364,14 @@ Các policy sau có thể phát triển mà không thay đổi Foundation:
 * AI feature lifecycle.
 * Offline/mobile sync.
 * High-volume partitioning.
+* Learning Foundation ([ADR-0016](../adr/ADR-0016-Learning-Foundation.md)) làm
+  future consumer của qualified Track signal như Evidence `behavioral_signal`.
+  Đây chỉ là forward-reference, không phải contract đang mở: theo
+  [database/learning/README.md](../database/learning/README.md) Phase 1
+  Evidence Source Gate, Learning chỉ mở `teacher_judgment` ở lần activation
+  đầu tiên; Track-derived Evidence còn đóng cho tới khi có append-only source
+  event contract được implement và review. Track không đổi Domain Boundary,
+  ownership hay Foundation table nào vì ghi chú này.
 
 Thay đổi Domain Boundary, table foundation hoặc schema contract phải có ADR
 Amendment hoặc ADR mới.

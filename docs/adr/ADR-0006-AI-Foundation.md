@@ -31,6 +31,45 @@ Document Path: adr/ADR-0006-AI-Foundation.md
 * [ADR-0003 — Assessment Foundation](ADR-0003-Assessment-Foundation.md)
 * [ADR-0004 — Media Foundation](ADR-0004-Media-Foundation.md)
 * [ADR-0005 — Track Foundation](ADR-0005-Track-Foundation.md)
+* [ADR-0016 — Learning Foundation](ADR-0016-Learning-Foundation.md)
+
+---
+
+## Amendment Record — Version 1.1 (Proposed)
+
+Amendment Status: **Proposed — pending Architecture Owner approval.** This
+record does not change the Version 1.0 Foundation Freeze below. Until an
+Owner Approval decision is recorded, AI Foundation remains Version 1.0 and
+Learning is not an authorized Knowledge Source.
+
+This proposed amendment would extend the Consumer Domain Boundary to
+recognize `core_learning_mastery_profiles` (Mastery Profile) under
+[ADR-0016 — Learning Foundation](ADR-0016-Learning-Foundation.md) as an
+approved, read-only Knowledge/Intelligence input, mirroring how Course,
+Assessment, LiveClass, Media and Track are already recognized. It adds a new
+`## Learning Integration` section below and the ADR-0016 line in
+`## Related ADRs` above. It does not add, remove or rename any of the 11
+Foundation tables, and it does not change Domain Responsibility, Knowledge
+Architecture or Model Run Audit.
+
+Two independent gates must clear before this amendment has any practical
+effect, regardless of its own approval:
+
+1. Architecture Owner approval of this Amendment (recorded below).
+2. Learning Foundation reaching an implemented state. As of this proposal,
+   Learning Foundation is Frozen at the database-design level only —
+   `Implementation Status: Not Implemented`, and migration requires a
+   separate Phase 4 authorization per
+   [ADR-0016](ADR-0016-Learning-Foundation.md) and the
+   [Learning Database Architecture Review](../quality/LF-Learning-Foundation-Database-Architecture-Review.md).
+
+### Owner Approval
+
+```text
+Role: LearnForge Architecture Owner
+Date:
+Decision:
+```
 
 ---
 
@@ -330,6 +369,25 @@ appropriate projection exists.
 
 Track owns behavior events/features. AI owns Recommendation, Insight and
 Assistant output.
+
+---
+
+## Learning Integration
+
+**Proposed — see Amendment Record above. This section is not in effect.** It
+describes the Version 1.1 proposal only
+and takes effect solely once the Amendment Record above is approved.
+
+Once approved and once Learning Foundation is implemented, AI may read
+`core_learning_mastery_profiles` (Mastery Profile) as an authorized,
+read-only Knowledge/Intelligence input to produce Recommendation or Insight,
+under [ADR-0016 — Learning Foundation](ADR-0016-Learning-Foundation.md).
+
+AI does not write Learning Evidence, Mastery Calculation, Mastery Profile,
+Framework or Node state, and does not resolve Framework Version basis on
+Learning's behalf. Learning remains Source Of Truth for Framework semantics,
+Evidence and Mastery; AI only consumes the current Profile projection that
+Learning already resolved and published.
 
 ---
 
