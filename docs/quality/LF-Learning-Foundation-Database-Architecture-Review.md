@@ -1,6 +1,6 @@
 # Learning Foundation Database Architecture Review
 
-Version: 1.6
+Version: 1.9
 
 Document Status: Approved
 
@@ -650,6 +650,207 @@ Excluded scope: real LearnForge database; production deployment; Phase 4D;
 This authorization follows Phase 4C independent technical acceptance with
 `0 BLOCKER · 0 MAJOR`. It does not authorize standalone 4B, execution against
 the real LearnForge database, deployment or any successor phase.
+
+## Phase 4D Implementation Authorization
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-13
+Decision: Approved Phase 4D implementation
+Authorized scope: Learning runtime, tenant-safe authorization boundary,
+                  application services, deterministic Mastery Profile
+                  projector and schema-drift runtime integration; HIGH
+                  regression audit and disposable test verification
+Excluded scope: real LearnForge database; production deployment; Phase 4E
+                Teacher Judgment workflow; public API/UI; AI; Track; opening
+                any Evidence source other than teacher_judgment
+```
+
+This authorization does not define an end-user role/access matrix. Runtime
+authorization must remain fail-closed until the Architecture Owner approves
+which Framework/Profile operations are available to `customer_admin`,
+`teacher` and `student`. No implementation may infer those permissions from
+role names alone.
+
+The Architecture Owner subsequently approved the **internal-only,
+default-deny** boundary on 2026-08-13. Phase 4D therefore exposes no Learning
+route, API or UI and grants no end-user or AI/Track read/write permission.
+
+## Phase 4D Implementation And Regression Audit
+
+Classification: Existing-Feature Change. Initial and Final Audit Level: HIGH.
+
+Implemented scope:
+
+* `LearningRuntimeAccess` requires an active tenant context and throws a
+  fail-closed authorization exception for every external read/write attempt,
+  including admin, teacher, student, AI and Track principals.
+* `LearningEvidenceSourceGate` opens only `teacher_judgment`; `track_events`,
+  `behavioral_signal` and unknown sources fail closed.
+* `LearningMasteryProfileProjector` resolves the tenant only from
+  `TenantContext`, locks the Calculation and Profile identity, projects exact
+  Calculation values transactionally and orders successors by
+  `(calculated_at, id)`. Time values are normalized to UTC microsecond
+  precision before comparison. Replays and stale Calculations are no-ops.
+* No route, controller, request, model, UI, AI/Track integration or Teacher
+  Judgment submission flow was added.
+
+Verification:
+
+```text
+Targeted runtime: 14 tests / 27 assertions                  PASS
+MariaDB 11.4 released-schema integration: 1 test / 9 assertions PASS
+Tenant isolation and missing-tenant denial                  PASS
+External principal read/write denial                        PASS
+Evidence source negative matrix                             PASS
+Projection replay, stale ordering and transaction rollback PASS
+Full PHPUnit: 717 passed / 1 skipped / 8136 assertions      PASS
+Scoped Pint                                                 PASS
+Repository-wide Pint                                       FAIL — existing debt
+docs:lint                                                   PASS
+schema:drift --docs-only                                    PASS
+git diff --check                                            PASS
+```
+
+The retained MariaDB integration test migrates the released schema and proves
+projector insert, replay, newer/stale ordering, one-row identity, isolation
+between two populated tenants, missing-tenant denial and direct-tampering
+rejection by `trg_lrn_profiles_bu_projection`. It is registered in the MariaDB
+11.4 CI job.
+The existing 4B/4C matrix separately proves append-only Calculation/Evidence
+enforcement and CHECK behavior. The disposable database and datadir were
+removed after the run; the real LearnForge database was untouched.
+
+The former SQLite test named as transaction rollback was corrected: it proves
+unique Calculation reuse rejection and absence of a target Profile, not a
+multi-write rollback that the projector does not perform.
+
+Repository-wide Pint still reports seven unrelated existing files plus the
+evidence-bound Phase 4B/4C migration and rehearsal harness. The four Phase 4D
+runtime/test files pass scoped Pint. Reformatting the 4B/4C artifacts would
+change their accepted hashes and requires a new MariaDB matrix run, so it is
+not performed silently within 4D.
+
+Findings: `0 BLOCKER · 0 HIGH · 0 MEDIUM · 1 LOW` (repository formatter debt).
+
+Final verdict: **PASS WITH DOCUMENTED RISKS** for the authorized internal-only
+Phase 4D scope. This does not authorize Phase 4E, deployment, end-user access,
+AI or Track.
+
+## Combined Phase 4B/4C Migration Rehearsal
+
+Migration source:
+`2026_08_13_010000_create_learning_foundation_tables_and_triggers.php`.
+
+MariaDB 11.4.12 disposable evidence:
+
+```text
+Forward migration: PASS
+Learning tables: 10/10
+Indexes: 36/36
+Foreign keys: 51/51
+Named CHECK constraints: 30/30
+Triggers: 24/24
+Trigger body match: 24/24
+Rollback: PASS — 0 Learning tables, 0 Learning triggers
+Forward reconstruction after rollback: PASS
+Negative matrix: 57/57 PASS
+Disposable cleanup: PASS
+Real LearnForge database: not modified
+```
+
+### Engine-portability defect found by the contract gate
+
+The 11.4.12 rehearsal above passed on a server where
+`explicit_defaults_for_timestamp` is `ON` by default. Running the same
+migration against the configured application connection (MariaDB 10.4.21,
+`explicit_defaults_for_timestamp = OFF`, `STRICT_TRANS_TABLES,NO_ZERO_DATE`)
+aborted:
+
+```text
+1067 Invalid default value for 'evaluated_at'
+```
+
+Reproduced directly on that server:
+
+```text
+TIMESTAMP(6) NOT NULL  (first such column) -> silently becomes
+    DEFAULT current_timestamp(6) ON UPDATE current_timestamp(6)
+TIMESTAMP(6) NOT NULL  (second such column) -> ERROR 1067, DDL rejected
+DATETIME(6)  NOT NULL                      -> declared shape, nothing implied
+TIMESTAMP(6) NULL                          -> NULL DEFAULT NULL, nothing implied
+```
+
+The silent-`ON UPDATE` half is the same defect
+`2026_08_09_050000_remove_implicit_timestamp_on_update_from_occurrence_columns`
+was written to remove: an unrelated `UPDATE` overwrites a recorded historical
+moment. The dependency is on a server variable, not an engine version, so the
+documented MySQL 8.0.16+ / MariaDB 10.5+ floor does not remove it.
+
+Remediation: the five non-nullable occurrence columns are declared `DATETIME(6)
+NOT NULL`, which carries no implicit default or on-update under either setting
+and cannot silently substitute `now()` for a missing value.
+
+| Table | Columns |
+| --- | --- |
+| `core_learning_evidence` | `source_occurred_at`, `evaluated_at` |
+| `core_learning_mastery_calculations` | `calculated_at` |
+| `core_learning_mastery_profiles` | `calculated_at`, `projected_at` |
+
+Nullable `TIMESTAMP(6)` columns are unchanged. `trg_lrn_profiles_bu_projection`
+declares `old_calculated_at` as `DATETIME(6)` to match the column it reads.
+
+Two further defects surfaced while closing the gate:
+
+* `up()` raised `RuntimeException` on any non-MySQL driver, which failed all
+  703 tests on the SQLite test connection. It now returns without work, as
+  `down()` already did and as the 2026-08-09 migration precedent does.
+* `SchemaDriftAnalyzer::migrationInventory()` recognised table creation only
+  through `Schema::create()`, so ten raw-DDL tables read as
+  `migration.missing_table_intent`. It now also matches
+  `CREATE TABLE [IF NOT EXISTS] \`name\``.
+
+### Combined gate acceptance
+
+MariaDB 10.4.21 ephemeral evidence, current migration source:
+
+```text
+Forward migration: PASS
+Learning tables: 10/10 · idx_lrn_*: 36/36 · fk_lrn_*: 51/51
+chk_lrn_*: 30/30 · trg_lrn_*: 24/24
+Rollback (--step=1): PASS — 0 tables, 0 indexes, 0 FKs, 0 CHECKs, 0 triggers
+Forward reconstruction after rollback: 10/36/51/30/24 PASS
+Ephemeral cleanup: PASS
+Real LearnForge database: not modified
+```
+
+Contract replacement: the ten planned `core_learning_*` records are now
+`implemented` and carry the inspected shape — columns with defaults, all
+indexes including engine-generated FK support indexes, all foreign keys, all
+CHECK constraints in engine-normalised form and the 24 executable trigger
+bodies in place of the `PLANNED CONTRACT:` placeholders. Before replacement,
+every planned declaration was verified equivalent to the built schema; the
+only differences were engine parenthesis normalisation, engine-generated
+FK/JSON objects and the five `DATETIME(6)` columns above.
+
+One unrelated pre-existing drift was corrected in the same pass:
+`core_liveclass_sessions.status` was contracted as `'draft'` while
+`2026_08_10_010000_retire_liveclass_session_draft_status` had released
+`'scheduled'`.
+
+```text
+php artisan schema:drift --fresh
+status: passed · target: fresh-ephemeral mysql · migration files: 76
+ledger: 0 pending · 0 missing_source
+findings: 60 INFO · 0 LOW · 0 MEDIUM · 0 HIGH · 0 BLOCKER
+
+php artisan docs:lint                          passed
+vendor/bin/phpunit    703 tests · 8108 assertions · 1 skipped · 0 failures
+```
+
+Migration implementation is rehearsed and contract-accepted, but not deployed.
+This section does not authorize execution against the real LearnForge database
+or any successor phase.
 
 ---
 

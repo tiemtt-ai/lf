@@ -135,4 +135,5 @@ jobs:
         run: |
           php artisan test \
             tests/Integration/LiveClassSchemaConstraintMysqlTest.php \
-            tests/Integration/EnrollmentBindingTriggerMysqlTest.php
+            tests/Integration/EnrollmentBindingTriggerMysqlTest.php \
+            tests/Integration/LearningRuntimeMariaDbTest.php

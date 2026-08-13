@@ -40,7 +40,10 @@ final class Phase4CTriggerMatrixHarness
         );
         $datadir = (string) $this->pdo->query('SELECT @@datadir')->fetchColumn();
         $sentinel = getenv('LF_PHASE4C_DISPOSABLE_SENTINEL') ?: '';
-        if ($sentinel === '' || !str_starts_with(realpath($datadir) ?: '', '/private/tmp/lf-mariadb-11-4-phase4c-')) {
+        $resolvedDatadir = realpath($datadir) ?: '';
+        $disposablePrefix = str_starts_with($resolvedDatadir, '/private/tmp/lf-mariadb-11-4-phase4c-')
+            || str_starts_with($resolvedDatadir, '/private/tmp/lf-mariadb-11-4-phase4bc-');
+        if ($sentinel === '' || ! $disposablePrefix) {
             throw new RuntimeException('Refusing server without disposable datadir sentinel.');
         }
         $stored = $this->pdo->query(
@@ -682,7 +685,8 @@ final class Phase4CTriggerMatrixHarness
         $type = match ($column['type']) {
             'bigint' => 'BIGINT' . (!empty($column['unsigned']) ? ' UNSIGNED' : ''),
             'int' => 'INT', 'decimal' => 'DECIMAL(18,6)', 'varchar' => 'VARCHAR(255)',
-            'text' => 'TEXT', 'json' => 'JSON', 'timestamp' => 'TIMESTAMP(6) NULL',
+            'text' => 'TEXT', 'json' => 'JSON', 'datetime' => 'DATETIME(6)',
+            'timestamp' => 'TIMESTAMP(6) NULL',
         };
         return "`{$column['name']}` {$type}" . (!empty($column['auto_increment']) ? ' AUTO_INCREMENT' : '');
     }

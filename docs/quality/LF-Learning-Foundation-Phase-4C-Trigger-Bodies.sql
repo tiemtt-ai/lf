@@ -576,7 +576,7 @@ END;
 
 CREATE TRIGGER trg_lrn_profiles_bu_projection BEFORE UPDATE ON core_learning_mastery_profiles FOR EACH ROW
 BEGIN
-    DECLARE old_calculated_at TIMESTAMP(6);
+    DECLARE old_calculated_at DATETIME(6);
     DECLARE parent_found BOOLEAN DEFAULT TRUE;
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET parent_found = FALSE;
     IF NOT (NEW.customer_id <=> OLD.customer_id) OR NOT (NEW.user_id <=> OLD.user_id)

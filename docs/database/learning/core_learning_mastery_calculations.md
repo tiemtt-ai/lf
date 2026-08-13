@@ -56,7 +56,7 @@ carry-forward are new decisions with actor/relation lineage, never updates.
 | `mastery_status_result` | VARCHAR(50) | `established`, `needs_review`, or `reassessment_due`; canonical Profile source. |
 | `reassessment_due_at` | TIMESTAMP(6) NULL | Rule-derived advisory date projected unchanged to Profile. |
 | `reason` | TEXT NULL | Required human-readable reason for override. |
-| `calculated_at` | TIMESTAMP(6) | Decision time. |
+| `calculated_at` | DATETIME(6) | Decision time. |
 | `calculated_by` | BIGINT UNSIGNED NULL | Human actor; null for approved system calculation. |
 | `created_at` | TIMESTAMP(6) NULL | Append time. |
 

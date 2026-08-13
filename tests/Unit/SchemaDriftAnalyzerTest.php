@@ -88,6 +88,24 @@ class SchemaDriftAnalyzerTest extends TestCase
         $this->assertSame(['2026_01_02_000000_removed'], $result['missing_source']);
     }
 
+    public function test_migration_inventory_detects_raw_create_table_statements(): void
+    {
+        $directory = sys_get_temp_dir().'/lf-migrations-'.uniqid();
+        mkdir($directory);
+        $migration = $directory.'/2026_01_01_000000_raw.php';
+        file_put_contents($migration, <<<'PHP'
+<?php
+
+DB::statement('CREATE TABLE IF NOT EXISTS `core_learning_nodes` (`id` BIGINT)');
+PHP);
+
+        $result = $this->analyzer->migrationInventory($directory);
+
+        unlink($migration);
+        rmdir($directory);
+        $this->assertSame(['core_learning_nodes'], $result['createdTables']);
+    }
+
     public function test_duplicate_contract_entry_fails_validation(): void
     {
         [$root, $table] = $this->contractFixture();

@@ -1,11 +1,11 @@
 {
   "phase": "4C",
-  "round": 8,
+  "round": 9,
   "executed_at": "2026-08-13",
   "engine": "11.4.12-MariaDB",
   "isolation": {
     "networking": "disabled",
-    "datadir_prefix": "/private/tmp/lf-mariadb-11-4-phase4c-",
+    "datadir_prefix": "/private/tmp/lf-mariadb-11-4-phase4bc-",
     "sentinel_verified": true,
     "random_database": true,
     "cleanup": "pass"
@@ -21,9 +21,10 @@
   "verdict": "pass",
   "result_digest": "97ca0d4d090471ed3a793e19ebc3fd9a9321b29614fa0f74902f059eb12dbf59",
   "artifact_sha256": {
-    "harness": "ac648057ecad3f25bac45878198491e3a8ba3004bb92ac0ba0a2a6fcbc3099b3",
-    "trigger_bodies": "36ec278cf68b5c8b7561b98d37a6c43f68b4cfb58c5e50da8b41d11f634ac55a",
-    "schema_contract": "7a3b526084c1105d66c6865ae4a046f2a168a7a091556aab582429969525f731"
+    "harness": "fcb3e3c89b6fd53d8dd7e583f1eb71b51ea885d972ab9ae70c5be8e9f07ca670",
+    "trigger_bodies": "9fb8324235f95da5ffce57556f13e25836a433c08657b1f96da54ec147c91b2b",
+    "schema_contract": "c1a65bf9b4d010fddc4e36cefb2d99c681918349029e1710ac2f062290e2de7c",
+    "migration": "f8ca6af0cd8cd14449f002b77e0d1ef53d573e926bb96be053429657fd2e3654"
   },
   "assertions": {
     "trigger_identity_and_normalized_body": "pass",

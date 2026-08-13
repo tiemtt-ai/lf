@@ -43,9 +43,9 @@ projected value must match the authoritative current Calculation.
 | `mastery_level_key` | VARCHAR(100) | Projected current level. |
 | `mastery_score` | DECIMAL(9,6) NULL | Projected current score. |
 | `mastery_status` | VARCHAR(50) | `established`, `needs_review`, or `reassessment_due`. |
-| `calculated_at` | TIMESTAMP(6) | Source Calculation time. |
+| `calculated_at` | DATETIME(6) | Source Calculation time. |
 | `reassessment_due_at` | TIMESTAMP(6) NULL | Projected advisory date from the Calculation/rules. |
-| `projected_at` | TIMESTAMP(6) | Projection update time. |
+| `projected_at` | DATETIME(6) | Projection update time. |
 | `created_at` | TIMESTAMP(6) NULL | Projection creation time. |
 | `updated_at` | TIMESTAMP(6) NULL | Projection update time. |
 

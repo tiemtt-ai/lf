@@ -43,8 +43,8 @@ the original.
 | `source_id` | BIGINT UNSIGNED | Immutable producer submission/event identity; never an actor ID. |
 | `source_discriminator` | VARCHAR(191) | Required immutable event/result discriminator or normalized `-`. |
 | `producer_idempotency_key` | VARCHAR(191) | Stable producer key preventing duplicate delivery. |
-| `source_occurred_at` | TIMESTAMP(6) | When the source event occurred. |
-| `evaluated_at` | TIMESTAMP(6) | When it was qualified as Evidence. |
+| `source_occurred_at` | DATETIME(6) | When the source event occurred. |
+| `evaluated_at` | DATETIME(6) | When it was qualified as Evidence. |
 | `value_numeric` | DECIMAL(18,6) NULL | Optional normalized numeric observation. |
 | `value_label` | VARCHAR(100) NULL | Optional categorical observation. |
 | `qualification_rule_key` | VARCHAR(100) | Frozen rule key. |

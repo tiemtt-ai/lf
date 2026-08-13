@@ -126,8 +126,10 @@ class SchemaDriftAnalyzer
         $duplicateTimestamps = array_keys(array_filter(array_count_values($timestamps), fn ($count) => $count > 1));
         $createdTables = [];
         foreach ($files as $file) {
-            preg_match_all('/Schema::create\s*\(\s*[\'\"]([^\'\"]+)[\'\"]/', (string) file_get_contents($file->getRealPath()), $matches);
-            $createdTables = [...$createdTables, ...$matches[1]];
+            $source = (string) file_get_contents($file->getRealPath());
+            preg_match_all('/Schema::create\s*\(\s*[\'\"]([^\'\"]+)[\'\"]/', $source, $builder);
+            preg_match_all('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`([^`]+)`/i', $source, $rawDdl);
+            $createdTables = [...$createdTables, ...$builder[1], ...$rawDdl[1]];
         }
         $createdTables = array_values(array_unique($createdTables));
         sort($createdTables);
