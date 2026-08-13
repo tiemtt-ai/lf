@@ -16,6 +16,18 @@ Frozen
 
 ---
 
+## Implementation Status
+
+Unknown
+
+---
+
+## Last Updated
+
+2026-08-13
+
+---
+
 ## Date
 
 2026-06-28
@@ -45,8 +57,13 @@ Learning is not an authorized Knowledge Source.
 This proposed amendment would extend the Consumer Domain Boundary to
 recognize `core_learning_mastery_profiles` (Mastery Profile) under
 [ADR-0016 — Learning Foundation](ADR-0016-Learning-Foundation.md) as an
-approved, read-only Knowledge/Intelligence input, mirroring how Course,
-Assessment, LiveClass, Media and Track are already recognized. It adds a new
+approved, read-only structured read-model input for Recommendation/Insight —
+not a Knowledge/RAG source. Mastery Profile is not registered in
+`ai_knowledge_sources` and is not chunked or embedded; it is read directly by
+the Recommendation/Insight generation step, the same way Track Features and
+Course Context already are in Intelligence Architecture. This mirrors how
+Course, Assessment, LiveClass, Media and Track are already recognized. It
+adds a new
 `## Learning Integration` section below and the ADR-0016 line in
 `## Related ADRs` above. It does not add, remove or rename any of the 11
 Foundation tables, and it does not change Domain Responsibility, Knowledge
@@ -380,8 +397,12 @@ and takes effect solely once the Amendment Record above is approved.
 
 Once approved and once Learning Foundation is implemented, AI may read
 `core_learning_mastery_profiles` (Mastery Profile) as an authorized,
-read-only Knowledge/Intelligence input to produce Recommendation or Insight,
-under [ADR-0016 — Learning Foundation](ADR-0016-Learning-Foundation.md).
+read-only read-model input — consumed directly by Intelligence Architecture,
+not registered as an `ai_knowledge_sources` entry, chunked or embedded — to
+produce Recommendation or Insight, under
+[ADR-0016 — Learning Foundation](ADR-0016-Learning-Foundation.md). Registering
+Mastery Profile in `ai_knowledge_sources` for RAG/chunk/embedding use is out
+of scope for this Amendment and would need its own review.
 
 AI does not write Learning Evidence, Mastery Calculation, Mastery Profile,
 Framework or Node state, and does not resolve Framework Version basis on

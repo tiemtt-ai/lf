@@ -6,7 +6,7 @@ Document Status: Frozen
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-13
 
 Document Path: platform/LF-AI.md
 
@@ -197,9 +197,10 @@ Approved source examples:
 * Track Summary/AI-ready Feature.
 * LiveClass transcript or operational evidence reference.
 
-**Proposed, not yet approved:** Learning Mastery Profile — xem mục
-"Learning Integration" bên dưới. Không được coi là approved source cho tới
-khi ADR-0006 Amendment được duyệt và Learning Foundation được implement.
+Learning Mastery Profile **không** thuộc danh sách Knowledge Source ở trên —
+nó là structured read-model input cho Intelligence (giống Track
+Features/Course Context), không phải nội dung để chunk/embed cho RAG. Xem mục
+"Learning Integration" bên dưới; đây vẫn là **Proposed, chưa được duyệt**.
 
 Generic source reference không miễn tenant validation, source existence,
 authorization hoặc retention policy.
@@ -318,12 +319,16 @@ Foundation ([ADR-0016](../adr/ADR-0016-Learning-Foundation.md),
 Learning vẫn `Not Implemented`, chỉ Frozen ở mức database design (Phase 3).
 
 Khi cả hai điều kiện trên đạt: AI được phép đọc
-`core_learning_mastery_profiles` (Mastery Profile), read-only, để tạo
-Recommendation/Insight. AI không ghi Learning Evidence, Mastery Calculation,
-Mastery Profile, Framework hoặc Node state, và không tự resolve basis
-Framework Version thay Learning. Learning vẫn là Source Of Truth cho
-Framework semantics, Evidence và Mastery; AI chỉ tiêu thụ Profile projection
-mà Learning đã resolve và publish sẵn.
+`core_learning_mastery_profiles` (Mastery Profile), read-only, như một
+structured read-model input cho Recommendation/Insight — đọc trực tiếp trong
+Intelligence Architecture, **không** đăng ký vào `ai_knowledge_sources`,
+không chunk, không embed. Đăng ký Mastery Profile vào `ai_knowledge_sources`
+cho mục đích RAG/chunk/embedding nằm ngoài phạm vi Amendment này và cần review
+riêng. AI không ghi Learning Evidence, Mastery Calculation, Mastery Profile,
+Framework hoặc Node state, và không tự resolve basis Framework Version thay
+Learning. Learning vẫn là Source Of Truth cho Framework semantics, Evidence và
+Mastery; AI chỉ tiêu thụ Profile projection mà Learning đã resolve và publish
+sẵn.
 
 ---
 

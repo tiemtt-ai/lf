@@ -6,7 +6,7 @@ Document Status: Frozen
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-08-12
+Last Updated: 2026-08-13
 
 Document Path: database/learning/core_learning_mastery_profiles.md
 
@@ -79,7 +79,11 @@ Calculation history.
 “Current Mastery” must be queried with an explicitly resolved basis Version.
 If context/policy cannot resolve exactly one basis, the application returns
 version-labelled Profiles or fails closed. It must not select the newest row
-blindly. AI and other consumers have read-only access and cannot write Profiles.
+blindly. Authorized consumers have read-only access and cannot write Profiles;
+a consumer is authorized only by its own approved ADR/Foundation contract. As
+of 2026-08-13, AI is not an authorized consumer — AI Foundation
+([ADR-0006](../../adr/ADR-0006-AI-Foundation.md)) lists Learning Mastery
+Profile access only as a Proposed, not-yet-approved Amendment.
 
 ## Sample Data
 
