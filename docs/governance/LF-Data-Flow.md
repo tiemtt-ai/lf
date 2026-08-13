@@ -1,12 +1,12 @@
 # LearnForge Data Flow
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-12
+Last Updated: 2026-08-13
 
 Document Path: governance/LF-Data-Flow.md
 
@@ -277,8 +277,8 @@ Learning Evidence (append-only + rule snapshot)
 Mastery Calculation (append-only + basis Framework Version)
         ↓ deterministic projection
 Mastery Profile (rebuildable read model)
-        ↓ read-only
-AI / authorized consumer
+        ↓ authorized read only
+Authorized consumer (AI deferred)
 ```
 
 Learning owns Framework semantics, qualified Evidence and Mastery. Course owns
@@ -286,6 +286,14 @@ Progress/Completion; Assessment owns Score/Result; Track owns behavior; those
 states are not moved into Learning. Evidence expiry is never inferred from age.
 Explicit validity/reassessment affects only a new Calculation under a frozen
 rule. AI cannot write Calculation or Profile state.
+
+During Learning Phase 4, Teacher Judgment is the only open Evidence source.
+Track-derived `behavioral_signal` and `track_events` are rejected; Track is not
+a Phase 4 dependency. AI has neither a Learning write path nor Mastery Profile
+read authorization. The latter remains closed until the proposed ADR-0006
+Learning Integration Amendment receives Architecture Owner approval and its
+separate implementation gates pass. If later opened, Mastery Profile is a
+structured Recommendation/Insight input, not a Knowledge/RAG source.
 
 ---
 

@@ -1,6 +1,6 @@
 # LearnForge Domain Map
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Approved
 
@@ -140,7 +140,13 @@ Course/Teacher evidence in Phase 1. Assessment and Track inputs remain closed
 until their physical contracts and qualification policies are approved.
 
 **Produces:** Version-labelled Mastery state and auditable Learning semantics
-for authorized consumers. AI is read-only and cannot write Learning state.
+for authorized consumers. During Phase 4, AI has no Learning read or write
+authorization; the ADR-0006 Learning Integration Amendment remains Proposed.
+
+**Phase 4 Boundary:** Teacher Judgment is the only initially open Evidence
+source. Track-derived Evidence and `behavioral_signal` remain future and closed.
+AI/Track migrations, models, ingestion, projection, RAG, chunks and embeddings
+are not Learning Phase 4 deliverables or dependencies.
 
 **Does Not Own:** Course Progress/Completion, Assessment Score/Result,
 Certificate eligibility, Track behavior, AI output or Enterprise/HR roles.
@@ -237,6 +243,11 @@ Insight records only; AI is not source of truth for consumer business state.
 * Course context
 * Media/transcripts
 * LiveClass authorized evidence/transcripts
+
+Learning Mastery Profile is not an effective AI input. The ADR-0006 Learning
+Integration Amendment is Proposed and must pass Owner approval and separate
+implementation gates before any read authorization exists. If later opened,
+it is a structured Recommendation/Insight input, not Knowledge/RAG content.
 
 **Produces:**
 

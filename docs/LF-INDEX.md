@@ -1,12 +1,12 @@
 # LF-INDEX.md
 
-Version: 2.7
+Version: 2.10
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-12
+Last Updated: 2026-08-13
 
 Document Path: LF-INDEX.md
 
@@ -789,7 +789,7 @@ thức, agent vẫn phải tự kiểm tra source code hiện tại trước khi
 
 | Chức năng | Domain/Ownership | ADR bắt buộc | Domain policy | Database/schema | Quality/Review | Tài liệu điều kiện | Trình tự đọc |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Learning Framework, Evidence & Mastery | Core/Learning | [ADR-0016](adr/ADR-0016-Learning-Foundation.md) (Frozen Version 1.1) | [core/LF-Core-Learning.md](core/LF-Core-Learning.md) (Frozen) | [database/learning/README.md](database/learning/README.md) và 10 `core_learning_*` table docs — **Phase 3 Frozen, Not Implemented** | [Learning Database Review](quality/LF-Learning-Foundation-Database-Architecture-Review.md) — **PASS**, Freeze confirmed; contains non-authorizing 4A–4E handoff | [governance/LF-Architecture-Review-Checklist.md](governance/LF-Architecture-Review-Checklist.md), [database/LF-Schema-Drift.md](database/LF-Schema-Drift.md) | Guardrails → ADR-0016 → LF-Core-Learning → database/learning/README → Learning Database Review → separate staged Phase 4 authorization |
+| Learning Framework, Evidence & Mastery | Core/Learning | [ADR-0016](adr/ADR-0016-Learning-Foundation.md) (Frozen Version 1.1) | [core/LF-Core-Learning.md](core/LF-Core-Learning.md) (Frozen), [core/LF-Core-User.md](core/LF-Core-User.md) (Phase 4A prerequisite implemented) | [database/learning/README.md](database/learning/README.md) and ten `core_learning_*` table docs — **Phase 3 Frozen, Not Implemented**; `users` composite tenant key Phase 4A implemented | [Learning Database Review and mandatory Phase 4 boundary](quality/LF-Learning-Foundation-Database-Architecture-Review.md#phase-4-mandatory-implementation-boundary) — Phase 3 **PASS**; Phase 4A authorization recorded, HIGH audit and Section B **PASS WITH DOCUMENTED RISKS**; Phase 4B–4E remain separately gated; AI and Track integrations are excluded from all Phase 4 stages | [governance/LF-Architecture-Review-Checklist.md](governance/LF-Architecture-Review-Checklist.md), [database/LF-Schema-Drift.md](database/LF-Schema-Drift.md) | Guardrails → ADR-0016 → LF-Core-Learning → database/learning/README → mandatory Phase 4 boundary → authorization record → separately authorized stage; stop if AI or Track implementation is required |
 
 ## 5. Platform & SaaS
 

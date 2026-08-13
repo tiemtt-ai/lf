@@ -1,12 +1,12 @@
 # LF-Core-User.md
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-12
+Last Updated: 2026-08-13
 
 Document Path: core/LF-Core-User.md
 
@@ -479,6 +479,24 @@ Physical tenant identity contract yêu cầu `users.customer_id NOT NULL` và
 `UNIQUE (id, customer_id)`. Composite key này không tạo business identity mới;
 `id` vẫn là primary key. Nó cho phép các Domain tenant-owned, bao gồm Learning,
 tạo foreign key chứng minh user/actor và bản ghi nghiệp vụ cùng tenant.
+
+## Learning Phase 4A Implementation Record
+
+Phase 4A được triển khai bằng forward migration
+`2026_08_13_000000_add_user_tenant_composite_unique.php` với named unique index
+`uk_users_id_customer` trên `(id, customer_id)`.
+
+Migration fail closed khi `users.customer_id` nullable, có user thiếu tenant,
+có orphan tenant hoặc index cùng tên mang definition khác. Nếu một composite
+unique tương đương đã tồn tại, migration không tạo duplicate. Rollback chỉ xóa
+`uk_users_id_customer` sau khi xác minh đúng columns và uniqueness; không đổi
+primary key `users.id`, user data, Auth flow hoặc tenant resolution.
+
+Preflight chỉ đọc trên database hiện hành và migration/rollback rehearsal trên
+database test `lf_schema_drift_*` đã PASS ngày 2026-08-13. Regression Audit đạt
+`PASS WITH DOCUMENTED RISKS` vì repository còn formatter debt ngoài phạm vi
+Phase 4A. Database test đã bị xóa sau rehearsal. Phase 4A không tạo bảng
+`core_learning_*` và không cấp quyền thực hiện Phase 4B.
 
 ---
 

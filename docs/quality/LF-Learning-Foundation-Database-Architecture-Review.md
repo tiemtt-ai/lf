@@ -1,6 +1,6 @@
 # Learning Foundation Database Architecture Review
 
-Version: 1.0
+Version: 1.3
 
 Document Status: Approved
 
@@ -403,7 +403,7 @@ stage does not authorize its successor.
 | 4A | User prerequisite: composite `UNIQUE (id, customer_id)`. | Existing-Feature Regression Audit and explicit auth-boundary approval. | MariaDB migration rehearsal, index preflight, rollback rehearsal and tenant-auth regression PASS. |
 | 4B | Forward migrations for ten `core_learning_*` tables, keys and CHECK constraints. | 4A PASS; table migration authorization. | Fresh MariaDB schema, FK/CHECK negative tests and schema-drift structural comparison PASS. |
 | 4C | The 24 executable trigger bodies. | Trigger Specification review approved; confirm whether fresh-schema drift permits intentionally absent triggers. | Exact normalized trigger bodies in contract; trigger identity/body drift PASS; MariaDB negative-constraint suite PASS. |
-| 4D | Learning runtime implementation. | 4B and 4C PASS; implementation authorization. | Tenant, authorization, idempotency and append-only regression audit PASS. |
+| 4D | Learning runtime, authorization, projector and schema-drift contract. | 4B and 4C PASS; implementation authorization. | Tenant, authorization, idempotency, projection, drift and append-only regression audit PASS. |
 | 4E | Teacher Judgment end-to-end flow. | 4D PASS; product/teacher workflow authorization. | Human judgment submission, Evidence, Calculation/Profile projection and audit lineage acceptance PASS. |
 
 The 4C Trigger Specification is a new review artifact, outside the frozen table
@@ -421,3 +421,311 @@ Before authorizing 4B/4C, the outstanding decision log must explicitly resolve
 whether `schema:drift --fresh` treats deliberately absent triggers as allowed
 between 4B and 4C. If it does not, 4B and 4C are executed as one migration gate;
 the gate must not be weakened merely to split the work.
+
+## Phase 4 Mandatory Implementation Boundary
+
+This section constrains every Phase 4 authorization. It does not authorize a
+stage, expand ADR-0016 or activate a future integration. Phase 3 documentation
+is complete and Learning Foundation Version 1.1 remains Frozen. Each Phase 4
+stage still requires its own authorization and entry gate.
+
+The complete Phase 4 scope is limited to:
+
+1. **4A — User prerequisite:** the composite user tenant key required by
+   Learning foreign keys.
+2. **4B — Learning schema:** the ten documented `core_learning_*` tables,
+   their keys and CHECK constraints.
+3. **4C — Learning physical enforcement:** the approved Learning triggers and
+   their executable negative-constraint verification.
+4. **4D — Learning runtime:** Learning authorization, application services,
+   projector and schema-drift contract.
+5. **4E — Teacher Judgment:** the end-to-end human judgment flow through
+   Evidence, Calculation, Profile projection and audit lineage.
+
+### Phase 4 Non-goals And Guardrails
+
+The following work is forbidden throughout Phase 4 unless a later, separately
+approved architecture change explicitly opens it:
+
+* AI must not read `core_learning_mastery_profiles`.
+* No `ai_*` migration, model, service, RAG pipeline, knowledge chunk or
+  embedding may be created or changed for Learning integration.
+* Mastery Profile must not be registered in `ai_knowledge_sources`.
+* Track-derived Evidence remains closed. Neither `track_events` nor
+  `behavioral_signal` is an accepted Learning Evidence source.
+* No `track_*` migration, model, event ingestion or projection may be created,
+  changed or required by Learning Phase 4.
+* AI has no write path to Learning Evidence, Calculation, Profile, Framework,
+  Node or any other `core_learning_*` state.
+
+These are stop conditions, not optional sequencing advice. A Phase 4 change
+that needs AI or Track implementation exceeds its authorization and must stop
+for a separate Architecture Review.
+
+### Acceptance And Negative Verification
+
+Phase 4C/4D verification must prove all of the following:
+
+* `teacher_judgment` is the only open `source_type` at initial Phase 1
+  activation.
+* Attempts to create Learning Evidence with `source_type = 'track_events'` or
+  `source_type = 'behavioral_signal'` are rejected at the physical and runtime
+  boundaries. The token `track_events` is tested explicitly even though it is
+  not a canonical Evidence source token, so an implementation cannot mistake a
+  Track table name for an allowed discriminator.
+* No AI principal, service or route has write authorization to any
+  `core_learning_*` resource.
+* No AI principal, service or route has read authorization to Mastery Profile.
+  That read boundary remains closed until the proposed ADR-0006 Amendment is
+  approved by the Architecture Owner and its separate implementation,
+  authorization, privacy, tenant and regression gates all pass.
+
+Phase 4E acceptance exercises Teacher Judgment only. Course-derived Evidence
+remains subject to the immutable source-event review in ADR-0016, while
+Assessment and Track sources remain closed at initial activation.
+
+### Deferred Workstreams Outside Phase 4
+
+**Track to Learning Evidence** may open only after Track is implemented and an
+append-only event contract, Evidence qualification policy, database design and
+independent Architecture Review are approved. It is not a dependency or
+deliverable of Learning Phase 4.
+
+**Learning Mastery Profile to AI** may open only after the ADR-0006 Amendment
+is approved by the Architecture Owner, Learning is implemented, and a separate
+AI authorization and implementation review passes. If opened, Mastery Profile
+is a structured read-model input for Recommendation/Insight only. It is not a
+Knowledge/RAG source and must not be registered, chunked or embedded.
+
+The ADR-0006 Version 1.0 Foundation remains Frozen, but its Learning Integration
+Amendment is Proposed and not effective. Track-derived Evidence remains a
+future capability and closed at Learning initial activation.
+
+---
+
+# Phase 4 Authorization Record
+
+This record persists the Architecture Owner authorization given for Phase 4A.
+It is separate from the ADR-0016 Foundation Freeze and does not amend the
+Frozen Learning database contract.
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-13
+Decision: Approved Phase 4A — User composite-key prerequisite
+Authorized scope: read-only preflight, HIGH regression/architecture audit,
+                  forward migration and tests for
+                  users UNIQUE (id, customer_id)
+Excluded scope: Phase 4B, 4C, 4D, 4E; core_learning_* tables and triggers;
+                Learning runtime; AI; Track; production deployment
+```
+
+Authorization is stage-scoped. It permits preparation and test-database
+rehearsal of Phase 4A only. It does not permit executing the migration on the
+real LearnForge database, and it does not authorize any successor stage.
+
+The authorization was recorded after the Foundation Freeze and before Phase 4A
+was accepted as complete. The technical artifact may exist in the working tree,
+but it is not production deployment evidence.
+
+---
+
+# Phase 4A User Prerequisite Regression Audit
+
+Date: 2026-08-13
+
+## Classification
+
+`Existing-Feature Change` — additive shared-schema prerequisite.
+
+## Audit Level
+
+Initial Audit Level: `HIGH`.
+
+Final Audit Level: `HIGH`.
+
+Audit Level Escalation: None.
+
+Rationale: the change adds a database constraint/index to shared `users`,
+touches the tenant ownership contract and enables future composite foreign keys
+from Learning. It does not change User identity, the `users.id` primary key,
+Auth behavior, tenant resolution, roles, routes, API or UI.
+
+## Current And Requested Behavior
+
+Before Phase 4A, `users.customer_id` was already `NOT NULL` and referenced
+`saas_customers.id`, but no unique index represented `(id, customer_id)` as a
+foreign-key target. Phase 4A adds exactly one named composite unique index:
+
+```text
+uk_users_id_customer UNIQUE (id, customer_id)
+```
+
+## Documents Reviewed
+
+* `docs/LF-INDEX.md`
+* `docs/README.md`
+* `docs/governance/LF-Architecture-Guardrails.md`
+* `docs/adr/ADR-0016-Learning-Foundation.md`
+* `docs/core/LF-Core-Learning.md`
+* `docs/core/LF-Core-User.md`
+* `docs/core/LF-Core-Auth.md`
+* `docs/saas/LF-SaaS-Tenant.md`
+* `docs/database/learning/README.md`
+* `docs/database/LF-SCHEMA-CONTRACT.json`
+* `docs/database/LF-Schema-Drift.md`
+* `docs/LF-Data-Modeling.md`
+* `docs/LF-Development-Standards.md`
+* `docs/prompts/LF-Implementation-Rules.md`
+* `docs/quality/LF-Regression-Audit.md`
+* `docs/governance/LF-Architecture-Review-Checklist.md`
+
+## Source Of Truth
+
+User/Auth owns user identity and tenant compatibility fields. SaaS Tenant owns
+tenant identity. ADR-0016 and the frozen Learning database contract require
+`users(id, customer_id)` as the composite parent key for future Learning
+learner/actor foreign keys.
+
+## Invariants
+
+* `users.id` remains the sole primary key.
+* `users.customer_id` remains `BIGINT UNSIGNED NOT NULL` and tenant-valid.
+* No user data is deleted, rewritten or backfilled.
+* No duplicate equivalent unique index is created.
+* Down migration removes only the owned named index.
+* No `core_learning_*` table, trigger or runtime component is created.
+* Phase 4B remains separately authorized.
+
+## Impact Analysis And Consumers
+
+Direct consumers are the `users` schema and future Learning composite foreign
+keys. Indirect consumers are User/Auth/Tenant flows and fresh-schema build/test
+jobs. The additive key duplicates the already-unique `id` prefix only to make
+tenant ownership physically referenceable; it does not introduce a second
+business identity.
+
+## Architecture Review Checklist Section B
+
+Section B — Data Ownership and Tenant Isolation — was applied explicitly
+because Phase 4A changes the shared User tenant-reference contract.
+
+| Section B control | Evidence | Result |
+| --- | --- | --- |
+| Source of truth remains with User/Tenant | User retains identity; SaaS Tenant retains tenant identity | PASS |
+| Every user remains tenant-owned | `users.customer_id` is `NOT NULL` and tenant-valid | PASS |
+| Cross-tenant references fail closed | Future consumers must use `(user_id, customer_id)` composite FK | PASS |
+| No global-user fallback is introduced | `users.id` remains the sole PK; tenant key is additive | PASS |
+| Existing tenant integrity is preserved | Null and orphan preflight both returned zero | PASS |
+| No duplicate equivalent key is created | Existing-index inspection and idempotent migration test | PASS |
+| Rollback is ownership-scoped | Down removes only `uk_users_id_customer` after exact verification | PASS |
+| Real database write boundary is preserved | Real schema inspection was read-only; rehearsal used disposable test DB | PASS |
+
+Section B verdict: `PASS`. No tenant/auth ownership finding remains open for
+Phase 4A. This result does not review or authorize Learning tables in Phase 4B.
+
+## Preflight Evidence
+
+Read-only inspection of configured local MySQL database `learnforge_db`:
+
+| Check | Result |
+| --- | --- |
+| `users` and `customer_id` exist | PASS |
+| `id` and `customer_id` types | `BIGINT UNSIGNED NOT NULL` |
+| `users.customer_id IS NULL` | `0` |
+| orphan `users.customer_id` | `0` |
+| FK to `saas_customers(id)` | Present |
+| equivalent `(id, customer_id)` unique | Absent before migration |
+
+The real database was inspected read-only and was not migrated.
+
+## Files Changed
+
+* `database/migrations/2026_08_13_000000_add_user_tenant_composite_unique.php`
+* `tests/Feature/UserTenantCompositeKeyMigrationTest.php`
+* `docs/core/LF-Core-User.md`
+* this review record
+* `docs/LF-INDEX.md`
+
+New Files: the migration and targeted test above.
+
+## Implementation Summary
+
+The forward migration performs fail-closed schema/data/tenant preflight,
+returns when an equivalent unique already exists, rejects a conflicting named
+index, then creates `uk_users_id_customer`. MySQL/MariaDB uses
+`ALGORITHM=INPLACE, LOCK=NONE`. Down verifies exact name, columns and uniqueness
+before dropping only that index.
+
+## Tests Added Or Updated
+
+`UserTenantCompositeKeyMigrationTest` verifies fresh reconstruction, exact
+index identity, cross-tenant composite-FK rejection, idempotent `up()`, scoped
+`down()`, nullable ownership rejection and orphan tenant rejection.
+
+## Commands And Results
+
+```text
+Read-only real-database preflight                         PASS
+Baseline User/Auth/Tenant: 23 tests / 299 assertions    PASS
+SQLite Phase 4A: 5 tests / 12 assertions                PASS
+MariaDB fresh migration                                  PASS
+MariaDB rollback and re-migration                        PASS
+MariaDB Phase 4A + tenant auth: 13 tests / 54 assertions PASS
+Full PHPUnit: 702 passed / 1 skipped / 8108 assertions  PASS
+docs:lint                                                PASS
+schema:drift --docs-only                                 PASS
+Scoped Pint                                              PASS
+Repository-wide Pint                                     FAIL — pre-existing debt
+git diff --check                                         PASS
+```
+
+The MariaDB rehearsal used only
+`lf_schema_drift_phase4a_20260813`. Post-run inspection confirmed no database
+matching `lf_schema_drift_%` remained.
+
+Frontend build and browser QA are not applicable because Phase 4A changes no
+frontend asset, route, request, response or visible behavior.
+
+## Requirement-To-Test Traceability
+
+| Requirement | Evidence |
+| --- | --- |
+| Exact composite unique exists | fresh-schema and MariaDB index inspection tests |
+| Cross-tenant user reference cannot be represented | composite FK negative test |
+| No duplicate index | idempotent `up()` test and preflight inspection |
+| Safe rollback | SQLite and MariaDB rollback rehearsal |
+| Null/orphan data blocks migration | negative preflight tests |
+| Auth and tenant isolation unchanged | baseline and MariaDB tenant-auth tests |
+| Real database remains untouched | separate read-only inspection and test DB cleanup evidence |
+
+## Unverified Items
+
+None within Phase 4A. Repository-wide formatting remains an external quality
+debt classified below.
+
+## Remaining Risks
+
+Production execution can still experience engine-specific DDL scheduling even
+with `LOCK=NONE`; deployment must monitor the online DDL and retain the
+fail-closed preflight. Repository-wide Pint still reports seven pre-existing
+violations in unrelated Course migrations/controllers, a shared video service
+and its unit test. The changed Phase 4A migration and test pass scoped Pint;
+the unrelated files were not modified because that would exceed Phase 4A.
+Phase 4B cannot begin without separate authorization.
+
+## Findings By Severity
+
+```text
+BLOCKER 0
+HIGH    0
+MEDIUM  0
+LOW     1 — pre-existing repository formatter debt outside Phase 4A
+```
+
+## Final Verdict
+
+`PASS WITH DOCUMENTED RISKS` — Phase 4A implementation and its schema, tenant,
+rollback and migration gates pass. The only recorded risk is unrelated existing
+formatter debt. This verdict authorizes no Phase 4B migration, Learning table,
+trigger or runtime implementation.
