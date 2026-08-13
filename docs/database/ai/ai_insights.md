@@ -23,6 +23,12 @@ by Model Run and may receive Feedback.
 * Severity/confidence are advisory.
 * Evidence snapshot and model provenance required.
 * Publication/acknowledgement does not execute a business action.
+* **Proposed, chưa có hiệu lực** (xem ADR-0006 Amendment Version 1.1 — cần
+  Owner Approval và Learning Phase 4): khi input dùng Learning Mastery
+  Profile, `evidence_snapshot` phải chứa tối thiểu `customer_id`, `user_id`,
+  `node_definition_id`, `basis_framework_version_id`,
+  `current_calculation_id`, `projected_at`. Không thêm cột mới cho quan hệ
+  này.
 
 ## Fields
 

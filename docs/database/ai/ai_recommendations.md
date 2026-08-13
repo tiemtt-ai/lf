@@ -20,6 +20,12 @@ Recommendation belongs to User and optional learning context/Model Run.
 * Confidence/score are advisory values from 0–1.
 * Evidence snapshot must not become source business state.
 * Expired recommendation cannot be treated as current.
+* **Proposed, chưa có hiệu lực** (xem ADR-0006 Amendment Version 1.1 — cần
+  Owner Approval và Learning Phase 4): khi input dùng Learning Mastery
+  Profile, `evidence_snapshot` phải chứa tối thiểu `customer_id`, `user_id`,
+  `node_definition_id`, `basis_framework_version_id`,
+  `current_calculation_id`, `projected_at`. Không thêm cột mới cho quan hệ
+  này.
 
 ## Fields
 

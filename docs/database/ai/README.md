@@ -119,8 +119,27 @@ AI → Assessment để lấy bằng chứng đánh giá
 AI → LiveClass để lấy bằng chứng vận hành được cấp quyền  
 AI → Media để sử dụng tài sản số và bản ghi lời thoại  
 AI → Track để lấy tổng hợp hành vi và các đặc trưng sẵn sàng cho AI  
+AI → Learning (Proposed, chưa duyệt) để đọc Mastery Profile cho Recommendation/Insight  
 AI → Commercial để kiểm tra Entitlement đối với tính năng  
 AI → Usage để ghi nhận các phép đo mức tiêu thụ tài nguyên đã được phê duyệt
+
+---
+
+## Proposed Learning Integration (Chưa có hiệu lực)
+
+> ⚠️ **Proposed, chưa được duyệt**: Mục này mô tả Amendment Version 1.1 đề
+> xuất của [ADR-0006](../../adr/ADR-0006-AI-Foundation.md). Chưa có hiệu lực
+> cho tới khi Architecture Owner ghi `Approved` vào khối Owner Approval của
+> ADR-0006, và Learning Foundation
+> ([ADR-0016](../../adr/ADR-0016-Learning-Foundation.md)) hoàn tất Phase 4
+> authorization/implementation riêng.
+
+* Learning Mastery Profile (`core_learning_mastery_profiles`) là structured
+  read-model input cho Recommendation/Insight, không phải Knowledge/RAG
+  source.
+* Không đăng ký vào `ai_knowledge_sources`; không chunk, không embed.
+* Chưa có hiệu lực trước Owner Approval (ADR-0006) và trước khi Learning
+  Foundation hoàn tất Phase 4.
 
 ---
 

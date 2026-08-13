@@ -21,6 +21,13 @@ generate Messages, Recommendations or Insights.
 * No API key, BYOK secret or raw credential.
 * Sensitive payload storage is optional and governed by retention/privacy.
 * Failed/blocked runs retained for audit according to policy.
+* **Proposed, chưa có hiệu lực** (xem ADR-0006 Amendment Version 1.1 — cần
+  Owner Approval và Learning Phase 4): khi Model Run dùng Learning Mastery
+  Profile làm input, `metadata` phải ghi nhận Profile identity
+  (`customer_id`, `user_id`, `node_definition_id`,
+  `basis_framework_version_id`, `current_calculation_id`) và `projected_at`
+  tại thời điểm đọc. Đây là điểm audit quan trọng nhất để chứng minh Model
+  Run đã dùng đúng Profile projection nào.
 
 ## Fields
 
