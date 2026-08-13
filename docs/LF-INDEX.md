@@ -1,6 +1,6 @@
 # LF-INDEX.md
 
-Version: 2.13
+Version: 2.16
 
 Document Status: Approved
 
@@ -391,6 +391,7 @@ docs/quality/
 | [quality/LF-Bulk-Enrollment-Architecture-Review.md](quality/LF-Bulk-Enrollment-Architecture-Review.md) | Approved and frozen Admin Bulk Enrollment creation, re-enrollment and atomic-submission idempotency review |
 | [quality/LF-Learning-Foundation-Database-Architecture-Review.md](quality/LF-Learning-Foundation-Database-Architecture-Review.md) | PASS Phase 3 Learning Database/Architecture Review; Foundation Freeze recorded and migration remains separately gated |
 | [quality/LF-Learning-Foundation-Phase-4C-Trigger-Specification.md](quality/LF-Learning-Foundation-Phase-4C-Trigger-Specification.md) | Review draft for 24 Learning trigger bodies; implementation remains blocked pending exact SQL and approval |
+| [quality/LF-Learning-Foundation-Phase-4C-Trigger-Static-Review.md](quality/LF-Learning-Foundation-Phase-4C-Trigger-Static-Review.md) | Engine rehearsal BLOCKED: candidate `JSON_TABLE` conflicts with the allowed MariaDB 10.5 floor; database cleanup PASS |
 | [quality/LF-Schema-Drift-Trigger-Identity-Regression-Audit.md](quality/LF-Schema-Drift-Trigger-Identity-Regression-Audit.md) | PASS HIGH regression audit for opt-in trigger identity enforcement in schema drift |
 
 ---

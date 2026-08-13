@@ -1,6 +1,6 @@
 # LearnForge Quality
 
-Version: 1.6
+Version: 1.9
 
 Document Status: Approved
 
@@ -82,6 +82,9 @@ criteria hay không.
 * [LF-Learning-Foundation-Phase-4C-Trigger-Specification.md](LF-Learning-Foundation-Phase-4C-Trigger-Specification.md)
   — review draft defining the 24-trigger semantics, error catalog, JSON paths
   and negative-test obligations before combined Phase 4B/4C authorization.
+* [LF-Learning-Foundation-Phase-4C-Trigger-Static-Review.md](LF-Learning-Foundation-Phase-4C-Trigger-Static-Review.md)
+  — static remediation passed, but disposable rehearsal is BLOCKED by the
+  candidate `JSON_TABLE` dependency conflicting with the MariaDB 10.5 floor.
 * [LF-Schema-Drift-Trigger-Identity-Regression-Audit.md](LF-Schema-Drift-Trigger-Identity-Regression-Audit.md)
   — HIGH Existing-Feature Change audit for opt-in trigger identity enforcement
   in the shared schema-drift quality gate.

@@ -1,0 +1,36 @@
+{
+  "phase": "4C",
+  "round": 8,
+  "executed_at": "2026-08-13",
+  "engine": "11.4.12-MariaDB",
+  "isolation": {
+    "networking": "disabled",
+    "datadir_prefix": "/private/tmp/lf-mariadb-11-4-phase4c-",
+    "sentinel_verified": true,
+    "random_database": true,
+    "cleanup": "pass"
+  },
+  "physical_schema": {
+    "learning_tables": 10,
+    "indexes": 36,
+    "foreign_keys": 51,
+    "checks_from_contract": true
+  },
+  "triggers_installed": 24,
+  "probes_passed": 57,
+  "verdict": "pass",
+  "result_digest": "97ca0d4d090471ed3a793e19ebc3fd9a9321b29614fa0f74902f059eb12dbf59",
+  "artifact_sha256": {
+    "harness": "ac648057ecad3f25bac45878198491e3a8ba3004bb92ac0ba0a2a6fcbc3099b3",
+    "trigger_bodies": "36ec278cf68b5c8b7561b98d37a6c43f68b4cfb58c5e50da8b41d11f634ac55a",
+    "schema_contract": "7a3b526084c1105d66c6865ae4a046f2a168a7a091556aab582429969525f731"
+  },
+  "assertions": {
+    "trigger_identity_and_normalized_body": "pass",
+    "sqlstate_45000_and_exact_error_code": "pass",
+    "required_negative_matrix": "pass",
+    "ordered_results_emitted_for_digest": true,
+    "check_enforcement": "pass",
+    "transaction_rollback": "pass"
+  }
+}
