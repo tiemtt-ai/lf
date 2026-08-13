@@ -1,12 +1,12 @@
 # LearnForge Schema Drift Standard
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-10
+Last Updated: 2026-08-13
 
 Document Path: database/LF-Schema-Drift.md
 
@@ -74,7 +74,12 @@ chứa username, password, URL/DSN, record data hoặc credential.
 So sánh theo semantics: bỏ qua tên index/constraint nhưng kiểm tra column set,
 type, unsigned, null/default, auto increment/generated, PK, unique/index, FK
 target/action, checks, triggers và views. Metadata ordering bị bỏ qua khi thứ tự
-không phải contract.
+không phải contract. Trigger cũng bỏ qua tên theo mặc định để tương thích
+contract cũ. Một table đặt `trigger_identity_required: true` phải khai báo
+`name`, `timing`, `event` và `statement` cho từng trigger; khi đó drift so sánh
+cả tên trigger. Giá trị này phải là boolean. MySQL inspector luôn đọc
+`TRIGGER_NAME`, nên contract Foundation có thể bắt lỗi trigger đổi tên, thân
+rỗng hoặc sai hành vi.
 
 Severity độc lập với Regression Audit Level: `BLOCKER` cho missing required
 object hoặc migration/ledger invalid; `HIGH` cho invariant type/null/default,

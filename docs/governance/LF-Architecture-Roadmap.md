@@ -1,12 +1,12 @@
 # LearnForge Architecture Roadmap
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-12
 
 Document Path: governance/LF-Architecture-Roadmap.md
 
@@ -76,6 +76,7 @@ tenant isolation và contract ổn định trước khi tầng phụ thuộc đ�
 | Usage | [ADR-0009](../adr/ADR-0009-SaaS-Usage-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
 | Billing | [ADR-0010](../adr/ADR-0010-SaaS-Billing-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
 | Certificate | [ADR-0011](../adr/ADR-0011-Certificate-Foundation.md) | 1.0 | Completed — Foundation Approved and Frozen |
+| Learning | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) | 1.1 | Completed — Foundation Approved and Frozen; migration Not Implemented |
 
 Các Foundation đã hoàn thành là architecture baseline. Thay đổi làm ảnh hưởng
 Domain boundary, ownership hoặc Source of Truth phải đi qua ADR mới.
@@ -83,6 +84,29 @@ Domain boundary, ownership hoặc Source of Truth phải đi qua ADR mới.
 ---
 
 ## 3. Current Phase
+
+### Learning Foundation — Phase 3 Complete
+
+ADR-0016 và LF-Core-Learning Version 1.1 đã được Architecture Owner phê duyệt
+và Frozen ngày 2026-08-12 sau independent Database/Architecture Review PASS.
+Mười table docs, Evidence validity, physical constraints và schema contract là
+Foundation baseline. Migration/implementation vẫn cần authorization Giai đoạn 4
+riêng.
+
+```text
+Approved ADR and Domain Policy
+→ 10 Learning table docs (Frozen)
+→ Database/Architecture Review PASS
+→ Foundation Freeze
+→ Phase 4A User prerequisite authorization
+→ Phase 4B/4C database and trigger gates
+→ Phase 4D implementation
+→ Phase 4E Teacher Judgment flow
+```
+
+Phase 4 authorization is staged, not blanket approval. Canonical gate details
+and the trigger-specification requirement are maintained in the Learning
+Database Architecture Review under “Freeze Confirmation And Phase 4 Handoff”.
 
 ### Certificate Foundation — Completed
 

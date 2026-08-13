@@ -1,12 +1,12 @@
 # LearnForge Quality
 
-Version: 1.3
+Version: 1.5
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-13
 
 Document Path: quality/README.md
 
@@ -75,6 +75,13 @@ criteria hay không.
 * [LF-Enrollment-Lifecycle-Architecture-Review.md](LF-Enrollment-Lifecycle-Architecture-Review.md)
   — approved and frozen review for single and atomic bulk Enrollment lifecycle
   transitions.
+* [LF-Learning-Foundation-Database-Architecture-Review.md](LF-Learning-Foundation-Database-Architecture-Review.md)
+  — approved Phase 3 Database/Architecture Review for the ten Learning
+  Foundation physical contracts; Foundation is frozen and migration remains a
+  separate authorization.
+* [LF-Schema-Drift-Trigger-Identity-Regression-Audit.md](LF-Schema-Drift-Trigger-Identity-Regression-Audit.md)
+  — HIGH Existing-Feature Change audit for opt-in trigger identity enforcement
+  in the shared schema-drift quality gate.
 
 ---
 

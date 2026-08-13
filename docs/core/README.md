@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-12
 
 Document Path: core/README.md
 
@@ -36,7 +36,7 @@ schema thuộc [docs/database](../database/README.md).
 | LiveClass | [LF-Core-LiveClass](LF-Core-LiveClass.md) | [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md) | [liveclass/](../database/liveclass/) |
 | Assessment | [LF-Core-Assessment](LF-Core-Assessment.md) | [ADR-0003](../adr/ADR-0003-Assessment-Foundation.md) | [assessment/](../database/assessment/) |
 | Certificate | [LF-Core-Certificate](LF-Core-Certificate.md) | [ADR-0011](../adr/ADR-0011-Certificate-Foundation.md) | [course/ Certificate tables](../database/course/) |
-| Learning | [LF-Core-Learning](LF-Core-Learning.md) | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) (Review) | Chưa tạo — chờ ADR Approved |
+| Learning | [LF-Core-Learning](LF-Core-Learning.md) Version 1.1 | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) (Frozen) | [learning/](../database/learning/) — Phase 3 Frozen; migration Not Implemented |
 
 Media, Track và AI là Platform Domains và được hướng dẫn tại
 [docs/platform](../platform/README.md).

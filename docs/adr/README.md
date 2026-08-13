@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-12
 
 Document Path: adr/README.md
 
@@ -63,7 +63,7 @@ Số ADR không được tái sử dụng hoặc đổi để lấp khoảng tr�
 | [ADR-0013](ADR-0013-Course-Template-Version-Duplicate-to-Draft.md) | Course Template Version Duplicate to Draft | Approved |
 | [ADR-0014](ADR-0014-Product-Offering-And-Draft-Binding.md) | Product Offering and Draft Content Binding | Approved |
 | [ADR-0015](ADR-0015-Course-Lesson-Multiple-Prerequisites.md) | Course Lesson Multiple Prerequisites | Approved |
-| [ADR-0016](ADR-0016-Learning-Foundation.md) | Learning Foundation | Review |
+| [ADR-0016](ADR-0016-Learning-Foundation.md) | Learning Foundation Version 1.1 amendment | Frozen |
 
 ---
 

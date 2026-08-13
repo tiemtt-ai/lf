@@ -12233,6 +12233,218 @@
             "views": []
         },
         {
+            "name": "core_learning_calculation_evidence",
+            "documentation": "database/learning/core_learning_calculation_evidence.md",
+            "implementation_status": "not_implemented",
+            "trigger_identity_required": true,
+            "columns": [
+                {"name":"id","type":"bigint","nullable":false,"unsigned":true,"auto_increment":true},
+                {"name":"customer_id","type":"bigint","nullable":false,"unsigned":true},
+                {"name":"user_id","type":"bigint","nullable":false,"unsigned":true},
+                {"name":"mastery_calculation_id","type":"bigint","nullable":false,"unsigned":true},
+                {"name":"evidence_id","type":"bigint","nullable":false,"unsigned":true},
+                {"name":"evidence_role","type":"varchar","nullable":false},
+                {"name":"effective_weight","type":"decimal","nullable":false},
+                {"name":"contribution","type":"decimal","nullable":true},
+                {"name":"reason_code","type":"varchar","nullable":false},
+                {"name":"reason_snapshot","type":"json","nullable":true},
+                {"name":"created_at","type":"timestamp","nullable":true}
+            ],
+            "primary_key": ["id"],
+            "indexes": [
+                {"columns":["customer_id","mastery_calculation_id","evidence_id"],"unique":true,"type":"btree"},
+                {"columns":["customer_id","user_id","evidence_id","mastery_calculation_id"],"unique":false,"type":"btree"}
+            ],
+            "foreign_keys": [
+                {"columns":["customer_id"],"foreign_table":"saas_customers","foreign_columns":["id"],"on_update":"restrict","on_delete":"restrict"},
+                {"columns":["mastery_calculation_id","customer_id","user_id"],"foreign_table":"core_learning_mastery_calculations","foreign_columns":["id","customer_id","user_id"],"on_update":"restrict","on_delete":"restrict"},
+                {"columns":["evidence_id","customer_id","user_id"],"foreign_table":"core_learning_evidence","foreign_columns":["id","customer_id","user_id"],"on_update":"restrict","on_delete":"restrict"}
+            ],
+            "checks": [
+                {"expression":"effective_weight >= 0"},
+                {"expression":"evidence_role in ('included','excluded','continuity_input')"},
+                {"expression":"evidence_role <> 'excluded' or (effective_weight = 0 and reason_code <> '')"}
+            ],
+            "triggers": [
+                {"name":"trg_lrn_calc_evidence_bi_validate","timing":"before","event":"insert","statement":"PLANNED CONTRACT: validate direct or approved transition lineage"},
+                {"name":"trg_lrn_calc_evidence_bu_immutable","timing":"before","event":"update","statement":"SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_CALC_EVIDENCE_IMMUTABLE'"},
+                {"name":"trg_lrn_calc_evidence_bd_immutable","timing":"before","event":"delete","statement":"SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_CALC_EVIDENCE_IMMUTABLE'"}
+            ],
+            "views": []
+        },
+        {
+            "name": "core_learning_evidence",
+            "documentation": "database/learning/core_learning_evidence.md",
+            "implementation_status": "not_implemented",
+            "trigger_identity_required": true,
+            "columns": [
+                {"name":"id","type":"bigint","nullable":false,"unsigned":true,"auto_increment":true},
+                {"name":"customer_id","type":"bigint","nullable":false,"unsigned":true},
+                {"name":"user_id","type":"bigint","nullable":false,"unsigned":true},
+                {"name":"learning_node_id","type":"bigint","nullable":false,"unsigned":true},
+                {"name":"evidence_type","type":"varchar","nullable":false},
+                {"name":"source_type","type":"varchar","nullable":false},
+                {"name":"source_id","type":"bigint","nullable":false,"unsigned":true},
+                {"name":"source_discriminator","type":"varchar","nullable":false},
+                {"name":"producer_idempotency_key","type":"varchar","nullable":false},
+                {"name":"source_occurred_at","type":"timestamp","nullable":false},
+                {"name":"evaluated_at","type":"timestamp","nullable":false},
+                {"name":"value_numeric","type":"decimal","nullable":true},
+                {"name":"value_label","type":"varchar","nullable":true},
+                {"name":"qualification_rule_key","type":"varchar","nullable":false},
+                {"name":"qualification_rule_version","type":"varchar","nullable":false},
+                {"name":"qualification_rule_snapshot","type":"json","nullable":false},
+                {"name":"valid_from","type":"timestamp","nullable":true},
+                {"name":"valid_until","type":"timestamp","nullable":true},
+                {"name":"reassessment_due_at","type":"timestamp","nullable":true},
+                {"name":"supersedes_evidence_id","type":"bigint","nullable":true,"unsigned":true},
+                {"name":"recorded_by","type":"bigint","nullable":true,"unsigned":true},
+                {"name":"created_at","type":"timestamp","nullable":true}
+            ],
+            "primary_key": ["id"],
+            "indexes": [
+                {"columns":["customer_id","source_type","producer_idempotency_key","learning_node_id","user_id","evidence_type"],"unique":true,"type":"btree"},
+                {"columns":["id","customer_id","user_id"],"unique":true,"type":"btree"},
+                {"columns":["customer_id","supersedes_evidence_id"],"unique":true,"type":"btree"},
+                {"columns":["customer_id","user_id","learning_node_id","evaluated_at"],"unique":false,"type":"btree"},
+                {"columns":["customer_id","valid_until","reassessment_due_at"],"unique":false,"type":"btree"}
+            ],
+            "foreign_keys": [
+                {"columns":["customer_id"],"foreign_table":"saas_customers","foreign_columns":["id"],"on_update":"restrict","on_delete":"restrict"},
+                {"columns":["user_id","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"},
+                {"columns":["recorded_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"},
+                {"columns":["learning_node_id","customer_id"],"foreign_table":"core_learning_nodes","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"},
+                {"columns":["supersedes_evidence_id","customer_id","user_id"],"foreign_table":"core_learning_evidence","foreign_columns":["id","customer_id","user_id"],"on_update":"restrict","on_delete":"restrict"}
+            ],
+            "checks": [
+                {"expression":"value_numeric is not null or value_label is not null"},
+                {"expression":"valid_until is null or valid_from is null or valid_from <= valid_until"},
+                {"expression":"evidence_type <> 'expert_judgment' or (source_type = 'teacher_judgment' and recorded_by is not null)"}
+            ],
+            "triggers": [
+                {"name":"trg_lrn_evidence_bi_validate","timing":"before","event":"insert","statement":"PLANNED CONTRACT: validate source whitelist, qualification snapshot and correction chain"},
+                {"name":"trg_lrn_evidence_bu_immutable","timing":"before","event":"update","statement":"SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_EVIDENCE_IMMUTABLE'"},
+                {"name":"trg_lrn_evidence_bd_immutable","timing":"before","event":"delete","statement":"SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_EVIDENCE_IMMUTABLE'"}
+            ],
+            "views": []
+        },
+        {
+            "name": "core_learning_framework_versions",
+            "documentation": "database/learning/core_learning_framework_versions.md",
+            "implementation_status": "not_implemented",
+            "trigger_identity_required": true,
+            "columns": [
+                {"name":"id","type":"bigint","nullable":false,"unsigned":true,"auto_increment":true}, {"name":"customer_id","type":"bigint","nullable":false,"unsigned":true}, {"name":"framework_id","type":"bigint","nullable":false,"unsigned":true}, {"name":"version_number","type":"int","nullable":false,"unsigned":true}, {"name":"version_code","type":"varchar","nullable":false}, {"name":"title_snapshot","type":"varchar","nullable":false}, {"name":"description_snapshot","type":"text","nullable":true}, {"name":"mastery_scale_key","type":"varchar","nullable":false}, {"name":"mastery_scale_version","type":"varchar","nullable":false}, {"name":"mastery_scale_snapshot","type":"json","nullable":false}, {"name":"status","type":"varchar","nullable":false}, {"name":"published_at","type":"timestamp","nullable":true}, {"name":"deprecated_at","type":"timestamp","nullable":true}, {"name":"archived_at","type":"timestamp","nullable":true}, {"name":"published_by","type":"bigint","nullable":true,"unsigned":true}, {"name":"deprecated_by","type":"bigint","nullable":true,"unsigned":true}, {"name":"archived_by","type":"bigint","nullable":true,"unsigned":true}, {"name":"created_by","type":"bigint","nullable":false,"unsigned":true}, {"name":"updated_by","type":"bigint","nullable":false,"unsigned":true}, {"name":"created_at","type":"timestamp","nullable":true}, {"name":"updated_at","type":"timestamp","nullable":true}
+            ],
+            "primary_key":["id"],
+            "indexes":[
+                {"columns":["customer_id","framework_id","version_number"],"unique":true,"type":"btree"}, {"columns":["customer_id","framework_id","version_code"],"unique":true,"type":"btree"}, {"columns":["id","customer_id","framework_id"],"unique":true,"type":"btree"}, {"columns":["customer_id","framework_id","status","published_at"],"unique":false,"type":"btree"}
+            ],
+            "foreign_keys":[
+                {"columns":["customer_id"],"foreign_table":"saas_customers","foreign_columns":["id"],"on_update":"restrict","on_delete":"restrict"}, {"columns":["framework_id","customer_id"],"foreign_table":"core_learning_frameworks","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"}, {"columns":["published_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"}, {"columns":["deprecated_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"}, {"columns":["archived_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"}, {"columns":["created_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"}, {"columns":["updated_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"}
+            ],
+            "checks":[{"expression":"status in ('draft_snapshot','published','deprecated','archived')"},{"expression":"json_valid(mastery_scale_snapshot)"}],
+            "triggers":[{"name":"trg_lrn_fw_versions_bi_validate","timing":"before","event":"insert","statement":"PLANNED CONTRACT: validate lifecycle and mastery scale"},{"name":"trg_lrn_fw_versions_bu_immutable","timing":"before","event":"update","statement":"PLANNED CONTRACT: permit irreversible lifecycle only and freeze snapshot after publish"},{"name":"trg_lrn_fw_versions_bd_immutable","timing":"before","event":"delete","statement":"PLANNED CONTRACT: reject delete after publish"}],
+            "views":[]
+        },
+        {
+            "name": "core_learning_frameworks",
+            "documentation": "database/learning/core_learning_frameworks.md",
+            "implementation_status": "not_implemented",
+            "trigger_identity_required": true,
+            "columns":[
+                {"name":"id","type":"bigint","nullable":false,"unsigned":true,"auto_increment":true}, {"name":"customer_id","type":"bigint","nullable":false,"unsigned":true}, {"name":"code","type":"varchar","nullable":false}, {"name":"name","type":"varchar","nullable":false}, {"name":"description","type":"text","nullable":true}, {"name":"default_mastery_scale_key","type":"varchar","nullable":false}, {"name":"default_mastery_scale_version","type":"varchar","nullable":false}, {"name":"default_mastery_scale","type":"json","nullable":false}, {"name":"status","type":"varchar","nullable":false}, {"name":"archived_at","type":"timestamp","nullable":true}, {"name":"archived_by","type":"bigint","nullable":true,"unsigned":true}, {"name":"created_by","type":"bigint","nullable":false,"unsigned":true}, {"name":"updated_by","type":"bigint","nullable":false,"unsigned":true}, {"name":"created_at","type":"timestamp","nullable":true}, {"name":"updated_at","type":"timestamp","nullable":true}
+            ],
+            "primary_key":["id"],
+            "indexes":[{"columns":["customer_id","code"],"unique":true,"type":"btree"},{"columns":["id","customer_id"],"unique":true,"type":"btree"},{"columns":["customer_id","status","name"],"unique":false,"type":"btree"}],
+            "foreign_keys":[{"columns":["customer_id"],"foreign_table":"saas_customers","foreign_columns":["id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["created_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["updated_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["archived_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"}],
+            "checks":[{"expression":"status in ('active','archived')"},{"expression":"json_valid(default_mastery_scale)"},{"expression":"(status = 'active' and archived_at is null and archived_by is null) or (status = 'archived' and archived_at is not null and archived_by is not null)"}],
+            "triggers":[{"name":"trg_lrn_frameworks_bi_scale","timing":"before","event":"insert","statement":"PLANNED CONTRACT: validate ordered mastery scale"},{"name":"trg_lrn_frameworks_bu_scale","timing":"before","event":"update","statement":"PLANNED CONTRACT: validate ordered mastery scale and archive lifecycle"}],
+            "views":[]
+        },
+        {
+            "name": "core_learning_mastery_calculations",
+            "documentation": "database/learning/core_learning_mastery_calculations.md",
+            "implementation_status": "not_implemented",
+            "trigger_identity_required": true,
+            "columns":[
+                {"name":"id","type":"bigint","nullable":false,"unsigned":true,"auto_increment":true}, {"name":"customer_id","type":"bigint","nullable":false,"unsigned":true}, {"name":"user_id","type":"bigint","nullable":false,"unsigned":true}, {"name":"framework_id","type":"bigint","nullable":false,"unsigned":true}, {"name":"node_definition_id","type":"bigint","nullable":false,"unsigned":true}, {"name":"basis_framework_version_id","type":"bigint","nullable":false,"unsigned":true}, {"name":"calculation_source","type":"varchar","nullable":false}, {"name":"calculation_idempotency_key","type":"varchar","nullable":false}, {"name":"mastery_level_key","type":"varchar","nullable":false}, {"name":"mastery_score","type":"decimal","nullable":true}, {"name":"calculation_rule_key","type":"varchar","nullable":false}, {"name":"calculation_rule_version","type":"varchar","nullable":false}, {"name":"calculation_rule_snapshot","type":"json","nullable":false}, {"name":"mastery_scale_key","type":"varchar","nullable":false}, {"name":"mastery_scale_version","type":"varchar","nullable":false}, {"name":"mastery_scale_snapshot","type":"json","nullable":false}, {"name":"continuity_policy_snapshot","type":"json","nullable":true}, {"name":"source_node_relation_id","type":"bigint","nullable":true,"unsigned":true}, {"name":"source_calculation_id","type":"bigint","nullable":true,"unsigned":true}, {"name":"mastery_status_result","type":"varchar","nullable":false}, {"name":"reassessment_due_at","type":"timestamp","nullable":true}, {"name":"reason","type":"text","nullable":true}, {"name":"calculated_at","type":"timestamp","nullable":false}, {"name":"calculated_by","type":"bigint","nullable":true,"unsigned":true}, {"name":"created_at","type":"timestamp","nullable":true}
+            ],
+            "primary_key":["id"],
+            "indexes":[{"columns":["id","customer_id","user_id"],"unique":true,"type":"btree"},{"columns":["id","customer_id","user_id","node_definition_id","basis_framework_version_id"],"unique":true,"type":"btree"},{"columns":["customer_id","calculation_source","calculation_idempotency_key"],"unique":true,"type":"btree"},{"columns":["customer_id","user_id","node_definition_id","basis_framework_version_id","calculated_at"],"unique":false,"type":"btree"},{"columns":["customer_id","source_calculation_id"],"unique":false,"type":"btree"}],
+            "foreign_keys":[{"columns":["customer_id"],"foreign_table":"saas_customers","foreign_columns":["id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["user_id","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["calculated_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["node_definition_id","customer_id","framework_id"],"foreign_table":"core_learning_node_definitions","foreign_columns":["id","customer_id","framework_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["basis_framework_version_id","customer_id","framework_id"],"foreign_table":"core_learning_framework_versions","foreign_columns":["id","customer_id","framework_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["source_node_relation_id","customer_id","framework_id"],"foreign_table":"core_learning_node_relations","foreign_columns":["id","customer_id","framework_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["source_calculation_id","customer_id","user_id"],"foreign_table":"core_learning_mastery_calculations","foreign_columns":["id","customer_id","user_id"],"on_update":"restrict","on_delete":"restrict"}],
+            "checks":[{"expression":"calculation_source in ('system','teacher_override','carry_forward')"},{"expression":"mastery_status_result in ('established','needs_review','reassessment_due')"},{"expression":"json_valid(calculation_rule_snapshot)"},{"expression":"json_valid(mastery_scale_snapshot)"},{"expression":"calculation_source <> 'teacher_override' or (calculated_by is not null and reason is not null)"},{"expression":"calculation_source <> 'carry_forward' or (source_calculation_id is not null and source_node_relation_id is not null and continuity_policy_snapshot is not null)"}],
+            "triggers":[{"name":"trg_lrn_calcs_bi_validate","timing":"before","event":"insert","statement":"PLANNED CONTRACT: validate source, rule, scale and approved carry-forward relation"},{"name":"trg_lrn_calcs_bu_immutable","timing":"before","event":"update","statement":"SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_CALCULATION_IMMUTABLE'"},{"name":"trg_lrn_calcs_bd_immutable","timing":"before","event":"delete","statement":"SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_CALCULATION_IMMUTABLE'"}],
+            "views":[]
+        },
+        {
+            "name": "core_learning_mastery_profiles",
+            "documentation": "database/learning/core_learning_mastery_profiles.md",
+            "implementation_status": "not_implemented",
+            "trigger_identity_required": true,
+            "columns":[
+                {"name":"id","type":"bigint","nullable":false,"unsigned":true,"auto_increment":true}, {"name":"customer_id","type":"bigint","nullable":false,"unsigned":true}, {"name":"user_id","type":"bigint","nullable":false,"unsigned":true}, {"name":"framework_id","type":"bigint","nullable":false,"unsigned":true}, {"name":"node_definition_id","type":"bigint","nullable":false,"unsigned":true}, {"name":"basis_framework_version_id","type":"bigint","nullable":false,"unsigned":true}, {"name":"current_calculation_id","type":"bigint","nullable":false,"unsigned":true}, {"name":"mastery_level_key","type":"varchar","nullable":false}, {"name":"mastery_score","type":"decimal","nullable":true}, {"name":"mastery_status","type":"varchar","nullable":false}, {"name":"calculated_at","type":"timestamp","nullable":false}, {"name":"reassessment_due_at","type":"timestamp","nullable":true}, {"name":"projected_at","type":"timestamp","nullable":false}, {"name":"created_at","type":"timestamp","nullable":true}, {"name":"updated_at","type":"timestamp","nullable":true}
+            ],
+            "primary_key":["id"],
+            "indexes":[{"columns":["customer_id","user_id","node_definition_id","basis_framework_version_id"],"unique":true,"type":"btree"},{"columns":["customer_id","current_calculation_id"],"unique":true,"type":"btree"},{"columns":["customer_id","user_id","basis_framework_version_id","mastery_status"],"unique":false,"type":"btree"}],
+            "foreign_keys":[{"columns":["customer_id"],"foreign_table":"saas_customers","foreign_columns":["id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["user_id","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["node_definition_id","customer_id","framework_id"],"foreign_table":"core_learning_node_definitions","foreign_columns":["id","customer_id","framework_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["basis_framework_version_id","customer_id","framework_id"],"foreign_table":"core_learning_framework_versions","foreign_columns":["id","customer_id","framework_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["current_calculation_id","customer_id","user_id","node_definition_id","basis_framework_version_id"],"foreign_table":"core_learning_mastery_calculations","foreign_columns":["id","customer_id","user_id","node_definition_id","basis_framework_version_id"],"on_update":"restrict","on_delete":"restrict"}],
+            "checks":[{"expression":"mastery_status in ('established','needs_review','reassessment_due')"}],
+            "triggers":[{"name":"trg_lrn_profiles_bi_projection","timing":"before","event":"insert","statement":"PLANNED CONTRACT: validate exact calculation projection values and ordering"},{"name":"trg_lrn_profiles_bu_projection","timing":"before","event":"update","statement":"PLANNED CONTRACT: validate exact calculation projection values and ordering"}],
+            "views":[]
+        },
+        {
+            "name": "core_learning_node_definitions",
+            "documentation": "database/learning/core_learning_node_definitions.md",
+            "implementation_status": "not_implemented",
+            "trigger_identity_required": true,
+            "columns":[{"name":"id","type":"bigint","nullable":false,"unsigned":true,"auto_increment":true},{"name":"customer_id","type":"bigint","nullable":false,"unsigned":true},{"name":"framework_id","type":"bigint","nullable":false,"unsigned":true},{"name":"code","type":"varchar","nullable":false},{"name":"node_type","type":"varchar","nullable":false},{"name":"canonical_name","type":"varchar","nullable":false},{"name":"description","type":"text","nullable":true},{"name":"status","type":"varchar","nullable":false},{"name":"created_by","type":"bigint","nullable":false,"unsigned":true},{"name":"updated_by","type":"bigint","nullable":false,"unsigned":true},{"name":"created_at","type":"timestamp","nullable":true},{"name":"updated_at","type":"timestamp","nullable":true}],
+            "primary_key":["id"],
+            "indexes":[{"columns":["customer_id","framework_id","code"],"unique":true,"type":"btree"},{"columns":["id","customer_id","framework_id"],"unique":true,"type":"btree"},{"columns":["customer_id","framework_id","node_type","status"],"unique":false,"type":"btree"}],
+            "foreign_keys":[{"columns":["customer_id"],"foreign_table":"saas_customers","foreign_columns":["id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["framework_id","customer_id"],"foreign_table":"core_learning_frameworks","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["created_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["updated_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"}],
+            "checks":[{"expression":"node_type in ('objective','concept','competency')"},{"expression":"status in ('active','archived')"}],
+            "triggers":[{"name":"trg_lrn_definitions_bu_identity","timing":"before","event":"update","statement":"PLANNED CONTRACT: reject changes to customer_id or framework_id"}],
+            "views":[]
+        },
+        {
+            "name": "core_learning_node_mappings",
+            "documentation": "database/learning/core_learning_node_mappings.md",
+            "implementation_status": "not_implemented",
+            "trigger_identity_required": true,
+            "columns":[{"name":"id","type":"bigint","nullable":false,"unsigned":true,"auto_increment":true},{"name":"customer_id","type":"bigint","nullable":false,"unsigned":true},{"name":"learning_node_id","type":"bigint","nullable":false,"unsigned":true},{"name":"source_type","type":"varchar","nullable":false},{"name":"source_id","type":"bigint","nullable":false,"unsigned":true},{"name":"source_discriminator","type":"varchar","nullable":false},{"name":"mapping_role","type":"varchar","nullable":false},{"name":"weight","type":"decimal","nullable":true},{"name":"source_snapshot","type":"json","nullable":false},{"name":"created_by","type":"bigint","nullable":false,"unsigned":true},{"name":"created_at","type":"timestamp","nullable":true},{"name":"invalidated_at","type":"timestamp","nullable":true},{"name":"invalidated_by","type":"bigint","nullable":true,"unsigned":true},{"name":"invalidation_reason","type":"text","nullable":true}],
+            "primary_key":["id"],
+            "indexes":[{"columns":["customer_id","source_type","source_id","source_discriminator","learning_node_id","mapping_role"],"unique":true,"type":"btree"},{"columns":["customer_id","learning_node_id","mapping_role"],"unique":false,"type":"btree"},{"columns":["customer_id","source_type","source_id","source_discriminator"],"unique":false,"type":"btree"}],
+            "foreign_keys":[{"columns":["customer_id"],"foreign_table":"saas_customers","foreign_columns":["id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["learning_node_id","customer_id"],"foreign_table":"core_learning_nodes","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["created_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["invalidated_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"}],
+            "checks":[{"expression":"source_type in ('course_version_lesson','course_version_activity')"},{"expression":"mapping_role in ('teaches','practices','assesses')"},{"expression":"weight is null or (weight >= 0 and weight <= 1)"},{"expression":"(invalidated_at is null and invalidated_by is null and invalidation_reason is null) or (invalidated_at is not null and invalidated_by is not null and invalidation_reason is not null)"}],
+            "triggers":[{"name":"trg_lrn_mappings_bu_lifecycle","timing":"before","event":"update","statement":"PLANNED CONTRACT: permit only one complete null-to-non-null invalidation transition"},{"name":"trg_lrn_mappings_bd_immutable","timing":"before","event":"delete","statement":"SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_MAPPING_IMMUTABLE'"}],
+            "views":[]
+        },
+        {
+            "name": "core_learning_node_relations",
+            "documentation": "database/learning/core_learning_node_relations.md",
+            "implementation_status": "not_implemented",
+            "trigger_identity_required": true,
+            "columns":[{"name":"id","type":"bigint","nullable":false,"unsigned":true,"auto_increment":true},{"name":"customer_id","type":"bigint","nullable":false,"unsigned":true},{"name":"framework_id","type":"bigint","nullable":false,"unsigned":true},{"name":"owning_framework_version_id","type":"bigint","nullable":false,"unsigned":true},{"name":"relation_scope","type":"varchar","nullable":false},{"name":"relation_type","type":"varchar","nullable":false},{"name":"source_learning_node_id","type":"bigint","nullable":false,"unsigned":true},{"name":"target_learning_node_id","type":"bigint","nullable":false,"unsigned":true},{"name":"source_framework_version_id","type":"bigint","nullable":false,"unsigned":true},{"name":"target_framework_version_id","type":"bigint","nullable":false,"unsigned":true},{"name":"continuity_policy","type":"varchar","nullable":true},{"name":"continuity_policy_key","type":"varchar","nullable":true},{"name":"continuity_policy_version","type":"varchar","nullable":true},{"name":"continuity_policy_snapshot","type":"json","nullable":true},{"name":"review_status","type":"varchar","nullable":false},{"name":"resolved_continuity_policy","type":"varchar","nullable":true},{"name":"approved_by","type":"bigint","nullable":true,"unsigned":true},{"name":"approved_at","type":"timestamp","nullable":true},{"name":"reviewed_by","type":"bigint","nullable":true,"unsigned":true},{"name":"reviewed_at","type":"timestamp","nullable":true},{"name":"review_reason","type":"text","nullable":true},{"name":"created_by","type":"bigint","nullable":false,"unsigned":true},{"name":"created_at","type":"timestamp","nullable":true},{"name":"updated_at","type":"timestamp","nullable":true}],
+            "primary_key":["id"],
+            "indexes":[{"columns":["id","customer_id","framework_id"],"unique":true,"type":"btree"},{"columns":["customer_id","relation_scope","source_learning_node_id","target_learning_node_id"],"unique":true,"type":"btree"},{"columns":["customer_id","relation_scope","source_framework_version_id","target_framework_version_id"],"unique":false,"type":"btree"},{"columns":["customer_id","target_learning_node_id","source_learning_node_id"],"unique":false,"type":"btree"}],
+            "foreign_keys":[{"columns":["customer_id"],"foreign_table":"saas_customers","foreign_columns":["id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["owning_framework_version_id","customer_id","framework_id"],"foreign_table":"core_learning_framework_versions","foreign_columns":["id","customer_id","framework_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["source_learning_node_id","customer_id","framework_id","source_framework_version_id"],"foreign_table":"core_learning_nodes","foreign_columns":["id","customer_id","framework_id","framework_version_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["target_learning_node_id","customer_id","framework_id","target_framework_version_id"],"foreign_table":"core_learning_nodes","foreign_columns":["id","customer_id","framework_id","framework_version_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["approved_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["reviewed_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["created_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"}],
+            "checks":[{"expression":"source_learning_node_id <> target_learning_node_id"},{"expression":"relation_scope in ('semantic','version_transition')"},{"expression":"review_status in ('not_required','pending','approved','rejected')"},{"expression":"(relation_scope = 'semantic' and source_framework_version_id = target_framework_version_id and owning_framework_version_id = source_framework_version_id) or (relation_scope = 'version_transition' and source_framework_version_id <> target_framework_version_id and owning_framework_version_id = target_framework_version_id)"}],
+            "triggers":[{"name":"trg_lrn_relations_bi_validate","timing":"before","event":"insert","statement":"PLANNED CONTRACT: validate vocabulary, review state and reject prerequisite or part_of cycles"},{"name":"trg_lrn_relations_bu_immutable","timing":"before","event":"update","statement":"PLANNED CONTRACT: freeze identity always and permit one pending review resolution after publish"},{"name":"trg_lrn_relations_bd_immutable","timing":"before","event":"delete","statement":"PLANNED CONTRACT: reject delete after owning Version publish"}],
+            "views":[]
+        },
+        {
+            "name": "core_learning_nodes",
+            "documentation": "database/learning/core_learning_nodes.md",
+            "implementation_status": "not_implemented",
+            "trigger_identity_required": true,
+            "columns":[{"name":"id","type":"bigint","nullable":false,"unsigned":true,"auto_increment":true},{"name":"customer_id","type":"bigint","nullable":false,"unsigned":true},{"name":"framework_id","type":"bigint","nullable":false,"unsigned":true},{"name":"framework_version_id","type":"bigint","nullable":false,"unsigned":true},{"name":"node_definition_id","type":"bigint","nullable":false,"unsigned":true},{"name":"code_snapshot","type":"varchar","nullable":false},{"name":"name_snapshot","type":"varchar","nullable":false},{"name":"description_snapshot","type":"text","nullable":true},{"name":"criteria_snapshot","type":"json","nullable":true},{"name":"sequence","type":"int","nullable":false,"unsigned":true},{"name":"status","type":"varchar","nullable":false},{"name":"created_by","type":"bigint","nullable":false,"unsigned":true},{"name":"updated_by","type":"bigint","nullable":false,"unsigned":true},{"name":"created_at","type":"timestamp","nullable":true},{"name":"updated_at","type":"timestamp","nullable":true}],
+            "primary_key":["id"],
+            "indexes":[{"columns":["customer_id","node_definition_id","framework_version_id"],"unique":true,"type":"btree"},{"columns":["id","customer_id","framework_id","framework_version_id"],"unique":true,"type":"btree"},{"columns":["id","customer_id"],"unique":true,"type":"btree"},{"columns":["customer_id","framework_version_id","sequence"],"unique":false,"type":"btree"}],
+            "foreign_keys":[{"columns":["customer_id"],"foreign_table":"saas_customers","foreign_columns":["id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["node_definition_id","customer_id","framework_id"],"foreign_table":"core_learning_node_definitions","foreign_columns":["id","customer_id","framework_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["framework_version_id","customer_id","framework_id"],"foreign_table":"core_learning_framework_versions","foreign_columns":["id","customer_id","framework_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["created_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"},{"columns":["updated_by","customer_id"],"foreign_table":"users","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"}],
+            "checks":[{"expression":"status in ('active','retired')"},{"expression":"json_valid(criteria_snapshot) or criteria_snapshot is null"}],
+            "triggers":[{"name":"trg_lrn_nodes_bu_immutable","timing":"before","event":"update","statement":"PLANNED CONTRACT: freeze identity always and all fields after Version publish"},{"name":"trg_lrn_nodes_bd_immutable","timing":"before","event":"delete","statement":"PLANNED CONTRACT: reject delete after Version publish"}],
+            "views":[]
+        },
+        {
             "name": "core_liveclass_attendances",
             "documentation": "database/liveclass/core_liveclass_attendances.md",
             "implementation_status": "implemented",

@@ -1,12 +1,16 @@
 # ADR-0016 — Learning Foundation
 
-Version: 1.0
+Version: 1.1
 
-Status: Review
+Status: Frozen
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-08-11
+Last Updated: 2026-08-13
+
+Approval Date: 2026-08-12
+
+Approved By: LearnForge Architecture Owner
 
 Proposal Date: 2026-08-11
 
@@ -20,6 +24,41 @@ Related ADRs:
 * [ADR-0006 — AI Foundation](ADR-0006-AI-Foundation.md)
 * [ADR-0011 — Certificate Foundation](ADR-0011-Certificate-Foundation.md)
 * [ADR-0012 — Course Template Published Version Snapshot](ADR-0012-Course-Template-Published-Version-Snapshot.md)
+
+---
+
+# Amendment Record — Version 1.1
+
+Amendment Status: Approved
+
+Approved by the LearnForge Architecture Owner on 2026-08-12 from the Round 2
+remediation backlog. It amends the approved Version 1.0 decision without
+rewriting the original decision context.
+
+Version 1.1 preserves the ten-table Foundation and its ownership decisions. It
+amends only physical enforceability and operational boundaries discovered by
+Database/Architecture Review:
+
+* composite tenant/Framework/learner keys are authoritative;
+* mutable Course projections are qualification inputs, never Evidence source
+  identities;
+* Mapping and Evidence source whitelists are separate contracts;
+* transition relations use an explicit owning Version and one audited review
+  resolution after publish;
+* database version floors and named physical enforcement are mandatory.
+
+Version 1.0 remains represented by repository history and the original Owner
+Approval block. This amendment is linked to the Round 2 review at
+`docs/quality/LF-Learning-Foundation-Database-Architecture-Review.md` and did
+authorize Foundation Freeze after the passing Round 4 independent re-review;
+it does not authorize migration by itself.
+
+## Editorial Correction Record — 2026-08-13
+
+This record corrects only the grammar in the amendment sentence and its
+cross-reference from Round 3 to the recorded Round 4 re-review. It does not
+change the Version 1.1 architecture decision, Freeze scope or the separate
+Phase 4 migration authorization.
 
 ---
 
@@ -77,7 +116,7 @@ Semantics Authority  (Framework / Objective / Concept / Competency)
 Evidence and Mastery Authority
 ```
 
-Learning Foundation Version 1.0 gồm **10 tables**.
+Learning Foundation Version 1.1 gồm **10 tables**.
 
 Learning tiêu thụ bằng chứng do các Domain khác phát ra, áp dụng rule của
 Framework Version, và tự đưa ra kết luận Mastery của riêng mình. Không Domain
@@ -148,14 +187,17 @@ cùng một Profile chỉ vì dùng chung stable Node Definition.
 ## D7 — Continuity Policy
 
 Continuity policy trú trên **từng dòng version_transition relation**, kèm policy
-key/version/snapshot bất biến. Carry-forward tạo Calculation mới và giữ lineage;
-không sửa lịch sử.
+key/version/snapshot bất biến. Relation thuộc target Framework Version. Policy
+`requires_review` được phép đúng một lần chuyển từ pending sang approved hoặc
+rejected sau publish; semantic fields không đổi. Carry-forward tạo Calculation
+mới, tham chiếu relation đã approved và không sửa lịch sử.
 
 ## D8 — Relation Enforcement
 
-Bảng relation lưu `source_framework_version_id` và `target_framework_version_id`.
-`CHECK` enforce quy tắc cùng/khác version. Composite foreign key (ưu tiên) hoặc
-persistence guard/trigger tương đương phải xác minh Node–Version integrity.
+Bảng relation lưu `framework_id`, `source_framework_version_id` và
+`target_framework_version_id`. `CHECK` enforce quy tắc cùng/khác version.
+Composite foreign keys từ từng endpoint qua cùng cột `framework_id` xác minh
+Node–Version–Framework integrity ở database.
 
 Application validation là bắt buộc nhưng không được là lớp bảo vệ duy nhất khi
 database có thể enforce.
@@ -278,7 +320,7 @@ Learning không sở hữu:
                                  ↓
                             EVIDENCE SOURCES
     ┌──────────────────────────────────────────────────────────────┐
-    │   Course Activity Progress / Completion ──┐  exposure         │
+    │   Qualified immutable Course Event ───────┐  exposure/        │
     │                                           │  completion       │
     │   Assessment Attempt / Grading (Phase 2) ─┤  evaluation       │
     │                                           │                   │
@@ -446,8 +488,8 @@ phải validate owner theo Generic Reference Principle.
 ```text
                  nguồn phát            evidence_type
     ─────────────────────────────      ──────────────────
-    Course Activity Progress           exposure
-    Course Completion / Progress       completion
+    Qualified immutable Course Event   exposure
+    Qualified immutable Course Event   completion
     Assessment Attempt / Grading       evaluation
     Teacher Judgment                   expert_judgment
     Qualified Track Signal             behavioral_signal
@@ -535,10 +577,9 @@ Một số phiên bản MySQL/MariaDB chấp nhận foreign key trỏ tới inde
 key. LF chủ động quy định `UNIQUE` để contract rõ ràng, portable và không phụ
 thuộc hành vi legacy của database engine.
 
-Nếu schema vật lý không đáp ứng được composite foreign key, table documentation
-phải chốt trigger hoặc persistence guard tương đương. Không được tuyên bố `CHECK`
-một mình là đủ, vì `CHECK` chỉ so hai cột denormalized với nhau mà không chứng
-minh chúng đúng với Node được trỏ tới.
+Schema vật lý Giai đoạn 3 đã chốt composite foreign key với các khóa
+denormalized cần thiết. Không thay thế cơ chế này bằng application-only guard;
+`CHECK` chỉ phụ trách invariant nội bộ một dòng.
 
 Mọi nguồn và đích phải cùng `customer_id`. Cross-tenant luôn bị cấm.
 
@@ -552,12 +593,13 @@ target Node → target Framework Version → target Framework
 source.framework_id = target.framework_id
 ```
 
-`CHECK` một mình chỉ làm được điều này nếu `framework_id` của hai đầu được lưu
-denormalized trên chính dòng relation. Nếu không lưu, phải dùng composite foreign
-key, trigger hoặc persistence guard trong transaction.
+`framework_id` được lưu một lần trên relation và nằm trong cả hai composite FK,
+do đó hai endpoint bắt buộc cùng Framework. Database trigger chỉ dùng cho
+append-only/post-publish immutability, không dùng thay khóa này.
 
-ADR này quy định invariant bắt buộc. Cơ chế vật lý cụ thể được chốt ở Giai đoạn 3
-cùng table documentation, và không được hạ xuống chỉ còn application validation.
+ADR này quy định invariant bắt buộc. Cơ chế vật lý Giai đoạn 3 là composite FK
+cho identity/boundary, CHECK cho invariant nội dòng và database trigger cho
+immutability; application validation chỉ là defense in depth.
 
 ---
 
@@ -565,9 +607,11 @@ cùng table documentation, và không được hạ xuống chỉ còn applicati
 
 Course sở hữu Template, Version, Enrollment, Progress và Completion.
 
-Learning tiêu thụ Course Progress/Completion làm Evidence và map vào Node thông
-qua **Version Lesson/Activity đã publish**. Learning không đọc working Template
-và không quyết định Progress.
+Learning dùng Course Progress/Completion làm qualification input và map vào
+Node thông qua **Version Lesson/Activity đã publish**. Evidence lineage chỉ
+tham chiếu append-only Course event đã pass physical review; không tham chiếu
+mutable Progress projection. Learning không đọc working Template và không quyết
+định Progress.
 
 Course không ghi Mastery.
 
@@ -653,8 +697,8 @@ core_learning_*
 | 9 | `core_learning_calculation_evidence` | Junction audit chính xác Evidence, trọng số, contribution và lý do. |
 | 10 | `core_learning_mastery_profiles` | Read model trạng thái hiện tại theo user + stable Node + basis version. |
 
-Canonical table documentation sẽ đặt tại `docs/database/learning/` và **chưa
-tồn tại** tại thời điểm ADR này ở trạng thái Review. Xem
+Canonical table documentation hiện nằm tại `docs/database/learning/` ở trạng
+thái Review. Các tài liệu này chưa cho phép migration. Xem
 [Approval Sequence](#approval-sequence).
 
 ---
@@ -685,9 +729,8 @@ tồn tại** tại thời điểm ADR này ở trạng thái Review. Xem
     Version snapshot.
 14. Không carry-forward giữa version nếu continuity policy chưa cho phép.
 15. Semantic relation cùng version; version_transition relation khác version;
-    Node–Version integrity phải được enforce bằng composite foreign key dựa trên
-    `UNIQUE (id, framework_version_id)`, hoặc bằng cơ chế tương đương đã được
-    phê duyệt.
+    Node–Version–Framework integrity được enforce bằng composite foreign key
+    dựa trên khóa `(id, customer_id, framework_id, framework_version_id)`.
 16. Version transition relation phải nối hai Node thuộc cùng `framework_id`;
     v1 không cho phép relation này biểu diễn quan hệ giữa hai Framework khác
     nhau, và không có ngoại lệ cho `equivalent_to`. Ràng buộc này phải xác minh
@@ -695,7 +738,10 @@ tồn tại** tại thời điểm ADR này ở trạng thái Review. Xem
 17. Relation type `related` không thuộc v1.
 18. Evidence v1 không tự hết hạn; Mastery v1 không tự suy giảm.
 19. AI không tự thay đổi Mastery, Course, Certificate hoặc Learning Plan.
-20. Phase 1 không tham chiếu Assessment hoặc Track physical object chưa tồn tại.
+20. Khi Foundation kích hoạt, Teacher Judgment là Evidence source mở sẵn.
+    Course-derived Evidence bị đóng cho tới khi append-only source event contract
+    được implement và review; mutable Progress không bao giờ là source identity.
+    Assessment/Track physical object chưa implement không được tham chiếu.
 
 ---
 
@@ -705,7 +751,8 @@ tồn tại** tại thời điểm ADR này ở trạng thái Review. Xem
 
 * Đủ 10 bảng Learning Foundation ở mức domain contract.
 * Mapping vào Course Version Lesson/Activity đã publish.
-* Evidence từ Course Activity Progress/Completion và Teacher Judgment.
+* Teacher Judgment Evidence; Course-derived Evidence chỉ mở sau khi immutable
+  source event contract được implement và review.
 * Whitelist chỉ mở cho physical object đã được xác minh tồn tại.
 
 ## Phase 2 — sau khi Assessment được triển khai
@@ -730,7 +777,11 @@ Hai quyết định được hoãn có chủ đích và phải chốt trước k
 được duyệt:
 
 **E2 — Evidence validity/expiry.** Foundation v1 không tự suy ra Evidence hết
-hạn từ `occurred_at`. Ngữ nghĩa validity/expiry phải được chốt ở Giai đoạn 3.
+hạn từ `occurred_at`. Giai đoạn 3 chốt rằng explicit validity/reassessment chỉ
+được phép khi qualification-rule snapshot khai báo tường minh. Expiry chỉ ảnh
+hưởng eligibility của Calculation mới, không sửa Evidence, Calculation hoặc
+Profile lịch sử. Chi tiết vật lý nằm tại
+[core_learning_evidence](../database/learning/core_learning_evidence.md).
 
 **E3 — Mastery decay.** Không đưa automatic decay vào v1. Nếu tương lai cần
 decay, policy phải tạo Calculation mới với rule snapshot và cập nhật Profile
@@ -804,8 +855,10 @@ ADR này tham chiếu định nghĩa canonical và không định nghĩa lại.
 
 # Foundation Change Control
 
-Learning Foundation Version 1.0 **chưa** được Approved và chưa Frozen tại thời
-điểm ADR này ở trạng thái Review.
+Learning Foundation Version 1.0 được Architecture Owner phê duyệt ngày
+2026-08-12; amendment Version 1.1 được owner phê duyệt cùng ngày để xử lý Round
+2 review. Foundation được Frozen sau Round 4 independent re-review PASS.
+Migration vẫn cần một authorization riêng cho Giai đoạn 4.
 
 Khi được approved, thay đổi Domain Boundary, ownership, Source Of Truth, chiến
 lược snapshot/evidence, hoặc bộ 10 bảng Foundation sẽ yêu cầu ADR Amendment
@@ -818,14 +871,41 @@ hoặc ADR mới.
 ```text
 Learning Foundation
 
-Version 1.0
+Version 1.1
 
 Conceptual Architecture          PASS
-Architecture Decision Readiness  READY
-Database Documentation           chưa tạo — Giai đoạn 3
-Migration                        chưa cho phép — Giai đoạn 4
+Architecture Decision Readiness  PASS
+Database Documentation           PASS — 10 table docs Frozen
+Foundation Freeze                RECORDED
+Migration                        chưa cho phép — cần authorization Giai đoạn 4
 
-Ready for implementation
+Ready for Phase 4 migration planning only
 
-NO
+YES — implementation remains Not Implemented; no migration is authorized
+```
+
+## Owner Approval
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-12
+Decision: Approved ADR-0016 and LF-Core-Learning Version 1.0; authorized Phase 3 database documentation design.
+```
+
+## Amendment Approval
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-12
+Decision: Approved Version 1.1 after independent Round 4 re-review; Foundation Freeze recorded. Migration remains a separate Phase 4 authorization.
+```
+
+## Foundation Freeze
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-12
+Decision: Frozen Learning Foundation Version 1.1 database contract after independent re-review PASS.
+Scope: ADR-0016, LF-Core-Learning, ten core_learning_* table documents and their schema contract.
+Excluded: forward migrations, runtime implementation and production deployment.
 ```

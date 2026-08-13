@@ -55,11 +55,12 @@ class MySqlSchemaInspector
             }
             unset($column);
             $triggers = array_map(fn ($row) => [
+                'name' => strtolower($row->TRIGGER_NAME),
                 'timing' => strtolower($row->ACTION_TIMING),
                 'event' => strtolower($row->EVENT_MANIPULATION),
                 'statement' => preg_replace('/\s+/', ' ', trim($row->ACTION_STATEMENT)),
             ], $connection->select(
-                'SELECT ACTION_TIMING, EVENT_MANIPULATION, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? AND EVENT_OBJECT_TABLE = ?',
+                'SELECT TRIGGER_NAME, ACTION_TIMING, EVENT_MANIPULATION, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? AND EVENT_OBJECT_TABLE = ?',
                 [$database, $name]
             ));
             $tables[] = [

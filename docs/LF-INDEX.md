@@ -1,12 +1,12 @@
 # LF-INDEX.md
 
-Version: 2.6
+Version: 2.7
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-12
 
 Document Path: LF-INDEX.md
 
@@ -236,7 +236,7 @@ docs/core/
 | [core/LF-Core-Assessment.md](core/LF-Core-Assessment.md) | Assessment engine |
 | [core/LF-Core-LiveClass.md](core/LF-Core-LiveClass.md) | Live class engine |
 | [core/LF-Core-Certificate.md](core/LF-Core-Certificate.md) | Foundation Approved and Frozen — Version 1.0; Certificate evidence and verification |
-| [core/LF-Core-Learning.md](core/LF-Core-Learning.md) | Review — chưa Approved; Learning semantics, evidence and mastery |
+| [core/LF-Core-Learning.md](core/LF-Core-Learning.md) | Frozen Version 1.1; Learning semantics, Evidence and Mastery; database design Phase 3 complete |
 
 ---
 
@@ -355,7 +355,7 @@ docs/adr/
 | [ADR-0013](adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md) | Course Template Version Duplicate to Draft decision |
 | [ADR-0014](adr/ADR-0014-Product-Offering-And-Draft-Binding.md) | Approved Product offering and Draft binding decision |
 | [ADR-0015](adr/ADR-0015-Course-Lesson-Multiple-Prerequisites.md) | Approved Course Lesson multiple-prerequisite decision |
-| [ADR-0016](adr/ADR-0016-Learning-Foundation.md) | Learning Foundation decision — Review, chưa Approved |
+| [ADR-0016](adr/ADR-0016-Learning-Foundation.md) | Frozen Learning Foundation Version 1.1; Phase 3 complete, migration still separately gated |
 
 ---
 
@@ -389,6 +389,8 @@ docs/quality/
 | [quality/LF-LiveClass-Schedule-Session-Origin-Architecture-Review.md](quality/LF-LiveClass-Schedule-Session-Origin-Architecture-Review.md) | Approved explicit atomic Schedule occurrence confirmation and immutable Session Origin review |
 | [quality/LF-Enrollment-Lifecycle-Architecture-Review.md](quality/LF-Enrollment-Lifecycle-Architecture-Review.md) | Approved and frozen single and bulk Enrollment lifecycle transition review |
 | [quality/LF-Bulk-Enrollment-Architecture-Review.md](quality/LF-Bulk-Enrollment-Architecture-Review.md) | Approved and frozen Admin Bulk Enrollment creation, re-enrollment and atomic-submission idempotency review |
+| [quality/LF-Learning-Foundation-Database-Architecture-Review.md](quality/LF-Learning-Foundation-Database-Architecture-Review.md) | PASS Phase 3 Learning Database/Architecture Review; Foundation Freeze recorded and migration remains separately gated |
+| [quality/LF-Schema-Drift-Trigger-Identity-Regression-Audit.md](quality/LF-Schema-Drift-Trigger-Identity-Regression-Audit.md) | PASS HIGH regression audit for opt-in trigger identity enforcement in schema drift |
 
 ---
 
@@ -783,7 +785,13 @@ thức, agent vẫn phải tự kiểm tra source code hiện tại trước khi
 
 ---
 
-## 4. Platform & SaaS
+## 4. Learning Foundation
+
+| Chức năng | Domain/Ownership | ADR bắt buộc | Domain policy | Database/schema | Quality/Review | Tài liệu điều kiện | Trình tự đọc |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Learning Framework, Evidence & Mastery | Core/Learning | [ADR-0016](adr/ADR-0016-Learning-Foundation.md) (Frozen Version 1.1) | [core/LF-Core-Learning.md](core/LF-Core-Learning.md) (Frozen) | [database/learning/README.md](database/learning/README.md) và 10 `core_learning_*` table docs — **Phase 3 Frozen, Not Implemented** | [Learning Database Review](quality/LF-Learning-Foundation-Database-Architecture-Review.md) — **PASS**, Freeze confirmed; contains non-authorizing 4A–4E handoff | [governance/LF-Architecture-Review-Checklist.md](governance/LF-Architecture-Review-Checklist.md), [database/LF-Schema-Drift.md](database/LF-Schema-Drift.md) | Guardrails → ADR-0016 → LF-Core-Learning → database/learning/README → Learning Database Review → separate staged Phase 4 authorization |
+
+## 5. Platform & SaaS
 
 | Chức năng | Domain/Ownership | ADR bắt buộc | Domain policy | Database/schema | Quality/Review | Tài liệu điều kiện | Trình tự đọc |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -801,7 +809,7 @@ thức, agent vẫn phải tự kiểm tra source code hiện tại trước khi
 
 ---
 
-## 5. Cross-cutting Concerns
+## 6. Cross-cutting Concerns
 
 | Chức năng | Domain/Ownership | ADR bắt buộc | Domain policy | Database/schema | Quality/Review | Tài liệu điều kiện | Trình tự đọc |
 | --- | --- | --- | --- | --- | --- | --- | --- |

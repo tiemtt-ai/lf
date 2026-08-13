@@ -1,12 +1,14 @@
 # LF-Core-Learning.md
 
-Version: 1.0
+Version: 1.1
 
-Document Status: Review
+Document Status: Frozen
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-08-11
+Last Updated: 2026-08-13
+
+Approval Date: 2026-08-12
 
 Document Path: core/LF-Core-Learning.md
 
@@ -177,8 +179,8 @@ lịch sử tại chỗ.
 ```text
     nguồn phát                        loại bằng chứng
     ──────────────────────────        ──────────────────
-    Course Activity Progress          exposure
-    Course Completion / Progress      completion
+    Qualified immutable Course Event exposure
+    Qualified immutable Course Event completion
     Assessment Attempt / Grading      evaluation
     Teacher Judgment                  expert_judgment
     Qualified Track Signal            behavioral_signal
@@ -243,7 +245,7 @@ Certificate ── nhánh độc lập, không đi qua Mastery:
 
 | Domain | Quan hệ với Learning |
 | --- | --- |
-| [Course](LF-Core-Course.md) | Cung cấp Progress/Completion làm Evidence; mapping chỉ trỏ Version Lesson/Activity đã publish. Course không ghi Mastery. |
+| [Course](LF-Core-Course.md) | Progress/Completion là qualification input; chỉ append-only Course event đã review mới được làm Evidence source. Mapping chỉ trỏ Version Lesson/Activity đã publish. Course không ghi Mastery. |
 | [Assessment](LF-Core-Assessment.md) | Cung cấp kết quả đánh giá làm Evidence loại `evaluation`; mapping chỉ trỏ Quiz Question Snapshot. Phase 2. |
 | [Certificate](LF-Core-Certificate.md) | Độc lập hoàn toàn. Mastery không nằm trong luồng cấp Certificate của Foundation v1. |
 | [LiveClass](LF-Core-LiveClass.md) | Nguồn Teacher Judgment và hoạt động lớp học; không quyết định Mastery. |
@@ -259,20 +261,34 @@ Certificate ── nhánh độc lập, không đi qua Mastery:
 core_learning_*
 ```
 
-Learning Foundation Version 1.0 gồm 10 bảng. Danh sách và trách nhiệm từng bảng
+Learning Foundation Version 1.1 gồm 10 bảng. Danh sách và trách nhiệm từng bảng
 nằm trong
 [ADR-0016 — Learning Foundation](../adr/ADR-0016-Learning-Foundation.md).
 
-Table documentation sẽ đặt tại `docs/database/learning/` và chưa được tạo. Việc
-tạo table documentation chỉ bắt đầu sau khi ADR-0016 được Approved.
+Table documentation Giai đoạn 3 nằm tại
+[database/learning](../database/learning/README.md). Các table docs đang ở
+trạng thái Review và không cấp quyền tạo migration trước Database/Architecture
+Review cùng Foundation Freeze.
 
 ---
 
 # Implementation Status Note
 
-Repository chưa có bảng, migration hoặc code nào thuộc Learning Domain. Tài liệu
-này mô tả kiến trúc đã được thống nhất để đưa vào review, không mô tả trạng thái
-đã triển khai.
+Repository chưa có bảng, migration hoặc code nào thuộc Learning Domain. Tài
+liệu này là policy đã được Architecture Owner phê duyệt ngày 2026-08-12, nhưng
+không mô tả trạng thái đã triển khai.
+
+## Owner Approval
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-12
+Decision: Approved ADR-0016 and LF-Core-Learning Version 1.0; authorized Phase 3 database documentation design.
+```
+
+Amendment Version 1.1 was approved and the Learning Foundation database contract
+was Frozen on 2026-08-12 after independent Round 4 re-review PASS. Migration
+still requires a separate Phase 4 authorization.
 
 ---
 

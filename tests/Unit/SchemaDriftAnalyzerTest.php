@@ -52,6 +52,30 @@ class SchemaDriftAnalyzerTest extends TestCase
         $this->assertSame('INFO', $findings[0]['severity']);
     }
 
+    public function test_trigger_name_drift_is_detected_when_the_contract_requires_identity(): void
+    {
+        $contract = $this->contract();
+        $contract['tables'][0]['trigger_identity_required'] = true;
+        $actual = $this->actual();
+        $actual['tables'][0]['triggers'][0]['name'] = 'wrong_trigger';
+
+        $this->assertContains('triggers.missing', array_column($this->analyzer->compare($contract, $actual), 'code'));
+    }
+
+    public function test_trigger_identity_requirement_must_be_boolean(): void
+    {
+        [$root, $table] = $this->contractFixture();
+        $table['trigger_identity_required'] = 'yes';
+        $codes = array_column($this->analyzer->validateContract([
+            'schema_version' => '1.0',
+            'database_family' => 'mysql',
+            'tables' => [$table],
+        ], $root), 'code');
+        $this->removeContractFixture($root);
+
+        $this->assertContains('contract.trigger_identity_required', $codes);
+    }
+
     public function test_migration_ledger_reports_pending_and_missing_source(): void
     {
         $directory = sys_get_temp_dir().'/lf-migrations-'.uniqid();
@@ -99,7 +123,7 @@ class SchemaDriftAnalyzerTest extends TestCase
     private function actual(): array
     {
         $table = $this->contract()['tables'][0];
-        foreach (['indexes', 'foreign_keys', 'checks', 'triggers'] as $kind) {
+        foreach (['indexes', 'foreign_keys', 'checks'] as $kind) {
             unset($table[$kind][0]['name']);
         }
 

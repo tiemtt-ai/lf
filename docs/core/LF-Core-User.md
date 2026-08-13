@@ -1,12 +1,12 @@
 # LF-Core-User.md
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-12
 
 Document Path: core/LF-Core-User.md
 
@@ -474,6 +474,11 @@ User–Customer membership tại `saas_customer_members`.
 Current `users.customer_id` và `users.role` vẫn là compatibility contract cho
 simple tenant-owned identity. Multi-customer User policy chưa được Foundation
 approve và không được suy diễn chỉ từ membership table.
+
+Physical tenant identity contract yêu cầu `users.customer_id NOT NULL` và
+`UNIQUE (id, customer_id)`. Composite key này không tạo business identity mới;
+`id` vẫn là primary key. Nó cho phép các Domain tenant-owned, bao gồm Learning,
+tạo foreign key chứng minh user/actor và bản ghi nghiệp vụ cùng tenant.
 
 ---
 

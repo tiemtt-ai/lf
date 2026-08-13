@@ -70,6 +70,20 @@ class SchemaDriftAnalyzer
                     $findings[] = $this->finding('BLOCKER', 'contract.shape', "{$label}.{$field} must be an array.");
                 }
             }
+            if (array_key_exists('trigger_identity_required', $table)
+                && ! is_bool($table['trigger_identity_required'])) {
+                $findings[] = $this->finding('BLOCKER', 'contract.trigger_identity_required', "{$label}.trigger_identity_required must be a boolean.");
+            }
+            $triggerFields = ($table['trigger_identity_required'] ?? false)
+                ? ['name', 'timing', 'event', 'statement']
+                : ['timing', 'event', 'statement'];
+            foreach (($table['triggers'] ?? []) as $triggerIndex => $trigger) {
+                foreach ($triggerFields as $field) {
+                    if (! is_string($trigger[$field] ?? null) || trim($trigger[$field]) === '') {
+                        $findings[] = $this->finding('BLOCKER', 'contract.trigger', "{$label}.triggers[{$triggerIndex}].{$field} is required.");
+                    }
+                }
+            }
         }
         $orderedNames = array_column($contract['tables'] ?? [], 'name');
         $sortedNames = $orderedNames;
@@ -190,8 +204,9 @@ class SchemaDriftAnalyzer
             }
         }
         foreach (['primary_key', 'indexes', 'foreign_keys', 'checks', 'triggers', 'views'] as $kind) {
-            $expectedObjects = $this->semanticSet($expected[$kind] ?? [], $kind);
-            $actualObjects = $this->semanticSet($actual[$kind] ?? [], $kind);
+            $preserveTriggerName = $kind === 'triggers' && ($expected['trigger_identity_required'] ?? false);
+            $expectedObjects = $this->semanticSet($expected[$kind] ?? [], $kind, $preserveTriggerName);
+            $actualObjects = $this->semanticSet($actual[$kind] ?? [], $kind, $preserveTriggerName);
             foreach (array_diff($expectedObjects, $actualObjects) as $missing) {
                 $severity = $kind === 'primary_key' ? 'BLOCKER' : (in_array($kind, ['indexes', 'checks'], true) ? 'MEDIUM' : 'HIGH');
                 $findings[] = $this->finding($severity, $kind.'.missing', "{$name} is missing {$kind} semantic: {$missing}.", $name, $source);
@@ -201,16 +216,18 @@ class SchemaDriftAnalyzer
         return $findings;
     }
 
-    private function semanticSet(array $items, string $kind): array
+    private function semanticSet(array $items, string $kind, bool $preserveTriggerName = false): array
     {
         if ($kind === 'primary_key') {
             return $items === [] ? [] : [implode(',', array_map('strtolower', $items))];
         }
-        $values = array_map(function ($item) use ($kind) {
+        $values = array_map(function ($item) use ($kind, $preserveTriggerName) {
             if (is_string($item)) {
                 return strtolower(preg_replace('/\s+/', ' ', trim($item)));
             }
-            unset($item['name']);
+            if ($kind !== 'triggers' || ! $preserveTriggerName) {
+                unset($item['name']);
+            }
             ksort($item);
             foreach ($item as $itemKey => &$value) {
                 if (is_array($value)) {

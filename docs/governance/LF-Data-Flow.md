@@ -1,12 +1,12 @@
 # LearnForge Data Flow
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-12
 
 Document Path: governance/LF-Data-Flow.md
 
@@ -240,7 +240,7 @@ does not own, override or bypass the Product registration window. Cohort
 
 ---
 
-## 3. Learning
+## 3. Course Learning Runtime
 
 ```text
 Student
@@ -264,6 +264,28 @@ Completion
 
 Course Domain là source of truth cho Progress/Completion. Media access,
 LiveClass Attendance hoặc Assessment Result chỉ là evidence/input.
+
+## 3A. Learning Framework, Evidence And Mastery
+
+```text
+Published Course Version Lesson / Activity
+        ↓ whitelist-only immutable mapping
+Versioned Learning Node
+        ↓ qualified source event / teacher judgment
+Learning Evidence (append-only + rule snapshot)
+        ↓ exact Evidence junction
+Mastery Calculation (append-only + basis Framework Version)
+        ↓ deterministic projection
+Mastery Profile (rebuildable read model)
+        ↓ read-only
+AI / authorized consumer
+```
+
+Learning owns Framework semantics, qualified Evidence and Mastery. Course owns
+Progress/Completion; Assessment owns Score/Result; Track owns behavior; those
+states are not moved into Learning. Evidence expiry is never inferred from age.
+Explicit validity/reassessment affects only a new Calculation under a frozen
+rule. AI cannot write Calculation or Profile state.
 
 ---
 

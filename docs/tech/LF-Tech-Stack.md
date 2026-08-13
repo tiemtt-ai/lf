@@ -1,12 +1,12 @@
 # LF-Tech-Stack.md
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-12
 
 Document Path: tech/LF-Tech-Stack.md
 
@@ -94,6 +94,22 @@ Redis
 Queue
 Reverb
 ```
+
+## Database Version Floor
+
+Production and CI must use one of:
+
+```text
+MySQL >= 8.0.16
+
+MariaDB >= 10.5
+```
+
+The floor is mandatory because LearnForge relies on enforced `CHECK`
+constraints, composite foreign keys, JSON and database triggers. Deployment
+preflight must query the server version and fail before migration when the
+driver/version is outside this contract. A server that parses but does not
+enforce `CHECK` is unsupported.
 
 ---
 

@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-12
 
 Document Path: database/README.md
 
@@ -28,6 +28,7 @@ Ví dụ:
 database/
 ├── course/
 ├── liveclass/
+├── learning/
 ├── assessment/
 ├── media/
 ├── track/
@@ -48,6 +49,11 @@ Certificate là một Business Domain độc lập (xem
 Đây là quyết định có chủ đích — chính ADR-0011 ghi rõ: "The physical
 documentation folder does not change Certificate Domain ownership." Không suy
 diễn Certificate thuộc Course Domain từ vị trí file.
+
+Learning là Core Business Domain độc lập theo
+[ADR-0016](../adr/ADR-0016-Learning-Foundation.md). Mười table docs Giai đoạn 3
+nằm tại [learning/](learning/README.md); đã Frozen sau Database/Architecture
+Review PASS. Migration vẫn cần authorization Giai đoạn 4 riêng.
 
 ---
 

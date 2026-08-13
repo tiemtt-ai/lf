@@ -1,12 +1,12 @@
 # LearnForge Glossary
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-12
 
 Document Path: governance/LF-Glossary.md
 
@@ -180,6 +180,34 @@ tạo thêm Domain ownership; ownership luôn phải phù hợp với ADR và
 
 ---
 
+# Learning Terms
+
+| Term | Definition | Owner Domain | Source of Truth | Related ADR |
+| --- | --- | --- | --- | --- |
+| Learning Framework | Danh tính ổn định của một bộ ngữ nghĩa học tập hoặc năng lực trong một tenant. | Learning | `core_learning_frameworks` | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Framework Version | Snapshot bất biến của Framework sau publish, gồm Versioned Nodes và mastery scale đã đóng băng. | Learning | `core_learning_framework_versions` | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Stable Node Definition | Danh tính dài hạn của Objective, Concept hoặc Competency trong đúng một Framework. | Learning | `core_learning_node_definitions` | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Versioned Learning Node | Biểu diễn bất biến của một Stable Node Definition trong đúng một Framework Version. | Learning | `core_learning_nodes` | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Learning Evidence | Signal đã vượt qualification rule và được Learning ghi append-only với source lineage cùng rule snapshot. | Learning | `core_learning_evidence` | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Mastery | Kết luận có version basis về mức độ nắm vững một Stable Node Definition, được tạo từ Calculation có Evidence lineage; không đồng nghĩa Completion hoặc Score. | Learning | `core_learning_mastery_calculations` | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Mastery Profile | Read model hiện tại theo user, Stable Node Definition và basis Framework Version; có thể rebuild. | Learning | `core_learning_mastery_profiles` | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Competency | Một loại Stable Node Definition biểu diễn năng lực có thể được đánh giá qua qualified Evidence. | Learning | `core_learning_node_definitions` | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Node Relation | Quan hệ semantic hoặc transition có hướng giữa hai Versioned Learning Nodes trong cùng Framework. | Learning | `core_learning_node_relations` | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Node Mapping | Liên kết có thể audit từ immutable source object đến Versioned Learning Node. | Learning | `core_learning_node_mappings` | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Mastery Calculation | Quyết định append-only tính, override hoặc carry-forward Mastery theo một basis Version. | Learning | `core_learning_mastery_calculations` | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Calculation Evidence | Junction audit ghi chính xác Evidence role, weight và contribution của một Calculation. | Learning | `core_learning_calculation_evidence` | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Continuity Policy | Policy versioned quyết định Evidence/Mastery có thể được dùng xuyên Framework Version hay không. | Learning | Node Relation and Calculation snapshots | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Qualification Rule | Rule versioned biến một source signal hợp lệ thành Learning Evidence. | Learning | Evidence rule identity and snapshot | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Basis Framework Version | Framework Version cụ thể cung cấp semantics và mastery scale cho một Calculation/Profile. | Learning | Mastery Calculation | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Source Discriminator | Chuỗi canonical phân biệt immutable source snapshot/version trong một source identity family. | Source Domain + Learning contract | Mapping/Evidence source lineage | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Mastery Scale Snapshot | Bản đóng băng ordered levels và thresholds dùng cho một Version hoặc Calculation. | Learning | Framework Version and Calculation | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Evidence Role | Vai trò `included`, `excluded` hoặc `continuity_input` của Evidence trong Calculation. | Learning | `core_learning_calculation_evidence` | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Calculation Source | Nguồn quyết định `system`, `teacher_override` hoặc `carry_forward` của Calculation. | Learning | `core_learning_mastery_calculations` | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Mapping Invalidation | Chuyển trạng thái audit một chiều làm Mapping sai không còn được dùng cho qualification mới. | Learning | `core_learning_node_mappings` | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+| Approved Physical Enforcement Strategy | Thứ tự composite FK, CHECK và database trigger dùng để enforce Foundation invariants. | Learning + Database Architecture | `database/learning/README.md` | [ADR-0016](../adr/ADR-0016-Learning-Foundation.md) |
+
+---
+
 # Future Terms
 
 Các thuật ngữ trong phần này là định hướng. Ownership hoặc Source of Truth ghi
@@ -188,7 +216,6 @@ Các thuật ngữ trong phần này là định hướng. Ownership hoặc Sour
 | Term | Definition | Owner Domain | Source of Truth | Related ADR |
 | --- | --- | --- | --- | --- |
 | Track Event | Sự kiện append-only mô tả hành vi hoặc tín hiệu học tập thô từ các Domain nguồn; không phải business state của Domain nguồn. | Track | Track Event observation history | [ADR-0005](../adr/ADR-0005-Track-Foundation.md) |
-| Competency | Năng lực hoặc kỹ năng có thể được định nghĩa, liên kết và đánh giá trong learning architecture tương lai. | TBD | TBD | Planned |
 | Learning Path | Lộ trình có thứ tự hoặc điều kiện kết hợp nhiều learning experiences để đạt mục tiêu. | TBD | TBD | Planned |
 
 ---

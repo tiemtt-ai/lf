@@ -1,12 +1,12 @@
 # LearnForge Domain Map
 
-Version: 1.1
+Version: 1.3
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-13
 
 Document Path: governance/LF-Domain-Map.md
 
@@ -31,6 +31,7 @@ LearnForge
 │   ├── Course
 │   ├── LiveClass
 │   ├── Assessment
+│   ├── Learning
 │   └── Certificate
 │
 ├── Platform Domains
@@ -121,6 +122,31 @@ Certificate, Track và AI consumers.
 
 **ADR:** [ADR-0003 — Assessment Foundation](../adr/ADR-0003-Assessment-Foundation.md)
 — Approved.
+
+### Learning
+
+**Status:** Foundation Approved and Frozen — Version 1.1; Phase 3 database
+design is Frozen, not implemented and migration remains separately authorized.
+
+**Responsibility:** Learning Framework semantics, stable and versioned Node
+identity, qualified Learning Evidence, append-only Mastery Calculations and
+rebuildable Mastery Profiles.
+
+**Source Of Truth:** `core_learning_*` Framework, Evidence and Calculation
+history. Mastery Profile is a read model, not historical authority.
+
+**Consumes:** Immutable Course Version Lesson/Activity sources and qualified
+Course/Teacher evidence in Phase 1. Assessment and Track inputs remain closed
+until their physical contracts and qualification policies are approved.
+
+**Produces:** Version-labelled Mastery state and auditable Learning semantics
+for authorized consumers. AI is read-only and cannot write Learning state.
+
+**Does Not Own:** Course Progress/Completion, Assessment Score/Result,
+Certificate eligibility, Track behavior, AI output or Enterprise/HR roles.
+
+**ADR:** [ADR-0016 — Learning Foundation](../adr/ADR-0016-Learning-Foundation.md)
+— Frozen Version 1.1.
 
 ### Certificate
 

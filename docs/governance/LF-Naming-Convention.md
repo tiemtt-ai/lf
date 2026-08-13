@@ -1,12 +1,12 @@
 # LearnForge Naming Convention
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-12
 
 Document Path: governance/LF-Naming-Convention.md
 
@@ -146,6 +146,7 @@ Prefix chuẩn:
 | Certificate | `core_certificate_` |
 | LiveClass | `core_liveclass_` |
 | Assessment | `core_assessment_` |
+| Learning | `core_learning_` |
 | Media | `media_` |
 | Track | `track_` |
 | AI | `ai_` |
