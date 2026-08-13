@@ -1,6 +1,6 @@
 # LearnForge Quality
 
-Version: 1.5
+Version: 1.6
 
 Document Status: Approved
 
@@ -79,6 +79,9 @@ criteria hay không.
   — approved Phase 3 Database/Architecture Review for the ten Learning
   Foundation physical contracts; Foundation is frozen and migration remains a
   separate authorization.
+* [LF-Learning-Foundation-Phase-4C-Trigger-Specification.md](LF-Learning-Foundation-Phase-4C-Trigger-Specification.md)
+  — review draft defining the 24-trigger semantics, error catalog, JSON paths
+  and negative-test obligations before combined Phase 4B/4C authorization.
 * [LF-Schema-Drift-Trigger-Identity-Regression-Audit.md](LF-Schema-Drift-Trigger-Identity-Regression-Audit.md)
   — HIGH Existing-Feature Change audit for opt-in trigger identity enforcement
   in the shared schema-drift quality gate.

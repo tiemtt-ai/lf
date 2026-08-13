@@ -1,6 +1,6 @@
 # LF-INDEX.md
 
-Version: 2.10
+Version: 2.13
 
 Document Status: Approved
 
@@ -390,6 +390,7 @@ docs/quality/
 | [quality/LF-Enrollment-Lifecycle-Architecture-Review.md](quality/LF-Enrollment-Lifecycle-Architecture-Review.md) | Approved and frozen single and bulk Enrollment lifecycle transition review |
 | [quality/LF-Bulk-Enrollment-Architecture-Review.md](quality/LF-Bulk-Enrollment-Architecture-Review.md) | Approved and frozen Admin Bulk Enrollment creation, re-enrollment and atomic-submission idempotency review |
 | [quality/LF-Learning-Foundation-Database-Architecture-Review.md](quality/LF-Learning-Foundation-Database-Architecture-Review.md) | PASS Phase 3 Learning Database/Architecture Review; Foundation Freeze recorded and migration remains separately gated |
+| [quality/LF-Learning-Foundation-Phase-4C-Trigger-Specification.md](quality/LF-Learning-Foundation-Phase-4C-Trigger-Specification.md) | Review draft for 24 Learning trigger bodies; implementation remains blocked pending exact SQL and approval |
 | [quality/LF-Schema-Drift-Trigger-Identity-Regression-Audit.md](quality/LF-Schema-Drift-Trigger-Identity-Regression-Audit.md) | PASS HIGH regression audit for opt-in trigger identity enforcement in schema drift |
 
 ---
@@ -789,7 +790,7 @@ thức, agent vẫn phải tự kiểm tra source code hiện tại trước khi
 
 | Chức năng | Domain/Ownership | ADR bắt buộc | Domain policy | Database/schema | Quality/Review | Tài liệu điều kiện | Trình tự đọc |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Learning Framework, Evidence & Mastery | Core/Learning | [ADR-0016](adr/ADR-0016-Learning-Foundation.md) (Frozen Version 1.1) | [core/LF-Core-Learning.md](core/LF-Core-Learning.md) (Frozen), [core/LF-Core-User.md](core/LF-Core-User.md) (Phase 4A prerequisite implemented) | [database/learning/README.md](database/learning/README.md) and ten `core_learning_*` table docs — **Phase 3 Frozen, Not Implemented**; `users` composite tenant key Phase 4A implemented | [Learning Database Review and mandatory Phase 4 boundary](quality/LF-Learning-Foundation-Database-Architecture-Review.md#phase-4-mandatory-implementation-boundary) — Phase 3 **PASS**; Phase 4A authorization recorded, HIGH audit and Section B **PASS WITH DOCUMENTED RISKS**; Phase 4B–4E remain separately gated; AI and Track integrations are excluded from all Phase 4 stages | [governance/LF-Architecture-Review-Checklist.md](governance/LF-Architecture-Review-Checklist.md), [database/LF-Schema-Drift.md](database/LF-Schema-Drift.md) | Guardrails → ADR-0016 → LF-Core-Learning → database/learning/README → mandatory Phase 4 boundary → authorization record → separately authorized stage; stop if AI or Track implementation is required |
+| Learning Framework, Evidence & Mastery | Core/Learning | [ADR-0016](adr/ADR-0016-Learning-Foundation.md) (Frozen Version 1.1) | [core/LF-Core-Learning.md](core/LF-Core-Learning.md) (Frozen), [core/LF-Core-User.md](core/LF-Core-User.md) (Phase 4A prerequisite implemented) | [database/learning/README.md](database/learning/README.md) and ten `core_learning_*` table docs — **Phase 3 Frozen, Not Implemented**; `users` composite tenant key Phase 4A implemented | [Learning Database Review and mandatory Phase 4 boundary](quality/LF-Learning-Foundation-Database-Architecture-Review.md#phase-4-mandatory-implementation-boundary) — Phase 3 **PASS**; Phase 4A **PASS WITH DOCUMENTED RISKS**; standalone 4B is finally **BLOCKED** under the current gate; combined 4B/4C is **PENDING** Trigger Specification and Owner authorization; AI and Track remain excluded | [governance/LF-Architecture-Review-Checklist.md](governance/LF-Architecture-Review-Checklist.md), [database/LF-Schema-Drift.md](database/LF-Schema-Drift.md) | Guardrails → ADR-0016 → LF-Core-Learning → database/learning/README → Phase 4 boundary → Trigger Specification → combined 4B/4C authorization; standalone 4B is not a valid implementation route |
 
 ## 5. Platform & SaaS
 

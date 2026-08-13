@@ -1,6 +1,6 @@
 # Learning Foundation Database Architecture Review
 
-Version: 1.3
+Version: 1.5
 
 Document Status: Approved
 
@@ -401,8 +401,8 @@ stage does not authorize its successor.
 | Stage | Scope | Entry gate | Exit evidence |
 | --- | --- | --- | --- |
 | 4A | User prerequisite: composite `UNIQUE (id, customer_id)`. | Existing-Feature Regression Audit and explicit auth-boundary approval. | MariaDB migration rehearsal, index preflight, rollback rehearsal and tenant-auth regression PASS. |
-| 4B | Forward migrations for ten `core_learning_*` tables, keys and CHECK constraints. | 4A PASS; table migration authorization. | Fresh MariaDB schema, FK/CHECK negative tests and schema-drift structural comparison PASS. |
-| 4C | The 24 executable trigger bodies. | Trigger Specification review approved; confirm whether fresh-schema drift permits intentionally absent triggers. | Exact normalized trigger bodies in contract; trigger identity/body drift PASS; MariaDB negative-constraint suite PASS. |
+| 4B | Structural design scope: ten `core_learning_*` tables, keys and CHECK constraints. No standalone implementation gate exists. | 4A PASS; continue only through the combined 4B/4C gate. | Evidence is accepted only with 4C in the combined gate. |
+| 4C | Physical-enforcement design scope: the 24 executable trigger bodies. Implemented only with 4B. | Approved Trigger Specification and combined 4B/4C Owner authorization. | Fresh MariaDB schema; FK/CHECK/trigger negative tests; trigger identity/body and full schema drift PASS. |
 | 4D | Learning runtime, authorization, projector and schema-drift contract. | 4B and 4C PASS; implementation authorization. | Tenant, authorization, idempotency, projection, drift and append-only regression audit PASS. |
 | 4E | Teacher Judgment end-to-end flow. | 4D PASS; product/teacher workflow authorization. | Human judgment submission, Evidence, Calculation/Profile projection and audit lineage acceptance PASS. |
 
@@ -417,10 +417,11 @@ constraints are enforced by the selected engine. The current CI baseline is
 MariaDB 11.4; deployment preflight must still enforce the documented MySQL /
 MariaDB version floor.
 
-Before authorizing 4B/4C, the outstanding decision log must explicitly resolve
-whether `schema:drift --fresh` treats deliberately absent triggers as allowed
-between 4B and 4C. If it does not, 4B and 4C are executed as one migration gate;
-the gate must not be weakened merely to split the work.
+The former staging question is resolved: `schema:drift --fresh` does not provide
+an accepted intermediate state for implemented Learning tables without their
+required triggers. Consequently 4B and 4C are one combined implementation and
+acceptance gate. They remain separate design scopes only. The gate must not be
+weakened and the analyzer must not be modified merely to split this work.
 
 ## Phase 4 Mandatory Implementation Boundary
 
@@ -527,6 +528,109 @@ real LearnForge database, and it does not authorize any successor stage.
 The authorization was recorded after the Foundation Freeze and before Phase 4A
 was accepted as complete. The technical artifact may exist in the working tree,
 but it is not production deployment evidence.
+
+---
+
+# Phase 4B Readiness Review
+
+Date: 2026-08-13
+
+Mode: documentation and source inspection only. No migration, schema, database
+or runtime change was authorized or performed by this review.
+
+## Readiness Scope
+
+The review checked the Frozen ten-table Learning contract, the schema contract,
+foreign-key creation order, CHECK coverage, Phase 4A prerequisite, fresh-schema
+drift behavior, negative-test requirements and test-database isolation.
+
+## Confirmed Prerequisites
+
+| Prerequisite | Evidence | Result |
+| --- | --- | --- |
+| Phase 3 contract is Frozen | ADR-0016 Version 1.1 and Round 4 Freeze | PASS |
+| Ten canonical table documents exist | `docs/database/learning/` | PASS |
+| Phase 4A user composite key exists in source and passed audit | `uk_users_id_customer` record and targeted tests | PASS |
+| Contract contains all Learning structures | 174 columns, 51 FKs, 30 CHECKs and 24 triggers | PASS |
+| AI and Track remain excluded | Phase 4 mandatory implementation boundary | PASS |
+| Safe test-database lifecycle exists | `schema:drift --fresh` creates and drops a random `lf_schema_drift_*` database in `finally` | PASS |
+
+The safe forward dependency order is:
+
+1. `core_learning_frameworks`;
+2. `core_learning_framework_versions` and
+   `core_learning_node_definitions`;
+3. `core_learning_nodes`;
+4. `core_learning_node_relations`, `core_learning_node_mappings` and
+   `core_learning_evidence`;
+5. `core_learning_mastery_calculations`;
+6. `core_learning_calculation_evidence`; and
+7. `core_learning_mastery_profiles`.
+
+Rollback must use the exact reverse order. It must not remove the Phase 4A User
+composite key while a Learning foreign key still depends on it.
+
+## Blocking Gate Decision — 4B And 4C
+
+`schema:drift --fresh` has no phase-aware exception for intentionally absent
+Learning triggers:
+
+* if a Learning table remains `not_implemented` after its migration exists,
+  schema drift reports a HIGH deferred-table conflict;
+* if the table is changed to `implemented`, comparison includes its trigger
+  contract and reports every absent trigger as HIGH `triggers.missing`; and
+* all ten Learning contracts set `trigger_identity_required: true` and already
+  declare the 24 trigger identities.
+
+Therefore a standalone 4B migration cannot satisfy its documented fresh-schema
+exit gate under the current contract. The gate must not be weakened and the
+schema-drift analyzer must not be changed merely to conceal an intermediate
+failure.
+
+Decision: **4B and 4C must be implemented as one combined migration gate.**
+This combines execution and acceptance only; it does not merge their design
+responsibilities. The Trigger Specification review remains mandatory before
+any combined migration is written.
+
+Standalone 4B is not a pending option and cannot later become ready under the
+current Frozen Migration Gate. Any future proposal to restore a standalone 4B
+would require an explicit Foundation amendment and schema-drift design review;
+changing the analyzer or lowering finding severity is not an acceptable bypass.
+
+## Required Negative Verification
+
+The combined gate must prepare MariaDB tests that prove:
+
+* all tenant and parent composite FKs reject mismatched identities;
+* every CHECK rejects invalid vocabulary, lifecycle and conditional-null rows;
+* the selected MariaDB engine actually enforces CHECK constraints;
+* all 24 trigger identities and normalized bodies match the contract;
+* the trigger-specific negative matrix passes;
+* `teacher_judgment` is the only initially open Evidence source and both
+  `track_events` and `behavioral_signal` are rejected; and
+* the fresh test database is uniquely named and removed in all success/failure
+  paths.
+
+## Authorization Still Required
+
+The existing Owner decision authorizes Phase 4A only. Before implementation,
+the Architecture Owner must approve both artifacts below:
+
+1. the standalone Phase 4C Trigger Specification review; and
+2. a combined **Phase 4B/4C implementation authorization** limited to the ten
+   Learning tables, their keys/CHECKs and the 24 approved trigger bodies.
+
+That authorization must continue to exclude the real LearnForge database,
+production deployment, 4D runtime, 4E Teacher Judgment workflow, AI and Track.
+
+## Readiness Verdict
+
+`BLOCKED FOR STANDALONE 4B` — final under the current Frozen Migration Gate.
+Trigger-free 4B cannot satisfy schema drift and is not an implementation path.
+
+`PENDING FOR COMBINED 4B/4C` — proceed only after the Trigger Specification is
+approved and the Architecture Owner records a combined implementation
+authorization. No migration code is authorized by this readiness review.
 
 ---
 

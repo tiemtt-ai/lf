@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 221,
+  "document_count": 222,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -8187,6 +8187,48 @@
         "adr/ADR-0016-Learning-Foundation.md",
         "core/LF-Core-Learning.md",
         "database/learning/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Learning-Foundation-Phase-4C-Trigger-Specification.md",
+      "title": "Learning Foundation Phase 4C Trigger Specification",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [
+        "learning_foundation_phase_4c_trigger_specification"
+      ],
+      "topics": [
+        "learning",
+        "database",
+        "triggers",
+        "phase-4c"
+      ],
+      "keywords": {
+        "vi": [
+          "đặc tả trigger",
+          "Learning Foundation",
+          "ràng buộc vật lý"
+        ],
+        "en": [
+          "trigger specification",
+          "Learning Foundation",
+          "physical enforcement"
+        ]
+      },
+      "identifiers": [
+        "LF-Learning-Foundation-Phase-4C-Trigger-Specification"
+      ],
+      "related_documents": [
+        "adr/ADR-0016-Learning-Foundation.md",
+        "core/LF-Core-Learning.md",
+        "database/learning/README.md",
+        "quality/LF-Learning-Foundation-Database-Architecture-Review.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
