@@ -1,12 +1,12 @@
 # LearnForge Quality
 
-Version: 1.9
+Version: 1.10
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-13
+Last Updated: 2026-08-15
 
 Document Path: quality/README.md
 
@@ -85,6 +85,9 @@ criteria hay không.
 * [LF-Learning-Foundation-Phase-4C-Trigger-Static-Review.md](LF-Learning-Foundation-Phase-4C-Trigger-Static-Review.md)
   — static remediation passed, but disposable rehearsal is BLOCKED by the
   candidate `JSON_TABLE` dependency conflicting with the MariaDB 10.5 floor.
+* [LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md](LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md)
+  — Phase 4E design/readiness review for immutable Teacher Judgment source,
+  default-deny authorization and end-to-end Learning projection preparation.
 * [LF-Schema-Drift-Trigger-Identity-Regression-Audit.md](LF-Schema-Drift-Trigger-Identity-Regression-Audit.md)
   — HIGH Existing-Feature Change audit for opt-in trigger identity enforcement
   in the shared schema-drift quality gate.

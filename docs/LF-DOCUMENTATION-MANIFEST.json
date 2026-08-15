@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-08-13",
+  "generated_or_updated_at": "2026-08-15",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 223,
+  "document_count": 224,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -8268,6 +8268,48 @@
         "adr/ADR-0016-Learning-Foundation.md",
         "database/learning/README.md",
         "quality/LF-Learning-Foundation-Phase-4C-Trigger-Specification.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md",
+      "title": "Learning Foundation Phase 4E Teacher Judgment Design",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [
+        "learning_foundation_phase_4e_teacher_judgment_design"
+      ],
+      "topics": [
+        "learning",
+        "teacher-judgment",
+        "authorization",
+        "phase-4e"
+      ],
+      "keywords": {
+        "vi": [
+          "đánh giá của giáo viên",
+          "bằng chứng học tập",
+          "thiết kế giai đoạn 4E"
+        ],
+        "en": [
+          "teacher judgment",
+          "learning evidence",
+          "phase 4E design"
+        ]
+      },
+      "identifiers": [
+        "LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design"
+      ],
+      "related_documents": [
+        "adr/ADR-0016-Learning-Foundation.md",
+        "core/LF-Core-Learning.md",
+        "core/LF-Core-LiveClass.md",
+        "quality/LF-Learning-Foundation-Database-Architecture-Review.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

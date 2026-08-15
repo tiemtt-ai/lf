@@ -1,12 +1,12 @@
 # LF-INDEX.md
 
-Version: 2.17
+Version: 2.18
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-13
+Last Updated: 2026-08-15
 
 Document Path: LF-INDEX.md
 
@@ -392,6 +392,7 @@ docs/quality/
 | [quality/LF-Learning-Foundation-Database-Architecture-Review.md](quality/LF-Learning-Foundation-Database-Architecture-Review.md) | PASS Phase 3 Learning Database/Architecture Review; Foundation Freeze recorded and migration remains separately gated |
 | [quality/LF-Learning-Foundation-Phase-4C-Trigger-Specification.md](quality/LF-Learning-Foundation-Phase-4C-Trigger-Specification.md) | Review draft for 24 Learning trigger bodies; implementation remains blocked pending exact SQL and approval |
 | [quality/LF-Learning-Foundation-Phase-4C-Trigger-Static-Review.md](quality/LF-Learning-Foundation-Phase-4C-Trigger-Static-Review.md) | Engine rehearsal BLOCKED: candidate `JSON_TABLE` conflicts with the allowed MariaDB 10.5 floor; database cleanup PASS |
+| [quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md](quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md) | Phase 4E Teacher Judgment design/readiness; implementation blocked pending immutable source and Owner rule/authorization decisions |
 | [quality/LF-Schema-Drift-Trigger-Identity-Regression-Audit.md](quality/LF-Schema-Drift-Trigger-Identity-Regression-Audit.md) | PASS HIGH regression audit for opt-in trigger identity enforcement in schema drift |
 
 ---
