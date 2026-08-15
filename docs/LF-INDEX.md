@@ -393,7 +393,7 @@ docs/quality/
 | [quality/LF-Learning-Foundation-Phase-4C-Trigger-Specification.md](quality/LF-Learning-Foundation-Phase-4C-Trigger-Specification.md) | Review draft for 24 Learning trigger bodies; implementation remains blocked pending exact SQL and approval |
 | [quality/LF-Learning-Foundation-Phase-4C-Trigger-Static-Review.md](quality/LF-Learning-Foundation-Phase-4C-Trigger-Static-Review.md) | Engine rehearsal BLOCKED: candidate `JSON_TABLE` conflicts with the allowed MariaDB 10.5 floor; database cleanup PASS |
 | [quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md](quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md) | Phase 4E Owner-approved direction; database review must cover four released Course parent-key prerequisites before any migration authorization |
-| [quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md](quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md) | HIGH prerequisite design; Round 1 findings remediated, independent re-review pending and migration blocked |
+| [quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md](quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md) | Independent review and development read-only preflight PASS; migration/contract activation requires separate Owner authorization |
 | [quality/LF-Schema-Drift-Trigger-Identity-Regression-Audit.md](quality/LF-Schema-Drift-Trigger-Identity-Regression-Audit.md) | PASS HIGH regression audit for opt-in trigger identity enforcement in schema drift |
 
 ---

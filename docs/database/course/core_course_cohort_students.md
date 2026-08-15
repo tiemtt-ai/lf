@@ -413,6 +413,22 @@ Một Enrollment chỉ có một Cohort Membership record.
 
 Không dùng `is_current` và không tạo membership history.
 
+### Phase 4E Tenant Parent-Key Prerequisite — Planned
+
+Document Status: Approved design direction. Implementation Status: Not
+Implemented.
+
+```sql
+UNIQUE uk_core_course_cohort_students_id_customer
+(id, customer_id);
+```
+
+This candidate key preserves the existing membership business unique and
+exists only for the future tenant-safe composite foreign key from the
+LiveClass-owned Teacher Judgment source. Migration, read-only real-schema
+preflight and physical contract activation remain separately gated by the
+[Course Parent-Key Prerequisite Review](../../quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md).
+
 ---
 
 ## Sample Data

@@ -1,12 +1,12 @@
 # Table: core_course_cohort_teachers
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-10
+Last Updated: 2026-08-15
 
 Document Path: database/course/core_course_cohort_teachers.md
 
@@ -88,3 +88,18 @@ Hợp đồng phía Session nằm tại
 
 Indexes cover tenant/cohort/status, tenant/teacher and date range. Foreign keys
 to tenant, Cohort and User use `RESTRICT`.
+
+### Phase 4E Tenant Parent-Key Prerequisite — Planned
+
+Implementation Status for this index: Not Implemented.
+
+```sql
+UNIQUE uk_core_course_cohort_teachers_id_customer
+(id, customer_id);
+```
+
+This candidate key does not change assignment lifecycle or ownership. It is
+reserved for the future tenant-safe composite foreign key from the
+LiveClass-owned Teacher Judgment source. Migration, read-only real-schema
+preflight and physical contract activation remain separately gated by the
+[Course Parent-Key Prerequisite Review](../../quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md).

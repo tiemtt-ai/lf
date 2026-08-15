@@ -1,6 +1,6 @@
 # Learning Foundation Phase 4E Course Parent-Key Prerequisite Review
 
-Version: 0.2
+Version: 0.5
 
 Document Status: Review
 
@@ -45,6 +45,13 @@ Existing business keys do not substitute for that candidate key.
 | `core_course_cohort_teachers` | `uk_core_course_cohort_teachers_id_customer (id, customer_id)` |
 | `core_course_cohort_students` | `uk_core_course_cohort_students_id_customer (id, customer_id)` |
 | `core_course_enrollments` | `uk_core_course_enrollments_id_customer (id, customer_id)` |
+
+The full-table names are intentional. Three target tables use abbreviated
+local prefixes for existing operational indexes, while Cohort Students and the
+equivalent User tenant-parent prerequisite use full names. This prerequisite
+follows `uk_users_id_customer` for readability and rollback safety across the
+same class of tenant identity keys; it does not claim that abbreviated local
+names are invalid.
 
 The column order is deliberate because each future child reference has the
 shape `(parent_id, customer_id)`. The keys do not replace primary or business
@@ -98,7 +105,12 @@ migration containing only the four named unique keys. The migration must:
 * fail closed on wrong-order, partial, non-unique or name-conflicting indexes;
 * use the repository-supported online DDL strategy where the engine permits;
 * make no data, primary-key, lifecycle or foreign-key change;
-* drop only the four exact keys in `down()` and fail closed on ambiguity.
+* match forward satisfaction by exact ordered unique definition regardless of
+  index name;
+* in `down()`, match both the canonical name and exact definition, and remove
+  an index only when the migration can prove that it created that index;
+* return without mutation when a satisfied key was adopted under another name,
+  or when creation ownership cannot be proven.
 
 The prerequisite migration must be deployed and accepted before the future
 Teacher Judgment source migration. Rollback of a parent key is forbidden while
@@ -128,7 +140,7 @@ encode that dependency explicitly.
 | Existing Course foreign keys and flows remain intact | Course module and tenant regression tests |
 | Cross-tenant child reference is impossible | Disposable MariaDB negative FK probe |
 | Fresh reconstruction succeeds | Isolated `migrate:fresh` and schema drift |
-| Rollback removes only the four keys | Before/after schema inventory |
+| Rollback removes only canonical exact keys created by this migration | Creation-ownership evidence plus before/after schema inventory |
 | Real LearnForge data is untouched | Explicit target guard and cleanup evidence |
 
 Schema drift remains a reconstruction and missing-object gate. It is not
@@ -149,7 +161,8 @@ environment and delete it on success or failure.
 * Section D: PASS IN DESIGN — no business-state transition changes.
 * Section E: PASS IN DESIGN — exact candidate keys and rollback are specified.
 * Section F: PASS IN DESIGN — Guardrails and ADR-0016 remain compatible.
-* Section G: PENDING — canonical Course table docs are not yet amended.
+* Section G: PASS — all four canonical Course table docs record the planned,
+  not-yet-implemented candidate keys and link back to this gate.
 * Section H: BLOCKED — independent re-review, preflight and Owner migration
   authorization remain outstanding.
 
@@ -165,6 +178,59 @@ evidence gap and two LOW editorial/contract ambiguities:
 | LOW — abbreviated index names are error-prone | Replaced all four names with full-table canonical names below MariaDB's identifier limit. |
 | LOW — equivalent-index handling was contradictory | Exact ordered unique is now idempotent no-op; wrong-order/partial/conflicting definitions are BLOCKED. |
 
+## Independent Review Round 2
+
+Round 2 on repository commit `e8bcf95` passed the documentation gates and
+confirmed that the MEDIUM and two LOW Round 1 findings were materially closed.
+One residual LOW ambiguity remained: forward adoption is name-agnostic, while
+rollback must never remove a pre-existing adopted key.
+
+Version 0.3 closes that ambiguity. Forward matches the exact ordered unique
+definition. Rollback requires canonical name, exact definition and positive
+creation-ownership evidence; otherwise it performs no mutation. This rule is a
+required implementation acceptance condition, not an assumption inferred from
+the migration being present in Laravel's migration table.
+
+## Canonical Documentation Update
+
+Version 0.4 records the four candidate keys in the canonical Course table docs
+as approved planned prerequisites with `Implementation Status: Not
+Implemented`. The physical schema contract remains unchanged intentionally:
+all four parent tables are currently `implemented`, and the contract has no
+per-index planned state. Adding absent indexes now would falsely claim physical
+implementation and make fresh reconstruction drift.
+
+Under the Schema Drift Standard, the four exact keys must be added to
+`LF-SCHEMA-CONTRACT.json` in the same authorized change as the forward
+migration. That combined change must pass the direct contract inventory check
+and `schema:drift --fresh`; docs-only PASS before migration is not evidence
+that the physical keys exist.
+
+## Development Database Read-Only Preflight
+
+An independently reported read-only preflight ran on 2026-08-15 against the
+development database `learnforge_db` using only `SELECT` and
+`information_schema`. Engine: MariaDB 10.4.21. No DDL, DML or repair ran.
+
+| Table | Rows | Null tenant | Orphan tenant | Exact/equivalent key | Result |
+| --- | ---: | ---: | ---: | --- | --- |
+| `core_course_cohorts` | 4 | 0 | 0 | none | READY |
+| `core_course_cohort_teachers` | 10 | 0 | 0 | none | READY |
+| `core_course_cohort_students` | 7 | 0 | 0 | none | READY |
+| `core_course_enrollments` | 11 | 0 | 0 | none | READY |
+
+All eight inspected identity columns are `BIGINT UNSIGNED NOT NULL`. All four
+tables use InnoDB and `utf8mb4_unicode_ci`. No wrong-order, partial/non-unique
+equivalent or occupied canonical name was found. Therefore all four forward
+branches require creating the canonical key; none is an adopted no-op.
+
+The development tables contain only 4–11 rows and are at most approximately
+0.23 MB. This proves development-schema compatibility, not production lock
+risk. Before deployment, the operator must repeat table sizing and online-DDL
+capability checks on the actual target environment and validate
+`ALGORITHM=INPLACE, LOCK=NONE`; an unsafe or unsupported result blocks
+deployment rather than silently falling back to a locking algorithm.
+
 ## Findings By Severity
 
 ```text
@@ -179,9 +245,12 @@ preflight, physical MariaDB rehearsal and regression tests have not run.
 
 ## Final Verdict
 
-`REMEDIATED; PENDING INDEPENDENT RE-REVIEW; BLOCKED FOR MIGRATION`.
+`INDEPENDENT DOCUMENT REVIEW AND DEVELOPMENT PREFLIGHT PASS; BLOCKED FOR
+MIGRATION AUTHORIZATION`.
 
 The proposed parent-key contract is internally consistent and preserves Course
-ownership, but canonical table-doc amendments, independent re-review,
-read-only preflight and explicit Owner migration authorization are still
-required. No migration or database operation is authorized by this verdict.
+ownership and the independent review findings are closed. Canonical table-doc
+amendments and development read-only preflight are complete. Explicit Owner
+migration authorization is still required; the physical schema contract
+changes only with that migration. Production sizing remains a deployment gate.
+No migration or database mutation is authorized by this verdict.

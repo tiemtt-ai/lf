@@ -592,6 +592,25 @@ Mỗi row là một Learning Cycle độc lập.
 Nếu chỉ cho một active cycle tại một thời điểm, rule đó được kiểm soát bằng
 transaction/service logic theo `status = active`, không chặn historical cycles.
 
+### Phase 4E Tenant Parent-Key Prerequisite — Planned
+
+Document Status: Approved design direction. Implementation Status: Not
+Implemented.
+
+The prohibition above applies to Student/Product cycle uniqueness; it does not
+prohibit the independently reviewed tenant identity candidate key:
+
+```sql
+UNIQUE uk_core_course_enrollments_id_customer
+(id, customer_id);
+```
+
+This key does not alter re-enrollment or learning-access behavior. It exists
+only for the future tenant-safe composite foreign key from the LiveClass-owned
+Teacher Judgment source. Migration, read-only real-schema preflight and
+physical contract activation remain separately gated by the
+[Course Parent-Key Prerequisite Review](../../quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md).
+
 ---
 
 ## Sample Data

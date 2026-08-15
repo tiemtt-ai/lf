@@ -1,6 +1,6 @@
 # Learning Foundation Database Architecture Review
 
-Version: 1.13
+Version: 1.16
 
 Document Status: Approved
 
@@ -800,6 +800,31 @@ remediates them by requiring direct schema-contract inventory comparison,
 using full-table index names and distinguishing exact-equivalent no-op from
 wrong-order/partial/conflicting definitions. Independent re-review remains
 pending; no migration is authorized.
+
+Round 2 independent review on commit `e8bcf95` passed with one residual LOW
+rollback ambiguity. Version 0.3 closes it by making forward satisfaction
+definition-based and rollback dependent on canonical name, exact definition
+and positive creation-ownership evidence. The prerequisite document review is
+now PASS; canonical Course table docs, read-only preflight and separate Owner
+migration authorization remain outstanding.
+
+Repository-state correction: commit `e8bcf95` contains the seven Phase 4E
+documentation/diagram changes and is present on `main`, `tiemtt`,
+`origin/main` and `origin/tiemtt`. Earlier reports claiming that change set was
+not committed or pushed are invalid.
+
+The four canonical Course table docs now record the parent candidate keys as
+planned and not implemented. The physical schema contract is intentionally not
+changed before migration authorization because it has table-level, not
+per-index, implementation status. Contract activation must occur atomically
+with the future migration and pass direct inventory plus fresh-schema drift.
+
+The 2026-08-15 development read-only preflight on `learnforge_db` passed for
+all four parents: compatible `BIGINT UNSIGNED NOT NULL` identities, zero
+null/orphan tenants, no exact/wrong-order/partial/conflicting key, and matching
+InnoDB/`utf8mb4_unicode_ci`. The 4–11 row development dataset does not prove
+production lock safety; target sizing and online-DDL validation remain a
+deployment gate. No database mutation was performed.
 
 ## Combined Phase 4B/4C Migration Rehearsal
 
