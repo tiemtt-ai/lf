@@ -31,8 +31,18 @@ use Illuminate\Support\Facades\Schema;
  * An exact ordered UNIQUE `(id, customer_id)` under any name satisfies the
  * contract: that table is skipped as an idempotent no-op. `down()` is the
  * asymmetric half — it removes only a key that matches both the canonical name
- * and the exact definition, so a pre-existing equivalent key created elsewhere
- * is never dropped by this rollback.
+ * and the exact definition. A pre-existing non-canonical equivalent is never
+ * dropped; an exact canonical key is deliberately adopted as described below.
+ *
+ * Both directions must stay re-runnable. Laravel builds a fresh migration
+ * instance per run and writes the ledger row only after `up()` returns, so a run
+ * interrupted between two `ALTER TABLE` statements leaves keys in place with no
+ * ledger row. Ownership must therefore be derived from the key definition, not
+ * from per-instance state: a canonical-named exact key is byte-identical to the
+ * one this migration creates, so adopting it lets a retry finish the remaining
+ * tables and lets `down()` unwind. `assertNoConflictingIndex()` already rejects
+ * the canonical name carrying any other definition, which is the case that
+ * genuinely needs a human.
  */
 return new class extends Migration
 {
@@ -75,6 +85,10 @@ return new class extends Migration
     public function down(): void
     {
         foreach (array_reverse(self::TARGETS, true) as $table => $name) {
+            $this->assertRollbackSafe($table, $name);
+        }
+
+        foreach (array_reverse(self::TARGETS, true) as $table => $name) {
             if (! Schema::hasTable($table)) {
                 continue;
             }
@@ -83,10 +97,6 @@ return new class extends Migration
 
             if ($index === null) {
                 continue;
-            }
-
-            if (! $this->isExpectedUniqueIndex($index)) {
-                throw new RuntimeException("{$name} has an unexpected definition and cannot be dropped safely.");
             }
 
             if (in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
@@ -101,8 +111,93 @@ return new class extends Migration
         }
     }
 
+    private function assertRollbackSafe(string $table, string $name): void
+    {
+        if (! Schema::hasTable($table)) {
+            return;
+        }
+
+        $index = $this->index($table, $name);
+        if ($index === null) {
+            return;
+        }
+
+        if (! $this->isExpectedUniqueIndex($index)) {
+            throw new RuntimeException("{$name} has an unexpected definition and cannot be dropped safely.");
+        }
+
+        $otherExact = collect(Schema::getIndexes($table))->contains(
+            fn (array $candidate): bool => $this->isExpectedUniqueIndex($candidate)
+                && strtolower((string) ($candidate['name'] ?? '')) !== strtolower($name)
+        );
+        if ($otherExact) {
+            throw new RuntimeException("{$name} cannot be dropped while another exact parent key exists.");
+        }
+
+        if ($this->hasReferencingCompositeForeignKey($table)) {
+            throw new RuntimeException("{$name} cannot be dropped while a child composite foreign key depends on it.");
+        }
+    }
+
+    /**
+     * On MySQL/MariaDB this must not walk `Schema::getTables()`. That helper is
+     * not schema-filtered, so it returns every table the connection can see on
+     * the whole server — 890 of them on the development host — and introspecting
+     * each one costs roughly 0.18s, putting a single rollback at about ten
+     * minutes and scanning databases this migration has no business reading.
+     * One schema-filtered information_schema query per parent answers the same
+     * question. Other drivers keep the loop, scoped to the current connection.
+     */
+    private function hasReferencingCompositeForeignKey(string $table): bool
+    {
+        if (in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
+            $referencedColumns = implode(',', self::COLUMNS);
+
+            foreach (DB::select(
+                'SELECT GROUP_CONCAT(LOWER(REFERENCED_COLUMN_NAME) ORDER BY ORDINAL_POSITION) AS referenced_columns
+                   FROM information_schema.KEY_COLUMN_USAGE
+                  WHERE REFERENCED_TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME = ?
+                  GROUP BY CONSTRAINT_SCHEMA, CONSTRAINT_NAME',
+                [$table]
+            ) as $constraint) {
+                if ($constraint->referenced_columns === $referencedColumns) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        foreach (Schema::getTables($this->currentSchema()) as $candidate) {
+            $candidateName = (string) ($candidate['name'] ?? '');
+            if ($candidateName === '') {
+                continue;
+            }
+
+            foreach (Schema::getForeignKeys($candidateName) as $foreignKey) {
+                $foreignTable = strtolower((string) ($foreignKey['foreign_table'] ?? ''));
+                $foreignColumns = array_map('strtolower', $foreignKey['foreign_columns'] ?? []);
+
+                if ($foreignTable === strtolower($table) && $foreignColumns === self::COLUMNS) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function currentSchema(): ?string
+    {
+        return DB::getDriverName() === 'sqlite' ? null : DB::connection()->getDatabaseName();
+    }
+
     private function assertPreflight(string $table, string $name): void
     {
+        if (! Schema::hasTable('saas_customers')) {
+            throw new RuntimeException('Phase 4E prerequisite requires the saas_customers table.');
+        }
+
         if (! Schema::hasTable($table)) {
             throw new RuntimeException("Phase 4E prerequisite requires the {$table} table.");
         }
@@ -113,22 +208,32 @@ return new class extends Migration
             }
         }
 
-        $customerId = collect(Schema::getColumns($table))
-            ->first(fn (array $column): bool => strtolower($column['name']) === 'customer_id');
+        $columns = collect(Schema::getColumns($table));
+        foreach (self::COLUMNS as $columnName) {
+            $column = $columns->first(
+                fn (array $candidate): bool => strtolower($candidate['name']) === $columnName
+            );
 
-        if ($customerId === null || ($customerId['nullable'] ?? true)) {
-            throw new RuntimeException("Phase 4E prerequisite requires {$table}.customer_id to be NOT NULL.");
+            if ($column === null || ($column['nullable'] ?? true)) {
+                throw new RuntimeException("Phase 4E prerequisite requires {$table}.{$columnName} to be NOT NULL.");
+            }
+
+            if (in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
+                $type = strtolower((string) ($column['type'] ?? $column['type_name'] ?? ''));
+                if (! str_contains($type, 'bigint') || ! str_contains($type, 'unsigned')) {
+                    throw new RuntimeException("Phase 4E prerequisite requires {$table}.{$columnName} to be BIGINT UNSIGNED.");
+                }
+            }
         }
 
         if (DB::table($table)->whereNull('customer_id')->exists()) {
             throw new RuntimeException("Phase 4E prerequisite found {$table} rows with a null customer_id.");
         }
 
-        if (Schema::hasTable('saas_customers')
-            && DB::table($table.' as child')
-                ->leftJoin('saas_customers as tenant', 'tenant.id', '=', 'child.customer_id')
-                ->whereNull('tenant.id')
-                ->exists()) {
+        if (DB::table($table.' as child')
+            ->leftJoin('saas_customers as tenant', 'tenant.id', '=', 'child.customer_id')
+            ->whereNull('tenant.id')
+            ->exists()) {
             throw new RuntimeException("Phase 4E prerequisite found {$table} rows without a valid tenant.");
         }
 

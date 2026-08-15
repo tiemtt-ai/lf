@@ -588,10 +588,10 @@ INDEX idx_course_cohorts_version
 Foundation v1 defines no permanent unique constraint for
 `core_course_cohorts`.
 
-### Phase 4E Tenant Parent-Key Prerequisite — Planned
+### Phase 4E Tenant Parent-Key Prerequisite
 
-Document Status: Approved design direction. Implementation Status: Not
-Implemented.
+Document Status: Approved design direction. Implementation Status: Deployed on
+the development database `learnforge_db`; production not authorized.
 
 The independently reviewed Phase 4E prerequisite adds this candidate key
 without replacing the primary key or changing Cohort ownership/lifecycle:
@@ -602,8 +602,8 @@ UNIQUE uk_core_course_cohorts_id_customer
 ```
 
 It exists only to support a future tenant-safe composite foreign key from the
-LiveClass-owned Teacher Judgment source. Migration, real-schema preflight and
-physical schema-contract activation remain separately gated by the
+LiveClass-owned Teacher Judgment source. Migration, physical contract and
+development deployment passed; production remains separately gated by the
 [Course Parent-Key Prerequisite Review](../../quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md).
 
 ---

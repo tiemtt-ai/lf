@@ -89,9 +89,10 @@ Hợp đồng phía Session nằm tại
 Indexes cover tenant/cohort/status, tenant/teacher and date range. Foreign keys
 to tenant, Cohort and User use `RESTRICT`.
 
-### Phase 4E Tenant Parent-Key Prerequisite — Planned
+### Phase 4E Tenant Parent-Key Prerequisite
 
-Implementation Status for this index: Not Implemented.
+Implementation Status for this index: Deployed on the development database
+`learnforge_db`; production not authorized.
 
 ```sql
 UNIQUE uk_core_course_cohort_teachers_id_customer
@@ -100,6 +101,6 @@ UNIQUE uk_core_course_cohort_teachers_id_customer
 
 This candidate key does not change assignment lifecycle or ownership. It is
 reserved for the future tenant-safe composite foreign key from the
-LiveClass-owned Teacher Judgment source. Migration, read-only real-schema
-preflight and physical contract activation remain separately gated by the
+LiveClass-owned Teacher Judgment source. Migration, physical contract and
+development deployment passed; production remains separately gated by the
 [Course Parent-Key Prerequisite Review](../../quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md).

@@ -3724,6 +3724,14 @@
                 },
                 {
                     "columns": [
+                        "id",
+                        "customer_id"
+                    ],
+                    "unique": true,
+                    "type": "btree"
+                },
+                {
+                    "columns": [
                         "customer_id",
                         "enrollment_id"
                     ],
@@ -3963,6 +3971,14 @@
                         "customer_id",
                         "cohort_id",
                         "teacher_id"
+                    ],
+                    "unique": true,
+                    "type": "btree"
+                },
+                {
+                    "columns": [
+                        "id",
+                        "customer_id"
                     ],
                     "unique": true,
                     "type": "btree"
@@ -4225,6 +4241,14 @@
                     "columns": [
                         "customer_id",
                         "code"
+                    ],
+                    "unique": true,
+                    "type": "btree"
+                },
+                {
+                    "columns": [
+                        "id",
+                        "customer_id"
                     ],
                     "unique": true,
                     "type": "btree"
@@ -5340,6 +5364,14 @@
                         "version_id"
                     ],
                     "unique": false,
+                    "type": "btree"
+                },
+                {
+                    "columns": [
+                        "id",
+                        "customer_id"
+                    ],
+                    "unique": true,
                     "type": "btree"
                 }
             ],
@@ -18130,6 +18162,350 @@
                 }
             ],
             "triggers": [],
+            "views": []
+        },
+        {
+            "name": "core_liveclass_teacher_judgments",
+            "documentation": "database/liveclass/core_liveclass_teacher_judgments.md",
+            "implementation_status": "planned",
+            "trigger_identity_required": true,
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "bigint",
+                    "nullable": false,
+                    "unsigned": true,
+                    "auto_increment": true
+                },
+                {
+                    "name": "customer_id",
+                    "type": "bigint",
+                    "nullable": false,
+                    "unsigned": true
+                },
+                {
+                    "name": "submission_uuid",
+                    "type": "char",
+                    "nullable": false
+                },
+                {
+                    "name": "cohort_id",
+                    "type": "bigint",
+                    "nullable": false,
+                    "unsigned": true
+                },
+                {
+                    "name": "cohort_teacher_assignment_id",
+                    "type": "bigint",
+                    "nullable": false,
+                    "unsigned": true
+                },
+                {
+                    "name": "cohort_student_membership_id",
+                    "type": "bigint",
+                    "nullable": false,
+                    "unsigned": true
+                },
+                {
+                    "name": "enrollment_id",
+                    "type": "bigint",
+                    "nullable": false,
+                    "unsigned": true
+                },
+                {
+                    "name": "teacher_id",
+                    "type": "bigint",
+                    "nullable": false,
+                    "unsigned": true
+                },
+                {
+                    "name": "student_id",
+                    "type": "bigint",
+                    "nullable": false,
+                    "unsigned": true
+                },
+                {
+                    "name": "framework_id",
+                    "type": "bigint",
+                    "nullable": false,
+                    "unsigned": true
+                },
+                {
+                    "name": "basis_framework_version_id",
+                    "type": "bigint",
+                    "nullable": false,
+                    "unsigned": true
+                },
+                {
+                    "name": "learning_node_id",
+                    "type": "bigint",
+                    "nullable": false,
+                    "unsigned": true
+                },
+                {
+                    "name": "mastery_level_key",
+                    "type": "varchar",
+                    "nullable": false
+                },
+                {
+                    "name": "mastery_score",
+                    "type": "decimal",
+                    "nullable": true
+                },
+                {
+                    "name": "reason",
+                    "type": "text",
+                    "nullable": false
+                },
+                {
+                    "name": "context_snapshot",
+                    "type": "json",
+                    "nullable": false
+                },
+                {
+                    "name": "occurred_at",
+                    "type": "datetime",
+                    "nullable": false
+                },
+                {
+                    "name": "submitted_at",
+                    "type": "datetime",
+                    "nullable": false
+                },
+                {
+                    "name": "supersedes_judgment_id",
+                    "type": "bigint",
+                    "nullable": true,
+                    "unsigned": true
+                },
+                {
+                    "name": "created_at",
+                    "type": "timestamp",
+                    "nullable": true
+                }
+            ],
+            "primary_key": [
+                "id"
+            ],
+            "indexes": [
+                {
+                    "columns": [
+                        "customer_id",
+                        "submission_uuid"
+                    ],
+                    "unique": true,
+                    "type": "btree"
+                },
+                {
+                    "columns": [
+                        "id",
+                        "customer_id"
+                    ],
+                    "unique": true,
+                    "type": "btree"
+                },
+                {
+                    "columns": [
+                        "customer_id",
+                        "supersedes_judgment_id"
+                    ],
+                    "unique": true,
+                    "type": "btree"
+                },
+                {
+                    "columns": [
+                        "customer_id",
+                        "cohort_id",
+                        "student_id",
+                        "occurred_at"
+                    ],
+                    "unique": false,
+                    "type": "btree"
+                },
+                {
+                    "columns": [
+                        "customer_id",
+                        "learning_node_id",
+                        "student_id",
+                        "occurred_at"
+                    ],
+                    "unique": false,
+                    "type": "btree"
+                }
+            ],
+            "foreign_keys": [
+                {
+                    "columns": [
+                        "customer_id"
+                    ],
+                    "foreign_table": "saas_customers",
+                    "foreign_columns": [
+                        "id"
+                    ],
+                    "on_update": "restrict",
+                    "on_delete": "restrict"
+                },
+                {
+                    "columns": [
+                        "cohort_id",
+                        "customer_id"
+                    ],
+                    "foreign_table": "core_course_cohorts",
+                    "foreign_columns": [
+                        "id",
+                        "customer_id"
+                    ],
+                    "on_update": "restrict",
+                    "on_delete": "restrict"
+                },
+                {
+                    "columns": [
+                        "cohort_teacher_assignment_id",
+                        "customer_id"
+                    ],
+                    "foreign_table": "core_course_cohort_teachers",
+                    "foreign_columns": [
+                        "id",
+                        "customer_id"
+                    ],
+                    "on_update": "restrict",
+                    "on_delete": "restrict"
+                },
+                {
+                    "columns": [
+                        "cohort_student_membership_id",
+                        "customer_id"
+                    ],
+                    "foreign_table": "core_course_cohort_students",
+                    "foreign_columns": [
+                        "id",
+                        "customer_id"
+                    ],
+                    "on_update": "restrict",
+                    "on_delete": "restrict"
+                },
+                {
+                    "columns": [
+                        "enrollment_id",
+                        "customer_id"
+                    ],
+                    "foreign_table": "core_course_enrollments",
+                    "foreign_columns": [
+                        "id",
+                        "customer_id"
+                    ],
+                    "on_update": "restrict",
+                    "on_delete": "restrict"
+                },
+                {
+                    "columns": [
+                        "teacher_id",
+                        "customer_id"
+                    ],
+                    "foreign_table": "users",
+                    "foreign_columns": [
+                        "id",
+                        "customer_id"
+                    ],
+                    "on_update": "restrict",
+                    "on_delete": "restrict"
+                },
+                {
+                    "columns": [
+                        "student_id",
+                        "customer_id"
+                    ],
+                    "foreign_table": "users",
+                    "foreign_columns": [
+                        "id",
+                        "customer_id"
+                    ],
+                    "on_update": "restrict",
+                    "on_delete": "restrict"
+                },
+                {
+                    "columns": [
+                        "basis_framework_version_id",
+                        "customer_id",
+                        "framework_id"
+                    ],
+                    "foreign_table": "core_learning_framework_versions",
+                    "foreign_columns": [
+                        "id",
+                        "customer_id",
+                        "framework_id"
+                    ],
+                    "on_update": "restrict",
+                    "on_delete": "restrict"
+                },
+                {
+                    "columns": [
+                        "learning_node_id",
+                        "customer_id",
+                        "framework_id",
+                        "basis_framework_version_id"
+                    ],
+                    "foreign_table": "core_learning_nodes",
+                    "foreign_columns": [
+                        "id",
+                        "customer_id",
+                        "framework_id",
+                        "framework_version_id"
+                    ],
+                    "on_update": "restrict",
+                    "on_delete": "restrict"
+                },
+                {
+                    "columns": [
+                        "supersedes_judgment_id",
+                        "customer_id"
+                    ],
+                    "foreign_table": "core_liveclass_teacher_judgments",
+                    "foreign_columns": [
+                        "id",
+                        "customer_id"
+                    ],
+                    "on_update": "restrict",
+                    "on_delete": "restrict"
+                }
+            ],
+            "checks": [
+                {
+                    "expression": "mastery_score is null or (mastery_score >= 0 and mastery_score <= 1)"
+                },
+                {
+                    "expression": "trim(reason) <> ''"
+                },
+                {
+                    "expression": "json_valid(context_snapshot)"
+                },
+                {
+                    "expression": "supersedes_judgment_id is null or supersedes_judgment_id <> id"
+                },
+                {
+                    "expression": "occurred_at <= submitted_at"
+                }
+            ],
+            "triggers": [
+                {
+                    "name": "trg_ltj_bd_immutable",
+                    "timing": "before",
+                    "event": "delete",
+                    "statement": "PLANNED CONTRACT: reject every delete on an append-only judgment"
+                },
+                {
+                    "name": "trg_ltj_bi_correction",
+                    "timing": "before",
+                    "event": "insert",
+                    "statement": "PLANNED CONTRACT: a successor must match its predecessor on tenant, cohort, membership, enrollment, learner, framework, basis version, node and occurred_at, and must not carry an earlier submitted_at"
+                },
+                {
+                    "name": "trg_ltj_bu_immutable",
+                    "timing": "before",
+                    "event": "update",
+                    "statement": "PLANNED CONTRACT: reject every update on an append-only judgment"
+                }
+            ],
             "views": []
         },
         {

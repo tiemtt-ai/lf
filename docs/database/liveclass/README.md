@@ -63,6 +63,14 @@ trò chuyện mà không sở hữu Progress của Course hoặc tài sản Medi
 
 ---
 
+## 4. Đánh giá của giáo viên
+
+| Bảng | Mô tả |
+|------|------|
+| **core_liveclass_teacher_judgments** | Nguồn append-only bất biến cho Teacher Judgment mà Learning Evidence tham chiếu (Planned — Phase 4E, chưa triển khai) |
+
+---
+
 ## Sơ đồ quan hệ Miền nghiệp vụ
 
 ```mermaid

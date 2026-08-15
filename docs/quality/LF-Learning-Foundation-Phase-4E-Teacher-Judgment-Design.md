@@ -1,6 +1,6 @@
 # Learning Foundation Phase 4E Teacher Judgment Design
 
-Version: 0.3
+Version: 0.6
 
 Document Status: Review
 
@@ -153,7 +153,7 @@ calculation_rule_key = teacher_judgment_direct
 calculation_rule_version = 1
 calculated_by = teacher_id
 reason = teacher judgment reason
-source_calculation_id = null
+source_calculation_id = prior direct Calculation id for correction, else null
 source_node_relation_id = null
 continuity_policy_snapshot = null
 evidence_role = included
@@ -170,6 +170,15 @@ evidence_type = expert_judgment
 source_id = core_liveclass_teacher_judgments.id
 source_discriminator = submission_uuid
 producer_idempotency_key = submission_uuid
+user_id = student_id
+learning_node_id = learning_node_id
+source_occurred_at = occurred_at
+evaluated_at = submitted_at
+value_label = mastery_level_key
+value_numeric = mastery_score
+qualification_rule_key/version = teacher_judgment_direct / 1
+valid_from / valid_until / reassessment_due_at = null
+supersedes_evidence_id = prior judgment Evidence id for correction, else null
 recorded_by = teacher_id
 ```
 
@@ -177,6 +186,23 @@ Both Evidence producer fields are populated deliberately. The unique producer
 contract uses `producer_idempotency_key`; `source_discriminator` preserves the
 immutable source-level discriminator. Reusing the UUID with a different frozen
 payload must fail closed.
+
+The qualification snapshot freezes `rule_key`, `rule_version`,
+`source_type = teacher_judgment`, source identity and interpretation inputs.
+The Calculation copies learner, Framework, Node Definition, basis Version,
+result level/score and the exact basis scale key/version/snapshot. Version 1
+uses the Owner-approved `mastery_status_result = established`, sets
+`calculated_at = submitted_at` and has no reassessment date. The
+Calculation-Evidence row copies
+`user_id`, includes
+the new Evidence with weight one, uses the nullable score as contribution and
+freezes `reason_code = teacher_judgment_direct` with an explanation snapshot.
+
+Correction locks the prior source, Evidence and Calculation. The new Evidence
+sets `supersedes_evidence_id`; the new teacher-override Calculation sets
+`source_calculation_id`; its lineage includes only the successor Evidence.
+Historical rows remain immutable, current-effective Evidence excludes the
+superseded row, and Profile projection advances to the successor Calculation.
 
 This rule was explicitly approved by the Owner on 2026-08-15. Its physical and
 runtime contracts must still pass database and implementation review.
@@ -195,6 +221,15 @@ one tenant-scoped transaction:
 * Learning Node and explicit basis Framework Version belong to the tenant and
   Framework and are operationally eligible;
 * no request field can override tenant, teacher actor or recorded-by identity.
+
+The transaction compares locked rows, not merely independent tenant-safe FKs:
+assignment Cohort/teacher must match the command; membership
+Cohort/student/Enrollment must match; Enrollment learner, Product and Version
+must match membership and Cohort. Correction preserves tenant, Cohort, Cohort
+Student Membership, Enrollment, learner, Framework, basis Version, Node,
+Definition and the predecessor's `occurred_at`. The Owner-approved successor
+actor may differ only when independently eligible through an active assignment
+covering that preserved `occurred_at`.
 
 `customer_admin`, student, AI, Track and unassigned teachers are denied by
 default. Admin submission or override is not implied by the admin role.
@@ -216,6 +251,11 @@ At minimum, tests must reject:
 * unpublished/wrong-Framework Node or ambiguous basis;
 * unsupported source/evidence/calculation type;
 * invalid level/score or rule snapshot;
+* malformed producer UUID or incomplete authorization snapshot;
+* assignment, membership or Enrollment rows that are individually tenant-safe
+  but mutually inconsistent;
+* correction of an unrelated learner, Cohort, Enrollment, Framework, basis,
+  Node, Evidence or Calculation;
 * duplicate key with changed payload and double submit concurrency;
 * source/Evidence/Calculation mutation or deletion;
 * partial write after failure at every transaction stage;
@@ -242,20 +282,41 @@ complete schema drift.
 
 ## Remaining Gates Before Implementation
 
-1. Independently review the
-   [Course Parent-Key Prerequisite Review](LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md),
-   then amend the four canonical table docs before authorizing migrations.
-2. Create the canonical database table document and update the schema contract.
-3. Complete independent Database/Architecture Review for the source table and
-   end-to-end transaction.
-4. Obtain separate Owner authorization for prerequisite/source migrations and
-   runtime implementation.
-5. Implement and pass the required MariaDB 11.4 and authorization test matrix.
+1. Deploy and accept the separately authorized Course parent-key prerequisite;
+   source implementation cannot assume undeployed parent candidate keys.
+2. Close independent Database/Architecture Review for the source table and
+   end-to-end transaction. Canonical documentation and planned schema-contract
+   registration are complete.
+3. Obtain separate Owner authorization for the source migration and runtime
+   implementation.
+4. Implement and pass the required MariaDB 11.4 and authorization test matrix.
+
+## Independent Database And End-To-End Review
+
+Round 1 found three MAJOR, one MEDIUM and one LOW documentation gap: incomplete
+correction lineage, incomplete Learning field mapping, unstated cross-row
+Course coherence, incomplete scale/snapshot enforcement allocation and a stale
+schema-contract gate. Version 0.4 and table-doc Version 0.2 closed all five.
+
+Round 2 reported technical PASS with no physical or trigger incompatibility.
+Two policy choices were correctly separated as Owner decisions rather than
+silently approved implementation behavior:
+
+1. whether direct Teacher Judgment always projects
+   `mastery_status_result = established` in Version 1;
+2. whether a different currently eligible teacher may submit a correction, or
+   only the original actor may do so.
+
+The Architecture Owner approved both policy choices on 2026-08-15. Independent
+review then required a fail-closed normalized insert-trigger body and preserved
+Cohort Student Membership identity; Version 0.6 and table-doc Version 0.5 add
+both. Round 4 closed the technical review with zero open findings after one
+editorial correction. Separate source/runtime authorization remains the
+implementation gate.
 
 ## Readiness Verdict
 
-`READY FOR DATABASE DOCUMENTATION AND ARCHITECTURE REVIEW; BLOCKED FOR
-MIGRATION` — the Owner design decisions are resolved, but four released-parent
-composite-key prerequisites and the source-table physical contract still need
-documentation and independent review. No migration, source code, route, UI or
-real database operation is permitted from this document.
+`DATABASE AND END-TO-END TECHNICAL REVIEW PASS; PENDING SOURCE IMPLEMENTATION
+AUTHORIZATION` — the source table and planned schema contract exist with zero
+open review findings. No migration, source code, route, UI or real database
+operation is permitted from this document.

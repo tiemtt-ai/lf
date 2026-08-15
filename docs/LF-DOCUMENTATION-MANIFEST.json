@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 225,
+  "document_count": 226,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -5229,6 +5229,48 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "database/liveclass/core_liveclass_teacher_judgments.md",
+      "title": "Table: core_liveclass_teacher_judgments",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "teacher",
+        "liveclass",
+        "learning",
+        "evidence"
+      ],
+      "keywords": {
+        "vi": [
+          "lược đồ bảng",
+          "tài liệu cơ sở dữ liệu",
+          "đánh giá của giáo viên",
+          "lớp học trực tiếp",
+          "bằng chứng học tập"
+        ],
+        "en": [
+          "table schema",
+          "database documentation",
+          "teacher judgment",
+          "live class",
+          "learning evidence"
+        ]
+      },
+      "identifiers": [
+        "core_liveclass_teacher_judgments"
+      ],
+      "related_documents": [
+        "database/liveclass/README.md",
+        "quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "database/media/README.md",
       "title": "MIỀN NGHIỆP VỤ MEDIA",
       "area": "database",
@@ -8278,7 +8320,7 @@
       "area": "quality",
       "document_type": "architecture_review",
       "document_status": "Review",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "quality",
       "canonical_for": [

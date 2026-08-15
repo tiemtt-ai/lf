@@ -1,6 +1,6 @@
 # Learning Foundation Database Architecture Review
 
-Version: 1.16
+Version: 1.22
 
 Document Status: Approved
 
@@ -826,6 +826,67 @@ InnoDB/`utf8mb4_unicode_ci`. The 4–11 row development dataset does not prove
 production lock safety; target sizing and online-DDL validation remain a
 deployment gate. No database mutation was performed.
 
+## Phase 4E Course Parent-Key Migration Authorization And Result
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-15
+Decision: Approved prerequisite migration source and contract activation
+Authorized: four Course UNIQUE (id, customer_id) keys; disposable rehearsal
+Excluded: real LearnForge database migration; deployment; Teacher Judgment
+          source/runtime/API/UI
+```
+
+Migration `2026_08_15_000000_add_course_tenant_composite_uniques.php` and the
+four matching schema-contract entries passed targeted tests, fresh MariaDB
+reconstruction, physical rollback/re-forward and cleanup. The isolated schema
+on MariaDB 11.4.12 reported four exact ordered two-column named unique indexes
+before rollback, zero after rollback and four after re-forward. No test
+database/datadir remains and `learnforge_db` was not migrated.
+
+Regression evidence: 11 targeted migration tests / 60 assertions, 152 related
+Course/Tenant tests / 2,129 assertions and the full suite with 728 passed,
+1 skipped and 8,196 assertions. Scoped Pint, docs lint, docs-only drift,
+fresh drift and final whitespace validation pass.
+
+### Interrupted-DDL Recovery Decision
+
+The implementation candidate accepts an exact canonical key as an already
+completed step. This is technically intentional: MariaDB commits each table alteration
+independently, while Laravel writes the migration ledger only after `up()`
+returns. Requiring per-instance or ledger ownership would deadlock every retry
+after a process stops between two tables. The targeted interruption test
+creates the first key, loads a fresh migration instance, completes the other
+three and rolls all four back successfully.
+
+This recovery semantic extends the original authorization. The Architecture
+Owner explicitly ratified it on 2026-08-15: an exact canonical
+`UNIQUE (id, customer_id)` is treated as a completed step after interrupted
+DDL, and deployment preflight must verify canonical-key state before execution.
+The subsequent independent final re-review reported zero findings.
+
+An exact equivalent under another name remains an adopted no-op and is not
+removed by rollback. Deployment preflight must flag an unexpected pre-existing
+canonical key for operator review, because its physical shape is
+indistinguishable from a partially completed earlier attempt.
+
+Rollback now preflights all four targets and dependent composite foreign keys
+before any `DROP INDEX`, preventing a later-table conflict from causing a
+partial rollback.
+
+The hardened rollback was re-rehearsed on disposable MariaDB 11.4.12. A child
+composite FK blocked rollback with all four keys intact; after removing only
+the probe, rollback reached zero keys and re-forward restored four. Cleanup
+removed the test database, server and exact temporary datadir.
+
+The accepted FK dependency guard queries
+`information_schema.KEY_COLUMN_USAGE` with the parent schema fixed to
+`DATABASE()` on MySQL/MariaDB. This replaces an unscoped framework table walk
+that exposed 890 server-wide tables and made rollback take approximately 632
+seconds. Current-source rehearsal reduced `down()` to approximately one second.
+Independent Round 4 review accepted the schema isolation, ordered composite
+column match and cross-schema child detection with zero findings.
+
 ## Combined Phase 4B/4C Migration Rehearsal
 
 Migration source:
@@ -937,9 +998,40 @@ php artisan docs:lint                          passed
 vendor/bin/phpunit    703 tests · 8108 assertions · 1 skipped · 0 failures
 ```
 
-Migration implementation is rehearsed and contract-accepted, but not deployed.
-This section does not authorize execution against the real LearnForge database
-or any successor phase.
+### Development Deployment
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-15
+Decision: Opened the Learning Foundation gate on the development database
+Applied: 2026_08_13_000000_add_user_tenant_composite_unique      batch 10
+         2026_08_13_010000_create_learning_foundation_tables_and_triggers  batch 11
+Excluded: production deployment; Teacher Judgment source, runtime, API and UI
+```
+
+A full logical backup preceded the change. The migration ran against
+`learnforge_db` on MariaDB 10.4.21 after the Phase 4E parent-key prerequisite
+was already in place.
+
+```text
+Tables                    60 -> 70
+core_learning_* tables    10/10
+idx_lrn_* indexes         36/36
+fk_lrn_* foreign keys     51/51
+chk_lrn_* CHECK           30/30
+trg_lrn_* triggers        24/24
+Migration ledger          77 rows, 0 pending, 0 missing source
+schema:drift --connection=mysql   passed, 0 findings above INFO
+Full PHPUnit              728 passed / 1 skipped / 8,196 assertions
+```
+
+Existing business rows were untouched — 11 users, and 4/10/7/11 rows across the
+four Course parents. All ten Learning tables are empty, as a schema-only
+deployment requires.
+
+Deployment covers the development database only. It does not authorize
+production deployment, the Teacher Judgment source table, or any Learning
+runtime, API or UI surface.
 
 ---
 
