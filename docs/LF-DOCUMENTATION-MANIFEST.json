@@ -1258,7 +1258,7 @@
       "area": "core",
       "document_type": "domain_policy",
       "document_status": "Frozen",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Partial",
       "metadata_complete": true,
       "authority": "domain",
       "canonical_for": [
