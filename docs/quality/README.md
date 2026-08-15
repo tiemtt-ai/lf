@@ -1,6 +1,6 @@
 # LearnForge Quality
 
-Version: 1.10
+Version: 1.11
 
 Document Status: Approved
 
@@ -88,6 +88,9 @@ criteria hay không.
 * [LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md](LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md)
   — Phase 4E design/readiness review for immutable Teacher Judgment source,
   default-deny authorization and end-to-end Learning projection preparation.
+* [LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md](LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md)
+  — HIGH documentation review for four released Course composite parent keys
+  required by tenant-safe Teacher Judgment source foreign keys.
 * [LF-Schema-Drift-Trigger-Identity-Regression-Audit.md](LF-Schema-Drift-Trigger-Identity-Regression-Audit.md)
   — HIGH Existing-Feature Change audit for opt-in trigger identity enforcement
   in the shared schema-drift quality gate.

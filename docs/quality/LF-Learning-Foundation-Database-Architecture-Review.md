@@ -1,6 +1,6 @@
 # Learning Foundation Database Architecture Review
 
-Version: 1.10
+Version: 1.13
 
 Document Status: Approved
 
@@ -751,9 +751,55 @@ Excluded scope: migration; source/runtime implementation; real LearnForge
 ```
 
 The design review identified that no immutable Teacher Judgment submission
-source currently exists. Implementation remains blocked pending the Owner
-decisions recorded in
+source currently exists.
+
+## Phase 4E Owner Design Decisions
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-15
+Decision: Approved Phase 4E design direction
+Approved: LiveClass-owned append-only Teacher Judgment source;
+          teacher_judgment_direct Version 1; teacher-only default deny;
+          active Cohort, Enrollment, Membership and assignment eligibility;
+          no post-Cohort submission window; source-table documentation/review
+Excluded: migration; runtime/source implementation; real LearnForge database;
+          deployment; customer_admin submission; AI; Track
+```
+
+Phase 4E is ready for canonical source-table documentation and independent
+architecture review. Migration and runtime implementation remain separately
+blocked as recorded in
 [Phase 4E Teacher Judgment Design](LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md).
+
+### Phase 4E Design Re-review Correction
+
+Repository evidence confirms that commits `700b1fc` (combined Phase 4B/4C and
+4D artifacts) and `c345247` (initial Phase 4E design artifacts) are already in
+`origin/main`. Any earlier working report claiming those artifacts were not
+committed or pushed is incorrect. The current Phase 4E decision amendments and
+diagram update remain uncommitted at the time of this re-review.
+
+The re-review also found a physical prerequisite absent from the initial 4E
+design: `core_course_cohorts`, `core_course_cohort_teachers`,
+`core_course_cohort_students` and `core_course_enrollments` lack the exact
+`UNIQUE (id, customer_id)` candidate keys required by tenant-safe child foreign
+keys. Each released-parent change requires HIGH regression and tenant-boundary
+review before migration authorization.
+
+The Phase 4E design now also maps the required Learning producer, override and
+lineage fields explicitly, and separates database-enforced rules from Cohort,
+Enrollment and published-basis lifecycle rules enforced by the application
+transaction.
+
+The first independent review of the Course parent-key prerequisite confirmed
+the physical gap and raised one MEDIUM evidence issue plus two LOW contract
+clarifications. Version 0.2 of the
+[Course Parent-Key Prerequisite Review](LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md)
+remediates them by requiring direct schema-contract inventory comparison,
+using full-table index names and distinguishing exact-equivalent no-op from
+wrong-order/partial/conflicting definitions. Independent re-review remains
+pending; no migration is authorized.
 
 ## Combined Phase 4B/4C Migration Rehearsal
 
