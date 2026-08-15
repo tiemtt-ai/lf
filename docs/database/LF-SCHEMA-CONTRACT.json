@@ -18167,7 +18167,7 @@
         {
             "name": "core_liveclass_teacher_judgments",
             "documentation": "database/liveclass/core_liveclass_teacher_judgments.md",
-            "implementation_status": "planned",
+            "implementation_status": "implemented",
             "trigger_identity_required": true,
             "columns": [
                 {
@@ -18471,19 +18471,19 @@
             ],
             "checks": [
                 {
-                    "expression": "mastery_score is null or (mastery_score >= 0 and mastery_score <= 1)"
+                    "expression": "`mastery_score` is null or `mastery_score` >= 0 and `mastery_score` <= 1"
                 },
                 {
-                    "expression": "trim(reason) <> ''"
+                    "expression": "trim(`reason`) <> ''"
                 },
                 {
-                    "expression": "json_valid(context_snapshot)"
+                    "expression": "json_valid(`context_snapshot`)"
                 },
                 {
-                    "expression": "supersedes_judgment_id is null or supersedes_judgment_id <> id"
+                    "expression": "trim(`mastery_level_key`) <> ''"
                 },
                 {
-                    "expression": "occurred_at <= submitted_at"
+                    "expression": "`occurred_at` <= `submitted_at`"
                 }
             ],
             "triggers": [
@@ -18491,19 +18491,19 @@
                     "name": "trg_ltj_bd_immutable",
                     "timing": "before",
                     "event": "delete",
-                    "statement": "PLANNED CONTRACT: reject every delete on an append-only judgment"
+                    "statement": "BEGIN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_TEACHER_JUDGMENT_IMMUTABLE'; END"
                 },
                 {
                     "name": "trg_ltj_bi_correction",
                     "timing": "before",
                     "event": "insert",
-                    "statement": "PLANNED CONTRACT: a successor must match its predecessor on tenant, cohort, membership, enrollment, learner, framework, basis version, node and occurred_at, and must not carry an earlier submitted_at"
+                    "statement": "BEGIN IF NEW.supersedes_judgment_id IS NOT NULL AND NOT EXISTS ( SELECT 1 FROM core_liveclass_teacher_judgments prior WHERE prior.id = NEW.supersedes_judgment_id AND prior.customer_id <=> NEW.customer_id AND prior.cohort_id <=> NEW.cohort_id AND prior.cohort_student_membership_id <=> NEW.cohort_student_membership_id AND prior.enrollment_id <=> NEW.enrollment_id AND prior.student_id <=> NEW.student_id AND prior.framework_id <=> NEW.framework_id AND prior.basis_framework_version_id <=> NEW.basis_framework_version_id AND prior.learning_node_id <=> NEW.learning_node_id AND prior.occurred_at <=> NEW.occurred_at AND prior.submitted_at <= NEW.submitted_at ) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_TEACHER_JUDGMENT_CORRECTION_INVALID'; END IF; END"
                 },
                 {
                     "name": "trg_ltj_bu_immutable",
                     "timing": "before",
                     "event": "update",
-                    "statement": "PLANNED CONTRACT: reject every update on an append-only judgment"
+                    "statement": "BEGIN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_TEACHER_JUDGMENT_IMMUTABLE'; END"
                 }
             ],
             "views": []

@@ -67,7 +67,7 @@ trò chuyện mà không sở hữu Progress của Course hoặc tài sản Medi
 
 | Bảng | Mô tả |
 |------|------|
-| **core_liveclass_teacher_judgments** | Nguồn append-only bất biến cho Teacher Judgment mà Learning Evidence tham chiếu (Planned — Phase 4E, chưa triển khai) |
+| **core_liveclass_teacher_judgments** | Nguồn append-only bất biến cho Teacher Judgment mà Learning Evidence tham chiếu (deployed on development; not production) |
 
 ---
 

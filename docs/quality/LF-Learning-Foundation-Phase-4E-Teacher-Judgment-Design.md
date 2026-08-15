@@ -1,6 +1,6 @@
 # Learning Foundation Phase 4E Teacher Judgment Design
 
-Version: 0.6
+Version: 1.0
 
 Document Status: Review
 
@@ -282,14 +282,9 @@ complete schema drift.
 
 ## Remaining Gates Before Implementation
 
-1. Deploy and accept the separately authorized Course parent-key prerequisite;
-   source implementation cannot assume undeployed parent candidate keys.
-2. Close independent Database/Architecture Review for the source table and
-   end-to-end transaction. Canonical documentation and planned schema-contract
-   registration are complete.
-3. Obtain separate Owner authorization for the source migration and runtime
-   implementation.
-4. Implement and pass the required MariaDB 11.4 and authorization test matrix.
+1. Complete disposable MariaDB 11.4 migration/constraint/trigger rehearsal.
+2. Complete independent migration code review and schema-drift acceptance.
+3. Obtain separate authorization before runtime, API, UI or production work.
 
 ## Independent Database And End-To-End Review
 
@@ -311,12 +306,92 @@ The Architecture Owner approved both policy choices on 2026-08-15. Independent
 review then required a fail-closed normalized insert-trigger body and preserved
 Cohort Student Membership identity; Version 0.6 and table-doc Version 0.5 add
 both. Round 4 closed the technical review with zero open findings after one
-editorial correction. Separate source/runtime authorization remains the
-implementation gate.
+editorial correction.
+
+## Source Migration Authorization
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-15
+Decision: Approved canonical table document and three trigger specifications
+Authorized: source migration; simultaneous schema-contract activation;
+            disposable MariaDB rehearsal and tests
+Excluded: runtime; API; UI; real-database deployment; production
+```
 
 ## Readiness Verdict
 
-`DATABASE AND END-TO-END TECHNICAL REVIEW PASS; PENDING SOURCE IMPLEMENTATION
-AUTHORIZATION` — the source table and planned schema contract exist with zero
-open review findings. No migration, source code, route, UI or real database
-operation is permitted from this document.
+The first independent source review found that separate MariaDB DDL statements
+could leave an unrecoverable partial install and that rollback could orphan
+Learning Evidence lineage. The migration was hardened before acceptance:
+
+* all ten foreign keys are created atomically with the table;
+* exact parent candidate keys and schema-wide trigger-name vacancy are checked
+  before installation;
+* any DDL interruption fails closed without automatically deleting physical
+  objects; recovery follows the explicit runbook below;
+* rollback refuses a non-empty source table or existing
+  `source_type = teacher_judgment` Learning Evidence;
+* rollback verifies all three trigger owners and normalized bodies before
+  dropping any physical object;
+* non-MySQL test schemas skip this physical-enforcement migration consistently
+  with the released Learning migration.
+
+Disposable MariaDB 11.4.12 evidence on 2026-08-15:
+
+```text
+fresh 78-migration reconstruction                         PASS
+20 columns / 5 canonical indexes / 10 FK / 5 CHECK        PASS
+3 exact trigger bodies                                    PASS
+correction, immutability, tenant and duplicate probes     PASS
+trigger-name conflict rejected before table creation      PASS
+hard interruption leaves partial state fail-closed         PASS
+wrong-owner trigger made rollback fail before mutation    PASS
+non-empty rollback rejected without mutation              PASS
+down / re-forward                                         PASS
+schema:drift --connection=mysql                           PASS
+isolated database and datadir cleanup                     PASS
+```
+
+The rehearsal also found that MariaDB rejects a CHECK referencing an
+AUTO_INCREMENT id. `chk_ltj_004` was therefore normalized to the portable
+non-empty `mastery_level_key` rule; self-correction remains fail-closed through
+the normalized correction trigger and composite self-FK.
+
+## Interrupted-DDL Recovery Runbook
+
+MariaDB commits each DDL statement independently. If the migration stops after
+the table is created but before Laravel records the ledger row, do not rerun it
+and do not drop anything automatically.
+
+1. Stop application writes and preserve the MariaDB error plus migration log.
+2. Confirm the migration ledger has no
+   `2026_08_15_010000_create_liveclass_teacher_judgments` row.
+3. Run `schema:drift --connection=mysql` and export `SHOW CREATE TABLE`, all
+   `information_schema` columns/indexes/FKs/CHECKs and all triggers attached to
+   the table.
+4. Require Database/Architecture review to compare the full physical shape
+   and trigger bodies with the canonical contract. Counts or names alone are
+   insufficient.
+5. If any Judgment row or `source_type = teacher_judgment` Evidence exists,
+   stop; deletion is forbidden and a forward repair migration is required.
+6. Only a DBA with explicit recovery authorization may remove an empty partial
+   table and its verified owned triggers. Then rerun the source migration.
+7. Re-run full schema drift, trigger behavior, correction, tenant isolation and
+   cleanup verification before reopening writes.
+
+This runbook is deliberately manual: an automated retry cannot prove ownership
+after a process crash and therefore must never guess that an existing table or
+trigger is safe to delete.
+
+Round 4 independent source re-review closed with zero code or architecture
+findings. The latest full application verification passed 732 tests with 8,241
+assertions and one skipped test (733 total).
+
+The migration was subsequently verified as batch 12 on the `learnforge_db`
+development database. The database now has 71 tables and 78 migration-ledger
+rows; the Teacher Judgment table was empty at verification. Selected-connection
+schema drift and the 11/11 correction/immutability behavior probe passed.
+
+`SOURCE MIGRATION TECHNICAL ACCEPTANCE PASS — DEPLOYED ON DEVELOPMENT, NOT
+PRODUCTION` — runtime, route, API, UI and production remain excluded.

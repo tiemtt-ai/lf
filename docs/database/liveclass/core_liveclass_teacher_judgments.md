@@ -1,10 +1,10 @@
 # Table: core_liveclass_teacher_judgments
 
-Version: 0.6
+Version: 0.9
 
-Document Status: Review
+Document Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Implemented
 
 Last Updated: 2026-08-15
 
@@ -98,8 +98,13 @@ the same tenant. Without it, that invariant would be application-only.
 * `mastery_score IS NULL OR (mastery_score >= 0 AND mastery_score <= 1)`.
 * `TRIM(reason) <> ''`.
 * `JSON_VALID(context_snapshot)`.
-* `supersedes_judgment_id IS NULL OR supersedes_judgment_id <> id`.
+* `TRIM(mastery_level_key) <> ''`.
 * `occurred_at <= submitted_at`.
+
+MariaDB does not allow an `AUTO_INCREMENT` column in a CHECK expression, so
+self-correction is not expressed as `supersedes_judgment_id <> id`. The
+fail-closed correction trigger rejects a missing/self predecessor before the
+self-FK runs; `chk_ltj_004` instead protects the required level key.
 
 ## Append-Only Enforcement
 
@@ -108,6 +113,15 @@ correction is a new row that sets `supersedes_judgment_id`; history is never
 edited. The snapshot columns preserve the authorization facts observed at
 submission, so later changes to Cohort membership or teacher assignment cannot
 rewrite what the judgment was based on.
+
+The normalized immutable trigger body used for both update and delete is:
+
+```sql
+BEGIN
+    SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'LF_TEACHER_JUDGMENT_IMMUTABLE';
+END
+```
 
 The normalized correction trigger body is:
 
@@ -289,8 +303,24 @@ version lifecycle — tests must not claim the engine rejects those.
 
 ## Open Gates
 
-This document is `Review`. Its planned schema-contract entry, documentation
-registrations and independent Database/Architecture Review are complete with
-zero open findings. Before any migration, obtain separate Owner source/runtime
-implementation authorization. No migration, runtime, route, API or UI is
-authorized by this document.
+The Architecture Owner approved this canonical document, all three trigger
+specifications, source migration and simultaneous physical-contract activation
+on 2026-08-15. Disposable MariaDB 11.4 rehearsal and independent source review
+passed with no open finding. The migration was subsequently deployed on the
+`learnforge_db` development database as batch 12 on 2026-08-15. Verification
+found the table present with zero rows, ledger migration id 79 and complete
+schema drift. Runtime, route, API, UI and production remain excluded.
+
+## Development Deployment Record
+
+```text
+Environment: learnforge_db development
+Migration: 2026_08_15_010000_create_liveclass_teacher_judgments
+Batch: 12
+Ledger id: 79
+Table count after deployment: 71
+Migration ledger count: 78
+Teacher Judgment rows at verification: 0
+schema:drift --connection=mysql: PASS
+Production deployment: NOT AUTHORIZED / NOT PERFORMED
+```
