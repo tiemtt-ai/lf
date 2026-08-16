@@ -1,12 +1,12 @@
 # LF-AI.md
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Frozen
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-13
+Last Updated: 2026-08-16
 
 Document Path: platform/LF-AI.md
 
@@ -316,7 +316,9 @@ của [ADR-0006](../adr/ADR-0006-AI-Foundation.md), chỉ có hiệu lực sau k
 Amendment được Architecture Owner duyệt, và chỉ áp dụng được khi Learning
 Foundation ([ADR-0016](../adr/ADR-0016-Learning-Foundation.md),
 [LF-Core-Learning](../core/LF-Core-Learning.md)) đã implement — hiện tại
-Learning vẫn `Not Implemented`, chỉ Frozen ở mức database design (Phase 3).
+Learning ở mức `Partial`: mười bảng Foundation đã deploy trên database
+development kèm service runtime nội bộ, chưa có route/API/UI và production là
+gate riêng.
 
 Khi cả hai điều kiện trên đạt: AI được phép đọc
 `core_learning_mastery_profiles` (Mastery Profile), read-only, như một
@@ -478,6 +480,37 @@ structured, read-only read-model input cho Recommendation/Insight; đây không
 phải Knowledge/RAG Source. Amendment đang ở trạng thái **Proposed** trong
 ADR-0006 — xem mục "Learning Integration" ở trên và Amendment Record trong
 ADR-0006. Chưa có hiệu lực cho tới khi được Architecture Owner duyệt.
+
+---
+
+# AI-Assisted Learning Authoring
+
+[ADR-0017](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md) là quyết định
+canonical cho việc AI phân tích Media gắn với Course Activity để đề xuất
+Learning Node và Mapping. Nó cụ thể hoá nguyên tắc Authoring Assistant của
+ADR-0006 cho riêng Learning, không thay thế.
+
+AI Authoring Assistant phải:
+
+* đọc output Media được authorize **cùng** ngữ cảnh Activity/Course và Framework
+  đã chọn; chưa chọn Framework thì chỉ được extract/summary/topic;
+* xếp hạng Node và Definition hiện có trước khi đề xuất tạo mới, và nói rõ
+  `reuse_existing` hay `propose_new` kèm bằng chứng khớp;
+* mang provenance: fingerprint nguồn, phiên bản processing, prompt template và
+  hash, provider, model, Model Run, cùng confidence và rationale;
+* đánh dấu stale hoặc tạo revision khi nguồn, transcript, ngữ cảnh hoặc hợp đồng
+  prompt/model đổi.
+
+Hai ranh giới tuyệt đối. AI không publish Framework/Course Version, không ghi
+Node/Mapping ngoài owner service, không ghi Evidence, Calculation hay Profile.
+Và **confidence không phải weight**: confidence đo độ chắc chắn của model,
+`weight` là mức đóng góp sư phạm trong `[0,1]` do người duyệt đặt — hai đại
+lượng khác nhau, không được ghi từ cùng một con số.
+
+Mức tự động hoá giảm dần theo độ trừu tượng: transcript/OCR và summary tự động
+được; concept/topic tự động nhưng cần duyệt; learning objective cần ngữ cảnh
+Course; competency cần Framework và tiêu chí đánh giá — không suy ra được chỉ
+từ nội dung file.
 
 ---
 

@@ -1,12 +1,12 @@
 # LF-Core-Course.md
 
-Version: 3.6
+Version: 3.7
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-16
 
 Document Path: core/LF-Core-Course.md
 
@@ -1459,6 +1459,37 @@ Marketing/display cache không được dùng cho Completion, Certificate, Billi
 * Foundation có một active Certificate mapping trên mỗi Product.
 * Certificate threshold dùng `minimum_score_percentage`.
 * Certificate verification luôn tenant-scoped và có owner.
+
+---
+
+# AI-Assisted Learning Authoring
+
+Theo [ADR-0017](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md), Working
+Activity có thể yêu cầu AI phân tích Media Usage đã authorize và đề xuất
+Learning Node/Mapping.
+
+Trigger là **Media đã gắn vào Working Activity**, không phải file nằm trong
+Media Library. Người biên soạn phải chọn Framework trước khi Proposal Node/
+Mapping có thể được review để promotion; chưa chọn thì AI chỉ được
+extract/summary/topic.
+
+Course sở hữu ngữ cảnh sư phạm — tiêu đề Activity, hướng dẫn, loại Activity,
+audience/level của Course và vị trí trong cây authoring. Media đơn lẻ không đủ
+để quyết định learning semantics.
+
+Proposal có thể tham chiếu Working Activity để phục vụ review, nhưng tham chiếu
+đó không bao giờ được ghi vào `core_learning_node_mappings`. Khi reviewer chấp
+nhận, Course service chỉ ghi phần thuộc working Course authoring; Mapping intent
+chờ publish, rồi adapter resolve chính xác `version_lesson_id` hoặc
+`version_activity_id` trước khi Learning materialize Mapping.
+
+Hệ quả cần lường trước: vì cấm rebind âm thầm, **mỗi Course Version mới cần một
+lượt promotion riêng**, và Mapping của version cũ vẫn còn hiệu lực cho version
+cũ. Đó là chủ ý — Evidence lịch sử phải tiếp tục resolve đúng thứ đã được dạy —
+nhưng là công việc thường xuyên, không phải migration một lần.
+
+Course publish không được phụ thuộc vào việc model có sẵn sàng hay không. Form
+Node/Mapping thủ công vẫn là fallback.
 
 ---
 

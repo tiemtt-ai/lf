@@ -1274,7 +1274,8 @@
       "authority": "domain",
       "canonical_for": [],
       "topics": [
-        "course"
+        "course",
+        "ai-assisted-learning-authoring"
       ],
       "keywords": {
         "vi": [
@@ -1298,6 +1299,7 @@
         "adr/ADR-0012-Course-Template-Published-Version-Snapshot.md",
         "adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md",
         "adr/ADR-0015-Course-Lesson-Multiple-Prerequisites.md",
+        "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
         "core/LF-Core-Certificate.md",
         "database/course/core_course_template_versions.md"
       ],
@@ -1317,7 +1319,8 @@
         "learning_domain_policy"
       ],
       "topics": [
-        "learning"
+        "learning",
+        "ai-assisted-learning-authoring"
       ],
       "keywords": {
         "vi": [
@@ -1342,6 +1345,7 @@
       ],
       "related_documents": [
         "adr/ADR-0016-Learning-Foundation.md",
+        "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
         "core/LF-Core-Assessment.md",
         "core/LF-Core-Certificate.md",
         "core/LF-Core-Course.md",
@@ -7339,7 +7343,8 @@
       "authority": "domain",
       "canonical_for": [],
       "topics": [
-        "ai"
+        "ai",
+        "ai-assisted-learning-authoring"
       ],
       "keywords": {
         "vi": [
@@ -7360,6 +7365,7 @@
       ],
       "related_documents": [
         "adr/ADR-0006-AI-Foundation.md",
+        "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
         "governance/LF-Architecture-Principles.md"
       ],
       "superseded_by": null,
@@ -7376,7 +7382,8 @@
       "authority": "domain",
       "canonical_for": [],
       "topics": [
-        "media"
+        "media",
+        "ai-assisted-learning-authoring"
       ],
       "keywords": {
         "vi": [
@@ -7396,7 +7403,8 @@
         "LF-Media"
       ],
       "related_documents": [
-        "adr/ADR-0004-Media-Foundation.md"
+        "adr/ADR-0004-Media-Foundation.md",
+        "adr/ADR-0017-AI-Assisted-Learning-Authoring.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

@@ -1,12 +1,12 @@
 # LF-Media.md
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-16
 
 Document Path: platform/LF-Media.md
 
@@ -1065,6 +1065,24 @@ Media Foundation được phê duyệt và freeze tại:
 
 ADR này là source quyết định cho Platform Domain ownership, content identity,
 immutable files, variants, S3 storage và generic usage integration.
+
+---
+
+# Media Là Nguồn Đầu Vào Cho Learning Authoring
+
+Theo [ADR-0017](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md), metadata,
+OCR, transcript và caption của Media có thể làm nguồn đầu vào được authorize cho
+AI Authoring Proposal, khi Media đã được gắn vào một Course Activity.
+
+Media không sở hữu Learning semantics. Không tồn tại canonical mapping trực tiếp
+Media File → Learning Node: lineage bắt buộc đi qua `media_file_usages` rồi
+Course Activity. Lý do là cùng một file mang vai trò sư phạm khác nhau tuỳ nơi
+dùng — một video có thể `teaches` ở khoá này, `practices` ở khoá khác và
+`assesses` ở khoá thứ ba. Chỉ Activity mới cung cấp mục đích đó.
+
+Reprocessing hoặc sửa transcript chỉ làm các Proposal liên quan **stale** hoặc
+sinh revision mới. Nó không được sửa âm thầm Proposal đã duyệt, Course snapshot
+đã publish, hay canonical Learning Mapping.
 
 ---
 

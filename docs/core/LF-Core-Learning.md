@@ -1,12 +1,12 @@
 # LF-Core-Learning.md
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Frozen
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-15
+Last Updated: 2026-08-16
 
 Approval Date: 2026-08-12
 
@@ -272,11 +272,36 @@ Review cùng Foundation Freeze.
 
 ---
 
+# AI-Assisted Authoring Boundary
+
+[ADR-0017](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md) cho phép AI đề
+xuất Node và Mapping từ Media gắn với Course Activity. Nó không nới ranh giới
+sở hữu: Learning vẫn là Source Of Truth duy nhất cho Framework, Node Definition,
+Version Node và canonical Mapping.
+
+AI chỉ tạo Proposal. Reviewer chấp nhận Proposal là một trạng thái review, không
+phải publish và không tự sinh Learning business state. Khi được chấp nhận:
+
+* Node mới chỉ được tạo qua Learning owner service, và chỉ vào Framework Version
+  đang ở `draft_snapshot`.
+* Canonical Mapping chỉ materialize khi có đồng thời published Course Version
+  Lesson/Activity và Node thuộc published Framework Version. Không resolve
+  `latest`, không rebind âm thầm sang version mới.
+* Idempotency của promotion khoá trên chính khoá duy nhất của Mapping —
+  `(customer_id, source_type, source_id, source_discriminator, learning_node_id,
+  mapping_role)` — không phải trên id của Proposal.
+* Mapping sai được **invalidate** theo vòng đời một chiều đã duyệt, không xoá và
+  không sửa.
+* Proposal và Mapping không phải Evidence và không tạo Mastery side effect.
+
+---
+
 # Implementation Status Note
 
-Repository chưa có bảng, migration hoặc code nào thuộc Learning Domain. Tài
-liệu này là policy đã được Architecture Owner phê duyệt ngày 2026-08-12, nhưng
-không mô tả trạng thái đã triển khai.
+Learning Domain đã triển khai một phần. Mười bảng Foundation cùng khoá ngoại,
+CHECK và trigger đã deploy trên database development, kèm các service runtime
+nội bộ; chưa có route, API, UI nào, và production là gate riêng. Tài liệu này
+là policy đã được Architecture Owner phê duyệt ngày 2026-08-12.
 
 ## Owner Approval
 
