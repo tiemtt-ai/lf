@@ -1,10 +1,10 @@
 # Learning Foundation Phase 4E Teacher Judgment Design
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Review
 
-Implementation Status: Not Implemented
+Implementation Status: Partial
 
 Last Updated: 2026-08-15
 
@@ -59,7 +59,7 @@ on 2026-08-15:
 4. `customer_admin`, student, AI, Track and unassigned teachers cannot submit
    Teacher Judgment.
 5. Source-table database documentation and architecture review are authorized.
-   Migration and runtime implementation still require separate authorization.
+   Migration and runtime implementation require separate authorization.
 
 These decisions approve the design direction only. They do not change the
 document status or authorize a migration, real-database operation, API, UI or
@@ -280,11 +280,41 @@ rules with tenant/authorization feature tests for application-owned rules. It
 must also cover transaction rollback, concurrent duplicate submission and
 complete schema drift.
 
-## Remaining Gates Before Implementation
+## Runtime Internal Authorization
 
-1. Complete disposable MariaDB 11.4 migration/constraint/trigger rehearsal.
-2. Complete independent migration code review and schema-drift acceptance.
-3. Obtain separate authorization before runtime, API, UI or production work.
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-15
+Decision: Approved Phase 4E Runtime Internal
+Authorized: internal service; locked end-to-end transaction;
+            correction and idempotency; MariaDB integration tests
+Excluded: route; API; controller; UI; External Surface; production
+```
+
+This authorization does not create a callable external surface. The internal
+service must remain unreachable from HTTP until External Surface receives a
+separate approval after the MariaDB negative matrix and independent code
+review pass.
+
+## Remaining Gates Before External Surface
+
+1. Complete independent internal runtime code review.
+2. Obtain separate authorization before route, API, controller or UI work.
+3. Complete the separate production deployment gate.
+
+## Runtime Internal Evidence
+
+The internal service implements one locked transaction from Judgment through
+Evidence, teacher-override Calculation, Calculation Evidence and Mastery
+Profile. It owns correction lineage and producer UUID replay without exposing
+an HTTP caller.
+
+Disposable MariaDB 11.4.12 verification on 2026-08-15 passed four tests with
+33 assertions: successful append/projection, exact replay, correction by a
+different eligible teacher, five application-owned fail-closed rules and
+rollback after a late Calculation conflict. The full default suite passed 732
+tests with 8,241 assertions and one skipped test. The disposable database,
+server and datadir were removed after verification.
 
 ## Independent Database And End-To-End Review
 

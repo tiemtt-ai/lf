@@ -8362,7 +8362,7 @@
       "area": "quality",
       "document_type": "architecture_review",
       "document_status": "Review",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Partial",
       "metadata_complete": true,
       "authority": "quality",
       "canonical_for": [

@@ -1,6 +1,6 @@
 # Table: core_liveclass_teacher_judgments
 
-Version: 0.9
+Version: 1.0
 
 Document Status: Approved
 
@@ -310,6 +310,15 @@ passed with no open finding. The migration was subsequently deployed on the
 `learnforge_db` development database as batch 12 on 2026-08-15. Verification
 found the table present with zero rows, ledger migration id 79 and complete
 schema drift. Runtime, route, API, UI and production remain excluded.
+
+That sentence records the source-migration acceptance boundary; the later
+Runtime Internal authorization below supersedes only its internal-runtime
+exclusion.
+
+The Architecture Owner separately authorized Phase 4E Runtime Internal on
+2026-08-15: internal service, locked end-to-end transaction,
+correction/idempotency and isolated MariaDB integration tests. Route, API,
+controller, UI, External Surface and production remain excluded.
 
 ## Development Deployment Record
 
