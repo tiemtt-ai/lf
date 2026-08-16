@@ -356,6 +356,7 @@ docs/adr/
 | [ADR-0014](adr/ADR-0014-Product-Offering-And-Draft-Binding.md) | Approved Product offering and Draft binding decision |
 | [ADR-0015](adr/ADR-0015-Course-Lesson-Multiple-Prerequisites.md) | Approved Course Lesson multiple-prerequisite decision |
 | [ADR-0016](adr/ADR-0016-Learning-Foundation.md) | Frozen Learning Foundation Version 1.1; deployed on development, production separately gated |
+| [ADR-0017](adr/ADR-0017-AI-Assisted-Learning-Authoring.md) | AI proposes Learning Node/Mapping from Course Media; human review and owner services write, AI never publishes. Review — implementation separately gated |
 
 ---
 

@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-08-15",
+  "generated_or_updated_at": "2026-08-16",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 226,
+  "document_count": 227,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -946,6 +946,58 @@
         "core/LF-Core-Learning.md",
         "database/learning/README.md",
         "quality/LF-Learning-Foundation-Database-Architecture-Review.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
+      "title": "ADR-0017 — AI-Assisted Learning Authoring",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [
+        "ai-assisted-learning-authoring"
+      ],
+      "topics": [
+        "ai",
+        "media",
+        "course",
+        "learning",
+        "authoring"
+      ],
+      "keywords": {
+        "vi": [
+          "biên soạn học tập có AI hỗ trợ",
+          "đề xuất node học tập",
+          "gán nội dung khóa học",
+          "duyệt đề xuất"
+        ],
+        "en": [
+          "AI-assisted learning authoring",
+          "learning node suggestion",
+          "course content mapping",
+          "proposal review"
+        ]
+      },
+      "identifiers": [
+        "ADR-0017",
+        "core_learning_node_mappings",
+        "core_learning_node_definitions",
+        "media_file_usages"
+      ],
+      "related_documents": [
+        "adr/ADR-0004-Media-Foundation.md",
+        "adr/ADR-0006-AI-Foundation.md",
+        "adr/ADR-0012-Course-Template-Published-Version-Snapshot.md",
+        "adr/ADR-0016-Learning-Foundation.md",
+        "core/LF-Core-Course.md",
+        "core/LF-Core-Learning.md",
+        "platform/LF-AI.md",
+        "platform/LF-Media.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
