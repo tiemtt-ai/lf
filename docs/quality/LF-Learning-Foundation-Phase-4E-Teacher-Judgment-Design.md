@@ -1,12 +1,12 @@
 # Learning Foundation Phase 4E Teacher Judgment Design
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Review
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-15
+Last Updated: 2026-08-16
 
 Document Path: quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md
 
@@ -298,9 +298,23 @@ review pass.
 
 ## Remaining Gates Before External Surface
 
-1. Complete independent internal runtime code review.
-2. Obtain separate authorization before route, API, controller or UI work.
-3. Complete the separate production deployment gate.
+1. Provide a path that creates Framework, Framework Version, Node Definition
+   and Node. Nothing in the repository creates them today — no service, route,
+   command or seeder — so a teacher has no Node to judge no matter how complete
+   the submission runtime is. This gate blocks any use of the feature, not only
+   its external surface, and it sits upstream of the authoring API and UI
+   rather than beside them.
+2. Close the basis-lifecycle test gap. The fail-closed matrix exercises a
+   `deprecated` basis only; `draft_snapshot` and `archived` remain unproven.
+   That matters more here than anywhere else because the published-basis rule
+   is the one authorization rule with no database backstop:
+   `trg_lrn_calcs_bi_validate` accepts any basis whose scale snapshot matches,
+   regardless of version lifecycle. The service already rejects a non-published
+   basis; what is missing is evidence, not code.
+3. Complete independent runtime and migration code review by a reviewer who did
+   not author them. Review by the author closes no gate however thorough it is.
+4. Obtain separate authorization before route, API, controller or UI work.
+5. Complete the separate production deployment gate.
 
 ## Runtime Internal Evidence
 
@@ -315,6 +329,12 @@ different eligible teacher, five application-owned fail-closed rules and
 rollback after a late Calculation conflict. The full default suite passed 732
 tests with 8,241 assertions and one skipped test. The disposable database,
 server and datadir were removed after verification.
+
+The fail-closed matrix drives each of the five rules through one denied state:
+a `closed` Cohort, a `cancelled` Enrollment, an `inactive` membership, an
+`inactive` assignment and a `deprecated` basis. It therefore proves the rules
+are wired, not that every denied lifecycle value is covered. Gate 2 above
+records the specific basis states still unexercised.
 
 ## Independent Database And End-To-End Review
 
