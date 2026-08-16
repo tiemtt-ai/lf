@@ -1,6 +1,6 @@
 # Learning Foundation Phase 4E Teacher Judgment Design
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Review
 
@@ -304,17 +304,10 @@ review pass.
    the submission runtime is. This gate blocks any use of the feature, not only
    its external surface, and it sits upstream of the authoring API and UI
    rather than beside them.
-2. Close the basis-lifecycle test gap. The fail-closed matrix exercises a
-   `deprecated` basis only; `draft_snapshot` and `archived` remain unproven.
-   That matters more here than anywhere else because the published-basis rule
-   is the one authorization rule with no database backstop:
-   `trg_lrn_calcs_bi_validate` accepts any basis whose scale snapshot matches,
-   regardless of version lifecycle. The service already rejects a non-published
-   basis; what is missing is evidence, not code.
-3. Complete independent runtime and migration code review by a reviewer who did
+2. Complete independent runtime and migration code review by a reviewer who did
    not author them. Review by the author closes no gate however thorough it is.
-4. Obtain separate authorization before route, API, controller or UI work.
-5. Complete the separate production deployment gate.
+3. Obtain separate authorization before route, API, controller or UI work.
+4. Complete the separate production deployment gate.
 
 ## Runtime Internal Evidence
 
@@ -332,9 +325,19 @@ server and datadir were removed after verification.
 
 The fail-closed matrix drives each of the five rules through one denied state:
 a `closed` Cohort, a `cancelled` Enrollment, an `inactive` membership, an
-`inactive` assignment and a `deprecated` basis. It therefore proves the rules
-are wired, not that every denied lifecycle value is covered. Gate 2 above
-records the specific basis states still unexercised.
+`inactive` assignment and a `deprecated` basis.
+
+The published-basis rule carries the remaining risk, because it is the only
+application-owned rule with no database backstop —
+`trg_lrn_calcs_bi_validate` accepts any basis whose scale snapshot matches,
+whatever its lifecycle. Its two other denied states are therefore covered
+separately on 2026-08-16. Version lifecycle is one-way, so each state needs its
+own fixture: `archived` is reached through `deprecated`, and `draft_snapshot`
+requires a second version that was never published, with its own Node. Both
+submissions are rejected with exactly `LF_TEACHER_JUDGMENT_BASIS_INVALID` and
+leave no source row; the assertion checks that exact code rather than a prefix,
+so it cannot pass on rejection by an earlier rule. The suite is now five tests
+and 37 assertions.
 
 ## Independent Database And End-To-End Review
 

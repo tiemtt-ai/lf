@@ -133,6 +133,72 @@ class TeacherJudgmentRuntimeMariaDbTest extends TestCase
         }
     }
 
+    /**
+     * The published-basis rule is the only application-owned rule with no
+     * database backstop: trg_lrn_calcs_bi_validate accepts any basis whose
+     * scale snapshot matches, whatever its lifecycle. The matrix above only
+     * exercises a deprecated basis, so the two remaining denied states are
+     * proven here. Version lifecycle is one-way, so each state needs its own
+     * context: archived is reached through deprecated, and draft_snapshot can
+     * only come from a version that was never published.
+     */
+    public function test_non_published_basis_lifecycle_fails_closed(): void
+    {
+        $now = now();
+
+        $archived = $this->context('deny-archived');
+        TenantContext::set((object) ['id' => $archived['customer_id']]);
+        DB::table('core_learning_framework_versions')->where('id', $archived['basis_id'])->update([
+            'status' => 'deprecated', 'deprecated_at' => $now,
+            'deprecated_by' => $archived['admin_id'],
+        ]);
+        DB::table('core_learning_framework_versions')->where('id', $archived['basis_id'])->update([
+            'status' => 'archived', 'archived_at' => $now,
+            'archived_by' => $archived['admin_id'],
+        ]);
+        $this->assertBasisRejected($archived, $this->command($archived));
+
+        $draft = $this->context('deny-draft');
+        TenantContext::set((object) ['id' => $draft['customer_id']]);
+        $draftBasisId = DB::table('core_learning_framework_versions')->insertGetId([
+            'customer_id' => $draft['customer_id'], 'framework_id' => $draft['framework_id'],
+            'version_number' => 2, 'version_code' => 'v2-deny-draft',
+            'title_snapshot' => 'Framework deny-draft', 'mastery_scale_key' => 'direct',
+            'mastery_scale_version' => '1', 'mastery_scale_snapshot' => $draft['scale'],
+            'status' => 'draft_snapshot', 'published_at' => null, 'published_by' => null,
+            'created_by' => $draft['admin_id'], 'updated_by' => $draft['admin_id'],
+            'created_at' => $now, 'updated_at' => $now,
+        ]);
+        $draftNodeId = DB::table('core_learning_nodes')->insertGetId([
+            'customer_id' => $draft['customer_id'], 'framework_id' => $draft['framework_id'],
+            'framework_version_id' => $draftBasisId, 'node_definition_id' => $draft['definition_id'],
+            'code_snapshot' => 'node-deny-draft', 'name_snapshot' => 'Node deny-draft',
+            'sequence' => 1, 'status' => 'active',
+            'created_by' => $draft['admin_id'], 'updated_by' => $draft['admin_id'],
+            'created_at' => $now, 'updated_at' => $now,
+        ]);
+        $this->assertBasisRejected($draft, $this->command($draft, [
+            'basis_framework_version_id' => $draftBasisId,
+            'learning_node_id' => $draftNodeId,
+        ]));
+    }
+
+    private function assertBasisRejected(array $context, array $command): void
+    {
+        try {
+            app(TeacherJudgmentService::class)->submit($context['teacher_id'], $command);
+            $this->fail('A basis outside the published lifecycle must fail closed.');
+        } catch (AuthorizationException|DomainException $exception) {
+            // Asserting the exact code, not the prefix: a looser assertion would
+            // also pass when the submission was rejected by an earlier rule and
+            // would prove nothing about the basis lifecycle check.
+            $this->assertSame('LF_TEACHER_JUDGMENT_BASIS_INVALID', $exception->getMessage());
+        }
+
+        $this->assertSame(0, DB::table('core_liveclass_teacher_judgments')
+            ->where('customer_id', $context['customer_id'])->count());
+    }
+
     public function test_late_calculation_failure_rolls_back_source_and_evidence_rows(): void
     {
         $context = $this->context('rollback');
