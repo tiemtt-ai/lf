@@ -1,6 +1,6 @@
 # Learning Foundation Phase 4E Teacher Judgment Design
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Review
 
@@ -298,16 +298,43 @@ review pass.
 
 ## Remaining Gates Before External Surface
 
-1. Provide a path that creates Framework, Framework Version, Node Definition
-   and Node. Nothing in the repository creates them today — no service, route,
-   command or seeder — so a teacher has no Node to judge no matter how complete
-   the submission runtime is. This gate blocks any use of the feature, not only
-   its external surface, and it sits upstream of the authoring API and UI
-   rather than beside them.
-2. Complete independent runtime and migration code review by a reviewer who did
+1. Complete independent runtime and migration code review by a reviewer who did
    not author them. Review by the author closes no gate however thorough it is.
-3. Obtain separate authorization before route, API, controller or UI work.
-4. Complete the separate production deployment gate.
+2. Obtain separate authorization before route, API, controller or UI work. This
+   now covers the user-facing Framework authoring surface as well: the internal
+   authoring path exists, but no screen or endpoint reaches it.
+3. Complete the separate production deployment gate.
+
+## Framework Authoring Path
+
+Teacher Judgment could not be exercised at all while nothing created a Framework
+Version or Node, so `LearningFrameworkAuthoringService` provides that path for
+internal callers on 2026-08-16. It creates a Framework, a draft Version, a Node
+Definition and a Node, and publishes the Version. It exposes no route or
+controller, so it does not consume the external-surface gate above.
+
+Two rules in it have no database backstop and are therefore application-owned:
+a Node may only be added while its Version is `draft_snapshot`, because
+`core_learning_nodes` has no before-insert trigger and the engine would
+otherwise accept a Node added to a published Version; and a Framework must still
+be `active` to receive new Versions or Definitions.
+
+Which roles may author a Framework is not decided. The service requires an
+active user in the tenant and nothing more, because no Owner decision names an
+authoring role. That silence is a deferred decision, not permission.
+
+Verified on MariaDB 10.4.21 against an isolated database: five tests and 24
+assertions. The load-bearing case authors a Framework end to end and then
+submits a real Teacher Judgment against the Node it produced, asserting the
+whole chain — source row, Evidence, Calculation, Calculation Evidence and the
+projected Profile — resolves to that Node. Asserting only that rows were
+inserted would have proved the service writes, not that the gate is closed. The
+remaining cases cover the frozen-after-publish rule, one-way publish, invalid
+scales failing as domain errors before reaching `trg_lrn_frameworks_bi_scale`,
+and tenant scoping for Framework, actor and missing tenant context.
+
+Both this suite and `TeacherJudgmentRuntimeMariaDbTest` were absent from the CI
+MariaDB job and ran only on developer machines; both are now listed there.
 
 ## Runtime Internal Evidence
 

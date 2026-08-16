@@ -136,4 +136,6 @@ jobs:
           php artisan test \
             tests/Integration/LiveClassSchemaConstraintMysqlTest.php \
             tests/Integration/EnrollmentBindingTriggerMysqlTest.php \
-            tests/Integration/LearningRuntimeMariaDbTest.php
+            tests/Integration/LearningRuntimeMariaDbTest.php \
+            tests/Integration/TeacherJudgmentRuntimeMariaDbTest.php \
+            tests/Integration/LearningFrameworkAuthoringMariaDbTest.php
