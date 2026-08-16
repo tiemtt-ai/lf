@@ -64,7 +64,7 @@ Số ADR không được tái sử dụng hoặc đổi để lấp khoảng tr�
 | [ADR-0014](ADR-0014-Product-Offering-And-Draft-Binding.md) | Product Offering and Draft Content Binding | Approved |
 | [ADR-0015](ADR-0015-Course-Lesson-Multiple-Prerequisites.md) | Course Lesson Multiple Prerequisites | Approved |
 | [ADR-0016](ADR-0016-Learning-Foundation.md) | Learning Foundation Version 1.1 amendment | Frozen |
-| [ADR-0017](ADR-0017-AI-Assisted-Learning-Authoring.md) | AI-Assisted Learning Authoring: Proposal, human review, exact-version Mapping | Review |
+| [ADR-0017](ADR-0017-AI-Assisted-Learning-Authoring.md) | AI-Assisted Learning Authoring: Proposal, human review, exact-version Mapping | Approved |
 
 ---
 

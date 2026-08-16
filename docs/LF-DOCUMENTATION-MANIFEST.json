@@ -955,7 +955,7 @@
       "title": "ADR-0017 — AI-Assisted Learning Authoring",
       "area": "adr",
       "document_type": "adr",
-      "document_status": "Review",
+      "document_status": "Approved",
       "implementation_status": "Not Implemented",
       "metadata_complete": true,
       "authority": "architecture_decision",

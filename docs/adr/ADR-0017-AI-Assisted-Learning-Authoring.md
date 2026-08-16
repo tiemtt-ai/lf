@@ -1,12 +1,16 @@
 # ADR-0017 — AI-Assisted Learning Authoring
 
-Version: 0.1
+Version: 1.0
 
-Status: Review
+Status: Approved
 
 Implementation Status: Not Implemented
 
 Last Updated: 2026-08-16
+
+Approval Date: 2026-08-16
+
+Approved By: LearnForge Architecture Owner
 
 Proposal Date: 2026-08-16
 
@@ -279,10 +283,14 @@ still apply, and this ADR does not lift them.
 
 # Status Note
 
-This ADR is `Review`. The logic is complete enough to review, but freezing it
-before any authoring runtime exists would freeze assumptions that the first
-implementation is likely to test. The Architecture Owner decides whether it
-moves to `Approved` or `Frozen`.
+The Architecture Owner approved this ADR on 2026-08-16. It is `Approved` rather
+than `Frozen` deliberately: the logic is settled enough to design against, but
+no authoring runtime exists yet, and the first implementation is the thing most
+likely to test these assumptions. Freezing is a later decision, taken once a
+Proposal workflow has actually run.
+
+Approval covers the logic and the boundary. It grants no migration, API, prompt
+or UI authorization — those remain behind the Implementation Gate above.
 
 ---
 
