@@ -1,6 +1,6 @@
 # Learning Foundation Phase 4E Teacher Judgment Design
 
-Version: 1.10
+Version: 1.11
 
 Document Status: Review
 
@@ -460,9 +460,65 @@ a Node may only be added while its Version is `draft_snapshot`, because
 otherwise accept a Node added to a published Version; and a Framework must still
 be `active` to receive new Versions or Definitions.
 
-Which roles may author a Framework is not decided. The service requires an
-active user in the tenant and nothing more, because no Owner decision names an
-authoring role. That silence is a deferred decision, not permission.
+Which roles may author a Framework was left undecided when the service was
+written, because no Owner decision named one. It is decided below.
+
+## Framework Authoring Authority — 2026-08-17
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-17
+
+N1. Only customer_admin may author or publish a Framework Version. No new
+    authoring role is created.
+
+    assertActor() takes a capability argument — `author` and `publish` — and
+    both map to customer_admin today.
+```
+
+Publishing a Framework Version is an act of curriculum authority, not an act of
+teaching. It defines the measure every learner in the tenant is judged against,
+it is one-way, and the moment it publishes it becomes a valid basis for Evidence
+that lasts forever. Owner decision 4 already bars `customer_admin` from judging.
+Granting authoring to `customer_admin` therefore produces the separation for
+free: teachers judge, admins set the measure, nobody does both. That property is
+worth keeping deliberately rather than inheriting by accident.
+
+Creating a role would touch the role model — `LF-Core-Auth` and Rule 4, Respect
+Stable Foundations — which is a larger change than Phase 4E should carry. The
+choice is also asymmetric: widening `{customer_admin}` to
+`{customer_admin, curriculum_author}` later is additive and breaks nothing,
+while narrowing it afterwards is not.
+
+The capability argument exists despite both values mapping to one role today.
+The likely end state is an author drafting and an admin publishing; folding both
+into a single check now would mean reopening five methods on the day they
+separate. Splitting costs one parameter.
+
+`teacher` does not author. A teacher knows the competency but publishing is
+irreversible and tenant-wide — one teacher publishing would change the basis for
+another teacher's judgments. Their contribution path is the Proposal flow in
+[ADR-0017](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md), not publishing.
+
+## External Surface Authorization — 2026-08-17
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-17
+Decision: Authorized — request validation, controller, route and UI for
+          Teacher Judgment submission and Framework authoring
+Excluded: production deployment, which remains a separate gate
+Condition: Gate 2 closes only after an independent review of the surface
+           itself. The runtime review that passed on 2026-08-17 does not
+           cover it.
+Ordering:  F1 before the first controller line
+```
+
+The ordering condition was already satisfied: F1 landed in `94b4c63` alongside
+the review document, before the authorization was issued. The reason it was
+placed first still holds for anyone reading later — a suite that turns red on a
+fixed date, in the middle of days of API work, makes relaxing the rule look like
+the cheapest repair.
 
 Verified on MariaDB 10.4.21 against an isolated database: five tests and 24
 assertions. The load-bearing case authors a Framework end to end and then
