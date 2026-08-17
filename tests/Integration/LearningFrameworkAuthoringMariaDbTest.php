@@ -9,6 +9,7 @@ use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\RecordsNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -25,10 +26,20 @@ class LearningFrameworkAuthoringMariaDbTest extends TestCase
         }
 
         TenantContext::set(null);
+        // The suite pins its own clock. The fixture Cohort runs 2026-08-01 to
+        // 2026-08-31, and the Cohort submission boundary compares submitted_at
+        // against that end date, so on real wall-clock every happy path in this
+        // file would start failing on 2026-09-01 — and the future-occurrence
+        // test a day earlier. A suite that goes red for reasons unrelated to any
+        // change invites the cheapest possible repair, and the cheapest repair
+        // here is loosening either the fixture or the rule that bounds writes
+        // into an immutable table. Pinning removes the temptation.
+        Carbon::setTestNow('2026-08-20 12:00:00');
     }
 
     protected function tearDown(): void
     {
+        Carbon::setTestNow();
         TenantContext::set(null);
         parent::tearDown();
     }

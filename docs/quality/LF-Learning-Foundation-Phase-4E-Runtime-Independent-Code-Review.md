@@ -1,12 +1,12 @@
 # Learning Foundation Phase 4E Runtime Independent Code Review
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Review
 
 Implementation Status: Not Applicable
 
-Review Status: Fail
+Review Status: Pass
 
 Last Updated: 2026-08-17
 
@@ -588,6 +588,116 @@ last three are the substantial ones. No code change is expected for any of them.
 
 Trivial, not a finding: the correction assertion block repeats
 `assertSame(2, …->count())` on consecutive lines.
+
+---
+
+## Fourth Pass — 2026-08-17 (commit `1e6ad05`)
+
+```text
+GATE 1 PASS — the bar published in Version 1.1 and restated in Version 1.2
+              is met. Gate 2 remains closed on its own conditions.
+```
+
+The commit touches tests and documentation only; no source file changed, so the
+code verified in the second and third passes still stands. The set difference is
+empty in both directions: all 18 service codes appear in `tests/`, and the only
+code present in tests but not in the service is `LF_TEACHER_JUDGMENT_IMMUTABLE`,
+which belongs to the two migration triggers.
+
+Each new test was read rather than counted. They prove rules rather than touch
+codes:
+
+* `test_command_validation_rejects_malformed_input` separates the two
+  `RESULT_INVALID` paths — an empty field rejected before any lookup, and a level
+  outside the frozen basis scale rejected after it.
+* `test_future_occurrence_is_rejected` places the occurrence inside both the
+  Cohort period and the assignment range, so only the future rule can reject it.
+* `test_correction_without_prior_lineage_is_rejected` builds an orphan source row
+  whose `occurred_at` matches the command exactly, so it passes
+  `priorIdentityMatches()` and actually reaches `lockPriorLineage()`.
+* `test_cross_tenant_and_cross_inconsistent_rows_fail_closed` is the strongest
+  addition: every identifier inside one tenant with the membership on a different
+  Cohort is precisely what the cross-row equalities exist for and what no foreign
+  key can express.
+* `test_malformed_scale_snapshot_is_rejected_by_the_service_guard` reaches an
+  otherwise unreachable guard by reflection and states why. It fails if the guard
+  is deleted, which is the property that matters.
+* `test_duplicate_producer_uuid_is_rejected_by_the_physical_key` asserts the
+  physical key and states in the docblock that in-process parallelism is not
+  exercised and why. Accepted as closed with that limitation recorded: a single
+  connection inside one transaction cannot observe another connection's
+  uncommitted rows, so a test shaped like concurrency would assert nothing. What
+  would actually prove it is a two-process harness, which is out of scope here.
+
+### Fourth-Pass Findings
+
+**F1 — the MariaDB suite has a hard expiry date. Not blocking Gate 1; due before
+Gate 2 and worth doing this week.** The fixture Cohort runs
+`2026-08-01 → 2026-08-31` (`context()`), the default command occurs
+`2026-08-15`, and no test pins the clock. B4 now refuses any submission whose
+`submitted_at` date is past the Cohort `end_date`, so from **2026-09-01** every
+happy-path test in the suite fails with
+`LF_TEACHER_JUDGMENT_COHORT_WINDOW_CLOSED`. `test_future_occurrence_is_rejected`
+breaks sooner — on **2026-08-30**, when `2026-08-30T09:00+07:00` stops being in
+the future.
+
+The failures are loud rather than silent, so nothing passes for a wrong reason.
+The risk is what happens next: a suite that goes red for a reason unrelated to
+any change invites the cheapest-looking repair, and the cheapest-looking repair
+here is to relax the fixture window or the rule — and that rule is the one
+preventing permanent Evidence writes after a Cohort closes.
+
+The B4 remediation coupled the suite to wall-clock time, and this reviewer did
+not catch it while verifying B4 in the second pass or its test in the third.
+`Carbon::setTestNow()` in `setUp()`, or fixture dates derived from now, removes
+the coupling.
+
+**F2 — trivial.** `test_duplicate_producer_uuid_is_rejected_by_the_physical_key`
+expects `QueryException` broadly. Asserting SQLSTATE `23000` or naming
+`idx_ltj_001` would pin which constraint did the work.
+
+### On Not Moving The Bar
+
+F1 is a real defect in the verification apparatus and was found in the same pass
+that closes the gate. It is recorded as a Gate 2 item rather than used to hold
+Gate 1, because the closing conditions were published in advance, in writing, in
+Version 1.1, and they are met. A reviewer who adds conditions once they are
+satisfied makes the gate unfalsifiable, and an unfalsifiable gate is a worse
+failure than a dated fixture.
+
+### Gate 1 Verdict
+
+```text
+Role: Independent Reviewer
+Date: 2026-08-17
+Decision: GATE 1 PASS — independent runtime and migration code review complete.
+Basis:   B1-B5 closed and verified by reading; R1-R4 closed; the Required
+         Negative Matrix items enumerated in Version 1.1 are covered; R3
+         answered with data.
+Excluded: Gate 2 (external surface), production deployment. This verdict
+          authorizes neither.
+```
+
+Owner acknowledgement of this document is a separate act; `Document Status`
+stays `Review` until the Architecture Owner records it.
+
+### Gate 2 Preconditions
+
+Unchanged and still open, in the order they should be settled:
+
+1. **N1** — `assertActor()` admits any active user, so a `student` principal
+   could author and publish a Framework Version the day a route exists. This is
+   an Owner decision on the authoring role, not a defect.
+2. **F1** — remove the suite's dependency on wall-clock time.
+3. **N2** — Framework `active` is unchecked on `createNode()` and
+   `publishVersion()`, so archiving a Framework does not stop its draft version
+   from being published into a valid judgment basis.
+4. **N3** — authoring accepts mastery scales outside the `[0,1]` domain that
+   judgments require.
+5. **N4** — a Cohort transfer updates the membership row in place and
+   permanently closes the supersede path for earlier judgments. Owner decision.
+6. **F2**, and strict format validation at the HTTP boundary once a caller owns
+   the request body.
 
 ---
 

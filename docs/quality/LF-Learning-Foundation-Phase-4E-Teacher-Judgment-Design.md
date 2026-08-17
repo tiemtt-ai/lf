@@ -1,6 +1,6 @@
 # Learning Foundation Phase 4E Teacher Judgment Design
 
-Version: 1.9
+Version: 1.10
 
 Document Status: Review
 
@@ -417,6 +417,30 @@ false claim would have closed without anyone writing a line.
 All 18 codes the service raises now appear in the suite; the set difference
 above is empty. MariaDB 10.4.21 against an isolated database: 22 tests, 98
 assertions across both runtime suites.
+
+## Fourth Pass — F1, Suite Clock
+
+The fourth pass passed Gate 1 and raised F1 without using it to hold the gate,
+on the ground that a reviewer who adds conditions after the published ones are
+met turns the gate into something that cannot be failed. The finding is real and
+was fixed the same day rather than deferred.
+
+The B4 remediation introduced it. Bounding `submitted_at` by the Cohort end date
+tied the suite to real wall-clock: the fixture Cohort runs 2026-08-01 to
+2026-08-31, so every happy path would begin failing on 2026-09-01, and
+`test_future_occurrence_is_rejected` a day earlier, when its occurrence stops
+being in the future. Reproduced before fixing by pinning the clock to
+2026-09-05: eight tests failed, exactly the happy-path group.
+
+Both runtime suites now pin their own clock in `setUp` and release it in
+`tearDown`. The reasoning is recorded beside the call, because the danger is not
+the red suite — a loud failure is safe — but what a red suite unrelated to any
+change invites. The cheapest repair here would be widening the fixture window or
+relaxing the bound, and that bound is what stops a write into a table whose rows
+no `UPDATE` can reach.
+
+F1 was mine twice over: the remediation that created it, and two later passes
+that verified B4 and then its test without noticing the coupling.
 
 MariaDB 10.4.21 against an isolated database: 13 tests, 69 assertions across
 both runtime suites. Default suite 733 tests, 8,241 assertions, one skipped.
