@@ -272,11 +272,19 @@ final class TeacherJudgmentService
             'core_learning_node_definitions', $customerId, $node->node_definition_id
         );
 
+        // Cohort eligibility and assignment eligibility raise distinct codes.
+        // Sharing one code meant neither rule could be proven independently:
+        // either could vanish behind the other and the matrix would stay green.
+        // Collapsing them into one opaque answer is a decision for the API
+        // boundary, not for the place the rules are enforced.
         $occurredDate = substr($payload['occurred_at'], 0, 10);
         if ($cohort->status !== 'active'
             || $cohort->start_date === null || $cohort->end_date === null
-            || $occurredDate < $cohort->start_date || $occurredDate > $cohort->end_date
-            || (int) $assignment->cohort_id !== (int) $cohort->id
+            || $occurredDate < $cohort->start_date || $occurredDate > $cohort->end_date) {
+            throw new AuthorizationException('LF_TEACHER_JUDGMENT_COHORT_DENIED');
+        }
+
+        if ((int) $assignment->cohort_id !== (int) $cohort->id
             || (int) $assignment->teacher_id !== $teacherId
             || $assignment->status !== 'active'
             || ($assignment->assigned_from !== null && $occurredDate < $assignment->assigned_from)
@@ -506,13 +514,23 @@ final class TeacherJudgmentService
     {
         $raw = trim((string) $value);
 
-        if (preg_match('/(Z|[+-]\d{2}:?\d{2})$/', $raw) !== 1) {
+        // The offset must follow a time. Anchoring on the offset alone would
+        // accept a bare `YYYY-MM-DD`, whose trailing `-15` reads as a two-digit
+        // offset, and would let any malformed string carrying a valid-looking
+        // suffix through to Carbon and out as InvalidFormatException instead of
+        // a domain error. `+07` is accepted: a two-digit offset is ISO-8601.
+        if (preg_match('/\d{2}:\d{2}(:\d{2}(\.\d+)?)?\s*(Z|[+-]\d{2}(:?\d{2})?)$/', $raw) !== 1) {
             throw new DomainException('LF_TEACHER_JUDGMENT_OCCURRED_AT_OFFSET_REQUIRED');
         }
 
-        return CarbonImmutable::parse($raw)
-            ->setTimezone(config('app.timezone'))
-            ->format('Y-m-d H:i:s.u');
+        try {
+            $parsed = CarbonImmutable::parse($raw);
+        } catch (\Throwable) {
+            // Well-formed shape, impossible date — 2026-13-45T00:00:00+07:00.
+            throw new DomainException('LF_TEACHER_JUDGMENT_OCCURRED_AT_INVALID');
+        }
+
+        return $parsed->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s.u');
     }
 
     private function decimal(mixed $value): ?string

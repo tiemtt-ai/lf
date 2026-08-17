@@ -1,6 +1,6 @@
 # Learning Foundation Phase 4E Teacher Judgment Design
 
-Version: 1.7
+Version: 1.8
 
 Document Status: Review
 
@@ -360,10 +360,31 @@ five; the projector's writer was found while applying the fix.
 | B4 Cohort end boundary | `submitted_at` is now bounded by the Cohort end date, distinct from the occurrence bound that already existed |
 | B5 test gaps | The five fail-closed cases assert exact error codes; the teacher role rule, the offset contract and the correction moment each gained a test |
 
-The exact-code assertions record one thing they cannot separate: `cohort` and
-`assignment` both raise `ASSIGNMENT_DENIED`, because the service evaluates
-Cohort status inside the assignment guard. That is visible to a caller too, so
-the test states it rather than hiding it behind a prefix match.
+## Re-Review Remediation — 2026-08-17
+
+The first remediation narrowed the gate without closing it. Four items followed.
+
+| Item | Remediation |
+| --- | --- |
+| R1 correction replay untested | The correction is now submitted twice and the retry asserted as a replay. The earlier test replayed the *first* record, which never touched the branch B3 broke, so any reintroduced normalization of `occurred_at` on the correction path would have passed unnoticed |
+| R2 `COHORT_WINDOW_CLOSED` untested | The rule arrived in the same change that closed a missing-test finding, and its code appeared once in the repository — where it is thrown. Now driven by a Cohort whose period has ended while the occurrence stays inside it |
+| R3 pre-existing rows in the old convention | Counted across all nine tables on `learnforge_db`: zero. Nothing to reconcile, and no Owner decision needed |
+| R4 offset pattern | A two-digit `+07` is valid ISO-8601 and is now accepted. The pattern anchors on a time before the offset, which rejects `not-a-date+07:00` as a domain error instead of letting it escape as `InvalidFormatException`, and still rejects a bare `YYYY-MM-DD` whose trailing `-15` would otherwise read as an offset. A syntactically valid but impossible date raises `OCCURRED_AT_INVALID` |
+
+Cohort eligibility was also split out of the assignment guard into
+`LF_TEACHER_JUDGMENT_COHORT_DENIED`. Recording the collision was the wrong
+remedy: the point of asserting exact codes is that each rule can be proven on
+its own, and two rules sharing a code prove neither. That a caller cannot tell
+them apart is an argument about the external surface, and it runs the other
+way — keep the internal codes precise and collapse them at the API boundary if
+that is wanted, rather than losing the distinction where the rule is enforced.
+
+Two negative branches named by the Owner decisions but never exercised were
+added: an active teacher holding no assignment on the Cohort, and an occurrence
+outside the assignment date range.
+
+Every `LF_TEACHER_JUDGMENT_*` authorization code now appears in at least one
+test. MariaDB 10.4.21 against an isolated database: 16 tests, 82 assertions.
 
 MariaDB 10.4.21 against an isolated database: 13 tests, 69 assertions across
 both runtime suites. Default suite 733 tests, 8,241 assertions, one skipped.

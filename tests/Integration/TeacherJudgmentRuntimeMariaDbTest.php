@@ -56,16 +56,28 @@ class TeacherJudgmentRuntimeMariaDbTest extends TestCase
             'teacher',
         );
         $secondAssignment = $this->assignment($context, $secondTeacher);
-        $correction = $service->submit($secondTeacher, $this->command($context, [
+        $correctionCommand = $this->command($context, [
             'submission_uuid' => '22222222-2222-4222-8222-222222222222',
             'cohort_teacher_assignment_id' => $secondAssignment,
             'mastery_level_key' => 'mastered',
             'mastery_score' => 0.9,
             'reason' => 'Correction by another eligible teacher.',
             'supersedes_judgment_id' => $first->judgment_id,
-        ]));
+        ]);
+        $correction = $service->submit($secondTeacher, $correctionCommand);
 
         $this->assertFalse($correction->replayed);
+
+        // The symptom B3 actually produced: replaying a *correction*, not the
+        // first submission. While occurred_at was rewritten from the
+        // predecessor, this retry compared the caller's own value against the
+        // stored one and failed as an idempotency conflict. Replaying the first
+        // record never exercised that path, so any reintroduced normalization
+        // on the correction branch would pass unnoticed without this.
+        $correctionReplay = $service->submit($secondTeacher, $correctionCommand);
+        $this->assertTrue($correctionReplay->replayed);
+        $this->assertSame($correction->judgment_id, $correctionReplay->judgment_id);
+        $this->assertSame(2, DB::table('core_liveclass_teacher_judgments')->count());
         $this->assertSame(2, DB::table('core_liveclass_teacher_judgments')->count());
         $this->assertSame($first->evidence_id, (int) DB::table('core_learning_evidence')
             ->where('id', $correction->evidence_id)->value('supersedes_evidence_id'));
@@ -108,7 +120,7 @@ class TeacherJudgmentRuntimeMariaDbTest extends TestCase
     public function test_application_owned_authorization_rules_fail_closed(): void
     {
         $expected = [
-            'cohort' => 'LF_TEACHER_JUDGMENT_ASSIGNMENT_DENIED',
+            'cohort' => 'LF_TEACHER_JUDGMENT_COHORT_DENIED',
             'enrollment' => 'LF_TEACHER_JUDGMENT_ENROLLMENT_DENIED',
             'membership' => 'LF_TEACHER_JUDGMENT_MEMBERSHIP_DENIED',
             'assignment' => 'LF_TEACHER_JUDGMENT_ASSIGNMENT_DENIED',
@@ -183,6 +195,106 @@ class TeacherJudgmentRuntimeMariaDbTest extends TestCase
 
         $this->assertSame(0, DB::table('core_liveclass_teacher_judgments')
             ->where('customer_id', $context['customer_id'])->count());
+    }
+
+    /**
+     * R2. The Cohort submission window was added as an authorization rule in
+     * the same change that closed a missing-test finding, and arrived without a
+     * test of its own: the code appeared exactly once in the repository, where
+     * it is thrown.
+     *
+     * The occurrence stays inside the Cohort period so the Cohort and assignment
+     * guards both pass; only the act of submitting falls outside it.
+     */
+    public function test_submission_after_the_cohort_end_boundary_fails_closed(): void
+    {
+        $context = $this->context('window');
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        DB::table('core_course_cohorts')->where('id', $context['cohort_id'])
+            ->update(['start_date' => '2026-08-01', 'end_date' => '2026-08-10']);
+
+        try {
+            app(TeacherJudgmentService::class)->submit($context['teacher_id'], $this->command($context, [
+                'occurred_at' => '2026-08-05T09:00:00.000000+07:00',
+            ]));
+            $this->fail('Submitting after the Cohort end boundary must fail closed.');
+        } catch (DomainException $exception) {
+            $this->assertSame('LF_TEACHER_JUDGMENT_COHORT_WINDOW_CLOSED', $exception->getMessage());
+        }
+
+        $this->assertSame(0, DB::table('core_liveclass_teacher_judgments')
+            ->where('customer_id', $context['customer_id'])->count());
+    }
+
+    /**
+     * Owner decision 4 names unassigned teachers directly, and the assignment
+     * date range is part of decision 3. Neither branch had a test: the role test
+     * covers who the actor is, not whether they teach this Cohort at that time.
+     */
+    public function test_assignment_scope_and_range_fail_closed(): void
+    {
+        $context = $this->context('scope');
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        $service = app(TeacherJudgmentService::class);
+
+        // Active teacher, valid role, but the assignment belongs to someone else.
+        $outsider = $this->user($context['customer_id'], 'outsider-scope@example.test', 'teacher');
+        try {
+            $service->submit($outsider, $this->command($context));
+            $this->fail('A teacher without an assignment on this Cohort must be denied.');
+        } catch (AuthorizationException $exception) {
+            $this->assertSame('LF_TEACHER_JUDGMENT_ASSIGNMENT_DENIED', $exception->getMessage());
+        }
+
+        // Assigned teacher, occurrence outside the assignment range.
+        DB::table('core_course_cohort_teachers')->where('id', $context['assignment_id'])
+            ->update(['assigned_to' => '2026-08-10']);
+        try {
+            $service->submit($context['teacher_id'], $this->command($context));
+            $this->fail('An occurrence outside the assignment range must be denied.');
+        } catch (AuthorizationException $exception) {
+            $this->assertSame('LF_TEACHER_JUDGMENT_ASSIGNMENT_DENIED', $exception->getMessage());
+        }
+
+        $this->assertSame(0, DB::table('core_liveclass_teacher_judgments')
+            ->where('customer_id', $context['customer_id'])->count());
+    }
+
+    /**
+     * R4. A two-digit offset is valid ISO-8601 and must be accepted; a string
+     * that merely ends in something offset-shaped must fail as a domain error
+     * rather than escaping as an InvalidFormatException. The pattern anchors on
+     * a time before the offset, which is also what keeps a bare `YYYY-MM-DD`
+     * from reading its own `-15` as an offset.
+     */
+    public function test_offset_contract_accepts_short_offsets_and_rejects_malformed_input(): void
+    {
+        $context = $this->context('iso');
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        $service = app(TeacherJudgmentService::class);
+
+        $accepted = $service->submit($context['teacher_id'], $this->command($context, [
+            'occurred_at' => '2026-08-15T09:00:00+07',
+        ]));
+        $this->assertFalse($accepted->replayed);
+        $this->assertSame('2026-08-15 09:00:00.000000', DB::table('core_liveclass_teacher_judgments')
+            ->where('id', $accepted->judgment_id)->value('occurred_at'));
+
+        foreach ([
+            'not-a-date+07:00' => 'LF_TEACHER_JUDGMENT_OCCURRED_AT_OFFSET_REQUIRED',
+            '2026-08-15' => 'LF_TEACHER_JUDGMENT_OCCURRED_AT_OFFSET_REQUIRED',
+            '2026-13-45T09:00:00+07:00' => 'LF_TEACHER_JUDGMENT_OCCURRED_AT_INVALID',
+        ] as $input => $code) {
+            try {
+                $service->submit($context['teacher_id'], $this->command($context, [
+                    'submission_uuid' => '44444444-4444-4444-8444-144444444444',
+                    'occurred_at' => $input,
+                ]));
+                $this->fail("{$input} must be rejected.");
+            } catch (DomainException $exception) {
+                $this->assertSame($code, $exception->getMessage(), $input);
+            }
+        }
     }
 
     /**
