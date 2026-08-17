@@ -1,12 +1,12 @@
 # Learning Foundation Phase 4E Teacher Judgment Design
 
-Version: 1.4
+Version: 1.6
 
 Document Status: Review
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-16
+Last Updated: 2026-08-17
 
 Document Path: quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md
 
@@ -300,10 +300,71 @@ review pass.
 
 1. Complete independent runtime and migration code review by a reviewer who did
    not author them. Review by the author closes no gate however thorough it is.
+   Performed on 2026-08-17 and recorded in
+   [Phase 4E Runtime Independent Code Review](LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md):
+   verdict **FAIL**. All five items were remediated on 2026-08-17 as recorded
+   below. The gate stays open until the reviewer re-examines them: remediation
+   by the author does not close a review any more than the original code did.
 2. Obtain separate authorization before route, API, controller or UI work. This
    now covers the user-facing Framework authoring surface as well: the internal
    authoring path exists, but no screen or endpoint reaches it.
 3. Complete the separate production deployment gate.
+
+## Timestamp Convention
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-17
+Decision: Learning writers store naive wall-clock in the application timezone,
+          matching every other writer in LearnForge. Inbound timestamps must
+          carry an explicit offset and are converted before they are stored.
+```
+
+The risk was never UTC versus local. It was divergence. A database that applies
+one convention everywhere can still be converted wholesale later; one where a
+single immutable table speaks a different language cannot, because the row
+records nothing about which convention produced it. Storing UTC would not have
+removed the split — it would have moved it from the writer to every reader of a
+Course timestamp, multiplying the number of places that can be wrong and making
+each depend on an assumption about `config/app.php` at the time some other
+domain wrote the row.
+
+Two facts make the decision cheap. Vietnam observes no daylight saving, so wall
+clock is monotonic and no local time repeats. And both `chk_ltj_005` and
+`trg_lrn_evidence_bi_validate` (`evaluated_at >= source_occurred_at`) compare
+two columns written under the same convention, so the frozen physical contract
+is untouched: no migration, no trigger change.
+
+Storage stays ambiguous because the whole database is ambiguous. The input
+contract does not: a caller must state an offset. Accepting a naive string is
+precisely how a caller's local "now" came to be read as a moment seven hours
+away, and the destination row is protected by `trg_ltj_bu_immutable` and
+`trg_ltj_bd_immutable`, so there is no repair path afterwards.
+
+Applied at six sites: `submitted_at` and inbound `occurred_at` in
+`TeacherJudgmentService`, its stored-timestamp reader,
+`LearningFrameworkAuthoringService`, and both the `projected_at` writer and the
+ordering comparison in `LearningMasteryProfileProjector`. The review listed
+five; the projector's writer was found while applying the fix.
+
+## Independent Review Remediation — 2026-08-17
+
+| Finding | Remediation |
+| --- | --- |
+| B1 timestamp convention | Owner decision above, applied at six sites |
+| B2 Cohort/assignment date window | Resolved as a consequence of B1: the window compares dates cut from a value that is no longer shifted |
+| B3 correction rewrote `occurred_at` | The caller's value is no longer overwritten. A mismatch is now rejected by `priorIdentityMatches()` and `trg_ltj_bi_correction` instead of being silently satisfied, and a valid retry no longer reports an idempotency conflict |
+| B4 Cohort end boundary | `submitted_at` is now bounded by the Cohort end date, distinct from the occurrence bound that already existed |
+| B5 test gaps | The five fail-closed cases assert exact error codes; the teacher role rule, the offset contract and the correction moment each gained a test |
+
+The exact-code assertions record one thing they cannot separate: `cohort` and
+`assignment` both raise `ASSIGNMENT_DENIED`, because the service evaluates
+Cohort status inside the assignment guard. That is visible to a caller too, so
+the test states it rather than hiding it behind a prefix match.
+
+MariaDB 10.4.21 against an isolated database: 13 tests, 69 assertions across
+both runtime suites. Default suite 733 tests, 8,241 assertions, one skipped.
+`learnforge_db` untouched at 71 tables and 11 users.
 
 ## Framework Authoring Path
 

@@ -151,7 +151,13 @@ class LearningRuntimeFoundationTest extends TestCase
         $this->assertSame(1, DB::table('core_learning_mastery_profiles')->count());
     }
 
-    public function test_ordering_normalizes_timezone_bearing_values_to_utc(): void
+    /**
+     * Ordering normalizes into the application timezone, not UTC: stored
+     * calculated_at values are naive wall-clock like every other timestamp in
+     * the database. Two values naming the same instant in different zones must
+     * still compare equal, which is what this asserts.
+     */
+    public function test_ordering_normalizes_timezone_bearing_values_to_app_zone(): void
     {
         $projector = app(LearningMasteryProfileProjector::class);
         $method = new \ReflectionMethod($projector, 'orderingTime');
@@ -164,7 +170,7 @@ class LearningRuntimeFoundationTest extends TestCase
         ));
 
         $this->assertSame($utc, $vietnam);
-        $this->assertSame('2026-08-13 10:00:00.000001', $vietnam);
+        $this->assertSame('2026-08-13 17:00:00.000001', $vietnam);
     }
 
     public function test_projector_cannot_read_a_calculation_from_another_tenant(): void

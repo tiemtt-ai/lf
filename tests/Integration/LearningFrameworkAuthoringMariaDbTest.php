@@ -77,7 +77,7 @@ class LearningFrameworkAuthoringMariaDbTest extends TestCase
             'mastery_level_key' => 'novice',
             'mastery_score' => 0.5,
             'reason' => 'Observed during the assigned teaching window.',
-            'occurred_at' => '2026-08-15 09:00:00.000000',
+            'occurred_at' => '2026-08-15T09:00:00.000000+07:00',
         ]);
 
         $this->assertFalse($judgment->replayed);

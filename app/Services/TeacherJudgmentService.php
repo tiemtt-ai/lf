@@ -35,10 +35,13 @@ final class TeacherJudgmentService
                 return $this->replay($existing, $teacherId, $payload);
             }
 
+            // The caller's occurred_at is never rewritten to the predecessor's.
+            // Overwriting it silently satisfied both priorIdentityMatches() and
+            // trg_ltj_bi_correction, so neither could reject a correction that
+            // moved the judged moment, and a valid retry then compared the
+            // caller's original value against the stored one and failed as an
+            // idempotency conflict. A mismatch is now a rejection, not a repair.
             $prior = $this->lockPrior($customerId, $payload['supersedes_judgment_id']);
-            if ($prior !== null) {
-                $payload['occurred_at'] = $this->timestamp($prior->occurred_at);
-            }
 
             $context = $this->lockAndAuthorize($customerId, $teacherId, $payload, $prior);
 
@@ -49,9 +52,17 @@ final class TeacherJudgmentService
                 return $this->replay($existing, $teacherId, $payload);
             }
 
-            $submittedAt = CarbonImmutable::now('UTC')->format('Y-m-d H:i:s.u');
+            $submittedAt = CarbonImmutable::now()->format('Y-m-d H:i:s.u');
             if ($payload['occurred_at'] > $submittedAt) {
                 throw new DomainException('LF_TEACHER_JUDGMENT_FUTURE_OCCURRENCE');
+            }
+
+            // Design decision 3: no post-Cohort submission window. The occurrence
+            // date is already bounded by the Cohort period; this bounds the act of
+            // submitting, which is a different date and was previously unchecked.
+            if ($context['cohort']->end_date !== null
+                && substr($submittedAt, 0, 10) > $context['cohort']->end_date) {
+                throw new DomainException('LF_TEACHER_JUDGMENT_COHORT_WINDOW_CLOSED');
             }
 
             $priorLineage = $this->lockPriorLineage($customerId, $prior);
@@ -214,8 +225,7 @@ final class TeacherJudgmentService
             'mastery_level_key' => $level,
             'mastery_score' => $score === null ? null : number_format((float) $score, 6, '.', ''),
             'reason' => $reason,
-            'occurred_at' => CarbonImmutable::parse((string) $command['occurred_at'], 'UTC')
-                ->utc()->format('Y-m-d H:i:s.u'),
+            'occurred_at' => $this->inboundTimestamp($command['occurred_at']),
             'supersedes_judgment_id' => isset($command['supersedes_judgment_id'])
                 ? (int) $command['supersedes_judgment_id'] : null,
         ];
@@ -472,9 +482,37 @@ final class TeacherJudgmentService
         return $values;
     }
 
+    /**
+     * Stored Learning and Course timestamps are naive wall-clock in the
+     * application timezone, because every other writer in LearnForge writes them
+     * that way. Reading them as UTC made this service the only component in the
+     * platform speaking a different convention, and nothing in an immutable row
+     * records which convention produced it.
+     */
     private function timestamp(mixed $value): string
     {
-        return CarbonImmutable::parse($value, 'UTC')->utc()->format('Y-m-d H:i:s.u');
+        return CarbonImmutable::parse($value, config('app.timezone'))
+            ->format('Y-m-d H:i:s.u');
+    }
+
+    /**
+     * Storage is deliberately ambiguous to match the rest of the database; the
+     * input contract is not. A caller must state an explicit offset, which is
+     * then converted to the application timezone before it is written. Accepting
+     * a naive string here is what let a caller's "now" be read as a moment seven
+     * hours away, and the destination row can never be corrected afterwards.
+     */
+    private function inboundTimestamp(mixed $value): string
+    {
+        $raw = trim((string) $value);
+
+        if (preg_match('/(Z|[+-]\d{2}:?\d{2})$/', $raw) !== 1) {
+            throw new DomainException('LF_TEACHER_JUDGMENT_OCCURRED_AT_OFFSET_REQUIRED');
+        }
+
+        return CarbonImmutable::parse($raw)
+            ->setTimezone(config('app.timezone'))
+            ->format('Y-m-d H:i:s.u');
     }
 
     private function decimal(mixed $value): ?string

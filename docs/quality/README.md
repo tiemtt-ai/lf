@@ -1,12 +1,12 @@
 # LearnForge Quality
 
-Version: 1.11
+Version: 1.12
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-15
+Last Updated: 2026-08-17
 
 Document Path: quality/README.md
 
@@ -91,6 +91,9 @@ criteria hay không.
 * [LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md](LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md)
   — HIGH documentation review for four released Course composite parent keys
   required by tenant-safe Teacher Judgment source foreign keys.
+* [LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md](LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md)
+  — Gate 1 independent runtime/migration code review; FAIL with four blocking
+  defects, one mandatory negative-matrix gap and one open Owner decision.
 * [LF-Schema-Drift-Trigger-Identity-Regression-Audit.md](LF-Schema-Drift-Trigger-Identity-Regression-Audit.md)
   — HIGH Existing-Feature Change audit for opt-in trigger identity enforcement
   in the shared schema-drift quality gate.

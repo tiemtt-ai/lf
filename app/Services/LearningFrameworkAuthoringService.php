@@ -330,8 +330,14 @@ final class LearningFrameworkAuthoringService
         return $value === null ? null : json_encode($value, JSON_THROW_ON_ERROR);
     }
 
+    /**
+     * Application timezone, not UTC: every other writer in LearnForge stores
+     * naive wall-clock, and a single table speaking a different convention
+     * cannot be reconciled later because the row does not record which one
+     * produced it.
+     */
     private function now(): string
     {
-        return CarbonImmutable::now('UTC')->format('Y-m-d H:i:s.u');
+        return CarbonImmutable::now()->format('Y-m-d H:i:s.u');
     }
 }

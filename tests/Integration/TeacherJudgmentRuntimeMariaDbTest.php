@@ -96,8 +96,25 @@ class TeacherJudgmentRuntimeMariaDbTest extends TestCase
         $this->assertSame(1, DB::table('core_learning_mastery_calculations')->count());
     }
 
+    /**
+     * Each case asserts its exact code. A prefix match cannot tell which rule
+     * rejected the submission, so a guard could silently move or disappear
+     * behind an earlier one and the matrix would stay green.
+     *
+     * `cohort` and `assignment` share `ASSIGNMENT_DENIED` because the service
+     * evaluates Cohort status inside the assignment guard. The test records that
+     * rather than hiding it: the two are genuinely indistinguishable to a caller.
+     */
     public function test_application_owned_authorization_rules_fail_closed(): void
     {
+        $expected = [
+            'cohort' => 'LF_TEACHER_JUDGMENT_ASSIGNMENT_DENIED',
+            'enrollment' => 'LF_TEACHER_JUDGMENT_ENROLLMENT_DENIED',
+            'membership' => 'LF_TEACHER_JUDGMENT_MEMBERSHIP_DENIED',
+            'assignment' => 'LF_TEACHER_JUDGMENT_ASSIGNMENT_DENIED',
+            'basis' => 'LF_TEACHER_JUDGMENT_BASIS_INVALID',
+        ];
+
         foreach (['cohort', 'enrollment', 'membership', 'assignment', 'basis'] as $case) {
             $context = $this->context("deny-{$case}");
             TenantContext::set((object) ['id' => $context['customer_id']]);
@@ -125,12 +142,95 @@ class TeacherJudgmentRuntimeMariaDbTest extends TestCase
                 );
                 $this->fail("{$case} must fail closed.");
             } catch (AuthorizationException|DomainException $exception) {
-                $this->assertStringStartsWith('LF_TEACHER_JUDGMENT_', $exception->getMessage());
+                $this->assertSame($expected[$case], $exception->getMessage(), "case {$case}");
             }
 
             $this->assertSame(0, DB::table('core_liveclass_teacher_judgments')
                 ->where('customer_id', $context['customer_id'])->count());
         }
+    }
+
+    /**
+     * Owner decision 4: customer_admin, student, AI, Track and unassigned
+     * teachers cannot submit. The role guard is the only thing enforcing it and
+     * had no test at all — an admin submitting judgments would have gone
+     * unnoticed by the whole suite.
+     */
+    public function test_only_an_active_teacher_role_may_submit(): void
+    {
+        $context = $this->context('role');
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        $service = app(TeacherJudgmentService::class);
+
+        foreach (['customer_admin', 'student'] as $role) {
+            $actor = $this->user($context['customer_id'], "deny-actor-{$role}@example.test", $role);
+            try {
+                $service->submit($actor, $this->command($context));
+                $this->fail("{$role} must not submit a Teacher Judgment.");
+            } catch (AuthorizationException $exception) {
+                $this->assertSame('LF_TEACHER_JUDGMENT_TEACHER_DENIED', $exception->getMessage());
+            }
+        }
+
+        $suspended = $this->user($context['customer_id'], 'deny-actor-suspended@example.test', 'teacher');
+        DB::table('users')->where('id', $suspended)->update(['status' => 'inactive']);
+        try {
+            $service->submit($suspended, $this->command($context));
+            $this->fail('An inactive teacher must not submit a Teacher Judgment.');
+        } catch (AuthorizationException $exception) {
+            $this->assertSame('LF_TEACHER_JUDGMENT_TEACHER_DENIED', $exception->getMessage());
+        }
+
+        $this->assertSame(0, DB::table('core_liveclass_teacher_judgments')
+            ->where('customer_id', $context['customer_id'])->count());
+    }
+
+    /**
+     * B1 remediation. Storage stays naive wall-clock like the rest of the
+     * database, but an inbound timestamp must state its offset: a naive string
+     * is exactly what let a caller's local "now" be read as a moment seven hours
+     * away, into a row no UPDATE can ever repair.
+     */
+    public function test_occurred_at_requires_an_explicit_offset(): void
+    {
+        $context = $this->context('offset');
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('LF_TEACHER_JUDGMENT_OCCURRED_AT_OFFSET_REQUIRED');
+        app(TeacherJudgmentService::class)->submit($context['teacher_id'], $this->command($context, [
+            'occurred_at' => '2026-08-15 09:00:00.000000',
+        ]));
+    }
+
+    /**
+     * B3 remediation. The service used to overwrite the caller's occurred_at
+     * with the predecessor's, which satisfied both priorIdentityMatches() and
+     * trg_ltj_bi_correction before either could object, and made a valid retry
+     * of the correction fail as an idempotency conflict.
+     */
+    public function test_correction_may_not_move_the_judged_moment(): void
+    {
+        $context = $this->context('moment');
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        $service = app(TeacherJudgmentService::class);
+        $first = $service->submit($context['teacher_id'], $this->command($context));
+
+        try {
+            $service->submit($context['teacher_id'], $this->command($context, [
+                'submission_uuid' => '33333333-3333-4333-8333-133333333333',
+                'occurred_at' => '2026-08-16T09:00:00.000000+07:00',
+                'mastery_level_key' => 'mastered',
+                'mastery_score' => 0.9,
+                'supersedes_judgment_id' => $first->judgment_id,
+            ]));
+            $this->fail('A correction must not re-date the judgment it supersedes.');
+        } catch (DomainException $exception) {
+            $this->assertSame('LF_TEACHER_JUDGMENT_CORRECTION_INVALID', $exception->getMessage());
+        }
+
+        $this->assertSame(1, DB::table('core_liveclass_teacher_judgments')
+            ->where('customer_id', $context['customer_id'])->count());
     }
 
     /**
@@ -379,7 +479,7 @@ class TeacherJudgmentRuntimeMariaDbTest extends TestCase
             'learning_node_id' => $context['node_id'],
             'mastery_level_key' => 'novice', 'mastery_score' => 0.5,
             'reason' => 'Direct observation during the assigned teaching window.',
-            'occurred_at' => '2026-08-15 09:00:00.000000',
+            'occurred_at' => '2026-08-15T09:00:00.000000+07:00',
         ], $overrides);
     }
 }

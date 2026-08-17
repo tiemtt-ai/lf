@@ -41,7 +41,11 @@ final class LearningMasteryProfileProjector
                 return $profile;
             }
 
-            $now = Carbon::now('UTC')->format('Y-m-d H:i:s.u');
+            // Application timezone, matching every other writer in LearnForge.
+            // projected_at is a stored DATETIME(6), so writing it in UTC while
+            // calculated_at arrives as wall-clock would put two conventions in
+            // one row of an otherwise consistent database.
+            $now = Carbon::now()->format('Y-m-d H:i:s.u');
             $projection = [
                 'framework_id' => $calculation->framework_id,
                 'current_calculation_id' => $calculation->id,
@@ -90,8 +94,16 @@ final class LearningMasteryProfileProjector
             > [$this->orderingTime($current->calculated_at), (int) $current->id];
     }
 
+    /**
+     * Both operands are stored wall-clock in the application timezone, so they
+     * are normalized in that zone rather than UTC. The explicit conversion still
+     * matters: it keeps a timezone-bearing value, should a cast ever produce
+     * one, from being compared against a naive one.
+     */
     private function orderingTime(mixed $value): string
     {
-        return CarbonImmutable::parse($value, 'UTC')->utc()->format('Y-m-d H:i:s.u');
+        return CarbonImmutable::parse($value, config('app.timezone'))
+            ->setTimezone(config('app.timezone'))
+            ->format('Y-m-d H:i:s.u');
     }
 }

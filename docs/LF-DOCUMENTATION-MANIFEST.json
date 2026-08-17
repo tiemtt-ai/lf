@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-08-16",
+  "generated_or_updated_at": "2026-08-17",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 227,
+  "document_count": 228,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -8412,6 +8412,50 @@
         "core/LF-Core-Course.md",
         "core/LF-Core-LiveClass.md",
         "quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md",
+      "title": "Learning Foundation Phase 4E Runtime Independent Code Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [
+        "learning_foundation_phase_4e_runtime_independent_review"
+      ],
+      "topics": [
+        "learning",
+        "teacher-judgment",
+        "code-review",
+        "phase-4e"
+      ],
+      "keywords": {
+        "vi": [
+          "review độc lập",
+          "đánh giá của giáo viên",
+          "múi giờ",
+          "cổng gate 1"
+        ],
+        "en": [
+          "independent review",
+          "teacher judgment",
+          "timezone",
+          "gate 1"
+        ]
+      },
+      "identifiers": [
+        "LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review"
+      ],
+      "related_documents": [
+        "adr/ADR-0016-Learning-Foundation.md",
+        "core/LF-Core-Learning.md",
+        "quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md",
+        "quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

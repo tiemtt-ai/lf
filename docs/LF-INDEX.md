@@ -1,12 +1,12 @@
 # LF-INDEX.md
 
-Version: 2.19
+Version: 2.20
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-15
+Last Updated: 2026-08-17
 
 Document Path: LF-INDEX.md
 
@@ -395,6 +395,7 @@ docs/quality/
 | [quality/LF-Learning-Foundation-Phase-4C-Trigger-Static-Review.md](quality/LF-Learning-Foundation-Phase-4C-Trigger-Static-Review.md) | Engine rehearsal BLOCKED: candidate `JSON_TABLE` conflicts with the allowed MariaDB 10.5 floor; database cleanup PASS |
 | [quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md](quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md) | Phase 4E Owner-approved direction; database review must cover four released Course parent-key prerequisites before any migration authorization |
 | [quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md](quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md) | Migration source, contract update and isolated MariaDB rehearsal PASS; real database deployment and Teacher Judgment source remain gated |
+| [quality/LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md](quality/LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md) | Gate 1 independent runtime/migration code review — **FAIL**; four blocking defects, negative-matrix gap, and the timezone contract requires an Owner decision |
 | [quality/LF-Schema-Drift-Trigger-Identity-Regression-Audit.md](quality/LF-Schema-Drift-Trigger-Identity-Regression-Audit.md) | PASS HIGH regression audit for opt-in trigger identity enforcement in schema drift |
 
 ---
@@ -785,7 +786,7 @@ thức, agent vẫn phải tự kiểm tra source code hiện tại trước khi
 | Recording | LiveClass × Media | [ADR-0002](adr/ADR-0002-LiveClass-Foundation.md) (Media Integration), [ADR-0004](adr/ADR-0004-Media-Foundation.md) | [LF-Core-LiveClass.md#recording](core/LF-Core-LiveClass.md#recording), [#relationship-with-media-domain](core/LF-Core-LiveClass.md#relationship-with-media-domain) | [core_liveclass_recordings.md](database/liveclass/core_liveclass_recordings.md) | Chưa có review chuyên biệt | platform/LF-Media.md | Guardrails → ADR-0002 → LF-Core-LiveClass.md#recording → core_liveclass_recordings.md |
 | Replay | LiveClass | [ADR-0002](adr/ADR-0002-LiveClass-Foundation.md) | [LF-Core-LiveClass.md#replay](core/LF-Core-LiveClass.md#replay) | [core_liveclass_replays.md](database/liveclass/core_liveclass_replays.md) | Chưa có review chuyên biệt | — | Guardrails → ADR-0002 → LF-Core-LiveClass.md#replay → core_liveclass_replays.md |
 | Live Chat | LiveClass | [ADR-0002](adr/ADR-0002-LiveClass-Foundation.md) | [LF-Core-LiveClass.md#live-chat](core/LF-Core-LiveClass.md#live-chat) | [core_liveclass_chat_logs.md](database/liveclass/core_liveclass_chat_logs.md) — ⚠️ **Chưa triển khai**: không tìm thấy migration cho `core_liveclass_chat_logs` tại thời điểm audit | Chưa có review chuyên biệt | — | Guardrails → ADR-0002 → LF-Core-LiveClass.md#live-chat → core_liveclass_chat_logs.md (lưu ý chưa triển khai) |
-| Teacher Judgment (nguồn Learning Evidence) | LiveClass × Learning | [ADR-0002](adr/ADR-0002-LiveClass-Foundation.md), [ADR-0016](adr/ADR-0016-Learning-Foundation.md) | [LF-Core-Learning.md](core/LF-Core-Learning.md) | [core_liveclass_teacher_judgments.md](database/liveclass/core_liveclass_teacher_judgments.md) — migration/contract implemented and **deployed on development; not production** | [Phase 4E Teacher Judgment Design](quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md), [Phase 4E Course Parent-Key Prerequisite Review](quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md) | governance/LF-Architecture-Review-Checklist.md | Guardrails → ADR-0016 → LF-Core-Learning.md → Phase 4E Design → source migration → disposable rehearsal → development deployment; runtime separately authorized |
+| Teacher Judgment (nguồn Learning Evidence) | LiveClass × Learning | [ADR-0002](adr/ADR-0002-LiveClass-Foundation.md), [ADR-0016](adr/ADR-0016-Learning-Foundation.md) | [LF-Core-Learning.md](core/LF-Core-Learning.md) | [core_liveclass_teacher_judgments.md](database/liveclass/core_liveclass_teacher_judgments.md) — migration/contract implemented and **deployed on development; not production** | [Phase 4E Teacher Judgment Design](quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md), [Phase 4E Course Parent-Key Prerequisite Review](quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md), [Phase 4E Runtime Independent Code Review](quality/LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md) (Gate 1 **FAIL** — runtime remains blocked) | governance/LF-Architecture-Review-Checklist.md | Guardrails → ADR-0016 → LF-Core-Learning.md → Phase 4E Design → source migration → disposable rehearsal → development deployment; runtime separately authorized |
 | Online/Offline/Hybrid Delivery | LiveClass | [ADR-0002](adr/ADR-0002-LiveClass-Foundation.md) | [LF-Core-LiveClass.md#hybrid-learning](core/LF-Core-LiveClass.md#hybrid-learning) | core_liveclass_rooms.md, core_liveclass_sessions.md | Chưa có review chuyên biệt | — | Guardrails → ADR-0002 → LF-Core-LiveClass.md#hybrid-learning → core_liveclass_rooms.md |
 | LiveClass Media Integration (Room/Session ↔ Media) | LiveClass × Media | [ADR-0002](adr/ADR-0002-LiveClass-Foundation.md) (Media Integration), [ADR-0004](adr/ADR-0004-Media-Foundation.md) | [LF-Core-LiveClass.md#relationship-with-media-domain](core/LF-Core-LiveClass.md#relationship-with-media-domain), [platform/LF-Media.md](platform/LF-Media.md) | [core_liveclass_rooms.md](database/liveclass/core_liveclass_rooms.md), [media_file_usages.md](database/media/media_file_usages.md) | Chưa có review chuyên biệt | — | Guardrails → ADR-0002 → ADR-0004 → LF-Core-LiveClass.md#relationship-with-media-domain |
 
