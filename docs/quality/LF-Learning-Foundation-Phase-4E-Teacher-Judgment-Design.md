@@ -1,6 +1,6 @@
 # Learning Foundation Phase 4E Teacher Judgment Design
 
-Version: 1.11
+Version: 1.12
 
 Document Status: Review
 
@@ -519,6 +519,41 @@ the review document, before the authorization was issued. The reason it was
 placed first still holds for anyone reading later — a suite that turns red on a
 fixed date, in the middle of days of API work, makes relaxing the rule look like
 the cheapest repair.
+
+## Cohort Transfer And Correction — 2026-08-17
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-17
+
+N4. Accepted. A judgment made before a learner transfers Cohort cannot be
+    corrected afterwards. The loss is deliberate.
+```
+
+A correction must preserve `cohort_student_membership_id`, and a transfer
+updates the membership row in place, so the supersede path for earlier judgments
+closes permanently. The alternatives were to relax correction identity for a
+matching learner and Node, or to add a separately reviewed post-closure workflow.
+Neither was taken: the first dissolves part of the identity
+`trg_ltj_bi_correction` exists to hold, and the second is a workflow this phase
+does not need. History is immutable, and this is what that costs.
+
+## Gate 2 Backlog Closed Before The Surface — 2026-08-17
+
+| Item | Remediation |
+| --- | --- |
+| N1 | `assertActor()` takes a capability, `author` or `publish`, and requires `customer_admin`. Both values resolve alike today; the parameter exists so they can separate without reopening five methods |
+| N2 | The Framework `active` guard reached `createDraftVersion()` and `createDefinition()` but not `createNode()` or `publishVersion()`, and no trigger checks Framework status on publish. Archiving a Framework did not stop its draft version becoming a permanently valid judgment basis. Both paths now lock the Framework |
+| N3 | Authoring accepted mastery scales outside the `[0, 1]` domain that judgments require, so a Framework on a 0/50/80 scale passed authoring and then failed every scored judgment against it. Thresholds are now bounded, and the lowest must be zero, or a score beneath it selects no level |
+| F2 | The duplicate-UUID test asserted `QueryException` broadly; it now pins SQLSTATE `23000` and names `idx_ltj_001`, so an unrelated column rejecting the row first would not pass |
+
+N2 and N3 share a shape worth noting: both were rules that existed and were
+believed to hold, failing on the paths nobody had walked. N3 is the more
+interesting of the two because its symptom appears in the judgment while its
+cause lives in the Framework, which is where a reader would not look.
+
+MariaDB 10.4.21 against an isolated database: 25 tests, 111 assertions across
+both runtime suites.
 
 Verified on MariaDB 10.4.21 against an isolated database: five tests and 24
 assertions. The load-bearing case authors a Framework end to end and then

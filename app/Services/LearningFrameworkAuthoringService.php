@@ -28,14 +28,17 @@ use Illuminate\Support\Facades\DB;
  *     definitions. Nothing physical prevents authoring into an archived
  *     Framework.
  *
- * Open policy question, deliberately not decided here: which roles may author a
- * Framework. The service requires an active user in the tenant and nothing
- * more, because no Owner decision names the authoring role. Callers must not
- * read that silence as permission.
+ * Authoring and publishing are restricted to `customer_admin` by Owner decision
+ * N1 of 2026-08-17, taken through a capability argument so the two can separate
+ * later without reopening every method. See assertActor().
  */
 final class LearningFrameworkAuthoringService
 {
     private const NODE_TYPES = ['objective', 'concept', 'competency'];
+
+    private const CAPABILITY_AUTHOR = 'author';
+
+    private const CAPABILITY_PUBLISH = 'publish';
 
     public function __construct(private readonly LearningRuntimeAccess $access) {}
 
@@ -48,7 +51,7 @@ final class LearningFrameworkAuthoringService
         $scale = $this->normalizeScale($command['mastery_scale'] ?? null);
 
         return DB::transaction(function () use ($customerId, $actorId, $command, $scale): object {
-            $this->assertActor($customerId, $actorId);
+            $this->assertActor($customerId, $actorId, self::CAPABILITY_AUTHOR);
             $now = $this->now();
 
             $id = DB::table('core_learning_frameworks')->insertGetId([
@@ -78,7 +81,7 @@ final class LearningFrameworkAuthoringService
         $customerId = $this->access->tenantId();
 
         return DB::transaction(function () use ($customerId, $actorId, $command): object {
-            $this->assertActor($customerId, $actorId);
+            $this->assertActor($customerId, $actorId, self::CAPABILITY_AUTHOR);
             $framework = $this->lockFramework($customerId, (int) ($command['framework_id'] ?? 0));
             $now = $this->now();
 
@@ -129,7 +132,7 @@ final class LearningFrameworkAuthoringService
         }
 
         return DB::transaction(function () use ($customerId, $actorId, $command, $type): object {
-            $this->assertActor($customerId, $actorId);
+            $this->assertActor($customerId, $actorId, self::CAPABILITY_AUTHOR);
             $framework = $this->lockFramework($customerId, (int) ($command['framework_id'] ?? 0));
             $now = $this->now();
 
@@ -159,10 +162,11 @@ final class LearningFrameworkAuthoringService
         $customerId = $this->access->tenantId();
 
         return DB::transaction(function () use ($customerId, $actorId, $command): object {
-            $this->assertActor($customerId, $actorId);
+            $this->assertActor($customerId, $actorId, self::CAPABILITY_AUTHOR);
             $version = $this->lockRow(
                 'core_learning_framework_versions', $customerId, (int) ($command['framework_version_id'] ?? 0)
             );
+            $this->lockFramework($customerId, (int) $version->framework_id);
             $definition = $this->lockRow(
                 'core_learning_node_definitions', $customerId, (int) ($command['node_definition_id'] ?? 0)
             );
@@ -211,8 +215,14 @@ final class LearningFrameworkAuthoringService
         $customerId = $this->access->tenantId();
 
         return DB::transaction(function () use ($customerId, $actorId, $versionId): object {
-            $this->assertActor($customerId, $actorId);
+            $this->assertActor($customerId, $actorId, self::CAPABILITY_PUBLISH);
             $version = $this->lockRow('core_learning_framework_versions', $customerId, $versionId);
+            // N2: the Framework guard reached only two of the four write paths.
+            // Nothing physical checks Framework status on publish —
+            // trg_lrn_fw_versions_bu_immutable validates the version's own
+            // lifecycle only — so archiving a Framework did not stop its draft
+            // version becoming a permanently valid judgment basis.
+            $this->lockFramework($customerId, (int) $version->framework_id);
 
             if ($version->status !== 'draft_snapshot') {
                 throw new DomainException('LF_FRAMEWORK_AUTHORING_VERSION_NOT_DRAFT');
@@ -234,11 +244,32 @@ final class LearningFrameworkAuthoringService
         });
     }
 
-    private function assertActor(int $customerId, int $actorId): void
+    /**
+     * Owner decision N1, 2026-08-17. Both capabilities map to `customer_admin`
+     * today and no authoring role is created.
+     *
+     * Publishing a Framework Version is curriculum authority, not teaching: it
+     * defines the measure every learner in the tenant is judged against, it is
+     * one-way, and it becomes a valid basis for permanent Evidence the moment it
+     * lands. Owner decision 4 already bars `customer_admin` from judging, so
+     * granting authoring there yields the separation for free — teachers judge,
+     * admins set the measure, nobody does both.
+     *
+     * The capability is a parameter even though both values resolve alike. The
+     * likely end state is an author drafting and an admin publishing; folding
+     * them into one check now would mean reopening every method on the day they
+     * separate, and widening a role set later is additive while narrowing it is
+     * not.
+     */
+    private function assertActor(int $customerId, int $actorId, string $capability): void
     {
+        if (! in_array($capability, [self::CAPABILITY_AUTHOR, self::CAPABILITY_PUBLISH], true)) {
+            throw new DomainException('LF_FRAMEWORK_AUTHORING_CAPABILITY_UNKNOWN');
+        }
+
         $actor = DB::table('users')->where('customer_id', $customerId)->where('id', $actorId)->first();
 
-        if ($actor === null || $actor->status !== 'active') {
+        if ($actor === null || $actor->status !== 'active' || $actor->role !== 'customer_admin') {
             throw new DomainException('LF_FRAMEWORK_AUTHORING_ACTOR_DENIED');
         }
     }
@@ -290,8 +321,20 @@ final class LearningFrameworkAuthoringService
             $threshold = is_array($level) && is_numeric($level['threshold'] ?? null)
                 ? (float) $level['threshold'] : null;
 
+            // N3: authoring and judging must share one value domain. A judgment
+            // score is bounded to [0, 1] here and by chk_ltj_001, so a Framework
+            // published on a 0/50/80 scale was accepted and then made every
+            // scored judgment against it fail RESULT_INVALID — a defect visible
+            // only at judging time, in the Framework rather than the judgment.
             if ($key === '' || $threshold === null || isset($seen[$key])
+                || $threshold < 0 || $threshold > 1
                 || ($previous !== null && $threshold <= $previous)) {
+                throw new DomainException('LF_FRAMEWORK_AUTHORING_SCALE_INVALID');
+            }
+
+            // The lowest level must start at zero, or a score below it selects
+            // no level and the judgment fails however valid the level key is.
+            if ($previous === null && $threshold !== 0.0) {
                 throw new DomainException('LF_FRAMEWORK_AUTHORING_SCALE_INVALID');
             }
 

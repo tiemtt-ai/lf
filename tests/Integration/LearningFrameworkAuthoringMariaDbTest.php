@@ -223,6 +223,124 @@ class LearningFrameworkAuthoringMariaDbTest extends TestCase
     }
 
     /**
+     * Owner decision N1. Publishing defines the measure the whole tenant is
+     * judged against and is irreversible, so it is curriculum authority rather
+     * than teaching. A teacher publishing would change the basis for another
+     * teacher's judgments.
+     */
+    public function test_only_customer_admin_may_author_or_publish(): void
+    {
+        $fixture = $this->courseFixture('authority');
+        TenantContext::set((object) ['id' => $fixture['customer_id']]);
+        $authoring = app(LearningFrameworkAuthoringService::class);
+
+        foreach ([$fixture['teacher_id'], $fixture['student_id']] as $actor) {
+            try {
+                $authoring->createFramework($actor, $this->frameworkCommand('authority'));
+                $this->fail('Only customer_admin may author a Framework.');
+            } catch (DomainException $exception) {
+                $this->assertSame('LF_FRAMEWORK_AUTHORING_ACTOR_DENIED', $exception->getMessage());
+            }
+        }
+
+        $framework = $authoring->createFramework($fixture['admin_id'], $this->frameworkCommand('authority'));
+        $version = $authoring->createDraftVersion($fixture['admin_id'], [
+            'framework_id' => $framework->id, 'version_code' => 'v1-authority', 'title' => 'Authority',
+        ]);
+
+        try {
+            $authoring->publishVersion($fixture['teacher_id'], $version->id);
+            $this->fail('Only customer_admin may publish a Framework Version.');
+        } catch (DomainException $exception) {
+            $this->assertSame('LF_FRAMEWORK_AUTHORING_ACTOR_DENIED', $exception->getMessage());
+        }
+
+        $this->assertSame('draft_snapshot', DB::table('core_learning_framework_versions')
+            ->where('id', $version->id)->value('status'));
+    }
+
+    /**
+     * N2. The Framework guard reached createDraftVersion and createDefinition
+     * but not createNode or publishVersion, and no trigger checks Framework
+     * status on publish — trg_lrn_fw_versions_bu_immutable validates only the
+     * version's own lifecycle. Archiving a Framework therefore did not stop its
+     * draft version becoming a permanently valid judgment basis.
+     */
+    public function test_an_archived_framework_blocks_node_creation_and_publish(): void
+    {
+        $fixture = $this->courseFixture('archived');
+        TenantContext::set((object) ['id' => $fixture['customer_id']]);
+        $authoring = app(LearningFrameworkAuthoringService::class);
+
+        $framework = $authoring->createFramework($fixture['admin_id'], $this->frameworkCommand('archived'));
+        $version = $authoring->createDraftVersion($fixture['admin_id'], [
+            'framework_id' => $framework->id, 'version_code' => 'v1-archived', 'title' => 'Archived',
+        ]);
+        $definition = $authoring->createDefinition($fixture['admin_id'], [
+            'framework_id' => $framework->id, 'code' => 'node-archived',
+            'node_type' => 'concept', 'canonical_name' => 'Archived node',
+        ]);
+
+        DB::table('core_learning_frameworks')->where('id', $framework->id)->update([
+            'status' => 'archived', 'archived_at' => now(), 'archived_by' => $fixture['admin_id'],
+        ]);
+
+        foreach ([
+            fn () => $authoring->createNode($fixture['admin_id'], [
+                'framework_version_id' => $version->id, 'node_definition_id' => $definition->id,
+            ]),
+            fn () => $authoring->publishVersion($fixture['admin_id'], $version->id),
+        ] as $operation) {
+            try {
+                $operation();
+                $this->fail('An archived Framework must accept neither Nodes nor a publish.');
+            } catch (DomainException $exception) {
+                $this->assertSame('LF_FRAMEWORK_AUTHORING_FRAMEWORK_ARCHIVED', $exception->getMessage());
+            }
+        }
+
+        $this->assertSame('draft_snapshot', DB::table('core_learning_framework_versions')
+            ->where('id', $version->id)->value('status'));
+        $this->assertSame(0, DB::table('core_learning_nodes')
+            ->where('customer_id', $fixture['customer_id'])->count());
+    }
+
+    /**
+     * N3. Authoring and judging must share one value domain. A judgment score is
+     * bounded to [0, 1] by the service and by chk_ltj_001, so a scale outside
+     * that range was accepted at authoring and then failed every scored
+     * judgment — a defect surfacing in the judgment while living in the
+     * Framework. A lowest threshold above zero has the same shape: a score below
+     * it selects no level at all.
+     */
+    public function test_mastery_scale_must_share_the_judgment_value_domain(): void
+    {
+        $fixture = $this->courseFixture('domain');
+        TenantContext::set((object) ['id' => $fixture['customer_id']]);
+        $authoring = app(LearningFrameworkAuthoringService::class);
+
+        foreach ([
+            'percentage scale' => [['key' => 'low', 'threshold' => 0], ['key' => 'high', 'threshold' => 80]],
+            'negative threshold' => [['key' => 'low', 'threshold' => -1], ['key' => 'high', 'threshold' => 0.8]],
+            'lowest above zero' => [['key' => 'low', 'threshold' => 0.2], ['key' => 'high', 'threshold' => 0.8]],
+        ] as $case => $levels) {
+            try {
+                $authoring->createFramework($fixture['admin_id'], [
+                    'code' => 'domain-'.$fixture['customer_id'], 'name' => 'Domain',
+                    'mastery_scale_key' => 'direct', 'mastery_scale_version' => '1',
+                    'mastery_scale' => ['levels' => $levels],
+                ]);
+                $this->fail("{$case} must be rejected.");
+            } catch (DomainException $exception) {
+                $this->assertSame('LF_FRAMEWORK_AUTHORING_SCALE_INVALID', $exception->getMessage(), $case);
+            }
+        }
+
+        $this->assertSame(0, DB::table('core_learning_frameworks')
+            ->where('customer_id', $fixture['customer_id'])->count());
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function frameworkCommand(string $suffix): array

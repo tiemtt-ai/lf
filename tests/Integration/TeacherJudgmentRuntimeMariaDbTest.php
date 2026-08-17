@@ -507,8 +507,16 @@ class TeacherJudgmentRuntimeMariaDbTest extends TestCase
         $row = (array) DB::table('core_liveclass_teacher_judgments')->find($first->judgment_id);
         unset($row['id']);
 
-        $this->expectException(QueryException::class);
-        DB::table('core_liveclass_teacher_judgments')->insert($row);
+        try {
+            DB::table('core_liveclass_teacher_judgments')->insert($row);
+            $this->fail('A duplicate producer UUID must be rejected by the key.');
+        } catch (QueryException $exception) {
+            // F2: naming the constraint pins which key did the work. A bare
+            // QueryException would also pass if some unrelated column rejected
+            // the row first.
+            $this->assertSame('23000', $exception->errorInfo[0] ?? null);
+            $this->assertStringContainsString('idx_ltj_001', $exception->getMessage());
+        }
     }
 
     /**
