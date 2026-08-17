@@ -1,6 +1,6 @@
 # Learning Foundation Phase 4E Teacher Judgment Design
 
-Version: 1.8
+Version: 1.9
 
 Document Status: Review
 
@@ -383,8 +383,40 @@ Two negative branches named by the Owner decisions but never exercised were
 added: an active teacher holding no assignment on the Cohort, and an occurrence
 outside the assignment date range.
 
-Every `LF_TEACHER_JUDGMENT_*` authorization code now appears in at least one
-test. MariaDB 10.4.21 against an isolated database: 16 tests, 82 assertions.
+MariaDB 10.4.21 against an isolated database: 16 tests, 82 assertions.
+
+## Third Pass Remediation — 2026-08-17
+
+The third pass found no code defect in any of the three artifacts. It found a
+false claim in the verification: this document and its commit stated that every
+`LF_TEACHER_JUDGMENT_*` code appeared in a test. The check behind that sentence
+grepped five hand-picked codes and generalised. The correct check is a set
+difference between the codes the service raises and the codes the tests name:
+
+```bash
+comm -23 <(grep -rho 'LF_TEACHER_JUDGMENT_[A-Z_]*' app/Services/TeacherJudgmentService.php | sort -u) \
+         <(grep -rho 'LF_TEACHER_JUDGMENT_[A-Z_]*' tests/ | sort -u)
+```
+
+It returned seven codes with no test at all: `FUTURE_OCCURRENCE`,
+`LINEAGE_INCOMPLETE`, `REQUIRED`, `RESULT_INVALID`, `SCALE_INVALID`,
+`SCORE_INVALID` and `UUID_INVALID`. Four of them are the Required Negative
+Matrix rows for invalid level or score and a malformed producer UUID, which the
+false claim would have closed without anyone writing a line.
+
+| Row | Coverage added |
+| --- | --- |
+| Invalid level or score, malformed UUID, missing field | One validation test drives `REQUIRED`, `UUID_INVALID`, `SCORE_INVALID` and both `RESULT_INVALID` paths — empty result fields, rejected before any lookup, and a level outside the frozen basis scale, rejected after it |
+| Future occurrence | An occurrence inside both the Cohort period and the assignment range, so only the future check can reject it |
+| Malformed scale snapshot | Exercised directly against the guard. `trg_lrn_fw_versions_bi_validate` refuses to store such a snapshot, so the path is unreachable through the database; the test fails if the guard is removed, which a reachability-only argument would not have caught |
+| Correction without prior lineage | A source row inserted without its Evidence and Calculation, then superseded |
+| Cross-tenant | Another tenant's context against this tenant's identifiers, unreachable because every lookup is tenant-scoped |
+| Tenant-safe but cross-inconsistent | Every identifier inside one tenant, with a membership belonging to a different Cohort — caught by the explicit cross-row equalities that no foreign key expresses |
+| Double-submit concurrency | The physical key behind the post-lock recheck is asserted directly. In-process parallelism is not exercised and the test says so: the suite runs one connection inside one transaction, so a second connection would not see uncommitted rows |
+
+All 18 codes the service raises now appear in the suite; the set difference
+above is empty. MariaDB 10.4.21 against an isolated database: 22 tests, 98
+assertions across both runtime suites.
 
 MariaDB 10.4.21 against an isolated database: 13 tests, 69 assertions across
 both runtime suites. Default suite 733 tests, 8,241 assertions, one skipped.

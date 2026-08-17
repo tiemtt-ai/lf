@@ -1,6 +1,6 @@
 # Learning Foundation Phase 4E Runtime Independent Code Review
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Review
 
@@ -530,6 +530,64 @@ Owner decision rather than a defect.
 3. Recommended, not required: split the Cohort guard per the section above.
 
 R4 and N1 are Gate 2 conditions and do not hold Gate 1.
+
+---
+
+## Third Pass — 2026-08-17 (commit `60e0c85`)
+
+```text
+GATE 1 REMAINS FAIL — code-clean. No code defect remains in the three
+                      artifacts. What holds the gate is a finite test list.
+```
+
+Closed and verified by reading:
+
+| Item | Result |
+| --- | --- |
+| R1 correction retry | **Closed.** The correction command is resubmitted and asserted `replayed === true` against the same `judgment_id`, with the row count unchanged. This is the branch that was never reached before. |
+| R2 Cohort end boundary | **Closed**, and the fixture is built correctly: the Cohort period is shortened to `2026-08-01 → 2026-08-10` while the occurrence stays at `2026-08-05`, so the test proves the *new* submission bound rather than passing on the occurrence bound that already existed. |
+| R3 legacy-convention rows | **Closed by data.** Zero rows across all nine affected tables on `learnforge_db`. Nothing to reconcile and no Owner decision arises. |
+| R4 input contract | **Closed.** The anchored pattern was exercised independently on sixteen inputs, including four the remediation table does not list: `Z` with microseconds, the seconds-less `HH:MMZ` form, a whitespace-separated offset, and `+0700`. All sixteen behave correctly — `+07` accepted, bare `YYYY-MM-DD` refused, `not-a-date+07:00` refused at the regex as a domain error. |
+| Cohort guard split | **Done.** `LF_TEACHER_JUDGMENT_COHORT_DENIED` separates rules 2 and 3, and the fail-closed matrix asserts the two distinct codes. |
+| Unassigned teacher, assignment date range | **Covered** by `test_assignment_scope_and_range_fail_closed`. |
+
+### Third-Pass Finding
+
+**One verification claim is not supported by the repository.** The remediation
+record states that every `LF_TEACHER_JUDGMENT_*` code is touched by at least one
+test. Seven have zero occurrences anywhere under `tests/`:
+
+```text
+LF_TEACHER_JUDGMENT_FUTURE_OCCURRENCE     LF_TEACHER_JUDGMENT_RESULT_INVALID
+LF_TEACHER_JUDGMENT_LINEAGE_INCOMPLETE    LF_TEACHER_JUDGMENT_SCALE_INVALID
+LF_TEACHER_JUDGMENT_REQUIRED              LF_TEACHER_JUDGMENT_SCORE_INVALID
+                                          LF_TEACHER_JUDGMENT_UUID_INVALID
+```
+
+Four of them — `RESULT_INVALID`, `SCORE_INVALID`, `SCALE_INVALID` and
+`UUID_INVALID` — are the "invalid level/score" and "malformed producer UUID"
+rows of § Required Negative Matrix, listed as open in Version 1.1 of this
+document. Accepted at face value, the claim would have closed them without the
+work being done. The code is unaffected; this is a finding about the
+verification record, and it is the only finding of this pass.
+
+### Still Required To Close Gate 1
+
+Unchanged from Version 1.1 item 1, which required R1 and R2 *plus* the listed
+Required Negative Matrix items. Two of those were closed this pass; these remain:
+
+* `RESULT_INVALID`, `SCORE_INVALID`, `SCALE_INVALID` — invalid level or score
+* `UUID_INVALID` — malformed producer UUID
+* `FUTURE_OCCURRENCE`
+* cross-tenant actor, learner, Cohort, assignment, membership, Node and basis
+* tenant-safe but mutually inconsistent rows
+* double-submit concurrency
+
+The first three are input-validation paths reachable in a few lines each. The
+last three are the substantial ones. No code change is expected for any of them.
+
+Trivial, not a finding: the correction assertion block repeats
+`assertSame(2, …->count())` on consecutive lines.
 
 ---
 

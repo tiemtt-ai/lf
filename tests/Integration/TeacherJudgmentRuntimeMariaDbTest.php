@@ -7,6 +7,7 @@ use App\Support\TenantContext;
 use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
+use Illuminate\Database\RecordsNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -78,7 +79,6 @@ class TeacherJudgmentRuntimeMariaDbTest extends TestCase
         $this->assertTrue($correctionReplay->replayed);
         $this->assertSame($correction->judgment_id, $correctionReplay->judgment_id);
         $this->assertSame(2, DB::table('core_liveclass_teacher_judgments')->count());
-        $this->assertSame(2, DB::table('core_liveclass_teacher_judgments')->count());
         $this->assertSame($first->evidence_id, (int) DB::table('core_learning_evidence')
             ->where('id', $correction->evidence_id)->value('supersedes_evidence_id'));
         $this->assertSame($first->calculation_id, (int) DB::table('core_learning_mastery_calculations')
@@ -113,9 +113,9 @@ class TeacherJudgmentRuntimeMariaDbTest extends TestCase
      * rejected the submission, so a guard could silently move or disappear
      * behind an earlier one and the matrix would stay green.
      *
-     * `cohort` and `assignment` share `ASSIGNMENT_DENIED` because the service
-     * evaluates Cohort status inside the assignment guard. The test records that
-     * rather than hiding it: the two are genuinely indistinguishable to a caller.
+     * Cohort and assignment eligibility now raise distinct codes. Sharing one
+     * defeated the purpose: two rules behind a single code prove neither, since
+     * either could vanish behind the other and this matrix would stay green.
      */
     public function test_application_owned_authorization_rules_fail_closed(): void
     {
@@ -295,6 +295,209 @@ class TeacherJudgmentRuntimeMariaDbTest extends TestCase
                 $this->assertSame($code, $exception->getMessage(), $input);
             }
         }
+    }
+
+    /**
+     * Command validation. None of these codes was reachable from any test, so
+     * the Required Negative Matrix rows for invalid level/score and a malformed
+     * producer UUID were open regardless of what the service does.
+     */
+    public function test_command_validation_rejects_malformed_input(): void
+    {
+        $context = $this->context('input');
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        $service = app(TeacherJudgmentService::class);
+
+        $cases = [
+            'LF_TEACHER_JUDGMENT_REQUIRED:cohort_id' => ['cohort_id' => null],
+            'LF_TEACHER_JUDGMENT_UUID_INVALID' => ['submission_uuid' => 'not-a-uuid'],
+            'LF_TEACHER_JUDGMENT_SCORE_INVALID' => ['mastery_score' => 1.5],
+        ];
+
+        foreach ($cases as $code => $override) {
+            $command = $this->command($context, $override);
+            if ($override === ['cohort_id' => null]) {
+                unset($command['cohort_id']);
+            }
+
+            try {
+                $service->submit($context['teacher_id'], $command);
+                $this->fail("{$code} must be raised.");
+            } catch (DomainException $exception) {
+                $this->assertSame($code, $exception->getMessage());
+            }
+        }
+
+        // Empty result fields are rejected before any lookup; a level outside
+        // the frozen basis scale is rejected after it, and both use the same
+        // code because both mean the stated result cannot be honoured.
+        foreach ([['reason' => '   '], ['mastery_level_key' => 'not-in-scale']] as $override) {
+            try {
+                $service->submit($context['teacher_id'], $this->command($context, $override));
+                $this->fail('An unusable result must be rejected.');
+            } catch (DomainException $exception) {
+                $this->assertSame('LF_TEACHER_JUDGMENT_RESULT_INVALID', $exception->getMessage());
+            }
+        }
+
+        $this->assertSame(0, DB::table('core_liveclass_teacher_judgments')
+            ->where('customer_id', $context['customer_id'])->count());
+    }
+
+    public function test_future_occurrence_is_rejected(): void
+    {
+        $context = $this->context('future');
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('LF_TEACHER_JUDGMENT_FUTURE_OCCURRENCE');
+        app(TeacherJudgmentService::class)->submit($context['teacher_id'], $this->command($context, [
+            // Inside the Cohort period and the assignment range, so only the
+            // future check can reject it.
+            'occurred_at' => '2026-08-30T09:00:00.000000+07:00',
+        ]));
+    }
+
+    /**
+     * Defence in depth. trg_lrn_fw_versions_bi_validate already refuses to store
+     * a malformed scale, so this guard cannot be reached through the database
+     * and is exercised directly. A test that could not fail would be worse than
+     * none; this one fails if the guard is removed.
+     */
+    public function test_malformed_scale_snapshot_is_rejected_by_the_service_guard(): void
+    {
+        $service = app(TeacherJudgmentService::class);
+        $method = new \ReflectionMethod($service, 'assertScaleResult');
+
+        foreach ([
+            '{"levels":[{"key":"only","threshold":0}]}',
+            '{"levels":[]}',
+            '{}',
+        ] as $snapshot) {
+            try {
+                $method->invoke($service, $snapshot, 'only', null);
+                $this->fail('A scale with fewer than two levels must be rejected.');
+            } catch (DomainException $exception) {
+                $this->assertSame('LF_TEACHER_JUDGMENT_SCALE_INVALID', $exception->getMessage());
+            }
+        }
+    }
+
+    /**
+     * A correction locks the predecessor's Evidence and Calculation. A source
+     * row without them means the lineage this rule depends on is not there, and
+     * the correction must stop rather than build a second chain beside it.
+     */
+    public function test_correction_without_prior_lineage_is_rejected(): void
+    {
+        $context = $this->context('lineage');
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        $now = now();
+
+        $orphanId = DB::table('core_liveclass_teacher_judgments')->insertGetId([
+            'customer_id' => $context['customer_id'],
+            'submission_uuid' => '55555555-5555-4555-8555-155555555555',
+            'cohort_id' => $context['cohort_id'],
+            'cohort_teacher_assignment_id' => $context['assignment_id'],
+            'cohort_student_membership_id' => $context['membership_id'],
+            'enrollment_id' => $context['enrollment_id'],
+            'teacher_id' => $context['teacher_id'],
+            'student_id' => $context['student_id'],
+            'framework_id' => $context['framework_id'],
+            'basis_framework_version_id' => $context['basis_id'],
+            'learning_node_id' => $context['node_id'],
+            'mastery_level_key' => 'novice',
+            'mastery_score' => '0.500000',
+            'reason' => 'Source row written without its Learning lineage.',
+            'context_snapshot' => '{}',
+            'occurred_at' => '2026-08-15 09:00:00.000000',
+            'submitted_at' => '2026-08-15 10:00:00.000000',
+            'created_at' => $now,
+        ]);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('LF_TEACHER_JUDGMENT_LINEAGE_INCOMPLETE');
+        app(TeacherJudgmentService::class)->submit($context['teacher_id'], $this->command($context, [
+            'submission_uuid' => '66666666-6666-4666-8666-166666666666',
+            'supersedes_judgment_id' => $orphanId,
+        ]));
+    }
+
+    /**
+     * Two separate rules. Cross-tenant rows are unreachable because every lookup
+     * is tenant-scoped; rows that are all inside one tenant but do not refer to
+     * each other are caught by the explicit cross-row equalities, which no
+     * foreign key expresses.
+     */
+    public function test_cross_tenant_and_cross_inconsistent_rows_fail_closed(): void
+    {
+        $owner = $this->context('owner');
+        $other = $this->context('other');
+        $service = app(TeacherJudgmentService::class);
+
+        TenantContext::set((object) ['id' => $other['customer_id']]);
+        try {
+            $service->submit($other['teacher_id'], $this->command($owner));
+            $this->fail('A tenant must not judge against another tenant context.');
+        } catch (RecordsNotFoundException) {
+            $this->addToAssertionCount(1);
+        }
+
+        // Every identifier below belongs to the owner tenant, so tenant scoping
+        // passes; the membership simply belongs to a different Cohort.
+        TenantContext::set((object) ['id' => $owner['customer_id']]);
+        $foreignCohort = $this->context('foreign');
+        // core_course_cohort_students is unique on (customer_id, enrollment_id),
+        // so the stray membership needs an enrollment of its own.
+        $strayEnrollment = DB::table('core_course_enrollments')->insertGetId([
+            'customer_id' => $owner['customer_id'], 'product_id' => $owner['product_id'],
+            'version_id' => DB::table('core_course_cohorts')->where('id', $owner['cohort_id'])
+                ->value('version_id'),
+            'student_id' => $owner['student_id'], 'source' => 'admin',
+            'enrolled_by' => $owner['admin_id'], 'enrolled_at' => '2026-08-01 00:00:00',
+            'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $strayMembership = DB::table('core_course_cohort_students')->insertGetId([
+            'customer_id' => $owner['customer_id'], 'cohort_id' => $foreignCohort['cohort_id'],
+            'enrollment_id' => $strayEnrollment, 'product_id' => $owner['product_id'],
+            'student_id' => $owner['student_id'], 'assigned_by' => $owner['admin_id'],
+            'joined_at' => '2026-08-01 00:00:00', 'status' => 'active',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        try {
+            $service->submit($owner['teacher_id'], $this->command($owner, [
+                'cohort_student_membership_id' => $strayMembership,
+            ]));
+            $this->fail('A membership on another Cohort must be denied.');
+        } catch (AuthorizationException $exception) {
+            $this->assertSame('LF_TEACHER_JUDGMENT_MEMBERSHIP_DENIED', $exception->getMessage());
+        }
+
+        $this->assertSame(0, DB::table('core_liveclass_teacher_judgments')->count());
+    }
+
+    /**
+     * The service rechecks the producer UUID after taking every lock, so a
+     * commit that lands between the first check and the locks becomes a replay.
+     * What makes that recheck safe is the physical key underneath it, asserted
+     * here directly. In-process parallelism is not exercised: the suite runs a
+     * single connection inside one transaction, so a second connection would not
+     * observe uncommitted rows and the test would prove nothing.
+     */
+    public function test_duplicate_producer_uuid_is_rejected_by_the_physical_key(): void
+    {
+        $context = $this->context('concurrent');
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        $first = app(TeacherJudgmentService::class)->submit(
+            $context['teacher_id'], $this->command($context)
+        );
+
+        $row = (array) DB::table('core_liveclass_teacher_judgments')->find($first->judgment_id);
+        unset($row['id']);
+
+        $this->expectException(QueryException::class);
+        DB::table('core_liveclass_teacher_judgments')->insert($row);
     }
 
     /**
