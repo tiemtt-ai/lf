@@ -1,6 +1,6 @@
 # Learning Foundation Phase 4E Teacher Judgment Design
 
-Version: 1.6
+Version: 1.7
 
 Document Status: Review
 
@@ -305,6 +305,9 @@ review pass.
    verdict **FAIL**. All five items were remediated on 2026-08-17 as recorded
    below. The gate stays open until the reviewer re-examines them: remediation
    by the author does not close a review any more than the original code did.
+   Re-reviewed the same day: B1 to B4 accepted as closed in code, B5 not closed.
+   The gate remains open on B5 and on four re-review items recorded in that
+   document's Re-Review section.
 2. Obtain separate authorization before route, API, controller or UI work. This
    now covers the user-facing Framework authoring surface as well: the internal
    authoring path exists, but no screen or endpoint reaches it.

@@ -1,6 +1,6 @@
 # Learning Foundation Phase 4E Runtime Independent Code Review
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Review
 
@@ -426,6 +426,110 @@ Owner decision recorded above.
 Gate 2 — external surface authorization — must not open before items 1 to 5
 close. B1 and B2 in particular write mis-conventioned values into an append-only
 table; the cost of correcting them after production writes is not a commit.
+
+---
+
+## Re-Review — 2026-08-17
+
+Scope: commit `9f2cea9` (unpushed) plus the working state of the three reviewed
+artifacts and both MariaDB suites. Verified by reading the code, not the
+remediation summary.
+
+```text
+GATE 1 REMAINS FAIL — narrowed. B1 to B4 are closed in code.
+                      B5 is partially closed and cannot be signed off.
+```
+
+| Finding | Re-review result |
+| --- | --- |
+| B1 timestamp convention | **Closed in code.** Six sites verified: `submitted_at`, inbound `occurred_at` and `timestamp()` in `TeacherJudgmentService`; `now()` in `LearningFrameworkAuthoringService`; `projected_at` and `orderingTime()` in `LearningMasteryProfileProjector`. No `'UTC'` remains in the three services. `timestamp()` parses stored values in the application timezone and formats without conversion, so it normalizes rather than shifts — correct. The offset gate `/(Z\|[+-]\d{2}:?\d{2})$/` accepts `Z`, `±HH:MM` and `±HHMM`, and correctly rejects a bare `YYYY-MM-DD`, whose trailing `-08-15` does not satisfy the pattern. One verification outstanding: see R3. |
+| B2 date windows | **Closed** as a consequence of B1. |
+| B3 correction rewrite | **Closed in code.** The assignment is gone and `lockPrior()` still precedes `lockAndAuthorize()`, so the assignment window is evaluated against the caller's own `occurred_at`, which a correction must now match. Test gap: see R1. |
+| B4 Cohort end boundary | **Closed in code**, and the implementation avoids the trap this check invites: it compares `substr($submittedAt, 0, 10)` against a `DATE`-typed `end_date` rather than a datetime against a date, so the final day of the Cohort is not wrongly refused. Placement after the replay short-circuit is also correct — an idempotent retry submitted after the Cohort closes replays instead of raising the new code. Untested: see R2. |
+| B5 test gaps | **Partially closed.** Closed: the five fail-closed cases now assert exact codes; the teacher role rule, the offset contract and the correction moment each gained a test. Not closed: see R1 and R2 below and the list that follows. |
+
+Required Negative Matrix items still uncovered in
+`TeacherJudgmentRuntimeMariaDbTest`, listed by the error code no test reaches:
+
+* `LF_TEACHER_JUDGMENT_COHORT_WINDOW_CLOSED` — the rule B4 added in this commit
+* `LF_TEACHER_JUDGMENT_RESULT_INVALID`, `..._SCORE_INVALID`, `..._SCALE_INVALID`
+  — "invalid level/score"
+* `LF_TEACHER_JUDGMENT_UUID_INVALID` — "malformed producer UUID"
+* `LF_TEACHER_JUDGMENT_FUTURE_OCCURRENCE`
+* the unassigned-but-active teacher branch of the assignment guard, named
+  directly by Owner decision 4; the new role test covers `customer_admin`,
+  `student` and an inactive teacher, but not a valid teacher without the
+  assignment
+* the `assigned_from` / `assigned_to` range branch
+* cross-tenant actor, learner, Cohort, assignment, membership, Node and basis
+* tenant-safe but mutually inconsistent rows
+* double-submit concurrency
+
+### Re-Review Findings
+
+**R1 — the operative symptom of B3 has no regression test.** B3's third and most
+consequential effect was that a valid retry of a *successful correction* failed
+with `LF_TEACHER_JUDGMENT_IDEMPOTENCY_CONFLICT`. `test_correction_may_not_move_the_judged_moment`
+covers the rejection of a moved moment, and
+`test_submit_replay_and_correction_are_atomic_and_append_only` replays the
+*initial* judgment, but no test resubmits a correction. The behaviour is correct
+today; nothing pins it. Reintroducing any normalization of `occurred_at` on the
+correction path leaves the suite green. One resubmission of the existing
+correction command asserting `replayed === true` and an unchanged row count
+closes it.
+
+**R2 — B4 introduced an authorization rule with no test.** The commit that
+closes a finding about missing negative coverage adds
+`LF_TEACHER_JUDGMENT_COHORT_WINDOW_CLOSED` and covers it nowhere. The rule is
+correctly implemented; it is simply unproven, and it is the one rule that
+governs writes after a Cohort has closed.
+
+**R3 — no evidence that the pre-fix convention left no rows behind.** The fix is
+forward-only. Nothing in the commit or the verification record establishes that
+`core_liveclass_teacher_judgments`, `core_learning_evidence`,
+`core_learning_mastery_calculations`, `core_learning_mastery_profiles` and the
+four authoring tables hold no row written under the old UTC convention on
+`learnforge_db`. If any exists, the database is now in exactly the mixed state
+B1 described as unreconcilable, and no row records which convention produced it.
+A row count per table closes this; a non-zero count needs an Owner decision
+before Gate 2, not a code change.
+
+**R4 — the input contract is guarded but not yet strict (N5, still open).** A
+string that carries an offset but is otherwise malformed passes the regex and
+raises `InvalidFormatException` rather than a domain error. A two-digit ISO-8601
+offset such as `+07` is valid and is refused with
+`LF_TEACHER_JUDGMENT_OCCURRED_AT_OFFSET_REQUIRED`, which misdescribes the cause.
+Both are fail-closed and neither blocks Gate 1, but both must close before an
+external surface exists, because the caller then owns this string.
+
+### On The Disclosed Error-Code Collision
+
+Stating that `cohort` and `assignment` both raise `ASSIGNMENT_DENIED` is the
+right instinct, and better than a prefix match hiding it. The reviewer's position
+is nonetheless that it should be split rather than documented: B5 exists so that
+each of the seven rules is independently provable, and while these two share a
+code, rules 2 and 3 are not. Moving the four Cohort conditions into their own
+guard with `LF_TEACHER_JUDGMENT_COHORT_DENIED` is mechanical and changes no
+behaviour.
+
+The argument that a caller cannot distinguish them either is an argument about
+the external surface, not the internal service — and it points the other way:
+keep the internal codes precise and collapse them to one opaque code at the API
+boundary, rather than losing the distinction at the point where it is enforced.
+
+### Unchanged Since Version 1.0
+
+N1 through N4 and N6 through N7 stand as written. N1 — `assertActor()` still
+admits any active user — remains the blocking precondition for Gate 2, and is an
+Owner decision rather than a defect.
+
+### To Close Gate 1
+
+1. R1 and R2 tested, plus the Required Negative Matrix items listed above.
+2. R3 answered with a row count per affected table.
+3. Recommended, not required: split the Cohort guard per the section above.
+
+R4 and N1 are Gate 2 conditions and do not hold Gate 1.
 
 ---
 
