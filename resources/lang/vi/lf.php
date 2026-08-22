@@ -713,6 +713,8 @@ return [
     'LF_course_enrollment_enrolled_at_help' => 'Mặc định là ngày giờ hiện tại. Bạn có thể chọn thời điểm khác.',
     'LF_course_enrollment_enrolled_at_popup_title' => 'Thiếu ngày ghi danh',
     'LF_course_enrollment_enrolled_at_required' => 'Vui lòng nhập Ngày ghi danh.',
+    'LF_learning_occurred_at_offset_required' => 'Thời điểm đánh giá phải ghi rõ múi giờ, ví dụ 2026-08-15T09:00:00+07:00.',
+    'LF_learning_occurred_at_invalid' => 'Thời điểm đánh giá không phải là một mốc thời gian có thật.',
     'LF_bulk_enrollment_access_time' => 'Thời gian truy cập',
     'LF_bulk_enrollment_registration_window' => 'Khoảng đăng ký',
     'LF_bulk_enrollment_registration_unlimited' => 'Không giới hạn thời gian đăng ký',

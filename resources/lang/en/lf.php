@@ -713,6 +713,8 @@ return [
     'LF_course_enrollment_enrolled_at_help' => 'Defaults to the current date and time. You can choose a different time.',
     'LF_course_enrollment_enrolled_at_popup_title' => 'Enrollment date required',
     'LF_course_enrollment_enrolled_at_required' => 'Enter an enrollment date.',
+    'LF_learning_occurred_at_offset_required' => 'The judgment time must state its offset, for example 2026-08-15T09:00:00+07:00.',
+    'LF_learning_occurred_at_invalid' => 'The judgment time is not a real instant.',
     'LF_bulk_enrollment_access_time' => 'Access time',
     'LF_bulk_enrollment_registration_window' => 'Registration window',
     'LF_bulk_enrollment_registration_unlimited' => 'No registration time limit',

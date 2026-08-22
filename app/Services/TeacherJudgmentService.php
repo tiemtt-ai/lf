@@ -10,6 +10,14 @@ use Illuminate\Support\Facades\DB;
 
 final class TeacherJudgmentService
 {
+    /**
+     * The inbound offset contract, stated once. The HTTP boundary validates the
+     * same shape so a caller gets a readable field error instead of a domain
+     * exception, and this guard stays because the service is reachable without
+     * HTTP. One pattern, two enforcement points, no drift.
+     */
+    public const OCCURRED_AT_OFFSET_PATTERN = '/\d{2}:\d{2}(:\d{2}(\.\d+)?)?\s*(Z|[+-]\d{2}(:?\d{2})?)$/';
+
     private const RULE_KEY = 'teacher_judgment_direct';
 
     private const RULE_VERSION = '1';
@@ -519,7 +527,7 @@ final class TeacherJudgmentService
         // offset, and would let any malformed string carrying a valid-looking
         // suffix through to Carbon and out as InvalidFormatException instead of
         // a domain error. `+07` is accepted: a two-digit offset is ISO-8601.
-        if (preg_match('/\d{2}:\d{2}(:\d{2}(\.\d+)?)?\s*(Z|[+-]\d{2}(:?\d{2})?)$/', $raw) !== 1) {
+        if (preg_match(self::OCCURRED_AT_OFFSET_PATTERN, $raw) !== 1) {
             throw new DomainException('LF_TEACHER_JUDGMENT_OCCURRED_AT_OFFSET_REQUIRED');
         }
 

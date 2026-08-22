@@ -1,6 +1,6 @@
 # Learning Foundation Phase 4E Runtime Independent Code Review
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Review
 
@@ -698,6 +698,36 @@ Unchanged and still open, in the order they should be settled:
    permanently closes the supersede path for earlier judgments. Owner decision.
 6. **F2**, and strict format validation at the HTTP boundary once a caller owns
    the request body.
+
+---
+
+## Authorship Change — 2026-08-17
+
+At the Architecture Owner's direction, the Phase 4E external surface
+(FormRequest, controller, route, UI) is being written by the same reviewer who
+produced this document. The consequence is recorded here rather than left to be
+noticed later:
+
+**This session cannot close Gate 2.** A reviewer who authors the surface has the
+same disqualification the Phase 4E design document already states for the
+runtime — "Review by the author closes no gate however thorough it is." The Gate
+2 review must be performed by a reviewer who did not write the surface; a fresh
+session carrying none of this session's context satisfies that, a continuation of
+this one does not.
+
+Two things are unaffected. The **Gate 1 verdict stands**: it covered three
+artifacts this reviewer did not write, the closing conditions were published in
+advance, and they were met. And the **service layer remains the authorization
+decider**: the surface may deny early for UX through `RoleMiddleware` and
+`FormRequest::authorize()`, but `TeacherJudgmentService` and
+`LearningFrameworkAuthoringService` keep every rule they enforce today. A later
+change that removes a service check because "the route already checks" is a
+regression, not a cleanup.
+
+The first Gate 2 reviewer should read this section before anything else, and
+should treat the surface with the same suspicion this document applied to the
+runtime — starting with whether any of the seven application-owned rules got
+restated, relaxed or bypassed at the HTTP boundary.
 
 ---
 

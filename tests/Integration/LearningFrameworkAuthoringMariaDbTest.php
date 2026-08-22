@@ -341,6 +341,129 @@ class LearningFrameworkAuthoringMariaDbTest extends TestCase
     }
 
     /**
+     * Shape rules reject before anything is written. Both codes were unreachable
+     * by the suite: the same set-difference that closed the judgment side had
+     * not been run against this service.
+     */
+    public function test_command_shape_is_rejected_before_any_write(): void
+    {
+        $fixture = $this->courseFixture('shape');
+        TenantContext::set((object) ['id' => $fixture['customer_id']]);
+        $authoring = app(LearningFrameworkAuthoringService::class);
+
+        try {
+            $authoring->createDefinition($fixture['admin_id'], [
+                'framework_id' => 1, 'code' => 'shape', 'node_type' => 'skill',
+                'canonical_name' => 'Unsupported type',
+            ]);
+            $this->fail('An unsupported node_type must be rejected.');
+        } catch (DomainException $exception) {
+            $this->assertSame('LF_FRAMEWORK_AUTHORING_NODE_TYPE_INVALID', $exception->getMessage());
+        }
+
+        foreach ([
+            'LF_FRAMEWORK_AUTHORING_FIELD_INVALID:code' => ['code' => '   '],
+            'LF_FRAMEWORK_AUTHORING_FIELD_INVALID:name' => ['name' => str_repeat('n', 256)],
+        ] as $code => $override) {
+            try {
+                $authoring->createFramework(
+                    $fixture['admin_id'],
+                    array_merge($this->frameworkCommand('shape'), $override)
+                );
+                $this->fail("{$code} must be raised.");
+            } catch (DomainException $exception) {
+                $this->assertSame($code, $exception->getMessage());
+            }
+        }
+
+        $this->assertSame(0, DB::table('core_learning_frameworks')
+            ->where('customer_id', $fixture['customer_id'])->count());
+        $this->assertSame(0, DB::table('core_learning_node_definitions')
+            ->where('customer_id', $fixture['customer_id'])->count());
+    }
+
+    /**
+     * Two cross-row rules in createNode, both tenant-safe on their own and both
+     * invisible to any foreign key: a Definition belonging to another Framework,
+     * and a Definition that is no longer active. Each is asserted by its exact
+     * code so neither can pass on the other's rejection.
+     */
+    public function test_node_creation_rejects_a_mismatched_or_inactive_definition(): void
+    {
+        $fixture = $this->courseFixture('nodeguard');
+        TenantContext::set((object) ['id' => $fixture['customer_id']]);
+        $authoring = app(LearningFrameworkAuthoringService::class);
+
+        $owning = $authoring->createFramework($fixture['admin_id'], $this->frameworkCommand('nodeguard-owning'));
+        $version = $authoring->createDraftVersion($fixture['admin_id'], [
+            'framework_id' => $owning->id, 'version_code' => 'v1-nodeguard', 'title' => 'Node guard',
+        ]);
+
+        $foreign = $authoring->createFramework($fixture['admin_id'], $this->frameworkCommand('nodeguard-foreign'));
+        $foreignDefinition = $authoring->createDefinition($fixture['admin_id'], [
+            'framework_id' => $foreign->id, 'code' => 'foreign-node',
+            'node_type' => 'concept', 'canonical_name' => 'Foreign node',
+        ]);
+
+        try {
+            $authoring->createNode($fixture['admin_id'], [
+                'framework_version_id' => $version->id,
+                'node_definition_id' => $foreignDefinition->id,
+            ]);
+            $this->fail('A Definition from another Framework must be rejected.');
+        } catch (DomainException $exception) {
+            $this->assertSame('LF_FRAMEWORK_AUTHORING_FRAMEWORK_MISMATCH', $exception->getMessage());
+        }
+
+        $ownDefinition = $authoring->createDefinition($fixture['admin_id'], [
+            'framework_id' => $owning->id, 'code' => 'own-node',
+            'node_type' => 'concept', 'canonical_name' => 'Own node',
+        ]);
+        DB::table('core_learning_node_definitions')->where('id', $ownDefinition->id)
+            ->update(['status' => 'archived']);
+
+        try {
+            $authoring->createNode($fixture['admin_id'], [
+                'framework_version_id' => $version->id,
+                'node_definition_id' => $ownDefinition->id,
+            ]);
+            $this->fail('An archived Definition must not become a versioned Node.');
+        } catch (DomainException $exception) {
+            $this->assertSame('LF_FRAMEWORK_AUTHORING_DEFINITION_INACTIVE', $exception->getMessage());
+        }
+
+        $this->assertSame(0, DB::table('core_learning_nodes')
+            ->where('customer_id', $fixture['customer_id'])->count());
+    }
+
+    /**
+     * Every call site passes a class constant, so this branch cannot be reached
+     * through the public API and is exercised directly. It exists because the
+     * capability is a parameter: the day author and publish separate, a typo at
+     * a call site must fail closed rather than resolve to whichever check is
+     * cheaper. The valid-capability case is asserted too, so a guard that
+     * rejected everything would not pass this test.
+     */
+    public function test_an_unknown_capability_is_rejected_by_the_actor_guard(): void
+    {
+        $fixture = $this->courseFixture('capability');
+        TenantContext::set((object) ['id' => $fixture['customer_id']]);
+        $service = app(LearningFrameworkAuthoringService::class);
+        $method = new \ReflectionMethod($service, 'assertActor');
+
+        try {
+            $method->invoke($service, $fixture['customer_id'], $fixture['admin_id'], 'delete');
+            $this->fail('An unknown capability must be rejected.');
+        } catch (DomainException $exception) {
+            $this->assertSame('LF_FRAMEWORK_AUTHORING_CAPABILITY_UNKNOWN', $exception->getMessage());
+        }
+
+        $method->invoke($service, $fixture['customer_id'], $fixture['admin_id'], 'author');
+        $method->invoke($service, $fixture['customer_id'], $fixture['admin_id'], 'publish');
+        $this->addToAssertionCount(2);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function frameworkCommand(string $suffix): array
