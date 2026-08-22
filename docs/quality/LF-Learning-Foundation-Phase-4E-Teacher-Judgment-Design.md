@@ -1,12 +1,12 @@
 # Learning Foundation Phase 4E Teacher Judgment Design
 
-Version: 1.12
+Version: 1.13
 
 Document Status: Review
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-17
+Last Updated: 2026-08-22
 
 Document Path: quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md
 
@@ -296,21 +296,22 @@ service must remain unreachable from HTTP until External Surface receives a
 separate approval after the MariaDB negative matrix and independent code
 review pass.
 
-## Remaining Gates Before External Surface
+## Remaining Gates Before Production Deployment
 
-1. Complete independent runtime and migration code review by a reviewer who did
-   not author them. Review by the author closes no gate however thorough it is.
-   Performed on 2026-08-17 and recorded in
+1. **Gate 1 PASS — closed 2026-08-17.** The independent runtime and migration
+   code review is recorded in
    [Phase 4E Runtime Independent Code Review](LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md):
-   verdict **FAIL**. All five items were remediated on 2026-08-17 as recorded
-   below. The gate stays open until the reviewer re-examines them: remediation
-   by the author does not close a review any more than the original code did.
-   Re-reviewed the same day: B1 to B4 accepted as closed in code, B5 not closed.
-   The gate remains open on B5 and on four re-review items recorded in that
-   document's Re-Review section.
-2. Obtain separate authorization before route, API, controller or UI work. This
-   now covers the user-facing Framework authoring surface as well: the internal
-   authoring path exists, but no screen or endpoint reaches it.
+   see **Fourth Pass — 2026-08-17**, verdict `GATE 1 PASS`. B1–B5 and R1–R4
+   were closed and the required negative matrix was verified. This verdict did
+   not authorize the external surface or production deployment.
+2. **Gate 2 — open.** Architecture Owner authorized request validation,
+   controller, route and UI work on 2026-08-17. The Framework authoring surface
+   subsequently shipped in `67aafcf` and was rendered in the admin design system
+   in `8e695d8`. It has received one review and remediation pass, but Gate 2
+   remains open until a reviewer who authored neither the surface nor its
+   remediation reviews it independently. The Owner must also decide G2-N1
+   (read-service ownership) and G2-N3 (whether publish requires at least one
+   Node), as recorded under **Gate 2 Remaining Items** in the review document.
 3. Complete the separate production deployment gate.
 
 ## Timestamp Convention
@@ -449,10 +450,11 @@ both runtime suites. Default suite 733 tests, 8,241 assertions, one skipped.
 ## Framework Authoring Path
 
 Teacher Judgment could not be exercised at all while nothing created a Framework
-Version or Node, so `LearningFrameworkAuthoringService` provides that path for
-internal callers on 2026-08-16. It creates a Framework, a draft Version, a Node
-Definition and a Node, and publishes the Version. It exposes no route or
-controller, so it does not consume the external-surface gate above.
+Version or Node, so `LearningFrameworkAuthoringService` first provided that path
+for internal callers on 2026-08-16. It creates a Framework, a draft Version, a
+Node Definition and a Node, and publishes the Version. After the separate
+authorization below, the customer-admin HTTP surface shipped through `67aafcf`
+and uses this service as the owner boundary for every mutation.
 
 Two rules in it have no database backstop and are therefore application-owned:
 a Node may only be added while its Version is `draft_snapshot`, because
