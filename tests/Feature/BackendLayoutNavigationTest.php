@@ -81,6 +81,8 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertSee('data-sidebar-icon="package"', false)
             ->assertDontSee('data-sidebar-icon="shopping-bag"', false)
             ->assertSee('data-sidebar-icon="image"', false)
+            ->assertSee('href="https://tenant-a.localhost/admin/learning-frameworks"', false)
+            ->assertSeeText(__('lf.LF_learning_frameworks'))
             ->assertDontSee('x-on:click="handleSidebarNavigation($event)"', false);
 
         $this->actingAs($teacher)

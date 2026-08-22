@@ -83,6 +83,7 @@
                 ['label' => __('lf.LF_navigation_menu_admin_course_enrollments'), 'route' => 'admin.course-enrollments.index', 'active' => 'admin.course-enrollments.*', 'visible' => true, 'icon' => 'clipboard-check'],
                 ['label' => __('lf.LF_navigation_menu_admin_course_cohorts'), 'route' => 'admin.course-cohorts.index', 'active' => 'admin.course-cohorts.*', 'visible' => true, 'icon' => 'users'],
                 ['label' => __('lf.LF_navigation_menu_admin_media'), 'route' => 'admin.media.index', 'active' => 'admin.media.*', 'visible' => true, 'icon' => 'image'],
+                ['label' => __('lf.LF_learning_frameworks'), 'route' => 'admin.learning-frameworks.index', 'active' => 'admin.learning-frameworks.*', 'visible' => true, 'icon' => 'book-open'],
             ];
         $dashboardLabel = $isTeacher
             ? __('lf.LF_navigation_menu_teacher_dashboard')

@@ -28,7 +28,7 @@ class LearningNodeRequest extends FormRequest
             'framework_version_id' => ['required', 'integer', 'min:1'],
             'node_definition_id' => ['required', 'integer', 'min:1'],
             'sequence' => ['sometimes', 'integer', 'min:1'],
-            'criteria' => ['nullable', 'array'],
+            'criteria_json' => ['nullable', 'json'],
 
             'customer_id' => ['prohibited'],
             'framework_id' => ['prohibited'],
@@ -46,6 +46,29 @@ class LearningNodeRequest extends FormRequest
      */
     public function command(): array
     {
-        return $this->validated();
+        $command = $this->validated();
+
+        if (array_key_exists('criteria_json', $command)) {
+            $command['criteria'] = filled($command['criteria_json'])
+                ? json_decode($command['criteria_json'], true, 512, JSON_THROW_ON_ERROR)
+                : null;
+            unset($command['criteria_json']);
+        }
+
+        return $command;
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            if (! filled($this->input('criteria_json'))) {
+                return;
+            }
+
+            $decoded = json_decode((string) $this->input('criteria_json'), true);
+            if (! is_array($decoded)) {
+                $validator->errors()->add('criteria_json', __('validation.array', ['attribute' => 'criteria']));
+            }
+        });
     }
 }

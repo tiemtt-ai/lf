@@ -2,6 +2,7 @@
 
 namespace Tests\Integration;
 
+use App\Models\User;
 use App\Services\LearningFrameworkAuthoringService;
 use App\Services\TeacherJudgmentService;
 use App\Support\TenantContext;
@@ -463,6 +464,154 @@ class LearningFrameworkAuthoringMariaDbTest extends TestCase
         $this->addToAssertionCount(2);
     }
 
+    public function test_manual_update_methods_preserve_draft_snapshots_and_lock_published_identity(): void
+    {
+        $fixture = $this->courseFixture('updates');
+        TenantContext::set((object) ['id' => $fixture['customer_id']]);
+        $service = app(LearningFrameworkAuthoringService::class);
+        $framework = $service->createFramework($fixture['admin_id'], $this->frameworkCommand('updates'));
+        $version = $service->createDraftVersion($fixture['admin_id'], [
+            'framework_id' => $framework->id, 'version_code' => 'v1', 'title' => 'Draft',
+        ]);
+        $definition = $service->createDefinition($fixture['admin_id'], [
+            'framework_id' => $framework->id, 'code' => 'stable', 'node_type' => 'concept',
+            'canonical_name' => 'Original',
+        ]);
+        $node = $service->createNode($fixture['admin_id'], [
+            'framework_version_id' => $version->id, 'node_definition_id' => $definition->id,
+        ]);
+
+        $service->updateFramework($fixture['admin_id'], $framework->id, array_merge(
+            $this->frameworkCommand('updates'), ['name' => 'Updated Framework']
+        ));
+        try {
+            $service->updateDraftVersion($fixture['admin_id'], $version->id, [
+                'framework_id' => $framework->id, 'version_code' => 'v1-updated', 'title' => 'Updated Draft',
+            ]);
+            $this->fail('A Framework Version code is immutable.');
+        } catch (DomainException $exception) {
+            $this->assertSame('LF_FRAMEWORK_AUTHORING_VERSION_CODE_IMMUTABLE', $exception->getMessage());
+        }
+        $service->updateDraftVersion($fixture['admin_id'], $version->id, [
+            'framework_id' => $framework->id, 'version_code' => 'v1', 'title' => 'Updated Draft',
+        ]);
+        $service->updateDefinition($fixture['admin_id'], $definition->id, [
+            'framework_id' => $framework->id, 'code' => 'stable-2', 'node_type' => 'competency',
+            'canonical_name' => 'Updated Definition', 'description' => 'Updated description',
+        ]);
+        $service->updateDraftNode($fixture['admin_id'], $node->id, [
+            'framework_version_id' => $version->id, 'node_definition_id' => $definition->id,
+            'sequence' => 3, 'criteria' => ['level' => 'applied'],
+        ]);
+
+        $this->assertSame('Updated Framework', DB::table('core_learning_frameworks')->find($framework->id)->name);
+        $this->assertSame('Updated Draft', DB::table('core_learning_framework_versions')->find($version->id)->title_snapshot);
+        $storedNode = DB::table('core_learning_nodes')->find($node->id);
+        $this->assertSame('stable-2', $storedNode->code_snapshot);
+        $this->assertSame('Updated Definition', $storedNode->name_snapshot);
+        $this->assertSame(3, (int) $storedNode->sequence);
+
+        $service->publishVersion($fixture['admin_id'], $version->id);
+        try {
+            $service->updateDefinition($fixture['admin_id'], $definition->id, [
+                'framework_id' => $framework->id, 'code' => 'changed', 'node_type' => 'competency',
+                'canonical_name' => 'Updated Definition', 'description' => 'Allowed alone',
+            ]);
+            $this->fail('Published Definition identity must be immutable.');
+        } catch (DomainException $exception) {
+            $this->assertSame('LF_FRAMEWORK_AUTHORING_DEFINITION_IDENTITY_IMMUTABLE', $exception->getMessage());
+        }
+
+        $updated = $service->updateDefinition($fixture['admin_id'], $definition->id, [
+            'framework_id' => $framework->id, 'code' => 'stable-2', 'node_type' => 'competency',
+            'canonical_name' => 'Updated Definition', 'description' => 'Description remains editable',
+        ]);
+        $this->assertSame('Description remains editable', $updated->description);
+    }
+
+    public function test_node_definition_and_published_draft_mutations_fail_with_exact_codes(): void
+    {
+        $fixture = $this->courseFixture('immutable');
+        TenantContext::set((object) ['id' => $fixture['customer_id']]);
+        $service = app(LearningFrameworkAuthoringService::class);
+        $framework = $service->createFramework($fixture['admin_id'], $this->frameworkCommand('immutable'));
+        $version = $service->createDraftVersion($fixture['admin_id'], [
+            'framework_id' => $framework->id, 'version_code' => 'v1', 'title' => 'Draft',
+        ]);
+        $first = $service->createDefinition($fixture['admin_id'], [
+            'framework_id' => $framework->id, 'code' => 'first', 'node_type' => 'concept',
+            'canonical_name' => 'First',
+        ]);
+        $second = $service->createDefinition($fixture['admin_id'], [
+            'framework_id' => $framework->id, 'code' => 'second', 'node_type' => 'concept',
+            'canonical_name' => 'Second',
+        ]);
+        $node = $service->createNode($fixture['admin_id'], [
+            'framework_version_id' => $version->id, 'node_definition_id' => $first->id,
+        ]);
+
+        try {
+            $service->updateDraftNode($fixture['admin_id'], $node->id, [
+                'framework_version_id' => $version->id, 'node_definition_id' => $second->id,
+            ]);
+            $this->fail('Node Definition identity must not change.');
+        } catch (DomainException $exception) {
+            $this->assertSame('LF_FRAMEWORK_AUTHORING_NODE_DEFINITION_IMMUTABLE', $exception->getMessage());
+        }
+
+        $service->publishVersion($fixture['admin_id'], $version->id);
+        foreach ([
+            fn () => $service->updateDraftVersion($fixture['admin_id'], $version->id, [
+                'framework_id' => $framework->id, 'version_code' => 'v2', 'title' => 'No',
+            ]),
+            fn () => $service->updateDraftNode($fixture['admin_id'], $node->id, [
+                'framework_version_id' => $version->id, 'node_definition_id' => $first->id,
+            ]),
+        ] as $operation) {
+            try {
+                $operation();
+                $this->fail('Published version mutation must fail.');
+            } catch (DomainException $exception) {
+                $this->assertSame('LF_FRAMEWORK_AUTHORING_VERSION_NOT_DRAFT', $exception->getMessage());
+            }
+        }
+    }
+
+    public function test_http_surface_denies_non_admins_and_cross_tenant_reads(): void
+    {
+        $owner = $this->courseFixture('http-owner');
+        $other = $this->courseFixture('http-other');
+        TenantContext::set((object) ['id' => $owner['customer_id']]);
+        $framework = app(LearningFrameworkAuthoringService::class)
+            ->createFramework($owner['admin_id'], $this->frameworkCommand('http-owner'));
+
+        $paths = [
+            ['get', '/admin/learning-frameworks'],
+            ['get', '/admin/learning-frameworks/create'],
+            ['post', '/admin/learning-frameworks'],
+            ['get', "/admin/learning-frameworks/{$framework->id}"],
+            ['put', "/admin/learning-frameworks/{$framework->id}"],
+            ['post', "/admin/learning-frameworks/{$framework->id}/versions"],
+            ['put', "/admin/learning-frameworks/{$framework->id}/versions/1"],
+            ['post', "/admin/learning-frameworks/{$framework->id}/versions/1/publish"],
+            ['post', "/admin/learning-frameworks/{$framework->id}/definitions"],
+            ['put', "/admin/learning-frameworks/{$framework->id}/definitions/1"],
+            ['post', "/admin/learning-frameworks/{$framework->id}/versions/1/nodes"],
+            ['put', "/admin/learning-frameworks/{$framework->id}/versions/1/nodes/1"],
+        ];
+
+        foreach ([$owner['teacher_id'], $owner['student_id']] as $userId) {
+            $this->actingAs(User::findOrFail($userId));
+            foreach ($paths as [$method, $path]) {
+                $this->{$method}('https://authoring-http-owner.localhost'.$path)->assertForbidden();
+            }
+        }
+
+        $this->actingAs(User::findOrFail($other['admin_id']))
+            ->get("https://authoring-http-other.localhost/admin/learning-frameworks/{$framework->id}")
+            ->assertNotFound();
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -555,6 +704,7 @@ class LearningFrameworkAuthoringMariaDbTest extends TestCase
         return DB::table('users')->insertGetId([
             'customer_id' => $customerId, 'name' => $email, 'email' => $email,
             'password' => bcrypt('password'), 'role' => $role, 'status' => 'active',
+            'email_verified_at' => now(),
             'created_at' => now(), 'updated_at' => now(),
         ]);
     }

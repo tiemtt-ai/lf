@@ -8,12 +8,12 @@ use Illuminate\Database\RecordsNotFoundException;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Internal authoring path for the Learning Foundation graph.
+ * Owner boundary for authoring the Learning Foundation graph.
  *
  * Teacher Judgment cannot run without a versioned Node to judge against, and
- * nothing else in the repository creates one. This service closes that gap for
- * internal callers only: it exposes no route, controller or HTTP surface, so it
- * does not touch the external-surface authorization gate.
+ * nothing else may create one. Internal callers and the customer-admin manual
+ * authoring surface both use this service so authorization, tenant ownership
+ * and lifecycle policy cannot be bypassed by the transport layer.
  *
  * The database already enforces the hard parts — ordered mastery scales,
  * draft-only version inserts, the one-way version lifecycle, and node
@@ -27,6 +27,9 @@ use Illuminate\Support\Facades\DB;
  *   - a Framework must still be `active` to receive new versions or
  *     definitions. Nothing physical prevents authoring into an archived
  *     Framework.
+ *   - the semantic identity of a Definition becomes immutable once a
+ *     non-draft version references it. The database freezes versioned Node
+ *     snapshots but does not protect the stable Definition they point to.
  *
  * Authoring and publishing are restricted to `customer_admin` by Owner decision
  * N1 of 2026-08-17, taken through a capability argument so the two can separate
@@ -70,6 +73,36 @@ final class LearningFrameworkAuthoringService
             ]);
 
             return $this->row('core_learning_frameworks', $customerId, $id);
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $command
+     */
+    public function updateFramework(int $actorId, int $frameworkId, array $command): object
+    {
+        $customerId = $this->access->tenantId();
+        $scale = $this->normalizeScale($command['mastery_scale'] ?? null);
+
+        return DB::transaction(function () use ($customerId, $actorId, $frameworkId, $command, $scale): object {
+            $this->assertActor($customerId, $actorId, self::CAPABILITY_AUTHOR);
+            $framework = $this->lockFramework($customerId, $frameworkId);
+
+            DB::table('core_learning_frameworks')
+                ->where('customer_id', $customerId)
+                ->where('id', $framework->id)
+                ->update([
+                    'code' => $this->text($command, 'code', 100),
+                    'name' => $this->text($command, 'name', 255),
+                    'description' => $this->optionalText($command, 'description'),
+                    'default_mastery_scale_key' => $this->text($command, 'mastery_scale_key', 100),
+                    'default_mastery_scale_version' => $this->text($command, 'mastery_scale_version', 50),
+                    'default_mastery_scale' => $scale,
+                    'updated_by' => $actorId,
+                    'updated_at' => $this->now(),
+                ]);
+
+            return $this->row('core_learning_frameworks', $customerId, $framework->id);
         });
     }
 
@@ -123,6 +156,42 @@ final class LearningFrameworkAuthoringService
     /**
      * @param  array<string, mixed>  $command
      */
+    public function updateDraftVersion(int $actorId, int $versionId, array $command): object
+    {
+        $customerId = $this->access->tenantId();
+
+        return DB::transaction(function () use ($customerId, $actorId, $versionId, $command): object {
+            $this->assertActor($customerId, $actorId, self::CAPABILITY_AUTHOR);
+            $version = $this->lockRow('core_learning_framework_versions', $customerId, $versionId);
+            $this->lockFramework($customerId, (int) $version->framework_id);
+
+            if ($version->status !== 'draft_snapshot') {
+                throw new DomainException('LF_FRAMEWORK_AUTHORING_VERSION_NOT_DRAFT');
+            }
+            if ((int) ($command['framework_id'] ?? 0) !== (int) $version->framework_id) {
+                throw new DomainException('LF_FRAMEWORK_AUTHORING_FRAMEWORK_MISMATCH');
+            }
+            if ($this->text($command, 'version_code', 100) !== $version->version_code) {
+                throw new DomainException('LF_FRAMEWORK_AUTHORING_VERSION_CODE_IMMUTABLE');
+            }
+
+            DB::table('core_learning_framework_versions')
+                ->where('customer_id', $customerId)
+                ->where('id', $version->id)
+                ->update([
+                    'title_snapshot' => $this->text($command, 'title', 255),
+                    'description_snapshot' => $this->optionalText($command, 'description'),
+                    'updated_by' => $actorId,
+                    'updated_at' => $this->now(),
+                ]);
+
+            return $this->row('core_learning_framework_versions', $customerId, $version->id);
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $command
+     */
     public function createDefinition(int $actorId, array $command): object
     {
         $customerId = $this->access->tenantId();
@@ -151,6 +220,80 @@ final class LearningFrameworkAuthoringService
             ]);
 
             return $this->row('core_learning_node_definitions', $customerId, $id);
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $command
+     */
+    public function updateDefinition(int $actorId, int $definitionId, array $command): object
+    {
+        $customerId = $this->access->tenantId();
+        $type = (string) ($command['node_type'] ?? '');
+        if (! in_array($type, self::NODE_TYPES, true)) {
+            throw new DomainException('LF_FRAMEWORK_AUTHORING_NODE_TYPE_INVALID');
+        }
+
+        return DB::transaction(function () use ($customerId, $actorId, $definitionId, $command, $type): object {
+            $this->assertActor($customerId, $actorId, self::CAPABILITY_AUTHOR);
+            $definition = $this->lockRow('core_learning_node_definitions', $customerId, $definitionId);
+            $this->lockFramework($customerId, (int) $definition->framework_id);
+
+            if ((int) ($command['framework_id'] ?? 0) !== (int) $definition->framework_id) {
+                throw new DomainException('LF_FRAMEWORK_AUTHORING_FRAMEWORK_MISMATCH');
+            }
+            if ($definition->status !== 'active') {
+                throw new DomainException('LF_FRAMEWORK_AUTHORING_DEFINITION_INACTIVE');
+            }
+
+            $hasPublishedUse = DB::table('core_learning_nodes as nodes')
+                ->join('core_learning_framework_versions as versions', function ($join): void {
+                    $join->on('versions.id', '=', 'nodes.framework_version_id')
+                        ->on('versions.customer_id', '=', 'nodes.customer_id');
+                })
+                ->where('nodes.customer_id', $customerId)
+                ->where('nodes.node_definition_id', $definition->id)
+                ->where('versions.status', '<>', 'draft_snapshot')
+                ->exists();
+
+            if ($hasPublishedUse && (
+                $this->text($command, 'code', 120) !== $definition->code
+                || $type !== $definition->node_type
+                || $this->text($command, 'canonical_name', 255) !== $definition->canonical_name
+            )) {
+                throw new DomainException('LF_FRAMEWORK_AUTHORING_DEFINITION_IDENTITY_IMMUTABLE');
+            }
+
+            DB::table('core_learning_node_definitions')
+                ->where('customer_id', $customerId)
+                ->where('id', $definition->id)
+                ->update([
+                    'code' => $this->text($command, 'code', 120),
+                    'node_type' => $type,
+                    'canonical_name' => $this->text($command, 'canonical_name', 255),
+                    'description' => $this->optionalText($command, 'description'),
+                    'updated_by' => $actorId,
+                    'updated_at' => $this->now(),
+                ]);
+
+            // Draft snapshots track their stable Definition until publish.
+            DB::table('core_learning_nodes as nodes')
+                ->join('core_learning_framework_versions as versions', function ($join): void {
+                    $join->on('versions.id', '=', 'nodes.framework_version_id')
+                        ->on('versions.customer_id', '=', 'nodes.customer_id');
+                })
+                ->where('nodes.customer_id', $customerId)
+                ->where('nodes.node_definition_id', $definition->id)
+                ->where('versions.status', 'draft_snapshot')
+                ->update([
+                    'nodes.code_snapshot' => $this->text($command, 'code', 120),
+                    'nodes.name_snapshot' => $this->text($command, 'canonical_name', 255),
+                    'nodes.description_snapshot' => $this->optionalText($command, 'description'),
+                    'nodes.updated_by' => $actorId,
+                    'nodes.updated_at' => $this->now(),
+                ]);
+
+            return $this->row('core_learning_node_definitions', $customerId, $definition->id);
         });
     }
 
@@ -207,6 +350,54 @@ final class LearningFrameworkAuthoringService
             ]);
 
             return $this->row('core_learning_nodes', $customerId, $id);
+        });
+    }
+
+    /**
+     * Refreshes a draft Node snapshot from its current stable Definition while
+     * applying draft-only criteria and ordering changes.
+     *
+     * @param  array<string, mixed>  $command
+     */
+    public function updateDraftNode(int $actorId, int $nodeId, array $command): object
+    {
+        $customerId = $this->access->tenantId();
+
+        return DB::transaction(function () use ($customerId, $actorId, $nodeId, $command): object {
+            $this->assertActor($customerId, $actorId, self::CAPABILITY_AUTHOR);
+            $node = $this->lockRow('core_learning_nodes', $customerId, $nodeId);
+            $version = $this->lockRow('core_learning_framework_versions', $customerId, (int) $node->framework_version_id);
+            $this->lockFramework($customerId, (int) $version->framework_id);
+            $definition = $this->lockRow('core_learning_node_definitions', $customerId, (int) $node->node_definition_id);
+
+            if ($version->status !== 'draft_snapshot') {
+                throw new DomainException('LF_FRAMEWORK_AUTHORING_VERSION_NOT_DRAFT');
+            }
+            if ((int) ($command['framework_version_id'] ?? 0) !== (int) $version->id
+                || (int) $definition->framework_id !== (int) $version->framework_id) {
+                throw new DomainException('LF_FRAMEWORK_AUTHORING_FRAMEWORK_MISMATCH');
+            }
+            if ((int) ($command['node_definition_id'] ?? 0) !== (int) $node->node_definition_id) {
+                throw new DomainException('LF_FRAMEWORK_AUTHORING_NODE_DEFINITION_IMMUTABLE');
+            }
+            if ($definition->status !== 'active') {
+                throw new DomainException('LF_FRAMEWORK_AUTHORING_DEFINITION_INACTIVE');
+            }
+
+            DB::table('core_learning_nodes')
+                ->where('customer_id', $customerId)
+                ->where('id', $node->id)
+                ->update([
+                    'code_snapshot' => $definition->code,
+                    'name_snapshot' => $definition->canonical_name,
+                    'description_snapshot' => $definition->description,
+                    'criteria_snapshot' => $this->optionalJson($command['criteria'] ?? null),
+                    'sequence' => (int) ($command['sequence'] ?? $node->sequence),
+                    'updated_by' => $actorId,
+                    'updated_at' => $this->now(),
+                ]);
+
+            return $this->row('core_learning_nodes', $customerId, $node->id);
         });
     }
 

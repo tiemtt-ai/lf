@@ -166,6 +166,7 @@ Route::middleware([
     $registerCourseTemplateLifecycleRoutes = true;
     require __DIR__.'/modules/course.php';
     require __DIR__.'/modules/media.php';
+    require __DIR__.'/modules/learning.php';
 });
 
 /*
