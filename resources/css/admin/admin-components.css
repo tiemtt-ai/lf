@@ -8122,3 +8122,403 @@
         gap: 12px;
     }
 }
+
+/* Learning Framework authoring
+   ------------------------------------------------------------------ */
+.learning-framework-index-toolbar {
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.learning-framework-index-intro {
+    display: grid;
+    gap: 4px;
+}
+
+.learning-framework-create-action {
+    min-height: 40px;
+    padding: 0 16px;
+    gap: 7px;
+}
+
+.learning-framework-create-action > span,
+.learning-framework-section-header .btn > span[aria-hidden] {
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1;
+}
+
+.learning-framework-section-header .btn {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    white-space: nowrap;
+}
+
+.learning-framework-version-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.learning-framework-version-actions .btn > span[aria-hidden] {
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1;
+}
+
+.learning-framework-index-count {
+    color: var(--admin-text);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.learning-framework-index-help {
+    margin: 0;
+    max-width: 620px;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.lf-admin-page .learning-framework-index-primary {
+    color: var(--admin-primary);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.lf-admin-page .learning-framework-index-primary:hover {
+    text-decoration: underline;
+}
+
+.learning-framework-index-meta {
+    display: block;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.learning-framework-index-muted {
+    color: var(--admin-text-muted);
+    font-size: 12px;
+}
+
+.learning-framework-version-chips {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.learning-framework-empty-state {
+    display: grid;
+    justify-items: center;
+    gap: 7px;
+    padding: 36px 20px;
+    color: var(--admin-text-muted);
+    text-align: center;
+}
+
+.learning-framework-empty-state strong {
+    color: var(--admin-text);
+    font-size: 15px;
+}
+
+.learning-framework-empty-state span {
+    max-width: 440px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.learning-framework-empty-state .btn {
+    margin-top: 8px;
+}
+
+.learning-framework-empty-state--inline {
+    padding: 20px;
+    border: 1px dashed var(--admin-border);
+    border-radius: 8px;
+    background: var(--admin-surface-subtle);
+}
+
+/* Detail page */
+.learning-framework-detail-toolbar {
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.lf-admin-page .learning-framework-detail-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--admin-primary);
+    font-size: 14px;
+}
+
+.lf-admin-page .learning-framework-detail-back:hover {
+    text-decoration: underline;
+}
+
+.learning-framework-detail-identity {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.learning-framework-detail-code {
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.learning-framework-summary {
+    margin-bottom: 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.learning-framework-summary-item {
+    padding: 16px 20px;
+    display: grid;
+    gap: 2px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    background: var(--admin-surface);
+}
+
+.learning-framework-summary-label {
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.learning-framework-summary-value {
+    color: var(--admin-text);
+    font-size: 26px;
+    line-height: 1.2;
+}
+
+.learning-framework-summary-hint {
+    color: var(--admin-text-muted);
+    font-size: 12px;
+}
+
+.learning-framework-section-header {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.learning-framework-section-title {
+    margin: 0;
+    color: var(--admin-text);
+    font-size: 17px;
+}
+
+.learning-framework-section-help {
+    margin: 4px 0 0;
+    max-width: 620px;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.learning-framework-facts {
+    margin: 0;
+    display: grid;
+    gap: 14px;
+}
+
+.learning-framework-facts > div {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 16px;
+}
+
+.learning-framework-facts dt {
+    color: var(--admin-text-muted);
+    font-size: 13px;
+}
+
+.learning-framework-facts dd {
+    margin: 0;
+    color: var(--admin-text);
+    font-size: 14px;
+}
+
+.learning-framework-scale-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.learning-framework-inline-form {
+    margin-top: 16px;
+    padding: 20px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    background: var(--admin-surface-subtle);
+}
+
+.learning-framework-inline-form .admin-form-footer {
+    margin-bottom: 0;
+}
+
+/* Definitions */
+.learning-framework-definition {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.learning-framework-definition:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.learning-framework-definition-header,
+.learning-framework-version-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.learning-framework-definition-identity strong,
+.learning-framework-version-identity strong {
+    color: var(--admin-text);
+    font-size: 15px;
+}
+
+.learning-framework-definition-tags,
+.learning-framework-version-tags {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.learning-framework-definition-description {
+    margin: 8px 0 0;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.lf-admin-page .learning-framework-lock-icon {
+    width: 12px;
+    height: 12px;
+    margin-right: 2px;
+    vertical-align: -1px;
+}
+
+/* Versions */
+.learning-framework-version {
+    margin-top: 16px;
+    padding: 20px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    background: var(--admin-surface);
+}
+
+.learning-framework-version.is-frozen {
+    background: var(--admin-surface-subtle);
+}
+
+.learning-framework-node-list {
+    margin: 16px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+    list-style: none;
+}
+
+.learning-framework-node {
+    padding: 12px 14px;
+    border: 1px solid var(--admin-border);
+    border-radius: 6px;
+    background: var(--admin-surface);
+}
+
+.learning-framework-node-summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.learning-framework-node-sequence {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    border-radius: 999px;
+    background: var(--admin-sidebar);
+    color: var(--admin-primary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.learning-framework-node-identity {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.learning-framework-node-identity strong {
+    color: var(--admin-text);
+    font-size: 14px;
+}
+
+.learning-framework-criteria {
+    margin: 10px 0 0;
+    padding: 12px;
+    overflow-x: auto;
+    border-radius: 6px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 12px;
+    line-height: 1.5;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.learning-framework-version-actions {
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.lf-admin-page .lf-form-control--code {
+    font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@media (max-width: 768px) {
+    .learning-framework-index-toolbar,
+    .learning-framework-detail-toolbar,
+    .learning-framework-section-header,
+    .learning-framework-definition-header,
+    .learning-framework-version-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .learning-framework-facts > div {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 2px;
+    }
+}

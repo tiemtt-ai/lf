@@ -95,6 +95,23 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertDontSee('x-on:click="handleSidebarNavigation($event)"', false);
     }
 
+    public function test_learning_framework_create_uses_the_standard_admin_form_contract(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/learning-frameworks/create')
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_learning_create_framework'))
+            ->assertSee('class="admin-card admin-form-card admin-form-surface"', false)
+            ->assertSee('class="admin-form-standard"', false)
+            ->assertSee('class="admin-form-field-grid"', false)
+            ->assertSee('class="lf-form-control"', false)
+            ->assertSee('class="admin-form-footer"', false)
+            ->assertSee('href="https://tenant-a.localhost/admin/learning-frameworks"', false);
+    }
+
     public function test_course_products_uses_the_package_icon_when_active_and_inactive(): void
     {
         $customerId = $this->createTenant();
