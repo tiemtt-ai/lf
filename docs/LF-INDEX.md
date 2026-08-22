@@ -395,7 +395,7 @@ docs/quality/
 | [quality/LF-Learning-Foundation-Phase-4C-Trigger-Static-Review.md](quality/LF-Learning-Foundation-Phase-4C-Trigger-Static-Review.md) | Engine rehearsal BLOCKED: candidate `JSON_TABLE` conflicts with the allowed MariaDB 10.5 floor; database cleanup PASS |
 | [quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md](quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md) | Phase 4E Owner-approved direction; database review must cover four released Course parent-key prerequisites before any migration authorization |
 | [quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md](quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md) | Migration source, contract update and isolated MariaDB rehearsal PASS; real database deployment and Teacher Judgment source remain gated |
-| [quality/LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md](quality/LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md) | Gate 1 independent runtime/migration code review — **PASS** after four passes; Gate 2 (external surface) remains closed on its own preconditions |
+| [quality/LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md](quality/LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md) | Gate 1 independent runtime/migration code review — **PASS** after four passes; the external surface has shipped, while Gate 2 remains open pending independent re-review and Owner decisions |
 | [quality/LF-Schema-Drift-Trigger-Identity-Regression-Audit.md](quality/LF-Schema-Drift-Trigger-Identity-Regression-Audit.md) | PASS HIGH regression audit for opt-in trigger identity enforcement in schema drift |
 
 ---

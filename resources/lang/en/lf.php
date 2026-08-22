@@ -2389,5 +2389,5 @@ return [
     'LF_learning_criteria_help' => 'Leave empty for no criteria. If provided, it must be a valid JSON object or array.',
     'LF_learning_criteria_placeholder' => '{"level": "applied"}',
     'LF_learning_publish_help' => 'Publishing is one-way: the version freezes and cannot return to draft.',
-    'LF_learning_publish_empty_warning' => 'This version currently carries no Node.',
+    'LF_learning_publish_empty_blocked' => 'Add at least one Node before publishing.',
 ];

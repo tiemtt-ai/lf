@@ -2389,5 +2389,5 @@ return [
     'LF_learning_criteria_help' => 'Để trống nếu không có tiêu chí. Nếu nhập, phải là một đối tượng hoặc mảng JSON hợp lệ.',
     'LF_learning_criteria_placeholder' => '{"level": "applied"}',
     'LF_learning_publish_help' => 'Xuất bản là thao tác một chiều: phiên bản sẽ bị đóng băng và không thể quay lại nháp.',
-    'LF_learning_publish_empty_warning' => 'Phiên bản này hiện chưa có Node nào.',
+    'LF_learning_publish_empty_blocked' => 'Hãy thêm ít nhất một Node trước khi xuất bản.',
 ];

@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
  *
  * The database already enforces the hard parts — ordered mastery scales,
  * draft-only version inserts, the one-way version lifecycle, and node
- * immutability once the parent version leaves draft. Two rules have no database
+ * immutability once the parent version leaves draft. Four rules have no database
  * backstop and are enforced here:
  *
  *   - a Node may only be added while its Framework Version is `draft_snapshot`.
@@ -30,6 +30,8 @@ use Illuminate\Support\Facades\DB;
  *   - the semantic identity of a Definition becomes immutable once a
  *     non-draft version references it. The database freezes versioned Node
  *     snapshots but does not protect the stable Definition they point to.
+ *   - a Version needs at least one active Node before publication, otherwise
+ *     it could become a permanent but semantically empty judgment basis.
  *
  * Authoring and publishing are restricted to `customer_admin` by Owner decision
  * N1 of 2026-08-17, taken through a capability argument so the two can separate
@@ -417,6 +419,13 @@ final class LearningFrameworkAuthoringService
 
             if ($version->status !== 'draft_snapshot') {
                 throw new DomainException('LF_FRAMEWORK_AUTHORING_VERSION_NOT_DRAFT');
+            }
+            if (! DB::table('core_learning_nodes')
+                ->where('customer_id', $customerId)
+                ->where('framework_version_id', $version->id)
+                ->where('status', 'active')
+                ->exists()) {
+                throw new DomainException('LF_FRAMEWORK_AUTHORING_VERSION_EMPTY');
             }
 
             $now = $this->now();

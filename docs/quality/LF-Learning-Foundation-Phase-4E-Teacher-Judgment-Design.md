@@ -1,6 +1,6 @@
 # Learning Foundation Phase 4E Teacher Judgment Design
 
-Version: 1.13
+Version: 1.14
 
 Document Status: Review
 
@@ -309,9 +309,8 @@ review pass.
    subsequently shipped in `67aafcf` and was rendered in the admin design system
    in `8e695d8`. It has received one review and remediation pass, but Gate 2
    remains open until a reviewer who authored neither the surface nor its
-   remediation reviews it independently. The Owner must also decide G2-N1
-   (read-service ownership) and G2-N3 (whether publish requires at least one
-   Node), as recorded under **Gate 2 Remaining Items** in the review document.
+   remediation reviews it independently. The G2-N1 and G2-N3 Owner decisions
+   are recorded below; they are no longer Gate 2 blockers.
 3. Complete the separate production deployment gate.
 
 ## Timestamp Convention
@@ -521,6 +520,33 @@ the review document, before the authorization was issued. The reason it was
 placed first still holds for anyone reading later — a suite that turns red on a
 fixed date, in the middle of days of API work, makes relaxing the rule look like
 the cheapest repair.
+
+## Gate 2 Owner Decisions — 2026-08-22
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-22
+
+G2-N1. Customer-admin Framework authoring reads are owned by
+       LearningFrameworkReadService. Controller code must not query
+       core_learning_* directly. LearningRuntimeAccess remains the default-deny
+       runtime boundary and is not repurposed as an authoring read service.
+
+G2-N3. A Framework Version must contain at least one active versioned Node
+       before it may transition from draft_snapshot to published.
+```
+
+G2-N1 keeps the two different meanings explicit. Runtime consumers remain
+default-denied unless a separately approved runtime read path exists; the
+customer-admin authoring surface is an authorised administrative consumer of the
+same Foundation graph. Its service owns tenant and active-customer-admin checks
+before returning Framework, Version, Definition or Node data.
+
+G2-N3 follows the common manual and AI-authoring contract: a Framework Version
+is the immutable basis for a versioned Node and, once published, may support
+permanent Evidence and Mastery. Publishing an empty version would establish a
+permanent basis with no pedagogical meaning. The owner service is authoritative;
+the UI disables the action only as a matching affordance.
 
 ## Cohort Transfer And Correction — 2026-08-17
 

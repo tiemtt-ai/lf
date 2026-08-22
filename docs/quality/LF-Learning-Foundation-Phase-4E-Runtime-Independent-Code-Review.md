@@ -1,6 +1,6 @@
 # Learning Foundation Phase 4E Runtime Independent Code Review
 
-Version: 1.5
+Version: 1.6
 
 Document Status: Review
 
@@ -18,14 +18,13 @@ Document Path: quality/LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-
 
 This document records the review required by
 [Phase 4E Teacher Judgment Design](LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md)
-§ Remaining Gates Before External Surface, item 1:
+§ Remaining Gates Before Production Deployment, item 1:
 
-> Complete independent runtime and migration code review by a reviewer who did
-> not author them. Review by the author closes no gate however thorough it is.
+> Gate 1 PASS — closed 2026-08-17.
 
-The reviewer did not author the reviewed code. The findings below were
-independently re-verified against the source by the author on 2026-08-17 and
-accepted; see § Author Acceptance.
+This document is the Gate 1 runtime/migration review record. Its Fourth Pass
+records the independent PASS; the separately reviewed external surface remains
+subject to Gate 2.
 
 ## Scope
 
@@ -864,7 +863,7 @@ opposite direction. The button stays enabled and the page warns instead.
 
 ### Verification Standing Behind This Section
 
-* MariaDB integration suite, real connection: **14 passed, 83 assertions**.
+* MariaDB integration suite, real connection: **15 passed, 85 assertions**.
 * Default suite: **733 passed**, 8259 assertions.
 * Both pages rendered through the HTTP kernel with `actingAs` against seeded
   data inside a rolled-back transaction — HTTP 200, Alpine initialised,
@@ -875,29 +874,26 @@ opposite direction. The button stays enabled and the page warns instead.
 
 ### Gate 2 Remaining Items
 
-**Gate 2 is not closed.** Two independent reasons:
+**Gate 2 is not closed.** The remaining condition is an independent review.
 
-1. **No independent reviewer has read the surface.** The Gate 2 review recorded
-   above was performed by a reviewer who then remediated the findings, and who
-   had also written the roadmap that scoped the work. § Authorship Change
-   already states the rule this violates. The next review must be by someone who
-   wrote neither the surface nor its remediation.
-2. **Two Owner decisions are open.**
+**No independent reviewer has read the surface.** The Gate 2 review recorded
+above was performed by a reviewer who then remediated the findings, and who had
+also written the roadmap that scoped the work. § Authorship Change already states
+the rule this violates. The next review must be by someone who wrote neither the
+surface nor its remediation.
 
-   * **G2-N1 — read-service ownership.** `LearningFrameworkController::index()`
-     and `show()` read `core_learning_*` directly through `DB::table()` with
-     `TenantContext::customerId()`, never through `LearningRuntimeAccess`. The
-     reads are tenant-scoped and correct; the question is whether the runtime
-     access service should own them. As things stand
-     `LearningRuntimeAccess::denyExternalRead()` has no production caller —
-     verified 2026-08-22, its only reference is
-     `tests/Feature/LearningRuntimeFoundationTest.php:86`.
-   * **G2-N3 — whether publishing requires at least one Node.** Publishing is
-     one-way and cannot be corrected, so a version published empty stays empty.
-     The service does not refuse it and the UI only warns.
+The previously open Owner decisions are closed:
 
-Neither is a defect. Both are decisions, and both should be settled before the
-gate closes rather than discovered by the next reviewer.
+   * **G2-N1 — read-service ownership, decided 2026-08-22.**
+     `LearningFrameworkReadService` owns tenant-scoped customer-admin reads;
+     `LearningRuntimeAccess` remains the runtime default-deny boundary.
+   * **G2-N3 — non-empty publish, decided 2026-08-22.** The owner service
+     rejects a draft Version without an active Node using
+     `LF_FRAMEWORK_AUTHORING_VERSION_EMPTY`; the UI disables publish until a
+     Node exists.
+
+The only remaining Gate 2 condition is an independent review by a reviewer who
+authored neither the surface nor its remediation.
 
 ---
 

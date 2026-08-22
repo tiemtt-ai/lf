@@ -244,6 +244,10 @@
             @php
                 $isDraft = $version->status === 'draft_snapshot';
                 $versionNodes = $nodesByVersion->get($version->id, collect());
+                // The publish gate must use the service's own predicate. It counts
+                // active Nodes, so a version holding only retired ones is empty to it
+                // even though the list above still renders them.
+                $publishableNodes = $versionNodes->where('status', 'active');
             @endphp
 
             <article @class(['learning-framework-version', 'is-frozen' => ! $isDraft])
@@ -382,7 +386,9 @@
                               action="{{ route('admin.learning-frameworks.versions.publish', [$framework->id, $version->id]) }}"
                               onsubmit="return confirm('{{ __('lf.LF_learning_publish_confirm') }}')">
                             @csrf
-                            <button class="btn btn-primary" type="submit">{{ __('lf.LF_learning_publish') }}</button>
+                            <button class="btn btn-primary" type="submit" @disabled($publishableNodes->isEmpty())>
+                                {{ __('lf.LF_learning_publish') }}
+                            </button>
                         </form>
                     </div>
 
@@ -390,8 +396,8 @@
                         <span class="admin-form-inline-notice-icon" aria-hidden="true">i</span>
                         <span>
                             {{ __('lf.LF_learning_publish_help') }}
-                            @if ($versionNodes->isEmpty())
-                                {{ __('lf.LF_learning_publish_empty_warning') }}
+                            @if ($publishableNodes->isEmpty())
+                                {{ __('lf.LF_learning_publish_empty_blocked') }}
                             @endif
                         </span>
                     </p>

@@ -124,11 +124,18 @@ class LearningFrameworkAuthoringMariaDbTest extends TestCase
         $version = $authoring->createDraftVersion($fixture['admin_id'], [
             'framework_id' => $framework->id, 'version_code' => 'v1-frozen', 'title' => 'Framework frozen',
         ]);
+        $initial = $authoring->createDefinition($fixture['admin_id'], [
+            'framework_id' => $framework->id, 'code' => 'node-initial',
+            'node_type' => 'objective', 'canonical_name' => 'Initial node',
+        ]);
+        $authoring->createNode($fixture['admin_id'], [
+            'framework_version_id' => $version->id, 'node_definition_id' => $initial->id,
+        ]);
+        $authoring->publishVersion($fixture['admin_id'], $version->id);
         $late = $authoring->createDefinition($fixture['admin_id'], [
             'framework_id' => $framework->id, 'code' => 'node-late',
             'node_type' => 'objective', 'canonical_name' => 'Added too late',
         ]);
-        $authoring->publishVersion($fixture['admin_id'], $version->id);
 
         try {
             $authoring->createNode($fixture['admin_id'], [
@@ -139,7 +146,7 @@ class LearningFrameworkAuthoringMariaDbTest extends TestCase
             $this->assertSame('LF_FRAMEWORK_AUTHORING_VERSION_NOT_DRAFT', $exception->getMessage());
         }
 
-        $this->assertSame(0, DB::table('core_learning_nodes')
+        $this->assertSame(1, DB::table('core_learning_nodes')
             ->where('customer_id', $fixture['customer_id'])->count());
     }
 
@@ -153,10 +160,32 @@ class LearningFrameworkAuthoringMariaDbTest extends TestCase
         $version = $authoring->createDraftVersion($fixture['admin_id'], [
             'framework_id' => $framework->id, 'version_code' => 'v1-oneway', 'title' => 'Framework oneway',
         ]);
+        $definition = $authoring->createDefinition($fixture['admin_id'], [
+            'framework_id' => $framework->id, 'code' => 'node-oneway',
+            'node_type' => 'objective', 'canonical_name' => 'One-way node',
+        ]);
+        $authoring->createNode($fixture['admin_id'], [
+            'framework_version_id' => $version->id, 'node_definition_id' => $definition->id,
+        ]);
         $authoring->publishVersion($fixture['admin_id'], $version->id);
 
         $this->expectException(DomainException::class);
         $this->expectExceptionMessage('LF_FRAMEWORK_AUTHORING_VERSION_NOT_DRAFT');
+        $authoring->publishVersion($fixture['admin_id'], $version->id);
+    }
+
+    public function test_publish_rejects_an_empty_framework_version(): void
+    {
+        $fixture = $this->courseFixture('empty-version');
+        TenantContext::set((object) ['id' => $fixture['customer_id']]);
+        $authoring = app(LearningFrameworkAuthoringService::class);
+        $framework = $authoring->createFramework($fixture['admin_id'], $this->frameworkCommand('empty-version'));
+        $version = $authoring->createDraftVersion($fixture['admin_id'], [
+            'framework_id' => $framework->id, 'version_code' => 'v1-empty', 'title' => 'Empty version',
+        ]);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('LF_FRAMEWORK_AUTHORING_VERSION_EMPTY');
         $authoring->publishVersion($fixture['admin_id'], $version->id);
     }
 
