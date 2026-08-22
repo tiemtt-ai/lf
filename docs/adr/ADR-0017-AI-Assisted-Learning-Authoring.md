@@ -6,7 +6,7 @@ Status: Approved
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-08-16
+Last Updated: 2026-08-22
 
 Approval Date: 2026-08-16
 
@@ -27,16 +27,21 @@ Related ADRs:
 
 # Context
 
-Course authoring attaches documents, video and audio to an Activity. Media
-already produces OCR, transcript and caption output, so the material an author
-uploads is machine-readable before anyone writes a learning objective.
+Course authoring attaches documents, video and audio to an Activity. Media is
+the approved owner of OCR, transcript and caption output, and this flow requires
+that derived content to be ready before AI analysis begins. The processing
+tables/jobs/workers are not implemented yet; this statement defines the required
+input boundary, not a claim that uploaded material is currently machine-readable.
 
 `LearningFrameworkAuthoringService` now creates a Framework, a draft Version, a
-Node Definition and a Node, and publishes the Version. That closes the gap where
-nothing could create a Node at all, but it is a form-shaped path: an author
-declares each Node by hand and then attaches it. For a catalogue of any size
-that is the wrong default. It also wastes the derived Media output the platform
-already paid to produce.
+Node Definition and a Node, and publishes the Version for authorized internal
+callers. That closes the owner-service write gap, but it is not yet a usable
+manual authoring surface: the repository has request contracts and the internal
+service, with no Learning route, controller or UI. The required manual fallback
+must call this same owner service and use the same Framework → Framework Version
+→ Stable Node Definition → Versioned Node foundation; it is not a separate data
+path. For a catalogue of any size, manual entry is not the intended default and
+would also waste derived Media output.
 
 The opposite extreme is worse. Letting AI write Nodes or Mappings directly
 crosses the domain boundary ADR-0006 draws — AI is a Consumer Domain and owns no
@@ -52,9 +57,11 @@ prompt or screen.
 
 # Decision
 
-AI-assisted authoring is the default authoring flow. The manual Node form
-remains, as a fallback and as the Framework administration tool, not as the
-normal path.
+AI-assisted authoring is the default authoring flow. A manual Node/Mapping
+surface is required as fallback and as the Framework administration tool, not
+as the normal path. It must use the same Learning owner services and canonical
+Framework/Definition/Node foundation. This requirement is approved policy; the
+external manual surface is not implemented yet.
 
 AI produces an **Authoring Proposal** and nothing else. A Proposal is not a
 Node, a Framework Version, a Mapping, Evidence or Mastery. A human accepts,
@@ -180,10 +187,12 @@ per Activity or Course, source excerpt with confidence and rationale, duplicate
 and ambiguity warnings, tenant and role scoping, and an audit of reviewer, time
 and decision.
 
-The manual Node form stays for: Media that cannot be processed, declaring
-competencies before content exists, Framework and taxonomy administration,
-authoring deep assessment criteria, and splitting or merging Nodes across
-Versions.
+The manual Node/Mapping fallback is required for: Media that cannot be
+processed, declaring competencies before content exists, Framework and taxonomy
+administration, authoring deep assessment criteria, and splitting or merging
+Nodes across Versions. It is the same Learning authoring path with human-entered
+input, not a parallel schema or alternate Source of Truth. At this ADR version,
+the external form/controller/route is still unimplemented.
 
 ## A7 — Provenance
 

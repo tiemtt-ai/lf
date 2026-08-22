@@ -4,9 +4,9 @@ Version: 1.0
 
 Document Status: Frozen
 
-Implementation Status: Not Implemented
+Implementation Status: Implemented
 
-Last Updated: 2026-08-12
+Last Updated: 2026-08-22
 
 Document Path: database/learning/README.md
 
@@ -14,9 +14,15 @@ Document Path: database/learning/README.md
 
 # Purpose
 
-Defines the physical database contract proposed for Learning Foundation v1
+Defines the physical database contract implemented for Learning Foundation v1
 under [ADR-0016](../../adr/ADR-0016-Learning-Foundation.md) and
 [LF-Core-Learning](../../core/LF-Core-Learning.md).
+
+The ten-table migration, composite keys, CHECK constraints and approved trigger
+bodies are present in source and deployed on the development database. This
+`Implemented` status applies to the physical Learning database contract only;
+it does not claim an external route/API/UI, AI-assisted authoring workflow or
+production deployment.
 
 Learning is the source of truth for Framework semantics, qualified Evidence
 and Mastery. Every table is tenant-owned and uses the `core_learning_` prefix.
@@ -153,13 +159,11 @@ lifecycle. Mastery Profiles are intentionally mutable projections, but every
 write is database-validated. Cross-table identity uses composite foreign keys;
 triggers cover only invariants that cannot be represented by keys or CHECK.
 
-`LF-SCHEMA-CONTRACT.json` already inventories every required trigger by name,
-timing and event. Its `PLANNED CONTRACT` statement text is deliberately not
-executable SQL while this Foundation remains `Not Implemented`. Before changing
-any Learning table to `implemented`, the approved migration must replace every
-placeholder with the normalized, exact trigger body; schema-drift then verifies
-both trigger identity and statement. A placeholder is therefore a pre-migration
-gate, never evidence that a trigger has been implemented.
+`LF-SCHEMA-CONTRACT.json` inventories every required trigger by name, timing,
+event and normalized statement. The implemented migration contains the approved
+trigger bodies, and schema drift verifies trigger identity and statement. A
+placeholder or documentation-only declaration is never evidence that a trigger
+has been implemented.
 
 Generic Mapping source existence is the documented exception: a database
 trigger must not query another Domain's physical tables. The owning Course
@@ -191,12 +195,11 @@ an operational lineage incident and preserves historical lineage unchanged.
 
 # Review And Migration Gate
 
-These documents are Frozen as the approved Phase 3 database contract. Migration
-remains blocked until:
+These documents remain Frozen as the approved physical database contract. The
+Phase 4 prerequisites were completed for the development deployment: the User
+composite-key prerequisite, forward Learning migration, exact trigger bodies,
+schema-drift verification and regression review have implementation evidence.
 
-1. a separate Phase 4 migration authorization is recorded;
-2. the User composite-key prerequisite migration plan is approved and executed;
-3. each planned trigger body is replaced by the approved normalized SQL body;
-4. implementation-time schema drift and regression gates pass.
-
-No document in this directory authorizes migration by itself.
+Production deployment, external Learning surfaces and ADR-0017 Proposal
+implementation remain separate gates. No document in this directory authorizes
+those scopes by itself.

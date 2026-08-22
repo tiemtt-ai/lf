@@ -1,12 +1,12 @@
 # LearnForge Documentation Conflict Register
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-10
+Last Updated: 2026-08-22
 
 Document Path: quality/LF-Documentation-Conflicts.md
 
@@ -393,7 +393,7 @@ Notes: Cố ý KHÔNG dùng RESOLVED. Điều kiện thiếu (`enrollments.statu
 
 # Resolved Conflict Register
 
-Resolved confirmed items: 7.
+Resolved confirmed items: 8.
 
 | ID | Title | Classification | Status | Impact | Domain | Resolved At | Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -404,6 +404,45 @@ Resolved confirmed items: 7.
 | DOC-CONFLICT-0005 | Phạm vi cấm replacement Session trong ADR-0002 | AMBIGUITY | RESOLVED | LOW | LiveClass | 2026-08-10 | `php artisan docs:lint` |
 | DOC-CONFLICT-0010 | So sánh thời gian Session chưa khớp quy ước canonical | IMPLEMENTATION_DRIFT | RESOLVED | HIGH | LiveClass | 2026-08-10 | `php artisan test` (678 passed) |
 | DOC-CONFLICT-0009 | Session status implementation chưa khớp hợp đồng canonical | IMPLEMENTATION_DRIFT | RESOLVED | MEDIUM | LiveClass | 2026-08-10 | `php artisan test` (689 passed) |
+| DOC-CONFLICT-0012 | Learning/AI/Media metadata và manual-fallback wording không phản ánh implementation đã xác minh | STALE | RESOLVED | MEDIUM | Learning × AI × Media × Course | 2026-08-22 | `php artisan docs:lint`; `DocsManifestLintCommandTest` |
+
+---
+
+## DOC-CONFLICT-0012
+
+```text
+Conflict ID: DOC-CONFLICT-0012
+Title: Learning/AI/Media metadata và manual-fallback wording không phản ánh implementation đã xác minh
+Classification: STALE
+Status: RESOLVED
+Impact: MEDIUM
+Detected At: 2026-08-22
+Detected By: AI-assisted Learning Authoring readiness audit
+Owner: Architecture Team
+Affected Domain: Learning × AI × Media × Course
+Affected Concern: Phân biệt approved architecture, development implementation và external authoring surface
+Sources In Conflict:
+Source A: docs/adr/ADR-0016-Learning-Foundation.md; docs/database/learning/*.md
+Source B: database/migrations/2026_08_13_010000_create_learning_foundation_tables_and_triggers.php; internal Learning services; development migration status
+Additional Sources: docs/adr/ADR-0017-AI-Assisted-Learning-Authoring.md; docs/core/LF-Core-Course.md; docs/core/LF-Core-Learning.md; docs/platform/LF-AI.md; docs/platform/LF-Media.md; docs/LF-DOCUMENTATION-MANIFEST.json
+Contradictory Requirements:
+- Source A reported Learning database implementation as Not Implemented after the ten-table migration/triggers and internal runtime had been deployed on development
+- ADR-0017 wording could be read as OCR/transcript/caption and a manual Node form already existed, while the repository has neither processing runtime nor Learning route/controller/UI
+Why They Cannot Both Be True: The metadata and present-tense wording described a verified implementation state different from source/database reality
+Runtime/Business Impact: No runtime behavior changed. The stale wording could incorrectly authorize downstream work or cause policy to be mistaken for an available end-to-end flow
+Affected Implementation: Documentation and machine-readable manifest only
+Temporary Safety Rule: Preserve ADR-0016/0017 ownership and Implementation Gates; do not infer external readiness from development schema deployment
+Required Decision: Apply the approved principle: AI proposes from processed Media plus Activity/Course/Framework context; human approves; Learning owner service writes; manual entry is a fallback on the same canonical foundation
+Resolution Authority: LearnForge Architecture Owner direction supplied 2026-08-22
+Resolution Plan: Mark ADR-0016 Partial; mark physical Learning table contracts Implemented on development; mark AI Not Implemented and Media Partial; clarify that processing and manual external surfaces are not implemented; preserve ADR-0017 and ADR-0006 gates
+Target Review Date: 2026-08-22
+Resolved At: 2026-08-22
+Resolution: Canonical ADR/domain/database wording and manifest metadata synchronized. Manual fallback is required but must use the same Framework → Framework Version → Stable Node Definition → Versioned Node foundation. ADR-0017 remains Not Implemented; ADR-0006 Mastery Profile Amendment remains Proposed
+Superseded/Updated Documents: docs/adr/ADR-0006-AI-Foundation.md; docs/adr/ADR-0016-Learning-Foundation.md; docs/adr/ADR-0017-AI-Assisted-Learning-Authoring.md; docs/core/LF-Core-Course.md; docs/core/LF-Core-Learning.md; docs/database/learning/*.md; docs/platform/LF-AI.md; docs/platform/LF-Media.md; docs/LF-DOCUMENTATION-MANIFEST.json
+Verification Evidence: php artisan docs:lint; php artisan test --filter=DocsManifestLintCommandTest; git diff --check
+Related ADR/Review/Issue/PR: ADR-0006; ADR-0016; ADR-0017
+Notes: This resolution changes documentation truthfulness only. It does not authorize migration, API, prompt, UI, provider runtime, Proposal persistence, review workflow, Mapping promotion or production deployment under ADR-0017.
+```
 
 ---
 

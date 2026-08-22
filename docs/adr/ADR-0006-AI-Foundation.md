@@ -18,13 +18,13 @@ Frozen
 
 ## Implementation Status
 
-Unknown
+Not Implemented
 
 ---
 
 ## Last Updated
 
-2026-08-13
+2026-08-22
 
 ---
 
@@ -74,9 +74,9 @@ effect, regardless of its own approval:
 
 1. Architecture Owner approval of this Amendment (recorded below).
 2. Learning Foundation reaching an implemented state. As of this proposal,
-   Learning Foundation is Frozen at the database-design level only —
-   `Implementation Status: Not Implemented`, and migration requires a
-   separate Phase 4 authorization per
+   Learning Foundation is `Implementation Status: Partial`: its ten-table
+   schema/triggers and internal runtime are deployed on development, while its
+   external surface and production deployment remain separately gated per
    [ADR-0016](ADR-0016-Learning-Foundation.md) and the
    [Learning Database Architecture Review](../quality/LF-Learning-Foundation-Database-Architecture-Review.md).
 

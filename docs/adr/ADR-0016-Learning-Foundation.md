@@ -4,9 +4,9 @@ Version: 1.1
 
 Status: Frozen
 
-Implementation Status: Not Implemented
+Implementation Status: Partial
 
-Last Updated: 2026-08-13
+Last Updated: 2026-08-22
 
 Approval Date: 2026-08-12
 
@@ -858,7 +858,9 @@ ADR này tham chiếu định nghĩa canonical và không định nghĩa lại.
 Learning Foundation Version 1.0 được Architecture Owner phê duyệt ngày
 2026-08-12; amendment Version 1.1 được owner phê duyệt cùng ngày để xử lý Round
 2 review. Foundation được Frozen sau Round 4 independent re-review PASS.
-Migration vẫn cần một authorization riêng cho Giai đoạn 4.
+Migration Giai đoạn 4, trigger contract và internal runtime đã được authorize
+và deploy trên database development. External route/API/UI, AI-assisted
+authoring và production deployment vẫn là các gate riêng.
 
 Khi được approved, thay đổi Domain Boundary, ownership, Source Of Truth, chiến
 lược snapshot/evidence, hoặc bộ 10 bảng Foundation sẽ yêu cầu ADR Amendment
@@ -877,11 +879,12 @@ Conceptual Architecture          PASS
 Architecture Decision Readiness  PASS
 Database Documentation           PASS — 10 table docs Frozen
 Foundation Freeze                RECORDED
-Migration                        chưa cho phép — cần authorization Giai đoạn 4
+Implementation                   PARTIAL — database và internal runtime đã deploy trên development
 
-Ready for Phase 4 migration planning only
+Development foundation available for gated internal runtime
 
-YES — implementation remains Not Implemented; no migration is authorized
+YES — external route/API/UI, AI-assisted authoring and production deployment
+remain separately gated
 ```
 
 ## Owner Approval

@@ -4,9 +4,9 @@ Version: 1.1
 
 Document Status: Frozen
 
-Implementation Status: Unknown
+Implementation Status: Not Implemented
 
-Last Updated: 2026-08-16
+Last Updated: 2026-08-22
 
 Document Path: platform/LF-AI.md
 
@@ -15,6 +15,11 @@ Document Path: platform/LF-AI.md
 # LF AI Architecture
 
 AI là Learning Intelligence & Decision Support Domain của LearnForge.
+
+AI Foundation hiện là policy/database specification đã Frozen nhưng chưa có
+`ai_*` migration, model, service, provider runtime hay external Proposal/review
+surface. Các section bên dưới mô tả contract bắt buộc cho implementation tương
+lai, không phải capability đang vận hành.
 
 AI là Consumer Domain. AI đọc dữ liệu được phép từ các Owner Domain và tạo
 conversation, recommendation, insight hoặc authoring suggestion. AI không sở

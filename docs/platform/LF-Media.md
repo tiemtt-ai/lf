@@ -4,9 +4,9 @@ Version: 1.3
 
 Document Status: Approved
 
-Implementation Status: Unknown
+Implementation Status: Partial
 
-Last Updated: 2026-08-16
+Last Updated: 2026-08-22
 
 Document Path: platform/LF-Media.md
 
@@ -15,6 +15,12 @@ Document Path: platform/LF-Media.md
 # LF Media Architecture
 
 Media là Platform Domain dùng chung cho toàn bộ LearnForge.
+
+Media implementation hiện là `Partial`: upload, tenant-scoped file identity,
+generic Usage, private delivery và Course Activity/Version Activity integration
+đã có; `media_processing_jobs`, variants, OCR, transcripts, captions và access
+logs chưa có physical migration/runtime. Các processing section bên dưới là
+approved contract, không phải tuyên bố pipeline đang vận hành.
 
 Media quản lý Digital Assets và hạ tầng liên quan:
 

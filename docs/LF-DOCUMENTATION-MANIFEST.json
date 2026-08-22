@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-08-17",
+  "generated_or_updated_at": "2026-08-22",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
@@ -905,7 +905,7 @@
       "area": "adr",
       "document_type": "adr",
       "document_status": "Frozen",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Partial",
       "metadata_complete": true,
       "authority": "architecture_decision",
       "canonical_for": [
@@ -4379,7 +4379,7 @@
       "area": "database",
       "document_type": "database_overview",
       "document_status": "Frozen",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [
@@ -4420,7 +4420,7 @@
       "area": "database",
       "document_type": "table_schema",
       "document_status": "Frozen",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [
@@ -4460,7 +4460,7 @@
       "area": "database",
       "document_type": "table_schema",
       "document_status": "Frozen",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [
@@ -4498,7 +4498,7 @@
       "area": "database",
       "document_type": "table_schema",
       "document_status": "Frozen",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [
@@ -4537,7 +4537,7 @@
       "area": "database",
       "document_type": "table_schema",
       "document_status": "Frozen",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [
@@ -4575,7 +4575,7 @@
       "area": "database",
       "document_type": "table_schema",
       "document_status": "Frozen",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [
@@ -4614,7 +4614,7 @@
       "area": "database",
       "document_type": "table_schema",
       "document_status": "Frozen",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [
@@ -4653,7 +4653,7 @@
       "area": "database",
       "document_type": "table_schema",
       "document_status": "Frozen",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [
@@ -4692,7 +4692,7 @@
       "area": "database",
       "document_type": "table_schema",
       "document_status": "Frozen",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [
@@ -4731,7 +4731,7 @@
       "area": "database",
       "document_type": "table_schema",
       "document_status": "Frozen",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [
@@ -4770,7 +4770,7 @@
       "area": "database",
       "document_type": "table_schema",
       "document_status": "Frozen",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [
@@ -7338,7 +7338,7 @@
       "area": "platform",
       "document_type": "domain_policy",
       "document_status": "Frozen",
-      "implementation_status": "Unknown",
+      "implementation_status": "Not Implemented",
       "metadata_complete": true,
       "authority": "domain",
       "canonical_for": [],
@@ -7377,7 +7377,7 @@
       "area": "platform",
       "document_type": "domain_policy",
       "document_status": "Approved",
-      "implementation_status": "Unknown",
+      "implementation_status": "Partial",
       "metadata_complete": true,
       "authority": "domain",
       "canonical_for": [],

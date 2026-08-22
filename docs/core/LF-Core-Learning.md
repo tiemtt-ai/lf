@@ -6,7 +6,7 @@ Document Status: Frozen
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-16
+Last Updated: 2026-08-22
 
 Approval Date: 2026-08-12
 
@@ -300,8 +300,11 @@ phải publish và không tự sinh Learning business state. Khi được chấp
 
 Learning Domain đã triển khai một phần. Mười bảng Foundation cùng khoá ngoại,
 CHECK và trigger đã deploy trên database development, kèm các service runtime
-nội bộ; chưa có route, API, UI nào, và production là gate riêng. Tài liệu này
-là policy đã được Architecture Owner phê duyệt ngày 2026-08-12.
+nội bộ; chưa có route, API, UI nào, và production là gate riêng. Internal
+`LearningFrameworkAuthoringService` không đồng nghĩa manual form đã tồn tại:
+manual fallback vẫn cần external surface và phải dùng cùng owner service cùng
+Framework/Definition/Node foundation. Tài liệu này là policy đã được
+Architecture Owner phê duyệt ngày 2026-08-12.
 
 ## Owner Approval
 

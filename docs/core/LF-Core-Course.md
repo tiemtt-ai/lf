@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-16
+Last Updated: 2026-08-22
 
 Document Path: core/LF-Core-Course.md
 
@@ -1488,8 +1488,11 @@ lượt promotion riêng**, và Mapping của version cũ vẫn còn hiệu lự
 cũ. Đó là chủ ý — Evidence lịch sử phải tiếp tục resolve đúng thứ đã được dạy —
 nhưng là công việc thường xuyên, không phải migration một lần.
 
-Course publish không được phụ thuộc vào việc model có sẵn sàng hay không. Form
-Node/Mapping thủ công vẫn là fallback.
+Course publish không được phụ thuộc vào việc model có sẵn sàng hay không. Một
+surface Node/Mapping thủ công là fallback bắt buộc nhưng chưa có external UI;
+khi được triển khai, nó phải dùng cùng Learning owner service và cùng chuỗi
+Framework → Framework Version → Stable Node Definition → Versioned Node, không
+tạo luồng dữ liệu riêng.
 
 ---
 
