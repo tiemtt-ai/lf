@@ -1,6 +1,6 @@
 # Learning Foundation Phase 4E Runtime Independent Code Review
 
-Version: 1.4
+Version: 1.5
 
 Document Status: Review
 
@@ -8,7 +8,7 @@ Implementation Status: Not Applicable
 
 Review Status: Pass
 
-Last Updated: 2026-08-17
+Last Updated: 2026-08-22
 
 Document Path: quality/LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md
 
@@ -728,6 +728,176 @@ The first Gate 2 reviewer should read this section before anything else, and
 should treat the surface with the same suspicion this document applied to the
 runtime — starting with whether any of the seven application-owned rules got
 restated, relaxed or bypassed at the HTTP boundary.
+
+---
+
+## Gate 2 Review — 2026-08-22 (commits `3150c98`, `67aafcf`, `8e695d8`)
+
+The external surface anticipated by § Authorship Change now exists. This section
+records what shipped, the Gate 2 review it received, and why Gate 2 is still not
+closed. It is written for the independent reviewer that section calls for.
+
+### On Finding Labels
+
+The Gate 2 review numbered its findings `B1`–`B4` and `N1`–`N7`, colliding with
+the Gate 1 labels above, which are different findings entirely. To keep the two
+readable side by side, the Gate 2 findings are prefixed `G2-` throughout this
+section. Two collisions are worth naming explicitly, because both concern rules
+that sound similar:
+
+* Gate 1 **N1** (`assertActor` admits any active user) is closed — `f6dd97d`
+  restricted authoring to `customer_admin`. Gate 2 **G2-N1** is a different
+  question: which layer owns the *read* path.
+* Gate 1 **N3** (mastery scale value domain) is closed. Gate 2 **G2-N3** asks
+  whether publishing should require at least one Node.
+
+### What Shipped
+
+* `3150c98` — FormRequest classes for the five authoring commands, plus
+  `app/Rules/TimestampWithOffset.php`. `TeacherJudgmentService::OCCURRED_AT_OFFSET_PATTERN`
+  became a public constant so the HTTP rule and the service guard share one
+  pattern rather than drifting.
+* `67aafcf` — `LearningFrameworkController`, `routes/modules/learning.php`, the
+  Blade surface, and four new mutation methods on
+  `LearningFrameworkAuthoringService`: `updateFramework`, `updateDraftVersion`,
+  `updateDefinition`, `updateDraftNode`.
+* `8e695d8` — the surface rendered in the admin design system.
+
+The middle commit is the one that matters for this gate. It is **not** an
+additive "surface only" change: `LearningFrameworkAuthoringService` changed by
++195/-4 lines and gained four mutation paths that did not previously exist.
+
+### Gate 2 Verdict — FAIL
+
+The architectural boundary held. ADR-0017 is respected, no write path reaches
+Mapping, Evidence or Mastery, a published version is read-only at two layers
+(service and `trg_lrn_nodes_bu_immutable`), and the tenant/framework/version
+containment checks are transitive and closed. Most importantly for the question
+this document told the Gate 2 reviewer to ask first: **no application-owned rule
+was restated, relaxed or bypassed at the HTTP boundary.**
+
+Four findings blocked the gate.
+
+**G2-B1 — `updateDefinition()` had no database backstop.**
+`trg_lrn_definitions_bu_identity` freezes only `customer_id` and `framework_id`;
+`code`, `node_type` and `canonical_name` are unprotected, and `chk_lrn_006`
+checks the enum but not the transition. Changing `node_type` on a Definition
+already snapshotted into a published version silently changes the meaning of
+every `core_learning_mastery_calculations` and `core_learning_mastery_profiles`
+row anchored to it. The row-immutability trigger protects the row; it does not
+protect the meaning of what the row points at.
+
+**G2-B2 — the UI invited an edit the database forbids.** The Node edit form
+rendered a `<select name="node_definition_id">`, while
+`trg_lrn_nodes_bu_immutable` freezes that column. One click produced
+`LF_NODE_IDENTITY_IMMUTABLE`, swallowed into a generic conflict message with no
+code and no log line.
+
+**G2-B3 — the stated verification did not cover the reviewed code.**
+`phpunit.xml` registers only `tests/Unit` and `tests/Feature`, pins
+`DB_CONNECTION=sqlite`, and the Learning migration returns early on a non-MySQL
+driver, so the ten `core_learning_*` tables do not exist under the default
+suite. "732 passed" was true and contained no assertion about this surface.
+
+**G2-B4 — `catch (QueryException)` bound no variable and logged nothing.** Every
+trigger-enforced invariant disappeared without trace.
+
+Seven non-blocking findings were also raised, two of which are Owner decisions
+rather than implementation defects; they are carried in § Gate 2 Remaining Items.
+
+### Remediation And A Regression The Remediation Introduced
+
+G2-B1, G2-B2, G2-B4 and two non-blocking items were remediated. G2-B1 is now an
+application guard: identity freezes once a non-draft version references the
+Definition, `description` stays editable, and draft Node snapshots are
+synchronised in the same transaction. G2-B2 refuses a forged request with
+`LF_FRAMEWORK_AUTHORING_NODE_DEFINITION_IMMUTABLE` before it can reach the
+trigger. G2-B4 logs correlation ID, SQLSTATE, driver code, constraint, route,
+tenant and actor.
+
+The remediation pass reported itself verified. It was not. Running the
+integration suite against a real MariaDB — which the pass had written 14 tests
+for but never executed — produced **5 failed, 9 passed**:
+
+```text
+ErrorException: Undefined variable $node
+  at app/Services/LearningFrameworkAuthoringService.php:308  (createNode)
+```
+
+A copy-paste error had replaced `createNode()`'s Definition lookup with
+`updateDraftNode()`'s. `$node` does not exist in `createNode()`'s scope, so
+`(int) null` = 0, `lockRow(..., 0)` threw `RecordsNotFoundException`, and the
+controller returned **404 for every Node creation over HTTP** — the one
+capability the service exists to provide. It was fixed alongside a second
+trigger mismatch found in the same run: `version_code` is immutable
+unconditionally, not merely after a version leaves draft, so
+`updateDraftVersion()` now refuses the change with
+`LF_FRAMEWORK_AUTHORING_VERSION_CODE_IMMUTABLE` instead of letting the form
+offer an edit the database rejects.
+
+**The lesson belongs in this document, not only in a commit message.** The
+defect was invisible to every check the remediation ran, because all of them ran
+on SQLite where these tables do not exist. Counting tests is not running them.
+A claim of verification for Learning code is only meaningful when the connection
+is MySQL or MariaDB; CI does this
+(`.github/workflows/application-tests.yml`, job `integration-mysql`), the
+default local suite does not.
+
+### UI Pass — `8e695d8`
+
+The surface shipped using class names with no CSS behind them —
+`admin-page-header`, `admin-btn`, `admin-btn-primary` match zero rules, and
+`admin-table` was used where the house pattern is `admin-table-wrap` around a
+plain `table` — so the pages rendered as unstyled markup. `index` and `show`
+also omitted `@section('page_title')`, making every page announce itself as the
+dashboard. Both pages were rebuilt on the classes the other admin screens use.
+
+Two defects surfaced only by loading the pages: `trans_choice` dropped the
+count, because Vietnamese has one plural form and Laravel resolved to segment
+zero after stripping its `{0}` condition; and the create action ran its glyph
+into its label. Both fixed.
+
+One thing was deliberately **not** done. Disabling the publish button when a
+version carries no Node would settle G2-N3 at the UI layer while the decision is
+still open, and would create the same UI/database mismatch as G2-B2 in the
+opposite direction. The button stays enabled and the page warns instead.
+
+### Verification Standing Behind This Section
+
+* MariaDB integration suite, real connection: **14 passed, 83 assertions**.
+* Default suite: **733 passed**, 8259 assertions.
+* Both pages rendered through the HTTP kernel with `actingAs` against seeded
+  data inside a rolled-back transaction — HTTP 200, Alpine initialised,
+  collapsed forms expanding, a locked Definition still submitting its frozen
+  identity through the hidden fields the service compares against, no
+  horizontal overflow at 375px. No development row was written.
+* Pint clean; `git diff --check` clean.
+
+### Gate 2 Remaining Items
+
+**Gate 2 is not closed.** Two independent reasons:
+
+1. **No independent reviewer has read the surface.** The Gate 2 review recorded
+   above was performed by a reviewer who then remediated the findings, and who
+   had also written the roadmap that scoped the work. § Authorship Change
+   already states the rule this violates. The next review must be by someone who
+   wrote neither the surface nor its remediation.
+2. **Two Owner decisions are open.**
+
+   * **G2-N1 — read-service ownership.** `LearningFrameworkController::index()`
+     and `show()` read `core_learning_*` directly through `DB::table()` with
+     `TenantContext::customerId()`, never through `LearningRuntimeAccess`. The
+     reads are tenant-scoped and correct; the question is whether the runtime
+     access service should own them. As things stand
+     `LearningRuntimeAccess::denyExternalRead()` has no production caller —
+     verified 2026-08-22, its only reference is
+     `tests/Feature/LearningRuntimeFoundationTest.php:86`.
+   * **G2-N3 — whether publishing requires at least one Node.** Publishing is
+     one-way and cannot be corrected, so a version published empty stays empty.
+     The service does not refuse it and the UI only warns.
+
+Neither is a defect. Both are decisions, and both should be settled before the
+gate closes rather than discovered by the next reviewer.
 
 ---
 
