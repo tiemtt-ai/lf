@@ -2339,7 +2339,7 @@ return [
     'LF_course_cohort_schedule_validation_overlap' => 'Các khung giờ trong cùng ngày không được trùng hoặc chồng lấn.',
     'LF_course_cohort_schedule_slot_referenced' => 'Không thể xóa khung giờ đã được dùng để tạo Buổi học. Bạn có thể giữ khung giờ hoặc tạo Lịch học mới.',
     'LF_course_cohort_schedule_validation_exclusion_range' => 'Ngày loại trừ phải nằm trong khoảng áp dụng của lịch học.',
-    'LF_learning_frameworks' => 'Khung học tập',
+    'LF_learning_frameworks' => 'Chuẩn đầu ra & năng lực',
     'LF_learning_manual_help' => 'Quản trị thủ công Framework, Definition và Node theo cùng nền tảng Learning Foundation.',
     'LF_learning_create_framework' => 'Tạo khung học tập', 'LF_learning_code' => 'Mã', 'LF_learning_name' => 'Tên',
     'LF_learning_versions' => 'Phiên bản', 'LF_learning_status' => 'Trạng thái', 'LF_learning_draft' => 'bản nháp', 'LF_learning_published' => 'đã xuất bản', 'LF_learning_empty' => 'Chưa có khung học tập.',
