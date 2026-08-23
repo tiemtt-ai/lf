@@ -73,6 +73,7 @@
                 @include('learning-frameworks.partials.framework-fields', [
                     'framework' => $framework,
                     'masteryScale' => $masteryScale,
+                    'useOldInput' => false,
                 ])
                 <footer class="admin-form-footer" data-actions-align="end">
                     <div class="admin-form-footer-primary">
@@ -215,18 +216,18 @@
                     <div class="lf-form-group admin-form-field">
                         <x-form-label for="new-version-code" :value="__('lf.LF_learning_version_code')" required />
                         <input id="new-version-code" name="version_code" class="lf-form-control" required maxlength="100"
-                               value="{{ old('version_code') }}">
+                               value="">
                         <p class="lf-form-help">{{ __('lf.LF_learning_version_code_help') }}</p>
                     </div>
                     <div class="lf-form-group admin-form-field">
                         <x-form-label for="new-version-title" :value="__('lf.LF_learning_title')" required />
                         <input id="new-version-title" name="title" class="lf-form-control" required maxlength="255"
-                               value="{{ old('title') }}">
+                               value="">
                     </div>
                     <div class="lf-form-group admin-form-field--full">
                         <x-form-label for="new-version-description" :value="__('lf.LF_learning_description')" />
                         <textarea id="new-version-description" name="description" class="lf-form-control" rows="3"
-                                  maxlength="5000">{{ old('description') }}</textarea>
+                                  maxlength="5000"></textarea>
                     </div>
                 </div>
                 <footer class="admin-form-footer" data-actions-align="end">
@@ -410,6 +411,7 @@
                             @include('learning-frameworks.partials.node-fields', [
                                 'node' => null,
                                 'editing' => false,
+                                'newNodeFormId' => 'node-new-'.$version->id,
                             ])
                             <footer class="admin-form-footer" data-actions-align="end">
                                 <div class="admin-form-footer-primary">

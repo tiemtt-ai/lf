@@ -27,7 +27,7 @@ class LearningNodeRequest extends FormRequest
         return [
             'framework_version_id' => ['required', 'integer', 'min:1'],
             'node_definition_id' => ['required', 'integer', 'min:1'],
-            'sequence' => ['sometimes', 'integer', 'min:1'],
+            'sequence' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'criteria_json' => ['nullable', 'json'],
 
             'customer_id' => ['prohibited'],
@@ -47,6 +47,13 @@ class LearningNodeRequest extends FormRequest
     public function command(): array
     {
         $command = $this->validated();
+
+        // A blank optional HTML number input arrives as null after
+        // ConvertEmptyStringsToNull. Omit it so the owner service appends the
+        // Node; retaining null would be coerced to sequence 0 by the service.
+        if (($command['sequence'] ?? null) === null) {
+            unset($command['sequence']);
+        }
 
         if (array_key_exists('criteria_json', $command)) {
             $command['criteria'] = filled($command['criteria_json'])

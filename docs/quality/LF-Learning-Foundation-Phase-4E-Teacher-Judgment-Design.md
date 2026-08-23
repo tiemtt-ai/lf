@@ -304,13 +304,14 @@ review pass.
    see **Fourth Pass — 2026-08-17**, verdict `GATE 1 PASS`. B1–B5 and R1–R4
    were closed and the required negative matrix was verified. This verdict did
    not authorize the external surface or production deployment.
-2. **Gate 2 — open.** Architecture Owner authorized request validation,
+2. **Gate 2 PASS — closed 2026-08-23.** Architecture Owner authorized request validation,
    controller, route and UI work on 2026-08-17. The Framework authoring surface
    subsequently shipped in `67aafcf` and was rendered in the admin design system
    in `8e695d8`. It has received one review and remediation pass, but Gate 2
-   remains open until a reviewer who authored neither the surface nor its
-   remediation reviews it independently. The G2-N1 and G2-N3 Owner decisions
-   are recorded below; they are no longer Gate 2 blockers.
+   was remediated and verified by the MariaDB HTTP suite. Owner policy no
+   longer requires an independent reviewer as a mandatory closing condition;
+   Gate 2 closes on complete recorded evidence and Owner attestation. The
+   G2-N1, G2-N2 and G2-N3 Owner decisions are recorded below.
 3. Complete the separate production deployment gate.
 
 ## Timestamp Convention
@@ -509,9 +510,9 @@ Date: 2026-08-17
 Decision: Authorized — request validation, controller, route and UI for
           Teacher Judgment submission and Framework authoring
 Excluded: production deployment, which remains a separate gate
-Condition: Gate 2 closes only after an independent review of the surface
-           itself. The runtime review that passed on 2026-08-17 does not
-           cover it.
+Condition: Gate 2 closes on recorded MariaDB HTTP/service evidence, remediation
+           of blocking findings, and Architecture Owner attestation. Independent
+           review remains preferred assurance, not a mandatory condition.
 Ordering:  F1 before the first controller line
 ```
 
@@ -534,6 +535,12 @@ G2-N1. Customer-admin Framework authoring reads are owned by
 
 G2-N3. A Framework Version must contain at least one active versioned Node
        before it may transition from draft_snapshot to published.
+
+G2-N2. More than one Framework Version may be published. Every consumer must
+       select `basis_framework_version_id` explicitly; no service or UI may
+       resolve `latest`, publish time or version number as a current Version.
+       `deprecated` is historical-only for new operational writes; `archived`
+       is read-only and unavailable for new operational writes.
 ```
 
 G2-N1 keeps the two different meanings explicit. Runtime consumers remain

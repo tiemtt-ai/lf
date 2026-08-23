@@ -1,12 +1,12 @@
 # LF-Core-Learning.md
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Frozen
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-22
+Last Updated: 2026-08-23
 
 Approval Date: 2026-08-12
 
@@ -213,11 +213,11 @@ tương ứng không được ghi đè lẫn nhau chỉ vì cùng nói về mộ
 
 Trả lời "mastery hiện tại":
 
-* Mặc định lấy theo Framework Version đang active/published.
+* Consumer phải nêu rõ `basis_framework_version_id`; không suy ra từ `latest`,
+  version number hay thời điểm publish.
+* Nếu không nêu basis: trả về nhiều trạng thái có nhãn Version hoặc fail closed.
 * Trạng thái của các version cũ vẫn đọc được như lịch sử.
 * Truy vấn xuyên version là hành động chủ động, không phải gộp tự động.
-* Khi không xác định được version active: trả về nhiều trạng thái có nhãn
-  version, hoặc fail closed.
 
 ---
 
@@ -300,11 +300,21 @@ phải publish và không tự sinh Learning business state. Khi được chấp
 
 Learning Domain đã triển khai một phần. Mười bảng Foundation cùng khoá ngoại,
 CHECK và trigger đã deploy trên database development, kèm các service runtime
-nội bộ; chưa có route, API, UI nào, và production là gate riêng. Internal
-`LearningFrameworkAuthoringService` không đồng nghĩa manual form đã tồn tại:
-manual fallback vẫn cần external surface và phải dùng cùng owner service cùng
-Framework/Definition/Node foundation. Tài liệu này là policy đã được
-Architecture Owner phê duyệt ngày 2026-08-12.
+nội bộ. Customer admin có external authoring surface cho Framework, Stable Node
+Definition, Framework Version `draft_snapshot`, Versioned Node và publish
+Version; Gate 2 closed on 2026-08-23 by MariaDB HTTP/service evidence and
+Architecture Owner attestation. Production là gate riêng.
+
+Surface này chỉ quản trị Foundation graph. Nó chưa làm Course tiêu thụ được
+Framework: chưa có Course/Activity chọn Framework Version, Course adapter hoặc
+UI ghi canonical Node Mapping tới published Course Version Lesson/Activity,
+Teacher Judgment external surface, hay Course-derived Evidence. Manual fallback
+đã tồn tại một phần cho taxonomy administration, nhưng manual Mapping fallback,
+AI Proposal/Review/Promotion và Node Relation/lifecycle authoring vẫn chưa có.
+Mọi surface đó phải dùng cùng Learning owner service cùng
+Framework/Definition/Node foundation; không được tạo schema hay Source Of Truth
+song song. Tài liệu này là policy đã được Architecture Owner phê duyệt ngày
+2026-08-12.
 
 ## Owner Approval
 

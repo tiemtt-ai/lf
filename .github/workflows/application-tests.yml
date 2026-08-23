@@ -119,8 +119,9 @@ jobs:
         # with a Redis service and that exact schema name; adding it here would
         # only make this one red.
         #
-        # No `npm run build` step: neither file renders a Blade view, so Vite's
-        # manifest is never needed.
+        # No `npm run build` step. Most files here render no Blade view at all,
+        # and LearningFrameworkAuthoringHttpMariaDbTest — which does — stubs
+        # Vite with withoutVite(), so no manifest is ever needed.
         env:
           APP_ENV: testing
           APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -138,4 +139,5 @@ jobs:
             tests/Integration/EnrollmentBindingTriggerMysqlTest.php \
             tests/Integration/LearningRuntimeMariaDbTest.php \
             tests/Integration/TeacherJudgmentRuntimeMariaDbTest.php \
-            tests/Integration/LearningFrameworkAuthoringMariaDbTest.php
+            tests/Integration/LearningFrameworkAuthoringMariaDbTest.php \
+            tests/Integration/LearningFrameworkAuthoringHttpMariaDbTest.php

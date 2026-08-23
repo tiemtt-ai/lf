@@ -872,7 +872,21 @@ opposite direction. The button stays enabled and the page warns instead.
   horizontal overflow at 375px. No development row was written.
 * Pint clean; `git diff --check` clean.
 
-### Gate 2 Remaining Items
+### Gate 2 Closure — 2026-08-23
+
+Architecture Owner amended the Gate 2 policy: independent review remains
+preferred assurance but is no longer mandatory. The owner accepted the recorded
+MariaDB disposable evidence: 20 HTTP tests / 105 assertions, the six-file
+MariaDB CI selection 65 tests / 304 assertions, default suite 734 tests / 8259
+assertions / 1 skipped, Pint and clean diff. B1, B3 and R1 are now covered by
+browser-shaped HTTP payload tests; G2-N2 was decided in ADR-0016 v1.2.
+
+```text
+GATE 2 PASS — closed 2026-08-23
+Excluded: production deployment gate; Course Mapping/AI implementation gates.
+```
+
+### Gate 2 Remaining Items (superseded)
 
 **Gate 2 is not closed.** The remaining condition is an independent review.
 

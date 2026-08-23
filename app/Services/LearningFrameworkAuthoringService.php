@@ -516,6 +516,7 @@ final class LearningFrameworkAuthoringService
 
         $seen = [];
         $previous = null;
+        $normalizedLevels = [];
         foreach ($levels as $level) {
             $key = is_array($level) ? trim((string) ($level['key'] ?? '')) : '';
             $threshold = is_array($level) && is_numeric($level['threshold'] ?? null)
@@ -540,9 +541,16 @@ final class LearningFrameworkAuthoringService
 
             $seen[$key] = true;
             $previous = $threshold;
+            $normalizedLevels[] = [
+                'key' => $key,
+                'threshold' => $threshold,
+            ];
         }
 
-        return json_encode($scale, JSON_THROW_ON_ERROR);
+        // HTTP form inputs are strings even for <input type="number">. Persist
+        // the validated scalar values, not the browser-shaped request payload:
+        // Foundation triggers require JSON numeric thresholds.
+        return json_encode(['levels' => $normalizedLevels], JSON_THROW_ON_ERROR);
     }
 
     /**

@@ -1,5 +1,5 @@
 @php
-    $nodeFieldId = $editing ? 'node-'.$node->id : 'node-new';
+    $nodeFieldId = $editing ? 'node-'.$node->id : ($newNodeFormId ?? 'node-new');
     $criteriaValue = isset($node)
         ? json_encode(json_decode($node->criteria_snapshot ?? 'null', true), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
         : '';
@@ -16,7 +16,7 @@
         @else
             <select id="{{ $nodeFieldId }}-definition" name="node_definition_id" class="lf-form-control" required>
                 @foreach ($definitions->where('status', 'active') as $definition)
-                    <option value="{{ $definition->id }}" @selected(old('node_definition_id') == $definition->id)>
+                    <option value="{{ $definition->id }}">
                         {{ $definition->canonical_name }} ({{ $definition->node_type }})
                     </option>
                 @endforeach
@@ -29,7 +29,7 @@
     <div class="lf-form-group admin-form-field">
         <x-form-label :for="$nodeFieldId.'-sequence'" :value="__('lf.LF_learning_sequence')" />
         <input id="{{ $nodeFieldId }}-sequence" type="number" min="1" name="sequence" class="lf-form-control"
-               value="{{ old('sequence', $node->sequence ?? 1) }}">
+               value="{{ $node->sequence ?? '' }}">
         <p class="lf-form-help">{{ __('lf.LF_learning_sequence_help') }}</p>
         @error('sequence')<p class="lf-form-error">{{ $message }}</p>@enderror
     </div>
@@ -38,7 +38,7 @@
         <x-form-label :for="$nodeFieldId.'-criteria'" :value="__('lf.LF_learning_criteria_json')" />
         <textarea id="{{ $nodeFieldId }}-criteria" name="criteria_json" class="lf-form-control lf-form-control--code"
                   rows="5" spellcheck="false"
-                  placeholder="{{ __('lf.LF_learning_criteria_placeholder') }}">{{ old('criteria_json', $criteriaValue) }}</textarea>
+                  placeholder="{{ __('lf.LF_learning_criteria_placeholder') }}">{{ $criteriaValue }}</textarea>
         <p class="lf-form-help">{{ __('lf.LF_learning_criteria_help') }}</p>
         @error('criteria_json')<p class="lf-form-error">{{ $message }}</p>@enderror
     </div>

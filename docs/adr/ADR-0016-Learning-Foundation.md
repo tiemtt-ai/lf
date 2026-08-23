@@ -1,12 +1,12 @@
 # ADR-0016 — Learning Foundation
 
-Version: 1.1
+Version: 1.2
 
 Status: Frozen
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-22
+Last Updated: 2026-08-23
 
 Approval Date: 2026-08-12
 
@@ -59,6 +59,26 @@ This record corrects only the grammar in the amendment sentence and its
 cross-reference from Round 3 to the recorded Round 4 re-review. It does not
 change the Version 1.1 architecture decision, Freeze scope or the separate
 Phase 4 migration authorization.
+
+---
+
+# Amendment Record — Version 1.2
+
+Amendment Status: Approved
+
+Approved by the LearnForge Architecture Owner on 2026-08-23. A Framework may
+have more than one `published` Version. No consumer may infer a current Version
+from publish time, version number or `latest`; every Mapping, Judgment and
+future Course selection must identify its Framework Version explicitly.
+
+`deprecated` remains a valid historical basis but is unavailable for new
+operational writes; `archived` remains read-only and unavailable for new
+operational writes. A runtime request for a single “current mastery” without an
+explicit basis must return labelled per-Version results or fail closed.
+
+This amendment changes no table, lifecycle transition or historical record. It
+settles Gate 2 Owner finding N2 and replaces the prior optional active-version
+default-resolution wording.
 
 ---
 
@@ -530,13 +550,12 @@ qualification rule của Framework Version cho phép.
 
 Trả lời câu hỏi "Mastery hiện tại là gì?":
 
-* Mặc định: chọn Profile có `basis_framework_version_id` bằng Framework Version
-  đang active/published theo policy được phê duyệt.
+* Consumer phải nêu rõ `basis_framework_version_id`.
+* Không suy ra Version từ publish time, version number hay `latest`.
+* Nếu một request không nêu basis: trả về nhiều trạng thái có nhãn Version hoặc
+  fail closed.
 * Lịch sử: giữ và đọc được Profile của các version cũ.
 * Xuyên version: truy vấn **chủ động** qua `node_definition_id`; không tự gộp.
-* Khi không có active-version resolution rõ ràng: trả về nhiều trạng thái có
-  nhãn version, hoặc fail closed. Không được chọn "dòng mới nhất" một cách mù
-  quáng.
 
 Teacher override và carry-forward đều tạo Calculation mới. Không sửa lịch sử.
 

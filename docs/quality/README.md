@@ -93,8 +93,8 @@ criteria hay không.
   required by tenant-safe Teacher Judgment source foreign keys.
 * [LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md](LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md)
   — Gate 1 independent runtime/migration code review; PASS after four passes.
-  The external Framework authoring surface has shipped; Gate 2 remains open for
-  an independent re-review and the G2-N1/G2-N3 Owner decisions.
+  The external Framework authoring surface passed Gate 2 on 2026-08-23 through
+  recorded MariaDB HTTP/service evidence and Owner attestation.
 * [LF-Schema-Drift-Trigger-Identity-Regression-Audit.md](LF-Schema-Drift-Trigger-Identity-Regression-Audit.md)
   — HIGH Existing-Feature Change audit for opt-in trigger identity enforcement
   in the shared schema-drift quality gate.
