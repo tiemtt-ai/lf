@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-08-22",
+  "generated_or_updated_at": "2026-08-23",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 228,
+  "document_count": 230,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -3888,6 +3888,56 @@
       ],
       "related_documents": [
         "database/course/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/course/core_course_template_learning_mapping_intents.md",
+      "title": "Table: core_course_template_learning_mapping_intents",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "course",
+        "template",
+        "learning",
+        "mapping"
+      ],
+      "keywords": {
+        "vi": [
+          "lược đồ bảng",
+          "tài liệu cơ sở dữ liệu",
+          "khóa học",
+          "nội dung học",
+          "mẫu khóa học",
+          "bản nháp biên soạn",
+          "năng lực",
+          "ánh xạ"
+        ],
+        "en": [
+          "table schema",
+          "database documentation",
+          "course",
+          "learning content",
+          "course template",
+          "authoring draft",
+          "learning node",
+          "mapping intent"
+        ]
+      },
+      "identifiers": [
+        "core_course_template_learning_mapping_intents"
+      ],
+      "related_documents": [
+        "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
+        "database/course/README.md",
+        "database/course/core_course_templates.md",
+        "database/learning/core_learning_node_mappings.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -7954,6 +8004,58 @@
         "LF-Course-Template-Activity-Estimated-Duration-Architecture-Review"
       ],
       "related_documents": [],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Course-Template-Learning-Mapping-Intent-Architecture-Review.md",
+      "title": "Course Template Learning Mapping Intent Architecture Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "course",
+        "template",
+        "learning",
+        "mapping",
+        "review"
+      ],
+      "keywords": {
+        "vi": [
+          "đánh giá kiến trúc",
+          "khóa học",
+          "mẫu khóa học",
+          "năng lực",
+          "ánh xạ",
+          "chuẩn đầu ra",
+          "cổng kiểm soát"
+        ],
+        "en": [
+          "architecture review",
+          "course",
+          "course template",
+          "learning",
+          "mapping intent",
+          "learning outcome",
+          "gate"
+        ]
+      },
+      "identifiers": [
+        "core_course_template_learning_mapping_intents",
+        "core_course_templates",
+        "core_learning_node_mappings"
+      ],
+      "related_documents": [
+        "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
+        "database/course/core_course_template_learning_mapping_intents.md",
+        "database/course/core_course_templates.md",
+        "database/learning/core_learning_node_mappings.md",
+        "quality/README.md"
+      ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
     },

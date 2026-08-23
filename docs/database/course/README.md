@@ -47,6 +47,7 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 | **core_course_template_sections** | Nhóm Lesson tùy chọn có thể chỉnh sửa |
 | **core_course_template_lessons** | Bài học trực tiếp hoặc thuộc Section |
 | **core_course_template_activities** | Activity có thể chỉnh sửa |
+| [**core_course_template_learning_mapping_intents**](core_course_template_learning_mapping_intents.md) | Ý định draft gắn Lesson/Activity với Learning Node; promote khi publish |
 | [**core_course_template_lesson_prerequisites**](core_course_template_lesson_prerequisites.md) | Prerequisite của Lesson trong draft Template |
 
 ---

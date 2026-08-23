@@ -316,6 +316,18 @@ Framework/Definition/Node foundation; không được tạo schema hay Source Of
 song song. Tài liệu này là policy đã được Architecture Owner phê duyệt ngày
 2026-08-12.
 
+## Course Template Mapping Intent
+
+Course Template draft stores only an explicit published Framework Version and
+draft Mapping Intent. Publishing creates immutable Course Version
+Lesson/Activity snapshots and atomically materializes canonical Mapping to the
+same explicit published Framework Version Node. Product bindings retain their
+exact Course Version; no Template, Product or Learning consumer resolves
+`latest` or silently rebinds. Manual intent is directly confirmed by an
+authorised Course author; AI intent requires human review. Implementation
+review is optional assurance, while Owner attestation and recorded HIGH test
+evidence are sufficient to close the implementation gate.
+
 ## Owner Approval
 
 ```text

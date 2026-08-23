@@ -303,4 +303,24 @@ or UI authorization — those remain behind the Implementation Gate above.
 
 ---
 
+# Course Template Mapping Intent Amendment — 2026-08-23
+
+Approved by the Architecture Owner for implementation planning. A working
+Course Template may store a selected, explicitly identified published Framework
+Version and manual Mapping Intents for its working Lessons/Activities. Those
+Intents are not canonical Mappings and create no Evidence or Mastery.
+
+Course publish must snapshot the selected Framework Version and promote each
+Intent in the same transaction to `core_learning_node_mappings`, substituting
+only the newly-created published Version Lesson/Activity identities. Promotion
+must be idempotent on the Mapping unique key; a Product remains bound to its
+exact published Course Version and is never silently rebound.
+
+Manual Mapping Intent may be confirmed directly by an authorised Course author.
+AI-originated Intent still requires human accept/edit/reject. Implementation
+review is optional assurance, not a mandatory gate: Owner attestation plus
+recorded HIGH test evidence may close an implementation gate.
+
+---
+
 End of ADR

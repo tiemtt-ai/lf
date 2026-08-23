@@ -42,6 +42,9 @@ criteria hay không.
   — approved Course Template Activity estimated duration architecture review.
 * [LF-Course-Template-Lesson-Role-Architecture-Review.md](LF-Course-Template-Lesson-Role-Architecture-Review.md)
   — approved Course Template Lesson role architecture review.
+* [LF-Course-Template-Learning-Mapping-Intent-Architecture-Review.md](LF-Course-Template-Learning-Mapping-Intent-Architecture-Review.md)
+  — Course Template Learning Mapping Intent contract review; PASS with Owner
+  approval pending, no migration authorized.
 * [LF-Version-Activity-Media-Snapshot-Architecture-Review.md](LF-Version-Activity-Media-Snapshot-Architecture-Review.md)
   — approved Version Activity media snapshot architecture review.
 * [LF-Course-Product-Architecture-Review.md](LF-Course-Product-Architecture-Review.md)

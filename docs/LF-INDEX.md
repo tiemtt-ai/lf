@@ -378,6 +378,7 @@ docs/quality/
 | [quality/LF-Course-Template-Ordering-Architecture-Review.md](quality/LF-Course-Template-Ordering-Architecture-Review.md) | Approved and frozen Course Template tenant/category ordering review |
 | [quality/LF-Course-Template-Activity-Estimated-Duration-Architecture-Review.md](quality/LF-Course-Template-Activity-Estimated-Duration-Architecture-Review.md) | Approved Course Template Activity estimated duration architecture review |
 | [quality/LF-Course-Template-Lesson-Role-Architecture-Review.md](quality/LF-Course-Template-Lesson-Role-Architecture-Review.md) | Approved Course Template Lesson role architecture review |
+| [quality/LF-Course-Template-Learning-Mapping-Intent-Architecture-Review.md](quality/LF-Course-Template-Learning-Mapping-Intent-Architecture-Review.md) | Course Template Learning Mapping Intent contract review; PASS with Owner approval pending |
 | [quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md](quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md) | Approved Course Lesson multiple-prerequisite architecture review |
 | [quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md](quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md) | Approved Version Activity media snapshot architecture review |
 | [quality/LF-Course-Product-Architecture-Review.md](quality/LF-Course-Product-Architecture-Review.md) | Approved Course Product CRUD architecture review |

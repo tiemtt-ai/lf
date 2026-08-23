@@ -1,17 +1,19 @@
 # Table: core_course_templates
 
-Version: 2.1
+Version: 2.2
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-23
 
 Document Path: database/course/core_course_templates.md
 
 Related ADR:
-[ADR-0013 — Course Template Version Duplicate to Draft](../../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md)
+
+* [ADR-0013 — Course Template Version Duplicate to Draft](../../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md)
+* [ADR-0017 — AI-Assisted Learning Authoring](../../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 
 ---
 
@@ -308,6 +310,29 @@ Giá trị:
 
 ---
 
+## Learning Selection
+
+Not Implemented until the Mapping Intent migration is authorized by the
+Database/Architecture Review. This contract is authorized by the 2026-08-23
+Course Template Mapping Intent amendment to ADR-0017.
+
+### selected_learning_framework_id
+
+BIGINT UNSIGNED NULL
+
+Explicit Framework owner for draft Mapping Intent. It is nullable until the
+Course author selects a Learning Framework and is never a `latest` resolver.
+
+### selected_learning_framework_version_id
+
+BIGINT UNSIGNED NULL
+
+Exact published Framework Version selected by the Template. Together with
+`selected_learning_framework_id` and `customer_id`, it references
+`core_learning_framework_versions(id, customer_id, framework_id)`.
+
+---
+
 ## Audit
 
 ### created_by
@@ -367,6 +392,9 @@ introduced. Duplicate provenance belongs to the append-only tenant audit trail.
 (customer_id, status)
 
 (customer_id, created_by)
+
+UNIQUE (id, customer_id, selected_learning_framework_id,
+selected_learning_framework_version_id) — Not Implemented; Mapping Intent migration
 
 # Sample Data
 
