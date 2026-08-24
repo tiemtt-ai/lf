@@ -1,12 +1,12 @@
 # Table: media_processing_jobs
 
-Version: 2.2
+Version: 2.3
 
 Document Status: Review
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-08-23
+Last Updated: 2026-08-24
 
 Document Path: database/media/media_processing_jobs.md
 
@@ -60,15 +60,23 @@ pending ──→ processing ──→ ready
 * Row mới trỏ về row bị thay bằng `supersedes_job_id` và tăng `attempt`.
 * Một chuỗi retry vì thế đọc được đầy đủ: mỗi lần gọi provider có tính phí đều
   có đúng một row, kể cả lần thất bại.
+* Retry chain, giới hạn, backoff eligibility và `attempt` cao nhất được scope
+  theo `(customer_id, media_file_id, job_type, source_fingerprint,
+  processing_version, output_profile_hash)`. Không được nhóm chỉ theo job type.
+* Retry của profile này không tiêu hao attempt, không chặn enqueue và không làm
+  profile khác failed. Mỗi scope có tối đa 3 attempt độc lập.
 
 ### Quan hệ với `media_files.status`
 
 * Job **không** tự ghi `media_files.status`.
-* Media File chuyển sang `ready` khi và chỉ khi mọi job **bắt buộc** cho
-  `file_type` của nó đều ở `ready` tại `attempt` cao nhất.
-* Media File chuyển sang `failed` khi một job bắt buộc kết thúc `failed` và
-  không còn attempt nào được phép.
+* Media File chuyển sang `ready` khi và chỉ khi required output profile set đã
+  materialize đủ và job `attempt` cao nhất trong **từng full retry scope** đều
+  `ready`.
+* Media File chuyển sang `failed` khi required profile kết thúc `failed` và hết
+  3 attempt, hoặc required profile không materialize được do thiếu canonical
+  locale/configuration.
 * Job tuỳ chọn (ví dụ `thumbnail` cho document) không ảnh hưởng trạng thái file.
+  Additional/on-demand profile cũng không tham gia aggregate, kể cả khi failed.
 * Tập job bắt buộc theo `file_type` do
   [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md)
   quy định, không quy định ở đây.
@@ -192,6 +200,13 @@ profile layout khác cho kết quả khác. Thiếu nó thì mọi locale thứ 
 "nội dung nguồn là gì"; `output_profile_hash` trả lời "đã yêu cầu output nào".
 Trộn hai câu hỏi vào một hash làm mất khả năng nhận ra hai job đang đọc cùng một
 nội dung.
+
+Chính key thứ hai cũng định nghĩa retry scope vật lý. Vì
+`output_profile_hash` đứng trước `attempt`, duplicate cùng profile/cùng attempt
+bị database chặn, trong khi `vi` và `ko`, hoặc `vi-VTT` và `vi-SRT`, có chuỗi
+attempt độc lập. Canonicalization và required/default profile Phase 1 thuộc
+[LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md);
+worker không được tự chọn default.
 
 Media không tạo foreign key sang Course, Assessment, LiveClass hay AI. Ba khóa
 ngoại trên đều nằm trong Media hoặc trỏ `users`, đúng ranh giới ADR-0004.

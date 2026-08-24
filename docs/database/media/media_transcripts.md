@@ -1,12 +1,12 @@
 # Table: media_transcripts
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Review
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-08-23
+Last Updated: 2026-08-24
 
 Document Path: database/media/media_transcripts.md
 
@@ -42,6 +42,9 @@ media_processing_jobs 1 → N media_transcripts
 * Locator theo hợp đồng chung: `locator_type = 'timespan'`, `locator_value` là
   `<start_ms>-<end_ms>`. Mọi nội dung trả cho consumer phải kèm locator.
 * Chỉ row `ready` được Media Read Service trả ra.
+* Mỗi locale/diarization profile có retry chain độc lập. Một transcript locale
+  hết retry không chặn enqueue/ready/retry của locale khác. Chỉ profile được
+  đánh dấu required khi fan-out mới tham gia `media_files.status` aggregate.
 
 ## Fields
 

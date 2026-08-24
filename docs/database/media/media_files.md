@@ -1,6 +1,6 @@
 # Table: media_files
 
-Version: 1.0
+Version: 1.2
 
 Document Status: Review
 
@@ -26,6 +26,25 @@ Bảng trung tâm lưu identity, metadata, storage locator và lifecycle của D
 * Không hard-delete khi còn active Usage; dùng lifecycle `deleted`/`archived`.
 * Allowed `file_type`: `image`, `video`, `audio`, `document`, `subtitle`, `transcript`, `archive`, `other`.
 * Allowed `status`: `uploading`, `processing`, `ready`, `failed`, `deleted`, `archived`.
+* `status` phản ánh **deliverability của file nhị phân**, không phản ánh output
+  dẫn xuất. Chỉ upload và `virus_scan` ảnh hưởng nó. `ready` nghĩa là file phục
+  vụ được — `MediaFileDeliveryController`, `CourseActivityMediaPresenter` và
+  `CourseActivityMediaPreviewAuthorizer` đều gate trên giá trị này.
+* OCR, speech-to-text, caption, transcode và thumbnail **không** ảnh hưởng
+  `status`. Readiness của chúng đọc từ chính row output. Một video có
+  `status = 'ready'` và transcript còn `processing` là trạng thái hợp lệ và bình
+  thường.
+* `processing_locale` là locale canonical dùng để dựng required output profile.
+  Nó là **cột thật**, không nằm trong `metadata`: nó quyết định
+  `output_profile_hash`, tức quyết định unique key của job, và một khóa nghiệp vụ
+  không được sống trong JSON tự do.
+* `processing_error_code` ghi lý do cấu hình processing không hợp lệ, ví dụ
+  `required_profile_configuration_missing`.
+* Khi `course_activity` lần đầu kích hoạt required Media processing,
+  `metadata.processing_locale` lưu BCP 47 canonical do Course service nhận từ
+  actor attach đã được authorize. Giá trị bất biến cho source đã materialize;
+  không fallback từ UI/browser/model. Fail-closed configuration error được lưu
+  tại `metadata.processing_error_code`.
 * Không lưu permanent public URL làm canonical Media data. Protected tenant
   Media dùng signed delivery khi access.
 * `cdn_url` nếu có chỉ là optional delivery metadata; không phải storage
@@ -232,7 +251,9 @@ tenants.
 | page_count | INT UNSIGNED NULL | Số trang document. |
 | language | VARCHAR(20) NULL | Ngôn ngữ asset. |
 | visibility | VARCHAR(50) NOT NULL DEFAULT 'private' | `private`, `organization`, `public`. |
-| status | VARCHAR(50) NOT NULL DEFAULT 'uploading' | Processing lifecycle. |
+| status | VARCHAR(50) NOT NULL DEFAULT 'uploading' | Deliverability của file nhị phân. |
+| processing_locale | VARCHAR(20) NULL | Locale canonical BCP 47 cho required output profile. **Not Implemented** cho tới migration Media Processing. |
+| processing_error_code | VARCHAR(100) NULL | Lý do cấu hình processing không hợp lệ. **Not Implemented** cho tới migration Media Processing. |
 | metadata | JSON NULL | Metadata mở rộng, không chứa binary. |
 | created_at | TIMESTAMP NULL | Thời điểm tạo. |
 | updated_at | TIMESTAMP NULL | Thời điểm cập nhật metadata/state. |

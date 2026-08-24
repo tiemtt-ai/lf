@@ -1,12 +1,12 @@
 # LF-Media-Processing-Contract.md
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Review
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-08-23
+Last Updated: 2026-08-24
 
 Document Path: platform/LF-Media-Processing-Contract.md
 
@@ -63,9 +63,75 @@ Không kích hoạt xử lý cho `avatar`, `marketing`, `certificate` hoặc b�
 | `video` | `virus_scan`, `speech_to_text`, `caption` | `transcode`, `thumbnail` |
 | `image` | `virus_scan` | `thumbnail` |
 
-Chỉ job **bắt buộc** ảnh hưởng `media_files.status`. MIME không nằm trong tập
-được hỗ trợ thì không sinh job nào và không đánh dấu file `failed` — nó chỉ
-không có output, và Read Service trả mã lỗi `unsupported_source`.
+MIME không nằm trong tập được hỗ trợ thì không sinh job nào và không đánh dấu
+file `failed` — nó chỉ không có output, và Read Service trả mã lỗi
+`unsupported_source`.
+
+### "Bắt buộc" nghĩa là bắt buộc với cái gì
+
+Cột trên nói job nào phải chạy, **không** nói job nào chặn việc phục vụ file.
+Hai câu hỏi đó tách bạch:
+
+| Câu hỏi | Ai đọc | Job quyết định |
+| --- | --- | --- |
+| File này phục vụ được chưa? | `media_files.status` — delivery, preview, media picker | **Chỉ `virus_scan`** |
+| Output dẫn xuất dùng được chưa? | status của chính row output; Media Read Service | `ocr`, `speech_to_text`, `caption`, `transcode`, `thumbnail` |
+
+`virus_scan` là gate hợp lệ của deliverability: không phục vụ nội dung chưa
+quét. OCR và speech-to-text thì không — không có lý do gì một video phải chờ
+phiên âm xong mới phát được.
+
+Điều này không phải tinh chỉnh ngữ nghĩa. `MediaFileDeliveryController` từ chối
+404 với bất kỳ file nào có `status <> 'ready'`, và `CourseActivityMediaPresenter`
+cùng `CourseActivityMediaPreviewAuthorizer` cũng gate như vậy. Nếu
+`media_files.status` chờ speech-to-text, tác giả upload video rồi bấm Submit sẽ
+thấy video 404 trong suốt thời gian phiên âm.
+
+## Locale canonical và required output profiles Phase 1
+
+Với usage `course_activity`, locale canonical của processing là
+`media_files.processing_locale`. Course service ghi field này khi
+active usage đầu tiên kích hoạt processing, từ locale nội dung do actor đang
+attach Media khai báo tường minh và đã được authorize trên Activity. Sau khi
+required set được materialize, field là bất biến cho source đó; attach lại cùng
+Media File phải dùng đúng locale đã lưu hoặc bị từ chối. Giá trị
+phải là language tag BCP 47 canonical. Internationalization default `vi`, browser
+locale, user locale và model/provider language detection **không** phải source of
+truth và không được dùng làm fallback.
+
+Attach một document/audio/video mà thiếu `processing_locale`, có locale không
+hợp lệ, hoặc xung đột với locale canonical đã lưu thì orchestration fail-closed:
+
+```text
+media_files.status = 'failed'
+media_files.processing_error_code = 'required_profile_configuration_missing'
+```
+
+Không enqueue job phụ thuộc locale trong trường hợp này, và không để file treo
+`processing`. `virus_scan` vẫn có thể chạy độc lập; kết quả scan không biến cấu
+hình required profile bị thiếu thành hợp lệ.
+
+Required output profile set Phase 1 được materialize một lần tại trigger, từ
+`file_type` và locale canonical nói trên:
+
+| `file_type` | Required profile chính xác | Optional/on-demand |
+| --- | --- | --- |
+| `document` | `virus_scan` profile rỗng; `ocr`: `layout=preserve;locale=<canonical-locale>` | `thumbnail` |
+| `audio` | `virus_scan` profile rỗng; `speech_to_text`: `diarization=off;locale=<canonical-locale>` | Additional transcript locale/profile |
+| `video` | `virus_scan` profile rỗng; `speech_to_text`: `diarization=off;locale=<canonical-locale>`; `caption`: `format=vtt;locale=<canonical-locale>` | `transcode`, `thumbnail`, additional transcript/caption locale hoặc format |
+| `image` | `virus_scan` profile rỗng | `thumbnail` |
+
+Phase 1 chỉ có **một** required locale cho OCR/speech-to-text và chỉ có **một**
+required caption format (`vtt`). Locale/format/profile bổ sung là
+optional/on-demand; chúng không được tự động nhập vào required set và không được
+làm file ở `processing` mãi.
+
+Actor đã được authorize để sửa `course_activity`, thông qua Course service, được
+yêu cầu thêm locale/format sau attach. System operator có quyền Media processing
+cũng được yêu cầu retry hoặc materialize một profile đã được actor yêu cầu.
+Thêm một profile nằm trong vocabulary hiện có là optional/on-demand operation,
+không phải amendment. Đổi default Phase 1, biến profile optional thành required,
+thêm key/profile vocabulary hoặc mở thêm actor/service là amendment có review.
 
 ---
 
@@ -92,14 +158,33 @@ trỏ về row trước. Không sửa row cũ. Hệ quả có chủ đích: mỗ
 tính phí đều để lại đúng một row, kể cả lần thất bại, nên chi phí truy vết được.
 
 * Backoff: mũ, gốc 60 giây, hệ số 2, jitter ±20%.
-* Giới hạn: 3 attempt cho mỗi `(media_file_id, job_type, source_fingerprint,
-  processing_version)`.
+* Retry chain, giới hạn 3 attempt, backoff eligibility và phép chọn `attempt` cao
+  nhất đều scope theo `(customer_id, media_file_id, job_type,
+  source_fingerprint, processing_version, output_profile_hash)`.
 * Chỉ retry khi `error_code` thuộc nhóm tạm thời (`provider_timeout`,
   `provider_unavailable`, `rate_limited`). Lỗi vĩnh viễn
   (`unsupported_source`, `corrupt_source`, `quota_exceeded`) không retry.
-* Hết attempt: job cuối giữ `failed`, và file chuyển `failed` nếu job đó bắt
-  buộc. Không có dead-letter queue riêng — chuỗi job **là** dead-letter record,
-  đọc được bằng SQL và không hết hạn.
+* Retry của một output profile không tiêu hao attempt, không chặn enqueue và
+  không ảnh hưởng backoff của profile khác. Hết attempt của một required profile
+  làm file `failed`; hết attempt của optional/on-demand profile không làm file
+  mất `ready`. Không có dead-letter queue riêng — mỗi chuỗi profile **là**
+  dead-letter record, đọc được bằng SQL và không hết hạn.
+
+## Điểm dispatch
+
+Job **không được** enqueue bên trong transaction tạo Activity. Đường ghi
+(`CourseTemplateActivityController::storeActivity` và `updateActivity`) bọc tạo
+Activity, upload và `attachUsage` trong một `DB::transaction`. Nếu một bước sau
+đó ném lỗi, transaction rollback — nhưng message đã vào queue thì không, và
+worker sẽ đi tìm một usage không tồn tại.
+
+Enqueue phải xảy ra **sau commit**, qua `DB::afterCommit()` hoặc queue
+connection đặt `after_commit = true`.
+
+Điểm enqueue nằm ở **service dùng chung**, không nằm trong controller: hôm nay
+đã có hai entry point (`storeActivity` và `updateActivity`, cùng gọi
+`attachUploadedMedia`), và một đường quên dispatch sẽ biểu hiện thành "một số
+Activity có OCR, một số thì không" mà không ai truy ra được vì sao.
 
 ## Cancellation
 
@@ -122,13 +207,22 @@ bằng lock ở tầng queue.
 
 ## Trạng thái tổng hợp
 
-`media_files.status` là **read state dẫn xuất**, không do worker ghi tuỳ ý:
+`media_files.status` là **read state dẫn xuất**, không do worker ghi tuỳ ý.
+Aggregate chỉ xét required output profile set đã materialize tại trigger và row
+`attempt` cao nhất trong từng retry scope đầy đủ:
 
 ```text
-mọi job bắt buộc ở 'ready'          → media_files.status = 'ready'
-một job bắt buộc 'failed', hết retry → media_files.status = 'failed'
-còn job bắt buộc chưa kết thúc       → media_files.status = 'processing'
+required set materialize đủ và mọi required profile có job cao nhất 'ready' → ready
+một required profile có job cao nhất 'failed', hết retry                    → failed
+required profile configuration thiếu/không hợp lệ                           → failed
+còn required profile chưa kết thúc hoặc chưa materialize                    → processing
 ```
+
+Additional/on-demand profile không tham gia aggregate: nó có thể
+`pending`/`processing`/`failed` khi file vẫn `ready`. Retry failure của transcript
+`vi` không tiêu hao attempt, không chặn enqueue và không làm file failed cho
+transcript `ko`, hoặc ngược lại; điều quyết định file status chỉ là profile nào
+đã được đóng dấu `required` trong required set Phase 1.
 
 Vocabulary đã hợp nhất về **từ ngữ**, không phải về phạm vi. Ba tầng dùng chung
 `processing` / `ready` / `failed`, nhưng mỗi tầng nói về một thứ khác nhau:
@@ -145,13 +239,23 @@ là job tuỳ chọn. Ngược lại, một transcript `failed` làm video mất
 
 ## Ma trận trạng thái tổng hợp
 
-| Job bắt buộc | Job tuỳ chọn | `media_files.status` |
+`media_files.status` chỉ phản ánh **deliverability**, và chỉ `virus_scan` cùng
+cấu hình required profile ảnh hưởng nó:
+
+| `virus_scan` | Cấu hình required profile | `media_files.status` |
 | --- | --- | --- |
-| tất cả `ready` | bất kỳ | `ready` |
-| tất cả `ready` | có `failed` | `ready` |
-| có `failed`, hết attempt | bất kỳ | `failed` |
-| còn `pending`/`processing` | bất kỳ | `processing` |
-| có `cancelled` do `quota_exceeded` | bất kỳ | `processing`, chờ hạn mức |
+| `ready` | hợp lệ | `ready` — phục vụ được ngay, kể cả khi OCR/STT còn chạy |
+| `pending` / `processing` | bất kỳ | `processing` |
+| `failed` (`infected_source`) | bất kỳ | `failed` |
+| bất kỳ | thiếu hoặc không hợp lệ | `failed` + `required_profile_configuration_missing` |
+
+Job dẫn xuất **không** xuất hiện trong bảng này. `ocr` hay `speech_to_text`
+`failed` không làm file mất `ready`; hệ quả nằm ở phía consumer — Media Read
+Service trả `failed` cho chính output đó, còn file vẫn phát và tải được.
+
+Readiness của output dẫn xuất đọc từ status của row output tương ứng
+(`media_extracted_texts`, `media_transcripts`, `media_captions`,
+`media_variants`), không đọc từ `media_files`.
 
 ## Ranh giới tác dụng phụ
 
@@ -182,9 +286,20 @@ không được làm output hết hiệu lực.
 Tham số quyết định output đi trong một trường riêng:
 
 ```text
-output_profile      = danh sách khoá=giá trị đã chuẩn hoá, sắp xếp, phân tách bằng ';'
+output_profile      = ASCII `key=value` pairs, key tăng dần lexicographic, nối bằng `;`
 output_profile_hash = SHA-256( output_profile )
 ```
+
+Canonicalization chính xác:
+
+* key dùng lowercase ASCII, không khoảng trắng; value không percent-encode và
+  không chứa `=` hoặc `;`;
+* locale là BCP 47 canonical (`vi`, `ko`, `en-US`, không dùng underscore), với
+  language lowercase, Script Title Case và region uppercase;
+* enum/value khác dùng lowercase ASCII; boolean Phase 1 dùng `on`/`off`;
+* mọi default phải được ghi tường minh, không được bỏ key; không có key thừa;
+* profile rỗng là chuỗi UTF-8 độ dài 0; hash SHA-256 tính trên đúng bytes UTF-8,
+  xuất lowercase hexadecimal 64 ký tự.
 
 | `job_type` | `output_profile` gồm |
 | --- | --- |
@@ -194,6 +309,11 @@ output_profile_hash = SHA-256( output_profile )
 | `transcode` | `preset` |
 | `thumbnail` | `size` |
 | `virus_scan`, `compress` | rỗng, hash của chuỗi rỗng |
+
+Giá trị default Phase 1 là `layout=preserve`, `diarization=off`, và
+`format=vtt`. Vì key luôn sort, các profile canonical lần lượt là
+`layout=preserve;locale=vi`, `diarization=off;locale=vi` và
+`format=vtt;locale=vi` khi locale canonical là `vi`.
 
 Đây là lý do một video sinh được transcript `vi` **và** `ko`, và caption `vi`
 VTT **và** `vi` SRT, mà không cái nào bị unique key từ chối như hàng trùng lặp.
