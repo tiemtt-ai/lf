@@ -1,6 +1,6 @@
 # Table: media_variants
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Review
 
@@ -33,6 +33,15 @@ Lưu metadata và storage locator của asset phái sinh từ Media File gốc.
 * Variant luôn là Derived Asset, không phải Original Asset.
 * Variant không được update Original Asset.
 * Variant có thể regenerate từ Original Asset.
+* Variant neo vào lần chạy đã tạo ra nó qua `processing_job_id`, và mang
+  `processing_version` cùng `source_fingerprint` của lần chạy đó.
+* Chạy lại **không ghi đè**: processing version mới sinh variant mới, bản cũ
+  chuyển `archived`. Quy tắc stale đầy đủ nằm trong
+  [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md).
+* Variant **không** ảnh hưởng `media_files.status`. `transcode` và `thumbnail`
+  là job tuỳ chọn; variant `failed` không làm file mất `ready`.
+* Variant không mang citation locator: nó là asset thay thế của cùng nội dung,
+  không phải một đoạn trích dẫn được.
 
 ## Fields
 
@@ -49,20 +58,37 @@ Lưu metadata và storage locator của asset phái sinh từ Media File gốc.
 | height | INT UNSIGNED NULL | Chiều cao. |
 | bitrate | INT UNSIGNED NULL | Bitrate output. |
 | file_size_bytes | BIGINT UNSIGNED NOT NULL DEFAULT 0 | Kích thước output. |
+| processing_job_id | BIGINT UNSIGNED NULL | Lần chạy đã tạo ra variant này. |
+| processing_version | VARCHAR(100) NOT NULL | Phiên bản encoder/cấu hình. |
+| source_fingerprint | CHAR(64) NOT NULL | Vân tay nội dung nguồn khi tạo variant. |
 | status | VARCHAR(50) NOT NULL DEFAULT 'processing' | Processing state. |
 | metadata | JSON NULL | Codec/manifest metadata. |
 | created_at | TIMESTAMP NULL | Thời điểm tạo. |
 | updated_at | TIMESTAMP NULL | Thời điểm cập nhật. |
 
-## Indexes
+## Constraints And Indexes
+
+`UNIQUE (customer_id, media_file_id, variant_type)` của Version 1.0 đã **bị loại
+bỏ**: nó cho phép đúng một variant cho mỗi loại, chặn cơ chế revision mà
+processing versioning cam kết.
 
 ```sql
-INDEX (customer_id);
-INDEX (customer_id, media_file_id);
-INDEX (customer_id, variant_type);
-INDEX (customer_id, status);
-UNIQUE (customer_id, media_file_id, variant_type);
+UNIQUE (customer_id, media_file_id, variant_type, processing_version);
 UNIQUE (customer_id, storage_key);
+UNIQUE (id, customer_id);
+INDEX  (customer_id, media_file_id, status);
+INDEX  (customer_id, source_fingerprint);
+INDEX  (customer_id, processing_job_id);
+
+FOREIGN KEY (media_file_id, customer_id)
+    REFERENCES media_files (id, customer_id) RESTRICT;
+FOREIGN KEY (processing_job_id, customer_id)
+    REFERENCES media_processing_jobs (id, customer_id) RESTRICT;
+
+CHECK (status IN ('processing','ready','failed','archived'));
+CHECK (variant_type IN ('thumbnail','preview','compressed','720p','1080p','hls','webp'));
+CHECK (status <> 'ready' OR storage_key IS NOT NULL);
+CHECK (file_size_bytes >= 0);
 ```
 
 ## Sample Data

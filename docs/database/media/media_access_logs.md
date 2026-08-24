@@ -1,6 +1,6 @@
 # Table: media_access_logs
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Review
 
@@ -21,12 +21,16 @@ Append-only audit log cho thao tác truy cập Media File.
 ## Business Rules
 
 * Log và Media File phải cùng tenant; `user_id` nullable cho system/guest policy hợp lệ.
-* Allowed `action`: `upload`, `stream`, `view`, `download`, `delete`, `share`.
+* Allowed `action`: `upload`, `stream`, `view`, `download`, `delete`, `share`, `read_derived`.
 * `source_type + source_id` là generic context, không hard FK sang Domain khác.
 * Audit only; không dùng log để tính Course Progress, Attendance hoặc Assessment Result.
 * Append-only khi có thể; privacy/retention policy áp dụng cho IP/User-Agent.
 * Log không lưu full signed URL, signing query string, credential hoặc signing
   secret. Metadata chỉ chứa request/audit context an toàn.
+* Append-only là ràng buộc vật lý, không phải quy ước: không UPDATE, không
+  DELETE. Sửa sai bằng cách ghi bản ghi mới.
+* Đọc output dẫn xuất qua Media Read Service cũng là truy cập và phải ghi log,
+  với `action = 'read_derived'` và `source_type` là consumer đã gọi.
 
 ## Fields
 
@@ -44,16 +48,24 @@ Append-only audit log cho thao tác truy cập Media File.
 | accessed_at | TIMESTAMP NOT NULL | Event time. |
 | metadata | JSON NULL | Request/audit metadata an toàn. |
 
-## Indexes
+## Constraints And Indexes
 
 ```sql
-INDEX (customer_id);
-INDEX (customer_id, media_file_id);
-INDEX (customer_id, user_id);
-INDEX (customer_id, action);
+INDEX (customer_id, media_file_id, accessed_at);
+INDEX (customer_id, user_id, accessed_at);
+INDEX (customer_id, action, accessed_at);
 INDEX (customer_id, source_type, source_id);
-INDEX (customer_id, accessed_at);
+
+FOREIGN KEY (media_file_id, customer_id)
+    REFERENCES media_files (id, customer_id) RESTRICT;
+FOREIGN KEY (user_id, customer_id)
+    REFERENCES users (id, customer_id) RESTRICT;
+
+CHECK (action IN ('upload','stream','view','download','delete','share','read_derived'));
 ```
+
+Append-only được thi hành bằng trigger `BEFORE UPDATE` và `BEFORE DELETE` cùng
+kiểu với `trg_lrn_evidence_bu_immutable`; tên trigger chốt tại migration.
 
 ## Sample Data
 

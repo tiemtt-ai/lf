@@ -39,6 +39,7 @@ tự thực thi business decision của consumer.
 | --- | --- | --- |
 | Media | [LF-Media](LF-Media.md) | Foundation Approved |
 | Media | [LF-Media-Processing-Contract](LF-Media-Processing-Contract.md) | Review — substrate xử lý Media |
+| Media | [LF-Media-Read-Contract](LF-Media-Read-Contract.md) | Review — hợp đồng đọc output dẫn xuất cho AI consumer |
 | Track (Learning Intelligence Domain) | [LF-Track](LF-Track.md) | Foundation Approved |
 | AI (Learning Intelligence & Decision Support) | [LF-AI](LF-AI.md) | Foundation Approved and Frozen |
 

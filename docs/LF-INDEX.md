@@ -252,6 +252,7 @@ docs/platform/
 | --- | --- |
 | [platform/LF-Media.md](platform/LF-Media.md) | Media processing |
 | [platform/LF-Media-Processing-Contract.md](platform/LF-Media-Processing-Contract.md) | Hợp đồng substrate xử lý Media: trigger, orchestration, fingerprint, locator, đo lường |
+| [platform/LF-Media-Read-Contract.md](platform/LF-Media-Read-Contract.md) | Hợp đồng đọc output dẫn xuất cho AI consumer: owner context, locale, readiness, citation, mã lỗi |
 | [platform/LF-Track.md](platform/LF-Track.md) | Learning analytics |
 | [platform/LF-AI.md](platform/LF-AI.md) | AI intelligence |
 

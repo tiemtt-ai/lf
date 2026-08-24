@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 233,
+  "document_count": 234,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -7518,6 +7518,59 @@
         "platform/LF-Media.md",
         "database/media/media_processing_jobs.md",
         "database/media/media_extracted_texts.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "platform/LF-Media-Read-Contract.md",
+      "title": "LF-Media-Read-Contract.md",
+      "area": "platform",
+      "document_type": "domain_policy",
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "domain",
+      "canonical_for": [],
+      "topics": [
+        "media",
+        "ai",
+        "read contract",
+        "citation",
+        "locale"
+      ],
+      "keywords": {
+        "vi": [
+          "hợp đồng đọc",
+          "media",
+          "trí tuệ nhân tạo",
+          "trích dẫn",
+          "ngôn ngữ",
+          "mã lỗi"
+        ],
+        "en": [
+          "read contract",
+          "media",
+          "ai consumer",
+          "citation locator",
+          "locale",
+          "error codes"
+        ]
+      },
+      "identifiers": [
+        "media_extracted_texts",
+        "media_transcripts",
+        "media_captions",
+        "media_variants",
+        "ai_knowledge_sources"
+      ],
+      "related_documents": [
+        "adr/ADR-0004-Media-Foundation.md",
+        "adr/ADR-0006-AI-Foundation.md",
+        "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
+        "platform/LF-Media-Processing-Contract.md",
+        "database/ai/ai_knowledge_sources.md",
+        "platform/README.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
