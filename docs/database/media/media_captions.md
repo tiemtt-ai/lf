@@ -1,6 +1,6 @@
 # Table: media_captions
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Review
 
@@ -30,8 +30,14 @@ Lưu metadata và storage locator của caption/subtitle asset.
 * Chạy lại **không ghi đè**: nội dung hoặc phiên bản xử lý đổi thì sinh bộ row
   mới, bộ cũ chuyển `archived`. Quy tắc stale đầy đủ nằm trong
   [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md).
-* Locator theo hợp đồng chung: `locator_type = 'timespan'`, `locator_value` là
-  `<start_ms>-<end_ms>`. Mọi nội dung trả cho consumer phải kèm locator.
+* Caption **không mang locator**. Một row là **một file asset** VTT/SRT/ASS, và
+  một file caption chứa nhiều cue với nhiều mốc thời gian khác nhau. Gán một
+  `timespan` duy nhất cho cả file là một mốc bịa, và một trích dẫn sai chỗ còn
+  tệ hơn không có trích dẫn.
+* Trích dẫn theo thời gian dùng `media_transcripts`, nơi một row đã là một đoạn
+  có `timespan` thật. Nếu Media Read Contract về sau cần trích dẫn ở mức cue của
+  chính caption asset, đó là một derived contract riêng — mỗi cue một row với
+  `{timespan, text}` — không phải một cột nhét thêm vào bảng này.
 * Chỉ row `ready` được Media Read Service trả ra.
 
 ## Fields
@@ -49,25 +55,18 @@ Lưu metadata và storage locator của caption/subtitle asset.
 | processing_job_id | BIGINT UNSIGNED NULL | Lần chạy đã tạo ra row này. |
 | processing_version | VARCHAR(100) NOT NULL | Phiên bản extractor/model/cấu hình. |
 | source_fingerprint | CHAR(64) NOT NULL | Vân tay nội dung nguồn khi xử lý. |
-| locator_type | VARCHAR(20) NOT NULL | `timespan`. |
-| locator_value | VARCHAR(50) NOT NULL | `<start_ms>-<end_ms>`. |
 | created_at | TIMESTAMP NULL | Thời điểm tạo. |
 | updated_at | TIMESTAMP NULL | Thời điểm cập nhật. |
 
 ## Constraints And Indexes
 
-```sql
-INDEX (customer_id);
-INDEX (customer_id, media_file_id);
-INDEX (customer_id, locale);
-INDEX (customer_id, status);
-UNIQUE (customer_id, media_file_id, locale, caption_type);
-UNIQUE (customer_id, storage_key);
-```
-
+`UNIQUE (customer_id, media_file_id, locale, caption_type)` của Version 1.0 đã
+**bị loại bỏ**: nó cho phép đúng một caption cho mỗi file/locale/định dạng, chặn
+đúng cơ chế revision mà processing versioning cam kết.
 
 ```sql
 UNIQUE (customer_id, media_file_id, locale, caption_type, processing_version);
+UNIQUE (customer_id, storage_key);
 UNIQUE (id, customer_id);
 INDEX  (customer_id, media_file_id, status);
 INDEX  (customer_id, source_fingerprint);
@@ -79,7 +78,6 @@ FOREIGN KEY (processing_job_id, customer_id)
 
 CHECK (status IN ('pending','processing','ready','failed','archived'));
 CHECK (caption_type IN ('vtt','srt','ass'));
-CHECK (locator_type IN ('timespan'));
 CHECK (status <> 'ready' OR storage_key IS NOT NULL);
 ```
 

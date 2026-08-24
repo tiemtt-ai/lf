@@ -1,6 +1,6 @@
 # Table: media_transcripts
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Review
 
@@ -12,11 +12,19 @@ Document Path: database/media/media_transcripts.md
 
 ## Purpose
 
-Lưu transcript text được tạo từ audio/video Media File.
+Lưu transcript được tạo từ audio/video Media File, theo **từng đoạn trích dẫn**.
+
+Một row là một `timespan`, không phải toàn bộ transcript — cùng nguyên tắc với
+`media_extracted_texts` nơi một row là một trang. Ghép các đoạn lại là việc rẻ;
+tách một khối văn bản liền thành đoạn có mốc thời gian sau khi đã mất ranh giới
+thì không làm được.
 
 ## Relationships
 
-`Media File 1 → N Localized Transcripts`; `Customer 1 → N Transcripts`.
+```text
+media_files 1 → N media_transcripts       (nhiều locale, nhiều đoạn, nhiều revision)
+media_processing_jobs 1 → N media_transcripts
+```
 
 ## Business Rules
 
@@ -58,14 +66,10 @@ Lưu transcript text được tạo từ audio/video Media File.
 
 ## Constraints And Indexes
 
-```sql
-INDEX (customer_id);
-INDEX (customer_id, media_file_id);
-INDEX (customer_id, locale);
-INDEX (customer_id, status);
-UNIQUE (customer_id, media_file_id, locale);
-```
-
+`UNIQUE (customer_id, media_file_id, locale)` của Version 1.0 đã **bị loại bỏ**.
+Nó cho phép đúng một transcript cho mỗi file và locale, mâu thuẫn trực tiếp với
+hai điều Version 1.2 cam kết: một row là một đoạn, và processing version mới
+sinh revision mới thay vì ghi đè.
 
 ```sql
 UNIQUE (customer_id, media_file_id, locale, locator_type, locator_value,
@@ -92,4 +96,8 @@ CHECK (status <> 'ready' OR text IS NOT NULL);
 
 ## Design Notes
 
-Foundation giữ một canonical transcript mỗi file/locale; version/provider alternatives là future consideration.
+Version 1.0 giữ một canonical transcript cho mỗi file/locale và coi
+version/provider alternatives là chuyện tương lai. Processing versioning đã biến
+"tương lai" thành hợp đồng hiện hành, nên giả định đó không còn đúng: nhiều
+revision cùng tồn tại, bản cũ `archived`, và bản `archived` phải đọc được vĩnh
+viễn để một trích dẫn cũ vẫn trỏ đúng chỗ.

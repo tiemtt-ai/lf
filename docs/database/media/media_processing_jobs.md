@@ -1,6 +1,6 @@
 # Table: media_processing_jobs
 
-Version: 2.1
+Version: 2.2
 
 Document Status: Review
 
@@ -81,6 +81,22 @@ pending ──→ processing ──→ ready
 * Allowed `job_type`: `transcode`, `thumbnail`, `ocr`, `speech_to_text`,
   `caption`, `virus_scan`, `compress`.
 
+### Job có sinh asset và job không sinh asset
+
+| Nhóm | `job_type` | Khi `ready` |
+| --- | --- | --- |
+| Sinh asset | `ocr`, `speech_to_text`, `caption`, `transcode`, `thumbnail`, `compress` | **Bắt buộc** có `output_type` và `output_id` |
+| Không sinh asset | `virus_scan` | `output_type` và `output_id` phải NULL |
+
+`virus_scan` là validation side-effect, không phải derived asset: nó trả lời
+"nội dung này có an toàn để phục vụ không", và câu trả lời "có" không tạo ra
+hàng hoá nào. Bắt nó phải có output row sẽ buộc phải bịa ra một bảng chỉ để chứa
+chữ "sạch".
+
+Kết quả scan vẫn có dấu vết đầy đủ: quét sạch thì job `ready`; phát hiện nhiễm
+thì job `failed` với `error_code = infected_source`, và Media File chuyển
+`failed` vì `virus_scan` là job bắt buộc cho mọi `file_type`.
+
 ## Fields
 
 | Field | Type | Meaning |
@@ -143,7 +159,9 @@ CHECK (output_type IS NULL OR output_type IN
        ('transcript','caption','extracted_text','variant'));
 CHECK ((output_type IS NULL AND output_id IS NULL)
     OR (output_type IS NOT NULL AND output_id IS NOT NULL));
-CHECK (status <> 'ready' OR (completed_at IS NOT NULL AND output_id IS NOT NULL));
+CHECK (status <> 'ready' OR completed_at IS NOT NULL);
+CHECK (job_type <> 'virus_scan' OR (output_type IS NULL AND output_id IS NULL));
+CHECK (status <> 'ready' OR job_type = 'virus_scan' OR output_id IS NOT NULL);
 CHECK (status <> 'failed' OR (completed_at IS NOT NULL AND error_code IS NOT NULL));
 CHECK (completed_at IS NULL OR started_at IS NULL OR completed_at >= started_at);
 CHECK ((billable_units IS NULL AND billable_unit_type IS NULL)

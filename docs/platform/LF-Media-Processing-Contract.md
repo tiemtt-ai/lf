@@ -1,6 +1,6 @@
 # LF-Media-Processing-Contract.md
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Review
 
@@ -243,7 +243,7 @@ locator := { locator_type, locator_value }
 | `locator_type` | Áp dụng cho | `locator_value` |
 | --- | --- | --- |
 | `page` | extracted text (document) | Số trang, ≥ 1, text thập phân |
-| `timespan` | transcript, caption (audio/video) | `<start_ms>-<end_ms>`, số nguyên không âm, `start ≤ end` |
+| `timespan` | transcript (audio/video) | `<start_ms>-<end_ms>`, số nguyên không âm, `start ≤ end` |
 
 Quy tắc chung:
 
@@ -254,6 +254,15 @@ Quy tắc chung:
   dẫn không định vị được thì không phải trích dẫn.
 * Thêm `locator_type` mới là amendment có review, không phải một giá trị lọt
   vào lúc code.
+
+**Caption không nằm trong hợp đồng locator.** Một row `media_captions` là một
+file asset VTT/SRT/ASS chứa nhiều cue với nhiều mốc thời gian; gán cho nó một
+`timespan` duy nhất là bịa ra một mốc không tồn tại. Trích dẫn theo thời gian
+dùng `media_transcripts`, nơi một row đã là một đoạn có `timespan` thật.
+
+Nếu Media Read Contract cần trích dẫn ở mức cue của chính caption asset thì đó
+là một derived contract riêng — mỗi cue một row với `{timespan, text}` — và phải
+được chốt trong Spec B trước khi API consumer dựa vào nó.
 
 ---
 

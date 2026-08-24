@@ -1,6 +1,6 @@
 # Media Processing Substrate Architecture Review
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Review
 
@@ -22,8 +22,8 @@ Document Path: quality/LF-Media-Processing-Substrate-Architecture-Review.md
 | Domain Docs | [LF-Media](../platform/LF-Media.md), [LF-AI](../platform/LF-AI.md) |
 | Parent ADR | [ADR-0004 — Media Foundation](../adr/ADR-0004-Media-Foundation.md) |
 | Constraining ADR | [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md) |
-| Specification | [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md) v1.1 |
-| Database Docs | `media_processing_jobs` v2.1, `media_extracted_texts` v1.0, `media_transcripts` v1.1, `media_captions` v1.1, `media_variants`, `media_access_logs` |
+| Specification | [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md) v1.2 |
+| Database Docs | `media_processing_jobs` v2.2, `media_extracted_texts` v1.0, `media_transcripts` v1.2, `media_captions` v1.2, `media_variants`, `media_access_logs` |
 | Review Scope | Substrate xử lý Media. **Không** gồm Media Read Contract cho AI, AI Proposal, và learner runtime |
 
 # Review Scope
@@ -101,7 +101,7 @@ ADR-0017 §268); chính sách retention/redaction cho nội dung trích xuất.
 - [x] `docs:lint` và `schema:drift` passed.
 - [x] Chín tài liệu `database/media/` đã gỡ khỏi legacy metadata allowlist
       (106 → 98 file), nên lint từ nay thực sự kiểm chúng.
-- [ ] Chưa commit lên branch; reviewer độc lập chưa thể verify diff.
+- [x] Đã commit lên `main` tại `e460dce`; reviewer độc lập đã đọc diff thật.
 
 # H — Ready For Next Gate
 
@@ -122,12 +122,38 @@ ADR-0017 §268); chính sách retention/redaction cho nội dung trích xuất.
 | R4 | `owner_type` không có ràng buộc vật lý (DOC-CONFLICT-0015) và `course_category` chưa được phê chuẩn (DOC-CONFLICT-0014) | Không chặn substrate; chặn việc siết vocabulary |
 | R5 | Sáu bảng chưa tồn tại; đây là phase triển khai Foundation, không phải hoàn thiện tài liệu | Đã ghi nhận trong scope |
 
+# Independent Review Round 2 — 2026-08-23 (`e460dce`, branch `main`)
+
+Reviewer độc lập đọc diff thật trên `main` và trả verdict `BLOCKED` với ba phát
+hiện. Cả ba đều đúng và đều thuộc lớp implementation của hợp đồng, không chạm
+ranh giới kiến trúc.
+
+| Mức | Phát hiện | Khắc phục |
+| --- | --- | --- |
+| Blocker | `virus_scan` không thể đạt `ready`: nó là job bắt buộc cho mọi `file_type`, nhưng CHECK đòi job `ready` phải có `output_id`, mà scan không sinh asset nào. Hệ quả: **không Media File nào đạt được `ready`** | `media_processing_jobs` v2.2 phân nhóm job sinh asset và job không sinh asset; CHECK tách làm ba, cho phép đúng `virus_scan` `ready` mà không có output. Nhiễm virus vẫn ghi dấu bằng `failed` + `error_code = infected_source` |
+| Blocker | Unique key Version 1.0 vẫn còn nguyên trong transcript và caption, chặn đúng cơ chế revision mà contract mới cam kết. Hai tài liệu mang **hai block SQL mâu thuẫn** | Đã loại bỏ hai key cũ, gộp về một block, và ghi rõ trong tài liệu vì sao chúng bị bỏ |
+| High | Caption locator không biểu đạt được trích dẫn thật: một row là một file VTT/SRT/ASS chứa nhiều cue, nhưng contract bắt nó mang đúng một `timespan` | Caption v1.2 bỏ hẳn locator và trở lại đúng bản chất file asset. Trích dẫn theo thời gian dùng `media_transcripts`, nơi một row đã là một đoạn. Cue-level citation nếu cần là derived contract riêng, chốt trong Spec B |
+
+Sửa kèm theo: `media_transcripts` v1.2 nói rõ một row là **một đoạn** chứ không
+phải toàn bộ transcript — cùng nguyên tắc với một row là một trang ở
+`media_extracted_texts` — và câu "một canonical transcript mỗi file/locale" của
+Version 1.0 đã được thay vì processing versioning làm nó hết đúng.
+
+Ghi nhận về nguồn gốc lỗi thứ hai: nó do một patch có script gắn thêm block SQL
+mới mà không gỡ block cũ. Không công cụ nào bắt được — `docs:lint` kiểm metadata
+và routing, không kiểm mâu thuẫn nội dung giữa hai đoạn trong cùng một tài liệu.
+Đây là lý do vòng review đọc diff thật là bắt buộc, không phải hình thức.
+
 # Review Result
 
 ```text
-PASS WITH DOCUMENTED RISKS — hợp đồng đủ chặt để trình Owner. Review này không
-authorize migration, runtime, API hay queue worker, và không mở media processing
-cho tenant tự phục vụ khi R1 và R2 còn nguyên.
+BLOCKED (Round 2) — ba phát hiện đã được khắc phục ở
+media_processing_jobs v2.2, media_transcripts v1.2, media_captions v1.2 và
+LF-Media-Processing-Contract v1.2. Chờ reviewer độc lập xác nhận lại.
+
+Verdict dự kiến sau xác nhận: PASS WITH DOCUMENTED RISKS — ready for Owner
+Approval; migration, runtime, API và queue worker vẫn chưa được authorize, và
+media processing chưa mở cho tenant tự phục vụ khi R1 và R2 còn nguyên.
 ```
 
 # Required Future Reviews
@@ -139,6 +165,7 @@ cho tenant tự phục vụ khi R1 và R2 còn nguyên.
   lực thật.
 * HIGH implementation audit trước migration sáu bảng.
 * DOC-CONFLICT-0014 và DOC-CONFLICT-0015.
+* Cue-level caption citation contract, nếu Spec B cần tới nó.
 
 ---
 
