@@ -737,7 +737,8 @@ class BackendLayoutNavigationTest extends TestCase
 
         $this->assertSame(1, substr_count($editView, 'class="course-template-authoring"'));
         $this->assertSame(1, substr_count($editView, 'class="course-template-tabs"'));
-        $this->assertSame(5, substr_count($editView, 'class="course-template-tab-panel"'));
+        // Six panels since the Learning Mapping Intent tab shipped.
+        $this->assertSame(6, substr_count($editView, 'class="course-template-tab-panel"'));
         $this->assertStringContainsString(
             '.course-template-authoring {'.PHP_EOL
                 .'    width: 100%;'.PHP_EOL

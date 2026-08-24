@@ -10,6 +10,7 @@ use App\Http\Controllers\CourseProductController;
 use App\Http\Controllers\CourseProductMediaPreviewController;
 use App\Http\Controllers\CourseTemplateActivityController;
 use App\Http\Controllers\CourseTemplateController;
+use App\Http\Controllers\CourseTemplateLearningMappingController;
 use App\Http\Controllers\CourseTemplateLessonController;
 use App\Http\Controllers\CourseTemplateMediaPreviewController;
 use App\Http\Controllers\CourseTemplateSectionController;
@@ -256,6 +257,13 @@ Route::get(
 
 Route::put('/course-templates/{id}', [CourseTemplateController::class, 'update'])
     ->name('course-templates.update');
+
+Route::put('/course-templates/{templateId}/learning-framework', [CourseTemplateLearningMappingController::class, 'select'])
+    ->name('course-templates.learning-framework.select');
+Route::post('/course-templates/{templateId}/learning-mappings', [CourseTemplateLearningMappingController::class, 'store'])
+    ->name('course-templates.learning-mappings.store');
+Route::delete('/course-templates/{templateId}/learning-mappings/{intentId}', [CourseTemplateLearningMappingController::class, 'destroy'])
+    ->name('course-templates.learning-mappings.destroy');
 
 Route::delete('/course-templates/{id}', [CourseTemplateController::class, 'destroy'])
     ->name('course-templates.destroy');

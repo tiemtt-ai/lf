@@ -2,11 +2,15 @@
 
 Version: 1.0
 
-Document Status: Review
+Document Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Implemented
 
 Last Updated: 2026-08-23
+
+Approval Date: 2026-08-23
+
+Approved By: Architecture Owner
 
 Document Path: database/course/core_course_template_learning_mapping_intents.md
 
@@ -72,9 +76,19 @@ never modifies, deletes or silently rebinds prior Product/Course mappings.
 
 ## Lifecycle
 
-Intents may be created, edited or removed only while their Course Template is
-working. Canonical Mapping is immutable after promotion and is corrected by the
-approved invalidation lifecycle in `core_learning_node_mappings`.
+Mapping Intent follows the permissions and editing lifecycle currently applied
+to Course Template authoring. Phase 1 adds no separate status gate for Intent.
+When Course Template authoring gains a unified lifecycle gate, Intent must
+follow that gate as well.
+
+This is safe only while an Intent has no effect before publish: canonical
+Mapping is created solely by promotion. If a future component reads Intent
+before publish, this decision must be reviewed again. The one Intent-specific
+rule is coherence, not lifecycle: a selected Framework Version cannot change
+while the Template has Intents, and each Intent is composite-FK-bound to that
+exact selection. Canonical Mapping is immutable after promotion and is
+corrected by the approved invalidation lifecycle in
+`core_learning_node_mappings`.
 
 ## Authorization
 

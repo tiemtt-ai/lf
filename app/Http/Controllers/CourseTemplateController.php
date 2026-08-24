@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\CourseTemplateLearningMappingIntentService;
 use App\Services\CourseTemplatePublishingService;
 use App\Services\CourseTemplatePublishReadinessService;
 use App\Services\CourseTemplateVersionDetailPresenter;
@@ -27,6 +28,7 @@ class CourseTemplateController extends Controller
 {
     public function __construct(
         private readonly CourseTemplatePublishingService $publishingService,
+        private readonly CourseTemplateLearningMappingIntentService $learningMappingIntents,
         private readonly CourseTemplatePublishReadinessService $readinessService,
         private readonly CourseTemplateVersionDetailPresenter $versionDetailPresenter,
         private readonly CourseTemplateVersionDuplicatingService $duplicatingService,
@@ -175,6 +177,11 @@ class CourseTemplateController extends Controller
             $customerId,
             $publishGraph,
         );
+        $learningMappingState = $request->user()?->role === 'customer_admin'
+            && Schema::hasTable('core_learning_framework_versions')
+            && Schema::hasTable('core_course_template_learning_mapping_intents')
+            ? $this->learningMappingIntents->state((int) $request->user()->id, $customerId, $id)
+            : null;
 
         $introImageMedia = $this->mediaFile($template->intro_image_media_file_id, $id, 'image', $routePrefix);
         $introVideoMedia = $this->mediaFile($template->intro_video_media_file_id, $id, 'video', $routePrefix);
@@ -193,6 +200,7 @@ class CourseTemplateController extends Controller
             'latestVersion' => $latestVersion,
             'currentVersion' => $currentVersion,
             'publishReadiness' => $publishReadiness,
+            'learningMappingState' => $learningMappingState,
             'categories' => $this->categories(),
             'sections' => $publishGraph->sections,
             'directLessons' => $publishGraph->lessons->whereNull('template_section_id'),

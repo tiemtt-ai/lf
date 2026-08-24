@@ -6,6 +6,7 @@ use App\Support\TenantContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Owner boundary for customer-admin reads of the Learning authoring graph.
@@ -80,6 +81,83 @@ final class LearningFrameworkReadService
 
         return DB::table('core_learning_framework_versions')
             ->where('customer_id', $customerId)->where('id', $versionId)->where('framework_id', $frameworkId)->exists();
+    }
+
+    /** @return Collection<int, object> */
+    public function publishedVersionsWithNodes(int $actorId): Collection
+    {
+        $customerId = $this->customerAdminTenantId($actorId);
+
+        return DB::table('core_learning_framework_versions as versions')
+            ->join('core_learning_frameworks as frameworks', function ($join) use ($customerId): void {
+                $join->on('frameworks.id', '=', 'versions.framework_id')
+                    ->where('frameworks.customer_id', $customerId)
+                    ->where('frameworks.status', 'active');
+            })
+            ->where('versions.customer_id', $customerId)
+            ->where('versions.status', 'published')
+            ->select('versions.id as framework_version_id', 'versions.framework_id', 'versions.version_code', 'versions.title_snapshot', 'frameworks.name as framework_name')
+            ->orderBy('frameworks.name')->orderByDesc('versions.version_number')->get();
+    }
+
+    /** @return Collection<int, object> */
+    public function activeNodesForPublishedVersion(int $actorId, int $frameworkId, int $versionId): Collection
+    {
+        $customerId = $this->customerAdminTenantId($actorId);
+        $this->assertPublishedVersion($customerId, $frameworkId, $versionId);
+
+        return DB::table('core_learning_nodes')
+            ->where('customer_id', $customerId)->where('framework_id', $frameworkId)
+            ->where('framework_version_id', $versionId)->where('status', 'active')
+            ->orderBy('sequence')->orderBy('id')->get();
+    }
+
+    /**
+     * Display labels for versioned Nodes an authorised Course author already
+     * holds identifiers for.
+     *
+     * Owner decision G2-N1 keeps every read of `core_learning_*` behind this
+     * service, so a Course-owned screen listing its Mapping Intents cannot join
+     * the Learning tables itself just to render a Node name.
+     *
+     * @param  array<int, int|string>  $nodeIds
+     * @return Collection<int, object> keyed by Node id
+     */
+    public function nodeLabels(int $actorId, array $nodeIds): Collection
+    {
+        $customerId = $this->customerAdminTenantId($actorId);
+        $ids = array_values(array_unique(array_map('intval', $nodeIds)));
+
+        if ($ids === []) {
+            return collect();
+        }
+
+        return DB::table('core_learning_nodes')
+            ->where('customer_id', $customerId)
+            ->whereIn('id', $ids)
+            ->get(['id', 'code_snapshot', 'name_snapshot'])
+            ->keyBy(fn (object $node): int => (int) $node->id);
+    }
+
+    public function assertPublishedVersionForAuthor(int $actorId, int $frameworkId, int $versionId): void
+    {
+        $this->assertPublishedVersion($this->customerAdminTenantId($actorId), $frameworkId, $versionId);
+    }
+
+    private function assertPublishedVersion(int $customerId, int $frameworkId, int $versionId): void
+    {
+        $valid = DB::table('core_learning_framework_versions as versions')
+            ->join('core_learning_frameworks as frameworks', function ($join) use ($customerId): void {
+                $join->on('frameworks.id', '=', 'versions.framework_id')
+                    ->where('frameworks.customer_id', $customerId)->where('frameworks.status', 'active');
+            })
+            ->where('versions.customer_id', $customerId)->where('versions.framework_id', $frameworkId)
+            ->where('versions.id', $versionId)->where('versions.status', 'published')->exists();
+        if (! $valid) {
+            throw ValidationException::withMessages([
+                'framework_version_id' => 'The selected Learning Framework Version is not available for authoring.',
+            ]);
+        }
     }
 
     private function customerAdminTenantId(int $actorId): int

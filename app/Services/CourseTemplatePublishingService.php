@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Support\SequentialCodeGenerator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class CourseTemplatePublishingService
@@ -12,6 +13,7 @@ class CourseTemplatePublishingService
     public function __construct(
         private readonly MediaService $mediaService,
         private readonly CourseTemplatePublishReadinessService $readinessService,
+        private readonly LearningMappingPromotionService $learningMappingPromotion,
     ) {}
 
     public function publish(
@@ -109,7 +111,7 @@ class CourseTemplatePublishingService
                 $sectionMap,
                 $now
             );
-            $this->snapshotActivities(
+            $activityMap = $this->snapshotActivities(
                 $customerId,
                 $versionId,
                 $activities,
@@ -136,6 +138,13 @@ class CourseTemplatePublishingService
                     'published_at' => $now,
                     'updated_at' => $now,
                 ]);
+
+            if (Schema::hasTable('core_course_template_learning_mapping_intents')) {
+                $this->learningMappingPromotion->promote(
+                    $customerId, $templateId, $versionId, $lessonMap, $activityMap, $publishedBy, $now,
+                    $this->mappingPromotionSignature($customerId, $templateId, $versionId, $publishedBy)
+                );
+            }
 
             DB::table('core_course_templates')
                 ->where('customer_id', $customerId)
@@ -364,7 +373,7 @@ class CourseTemplatePublishingService
         Collection $activities,
         array $lessonMap,
         $now
-    ): void {
+    ): array {
         $map = [];
         $uploadedTypes = ['video', 'audio', 'document'];
         $mediaByActivity = DB::table('media_file_usages')
@@ -451,6 +460,8 @@ class CourseTemplatePublishingService
                     'updated_at' => $now,
                 ]);
         }
+
+        return $map;
     }
 
     private function assertMapped(
@@ -465,5 +476,15 @@ class CourseTemplatePublishingService
                 ),
             ]);
         }
+    }
+
+    /**
+     * Call-path integrity marker for the Learning promotion hop. See
+     * LearningMappingPromotionService for why this is not an authorization
+     * capability.
+     */
+    private function mappingPromotionSignature(int $customerId, int $templateId, int $versionId, int $actorId): string
+    {
+        return hash_hmac('sha256', implode(':', [$customerId, $templateId, $versionId, $actorId]), (string) config('app.key'));
     }
 }

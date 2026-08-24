@@ -140,4 +140,6 @@ jobs:
             tests/Integration/LearningRuntimeMariaDbTest.php \
             tests/Integration/TeacherJudgmentRuntimeMariaDbTest.php \
             tests/Integration/LearningFrameworkAuthoringMariaDbTest.php \
-            tests/Integration/LearningFrameworkAuthoringHttpMariaDbTest.php
+            tests/Integration/LearningFrameworkAuthoringHttpMariaDbTest.php \
+            tests/Integration/CourseTemplateLearningMappingPromotionMariaDbTest.php \
+            tests/Integration/CourseTemplateLearningMappingHttpMariaDbTest.php

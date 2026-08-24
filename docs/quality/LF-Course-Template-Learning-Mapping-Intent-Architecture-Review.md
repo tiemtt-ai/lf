@@ -1,10 +1,10 @@
 # Course Template Learning Mapping Intent Architecture Review
 
-Version: 1.0
+Version: 1.1
 
-Document Status: Review
+Document Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Implemented
 
 Last Updated: 2026-08-23
 
@@ -53,7 +53,7 @@ Document Path: quality/LF-Course-Template-Learning-Mapping-Intent-Architecture-R
 
 - [x] Required fields, composite FK tuples, unique keys, CHECKs and indexes are documented.
 - [x] Canonical Mapping `source_snapshot` and decimal `source_discriminator` are required.
-- [x] Template selection columns and Intent table remain Not Implemented pending migration authorization.
+- [x] Template selection columns and Intent table are deployed on MariaDB development.
 
 # F — Architecture
 
@@ -76,20 +76,28 @@ Document Path: quality/LF-Course-Template-Learning-Mapping-Intent-Architecture-R
 
 - [x] Migration shape is documented.
 - [x] HIGH test requirements include MariaDB promotion, rollback, tenant and Product-version retention.
-- [ ] Owner Approval recorded.
+- [x] Owner Approval recorded — 2026-08-23.
 
 # Review Result
 
 ```text
-PASS WITH OWNER APPROVAL PENDING — Database/Architecture contract is ready for
-Owner approval. No migration or implementation is authorized by this review.
+HIGH IMPLEMENTATION PASS — Owner-attested evidence recorded on 2026-08-23:
+MariaDB promotion suite 12 passed / 44 assertions; CI MariaDB job 77 passed /
+348 assertions; default PHPUnit 734 passed / 8260 assertions / 1 skipped;
+`schema:drift`, `docs:lint`, Pint and `git diff --check` passed. The migration,
+manual Intent surface and atomic canonical Mapping promotion are implemented.
 ```
 
 # Required Future Reviews
 
-* Owner approval, then Database Document status transition to Approved.
-* HIGH implementation audit before migration/service/UI.
 * AI Proposal persistence, provenance and review workflow.
 * Course-derived Evidence source authorization.
+* A unified Course Template authoring lifecycle/status gate. Mapping Intent has
+  no Phase 1 status gate because it has no pre-publish effect; re-review this
+  decision before any component consumes Intent before promotion.
+* Add retired-Node promotion coverage when a valid fixture path exists; a
+  published Node is immutable today, so this state cannot be externally built.
+* Add HTTP/browser-shape coverage for the Mapping Intent controller, routes and
+  form. The current MariaDB suite verifies service and database boundaries.
 * Sequencing note: the Intent authoring surface builds on the Learning
   Framework authoring surface, whose Gate 2 is still open.

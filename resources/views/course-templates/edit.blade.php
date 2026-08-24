@@ -9,6 +9,7 @@
             'information' => __('lf.LF_course_template_tab_information'),
             'structure' => __('lf.LF_course_template_tab_structure'),
             'teachers' => __('lf.LF_course_template_tab_teachers'),
+            ...($learningMappingState ? ['learning' => 'Chuẩn đầu ra & năng lực'] : []),
             'publish' => __('lf.LF_course_template_tab_publish'),
             'history' => __('lf.LF_course_template_tab_history'),
         ];
@@ -154,6 +155,12 @@
                  @if ($activeTab !== 'teachers') hidden @endif>
             @include('course-template-teachers.partials.list')
         </section>
+
+        @if ($learningMappingState)
+            <section id="course-template-tab-learning" class="course-template-tab-panel" @if ($activeTab !== 'learning') hidden @endif>
+                @include('course-templates.partials.learning-mappings')
+            </section>
+        @endif
 
         <section id="course-template-tab-publish"
                  class="course-template-tab-panel"
