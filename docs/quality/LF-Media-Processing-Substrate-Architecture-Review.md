@@ -1,6 +1,6 @@
 # Media Processing Substrate Architecture Review
 
-Version: 1.4
+Version: 1.5
 
 Document Status: Review
 
@@ -23,8 +23,8 @@ Document Path: quality/LF-Media-Processing-Substrate-Architecture-Review.md
 | Parent ADR | [ADR-0004 — Media Foundation](../adr/ADR-0004-Media-Foundation.md) |
 | Constraining ADR | [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md) |
 | Specification | [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md) v1.3 |
-| Database Docs | `media_files` v1.1, `media_processing_jobs` v2.3, `media_extracted_texts` v1.0, `media_transcripts` v1.3, `media_captions` v1.3, `media_variants`, `media_access_logs` |
-| Review Scope | Substrate xử lý Media. Media Read Contract nay đã tồn tại như [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md) v1.0 và có review riêng. **Không** gồm AI Proposal và learner runtime |
+| Database Docs | `media_files` v1.3, `media_processing_jobs` v2.3, `media_extracted_texts` v1.0, `media_transcripts` v1.3, `media_captions` v1.3, `media_variants` v1.1, `media_access_logs` v1.1 |
+| Review Scope | Substrate xử lý Media. **Không** gồm [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md) v1.1 — đã viết nhưng chưa có review riêng — cũng không gồm AI Proposal và learner runtime |
 
 # Review Scope
 
@@ -32,7 +32,9 @@ Reviewed: hợp đồng trigger/scope, orchestration, fingerprint, output profil
 citation locator, đo lường, và bốn table contract nêu trên.
 
 Not reviewed và cố ý ngoài phạm vi: Media Read Contract cho AI consumer
-(Spec B, chưa viết); AI Proposal persistence và review workflow (gated bởi
+(Spec B) — tài liệu đã tồn tại ở `platform/LF-Media-Read-Contract.md` v1.1 nhưng
+**chưa được review riêng**, và review này không thay thế nó; AI Proposal
+persistence và review workflow (gated bởi
 ADR-0017 §268); chính sách retention/redaction cho nội dung trích xuất.
 
 # A — Domain Boundary
@@ -131,7 +133,7 @@ ADR-0017 §268); chính sách retention/redaction cho nội dung trích xuất.
 | --- | --- | --- |
 | R1 | `quota_exceeded` là reserved behavior; `saas_usage_counters`, `saas_usage_events`, `saas_usage_summaries` đều `not_implemented`, nên không hạn mức nào được thi hành | Chặn việc mở media processing cho tenant tự phục vụ |
 | R2 | Chính sách retention/redaction cho extracted text và transcript chưa có; nội dung học liệu có thể chứa dữ liệu cá nhân | Chặn việc mở cho tenant thật |
-| R3 | Media Read Contract đã viết (v1.0) nhưng chưa review và chưa implement | Không chặn substrate; chặn mọi consumer AI |
+| R3 | Media Read Contract đã viết (v1.1) nhưng chưa review riêng và chưa implement | Không chặn substrate; chặn mọi consumer AI |
 | R4 | `owner_type` không có ràng buộc vật lý (DOC-CONFLICT-0015) và `course_category` chưa được phê chuẩn (DOC-CONFLICT-0014) | Không chặn substrate; chặn việc siết vocabulary |
 | R6 | `MediaService::upload()` đang đặt `media_files.status = 'ready'` ngay lúc insert. Sau khi substrate ship, upload phải đặt `processing` cho tới khi `virus_scan` xong — đây là **thay đổi hành vi của code đang chạy**, không chỉ thêm bảng | Phải xử lý trong HIGH implementation audit |
 | R5 | Sáu bảng chưa tồn tại; đây là phase triển khai Foundation, không phải hoàn thiện tài liệu | Đã ghi nhận trong scope |
@@ -174,7 +176,7 @@ database docs liên quan:
    file aggregate.
 
 Evidence là wording đồng bộ tại `LF-Media-Processing-Contract` v1.3,
-`media_files` v1.1, `media_processing_jobs` v2.3, `media_transcripts` v1.3 và
+`media_files` v1.3, `media_processing_jobs` v2.3, `media_transcripts` v1.3 và
 `media_captions` v1.3. Đây là contract review evidence, không phải runtime test
 evidence; sáu bảng vẫn chưa được implement.
 
@@ -208,7 +210,7 @@ runtime, API và queue worker vẫn chưa được authorize. R1–R5 giữ nguy
 # Required Future Reviews
 
 * Owner approval, rồi chuyển bốn Database Document sang `Approved`.
-* Media Read Contract for AI Consumers — đã viết (v1.0); cần review riêng.
+* Media Read Contract for AI Consumers — đã viết (v1.1); **cần một Architecture Review riêng** trước Owner Approval.
 * Chính sách retention/redaction cho nội dung trích xuất.
 * Runtime contract cho SaaS Usage/Entitlement trước khi `quota_exceeded` có hiệu
   lực thật.
