@@ -1,6 +1,6 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Review
 
@@ -78,10 +78,12 @@ Consumer gọi theo **owner context**, không theo `media_file_id`:
 
 ```text
 GET derived-content
-  owner_type   course_activity | course_version_activity
+  owner_type            course_activity | course_version_activity
   owner_id
   content_type
-  locale       (tuỳ chọn; xem § 4)
+  locale                (tuỳ chọn; xem § 4)
+  processing_version    (tuỳ chọn; xem § 4.1)
+  source_fingerprint    (tuỳ chọn; xem § 4.1)
 ```
 
 Media tự phân giải owner → active usage → Media File. Consumer không được cầm
@@ -104,6 +106,37 @@ của owner; nó hỏi Course adapter.
 Fallback im lặng nguy hiểm hơn lỗi: một Proposal AI trích dẫn transcript tiếng
 Hàn trong khi tác giả tưởng đang đọc tiếng Việt là sai lầm không ai phát hiện
 được từ output.
+
+## 4.1. Chọn revision
+
+Mặc định service trả **bản hiện hành** — row `ready` mới nhất cho
+`(owner, content_type, locale)`.
+
+Consumer đọc lại một bản cũ bằng cách nêu đích danh:
+
+| Tham số | Tác dụng |
+| --- | --- |
+| `processing_version` | Chọn đúng revision đó, kể cả khi status là `archived` |
+| `source_fingerprint` | Ràng buộc thêm rằng revision đó dựng từ đúng nội dung nguồn này |
+
+Quy tắc:
+
+* Nêu `processing_version` thì service trả revision đó **bất kể** `ready` hay
+  `archived`. Đây là ngoại lệ duy nhất của luật "chỉ trả `ready`" ở § 5, và nó
+  tồn tại vì một Proposal đã trích dẫn trang 12 của bản cũ cần đọc lại đúng bản
+  đó — không phải trang 12 sau khi OCR lại.
+* Nêu cả hai thì cả hai phải khớp cùng một row; lệch nhau là lỗi, không phải
+  ưu tiên cái này bỏ cái kia.
+* Revision phải thuộc **đúng owner context** đang gọi. Một `processing_version`
+  hợp lệ của Media File khác không cấp quyền đọc: authorization vẫn gắn với
+  owner, không gắn với version.
+* Không nêu gì thì không bao giờ trả `archived`.
+
+| Tình huống | Mã lỗi |
+| --- | --- |
+| `processing_version` không tồn tại cho owner/content_type/locale này | `revision_unavailable` |
+| `source_fingerprint` không khớp revision đã nêu | `revision_mismatch` |
+| Revision tồn tại nhưng thuộc owner context khác | `unauthorized` |
 
 ---
 
@@ -147,10 +180,12 @@ biết được nó đã đọc bản nào, và là điều kiện để phát h
 | `missing` | Owner không có Media nào ở `content_type` yêu cầu |
 | `locale_unavailable` | Không có output ở locale yêu cầu |
 | `unsupported_source` | MIME không nằm trong tập được hỗ trợ |
+| `revision_unavailable` | `processing_version` được nêu không tồn tại trong owner context này |
+| `revision_mismatch` | `source_fingerprint` không khớp revision đã nêu |
 
-`archived` **vẫn đọc được** khi consumer nêu đích danh `processing_version` — một
-Proposal đã trích dẫn trang 12 của bản cũ cần đọc lại đúng bản đó. Không nêu thì
-mặc định là bản hiện hành.
+`archived` **vẫn đọc được** khi consumer nêu đích danh `processing_version`; quy
+tắc và mã lỗi đầy đủ ở § 4.1. Không nêu thì mặc định là bản hiện hành và
+`archived` không bao giờ được trả ra.
 
 ---
 

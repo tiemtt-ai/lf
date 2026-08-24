@@ -1,6 +1,6 @@
 # Table: media_files
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Review
 
@@ -40,11 +40,13 @@ Bảng trung tâm lưu identity, metadata, storage locator và lifecycle của D
   không được sống trong JSON tự do.
 * `processing_error_code` ghi lý do cấu hình processing không hợp lệ, ví dụ
   `required_profile_configuration_missing`.
-* Khi `course_activity` lần đầu kích hoạt required Media processing,
-  `metadata.processing_locale` lưu BCP 47 canonical do Course service nhận từ
-  actor attach đã được authorize. Giá trị bất biến cho source đã materialize;
-  không fallback từ UI/browser/model. Fail-closed configuration error được lưu
-  tại `metadata.processing_error_code`.
+* Khi `course_activity` lần đầu kích hoạt required Media processing, cột
+  `processing_locale` lưu BCP 47 canonical do Course service nhận từ actor
+  attach đã được authorize. Giá trị bất biến cho source đã materialize; không
+  fallback từ UI/browser/model. Fail-closed configuration error được lưu tại cột
+  `processing_error_code`.
+* Cả hai là **cột**, không phải khóa trong `metadata`. `metadata` không được
+  chứa `processing_locale` hay `processing_error_code` dưới bất kỳ dạng nào.
 * Không lưu permanent public URL làm canonical Media data. Protected tenant
   Media dùng signed delivery khi access.
 * `cdn_url` nếu có chỉ là optional delivery metadata; không phải storage

@@ -1,6 +1,6 @@
 # Media Processing Substrate Architecture Review
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Review
 
@@ -74,7 +74,7 @@ ADR-0017 §268); chính sách retention/redaction cho nội dung trích xuất.
       scope có `customer_id` và `output_profile_hash`; profile khác độc lập.
 - [x] Required profile set Phase 1 xác định chính xác theo file type; additional
       locale/format là optional/on-demand và không tham gia aggregate.
-- [x] Canonical locale lấy từ `media_files.metadata.processing_locale`, do
+- [x] Canonical locale lấy từ cột `media_files.processing_locale`, do
       Course service ghi từ actor attach được authorize; thiếu/xung đột locale
       fail-closed với `required_profile_configuration_missing`, không treo.
 - [x] Không hỗ trợ operator cancellation sau dispatch; provider callback muộn
@@ -168,7 +168,7 @@ database docs liên quan:
    output_profile_hash)` cho retry chain, limit, backoff và highest attempt.
    Unique key hiện hữu tiếp tục chặn duplicate cùng profile/cùng attempt.
 2. Required output profile set Phase 1 đã deterministic: locale canonical được
-   persist tại `media_files.metadata.processing_locale`; OCR dùng
+   persist tại cột `media_files.processing_locale`; OCR dùng
    `layout=preserve`, STT dùng `diarization=off`, caption dùng `format=vtt`.
    Missing/conflicting locale fail-closed, còn additional profile không tham gia
    file aggregate.
@@ -187,7 +187,7 @@ mới do chính cách sửa Round 2 tạo ra.
 | Phát hiện | Trạng thái |
 | --- | --- |
 | Deliverability: ma trận tổng hợp vẫn để `ocr`/`speech_to_text` chặn `media_files.status`. Ghép với `MediaFileDeliveryController` (404 nếu `status <> 'ready'`), `CourseActivityMediaPresenter` và `CourseActivityMediaPreviewAuthorizer`, hệ quả là **video 404 trong suốt thời gian phiên âm** | Đã sửa ở Contract v1.3 và `media_files` v1.2: `status` chỉ phản ánh deliverability, chỉ `virus_scan` và cấu hình profile ảnh hưởng nó; output dẫn xuất đọc từ chính row output |
-| Locale canonical đặt trong `media_files.metadata.processing_locale` — một khóa nghiệp vụ sống trong JSON tự do, đúng thứ contract cấm với `source_fingerprint` và `processing_version`. Locale quyết định `output_profile_hash`, tức quyết định unique key của job | Đã nâng thành cột thật `processing_locale`, kèm `processing_error_code`. Cả hai đánh dấu **Not Implemented** cho tới migration |
+| Locale canonical đặt trong `metadata` JSON — một khóa nghiệp vụ sống trong JSON tự do, đúng thứ contract cấm với `source_fingerprint` và `processing_version`. Locale quyết định `output_profile_hash`, tức quyết định unique key của job | Đã nâng thành cột thật `processing_locale`, kèm `processing_error_code`. Cả hai đánh dấu **Not Implemented** cho tới migration |
 | Điểm dispatch chưa được quy định | Contract v1.3 thêm mục "Điểm dispatch": enqueue **sau commit** (`DB::afterCommit`), và đặt ở service dùng chung vì đã có hai entry point cùng gọi `attachUploadedMedia` |
 
 Ghi nhận: cả ba đều là defect ở lớp implementation của hợp đồng; không cái nào
