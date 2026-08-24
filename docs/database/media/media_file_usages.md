@@ -1,12 +1,12 @@
 # Table: media_file_usages
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
-Implementation Status: Unknown
+Implementation Status: Implemented
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-23
 
 Document Path: database/media/media_file_usages.md
 
@@ -30,7 +30,22 @@ hay S3.
 * Owner Domain validate owner existence, owner tenant và authorization.
 * Không tạo hard foreign key tới Course, Assessment, LiveClass, AI hoặc domain khác.
 * `owner_type + owner_id` là generic reference; Media không diễn giải business state của owner.
-* Allowed `owner_type`: `course_template`, `course_template_version`, `course_product`, `course_activity`, `course_cohort`, `assessment_question`, `assessment_answer`, `liveclass_recording`, `certificate`, `avatar`, `ai_knowledge`, `marketing`.
+* Allowed `owner_type`: `course_template`, `course_template_version`,
+  `course_product`, `course_activity`, `course_version_activity`,
+  `course_cohort`, `assessment_question`, `assessment_answer`,
+  `liveclass_recording`, `certificate`, `avatar`, `ai_knowledge`, `marketing`.
+  `course_version_activity` is the published Version Activity owner required by
+  [ADR-0012](../../adr/ADR-0012-Course-Template-Published-Version-Snapshot.md)
+  and [ADR-0013](../../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md);
+  it was ratified there and is recorded here under DOC-CONFLICT-0013.
+* `course_category` occurs in the development database but is named by no
+  approved document. It is registered as DOC-CONFLICT-0014 and is deliberately
+  absent from the list above until the Media Domain Owner ratifies it. Do not
+  treat its absence as permission to write it, and do not add it without that
+  decision.
+* The list above has no physical backing: `owner_type` carries no CHECK
+  constraint, so nothing rejects a value that was never documented. This is the
+  reason the list drifted twice, and it is tracked as DOC-CONFLICT-0015.
 * Allowed `usage_type`: `intro_image`, `intro_video`, `intro_document`, `cover_image`, `thumbnail`, `video`, `audio`, `document`, `attachment`, `recording`, `certificate_pdf`, `avatar_image`, `source_material`.
 * Course Template and immutable Course Template Version introduction usages use
   only `intro_image`, `intro_video`, and `intro_document`. Embedded video URLs

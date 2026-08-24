@@ -1,5 +1,13 @@
 # Table: media_variants
 
+Version: 1.0
+
+Document Status: Review
+
+Implementation Status: Not Implemented
+
+Last Updated: 2026-08-23
+
 Document Path: database/media/media_variants.md
 
 ## Purpose

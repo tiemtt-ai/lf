@@ -38,6 +38,7 @@ tự thực thi business decision của consumer.
 | Capability | Document | Status |
 | --- | --- | --- |
 | Media | [LF-Media](LF-Media.md) | Foundation Approved |
+| Media | [LF-Media-Processing-Contract](LF-Media-Processing-Contract.md) | Review — substrate xử lý Media |
 | Track (Learning Intelligence Domain) | [LF-Track](LF-Track.md) | Foundation Approved |
 | AI (Learning Intelligence & Decision Support) | [LF-AI](LF-AI.md) | Foundation Approved and Frozen |
 

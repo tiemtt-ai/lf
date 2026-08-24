@@ -1,12 +1,12 @@
 # LearnForge Documentation Conflict Register
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-22
+Last Updated: 2026-08-23
 
 Document Path: quality/LF-Documentation-Conflicts.md
 
@@ -234,7 +234,7 @@ trung lập.
 
 # Active Conflict Register
 
-Active items: 4. Không có confirmed `CONFLICT` nào đang mở.
+Active items: 6. Không có confirmed `CONFLICT` nào đang mở.
 
 | ID | Title | Classification | Status | Impact | Domain | Owner | Target Review |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -242,6 +242,8 @@ Active items: 4. Không có confirmed `CONFLICT` nào đang mở.
 | DOC-CONFLICT-0007 | Attendance table doc không khớp migration | IMPLEMENTATION_DRIFT | ACCEPTED_TEMPORARILY | MEDIUM | LiveClass | Database Owner | Trước khi phát triển tab Điểm danh |
 | DOC-CONFLICT-0008 | Attendance/Recording chưa có Architecture Review chuyên biệt | GAP | ACCEPTED_TEMPORARILY | MEDIUM | LiveClass | Architecture Team | Trước khi phát triển hai tab |
 | DOC-CONFLICT-0011 | Attendance ghi được cho Enrollment không `active` | IMPLEMENTATION_DRIFT | ACCEPTED_TEMPORARILY | LOW (giảm từ HIGH) | LiveClass × Course | Domain Owner (LiveClass) | Trước khi mở lại tab Điểm danh |
+| DOC-CONFLICT-0014 | `course_category` được dùng làm `owner_type` nhưng không tài liệu nào đặt tên nó | IMPLEMENTATION_DRIFT | DECISION_REQUIRED | LOW | Media × Course | Domain Owner (Media) | Trước khi mở Media Processing substrate |
+| DOC-CONFLICT-0015 | `owner_type` không có ràng buộc vật lý nên vocabulary trôi không bị phát hiện | GAP | DECISION_REQUIRED | MEDIUM | Media | Database Owner | Trước khi mở Media Processing substrate |
 
 ---
 
@@ -391,9 +393,85 @@ Notes: Cố ý KHÔNG dùng RESOLVED. Điều kiện thiếu (`enrollments.statu
 
 ---
 
+## DOC-CONFLICT-0014
+
+```text
+Conflict ID: DOC-CONFLICT-0014
+Title: `course_category` được dùng làm `owner_type` nhưng không tài liệu nào đặt tên nó
+Classification: IMPLEMENTATION_DRIFT
+Status: DECISION_REQUIRED
+Impact: LOW
+Detected At: 2026-08-23
+Detected By: Independent review — Media Processing readiness audit
+Owner: Domain Owner (Media)
+Affected Domain: Media × Course
+Affected Concern: Vocabulary hợp lệ của media_file_usages.owner_type
+Sources In Conflict:
+Source A: docs/database/media/media_file_usages.md#business-rules
+Source B: app/Http/Controllers/CourseCategoryController.php
+Additional Sources: docs/platform/LF-Media.md; docs/adr/ADR-0004-Media-Foundation.md
+Contradictory Requirements:
+- Source A requires: `owner_type` chỉ nhận các giá trị được liệt kê, và `course_category` không nằm trong đó
+- Source B requires: Course Category attach thumbnail và banner bằng `owner_type = course_category`
+Why They Cannot Both Be True: Không áp dụng — hai tài liệu không mâu thuẫn nhau. Code ghi một giá trị mà không tài liệu có thẩm quyền nào cho phép, khác hẳn DOC-CONFLICT-0013 nơi giá trị đã được hai ADR phê duyệt
+Runtime/Business Impact: None verified. Thumbnail và banner của Category hoạt động bình thường; rủi ro là vocabulary tăng thêm mà không qua phê duyệt, và mọi consumer đọc theo danh sách tài liệu sẽ bỏ sót giá trị này
+Affected Implementation: app/Http/Controllers/CourseCategoryController.php:60,129,130,442,455; media_file_usages — 3 dòng `course_category` trong database development
+Temporary Safety Rule: STOP implementation for the affected concern. Do not guess.
+Required Decision: `course_category` có phải giá trị `owner_type` hợp lệ không. Nếu có thì bổ sung vào danh sách canonical và nêu trong LF-Media.md; nếu không thì quyết định xử lý ba dòng hiện có và đường ghi trong CourseCategoryController
+Resolution Authority: Domain Owner (Media)
+Resolution Plan: Không tự bổ sung vào danh sách. Trình Owner cùng lúc với DOC-CONFLICT-0015 vì hai việc chia chung nguyên nhân
+Target Review Date: Not set — trước khi mở Media Processing substrate
+Resolved At: Not resolved
+Resolution: Not resolved
+Superseded/Updated Documents: None
+Verification Evidence: `SELECT owner_type, COUNT(*) FROM media_file_usages GROUP BY owner_type` trên learnforge_db trả về `course_category` = 3; `grep -rn "course_category" docs/platform/LF-Media.md docs/database/media/ docs/adr/ADR-0004-Media-Foundation.md` không có kết quả
+Related ADR/Review/Issue/PR: DOC-CONFLICT-0013; DOC-CONFLICT-0015
+Notes: Cố ý KHÔNG gộp vào DOC-CONFLICT-0013. Hai giá trị cùng vắng mặt trong một danh sách nhưng có tư cách hoàn toàn khác nhau: một cái đã được ADR phê duyệt và chỉ thiếu ở table doc, một cái chưa từng được phê duyệt ở đâu. Gộp lại sẽ khiến việc sửa doc lần này trông như đã hợp thức hóa cả hai.
+```
+
+---
+
+## DOC-CONFLICT-0015
+
+```text
+Conflict ID: DOC-CONFLICT-0015
+Title: `owner_type` không có ràng buộc vật lý nên vocabulary trôi không bị phát hiện
+Classification: GAP
+Status: DECISION_REQUIRED
+Impact: MEDIUM
+Detected At: 2026-08-23
+Detected By: Independent review — Media Processing readiness audit
+Owner: Database Owner
+Affected Domain: Media
+Affected Concern: Thi hành vocabulary của media_file_usages.owner_type
+Sources In Conflict:
+Source A: docs/database/media/media_file_usages.md#business-rules
+Source B: learnforge_db — information_schema.CHECK_CONSTRAINTS
+Additional Sources: docs/database/learning/core_learning_node_mappings.md#constraints-and-indexes
+Contradictory Requirements:
+- Source A requires: `owner_type` chỉ nhận một tập giá trị đóng
+- Source B requires: Không áp dụng — không tồn tại ràng buộc nào trên cột này
+Why They Cannot Both Be True: Không áp dụng — đây là GAP. Một tập đóng chỉ được mô tả trong Markdown và không có cơ chế nào từ chối giá trị ngoài tập đó
+Runtime/Business Impact: None verified trực tiếp. Nhưng đây là nguyên nhân gốc của DOC-CONFLICT-0013 và DOC-CONFLICT-0014: danh sách đã trôi hai lần mà không công cụ nào phát hiện, kể cả `schema:drift`, vì contract không mô tả giá trị cột
+Affected Implementation: media_file_usages (cột `owner_type`); mọi consumer đọc vocabulary theo tài liệu
+Temporary Safety Rule: STOP implementation for the affected concern. Do not guess.
+Required Decision: Có thêm CHECK constraint cho `owner_type` theo tiền lệ `chk_lrn_014` trên core_learning_node_mappings.source_type hay không; nếu có thì chốt tập giá trị trước, vì DOC-CONFLICT-0014 còn mở
+Resolution Authority: Database Owner
+Resolution Plan: Chốt DOC-CONFLICT-0014 trước để biết tập giá trị đúng; sau đó đánh giá migration bổ sung CHECK, kèm kiểm tra dữ liệu hiện có không vi phạm; không thực hiện trước khi vocabulary được phê duyệt
+Target Review Date: Not set — trước khi mở Media Processing substrate
+Resolved At: Not resolved
+Resolution: Not resolved
+Superseded/Updated Documents: None
+Verification Evidence: `SELECT CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = 'learnforge_db' AND CHECK_CLAUSE LIKE '%owner_type%'` trả về rỗng
+Related ADR/Review/Issue/PR: DOC-CONFLICT-0013; DOC-CONFLICT-0014
+Notes: Media cố ý không tạo hard foreign key tới owner domain, và điều đó đúng. Nhưng "không FK" không bắt buộc kéo theo "không CHECK": Learning giữ đúng ranh giới đó mà vẫn khoá `source_type` bằng chk_lrn_014. Quyết định ở đây là tính đánh đổi giữa tính linh hoạt khi thêm owner mới và khả năng phát hiện trôi.
+```
+
+---
+
 # Resolved Conflict Register
 
-Resolved confirmed items: 8.
+Resolved confirmed items: 9.
 
 | ID | Title | Classification | Status | Impact | Domain | Resolved At | Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -405,6 +483,7 @@ Resolved confirmed items: 8.
 | DOC-CONFLICT-0010 | So sánh thời gian Session chưa khớp quy ước canonical | IMPLEMENTATION_DRIFT | RESOLVED | HIGH | LiveClass | 2026-08-10 | `php artisan test` (678 passed) |
 | DOC-CONFLICT-0009 | Session status implementation chưa khớp hợp đồng canonical | IMPLEMENTATION_DRIFT | RESOLVED | MEDIUM | LiveClass | 2026-08-10 | `php artisan test` (689 passed) |
 | DOC-CONFLICT-0012 | Learning/AI/Media metadata và manual-fallback wording không phản ánh implementation đã xác minh | STALE | RESOLVED | MEDIUM | Learning × AI × Media × Course | 2026-08-22 | `php artisan docs:lint`; `DocsManifestLintCommandTest` |
+| DOC-CONFLICT-0013 | `course_version_activity` thiếu trong danh sách `owner_type` của media_file_usages.md | STALE | RESOLVED | MEDIUM | Media × Course | 2026-08-23 | `php artisan docs:lint`; ADR-0012; ADR-0013; 13 dòng dữ liệu development |
 
 ---
 
@@ -442,6 +521,44 @@ Superseded/Updated Documents: docs/adr/ADR-0006-AI-Foundation.md; docs/adr/ADR-0
 Verification Evidence: php artisan docs:lint; php artisan test --filter=DocsManifestLintCommandTest; git diff --check
 Related ADR/Review/Issue/PR: ADR-0006; ADR-0016; ADR-0017
 Notes: This resolution changes documentation truthfulness only. It does not authorize migration, API, prompt, UI, provider runtime, Proposal persistence, review workflow, Mapping promotion or production deployment under ADR-0017.
+```
+
+---
+
+## DOC-CONFLICT-0013
+
+```text
+Conflict ID: DOC-CONFLICT-0013
+Title: `course_version_activity` thiếu trong danh sách `owner_type` của media_file_usages.md
+Classification: STALE
+Status: RESOLVED
+Impact: MEDIUM
+Detected At: 2026-08-23
+Detected By: Independent review — Media Processing readiness audit
+Owner: Database Owner
+Affected Domain: Media × Course
+Affected Concern: Vocabulary hợp lệ của media_file_usages.owner_type
+Sources In Conflict:
+Source A: docs/database/media/media_file_usages.md#business-rules
+Source B: docs/platform/LF-Media.md#course-integration
+Additional Sources: docs/adr/ADR-0012-Course-Template-Published-Version-Snapshot.md; docs/adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md; docs/database/course/core_course_template_version_activities.md; docs/quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md
+Contradictory Requirements:
+- Source A requires: `owner_type` chỉ nhận mười hai giá trị được liệt kê, không có `course_version_activity`
+- Source B requires: published Version Activity phải có active usage với owner `course_version_activity`
+Why They Cannot Both Be True: Hai câu không thể cùng đúng theo nghĩa đen. Nhưng chúng không cùng thẩm quyền: ADR-0012 và ADR-0013 đều Approved và đều quy định giá trị này, nên đây là table doc lạc hậu chứ không phải một quyết định còn mở
+Runtime/Business Impact: None verified. Đường ghi đã hoạt động đúng theo ADR từ trước; rủi ro thật là một reviewer đọc table doc rồi kết luận nhầm rằng vocabulary chưa được chốt, và chặn công việc để xin một quyết định đã có
+Affected Implementation: app/Http/Controllers/MediaFileController.php:204,235,282,335,344; media_file_usages — 13 dòng `course_version_activity` trong database development
+Temporary Safety Rule: STOP implementation for the affected concern. Do not guess.
+Required Decision: Không cần quyết định mới. Thẩm quyền đã có tại ADR-0012 và ADR-0013; chỉ cần đồng bộ table doc
+Resolution Authority: Database Owner
+Resolution Plan: Bổ sung `course_version_activity` vào danh sách canonical trong media_file_usages.md kèm dẫn chiếu hai ADR; không đụng tới schema, migration hay runtime
+Target Review Date: 2026-08-23
+Resolved At: 2026-08-23
+Resolution: Thực thi 2026-08-23. media_file_usages.md lên Version 1.2, danh sách `owner_type` bổ sung `course_version_activity` kèm dẫn chiếu ADR-0012 và ADR-0013. Không thay đổi schema, migration hoặc code
+Superseded/Updated Documents: docs/database/media/media_file_usages.md
+Verification Evidence: `php artisan docs:lint` passed; `SELECT owner_type, COUNT(*) FROM media_file_usages GROUP BY owner_type` trên learnforge_db trả về `course_version_activity` = 13; ADR-0012 § Media Usage; ADR-0013 § Duplicate Rules
+Related ADR/Review/Issue/PR: ADR-0012; ADR-0013; DOC-CONFLICT-0014; DOC-CONFLICT-0015
+Notes: Đăng ký như STALE chứ không phải CONFLICT là điểm quan trọng nhất của record này. Một bản đánh giá trước đó đã phân loại nó là conflict và đề nghị dừng toàn bộ Media pipeline để Architecture Owner chốt vocabulary — trong khi vocabulary đã được chốt qua hai ADR đã duyệt, đã implement, và đã có dữ liệu sống. Nhãn sai ở đây không chỉ tốn thời gian: nó mời Owner "chốt lại" một hướng mà mười ba dòng dữ liệu và hai ADR đã đi theo.
 ```
 
 ---

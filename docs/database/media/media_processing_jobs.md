@@ -1,22 +1,85 @@
 # Table: media_processing_jobs
 
+Version: 2.1
+
+Document Status: Review
+
+Implementation Status: Not Implemented
+
+Last Updated: 2026-08-23
+
 Document Path: database/media/media_processing_jobs.md
+
+Related ADR:
+
+* [ADR-0004 — Media Foundation](../../adr/ADR-0004-Media-Foundation.md)
+* [ADR-0017 — AI-Assisted Learning Authoring](../../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
+
+Related Specification:
+[LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md)
 
 ## Purpose
 
-Theo dõi tác vụ xử lý Media độc lập với business Domain sử dụng asset.
+Mỗi row là **một lần thực thi** một tác vụ xử lý trên một Media File: ai chạy,
+bằng phiên bản nào, trên nội dung nào, ra kết quả gì. Job không phải trạng thái
+hiện tại của file — nó là bản ghi lịch sử của một lần chạy.
 
 ## Relationships
 
-`Media File 1 → N Processing Jobs`; `Customer 1 → N Processing Jobs`.
+```text
+media_files 1 → N media_processing_jobs
+media_processing_jobs 1 → 0..1 output row (transcript | caption | extracted text | variant)
+media_processing_jobs 1 → 0..1 job kế nhiệm (retry) qua supersedes_job_id
+```
 
 ## Business Rules
 
-* Job và Media File phải cùng tenant.
-* Allowed `job_type`: `transcode`, `thumbnail`, `ocr`, `speech_to_text`, `caption`, `virus_scan`, `compress`.
-* Allowed `status`: `pending`, `processing`, `completed`, `failed`, `cancelled`.
-* `completed_at` không trước `started_at`; error chỉ mô tả processing failure.
-* Job không cập nhật Course Progress, Assessment Result hoặc LiveClass Attendance.
+### Vocabulary trạng thái
+
+* Allowed `status`: `pending`, `processing`, `ready`, `failed`, `cancelled`.
+* `ready` thay cho `completed` của Version 1.0. Media File, transcript, caption
+  và extracted text đều đã dùng `ready`; job là bảng duy nhất nói khác, và sự
+  khác biệt đó không mang thông tin nào.
+* Chuyển trạng thái hợp lệ, không có đường nào khác:
+
+```text
+pending ──→ processing ──→ ready
+   │            │
+   │            └────────→ failed
+   └────────────────────→ cancelled
+```
+
+* `processing` không quay lại `pending`. Một lần chạy đã bắt đầu thì kết thúc ở
+  `ready`, `failed` hoặc không kết thúc; nó không được tái sử dụng.
+* Job ở trạng thái kết thúc (`ready`, `failed`, `cancelled`) là **bất biến** trừ
+  các cột audit; sửa kết quả một lần chạy đã xong là viết lại lịch sử.
+
+### Retry
+
+* Retry **luôn tạo row mới**, không bao giờ sửa row cũ.
+* Row mới trỏ về row bị thay bằng `supersedes_job_id` và tăng `attempt`.
+* Một chuỗi retry vì thế đọc được đầy đủ: mỗi lần gọi provider có tính phí đều
+  có đúng một row, kể cả lần thất bại.
+
+### Quan hệ với `media_files.status`
+
+* Job **không** tự ghi `media_files.status`.
+* Media File chuyển sang `ready` khi và chỉ khi mọi job **bắt buộc** cho
+  `file_type` của nó đều ở `ready` tại `attempt` cao nhất.
+* Media File chuyển sang `failed` khi một job bắt buộc kết thúc `failed` và
+  không còn attempt nào được phép.
+* Job tuỳ chọn (ví dụ `thumbnail` cho document) không ảnh hưởng trạng thái file.
+* Tập job bắt buộc theo `file_type` do
+  [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md)
+  quy định, không quy định ở đây.
+
+### Ranh giới
+
+* Job không cập nhật Course Progress, Assessment Result, LiveClass Attendance
+  hoặc bất kỳ AI business output nào.
+* Job không tạo Learning Evidence và không chạm Mastery.
+* Allowed `job_type`: `transcode`, `thumbnail`, `ocr`, `speech_to_text`,
+  `caption`, `virus_scan`, `compress`.
 
 ## Fields
 
@@ -26,30 +89,112 @@ Theo dõi tác vụ xử lý Media độc lập với business Domain sử dụn
 | customer_id | BIGINT UNSIGNED NOT NULL | Tenant sở hữu. |
 | media_file_id | BIGINT UNSIGNED NOT NULL | File được xử lý. |
 | job_type | VARCHAR(50) NOT NULL | Loại processing. |
+| status | VARCHAR(50) NOT NULL DEFAULT 'pending' | Trạng thái lần chạy này. |
+| attempt | INT UNSIGNED NOT NULL DEFAULT 1 | Lần thử thứ mấy trong chuỗi retry. |
+| supersedes_job_id | BIGINT UNSIGNED NULL | Job mà lần chạy này thay thế. |
+| idempotency_key | VARCHAR(191) NOT NULL | Khóa chống trùng; xem Constraints. |
+| correlation_id | CHAR(36) NOT NULL | Truy vết xuyên service và log. |
+| source_fingerprint | CHAR(64) NOT NULL | Vân tay nội dung nguồn tại thời điểm chạy. |
+| processing_version | VARCHAR(100) NOT NULL | Phiên bản extractor/provider/model/cấu hình. |
+| output_profile | VARCHAR(191) NOT NULL | Tham số quyết định output: locale, định dạng, cấu hình extractor. |
+| output_profile_hash | CHAR(64) NOT NULL | SHA-256 của `output_profile` đã chuẩn hoá. |
 | provider | VARCHAR(100) NOT NULL | Worker/provider abstraction. |
-| status | VARCHAR(50) NOT NULL DEFAULT 'pending' | Trạng thái. |
-| started_at | TIMESTAMP NULL | Thời điểm bắt đầu. |
-| completed_at | TIMESTAMP NULL | Thời điểm kết thúc. |
-| error_message | TEXT NULL | Lỗi xử lý an toàn để audit. |
-| metadata | JSON NULL | Request/result/retry metadata. |
-| created_at | TIMESTAMP NULL | Thời điểm tạo. |
-| updated_at | TIMESTAMP NULL | Thời điểm cập nhật. |
+| output_type | VARCHAR(50) NULL | `transcript`, `caption`, `extracted_text`, `variant`. |
+| output_id | BIGINT UNSIGNED NULL | Id của row output tương ứng. |
+| billable_units | DECIMAL(18,6) NULL | Lượng đã tiêu thụ (giây, trang, ký tự). |
+| billable_unit_type | VARCHAR(50) NULL | Đơn vị của `billable_units`. |
+| started_at | TIMESTAMP(6) NULL | Thời điểm bắt đầu. |
+| completed_at | TIMESTAMP(6) NULL | Thời điểm kết thúc. |
+| error_code | VARCHAR(100) NULL | Mã lỗi chuẩn hoá, dùng để quyết định retry. |
+| error_message | TEXT NULL | Lỗi an toàn để audit; không chứa credential. |
+| metadata | JSON NULL | Request/result metadata; **không** chứa nội dung output. |
+| created_by | BIGINT UNSIGNED NULL | Actor kích hoạt, NULL nếu do hệ thống. |
+| created_at | TIMESTAMP(6) NULL | Thời điểm tạo. |
+| updated_at | TIMESTAMP(6) NULL | Thời điểm cập nhật. |
 
-## Indexes
+`source_fingerprint` và `processing_version` là cột thật, không nằm trong
+`metadata`: chúng quyết định output có `stale` hay không, và một quy tắc nghiệp
+vụ không được sống trong JSON tự do.
+
+## Constraints And Indexes
 
 ```sql
-INDEX (customer_id);
-INDEX (customer_id, media_file_id);
-INDEX (customer_id, job_type);
-INDEX (customer_id, provider);
-INDEX (customer_id, status);
-INDEX (customer_id, created_at);
+UNIQUE (customer_id, idempotency_key);
+UNIQUE (customer_id, media_file_id, job_type, source_fingerprint,
+        processing_version, output_profile_hash, attempt);
+UNIQUE (customer_id, supersedes_job_id);
+INDEX  (customer_id, media_file_id, job_type, status);
+INDEX  (customer_id, status, created_at);
+INDEX  (customer_id, correlation_id);
+INDEX  (customer_id, output_type, output_id);
+
+FOREIGN KEY (media_file_id, customer_id)
+    REFERENCES media_files (id, customer_id) RESTRICT;
+FOREIGN KEY (supersedes_job_id, customer_id)
+    REFERENCES media_processing_jobs (id, customer_id) RESTRICT;
+FOREIGN KEY (created_by, customer_id)
+    REFERENCES users (id, customer_id) RESTRICT;
+
+CHECK (job_type IN ('transcode','thumbnail','ocr','speech_to_text',
+                    'caption','virus_scan','compress'));
+CHECK (status IN ('pending','processing','ready','failed','cancelled'));
+CHECK (attempt >= 1);
+CHECK (output_type IS NULL OR output_type IN
+       ('transcript','caption','extracted_text','variant'));
+CHECK ((output_type IS NULL AND output_id IS NULL)
+    OR (output_type IS NOT NULL AND output_id IS NOT NULL));
+CHECK (status <> 'ready' OR (completed_at IS NOT NULL AND output_id IS NOT NULL));
+CHECK (status <> 'failed' OR (completed_at IS NOT NULL AND error_code IS NOT NULL));
+CHECK (completed_at IS NULL OR started_at IS NULL OR completed_at >= started_at);
+CHECK ((billable_units IS NULL AND billable_unit_type IS NULL)
+    OR (billable_units IS NOT NULL AND billable_unit_type IS NOT NULL));
 ```
+
+### Khóa nào chặn cái gì
+
+Ba unique key làm ba việc khác nhau, và không key nào thay được key kia:
+
+| Key | Chặn |
+| --- | --- |
+| `(customer_id, idempotency_key)` | Cùng một message được queue giao hai lần |
+| `(customer_id, media_file_id, job_type, source_fingerprint, processing_version, output_profile_hash, attempt)` | Enqueue trùng ở **cùng một attempt** — với `attempt = 1` đây chính là khóa chặn duplicate initial enqueue |
+| `(customer_id, supersedes_job_id)` | Hai retry cùng phân nhánh từ một parent |
+
+`UNIQUE (customer_id, supersedes_job_id)` **không** chặn được initial enqueue
+trùng: MariaDB cho phép nhiều `NULL` trong unique index, và mọi job đầu tiên đều
+có `supersedes_job_id = NULL`. Việc đó thuộc về key thứ hai, qua `attempt = 1`.
+
+`output_profile_hash` nằm trong key vì `job_type` một mình không mô tả đủ output.
+Cùng một video, cùng nội dung, cùng model vẫn sinh ra những output khác nhau:
+transcript `vi` khác transcript `ko`; caption `vi` VTT khác `vi` SRT; OCR với
+profile layout khác cho kết quả khác. Thiếu nó thì mọi locale thứ hai và mọi
+định dạng thứ hai đều bị từ chối như hàng trùng lặp.
+
+`source_fingerprint` cố ý **không** chứa locale hay tham số output. Nó trả lời
+"nội dung nguồn là gì"; `output_profile_hash` trả lời "đã yêu cầu output nào".
+Trộn hai câu hỏi vào một hash làm mất khả năng nhận ra hai job đang đọc cùng một
+nội dung.
+
+Media không tạo foreign key sang Course, Assessment, LiveClass hay AI. Ba khóa
+ngoại trên đều nằm trong Media hoặc trỏ `users`, đúng ranh giới ADR-0004.
 
 ## Sample Data
 
-`id=400, customer_id=1, media_file_id=100, job_type=transcode, provider=aws_media_convert, status=completed, started_at=2026-07-01T02:00:00Z, completed_at=2026-07-01T02:08:00Z`
+```text
+id=400, customer_id=1, media_file_id=100, job_type=ocr, status=ready, attempt=1,
+idempotency_key=ocr:100:9f2c…:tesseract-5.3.0:4d1a…:1, correlation_id=8f1e…,
+source_fingerprint=9f2c…, processing_version=tesseract-5.3.0,
+provider=internal_ocr, output_type=extracted_text, output_id=700,
+billable_units=12.000000, billable_unit_type=page
+```
 
 ## Design Notes
 
-Retry có thể tạo Job mới; correlation/retry count nằm trong metadata cho Foundation.
+Version 1.0 để idempotency, correlation và retry count trong `metadata` như
+Foundation placeholder. Version 2.0 kéo chúng ra thành cột vì pipeline thật cần
+chống trùng ở tầng database: OCR và speech-to-text là lời gọi ngoài có tính phí,
+và một unique key trong JSON không ngăn được lần gọi thứ hai.
+
+Bảng này cố ý **không** có cột "trạng thái hiện tại của file". Câu hỏi "file này
+đã xử lý xong chưa" được trả lời bằng `media_files.status` theo quy tắc tổng hợp
+ở trên, không bằng cách đọc job mới nhất.

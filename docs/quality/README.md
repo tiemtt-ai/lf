@@ -44,6 +44,9 @@ criteria hay không.
   — approved Course Template Lesson role architecture review.
 * [LF-Course-Template-Learning-Mapping-Intent-Architecture-Review.md](LF-Course-Template-Learning-Mapping-Intent-Architecture-Review.md)
   — Course Template Learning Mapping Intent contract review; PASS with Owner
+* [LF-Media-Processing-Substrate-Architecture-Review.md](LF-Media-Processing-Substrate-Architecture-Review.md)
+  — Media Processing substrate contract review; PASS with documented risks, no
+  migration or runtime authorized.
   approval pending, no migration authorized.
 * [LF-Version-Activity-Media-Snapshot-Architecture-Review.md](LF-Version-Activity-Media-Snapshot-Architecture-Review.md)
   — approved Version Activity media snapshot architecture review.

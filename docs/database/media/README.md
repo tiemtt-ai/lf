@@ -1,5 +1,13 @@
 # MIỀN NGHIỆP VỤ MEDIA
 
+Version: 1.0
+
+Document Status: Review
+
+Implementation Status: Partial
+
+Last Updated: 2026-08-23
+
 Document Path: database/media/README.md
 
 Miền nghiệp vụ Media là nền tảng tài sản số dùng chung của LearnForge. Miền
@@ -53,6 +61,7 @@ mình.
 | **media_variants** | Các biến thể hiển thị của tài sản dẫn xuất |
 | **media_transcripts** | Nội dung bản ghi lời thoại dẫn xuất |
 | **media_captions** | Tài sản phụ đề có thông tin thời gian |
+| [**media_extracted_texts**](media_extracted_texts.md) | Text trích xuất từ document theo trang, phục vụ trích dẫn |
 
 ---
 

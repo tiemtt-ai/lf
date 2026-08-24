@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 230,
+  "document_count": 233,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -5381,9 +5381,9 @@
       "title": "MIỀN NGHIỆP VỤ MEDIA",
       "area": "database",
       "document_type": "database_overview",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Review",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -5413,9 +5413,9 @@
       "title": "Table: media_access_logs",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -5452,9 +5452,9 @@
       "title": "Table: media_captions",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -5491,9 +5491,9 @@
       "title": "Table: media_categories",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Review",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -5526,12 +5526,60 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "database/media/media_extracted_texts.md",
+      "title": "Table: media_extracted_texts",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "media",
+        "ocr",
+        "document",
+        "extraction",
+        "citation"
+      ],
+      "keywords": {
+        "vi": [
+          "lược đồ bảng",
+          "tài liệu cơ sở dữ liệu",
+          "media",
+          "nhận dạng ký tự",
+          "trích xuất văn bản",
+          "trích dẫn"
+        ],
+        "en": [
+          "table schema",
+          "database documentation",
+          "media",
+          "ocr",
+          "extracted text",
+          "citation locator"
+        ]
+      },
+      "identifiers": [
+        "media_extracted_texts"
+      ],
+      "related_documents": [
+        "adr/ADR-0004-Media-Foundation.md",
+        "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
+        "platform/LF-Media-Processing-Contract.md",
+        "database/media/README.md",
+        "database/media/media_processing_jobs.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "database/media/media_file_usages.md",
       "title": "Table: media_file_usages",
       "area": "database",
       "document_type": "table_schema",
       "document_status": "Approved",
-      "implementation_status": "Unknown",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
@@ -5574,9 +5622,9 @@
       "title": "Table: media_files",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Review",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -5613,9 +5661,9 @@
       "title": "Table: media_processing_jobs",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -5652,9 +5700,9 @@
       "title": "Table: media_transcripts",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -5691,9 +5739,9 @@
       "title": "Table: media_variants",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -7422,6 +7470,59 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "platform/LF-Media-Processing-Contract.md",
+      "title": "LF-Media-Processing-Contract.md",
+      "area": "platform",
+      "document_type": "domain_policy",
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "domain",
+      "canonical_for": [],
+      "topics": [
+        "media",
+        "processing",
+        "orchestration",
+        "fingerprint",
+        "citation",
+        "metering"
+      ],
+      "keywords": {
+        "vi": [
+          "xử lý media",
+          "điều phối tác vụ",
+          "vân tay nguồn",
+          "phiên bản xử lý",
+          "trích dẫn",
+          "đo lường"
+        ],
+        "en": [
+          "media processing",
+          "job orchestration",
+          "source fingerprint",
+          "processing version",
+          "citation locator",
+          "metering"
+        ]
+      },
+      "identifiers": [
+        "media_processing_jobs",
+        "media_extracted_texts",
+        "media_transcripts",
+        "media_captions"
+      ],
+      "related_documents": [
+        "adr/ADR-0004-Media-Foundation.md",
+        "adr/ADR-0006-AI-Foundation.md",
+        "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
+        "platform/LF-Media.md",
+        "database/media/media_processing_jobs.md",
+        "database/media/media_extracted_texts.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "platform/LF-Media.md",
       "title": "LF-Media.md",
       "area": "platform",
@@ -8740,6 +8841,58 @@
         "LF-LiveClass-Schedule-Session-Origin-Architecture-Review"
       ],
       "related_documents": [],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Media-Processing-Substrate-Architecture-Review.md",
+      "title": "Media Processing Substrate Architecture Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "media",
+        "processing",
+        "ocr",
+        "transcript",
+        "review"
+      ],
+      "keywords": {
+        "vi": [
+          "đánh giá kiến trúc",
+          "xử lý media",
+          "nhận dạng ký tự",
+          "bản ghi lời thoại",
+          "vân tay nguồn",
+          "cổng kiểm soát"
+        ],
+        "en": [
+          "architecture review",
+          "media processing",
+          "ocr",
+          "transcript",
+          "source fingerprint",
+          "gate"
+        ]
+      },
+      "identifiers": [
+        "media_processing_jobs",
+        "media_extracted_texts",
+        "media_transcripts",
+        "media_captions"
+      ],
+      "related_documents": [
+        "adr/ADR-0004-Media-Foundation.md",
+        "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
+        "platform/LF-Media-Processing-Contract.md",
+        "database/media/media_processing_jobs.md",
+        "database/media/media_extracted_texts.md",
+        "quality/README.md"
+      ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
     },

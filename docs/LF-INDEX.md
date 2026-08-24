@@ -251,6 +251,7 @@ docs/platform/
 | Document | Purpose |
 | --- | --- |
 | [platform/LF-Media.md](platform/LF-Media.md) | Media processing |
+| [platform/LF-Media-Processing-Contract.md](platform/LF-Media-Processing-Contract.md) | Hợp đồng substrate xử lý Media: trigger, orchestration, fingerprint, locator, đo lường |
 | [platform/LF-Track.md](platform/LF-Track.md) | Learning analytics |
 | [platform/LF-AI.md](platform/LF-AI.md) | AI intelligence |
 
@@ -379,6 +380,7 @@ docs/quality/
 | [quality/LF-Course-Template-Activity-Estimated-Duration-Architecture-Review.md](quality/LF-Course-Template-Activity-Estimated-Duration-Architecture-Review.md) | Approved Course Template Activity estimated duration architecture review |
 | [quality/LF-Course-Template-Lesson-Role-Architecture-Review.md](quality/LF-Course-Template-Lesson-Role-Architecture-Review.md) | Approved Course Template Lesson role architecture review |
 | [quality/LF-Course-Template-Learning-Mapping-Intent-Architecture-Review.md](quality/LF-Course-Template-Learning-Mapping-Intent-Architecture-Review.md) | Course Template Learning Mapping Intent contract review; PASS with Owner approval pending |
+| [quality/LF-Media-Processing-Substrate-Architecture-Review.md](quality/LF-Media-Processing-Substrate-Architecture-Review.md) | Media Processing substrate contract review; PASS with documented risks |
 | [quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md](quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md) | Approved Course Lesson multiple-prerequisite architecture review |
 | [quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md](quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md) | Approved Version Activity media snapshot architecture review |
 | [quality/LF-Course-Product-Architecture-Review.md](quality/LF-Course-Product-Architecture-Review.md) | Approved Course Product CRUD architecture review |

@@ -19077,6 +19077,18 @@
       "views": []
     },
     {
+      "name": "media_extracted_texts",
+      "documentation": "database/media/media_extracted_texts.md",
+      "implementation_status": "not_implemented",
+      "columns": [],
+      "primary_key": [],
+      "indexes": [],
+      "foreign_keys": [],
+      "checks": [],
+      "triggers": [],
+      "views": []
+    },
+    {
       "name": "media_file_usages",
       "documentation": "database/media/media_file_usages.md",
       "implementation_status": "implemented",
