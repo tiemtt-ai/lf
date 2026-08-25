@@ -1,6 +1,6 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Approved
 
@@ -15,6 +15,7 @@ Related ADR:
 * [ADR-0004 — Media Foundation](../adr/ADR-0004-Media-Foundation.md)
 * [ADR-0006 — AI Foundation](../adr/ADR-0006-AI-Foundation.md)
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
+* [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 
 Related Specification:
 [LF-Media-Processing-Contract](LF-Media-Processing-Contract.md)
@@ -28,6 +29,10 @@ Hợp đồng đọc output dẫn xuất của Media cho consumer, trước hế
 Đây là Spec B. Substrate sản xuất output nằm ở
 [LF-Media-Processing-Contract](LF-Media-Processing-Contract.md); tài liệu này chỉ
 quy định cách đọc chúng ra.
+
+Version 1.4 áp dụng ADR-0018 đã được Architecture Owner approve ngày 2026-08-25.
+Approval này không authorize external processing và không tự đóng các gate triển
+khai retention/deletion.
 
 Không thuộc phạm vi: AI Proposal persistence, review workflow, ghi Learning
 Node/Mapping. Tất cả vẫn gated theo ADR-0017 §268.
@@ -98,6 +103,12 @@ của owner; nó hỏi Course adapter.
 Service không đọc actor ngầm từ HTTP request. Caller truyền `actor_id` tường
 minh; authorizer nạp actor trong đúng `customer_id` và kiểm trạng thái/role.
 Do đó cùng contract dùng được từ AI queue/console mà không nới quyền.
+
+PII không cấp thêm quyền. Actor/AI consumer không được đọc output chỉ vì OCR đã
+thành công, vì output có hoặc không có PII, hay vì caller là một AI job. Tenant
+và owner-context authorization ở trên áp dụng giống nhau cho source có PII,
+redacted derivative và mọi derived output. External processing eligibility là
+policy riêng và không được Media Read suy ra từ một lần đọc `allowed`.
 
 ---
 
@@ -221,13 +232,20 @@ Mỗi lần đọc thành công hoặc bị từ chối ghi một dòng `media_a
 OCR và transcript có thể chứa dữ liệu cá nhân trong học liệu; ai đọc hoặc cố đọc
 cái gì, lúc nào, phải trả lời được khi target tồn tại.
 
+Audit và retention/deletion phải theo được toàn provenance chain: source, OCR
+text/transcript, redacted derivative, AI-derived output/chunk/embedding và
+crop/page/region asset. Redaction không sửa source gốc; derivative đã redact có
+identity/version/provenance riêng. Duration, legal hold, purge orchestration và
+audit sink cho owner không resolve vẫn là implementation gate, không phải lý do
+để trả `failed` cho local OCR chỉ vì `PII_PRESENT`.
+
 ---
 
 # Rủi ro đã ghi nhận
 
 | # | Rủi ro |
 | --- | --- |
-| B1 | Chính sách retention/redaction cho extracted text và transcript chưa có. Chặn việc mở Read Service cho consumer thật |
+| B1 | ADR-0018 đã approve boundary PII/redaction/external processing; retention duration, deletion synchronization và full provenance audit chưa có implementation evidence. Chặn production/real-tenant rollout, không biến `PII_PRESENT` thành OCR failure |
 | B2 | Cue-level caption citation chưa có contract; nếu AI cần, phải review trước |
 | B3 | Sáu bảng `media_*` vẫn `not_implemented`; hợp đồng này không đọc được gì cho tới khi chúng tồn tại |
 

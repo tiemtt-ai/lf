@@ -1,6 +1,6 @@
 # Media Processing Substrate Architecture Review
 
-Version: 1.14
+Version: 1.15
 
 Document Status: Approved
 
@@ -22,7 +22,8 @@ Document Path: quality/LF-Media-Processing-Substrate-Architecture-Review.md
 | Domain Docs | [LF-Media](../platform/LF-Media.md), [LF-AI](../platform/LF-AI.md) |
 | Parent ADR | [ADR-0004 — Media Foundation](../adr/ADR-0004-Media-Foundation.md) |
 | Constraining ADR | [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md) |
-| Specification | [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md) v1.9 |
+| Privacy ADR | [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved 2026-08-25 |
+| Specification | [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md) v2.0 Approved |
 | Database Docs | `media_files` v1.4, `media_processing_jobs` v2.4, `media_extracted_texts` v1.0, `media_transcripts` v1.4, `media_captions` v1.4, `media_variants` v1.1, `media_access_logs` v1.2 |
 | Read Contract Evidence | [Media Read Contract Architecture Review](LF-Media-Read-Contract-Architecture-Review.md) v1.2 — self-assessment; independent review pending |
 | Review Scope | Substrate xử lý Media; Spec B remains a separate pending independent review. AI Proposal and learner runtime stay out of scope |
@@ -134,7 +135,7 @@ ADR-0017 §268); chính sách retention/redaction cho nội dung trích xuất.
 | # | Rủi ro | Trạng thái |
 | --- | --- | --- |
 | R1 | `quota_exceeded` là reserved behavior; `saas_usage_counters`, `saas_usage_events`, `saas_usage_summaries` đều `not_implemented`, nên không hạn mức nào được thi hành | Chặn việc mở media processing cho tenant tự phục vụ |
-| R2 | Chính sách retention/redaction cho extracted text và transcript chưa có; nội dung học liệu có thể chứa dữ liệu cá nhân | Chặn việc mở cho tenant thật |
+| R2 | ADR-0018 đã approve: PII presence không phải OCR failure, local deterministic processing giữ owner/tenant authorization, redaction tạo derivative riêng và external provider cần approval độc lập. Retention duration/deletion orchestration/full provenance audit vẫn chưa có implementation evidence | **Narrowed, vẫn open** — không chặn candidate/local OCR chỉ vì PII; vẫn chặn production/real-tenant rollout và external processing chưa approved |
 | R3 | Media Read Contract v1.3 có scoped runtime/test nhưng A–H record do cùng implementation stream lập; chưa có independent reviewer | **Open** — chặn việc coi Spec B là architecture-approved và chặn real AI consumer rollout |
 | R4 | `owner_type` không có ràng buộc vật lý (DOC-CONFLICT-0015) và `course_category` chưa được phê chuẩn (DOC-CONFLICT-0014) | Không chặn substrate; chặn việc siết vocabulary |
 | R6 | Code đã đổi upload mới sang `processing`; `virus_scan` clean mới đưa file về `ready`, infected hoặc provider unavailable đưa về `failed` | **Closed in code và development**; localhost dùng fake adapter. Production vẫn bị chặn tới khi có virus provider thật |
@@ -322,6 +323,38 @@ rủi ro có thể cấu hình sau khi ship.
 
 Không có Owner Approval suy diễn cho external provider, retention/redaction hay
 self-service quota. R1–R4 và R7 còn mở; R5/R6 đã đóng trên development.
+
+## PII policy amendment review — 2026-08-25
+
+Review Version 1.15 đánh giá ADR-0018 và contract Version 2.0, không
+đánh giá runtime implementation.
+
+| Boundary | Review result |
+| --- | --- |
+| PII presence | Không phải `failed`/`cancelled`; không chặn enqueue hay local deterministic OCR |
+| Local processing eligibility | Chỉ hợp lệ trong tenant/owner authorization và provider boundary đã approved |
+| Redaction | Derivative riêng, fingerprint/version/provenance riêng; không sửa source |
+| External processing | Cần approval riêng theo provider/purpose/data/retention/audit; local OCR không cấp quyền này |
+| Media Read | Không nới quyền cho AI consumer; owner-context authorization và decision audit giữ nguyên |
+| Retention/audit | Bao phủ source, OCR/transcript, redacted derivative, crop và AI-derived output; duration/deletion implementation vẫn là gate |
+| A0 corpus | PII được phép khi có Owner approval/evidence, local-only, restricted access, no external call và deletion date |
+| Resource limit | Độc lập với PII; PDF 121 trang vẫn `page_limit_exceeded` với limit 100 |
+
+Không phát hiện hai nguồn Approved mâu thuẫn thật sự; đây là contract gap đã
+được đóng bằng ADR-0018 nên không tạo conflict record mới. Verdict phần policy
+là `PASS WITH DOCUMENTED RISKS`: Owner đã approve boundary; R2 vẫn mở cho
+retention/deletion implementation evidence và mọi external provider vẫn cần
+approval riêng. Review cũ về substrate/runtime không bị viết lại thành approval
+cho external provider.
+
+### Owner Approval — PII policy amendment
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-25
+Decision: Approved ADR-0018 and the aligned documentation contracts.
+          No runtime, deployment or external-provider approval is inferred.
+```
 
 ## Kênh biểu đạt trạng thái triển khai — chốt 2026-08-24
 

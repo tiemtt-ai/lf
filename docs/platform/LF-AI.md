@@ -6,7 +6,7 @@ Document Status: Frozen
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-08-22
+Last Updated: 2026-08-25
 
 Document Path: platform/LF-AI.md
 
@@ -311,6 +311,20 @@ state.
 Media sở hữu binary, transcript, caption, processing và delivery. AI chỉ giữ
 knowledge reference/chunk/embedding derived từ authorized Media content.
 
+## PII/external-provider boundary
+
+Áp dụng theo [ADR-0018](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md),
+được Architecture Owner approve ngày 2026-08-25.
+
+Local deterministic OCR được phép xử lý source có PII không đồng nghĩa AI được
+gửi source hoặc derived content tới model/provider bên ngoài. Mọi external model
+call cần approval riêng theo provider, purpose, tenant/data scope, retention,
+deletion và audit. AI consumer vẫn chỉ nhận quyền qua Media Read owner context;
+PII presence và OCR success không cấp thêm quyền.
+
+ADR-0018 không approve OpenAI, Claude, Gemini, OpenRouter, Bedrock, Textract,
+Docling cloud, vision hay bất kỳ external provider/runtime nào.
+
 ---
 
 # Learning Integration
@@ -402,6 +416,9 @@ business state.
 6. Không train chéo tenant data.
 7. Prompt injection, unsafe output và data exfiltration cần safety policy trước
    implementation.
+8. Source, OCR/transcript, redacted derivative, crop asset và AI-derived
+   output/chunk/embedding phải cùng nằm trong retention/deletion và provenance
+   audit chain; redaction không sửa source gốc.
 
 ---
 

@@ -1,8 +1,8 @@
 # LF A0 Docling Benchmark Protocol
 
-Version: 1.0
+Version: 1.1
 
-Document Status: Draft
+Document Status: Approved
 
 Implementation Status: Not Implemented
 
@@ -14,6 +14,7 @@ Related ADR:
 
 * [ADR-0004 — Media Foundation](docs/adr/ADR-0004-Media-Foundation.md)
 * [ADR-0017 — AI-Assisted Learning Authoring](docs/adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
+* [ADR-0018 — Media PII And External Processing Boundary](docs/adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 
 Related Specification:
 
@@ -229,10 +230,29 @@ là hợp lệ với schema hiện hành và **không cần amendment**.
 
 ## 4.3. Ràng buộc dữ liệu corpus
 
-Corpus **không được** chứa dữ liệu cá nhân của learner thật. R2 (chưa có chính
-sách retention/redaction cho extracted text) vẫn đang mở, và một corpus benchmark
-sống lâu hơn nhiều so với một job xử lý. Dùng tài liệu công khai, tài liệu tự
-soạn, hoặc tài liệu đã redact với quy trình redaction được ghi lại.
+Theo ADR-0018, `contains_pii: true` không tự làm candidate corpus
+bị từ chối hoặc trở thành `DECISION_REQUIRED`. Corpus offline có PII chỉ eligible
+khi manifest/evidence ghi đủ:
+
+* Owner approval có identity/date và evidence về nguồn/quyền sử dụng;
+* phạm vi lưu trữ local, danh sách/quy tắc access hạn chế;
+* `external_processing_allowed: false`, không upload, remote API/model hay
+  external provider call;
+* retention/deletion date cụ thể;
+* source hash, approval evidence và provenance của redacted derivative nếu dùng.
+
+Thiếu một điều kiện trên, hoặc workflow yêu cầu external processing chưa được
+policy approve, mới là `DECISION_REQUIRED`. Khi đó dùng nguồn không PII hoặc
+redacted derivative riêng. Redaction không sửa source gốc; derivative có hash,
+version và provenance riêng.
+
+Candidate có thể được chuẩn bị trước với approval fields pending, nhưng không
+được chạy benchmark chính thức như corpus approved.
+
+PII eligibility và resource parity là hai gate độc lập. Ví dụ PDF KO 121 trang
+có PII, dù có corpus approval đầy đủ, vẫn phải được ghi làm negative/boundary
+candidate với expected error `page_limit_exceeded`, vì `121 > max_pages = 100`.
+Không được cắt file hoặc nới page limit để biến case đó thành pass.
 
 ## 4.4. Ground truth
 
@@ -285,11 +305,16 @@ chứ không phải mức jamo, vì hai con số không so sánh được với 
 ## 5.2. Coverage
 
 ```text
-coverage(doc) = số trang sinh unit có text / tổng số trang thật
+coverage(doc) = số trang có nội dung theo ground truth và sinh unit có text
+                / tổng số trang có nội dung theo ground truth
 ```
 
 Đây là metric bắt lỗi S5. Một engine có CER thấp trên các trang nó xử lý nhưng
 bỏ qua 9/10 trang thì coverage sẽ phơi bày điều đó, còn CER trung bình thì không.
+
+Trang trắng không nằm trong mẫu số coverage. Nó được kiểm tra riêng trong G2:
+không sinh text unit nhưng locator/page sequence của các trang sau vẫn phải giữ
+đúng số trang thật. Coverage không được dùng để che lỗi blank-page locator.
 
 ## 5.3. Ngưỡng đề xuất
 
@@ -300,13 +325,18 @@ bỏ qua 9/10 trang thì coverage sẽ phơi bày điều đó, còn CER trung b
 | `CER_raw` mỗi tầng | Không hồi quy so với đường hiện tại trên **bất kỳ** tầng nào |
 | `CER_raw` trên S3, S4 | Giảm tương đối ≥ 20% |
 | `CER_raw − CER_stripped` (vi) | Không nới rộng so với đường hiện tại |
-| `coverage` mỗi tài liệu | ≥ đường hiện tại, không có ngoại lệ |
-| `coverage` trên S5 | ≥ 0.95 |
+| `coverage` mỗi tài liệu có nội dung | Mục tiêu đề xuất `1.00`; đồng thời ≥ đường hiện tại, không có ngoại lệ |
+| `coverage` trên S5 | Mục tiêu đề xuất `1.00` |
 | Tỉ lệ `no_extractable_text` sai (tài liệu có text nhưng bị báo rỗng) | 0 |
 
 Nguyên tắc đằng sau: A0 cho phép Docling **thắng ở nơi nó mạnh**, nhưng không cho
 phép nó **thua ở bất kỳ đâu**. Một provider tốt hơn trung bình nhưng tệ hơn trên
 một tầng sẽ làm hỏng đúng những tài liệu đang chạy được hôm nay.
+
+`1.00` ở trên là policy đề xuất, chưa phải threshold Owner-approved. Cho tới khi
+Owner chốt, `page_coverage_min` phải giữ trạng thái `OWNER_DECISION_REQUIRED`
+(biểu diễn bằng `null` trong config máy đọc). Kết quả `< 1.00` chỉ dùng để cảnh
+báo/điều tra và không đủ bằng chứng cho A0 pass.
 
 ---
 

@@ -1,12 +1,12 @@
 # LearnForge Architecture Decision Records
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-12
+Last Updated: 2026-08-25
 
 Document Path: adr/README.md
 
@@ -65,6 +65,7 @@ Số ADR không được tái sử dụng hoặc đổi để lấp khoảng tr�
 | [ADR-0015](ADR-0015-Course-Lesson-Multiple-Prerequisites.md) | Course Lesson Multiple Prerequisites | Approved |
 | [ADR-0016](ADR-0016-Learning-Foundation.md) | Learning Foundation Version 1.1 amendment | Frozen |
 | [ADR-0017](ADR-0017-AI-Assisted-Learning-Authoring.md) | AI-Assisted Learning Authoring: Proposal, human review, exact-version Mapping | Approved |
+| [ADR-0018](ADR-0018-Media-PII-And-External-Processing-Boundary.md) | Media PII classification, redacted derivative và external-processing boundary | Approved |
 
 ---
 

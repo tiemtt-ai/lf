@@ -1,12 +1,12 @@
 # LF-INDEX.md
 
-Version: 2.22
+Version: 2.23
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-24
+Last Updated: 2026-08-25
 
 Document Path: LF-INDEX.md
 
@@ -290,6 +290,7 @@ docs/tech/
 | [tech/LF-Tech-CSS.md](tech/LF-Tech-CSS.md) | CSS architecture |
 | [tech/LF-Admin-Form-Design-Standard.md](tech/LF-Admin-Form-Design-Standard.md) | Canonical presentation standard cho LF Admin Create/Edit forms và List/Index pages; kích hoạt bởi “Áp dụng thiết kế tiêu chuẩn”, “Áp dụng chuẩn danh sách” và các trigger tương đương |
 | [tech/LF-Tech-AWS.md](tech/LF-Tech-AWS.md) | AWS infrastructure |
+| [tech/LF-Tech-Runtime-Requirements.md](tech/LF-Tech-Runtime-Requirements.md) | Yêu cầu cài đặt runtime, extension, binary, biến môi trường, CI và gate triển khai production |
 
 ---
 
@@ -359,6 +360,7 @@ docs/adr/
 | [ADR-0015](adr/ADR-0015-Course-Lesson-Multiple-Prerequisites.md) | Approved Course Lesson multiple-prerequisite decision |
 | [ADR-0016](adr/ADR-0016-Learning-Foundation.md) | Frozen Learning Foundation Version 1.1; deployed on development, production separately gated |
 | [ADR-0017](adr/ADR-0017-AI-Assisted-Learning-Authoring.md) | AI proposes Learning Node/Mapping from Course Media; human review and owner services write, AI never publishes. Approved — implementation separately gated |
+| [ADR-0018](adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) | Approved: PII presence không phải OCR failure; redacted derivative và external-processing eligibility là boundary riêng |
 
 ---
 
@@ -381,7 +383,7 @@ docs/quality/
 | [quality/LF-Course-Template-Activity-Estimated-Duration-Architecture-Review.md](quality/LF-Course-Template-Activity-Estimated-Duration-Architecture-Review.md) | Approved Course Template Activity estimated duration architecture review |
 | [quality/LF-Course-Template-Lesson-Role-Architecture-Review.md](quality/LF-Course-Template-Lesson-Role-Architecture-Review.md) | Approved Course Template Lesson role architecture review |
 | [quality/LF-Course-Template-Learning-Mapping-Intent-Architecture-Review.md](quality/LF-Course-Template-Learning-Mapping-Intent-Architecture-Review.md) | Course Template Learning Mapping Intent contract review; PASS with Owner approval pending |
-| [quality/LF-Media-Processing-Substrate-Architecture-Review.md](quality/LF-Media-Processing-Substrate-Architecture-Review.md) | Media Processing substrate contract review; PASS with documented risks |
+| [quality/LF-Media-Processing-Substrate-Architecture-Review.md](quality/LF-Media-Processing-Substrate-Architecture-Review.md) | Media Processing substrate review; PII/external-processing amendment v1.15 Approved with documented implementation risks |
 | [quality/LF-Media-Read-Contract-Architecture-Review.md](quality/LF-Media-Read-Contract-Architecture-Review.md) | Media Read A–H self-assessment packet; independent review pending |
 | [quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md](quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md) | Approved Course Lesson multiple-prerequisite architecture review |
 | [quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md](quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md) | Approved Version Activity media snapshot architecture review |
@@ -645,7 +647,10 @@ Read:
 
 Read:
 
+* adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md
 * platform/LF-Media.md
+* platform/LF-Media-Processing-Contract.md
+* platform/LF-Media-Read-Contract.md
 * tech/LF-Tech-AWS.md
 
 ---

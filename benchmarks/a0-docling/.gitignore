@@ -1,0 +1,10 @@
+.venv/
+results/
+output/
+work/
+models/
+corpus/files/
+corpus/ground-truth/
+corpus/manifest.json
+__pycache__/
+*.pyc

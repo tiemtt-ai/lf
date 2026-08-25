@@ -1,0 +1,29 @@
+{
+  "corpus_id": "lf-a0-OWNER-ASSIGNED-ID",
+  "revision": "OWNER-APPROVED-REVISION",
+  "approval": {
+    "status": "approved",
+    "approved_by": "OWNER-IDENTITY",
+    "approved_at": "YYYY-MM-DD"
+  },
+  "contains_pii": false,
+  "data_governance": {
+    "storage_scope": "LOCAL_ONLY_PATH_OR_MOUNT",
+    "access_restriction": "OWNER_APPROVED_PRINCIPALS_OR_GROUP",
+    "external_processing_allowed": false,
+    "retention_until": "YYYY-MM-DD",
+    "deletion_required_by": "YYYY-MM-DD",
+    "source_approval_evidence": "evidence/OWNER-APPROVAL-RECORD",
+    "pii_scope": null,
+    "redacted_derivative": null
+  },
+  "documents": [
+    {
+      "id": "vi-s1-001",
+      "locale": "vi",
+      "stratum": "S1",
+      "source": "files/vi-s1-001.pdf",
+      "ground_truth": "ground-truth/vi-s1-001.json"
+    }
+  ]
+}

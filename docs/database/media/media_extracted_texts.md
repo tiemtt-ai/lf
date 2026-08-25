@@ -1,6 +1,6 @@
 # Table: media_extracted_texts
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
@@ -14,9 +14,13 @@ Related ADR:
 
 * [ADR-0004 — Media Foundation](../../adr/ADR-0004-Media-Foundation.md)
 * [ADR-0017 — AI-Assisted Learning Authoring](../../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
+* [ADR-0018 — Media PII And External Processing Boundary](../../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 
 Related Specification:
 [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md)
+
+Version 1.1 áp dụng policy ADR-0018 đã Approved; schema/table implemented không
+thay đổi, không có migration hoặc backfill đi kèm.
 
 ## Purpose
 
@@ -49,6 +53,14 @@ media_processing_jobs 1 → 0..1 media_extracted_texts
 * Chỉ row `ready` được Media Read Service trả cho consumer.
 * Extracted text là Digital Asset output. AI Domain tự quyết định dùng thế nào;
   Media không diễn giải nội dung và không tạo business state từ nó.
+* Theo ADR-0018, text có PII vẫn là output hợp lệ; PII presence
+  không đổi status thành `failed`/`cancelled` và không cấp thêm quyền đọc.
+* Không đánh dấu row này là redacted nếu source/output chưa qua quy trình
+  redaction. Redacted derivative phải có source fingerprint, processing version
+  và provenance riêng; không sửa hoặc ghi đè source gốc.
+* Retention/deletion và access audit phải liên kết row này với source, derivative,
+  crop asset và AI-derived output tương ứng. Quy tắc này chưa thêm field/schema;
+  implementation shape cần review riêng.
 
 ### Locator
 

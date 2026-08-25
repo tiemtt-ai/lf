@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-08-24",
+  "generated_or_updated_at": "2026-08-25",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 235,
+  "document_count": 237,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -497,6 +497,7 @@
         "adr/ADR-0003-Assessment-Foundation.md",
         "adr/ADR-0004-Media-Foundation.md",
         "adr/ADR-0005-Track-Foundation.md",
+        "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
         "governance/LF-Architecture-Principles.md"
       ],
       "superseded_by": null,
@@ -1003,6 +1004,57 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
+      "title": "ADR-0018 — Media PII And External Processing Boundary",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Approved",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [
+        "media-pii-and-external-processing-boundary"
+      ],
+      "topics": [
+        "media",
+        "privacy",
+        "pii",
+        "redaction",
+        "external-processing"
+      ],
+      "keywords": {
+        "vi": [
+          "dữ liệu cá nhân trong media",
+          "xử lý OCR cục bộ",
+          "phái sinh đã che dữ liệu",
+          "ranh giới provider bên ngoài"
+        ],
+        "en": [
+          "media personal data",
+          "local deterministic OCR",
+          "redacted derivative",
+          "external provider boundary"
+        ]
+      },
+      "identifiers": [
+        "ADR-0018",
+        "PII_PRESENT",
+        "external_processing_allowed"
+      ],
+      "related_documents": [
+        "adr/ADR-0004-Media-Foundation.md",
+        "adr/ADR-0006-AI-Foundation.md",
+        "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
+        "platform/LF-Media-Processing-Contract.md",
+        "platform/LF-Media-Read-Contract.md",
+        "platform/LF-AI.md",
+        "database/media/media_extracted_texts.md",
+        "quality/LF-Media-Processing-Substrate-Architecture-Review.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "adr/README.md",
       "title": "LearnForge Architecture Decision Records",
       "area": "adr",
@@ -1044,6 +1096,7 @@
         "adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md",
         "adr/ADR-0014-Product-Offering-And-Draft-Binding.md",
         "adr/ADR-0015-Course-Lesson-Multiple-Prerequisites.md",
+        "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
         "governance/LF-Naming-Convention.md"
       ],
       "superseded_by": null,
@@ -5566,6 +5619,7 @@
       "related_documents": [
         "adr/ADR-0004-Media-Foundation.md",
         "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
+        "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
         "platform/LF-Media-Processing-Contract.md",
         "database/media/README.md",
         "database/media/media_processing_jobs.md"
@@ -7464,6 +7518,7 @@
       "related_documents": [
         "adr/ADR-0006-AI-Foundation.md",
         "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
+        "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
         "governance/LF-Architecture-Principles.md"
       ],
       "superseded_by": null,
@@ -7515,6 +7570,7 @@
         "adr/ADR-0004-Media-Foundation.md",
         "adr/ADR-0006-AI-Foundation.md",
         "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
+        "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
         "platform/LF-Media.md",
         "database/media/media_processing_jobs.md",
         "database/media/media_extracted_texts.md"
@@ -7568,6 +7624,7 @@
         "adr/ADR-0004-Media-Foundation.md",
         "adr/ADR-0006-AI-Foundation.md",
         "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
+        "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
         "platform/LF-Media-Processing-Contract.md",
         "database/ai/ai_knowledge_sources.md",
         "platform/README.md"
@@ -8941,6 +8998,7 @@
       "related_documents": [
         "adr/ADR-0004-Media-Foundation.md",
         "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
+        "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
         "platform/LF-Media-Processing-Contract.md",
         "database/media/media_processing_jobs.md",
         "database/media/media_extracted_texts.md",
@@ -9477,6 +9535,45 @@
       ],
       "related_documents": [
         "tech/LF-Admin-Form-Design-Standard.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "tech/LF-Tech-Runtime-Requirements.md",
+      "title": "LF-Tech-Runtime-Requirements.md",
+      "area": "tech",
+      "document_type": "technical_standard",
+      "document_status": "Draft",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "engineering",
+      "canonical_for": [],
+      "topics": [
+        "runtime",
+        "deployment"
+      ],
+      "keywords": {
+        "vi": [
+          "yêu cầu runtime",
+          "cài đặt triển khai",
+          "biến môi trường",
+          "phụ thuộc binary"
+        ],
+        "en": [
+          "runtime requirements",
+          "deployment setup",
+          "environment variables",
+          "binary dependencies"
+        ]
+      },
+      "identifiers": [
+        "LF-Tech-Runtime-Requirements"
+      ],
+      "related_documents": [
+        "tech/LF-Tech-Stack.md",
+        "tech/LF-Tech-AWS.md",
+        "platform/LF-Media-Processing-Contract.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

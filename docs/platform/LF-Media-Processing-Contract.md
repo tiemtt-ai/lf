@@ -1,6 +1,6 @@
 # LF-Media-Processing-Contract.md
 
-Version: 1.9
+Version: 2.0
 
 Document Status: Approved
 
@@ -15,6 +15,7 @@ Related ADR:
 * [ADR-0004 — Media Foundation](../adr/ADR-0004-Media-Foundation.md)
 * [ADR-0006 — AI Foundation](../adr/ADR-0006-AI-Foundation.md)
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
+* [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 
 ---
 
@@ -29,6 +30,38 @@ consumer chặn — substrate là đường dài nhất và không cần AI đ�
 
 Không thuộc phạm vi: AI Proposal persistence, Proposal review workflow, ghi
 Learning Node/Mapping, và automatic publish. Tất cả vẫn bị gate theo ADR-0017.
+
+## PII processing policy
+
+Section này có hiệu lực theo ADR-0018 được Architecture Owner approve ngày
+2026-08-25. Approval cho policy PII không phải approval cho external provider.
+
+`PII_PRESENT` phân loại nội dung, không phải job status hay error code. Nó không
+được tự động làm Media File/job `failed` hoặc `cancelled`, từ chối enqueue, hay
+chặn OCR deterministic/local. Local/self-hosted processing được phép khi actor
+đã authorize trên owner context, tenant isolation được giữ và provider nằm trong
+boundary đã approved.
+
+Ba thuộc tính phải tách biệt:
+
+| Thuộc tính | Ý nghĩa | Không được suy ra |
+| --- | --- | --- |
+| Source có PII | Source/output có dữ liệu cá nhân | Không suy ra processing failure |
+| Redacted derivative | Asset riêng đã qua quy trình redaction | Không suy ra source gốc đã bị sửa hoặc output khác đã redact |
+| External-processing eligibility | Provider/purpose cụ thể được phép rời tenant boundary | Không suy ra từ local OCR eligibility |
+
+Không được tự redact hay sửa source gốc. Redaction tạo derivative riêng với
+fingerprint của chính bytes derivative, processing version và provenance riêng;
+source gốc giữ nguyên.
+
+Mọi external provider call, gồm Docling cloud nếu có, Bedrock, Textract,
+OpenAI, Claude, Gemini, OpenRouter, vision và provider ngoài tenant boundary,
+cần policy/approval riêng trước khi gửi source, crop hoặc derived content. Hợp
+đồng này không approve provider/runtime nào trong số đó.
+
+PII policy không nới resource controls. Source 101/121 trang vẫn
+`page_limit_exceeded` vì vượt `max_pages = 100`, kể cả khi corpus/source có
+approval PII đầy đủ.
 
 ---
 

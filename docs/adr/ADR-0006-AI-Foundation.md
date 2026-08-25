@@ -44,6 +44,7 @@ Document Path: adr/ADR-0006-AI-Foundation.md
 * [ADR-0004 — Media Foundation](ADR-0004-Media-Foundation.md)
 * [ADR-0005 — Track Foundation](ADR-0005-Track-Foundation.md)
 * [ADR-0016 — Learning Foundation](ADR-0016-Learning-Foundation.md)
+* [ADR-0018 — Media PII And External Processing Boundary](ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved; constraining privacy/external-processing boundary
 
 ---
 
@@ -376,6 +377,12 @@ Media owns binary, transcript, caption, processing and delivery.
 
 AI stores authorized Knowledge registration and derived chunks/embedding
 references. AI does not update Media Processing State.
+
+ADR-0018 tách PII presence khỏi external-processing eligibility. Cho
+phép OCR deterministic/local không authorize AI/model provider bên ngoài và
+không nới Media Read owner-context authorization. Đây là constraining boundary
+đã Approved; nó không thay đổi bảng hoặc Domain Responsibility của Frozen
+Foundation 1.0.
 
 ---
 
