@@ -1,14 +1,20 @@
 # LF A0 Docling Benchmark Protocol
 
-Version: 1.1
+Version: 1.4
 
-Document Status: Approved
+Document Status: Archived
 
-Implementation Status: Not Implemented
+Implementation Status: Not Applicable
 
 Last Updated: 2026-08-25
 
 Document Path: LF-A0-Docling-Benchmark-Protocol.md
+
+> **Archived 2026-08-25.** Protocol này đã hoàn thành nhiệm vụ: nó tồn tại để trả
+> lời một câu hỏi, và câu hỏi đó đã được trả lời — giữ Poppler/Tesseract. Harness
+> đã bị gỡ. Đọc **Closure Record** ngay dưới đây; mọi mục từ § 1 trở đi là bản ghi
+> phương pháp, **không phải hướng dẫn còn hiệu lực**. Không chạy theo chúng mà
+> không dựng lại harness và mở lại quyết định.
 
 Related ADR:
 
@@ -21,6 +27,136 @@ Related Specification:
 * [LF-Media-Processing-Contract](docs/platform/LF-Media-Processing-Contract.md)
 * [LF-Media-Read-Contract](docs/platform/LF-Media-Read-Contract.md)
 * [media_extracted_texts](docs/database/media/media_extracted_texts.md)
+
+---
+
+# Closure Record — Version 1.3
+
+Status: **A0 đóng theo quyết định Owner ngày 2026-08-25. Provider OCR giữ nguyên.**
+
+## Quyết định
+
+Không thay `local_document` (Poppler + Tesseract) bằng Docling. Không tiếp tục
+đầu tư vào corpus, ground truth hay ngưỡng chất lượng cho câu hỏi này.
+
+`MEDIA_OCR_PROVIDER` và `MEDIA_OCR_VERSION` không đổi. Không có thay đổi runtime,
+schema, binding hay deployment nào phát sinh từ quyết định này.
+
+## Bằng chứng
+
+Run `a0-fair-baseline-20260825`, mode exploratory. Bản báo cáo đầy đủ được giữ
+tại [LF-A0-Docling-Closure-Evidence](docs/quality/LF-A0-Docling-Closure-Evidence.md).
+Baseline trong harness đã được
+sửa để khớp `LocalDocumentProcessingProvider::pdfUnits` sau khi bỏ hành vi
+all-or-nothing; các lần chạy trước đó so Docling với một baseline đang mất trang.
+
+| Metric | baseline | docling |
+|---|---:|---:|
+| VI CER raw | **0.0596** | 0.0679 |
+| VI CER stripped | **0.0547** | 0.0668 |
+| KO CER raw | **0.129** | 0.172 |
+| KO CER stripped | **0.130** | 0.158 |
+| Page coverage | 1.0 | 1.0 |
+| p95 s/page | **1.73** | 4.01 |
+| Peak RSS | **148 MB** | 2.23 GB |
+
+Docling thua ở cả bốn chỉ số CER, ở cả hai locale, với 2.3× thời gian và 15× bộ
+nhớ. Trong cấu hình A0, `docling.ocr_engine = tesseract_cli` — Docling chạy chính
+Tesseract bên dưới, nên chênh lệch này đến từ tầng phân đoạn của nó, không phải
+từ một OCR engine cạnh tranh.
+
+Chỗ Docling vẫn hơn là **bố cục nhiều cột**: boundary 0.61→0.82 (`vi-s2`),
+0.66→0.78 (`ko-s2`), và reading-order completeness của `vi-s2`. Lợi thế đó hiện
+**không lưu được**: `media_extracted_texts` có `CHECK (locator_type IN ('page'))`,
+không có cột nào chứa vùng hay thứ tự đọc.
+
+## Quyết định này KHÔNG phải
+
+* Không phải `A0_FAIL`. A0 official chưa từng chạy: corpus chưa approve, 16/18
+  fixture là synthetic, bốn ngưỡng vẫn `null`. Đây là quyết định **ngừng đầu tư**,
+  không phải verdict kỹ thuật.
+* Không phải bằng chứng về tài liệu scan thật. Lợi thế nhiều cột của Docling chưa
+  được kiểm trên sách in scan, và đó đúng là loại tài liệu quyết định.
+* Không phải kết luận rằng Docling kém. Nó là công cụ trích cấu trúc, và A0 đo
+  chất lượng text.
+
+## Điều kiện mở lại
+
+Khi Phase B/C mở locator vùng/bảng và schema có chỗ chứa dữ liệu cấu trúc. Lúc đó
+Docling vào như một `output_profile` riêng (`layout=structured`) song song với
+`layout=preserve`, không thay thế Tesseract — substrate đã hỗ trợ sẵn: `provider`
+là cột theo từng job và `ocr` output profile đã có tham số `layout`.
+
+Trước khi mở lại, thử phương án rẻ hơn: lấy layout từ Docling, lấy text từ
+Tesseract trực tiếp.
+
+## Harness đã bị gỡ
+
+`benchmarks/a0-docling/` **đã bị xoá ngày 2026-08-25 theo quyết định Owner**, cùng
+models (669 MB) và virtualenv. Mọi mô tả về vị trí harness, cách chạy và cấu trúc
+output trong các mục dưới đây là **lịch sử**, không phải hướng dẫn còn hiệu lực.
+
+Lý do gỡ: harness không phải một năng lực của sản phẩm mà là dụng cụ ra quyết
+định, và quyết định đã đóng. Nó cũng mang một nợ kỹ thuật thật — `baseline_pdf`
+là bản sao chép tay của `LocalDocumentProcessingProvider::pdfUnits` và không có
+gì bắt hai bên khớp nhau; chính sự lệch đó đã khiến các run trước so Docling với
+một baseline đang mất trang.
+
+Hệ quả: **mở lại phép đo đòi hỏi dựng lại harness từ đầu.** Số liệu và kết luận
+vẫn còn trong Closure Evidence; khả năng chạy lại thì không.
+
+## Nghĩa vụ còn lại
+
+Corpus PII local vẫn chịu retention/deletion theo ADR-0018 bất kể quyết định này:
+`retention_until 2026-09-25`, `deletion_required_by 2026-09-26`.
+
+---
+
+# Amendment Record — Version 1.2
+
+Amendment Status: **Approved by Owner direction, 2026-08-25.**
+
+## Quyết định
+
+Ground truth của corpus tách thành **hai tầng**, đếm và báo cáo riêng, không bao
+giờ gộp:
+
+| Tầng | Ground truth cần có | Metric đo được |
+|---|---|---|
+| `full` | Text đã chép tay theo từng trang | CER raw/stripped, boundary, reading order, coverage, parity |
+| `content_flags` | Chỉ cờ `has_content` theo từng trang | Coverage, blank-page, page-count parity, error-code parity, latency, RSS |
+
+Minimum S1–S14 ở §4 tiếp tục áp cho **toàn bộ** corpus (cả hai tầng). Tầng `full`
+có minimum riêng, `gates.cer_documents_min_per_locale`, và giống bốn ngưỡng chất
+lượng: **null thì official mode chặn**, không có giá trị mặc định.
+
+## Lý do
+
+Phần đắt của một corpus không phải là gom tài liệu — là **chép tay ground truth**
+để tính CER. Nhưng chỉ CER mới cần bản chép: coverage chỉ cần biết "trang này có
+nội dung hay không", còn page-count parity, error-code parity, latency và RSS
+không cần ground truth gì cả.
+
+Bằng chứng cho việc tách: trong dry-run `a0-dryrun-20260825`, lỗi nghiêm trọng
+nhất tìm được là baseline **mất hẳn trang 2 và 4** của tài liệu trộn
+(`coverage 0.5`) — một phát hiện thuần coverage, không cần một ký tự ground truth
+nào. Bắt toàn bộ corpus phải có bản chép tay là trả giá CER cho những kết luận
+không dùng CER.
+
+## Transcription queue
+
+Harness xếp hạng các trang **chưa chép** theo mức bất đồng giữa hai engine và ghi
+ra `transcription_queue.csv`. Trang mà baseline và Docling đã đồng ý gần như
+không còn giá trị quyết định; trang chúng đọc khác nhau mới là chỗ CER thay đổi
+được verdict. Đây là cách biến "chép tất cả" thành "chép theo thứ tự".
+
+## Amendment này KHÔNG làm gì
+
+* Không hạ minimum S1–S14.
+* Không cho phép verdict `A0_PASS` khi thiếu CER: tầng `full` vẫn bắt buộc, chỉ
+  là được định lượng riêng thay vì mặc định bằng toàn corpus.
+* Không thay đổi bốn ngưỡng chất lượng, G1/G2, hay ranh giới A1.
+* Không approve corpus nào.
 
 ---
 
@@ -248,6 +384,33 @@ version và provenance riêng.
 
 Candidate có thể được chuẩn bị trước với approval fields pending, nhưng không
 được chạy benchmark chính thức như corpus approved.
+
+## 4.4. Hai tầng ground truth
+
+Mỗi document khai báo `ground_truth_tier` trong manifest:
+
+```json
+{ "id": "vi-s3-real-001", "locale": "vi", "stratum": "S3",
+  "source": "vi/vi-s3-real-001.pdf",
+  "ground_truth": "ground-truth/vi-s3-real-001.json",
+  "ground_truth_tier": "content_flags" }
+```
+
+Thiếu trường này thì mặc định là `full` — hành vi cũ không đổi.
+
+Ground truth `content_flags` chỉ khai báo trang nào có nội dung:
+
+```json
+{ "pages": [ { "page": 1, "has_content": true },
+             { "page": 2, "has_content": true },
+             { "page": 3, "has_content": false } ] }
+```
+
+`has_content: false` nghĩa là trang trắng thật — engine sinh text ở đó vẫn là
+`blank_page_violation`. `has_content: true` mà không có `text` nghĩa là **có nội
+dung nhưng chưa chép**: trang đó tính vào coverage, và không tính vào CER. Không
+được suy ra `has_content` từ output của engine; đó là quan sát của con người trên
+tài liệu nguồn, nếu không thì coverage tự chứng minh chính nó.
 
 PII eligibility và resource parity là hai gate độc lập. Ví dụ PDF KO 121 trang
 có PII, dù có corpus approval đầy đủ, vẫn phải được ghi làm negative/boundary

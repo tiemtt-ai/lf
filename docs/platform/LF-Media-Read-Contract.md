@@ -1,6 +1,6 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.4
+Version: 1.5
 
 Document Status: Approved
 
@@ -16,6 +16,7 @@ Related ADR:
 * [ADR-0006 — AI Foundation](../adr/ADR-0006-AI-Foundation.md)
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 * [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
+* [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved
 
 Related Specification:
 [LF-Media-Processing-Contract](LF-Media-Processing-Contract.md)
@@ -29,6 +30,11 @@ Hợp đồng đọc output dẫn xuất của Media cho consumer, trước hế
 Đây là Spec B. Substrate sản xuất output nằm ở
 [LF-Media-Processing-Contract](LF-Media-Processing-Contract.md); tài liệu này chỉ
 quy định cách đọc chúng ra.
+
+Version 1.5 áp dụng [ADR-0019](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md)
+đã Approved: thêm hai content type `region` và `table`, và mở `locator_type`
+sang `sheet`/`region`. Không có đường đọc mới, không có API riêng cho structured
+data; mọi thứ khác của hợp đồng giữ nguyên.
 
 Version 1.4 áp dụng ADR-0018 đã được Architecture Owner approve ngày 2026-08-25.
 Approval này không authorize external processing và không tự đóng các gate triển
@@ -62,9 +68,10 @@ Service trả **derived content unit**, không trả file:
 ```text
 unit := {
   media_file_id, source_fingerprint, processing_version,
-  content_type,           // extracted_text | transcript | caption_asset | variant
+  content_type,           // extracted_text | transcript | caption_asset
+                          // | variant | region | table
   locale,
-  locator: { type, value },   // page | timespan | null
+  locator: { type, value },   // page | timespan | sheet | region | null
   text,                   // null với caption_asset và variant
   delivery_url,           // signed, chỉ với caption_asset và variant
   confidence,             // null khi provider không báo cáo
@@ -74,6 +81,13 @@ unit := {
 
 `locator` là `null` chỉ với `caption_asset` và `variant` — hai thứ là file, không
 phải đoạn trích dẫn được. Xem § 5.
+
+`region` và `table` trả thêm trường `structure`: với `region` là
+`{ role, reading_order, bbox }`, với `table` là
+`{ row_count, column_count, has_header, cells: [{ row, column, row_span,
+column_span, is_header, text }] }`. Đây là **quan sát**, không phải diễn giải:
+Media nói bảng có mấy hàng mấy cột và ô nào chứa chuỗi gì, không nói bảng đó nói
+về cái gì (ADR-0019 § D4).
 
 ---
 
@@ -167,8 +181,10 @@ mảng rỗng.
 
 | content_type | Nguồn | Locator |
 | --- | --- | --- |
-| `extracted_text` | `media_extracted_texts` | `page` |
+| `extracted_text` | `media_extracted_texts` | `page` (document), `sheet` (spreadsheet) |
 | `transcript` | `media_transcripts` | `timespan` |
+| `region` | `media_extracted_regions` | `region` |
+| `table` | `media_extracted_tables` + `media_table_cells` | `region` hoặc `sheet` |
 | `caption_asset` | `media_captions` | `null` — file VTT/SRT/ASS, trả `delivery_url` |
 | `variant` | `media_variants` | `null` — asset thay thế, trả `delivery_url` |
 

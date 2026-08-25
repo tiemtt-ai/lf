@@ -2,6 +2,13 @@
 
 Document Path: database/ai/ai_model_runs.md
 
+## Amendment — Proposed 2026-08-25
+
+Nguồn: [LF-AI-Foundation-Media-Consumer-Database-Architecture-Review](../../quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md)
+finding F-2 và F-5. **Chưa được Owner approve.** Thay đổi: thêm tenant composite
+identity và ghi rõ hai khóa ngoại được hoãn. Amendment này **không** đụng tới
+ADR-0006 Amendment v1.1 vẫn đang Proposed ở phần Business Rules bên dưới.
+
 ## Purpose
 
 Audit/provenance record for every AI provider/model execution.
@@ -64,13 +71,29 @@ generate Messages, Recommendations or Insights.
 
 ```sql
 UNIQUE (customer_id, run_uuid);
-INDEX (customer_id, user_id, created_at);
-INDEX (customer_id, assistant_session_id);
-INDEX (customer_id, prompt_template_id, prompt_version);
-INDEX (customer_id, provider, model);
-INDEX (customer_id, status, created_at);
-INDEX (customer_id, correlation_id);
+UNIQUE (id, customer_id);
+INDEX  (customer_id, user_id, created_at);
+INDEX  (customer_id, assistant_session_id);
+INDEX  (customer_id, prompt_template_id, prompt_version);
+INDEX  (customer_id, provider, model);
+INDEX  (customer_id, status, created_at);
+INDEX  (customer_id, correlation_id);
+
+FOREIGN KEY (user_id, customer_id)
+    REFERENCES users (id, customer_id) RESTRICT;
+
+CHECK (status IN ('queued','running','completed','failed','blocked',
+                  'cancelled'));
+CHECK (total_tokens >= input_tokens);
+CHECK (status <> 'completed' OR completed_at IS NOT NULL);
+CHECK (status <> 'failed' OR error_code IS NOT NULL);
 ```
+
+`assistant_session_id` và `prompt_template_id` **chưa có khóa ngoại**:
+`ai_assistant_sessions` và `ai_prompt_templates` nằm ngoài subset Media→AI và
+chưa được implement. Hai khóa đó được thêm trong chính migration tạo ra bảng đích,
+không phải bỏ quên. Cột vẫn nullable và vẫn được index để không phải sửa shape
+sau này.
 
 ## Sample Data
 

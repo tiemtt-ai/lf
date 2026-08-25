@@ -127,9 +127,12 @@ class ProcessMediaProcessingJob implements ShouldQueue
                     'locale' => $locale, 'locator_type' => $unit['locator_type'], 'locator_value' => $unit['locator_value'],
                     'sequence' => $unit['sequence'], 'text' => $unit['text'], 'char_count' => mb_strlen($unit['text']),
                     'extraction_method' => $unit['extraction_method'] ?? 'ocr', 'provider' => $job->provider, 'processing_version' => $job->processing_version,
-                    'source_fingerprint' => $job->source_fingerprint, 'status' => 'ready', 'created_at' => $now, 'updated_at' => $now,
+                    'source_fingerprint' => $job->source_fingerprint, 'status' => 'ready',
+                    'metadata' => isset($unit['metadata']) ? json_encode($unit['metadata']) : null,
+                    'created_at' => $now, 'updated_at' => $now,
                 ]);
             }
+            $this->archiveSupersededRevisions('media_extracted_texts', $media, $job, ['locale' => $locale], $now);
             $outputType = 'extracted_text';
         } elseif ($job->job_type === 'speech_to_text') {
             foreach ($result['units'] ?? [] as $unit) {
@@ -140,20 +143,45 @@ class ProcessMediaProcessingJob implements ShouldQueue
                     'locator_type' => $unit['locator_type'], 'locator_value' => $unit['locator_value'], 'created_at' => $now, 'updated_at' => $now,
                 ]);
             }
+            $this->archiveSupersededRevisions('media_transcripts', $media, $job, ['locale' => $locale], $now);
             $outputType = 'transcript';
         } elseif ($job->job_type === 'caption') {
+            $captionType = $this->profileValue($job->output_profile, 'format');
             $outputId = DB::table('media_captions')->insertGetId([
                 'customer_id' => $this->customerId, 'media_file_id' => $media->id, 'locale' => $locale,
-                'caption_type' => $this->profileValue($job->output_profile, 'format'), 'storage_key' => $result['storage_key'],
+                'caption_type' => $captionType, 'storage_key' => $result['storage_key'],
                 'status' => 'ready', 'processing_job_id' => $job->id, 'processing_version' => $job->processing_version,
                 'source_fingerprint' => $job->source_fingerprint, 'created_at' => $now, 'updated_at' => $now,
             ]);
+            $this->archiveSupersededRevisions('media_captions', $media, $job, ['locale' => $locale, 'caption_type' => $captionType], $now);
             $outputType = 'caption';
         }
         DB::table('media_processing_jobs')->where('customer_id', $this->customerId)->where('id', $job->id)->update([
             'status' => 'ready', 'output_type' => $outputType, 'output_id' => $outputId,
             'completed_at' => $now, 'updated_at' => $now,
         ]);
+    }
+
+    /**
+     * LF-Media-Processing-Contract § Stale và revision: output is never
+     * overwritten. A new fingerprint or processing version supersedes the
+     * previous revision, which must stay readable forever as `archived`.
+     *
+     * @param  array<string, string|null>  $scope  Columns that separate coexisting
+     *                                             revisions (locale, caption format)
+     *                                             from superseded ones.
+     */
+    private function archiveSupersededRevisions(string $table, object $media, object $job, array $scope, mixed $now): void
+    {
+        DB::table($table)
+            ->where('customer_id', $this->customerId)
+            ->where('media_file_id', $media->id)
+            ->where($scope)
+            ->where('status', 'ready')
+            ->where(fn ($query) => $query
+                ->where('processing_version', '<>', $job->processing_version)
+                ->orWhere('source_fingerprint', '<>', $job->source_fingerprint))
+            ->update(['status' => 'archived', 'updated_at' => $now]);
     }
 
     private function profileValue(string $profile, string $key): ?string

@@ -361,6 +361,7 @@ docs/adr/
 | [ADR-0016](adr/ADR-0016-Learning-Foundation.md) | Frozen Learning Foundation Version 1.1; deployed on development, production separately gated |
 | [ADR-0017](adr/ADR-0017-AI-Assisted-Learning-Authoring.md) | AI proposes Learning Node/Mapping from Course Media; human review and owner services write, AI never publishes. Approved — implementation separately gated |
 | [ADR-0018](adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) | Approved: PII presence không phải OCR failure; redacted derivative và external-processing eligibility là boundary riêng |
+| [ADR-0019](adr/ADR-0019-Media-Structured-Extraction-Boundary.md) | Approved: mở locator sang region/table/sheet, structured extraction là content type mới; Media quan sát cấu trúc, AI diễn giải |
 
 ---
 
@@ -384,6 +385,8 @@ docs/quality/
 | [quality/LF-Course-Template-Lesson-Role-Architecture-Review.md](quality/LF-Course-Template-Lesson-Role-Architecture-Review.md) | Approved Course Template Lesson role architecture review |
 | [quality/LF-Course-Template-Learning-Mapping-Intent-Architecture-Review.md](quality/LF-Course-Template-Learning-Mapping-Intent-Architecture-Review.md) | Course Template Learning Mapping Intent contract review; PASS with Owner approval pending |
 | [quality/LF-Media-Processing-Substrate-Architecture-Review.md](quality/LF-Media-Processing-Substrate-Architecture-Review.md) | Media Processing substrate review; PII/external-processing amendment v1.15 Approved with documented implementation risks |
+| [quality/LF-A0-Docling-Closure-Evidence.md](quality/LF-A0-Docling-Closure-Evidence.md) | Only surviving copy of the A0 run behind the closure decision; exploratory evidence, not a verdict |
+| [quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md](quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md) | AI Foundation Media-consumer subset A–H packet; CHANGES REQUIRED, migration not authorized |
 | [quality/LF-Media-Read-Contract-Architecture-Review.md](quality/LF-Media-Read-Contract-Architecture-Review.md) | Media Read A–H self-assessment packet; independent review pending |
 | [quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md](quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md) | Approved Course Lesson multiple-prerequisite architecture review |
 | [quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md](quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md) | Approved Version Activity media snapshot architecture review |
@@ -648,6 +651,7 @@ Read:
 Read:
 
 * adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md
+* adr/ADR-0019-Media-Structured-Extraction-Boundary.md
 * platform/LF-Media.md
 * platform/LF-Media-Processing-Contract.md
 * platform/LF-Media-Read-Contract.md

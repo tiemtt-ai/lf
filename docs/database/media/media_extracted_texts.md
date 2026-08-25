@@ -1,10 +1,10 @@
 # Table: media_extracted_texts
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
-Implementation Status: Implemented
+Implementation Status: Partial
 
 Last Updated: 2026-08-24
 
@@ -21,6 +21,15 @@ Related Specification:
 
 Version 1.1 áp dụng policy ADR-0018 đã Approved; schema/table implemented không
 thay đổi, không có migration hoặc backfill đi kèm.
+
+Version 1.2 áp dụng [ADR-0019](../../adr/ADR-0019-Media-Structured-Extraction-Boundary.md)
+đã Approved: `locator_type` mở thêm `sheet`. **Cần migration** (ALTER CHECK) và
+một `processing_version` mới cho spreadsheet; xem Design Notes.
+
+Implementation Status là `Partial` chứ không phải `Implemented`: bảng đã tồn tại
+trong database, nhưng CHECK `page|sheet` của Version 1.2 **chưa được migrate** và
+schema contract vẫn ghi `page`. Trạng thái trở lại `Implemented` khi migration
+được apply.
 
 ## Purpose
 
@@ -68,6 +77,9 @@ media_processing_jobs 1 → 0..1 media_extracted_texts
   [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md).
 * Với document, `locator_type = 'page'` và `locator_value` là số trang bắt đầu
   từ 1, lưu dạng text thập phân.
+* Với spreadsheet, `locator_type = 'sheet'` và `locator_value` là chỉ số sheet
+  theo thứ tự workbook, bắt đầu từ 1. Sheet **không** phải trang; dùng `page` cho
+  sheet là cách gán ghép mà ADR-0019 § D1 sửa lại.
 * Locator là thứ AI trích dẫn khi đề xuất Node hoặc Mapping theo ADR-0017. Nó
   phải ổn định trong suốt vòng đời của một `source_fingerprint`.
 
@@ -80,8 +92,8 @@ media_processing_jobs 1 → 0..1 media_extracted_texts
 | media_file_id | BIGINT UNSIGNED NOT NULL | Media File nguồn. |
 | processing_job_id | BIGINT UNSIGNED NULL | Lần chạy đã tạo ra row này. |
 | locale | VARCHAR(20) NOT NULL | Locale của text. |
-| locator_type | VARCHAR(20) NOT NULL | `page` cho document. |
-| locator_value | VARCHAR(50) NOT NULL | Số trang, dạng text thập phân. |
+| locator_type | VARCHAR(20) NOT NULL | `page` cho document, `sheet` cho spreadsheet. |
+| locator_value | VARCHAR(50) NOT NULL | Số trang hoặc chỉ số sheet, dạng text thập phân. |
 | sequence | INT UNSIGNED NOT NULL | Thứ tự đọc trong tài liệu, bắt đầu từ 1. |
 | text | LONGTEXT NULL | Nội dung trích xuất của đơn vị này. |
 | char_count | INT UNSIGNED NULL | Độ dài text, phục vụ chunking và đo lường. |
@@ -112,7 +124,7 @@ FOREIGN KEY (processing_job_id, customer_id)
     REFERENCES media_processing_jobs (id, customer_id) RESTRICT;
 
 CHECK (status IN ('pending','processing','ready','failed','archived'));
-CHECK (locator_type IN ('page'));
+CHECK (locator_type IN ('page','sheet'));
 CHECK (extraction_method IN ('ocr','embedded_text'));
 CHECK (sequence >= 1);
 CHECK (confidence_score IS NULL
@@ -126,9 +138,15 @@ Unique key gồm `processing_version`: chạy lại bằng extractor mới **kh�
 trong Processing Contract. Đây là điều kiện để một Proposal AI đã trích dẫn
 trang 12 vẫn còn trang 12 mà nó đã đọc.
 
-`CHECK (locator_type IN ('page'))` cố ý chỉ mở một giá trị. Mở rộng sang
-`section` hay `slide` là amendment có review, không phải một giá trị lọt vào
-lúc code.
+`CHECK (locator_type IN ('page','sheet'))` mở đúng hai giá trị đã được ADR-0019
+duyệt. Mở rộng sang `section` hay `slide` vẫn là amendment có review, không phải
+một giá trị lọt vào lúc code. `region` **không** thuộc bảng này: nó sống ở
+[media_extracted_regions](media_extracted_regions.md).
+
+Chuyển spreadsheet từ `page` sang `sheet` là **thay đổi có phá vỡ**. Nó không
+được backfill tại chỗ: revision cũ giữ nguyên `page` và chuyển `archived`, còn
+lần chạy mới sinh revision `sheet` dưới một `processing_version` mới. Sửa
+`locator_value` của row cũ sẽ làm mọi citation đã phát ra trỏ sai.
 
 ## Sample Data
 

@@ -2,6 +2,13 @@
 
 Document Path: database/ai/ai_embeddings.md
 
+## Amendment — Proposed 2026-08-25
+
+Nguồn: [LF-AI-Foundation-Media-Consumer-Database-Architecture-Review](../../quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md)
+finding F-2, F-6 và F-7. **Chưa được Owner approve.** Thay đổi: thêm tenant
+composite identity; ghi nhận ràng buộc ADR-0018 và vector store là điều kiện
+triển khai, không phải chi tiết bỏ ngỏ.
+
 ## Purpose
 
 Lưu metadata/reference của vector embedding; không lưu binary/vector payload
@@ -46,10 +53,17 @@ store reference.
 
 ```sql
 UNIQUE (customer_id, vector_store, vector_index, vector_key);
+UNIQUE (id, customer_id);
 UNIQUE (customer_id, knowledge_chunk_id, provider, model, embedding_hash);
-INDEX (customer_id, knowledge_chunk_id);
-INDEX (customer_id, provider, model);
-INDEX (customer_id, status);
+INDEX  (customer_id, knowledge_chunk_id);
+INDEX  (customer_id, provider, model);
+INDEX  (customer_id, status);
+
+FOREIGN KEY (knowledge_chunk_id, customer_id)
+    REFERENCES ai_knowledge_chunks (id, customer_id) RESTRICT;
+
+CHECK (status IN ('pending','ready','failed','stale','deleted'));
+CHECK (dimensions >= 1);
 ```
 
 ## Sample Data
@@ -59,4 +73,12 @@ INDEX (customer_id, status);
 ## Design Notes
 
 Vector-store selection, data residency and deletion synchronization remain open
-Foundation questions.
+Foundation questions. Hai hệ quả phải ghi rõ trước khi bảng này được dùng thật:
+
+* [ADR-0018](../../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md)
+  yêu cầu retention/deletion phủ toàn bộ provenance chain, **gồm cả embedding**.
+  Tạo bảng không bị chặn; đổ dữ liệu thật vào một tenant thì bị.
+* Sample data dùng `pgvector`, một extension của PostgreSQL, trong khi LF chạy
+  MySQL/MariaDB. Bảng chỉ lưu reference nên schema trung lập với nền tảng, nhưng
+  embed thật cần một quyết định vector store cùng hạng với Tech Stack amendment.
+  Điều này không được phát hiện sau khi migration đã ship.

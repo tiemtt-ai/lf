@@ -19497,6 +19497,30 @@
       "views": []
     },
     {
+      "name": "media_extracted_regions",
+      "documentation": "database/media/media_extracted_regions.md",
+      "implementation_status": "not_implemented",
+      "columns": [],
+      "primary_key": [],
+      "indexes": [],
+      "foreign_keys": [],
+      "checks": [],
+      "triggers": [],
+      "views": []
+    },
+    {
+      "name": "media_extracted_tables",
+      "documentation": "database/media/media_extracted_tables.md",
+      "implementation_status": "not_implemented",
+      "columns": [],
+      "primary_key": [],
+      "indexes": [],
+      "foreign_keys": [],
+      "checks": [],
+      "triggers": [],
+      "views": []
+    },
+    {
       "name": "media_extracted_texts",
       "documentation": "database/media/media_extracted_texts.md",
       "implementation_status": "implemented",
@@ -20840,6 +20864,18 @@
           "expression": "`status` <> 'failed' or `completed_at` is not null and `error_code` is not null"
         }
       ],
+      "triggers": [],
+      "views": []
+    },
+    {
+      "name": "media_table_cells",
+      "documentation": "database/media/media_table_cells.md",
+      "implementation_status": "not_implemented",
+      "columns": [],
+      "primary_key": [],
+      "indexes": [],
+      "foreign_keys": [],
+      "checks": [],
       "triggers": [],
       "views": []
     },

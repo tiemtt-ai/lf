@@ -234,7 +234,7 @@ trung lập.
 
 # Active Conflict Register
 
-Active items: 6. Không có confirmed `CONFLICT` nào đang mở.
+Active items: 7. DOC-CONFLICT-0016 là confirmed `DOCUMENT_CONTRADICTION` đang mở.
 
 | ID | Title | Classification | Status | Impact | Domain | Owner | Target Review |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -244,6 +244,7 @@ Active items: 6. Không có confirmed `CONFLICT` nào đang mở.
 | DOC-CONFLICT-0011 | Attendance ghi được cho Enrollment không `active` | IMPLEMENTATION_DRIFT | ACCEPTED_TEMPORARILY | LOW (giảm từ HIGH) | LiveClass × Course | Domain Owner (LiveClass) | Trước khi mở lại tab Điểm danh |
 | DOC-CONFLICT-0014 | `course_category` được dùng làm `owner_type` nhưng không tài liệu nào đặt tên nó | IMPLEMENTATION_DRIFT | DECISION_REQUIRED | LOW | Media × Course | Domain Owner (Media) | Immediate Owner decision |
 | DOC-CONFLICT-0015 | `owner_type` không có ràng buộc vật lý nên vocabulary trôi không bị phát hiện | GAP | DECISION_REQUIRED | MEDIUM | Media | Database Owner | Immediate, after 0014 |
+| DOC-CONFLICT-0016 | Revision identity của `media_table_cells` mâu thuẫn với ADR-0019 § D2 | DOCUMENT_CONTRADICTION | OPEN | MEDIUM | Media | Architecture Owner | 2026-09-01 |
 
 ---
 
@@ -894,4 +895,40 @@ Superseded/Updated Documents: None — hợp đồng tài liệu đã đúng t�
 Verification Evidence: tests/Unit/LiveClassSessionPolicyTest.php (6 test, 3 fail trước khi sửa); tests/Feature/CourseCohortManagementTest::test_session_overlap_is_evaluated_across_different_session_timezones (fail trên code cũ, xác minh bằng git stash); `php artisan test` 678 passed / 1 skipped; `./vendor/bin/pint --test`
 Related ADR/Review/Issue/PR: DOC-CONFLICT-0002
 Notes: Trước khi sửa, CourseCohortController::cohortSessionsQuery đã diễn giải ĐÚNG quy ước khi phân loại Origin, nên trong cùng một module tồn tại hai cách đọc mâu thuẫn cho cùng một cột. Bộ test cũ không phát hiện được vì mọi test đều dùng timezone mặc định.
+```
+
+## DOC-CONFLICT-0016
+
+```text
+Conflict ID: DOC-CONFLICT-0016
+Title: Revision identity của media_table_cells mâu thuẫn với ADR-0019 § D2
+Classification: DOCUMENT_CONTRADICTION
+Status: OPEN
+Impact: MEDIUM
+Detected At: 2026-08-25
+Detected By: Independent review — Media Structured Extraction Database Docs
+Owner: Domain Owner (Media)
+Affected Domain: Media
+Affected Concern: Nơi lưu processing_version và source_fingerprint của structured extraction
+Sources In Conflict:
+Source A: docs/adr/ADR-0019-Media-Structured-Extraction-Boundary.md#d2
+Source B: docs/database/media/media_table_cells.md#fields
+Additional Sources: docs/database/media/media_extracted_tables.md
+Contradictory Requirements:
+- Source A requires: cả ba bảng structured extraction mang processing_version + source_fingerprint trên mỗi row
+- Source B requires: media_table_cells cố ý không có hai cột đó; cell kế thừa revision identity từ bảng cha
+Why They Cannot Both Be True: Một cell hoặc mang revision identity của riêng nó, hoặc kế thừa. Làm cả hai tạo ra hai nguồn cho cùng một giá trị và không có quy tắc nào nói bên nào đúng khi chúng lệch
+Runtime/Business Impact: Chưa có runtime impact — cả ba bảng đều not_implemented. Nếu migration được viết theo Source A, mỗi document sinh hàng trăm nghìn cell mang bản sao version/fingerprint không bao giờ khác giá trị cha, và mọi purge theo retention phải cập nhật cả ba bảng thay vì hai
+Affected Implementation: Không có. Migration chưa được viết
+Temporary Safety Rule: STOP implementation for the affected concern. Do not guess. Không tạo migration cho media_extracted_regions, media_extracted_tables, media_table_cells cho tới khi conflict đóng
+Required Decision: Owner chọn giữa (a) approve ADR-0019 Amendment v1.1 — revision identity nằm ở row sở hữu, cell kế thừa; hoặc (b) giữ § D2 nguyên văn và thêm hai cột vào media_table_cells
+Resolution Authority: Architecture Owner
+Resolution Plan: ADR-0019 Amendment Record Version 1.1 đã được soạn ở trạng thái Proposed; chờ Owner approval
+Target Review Date: 2026-09-01
+Resolved At:
+Resolution:
+Superseded/Updated Documents:
+Verification Evidence:
+Related ADR/Review/Issue/PR: ADR-0019
+Notes: Phát hiện bởi independent review trước khi Architecture Review chạy, nên chi phí đóng bằng không — không có dữ liệu nào phải backfill
 ```

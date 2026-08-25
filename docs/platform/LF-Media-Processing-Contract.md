@@ -389,6 +389,36 @@ source + PDF/image trung gian và IAM read source object; browser/admin không c
 binary. Production activation vẫn chịu R1/R2 và deployment/provider gates trong
 Architecture Review.
 
+## Structured extraction resource controls — chưa freeze
+
+[ADR-0019](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) mở structured
+extraction (region, table, cell). Resource control của nó **chưa được chốt**, và
+§ 3 tuyên bố resource control là contract chứ không phải tuning tuỳ ý — nên mục
+này ghi rõ khoảng trống thay vì để nó ngầm.
+
+Bốn giới hạn phải được Owner chốt **trước** khi migration structured extraction
+được viết:
+
+| Giới hạn | Vì sao cần | Trạng thái |
+| --- | --- | --- |
+| Tổng ký tự một revision, tính **cả** text cấp trang **và** text cấp region | ADR-0019 chấp nhận trùng lặp có chủ ý; `max_extracted_characters` hiện chỉ đếm một nguồn nên cap thật bị nhân đôi trong im lặng | Chưa chốt |
+| Số region mỗi document | Đề xuất `2000` trong Database Doc, chưa có bằng chứng | Chưa chốt |
+| Số bảng mỗi document | Chưa có đề xuất | Chưa chốt |
+| Số cell mỗi document | Đề xuất `200000`, **chưa có workbook evidence**; dung lượng tăng theo số ô chứ không theo số trang | Chưa chốt |
+
+Hai điều kiện đi kèm, cũng chưa freeze:
+
+* **Error semantics.** Đề xuất một error code duy nhất
+  `structured_extraction_too_large`, fail toàn revision, không truncate — theo
+  đúng tiền lệ của `extracted_text_too_large`. Truncate tạo ra một bảng thiếu ô mà
+  consumer không phân biệt được với bảng có ô trống thật.
+* **Atomic readiness.** Region, table và cell của một revision phải cùng
+  `ready` hoặc cùng không. Một revision có bảng `ready` nhưng thiếu cell là một
+  bảng nói dối về nội dung của nó.
+
+Cho tới khi bốn giới hạn và hai điều kiện trên được chốt, structured extraction
+không được deploy, và Database Docs của ba bảng giữ trạng thái Draft.
+
 ## Fingerprint
 
 ```text

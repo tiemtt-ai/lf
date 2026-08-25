@@ -300,7 +300,7 @@ Các gate còn mở, phải đóng trước khi mở cho tenant thật:
 
 ---
 
-# 9. Môi trường benchmark A0 — KHÔNG phải runtime production
+# 9. Môi trường benchmark A0 — đã gỡ, giữ làm bản ghi lịch sử
 
 Ghi lại để tái lập được, **không** phải hạng mục cài đặt của production. Docling
 chưa được deploy, và deploy nó cần Tech Stack amendment: Official Stack không có
@@ -320,7 +320,12 @@ Môi trường đã dựng (macOS x86_64):
 | Transformers | `4.57.6` |
 | psutil | `7.0.0` |
 
-Model offline tại `benchmarks/a0-docling/models/`:
+> **Đã gỡ 2026-08-25.** A0 đóng với kết luận giữ Poppler/Tesseract; harness,
+> models và virtualenv đã bị xoá khỏi repository và khỏi máy. Mục này giữ lại làm
+> bản ghi những gì đã được xác minh, **không** phải yêu cầu runtime còn hiệu lực.
+> Xem [LF-A0-Docling-Closure-Evidence](../quality/LF-A0-Docling-Closure-Evidence.md).
+
+Model offline từng nằm tại `benchmarks/a0-docling/models/`:
 
 * Layout Heron và TableFormer.
 * 60 files, khoảng 669 MB.
@@ -332,12 +337,12 @@ Trạng thái đã xác minh:
 * Locale smoke `vie+eng`; **không** auto-detect.
 * **Không** cài EasyOCR, RapidOCR, PaddleOCR hay vision model.
 
-Harness phải nằm ở `benchmarks/a0-docling/`, không nằm trong `app/` và không bind
-vào service provider nào — một class Docling trong `app/Services` có binding sẵn
-có thể được bật bằng đúng một dòng `.env`.
+Quy tắc cô lập vẫn còn hiệu lực cho bất kỳ harness nào dựng lại sau này: không
+nằm trong `app/` và không bind vào service provider nào — một class extractor
+trong `app/Services` có binding sẵn có thể được bật bằng đúng một dòng `.env`.
 
 Protocol và tiêu chí đạt: `LF-A0-Docling-Benchmark-Protocol.md` ở thư mục gốc
-repository.
+repository, hiện ở trạng thái **Archived**.
 
 ---
 

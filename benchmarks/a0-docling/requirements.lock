@@ -1,6 +1,0 @@
-docling==2.119.0
-psutil==7.0.0
-# macOS x86_64 PyTorch 2.2.2 (selected by Docling) requires the NumPy 1.x ABI,
-# and Transformers 5.x disables PyTorch versions below 2.4 at import time.
-numpy==1.26.4
-transformers==4.57.6

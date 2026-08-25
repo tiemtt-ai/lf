@@ -66,6 +66,7 @@ Số ADR không được tái sử dụng hoặc đổi để lấp khoảng tr�
 | [ADR-0016](ADR-0016-Learning-Foundation.md) | Learning Foundation Version 1.1 amendment | Frozen |
 | [ADR-0017](ADR-0017-AI-Assisted-Learning-Authoring.md) | AI-Assisted Learning Authoring: Proposal, human review, exact-version Mapping | Approved |
 | [ADR-0018](ADR-0018-Media-PII-And-External-Processing-Boundary.md) | Media PII classification, redacted derivative và external-processing boundary | Approved |
+| [ADR-0019](ADR-0019-Media-Structured-Extraction-Boundary.md) | Locator vocabulary cho region/table/sheet, chỗ chứa structured extraction, ranh giới Media quan sát vs AI diễn giải | Approved |
 
 ---
 

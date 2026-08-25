@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 237,
+  "document_count": 243,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -1050,6 +1050,59 @@
         "platform/LF-AI.md",
         "database/media/media_extracted_texts.md",
         "quality/LF-Media-Processing-Substrate-Architecture-Review.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "adr/ADR-0019-Media-Structured-Extraction-Boundary.md",
+      "title": "ADR-0019 — Media Structured Extraction Boundary",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Approved",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [],
+      "topics": [
+        "media",
+        "structured extraction",
+        "locator",
+        "table",
+        "region",
+        "ai boundary"
+      ],
+      "keywords": {
+        "vi": [
+          "trích xuất cấu trúc",
+          "định vị vùng",
+          "bảng trong pdf",
+          "sheet excel",
+          "ranh giới media ai",
+          "thứ tự đọc"
+        ],
+        "en": [
+          "structured extraction",
+          "region locator",
+          "pdf table",
+          "excel sheet",
+          "media ai boundary",
+          "reading order"
+        ]
+      },
+      "identifiers": [
+        "media_extracted_regions",
+        "media_extracted_tables",
+        "media_table_cells",
+        "locator_type"
+      ],
+      "related_documents": [
+        "adr/ADR-0004-Media-Foundation.md",
+        "adr/ADR-0006-AI-Foundation.md",
+        "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
+        "platform/LF-Media-Processing-Contract.md",
+        "platform/LF-Media-Read-Contract.md",
+        "database/media/media_extracted_texts.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -5579,12 +5632,106 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "database/media/media_extracted_regions.md",
+      "title": "Table: media_extracted_regions",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Draft",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [
+        "media_extracted_regions"
+      ],
+      "topics": [
+        "media",
+        "region",
+        "layout",
+        "locator",
+        "reading order"
+      ],
+      "keywords": {
+        "vi": [
+          "vùng trích xuất",
+          "thứ tự đọc",
+          "hình học vùng",
+          "định vị vùng",
+          "bố cục trang"
+        ],
+        "en": [
+          "extracted region",
+          "reading order",
+          "bounding box",
+          "region locator",
+          "page layout"
+        ]
+      },
+      "identifiers": [
+        "media_extracted_regions"
+      ],
+      "related_documents": [
+        "adr/ADR-0019-Media-Structured-Extraction-Boundary.md",
+        "platform/LF-Media-Processing-Contract.md",
+        "platform/LF-Media-Read-Contract.md",
+        "database/media/media_extracted_texts.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/media/media_extracted_tables.md",
+      "title": "Table: media_extracted_tables",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Draft",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [
+        "media_extracted_tables"
+      ],
+      "topics": [
+        "media",
+        "table",
+        "spreadsheet",
+        "locator",
+        "structured extraction"
+      ],
+      "keywords": {
+        "vi": [
+          "bảng trích xuất",
+          "worksheet",
+          "kích thước lưới",
+          "hàng tiêu đề",
+          "neo trích dẫn"
+        ],
+        "en": [
+          "extracted table",
+          "worksheet",
+          "grid size",
+          "header row",
+          "citation anchor"
+        ]
+      },
+      "identifiers": [
+        "media_extracted_tables"
+      ],
+      "related_documents": [
+        "adr/ADR-0019-Media-Structured-Extraction-Boundary.md",
+        "platform/LF-Media-Processing-Contract.md",
+        "platform/LF-Media-Read-Contract.md",
+        "database/media/media_extracted_texts.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "database/media/media_extracted_texts.md",
       "title": "Table: media_extracted_texts",
       "area": "database",
       "document_type": "table_schema",
       "document_status": "Approved",
-      "implementation_status": "Implemented",
+      "implementation_status": "Partial",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
@@ -5745,6 +5892,52 @@
       ],
       "related_documents": [
         "database/media/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/media/media_table_cells.md",
+      "title": "Table: media_table_cells",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Draft",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [
+        "media_table_cells"
+      ],
+      "topics": [
+        "media",
+        "table",
+        "cell",
+        "structured extraction"
+      ],
+      "keywords": {
+        "vi": [
+          "ô bảng",
+          "gộp ô",
+          "chỉ số hàng cột",
+          "giới hạn số ô",
+          "dữ liệu có cấu trúc"
+        ],
+        "en": [
+          "table cell",
+          "merged cell",
+          "row column index",
+          "cell limit",
+          "structured data"
+        ]
+      },
+      "identifiers": [
+        "media_table_cells"
+      ],
+      "related_documents": [
+        "adr/ADR-0019-Media-Structured-Extraction-Boundary.md",
+        "platform/LF-Media-Processing-Contract.md",
+        "platform/LF-Media-Read-Contract.md",
+        "database/media/media_extracted_texts.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -7807,6 +8000,105 @@
       },
       "identifiers": [],
       "related_documents": [],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-A0-Docling-Closure-Evidence.md",
+      "title": "A0 Docling Closure Evidence",
+      "area": "quality",
+      "document_type": "quality_standard",
+      "document_status": "Approved",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "ocr",
+        "docling",
+        "tesseract",
+        "benchmark",
+        "media"
+      ],
+      "keywords": {
+        "vi": [
+          "bằng chứng benchmark",
+          "docling",
+          "tesseract",
+          "tỉ lệ lỗi ký tự",
+          "độ phủ trang",
+          "đóng a0"
+        ],
+        "en": [
+          "benchmark evidence",
+          "docling",
+          "tesseract",
+          "character error rate",
+          "page coverage",
+          "a0 closure"
+        ]
+      },
+      "identifiers": [
+        "a0-fair-baseline-20260825",
+        "MEDIA_OCR_PROVIDER",
+        "local_document"
+      ],
+      "related_documents": [
+        "platform/LF-Media-Processing-Contract.md",
+        "quality/LF-Media-Processing-Substrate-Architecture-Review.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md",
+      "title": "AI Foundation Media-Consumer Database Architecture Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "media",
+        "database",
+        "tenant isolation",
+        "knowledge source",
+        "embedding"
+      ],
+      "keywords": {
+        "vi": [
+          "đánh giá kiến trúc",
+          "nền tảng ai",
+          "nguồn tri thức",
+          "cô lập tenant",
+          "khoá ngoại kép",
+          "vector embedding"
+        ],
+        "en": [
+          "architecture review",
+          "ai foundation",
+          "knowledge source",
+          "tenant isolation",
+          "composite foreign key",
+          "vector embedding"
+        ]
+      },
+      "identifiers": [
+        "ai_knowledge_sources",
+        "ai_knowledge_chunks",
+        "ai_embeddings",
+        "ai_model_runs"
+      ],
+      "related_documents": [
+        "adr/ADR-0006-AI-Foundation.md",
+        "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
+        "platform/LF-Media-Read-Contract.md",
+        "database/ai/ai_knowledge_sources.md",
+        "quality/LF-Media-Read-Contract-Architecture-Review.md"
+      ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
     },

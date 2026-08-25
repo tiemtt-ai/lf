@@ -61,7 +61,10 @@ mình.
 | **media_variants** | Các biến thể hiển thị của tài sản dẫn xuất |
 | **media_transcripts** | Nội dung bản ghi lời thoại dẫn xuất |
 | **media_captions** | Tài sản phụ đề có thông tin thời gian |
-| [**media_extracted_texts**](media_extracted_texts.md) | Text trích xuất từ document theo trang, phục vụ trích dẫn |
+| [**media_extracted_texts**](media_extracted_texts.md) | Text trích xuất từ document theo trang hoặc sheet, phục vụ trích dẫn |
+| [**media_extracted_regions**](media_extracted_regions.md) | Vùng quan sát được trên trang: role, hình học, thứ tự đọc |
+| [**media_extracted_tables**](media_extracted_tables.md) | Bảng trích xuất từ document hoặc worksheet |
+| [**media_table_cells**](media_table_cells.md) | Từng ô của một bảng đã trích xuất |
 
 ---
 

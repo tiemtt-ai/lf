@@ -48,6 +48,8 @@ criteria hay không.
 * [LF-Media-Processing-Substrate-Architecture-Review.md](LF-Media-Processing-Substrate-Architecture-Review.md)
   — approved Media Processing substrate contract review; PASS with documented
   risks and scoped implementation authorization.
+* [LF-A0-Docling-Closure-Evidence.md](LF-A0-Docling-Closure-Evidence.md)
+* [LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md](LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md)
 * [LF-Media-Read-Contract-Architecture-Review.md](LF-Media-Read-Contract-Architecture-Review.md)
   — owner-context, revision, citation, signed-delivery and append-only audit
   self-assessment packet; independent architecture review pending.

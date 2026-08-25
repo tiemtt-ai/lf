@@ -32,9 +32,7 @@ class MediaProcessingOrchestrator
             }
 
             try {
-                $canonicalLocale = in_array($media->file_type, ['document', 'audio', 'video'], true)
-                    ? $this->profiles->canonicalLocale((string) $locale)
-                    : null;
+                $canonicalLocale = $this->canonicalLocaleFor($media, $locale);
             } catch (InvalidArgumentException) {
                 DB::table('media_files')->where('id', $mediaFileId)->where('customer_id', $customerId)->update([
                     'status' => 'failed', 'processing_error_code' => 'required_profile_configuration_missing', 'updated_at' => now(),
@@ -127,6 +125,43 @@ class MediaProcessingOrchestrator
         });
     }
 
+    /**
+     * Read-only mirror of materializeForCourseActivity, for operator inspection
+     * before a chain that costs a provider call is enqueued.
+     *
+     * @return array<int, array{job_type: string, output_profile: string, provider: string, processing_version: string, existing_job_id: int|null}>
+     */
+    public function planForCourseActivity(int $customerId, int $mediaFileId, ?string $locale): array
+    {
+        $media = DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaFileId)->first();
+        if (! $media) {
+            throw new InvalidArgumentException('Media File not found.');
+        }
+
+        $canonicalLocale = $this->canonicalLocaleFor($media, $locale);
+        if ($media->processing_locale !== null && $canonicalLocale !== null && $media->processing_locale !== $canonicalLocale) {
+            throw new InvalidArgumentException('Requested locale conflicts with the recorded processing locale.');
+        }
+
+        $fingerprint = $this->sourceFingerprint($media);
+        $plan = [];
+        foreach ($this->requiredProfiles($media->file_type, $canonicalLocale) as [$jobType, $profile]) {
+            $version = $this->versionFor($jobType);
+            $key = $this->initialIdempotencyKey($media, $jobType, $fingerprint, $version, $this->profiles->hash($profile));
+            $existing = DB::table('media_processing_jobs')->where('customer_id', $customerId)
+                ->where('idempotency_key', $key)->value('id');
+            $plan[] = [
+                'job_type' => $jobType,
+                'output_profile' => $profile,
+                'provider' => $this->providerFor($jobType),
+                'processing_version' => $version,
+                'existing_job_id' => $existing !== null ? (int) $existing : null,
+            ];
+        }
+
+        return $plan;
+    }
+
     /** @return array<int, array{string, string}> */
     private function requiredProfiles(string $fileType, ?string $locale): array
     {
@@ -146,14 +181,11 @@ class MediaProcessingOrchestrator
 
     private function createInitialJob(int $customerId, object $media, string $jobType, string $profile, ?int $actorId): void
     {
-        $version = (string) config("media.processing.versions.$jobType", 'unconfigured-v1');
-        $provider = (string) config("media.processing.providers.$jobType", 'unconfigured');
-        if (! is_string($media->checksum) || trim($media->checksum) === '') {
-            throw new InvalidArgumentException('Source checksum is required for processing.');
-        }
-        $fingerprint = hash('sha256', $media->checksum.':'.$media->file_type);
+        $version = $this->versionFor($jobType);
+        $provider = $this->providerFor($jobType);
+        $fingerprint = $this->sourceFingerprint($media);
         $profileHash = $this->profiles->hash($profile);
-        $key = implode(':', [$jobType, $media->id, $fingerprint, $version, $profileHash, 1]);
+        $key = $this->initialIdempotencyKey($media, $jobType, $fingerprint, $version, $profileHash);
         $id = DB::table('media_processing_jobs')->where('customer_id', $customerId)->where('idempotency_key', $key)->value('id');
         if (! $id) {
             try {
@@ -174,5 +206,36 @@ class MediaProcessingOrchestrator
         }
         $jobId = (int) $id;
         DB::afterCommit(fn () => ProcessMediaProcessingJob::dispatch($customerId, $jobId));
+    }
+
+    private function canonicalLocaleFor(object $media, ?string $locale): ?string
+    {
+        return in_array($media->file_type, ['document', 'audio', 'video'], true)
+            ? $this->profiles->canonicalLocale((string) $locale)
+            : null;
+    }
+
+    private function sourceFingerprint(object $media): string
+    {
+        if (! is_string($media->checksum) || trim($media->checksum) === '') {
+            throw new InvalidArgumentException('Source checksum is required for processing.');
+        }
+
+        return hash('sha256', $media->checksum.':'.$media->file_type);
+    }
+
+    private function initialIdempotencyKey(object $media, string $jobType, string $fingerprint, string $version, string $profileHash): string
+    {
+        return implode(':', [$jobType, $media->id, $fingerprint, $version, $profileHash, 1]);
+    }
+
+    private function providerFor(string $jobType): string
+    {
+        return (string) config("media.processing.providers.$jobType", 'unconfigured');
+    }
+
+    private function versionFor(string $jobType): string
+    {
+        return (string) config("media.processing.versions.$jobType", 'unconfigured-v1');
     }
 }
