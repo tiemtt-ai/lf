@@ -51,6 +51,7 @@ criteria hay không.
 * [LF-A0-Docling-Closure-Evidence.md](LF-A0-Docling-Closure-Evidence.md)
 * [LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md](LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md)
 * [LF-Media-Read-Contract-Architecture-Review.md](LF-Media-Read-Contract-Architecture-Review.md)
+* [LF-Media-Structured-Extraction-Architecture-Review.md](LF-Media-Structured-Extraction-Architecture-Review.md)
   — owner-context, revision, citation, signed-delivery and append-only audit
   self-assessment packet; independent architecture review pending.
 * [LF-Version-Activity-Media-Snapshot-Architecture-Review.md](LF-Version-Activity-Media-Snapshot-Architecture-Review.md)
