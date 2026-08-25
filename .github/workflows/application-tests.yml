@@ -142,4 +142,5 @@ jobs:
             tests/Integration/LearningFrameworkAuthoringMariaDbTest.php \
             tests/Integration/LearningFrameworkAuthoringHttpMariaDbTest.php \
             tests/Integration/CourseTemplateLearningMappingPromotionMariaDbTest.php \
-            tests/Integration/CourseTemplateLearningMappingHttpMariaDbTest.php
+            tests/Integration/CourseTemplateLearningMappingHttpMariaDbTest.php \
+            tests/Integration/MediaProcessingSubstrateMariaDbTest.php

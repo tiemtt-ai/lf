@@ -1,12 +1,12 @@
 # Table: media_access_logs
 
-Version: 1.1
+Version: 1.2
 
-Document Status: Review
+Document Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Implemented
 
-Last Updated: 2026-08-23
+Last Updated: 2026-08-24
 
 Document Path: database/media/media_access_logs.md
 
@@ -31,6 +31,8 @@ Append-only audit log cho thao tác truy cập Media File.
   DELETE. Sửa sai bằng cách ghi bản ghi mới.
 * Đọc output dẫn xuất qua Media Read Service cũng là truy cập và phải ghi log,
   với `action = 'read_derived'` và `source_type` là consumer đã gọi.
+* Cả read được phép và read bị từ chối trên Media File resolve được đều ghi
+  row; metadata mang `decision = allowed|denied` và error code nếu có.
 
 ## Fields
 

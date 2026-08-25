@@ -1,12 +1,12 @@
 # LF-INDEX.md
 
-Version: 2.21
+Version: 2.22
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-17
+Last Updated: 2026-08-24
 
 Document Path: LF-INDEX.md
 
@@ -382,6 +382,7 @@ docs/quality/
 | [quality/LF-Course-Template-Lesson-Role-Architecture-Review.md](quality/LF-Course-Template-Lesson-Role-Architecture-Review.md) | Approved Course Template Lesson role architecture review |
 | [quality/LF-Course-Template-Learning-Mapping-Intent-Architecture-Review.md](quality/LF-Course-Template-Learning-Mapping-Intent-Architecture-Review.md) | Course Template Learning Mapping Intent contract review; PASS with Owner approval pending |
 | [quality/LF-Media-Processing-Substrate-Architecture-Review.md](quality/LF-Media-Processing-Substrate-Architecture-Review.md) | Media Processing substrate contract review; PASS with documented risks |
+| [quality/LF-Media-Read-Contract-Architecture-Review.md](quality/LF-Media-Read-Contract-Architecture-Review.md) | Media Read A–H self-assessment packet; independent review pending |
 | [quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md](quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md) | Approved Course Lesson multiple-prerequisite architecture review |
 | [quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md](quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md) | Approved Version Activity media snapshot architecture review |
 | [quality/LF-Course-Product-Architecture-Review.md](quality/LF-Course-Product-Architecture-Review.md) | Approved Course Product CRUD architecture review |

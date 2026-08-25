@@ -28,6 +28,14 @@
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="MEDIA_VIRUS_SCAN_PROVIDER" value="fake"/>
+        <env name="MEDIA_OCR_PROVIDER" value="fake"/>
+        <env name="MEDIA_SPEECH_TO_TEXT_PROVIDER" value="fake"/>
+        <env name="MEDIA_CAPTION_PROVIDER" value="fake"/>
+        <env name="MEDIA_VIRUS_SCAN_VERSION" value="fake-v1"/>
+        <env name="MEDIA_OCR_VERSION" value="fake-v1"/>
+        <env name="MEDIA_SPEECH_TO_TEXT_VERSION" value="fake-v1"/>
+        <env name="MEDIA_CAPTION_VERSION" value="fake-v1"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>

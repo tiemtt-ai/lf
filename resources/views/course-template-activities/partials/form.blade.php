@@ -226,6 +226,19 @@
         </div>
         <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX', 'TXT']" />
     </div>
+    <div class="lf-form-group admin-form-conditional course-template-activity-source-field"
+         x-show="['video', 'audio', 'document'].includes(activityType)"
+         x-cloak>
+        <x-form-label for="processing_locale" value="Ngôn ngữ nội dung (BCP 47)" />
+        <input id="processing_locale"
+               type="text"
+               name="processing_locale"
+               class="lf-form-control"
+               value="{{ old('processing_locale') }}"
+               maxlength="20"
+               placeholder="vi, ko, en-US">
+        <p class="lf-form-help lf-secondary-text">Bắt buộc khi tải Media mới; không tự suy luận từ trình duyệt hoặc mô hình.</p>
+    </div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field" x-show="activityType === 'quiz'" x-cloak><x-form-label for="assessment_quiz_id" value="Assessment Quiz ID" /><input id="assessment_quiz_id" type="number" min="1" name="assessment_quiz_id" class="lf-form-control" value="{{ old('assessment_quiz_id', $formActivity?->assessment_quiz_id) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_assessment') }}"></div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field" x-show="activityType === 'live_class'" x-cloak><x-form-label for="live_class_url" value="Live class URL" /><input id="live_class_url" type="url" name="live_class_url" class="lf-form-control" value="{{ old('live_class_url', $formActivity?->live_class_url) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_live_class_url') }}"></div>
     <div class="lf-form-group course-template-activity-duration-field">

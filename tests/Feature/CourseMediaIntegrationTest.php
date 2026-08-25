@@ -2862,6 +2862,7 @@ class CourseMediaIntegrationTest extends TestCase
             'description' => null,
             'sort_order' => 0,
             'activity_type' => 'document',
+            'processing_locale' => 'vi',
             'external_video_url' => null,
             'live_class_url' => null,
             'assessment_quiz_id' => null,

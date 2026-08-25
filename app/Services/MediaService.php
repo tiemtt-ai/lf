@@ -131,7 +131,9 @@ class MediaService
                 'page_count' => $validated['page_count'] ?? null,
                 'language' => $validated['language'] ?? null,
                 'visibility' => $validated['visibility'] ?? 'private',
-                'status' => 'ready',
+                'status' => 'processing',
+                'processing_locale' => null,
+                'processing_error_code' => null,
                 'metadata' => isset($validated['metadata'])
                     ? json_encode($validated['metadata'])
                     : null,
@@ -143,6 +145,9 @@ class MediaService
 
             throw $exception;
         }
+
+        DB::afterCommit(fn () => app(MediaProcessingOrchestrator::class)
+            ->materializeVirusScanOnUpload($customerId, (int) $mediaFileId, $uploadedBy));
 
         return DB::table('media_files')
             ->where('customer_id', $customerId)
@@ -163,6 +168,14 @@ class MediaService
         abort_if(! $mediaFile || $mediaFile->status !== 'ready', 404);
 
         return $this->signedUrlForMedia($mediaFile, $expiresAt);
+    }
+
+    public function generateDerivedSignedUrl(object $mediaFile, string $storageKey, ?DateTimeInterface $expiresAt = null): string
+    {
+        abort_unless($mediaFile->status === 'ready', 404);
+        $expiresAt ??= now()->addMinutes((int) config('media.signed_url_ttl_minutes', 10));
+
+        return Storage::disk($mediaFile->storage_disk)->temporaryUrl($storageKey, $expiresAt);
     }
 
     public function storageObjectExists(object $mediaFile): bool
@@ -289,7 +302,7 @@ class MediaService
         $now = now();
         $createdBy = $this->currentTenantUserId($customerId);
 
-        return DB::transaction(function () use (
+        $result = DB::transaction(function () use (
             $customerId,
             $mediaFileId,
             $usage,
@@ -336,6 +349,21 @@ class MediaService
 
             return $this->findUsage($customerId, $usageId);
         });
+
+        if ($usage['owner_type'] === 'course_activity'
+            && in_array($usage['usage_type'], ['document', 'audio', 'video'], true)
+            && array_key_exists('processing_locale', $usage['metadata'])) {
+            $locale = $usage['metadata']['processing_locale'] ?? null;
+            DB::afterCommit(fn () => app(MediaProcessingOrchestrator::class)
+                ->materializeForCourseActivity(
+                    $customerId,
+                    $mediaFileId,
+                    is_string($locale) ? $locale : null,
+                    $createdBy
+                ));
+        }
+
+        return $result;
     }
 
     public function detachUsage(

@@ -1,10 +1,10 @@
 # Table: media_transcripts
 
-Version: 1.3
+Version: 1.4
 
-Document Status: Review
+Document Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Implemented
 
 Last Updated: 2026-08-24
 
@@ -43,8 +43,8 @@ media_processing_jobs 1 → N media_transcripts
   `<start_ms>-<end_ms>`. Mọi nội dung trả cho consumer phải kèm locator.
 * Chỉ row `ready` được Media Read Service trả ra.
 * Mỗi locale/diarization profile có retry chain độc lập. Một transcript locale
-  hết retry không chặn enqueue/ready/retry của locale khác. Chỉ profile được
-  đánh dấu required khi fan-out mới tham gia `media_files.status` aggregate.
+  hết retry không chặn enqueue/ready/retry của locale khác và không làm binary
+  Media File mất `ready`; Media Read Service trả readiness của transcript riêng.
 
 ## Fields
 

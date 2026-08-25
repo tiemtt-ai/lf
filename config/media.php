@@ -12,6 +12,27 @@ return [
     'max_upload_kilobytes' => (int) env('MEDIA_MAX_UPLOAD_KILOBYTES', 102400),
     'ffprobe_binary' => env('MEDIA_FFPROBE_BINARY', 'ffprobe'),
     'ffprobe_timeout_seconds' => (int) env('MEDIA_FFPROBE_TIMEOUT_SECONDS', 15),
+    'processing' => [
+        'fake' => [
+            'virus_infected' => (bool) env('MEDIA_FAKE_VIRUS_INFECTED', false),
+        ],
+        'providers' => [
+            'virus_scan' => env('MEDIA_VIRUS_SCAN_PROVIDER', 'unconfigured'),
+            'ocr' => env('MEDIA_OCR_PROVIDER', 'unconfigured'),
+            'speech_to_text' => env('MEDIA_SPEECH_TO_TEXT_PROVIDER', 'unconfigured'),
+            'caption' => env('MEDIA_CAPTION_PROVIDER', 'unconfigured'),
+            'thumbnail' => env('MEDIA_THUMBNAIL_PROVIDER', 'unconfigured'),
+            'transcode' => env('MEDIA_TRANSCODE_PROVIDER', 'unconfigured'),
+        ],
+        'versions' => [
+            'virus_scan' => env('MEDIA_VIRUS_SCAN_VERSION', 'unconfigured-v1'),
+            'ocr' => env('MEDIA_OCR_VERSION', 'unconfigured-v1'),
+            'speech_to_text' => env('MEDIA_SPEECH_TO_TEXT_VERSION', 'unconfigured-v1'),
+            'caption' => env('MEDIA_CAPTION_VERSION', 'unconfigured-v1'),
+            'thumbnail' => env('MEDIA_THUMBNAIL_VERSION', 'unconfigured-v1'),
+            'transcode' => env('MEDIA_TRANSCODE_VERSION', 'unconfigured-v1'),
+        ],
+    ],
     'file_types' => [
         'image',
         'video',

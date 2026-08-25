@@ -1,10 +1,10 @@
 # Table: media_captions
 
-Version: 1.3
+Version: 1.4
 
-Document Status: Review
+Document Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Implemented
 
 Last Updated: 2026-08-24
 
@@ -40,8 +40,8 @@ Lưu metadata và storage locator của caption/subtitle asset.
   `{timespan, text}` — không phải một cột nhét thêm vào bảng này.
 * Chỉ row `ready` được Media Read Service trả ra.
 * Mỗi locale/format profile có retry chain độc lập. `vi-VTT` hết retry không
-  chặn enqueue/ready/retry của `vi-SRT`. Chỉ profile được đánh dấu required khi
-  fan-out mới tham gia `media_files.status` aggregate.
+  chặn enqueue/ready/retry của `vi-SRT` và không làm binary Media File mất
+  `ready`; Media Read Service trả readiness của caption riêng.
 
 ## Fields
 

@@ -10,7 +10,7 @@
 </style>
 </head>
 <body>
-<svg viewBox="0 0 1600 1240" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 1600 1436" xmlns="http://www.w3.org/2000/svg">
 <defs>
   <marker id="aSolid" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
     <path d="M0,0 L10,5 L0,10 z" fill="#3b5b8c"/></marker>
@@ -56,7 +56,7 @@
 <text x="752" y="140" text-anchor="middle" font-size="8.5" fill="#8a93a5">Planned — chưa có ADR</text>
 
 <text x="885" y="120" font-size="10" fill="#5b6577">Tenant context và entitlement bao trùm mọi Domain bên dưới — là điều kiện nền, không vẽ thành mũi tên riêng.</text>
-<text x="885" y="138" font-size="10" fill="#5b6577">Trạng thái kỹ thuật xem tại từng ô; Learning 10 bảng và nguồn Teacher Judgment đã deploy development.</text>
+<text x="885" y="138" font-size="10" fill="#5b6577">Trạng thái kỹ thuật xem tại từng ô; Learning 10 bảng, nguồn Teacher Judgment và Media Processing substrate đã deploy development.</text>
 
 <!-- ================= BAND 2 ================= -->
 <rect x="30" y="172" width="1540" height="298" rx="9" fill="#f7f8fb" stroke="#e3e7ef"/>
@@ -88,7 +88,8 @@
 <text x="945" y="238" text-anchor="middle" font-size="9.5" fill="#3d5c4e">Video · audio · tài liệu</text>
 <text x="945" y="253" text-anchor="middle" font-size="9.5" fill="#3d5c4e">Xử lý · transcript</text>
 <text x="945" y="273" text-anchor="middle" font-size="9" font-weight="700" fill="#34a06f">SOT: Processing State</text>
-<text x="945" y="290" text-anchor="middle" font-size="8.5" fill="#6b7280">Policy: Approved · Kỹ thuật: Partial</text>
+<text x="945" y="288" text-anchor="middle" font-size="8.5" fill="#6b7280">Policy: Approved · Kỹ thuật: Deployed (dev)</text>
+<text x="945" y="300" text-anchor="middle" font-size="7.5" fill="#8a6414">Provider thật chưa cấu hình → production chặn</text>
 
 <rect x="1090" y="194" width="270" height="112" rx="8" fill="#e7f8ee" stroke="#1f9d55" stroke-width="2.3"/>
 <text x="1225" y="216" text-anchor="middle" font-size="12.5" font-weight="700" fill="#14603c">LiveClass-owned source</text>
@@ -247,8 +248,9 @@
 
 <!-- Course -> Node Mapping -->
 <path d="M 300 306 C 330 382 340 482 390 582 C 405 612 414 636 418 648" stroke="#3b5b8c" stroke-width="2" fill="none" marker-start="url(#sSolid)" marker-end="url(#aSolid)"/>
-<rect x="219" y="456" width="252" height="17" rx="8.5" fill="#ffffff" stroke="#3b5b8c"/>
-<text x="345" y="468.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="#3b5b8c">Node Mapping (whitelist, không phải Evidence)</text>
+<rect x="219" y="450" width="252" height="30" rx="9" fill="#ffffff" stroke="#3b5b8c"/>
+<text x="345" y="462.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="#3b5b8c">Node Mapping (whitelist, không phải Evidence)</text>
+<text x="345" y="474" text-anchor="middle" font-size="7.5" fill="#5b6577">Intent trên draft → canonical Mapping khi publish · đã implement</text>
 
 <!-- CLOSED evidence -> Learning Evidence -->
 <path d="M 280 306 C 372 402 454 522 530 648" stroke="#c0392b" stroke-width="1.8" fill="none" stroke-dasharray="2 5" stroke-linecap="round" marker-start="url(#sRed)" marker-end="url(#aRed)"/>
@@ -326,6 +328,33 @@
 
 <text x="800" y="1182" text-anchor="middle" font-size="11" font-weight="700" fill="#8f2f2f">Nguyên tắc chung: mỗi Domain sở hữu dữ liệu nghiệp vụ của mình; consumer chỉ đọc dữ liệu ĐÃ ĐƯỢC DUYỆT và không tự đổi trạng thái Domain khác.</text>
 <text x="800" y="1202" text-anchor="middle" font-size="9.5" fill="#5b6577">Một quan hệ chỉ được vẽ nét liền khi hợp đồng của nó đã được duyệt. Quan hệ mong muốn không bao giờ được vẽ giống quan hệ đang có hiệu lực.</text>
+
+<!-- ================= CẬP NHẬT MEDIA PROCESSING ================= -->
+<rect x="30" y="1224" width="1540" height="192" rx="9" fill="#f7fbf9" stroke="#34a06f" stroke-width="1.4"/>
+<rect x="44" y="1236" width="330" height="19" rx="9.5" fill="#1f9d55"/>
+<text x="209" y="1249.5" text-anchor="middle" font-size="9" font-weight="700" fill="#ffffff">MEDIA PROCESSING SUBSTRATE — cập nhật 2026-08-24</text>
+
+<text x="44" y="1275" font-size="8.7" fill="#1f2937"><tspan font-weight="700">Đã deploy development.</tspan> Sáu bảng mới cộng hai cột <tspan font-family="monospace">media_files</tspan> (<tspan font-family="monospace">processing_locale</tspan>, <tspan font-family="monospace">processing_error_code</tspan>) — tổng chín bảng <tspan font-family="monospace">media_*</tspan>.</text>
+<text x="44" y="1288" font-size="8.7" fill="#5b6577">Cả ba mode <tspan font-family="monospace">schema:drift</tspan> xanh. Production chưa deploy và là gate riêng.</text>
+
+<text x="44" y="1310" font-size="8.7" fill="#1f2937"><tspan font-weight="700">Kích hoạt khi gắn usage vào Course Activity, KHÔNG phải lúc upload.</tspan> Media Library chứa cả avatar và ảnh marketing; OCR/STT là lời gọi ngoài có tính phí.</text>
+<text x="44" y="1323" font-size="8.7" fill="#5b6577">Published Version Activity dùng lại output của working Activity vì cùng <tspan font-family="monospace">source_fingerprint</tspan> — publish không chạy lại và không tính phí lần hai.</text>
+
+<text x="44" y="1345" font-size="8.7" fill="#1f2937"><tspan font-weight="700"><tspan font-family="monospace">media_files.status</tspan> chỉ phản ánh deliverability nhị phân; chỉ <tspan font-family="monospace">virus_scan</tspan> gate nó.</tspan> OCR/STT/caption readiness đọc từ chính row output.</text>
+<text x="44" y="1358" font-size="8.7" fill="#5b6577">Một job dẫn xuất <tspan font-family="monospace">failed</tspan> KHÔNG làm file mất <tspan font-family="monospace">ready</tspan> — video vẫn phát được trong lúc phiên âm chạy.</text>
+
+<text x="44" y="1380" font-size="8.7" fill="#1f2937"><tspan font-weight="700">Output bất biến theo revision.</tspan> <tspan font-family="monospace">processing_version</tspan> mới sinh bộ row mới; bản cũ chuyển <tspan font-family="monospace">archived</tspan> và đọc được vĩnh viễn khi nêu đích danh version —</text>
+<text x="44" y="1393" font-size="8.7" fill="#5b6577">để một AI Proposal đã trích dẫn trang 12 vẫn đọc lại đúng trang 12 nó đã đọc. Locator: <tspan font-family="monospace">page</tspan> cho document, <tspan font-family="monospace">timespan</tspan> cho transcript; caption là file asset, không mang locator.</text>
+
+<rect x="1030" y="1264" width="524" height="19" rx="9.5" fill="#fdeaea" stroke="#c0392b"/>
+<text x="1292" y="1277.5" text-anchor="middle" font-size="8.3" font-weight="700" fill="#c0392b">CHƯA MỞ CHO AI CONSUMER THẬT — Media Read Contract chưa có independent review (R3)</text>
+<rect x="1030" y="1289" width="524" height="19" rx="9.5" fill="#fdeaea" stroke="#c0392b"/>
+<text x="1292" y="1302.5" text-anchor="middle" font-size="8.3" font-weight="700" fill="#c0392b">PROVIDER THẬT CHƯA CHỌN — virus scan · OCR · STT · caption đều trả provider_unavailable</text>
+<text x="1030" y="1324" font-size="8.3" fill="#5b6577">Không deploy runtime khi chưa cấu hình <tspan font-family="monospace">MEDIA_VIRUS_SCAN_PROVIDER</tspan>: mọi</text>
+<text x="1030" y="1336" font-size="8.3" fill="#5b6577">file mới sẽ thành <tspan font-family="monospace">failed</tspan> và bị trả 404. Đây là fail-closed có chủ ý.</text>
+<text x="1030" y="1356" font-size="8.3" fill="#5b6577">Còn gated: retention/redaction cho nội dung trích xuất, và hạn mức</text>
+<text x="1030" y="1368" font-size="8.3" fill="#5b6577">self-service (Usage/Entitlement runtime chưa có).</text>
+<text x="1030" y="1390" font-size="8.3" font-weight="700" fill="#8a6414">Media KHÔNG tạo Learning Evidence hay Mastery. Nó chỉ sản xuất Digital Asset.</text>
 
 </svg>
 </body>

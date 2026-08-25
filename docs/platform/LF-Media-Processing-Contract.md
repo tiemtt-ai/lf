@@ -1,10 +1,10 @@
 # LF-Media-Processing-Contract.md
 
-Version: 1.3
+Version: 1.6
 
-Document Status: Review
+Document Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Partial
 
 Last Updated: 2026-08-24
 
@@ -43,6 +43,11 @@ media_files.status = 'ready' cho phần upload
 + owner_type của usage nằm trong tập được phép xử lý
 + actor gắn usage được authorize trên owner đó
 ```
+
+Ngoại lệ duy nhất là `virus_scan`: đây là binary deliverability gate nên được
+materialize ngay sau commit của upload cho mọi Media File, trước khi có usage.
+OCR/STT/caption/variant fan-out vẫn chỉ bắt đầu từ active authorized usage theo
+điều kiện trên. Không có ngoại lệ này, file ngoài Course sẽ ở `processing` vô hạn.
 
 Tập `owner_type` được phép xử lý trong Phase 1: `course_activity`.
 
@@ -165,10 +170,29 @@ tính phí đều để lại đúng một row, kể cả lần thất bại, n�
   `provider_unavailable`, `rate_limited`). Lỗi vĩnh viễn
   (`unsupported_source`, `corrupt_source`, `quota_exceeded`) không retry.
 * Retry của một output profile không tiêu hao attempt, không chặn enqueue và
-  không ảnh hưởng backoff của profile khác. Hết attempt của một required profile
-  làm file `failed`; hết attempt của optional/on-demand profile không làm file
-  mất `ready`. Không có dead-letter queue riêng — mỗi chuỗi profile **là**
+  không ảnh hưởng backoff của profile khác. Hết attempt giữ chính required hoặc
+  optional/on-demand output đó ở `failed`; derived output failure không làm
+  binary file mất `ready`. Không có dead-letter queue riêng — mỗi chuỗi profile **là**
   dead-letter record, đọc được bằng SQL và không hết hạn.
+
+Riêng `virus_scan`, `provider_unavailable` là terminal đối với deliverability
+của lần upload hiện tại: job và `media_files` chuyển `failed` ngay với cùng mã
+lỗi, không để file treo `processing`. Operator vẫn có thể tạo retry chain sau
+khi provider được cấu hình; file chỉ trở lại `ready` khi một scan thật trả
+`clean`. Không có feature bypass phục vụ binary chưa scan.
+
+## Deployment precondition
+
+Runtime này **không được deploy** trước khi đồng thời đạt cả hai điều kiện:
+
+1. forward migration Media Processing đã apply và có trong migration ledger;
+2. `MEDIA_VIRUS_SCAN_PROVIDER` trỏ tới provider production đã được
+   approved/configured và có credential/runtime contract hợp lệ.
+
+Không được ship với giá trị rỗng hoặc `unconfigured` rồi cấu hình provider sau:
+khi đó mọi upload mới lập tức `failed/provider_unavailable` và delivery trả 404.
+OCR/STT/caption provider chưa có chỉ chặn derived capability tương ứng, nhưng
+virus scan provider là điều kiện bắt buộc của toàn bộ upload path.
 
 ## Điểm dispatch
 
@@ -205,24 +229,23 @@ Tối đa một job `processing` cho mỗi `(media_file_id, job_type)`. Thi hàn
 `SELECT … FOR UPDATE` trên Media File khi chuyển `pending → processing`, không
 bằng lock ở tầng queue.
 
-## Trạng thái tổng hợp
+## Trạng thái output dẫn xuất
 
-`media_files.status` là **read state dẫn xuất**, không do worker ghi tuỳ ý.
-Aggregate chỉ xét required output profile set đã materialize tại trigger và row
-`attempt` cao nhất trong từng retry scope đầy đủ:
+Required output profile set quyết định output nào orchestration phải tạo, không
+quyết định binary deliverability. Readiness của từng output xét row `attempt`
+cao nhất trong retry scope đầy đủ của chính profile đó:
 
 ```text
-required set materialize đủ và mọi required profile có job cao nhất 'ready' → ready
-một required profile có job cao nhất 'failed', hết retry                    → failed
-required profile configuration thiếu/không hợp lệ                           → failed
-còn required profile chưa kết thúc hoặc chưa materialize                    → processing
+job cao nhất của profile ở 'ready'                         → output ready
+job cao nhất ở 'failed', hết retry                         → output failed
+profile chưa kết thúc hoặc chưa materialize                → output pending/processing
+required profile configuration thiếu/không hợp lệ          → file fail-closed như ma trận bên dưới
 ```
 
-Additional/on-demand profile không tham gia aggregate: nó có thể
-`pending`/`processing`/`failed` khi file vẫn `ready`. Retry failure của transcript
+Additional/on-demand profile cũng độc lập: nó có thể `pending`/`processing`/
+`failed` khi file vẫn `ready`. Retry failure của transcript
 `vi` không tiêu hao attempt, không chặn enqueue và không làm file failed cho
-transcript `ko`, hoặc ngược lại; điều quyết định file status chỉ là profile nào
-đã được đóng dấu `required` trong required set Phase 1.
+transcript `ko`, hoặc ngược lại.
 
 Vocabulary đã hợp nhất về **từ ngữ**, không phải về phạm vi. Ba tầng dùng chung
 `processing` / `ready` / `failed`, nhưng mỗi tầng nói về một thứ khác nhau:
@@ -231,11 +254,11 @@ Vocabulary đã hợp nhất về **từ ngữ**, không phải về phạm vi. 
 | --- | --- |
 | Processing Job | Một lần chạy đã thành công |
 | Output row (transcript, caption, extracted text, variant) | Chính artifact đó dùng được |
-| Media File | **Mọi** output bắt buộc của processing profile đều dùng được |
+| Media File | Binary đã qua deliverability gate `virus_scan` và cấu hình required hợp lệ |
 
-Hệ quả cụ thể: `thumbnail` thất bại **không** làm video mất `ready`, vì thumbnail
-là job tuỳ chọn. Ngược lại, một transcript `failed` làm video mất `ready` vì
-`speech_to_text` là bắt buộc cho video. `completed` của Version 1.0 bị loại bỏ.
+Hệ quả cụ thể: `thumbnail`, OCR hoặc transcript thất bại **không** làm video mất
+`ready`; Media Read Service trả lỗi cho output tương ứng. `completed` của Version
+1.0 bị loại bỏ.
 
 ## Ma trận trạng thái tổng hợp
 
@@ -280,6 +303,10 @@ mất khả năng nhận ra hai job đang đọc cùng một nội dung.
 Nền tảng là `media_files.checksum` vốn đã bất biến. Fingerprint **không** gồm
 `storage_key`, `display_name` hay bất kỳ metadata nào sửa được: đổi tên file
 không được làm output hết hiệu lực.
+
+Nếu checksum NULL/rỗng, orchestration fail-closed trước khi tạo job với
+`source_fingerprint`; tuyệt đối không hash chuỗi rỗng vì nhiều source khác nhau
+sẽ có chung identity.
 
 ## Output profile
 

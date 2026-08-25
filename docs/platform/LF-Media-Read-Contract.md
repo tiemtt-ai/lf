@@ -1,12 +1,12 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.1
+Version: 1.3
 
-Document Status: Review
+Document Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Partial
 
-Last Updated: 2026-08-23
+Last Updated: 2026-08-24
 
 Document Path: platform/LF-Media-Read-Contract.md
 
@@ -78,6 +78,7 @@ Consumer gọi theo **owner context**, không theo `media_file_id`:
 
 ```text
 GET derived-content
+  actor_id              bắt buộc; explicit cho HTTP | queue | console
   owner_type            course_activity | course_version_activity
   owner_id
   content_type
@@ -93,6 +94,10 @@ file: cùng một file có thể phục vụ hai Activity với hai mức quyề
 Authorization: tenant từ context hiện hành, và actor phải được authorize trên
 owner đó theo luật của Course Domain. Media không tự diễn giải business state
 của owner; nó hỏi Course adapter.
+
+Service không đọc actor ngầm từ HTTP request. Caller truyền `actor_id` tường
+minh; authorizer nạp actor trong đúng `customer_id` và kiểm trạng thái/role.
+Do đó cùng contract dùng được từ AI queue/console mà không nới quyền.
 
 ---
 
@@ -111,6 +116,10 @@ Hàn trong khi tác giả tưởng đang đọc tiếng Việt là sai lầm kh�
 
 Mặc định service trả **bản hiện hành** — row `ready` mới nhất cho
 `(owner, content_type, locale)`.
+
+Revision hiện hành được chọn theo processing job identity lớn nhất
+(`processing_job_id`, rồi `id` làm tie-break), không theo `created_at` của một
+output row; nhiều page/segment của hai revision không thể làm lệch lựa chọn.
 
 Consumer đọc lại một bản cũ bằng cách nêu đích danh:
 
@@ -204,9 +213,13 @@ AI vẫn là consumer. Không có đường nào từ AI ghi ngược vào proce
 
 # 8. Audit
 
-Mỗi lần đọc ghi một dòng `media_access_logs` với `action = 'read_derived'` và
-`source_type` là consumer đã gọi. OCR và transcript có thể chứa dữ liệu cá nhân
-trong học liệu; ai đọc cái gì, lúc nào, phải trả lời được.
+Mỗi lần đọc thành công hoặc bị từ chối ghi một dòng `media_access_logs` với
+`action = 'read_derived'`, `source_type` là consumer đã gọi, và metadata chứa
+`decision = allowed|denied` cùng error code ổn định. Khi owner không resolve
+được tới Media File trong tenant thì không thể ghi row vì audit schema bắt buộc
+`media_file_id`; trường hợp đó vẫn fail-closed nhưng không invent một FK giả.
+OCR và transcript có thể chứa dữ liệu cá nhân trong học liệu; ai đọc hoặc cố đọc
+cái gì, lúc nào, phải trả lời được khi target tồn tại.
 
 ---
 

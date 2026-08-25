@@ -1,10 +1,10 @@
 # Media Processing Substrate Architecture Review
 
-Version: 1.5
+Version: 1.11
 
-Document Status: Review
+Document Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Partial
 
 Last Updated: 2026-08-24
 
@@ -22,18 +22,19 @@ Document Path: quality/LF-Media-Processing-Substrate-Architecture-Review.md
 | Domain Docs | [LF-Media](../platform/LF-Media.md), [LF-AI](../platform/LF-AI.md) |
 | Parent ADR | [ADR-0004 — Media Foundation](../adr/ADR-0004-Media-Foundation.md) |
 | Constraining ADR | [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md) |
-| Specification | [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md) v1.3 |
-| Database Docs | `media_files` v1.3, `media_processing_jobs` v2.3, `media_extracted_texts` v1.0, `media_transcripts` v1.3, `media_captions` v1.3, `media_variants` v1.1, `media_access_logs` v1.1 |
-| Review Scope | Substrate xử lý Media. **Không** gồm [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md) v1.1 — đã viết nhưng chưa có review riêng — cũng không gồm AI Proposal và learner runtime |
+| Specification | [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md) v1.6 |
+| Database Docs | `media_files` v1.4, `media_processing_jobs` v2.4, `media_extracted_texts` v1.0, `media_transcripts` v1.4, `media_captions` v1.4, `media_variants` v1.1, `media_access_logs` v1.2 |
+| Read Contract Evidence | [Media Read Contract Architecture Review](LF-Media-Read-Contract-Architecture-Review.md) v1.2 — self-assessment; independent review pending |
+| Review Scope | Substrate xử lý Media; Spec B remains a separate pending independent review. AI Proposal and learner runtime stay out of scope |
 
 # Review Scope
 
 Reviewed: hợp đồng trigger/scope, orchestration, fingerprint, output profile,
 citation locator, đo lường, và bốn table contract nêu trên.
 
-Not reviewed và cố ý ngoài phạm vi: Media Read Contract cho AI consumer
-(Spec B) — tài liệu đã tồn tại ở `platform/LF-Media-Read-Contract.md` v1.1 nhưng
-**chưa được review riêng**, và review này không thay thế nó; AI Proposal
+Not reviewed trực tiếp và cố ý ngoài phạm vi: Media Read Contract cho AI consumer
+(Spec B) — có A–H author self-assessment packet nhưng chưa có independent
+reviewer/verdict; review này không thay thế gate đó; AI Proposal
 persistence và review workflow (gated bởi
 ADR-0017 §268); chính sách retention/redaction cho nội dung trích xuất.
 
@@ -96,8 +97,9 @@ ADR-0017 §268); chính sách retention/redaction cho nội dung trích xuất.
       `vi-VTT`/`vi-SRT` có retry chain độc lập.
 - [x] CHECK cho mọi enum và mọi bất biến trạng thái–thời gian–output.
 - [x] Locator có hợp đồng chung, chốt trước khi tạo bảng.
-- [ ] Sáu bảng vẫn `not_implemented`; không migration nào được authorize bởi
-      review này.
+- [x] Forward migration đã được author và kiểm chứng trên database tạm.
+- [ ] Sáu bảng vẫn `not_implemented` trên database tham chiếu; migration chưa
+      được deploy vào `learnforge_db`.
 
 # F — Architecture
 
@@ -124,7 +126,7 @@ ADR-0017 §268); chính sách retention/redaction cho nội dung trích xuất.
       ngăn transcript `ko` enqueue/ready/retry; caption `vi-VTT` và `vi-SRT` có
       retry chain độc lập; duplicate cùng profile/cùng attempt bị database chặn;
       required/optional aggregate, tenant isolation và bản `archived` bất biến.
-- [ ] Owner Approval recorded.
+- [x] Owner Approval recorded theo directive ngày 2026-08-24.
 - [ ] DOC-CONFLICT-0014 và DOC-CONFLICT-0015 chưa đóng.
 
 # Documented Risks
@@ -133,10 +135,11 @@ ADR-0017 §268); chính sách retention/redaction cho nội dung trích xuất.
 | --- | --- | --- |
 | R1 | `quota_exceeded` là reserved behavior; `saas_usage_counters`, `saas_usage_events`, `saas_usage_summaries` đều `not_implemented`, nên không hạn mức nào được thi hành | Chặn việc mở media processing cho tenant tự phục vụ |
 | R2 | Chính sách retention/redaction cho extracted text và transcript chưa có; nội dung học liệu có thể chứa dữ liệu cá nhân | Chặn việc mở cho tenant thật |
-| R3 | Media Read Contract đã viết (v1.1) nhưng chưa review riêng và chưa implement | Không chặn substrate; chặn mọi consumer AI |
+| R3 | Media Read Contract v1.3 có scoped runtime/test nhưng A–H record do cùng implementation stream lập; chưa có independent reviewer | **Open** — chặn việc coi Spec B là architecture-approved và chặn real AI consumer rollout |
 | R4 | `owner_type` không có ràng buộc vật lý (DOC-CONFLICT-0015) và `course_category` chưa được phê chuẩn (DOC-CONFLICT-0014) | Không chặn substrate; chặn việc siết vocabulary |
-| R6 | `MediaService::upload()` đang đặt `media_files.status = 'ready'` ngay lúc insert. Sau khi substrate ship, upload phải đặt `processing` cho tới khi `virus_scan` xong — đây là **thay đổi hành vi của code đang chạy**, không chỉ thêm bảng | Phải xử lý trong HIGH implementation audit |
-| R5 | Sáu bảng chưa tồn tại; đây là phase triển khai Foundation, không phải hoàn thiện tài liệu | Đã ghi nhận trong scope |
+| R6 | Code đã đổi upload mới sang `processing`; `virus_scan` clean mới đưa file về `ready`, infected hoặc provider unavailable đưa về `failed` | **Closed in code và development**; localhost dùng fake adapter. Production vẫn bị chặn tới khi có virus provider thật |
+| R5 | Forward migration đã deploy trên `learnforge_db`; ledger không còn pending, connection drift xanh, 14 Media File cũ vẫn `ready` | **Closed** — deployment không sửa trạng thái dữ liệu lịch sử |
+| R7 | Denied read chỉ ghi `media_access_logs` khi owner resolve được tới Media File; schema hiện tại bắt buộc FK nên dò owner không tồn tại không có audit sink | Mở; cần security audit sink không phụ thuộc Media FK qua contract/review riêng. Audit insert failure hiện phát `Log::warning`, không còn mất dấu im lặng |
 
 # Independent Review Round 2 — 2026-08-23 (`e460dce`, branch `main`)
 
@@ -201,22 +204,141 @@ controller.
 # Review Result
 
 ```text
-PASS WITH DOCUMENTED RISKS (Round 2 contract closure) — không còn blocker trong
-retry scope hoặc deterministic required profile contract. Ready for Owner
-Approval; Owner Approval chưa có evidence và không được đánh dấu. Migration,
-runtime, API và queue worker vẫn chưa được authorize. R1–R5 giữ nguyên.
+PASS WITH DOCUMENTED RISKS — không còn blocker contract. Architecture Owner đã
+approve scoped implementation ngày 2026-08-24; Spec B independent review vẫn
+pending.
+Forward migration đã deploy và ba mode schema drift đều pass. Development có
+fake virus adapter; production virus provider thật vẫn là deployment
+precondition. Retention/redaction và self-service quota tiếp tục gated; R5/R6
+đã đóng theo trạng thái trong bảng risks.
+```
+
+# Owner Approval
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-08-24
+Decision: Approved for forward migration and scoped runtime implementation by
+          the owner directive recorded in the implementation request. No
+          approval is inferred for retention policy or external providers.
 ```
 
 # Required Future Reviews
 
-* Owner approval, rồi chuyển bốn Database Document sang `Approved`.
-* Media Read Contract for AI Consumers — đã viết (v1.1); **cần một Architecture Review riêng** trước Owner Approval.
 * Chính sách retention/redaction cho nội dung trích xuất.
 * Runtime contract cho SaaS Usage/Entitlement trước khi `quota_exceeded` có hiệu
   lực thật.
-* HIGH implementation audit trước migration sáu bảng.
 * DOC-CONFLICT-0014 và DOC-CONFLICT-0015.
 * Cue-level caption citation contract, nếu Spec B cần tới nó.
+
+Owner decisions đang chờ, không được implementation tự chọn:
+
+1. DOC-CONFLICT-0014 — `course_category` có phải canonical `owner_type` hợp lệ:
+   **Có hay Không?**
+2. DOC-CONFLICT-0015 — sau khi vocabulary được chốt, có thêm CHECK constraint
+   cho `media_file_usages.owner_type`: **Có hay Không?**
+
+# HIGH Implementation Audit — 2026-08-24
+
+Verdict: **PASS WITH DOCUMENTED PRODUCTION GATES** cho migration, orchestration,
+fake provider và Media Read Service trong scope đã duyệt.
+
+Evidence đã chạy trên `main`:
+
+* migration dry-run sinh đủ sáu bảng, hai cột `media_files`, composite tenant
+  foreign keys, retry uniqueness và append-only trigger;
+* fake provider xác minh clean/infected virus scan, OCR/STT/caption output,
+  required profile deterministic và binary readiness độc lập;
+* transcript `ko` hết ba attempt không tiêu hao/chặn transcript `vi`; caption
+  `vi-VTT` và `vi-SRT` có chain độc lập; duplicate cùng profile/cùng attempt bị
+  database chặn;
+* retry chỉ từ highest attempt, exponential backoff có jitter ±20%, dispatch
+  sau commit và rollback không enqueue;
+* Media Read Service xác minh tenant/owner authorization, exact locale/revision,
+  archived explicit read, revision mismatch/unavailable, locator và immutable
+  access audit (UPDATE/DELETE đều bị database chặn);
+* full application suite: `745` tests, `8292` assertions, `1` skipped, `0` failure.
+
+Implementation Status giữ ở `Partial`: migration đã deploy trên development,
+nhưng production OCR/STT/caption/virus provider chưa được chọn hoặc cấp
+credential. Runtime fail-closed bằng `provider_unavailable`.
+
+**Deployment precondition:** không deploy runtime Media Processing này nếu
+forward migration chưa được apply hoặc `MEDIA_VIRUS_SCAN_PROVIDER` chưa trỏ tới
+provider production đã approved/configured/credentialed. Vi phạm điều kiện thứ
+hai làm mọi upload mới lập tức `failed` và không deliver được; đây không phải
+rủi ro có thể cấu hình sau khi ship.
+
+Không có Owner Approval suy diễn cho external provider, retention/redaction hay
+self-service quota. R1–R4 và R7 còn mở; R5/R6 đã đóng trên development.
+
+## Kênh biểu đạt trạng thái triển khai — chốt 2026-08-24
+
+Một vòng closure đã hạ sáu bảng xuống `not_implemented` để phản ánh việc chưa
+deploy. Cách đó trung thực nhưng sai kênh, và nó làm **hai CI gate đang xanh
+chuyển sang đỏ**: `docs-lint.yml` chạy cả `schema:drift --docs-only` và
+`schema:drift --fresh`, và cả hai đều fail vì công cụ coi "contract deferred mà
+có migration tạo bảng" là HIGH.
+
+Ngữ nghĩa thật của công cụ, đo bằng cách chạy cả ba mode:
+
+| `implementation_status` trong contract | Nghĩa |
+| --- | --- |
+| `implemented` | Migration tạo bảng **tồn tại trong source**. `--fresh` dựng database từ migration rồi đối chiếu, nên đây là điều kiện để hai CI gate xanh |
+| `not_implemented` | Không có migration nào tạo bảng đó |
+
+Việc **đã deploy hay chưa** không nằm trong contract. Nó được `--connection`
+trả lời, và mode đó cố ý không phải CI gate vì nó phụ thuộc trạng thái của một
+database cụ thể.
+
+Đây cũng là tiền lệ Learning Foundation: migration author ở Phase 4C/4D với
+`--fresh` xanh, rồi deployment lên development database là một bước được Owner
+cho phép riêng, ghi bằng số bảng và ledger.
+
+Trạng thái trước deployment:
+
+```text
+schema:drift --docs-only      passed      ← CI gate
+schema:drift --fresh          passed      ← CI gate
+schema:drift --connection=mysql  failed   ← trước deployment:
+   6 table.missing · 2 column.missing · 1 index · migration.pending
+```
+
+Sáu table doc và schema contract trở lại `Implemented`; contract được dựng lại
+từ chính database sạch nên mô tả đúng cột, index, khóa ngoại, CHECK và trigger
+thật.
+
+Deployment evidence ngày 2026-08-24: migration đã apply trên `learnforge_db`;
+cả ba mode `schema:drift --connection=mysql`, `--docs-only` và `--fresh` đều
+pass; database có đủ 9 bảng `media_*`; migration ledger không còn pending; 14
+Media File lịch sử vẫn giữ `status=ready`. R5 vì vậy được đóng.
+
+## Independent runtime review closure — 2026-08-24
+
+Review độc lập hậu implementation báo `BLOCKED` với 2 blocker, 2 high và 3
+medium. Runtime đã đóng các phát hiện có thể xử lý trong scope:
+
+* virus provider chưa cấu hình chuyển cả scan job và Media File sang
+  `failed/provider_unavailable` ngay; không còn treo `processing`, không bypass
+  binary scan;
+* Media Read nhận `actor_id` explicit, không phụ thuộc HTTP request, nên cùng
+  authorization contract dùng được trong queue/console;
+* read bị từ chối trên target resolve được ghi append-only audit với
+  `decision=denied` và error code;
+* duplicate initial insert bắt database uniqueness, đọc lại canonical row khi
+  race thay vì trả 500;
+* checksum NULL/rỗng fail-closed trước fingerprint;
+* current revision chọn theo `processing_job_id`/row identity, không theo
+  timestamp của từng page/segment;
+* thêm `MediaProcessingSubstrateMariaDbTest` và CI MariaDB entry để thực thi
+  CHECK cùng immutable UPDATE/DELETE trigger vật lý.
+
+MariaDB integration đã được reviewer chạy thật: `2 passed`; toàn bộ job CI
+MariaDB gồm 9 file: `98 passed, 439 assertions`. Runtime findings đã đóng.
+
+Database/schema deployment blocker đã đóng. Gate còn lại trên upload path là
+provider: development `.env` dùng `fake` để smoke-test/local authoring; không
+được diễn giải adapter này là virus scan thật hoặc production approval.
 
 ---
 

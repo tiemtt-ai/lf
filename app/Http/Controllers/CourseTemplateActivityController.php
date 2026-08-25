@@ -686,6 +686,7 @@ class CourseTemplateActivityController extends Controller
             'is_preview',
             'unlock_rule',
             'unlock_after_activity_id',
+            'processing_locale',
         ];
 
         $input = array_intersect_key(
@@ -860,6 +861,15 @@ class CourseTemplateActivityController extends Controller
                 'nullable',
                 'file',
                 'max:'.UploadLimit::effectiveKilobytes(),
+            ],
+            'processing_locale' => [
+                Rule::requiredIf(fn () => request()->hasFile('activity_video_file')
+                    || request()->hasFile('activity_audio_file')
+                    || request()->hasFile('activity_document_file')),
+                'nullable',
+                'string',
+                'max:20',
+                'regex:/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/',
             ],
             'activity_attachment_file' => [
                 'nullable',
@@ -1083,7 +1093,8 @@ class CourseTemplateActivityController extends Controller
                 (int) $mediaFile->id,
                 'course_activity',
                 $activityId,
-                $usageType
+                $usageType,
+                ['processing_locale' => $request->input('processing_locale')]
             );
 
             return $mediaFile;

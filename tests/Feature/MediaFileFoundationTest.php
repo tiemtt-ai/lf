@@ -264,7 +264,8 @@ class MediaFileFoundationTest extends TestCase
             $firstMediaFile->id,
             'course_activity',
             1001,
-            'document'
+            'document',
+            ['processing_locale' => 'vi']
         );
 
         $secondMediaFile = $service->uploadMedia(
@@ -282,7 +283,8 @@ class MediaFileFoundationTest extends TestCase
             $secondMediaFile->id,
             'course_activity',
             1002,
-            'document'
+            'document',
+            ['processing_locale' => 'vi']
         );
 
         $this->assertSame($firstMediaFile->id, $secondMediaFile->id);

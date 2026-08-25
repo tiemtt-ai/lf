@@ -1,12 +1,12 @@
 # LearnForge Documentation Conflict Register
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-23
+Last Updated: 2026-08-24
 
 Document Path: quality/LF-Documentation-Conflicts.md
 
@@ -242,8 +242,8 @@ Active items: 6. Không có confirmed `CONFLICT` nào đang mở.
 | DOC-CONFLICT-0007 | Attendance table doc không khớp migration | IMPLEMENTATION_DRIFT | ACCEPTED_TEMPORARILY | MEDIUM | LiveClass | Database Owner | Trước khi phát triển tab Điểm danh |
 | DOC-CONFLICT-0008 | Attendance/Recording chưa có Architecture Review chuyên biệt | GAP | ACCEPTED_TEMPORARILY | MEDIUM | LiveClass | Architecture Team | Trước khi phát triển hai tab |
 | DOC-CONFLICT-0011 | Attendance ghi được cho Enrollment không `active` | IMPLEMENTATION_DRIFT | ACCEPTED_TEMPORARILY | LOW (giảm từ HIGH) | LiveClass × Course | Domain Owner (LiveClass) | Trước khi mở lại tab Điểm danh |
-| DOC-CONFLICT-0014 | `course_category` được dùng làm `owner_type` nhưng không tài liệu nào đặt tên nó | IMPLEMENTATION_DRIFT | DECISION_REQUIRED | LOW | Media × Course | Domain Owner (Media) | Trước khi mở Media Processing substrate |
-| DOC-CONFLICT-0015 | `owner_type` không có ràng buộc vật lý nên vocabulary trôi không bị phát hiện | GAP | DECISION_REQUIRED | MEDIUM | Media | Database Owner | Trước khi mở Media Processing substrate |
+| DOC-CONFLICT-0014 | `course_category` được dùng làm `owner_type` nhưng không tài liệu nào đặt tên nó | IMPLEMENTATION_DRIFT | DECISION_REQUIRED | LOW | Media × Course | Domain Owner (Media) | Immediate Owner decision |
+| DOC-CONFLICT-0015 | `owner_type` không có ràng buộc vật lý nên vocabulary trôi không bị phát hiện | GAP | DECISION_REQUIRED | MEDIUM | Media | Database Owner | Immediate, after 0014 |
 
 ---
 
@@ -420,13 +420,13 @@ Temporary Safety Rule: STOP implementation for the affected concern. Do not gues
 Required Decision: `course_category` có phải giá trị `owner_type` hợp lệ không. Nếu có thì bổ sung vào danh sách canonical và nêu trong LF-Media.md; nếu không thì quyết định xử lý ba dòng hiện có và đường ghi trong CourseCategoryController
 Resolution Authority: Domain Owner (Media)
 Resolution Plan: Không tự bổ sung vào danh sách. Trình Owner cùng lúc với DOC-CONFLICT-0015 vì hai việc chia chung nguyên nhân
-Target Review Date: Not set — trước khi mở Media Processing substrate
+Target Review Date: Immediate Owner decision — substrate đã chạy trên development
 Resolved At: Not resolved
 Resolution: Not resolved
 Superseded/Updated Documents: None
 Verification Evidence: `SELECT owner_type, COUNT(*) FROM media_file_usages GROUP BY owner_type` trên learnforge_db trả về `course_category` = 3; `grep -rn "course_category" docs/platform/LF-Media.md docs/database/media/ docs/adr/ADR-0004-Media-Foundation.md` không có kết quả
 Related ADR/Review/Issue/PR: DOC-CONFLICT-0013; DOC-CONFLICT-0015
-Notes: Cố ý KHÔNG gộp vào DOC-CONFLICT-0013. Hai giá trị cùng vắng mặt trong một danh sách nhưng có tư cách hoàn toàn khác nhau: một cái đã được ADR phê duyệt và chỉ thiếu ở table doc, một cái chưa từng được phê duyệt ở đâu. Gộp lại sẽ khiến việc sửa doc lần này trông như đã hợp thức hóa cả hai.
+Notes: Cố ý KHÔNG gộp vào DOC-CONFLICT-0013. Hai giá trị cùng vắng mặt trong một danh sách nhưng có tư cách hoàn toàn khác nhau: một cái đã được ADR phê duyệt và chỉ thiếu ở table doc, một cái chưa từng được phê duyệt ở đâu. Gộp lại sẽ khiến việc sửa doc lần này trông như đã hợp thức hóa cả hai. Câu Owner cần trả lời: **`course_category` có phải canonical `owner_type` hợp lệ không — Có hay Không?**
 ```
 
 ---
@@ -458,13 +458,13 @@ Temporary Safety Rule: STOP implementation for the affected concern. Do not gues
 Required Decision: Có thêm CHECK constraint cho `owner_type` theo tiền lệ `chk_lrn_014` trên core_learning_node_mappings.source_type hay không; nếu có thì chốt tập giá trị trước, vì DOC-CONFLICT-0014 còn mở
 Resolution Authority: Database Owner
 Resolution Plan: Chốt DOC-CONFLICT-0014 trước để biết tập giá trị đúng; sau đó đánh giá migration bổ sung CHECK, kèm kiểm tra dữ liệu hiện có không vi phạm; không thực hiện trước khi vocabulary được phê duyệt
-Target Review Date: Not set — trước khi mở Media Processing substrate
+Target Review Date: Immediate, sau quyết định DOC-CONFLICT-0014
 Resolved At: Not resolved
 Resolution: Not resolved
 Superseded/Updated Documents: None
 Verification Evidence: `SELECT CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = 'learnforge_db' AND CHECK_CLAUSE LIKE '%owner_type%'` trả về rỗng
 Related ADR/Review/Issue/PR: DOC-CONFLICT-0013; DOC-CONFLICT-0014
-Notes: Media cố ý không tạo hard foreign key tới owner domain, và điều đó đúng. Nhưng "không FK" không bắt buộc kéo theo "không CHECK": Learning giữ đúng ranh giới đó mà vẫn khoá `source_type` bằng chk_lrn_014. Quyết định ở đây là tính đánh đổi giữa tính linh hoạt khi thêm owner mới và khả năng phát hiện trôi.
+Notes: Media cố ý không tạo hard foreign key tới owner domain, và điều đó đúng. Nhưng "không FK" không bắt buộc kéo theo "không CHECK": Learning giữ đúng ranh giới đó mà vẫn khoá `source_type` bằng chk_lrn_014. Quyết định ở đây là tính đánh đổi giữa tính linh hoạt khi thêm owner mới và khả năng phát hiện trôi. Sau khi 0014 chốt vocabulary, câu Database Owner cần trả lời: **có thêm CHECK constraint cho `media_file_usages.owner_type` không — Có hay Không?**
 ```
 
 ---

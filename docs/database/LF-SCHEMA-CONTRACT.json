@@ -18857,24 +18857,444 @@
     {
       "name": "media_access_logs",
       "documentation": "database/media/media_access_logs.md",
-      "implementation_status": "not_implemented",
-      "columns": [],
-      "primary_key": [],
-      "indexes": [],
-      "foreign_keys": [],
-      "checks": [],
-      "triggers": [],
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "media_file_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "user_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "action",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_type",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "ip_address",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "user_agent",
+          "type": "text",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "accessed_at",
+          "type": "timestamp",
+          "nullable": false,
+          "default": "current_timestamp()",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "media_file_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "user_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "action",
+            "accessed_at"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "media_file_id",
+            "accessed_at"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "source_type",
+            "source_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "user_id",
+            "accessed_at"
+          ],
+          "unique": false,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "media_file_id",
+            "customer_id"
+          ],
+          "foreign_table": "media_files",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "user_id",
+            "customer_id"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "json_valid(`metadata`)"
+        },
+        {
+          "expression": "`action` in ('upload','stream','view','download','delete','share','read_derived')"
+        }
+      ],
+      "triggers": [
+        {
+          "name": "trg_media_access_logs_bu_immutable",
+          "timing": "before",
+          "event": "update",
+          "statement": "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_MEDIA_ACCESS_LOG_IMMUTABLE'"
+        },
+        {
+          "name": "trg_media_access_logs_bd_immutable",
+          "timing": "before",
+          "event": "delete",
+          "statement": "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_MEDIA_ACCESS_LOG_IMMUTABLE'"
+        }
+      ],
       "views": []
     },
     {
       "name": "media_captions",
       "documentation": "database/media/media_captions.md",
-      "implementation_status": "not_implemented",
-      "columns": [],
-      "primary_key": [],
-      "indexes": [],
-      "foreign_keys": [],
-      "checks": [],
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "media_file_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "locale",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "caption_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "storage_key",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'pending'",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "processing_job_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "processing_version",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_fingerprint",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "processing_job_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "media_file_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "media_file_id",
+            "status"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "source_fingerprint"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "media_file_id",
+            "locale",
+            "caption_type",
+            "processing_version"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "storage_key"
+          ],
+          "unique": true,
+          "type": "hash"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "processing_job_id",
+            "customer_id"
+          ],
+          "foreign_table": "media_processing_jobs",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "media_file_id",
+            "customer_id"
+          ],
+          "foreign_table": "media_files",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "json_valid(`metadata`)"
+        },
+        {
+          "expression": "`status` in ('pending','processing','ready','failed','archived')"
+        },
+        {
+          "expression": "`caption_type` in ('vtt','srt','ass')"
+        }
+      ],
       "triggers": [],
       "views": []
     },
@@ -19079,12 +19499,307 @@
     {
       "name": "media_extracted_texts",
       "documentation": "database/media/media_extracted_texts.md",
-      "implementation_status": "not_implemented",
-      "columns": [],
-      "primary_key": [],
-      "indexes": [],
-      "foreign_keys": [],
-      "checks": [],
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "media_file_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "processing_job_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "locale",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "locator_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "locator_value",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "sequence",
+          "type": "int",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "text",
+          "type": "longtext",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "char_count",
+          "type": "int",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "confidence_score",
+          "type": "decimal",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "extraction_method",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "provider",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "processing_version",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_fingerprint",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'pending'",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "processing_job_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "media_file_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "media_file_id",
+            "status"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "source_fingerprint"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "processing_job_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "media_file_id",
+            "locale",
+            "sequence"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "media_file_id",
+            "locale",
+            "locator_type",
+            "locator_value",
+            "processing_version"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "processing_job_id",
+            "customer_id"
+          ],
+          "foreign_table": "media_processing_jobs",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "media_file_id",
+            "customer_id"
+          ],
+          "foreign_table": "media_files",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "json_valid(`metadata`)"
+        },
+        {
+          "expression": "`status` in ('pending','processing','ready','failed','archived')"
+        },
+        {
+          "expression": "`locator_type` = 'page'"
+        },
+        {
+          "expression": "`extraction_method` in ('ocr','embedded_text')"
+        },
+        {
+          "expression": "`sequence` >= 1"
+        },
+        {
+          "expression": "`confidence_score` is null or `confidence_score` between 0 and 100"
+        },
+        {
+          "expression": "`status` <> 'ready' or `text` is not null"
+        }
+      ],
       "triggers": [],
       "views": []
     },
@@ -19539,6 +20254,24 @@
           "generated": null
         },
         {
+          "name": "processing_locale",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "processing_error_code",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
           "name": "metadata",
           "type": "json",
           "nullable": true,
@@ -19648,6 +20381,14 @@
           ],
           "unique": true,
           "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
         }
       ],
       "foreign_keys": [
@@ -19696,36 +20437,947 @@
     {
       "name": "media_processing_jobs",
       "documentation": "database/media/media_processing_jobs.md",
-      "implementation_status": "not_implemented",
-      "columns": [],
-      "primary_key": [],
-      "indexes": [],
-      "foreign_keys": [],
-      "checks": [],
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "media_file_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "job_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'pending'",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "attempt",
+          "type": "int",
+          "nullable": false,
+          "default": "1",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "supersedes_job_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "idempotency_key",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "correlation_id",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_fingerprint",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "processing_version",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "output_profile",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "output_profile_hash",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "provider",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "output_type",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "output_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "billable_units",
+          "type": "decimal",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "billable_unit_type",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "started_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "completed_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "error_code",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "error_message",
+          "type": "text",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_by",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "created_by",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "media_file_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "supersedes_job_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "correlation_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "media_file_id",
+            "job_type",
+            "status"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "output_type",
+            "output_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "status",
+            "created_at"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "idempotency_key"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "media_file_id",
+            "job_type",
+            "source_fingerprint",
+            "processing_version",
+            "output_profile_hash",
+            "attempt"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "supersedes_job_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "created_by",
+            "customer_id"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "media_file_id",
+            "customer_id"
+          ],
+          "foreign_table": "media_files",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "supersedes_job_id",
+            "customer_id"
+          ],
+          "foreign_table": "media_processing_jobs",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "json_valid(`metadata`)"
+        },
+        {
+          "expression": "`job_type` in ('transcode','thumbnail','ocr','speech_to_text','caption','virus_scan','compress')"
+        },
+        {
+          "expression": "`status` in ('pending','processing','ready','failed','cancelled')"
+        },
+        {
+          "expression": "`attempt` >= 1"
+        },
+        {
+          "expression": "`output_type` is null and `output_id` is null or `output_type` is not null and `output_id` is not null"
+        },
+        {
+          "expression": "`status` <> 'ready' or `completed_at` is not null and (`job_type` = 'virus_scan' or `output_id` is not null)"
+        },
+        {
+          "expression": "`status` <> 'failed' or `completed_at` is not null and `error_code` is not null"
+        }
+      ],
       "triggers": [],
       "views": []
     },
     {
       "name": "media_transcripts",
       "documentation": "database/media/media_transcripts.md",
-      "implementation_status": "not_implemented",
-      "columns": [],
-      "primary_key": [],
-      "indexes": [],
-      "foreign_keys": [],
-      "checks": [],
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "media_file_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "locale",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "provider",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'pending'",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "text",
+          "type": "longtext",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "confidence_score",
+          "type": "decimal",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "processing_job_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "processing_version",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_fingerprint",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "locator_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "locator_value",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "processing_job_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "media_file_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "media_file_id",
+            "status"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "source_fingerprint"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "media_file_id",
+            "locale",
+            "locator_type",
+            "locator_value",
+            "processing_version"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "processing_job_id",
+            "customer_id"
+          ],
+          "foreign_table": "media_processing_jobs",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "media_file_id",
+            "customer_id"
+          ],
+          "foreign_table": "media_files",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "json_valid(`metadata`)"
+        },
+        {
+          "expression": "`status` in ('pending','processing','ready','failed','archived')"
+        },
+        {
+          "expression": "`locator_type` = 'timespan'"
+        },
+        {
+          "expression": "`confidence_score` is null or `confidence_score` between 0 and 100"
+        },
+        {
+          "expression": "`status` <> 'ready' or `text` is not null"
+        }
+      ],
       "triggers": [],
       "views": []
     },
     {
       "name": "media_variants",
       "documentation": "database/media/media_variants.md",
-      "implementation_status": "not_implemented",
-      "columns": [],
-      "primary_key": [],
-      "indexes": [],
-      "foreign_keys": [],
-      "checks": [],
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "media_file_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "variant_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "storage_key",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "cdn_url",
+          "type": "text",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "mime_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "width",
+          "type": "int",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "height",
+          "type": "int",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "bitrate",
+          "type": "int",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "file_size_bytes",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "processing_job_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "processing_version",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_fingerprint",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'processing'",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "processing_job_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "media_file_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "media_file_id",
+            "status"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "source_fingerprint"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "processing_job_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "media_file_id",
+            "variant_type",
+            "processing_version"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "storage_key"
+          ],
+          "unique": true,
+          "type": "hash"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "processing_job_id",
+            "customer_id"
+          ],
+          "foreign_table": "media_processing_jobs",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "media_file_id",
+            "customer_id"
+          ],
+          "foreign_table": "media_files",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "json_valid(`metadata`)"
+        },
+        {
+          "expression": "`status` in ('processing','ready','failed','archived')"
+        },
+        {
+          "expression": "`variant_type` in ('thumbnail','preview','compressed','720p','1080p','hls','webp')"
+        }
+      ],
       "triggers": [],
       "views": []
     },

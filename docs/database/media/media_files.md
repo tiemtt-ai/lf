@@ -1,12 +1,12 @@
 # Table: media_files
 
-Version: 1.3
+Version: 1.4
 
-Document Status: Review
+Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-23
+Last Updated: 2026-08-24
 
 Document Path: database/media/media_files.md
 
@@ -254,8 +254,8 @@ tenants.
 | language | VARCHAR(20) NULL | Ngôn ngữ asset. |
 | visibility | VARCHAR(50) NOT NULL DEFAULT 'private' | `private`, `organization`, `public`. |
 | status | VARCHAR(50) NOT NULL DEFAULT 'uploading' | Deliverability của file nhị phân. |
-| processing_locale | VARCHAR(20) NULL | Locale canonical BCP 47 cho required output profile. **Not Implemented** cho tới migration Media Processing. |
-| processing_error_code | VARCHAR(100) NULL | Lý do cấu hình processing không hợp lệ. **Not Implemented** cho tới migration Media Processing. |
+| processing_locale | VARCHAR(20) NULL | Locale canonical BCP 47 cho required output profile. |
+| processing_error_code | VARCHAR(100) NULL | Lý do cấu hình processing không hợp lệ. |
 | metadata | JSON NULL | Metadata mở rộng, không chứa binary. |
 | created_at | TIMESTAMP NULL | Thời điểm tạo. |
 | updated_at | TIMESTAMP NULL | Thời điểm cập nhật metadata/state. |
@@ -270,6 +270,7 @@ INDEX (customer_id, file_type);
 INDEX (customer_id, visibility);
 INDEX (customer_id, status);
 INDEX (customer_id, checksum);
+UNIQUE (id, customer_id);
 UNIQUE (customer_id, storage_disk, storage_bucket, storage_key);
 ```
 

@@ -1,10 +1,10 @@
 # Table: media_processing_jobs
 
-Version: 2.3
+Version: 2.4
 
-Document Status: Review
+Document Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Implemented
 
 Last Updated: 2026-08-24
 
@@ -69,14 +69,12 @@ pending ──→ processing ──→ ready
 ### Quan hệ với `media_files.status`
 
 * Job **không** tự ghi `media_files.status`.
-* Media File chuyển sang `ready` khi và chỉ khi required output profile set đã
-  materialize đủ và job `attempt` cao nhất trong **từng full retry scope** đều
-  `ready`.
-* Media File chuyển sang `failed` khi required profile kết thúc `failed` và hết
-  3 attempt, hoặc required profile không materialize được do thiếu canonical
-  locale/configuration.
-* Job tuỳ chọn (ví dụ `thumbnail` cho document) không ảnh hưởng trạng thái file.
-  Additional/on-demand profile cũng không tham gia aggregate, kể cả khi failed.
+* `media_files.status` phản ánh binary deliverability: `virus_scan` pending làm
+  file `processing`, clean làm file `ready`, infected làm file `failed`.
+* Required profile không materialize được do thiếu canonical locale/configuration
+  làm file fail-closed; đây là configuration gate, không phải derived readiness.
+* OCR/STT/caption/variant required hay optional đều có readiness riêng. Hết 3
+  attempt làm chính output đó `failed`, không làm binary file mất `ready`.
 * Tập job bắt buộc theo `file_type` do
   [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md)
   quy định, không quy định ở đây.
@@ -228,6 +226,6 @@ Foundation placeholder. Version 2.0 kéo chúng ra thành cột vì pipeline th�
 chống trùng ở tầng database: OCR và speech-to-text là lời gọi ngoài có tính phí,
 và một unique key trong JSON không ngăn được lần gọi thứ hai.
 
-Bảng này cố ý **không** có cột "trạng thái hiện tại của file". Câu hỏi "file này
-đã xử lý xong chưa" được trả lời bằng `media_files.status` theo quy tắc tổng hợp
-ở trên, không bằng cách đọc job mới nhất.
+Bảng này cố ý **không** có cột "trạng thái hiện tại của file". Binary
+deliverability đọc từ `media_files.status`; readiness của output dẫn xuất đọc từ
+row output và retry scope tương ứng, không suy ra từ một job mới nhất toàn cục.
