@@ -1,12 +1,12 @@
 # Media Processing Substrate Architecture Review
 
-Version: 1.11
+Version: 1.14
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-24
+Last Updated: 2026-08-25
 
 Review Date: 2026-08-23
 
@@ -22,7 +22,7 @@ Document Path: quality/LF-Media-Processing-Substrate-Architecture-Review.md
 | Domain Docs | [LF-Media](../platform/LF-Media.md), [LF-AI](../platform/LF-AI.md) |
 | Parent ADR | [ADR-0004 — Media Foundation](../adr/ADR-0004-Media-Foundation.md) |
 | Constraining ADR | [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md) |
-| Specification | [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md) v1.6 |
+| Specification | [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md) v1.9 |
 | Database Docs | `media_files` v1.4, `media_processing_jobs` v2.4, `media_extracted_texts` v1.0, `media_transcripts` v1.4, `media_captions` v1.4, `media_variants` v1.1, `media_access_logs` v1.2 |
 | Read Contract Evidence | [Media Read Contract Architecture Review](LF-Media-Read-Contract-Architecture-Review.md) v1.2 — self-assessment; independent review pending |
 | Review Scope | Substrate xử lý Media; Spec B remains a separate pending independent review. AI Proposal and learner runtime stay out of scope |
@@ -140,6 +140,7 @@ ADR-0017 §268); chính sách retention/redaction cho nội dung trích xuất.
 | R6 | Code đã đổi upload mới sang `processing`; `virus_scan` clean mới đưa file về `ready`, infected hoặc provider unavailable đưa về `failed` | **Closed in code và development**; localhost dùng fake adapter. Production vẫn bị chặn tới khi có virus provider thật |
 | R5 | Forward migration đã deploy trên `learnforge_db`; ledger không còn pending, connection drift xanh, 14 Media File cũ vẫn `ready` | **Closed** — deployment không sửa trạng thái dữ liệu lịch sử |
 | R7 | Denied read chỉ ghi `media_access_logs` khi owner resolve được tới Media File; schema hiện tại bắt buộc FK nên dò owner không tồn tại không có audit sink | Mở; cần security audit sink không phụ thuộc Media FK qua contract/review riêng. Audit insert failure hiện phát `Log::warning`, không còn mất dấu im lặng |
+| R8 | Hard kill (`SIGKILL`), OOM, container eviction hoặc host failure không chạy job `failed()`; row có thể còn `processing` và giữ concurrency guard | **Open, không chặn local** — trước AWS production phải có reviewed stale-processing sweeper chuyển row quá `$timeout + safety margin` sang `failed/provider_timeout` bằng conditional update |
 
 # Independent Review Round 2 — 2026-08-23 (`e460dce`, branch `main`)
 
@@ -260,8 +261,58 @@ Evidence đã chạy trên `main`:
 * full application suite: `745` tests, `8292` assertions, `1` skipped, `0` failure.
 
 Implementation Status giữ ở `Partial`: migration đã deploy trên development,
-nhưng production OCR/STT/caption/virus provider chưa được chọn hoặc cấp
-credential. Runtime fail-closed bằng `provider_unavailable`.
+document OCR self-hosted đã chạy local nhưng chưa deploy trên AWS; production
+STT/caption/virus provider chưa được chọn hoặc cấp credential. Runtime
+fail-closed bằng `provider_unavailable`.
+
+## Local document provider evidence — 2026-08-25
+
+Scoped runtime `local_document` đã nối capability document OCR mà không mở thêm
+domain side effect. Source được đọc bằng Laravel Storage stream (local/S3), file
+trung gian nằm trong thư mục tạm riêng và luôn cleanup. Provider chỉ trả units;
+`ProcessMediaProcessingJob` giữ quyền persist tenant/job revision vào
+`media_extracted_texts`, gồm provenance `embedded_text` hoặc `ocr` theo từng
+unit.
+
+Evidence local trên source thật:
+
+* DOCX media 5: job `ready`, 1 page `embedded_text`, locale `ko`, 932 ký tự;
+* PDF media 8: job `ready`, 2 page `embedded_text`, locale `vi`, lần lượt 4.604
+  và 3.122 ký tự;
+* XLSX media 11: LibreOffice conversion, job `ready`, 13 page text units;
+* image-only PDF smoke: Poppler render + Tesseract `vie+eng`, 1 page `ocr`,
+  3.279 ký tự; object smoke đã bị xoá sau test;
+* feature test xác minh upload TXT thật đi hết provider runtime và row
+  `media_extracted_texts` giữ đúng text/method/provider.
+
+Evidence này phê duyệt shape implementation self-hosted trong scope owner yêu
+cầu, không suy diễn rằng AWS deployment đã sẵn sàng. AWS worker còn phải đóng
+binary/container/IAM/ephemeral-storage/observability và production activation
+vẫn bị R1/R2 cùng virus-provider gate chặn. STT/caption vẫn unconfigured.
+
+### Resource-control review closure
+
+Review hậu provider phát hiện một blocker và hai resource-control findings.
+Đã đóng bằng implementation và regression evidence:
+
+* `ProcessMediaProcessingJob` có timeout `3.600s`, `failOnTimeout=true` và
+  `failed()` chuyển duy nhất row còn `processing` sang
+  `failed/provider_timeout`; test chứng minh row sau đó tạo được retry attempt 2;
+* provider deadline `3.300s` co mọi command timeout theo thời gian còn lại;
+  Redis/database/Beanstalkd retry-after default `3.900s`, giữ invariant
+  `provider < worker < visibility`;
+* page count được lấy trước extraction và cap 100; test 101 trang fail bằng
+  `page_limit_exceeded` trước command extraction;
+* DOCX kiểm declared expanded size và bounded-copy 8 MB; test archive 101 byte
+  với cap 100 byte fail trước copy;
+* text cap hạ từ 20.000.000 xuống 500.000 ký tự và fail toàn revision, không
+  truncate artifact.
+
+Resource-control verdict: **PASS cho local runtime shape**. AWS deployment còn
+phải chứng minh đồng thời SQS visibility `> 3.600s`, supervisor timeout
+`>= 3.600s`, SQS message retention `> visibility timeout`, và đóng R8 bằng
+stale-processing sweeper đã review. Đây là deployment evidence, không phải lý
+do để mở R1/R2.
 
 **Deployment precondition:** không deploy runtime Media Processing này nếu
 forward migration chưa được apply hoặc `MEDIA_VIRUS_SCAN_PROVIDER` chưa trỏ tới

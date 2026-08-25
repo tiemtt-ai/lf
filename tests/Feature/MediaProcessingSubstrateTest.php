@@ -3,8 +3,11 @@
 namespace Tests\Feature;
 
 use App\Exceptions\MediaReadException;
+use App\Jobs\ProcessMediaProcessingJob;
 use App\Models\User;
 use App\Services\CourseMediaOwnerContextAuthorizer;
+use App\Services\DocumentProcessRunner;
+use App\Services\LocalDocumentProcessingProvider;
 use App\Services\MediaProcessingOrchestrator;
 use App\Services\MediaReadService;
 use App\Services\MediaService;
@@ -18,6 +21,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Tests\TestCase;
+use ZipArchive;
 
 class MediaProcessingSubstrateTest extends TestCase
 {
@@ -54,6 +58,97 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertDatabaseHas('media_processing_jobs', ['media_file_id' => $media->id, 'job_type' => 'caption', 'output_profile' => 'format=vtt;locale=vi', 'status' => 'ready']);
         $this->assertDatabaseHas('media_transcripts', ['media_file_id' => $media->id, 'locale' => 'vi', 'status' => 'ready']);
         $this->assertDatabaseHas('media_captions', ['media_file_id' => $media->id, 'locale' => 'vi', 'caption_type' => 'vtt', 'status' => 'ready']);
+    }
+
+    public function test_local_document_provider_persists_real_embedded_text(): void
+    {
+        config([
+            'media.processing.providers.ocr' => 'local_document',
+            'media.processing.versions.ocr' => 'local-document-v1',
+        ]);
+        $text = "LearnForge local extraction\nNội dung tiếng Việt thật.";
+        $media = app(MediaService::class)->upload(
+            UploadedFile::fake()->createWithContent('lesson.txt', $text),
+            [
+                'file_type' => 'document', 'module' => 'course', 'entity_type' => 'activities',
+                'entity_id' => 99, 'purpose' => 'document',
+            ],
+            $this->admin->id,
+        );
+
+        app(MediaProcessingOrchestrator::class)->materializeForCourseActivity(
+            $this->customerId,
+            $media->id,
+            'vi',
+            $this->admin->id,
+        );
+
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $media->id, 'job_type' => 'ocr',
+            'provider' => 'local_document', 'status' => 'ready',
+        ]);
+        $this->assertDatabaseHas('media_extracted_texts', [
+            'media_file_id' => $media->id, 'locale' => 'vi', 'text' => $text,
+            'extraction_method' => 'embedded_text', 'provider' => 'local_document', 'status' => 'ready',
+        ]);
+    }
+
+    public function test_local_document_provider_rejects_pdf_over_page_limit_before_extraction(): void
+    {
+        config(['media.processing.local_document.max_pages' => 100]);
+        Storage::disk('media_local')->put('page-limit.pdf', 'pdf');
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldReceive('run')->once()->andReturn("Pages: 101\n");
+        $provider = new LocalDocumentProcessingProvider($runner);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('page_limit_exceeded');
+        $provider->process(
+            (object) ['file_type' => 'document', 'extension' => 'pdf', 'storage_disk' => 'media_local', 'storage_key' => 'page-limit.pdf'],
+            (object) ['job_type' => 'ocr', 'output_profile' => 'layout=preserve;locale=vi'],
+        );
+    }
+
+    public function test_local_document_provider_rejects_docx_expansion_before_copy(): void
+    {
+        config(['media.processing.local_document.max_docx_xml_bytes' => 100]);
+        $path = tempnam(sys_get_temp_dir(), 'lf-docx-limit-');
+        $archive = new ZipArchive;
+        $archive->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        $archive->addFromString('word/document.xml', str_repeat('x', 101));
+        $archive->close();
+        Storage::disk('media_local')->put('expansion.docx', file_get_contents($path));
+        unlink($path);
+        $provider = new LocalDocumentProcessingProvider(Mockery::mock(DocumentProcessRunner::class));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('source_expansion_limit_exceeded');
+        $provider->process(
+            (object) ['file_type' => 'document', 'extension' => 'docx', 'storage_disk' => 'media_local', 'storage_key' => 'expansion.docx'],
+            (object) ['job_type' => 'ocr', 'output_profile' => 'layout=preserve;locale=vi'],
+        );
+    }
+
+    public function test_worker_timeout_failure_releases_processing_job_for_retry(): void
+    {
+        $queueJob = new ProcessMediaProcessingJob($this->customerId, 1);
+        $this->assertGreaterThan($queueJob->timeout, config('queue.connections.redis.retry_after'));
+        $this->assertGreaterThan(config('media.processing.local_document.max_processing_seconds'), $queueJob->timeout);
+
+        $media = $this->uploadVideo();
+        $job = DB::table('media_processing_jobs')->where('media_file_id', $media->id)->where('job_type', 'virus_scan')->first();
+        DB::table('media_processing_jobs')->where('id', $job->id)->update([
+            'status' => 'processing', 'completed_at' => null, 'started_at' => now(),
+            'error_code' => null, 'error_message' => null,
+        ]);
+
+        (new ProcessMediaProcessingJob($this->customerId, $job->id))->failed(new \RuntimeException('worker timeout'));
+
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'id' => $job->id, 'status' => 'failed', 'error_code' => 'provider_timeout',
+        ]);
+        $retry = app(MediaProcessingOrchestrator::class)->retry($this->customerId, $job->id, $this->admin->id);
+        $this->assertSame(2, (int) $retry->attempt);
     }
 
     public function test_infected_upload_fails_closed_and_clean_upload_is_ready(): void

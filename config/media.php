@@ -16,6 +16,20 @@ return [
         'fake' => [
             'virus_infected' => (bool) env('MEDIA_FAKE_VIRUS_INFECTED', false),
         ],
+        'local_document' => [
+            'pdftotext_binary' => env('MEDIA_PDFTOTEXT_BINARY', 'pdftotext'),
+            'pdftoppm_binary' => env('MEDIA_PDFTOPPM_BINARY', 'pdftoppm'),
+            'pdfinfo_binary' => env('MEDIA_PDFINFO_BINARY', 'pdfinfo'),
+            'tesseract_binary' => env('MEDIA_TESSERACT_BINARY', 'tesseract'),
+            'soffice_binary' => env('MEDIA_SOFFICE_BINARY', 'soffice'),
+            'command_timeout_seconds' => (int) env('MEDIA_DOCUMENT_COMMAND_TIMEOUT_SECONDS', 300),
+            'office_timeout_seconds' => (int) env('MEDIA_OFFICE_TIMEOUT_SECONDS', 900),
+            'max_processing_seconds' => (int) env('MEDIA_DOCUMENT_MAX_PROCESSING_SECONDS', 3300),
+            'max_pages' => (int) env('MEDIA_DOCUMENT_MAX_PAGES', 100),
+            'max_docx_xml_bytes' => (int) env('MEDIA_DOCX_MAX_XML_BYTES', 8000000),
+            'ocr_dpi' => (int) env('MEDIA_OCR_DPI', 200),
+            'max_extracted_characters' => (int) env('MEDIA_MAX_EXTRACTED_CHARACTERS', 500000),
+        ],
         'providers' => [
             'virus_scan' => env('MEDIA_VIRUS_SCAN_PROVIDER', 'unconfigured'),
             'ocr' => env('MEDIA_OCR_PROVIDER', 'unconfigured'),

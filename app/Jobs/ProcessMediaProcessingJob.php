@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Contracts\MediaProcessingProvider;
 use App\Services\FakeMediaProcessingProvider;
+use App\Services\LocalDocumentProcessingProvider;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -18,6 +19,10 @@ class ProcessMediaProcessingJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 1;
+
+    public int $timeout = 3600;
+
+    public bool $failOnTimeout = true;
 
     public function __construct(public readonly int $customerId, public readonly int $processingJobId)
     {
@@ -55,9 +60,15 @@ class ProcessMediaProcessingJob implements ShouldQueue
             DB::transaction(fn () => $this->persistSuccess($media, $job, $result));
         } catch (Throwable $e) {
             DB::transaction(function () use ($job, $e): void {
-                $errorCode = $e->getMessage() === 'infected_source'
-                    ? 'infected_source'
-                    : ($e instanceof RuntimeException && $e->getMessage() === 'provider_unavailable' ? 'provider_unavailable' : 'processing_failed');
+                $knownErrorCodes = [
+                    'infected_source', 'provider_unavailable', 'provider_timeout',
+                    'unsupported_source', 'corrupt_source', 'source_unavailable',
+                    'no_extractable_text', 'extracted_text_too_large', 'missing_canonical_locale',
+                    'page_limit_exceeded', 'source_expansion_limit_exceeded',
+                ];
+                $errorCode = $e instanceof RuntimeException && in_array($e->getMessage(), $knownErrorCodes, true)
+                    ? $e->getMessage()
+                    : 'processing_failed';
                 DB::table('media_processing_jobs')->where('customer_id', $this->customerId)->where('id', $job->id)->update([
                     'status' => 'failed', 'completed_at' => now(),
                     'error_code' => $errorCode,
@@ -73,10 +84,26 @@ class ProcessMediaProcessingJob implements ShouldQueue
         }
     }
 
+    public function failed(?Throwable $exception): void
+    {
+        DB::table('media_processing_jobs')
+            ->where('customer_id', $this->customerId)
+            ->where('id', $this->processingJobId)
+            ->where('status', 'processing')
+            ->update([
+                'status' => 'failed',
+                'completed_at' => now(),
+                'error_code' => 'provider_timeout',
+                'error_message' => mb_substr($exception?->getMessage() ?? 'Queue worker terminated the processing job.', 0, 1000),
+                'updated_at' => now(),
+            ]);
+    }
+
     private function provider(string $provider): MediaProcessingProvider
     {
         return match ($provider) {
             'fake' => app(FakeMediaProcessingProvider::class),
+            'local_document' => app(LocalDocumentProcessingProvider::class),
             default => throw new RuntimeException('provider_unavailable'),
         };
     }
@@ -99,7 +126,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                     'customer_id' => $this->customerId, 'media_file_id' => $media->id, 'processing_job_id' => $job->id,
                     'locale' => $locale, 'locator_type' => $unit['locator_type'], 'locator_value' => $unit['locator_value'],
                     'sequence' => $unit['sequence'], 'text' => $unit['text'], 'char_count' => mb_strlen($unit['text']),
-                    'extraction_method' => 'ocr', 'provider' => $job->provider, 'processing_version' => $job->processing_version,
+                    'extraction_method' => $unit['extraction_method'] ?? 'ocr', 'provider' => $job->provider, 'processing_version' => $job->processing_version,
                     'source_fingerprint' => $job->source_fingerprint, 'status' => 'ready', 'created_at' => $now, 'updated_at' => $now,
                 ]);
             }

@@ -1,12 +1,12 @@
 # LF-Media-Processing-Contract.md
 
-Version: 1.6
+Version: 1.9
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-24
+Last Updated: 2026-08-25
 
 Document Path: platform/LF-Media-Processing-Contract.md
 
@@ -289,6 +289,72 @@ sản xuất Digital Asset; diễn giải thuộc về Domain tiêu thụ.
 ---
 
 # 3. Source fingerprint và processing version
+
+## Phase 1 local document provider
+
+Provider runtime `local_document` hiện thực riêng capability `ocr` cho
+`file_type=document`; nó không phải fake adapter và không thay thế virus scan.
+Worker phải lấy source qua `storage_disk`/`storage_key` bằng stream, nên cùng
+implementation chạy được với local disk và S3 mà không giả định source có local
+path. Ba đường xử lý deterministic là:
+
+| Source | Đường xử lý | `extraction_method` persist |
+| --- | --- | --- |
+| `txt`, DOCX có text | đọc UTF-8 hoặc `word/document.xml` | `embedded_text` |
+| PDF có text layer | Poppler `pdftotext -layout`, tách theo page break | `embedded_text` |
+| PDF scan; Office cần conversion (`doc`, `xls`, `xlsx`, `ppt`, `pptx`); DOCX không có text | LibreOffice headless → PDF khi cần; Poppler render từng trang → Tesseract theo locale canonical | `ocr` nếu fallback OCR, nếu PDF chuyển đổi có text layer thì `embedded_text` |
+
+Locale Tesseract Phase 1 được map tường minh `vi → vie+eng`, `ko → kor+eng`,
+`en → eng`; locale khác fail-closed bằng `unsupported_source`, không language
+detection. Output rỗng fail bằng `no_extractable_text`; source hỏng/không hỗ trợ,
+timeout và giới hạn text có error code riêng. Không job nào được đánh `ready` nếu
+không có ít nhất một unit text.
+
+Runtime bắt buộc có `pdftotext`, `pdftoppm`, `pdfinfo`, Tesseract language data
+và LibreOffice. Local và AWS worker phải ship cùng binary/config version; thay
+binary, language data, DPI hoặc conversion config có ảnh hưởng output phải tăng
+`MEDIA_OCR_VERSION`. Provider giới hạn text dẫn xuất bằng
+`MEDIA_MAX_EXTRACTED_CHARACTERS`; giới hạn upload 1 GB không có nghĩa worker
+được phép giữ toàn bộ source hay output không giới hạn trong memory.
+
+Resource controls Phase 1 là contract, không phải tuning tuỳ ý:
+
+* job timeout `3.600s`, provider deadline `3.300s`; timeout command đơn lẻ tối
+  đa `300s`, LibreOffice tối đa `900s` và luôn bị co lại theo deadline còn lại;
+* queue visibility/retry-after phải lớn hơn job timeout; default Redis,
+  database queue và Beanstalkd là `3.900s`. Với SQS, deployment phải đồng thời
+  chứng minh `visibility timeout > 3.600s`, supervisor `--timeout >= 3.600s`
+  và message retention lớn hơn visibility timeout; không được giữ các giá trị
+  này như runbook ngầm;
+* PDF tối đa `100` trang cho một OCR revision; vượt giới hạn fail trước
+  `pdftotext`/render/OCR bằng `page_limit_exceeded`;
+* `word/document.xml` tối đa `8.000.000` expanded bytes. Provider kiểm ZIP
+  metadata trước copy và vẫn đếm byte trong vòng copy để không tin metadata;
+* text dẫn xuất tối đa `500.000` ký tự cho một document revision. Vượt giới hạn
+  fail toàn transaction bằng `extracted_text_too_large`, không persist output
+  cắt cụt.
+
+Worker termination/timeout nằm ngoài `handle()` phải gọi lifecycle `failed()`.
+Callback này chỉ đổi row cùng tenant/job còn ở `processing` sang
+`failed/provider_timeout`; row đã `ready` không bị ghi đè. Nhờ vậy stale
+`processing` không giữ concurrency guard vĩnh viễn và retry profile-scoped vẫn
+dùng được. Supervisor `--timeout`, job `$timeout` và queue visibility phải giữ
+thứ tự `provider deadline < worker timeout < visibility timeout`.
+
+`failed()` chỉ đóng được timeout có kiểm soát khi Laravel worker còn sống để
+chạy callback. `SIGKILL`, OOM kill, container eviction hoặc host failure có thể
+để row ở `processing` mà không có callback. Phase AWS phải có stale-processing
+sweeper định kỳ: tìm row `processing` có `started_at` cũ hơn job timeout cộng
+safety margin, chuyển có điều kiện sang `failed/provider_timeout`, để retry chain
+profile-scoped tiếp tục. Sweeper phải dùng tenant/job identity, không ghi đè row
+đã đổi trạng thái, và mỗi lần transition phải có operational evidence. Đây là
+deployment/runtime amendment cần review trước khi production activation; Phase
+local hiện tại chưa implement sweeper.
+
+Đây là provider self-hosted. Trên AWS, queue worker cần ephemeral disk đủ cho
+source + PDF/image trung gian và IAM read source object; browser/admin không chạy
+binary. Production activation vẫn chịu R1/R2 và deployment/provider gates trong
+Architecture Review.
 
 ## Fingerprint
 
