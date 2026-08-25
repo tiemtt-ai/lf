@@ -38,6 +38,12 @@ class BenchmarkError(RuntimeError):
         self.code = code
 
 
+class ExtractedUnits(list):
+    """Text units plus the page count observed by the extraction engine."""
+
+    page_count = None
+
+
 def normalize(text):
     return " ".join(str(text or "").split())
 
@@ -79,7 +85,7 @@ def lcs_length(a, b):
 
 def boundary_score(reference, candidate):
     a, b = tokens(reference), tokens(candidate)
-    return lcs_length(a, b) / max(1, len(a))
+    return lcs_length(a, b) / max(1, len(a), len(b))
 
 
 def kendall_tau(reference, candidate):
@@ -89,6 +95,18 @@ def kendall_tau(reference, candidate):
     discordant = sum(seq[i] > seq[j] for i in range(len(seq)) for j in range(i + 1, len(seq)))
     pairs = len(seq) * (len(seq) - 1) / 2
     return 1 - 2 * discordant / pairs
+
+
+def observed_anchor_order(reference, candidate_text):
+    candidate_tokens = tokens(candidate_text)
+    observed = []
+    for anchor in reference:
+        needle = tokens(anchor)
+        position = next((index for index in range(len(candidate_tokens) - len(needle) + 1)
+                         if candidate_tokens[index:index + len(needle)] == needle), None)
+        if position is not None:
+            observed.append((position, anchor))
+    return [anchor for _, anchor in sorted(observed)]
 
 
 def percentile(values, pct):
@@ -107,13 +125,46 @@ def safe_path(root, relative):
     return path
 
 
-def validate_manifest(path, config):
+QUALITY_KEYS = ("vi_cer_raw_max", "vi_cer_diacritic_stripped_max", "ko_cer_max", "page_coverage_min")
+
+
+def document_eligibility(doc):
+    expected = bool(doc.get("expected_error"))
+    draft_truth = bool(doc.get("needs_owner_verification")) or str(doc.get("ground_truth_status", "")).startswith("draft")
+    quality = bool(doc.get("quality_metrics_eligible", not expected and not draft_truth))
+    performance = bool(doc.get("performance_metrics_eligible", not expected and not draft_truth))
+    return {
+        "expected_error": expected,
+        "quality": quality,
+        "performance": performance,
+        "execute": expected or quality or performance,
+        "reason": None if expected or quality or performance else "fixture is not eligible for quality or performance metrics",
+    }
+
+
+def expected_sha256(doc, corpus_root):
+    declared = doc.get("sha256")
+    if declared:
+        return str(declared).lower()
+    evidence = doc.get("source_approval_evidence")
+    if not evidence:
+        return None
+    evidence_path = safe_path(corpus_root, evidence)
+    if not evidence_path.is_file():
+        return None
+    match = re.search(r"SHA-256:\s*`?([0-9a-fA-F]{64})`?", evidence_path.read_text(encoding="utf-8"))
+    return match.group(1).lower() if match else None
+
+
+def validate_manifest(path, config, mode="official"):
     errors = []
-    if not path.is_file(): return [f"approved corpus manifest missing: {path}"]
+    if mode not in {"official", "exploratory"}:
+        return [f"unsupported benchmark mode: {mode}"]
+    if not path.is_file(): return [f"corpus manifest missing: {path}"]
     try: data = json.loads(path.read_text(encoding="utf-8"))
     except Exception as exc: return [f"manifest invalid: {exc}"]
     approval = data.get("approval", {})
-    if approval.get("status") != "approved" or not approval.get("approved_by") or not approval.get("approved_at"):
+    if mode == "official" and (approval.get("status") != "approved" or not approval.get("approved_by") or not approval.get("approved_at")):
         errors.append("manifest is not Owner-approved with identity and date")
     contains_pii = data.get("contains_pii")
     if not isinstance(contains_pii, bool):
@@ -132,19 +183,41 @@ def validate_manifest(path, config):
             errors.append(f"PII corpus governance missing: {', '.join(missing)}")
         if governance.get("external_processing_allowed") is not False:
             errors.append("PII corpus must explicitly disable external processing")
+        today = datetime.now(timezone.utc).date().isoformat()
+        if governance.get("retention_until") and governance["retention_until"] < today:
+            errors.append("PII corpus retention period has expired")
+        if governance.get("deletion_required_by") and governance["deletion_required_by"] <= today:
+            errors.append("PII corpus deletion deadline has been reached")
     counts = Counter((d.get("locale"), d.get("stratum")) for d in data.get("documents", []))
-    for locale in ("vi", "ko"):
-        for stratum, minimum in MINIMUMS.items():
-            if counts[(locale, stratum)] < minimum:
-                errors.append(f"{locale}/{stratum}: {counts[(locale, stratum)]} < {minimum}")
+    if mode == "official":
+        for locale in ("vi", "ko"):
+            for stratum, minimum in MINIMUMS.items():
+                if counts[(locale, stratum)] < minimum:
+                    errors.append(f"{locale}/{stratum}: {counts[(locale, stratum)]} < {minimum}")
     root = path.parent.resolve()
     for doc in data.get("documents", []):
+        eligibility = document_eligibility(doc)
+        if mode == "official" and not eligibility["expected_error"] and not eligibility["quality"]:
+            errors.append(f"{doc.get('id')}: official fixture is not eligible for quality metrics")
         if doc.get("locale") not in config["locales"]:
             errors.append(f"{doc.get('id')}: unsupported or missing canonical locale")
-        for key in ("source", "ground_truth"):
+        required_paths = ("source",) if doc.get("expected_error") else ("source", "ground_truth")
+        for key in required_paths:
             try: candidate = safe_path(root, doc.get(key, ""))
             except BenchmarkError as exc: errors.append(f"{doc.get('id')}: {exc}"); continue
             if not candidate.is_file(): errors.append(f"{doc.get('id')}: missing {key} {candidate}")
+        if eligibility["execute"]:
+            try: source = safe_path(root, doc.get("source", ""))
+            except BenchmarkError: continue
+            expected_hash = expected_sha256(doc, root)
+            if not expected_hash:
+                errors.append(f"{doc.get('id')}: executable fixture requires a SHA-256 declaration or referenced approval evidence")
+            elif source.is_file() and hashlib.sha256(source.read_bytes()).hexdigest() != expected_hash:
+                errors.append(f"{doc.get('id')}: source SHA-256 mismatch")
+    if mode == "official":
+        missing = [key for key in QUALITY_KEYS if config["gates"].get(key) is None]
+        if missing:
+            errors.append("Owner quality thresholds not frozen: " + ", ".join(missing))
     return errors
 
 
@@ -233,6 +306,7 @@ def baseline(source, locale, count, config):
 
 def docling(source, locale, count, config):
     try:
+        from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
         from docling.datamodel.base_models import InputFormat
         from docling.datamodel.pipeline_options import PdfPipelineOptions, TesseractCliOcrOptions
         from docling.document_converter import DocumentConverter, PdfFormatOption
@@ -245,7 +319,11 @@ def docling(source, locale, count, config):
         document_timeout=config["contract"]["max_processing_seconds"],
         enable_remote_services=False,
         allow_external_plugins=False,
+        accelerator_options=AcceleratorOptions(
+            device=AcceleratorDevice(config["docling"]["accelerator_device"]),
+        ),
     )
+    options.layout_options.engine_options.compile_model = bool(config["docling"]["compile_layout_model"])
     options.do_ocr = True
     options.do_table_structure = bool(config["docling"]["do_table_structure"])
     options.ocr_options = TesseractCliOcrOptions(
@@ -255,8 +333,9 @@ def docling(source, locale, count, config):
     converter = DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=options)})
     try: result = converter.convert(str(source), max_num_pages=config["contract"]["max_pages"])
     except Exception as exc: raise BenchmarkError("command_failed", str(exc)) from exc
-    units = []
+    units = ExtractedUnits()
     actual_count = len(getattr(result.document, "pages", {})) or count
+    units.page_count = actual_count
     if actual_count > config["contract"]["max_pages"]: raise BenchmarkError("page_limit_exceeded", str(actual_count))
     for page in range(1, actual_count + 1):
         text = normalize(result.document.export_to_text(page_no=page, traverse_pictures=True))
@@ -275,7 +354,13 @@ def worker(payload):
         if chars > config["contract"]["max_extracted_characters"]:
             raise BenchmarkError("extracted_text_too_large", str(chars))
         if not units: raise BenchmarkError("no_extractable_text", "no non-blank text unit")
-        answer = {"status": "ready", "error_code": None, "page_count": count, "units": units}
+        answer = {
+            "status": "ready",
+            "error_code": None,
+            "source_page_count": count,
+            "page_count": getattr(units, "page_count", None) or count,
+            "units": units,
+        }
     except BenchmarkError as exc:
         answer = {"status": "failed", "error_code": exc.code, "message": str(exc), "page_count": None, "units": []}
     answer["latency_seconds"] = time.perf_counter() - start
@@ -286,47 +371,67 @@ def measured_engine(engine, source, locale, config):
     payload = {"engine": engine, "source": str(source), "locale": locale, "config": config}
     proc = subprocess.Popen([sys.executable, __file__, "--worker", json.dumps(payload)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     peak = 0
+    resource_warnings = []
     try:
         import psutil
         watched = psutil.Process(proc.pid)
         while proc.poll() is None:
             try: peak = max(peak, watched.memory_info().rss + sum(c.memory_info().rss for c in watched.children(recursive=True)))
-            except psutil.Error: pass
+            except (psutil.Error, OSError) as exc:
+                if not resource_warnings: resource_warnings.append(f"child RSS unavailable: {exc}")
+                try: peak = max(peak, watched.memory_info().rss)
+                except (psutil.Error, OSError): pass
             time.sleep(0.05)
     except ImportError: pass
     stdout, stderr = proc.communicate(timeout=10)
     if proc.returncode or not stdout.strip():
         return {"status": "failed", "error_code": "command_failed", "message": stderr[-1000:], "units": [], "latency_seconds": None, "peak_rss_bytes": peak}
-    result = json.loads(stdout.strip().splitlines()[-1]); result["peak_rss_bytes"] = peak
+    result = json.loads(stdout.strip().splitlines()[-1]); result["peak_rss_bytes"] = peak; result["resource_warnings"] = resource_warnings
     return result
 
 
 def evaluate(engine_result, truth, doc, gates):
     by_page = {int(unit["page"]): unit["text"] for unit in engine_result.get("units", [])}
     truth_pages = {int(unit["page"]): normalize(unit.get("text", "")) for unit in truth["pages"]}
-    metrics = {"cer_raw": [], "cer_stripped": [], "boundary": [], "adjacent_violation": False, "coverage": []}
+    metrics = {"cer_raw": [], "cer_stripped": [], "boundary": [], "adjacent_violation": False, "coverage": [], "per_page": []}
     for page, reference in truth_pages.items():
         candidate = by_page.get(page, "")
         if reference:
-            metrics["cer_raw"].append(cer(reference, candidate))
-            metrics["cer_stripped"].append(cer(strip_diacritics(reference), strip_diacritics(candidate)))
+            raw = cer(reference, candidate)
+            stripped = cer(strip_diacritics(reference), strip_diacritics(candidate))
+            metrics["cer_raw"].append(raw)
+            metrics["cer_stripped"].append(stripped)
             current = boundary_score(reference, candidate); metrics["boundary"].append(current)
-            adjacent = [boundary_score(reference, by_page.get(page + offset, "")) for offset in (-1, 1)]
+            previous = boundary_score(reference, by_page.get(page - 1, ""))
+            following = boundary_score(reference, by_page.get(page + 1, ""))
+            adjacent = [previous, following]
             if adjacent and max(adjacent) > current: metrics["adjacent_violation"] = True
             metrics["coverage"].append(bool(candidate))
-        elif page in by_page: metrics.setdefault("blank_page_violation", True)
+            metrics["per_page"].append({"page": page, "ground_truth_has_content": True, "output_has_text": bool(candidate), "cer_raw": raw, "cer_stripped": stripped, "boundary_score": current, "boundary_previous_page": previous, "boundary_next_page": following, "adjacent_violation": max(adjacent) > current})
+        else:
+            blank_violation = page in by_page
+            if blank_violation: metrics.setdefault("blank_page_violation", True)
+            metrics["per_page"].append({"page": page, "ground_truth_has_content": False, "output_has_text": bool(candidate), "blank_page_violation": blank_violation})
     order_ref = truth.get("reading_order", [])
-    order_out = tokens(" ".join(by_page.values())) if order_ref else []
+    order_out = observed_anchor_order(order_ref, " ".join(by_page.values())) if order_ref else []
+    reading_order_complete = not order_ref or len(order_out) == len(order_ref)
+    reading_order_tau = kendall_tau(order_ref, order_out) if order_ref else None
+    reading_order_pass = not order_ref or (
+        reading_order_complete and reading_order_tau >= gates["reading_order_tau_min"]
+    )
     return {
         "cer_raw": statistics.mean(metrics["cer_raw"]) if metrics["cer_raw"] else None,
         "cer_stripped": statistics.mean(metrics["cer_stripped"]) if metrics["cer_stripped"] else None,
         "boundary_min": min(metrics["boundary"]) if metrics["boundary"] else None,
         "adjacent_violation": metrics["adjacent_violation"],
-        "coverage": sum(metrics["coverage"]) / max(1, len(metrics["coverage"])),
+        "coverage": sum(metrics["coverage"]) / len(metrics["coverage"]) if metrics["coverage"] else None,
         "blank_page_violation": metrics.get("blank_page_violation", False),
-        "reading_order_tau": kendall_tau(order_ref, order_out) if order_ref else None,
+        "reading_order_tau": reading_order_tau,
+        "reading_order_observed": order_out if order_ref else None,
+        "reading_order_complete": reading_order_complete,
+        "per_page_metrics": metrics["per_page"],
         "page_count_match": engine_result.get("page_count") == len(truth_pages),
-        "citation_pass": (not metrics["boundary"] or min(metrics["boundary"]) >= gates["boundary_score_min"]) and not metrics["adjacent_violation"] and not metrics.get("blank_page_violation", False) and engine_result.get("page_count") == len(truth_pages),
+        "citation_pass": (not metrics["boundary"] or min(metrics["boundary"]) >= gates["boundary_score_min"]) and not metrics["adjacent_violation"] and not metrics.get("blank_page_violation", False) and reading_order_pass and engine_result.get("page_count") == len(truth_pages),
     }
 
 
@@ -362,95 +467,181 @@ def dependency_errors(config):
     return errors
 
 
-def summarize(rows, config, manifest_errors):
-    quality_keys = ("vi_cer_raw_max", "vi_cer_diacritic_stripped_max", "ko_cer_max", "page_coverage_min")
-    thresholds_missing = any(config["gates"].get(key) is None for key in quality_keys)
+def threshold_failure(row, gates):
+    if not row.get("quality_eligible") or row.get("status") != "ready":
+        return False
+    limits = []
+    if row["locale"] == "vi":
+        limits += [("cer_raw", "vi_cer_raw_max"), ("cer_stripped", "vi_cer_diacritic_stripped_max")]
+    elif row["locale"] == "ko":
+        limits.append(("cer_raw", "ko_cer_max"))
+    limits.append(("coverage", "page_coverage_min"))
+    return any(row.get(metric) is not None and gates.get(key) is not None and row[metric] > gates[key]
+               for metric, key in limits if metric != "coverage") or any(
+        row.get(metric) is not None and gates.get(key) is not None and row[metric] < gates[key]
+        for metric, key in limits if metric == "coverage"
+    )
+
+
+def performance_for(rows, engine):
+    eligible = [row for row in rows if row["engine"] == engine and row["status"] == "ready" and row.get("performance_eligible", True)]
+    page_latencies = [row["seconds_per_page"] for row in eligible if row["seconds_per_page"] is not None]
+    document_latencies = [row["latency_seconds"] for row in eligible if row["latency_seconds"] is not None]
+    worst_page = max(eligible, key=lambda row: row["seconds_per_page"] if row["seconds_per_page"] is not None else -1, default=None)
+    worst_document = max(eligible, key=lambda row: row["latency_seconds"] if row["latency_seconds"] is not None else -1, default=None)
+    return {
+        "p50_seconds_per_page": percentile(page_latencies, .50),
+        "p95_seconds_per_page": percentile(page_latencies, .95),
+        "worst_seconds_per_page": worst_page.get("seconds_per_page") if worst_page else None,
+        "worst_page_document_id": worst_page.get("document_id") if worst_page else None,
+        "p99_document_seconds": percentile(document_latencies, .99),
+        "worst_document_seconds": worst_document.get("latency_seconds") if worst_document else None,
+        "worst_document_id": worst_document.get("document_id") if worst_document else None,
+        "pages_per_minute": 60 / statistics.mean(page_latencies) if page_latencies else None,
+        "peak_rss_bytes": max((row["peak_rss_bytes"] for row in eligible), default=0),
+    }
+
+
+def summarize(rows, config, validation_errors, mode):
+    thresholds_missing = any(config["gates"].get(key) is None for key in QUALITY_KEYS)
     strata = {}
     for stratum in sorted(MINIMUMS):
         group = [row for row in rows if row["stratum"] == stratum]
         docling_rows = [row for row in group if row["engine"] == "docling"]
-        failures = [row for row in docling_rows if not row["pass"]]
-        stratum_p95 = percentile([r["seconds_per_page"] for r in docling_rows if r["seconds_per_page"] is not None], .95)
+        failures = [row for row in docling_rows if not row["observation_ok"] or threshold_failure(row, config["gates"])]
+        stratum_p95 = percentile([r["seconds_per_page"] for r in docling_rows if r.get("performance_eligible") and r["seconds_per_page"] is not None], .95)
         performance_failed = stratum_p95 is not None and stratum_p95 > config["gates"]["p95_seconds_per_page_max"]
-        status = "FAIL" if failures or performance_failed else ("DECISION_REQUIRED" if docling_rows and thresholds_missing else ("PASS" if docling_rows else "NOT_RUN"))
+        if mode == "exploratory":
+            status = "OBSERVED_WITH_ERRORS" if failures else ("OBSERVED" if docling_rows else "NOT_RUN")
+        else:
+            status = "FAIL" if failures or performance_failed else ("DECISION_REQUIRED" if docling_rows and thresholds_missing else ("PASS" if docling_rows else "NOT_RUN"))
         strata[stratum] = {"documents": len(docling_rows), "status": status, "failures": len(failures), "p95_seconds_per_page": stratum_p95}
-    latencies = [r["seconds_per_page"] for r in rows if r["engine"] == "docling" and r["seconds_per_page"] is not None]
-    document_latencies = [r["latency_seconds"] for r in rows if r["engine"] == "docling" and r["latency_seconds"] is not None]
-    performance = {"p50_seconds_per_page": percentile(latencies, .50), "p95_seconds_per_page": percentile(latencies, .95), "p99_document_seconds": percentile(document_latencies, .99), "pages_per_minute": 60 / statistics.mean(latencies) if latencies else None, "peak_rss_bytes": max((r["peak_rss_bytes"] for r in rows), default=0)}
+    pipeline_performance = {engine: performance_for(rows, engine) for engine in ("baseline", "docling")}
+    performance = pipeline_performance["docling"]
     decision_fail = any(strata[s]["status"] == "FAIL" for s in DECISION_STRATA)
-    incomplete = bool(manifest_errors) or thresholds_missing or any(strata[s]["status"] in {"NOT_RUN", "DECISION_REQUIRED"} for s in DECISION_STRATA)
+    incomplete = bool(validation_errors) or thresholds_missing or any(strata[s]["status"] in {"NOT_RUN", "DECISION_REQUIRED"} for s in DECISION_STRATA)
     perf_fail = performance["p95_seconds_per_page"] is not None and performance["p95_seconds_per_page"] > config["gates"]["p95_seconds_per_page_max"]
-    verdict = "DECISION_REQUIRED" if incomplete else ("A0_FAIL" if decision_fail or perf_fail else "A0_PASS")
+    verdict = "OWNER_DECISION_REQUIRED" if mode == "exploratory" else ("DECISION_REQUIRED" if incomplete else ("A0_FAIL" if decision_fail or perf_fail else "A0_PASS"))
     locale_metrics = {}
     for locale in ("vi", "ko", "en"):
         locale_metrics[locale] = {}
         for engine in ("baseline", "docling"):
-            group = [r for r in rows if r["locale"] == locale and r["engine"] == engine]
+            group = [r for r in rows if r["locale"] == locale and r["engine"] == engine and r.get("quality_eligible", True)]
             locale_metrics[locale][engine] = {
                 "documents": len(group),
                 "cer_raw_mean": statistics.mean(r["cer_raw"] for r in group if r.get("cer_raw") is not None) if any(r.get("cer_raw") is not None for r in group) else None,
                 "cer_diacritic_stripped_mean": statistics.mean(r["cer_stripped"] for r in group if r.get("cer_stripped") is not None) if any(r.get("cer_stripped") is not None for r in group) else None,
                 "coverage_mean": statistics.mean(r["coverage"] for r in group if r.get("coverage") is not None) if any(r.get("coverage") is not None for r in group) else None,
             }
-    return verdict, strata, performance, locale_metrics
+    return verdict, strata, performance, pipeline_performance, locale_metrics
 
 
 def report_markdown(result):
-    lines = ["# LF A0 Docling Benchmark Report", "", f"Verdict: **{result['verdict']}**", "", "## Environment", ""]
+    lines = ["# LF A0 Docling Benchmark Report", "", f"Mode: **{result['mode']}**", f"Verdict: **{result['verdict']}**", f"Non-official: **{str(result['non_official']).lower()}**", f"Thresholds applied: **{str(result['thresholds_applied']).lower()}**"]
+    if result["non_official"]:
+        lines += ["", "> Exploratory evidence only. This report cannot authorize A1, runtime deployment, a provider binding, or a Tech Stack change."]
+    lines += ["", "## Environment", ""]
     lines += [f"- `{key}`: `{value}`" for key, value in sorted(result["environment"].items())]
     lines += ["", "## Corpus manifest", "", f"- Corpus: `{result['corpus'].get('corpus_id', 'unavailable')}`", f"- Revision: `{result['corpus'].get('revision', 'unavailable')}`", f"- Documents: `{len(result['corpus'].get('documents', []))}`"]
     if result["blockers"]: lines += ["", "## Blockers / limits", ""] + [f"- {item}" for item in result["blockers"]]
+    if result.get("decision_requirements"): lines += ["", "## Pending Owner decisions / corpus gaps", ""] + [f"- {item}" for item in result["decision_requirements"]]
+    if result.get("metric_unavailable"): lines += ["", "## Metrics not available", ""] + [f"- {item}" for item in result["metric_unavailable"]]
+    observed_errors = {(row.get("engine"), row.get("error_code"), row.get("error_message")) for row in result["per_document"] if row.get("error_code") and row.get("error_code") != row.get("expected_error")}
+    if observed_errors:
+        lines += ["", "## Observed engine errors", "", "| Pipeline | Error code | Message |", "|---|---|---|"]
+        for engine, code, message in sorted(observed_errors, key=lambda item: (str(item[0]), str(item[1]), str(item[2]))):
+            escaped_message = str(message or "").replace("|", "\\|")
+            lines.append(f"| {engine} | {code} | {escaped_message} |")
     lines += ["", "## S1–S10 decision gates", "", "| Stratum | Documents | Status | Failures |", "|---|---:|---|---:|"]
     for stratum in [f"S{i}" for i in range(1, 11)]:
         item = result["strata"][stratum]; lines.append(f"| {stratum} | {item['documents']} | {item['status']} | {item['failures']} |")
     lines += ["", "## S11–S14 resource/error strata", "", "| Stratum | Documents | Status | Failures |", "|---|---:|---|---:|"]
     for stratum in [f"S{i}" for i in range(11, 15)]:
         item = result["strata"][stratum]; lines.append(f"| {stratum} | {item['documents']} | {item['status']} | {item['failures']} |")
-    lines += ["", "## Performance", ""] + [f"- `{key}`: `{value}`" for key, value in result["performance"].items()]
+    lines += ["", "## Performance by pipeline", "", "| Pipeline | p50 s/page | p95 s/page | worst s/page | p99 document s | worst document s | peak RSS bytes |", "|---|---:|---:|---:|---:|---:|---:|"]
+    for engine, item in result["pipeline_performance"].items():
+        lines.append(f"| {engine} | {item['p50_seconds_per_page']} | {item['p95_seconds_per_page']} | {item['worst_seconds_per_page']} | {item['p99_document_seconds']} | {item['worst_document_seconds']} | {item['peak_rss_bytes']} |")
     lines += ["", "## Locale-specific quality", "", "| Locale | Engine | Documents | CER raw | CER stripped | Coverage |", "|---|---|---:|---:|---:|---:|"]
     for locale, engines in result["locale_metrics"].items():
         for engine, item in engines.items():
             lines.append(f"| {locale} | {engine} | {item['documents']} | {item['cer_raw_mean']} | {item['cer_diacritic_stripped_mean']} | {item['coverage_mean']} |")
-    lines += ["", "Budget: p95 ≤ 33 seconds/page; every decision stratum must pass independently. VI and KO metrics remain separate in `result.json` and `per_document.csv`; no pooled-only decision is used.", "", "## A1 boundary", "", "This report does not authorize A1 or runtime deployment. An `A0_PASS` would only provide evidence for Owner review of a Tech Stack amendment, pinned model/binary parity, and repeatable local/AWS parity.", ""]
+    coverage_regressions = [row for row in result["per_document"] if row.get("quality_eligible") and row.get("coverage") is not None and row["coverage"] < 1]
+    if coverage_regressions:
+        lines += ["", "## Page coverage regressions", "", "| Document | Pipeline | Coverage | Missing content pages |", "|---|---|---:|---|"]
+        for row in coverage_regressions:
+            missing = [str(page["page"]) for page in row.get("per_page_metrics", []) if page.get("ground_truth_has_content") and not page.get("output_has_text")]
+            lines.append(f"| {row['document_id']} | {row['engine']} | {row['coverage']} | {', '.join(missing) or 'unavailable'} |")
+    parity_regressions = [row for row in result["per_document"] if row.get("quality_eligible") and row.get("status") == "ready" and not row.get("citation_pass", False)]
+    if parity_regressions:
+        lines += ["", "## Citation / layout parity regressions", "", "| Document | Pipeline | Boundary min | Adjacent violation | Reading order complete/tau | Blank violation | Page count match |", "|---|---|---:|---|---|---|---|"]
+        for row in parity_regressions:
+            lines.append(f"| {row['document_id']} | {row['engine']} | {row.get('boundary_min')} | {row.get('adjacent_violation')} | {row.get('reading_order_complete')}/{row.get('reading_order_tau')} | {row.get('blank_page_violation')} | {row.get('page_count_match')} |")
+    lines += ["", "Budget: p95 ≤ 33 seconds/page; every decision stratum must pass independently. VI and KO metrics remain separate in `result.json` and `per_document.csv`; no pooled-only decision is used.", "", "## Evidence and decision boundary", "", "- Expected-error fixtures are preflight-only and excluded from OCR, quality, and performance metrics.", "- A metric is `unavailable` when corpus eligibility or ground truth does not support it; it is never replaced with zero or pass.", "- Threshold recommendations are withheld until Owner-approved VI/KO ground truth and representative real-source coverage are sufficient.", "- Per-process timings include model cold start because each fixture is isolated; they are evidence for this harness run, not steady-state AWS capacity sizing.", "", "## A1 gates", "", "This report does not authorize A1 or runtime deployment. Before A1, Owner must explicitly approve the corpus and four quality thresholds, review all A0 regressions, approve a Tech Stack amendment, establish pinned local/AWS binary-model-config parity, apply PII retention/deletion controls, and pass Architecture Review.", ""]
+    return "\n".join(lines)
+
+
+def decision_package_markdown(result):
+    failing = [row for row in result["per_document"] if row.get("quality_eligible") and row.get("status") == "ready" and (row.get("coverage") is not None and row["coverage"] < 1 or not row.get("citation_pass", False))]
+    lines = ["# A0 Owner Decision Package", "", f"Status: **{result['verdict']}**", "", "This package is exploratory, non-official evidence and cannot authorize A1 or runtime deployment.", "", "## Evidence available", "", "- Python 3.11 offline Docling and deterministic baseline results are recorded per document, locale, stratum, pipeline, and page.", "- S13 expected-error handling, blank-page behavior, boundary/adjacent-page checks, reading order, CER, coverage, latency, and memory are recorded where eligible.", "", "## Unresolved evidence", ""]
+    lines += [f"- {item}" for item in result.get("metric_unavailable", [])] or ["- None reported by the harness."]
+    lines += ["", "## Regressions requiring review", ""]
+    lines += [f"- `{row['document_id']}` / `{row['engine']}`: coverage={row.get('coverage')}, boundary_min={row.get('boundary_min')}, adjacent_violation={row.get('adjacent_violation')}, reading_order={row.get('reading_order_complete')}/{row.get('reading_order_tau')}." for row in failing] or ["- None observed in eligible fixtures."]
+    lines += ["", "## Owner decisions before official A0", ""]
+    lines += [f"- {item}" for item in result.get("decision_requirements", [])] or ["- Approve the corpus revision and all four non-null quality thresholds."]
+    lines += ["", "## Gates before A1", "", "- Official A0 must complete under the approved corpus and thresholds.", "- Owner must explicitly approve a Tech Stack amendment; this package does not amend it.", "- Local/AWS binary, model, locale, and configuration parity must be reproducible.", "- PII access, audit, retention, and deletion policy must be operationally enforced.", "- Architecture Review and explicit Owner approval remain mandatory.", ""]
     return "\n".join(lines)
 
 
 def run(args):
     config = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
     manifest_path = pathlib.Path(args.corpus).resolve()
-    errors = validate_manifest(manifest_path, config)
+    errors = validate_manifest(manifest_path, config, args.mode)
+    decision_requirements = [] if args.mode == "official" else validate_manifest(manifest_path, config, "official")
     manifest = {}
     if manifest_path.is_file():
         try: manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         except Exception: pass
     rows = []
+    excluded = []
     if not errors:
         corpus_root = manifest_path.parent
         for doc in manifest["documents"]:
+            eligibility = document_eligibility(doc)
+            if not eligibility["execute"]:
+                excluded.append(f"{doc['id']}: {eligibility['reason']}")
+                continue
             source = safe_path(corpus_root, doc["source"])
-            truth = json.loads(safe_path(corpus_root, doc["ground_truth"]).read_text(encoding="utf-8"))
+            expected = doc.get("expected_error")
+            truth = {} if expected else json.loads(safe_path(corpus_root, doc["ground_truth"]).read_text(encoding="utf-8"))
             for engine in ("baseline", "docling"):
                 outcome = measured_engine(engine, source, doc["locale"], config)
-                expected = doc.get("expected_error")
-                metrics = evaluate(outcome, truth, doc, config["gates"]) if outcome["status"] == "ready" else {}
-                page_count = outcome.get("page_count") or len(truth.get("pages", [])) or 1
-                passed = outcome.get("error_code") == expected if expected else outcome["status"] == "ready" and metrics.get("citation_pass", False)
-                rows.append({"document_id": doc["id"], "locale": doc["locale"], "stratum": doc["stratum"], "engine": engine, "status": outcome["status"], "error_code": outcome.get("error_code"), "pass": passed, "page_count": page_count, "latency_seconds": outcome.get("latency_seconds"), "seconds_per_page": outcome.get("latency_seconds") / page_count if outcome.get("latency_seconds") else None, "peak_rss_bytes": outcome.get("peak_rss_bytes", 0), **metrics})
+                metrics = evaluate(outcome, truth, doc, config["gates"]) if eligibility["quality"] and outcome["status"] == "ready" else {}
+                page_count = outcome.get("page_count") or len(truth.get("pages", [])) or None
+                observation_ok = outcome.get("error_code") == expected if expected else outcome["status"] == "ready" and (not eligibility["quality"] or metrics.get("citation_pass", False))
+                rows.append({"document_id": doc["id"], "locale": doc["locale"], "stratum": doc["stratum"], "engine": engine, "status": outcome["status"], "error_code": outcome.get("error_code"), "error_message": outcome.get("message"), "expected_error": expected, "quality_eligible": eligibility["quality"], "performance_eligible": eligibility["performance"], "observation_ok": observation_ok, "page_count": page_count, "latency_seconds": outcome.get("latency_seconds"), "seconds_per_page": outcome.get("latency_seconds") / page_count if eligibility["performance"] and outcome["status"] == "ready" and outcome.get("latency_seconds") and page_count else None, "peak_rss_bytes": outcome.get("peak_rss_bytes", 0), "resource_warnings": outcome.get("resource_warnings", []), **metrics})
     blockers = list(errors) + dependency_errors(config)
-    missing_thresholds = [key for key in ("vi_cer_raw_max", "vi_cer_diacritic_stripped_max", "ko_cer_max", "page_coverage_min") if config["gates"].get(key) is None]
-    if missing_thresholds:
-        blockers.append("Owner quality thresholds not frozen: " + ", ".join(missing_thresholds))
-    verdict, strata, performance, locale_metrics = summarize(rows, config, blockers)
+    metric_unavailable = list(excluded)
+    if any(row.get("resource_warnings") for row in rows):
+        metric_unavailable.append("child-process peak RSS is unavailable because the operating system denied process-tree inventory; main worker RSS is reported")
+    for locale in ("vi", "ko"):
+        if not any(r["locale"] == locale and r.get("quality_eligible") for r in rows):
+            metric_unavailable.append(f"{locale}: no eligible quality result; CER and coverage are unavailable")
+        for engine in ("baseline", "docling"):
+            eligible = [r for r in rows if r["locale"] == locale and r["engine"] == engine and r.get("quality_eligible")]
+            if eligible and not any(r.get("cer_raw") is not None for r in eligible):
+                metric_unavailable.append(f"{locale}/{engine}: CER and coverage unavailable because no eligible fixture completed successfully")
+    verdict, strata, performance, pipeline_performance, locale_metrics = summarize(rows, config, blockers, args.mode)
     run_id = args.run_id or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     out = pathlib.Path(args.output).resolve() / run_id; out.mkdir(parents=True, exist_ok=False)
-    result = {"schema_version": 1, "run_id": run_id, "created_at": datetime.now(timezone.utc).isoformat(), "verdict": verdict, "environment": environment(config), "config": config, "corpus": manifest, "blockers": blockers, "strata": strata, "performance": performance, "locale_metrics": locale_metrics, "per_document": rows}
+    result = {"schema_version": 3, "run_id": run_id, "created_at": datetime.now(timezone.utc).isoformat(), "mode": args.mode, "non_official": args.mode == "exploratory", "thresholds_applied": args.mode == "official" and not any(config["gates"].get(key) is None for key in QUALITY_KEYS), "verdict": verdict, "environment": environment(config), "config": config, "corpus": manifest, "blockers": blockers, "decision_requirements": decision_requirements, "metric_unavailable": metric_unavailable, "strata": strata, "performance": performance, "pipeline_performance": pipeline_performance, "locale_metrics": locale_metrics, "per_document": rows}
     (out / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    fields = sorted({key for row in rows for key in row}) or ["document_id", "locale", "stratum", "engine", "status", "error_code", "pass"]
+    fields = sorted({key for row in rows for key in row}) or ["document_id", "locale", "stratum", "engine", "status", "error_code", "observation_ok"]
     with (out / "per_document.csv").open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=fields); writer.writeheader(); writer.writerows(rows)
     (out / "report.md").write_text(report_markdown(result), encoding="utf-8")
+    (out / "decision-package.md").write_text(decision_package_markdown(result), encoding="utf-8")
     print(f"{verdict}: {out}")
-    return 0 if verdict == "A0_PASS" else 2
+    return 0 if args.mode == "exploratory" and not blockers else (0 if verdict == "A0_PASS" else 2)
 
 
 def main():
@@ -458,6 +649,7 @@ def main():
     parser.add_argument("--corpus", default=str(ROOT / "corpus" / "manifest.json"))
     parser.add_argument("--output", default=str(ROOT / "results"))
     parser.add_argument("--run-id")
+    parser.add_argument("--mode", choices=("official", "exploratory"), default="official")
     parser.add_argument("--worker")
     args = parser.parse_args()
     if args.worker: worker(json.loads(args.worker)); return 0

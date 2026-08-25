@@ -3,6 +3,10 @@ import json
 import pathlib
 import tempfile
 import unittest
+from argparse import Namespace
+from contextlib import redirect_stdout
+from io import StringIO
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("a0", ROOT / "a0_benchmark.py")
@@ -11,6 +15,26 @@ SPEC.loader.exec_module(A0)
 
 
 class HarnessTest(unittest.TestCase):
+    def config(self):
+        return json.loads((ROOT / "config.json").read_text())
+
+    def candidate(self, root, *, approved=False):
+        source = root / "quality.txt"
+        source.write_text("Xin chào benchmark", encoding="utf-8")
+        truth = root / "truth.json"
+        truth.write_text(json.dumps({"pages": [{"page": 1, "text": "Xin chào benchmark"}]}))
+        import hashlib
+        manifest = {
+            "corpus_id": "candidate",
+            "revision": "r1" if approved else "PENDING_OWNER_REVISION",
+            "approval": {"status": "approved" if approved else "pending", "approved_by": "Owner" if approved else "PENDING_OWNER_APPROVAL", "approved_at": "2026-08-25" if approved else None},
+            "contains_pii": False,
+            "documents": [{"id": "vi-s1", "locale": "vi", "stratum": "S1", "source": "quality.txt", "ground_truth": "truth.json", "sha256": hashlib.sha256(source.read_bytes()).hexdigest()}],
+        }
+        path = root / "manifest.json"
+        path.write_text(json.dumps(manifest))
+        return path
+
     def test_contract_is_exact(self):
         config = json.loads((ROOT / "config.json").read_text())
         self.assertEqual(100, config["contract"]["max_pages"])
@@ -18,6 +42,8 @@ class HarnessTest(unittest.TestCase):
         self.assertEqual(8000000, config["contract"]["max_docx_xml_bytes"])
         self.assertEqual(200, config["contract"]["ocr_dpi"])
         self.assertEqual({"vi": ["vie", "eng"], "ko": ["kor", "eng"], "en": ["eng"]}, config["locales"])
+        self.assertEqual("cpu", config["docling"]["accelerator_device"])
+        self.assertFalse(config["docling"]["compile_layout_model"])
 
     def test_metrics(self):
         self.assertEqual(0.0, A0.cer("abc", "abc"))
@@ -25,6 +51,8 @@ class HarnessTest(unittest.TestCase):
         self.assertEqual("Tieng Viet", A0.strip_diacritics("Tiếng Việt"))
         self.assertEqual(1.0, A0.kendall_tau(["a", "b", "c"], ["a", "b", "c"]))
         self.assertEqual(1.0, A0.boundary_score("mot hai", "mot hai"))
+        self.assertEqual(2 / 3, A0.boundary_score("mot hai", "mot hai ba"))
+        self.assertEqual(["VI-P1-C1", "VI-P1-C2"], A0.observed_anchor_order(["VI-P1-C1", "VI-P1-C2"], "VI P1 C1 text VI-P1-C2 text"))
 
     def test_unapproved_manifest_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -75,6 +103,88 @@ class HarnessTest(unittest.TestCase):
             errors = A0.validate_manifest(manifest, json.loads((ROOT / "config.json").read_text()))
             self.assertTrue(any("governance missing" in error for error in errors))
             self.assertTrue(any("disable external processing" in error for error in errors))
+
+    def test_expected_error_fixture_does_not_require_ground_truth(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "boundary.pdf").write_bytes(b"fixture")
+            manifest = root / "manifest.json"
+            manifest.write_text(json.dumps({
+                "approval": {
+                    "status": "approved",
+                    "approved_by": "Architecture Owner",
+                    "approved_at": "2026-08-25",
+                },
+                "contains_pii": False,
+                "documents": [{
+                    "id": "ko-s13-page-limit",
+                    "locale": "ko",
+                    "stratum": "S13",
+                    "source": "boundary.pdf",
+                    "expected_error": "page_limit_exceeded",
+                }],
+            }))
+            errors = A0.validate_manifest(manifest, json.loads((ROOT / "config.json").read_text()))
+            self.assertFalse(any("ground_truth" in error for error in errors))
+
+    def test_official_with_null_thresholds_does_not_process(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            manifest = self.candidate(root)
+            args = Namespace(corpus=str(manifest), output=str(root / "out"), run_id="official-null", mode="official")
+            with mock.patch.object(A0, "measured_engine") as measured, mock.patch.object(A0, "dependency_errors", return_value=[]), mock.patch.object(A0, "environment", return_value={}):
+                self.assertEqual(2, A0.run(args))
+            measured.assert_not_called()
+            result = json.loads((root / "out" / "official-null" / "result.json").read_text())
+            self.assertEqual("DECISION_REQUIRED", result["verdict"])
+            self.assertFalse(result["non_official"])
+            self.assertFalse(result["thresholds_applied"])
+
+    def test_exploratory_with_null_thresholds_processes_candidate_quality_fixture(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            manifest = self.candidate(root)
+            args = Namespace(corpus=str(manifest), output=str(root / "out"), run_id="exploratory", mode="exploratory")
+            outcome = {"status": "ready", "error_code": None, "page_count": 1, "units": [{"page": 1, "text": "Xin chào benchmark"}], "latency_seconds": 0.1, "peak_rss_bytes": 10}
+            with mock.patch.object(A0, "measured_engine", return_value=outcome) as measured, mock.patch.object(A0, "dependency_errors", return_value=[]), mock.patch.object(A0, "environment", return_value={}):
+                self.assertEqual(0, A0.run(args))
+            self.assertEqual(2, measured.call_count)
+            result = json.loads((root / "out" / "exploratory" / "result.json").read_text())
+            self.assertEqual("OWNER_DECISION_REQUIRED", result["verdict"])
+            self.assertTrue(result["non_official"])
+            self.assertFalse(result["thresholds_applied"])
+            self.assertEqual(2, len(result["per_document"]))
+
+    def test_exploratory_summary_can_never_return_official_verdict(self):
+        verdict, *_ = A0.summarize([], self.config(), [], "exploratory")
+        self.assertEqual("OWNER_DECISION_REQUIRED", verdict)
+        self.assertNotIn(verdict, {"A0_PASS", "A0_FAIL"})
+
+    def test_over_limit_pdf_stops_before_extraction_or_model_load(self):
+        payload = {"source": "/tmp/over-limit.pdf", "locale": "ko", "engine": "docling", "config": self.config()}
+        with mock.patch.object(pathlib.Path, "is_file", return_value=True), mock.patch.object(A0, "command", return_value=b"Pages:          101\n"), mock.patch.object(A0, "docling") as docling_engine, redirect_stdout(StringIO()) as output:
+            A0.worker(payload)
+        docling_engine.assert_not_called()
+        result = json.loads(output.getvalue())
+        self.assertEqual("page_limit_exceeded", result["error_code"])
+
+    def test_official_validation_requires_complete_approval_and_thresholds(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            source = root / "source.txt"; source.write_text("truth")
+            truth = root / "truth.json"; truth.write_text(json.dumps({"pages": [{"page": 1, "text": "truth"}]}))
+            import hashlib
+            digest = hashlib.sha256(source.read_bytes()).hexdigest()
+            documents = []
+            for locale in ("vi", "ko"):
+                for stratum, minimum in A0.MINIMUMS.items():
+                    for index in range(minimum):
+                        documents.append({"id": f"{locale}-{stratum}-{index}", "locale": locale, "stratum": stratum, "source": "source.txt", "ground_truth": "truth.json", "sha256": digest})
+            manifest = root / "manifest.json"
+            manifest.write_text(json.dumps({"corpus_id": "approved", "revision": "r1", "approval": {"status": "approved", "approved_by": "Owner", "approved_at": "2026-08-25"}, "contains_pii": False, "documents": documents}))
+            config = self.config()
+            for key in A0.QUALITY_KEYS: config["gates"][key] = 0.1 if key != "page_coverage_min" else 1.0
+            self.assertEqual([], A0.validate_manifest(manifest, config, "official"))
 
 
 if __name__ == "__main__":
