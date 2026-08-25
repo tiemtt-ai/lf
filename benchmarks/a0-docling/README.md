@@ -23,7 +23,9 @@ service binding, or a queue worker.
    external call.
 4. Run one of the explicit modes below. The default is `official`.
 5. Results are written to ignored `results/<run-id>/`: `result.json`,
-   `per_document.csv`, and `report.md`.
+   `per_document.csv`, and `report.md`. Exploratory runs additionally write
+   `per_page.csv` and one trace JSON per physical page under
+   `per_page/<pipeline>/<document-id>/page-<n>.json`.
 
 The previous `.venv` is retained as Python 3.12 incompatibility evidence and is
 not selected by the launcher. Docling 2.119.0/PyTorch 2.2.2 layout initialization
@@ -105,6 +107,23 @@ separate citation check: they emit no text unit while real page numbering remain
 stable. The proposed target for S5 and ordinary documents is `1.00`; the
 machine-readable `page_coverage_min` remains `null` until Owner approval, and a
 result below `1.00` is investigation evidence rather than A0-pass evidence.
+
+## Per-page exploratory evidence
+
+`per_page.csv` is the filterable index for page regressions. It records the
+document, locale, stratum, pipeline, physical page number, content-presence
+flags, character counts, SHA-256 values, CER, boundary scores against the
+current and adjacent pages, blank-page violations, and reading-order result.
+Its `artifact_path` points to a JSON file containing the exact ground-truth text
+and exact normalized engine output that were scored, plus anchors and the full
+page metrics. The page set is the union of the declared physical page range,
+ground truth, and engine output, so blank, missing, and unexpected extra pages
+remain visible.
+
+These artefacts are emitted only by exploratory mode, are non-official, inherit
+the corpus access/PII/retention boundary, and remain under the ignored result
+directory. Expected-error fixtures such as S13 do not create page artefacts
+because they stop at preflight and have no OCR/layout output to inspect.
 
 Run harness checks with:
 

@@ -125,6 +125,13 @@ def safe_path(root, relative):
     return path
 
 
+def artifact_component(value):
+    value = str(value or "")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", value):
+        raise BenchmarkError("corrupt_source", f"unsafe artifact identifier: {value!r}")
+    return value
+
+
 QUALITY_KEYS = ("vi_cer_raw_max", "vi_cer_diacritic_stripped_max", "ko_cer_max", "page_coverage_min")
 
 
@@ -196,6 +203,8 @@ def validate_manifest(path, config, mode="official"):
                     errors.append(f"{locale}/{stratum}: {counts[(locale, stratum)]} < {minimum}")
     root = path.parent.resolve()
     for doc in data.get("documents", []):
+        try: artifact_component(doc.get("id"))
+        except BenchmarkError as exc: errors.append(str(exc))
         eligibility = document_eligibility(doc)
         if mode == "official" and not eligibility["expected_error"] and not eligibility["quality"]:
             errors.append(f"{doc.get('id')}: official fixture is not eligible for quality metrics")
@@ -435,6 +444,107 @@ def evaluate(engine_result, truth, doc, gates):
     }
 
 
+def per_page_evidence(run_id, engine, outcome, truth, doc, metrics, source_sha256):
+    """Build trace evidence without changing the values used by evaluation."""
+    output_pages = {int(unit["page"]): str(unit.get("text", "")) for unit in outcome.get("units", [])}
+    truth_pages = {int(unit["page"]): unit for unit in truth.get("pages", [])}
+    metric_pages = {int(item["page"]): item for item in metrics.get("per_page_metrics", [])}
+    maximum = max(
+        [int(outcome.get("page_count") or 0), *truth_pages.keys(), *output_pages.keys()],
+        default=0,
+    )
+    records = []
+    for page in range(1, maximum + 1):
+        truth_item = truth_pages.get(page, {})
+        truth_text = str(truth_item.get("text", ""))
+        output_text = output_pages.get(page, "")
+        normalized_truth = normalize(truth_text)
+        normalized_output = normalize(output_text)
+        page_metrics = metric_pages.get(page, {})
+        records.append({
+            "schema_version": 1,
+            "run_id": run_id,
+            "non_official": True,
+            "document_id": doc["id"],
+            "locale": doc["locale"],
+            "stratum": doc["stratum"],
+            "pipeline": engine,
+            "page": page,
+            "source_sha256": source_sha256,
+            "ground_truth": {
+                "text": truth_text,
+                "normalized_text": normalized_truth,
+                "sha256": hashlib.sha256(normalized_truth.encode("utf-8")).hexdigest(),
+                "character_count": len(normalized_truth),
+                "has_content": bool(normalized_truth),
+                "anchors": truth_item.get("anchors", []),
+            },
+            "output": {
+                "text": output_text,
+                "normalized_text": normalized_output,
+                "sha256": hashlib.sha256(normalized_output.encode("utf-8")).hexdigest(),
+                "character_count": len(normalized_output),
+                "has_text": bool(normalized_output),
+            },
+            "metrics": page_metrics,
+            "document_reading_order": {
+                "reference": truth.get("reading_order", []),
+                "observed": metrics.get("reading_order_observed"),
+                "complete": metrics.get("reading_order_complete"),
+                "kendall_tau": metrics.get("reading_order_tau"),
+            },
+        })
+    return records
+
+
+def write_per_page_evidence(out, records):
+    fields = (
+        "document_id", "locale", "stratum", "pipeline", "page", "artifact_path",
+        "source_sha256", "ground_truth_sha256", "ground_truth_character_count",
+        "ground_truth_has_content", "output_sha256", "output_character_count",
+        "output_has_text", "cer_raw", "cer_stripped", "boundary_score",
+        "boundary_previous_page", "boundary_next_page", "adjacent_violation",
+        "blank_page_violation", "reading_order_complete", "reading_order_tau",
+    )
+    csv_rows = []
+    for record in records:
+        document_id = artifact_component(record["document_id"])
+        pipeline = artifact_component(record["pipeline"])
+        relative = pathlib.Path("per_page") / pipeline / document_id / f"page-{record['page']}.json"
+        target = out / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        page_metrics = record["metrics"]
+        csv_rows.append({
+            "document_id": document_id,
+            "locale": record["locale"],
+            "stratum": record["stratum"],
+            "pipeline": pipeline,
+            "page": record["page"],
+            "artifact_path": relative.as_posix(),
+            "source_sha256": record["source_sha256"],
+            "ground_truth_sha256": record["ground_truth"]["sha256"],
+            "ground_truth_character_count": record["ground_truth"]["character_count"],
+            "ground_truth_has_content": record["ground_truth"]["has_content"],
+            "output_sha256": record["output"]["sha256"],
+            "output_character_count": record["output"]["character_count"],
+            "output_has_text": record["output"]["has_text"],
+            "cer_raw": page_metrics.get("cer_raw"),
+            "cer_stripped": page_metrics.get("cer_stripped"),
+            "boundary_score": page_metrics.get("boundary_score"),
+            "boundary_previous_page": page_metrics.get("boundary_previous_page"),
+            "boundary_next_page": page_metrics.get("boundary_next_page"),
+            "adjacent_violation": page_metrics.get("adjacent_violation"),
+            "blank_page_violation": page_metrics.get("blank_page_violation"),
+            "reading_order_complete": record["document_reading_order"]["complete"],
+            "reading_order_tau": record["document_reading_order"]["kendall_tau"],
+        })
+    with (out / "per_page.csv").open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(csv_rows)
+
+
 def environment(config):
     versions = {"python": sys.version.split()[0], "platform": sys.platform}
     for package in ("docling", "docling-core", "docling-ibm-models", "docling-parse", "huggingface-hub", "psutil"):
@@ -594,6 +704,7 @@ def decision_package_markdown(result):
 
 def run(args):
     config = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
+    run_id = args.run_id or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     manifest_path = pathlib.Path(args.corpus).resolve()
     errors = validate_manifest(manifest_path, config, args.mode)
     decision_requirements = [] if args.mode == "official" else validate_manifest(manifest_path, config, "official")
@@ -602,6 +713,7 @@ def run(args):
         try: manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         except Exception: pass
     rows = []
+    page_records = []
     excluded = []
     if not errors:
         corpus_root = manifest_path.parent
@@ -616,6 +728,11 @@ def run(args):
             for engine in ("baseline", "docling"):
                 outcome = measured_engine(engine, source, doc["locale"], config)
                 metrics = evaluate(outcome, truth, doc, config["gates"]) if eligibility["quality"] and outcome["status"] == "ready" else {}
+                if args.mode == "exploratory" and eligibility["quality"] and outcome["status"] == "ready":
+                    page_records.extend(per_page_evidence(
+                        run_id, engine, outcome, truth, doc, metrics,
+                        expected_sha256(doc, corpus_root),
+                    ))
                 page_count = outcome.get("page_count") or len(truth.get("pages", [])) or None
                 observation_ok = outcome.get("error_code") == expected if expected else outcome["status"] == "ready" and (not eligibility["quality"] or metrics.get("citation_pass", False))
                 rows.append({"document_id": doc["id"], "locale": doc["locale"], "stratum": doc["stratum"], "engine": engine, "status": outcome["status"], "error_code": outcome.get("error_code"), "error_message": outcome.get("message"), "expected_error": expected, "quality_eligible": eligibility["quality"], "performance_eligible": eligibility["performance"], "observation_ok": observation_ok, "page_count": page_count, "latency_seconds": outcome.get("latency_seconds"), "seconds_per_page": outcome.get("latency_seconds") / page_count if eligibility["performance"] and outcome["status"] == "ready" and outcome.get("latency_seconds") and page_count else None, "peak_rss_bytes": outcome.get("peak_rss_bytes", 0), "resource_warnings": outcome.get("resource_warnings", []), **metrics})
@@ -631,13 +748,14 @@ def run(args):
             if eligible and not any(r.get("cer_raw") is not None for r in eligible):
                 metric_unavailable.append(f"{locale}/{engine}: CER and coverage unavailable because no eligible fixture completed successfully")
     verdict, strata, performance, pipeline_performance, locale_metrics = summarize(rows, config, blockers, args.mode)
-    run_id = args.run_id or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     out = pathlib.Path(args.output).resolve() / run_id; out.mkdir(parents=True, exist_ok=False)
     result = {"schema_version": 3, "run_id": run_id, "created_at": datetime.now(timezone.utc).isoformat(), "mode": args.mode, "non_official": args.mode == "exploratory", "thresholds_applied": args.mode == "official" and not any(config["gates"].get(key) is None for key in QUALITY_KEYS), "verdict": verdict, "environment": environment(config), "config": config, "corpus": manifest, "blockers": blockers, "decision_requirements": decision_requirements, "metric_unavailable": metric_unavailable, "strata": strata, "performance": performance, "pipeline_performance": pipeline_performance, "locale_metrics": locale_metrics, "per_document": rows}
     (out / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     fields = sorted({key for row in rows for key in row}) or ["document_id", "locale", "stratum", "engine", "status", "error_code", "observation_ok"]
     with (out / "per_document.csv").open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=fields); writer.writeheader(); writer.writerows(rows)
+    if args.mode == "exploratory":
+        write_per_page_evidence(out, page_records)
     (out / "report.md").write_text(report_markdown(result), encoding="utf-8")
     (out / "decision-package.md").write_text(decision_package_markdown(result), encoding="utf-8")
     print(f"{verdict}: {out}")

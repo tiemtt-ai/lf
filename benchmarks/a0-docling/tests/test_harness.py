@@ -154,6 +154,43 @@ class HarnessTest(unittest.TestCase):
             self.assertTrue(result["non_official"])
             self.assertFalse(result["thresholds_applied"])
             self.assertEqual(2, len(result["per_document"]))
+            self.assertTrue((root / "out" / "exploratory" / "per_page.csv").is_file())
+            for engine in ("baseline", "docling"):
+                page = root / "out" / "exploratory" / "per_page" / engine / "vi-s1" / "page-1.json"
+                evidence = json.loads(page.read_text())
+                self.assertEqual("Xin chào benchmark", evidence["ground_truth"]["normalized_text"])
+                self.assertEqual("Xin chào benchmark", evidence["output"]["normalized_text"])
+                self.assertTrue(evidence["non_official"])
+
+    def test_per_page_evidence_keeps_blank_and_missing_pages_traceable(self):
+        truth = {
+            "pages": [
+                {"page": 1, "text": "Trang một"},
+                {"page": 2, "text": ""},
+                {"page": 3, "text": "Trang ba", "anchors": ["P3-A1"]},
+            ],
+            "reading_order": ["P3-A1"],
+        }
+        outcome = {
+            "status": "ready",
+            "page_count": 3,
+            "units": [{"page": 1, "text": "Trang một"}],
+        }
+        doc = {"id": "vi-s5-trace", "locale": "vi", "stratum": "S5"}
+        metrics = A0.evaluate(outcome, truth, doc, self.config()["gates"])
+        records = A0.per_page_evidence("trace-run", "docling", outcome, truth, doc, metrics, "a" * 64)
+        self.assertEqual([1, 2, 3], [record["page"] for record in records])
+        self.assertFalse(records[1]["ground_truth"]["has_content"])
+        self.assertFalse(records[1]["output"]["has_text"])
+        self.assertTrue(records[2]["ground_truth"]["has_content"])
+        self.assertFalse(records[2]["output"]["has_text"])
+        with tempfile.TemporaryDirectory() as directory:
+            out = pathlib.Path(directory)
+            A0.write_per_page_evidence(out, records)
+            page = json.loads((out / "per_page" / "docling" / "vi-s5-trace" / "page-3.json").read_text())
+            self.assertEqual(1.0, page["metrics"]["cer_raw"])
+            self.assertFalse(page["output"]["has_text"])
+            self.assertIn("per_page/docling/vi-s5-trace/page-3.json", (out / "per_page.csv").read_text())
 
     def test_exploratory_summary_can_never_return_official_verdict(self):
         verdict, *_ = A0.summarize([], self.config(), [], "exploratory")
