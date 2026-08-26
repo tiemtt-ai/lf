@@ -2,10 +2,10 @@
 
 Document Path: database/ai/ai_model_runs.md
 
-## Amendment — Proposed 2026-08-25
+## Amendment — Approved 2026-08-25
 
 Nguồn: [LF-AI-Foundation-Media-Consumer-Database-Architecture-Review](../../quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md)
-finding F-2 và F-5. **Chưa được Owner approve.** Thay đổi: thêm tenant composite
+finding F-2 và F-5. **Approved by Owner 2026-08-25.** Thay đổi: thêm tenant composite
 identity và ghi rõ hai khóa ngoại được hoãn. Amendment này **không** đụng tới
 ADR-0006 Amendment v1.1 vẫn đang Proposed ở phần Business Rules bên dưới.
 

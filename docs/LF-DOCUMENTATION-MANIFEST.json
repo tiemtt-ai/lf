@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 244,
+  "document_count": 245,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -1103,6 +1103,57 @@
         "platform/LF-Media-Processing-Contract.md",
         "platform/LF-Media-Read-Contract.md",
         "database/media/media_extracted_texts.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "adr/ADR-0020-AI-Vision-Interpretation-Boundary.md",
+      "title": "ADR-0020 — AI Vision Interpretation Boundary",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Approved",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "vision",
+        "model run",
+        "quota",
+        "retention",
+        "media boundary"
+      ],
+      "keywords": {
+        "vi": [
+          "diễn giải hình ảnh",
+          "biểu đồ sơ đồ",
+          "lần chạy mô hình",
+          "hạn mức",
+          "lưu trữ và xoá",
+          "ranh giới media ai"
+        ],
+        "en": [
+          "vision interpretation",
+          "chart diagram",
+          "model run",
+          "quota",
+          "retention deletion",
+          "media ai boundary"
+        ]
+      },
+      "identifiers": [
+        "ai_model_runs",
+        "run_uuid",
+        "vision"
+      ],
+      "related_documents": [
+        "adr/ADR-0006-AI-Foundation.md",
+        "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
+        "adr/ADR-0019-Media-Structured-Extraction-Boundary.md",
+        "platform/LF-Media-Read-Contract.md",
+        "database/ai/ai_model_runs.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

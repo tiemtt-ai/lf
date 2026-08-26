@@ -140,14 +140,19 @@ tăng theo số trang mà theo số ô: một workbook 50 sheet × 1200 hàng ×
 ra 480.000 row từ một file vài MB. `max_extracted_characters` hiện hành không
 chặn được điều đó vì nó đếm ký tự, không đếm row.
 
-Giới hạn là **quyết định Owner chưa chốt**. Đề xuất
-`max_table_cells_per_document = 200000`, vượt thì fail toàn revision bằng error
-code `structured_extraction_too_large`, không truncate — theo đúng tiền lệ của
-`extracted_text_too_large`. Truncate sẽ tạo ra một bảng thiếu ô mà consumer không
-phân biệt được với một bảng thật sự có ô trống.
+Owner đã freeze ngày 2026-08-25:
+`max_table_cells_per_document = 200000`, đếm **row cell thực persist** — merged
+cell chỉ tính một row. Vượt: `structured_extraction_too_large`, fail toàn
+revision, không truncate.
 
-Con số 200.000 là đề xuất, không phải kết quả đo. Nó cần được kiểm lại trên
-workbook thật trước khi freeze, vì đặt quá thấp sẽ làm fail những học liệu hợp lệ.
+Text của cell tính vào cùng ngân sách `max_extracted_characters = 500000` với text
+cấp trang và cấp region. Đây là ràng buộc chặt hơn trần cell trong nhiều trường
+hợp: một workbook 199.000 cell × 20 ký tự vẫn dưới trần cell nhưng vượt xa ngân
+sách ký tự.
+
+Con số 200.000 không suy ra được từ một giới hạn đã freeze khác — nó được chọn
+cùng bậc độ lớn với ngân sách 500.000 ký tự, và **phải được xem lại khi có workbook
+thật đầu tiên**.
 
 Ô gộp chỉ sinh một row là lựa chọn giữ **đúng thứ có trên tài liệu**. Nhân bản giá
 trị ra các ô bị che sẽ dễ đọc hơn cho consumer đơn giản, nhưng tạo ra dữ liệu

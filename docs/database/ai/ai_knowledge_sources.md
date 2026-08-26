@@ -2,11 +2,10 @@
 
 Document Path: database/ai/ai_knowledge_sources.md
 
-## Amendment — Proposed 2026-08-25
+## Amendment — Approved 2026-08-25
 
 Nguồn: [LF-AI-Foundation-Media-Consumer-Database-Architecture-Review](../../quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md)
-finding F-1 và F-2. **Chưa được Owner approve; chưa được viết migration theo bản
-này.** Thay đổi: đăng ký theo derived content unit thay vì theo Media File, thêm
+finding F-1 và F-2. **Approved by Owner 2026-08-25.** Thay đổi: đăng ký theo derived content unit thay vì theo Media File, thêm
 `content_type`/`source_fingerprint`/`processing_version`, bỏ `media_file_id`, và
 thêm tenant composite identity.
 

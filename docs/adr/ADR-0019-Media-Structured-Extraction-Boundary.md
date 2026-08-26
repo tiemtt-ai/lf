@@ -1,6 +1,6 @@
 # ADR-0019 — Media Structured Extraction Boundary
 
-Version: 1.0
+Version: 1.1
 
 Status: Approved
 
@@ -35,8 +35,8 @@ Related Specification:
 
 # Amendment Record — Version 1.1 (Proposed)
 
-Amendment Status: **Proposed — pending Architecture Owner approval.** Cho tới khi
-được approve, ADR-0019 vẫn là Version 1.0 và mục này không có hiệu lực.
+Amendment Status: **Approved by Architecture Owner, 2026-08-25.** Mục này có hiệu
+lực; ADR-0019 chuyển sang Version 1.1.
 
 Nguồn: independent review của Database Docs ngày 2026-08-25 phát hiện mâu thuẫn
 giữa ADR này và [media_table_cells](../database/media/media_table_cells.md).
@@ -58,11 +58,10 @@ fingerprint lên hàng trăm nghìn row cell không thêm khả năng truy vết
 luôn bằng giá trị của bảng cha — nhưng tạo ra cơ hội để hai giá trị lệch nhau, và
 lúc đó không có nguồn nào đúng.
 
-Đây là mâu thuẫn giữa ADR Approved và Database Doc Draft, đã ghi vào Conflict
-Register là **DOC-CONFLICT-0016**
-([LF-Documentation-Conflicts](../quality/LF-Documentation-Conflicts.md)). Cho tới
-khi amendment được approve hoặc conflict được đóng theo hướng khác, **không được
-tạo migration** cho ba bảng này.
+Mâu thuẫn được ghi là **DOC-CONFLICT-0016**
+([LF-Documentation-Conflicts](../quality/LF-Documentation-Conflicts.md)) và đóng
+`RESOLVED` bằng chính amendment này ngày 2026-08-25. Blocker migration còn lại
+nằm ở resource limits và Architecture Review, không còn ở conflict này.
 
 ---
 

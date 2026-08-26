@@ -196,11 +196,16 @@ biết "có một khối ở đây" mà không đọc được khối đó. Cái
 phải được tính vào giới hạn tài nguyên: cap ký tự của một revision áp cho **tổng**
 text cấp trang và text region, không phải riêng từng bảng.
 
-Giới hạn số region trên mỗi document là **quyết định Owner chưa chốt**. Đề xuất
-`max_regions_per_document = 2000` (100 trang × 20 vùng), vượt thì fail toàn
-revision bằng error code `structured_extraction_too_large`, không truncate. Fail
-toàn phần là quy tắc đã có sẵn của `extracted_text_too_large`; truncate tạo ra
-một tài liệu thiếu vùng mà không ai biết là thiếu.
+Giới hạn đã được Owner freeze ngày 2026-08-25 tại
+[LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md)
+§ Structured extraction resource controls: `max_regions_per_page = 50` và
+`max_regions_per_document = 5000`, **cả hai cùng lúc**. Chỉ có trần tài liệu thì
+một trang vẫn sinh được 5.000 vùng.
+
+Text của region tính vào cùng ngân sách `max_extracted_characters = 500000` với
+text cấp trang và text cell — trùng lặp có chủ ý vẫn tính theo dung lượng thực
+persist. Vượt bất kỳ trần nào: `structured_extraction_too_large`, fail toàn
+revision, không truncate.
 
 Region cho spreadsheet: **không có**. Sheet không có hình học trang, nên
 worksheet đi thẳng vào `media_extracted_tables` với `locator_type = 'sheet'`.

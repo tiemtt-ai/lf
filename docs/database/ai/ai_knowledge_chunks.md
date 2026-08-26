@@ -2,10 +2,10 @@
 
 Document Path: database/ai/ai_knowledge_chunks.md
 
-## Amendment — Proposed 2026-08-25
+## Amendment — Approved 2026-08-25
 
 Nguồn: [LF-AI-Foundation-Media-Consumer-Database-Architecture-Review](../../quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md)
-finding F-2 và F-3. **Chưa được Owner approve.** Thay đổi: `source_locator` JSON
+finding F-2 và F-3. **Approved by Owner 2026-08-25.** Thay đổi: `source_locator` JSON
 tự do được thay bằng hợp đồng locator đã freeze, và thêm tenant composite
 identity.
 

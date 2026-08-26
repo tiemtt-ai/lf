@@ -1,6 +1,6 @@
 # Table: media_extracted_texts
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
@@ -26,10 +26,18 @@ Version 1.2 áp dụng [ADR-0019](../../adr/ADR-0019-Media-Structured-Extraction
 đã Approved: `locator_type` mở thêm `sheet`. **Cần migration** (ALTER CHECK) và
 một `processing_version` mới cho spreadsheet; xem Design Notes.
 
+Version 1.3 đóng [DOC-CONFLICT-0017](../../quality/LF-Documentation-Conflicts.md)
+theo phương án (a) Owner chọn ngày 2026-08-25: `extraction_method` mở thêm
+`spreadsheet_cells`. Đọc cell trực tiếp từ OOXML không phải "lớp text của một
+PDF", và gọi nó là `embedded_text` xoá mất đúng phân biệt mà
+[media_extracted_tables](media_extracted_tables.md) được thiết kế để giữ.
+
 Implementation Status là `Partial` chứ không phải `Implemented`: bảng đã tồn tại
-trong database, nhưng CHECK `page|sheet` của Version 1.2 **chưa được migrate** và
-schema contract vẫn ghi `page`. Trạng thái trở lại `Implemented` khi migration
-được apply.
+trong database, nhưng **hai CHECK của Version 1.2–1.3 chưa được migrate** —
+`locator_type` vẫn là `page`, `extraction_method` vẫn là hai giá trị. Cả hai đi
+chung **một** migration và **một** `processing_version` mới cho spreadsheet; tách
+làm hai lần migrate cùng bảng là tự tạo thêm một thế hệ revision không cần thiết.
+Trạng thái trở lại `Implemented` khi migration đó được apply.
 
 ## Purpose
 
@@ -98,7 +106,7 @@ media_processing_jobs 1 → 0..1 media_extracted_texts
 | text | LONGTEXT NULL | Nội dung trích xuất của đơn vị này. |
 | char_count | INT UNSIGNED NULL | Độ dài text, phục vụ chunking và đo lường. |
 | confidence_score | DECIMAL(5,2) NULL | Confidence 0–100 khi provider báo cáo. |
-| extraction_method | VARCHAR(50) NOT NULL | `ocr` hoặc `embedded_text`. |
+| extraction_method | VARCHAR(50) NOT NULL | `ocr`, `embedded_text` hoặc `spreadsheet_cells`. |
 | provider | VARCHAR(100) NULL | OCR provider; NULL khi dùng text layer sẵn có. |
 | processing_version | VARCHAR(100) NOT NULL | Phiên bản extractor/model/cấu hình. |
 | source_fingerprint | CHAR(64) NOT NULL | Vân tay nội dung nguồn khi trích xuất. |
@@ -125,7 +133,7 @@ FOREIGN KEY (processing_job_id, customer_id)
 
 CHECK (status IN ('pending','processing','ready','failed','archived'));
 CHECK (locator_type IN ('page','sheet'));
-CHECK (extraction_method IN ('ocr','embedded_text'));
+CHECK (extraction_method IN ('ocr','embedded_text','spreadsheet_cells'));
 CHECK (sequence >= 1);
 CHECK (confidence_score IS NULL
        OR (confidence_score >= 0 AND confidence_score <= 100));

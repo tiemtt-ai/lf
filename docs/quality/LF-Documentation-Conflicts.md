@@ -234,7 +234,7 @@ trung lập.
 
 # Active Conflict Register
 
-Active items: 7. DOC-CONFLICT-0016 là confirmed `DOCUMENT_CONTRADICTION` đang mở.
+Active items: 6. Không có confirmed `CONFLICT` nào đang mở; DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25.
 
 | ID | Title | Classification | Status | Impact | Domain | Owner | Target Review |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -244,7 +244,8 @@ Active items: 7. DOC-CONFLICT-0016 là confirmed `DOCUMENT_CONTRADICTION` đang 
 | DOC-CONFLICT-0011 | Attendance ghi được cho Enrollment không `active` | IMPLEMENTATION_DRIFT | ACCEPTED_TEMPORARILY | LOW (giảm từ HIGH) | LiveClass × Course | Domain Owner (LiveClass) | Trước khi mở lại tab Điểm danh |
 | DOC-CONFLICT-0014 | `course_category` được dùng làm `owner_type` nhưng không tài liệu nào đặt tên nó | IMPLEMENTATION_DRIFT | DECISION_REQUIRED | LOW | Media × Course | Domain Owner (Media) | Immediate Owner decision |
 | DOC-CONFLICT-0015 | `owner_type` không có ràng buộc vật lý nên vocabulary trôi không bị phát hiện | GAP | DECISION_REQUIRED | MEDIUM | Media | Database Owner | Immediate, after 0014 |
-| DOC-CONFLICT-0016 | Revision identity của `media_table_cells` mâu thuẫn với ADR-0019 § D2 | DOCUMENT_CONTRADICTION | OPEN | MEDIUM | Media | Architecture Owner | 2026-09-01 |
+| DOC-CONFLICT-0016 | Revision identity của `media_table_cells` mâu thuẫn với ADR-0019 § D2 | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Architecture Owner | Đóng 2026-08-25 |
+| DOC-CONFLICT-0017 | `extraction_method` của đọc cell trực tiếp có hai tên trong hai bảng | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Domain Owner (Media) | Đóng 2026-08-25 |
 
 ---
 
@@ -903,7 +904,7 @@ Notes: Trước khi sửa, CourseCohortController::cohortSessionsQuery đã di�
 Conflict ID: DOC-CONFLICT-0016
 Title: Revision identity của media_table_cells mâu thuẫn với ADR-0019 § D2
 Classification: DOCUMENT_CONTRADICTION
-Status: OPEN
+Status: RESOLVED
 Impact: MEDIUM
 Detected At: 2026-08-25
 Detected By: Independent review — Media Structured Extraction Database Docs
@@ -925,10 +926,46 @@ Required Decision: Owner chọn giữa (a) approve ADR-0019 Amendment v1.1 — r
 Resolution Authority: Architecture Owner
 Resolution Plan: ADR-0019 Amendment Record Version 1.1 đã được soạn ở trạng thái Proposed; chờ Owner approval
 Target Review Date: 2026-09-01
-Resolved At:
-Resolution:
-Superseded/Updated Documents:
+Resolved At: 2026-08-25
+Resolution: Owner approve ADR-0019 Amendment v1.1 ngày 2026-08-25. Revision identity nằm ở row sở hữu revision (media_extracted_regions, media_extracted_tables); media_table_cells kế thừa processing_version/source_fingerprint/status từ bảng cha và không archived độc lập
+Superseded/Updated Documents: docs/adr/ADR-0019-Media-Structured-Extraction-Boundary.md chuyển Version 1.1
 Verification Evidence:
 Related ADR/Review/Issue/PR: ADR-0019
 Notes: Phát hiện bởi independent review trước khi Architecture Review chạy, nên chi phí đóng bằng không — không có dữ liệu nào phải backfill
+```
+
+## DOC-CONFLICT-0017
+
+```text
+Conflict ID: DOC-CONFLICT-0017
+Title: extraction_method của đọc cell trực tiếp có hai tên trong hai bảng
+Classification: DOCUMENT_CONTRADICTION
+Status: RESOLVED
+Impact: MEDIUM
+Detected At: 2026-08-25
+Detected By: Status verification — Phase 5 spreadsheet pipeline
+Owner: Domain Owner (Media)
+Affected Domain: Media
+Affected Concern: Vocabulary của extraction_method cho worksheet đọc trực tiếp
+Sources In Conflict:
+Source A: docs/database/media/media_extracted_texts.md#constraints-and-indexes
+Source B: docs/database/media/media_extracted_tables.md#constraints-and-indexes
+Additional Sources: docs/platform/LF-Media-Processing-Contract.md#phase-1-local-document-provider; app/Services/LocalDocumentProcessingProvider.php::xlsxUnits
+Contradictory Requirements:
+- Source A requires: CHECK (extraction_method IN ('ocr','embedded_text')) — đã migrate; worksheet đọc trực tiếp buộc phải persist 'embedded_text'
+- Source B requires: CHECK (extraction_method IN ('ocr','embedded_text','spreadsheet_cells')) — worksheet đọc trực tiếp persist 'spreadsheet_cells'
+Why They Cannot Both Be True: Cùng một thao tác trích xuất — đọc cell từ OOXML — sẽ mang hai tên phương pháp khác nhau tùy nó rơi vào bảng nào. Consumer đọc provenance của cùng một revision nhận hai câu trả lời mâu thuẫn
+Runtime/Business Impact: Đang có ở runtime. xlsxUnits hiện persist 'embedded_text' vào media_extracted_texts, làm mất phân biệt giữa "lớp text của một PDF" và "đọc cấu trúc nguồn" — đúng phân biệt mà media_extracted_tables được thiết kế để giữ. Không sai dữ liệu, nhưng provenance không truy được phương pháp thật
+Affected Implementation: app/Services/LocalDocumentProcessingProvider.php::xlsxUnits; app/Jobs/ProcessMediaProcessingJob::persistSuccess
+Temporary Safety Rule: STOP implementation for the affected concern. Do not guess. Giữ nguyên 'embedded_text' ở runtime cho tới khi Owner quyết; không tự mở CHECK
+Required Decision: Owner chọn giữa (a) mở CHECK của media_extracted_texts thêm 'spreadsheet_cells' — cần migration riêng và một processing_version mới; hoặc (b) bỏ 'spreadsheet_cells' khỏi media_extracted_tables và chấp nhận 'embedded_text' cho cả hai
+Resolution Authority: Domain Owner (Media)
+Resolution Plan: Gộp cùng quyết định locator page→sheet của media_extracted_texts v1.2, vì cả hai đều cần đúng một migration và một processing_version mới
+Target Review Date: 2026-09-01
+Resolved At: 2026-08-25
+Resolution: Owner chọn phương án (a) ngày 2026-08-25. media_extracted_texts v1.3 mở CHECK (extraction_method IN ('ocr','embedded_text','spreadsheet_cells')). Đi chung một migration với locator page→sheet của v1.2 và một processing_version mới cho spreadsheet
+Superseded/Updated Documents: docs/database/media/media_extracted_texts.md chuyển Version 1.3; docs/platform/LF-Media-Processing-Contract.md ghi rõ đường xử lý xlsx
+Verification Evidence:
+Related ADR/Review/Issue/PR: ADR-0019; DOC-CONFLICT-0016; quality/LF-Media-Structured-Extraction-Architecture-Review.md
+Notes: Phát hiện khi đối chiếu trạng thái Phase 5, không phải khi review Database Docs — vocabulary cũ đã đúng cho đến khi đọc cell trực tiếp được thêm vào ở mục 4
 ```

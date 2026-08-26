@@ -334,8 +334,26 @@ path. Ba đường xử lý deterministic là:
 | Source | Đường xử lý | `extraction_method` persist |
 | --- | --- | --- |
 | `txt`, DOCX có text | đọc UTF-8 hoặc `word/document.xml` | `embedded_text` |
-| PDF có text layer | Poppler `pdftotext -layout`, tách theo page break | `embedded_text` |
-| PDF scan; Office cần conversion (`doc`, `xls`, `xlsx`, `ppt`, `pptx`); DOCX không có text | LibreOffice headless → PDF khi cần; Poppler render từng trang → Tesseract theo locale canonical | `ocr` nếu fallback OCR, nếu PDF chuyển đổi có text layer thì `embedded_text` |
+| PDF có text layer | Poppler `pdftotext -layout`, tách theo page break; **từng trang** quyết định riêng | `embedded_text` |
+| `xlsx` | đọc trực tiếp OOXML: `xl/workbook.xml`, `xl/_rels`, `xl/sharedStrings.xml`, từng `xl/worksheets/sheetN.xml`; một unit mỗi worksheet | `embedded_text` — xem ghi chú vocabulary bên dưới |
+| PDF scan; Office cần conversion (`doc`, `xls`, `ppt`, `pptx`); DOCX không có text; `xlsx` không có cell nào đọc được | LibreOffice headless → PDF khi cần; Poppler render **từng trang thiếu text layer** → Tesseract theo locale canonical | `ocr` nếu fallback OCR, nếu PDF chuyển đổi có text layer thì `embedded_text` |
+
+Hai điểm đã đổi so với mô tả trước và phải đọc đúng:
+
+* **PDF trộn quyết định theo từng trang.** Trang có text layer dùng
+  `embedded_text`, trang không có được render và OCR riêng. Hình thức cũ trả về
+  các trang có text layer ngay khi tồn tại ít nhất một trang như vậy, và bỏ im
+  lặng mọi trang scan của một tài liệu trộn.
+* **`xlsx` không còn đi qua LibreOffice** khi workbook có cell đọc được. Render
+  worksheet thành ảnh rồi OCR sẽ xoá sạch sheet, hàng và cột. LibreOffice chỉ còn
+  là fallback khi không unit nào sinh ra được.
+
+Ghi chú vocabulary: đọc cell trực tiếp hiện persist `embedded_text` vì
+`media_extracted_texts` chỉ mở hai giá trị `('ocr','embedded_text')`. Giá trị đó
+làm mất phân biệt giữa "lớp text của một PDF" và "đọc cấu trúc nguồn". Mâu thuẫn
+với `spreadsheet_cells` của
+[media_extracted_tables](../database/media/media_extracted_tables.md) đã được ghi
+là **DOC-CONFLICT-0017** và chờ Owner quyết.
 
 Locale Tesseract Phase 1 được map tường minh `vi → vie+eng`, `ko → kor+eng`,
 `en → eng`; locale khác fail-closed bằng `unsupported_source`, không language
@@ -389,35 +407,62 @@ source + PDF/image trung gian và IAM read source object; browser/admin không c
 binary. Production activation vẫn chịu R1/R2 và deployment/provider gates trong
 Architecture Review.
 
-## Structured extraction resource controls — chưa freeze
+## Structured extraction resource controls
 
-[ADR-0019](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) mở structured
-extraction (region, table, cell). Resource control của nó **chưa được chốt**, và
-§ 3 tuyên bố resource control là contract chứ không phải tuning tuỳ ý — nên mục
-này ghi rõ khoảng trống thay vì để nó ngầm.
+Owner freeze ngày 2026-08-25. Các giá trị dưới đây là **contract** theo § 3, không
+phải tuning tuỳ ý; một provider đọc namespace khác sẽ khởi động không giới hạn nào.
 
-Bốn giới hạn phải được Owner chốt **trước** khi migration structured extraction
-được viết:
+### Ngân sách ký tự
 
-| Giới hạn | Vì sao cần | Trạng thái |
+`max_extracted_characters = 500000` giữ nguyên giá trị đã freeze, nhưng **phạm vi
+áp dụng mở rộng**. Nó tính trên tổng của cả ba nguồn text trong một revision:
+
+```text
+SUM(text của media_extracted_texts)      -- theo page hoặc sheet
++ SUM(text của media_extracted_regions)  -- theo region
++ SUM(text của media_table_cells)        -- theo cell
+<= 500000
+```
+
+Bỏ text cell ra khỏi phép tính là lỗ hổng thật: một workbook 199.000 cell × 20 ký
+tự vẫn dưới trần cell nhưng vượt xa ngân sách ký tự. Text trùng lặp có chủ ý giữa
+cấp trang và cấp region vẫn **được tính theo dung lượng thực persist**, không
+được trừ đi vì lý do "cùng một nội dung".
+
+### Trần số lượng
+
+| Key | Giá trị | Ghi chú |
 | --- | --- | --- |
-| Tổng ký tự một revision, tính **cả** text cấp trang **và** text cấp region | ADR-0019 chấp nhận trùng lặp có chủ ý; `max_extracted_characters` hiện chỉ đếm một nguồn nên cap thật bị nhân đôi trong im lặng | Chưa chốt |
-| Số region mỗi document | Đề xuất `2000` trong Database Doc, chưa có bằng chứng | Chưa chốt |
-| Số bảng mỗi document | Chưa có đề xuất | Chưa chốt |
-| Số cell mỗi document | Đề xuất `200000`, **chưa có workbook evidence**; dung lượng tăng theo số ô chứ không theo số trang | Chưa chốt |
+| `max_regions_per_page` | `50` | Trần theo từng trang |
+| `max_regions_per_document` | `5000` | Trần toàn tài liệu |
+| `max_table_cells_per_document` | `200000` | Đếm **row cell thực persist**; merged cell chỉ tính một row |
 
-Hai điều kiện đi kèm, cũng chưa freeze:
+Hai trần region phải freeze **đồng thời**. Chỉ có trần tổng thì một trang vẫn sinh
+được 5.000 region; chỉ có trần trang thì 100 trang sinh được 5.000 mà không ai
+chặn ở mức tài liệu.
 
-* **Error semantics.** Đề xuất một error code duy nhất
-  `structured_extraction_too_large`, fail toàn revision, không truncate — theo
-  đúng tiền lệ của `extracted_text_too_large`. Truncate tạo ra một bảng thiếu ô mà
-  consumer không phân biệt được với bảng có ô trống thật.
-* **Atomic readiness.** Region, table và cell của một revision phải cùng
-  `ready` hoặc cùng không. Một revision có bảng `ready` nhưng thiếu cell là một
-  bảng nói dối về nội dung của nó.
+**Không có `max_tables_per_document`.** Số bảng đã bị chặn sẵn ở hai đường: bảng
+trong document neo 0..1 vào một region có `role = 'table'` nên bị trần region
+chặn; bảng của spreadsheet bằng số sheet nên bị `max_pages = 100` chặn. Thêm một
+trần thứ ba là thêm một con số phải bảo trì mà không chặn thêm gì.
 
-Cho tới khi bốn giới hạn và hai điều kiện trên được chốt, structured extraction
-không được deploy, và Database Docs của ba bảng giữ trạng thái Draft.
+`max_table_cells_per_document = 200000` là số duy nhất trong nhóm này không suy ra
+được từ một giới hạn đã freeze khác. Nó được chọn cùng bậc độ lớn với ngân sách
+500.000 ký tự và **phải được xem lại khi có workbook thật đầu tiên**.
+
+### Error semantics
+
+Vượt bất kỳ giới hạn nào ở trên: error code `structured_extraction_too_large`,
+**fail toàn revision, không truncate**. Theo đúng tiền lệ của
+`extracted_text_too_large`. Truncate tạo ra một tài liệu thiếu vùng, thiếu bảng
+hoặc thiếu ô mà consumer không phân biệt được với một tài liệu thật sự có ít
+vùng, ít bảng hoặc có ô trống.
+
+### Atomic readiness
+
+Region, table và cell của một revision phải **cùng** `ready` hoặc **cùng không**.
+Một revision có bảng `ready` nhưng thiếu cell là một bảng nói dối về nội dung của
+chính nó, và consumer không có cách nào phát hiện.
 
 ## Fingerprint
 

@@ -2,10 +2,10 @@
 
 Document Path: database/ai/ai_embeddings.md
 
-## Amendment — Proposed 2026-08-25
+## Amendment — Approved 2026-08-25
 
 Nguồn: [LF-AI-Foundation-Media-Consumer-Database-Architecture-Review](../../quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md)
-finding F-2, F-6 và F-7. **Chưa được Owner approve.** Thay đổi: thêm tenant
+finding F-2, F-6 và F-7. **Approved by Owner 2026-08-25.** Thay đổi: thêm tenant
 composite identity; ghi nhận ràng buộc ADR-0018 và vector store là điều kiện
 triển khai, không phải chi tiết bỏ ngỏ.
 
