@@ -324,8 +324,29 @@ việc approve ADR này.
 
 # Consequences
 
-* Bảng trong PDF và worksheet Excel trở thành dữ liệu máy đọc được, thay vì text
-  đã bị làm phẳng.
+* Bảng trong PDF trở thành dữ liệu máy đọc được, thay vì text đã bị làm phẳng.
+* **Phạm vi định dạng — chốt 2026-08-27: structured extraction chỉ nhận PDF.**
+  Adapter Docling hiện đăng ký duy nhất `InputFormat.PDF`, và provider từ chối
+  mọi extension khác bằng `unsupported_source`. Định dạng Office cần cấu trúc
+  thì tác giả tự xuất ra PDF rồi tải bản PDF lên.
+
+  Đây không phải giới hạn tạm cho tiện. Đo trên tài liệu thật cho thấy backend
+  DOCX của Docling trả về role và reading order nhưng **không** trả `page` và
+  **không** trả `bbox` — vì file Office không có hình học trang trước khi được
+  render. `media_extracted_regions.page` là `NOT NULL`, nên nhận native Office
+  sẽ hỏng ở tầng persistence chứ không phải tầng đọc.
+
+  Đường thay thế LibreOffice → PDF → Docling cũng đã được đo và **không**
+  reproducible: cùng một DOCX, cùng binary, cùng máy cho ra hai PDF khác nhau
+  ~50% số byte, kể cả khi đặt `SOURCE_DATE_EPOCH`. Nghĩa là `source_fingerprint`
+  của bản derivative không thể là checksum của chính nó. Muốn mở đường đó thì
+  phải: fingerprint dẫn xuất từ input (`source_fingerprint ‖ soffice_version ‖
+  font_set_hash ‖ convert_options`), mở vocabulary `chk_mv_type` cho `pdf`,
+  thêm provenance hai tầng, và pin LibreOffice cùng bộ font giữa mọi môi
+  trường. Cả bốn việc đó cần một Amendment riêng.
+
+  Tác giả tự xuất PDF thì bbox trỏ đúng file mà họ nhìn thấy, không phải một
+  bản render do server tạo ra — đúng đắn hơn về ngữ nghĩa, ngoài chuyện rẻ hơn.
 * Consumer trích dẫn được ở mức nhỏ hơn trang mà không phá hợp đồng locator.
 * Cách dùng sai `page` cho sheet được sửa. Đây là **thay đổi có phá vỡ**: unit
   của spreadsheet sẽ mang `locator_type = 'sheet'`, nên phải đi kèm
