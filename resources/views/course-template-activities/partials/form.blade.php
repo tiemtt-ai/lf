@@ -257,6 +257,7 @@
             Tick: chạy thêm một bước phân tích cấu trúc để nhận diện bảng, vai trò từng khối
             và thứ tự đọc — phục vụ AI đọc tài liệu. Bước này nặng hơn và chạy nền;
             nếu nó thất bại thì tài liệu vẫn dùng được bình thường.
+            Trích xuất cấu trúc hiện chỉ hỗ trợ tệp PDF.
             Ảnh và biểu đồ chỉ được đánh dấu vị trí, chưa được diễn giải nội dung.
         </p>
     </div>
