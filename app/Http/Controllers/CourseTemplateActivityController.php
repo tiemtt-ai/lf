@@ -687,6 +687,7 @@ class CourseTemplateActivityController extends Controller
             'unlock_rule',
             'unlock_after_activity_id',
             'processing_locale',
+            'structured_extraction',
         ];
 
         $input = array_intersect_key(
@@ -871,6 +872,9 @@ class CourseTemplateActivityController extends Controller
                 'max:20',
                 'regex:/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/',
             ],
+            // Opt-in cho Docling structured extraction. Chi co y nghia voi document;
+            // khong tick thi luong upload giu nguyen hanh vi cu.
+            'structured_extraction' => ['nullable', 'boolean'],
             'activity_attachment_file' => [
                 'nullable',
                 'file',
@@ -1094,7 +1098,11 @@ class CourseTemplateActivityController extends Controller
                 'course_activity',
                 $activityId,
                 $usageType,
-                ['processing_locale' => $request->input('processing_locale')]
+                [
+                    'processing_locale' => $request->input('processing_locale'),
+                    'structured_extraction' => $fileType === 'document'
+                        && $request->boolean('structured_extraction'),
+                ]
             );
 
             return $mediaFile;

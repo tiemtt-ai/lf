@@ -31,9 +31,20 @@ return [
             'max_extracted_characters' => (int) env('MEDIA_MAX_EXTRACTED_CHARACTERS', 500000),
         ],
         'structured_extraction' => [
+            'max_pages' => (int) env('MEDIA_STRUCTURED_MAX_PAGES', 100),
+            'max_extracted_characters' => (int) env('MEDIA_STRUCTURED_MAX_EXTRACTED_CHARACTERS', 500000),
             'max_regions_per_page' => (int) env('MEDIA_STRUCTURED_MAX_REGIONS_PER_PAGE', 50),
             'max_regions_per_document' => (int) env('MEDIA_STRUCTURED_MAX_REGIONS_PER_DOCUMENT', 5000),
             'max_table_cells_per_document' => (int) env('MEDIA_STRUCTURED_MAX_TABLE_CELLS_PER_DOCUMENT', 200000),
+            'max_processing_seconds' => (int) env('MEDIA_STRUCTURED_MAX_PROCESSING_SECONDS', 3300),
+            'command_timeout_seconds' => (int) env('MEDIA_STRUCTURED_COMMAND_TIMEOUT_SECONDS', 900),
+        ],
+        'docling' => [
+            'python_binary' => env('MEDIA_DOCLING_PYTHON_BINARY', base_path('runtime/docling/.venv/bin/python')),
+            'script' => env('MEDIA_DOCLING_SCRIPT', base_path('runtime/docling/extract.py')),
+            'artifacts_path' => env('MEDIA_DOCLING_ARTIFACTS_PATH', base_path('runtime/docling/models')),
+            'timeout_seconds' => (int) env('MEDIA_DOCLING_TIMEOUT_SECONDS', 3300),
+            'max_output_bytes' => (int) env('MEDIA_DOCLING_MAX_OUTPUT_BYTES', 67108864),
         ],
         'limits' => [
             'max_extracted_characters' => (int) env('MEDIA_MAX_EXTRACTED_CHARACTERS', 500000),

@@ -123,7 +123,7 @@ class StructuredExtractionPersistenceService
         $maxPerPage = (int) config('media.processing.structured_extraction.max_regions_per_page', 50);
         $maxRegions = (int) config('media.processing.structured_extraction.max_regions_per_document', 5000);
         $maxCells = (int) config('media.processing.structured_extraction.max_table_cells_per_document', 200000);
-        $maxChars = (int) config('media.processing.limits.max_extracted_characters', 500000);
+        $maxChars = (int) config('media.processing.structured_extraction.max_extracted_characters', 500000);
 
         if (count($regions) > $maxRegions || count($regions) !== count(array_unique(array_column($regions, 'reading_order')))) {
             throw new RuntimeException('structured_extraction_too_large');
@@ -159,6 +159,9 @@ class StructuredExtractionPersistenceService
         }
         foreach ($tables as $table) {
             $cells = array_values($table['cells'] ?? []);
+            if ($cells === [] || (int) ($table['row_count'] ?? 0) < 1 || (int) ($table['column_count'] ?? 0) < 1) {
+                throw new RuntimeException('structured_extraction_invalid');
+            }
             $cellCount += count($cells);
             $occupied = [];
             foreach ($cells as $cell) {
@@ -183,7 +186,10 @@ class StructuredExtractionPersistenceService
             }
             $regionIndex = $table['region_index'] ?? null;
             if (($table['locator_type'] ?? null) === 'region'
-                && ($regionIndex === null || ! isset($regions[(int) $regionIndex]) || $regions[(int) $regionIndex]['role'] !== 'table')) {
+                && ($regionIndex === null
+                    || ! isset($regions[(int) $regionIndex])
+                    || $regions[(int) $regionIndex]['role'] !== 'table'
+                    || (string) ($table['locator_value'] ?? '') !== (string) $regions[(int) $regionIndex]['locator_value'])) {
                 throw new RuntimeException('structured_extraction_invalid');
             }
             if (($table['locator_type'] ?? null) === 'sheet' && $regionIndex !== null) {

@@ -6,6 +6,7 @@ use App\Exceptions\MediaReadException;
 use App\Jobs\ProcessMediaProcessingJob;
 use App\Models\User;
 use App\Services\CourseMediaOwnerContextAuthorizer;
+use App\Services\DoclingStructuredExtractionProvider;
 use App\Services\DocumentProcessRunner;
 use App\Services\LocalDocumentProcessingProvider;
 use App\Services\MediaProcessingOrchestrator;
@@ -106,6 +107,75 @@ class MediaProcessingSubstrateTest extends TestCase
         $provider->process(
             (object) ['file_type' => 'document', 'extension' => 'pdf', 'storage_disk' => 'media_local', 'storage_key' => 'page-limit.pdf'],
             (object) ['job_type' => 'ocr', 'output_profile' => 'layout=preserve;locale=vi'],
+        );
+    }
+
+    public function test_docling_provider_rejects_pdf_over_page_limit_before_model_process(): void
+    {
+        config(['media.processing.structured_extraction.max_pages' => 100]);
+        Storage::disk('media_local')->put('docling-page-limit.pdf', 'pdf');
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldReceive('run')->once()->andReturn("Pages: 101\n");
+        $provider = new DoclingStructuredExtractionProvider($runner);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('page_limit_exceeded');
+        $provider->process(
+            (object) ['file_type' => 'document', 'extension' => 'pdf', 'storage_disk' => 'media_local', 'storage_key' => 'docling-page-limit.pdf'],
+            (object) ['job_type' => 'structured_extraction', 'output_profile' => 'locale=ko;structure=layout'],
+        );
+    }
+
+    public function test_docling_provider_preserves_stable_domain_error_from_json_protocol(): void
+    {
+        config([
+            'media.processing.structured_extraction.max_pages' => 100,
+            'media.processing.docling.python_binary' => PHP_BINARY,
+            'media.processing.docling.script' => __FILE__,
+            'media.processing.docling.artifacts_path' => __DIR__,
+        ]);
+        Storage::disk('media_local')->put('docling-error.pdf', 'pdf');
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldReceive('run')->once()->andReturn("Pages: 1\n");
+        $runner->shouldReceive('run')->once()->andReturn(json_encode([
+            'status' => 'failed',
+            'error_code' => 'provider_unavailable',
+        ], JSON_THROW_ON_ERROR));
+        $provider = new DoclingStructuredExtractionProvider($runner);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('provider_unavailable');
+        $provider->process(
+            (object) ['file_type' => 'document', 'extension' => 'pdf', 'storage_disk' => 'media_local', 'storage_key' => 'docling-error.pdf'],
+            (object) ['job_type' => 'structured_extraction', 'output_profile' => 'locale=vi;structure=layout'],
+        );
+    }
+
+    public function test_docling_provider_rejects_oversized_result_before_json_decode(): void
+    {
+        config([
+            'media.processing.structured_extraction.max_pages' => 100,
+            'media.processing.docling.python_binary' => PHP_BINARY,
+            'media.processing.docling.script' => __FILE__,
+            'media.processing.docling.artifacts_path' => __DIR__,
+            'media.processing.docling.max_output_bytes' => 8,
+        ]);
+        Storage::disk('media_local')->put('docling-large-result.pdf', 'pdf');
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldReceive('run')->once()->andReturn("Pages: 1\n");
+        $runner->shouldReceive('run')->once()->andReturnUsing(function (array $command): string {
+            $outputIndex = array_search('--output', $command, true);
+            file_put_contents($command[$outputIndex + 1], '{"status":"ready"}');
+
+            return '{"status":"written"}';
+        });
+        $provider = new DoclingStructuredExtractionProvider($runner);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('structured_extraction_too_large');
+        $provider->process(
+            (object) ['file_type' => 'document', 'extension' => 'pdf', 'storage_disk' => 'media_local', 'storage_key' => 'docling-large-result.pdf'],
+            (object) ['job_type' => 'structured_extraction', 'output_profile' => 'locale=vi;structure=layout'],
         );
     }
 

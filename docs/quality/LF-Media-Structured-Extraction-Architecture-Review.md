@@ -1,6 +1,6 @@
 # Media Structured Extraction Architecture Review
 
-Version: 2.4
+Version: 2.5
 
 Document Status: Review
 
@@ -468,6 +468,26 @@ Deployment evidence: ba migration structured đã apply vào `learnforge_db` bat
 16 ngày 2026-08-27; `schema:drift --connection=mysql` PASS và ledger không còn
 pending migration. Việc này chỉ triển khai schema; production structured provider
 vẫn chưa được bind và Runtime Gate R vẫn `NO`.
+
+## Round 4 — A1 hybrid provider authorization (2026-08-27)
+
+Owner phê duyệt ADR-0019 v1.4 và Tech Stack v1.2: `docling_local` được implement
+như process offline Python 3.11/Docling 2.119.0, chỉ cung cấp layout; text vẫn từ
+Poppler/Tesseract canonical. Review giữ các gate sau:
+
+* Không network/model download trong job; thiếu binary/model trả
+  `provider_unavailable`.
+* Page limit được kiểm trước khi model load; deadline và worker timeout hiện hành
+  vẫn áp dụng.
+* JSON output phải qua toàn bộ Gate R validation trước insert.
+* Local enable chỉ sau smoke trên fixture thật. AWS enable chỉ sau exact
+  package/model/config parity và memory sizing.
+* Figure không được phân loại chart/diagram/image và không sinh semantic arrow
+  relationship; đó là ADR-0020.
+
+Verdict provider design: **PASS WITH DOCUMENTED RISKS**. Runtime Gate R chỉ đổi
+sang YES sau test F.3–F.5 và provider acceptance F.9; approval này không tự biến
+implementation chưa chạy thành production-ready.
 
 # H — Owner Approval
 

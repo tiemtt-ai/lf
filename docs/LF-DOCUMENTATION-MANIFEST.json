@@ -1060,7 +1060,7 @@
       "area": "adr",
       "document_type": "adr",
       "document_status": "Approved",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Partial",
       "metadata_complete": true,
       "authority": "architecture_decision",
       "canonical_for": [],

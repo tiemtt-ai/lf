@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Contracts\MediaProcessingProvider;
+use App\Services\DoclingStructuredExtractionProvider;
 use App\Services\FakeMediaProcessingProvider;
 use App\Services\LocalDocumentProcessingProvider;
 use App\Services\StructuredExtractionPersistenceService;
@@ -106,6 +107,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
         return match ($provider) {
             'fake' => app(FakeMediaProcessingProvider::class),
             'local_document' => app(LocalDocumentProcessingProvider::class),
+            'docling_local' => app(DoclingStructuredExtractionProvider::class),
             default => throw new RuntimeException('provider_unavailable'),
         };
     }

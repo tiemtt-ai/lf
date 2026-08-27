@@ -1,12 +1,12 @@
 # LF-Tech-Stack.md
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-12
+Last Updated: 2026-08-27
 
 Document Path: tech/LF-Tech-Stack.md
 
@@ -152,6 +152,25 @@ Gemini
 
 OpenRouter
 ```
+
+## Document layout runtime — A1
+
+```text
+Python 3.11
+Docling 2.119.0
+Poppler + Tesseract 5
+```
+
+Docling là runtime **local/offline** cho `structured_extraction`, không thay PHP
+backend và không thay OCR canonical. PHP gọi một process JSON hữu hạn thời gian;
+environment Python, packages và model artefacts được pin ngoài web process.
+
+Local và AWS phải cùng major/minor Python, exact package lock, model inventory
+hash và config hash. Không được deploy AWS bằng cách tự tải model khi worker
+khởi động. Model phải được đóng gói/prewarm; network bị tắt trong lúc xử lý.
+
+Docling không phải vision AI provider và không được diễn giải chart/diagram,
+theo ADR-0019 v1.4 và ADR-0020.
 
 ---
 

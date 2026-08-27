@@ -1,6 +1,6 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.4
+Version: 2.5
 
 Document Status: Approved
 
@@ -16,7 +16,7 @@ Related ADR:
 * [ADR-0006 — AI Foundation](../adr/ADR-0006-AI-Foundation.md)
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 * [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
-* [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved v1.1
+* [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved v1.4
 
 ---
 
@@ -49,6 +49,13 @@ và `page_limit_exceeded` cùng bản chất vĩnh viễn nhưng chưa bao giờ
 ở § 2. Chúng cần một quyết định riêng — chỗ này chỉ ghi lại, không tự thêm.
 
 Amendment này **không** phê duyệt provider nào và không mở lại hồ sơ A0.
+
+**Bổ sung Version 2.5, Approved 2026-08-27.** Architecture Owner đã mở quyết
+định A1 và phê duyệt provider `docling_local` cho structured extraction PDF.
+Provider chạy offline bằng Python 3.11 + Docling 2.119, chỉ lấy layout/table;
+text/OCR canonical vẫn do Poppler/Tesseract tạo. Profile PDF là
+`locale=<canonical-locale>;structure=layout`. Việc phê duyệt provider này không
+tự biến output optional thành required và không cho phép external processing.
 
 **Bổ sung Version 2.4, Approved 2026-08-27.** Mục *Provider, version và resource
 namespace* ở § 2 đóng ba mảnh còn thiếu để **triển khai** được: cặp
@@ -278,7 +285,7 @@ Required output profile set Phase 1 được materialize một lần tại trigg
 
 | `file_type` | Required profile chính xác | Optional/on-demand |
 | --- | --- | --- |
-| `document` | `virus_scan` profile rỗng; `ocr`: `layout=preserve;locale=<canonical-locale>` | `thumbnail`; `structured_extraction`: `locale=<canonical-locale>;structure=cells` |
+| `document` | `virus_scan` profile rỗng; `ocr`: `layout=preserve;locale=<canonical-locale>` | `thumbnail`; PDF `structured_extraction`: `locale=<canonical-locale>;structure=layout`; spreadsheet `structured_extraction`: `locale=<canonical-locale>;structure=cells` |
 | `audio` | `virus_scan` profile rỗng; `speech_to_text`: `diarization=off;locale=<canonical-locale>` | Additional transcript locale/profile |
 | `video` | `virus_scan` profile rỗng; `speech_to_text`: `diarization=off;locale=<canonical-locale>`; `caption`: `format=vtt;locale=<canonical-locale>` | `transcode`, `thumbnail`, additional transcript/caption locale hoặc format |
 | `image` | `virus_scan` profile rỗng | `thumbnail` |
@@ -358,9 +365,31 @@ retry, `output_profile_hash`, `billable_units` và quota của structured extrac
 tách khỏi OCR text, nên một revision cấu trúc fail không tiêu attempt của text và
 chi phí hai loại đo được riêng.
 
-`output_profile` của job này gồm `locale` và `structure`; giá trị Phase 1 là
-`structure=cells` cho nhánh spreadsheet đọc trực tiếp. Profile canonical khi
-locale là `vi`: `locale=vi;structure=cells`.
+`output_profile` của job này gồm `locale` và `structure`. Giá trị Phase 1 là
+`structure=layout` cho PDF và `structure=cells` cho nhánh spreadsheet đọc trực
+tiếp. Profile canonical khi locale là `vi` lần lượt là
+`locale=vi;structure=layout` và `locale=vi;structure=cells`.
+
+### Provider A1 cho PDF: `docling_local`
+
+Version 2.5, Approved 2026-08-27.
+
+`docling_local` là provider **local/offline** qua process JSON boundary. Nó dùng
+Python 3.11 và Docling 2.119 để nhận diện `role`, `reading_order`, page, bbox và
+cấu trúc bảng. Nó không gọi OCR riêng: text/OCR canonical tiếp tục thuộc job
+`ocr` Poppler/Tesseract, tránh hai engine đưa ra hai nguồn text cạnh tranh.
+
+Provider chỉ phát vocabulary đã được ADR-0019 phê duyệt. Ảnh, biểu đồ và sơ đồ
+đều là `role=figure`; không diễn giải ngữ nghĩa ảnh, không suy luận mũi tên hoặc
+quan hệ giữa node. Các khả năng đó thuộc AI Vision phase riêng. Provider không
+được gọi mạng, external API hoặc tải model trong lúc xử lý job.
+
+Trong giai đoạn acceptance, `structured_extraction` vẫn optional/on-demand.
+Không tự enqueue cho mọi upload và không đưa vào required output set cho tới khi
+Gate R có test persistence/resource/rollback xanh và acceptance fixture xác
+nhận các vùng/bảng mong đợi. Triển khai AWS còn yêu cầu parity tuyệt đối của
+Python, dependency lock, model inventory/hash, binary/config và worker sizing;
+approval local không tự authorize AWS deployment.
 
 ### Provider, version và resource namespace
 

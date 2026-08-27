@@ -239,6 +239,27 @@
                placeholder="vi, ko, en-US">
         <p class="lf-form-help lf-secondary-text">Bắt buộc khi tải Media mới; không tự suy luận từ trình duyệt hoặc mô hình.</p>
     </div>
+    <div class="lf-form-group admin-form-conditional course-template-activity-source-field"
+         x-show="activityType === 'document'"
+         x-cloak>
+        <div class="admin-checkbox-list">
+            <label class="admin-checkbox-option admin-form-option-panel admin-form-option-panel--compact">
+                <input id="structured_extraction"
+                       type="checkbox"
+                       name="structured_extraction"
+                       value="1"
+                       @checked(old('structured_extraction'))>
+                <span>Trích xuất cấu trúc tài liệu (bảng, tiêu đề, thứ tự đọc)</span>
+            </label>
+        </div>
+        <p class="lf-form-help lf-secondary-text">
+            Không tick: hệ thống vẫn trích xuất toàn bộ text như bình thường.
+            Tick: chạy thêm một bước phân tích cấu trúc để nhận diện bảng, vai trò từng khối
+            và thứ tự đọc — phục vụ AI đọc tài liệu. Bước này nặng hơn và chạy nền;
+            nếu nó thất bại thì tài liệu vẫn dùng được bình thường.
+            Ảnh và biểu đồ chỉ được đánh dấu vị trí, chưa được diễn giải nội dung.
+        </p>
+    </div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field" x-show="activityType === 'quiz'" x-cloak><x-form-label for="assessment_quiz_id" value="Assessment Quiz ID" /><input id="assessment_quiz_id" type="number" min="1" name="assessment_quiz_id" class="lf-form-control" value="{{ old('assessment_quiz_id', $formActivity?->assessment_quiz_id) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_assessment') }}"></div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field" x-show="activityType === 'live_class'" x-cloak><x-form-label for="live_class_url" value="Live class URL" /><input id="live_class_url" type="url" name="live_class_url" class="lf-form-control" value="{{ old('live_class_url', $formActivity?->live_class_url) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_live_class_url') }}"></div>
     <div class="lf-form-group course-template-activity-duration-field">

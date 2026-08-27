@@ -1,0 +1,5 @@
+docling==2.119.0
+psutil==7.0.0
+# macOS x86_64 PyTorch 2.2.2 requires NumPy 1.x; Transformers 5 disables it.
+numpy==1.26.4
+transformers==4.57.6

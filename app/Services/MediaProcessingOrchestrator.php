@@ -23,9 +23,13 @@ class MediaProcessingOrchestrator
         });
     }
 
-    public function materializeForCourseActivity(int $customerId, int $mediaFileId, ?string $locale, ?int $actorId): void
+    /**
+     * @param  bool  $structuredExtraction  Opt-in cua tac gia tren form upload. Docling khong thay
+     *                                      the OCR — no them lop cau truc ben tren cung text.
+     */
+    public function materializeForCourseActivity(int $customerId, int $mediaFileId, ?string $locale, ?int $actorId, bool $structuredExtraction = false): void
     {
-        DB::transaction(function () use ($customerId, $mediaFileId, $locale, $actorId): void {
+        DB::transaction(function () use ($customerId, $mediaFileId, $locale, $actorId, $structuredExtraction): void {
             $media = DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaFileId)->lockForUpdate()->first();
             if (! $media) {
                 throw new InvalidArgumentException('Media File not found.');
@@ -57,6 +61,15 @@ class MediaProcessingOrchestrator
 
             foreach ($this->requiredProfiles($media->file_type, $canonicalLocale) as [$jobType, $profile]) {
                 $this->createInitialJob($customerId, $media, $jobType, $profile, $actorId);
+            }
+
+            // Opt-in, khong nam trong required set: structured extraction that bai
+            // khong duoc lam file mat 'ready', va moi truong chua co Python runtime
+            // van upload duoc binh thuong.
+            if ($structuredExtraction && $media->file_type === 'document') {
+                $this->createInitialJob($customerId, $media, 'structured_extraction',
+                    $this->profiles->canonical(['locale' => (string) $canonicalLocale, 'structure' => 'layout']),
+                    $actorId);
             }
         });
     }

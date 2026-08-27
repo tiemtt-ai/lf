@@ -1,12 +1,12 @@
 # ADR-0019 — Media Structured Extraction Boundary
 
-Version: 1.3
+Version: 1.4
 
 Status: Approved
 
 Document Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Partial
 
 Last Updated: 2026-08-27
 
@@ -117,6 +117,28 @@ của một tài liệu học liệu thật, yêu cầu "nhận diện các kh�
 tự liên kết".
 
 **Quyết định.** Media dừng ở vùng. Xem § D7.
+
+---
+
+# Amendment Record — Version 1.4
+
+Amendment Status: **Approved by Architecture Owner, 2026-08-27.** Owner mở lại
+A1 và phê duyệt Docling runtime sau khi Phase B/C đã có schema chứa region/table.
+
+**Quyết định.** Provider `docling_local` chạy hybrid, offline:
+
+* Docling 2.119.0 / Python 3.11 sinh layout, role, bbox, reading order và table
+  structure.
+* Poppler/Tesseract hiện hành tiếp tục sinh text/OCR canonical theo trang. Docling
+  không thay `MEDIA_OCR_PROVIDER` và không được dùng auto language detection.
+* Mọi graphic dùng `role = figure`; `chart`, `diagram`, `image` và quan hệ mũi
+  tên không được ghi như observation của Media.
+* Provider chạy qua process boundary với JSON stdin/stdout, không import Python
+  vào PHP worker và không gọi network/external API.
+
+Approval này cho phép implement và chạy local. AWS deployment chỉ được mở khi
+Python/package/model/config hash parity và resource sizing được ghi nhận trong
+Architecture Review; nó không phê duyệt AI Vision.
 
 **Lý do.** "Khối A dẫn tới khối B" là một khẳng định **có thể sai**. Media phát ra
 nó thì không có `ai_model_runs` để truy, không quota, không ai duyệt trước khi nó
