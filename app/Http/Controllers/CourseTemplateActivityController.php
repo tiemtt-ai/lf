@@ -1101,6 +1101,7 @@ class CourseTemplateActivityController extends Controller
                 [
                     'processing_locale' => $request->input('processing_locale'),
                     'structured_extraction' => $fileType === 'document'
+                        && strtolower((string) $request->file($field)?->getClientOriginalExtension()) === 'pdf'
                         && $request->boolean('structured_extraction'),
                 ]
             );

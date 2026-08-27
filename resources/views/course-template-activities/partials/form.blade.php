@@ -51,6 +51,7 @@
          mediaDurationSeconds: @js($storedDurationSeconds > 0 ? $storedDurationSeconds : null),
          mediaDurationState: @js($storedDurationSeconds > 0 ? 'ready' : 'empty'),
          mediaTypeError: '',
+         documentIsPdf: false,
          completionRule: @js($selectedCompletionRule),
          unlockRule: @js($selectedUnlockRule),
          learningPhases: @js(array_values((array) $selectedLearningPhases)),
@@ -70,9 +71,19 @@
                  : null;
              this.mediaDurationState = this.mediaDurationSeconds ? 'ready' : 'empty';
              this.mediaTypeError = '';
+             this.documentIsPdf = false;
              this.estimatedDurationMinutes = unchanged
                  ? this.storedEstimateMinutes
                  : null;
+         },
+         documentFileChanged(event) {
+             const file = event.target.files?.[0];
+             const extension = file?.name.split('.').pop()?.toLowerCase() || '';
+             this.documentIsPdf = extension === 'pdf';
+             if (! this.documentIsPdf) {
+                 const checkbox = this.$root.querySelector('#structured_extraction');
+                 if (checkbox) checkbox.checked = false;
+             }
          },
          readMediaDuration(event, expectedType) {
              const file = event.target.files?.[0];
@@ -222,7 +233,7 @@
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field" x-show="activityType === 'document'" x-cloak>
         <div class="authoring-media-picker-row">
             @include('course-template-activities.partials.current-media', ['mediaType' => 'document'])
-            <x-authoring-media-upload id="activity_document_file" name="activity_document_file" :label="($currentActivityMedia['type'] ?? null) === 'document' ? __('lf.LF_media_replace_document') : __('lf.LF_media_upload_document')" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf" />
+            <x-authoring-media-upload id="activity_document_file" name="activity_document_file" :label="($currentActivityMedia['type'] ?? null) === 'document' ? __('lf.LF_media_replace_document') : __('lf.LF_media_upload_document')" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf" x-on:change="documentFileChanged($event)" />
         </div>
         <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX', 'TXT']" />
     </div>
@@ -240,7 +251,7 @@
         <p class="lf-form-help lf-secondary-text">Bắt buộc khi tải Media mới; không tự suy luận từ trình duyệt hoặc mô hình.</p>
     </div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field"
-         x-show="activityType === 'document'"
+         x-show="activityType === 'document' && documentIsPdf"
          x-cloak>
         <div class="admin-checkbox-list">
             <label class="admin-checkbox-option admin-form-option-panel admin-form-option-panel--compact">
@@ -248,6 +259,7 @@
                        type="checkbox"
                        name="structured_extraction"
                        value="1"
+                       :disabled="!documentIsPdf"
                        @checked(old('structured_extraction'))>
                 <span>Trích xuất cấu trúc tài liệu (bảng, tiêu đề, thứ tự đọc)</span>
             </label>
@@ -257,7 +269,7 @@
             Tick: chạy thêm một bước phân tích cấu trúc để nhận diện bảng, vai trò từng khối
             và thứ tự đọc — phục vụ AI đọc tài liệu. Bước này nặng hơn và chạy nền;
             nếu nó thất bại thì tài liệu vẫn dùng được bình thường.
-            Trích xuất cấu trúc hiện chỉ hỗ trợ tệp PDF.
+            Tùy chọn này chỉ xuất hiện và hoạt động với tệp PDF.
             Ảnh và biểu đồ chỉ được đánh dấu vị trí, chưa được diễn giải nội dung.
         </p>
     </div>

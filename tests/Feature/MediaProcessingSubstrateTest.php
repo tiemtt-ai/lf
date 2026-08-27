@@ -656,6 +656,24 @@ class MediaProcessingSubstrateTest extends TestCase
         ]);
     }
 
+    public function test_http_non_pdf_document_forging_the_checkbox_creates_no_structured_job(): void
+    {
+        [$templateId, $lessonId] = $this->courseFixture();
+
+        $this->actingAs($this->admin)
+            ->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload([
+                'activity_document_file' => UploadedFile::fake()->createWithContent('bai-hoc.txt', 'noi dung trang'),
+                'structured_extraction' => '1',
+            ]))
+            ->assertSessionHasNoErrors();
+
+        $usage = DB::table('media_file_usages')->where('owner_type', 'course_activity')->latest('id')->firstOrFail();
+        $this->assertFalse((bool) (json_decode($usage->metadata, true)['structured_extraction'] ?? false));
+        $this->assertDatabaseMissing('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id, 'job_type' => 'structured_extraction',
+        ]);
+    }
+
     private function activityUrl(int $templateId, int $lessonId): string
     {
         return "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities";
@@ -673,7 +691,7 @@ class MediaProcessingSubstrateTest extends TestCase
             'is_preview' => '0',
             'unlock_rule' => 'none',
             'processing_locale' => 'vi',
-            'activity_document_file' => UploadedFile::fake()->createWithContent('bai-hoc.txt', 'noi dung trang'),
+            'activity_document_file' => UploadedFile::fake()->create('bai-hoc.pdf', 24, 'application/pdf'),
         ], $override), fn ($value) => $value !== null);
     }
 
