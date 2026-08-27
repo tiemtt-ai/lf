@@ -1,12 +1,12 @@
 # Media Processing Substrate Architecture Review
 
-Version: 1.15
+Version: 1.16
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-25
+Last Updated: 2026-08-27
 
 Review Date: 2026-08-23
 
@@ -423,6 +423,30 @@ MariaDB gồm 9 file: `98 passed, 439 assertions`. Runtime findings đã đóng.
 Database/schema deployment blocker đã đóng. Gate còn lại trên upload path là
 provider: development `.env` dùng `fake` để smoke-test/local authoring; không
 được diễn giải adapter này là virus scan thật hoặc production approval.
+
+## Course Activity document upload closure — 2026-08-27
+
+```text
+Capability: Upload/replace/remove document for course_activity
+Development verdict: PASS
+Production verdict: BLOCKED pending approved virus-scan provider
+Media Processing overall: PARTIAL
+```
+
+Closure evidence nằm ở implementation và regression suite hiện hành:
+
+* attach được tenant-scope qua `media_file_usages` và owner Course authorize;
+* create/edit/replace/remove giữ đúng lifecycle và redirect;
+* duplicate attach giữ idempotency, replace không sửa binary lịch sử;
+* private preview/delivery fail-closed theo tenant, owner context và trạng thái
+  file;
+* dispatch processing sau commit; rollback không để lại job rác;
+* OCR/extracted text là output dẫn xuất, không đổi kết luận upload capability.
+
+Đóng capability này **không** đóng structured extraction, Gate M/Gate R, Spec B
+production access, provider OCR/STT/caption production, retention/redaction hay
+AI Knowledge. Không được dùng verdict hẹp này để đổi `Implementation Status` của
+toàn review khỏi `Partial`.
 
 ---
 

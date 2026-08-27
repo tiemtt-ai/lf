@@ -1,6 +1,6 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.3
+Version: 2.4
 
 Document Status: Approved
 
@@ -49,6 +49,12 @@ và `page_limit_exceeded` cùng bản chất vĩnh viễn nhưng chưa bao giờ
 ở § 2. Chúng cần một quyết định riêng — chỗ này chỉ ghi lại, không tự thêm.
 
 Amendment này **không** phê duyệt provider nào và không mở lại hồ sơ A0.
+
+**Bổ sung Version 2.4, Approved 2026-08-27.** Mục *Provider, version và resource
+namespace* ở § 2 đóng ba mảnh còn thiếu để **triển khai** được: cặp
+provider/version của job mới, namespace resource control riêng, và deadline.
+Không có ba thứ này thì một job `structured_extraction` khởi động mà không có
+provider để gọi và không có giới hạn nào.
 
 **Bổ sung Version 2.3, Approved 2026-08-27.** Mục *Lộ trình chuyển sang
 required* ở § 1 chốt cách đưa structured extraction từ optional lên required mà
@@ -355,6 +361,52 @@ chi phí hai loại đo được riêng.
 `output_profile` của job này gồm `locale` và `structure`; giá trị Phase 1 là
 `structure=cells` cho nhánh spreadsheet đọc trực tiếp. Profile canonical khi
 locale là `vi`: `locale=vi;structure=cells`.
+
+### Provider, version và resource namespace
+
+Version 2.4, Approved 2026-08-27.
+
+```dotenv
+MEDIA_STRUCTURED_EXTRACTION_PROVIDER=
+MEDIA_STRUCTURED_EXTRACTION_VERSION=
+```
+
+Cặp này theo đúng luật fail-closed của § 2: bỏ trống là `unconfigured`, và job
+`structured_extraction` khi đó **không được enqueue** — không để file treo
+`processing`, và không làm `media_files` mất `ready` vì đây là job optional.
+
+`config('media.processing.providers')` và `.versions` khoá theo `job_type`, nên
+hai key mới là `structured_extraction`.
+
+#### Resource namespace riêng
+
+Theo § 3, một provider đọc namespace khác sẽ khởi động với **không giới hạn
+nào**. Namespace của job này là `media.processing.structured_extraction.*` và
+phải áp lại tường minh, kể cả các trần trùng giá trị với `local_document`:
+
+| Key | Giá trị freeze | Env |
+| --- | ---: | --- |
+| `max_pages` | `100` | `MEDIA_STRUCTURED_MAX_PAGES` |
+| `max_extracted_characters` | `500000` | `MEDIA_STRUCTURED_MAX_EXTRACTED_CHARACTERS` |
+| `max_regions_per_page` | `50` | `MEDIA_STRUCTURED_MAX_REGIONS_PER_PAGE` |
+| `max_regions_per_document` | `5000` | `MEDIA_STRUCTURED_MAX_REGIONS_PER_DOCUMENT` |
+| `max_table_cells_per_document` | `200000` | `MEDIA_STRUCTURED_MAX_TABLE_CELLS_PER_DOCUMENT` |
+| `max_processing_seconds` | `3300` | `MEDIA_STRUCTURED_MAX_PROCESSING_SECONDS` |
+| `command_timeout_seconds` | `900` | `MEDIA_STRUCTURED_COMMAND_TIMEOUT_SECONDS` |
+
+Bốn trần giữa là các giá trị đã freeze ngày 2026-08-25; bảng này chỉ nói chúng
+**đọc từ đâu**, không đặt lại giá trị.
+
+`max_processing_seconds = 3300` giữ nguyên bất biến
+`deadline 3300 < worker 3600 < queue 3900`. `command_timeout_seconds = 900` cao
+hơn mức `300` của `local_document` vì một engine bố cục xử lý cả tài liệu trong
+một lần gọi chứ không phải từng trang một; `900` là mức của LibreOffice đã dùng
+trong `local_document`, không phải một con số mới.
+
+Sizing đo được ở A0 — p95 `4.01` giây/trang — cho 100 trang là khoảng `400` giây,
+nằm trong deadline. Nếu engine được chọn có p95 cao hơn `33` giây/trang thì
+deadline này không đủ và phải được xem lại **trước** khi deploy, không phải sau
+lần `provider_timeout` đầu tiên.
 
 ### Output identity của một job structured
 

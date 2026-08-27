@@ -1080,7 +1080,7 @@ Affected Implementation: app/Jobs/ProcessMediaProcessingJob::persistSuccess
 Temporary Safety Rule: Không mô tả bốn CHECK này như đang có hiệu lực trong bất kỳ review nào
 Required Decision: Migration của DOC-CONFLICT-0019 tạo mới CHECK output_type với đủ vocabulary, hay § Keys được sửa cho khớp schema hiện tại. Hai đường dẫn tới hai schema khác nhau
 Resolution Authority: Database Owner cùng Architecture Owner
-Resolution Plan: Gộp vào cùng migration với job_type structured_extraction; quyết định trước khi viết migration đó
+Resolution Plan: Hướng chuẩn bị được review khuyến nghị là tạo mới CHECK output_type với đủ sáu giá trị (`transcript`, `caption`, `extracted_text`, `variant`, `extracted_region`, `extracted_table`) trong cùng migration mở job_type. Ba CHECK còn thiếu khác phải được Database Owner quyết định rõ là tạo vật lý hay sửa § Keys; audit dữ liệu cũ và preflight bắt buộc trước khi thêm constraint. Không viết migration thứ ba cho tới khi quyết định này được ký và Round 3 pass
 Target Review Date: 2026-09-01
 Resolved At: Not resolved
 Resolution: Not resolved

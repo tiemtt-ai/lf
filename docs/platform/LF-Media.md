@@ -1,6 +1,6 @@
 # LF-Media.md
 
-Version: 1.7
+Version: 1.8
 
 Document Status: Approved
 
@@ -15,6 +15,35 @@ Document Path: platform/LF-Media.md
 # LF Media Architecture
 
 Media là Platform Domain dùng chung cho toàn bộ LearnForge.
+
+## Capability closure — Course Activity document upload
+
+**Closed on development, 2026-08-27.** Phạm vi được đóng là upload/replace/remove
+tài liệu tại form `course_activity`, không phải toàn bộ Media Processing và
+không phải AI Knowledge.
+
+Evidence hiện hành:
+
+* owner Course authorize thao tác trước khi Media ghi dữ liệu;
+* file và `media_file_usages` được ghi theo cùng `customer_id`, với
+  `owner_type = course_activity`, `usage_type = document`;
+* submit thành công quay lại trang hợp lệ; tài liệu vừa gắn vẫn xuất hiện khi
+  mở lại activity;
+* replace tạo Media File mới vì binary immutable; remove chỉ detach usage,
+  không xoá nhầm file còn consumer khác;
+* delivery/preview là tenant-scoped và chỉ phục vụ file `ready`;
+* locale processing do actor chọn rõ ràng, không suy luận từ browser/model;
+* upload tài liệu kích hoạt substrate sau commit; output OCR là derived output
+  và không phải điều kiện để binary tài liệu tiếp tục deliver được.
+
+Capability này giữ trạng thái **Implemented** trong phạm vi development. Điều
+kiện production vẫn còn: virus-scan provider thật phải được cấu hình trước khi
+deploy upload path. Adapter `fake` chỉ là local/test evidence, không phải
+production approval.
+
+Những phần **không** được đóng bởi mục này: structured region/table/cell,
+production OCR/STT/caption providers, Media Read cho AI production, AI Knowledge
+source/chunk/embedding và AI-assisted authoring.
 
 Media implementation hiện là `Partial`. Cập nhật 2026-08-27 theo source thật:
 upload, tenant-scoped file identity, generic Usage, private delivery và Course

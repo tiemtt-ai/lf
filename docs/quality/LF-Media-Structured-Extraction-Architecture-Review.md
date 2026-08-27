@@ -1,6 +1,6 @@
 # Media Structured Extraction Architecture Review
 
-Version: 2.2
+Version: 2.3
 
 Document Status: Review
 
@@ -326,6 +326,34 @@ chưa tồn tại.
 Ba nhóm này thuộc **Gate M**, không phải Gate R: chúng là ràng buộc vật lý của
 một bảng đang chạy.
 
+## F.9 — Nghiệm thu bằng tài liệu thật (v2.3, 2026-08-27)
+
+§ F.1–F.8 chứng minh **ràng buộc vật lý**. Chúng không nói gì về việc provider
+đọc đúng một tài liệu thật. Bộ nghiệm thu tối thiểu:
+
+| # | Fixture | PASS khi |
+|---|---|---|
+| 9.1 | PDF chỉ có text | Đủ số trang, không mất text, `reading_order` liên tục `1..N` |
+| 9.2 | PDF scan | Mọi trang có row; `extraction_method = 'ocr'` |
+| 9.3 | PDF lai text + scan | Mỗi trang mang đúng `extraction_method` của chính nó |
+| 9.4 | PDF có bảng | Đúng số hàng/cột; ô rỗng vẫn giữ toạ độ; region đích có `role = 'table'` |
+| 9.5 | PDF có biểu đồ | Có region `role = 'figure'`, `bbox` đúng vị trí; **không** có trường ý nghĩa nào |
+| 9.6 | PDF có sơ đồ luồng | Mỗi khối là một region `figure`; chữ trong khối giữ nguyên. **Không** khẳng định quan hệ giữa khối |
+| 9.7 | DOCX | Heading/paragraph/table ra đúng `role` |
+| 9.8 | XLSX nhiều sheet | `locator_type = 'sheet'`; mỗi sheet một table; `extraction_method = 'spreadsheet_cells'` |
+| 9.9 | Reprocess cùng file | Revision cũ `archived`, citation cũ vẫn trỏ đúng nội dung cũ |
+
+**Tiêu chí bị loại bỏ có chủ ý.** "Nhận diện mũi tên", "thứ tự liên kết của sơ
+đồ", "biểu đồ này nói gì" **không** nằm trong bộ này theo
+[ADR-0019 § D7](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md). Chúng
+không sai vì thiếu engine tốt; chúng không thuộc Media. Đổi engine không chuyển
+được dòng nào vào bảng trên.
+
+**Corpus.** Không có harness A0 nào còn tồn tại; bộ fixture này phải được dựng
+lại. Tài liệu thật có PII học viên chịu eligibility riêng theo
+[ADR-0018](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — không
+được đưa vào corpus chỉ vì tiện.
+
 ## F.7 — Điều kiện đủ của plan
 
 Plan được coi là đủ khi mọi dòng ở F.1–F.6 có một test tương ứng, và mỗi test có
@@ -377,15 +405,18 @@ Migration cho `media_extracted_regions`, `media_extracted_tables`,
 3. ~~Rerun độc lập~~ — **XONG 2026-08-26.** Round 2 chuyển verdict sang
    `PASS WITH DOCUMENTED RISKS`.
 4. ~~Database test plan~~ — **XONG.** § F, đã qua Round 2 với năm chỉnh sửa.
-5. **Còn lại — gate cuối, giữ nguyên không nới:**
-   * viết toàn bộ test § F;
+5. **Còn lại của Gate M — giữ nguyên không nới:**
+   * viết test vật lý F.1, F.2, F.4.5, F.4.7, F.6 và F.8;
    * thêm file integration mới vào **danh sách explicit** của job
      `integration-mysql` (job liệt kê từng file, không quét thư mục);
    * chạy xanh trên MariaDB 11.4.3;
-   * có **evidence riêng** cho ba case, không gộp vào báo cáo chung:
-     **F.1.9** partial-NULL bbox bị CHECK chặn; **F.5.6** fail toàn revision với
-     zero row trong cả bốn bảng; **F.6.4** rollback khi đã có
+   * có **evidence riêng** cho hai case Gate M, không gộp vào báo cáo chung:
+     **F.1.9** partial-NULL bbox bị CHECK chặn; **F.6.4** rollback khi đã có
      `sheet`/`spreadsheet_cells` fail-closed và không sửa dữ liệu.
+
+F.3, F.4.1–F.4.4 và toàn bộ F.5 thuộc **Gate R**. Đặc biệt F.5.6 — fail toàn
+revision với zero row trong cả bốn bảng — vẫn là blocker bắt buộc trước runtime,
+nhưng không phải bằng chứng cần có để apply schema migration.
 
 Chỉ sau evidence đó `Migration authorized` mới chuyển `YES`. Viết migration và
 test theo thứ tự plan được phép bắt đầu ngay; **hoàn tất** và **deployable** thì

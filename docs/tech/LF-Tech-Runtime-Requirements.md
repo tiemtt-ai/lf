@@ -1,6 +1,6 @@
 # LF-Tech-Runtime-Requirements.md
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Draft
 
@@ -162,7 +162,14 @@ MEDIA_SPEECH_TO_TEXT_PROVIDER=  MEDIA_SPEECH_TO_TEXT_VERSION=
 MEDIA_CAPTION_PROVIDER=         MEDIA_CAPTION_VERSION=
 MEDIA_THUMBNAIL_PROVIDER=       MEDIA_THUMBNAIL_VERSION=
 MEDIA_TRANSCODE_PROVIDER=       MEDIA_TRANSCODE_VERSION=
+
+MEDIA_STRUCTURED_EXTRACTION_PROVIDER=   MEDIA_STRUCTURED_EXTRACTION_VERSION=
 ```
+
+Cặp cuối thêm ở v1.2 (2026-08-27) theo `job_type = 'structured_extraction'` của
+[Processing Contract § 2](../platform/LF-Media-Processing-Contract.md). Bỏ trống
+thì job đó **không được enqueue**; vì nó là job optional nên `media_files` vẫn
+`ready` và delivery không bị ảnh hưởng — khác `virus_scan`.
 
 Bỏ trống = `unconfigured`. Khi đó `virus_scan` trả `provider_unavailable`, và vì
 `virus_scan` là job bắt buộc cho **mọi** file type, file vừa upload chuyển
@@ -191,7 +198,20 @@ MEDIA_OCR_VERSION=local-document-v1
 | `MEDIA_OCR_DPI` | `200` | DPI render trang |
 | `MEDIA_MAX_EXTRACTED_CHARACTERS` | `500000` | Text dẫn xuất tối đa mỗi revision |
 
-Các giá trị này nằm ở namespace `media.processing.local_document.*`. Một provider
+### Namespace `structured_extraction` — v1.2, 2026-08-27
+
+| Env | Mặc định | Ý nghĩa |
+|---|---|---|
+| `MEDIA_STRUCTURED_MAX_PAGES` | `100` | Trang tối đa một revision cấu trúc |
+| `MEDIA_STRUCTURED_MAX_EXTRACTED_CHARACTERS` | `500000` | Tổng text page/sheet + region + cell |
+| `MEDIA_STRUCTURED_MAX_REGIONS_PER_PAGE` | `50` | Trần region theo trang |
+| `MEDIA_STRUCTURED_MAX_REGIONS_PER_DOCUMENT` | `5000` | Trần region toàn tài liệu |
+| `MEDIA_STRUCTURED_MAX_TABLE_CELLS_PER_DOCUMENT` | `200000` | Row cell thực persist |
+| `MEDIA_STRUCTURED_MAX_PROCESSING_SECONDS` | `3300` | Deadline provider, giữ bất biến `3300 < 3600 < 3900` |
+| `MEDIA_STRUCTURED_COMMAND_TIMEOUT_SECONDS` | `900` | Một lần gọi engine trên cả tài liệu |
+
+Các giá trị này nằm ở namespace `media.processing.local_document.*` và
+`media.processing.structured_extraction.*` tương ứng. Một provider
 mới đọc namespace khác sẽ khởi động với **không giới hạn nào**, và
 `page_limit_exceeded` cùng `extracted_text_too_large` sẽ im lặng biến mất. Provider
 mới phải áp dụng lại chúng tường minh.
