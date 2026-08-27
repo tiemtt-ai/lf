@@ -1,6 +1,6 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.5
+Version: 1.6
 
 Document Status: Approved
 
@@ -35,6 +35,10 @@ Version 1.5 áp dụng [ADR-0019](../adr/ADR-0019-Media-Structured-Extraction-Bo
 đã Approved: thêm hai content type `region` và `table`, và mở `locator_type`
 sang `sheet`/`region`. Không có đường đọc mới, không có API riêng cho structured
 data; mọi thứ khác của hợp đồng giữ nguyên.
+
+Version 1.6 chỉ cập nhật implementation evidence và ghi nhận
+DOC-CONFLICT-0021. Nó không tự chọn Media File khi một owner có nhiều active
+usage: lựa chọn đó cần Owner quyết định trước khi mở HTTP API hoặc AI consumer.
 
 Version 1.4 áp dụng ADR-0018 đã được Architecture Owner approve ngày 2026-08-25.
 Approval này không authorize external processing và không tự đóng các gate triển
@@ -263,7 +267,8 @@ audit sink cho owner không resolve vẫn là implementation gate, không phải
 | --- | --- |
 | B1 | ADR-0018 đã approve boundary PII/redaction/external processing; retention duration, deletion synchronization và full provenance audit chưa có implementation evidence. Chặn production/real-tenant rollout, không biến `PII_PRESENT` thành OCR failure |
 | B2 | Cue-level caption citation chưa có contract; nếu AI cần, phải review trước |
-| B3 | Sáu bảng `media_*` vẫn `not_implemented`; hợp đồng này không đọc được gì cho tới khi chúng tồn tại |
+| B3 | Sáu bảng substrate cơ bản đã implemented; `region`/`table` vẫn chưa có runtime và hai migration structured chưa được Gate M authorize |
+| B4 | Owner context có thể có nhiều active Media usage nhưng request chưa có media slot/usage selector; runtime hiện dùng `first()` nên production read bị chặn bởi DOC-CONFLICT-0021 |
 
 ---
 

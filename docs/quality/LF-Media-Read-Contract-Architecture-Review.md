@@ -1,12 +1,12 @@
 # Media Read Contract Architecture Review
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Review
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-24
+Last Updated: 2026-08-27
 
 Review Date: 2026-08-24
 
@@ -121,8 +121,9 @@ review packet cho reviewer kế tiếp; chúng không tự tạo verdict Approve
 | --- | --- | --- |
 | B1 | Retention/redaction for OCR/transcript content is not approved | Blocks real AI consumer rollout |
 | B2 | Cue-level caption citation has no contract | Use transcript locator; new cue contract requires review |
-| B3 | Processing/read tables and runtime are not implemented at review time | Blocks operational reads until implementation evidence exists |
+| B3 | Base processing/read tables and scoped service now exist; structured `region`/`table` persistence and read branches remain unimplemented | Blocks structured operational reads |
 | B4 | External processing providers are not configured | Blocks production-derived content generation |
+| B5 | Request identifies only owner context while an owner may have multiple active Media usages; implementation selects `first()` | DOC-CONFLICT-0021 blocks production HTTP/AI read until the selector is deterministic |
 
 # Review Result
 

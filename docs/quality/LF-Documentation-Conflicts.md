@@ -234,11 +234,13 @@ trung lập.
 
 # Active Conflict Register
 
-Active items: 9. DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25;
+Active items: 8. DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25;
 DOC-CONFLICT-0018 và DOC-CONFLICT-0019 đóng 2026-08-27 bằng đợt amendment tài
-liệu của miền Media. Còn **DOC-CONFLICT-0020** đang mở: bốn CHECK của
+liệu của miền Media. **DOC-CONFLICT-0020** đang mở: bốn CHECK của
 `media_processing_jobs` không tồn tại vật lý, và Owner chưa chọn giữa "tạo mới
 CHECK" và "sửa § Keys". Nó chặn migration thứ ba, không chặn phần tài liệu.
+**DOC-CONFLICT-0021** cũng đang mở: Media Read chưa có selector deterministic
+khi một owner có nhiều active Media usage.
 
 | ID | Title | Classification | Status | Impact | Domain | Owner | Target Review |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -253,6 +255,7 @@ CHECK" và "sửa § Keys". Nó chặn migration thứ ba, không chặn phần 
 | DOC-CONFLICT-0018 | Processing Contract § 4 chưa mở locator sang `sheet`/`region` dù cùng tài liệu đã có resource control cho region | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Architecture Owner | Đóng 2026-08-27 |
 | DOC-CONFLICT-0019 | `job_type`/`output_type` không có giá trị nào chứa được một revision structured | GAP | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-08-27 |
 | DOC-CONFLICT-0020 | Bốn CHECK trong doc `media_processing_jobs` không tồn tại trong schema vật lý | IMPLEMENTATION_DRIFT | DECISION_REQUIRED | MEDIUM | Media | Database Owner | Trước migration job_type |
+| DOC-CONFLICT-0021 | Media Read owner context không xác định Media File khi owner có nhiều active usage | GAP | DECISION_REQUIRED | HIGH | Media × Course × AI | Architecture Owner | Trước HTTP/API hoặc AI consumer production |
 
 ---
 
@@ -1088,4 +1091,42 @@ Superseded/Updated Documents: None
 Verification Evidence: docs/database/LF-SCHEMA-CONTRACT.json § tables.media_processing_jobs.checks liệt kê đúng sáu CHECK
 Related ADR/Review/Issue/PR: DOC-CONFLICT-0019; ADR-0004
 Notes: Phát hiện phụ khi soạn amendment, không phải mục tiêu của đợt đối chiếu
+```
+
+---
+
+## DOC-CONFLICT-0021
+
+```text
+Conflict ID: DOC-CONFLICT-0021
+Title: Media Read owner context không xác định Media File khi owner có nhiều active usage
+Classification: GAP
+Status: DECISION_REQUIRED
+Impact: HIGH
+Detected At: 2026-08-27
+Detected By: Phase 1 implementation inventory
+Owner: Architecture Owner
+Affected Domain: Media × Course × AI
+Affected Concern: Deterministic derived-content source selection
+Sources In Conflict:
+Source A: docs/platform/LF-Media-Read-Contract.md § 3; consumer gọi bằng owner_type + owner_id + content_type, không truyền media_file_id
+Source B: docs/database/media/media_file_usages.md; một owner có thể có nhiều Media Files
+Additional Sources: app/Services/MediaReadService.php; tests/Feature/CourseMediaIntegrationTest.php
+Contradictory Requirements:
+- Source A requires: owner context xác định duy nhất source được đọc
+- Source B permits: cùng owner có nhiều active usage với các usage_type khác nhau, và schema không buộc chỉ một row active
+Why They Cannot Both Be True: content_type không luôn xác định duy nhất usage; riêng transcript có thể đến từ audio hoặc video, và một owner có thể có nhiều source cùng loại. Chọn row đầu tiên phụ thuộc query order, không phải business rule
+Runtime/Business Impact: AI có thể đọc transcript/OCR/caption của nhầm Media File nhưng vẫn qua tenant và owner authorization, tạo citation hợp lệ về sai source
+Affected Implementation: app/Services/MediaReadService::read; app/Services/MediaReadService::mediaForOwner; HTTP/API chưa được tạo
+Temporary Safety Rule: Không mở HTTP Media Read endpoint hoặc AI production consumer. CLI/service chỉ dùng trong fixture/operator flow đã chứng minh owner có đúng một active source phù hợp
+Required Decision: Owner chọn selector canonical, ví dụ thêm usage_type/media_slot vào request hoặc định nghĩa một active primary usage duy nhất cho từng owner + content type. Không dùng bare media_file_id và không dùng first()/latest() làm policy
+Resolution Authority: Architecture Owner cùng Course Domain Owner
+Resolution Plan: Amendment Media Read Contract → independent review → characterization test owner có nhiều usage → sửa service → mới mở HTTP/API
+Target Review Date: Trước Phase 1 production Media Read
+Resolved At: Not resolved
+Resolution: Not resolved
+Superseded/Updated Documents: None
+Verification Evidence: media_file_usages contract cho phép N media/owner; MediaReadService hiện gọi first() không có usage_type/order
+Related ADR/Review/Issue/PR: ADR-0004; ADR-0006; LF-Media-Read-Contract; LF-Media-Read-Contract-Architecture-Review
+Notes: Đây là authorization-correct nhưng source-selection-incorrect; tenant check không phát hiện được đọc nhầm file trong cùng owner
 ```
