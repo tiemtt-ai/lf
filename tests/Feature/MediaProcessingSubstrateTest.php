@@ -242,7 +242,7 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->app->instance(CourseMediaOwnerContextAuthorizer::class, $authorizer);
 
         Auth::logout();
-        $units = app(MediaReadService::class)->read($this->admin->id, 'course_activity', 99, 'transcript', 'vi');
+        $units = app(MediaReadService::class)->read($this->admin->id, 'course_activity', 99, 'video', 'transcript', 'vi');
         $this->assertSame('timespan', $units[0]['locator']['type']);
         $this->assertDatabaseHas('media_access_logs', ['media_file_id' => $media->id, 'action' => 'read_derived', 'source_type' => 'ai']);
         $logId = DB::table('media_access_logs')->value('id');
@@ -291,7 +291,7 @@ class MediaProcessingSubstrateTest extends TestCase
         $authorizer->shouldReceive('authorized')->andReturnTrue();
         $this->app->instance(CourseMediaOwnerContextAuthorizer::class, $authorizer);
 
-        $units = app(MediaReadService::class)->read($this->admin->id, 'course_activity', 101, 'transcript', 'vi');
+        $units = app(MediaReadService::class)->read($this->admin->id, 'course_activity', 101, 'video', 'transcript', 'vi');
 
         $this->assertSame('fake-v2', $units[0]['processing_version']);
         $this->assertSame('Revision two', $units[0]['text']);
@@ -326,7 +326,7 @@ class MediaProcessingSubstrateTest extends TestCase
         $service = app(MediaReadService::class);
 
         try {
-            $service->read($this->admin->id, 'course_activity', 100, 'transcript', 'ko');
+            $service->read($this->admin->id, 'course_activity', 100, 'video', 'transcript', 'ko');
             $this->fail();
         } catch (MediaReadException $e) {
             $this->assertSame('locale_unavailable', $e->errorCode);
@@ -335,21 +335,21 @@ class MediaProcessingSubstrateTest extends TestCase
         $row = DB::table('media_transcripts')->where('media_file_id', $media->id)->first();
         DB::table('media_transcripts')->where('id', $row->id)->update(['status' => 'archived']);
         try {
-            $service->read($this->admin->id, 'course_activity', 100, 'transcript', 'vi');
+            $service->read($this->admin->id, 'course_activity', 100, 'video', 'transcript', 'vi');
             $this->fail();
         } catch (MediaReadException $e) {
             $this->assertSame('archived', $e->errorCode);
         }
-        $archived = $service->read($this->admin->id, 'course_activity', 100, 'transcript', 'vi', $row->processing_version, $row->source_fingerprint);
+        $archived = $service->read($this->admin->id, 'course_activity', 100, 'video', 'transcript', 'vi', $row->processing_version, $row->source_fingerprint);
         $this->assertSame('archived', $archived[0]['status']);
         try {
-            $service->read($this->admin->id, 'course_activity', 100, 'transcript', 'vi', $row->processing_version, str_repeat('0', 64));
+            $service->read($this->admin->id, 'course_activity', 100, 'video', 'transcript', 'vi', $row->processing_version, str_repeat('0', 64));
             $this->fail();
         } catch (MediaReadException $e) {
             $this->assertSame('revision_mismatch', $e->errorCode);
         }
         try {
-            $service->read($this->admin->id, 'course_activity', 100, 'transcript', 'vi', 'missing-version');
+            $service->read($this->admin->id, 'course_activity', 100, 'video', 'transcript', 'vi', 'missing-version');
             $this->fail();
         } catch (MediaReadException $e) {
             $this->assertSame('revision_unavailable', $e->errorCode);
@@ -368,7 +368,7 @@ class MediaProcessingSubstrateTest extends TestCase
         $authorizer->shouldReceive('authorized')->once()->andReturnFalse();
         $this->app->instance(CourseMediaOwnerContextAuthorizer::class, $authorizer);
         try {
-            app(MediaReadService::class)->read($this->admin->id, 'course_activity', 999, 'transcript', 'vi');
+            app(MediaReadService::class)->read($this->admin->id, 'course_activity', 999, 'video', 'transcript', 'vi');
             $this->fail('Unauthorized read was accepted.');
         } catch (MediaReadException $exception) {
             $this->assertSame('unauthorized', $exception->errorCode);
@@ -378,12 +378,103 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertSame('denied', json_decode($audit->metadata, true)['decision']);
     }
 
+    public function test_structured_extraction_persists_atomic_regions_and_media_read_returns_structure(): void
+    {
+        config([
+            'media.processing.providers.structured_extraction' => 'fake',
+            'media.processing.versions.structured_extraction' => 'fake-structured-v1',
+        ]);
+        $media = $this->uploadDocument();
+        app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
+            $this->customerId, $media->id, 'structured_extraction',
+            ['locale' => 'vi', 'structure' => 'layout'], $this->admin->id
+        );
+
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $media->id, 'job_type' => 'structured_extraction',
+            'status' => 'ready', 'output_type' => 'extracted_region',
+        ]);
+        $this->assertSame(2, DB::table('media_extracted_regions')->where('media_file_id', $media->id)->count());
+
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'owner_type' => 'course_activity', 'owner_id' => 120,
+            'usage_type' => 'document', 'status' => 'active', 'created_by' => $this->admin->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $authorizer = Mockery::mock(CourseMediaOwnerContextAuthorizer::class);
+        $authorizer->shouldReceive('authorized')->andReturnTrue();
+        $this->app->instance(CourseMediaOwnerContextAuthorizer::class, $authorizer);
+
+        $units = app(MediaReadService::class)->read(
+            $this->admin->id, 'course_activity', 120, 'document', 'region', 'vi'
+        );
+        $this->assertSame('heading', $units[0]['structure']['role']);
+        $this->assertSame(1, $units[0]['structure']['reading_order']);
+    }
+
+    public function test_structured_limit_failure_rolls_back_every_table_for_the_revision(): void
+    {
+        config([
+            'media.processing.providers.structured_extraction' => 'fake',
+            'media.processing.versions.structured_extraction' => 'fake-structured-limit-v1',
+            'media.processing.structured_extraction.max_regions_per_page' => 1,
+        ]);
+        $media = $this->uploadDocument();
+        app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
+            $this->customerId, $media->id, 'structured_extraction',
+            ['locale' => 'vi', 'structure' => 'layout'], $this->admin->id
+        );
+
+        $job = DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+            ->where('job_type', 'structured_extraction')->first();
+        $this->assertSame('failed', $job->status);
+        $this->assertSame('structured_extraction_too_large', $job->error_code);
+        foreach (['media_extracted_texts', 'media_extracted_regions', 'media_extracted_tables'] as $table) {
+            $this->assertSame(0, DB::table($table)->where('media_file_id', $media->id)
+                ->where('processing_version', $job->processing_version)->count(), $table);
+        }
+        $this->assertSame(0, DB::table('media_table_cells')->count());
+    }
+
+    public function test_media_read_fails_closed_when_exact_usage_slot_is_ambiguous(): void
+    {
+        $first = $this->uploadVideo('lesson.mp4');
+        $second = $this->uploadVideo('second.mp4');
+        foreach ([$first, $second] as $media) {
+            DB::table('media_file_usages')->insert([
+                'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+                'owner_type' => 'course_activity', 'owner_id' => 121,
+                'usage_type' => 'video', 'status' => 'active', 'created_by' => $this->admin->id,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+        $authorizer = Mockery::mock(CourseMediaOwnerContextAuthorizer::class);
+        $authorizer->shouldReceive('authorized')->andReturnTrue();
+        $this->app->instance(CourseMediaOwnerContextAuthorizer::class, $authorizer);
+
+        try {
+            app(MediaReadService::class)->read($this->admin->id, 'course_activity', 121, 'video', 'transcript', 'vi');
+            $this->fail('Ambiguous exact usage slot was accepted.');
+        } catch (MediaReadException $exception) {
+            $this->assertSame('ambiguous_source', $exception->errorCode);
+        }
+    }
+
     private function uploadVideo(string $name = 'lesson.mp4'): object
     {
         $size = $name === 'lesson.mp4' ? 32 : 33;
 
         return app(MediaService::class)->upload(UploadedFile::fake()->create($name, $size, 'video/mp4'), [
             'file_type' => 'video', 'module' => 'course', 'entity_type' => 'activities', 'entity_id' => 99, 'purpose' => 'video',
+        ], $this->admin->id);
+    }
+
+    private function uploadDocument(): object
+    {
+        return app(MediaService::class)->upload(UploadedFile::fake()->createWithContent('structured.txt', 'page text'), [
+            'file_type' => 'document', 'module' => 'course', 'entity_type' => 'activities',
+            'entity_id' => 120, 'purpose' => 'document',
         ], $this->admin->id);
     }
 }

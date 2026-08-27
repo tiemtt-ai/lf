@@ -1,6 +1,6 @@
 # Media Read Contract Architecture Review
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Review
 
@@ -19,7 +19,7 @@ Document Path: quality/LF-Media-Read-Contract-Architecture-Review.md
 | Field | Value |
 | --- | --- |
 | Domain | Media × AI × Course |
-| Specification | [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md) v1.3 |
+| Specification | [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md) v1.7 |
 | Producer Contract | [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md) v1.6 |
 | Parent ADRs | [ADR-0004](../adr/ADR-0004-Media-Foundation.md), [ADR-0006](../adr/ADR-0006-AI-Foundation.md), [ADR-0017](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md) |
 | Review Scope | Internal Media Read Service/API for authorized derived output consumers |
@@ -50,6 +50,8 @@ review packet cho reviewer kế tiếp; chúng không tự tạo verdict Approve
       actor authorization, active same-tenant usage and same-tenant Media File.
 - [x] A valid revision or Media identifier never grants access outside the
       current authorized owner context.
+- [x] `usage_type` là selector bắt buộc; exact-slot lookup không phụ thuộc query
+      order và nhiều active row trong cùng slot trả `ambiguous_source`.
 
 # C — Versioning And Selection
 

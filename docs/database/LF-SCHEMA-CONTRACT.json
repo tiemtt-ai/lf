@@ -21628,7 +21628,7 @@
           "expression": "json_valid(`metadata`)"
         },
         {
-          "expression": "`job_type` in ('transcode','thumbnail','ocr','speech_to_text','caption','virus_scan','compress')"
+          "expression": "`job_type` in ('transcode','thumbnail','ocr','speech_to_text','caption','virus_scan','compress','structured_extraction')"
         },
         {
           "expression": "`status` in ('pending','processing','ready','failed','cancelled')"
@@ -21644,6 +21644,18 @@
         },
         {
           "expression": "`status` <> 'failed' or `completed_at` is not null and `error_code` is not null"
+        },
+        {
+          "expression": "`output_type` is null or `output_type` in ('transcript','caption','extracted_text','variant','extracted_region','extracted_table')"
+        },
+        {
+          "expression": "`job_type` <> 'virus_scan' or `output_type` is null and `output_id` is null"
+        },
+        {
+          "expression": "`completed_at` is null or `started_at` is null or `completed_at` >= `started_at`"
+        },
+        {
+          "expression": "`billable_units` is null and `billable_unit_type` is null or `billable_units` is not null and `billable_unit_type` is not null"
         }
       ],
       "triggers": [],

@@ -1,6 +1,6 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.6
+Version: 1.7
 
 Document Status: Approved
 
@@ -36,9 +36,9 @@ Version 1.5 áp dụng [ADR-0019](../adr/ADR-0019-Media-Structured-Extraction-Bo
 sang `sheet`/`region`. Không có đường đọc mới, không có API riêng cho structured
 data; mọi thứ khác của hợp đồng giữ nguyên.
 
-Version 1.6 chỉ cập nhật implementation evidence và ghi nhận
-DOC-CONFLICT-0021. Nó không tự chọn Media File khi một owner có nhiều active
-usage: lựa chọn đó cần Owner quyết định trước khi mở HTTP API hoặc AI consumer.
+Version 1.7 đóng DOC-CONFLICT-0021 bằng selector canonical `usage_type`. Caller
+phải chỉ đúng media slot trong owner context; service không được dùng
+`first()`/`latest()` để đoán source và không nhận bare `media_file_id`.
 
 Version 1.4 áp dụng ADR-0018 đã được Architecture Owner approve ngày 2026-08-25.
 Approval này không authorize external processing và không tự đóng các gate triển
@@ -104,6 +104,7 @@ GET derived-content
   actor_id              bắt buộc; explicit cho HTTP | queue | console
   owner_type            course_activity | course_version_activity
   owner_id
+  usage_type            bắt buộc; media slot trong owner context
   content_type
   locale                (tuỳ chọn; xem § 4)
   processing_version    (tuỳ chọn; xem § 4.1)
@@ -113,6 +114,23 @@ GET derived-content
 Media tự phân giải owner → active usage → Media File. Consumer không được cầm
 `media_file_id` trực tiếp, vì quyền truy cập gắn với owner chứ không gắn với
 file: cùng một file có thể phục vụ hai Activity với hai mức quyền khác nhau.
+
+`usage_type` là một phần của định danh nguồn, không phải bộ lọc tiện dụng. Mapping
+Phase 1 đóng như sau:
+
+| `content_type` | `usage_type` hợp lệ |
+| --- | --- |
+| `extracted_text`, `region`, `table` | `document` |
+| `transcript` | `audio` hoặc `video` |
+| `caption_asset` | `video` |
+| `variant` | `video` |
+
+Service chỉ xét active usage khớp chính xác `(customer_id, owner_type, owner_id,
+usage_type)`. Không có row thì trả `detached` hoặc `missing`. Nếu có nhiều hơn
+một active row trong cùng slot, service trả `ambiguous_source`; không chọn row
+đầu, row mới nhất hay media id lớn nhất. Schema hiện cho phép trạng thái này nên
+fail-closed ở service là bắt buộc. Mở thêm slot/content mapping là amendment của
+contract này, không phải quyết định cục bộ của consumer.
 
 Authorization: tenant từ context hiện hành, và actor phải được authorize trên
 owner đó theo luật của Course Domain. Media không tự diễn giải business state
@@ -218,6 +236,7 @@ biết được nó đã đọc bản nào, và là điều kiện để phát h
 | `detached` | Usage đã detach; output còn nhưng không phục vụ qua owner này |
 | `archived` | Bản này đã bị thay bởi revision mới |
 | `missing` | Owner không có Media nào ở `content_type` yêu cầu |
+| `ambiguous_source` | Owner có nhiều active Media trong đúng `usage_type`; service từ chối đoán source |
 | `locale_unavailable` | Không có output ở locale yêu cầu |
 | `unsupported_source` | MIME không nằm trong tập được hỗ trợ |
 | `revision_unavailable` | `processing_version` được nêu không tồn tại trong owner context này |
@@ -268,7 +287,7 @@ audit sink cho owner không resolve vẫn là implementation gate, không phải
 | B1 | ADR-0018 đã approve boundary PII/redaction/external processing; retention duration, deletion synchronization và full provenance audit chưa có implementation evidence. Chặn production/real-tenant rollout, không biến `PII_PRESENT` thành OCR failure |
 | B2 | Cue-level caption citation chưa có contract; nếu AI cần, phải review trước |
 | B3 | Sáu bảng substrate cơ bản đã implemented; `region`/`table` vẫn chưa có runtime và hai migration structured chưa được Gate M authorize |
-| B4 | Owner context có thể có nhiều active Media usage nhưng request chưa có media slot/usage selector; runtime hiện dùng `first()` nên production read bị chặn bởi DOC-CONFLICT-0021 |
+| B4 | Đã đóng ở contract v1.7: `usage_type` bắt buộc và nhiều active row trong cùng slot fail-closed bằng `ambiguous_source`. Runtime/test phải có evidence trước khi mở HTTP/API |
 
 ---
 

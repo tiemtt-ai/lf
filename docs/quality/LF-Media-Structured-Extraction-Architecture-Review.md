@@ -1,14 +1,14 @@
 # Media Structured Extraction Architecture Review
 
-Version: 2.3
+Version: 2.4
 
 Document Status: Review
 
-Implementation Status: Not Implemented
+Implementation Status: Partial
 
 Last Updated: 2026-08-27
 
-Review Date: 2026-08-25 (Round 1), 2026-08-26 (Round 2)
+Review Date: 2026-08-25 (Round 1), 2026-08-26 (Round 2), 2026-08-27 (Round 3)
 
 Document Path: quality/LF-Media-Structured-Extraction-Architecture-Review.md
 
@@ -22,9 +22,9 @@ Document Path: quality/LF-Media-Structured-Extraction-Architecture-Review.md
 | Parent ADR | [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) **v1.1** — Amendment Approved 2026-08-25 |
 | Constraining ADR | [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved |
 | Producer Contract | [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md) |
-| Consumer Contract | [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md) v1.5 |
-| Review Scope | `media_extracted_regions`, `media_extracted_tables`, `media_table_cells`, và amendment `locator_type` của `media_extracted_texts` |
-| Conflicts | [DOC-CONFLICT-0016](LF-Documentation-Conflicts.md) — RESOLVED 2026-08-25; [DOC-CONFLICT-0017](LF-Documentation-Conflicts.md) — RESOLVED 2026-08-25 |
+| Consumer Contract | [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md) v1.7 |
+| Review Scope | Ba bảng structured, amendment `media_extracted_texts`, job identity/checks và deterministic Media Read selector |
+| Conflicts | DOC-CONFLICT-0016, 0017, 0020 và 0021 — RESOLVED |
 
 Review provenance: **Round 2.** Round 1 (2026-08-25) là independent review của
 Database Docs, phát hiện ba invariant vật lý và một xung đột ADR. Tác giả áp dụng
@@ -380,7 +380,7 @@ PASS WITH DOCUMENTED RISKS
 
 Migration authorized  (Gate M)
 
-NO — pending MariaDB evidence
+YES — MariaDB evidence 2026-08-27
 
 Runtime authorized    (Gate R)
 
@@ -442,6 +442,32 @@ ba được viết. Hai gate độc lập; đây là lý do ô § H vẫn để 
 
 § F.8 case 8.3 và 8.5 còn bị chặn thêm bởi **DOC-CONFLICT-0020**, vẫn
 `DECISION_REQUIRED` sau ngày 2026-08-27.
+
+## Round 3 — job identity và read selector (2026-08-27)
+
+Round 3 mở đúng hai phạm vi phát sinh sau Round 2:
+
+1. `media_processing_jobs` tạo vật lý bốn CHECK bị drift, đồng thời mở
+   `structured_extraction` và hai output type mới. Migration phải preflight và
+   rollback fail-closed; không sửa lịch sử để ép qua constraint.
+2. Media Read dùng `usage_type` bắt buộc, exact-slot lookup và
+   `ambiguous_source`; không còn query-order policy `first()`/`latest()`.
+
+Kết quả review contract: **PASS WITH DOCUMENTED RISKS**. Hai quyết định đóng
+DOC-CONFLICT-0020/0021, giữ tenant/owner authorization và không mở thêm quyền cho
+AI. Migration thứ ba được phép **viết và test**, nhưng Gate M vẫn `NO` cho tới
+F.1/F.2/F.4/F.6/F.8 và inventory CHECK đã chạy xanh trên MariaDB local tạm:
+20 tests, 61 assertions; `schema:drift --fresh` PASS. Gate M chuyển **YES**.
+Runtime structured vẫn
+Gate R `NO` cho tới khi F.3/F.4/F.5, nhất là zero-row rollback F.5.6, có evidence.
+
+Addendum cũ nói DOC-CONFLICT-0020 còn mở được supersede bởi Round 3 này. Không
+đánh dấu Owner Approval ở § H; review pass không thay chữ ký deploy/runtime.
+
+Deployment evidence: ba migration structured đã apply vào `learnforge_db` batch
+16 ngày 2026-08-27; `schema:drift --connection=mysql` PASS và ledger không còn
+pending migration. Việc này chỉ triển khai schema; production structured provider
+vẫn chưa được bind và Runtime Gate R vẫn `NO`.
 
 # H — Owner Approval
 

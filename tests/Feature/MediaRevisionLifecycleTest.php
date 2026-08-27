@@ -103,11 +103,11 @@ class MediaRevisionLifecycleTest extends TestCase
         $this->app->instance(CourseMediaOwnerContextAuthorizer::class, $authorizer);
         $service = app(MediaReadService::class);
 
-        $current = $service->read($this->admin->id, 'course_activity', 99, 'transcript', 'vi');
+        $current = $service->read($this->admin->id, 'course_activity', 99, 'video', 'transcript', 'vi');
         $this->assertSame('fake-v2', $current[0]['processing_version']);
         $this->assertSame('ready', $current[0]['status']);
 
-        $archived = $service->read($this->admin->id, 'course_activity', 99, 'transcript', 'vi',
+        $archived = $service->read($this->admin->id, 'course_activity', 99, 'video', 'transcript', 'vi',
             $superseded->processing_version, $superseded->source_fingerprint);
         $this->assertSame('fake-v1', $archived[0]['processing_version']);
         $this->assertSame('archived', $archived[0]['status']);

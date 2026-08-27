@@ -68,7 +68,7 @@ class MediaReadDerivedCommandTest extends TestCase
         $this->assertSame('allowed', $payload['decision']);
         $unit = $payload['units'][0];
         $this->assertSame(
-            ['media_file_id', 'source_fingerprint', 'processing_version', 'content_type', 'locale', 'locator', 'text', 'delivery_url', 'confidence', 'status'],
+            ['media_file_id', 'source_fingerprint', 'processing_version', 'content_type', 'locale', 'locator', 'text', 'delivery_url', 'confidence', 'status', 'structure'],
             array_keys($unit)
         );
         $this->assertSame('transcript', $unit['content_type']);
@@ -118,7 +118,7 @@ class MediaReadDerivedCommandTest extends TestCase
 
     public function test_unsupported_content_type_and_missing_actor_are_rejected(): void
     {
-        $this->artisan('media:read-derived', $this->arguments(['--content-type' => 'region']))
+        $this->artisan('media:read-derived', $this->arguments(['--content-type' => 'unknown']))
             ->expectsOutputToContain('--content-type must be one of')->assertExitCode(1);
 
         $arguments = $this->arguments();
@@ -135,6 +135,7 @@ class MediaReadDerivedCommandTest extends TestCase
             '--actor' => $this->admin->id,
             '--owner-type' => 'course_activity',
             '--owner-id' => self::OWNER_ID,
+            '--usage-type' => 'video',
             '--content-type' => 'transcript',
             '--locale' => 'vi',
         ], $overrides);

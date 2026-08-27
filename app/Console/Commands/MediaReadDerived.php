@@ -15,14 +15,15 @@ class MediaReadDerived extends Command
     private const OWNER_TYPES = ['course_activity', 'course_version_activity'];
 
     /** LF-Media-Read-Contract § 5. */
-    private const CONTENT_TYPES = ['extracted_text', 'transcript', 'caption_asset', 'variant'];
+    private const CONTENT_TYPES = ['extracted_text', 'transcript', 'caption_asset', 'variant', 'region', 'table'];
 
     protected $signature = 'media:read-derived
         {--customer= : Tenant saas_customers.id resolved into the tenant context}
         {--actor= : users.id the read is performed as; the contract forbids an implicit actor}
         {--owner-type= : course_activity or course_version_activity}
         {--owner-id= : Owner record the media is attached to}
-        {--content-type= : extracted_text, transcript, caption_asset or variant}
+        {--usage-type= : Required media slot, for example document, audio or video}
+        {--content-type= : extracted_text, transcript, caption_asset, variant, region or table}
         {--locale= : BCP 47 locale; defaults to the canonical media_files.processing_locale}
         {--processing-version= : Read this exact revision, including an archived one}
         {--source-fingerprint= : Require the revision to be built from this source content}
@@ -45,6 +46,7 @@ class MediaReadDerived extends Command
         $ownerId = $this->positiveOption('owner-id');
         $ownerType = (string) $this->option('owner-type');
         $contentType = (string) $this->option('content-type');
+        $usageType = (string) $this->option('usage-type');
 
         foreach (['customer' => $customerId, 'actor' => $actorId, 'owner-id' => $ownerId] as $name => $value) {
             if ($value === null) {
@@ -63,6 +65,11 @@ class MediaReadDerived extends Command
 
             return self::FAILURE;
         }
+        if ($usageType === '') {
+            $this->error('Option --usage-type is required.');
+
+            return self::FAILURE;
+        }
 
         $customer = DB::table('saas_customers')->where('id', $customerId)->first();
         if (! $customer) {
@@ -77,6 +84,7 @@ class MediaReadDerived extends Command
                 $actorId,
                 $ownerType,
                 $ownerId,
+                $usageType,
                 $contentType,
                 $this->stringOption('locale'),
                 $this->stringOption('processing-version'),

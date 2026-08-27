@@ -30,6 +30,14 @@ return [
             'ocr_dpi' => (int) env('MEDIA_OCR_DPI', 200),
             'max_extracted_characters' => (int) env('MEDIA_MAX_EXTRACTED_CHARACTERS', 500000),
         ],
+        'structured_extraction' => [
+            'max_regions_per_page' => (int) env('MEDIA_STRUCTURED_MAX_REGIONS_PER_PAGE', 50),
+            'max_regions_per_document' => (int) env('MEDIA_STRUCTURED_MAX_REGIONS_PER_DOCUMENT', 5000),
+            'max_table_cells_per_document' => (int) env('MEDIA_STRUCTURED_MAX_TABLE_CELLS_PER_DOCUMENT', 200000),
+        ],
+        'limits' => [
+            'max_extracted_characters' => (int) env('MEDIA_MAX_EXTRACTED_CHARACTERS', 500000),
+        ],
         'providers' => [
             'virus_scan' => env('MEDIA_VIRUS_SCAN_PROVIDER', 'unconfigured'),
             'ocr' => env('MEDIA_OCR_PROVIDER', 'unconfigured'),
@@ -37,6 +45,7 @@ return [
             'caption' => env('MEDIA_CAPTION_PROVIDER', 'unconfigured'),
             'thumbnail' => env('MEDIA_THUMBNAIL_PROVIDER', 'unconfigured'),
             'transcode' => env('MEDIA_TRANSCODE_PROVIDER', 'unconfigured'),
+            'structured_extraction' => env('MEDIA_STRUCTURED_EXTRACTION_PROVIDER', 'unconfigured'),
         ],
         'versions' => [
             'virus_scan' => env('MEDIA_VIRUS_SCAN_VERSION', 'unconfigured-v1'),
@@ -45,6 +54,7 @@ return [
             'caption' => env('MEDIA_CAPTION_VERSION', 'unconfigured-v1'),
             'thumbnail' => env('MEDIA_THUMBNAIL_VERSION', 'unconfigured-v1'),
             'transcode' => env('MEDIA_TRANSCODE_VERSION', 'unconfigured-v1'),
+            'structured_extraction' => env('MEDIA_STRUCTURED_EXTRACTION_VERSION', 'unconfigured-v1'),
         ],
     ],
     'file_types' => [

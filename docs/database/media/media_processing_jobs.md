@@ -1,10 +1,10 @@
 # Table: media_processing_jobs
 
-Version: 2.5
+Version: 2.6
 
 Document Status: Approved
 
-Implementation Status: Partial
+Implementation Status: Implemented
 
 Last Updated: 2026-08-27
 
@@ -46,7 +46,7 @@ Migration mang thay đổi này chịu **Gate M** như hai migration structured 
 viết: không apply trước khi có test đọc CHECK vật lý từ
 `information_schema.CHECK_CONSTRAINTS` và chạy xanh trên MariaDB 11.4.3.
 
-## Cảnh báo phải giải quyết trước khi viết migration đó
+## Quyết định vật lý Version 2.6
 
 Đối chiếu ngày 2026-08-27 giữa § Keys của tài liệu này và
 `LF-SCHEMA-CONTRACT.json` (dựng lại từ migration) cho thấy **bốn CHECK được ghi
@@ -57,14 +57,15 @@ viết: không apply trước khi có test đọc CHECK vật lý từ
 * `CHECK (completed_at IS NULL OR started_at IS NULL OR completed_at >= started_at)`
 * `CHECK ((billable_units IS NULL AND billable_unit_type IS NULL) OR (...))`
 
-Hệ quả trực tiếp cho amendment này: **không có CHECK `output_type` nào để "mở"**.
-Migration hoặc phải tạo mới CHECK đó với đủ sáu giá trị, hoặc § Keys phải được
-sửa cho khớp thực tế. Hai đường dẫn tới hai schema khác nhau, nên đây là quyết
-định, không phải chi tiết triển khai. Ghi là **DOC-CONFLICT-0020**.
+Owner chốt ngày 2026-08-27: migration job identity phải tạo vật lý **cả bốn**
+CHECK, không hạ hợp đồng xuống schema drift hiện tại. `output_type` dùng vocabulary
+sáu giá trị; ba invariant còn lại được thi hành đúng như § Keys.
 
-**Quyết định này vẫn mở sau ngày 2026-08-27.** Owner duyệt amendment vocabulary,
-không duyệt chọn đường cho DOC-CONFLICT-0020; § Keys bên dưới **chưa** được sửa
-vì hai đường dẫn tới hai § Keys khác nhau.
+Migration phải preflight toàn bộ row hiện có và fail-closed, kèm số row vi phạm,
+trước khi ALTER. Không tự sửa output, timestamp hay billing pair của lịch sử.
+Rollback phải từ chối khi có row dùng `structured_extraction`,
+`extracted_region` hoặc `extracted_table`. Quyết định này đóng
+**DOC-CONFLICT-0020**; hiệu lực vật lý vẫn chịu Gate M/MariaDB evidence.
 
 ---
 
@@ -136,13 +137,13 @@ pending ──→ processing ──→ ready
   hoặc bất kỳ AI business output nào.
 * Job không tạo Learning Evidence và không chạm Mastery.
 * Allowed `job_type`: `transcode`, `thumbnail`, `ocr`, `speech_to_text`,
-  `caption`, `virus_scan`, `compress`.
+  `caption`, `virus_scan`, `compress`, `structured_extraction`.
 
 ### Job có sinh asset và job không sinh asset
 
 | Nhóm | `job_type` | Khi `ready` |
 | --- | --- | --- |
-| Sinh asset | `ocr`, `speech_to_text`, `caption`, `transcode`, `thumbnail`, `compress` | **Bắt buộc** có `output_type` và `output_id` |
+| Sinh asset | `ocr`, `speech_to_text`, `caption`, `transcode`, `thumbnail`, `compress`, `structured_extraction` | **Bắt buộc** có `output_type` và `output_id` |
 | Không sinh asset | `virus_scan` | `output_type` và `output_id` phải NULL |
 
 `virus_scan` là validation side-effect, không phải derived asset: nó trả lời
@@ -172,7 +173,7 @@ thì job `failed` với `error_code = infected_source`, và Media File chuyển
 | output_profile | VARCHAR(191) NOT NULL | Tham số quyết định output: locale, định dạng, cấu hình extractor. |
 | output_profile_hash | CHAR(64) NOT NULL | SHA-256 của `output_profile` đã chuẩn hoá. |
 | provider | VARCHAR(100) NOT NULL | Worker/provider abstraction. |
-| output_type | VARCHAR(50) NULL | `transcript`, `caption`, `extracted_text`, `variant`. |
+| output_type | VARCHAR(50) NULL | `transcript`, `caption`, `extracted_text`, `variant`, `extracted_region`, `extracted_table`. |
 | output_id | BIGINT UNSIGNED NULL | Id của row output tương ứng. |
 | billable_units | DECIMAL(18,6) NULL | Lượng đã tiêu thụ (giây, trang, ký tự). |
 | billable_unit_type | VARCHAR(50) NULL | Đơn vị của `billable_units`. |
@@ -213,11 +214,11 @@ CHECK (job_type IN ('transcode','thumbnail','ocr','speech_to_text',
                     'structured_extraction'));   -- v2.5, chưa migrate
 CHECK (status IN ('pending','processing','ready','failed','cancelled'));
 CHECK (attempt >= 1);
--- DOC-CONFLICT-0020: CHECK dưới đây KHÔNG tồn tại vật lý. v2.5 duyệt thêm
--- 'extracted_region' và 'extracted_table' vào vocabulary, nhưng việc CHECK này
--- được tạo mới hay dòng này bị xoá là quyết định chưa đóng.
+-- v2.6: CHECK này được freeze để tạo vật lý cùng migration job identity;
+-- schema đã chạy chưa có nó cho tới khi Gate M pass.
 CHECK (output_type IS NULL OR output_type IN
-       ('transcript','caption','extracted_text','variant'));
+       ('transcript','caption','extracted_text','variant',
+        'extracted_region','extracted_table'));
 CHECK ((output_type IS NULL AND output_id IS NULL)
     OR (output_type IS NOT NULL AND output_id IS NOT NULL));
 CHECK (status <> 'ready' OR completed_at IS NOT NULL);

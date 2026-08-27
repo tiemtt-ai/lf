@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Contracts\MediaProcessingProvider;
 use App\Services\FakeMediaProcessingProvider;
 use App\Services\LocalDocumentProcessingProvider;
+use App\Services\StructuredExtractionPersistenceService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -65,6 +66,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                     'unsupported_source', 'corrupt_source', 'source_unavailable',
                     'no_extractable_text', 'extracted_text_too_large', 'missing_canonical_locale',
                     'page_limit_exceeded', 'source_expansion_limit_exceeded',
+                    'structured_extraction_too_large', 'structured_extraction_invalid',
                 ];
                 $errorCode = $e instanceof RuntimeException && in_array($e->getMessage(), $knownErrorCodes, true)
                     ? $e->getMessage()
@@ -155,6 +157,11 @@ class ProcessMediaProcessingJob implements ShouldQueue
             ]);
             $this->archiveSupersededRevisions('media_captions', $media, $job, ['locale' => $locale, 'caption_type' => $captionType], $now);
             $outputType = 'caption';
+        } elseif ($job->job_type === 'structured_extraction') {
+            $output = app(StructuredExtractionPersistenceService::class)
+                ->persist($this->customerId, $media, $job, (string) $locale, $result);
+            $outputType = $output['output_type'];
+            $outputId = $output['output_id'];
         }
         DB::table('media_processing_jobs')->where('customer_id', $this->customerId)->where('id', $job->id)->update([
             'status' => 'ready', 'output_type' => $outputType, 'output_id' => $outputId,

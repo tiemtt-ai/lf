@@ -104,6 +104,7 @@ class MediaProcessingOrchestrator
             'caption' => ['format', 'locale'],
             'thumbnail' => ['size'],
             'transcode' => ['preset'],
+            'structured_extraction' => ['locale', 'structure'],
         ];
         $parameterKeys = array_keys($parameters);
         sort($parameterKeys);

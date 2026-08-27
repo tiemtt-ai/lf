@@ -23,6 +23,8 @@ class MediaStructuredExtractionMariaDbTest extends TestCase
 
     private const LOCATOR_MIGRATION = 'database/migrations/2026_08_26_000000_open_extracted_text_sheet_locator.php';
 
+    private const JOB_MIGRATION = 'database/migrations/2026_08_26_000200_open_media_processing_job_structured_identity.php';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -326,11 +328,112 @@ class MediaStructuredExtractionMariaDbTest extends TestCase
         $this->assertStringContainsString('spreadsheet_cells', $clauses['chk_met_method']);
     }
 
+    // ---------------------------------------------------------------- F.8 ---
+
+    public function test_f8_structured_job_and_output_vocabularies_are_physically_closed(): void
+    {
+        [$customerId, $userId, $mediaId] = $this->fixture();
+
+        foreach (['extracted_region', 'extracted_table'] as $index => $outputType) {
+            $this->insertProcessingJob($customerId, $userId, $mediaId, [
+                'idempotency_key' => 'structured-'.$index,
+                'output_profile_hash' => str_repeat((string) ($index + 1), 64),
+                'output_type' => $outputType,
+                'output_id' => $index + 1,
+            ]);
+        }
+        $this->assertSame(2, DB::table('media_processing_jobs')->where('job_type', 'structured_extraction')->count());
+
+        try {
+            $this->insertProcessingJob($customerId, $userId, $mediaId, [
+                'idempotency_key' => 'structured-typo', 'job_type' => 'structured_extractions',
+                'output_profile_hash' => str_repeat('3', 64),
+            ]);
+            $this->fail('invalid structured job vocabulary was accepted.');
+        } catch (QueryException) {
+            $this->addToAssertionCount(1);
+        }
+
+        $this->expectException(QueryException::class);
+        $this->insertProcessingJob($customerId, $userId, $mediaId, [
+            'idempotency_key' => 'output-typo', 'output_type' => 'extracted_regions', 'output_id' => 9,
+            'output_profile_hash' => str_repeat('4', 64),
+        ]);
+    }
+
+    public function test_f8_all_four_drifted_checks_exist_in_information_schema(): void
+    {
+        $clauses = collect(DB::select(
+            'SELECT CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS'
+            .' WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = ?',
+            ['media_processing_jobs']
+        ))->pluck('CHECK_CLAUSE', 'CONSTRAINT_NAME')->all();
+
+        foreach (['chk_mpj_output_type', 'chk_mpj_virus_output', 'chk_mpj_completed_order', 'chk_mpj_billable_pair'] as $name) {
+            $this->assertArrayHasKey($name, $clauses);
+        }
+        $this->assertStringContainsString('structured_extraction', $clauses['chk_mpj_job_type']);
+        $this->assertStringContainsString('extracted_region', $clauses['chk_mpj_output_type']);
+        $this->assertStringContainsString('extracted_table', $clauses['chk_mpj_output_type']);
+    }
+
+    public function test_f8_rollback_is_fail_closed_when_structured_history_exists(): void
+    {
+        [$customerId, $userId, $mediaId] = $this->fixture();
+        $jobId = $this->insertProcessingJob($customerId, $userId, $mediaId, [
+            'idempotency_key' => 'structured-rollback', 'output_type' => 'extracted_region', 'output_id' => 1,
+        ]);
+
+        try {
+            $this->jobMigration()->down();
+            $this->fail('job identity rollback succeeded with structured history.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('Rollback refused', $exception->getMessage());
+        }
+
+        $this->assertSame('structured_extraction', DB::table('media_processing_jobs')->where('id', $jobId)->value('job_type'));
+        $this->assertArrayHasKey('chk_mpj_output_type', collect(DB::select(
+            'SELECT CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS'
+            .' WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = ?', ['media_processing_jobs']
+        ))->pluck('CHECK_CLAUSE', 'CONSTRAINT_NAME')->all());
+    }
+
     // ------------------------------------------------------------ helpers ---
 
     private function locatorMigration(): object
     {
         return require base_path(self::LOCATOR_MIGRATION);
+    }
+
+    private function jobMigration(): object
+    {
+        return require base_path(self::JOB_MIGRATION);
+    }
+
+    /** @param array<string, mixed> $overrides */
+    private function insertProcessingJob(int $customerId, int $userId, int $mediaId, array $overrides = []): int
+    {
+        return DB::table('media_processing_jobs')->insertGetId(array_merge([
+            'customer_id' => $customerId,
+            'media_file_id' => $mediaId,
+            'job_type' => 'structured_extraction',
+            'status' => 'ready',
+            'attempt' => 1,
+            'idempotency_key' => 'structured-'.random_int(1000, 9999),
+            'correlation_id' => 'structured-test',
+            'source_fingerprint' => str_repeat('b', 64),
+            'processing_version' => 'structured-v1',
+            'output_profile' => 'locale=vi;structure=layout',
+            'output_profile_hash' => str_repeat('c', 64),
+            'provider' => 'fake',
+            'output_type' => 'extracted_region',
+            'output_id' => 1,
+            'started_at' => now()->subSecond(),
+            'completed_at' => now(),
+            'created_by' => $userId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], $overrides));
     }
 
     /** @return array<string, string> */

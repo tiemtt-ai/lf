@@ -1,10 +1,10 @@
 # Table: media_extracted_regions
 
-Version: 1.1
+Version: 1.2
 
-Document Status: Draft
+Document Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Implemented
 
 Last Updated: 2026-08-27
 

@@ -234,13 +234,10 @@ trung lập.
 
 # Active Conflict Register
 
-Active items: 8. DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25;
+Active items: 6. DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25;
 DOC-CONFLICT-0018 và DOC-CONFLICT-0019 đóng 2026-08-27 bằng đợt amendment tài
-liệu của miền Media. **DOC-CONFLICT-0020** đang mở: bốn CHECK của
-`media_processing_jobs` không tồn tại vật lý, và Owner chưa chọn giữa "tạo mới
-CHECK" và "sửa § Keys". Nó chặn migration thứ ba, không chặn phần tài liệu.
-**DOC-CONFLICT-0021** cũng đang mở: Media Read chưa có selector deterministic
-khi một owner có nhiều active Media usage.
+liệu của miền Media. DOC-CONFLICT-0020 và DOC-CONFLICT-0021 được Owner đóng
+2026-08-27; hiệu lực runtime/schema vẫn chịu Gate M/Gate R.
 
 | ID | Title | Classification | Status | Impact | Domain | Owner | Target Review |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -254,8 +251,8 @@ khi một owner có nhiều active Media usage.
 | DOC-CONFLICT-0017 | `extraction_method` của đọc cell trực tiếp có hai tên trong hai bảng | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Domain Owner (Media) | Đóng 2026-08-25 |
 | DOC-CONFLICT-0018 | Processing Contract § 4 chưa mở locator sang `sheet`/`region` dù cùng tài liệu đã có resource control cho region | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Architecture Owner | Đóng 2026-08-27 |
 | DOC-CONFLICT-0019 | `job_type`/`output_type` không có giá trị nào chứa được một revision structured | GAP | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-08-27 |
-| DOC-CONFLICT-0020 | Bốn CHECK trong doc `media_processing_jobs` không tồn tại trong schema vật lý | IMPLEMENTATION_DRIFT | DECISION_REQUIRED | MEDIUM | Media | Database Owner | Trước migration job_type |
-| DOC-CONFLICT-0021 | Media Read owner context không xác định Media File khi owner có nhiều active usage | GAP | DECISION_REQUIRED | HIGH | Media × Course × AI | Architecture Owner | Trước HTTP/API hoặc AI consumer production |
+| DOC-CONFLICT-0020 | Bốn CHECK trong doc `media_processing_jobs` không tồn tại trong schema vật lý | IMPLEMENTATION_DRIFT | RESOLVED | MEDIUM | Media | Database Owner | Đóng 2026-08-27 |
+| DOC-CONFLICT-0021 | Media Read owner context không xác định Media File khi owner có nhiều active usage | GAP | RESOLVED | HIGH | Media × Course × AI | Đóng 2026-08-27 |
 
 ---
 
@@ -1064,7 +1061,7 @@ Notes: Đóng ở tầng tài liệu, KHÔNG ở tầng vật lý. Vocabulary m�
 Conflict ID: DOC-CONFLICT-0020
 Title: Bốn CHECK trong doc media_processing_jobs không tồn tại trong schema vật lý
 Classification: IMPLEMENTATION_DRIFT
-Status: DECISION_REQUIRED
+Status: RESOLVED
 Impact: MEDIUM
 Detected At: 2026-08-27
 Detected By: Đối chiếu § Keys với LF-SCHEMA-CONTRACT.json khi chuẩn bị amendment job_type
@@ -1085,9 +1082,9 @@ Required Decision: Migration của DOC-CONFLICT-0019 tạo mới CHECK output_ty
 Resolution Authority: Database Owner cùng Architecture Owner
 Resolution Plan: Hướng chuẩn bị được review khuyến nghị là tạo mới CHECK output_type với đủ sáu giá trị (`transcript`, `caption`, `extracted_text`, `variant`, `extracted_region`, `extracted_table`) trong cùng migration mở job_type. Ba CHECK còn thiếu khác phải được Database Owner quyết định rõ là tạo vật lý hay sửa § Keys; audit dữ liệu cũ và preflight bắt buộc trước khi thêm constraint. Không viết migration thứ ba cho tới khi quyết định này được ký và Round 3 pass
 Target Review Date: 2026-09-01
-Resolved At: Not resolved
-Resolution: Not resolved
-Superseded/Updated Documents: None
+Resolved At: 2026-08-27
+Resolution: Tạo vật lý cả bốn CHECK sau preflight fail-closed; output_type có đủ sáu giá trị. Không hạ § Keys theo schema drift cũ
+Superseded/Updated Documents: docs/database/media/media_processing_jobs.md v2.6
 Verification Evidence: docs/database/LF-SCHEMA-CONTRACT.json § tables.media_processing_jobs.checks liệt kê đúng sáu CHECK
 Related ADR/Review/Issue/PR: DOC-CONFLICT-0019; ADR-0004
 Notes: Phát hiện phụ khi soạn amendment, không phải mục tiêu của đợt đối chiếu
@@ -1101,7 +1098,7 @@ Notes: Phát hiện phụ khi soạn amendment, không phải mục tiêu của 
 Conflict ID: DOC-CONFLICT-0021
 Title: Media Read owner context không xác định Media File khi owner có nhiều active usage
 Classification: GAP
-Status: DECISION_REQUIRED
+Status: RESOLVED
 Impact: HIGH
 Detected At: 2026-08-27
 Detected By: Phase 1 implementation inventory
@@ -1123,9 +1120,9 @@ Required Decision: Owner chọn selector canonical, ví dụ thêm usage_type/me
 Resolution Authority: Architecture Owner cùng Course Domain Owner
 Resolution Plan: Amendment Media Read Contract → independent review → characterization test owner có nhiều usage → sửa service → mới mở HTTP/API
 Target Review Date: Trước Phase 1 production Media Read
-Resolved At: Not resolved
-Resolution: Not resolved
-Superseded/Updated Documents: None
+Resolved At: 2026-08-27
+Resolution: Thêm `usage_type` bắt buộc vào Media Read request; exact-slot lookup và `ambiguous_source` khi slot có nhiều active row. Không nhận bare media_file_id, không dùng first/latest làm policy
+Superseded/Updated Documents: docs/platform/LF-Media-Read-Contract.md v1.7
 Verification Evidence: media_file_usages contract cho phép N media/owner; MediaReadService hiện gọi first() không có usage_type/order
 Related ADR/Review/Issue/PR: ADR-0004; ADR-0006; LF-Media-Read-Contract; LF-Media-Read-Contract-Architecture-Review
 Notes: Đây là authorization-correct nhưng source-selection-incorrect; tenant check không phát hiện được đọc nhầm file trong cùng owner

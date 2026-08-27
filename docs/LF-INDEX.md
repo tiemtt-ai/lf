@@ -389,7 +389,7 @@ docs/quality/
 | [quality/LF-A0-Docling-Closure-Evidence.md](quality/LF-A0-Docling-Closure-Evidence.md) | Only surviving copy of the A0 run behind the closure decision; exploratory evidence, not a verdict |
 | [quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md](quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md) | AI Foundation Media-consumer subset A–H packet; CHANGES REQUIRED, migration not authorized |
 | [quality/LF-Media-Read-Contract-Architecture-Review.md](quality/LF-Media-Read-Contract-Architecture-Review.md) | Media Read A–H self-assessment packet; independent review pending |
-| [quality/LF-Media-Structured-Extraction-Architecture-Review.md](quality/LF-Media-Structured-Extraction-Architecture-Review.md) | Independent review Round 2 của region/table/cell; PASS WITH DOCUMENTED RISKS, migration vẫn chưa được phép cho tới khi test § F chạy xanh |
+| [quality/LF-Media-Structured-Extraction-Architecture-Review.md](quality/LF-Media-Structured-Extraction-Architecture-Review.md) | Round 3 của region/table/cell + job identity/read selector; Gate M PASS và schema đã apply, Runtime Gate R vẫn NO |
 | [quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md](quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md) | Approved Course Lesson multiple-prerequisite architecture review |
 | [quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md](quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md) | Approved Version Activity media snapshot architecture review |
 | [quality/LF-Course-Product-Architecture-Review.md](quality/LF-Course-Product-Architecture-Review.md) | Approved Course Product CRUD architecture review |
