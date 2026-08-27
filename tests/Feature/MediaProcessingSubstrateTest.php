@@ -531,6 +531,183 @@ class MediaProcessingSubstrateTest extends TestCase
         }
     }
 
+    /**
+     * Checkbox tren form upload la opt-in. Khong tick thi luong xu ly giu nguyen
+     * hanh vi cu — day la nhanh quan trong hon, vi no la mac dinh cua moi upload.
+     */
+    public function test_document_upload_without_the_structured_checkbox_runs_no_structured_job(): void
+    {
+        $media = $this->uploadDocument();
+        app(MediaProcessingOrchestrator::class)
+            ->materializeForCourseActivity($this->customerId, $media->id, 'vi', $this->admin->id);
+
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $media->id, 'job_type' => 'ocr', 'status' => 'ready',
+        ]);
+        $this->assertDatabaseMissing('media_processing_jobs', [
+            'media_file_id' => $media->id, 'job_type' => 'structured_extraction',
+        ]);
+        $this->assertDatabaseHas('media_files', ['id' => $media->id, 'status' => 'ready']);
+    }
+
+    public function test_document_upload_with_the_structured_checkbox_adds_the_structured_job(): void
+    {
+        $media = $this->uploadDocument();
+        app(MediaProcessingOrchestrator::class)
+            ->materializeForCourseActivity($this->customerId, $media->id, 'vi', $this->admin->id, true);
+
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $media->id, 'job_type' => 'ocr', 'status' => 'ready',
+        ]);
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $media->id,
+            'job_type' => 'structured_extraction',
+            'output_profile' => 'locale=vi;structure=layout',
+        ]);
+    }
+
+    /**
+     * Structured extraction la opt-in, khong phai required profile: no that bai
+     * khong duoc lam file mat 'ready' va khong duoc chan delivery.
+     */
+    public function test_a_failed_structured_job_does_not_take_the_document_out_of_ready(): void
+    {
+        config(['media.processing.providers.structured_extraction' => 'unconfigured']);
+
+        $media = $this->uploadDocument();
+        app(MediaProcessingOrchestrator::class)
+            ->materializeForCourseActivity($this->customerId, $media->id, 'vi', $this->admin->id, true);
+
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $media->id,
+            'job_type' => 'structured_extraction',
+            'status' => 'failed',
+            'error_code' => 'provider_unavailable',
+        ]);
+        $this->assertDatabaseHas('media_files', ['id' => $media->id, 'status' => 'ready']);
+    }
+
+    /**
+     * Ba test tren goi thang orchestrator, nen chung dong bang logic chu chua dong
+     * bang duong truyen. Ba test duoi di qua HTTP that: form -> controller ->
+     * usage metadata -> MediaService -> orchestrator. Do la lop ma checkbox thuc su
+     * song, va la lop da nhieu lan xanh o service roi hong o boundary.
+     */
+    public function test_http_document_upload_with_checkbox_persists_flag_and_enqueues_structured_job(): void
+    {
+        [$templateId, $lessonId] = $this->courseFixture();
+
+        $this->actingAs($this->admin)
+            ->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload([
+                'structured_extraction' => '1',
+            ]))
+            ->assertSessionHasNoErrors();
+
+        $usage = DB::table('media_file_usages')->where('owner_type', 'course_activity')->latest('id')->firstOrFail();
+        $this->assertTrue((bool) (json_decode($usage->metadata, true)['structured_extraction'] ?? false));
+
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id,
+            'job_type' => 'structured_extraction',
+            'output_profile' => 'locale=vi;structure=layout',
+        ]);
+    }
+
+    public function test_http_document_upload_without_checkbox_enqueues_no_structured_job(): void
+    {
+        [$templateId, $lessonId] = $this->courseFixture();
+
+        $this->actingAs($this->admin)
+            ->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload())
+            ->assertSessionHasNoErrors();
+
+        $usage = DB::table('media_file_usages')->where('owner_type', 'course_activity')->latest('id')->firstOrFail();
+        $this->assertFalse((bool) (json_decode($usage->metadata, true)['structured_extraction'] ?? false));
+
+        $this->assertDatabaseMissing('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id, 'job_type' => 'structured_extraction',
+        ]);
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id, 'job_type' => 'ocr',
+        ]);
+    }
+
+    /**
+     * Checkbox chi hien voi document, nhung request thi gia mao duoc. Controller
+     * phai ep co ve false theo file type, khong tin vao input.
+     */
+    public function test_http_audio_upload_forging_the_checkbox_creates_no_structured_job(): void
+    {
+        [$templateId, $lessonId] = $this->courseFixture();
+
+        $this->actingAs($this->admin)
+            ->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload([
+                'activity_type' => 'audio',
+                'activity_document_file' => null,
+                'activity_audio_file' => UploadedFile::fake()->create('lesson.mp3', 24, 'audio/mpeg'),
+                'structured_extraction' => '1',
+            ]))
+            ->assertSessionHasNoErrors();
+
+        $usage = DB::table('media_file_usages')->where('owner_type', 'course_activity')->latest('id')->firstOrFail();
+        $this->assertFalse((bool) (json_decode($usage->metadata, true)['structured_extraction'] ?? false));
+        $this->assertDatabaseMissing('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id, 'job_type' => 'structured_extraction',
+        ]);
+    }
+
+    private function activityUrl(int $templateId, int $lessonId): string
+    {
+        return "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities";
+    }
+
+    /** @param array<string, mixed> $override */
+    private function documentActivityPayload(array $override = []): array
+    {
+        return array_filter(array_merge([
+            'title' => 'Tai lieu bai hoc',
+            'activity_type' => 'document',
+            'learning_phases' => ['anytime'],
+            'is_required' => '1',
+            'completion_rule' => 'view',
+            'is_preview' => '0',
+            'unlock_rule' => 'none',
+            'processing_locale' => 'vi',
+            'activity_document_file' => UploadedFile::fake()->createWithContent('bai-hoc.txt', 'noi dung trang'),
+        ], $override), fn ($value) => $value !== null);
+    }
+
+    /** @return array{int, int} */
+    private function courseFixture(): array
+    {
+        $now = now();
+        $categoryId = DB::table('core_course_categories')->insertGetId([
+            'customer_id' => $this->customerId, 'parent_id' => null, 'name' => 'General',
+            'slug' => 'general', 'description' => null, 'thumbnail_image' => null, 'banner_image' => null,
+            'sort_order' => 1, 'is_featured' => false, 'meta_title' => null, 'meta_description' => null,
+            'meta_keywords' => null, 'status' => 'active', 'created_by' => $this->admin->id,
+            'created_at' => $now, 'updated_at' => $now,
+        ]);
+        $templateId = DB::table('core_course_templates')->insertGetId([
+            'customer_id' => $this->customerId, 'category_id' => $categoryId, 'title' => 'Template',
+            'short_description' => 'Short', 'description' => 'Detail', 'publisher_name' => 'LearnForge',
+            'intro_video_source' => null, 'intro_image_media_file_id' => null, 'intro_video_media_file_id' => null,
+            'difficulty_level' => 'beginner', 'estimated_minutes_per_lesson' => 90, 'estimated_lesson_count' => null,
+            'lesson_count' => 1, 'meta_title' => 'T', 'meta_description' => 'D', 'meta_keywords' => 'k',
+            'working_revision' => 1, 'status' => 'active', 'created_by' => $this->admin->id,
+            'last_version_published_at' => null, 'created_at' => $now, 'updated_at' => $now,
+        ]);
+        $lessonId = DB::table('core_course_template_lessons')->insertGetId([
+            'customer_id' => $this->customerId, 'template_id' => $templateId, 'template_section_id' => null,
+            'title' => 'Lesson', 'short_description' => 'S', 'description' => 'D', 'sort_order' => 0,
+            'is_preview' => true, 'duration_seconds' => 0, 'activity_count' => 0, 'unlock_rule' => 'none',
+            'unlock_after_lesson_id' => null, 'unlock_at' => null, 'created_by' => $this->admin->id,
+            'created_at' => $now, 'updated_at' => $now,
+        ]);
+
+        return [$templateId, $lessonId];
+    }
+
     private function uploadVideo(string $name = 'lesson.mp4'): object
     {
         $size = $name === 'lesson.mp4' ? 32 : 33;
