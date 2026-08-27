@@ -5724,7 +5724,8 @@
         "adr/ADR-0019-Media-Structured-Extraction-Boundary.md",
         "platform/LF-Media-Processing-Contract.md",
         "platform/LF-Media-Read-Contract.md",
-        "database/media/media_extracted_texts.md"
+        "database/media/media_extracted_texts.md",
+        "adr/ADR-0020-AI-Vision-Interpretation-Boundary.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -5914,7 +5915,7 @@
       "area": "database",
       "document_type": "table_schema",
       "document_status": "Approved",
-      "implementation_status": "Implemented",
+      "implementation_status": "Partial",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
@@ -5942,7 +5943,8 @@
         "media_processing_jobs"
       ],
       "related_documents": [
-        "database/media/README.md"
+        "database/media/README.md",
+        "adr/ADR-0019-Media-Structured-Extraction-Boundary.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -7817,7 +7819,9 @@
         "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
         "platform/LF-Media.md",
         "database/media/media_processing_jobs.md",
-        "database/media/media_extracted_texts.md"
+        "database/media/media_extracted_texts.md",
+        "adr/ADR-0019-Media-Structured-Extraction-Boundary.md",
+        "adr/ADR-0020-AI-Vision-Interpretation-Boundary.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -7909,7 +7913,9 @@
       ],
       "related_documents": [
         "adr/ADR-0004-Media-Foundation.md",
-        "adr/ADR-0017-AI-Assisted-Learning-Authoring.md"
+        "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
+        "adr/ADR-0019-Media-Structured-Extraction-Boundary.md",
+        "adr/ADR-0020-AI-Vision-Interpretation-Boundary.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -9970,7 +9976,8 @@
       "related_documents": [
         "tech/LF-Tech-Stack.md",
         "tech/LF-Tech-AWS.md",
-        "platform/LF-Media-Processing-Contract.md"
+        "platform/LF-Media-Processing-Contract.md",
+        "adr/ADR-0019-Media-Structured-Extraction-Boundary.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

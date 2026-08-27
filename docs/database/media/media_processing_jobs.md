@@ -1,12 +1,12 @@
 # Table: media_processing_jobs
 
-Version: 2.4
+Version: 2.5
 
 Document Status: Approved
 
-Implementation Status: Implemented
+Implementation Status: Partial
 
-Last Updated: 2026-08-24
+Last Updated: 2026-08-27
 
 Document Path: database/media/media_processing_jobs.md
 
@@ -14,9 +14,60 @@ Related ADR:
 
 * [ADR-0004 — Media Foundation](../../adr/ADR-0004-Media-Foundation.md)
 * [ADR-0017 — AI-Assisted Learning Authoring](../../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
+* [ADR-0019 — Media Structured Extraction Boundary](../../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Amendment v1.2 Approved
 
 Related Specification:
 [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md)
+
+---
+
+# Amendment Record — Version 2.5
+
+Amendment Status: **Approved by Architecture Owner, 2026-08-27.** Vocabulary mới
+đã được duyệt nhưng **chưa migrate**, nên Implementation Status của tài liệu này
+là `Partial` cho tới khi CHECK vật lý được xác minh trên MariaDB.
+
+## Thay đổi đã duyệt
+
+Theo [ADR-0019 Amendment v1.2](../../adr/ADR-0019-Media-Structured-Extraction-Boundary.md)
+và [Processing Contract v2.1](../../platform/LF-Media-Processing-Contract.md):
+
+```sql
+CHECK (job_type IN ('transcode','thumbnail','ocr','speech_to_text',
+                    'caption','virus_scan','compress','structured_extraction'));
+```
+
+`output_type` nhận thêm `extracted_region` và `extracted_table`. `output_id`
+của một job `structured_extraction` trỏ tới **điểm vào** của revision — region
+có `reading_order = 1`, hoặc table có `sequence = 1` khi nguồn là spreadsheet.
+`chk_mpj_ready` không đổi hình dạng: job `ready` vẫn phải có `output_id`.
+
+Migration mang thay đổi này chịu **Gate M** như hai migration structured đã
+viết: không apply trước khi có test đọc CHECK vật lý từ
+`information_schema.CHECK_CONSTRAINTS` và chạy xanh trên MariaDB 11.4.3.
+
+## Cảnh báo phải giải quyết trước khi viết migration đó
+
+Đối chiếu ngày 2026-08-27 giữa § Keys của tài liệu này và
+`LF-SCHEMA-CONTRACT.json` (dựng lại từ migration) cho thấy **bốn CHECK được ghi
+ở đây không tồn tại vật lý**:
+
+* `CHECK (output_type IS NULL OR output_type IN (...))`
+* `CHECK (job_type <> 'virus_scan' OR (output_type IS NULL AND output_id IS NULL))`
+* `CHECK (completed_at IS NULL OR started_at IS NULL OR completed_at >= started_at)`
+* `CHECK ((billable_units IS NULL AND billable_unit_type IS NULL) OR (...))`
+
+Hệ quả trực tiếp cho amendment này: **không có CHECK `output_type` nào để "mở"**.
+Migration hoặc phải tạo mới CHECK đó với đủ sáu giá trị, hoặc § Keys phải được
+sửa cho khớp thực tế. Hai đường dẫn tới hai schema khác nhau, nên đây là quyết
+định, không phải chi tiết triển khai. Ghi là **DOC-CONFLICT-0020**.
+
+**Quyết định này vẫn mở sau ngày 2026-08-27.** Owner duyệt amendment vocabulary,
+không duyệt chọn đường cho DOC-CONFLICT-0020; § Keys bên dưới **chưa** được sửa
+vì hai đường dẫn tới hai § Keys khác nhau.
+
+---
+
 
 ## Purpose
 
@@ -158,9 +209,13 @@ FOREIGN KEY (created_by, customer_id)
     REFERENCES users (id, customer_id) RESTRICT;
 
 CHECK (job_type IN ('transcode','thumbnail','ocr','speech_to_text',
-                    'caption','virus_scan','compress'));
+                    'caption','virus_scan','compress',
+                    'structured_extraction'));   -- v2.5, chưa migrate
 CHECK (status IN ('pending','processing','ready','failed','cancelled'));
 CHECK (attempt >= 1);
+-- DOC-CONFLICT-0020: CHECK dưới đây KHÔNG tồn tại vật lý. v2.5 duyệt thêm
+-- 'extracted_region' và 'extracted_table' vào vocabulary, nhưng việc CHECK này
+-- được tạo mới hay dòng này bị xoá là quyết định chưa đóng.
 CHECK (output_type IS NULL OR output_type IN
        ('transcript','caption','extracted_text','variant'));
 CHECK ((output_type IS NULL AND output_id IS NULL)

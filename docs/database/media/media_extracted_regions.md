@@ -1,12 +1,12 @@
 # Table: media_extracted_regions
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Draft
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-08-25
+Last Updated: 2026-08-27
 
 Document Path: database/media/media_extracted_regions.md
 
@@ -80,7 +80,7 @@ tiết của cùng một lần chạy, nối với nhau bằng
 | page | INT UNSIGNED NOT NULL | Số trang, ≥ 1. Denormalize để index và sắp xếp. |
 | ordinal | INT UNSIGNED NOT NULL | Thứ tự vùng trong trang, ≥ 1. |
 | reading_order | INT UNSIGNED NOT NULL | Thứ tự đọc trong toàn tài liệu, ≥ 1. |
-| role | VARCHAR(30) NOT NULL | Hình dạng quan sát được của vùng. |
+| role | VARCHAR(30) NOT NULL | Hình dạng quan sát được của vùng. Vocabulary đóng, xem ghi chú dưới § Constraints. |
 | bbox_x | DECIMAL(9,6) NULL | Cạnh trái, chuẩn hoá 0..1 theo chiều rộng trang. |
 | bbox_y | DECIMAL(9,6) NULL | Cạnh trên, chuẩn hoá 0..1 theo chiều cao trang. |
 | bbox_width | DECIMAL(9,6) NULL | Chiều rộng, chuẩn hoá 0..1. |
@@ -139,6 +139,22 @@ CHECK (
 );
 CHECK (role <> 'figure' OR text IS NULL);
 ```
+
+### Ghi chú `role` — v1.1, Approved 2026-08-27
+
+Vocabulary `role` **giữ nguyên chín giá trị**, không tách `figure` thành
+`chart` / `diagram` / `image`.
+
+Tách ra không phải mở rộng vocabulary mà là yêu cầu Media **phân loại** nội dung
+đồ hoạ. Phân biệt "biểu đồ cột" với "sơ đồ luồng" là phán đoán về ý nghĩa, thuộc
+AI theo [ADR-0019 § D7](../../adr/ADR-0019-Media-Structured-Extraction-Boundary.md)
+và [ADR-0020](../../adr/ADR-0020-AI-Vision-Interpretation-Boundary.md). Một
+vocabulary mà chính producer không điền đúng được thì thêm vào chỉ tạo dữ liệu sai
+có vẻ chính xác.
+
+`CHECK (role <> 'figure' OR text IS NULL)` giữ nguyên: vùng đồ hoạ không mang text
+của chính nó. Chữ nhìn thấy bên trong khối — nhãn trục, chú thích — là text quan
+sát được và thuộc vùng text riêng, không phải thuộc row `figure`.
 
 `UNIQUE (…, reading_order)` chỉ bảo đảm **không trùng** trong mỗi revision. Nó
 **không** bảo đảm dãy liên tục `1..N`: bộ giá trị `1, 2, 9` vẫn hợp lệ với

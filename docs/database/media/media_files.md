@@ -1,12 +1,12 @@
 # Table: media_files
 
-Version: 1.4
+Version: 1.5
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-24
+Last Updated: 2026-08-27
 
 Document Path: database/media/media_files.md
 
@@ -25,6 +25,9 @@ Bảng trung tâm lưu identity, metadata, storage locator và lifecycle của D
 * Binary immutable sau upload. Thay đổi nội dung phải tạo Media File mới.
 * Không hard-delete khi còn active Usage; dùng lifecycle `deleted`/`archived`.
 * Allowed `file_type`: `image`, `video`, `audio`, `document`, `subtitle`, `transcript`, `archive`, `other`.
+* Tập MIME và extension được phép cho từng `file_type` là hợp đồng domain, ghi tại
+  [LF-Media § 3 Upload / Replace](../../platform/LF-Media.md). `other` hiện bỏ qua
+  kiểm tra đó.
 * Allowed `status`: `uploading`, `processing`, `ready`, `failed`, `deleted`, `archived`.
 * `status` phản ánh **deliverability của file nhị phân**, không phản ánh output
   dẫn xuất. Chỉ upload và `virus_scan` ảnh hưởng nó. `ready` nghĩa là file phục

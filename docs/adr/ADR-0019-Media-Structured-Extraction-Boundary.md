@@ -1,6 +1,6 @@
 # ADR-0019 — Media Structured Extraction Boundary
 
-Version: 1.1
+Version: 1.3
 
 Status: Approved
 
@@ -8,7 +8,7 @@ Document Status: Approved
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-08-25
+Last Updated: 2026-08-27
 
 Proposal Date: 2026-08-25
 
@@ -33,7 +33,7 @@ Related Specification:
 
 ---
 
-# Amendment Record — Version 1.1 (Proposed)
+# Amendment Record — Version 1.1
 
 Amendment Status: **Approved by Architecture Owner, 2026-08-25.** Mục này có hiệu
 lực; ADR-0019 chuyển sang Version 1.1.
@@ -62,6 +62,82 @@ Mâu thuẫn được ghi là **DOC-CONFLICT-0016**
 ([LF-Documentation-Conflicts](../quality/LF-Documentation-Conflicts.md)) và đóng
 `RESOLVED` bằng chính amendment này ngày 2026-08-25. Blocker migration còn lại
 nằm ở resource limits và Architecture Review, không còn ở conflict này.
+
+---
+
+# Amendment Record — Version 1.2
+
+Amendment Status: **Approved by Architecture Owner, 2026-08-27.** Mục này có hiệu
+lực; ADR-0019 chuyển sang Version 1.2.
+
+Nguồn: đối chiếu tài liệu ↔ source ngày 2026-08-27. ADR này để lại một khoảng
+trống mà không tài liệu nào khác lấp: **structured extraction chạy dưới job nào.**
+
+**Khoảng trống.** `media_processing_jobs` có `CHECK (job_type IN ('transcode',
+'thumbnail','ocr','speech_to_text','caption','virus_scan','compress'))` và
+`output_type` chỉ nhận `transcript | caption | extracted_text | variant`. Không
+giá trị nào chứa được một revision region/table/cell. Một provider muốn ghi
+structured output hôm nay phải hoặc đội lốt `ocr`, hoặc vi phạm CHECK.
+
+**Quyết định.** `job_type = 'structured_extraction'`, với `output_type` là
+`extracted_region` (nguồn document) hoặc `extracted_table` (nguồn spreadsheet),
+`output_id` trỏ tới **điểm vào** của revision — region `reading_order = 1` hoặc
+table `sequence = 1`. Chi tiết hợp đồng nằm ở
+[LF-Media-Processing-Contract § 2](../platform/LF-Media-Processing-Contract.md)
+Amendment v2.1.
+
+**Lý do không tái sử dụng `ocr`.** Đúng lý do đã dùng để bác `page` cho sheet ở
+§ D1: nhánh spreadsheet đọc thẳng ô với `extraction_method = 'spreadsheet_cells'`
+và không gọi OCR lần nào. Gán nhãn `ocr` là một `job_type` nói dối về việc đã
+làm, và là loại nói dối rẻ hôm nay đắt về sau — mọi consumer sau này phải học
+ngoại lệ đó. Tách job cũng tách chuỗi retry, `output_profile_hash`,
+`billable_units` và quota, nên một revision cấu trúc fail không tiêu attempt của
+OCR text.
+
+**Sửa một dòng của Consequences.** Version 1.0/1.1 viết "Không có provider,
+dependency, queue hay deployment change nào phát sinh từ ADR này". Câu đó **sai**
+kể từ amendment này: thêm một `job_type` là thay đổi orchestration và cần một
+migration trên `media_processing_jobs` — bảng đang chạy trên development. Dòng
+đó được thay ở § Consequences bên dưới.
+
+Khoảng trống được ghi là **DOC-CONFLICT-0019**
+([LF-Documentation-Conflicts](../quality/LF-Documentation-Conflicts.md)) và đóng
+`RESOLVED` bằng chính amendment này ngày 2026-08-27. Blocker migration còn lại
+nằm ở Gate M và ở DOC-CONFLICT-0020, không còn ở khoảng trống này.
+
+---
+
+# Amendment Record — Version 1.3
+
+Amendment Status: **Approved by Architecture Owner, 2026-08-27.**
+
+§ D4 nói Media quan sát, AI diễn giải. Amendment này trả lời câu hỏi mà § D4 để
+mờ: **sơ đồ và mũi tên rơi về bên nào.** Câu hỏi phát sinh từ tiêu chí nghiệm thu
+của một tài liệu học liệu thật, yêu cầu "nhận diện các khối sơ đồ, mũi tên và thứ
+tự liên kết".
+
+**Quyết định.** Media dừng ở vùng. Xem § D7.
+
+**Lý do.** "Khối A dẫn tới khối B" là một khẳng định **có thể sai**. Media phát ra
+nó thì không có `ai_model_runs` để truy, không quota, không ai duyệt trước khi nó
+thành nội dung dạy. AI phát ra thì có cả ba. Cùng một câu, khác nhau ở chỗ có ai
+đứng sau nó hay không.
+
+Và không mất gì: AI vision nhận crop của vùng, text nằm trong vùng, vị trí và
+citation — đủ để đọc sơ đồ. Media không đọc hộ nó.
+
+**Hệ quả cho tiêu chí nghiệm thu.** Ở tầng Media, tiêu chí phải viết ở dạng đo
+được:
+
+| Đo được ở tầng Media | Không đo được ở tầng Media |
+| --- | --- |
+| Mỗi khối là một region `role = 'figure'`, đúng trang, đúng `ordinal` | "Nhận diện mũi tên" |
+| `bbox` đúng vị trí khối | "Thứ tự liên kết của sơ đồ" |
+| Text nằm trong khối được giữ nguyên | "Sơ đồ này mô tả quy trình gì" |
+| Có crop và citation trỏ đúng `page#ordinal` | |
+
+Cột phải không sai vì thiếu engine tốt; nó sai vì **không thuộc Media**. Đổi
+engine không chuyển được một dòng nào từ cột phải sang cột trái.
 
 ---
 
@@ -173,6 +249,41 @@ Ranh giới này không phải hình thức. Một khi Media bắt đầu gán �
 thành nguồn sự thật cho một business state mà nó không sở hữu, và không consumer
 nào truy được quyết định đó về một model run nào.
 
+## D6 — Job identity của structured extraction (Amendment v1.2)
+
+Structured extraction là `job_type` riêng `structured_extraction`, không phải
+một biến thể của `ocr`. Vocabulary `job_type` và `output_type` của
+`media_processing_jobs` phải được mở bằng migration riêng, chịu cùng Gate M với
+ba bảng mới. Hợp đồng chi tiết thuộc Processing Contract § 2, không thuộc ADR
+này.
+
+## D7 — Sơ đồ, biểu đồ và ảnh: Media dừng ở vùng (Amendment v1.3)
+
+Với mọi khối đồ hoạ — biểu đồ, sơ đồ, ảnh chụp, hình vẽ — Media chỉ được ghi bốn
+thứ:
+
+1. **có một vùng ở đây** — `role = 'figure'`, `page`, `ordinal`, `reading_order`;
+2. **vùng nằm ở đâu** — `bbox`;
+3. **chữ và số nằm trong vùng** — nhãn trục, chú thích, text trong khối;
+4. **crop và citation** — `page#ordinal` ổn định theo `source_fingerprint`.
+
+Media **không** ghi: quan hệ giữa các khối, hướng của mũi tên như một quan hệ,
+thứ tự liên kết, loại biểu đồ, hay ý nghĩa của bất kỳ thứ gì trong vùng. Phát
+hiện một nét vẽ có đầu mũi tên tại một toạ độ là quan sát; khẳng định nó **nối**
+khối A sang khối B là một quan hệ ngữ nghĩa, và thuộc
+[ADR-0020](ADR-0020-AI-Vision-Interpretation-Boundary.md).
+
+### Vocabulary `role` giữ nguyên, có chủ ý
+
+`role` hiện có `figure` cho cả biểu đồ, sơ đồ lẫn ảnh chụp. **Không tách** thành
+`chart` / `diagram` / `image`.
+
+Tách ra không phải mở rộng vocabulary mà là yêu cầu Media **phân loại** — và
+phân biệt "biểu đồ cột" với "sơ đồ luồng" là một phán đoán về nội dung, đúng thứ
+§ D4 đặt ở phía AI. Một vocabulary mà chính Media không điền đúng được thì thêm
+vào chỉ tạo dữ liệu sai có vẻ chính xác. AI phân loại, và kết quả đó sống ở
+`ai_*` theo ADR-0020.
+
 ## D5 — Ngoài phạm vi, có lý do
 
 | Không thuộc ADR này | Vì sao |
@@ -198,8 +309,11 @@ việc approve ADR này.
   của spreadsheet sẽ mang `locator_type = 'sheet'`, nên phải đi kèm
   `processing_version` mới; revision cũ giữ nguyên `archived` và vẫn đọc được.
 * Ba bảng mới, ba content type mới, và một Read Contract amendment cần review.
-* Không có provider, dependency, queue hay deployment change nào phát sinh từ
-  ADR này.
+* Không có provider hay dependency change nào phát sinh từ ADR này.
+* **Sửa bởi Amendment v1.2:** có một thay đổi orchestration — `job_type` mới
+  `structured_extraction` và vocabulary `output_type` mở rộng — kéo theo một
+  migration trên `media_processing_jobs`. Không có deployment hay queue
+  topology change.
 * Chi phí lưu trữ tăng theo số ô, không theo số trang. Một workbook lớn sinh ra
   nhiều row hơn hẳn một PDF cùng dung lượng; giới hạn tài nguyên cho structured
   extraction phải được chốt trong Database Docs, không để mặc định.

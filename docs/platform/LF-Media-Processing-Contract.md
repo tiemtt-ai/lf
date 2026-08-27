@@ -1,12 +1,12 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.0
+Version: 2.3
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-25
+Last Updated: 2026-08-27
 
 Document Path: platform/LF-Media-Processing-Contract.md
 
@@ -16,6 +16,50 @@ Related ADR:
 * [ADR-0006 — AI Foundation](../adr/ADR-0006-AI-Foundation.md)
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 * [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
+* [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved v1.1
+
+---
+
+# Amendment Record — Version 2.1
+
+Amendment Status: **Approved by Architecture Owner, 2026-08-27.** Mục này có hiệu
+lực; tài liệu chuyển sang Version 2.1. § 4 đọc theo vocabulary mới kể từ ngày
+này.
+
+Nguồn: đối chiếu tài liệu ↔ source ngày 2026-08-27 phát hiện tài liệu này đã có
+mục *Structured extraction resource controls* nói về region và cell, trong khi
+§ 4 vẫn chỉ liệt kê `page` và `timespan`, và ADR-0019 không nằm trong Related
+ADR. Mâu thuẫn nội bộ trong một tài liệu Approved, ghi là **DOC-CONFLICT-0018**.
+
+Amendment này sửa ba chỗ:
+
+1. **§ 4 nhận `sheet` và `region`** đúng theo ADR-0019 § D1. Hình dạng locator
+   không đổi; chỉ vocabulary mở.
+2. **§ 2 nhận `job_type = 'structured_extraction'`** cùng `output_type` tương
+   ứng. Đây là khoảng trống chưa tài liệu nào chạm tới, ghi là
+   **DOC-CONFLICT-0019**: CHECK hiện đóng ở bảy giá trị và `output_type` chỉ có
+   `transcript | caption | extracted_text | variant`, nên **không giá trị nào
+   chứa được** một revision region/table/cell. Owner chọn hướng job riêng ngày
+   2026-08-27.
+3. **`structured_extraction_too_large` được xếp nhóm lỗi vĩnh viễn**, không
+   retry.
+
+Quan sát kèm theo, **không** sửa trong amendment này: `extracted_text_too_large`
+và `page_limit_exceeded` cùng bản chất vĩnh viễn nhưng chưa bao giờ được liệt kê
+ở § 2. Chúng cần một quyết định riêng — chỗ này chỉ ghi lại, không tự thêm.
+
+Amendment này **không** phê duyệt provider nào và không mở lại hồ sơ A0.
+
+**Bổ sung Version 2.3, Approved 2026-08-27.** Mục *Lộ trình chuyển sang
+required* ở § 1 chốt cách đưa structured extraction từ optional lên required mà
+không rơi vào bẫy bất biến của required output profile set.
+
+**Bổ sung Version 2.2, Approved 2026-08-27.** Amendment v2.1 chốt job identity
+nhưng không nói job đó được sinh ra khi nào. Mục *Phạm vi áp dụng của structured
+extraction* ở § 1 đóng khoảng trống đó bằng **một quy tắc cờ**: cùng cổng kích
+hoạt với mọi job khác, không cổng mới, và thuộc nhóm optional/on-demand. Mức chi
+tiết hơn — có bắt buộc riêng cho spreadsheet hay không — cố ý để mở và hỏi lại
+Owner lúc implement.
 
 ---
 
@@ -92,11 +136,85 @@ fingerprint neo vào nội dung chứ không neo vào usage.
 Không kích hoạt xử lý cho `avatar`, `marketing`, `certificate` hoặc bất kỳ
 `owner_type` nào ngoài tập trên. Mở rộng tập này là amendment có review.
 
+## Phạm vi áp dụng của structured extraction
+
+Version 2.2, Approved 2026-08-27. Một quy tắc, không ngoại lệ:
+
+```text
+structured_extraction dùng ĐÚNG cổng kích hoạt ở trên.
+Nó không mở thêm cổng nào, và không có ngoại lệ kiểu virus_scan.
+```
+
+| | |
+| --- | --- |
+| **Áp dụng cho** | usage `course_activity` đang `active` và đã authorize, với `file_type = 'document'` |
+| **Không áp dụng cho** | `avatar`, `marketing`, `certificate`, `course_category` và mọi `owner_type` khác — giống hệt `ocr` |
+| **Không áp dụng cho** | `image`, `audio`, `video`, `subtitle`, `transcript`, `archive`, `other` |
+| **Nhóm** | **optional / on-demand**, không nằm trong required output profile set |
+| **Deliverability** | không chặn. `media_files.status` không chờ nó; chỉ Media Read Service trả `not_ready` cho `content_type` `region`/`table` |
+| **Published Version Activity** | `course_version_activity` không kích hoạt job mới, đúng như mọi job khác: cùng `source_fingerprint` thì dùng lại output đã có |
+
+Lý do đặt ở nhóm optional chứ không phải required: required output profile set
+được materialize **một lần tại trigger và bất biến** cho source đó. Đặt
+structured vào required hôm nay nghĩa là mọi PDF đều sinh một job không có engine
+để chạy, và không rút lại được. Ở nhóm optional thì nhánh spreadsheet chạy được
+ngay mà không hứa gì thay cho nhánh PDF.
+
+Hệ quả cho consumer, nói tường minh để không ai phải đoán: **không được giả định
+mọi document đều có revision cấu trúc.** Thiếu structured revision là trạng thái
+hợp lệ, không phải lỗi; Read Service trả `missing` theo hợp đồng sẵn có.
+
+
+### Lộ trình chuyển sang required
+
+Approved 2026-08-27. Mong muốn "document gắn vào Activity thì **phải** được xử lý
+cấu trúc" là mong muốn hợp lệ, nhưng không đạt được bằng cách đặt required ngay
+hôm nay.
+
+Required output profile set **materialize một lần tại trigger và bất biến** cho
+source đó. Đặt structured vào required bây giờ nghĩa là mọi PDF attach vào
+Activity đều sinh một job không có engine để chạy — kết quả là `failed`, và
+required set đã materialize thì không rút lại được.
+
+Đường đi đã chốt:
+
+```text
+Hôm nay        optional/on-demand, không hứa gì cho PDF
+     ↓
+Engine layout được duyệt (Tech Stack amendment)
+     ↓
+Nâng lên required ĐỒNG THỜI với một processing_version mới
+     ↓
+File cũ: chạy lại dưới revision mới, revision cũ giữ `archived`
+File mới: required set materialize đã gồm structured
+```
+
+Điểm mấu chốt là hai việc phải đi **cùng một lúc**. Nâng required mà không đổi
+`processing_version` thì file đã attach trước đó giữ nguyên required set cũ và
+vĩnh viễn không có revision cấu trúc, trong khi hợp đồng nói là bắt buộc — một
+mâu thuẫn không có tín hiệu nào phát hiện.
+
+**Ngoài phạm vi hợp đồng này:** nếu cần một bảo đảm ở mức nghiệp vụ — "Activity
+chưa có structured revision thì chưa được publish" — thì chỗ đặt luật đó là điều
+kiện publish của Course, không phải required set của Media. Media trả trạng thái;
+Course quyết định trạng thái nào đủ để publish. Hướng này **chưa được quyết** và
+cần review riêng của Domain Owner (Course); ghi ở đây để không ai nhầm nó là hệ
+quả tự nhiên của mục này.
+
+### Điểm cố ý để mở
+
+Có nên bắt buộc structured extraction riêng cho spreadsheet hay không — XLSX luôn
+sinh được ô mà không cần engine, PDF thì không — **chưa quyết**. Bảng fan-out
+khoá theo `file_type`, mà `file_type` không có giá trị `spreadsheet`, nên trả lời
+"có" sẽ kéo theo hoặc một `file_type` mới, hoặc một dòng khoá theo mime — tức một
+ngoại lệ trong hợp đồng. Quyết định này thuộc lúc implement lô spreadsheet;
+người viết code **phải hỏi Owner**, không được tự chọn.
+
 ## Fan-out theo file type
 
 | `file_type` | Job bắt buộc | Job tuỳ chọn |
 | --- | --- | --- |
-| `document` | `virus_scan`, `ocr` | `thumbnail` |
+| `document` | `virus_scan`, `ocr` | `thumbnail`, `structured_extraction` |
 | `audio` | `virus_scan`, `speech_to_text` | — |
 | `video` | `virus_scan`, `speech_to_text`, `caption` | `transcode`, `thumbnail` |
 | `image` | `virus_scan` | `thumbnail` |
@@ -113,7 +231,7 @@ Hai câu hỏi đó tách bạch:
 | Câu hỏi | Ai đọc | Job quyết định |
 | --- | --- | --- |
 | File này phục vụ được chưa? | `media_files.status` — delivery, preview, media picker | **Chỉ `virus_scan`** |
-| Output dẫn xuất dùng được chưa? | status của chính row output; Media Read Service | `ocr`, `speech_to_text`, `caption`, `transcode`, `thumbnail` |
+| Output dẫn xuất dùng được chưa? | status của chính row output; Media Read Service | `ocr`, `speech_to_text`, `caption`, `transcode`, `thumbnail`, `structured_extraction` |
 
 `virus_scan` là gate hợp lệ của deliverability: không phục vụ nội dung chưa
 quét. OCR và speech-to-text thì không — không có lý do gì một video phải chờ
@@ -154,7 +272,7 @@ Required output profile set Phase 1 được materialize một lần tại trigg
 
 | `file_type` | Required profile chính xác | Optional/on-demand |
 | --- | --- | --- |
-| `document` | `virus_scan` profile rỗng; `ocr`: `layout=preserve;locale=<canonical-locale>` | `thumbnail` |
+| `document` | `virus_scan` profile rỗng; `ocr`: `layout=preserve;locale=<canonical-locale>` | `thumbnail`; `structured_extraction`: `locale=<canonical-locale>;structure=cells` |
 | `audio` | `virus_scan` profile rỗng; `speech_to_text`: `diarization=off;locale=<canonical-locale>` | Additional transcript locale/profile |
 | `video` | `virus_scan` profile rỗng; `speech_to_text`: `diarization=off;locale=<canonical-locale>`; `caption`: `format=vtt;locale=<canonical-locale>` | `transcode`, `thumbnail`, additional transcript/caption locale hoặc format |
 | `image` | `virus_scan` profile rỗng | `thumbnail` |
@@ -201,7 +319,10 @@ tính phí đều để lại đúng một row, kể cả lần thất bại, n�
   source_fingerprint, processing_version, output_profile_hash)`.
 * Chỉ retry khi `error_code` thuộc nhóm tạm thời (`provider_timeout`,
   `provider_unavailable`, `rate_limited`). Lỗi vĩnh viễn
-  (`unsupported_source`, `corrupt_source`, `quota_exceeded`) không retry.
+  (`unsupported_source`, `corrupt_source`, `quota_exceeded`,
+  `structured_extraction_too_large`) không retry. Một revision vượt trần tài
+  nguyên sẽ vượt lại y hệt ở lần thử sau: input không đổi, giới hạn không đổi,
+  nên retry chỉ tiêu attempt và thời gian worker mà không đổi kết quả.
 * Retry của một output profile không tiêu hao attempt, không chặn enqueue và
   không ảnh hưởng backoff của profile khác. Hết attempt giữ chính required hoặc
   optional/on-demand output đó ở `failed`; derived output failure không làm
@@ -213,6 +334,55 @@ của lần upload hiện tại: job và `media_files` chuyển `failed` ngay v�
 lỗi, không để file treo `processing`. Operator vẫn có thể tạo retry chain sau
 khi provider được cấu hình; file chỉ trở lại `ready` khi một scan thật trả
 `clean`. Không có feature bypass phục vụ binary chưa scan.
+
+## Structured extraction job
+
+Approved 2026-08-27 theo quyết định Owner. Structured extraction chạy dưới
+`job_type` riêng:
+
+```text
+job_type = 'structured_extraction'
+```
+
+**Không** tái sử dụng `ocr`. Lý do là lý do đã dùng để bác `page` cho sheet ở
+ADR-0019 § D1: nhánh spreadsheet đọc thẳng ô bằng `extraction_method =
+'spreadsheet_cells'` và không gọi OCR lần nào, nên gán nhãn `ocr` cho nó là một
+job_type nói dối về việc đã làm. Hệ quả kèm theo đều là hệ quả mong muốn: chuỗi
+retry, `output_profile_hash`, `billable_units` và quota của structured extraction
+tách khỏi OCR text, nên một revision cấu trúc fail không tiêu attempt của text và
+chi phí hai loại đo được riêng.
+
+`output_profile` của job này gồm `locale` và `structure`; giá trị Phase 1 là
+`structure=cells` cho nhánh spreadsheet đọc trực tiếp. Profile canonical khi
+locale là `vi`: `locale=vi;structure=cells`.
+
+### Output identity của một job structured
+
+Một revision structured sinh row ở nhiều bảng, nên `output_id` không thể trỏ
+tới "row output" theo nghĩa cũ. Quy tắc:
+
+| `job_type` | `output_type` | `output_id` |
+| --- | --- | --- |
+| `structured_extraction`, nguồn document | `extracted_region` | Id của region có `reading_order = 1` trong revision |
+| `structured_extraction`, nguồn spreadsheet | `extracted_table` | Id của table có `sequence = 1` trong revision |
+
+Row được trỏ tới là **điểm vào** của revision, không phải toàn bộ output. Nó tồn
+tại để `chk_mpj_ready` giữ nguyên hình dạng — job `ready` phải có output —
+và để một job truy được về đúng revision nó đã tạo. Consumer không đọc structured
+data qua `output_id`; đường đọc duy nhất vẫn là Media Read Service theo
+[LF-Media-Read-Contract](LF-Media-Read-Contract.md).
+
+Job chỉ chuyển `ready` khi **atomic readiness** ở § 3 đã đạt: region, table và
+cell của revision cùng `ready`. Job `ready` mà revision còn `pending` là trạng
+thái không hợp lệ, không phải trạng thái trung gian.
+
+### Amendment vật lý kèm theo
+
+Quyết định này **cần một migration** trên bảng đang chạy — mở
+`chk_mpj_job_type` và vocabulary `output_type` của `media_processing_jobs`. Nó
+là migration thứ ba của đợt structured extraction, tách khỏi hai migration đã
+viết, và chịu cùng Gate M: không apply trước khi có test đọc CHECK vật lý từ
+`information_schema.CHECK_CONSTRAINTS` và chạy xanh trên MariaDB.
 
 ## Deployment precondition
 
@@ -565,6 +735,17 @@ locator := { locator_type, locator_value }
 | --- | --- | --- |
 | `page` | extracted text (document) | Số trang, ≥ 1, text thập phân |
 | `timespan` | transcript (audio/video) | `<start_ms>-<end_ms>`, số nguyên không âm, `start ≤ end` |
+| `sheet` | extracted text (spreadsheet) | Chỉ số sheet theo thứ tự workbook, ≥ 1, text thập phân |
+| `region` | region và table trên một trang | `<page>#<ordinal>`, cả hai ≥ 1 |
+
+`sheet` thay cho việc gán chỉ số sheet vào `page`. Đây là sửa một cách dùng sai
+đang tồn tại, không phải mở rộng phạm vi; revision cũ giữ `page` và chuyển
+`archived`, không backfill tại chỗ.
+
+`region` cố ý **không** mang toạ độ. Bounding box là dữ liệu quan sát, đổi theo
+extractor và DPI; nhét vào locator thì mọi citation cũ vỡ mỗi lần đổi
+`processing_version`. Locator chỉ định danh *vùng thứ mấy trên trang nào*, hình
+học nằm ở cột riêng.
 
 Quy tắc chung:
 

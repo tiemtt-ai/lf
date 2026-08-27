@@ -1,12 +1,12 @@
 # LF-Media.md
 
-Version: 1.3
+Version: 1.7
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-22
+Last Updated: 2026-08-27
 
 Document Path: platform/LF-Media.md
 
@@ -16,11 +16,19 @@ Document Path: platform/LF-Media.md
 
 Media là Platform Domain dùng chung cho toàn bộ LearnForge.
 
-Media implementation hiện là `Partial`: upload, tenant-scoped file identity,
-generic Usage, private delivery và Course Activity/Version Activity integration
-đã có; `media_processing_jobs`, variants, OCR, transcripts, captions và access
-logs chưa có physical migration/runtime. Các processing section bên dưới là
-approved contract, không phải tuyên bố pipeline đang vận hành.
+Media implementation hiện là `Partial`. Cập nhật 2026-08-27 theo source thật:
+upload, tenant-scoped file identity, generic Usage, private delivery và Course
+Activity/Version Activity integration đã có; substrate xử lý
+(`media_processing_jobs`, `media_extracted_texts`, `media_transcripts`,
+`media_captions`, `media_variants`, `media_access_logs`) **đã có migration và
+runtime** từ `2026_08_24_000000_create_media_processing_substrate.php`, với
+provider tài liệu self-hosted `local_document`. Câu trước đó — "chưa có physical
+migration/runtime" — là mô tả cũ, không còn đúng.
+
+Structured extraction (region/table/cell) thì **chưa** có runtime: hai migration
+đã viết nhưng Gate M chưa mở, và không có đường ghi nào trong `app/`. Mục
+[Structured extraction](#structured-extraction) bên dưới là approved contract,
+không phải tuyên bố pipeline đang vận hành.
 
 Media quản lý Digital Assets và hạ tầng liên quan:
 
@@ -333,6 +341,76 @@ Do not expose the following as user-editable fields:
 
 Image/video fields must clearly indicate whether the media is required or
 optional.
+
+### Ngôn ngữ nội dung — trường bắt buộc, không được bỏ khỏi form
+
+Amendment v1.7, 2026-08-27. Mục này ghi lại hành vi **đã chạy trong code**; nó
+không mở thêm quyết định nào.
+
+Khi upload Media mới thuộc `video`, `audio` hoặc `document`, form phải có một
+trường ngôn ngữ nội dung do người dùng **khai báo tường minh**:
+
+| | |
+| --- | --- |
+| Nhãn hiện tại | *Ngôn ngữ nội dung (BCP 47)*, placeholder `vi, ko, en-US` |
+| Bắt buộc khi | có file mới ở một trong ba loại trên |
+| Ghi vào | `media_files.processing_locale` |
+| Bất biến | Sau khi required output profile set được materialize, attach lại cùng Media File phải dùng đúng locale đã lưu |
+
+Đây **không** phải trường tuỳ chọn cho vui. Theo
+[Processing Contract § 1](LF-Media-Processing-Contract.md), thiếu locale, locale
+không hợp lệ, hoặc locale xung đột với giá trị đã lưu thì orchestration
+fail-closed:
+
+```text
+media_files.status = 'failed'
+media_files.processing_error_code = 'required_profile_configuration_missing'
+```
+
+Không được suy locale từ internationalization default, browser locale, user
+locale hay language detection của model. Không cái nào là source of truth.
+
+Bỏ trường này khỏi một form attach mới là tạo ra một đường upload luôn `failed`
+mà không có thông báo nào giải thích tại sao — đó là lý do nó được ghi ở đây chứ
+không chỉ ở hợp đồng processing.
+
+**Ghi chú kiểm chứng:** validation hiện chỉ kiểm **hình dạng** language tag
+(`max:20`, regex subtag), không kiểm chữ hoa/thường. Canonical hoá theo quy tắc
+BCP 47 của Processing Contract nằm ở tầng output profile, không ở form.
+
+### Tập MIME và extension được phép
+
+Amendment v1.7, 2026-08-27. Ghi lại danh sách **đang thi hành trong code**; trước
+đây nó không tồn tại trong bất kỳ tài liệu nào, kể cả khi Processing Contract § 1
+viện dẫn "tập MIME được hỗ trợ".
+
+| `file_type` | Extension | MIME |
+| --- | --- | --- |
+| `image` | jpg, jpeg, png, gif, webp, svg | image/jpeg, image/png, image/gif, image/webp, image/svg+xml |
+| `audio` | mp3, wav, ogg, webm, m4a, aac | audio/mpeg, audio/mp3, audio/wav, audio/x-wav, audio/ogg, audio/webm, audio/mp4 |
+| `video` | mp4, webm, mov, avi | video/mp4, video/webm, video/quicktime, video/x-msvideo |
+| `document` | pdf, doc, docx, xls, xlsx, ppt, pptx, txt | application/pdf, application/msword, …wordprocessingml.document, application/vnd.ms-excel, …spreadsheetml.sheet, application/vnd.ms-powerpoint, …presentationml.presentation, text/plain |
+| `subtitle` | vtt, srt, txt | text/vtt, application/x-subrip, text/plain |
+| `transcript` | txt, json | text/plain, application/json |
+| `archive` | zip, tar, gz | application/zip, application/x-zip-compressed, application/x-tar, application/gzip |
+| `other` | — | — |
+
+Validation yêu cầu **cả hai** khớp: MIME server-trusted **và** extension đã chuẩn
+hoá. Chỉ một trong hai khớp là bị từ chối.
+
+Hai điểm phải nói rõ vì chúng dễ gây hiểu nhầm:
+
+* **`file_type = 'other'` bỏ qua toàn bộ kiểm tra này.** Code trả `true` ngay
+  không xét MIME lẫn extension. Đây là hành vi hiện tại, ghi lại đúng như nó
+  đang là; nó **chưa** được đánh giá xem có phải chủ ý hay không.
+* **`document` gồm cả `.txt` và ba định dạng legacy `.doc`, `.xls`, `.ppt`.**
+  Legacy đi qua đường LibreOffice; `.txt` đọc thẳng. Vì phạm vi structured
+  extraction khoá theo `file_type = 'document'`, `.txt` nằm trong phạm vi trên
+  giấy — không thành vấn đề vì nó ở nhóm optional nên không ai yêu cầu.
+
+Giới hạn dung lượng là `MEDIA_MAX_UPLOAD_KILOBYTES`, không theo từng `file_type`.
+Xem [LF-Tech-Runtime-Requirements § 10](../tech/LF-Tech-Runtime-Requirements.md)
+về sai lệch giữa `.env.example` và mặc định của `config/media.php`.
 
 If only one preview media is allowed, UI must clearly communicate:
 
@@ -864,6 +942,85 @@ Processing độc lập với business Domain. Job completion không đồng ngh
 Progress, Assessment Result hoặc LiveClass Attendance.
 
 Heavy processing tuân thủ Async First qua queue/worker.
+
+---
+
+# Structured extraction
+
+Amendment v1.4, Approved 2026-08-27, áp dụng
+[ADR-0019](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) đã Approved.
+
+Media không chỉ sản xuất text theo trang. Cấu trúc nhìn thấy được trên trang —
+vùng, thứ tự đọc, bảng, ô — là dữ liệu quan sát được và có chủ sở hữu rõ ràng:
+
+```text
+media_extracted_regions   một vùng: role, hình học, thứ tự đọc
+media_extracted_tables    một bảng, neo vào một region hoặc một sheet
+media_table_cells         một ô: row, column, rowspan, colspan, text
+```
+
+Ba bảng này là **content type mới**, không phải cột mới của
+`media_extracted_texts`. Revision identity nằm ở row sở hữu: region và table
+mang `processing_version`/`source_fingerprint`/`status`; cell kế thừa cả ba từ
+bảng cha và không thể `archived` một mình.
+
+## Ranh giới
+
+Media ghi lại **những gì có trên trang**: đây là một vùng, role của nó là bảng,
+nó có 4 hàng 3 cột, ô (2,1) chứa chuỗi này, thứ tự đọc là thế này.
+
+Media **không** ghi ý nghĩa: bảng này nói về doanh thu, biểu đồ này cho thấy xu
+hướng giảm. Diễn giải thuộc AI theo
+[ADR-0020](../adr/ADR-0020-AI-Vision-Interpretation-Boundary.md) — mỗi lời gọi
+để lại một `ai_model_runs`, quota chặn trước, retention thừa kế ADR-0018. Không
+trường diễn giải nào được nằm trong bảng `media_*`.
+
+Một khi Media bắt đầu gán ý nghĩa, nó thành nguồn sự thật cho một business state
+nó không sở hữu, và không consumer nào truy được quyết định đó về một model run.
+
+### Với biểu đồ, sơ đồ và ảnh — Media dừng ở vùng
+
+Amendment v1.6, Approved 2026-08-27
+([ADR-0019 § D7](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md)).
+
+Media ghi bốn thứ: **có một vùng ở đây** (`role = 'figure'`), **vùng nằm ở đâu**
+(`bbox`), **chữ và số nằm trong vùng**, và **crop kèm citation**.
+
+Media không ghi quan hệ giữa các khối, hướng mũi tên như một quan hệ, thứ tự liên
+kết, loại biểu đồ hay ý nghĩa. Thấy một nét vẽ có đầu mũi tên là quan sát; nói nó
+**nối** khối A sang khối B là một quan hệ ngữ nghĩa, và thuộc AI.
+
+`role` cố ý **không** tách `chart` / `diagram` / `image`. Phân biệt "biểu đồ cột"
+với "sơ đồ luồng" là phán đoán về nội dung — Media không điền đúng được, nên thêm
+vào chỉ tạo dữ liệu sai có vẻ chính xác.
+
+## Nguyên tử
+
+Region, table và cell của một revision cùng `ready` hoặc cùng không. Vượt bất kỳ
+trần tài nguyên nào ở
+[Processing Contract](LF-Media-Processing-Contract.md) ⇒
+`structured_extraction_too_large`, fail toàn revision, **không truncate**. Một
+bảng `ready` mà thiếu ô là một bảng nói dối về nội dung của chính nó.
+
+## Phạm vi
+
+Structured extraction dùng **đúng cổng kích hoạt** của mọi job Media khác: usage
+`course_activity` đang active và đã authorize, `file_type = 'document'`. Nó không
+chạy cho `avatar`, `marketing`, `certificate`, `course_category`, và không chạy
+cho ảnh, audio, video.
+
+Nó thuộc nhóm **optional / on-demand**, không nằm trong required output profile
+set. Nghĩa là thiếu revision cấu trúc là trạng thái hợp lệ, không phải lỗi, và
+`media_files.status` không bao giờ chờ nó — tác giả upload xong vẫn xem được file
+ngay. Chi tiết ở
+[Processing Contract § 1](LF-Media-Processing-Contract.md).
+
+## Đường đọc
+
+Không có API riêng cho structured data. Consumer đọc qua Media Read Service với
+`content_type` là `region` hoặc `table` theo
+[LF-Media-Read-Contract](LF-Media-Read-Contract.md) v1.5, kèm trường `structure`.
+Không đường nào cho AI đọc thẳng bảng `media_*`.
 
 ---
 

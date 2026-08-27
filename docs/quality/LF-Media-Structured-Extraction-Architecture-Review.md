@@ -1,12 +1,12 @@
 # Media Structured Extraction Architecture Review
 
-Version: 2.0
+Version: 2.2
 
 Document Status: Review
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-08-26
+Last Updated: 2026-08-27
 
 Review Date: 2026-08-25 (Round 1), 2026-08-26 (Round 2)
 
@@ -301,6 +301,31 @@ production khi row `spreadsheet_cells` đầu tiên được ghi.
 thầm ghi đè `sheet` thành `page` sẽ làm mọi citation đã phát ra trỏ sai mà không
 có lỗi nào.
 
+## F.8 — Bổ sung do amendment job identity (Approved 2026-08-27)
+
+Phạm vi review Round 2 **không** gồm job identity của structured extraction. Đối
+chiếu ngày 2026-08-27 phát hiện khoảng trống đó (DOC-CONFLICT-0019); Owner chọn
+hướng `job_type = 'structured_extraction'` và ký ADR-0019 Amendment v1.2 cùng
+Processing Contract v2.1 trong ngày. Hệ quả cho test plan:
+
+| # | Case | Kỳ vọng | Tầng chặn |
+|---|---|---|---|
+| 8.1 | `job_type = 'structured_extraction'` | accept | CHECK |
+| 8.2 | `job_type = 'structured_extractions'` (sai chính tả) | reject | CHECK |
+| 8.3 | `output_type` lần lượt `extracted_region`, `extracted_table` | accept | CHECK |
+| 8.4 | job `structured_extraction` `ready` với `output_id` NULL | reject | `chk_mpj_ready` |
+| 8.5 | Sau migration, đọc `information_schema.CHECK_CONSTRAINTS` và assert cả `job_type` lẫn `output_type` mang vocabulary mới | pass | — |
+| 8.6 | Rollback khi đã có row `structured_extraction` | preflight fail-closed, không xoá row | migration |
+
+8.3 và 8.5 **không chạy được cho tới khi DOC-CONFLICT-0020 đóng**: § Keys của
+`media_processing_jobs` mô tả một CHECK vocabulary cho `output_type` mà schema
+vật lý không có. Không có gì để "mở"; migration hoặc tạo mới CHECK đó, hoặc tài
+liệu phải sửa. Viết test trước khi chốt điều này là viết test cho một schema
+chưa tồn tại.
+
+Ba nhóm này thuộc **Gate M**, không phải Gate R: chúng là ràng buộc vật lý của
+một bảng đang chạy.
+
 ## F.7 — Điều kiện đủ của plan
 
 Plan được coi là đủ khi mọi dòng ở F.1–F.6 có một test tương ứng, và mỗi test có
@@ -372,6 +397,20 @@ R3 (khối lượng purge) và R2 (bảng PDF nhiều trang chưa ghép).
 
 Cái còn thiếu bây giờ là **bằng chứng test**, không còn là quyết định Owner và
 không còn là thiết kế. Đây là điều kiện cuối cùng trước migration.
+
+
+**Addendum 2026-08-27 — Gate M vừa rộng ra.** Verdict Round 2 ở trên được đưa ra
+trên phạm vi hai migration. Amendment job identity, **Approved 2026-08-27**,
+thêm **migration thứ ba** trên `media_processing_jobs` và nhóm test § F.8.
+
+Chữ ký của Owner cho amendment **không** phải chữ ký review. Verdict
+`PASS WITH DOCUMENTED RISKS` của Round 2 được đưa ra trước khi phạm vi này tồn
+tại và **không** phủ nó. Gate M chỉ đóng khi § F.1–F.6 **và** § F.8 cùng chạy
+xanh, và § F.8 cần một lượt review độc lập — Round 3 — trước khi migration thứ
+ba được viết. Hai gate độc lập; đây là lý do ô § H vẫn để trống.
+
+§ F.8 case 8.3 và 8.5 còn bị chặn thêm bởi **DOC-CONFLICT-0020**, vẫn
+`DECISION_REQUIRED` sau ngày 2026-08-27.
 
 # H — Owner Approval
 

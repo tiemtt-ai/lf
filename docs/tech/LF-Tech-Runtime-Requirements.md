@@ -1,12 +1,12 @@
 # LF-Tech-Runtime-Requirements.md
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Draft
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-25
+Last Updated: 2026-08-27
 
 Document Path: tech/LF-Tech-Runtime-Requirements.md
 
@@ -357,6 +357,67 @@ Ghi ở đây thay vì tự chọn bên:
 | 3 | `MEDIA_MAX_UPLOAD_KILOBYTES`: `.env.example` `1048576` khác mặc định `config/media.php` `102400` |
 | 4 | Stale-processing sweeper (R8) chưa implement; bắt buộc trước AWS production |
 | 5 | STT, caption, thumbnail, transcode provider đều `unconfigured`; các capability đó chưa chạy được |
+
+---
+
+# 11. Structured extraction — cần cài thêm gì
+
+Cập nhật 2026-08-27, sau khi
+[ADR-0019](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) được duyệt.
+Câu trả lời khác nhau theo từng giai đoạn, nên tách rõ.
+
+## 11.1. Giai đoạn spreadsheet (region/table/cell từ XLSX) — không cần cài gì mới
+
+Đọc ô Excel trực tiếp dùng đúng hai extension đã liệt kê ở § 1.1:
+
+| Cần | Trạng thái |
+|---|---|
+| `ext-zip` | Đã dùng trong `LocalDocumentProcessingProvider`; **thiếu trong mọi job CI** — xem § 10 mục 2 |
+| `ext-xmlreader` | Đã dùng để đọc `xl/worksheets/*.xml` |
+| Binary ngoài | **Không cần thêm.** Nhánh này không gọi Poppler, Tesseract hay LibreOffice |
+| Database | MariaDB `11.4.3` của job `integration-mysql` — đã có |
+
+Nghĩa là năng lực bảng/ô đầu tiên của LearnForge **không phụ thuộc một phần mềm
+mới nào**. Việc cài đặt duy nhất phải làm là đóng khoảng trống `ext-zip`: thêm
+nó vào extension list của CI và xác nhận nó có trên production. Hiện
+`phpunit.xml` đặt `MEDIA_OCR_PROVIDER=fake` nên đường đọc file thật không bao giờ
+chạy trong CI, và một production thiếu `ext-zip` sẽ hỏng đúng ở nhánh DOCX/XLSX
+mà không test nào báo.
+
+## 11.2. Giai đoạn layout PDF — chưa có phần mềm nào được duyệt
+
+Sinh `role`, `bbox` và `reading_order` cho PDF cần một engine phân tích bố cục.
+Stack hiện tại — Poppler + Tesseract + LibreOffice — **không** có năng lực đó.
+
+Trước khi cài bất cứ thứ gì, các điều kiện sau là điều kiện tài liệu, không phải
+thủ tục:
+
+| # | Điều kiện |
+|---|---|
+| 1 | [LF-Tech-Stack](LF-Tech-Stack.md) § Official Stack **không có Python**, và Docker được ghi là `(Future)`. Chạy một engine Python đóng gói container là **Tech Stack amendment**, không phải một lệnh cài |
+| 2 | [ADR-0019](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) § D5 nói rõ ADR đó tạo **chỗ chứa**, không phê duyệt provider nào |
+| 3 | Hồ sơ A0 đã đóng ngày 2026-08-25 với quyết định giữ Poppler + Tesseract; harness đo **đã bị xoá**, nên mở lại phép đo là dựng lại từ đầu |
+| 4 | Điều kiện mở lại đã ghi sẵn: engine layout vào như `output_profile` riêng `layout=structured` song song với `layout=preserve`, **không thay** Tesseract |
+| 5 | Provider mới đọc namespace config khác sẽ khởi động với **không giới hạn nào** — § 5.2. Nó phải áp dụng lại tường minh cả trần trang, trần ký tự và ba trần structured |
+
+Nếu và khi engine được duyệt, đây là footprint đã đo thật trong run A0
+`a0-fair-baseline-20260825`, dùng để tính sizing worker chứ không phải để tranh
+luận lại quyết định:
+
+| Chỉ số | Poppler + Tesseract | Docling |
+|---|---:|---:|
+| p95 giây/trang | 1.73 | 4.01 |
+| Peak RSS | 148 MB | 2.23 GB |
+
+Chênh lệch bộ nhớ 15× nghĩa là worker hiện tại **không** chạy được engine đó ở
+cùng cấu hình; đây là thay đổi hạ tầng có chi phí, không phải một dependency.
+
+## 11.3. Không thuộc phạm vi cài đặt
+
+Diễn giải ảnh/biểu đồ là AI theo
+[ADR-0020](../adr/ADR-0020-AI-Vision-Interpretation-Boundary.md): provider AI,
+`ai_model_runs`, quota. Không có binary nào cài lên worker Media giải quyết việc
+đó, và không được cài với lý do "để Media đọc biểu đồ".
 
 ---
 

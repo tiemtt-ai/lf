@@ -1,12 +1,12 @@
 # LearnForge Documentation Conflict Register
 
-Version: 1.4
+Version: 1.6
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-24
+Last Updated: 2026-08-27
 
 Document Path: quality/LF-Documentation-Conflicts.md
 
@@ -234,7 +234,11 @@ trung lập.
 
 # Active Conflict Register
 
-Active items: 6. Không có confirmed `CONFLICT` nào đang mở; DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25.
+Active items: 9. DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25;
+DOC-CONFLICT-0018 và DOC-CONFLICT-0019 đóng 2026-08-27 bằng đợt amendment tài
+liệu của miền Media. Còn **DOC-CONFLICT-0020** đang mở: bốn CHECK của
+`media_processing_jobs` không tồn tại vật lý, và Owner chưa chọn giữa "tạo mới
+CHECK" và "sửa § Keys". Nó chặn migration thứ ba, không chặn phần tài liệu.
 
 | ID | Title | Classification | Status | Impact | Domain | Owner | Target Review |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -246,6 +250,9 @@ Active items: 6. Không có confirmed `CONFLICT` nào đang mở; DOC-CONFLICT-0
 | DOC-CONFLICT-0015 | `owner_type` không có ràng buộc vật lý nên vocabulary trôi không bị phát hiện | GAP | DECISION_REQUIRED | MEDIUM | Media | Database Owner | Immediate, after 0014 |
 | DOC-CONFLICT-0016 | Revision identity của `media_table_cells` mâu thuẫn với ADR-0019 § D2 | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Architecture Owner | Đóng 2026-08-25 |
 | DOC-CONFLICT-0017 | `extraction_method` của đọc cell trực tiếp có hai tên trong hai bảng | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Domain Owner (Media) | Đóng 2026-08-25 |
+| DOC-CONFLICT-0018 | Processing Contract § 4 chưa mở locator sang `sheet`/`region` dù cùng tài liệu đã có resource control cho region | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Architecture Owner | Đóng 2026-08-27 |
+| DOC-CONFLICT-0019 | `job_type`/`output_type` không có giá trị nào chứa được một revision structured | GAP | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-08-27 |
+| DOC-CONFLICT-0020 | Bốn CHECK trong doc `media_processing_jobs` không tồn tại trong schema vật lý | IMPLEMENTATION_DRIFT | DECISION_REQUIRED | MEDIUM | Media | Database Owner | Trước migration job_type |
 
 ---
 
@@ -968,4 +975,117 @@ Superseded/Updated Documents: docs/database/media/media_extracted_texts.md chuy�
 Verification Evidence:
 Related ADR/Review/Issue/PR: ADR-0019; DOC-CONFLICT-0016; quality/LF-Media-Structured-Extraction-Architecture-Review.md
 Notes: Phát hiện khi đối chiếu trạng thái Phase 5, không phải khi review Database Docs — vocabulary cũ đã đúng cho đến khi đọc cell trực tiếp được thêm vào ở mục 4
+```
+
+---
+
+## DOC-CONFLICT-0018
+
+```text
+Conflict ID: DOC-CONFLICT-0018
+Title: Processing Contract § 4 chưa mở locator sang sheet/region
+Classification: DOCUMENT_CONTRADICTION
+Status: RESOLVED
+Impact: MEDIUM
+Detected At: 2026-08-27
+Detected By: Đối chiếu tài liệu ↔ source, miền Media Document Processing
+Owner: Architecture Owner
+Affected Domain: Media
+Affected Concern: Vocabulary của locator_type trong hợp đồng citation
+Sources In Conflict:
+Source A: docs/platform/LF-Media-Processing-Contract.md#4-citation-locator
+Source B: docs/adr/ADR-0019-Media-Structured-Extraction-Boundary.md#d1-locator-giu-nguyen-hinh-dang-mo-rong-vocabulary
+Additional Sources: docs/platform/LF-Media-Processing-Contract.md#structured-extraction-resource-controls; docs/platform/LF-Media-Read-Contract.md#2-hop-dong-doc
+Contradictory Requirements:
+- Source A requires: locator_type chỉ gồm page và timespan; thêm locator_type mới là amendment có review
+- Source B requires: locator_type gồm page, timespan, sheet và region, đã Approved 2026-08-25
+Why They Cannot Both Be True: Cùng một hợp đồng locator được hai tài liệu Approved mô tả bằng hai vocabulary khác nhau. Nặng hơn: chính Source A đã có mục resource control đếm region và cell, nên tài liệu tự mâu thuẫn với chính nó, không chỉ với ADR
+Runtime/Business Impact: Chưa có ở runtime — không đường code nào ghi sheet hay region. Rủi ro là ngược lại: một implementer đọc § 4 sẽ kết luận locator mới chưa được duyệt và tiếp tục ép sheet vào page, đúng cách dùng sai mà ADR-0019 được viết để sửa
+Affected Implementation: app/Services/LocalDocumentProcessingProvider.php::unit; app/Services/MediaReadService.php
+Temporary Safety Rule: Không ghi locator_type ngoài page/timespan cho tới khi amendment được ký
+Required Decision: Owner ký Amendment v2.1 của Processing Contract, hoặc bác và nêu vocabulary thay thế
+Resolution Authority: Architecture Owner
+Resolution Plan: Amendment Record Version 2.1 soạn trong chính Processing Contract ngày 2026-08-27; ký là đóng
+Target Review Date: 2026-09-01
+Resolved At: 2026-08-27
+Resolution: Owner ký Amendment v2.1 ngày 2026-08-27. § 4 nhận sheet và region đúng theo ADR-0019 § D1; hình dạng locator không đổi. Runtime được phép ghi hai locator_type mới kể từ khi Gate R mở
+Superseded/Updated Documents: docs/platform/LF-Media-Processing-Contract.md chuyển Version 2.1; docs/platform/LF-Media.md chuyển Version 1.4
+Verification Evidence: Bốn kiểm tra docs:lint chạy lại bằng Python ngày 2026-08-27 — metadata header, README/INDEX mention, link resolution, manifest round-trip/count/sort/title — xanh trên mọi file đã sửa. php không có trên shell của máy đối chiếu
+Related ADR/Review/Issue/PR: ADR-0019 v1.2; quality/LF-Media-Structured-Extraction-Architecture-Review.md
+Notes: Amendment đề xuất chỉ mở vocabulary, không đổi hình dạng locator. Ghi nhận kèm theo, không sửa trong đợt này: extracted_text_too_large và page_limit_exceeded cùng bản chất lỗi vĩnh viễn nhưng chưa bao giờ được liệt kê ở § 2 Retry
+```
+
+---
+
+## DOC-CONFLICT-0019
+
+```text
+Conflict ID: DOC-CONFLICT-0019
+Title: job_type và output_type không có giá trị nào chứa được một revision structured
+Classification: GAP
+Status: RESOLVED
+Impact: HIGH
+Detected At: 2026-08-27
+Detected By: Đối chiếu tài liệu ↔ source, miền Media Document Processing
+Owner: Architecture Owner
+Affected Domain: Media
+Affected Concern: Job identity và output identity của structured extraction
+Sources In Conflict:
+Source A: docs/database/media/media_processing_jobs.md#constraints-and-indexes
+Source B: docs/adr/ADR-0019-Media-Structured-Extraction-Boundary.md#d2-cau-truc-khong-song-trong-media_extracted_texts
+Additional Sources: docs/database/media/media_extracted_regions.md#fields; docs/database/media/media_extracted_tables.md#fields; database/migrations/2026_08_26_000100_create_media_structured_extraction.php
+Contradictory Requirements:
+- Source A requires: job_type thuộc bảy giá trị đóng, output_type thuộc bốn giá trị đóng, và job ready khác virus_scan phải có output_id
+- Source B requires: một lần chạy sinh row ở media_extracted_regions, media_extracted_tables và media_table_cells, và ba bảng đó đều có cột processing_job_id trỏ về media_processing_jobs
+Why They Cannot Both Be True: Không áp dụng — đây là khoảng trống, không phải hai tài liệu chống nhau. Ba bảng mới khai báo khóa ngoại tới media_processing_jobs nhưng không job_type nào hợp lệ để tạo ra chúng, và không output_type nào trỏ về chúng
+Runtime/Business Impact: Chặn Gate R hoàn toàn. Một provider muốn ghi structured output hôm nay phải hoặc đội lốt job_type ocr — sai với nhánh spreadsheet vốn không gọi OCR lần nào — hoặc vi phạm CHECK
+Affected Implementation: app/Jobs/ProcessMediaProcessingJob::persistSuccess; app/Services/MediaProcessingOrchestrator
+Temporary Safety Rule: Không viết service persist structured trước khi quyết định này đóng
+Required Decision: Owner chọn giữa (a) job_type riêng structured_extraction với output_type extracted_region/extracted_table; hoặc (b) tái sử dụng ocr với output_profile layout/structure
+Resolution Authority: Architecture Owner
+Resolution Plan: Owner chọn phương án (a) ngày 2026-08-27 và ký ADR-0019 Amendment v1.2 cùng Processing Contract Amendment v2.1 trong ngày
+Target Review Date: 2026-09-01
+Resolved At: 2026-08-27
+Resolution: job_type = 'structured_extraction', output_type = extracted_region (nguồn document) hoặc extracted_table (nguồn spreadsheet), output_id trỏ tới điểm vào của revision — region reading_order = 1, hoặc table sequence = 1. Hợp đồng ở Processing Contract § 2; ADR-0019 § D6
+Superseded/Updated Documents: docs/adr/ADR-0019-Media-Structured-Extraction-Boundary.md chuyển Version 1.2; docs/platform/LF-Media-Processing-Contract.md chuyển Version 2.1; docs/database/media/media_processing_jobs.md chuyển Version 2.5 và Implementation Status Partial; docs/quality/LF-Media-Structured-Extraction-Architecture-Review.md chuyển Version 2.2 với § F.8
+Verification Evidence: Bốn kiểm tra docs:lint chạy lại bằng Python ngày 2026-08-27, xanh trên mọi file đã sửa
+Related ADR/Review/Issue/PR: ADR-0019 v1.2; DOC-CONFLICT-0018; DOC-CONFLICT-0020
+Notes: Đóng ở tầng tài liệu, KHÔNG ở tầng vật lý. Vocabulary mới chưa migrate; migration thứ ba trên media_processing_jobs chịu Gate M và còn bị chặn bởi DOC-CONFLICT-0020. Chữ ký Owner cho amendment không phải chữ ký Architecture Review — § F.8 cần một lượt review độc lập trước khi migration đó được viết
+```
+
+---
+
+## DOC-CONFLICT-0020
+
+```text
+Conflict ID: DOC-CONFLICT-0020
+Title: Bốn CHECK trong doc media_processing_jobs không tồn tại trong schema vật lý
+Classification: IMPLEMENTATION_DRIFT
+Status: DECISION_REQUIRED
+Impact: MEDIUM
+Detected At: 2026-08-27
+Detected By: Đối chiếu § Keys với LF-SCHEMA-CONTRACT.json khi chuẩn bị amendment job_type
+Owner: Database Owner
+Affected Domain: Media
+Affected Concern: Hợp đồng vật lý của media_processing_jobs
+Sources In Conflict:
+Source A: docs/database/media/media_processing_jobs.md#constraints-and-indexes
+Source B: database/migrations/2026_08_24_000000_create_media_processing_substrate.php; docs/database/LF-SCHEMA-CONTRACT.json
+Contradictory Requirements:
+- Source A requires: CHECK vocabulary cho output_type; CHECK job_type virus_scan phải có output NULL; CHECK completed_at >= started_at; CHECK cặp billable_units/billable_unit_type
+- Source B requires: sáu CHECK, không có bốn cái trên
+Why They Cannot Both Be True: Không áp dụng — drift giữa tài liệu và schema đã chạy
+Runtime/Business Impact: output_type hiện không bị ràng buộc vocabulary ở tầng database, nên một giá trị sai chính tả ghi được mà không lỗi. Ba CHECK còn lại là bất biến dữ liệu đang không được thi hành
+Affected Implementation: app/Jobs/ProcessMediaProcessingJob::persistSuccess
+Temporary Safety Rule: Không mô tả bốn CHECK này như đang có hiệu lực trong bất kỳ review nào
+Required Decision: Migration của DOC-CONFLICT-0019 tạo mới CHECK output_type với đủ vocabulary, hay § Keys được sửa cho khớp schema hiện tại. Hai đường dẫn tới hai schema khác nhau
+Resolution Authority: Database Owner cùng Architecture Owner
+Resolution Plan: Gộp vào cùng migration với job_type structured_extraction; quyết định trước khi viết migration đó
+Target Review Date: 2026-09-01
+Resolved At: Not resolved
+Resolution: Not resolved
+Superseded/Updated Documents: None
+Verification Evidence: docs/database/LF-SCHEMA-CONTRACT.json § tables.media_processing_jobs.checks liệt kê đúng sáu CHECK
+Related ADR/Review/Issue/PR: DOC-CONFLICT-0019; ADR-0004
+Notes: Phát hiện phụ khi soạn amendment, không phải mục tiêu của đợt đối chiếu
 ```
