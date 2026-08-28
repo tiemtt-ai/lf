@@ -1,12 +1,12 @@
 # LearnForge Documentation Conflict Register
 
-Version: 1.6
+Version: 1.7
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-27
+Last Updated: 2026-08-28
 
 Document Path: quality/LF-Documentation-Conflicts.md
 
@@ -234,7 +234,7 @@ trung lập.
 
 # Active Conflict Register
 
-Active items: 6. DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25;
+Active items: 7. DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25;
 DOC-CONFLICT-0018 và DOC-CONFLICT-0019 đóng 2026-08-27 bằng đợt amendment tài
 liệu của miền Media. DOC-CONFLICT-0020 và DOC-CONFLICT-0021 được Owner đóng
 2026-08-27; hiệu lực runtime/schema vẫn chịu Gate M/Gate R.
@@ -247,6 +247,7 @@ liệu của miền Media. DOC-CONFLICT-0020 và DOC-CONFLICT-0021 được Owne
 | DOC-CONFLICT-0011 | Attendance ghi được cho Enrollment không `active` | IMPLEMENTATION_DRIFT | ACCEPTED_TEMPORARILY | LOW (giảm từ HIGH) | LiveClass × Course | Domain Owner (LiveClass) | Trước khi mở lại tab Điểm danh |
 | DOC-CONFLICT-0014 | `course_category` được dùng làm `owner_type` nhưng không tài liệu nào đặt tên nó | IMPLEMENTATION_DRIFT | DECISION_REQUIRED | LOW | Media × Course | Domain Owner (Media) | Immediate Owner decision |
 | DOC-CONFLICT-0015 | `owner_type` không có ràng buộc vật lý nên vocabulary trôi không bị phát hiện | GAP | DECISION_REQUIRED | MEDIUM | Media | Database Owner | Immediate, after 0014 |
+| DOC-CONFLICT-0022 | ADR-0019 § D7 bắt Media ghi chữ/số và crop trong vùng `figure`; `media_extracted_regions.md` cấm figure mang text và không có cột crop | DOCUMENT_CONTRADICTION | PARTIALLY_RESOLVED | HIGH | Media | Architecture Owner | Owner quyết "Có" 2026-08-28; còn cột crop chờ Database review |
 | DOC-CONFLICT-0016 | Revision identity của `media_table_cells` mâu thuẫn với ADR-0019 § D2 | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Architecture Owner | Đóng 2026-08-25 |
 | DOC-CONFLICT-0017 | `extraction_method` của đọc cell trực tiếp có hai tên trong hai bảng | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Domain Owner (Media) | Đóng 2026-08-25 |
 | DOC-CONFLICT-0018 | Processing Contract § 4 chưa mở locator sang `sheet`/`region` dù cùng tài liệu đã có resource control cho region | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Architecture Owner | Đóng 2026-08-27 |
@@ -1088,6 +1089,46 @@ Superseded/Updated Documents: docs/database/media/media_processing_jobs.md v2.6
 Verification Evidence: docs/database/LF-SCHEMA-CONTRACT.json § tables.media_processing_jobs.checks liệt kê đúng sáu CHECK
 Related ADR/Review/Issue/PR: DOC-CONFLICT-0019; ADR-0004
 Notes: Phát hiện phụ khi soạn amendment, không phải mục tiêu của đợt đối chiếu
+```
+
+---
+
+## DOC-CONFLICT-0022
+
+```text
+Conflict ID: DOC-CONFLICT-0022
+Title: ADR-0019 § D7 yêu cầu figure mang chữ/số và crop; table doc cấm cả hai
+Classification: DOCUMENT_CONTRADICTION
+Status: PARTIALLY_RESOLVED
+Impact: HIGH
+Detected At: 2026-08-28
+Detected By: Nghiệm thu PDF ALLIVA 16 trang (media_files.id = 20)
+Owner: Architecture Owner
+Affected Domain: Media
+Affected Concern: Nội dung mà một region `role = figure` được phép mang
+Sources In Conflict:
+Source A: docs/adr/ADR-0019-Media-Structured-Extraction-Boundary.md#d7
+Source B: docs/database/media/media_extracted_regions.md#constraints-and-indexes
+Additional Sources: docs/platform/LF-Media-Processing-Contract.md; runtime/docling/extract.py
+Contradictory Requirements:
+- Source A requires: với mọi khối đồ hoạ, Media ghi bốn thứ, trong đó (3) "chữ và số nằm trong vùng — nhãn trục, chú thích, text trong khối" và (4) "crop và citation"
+- Source B requires: `CHECK (role <> 'figure' OR text IS NULL)` — vùng đồ hoạ không mang text; và không có cột nào lưu crop
+Why They Cannot Both Be True: Một row `figure` không thể vừa bắt buộc mang chữ trong vùng vừa bị CHECK cấm mang text. Crop thì ADR yêu cầu nhưng schema không có chỗ chứa
+Runtime/Business Impact: Đo trên ALLIVA (16 trang, text-layer): text theo trang 47.852 ký tự, text trong toàn bộ region chỉ 13.373 — **72% lượng chữ không truy được ở tầng region**. 62 region `figure`, tất cả `text = NULL`. Không một text region nào nằm trong bbox của figure (chồng lấn một phần: 2/62), nên cách hoà giải mà table doc đưa ra — "chữ trong khối thuộc vùng text riêng" — không đúng với dữ liệu thật
+Affected Implementation: runtime/docling/extract.py (`"text": None if role == "figure"`, `do_ocr = False`); StructuredExtractionPersistenceService::validate(); media_extracted_regions
+Temporary Safety Rule: STOP implementation for the affected concern. Do not guess.
+Required Decision: Region `figure` có được mang text quan sát được trong bbox của chính nó không — Có hay Không?
+Resolution Authority: Architecture Owner
+Resolution Plan: Không tự chọn bên. Nếu "Có": bỏ CHECK, bổ sung nguồn text theo bbox (PDF text-layer dùng `pdftotext -x -y -W -H`; scan dùng OCR trên crop), và thêm chỗ lưu crop — cả ba đều cần Database doc approved trước migration. Nếu "Không": sửa ADR-0019 § D7 bỏ điểm 3 và điểm crop, và ghi rõ chữ trong biểu đồ chỉ truy được ở mức trang
+Target Review Date: Cột crop — trước khi mở hạng mục A
+Resolved At: Phần text: 2026-08-28. Phần crop: chưa
+Resolution: Owner quyết "Có" ngày 2026-08-28 — region `figure` ĐƯỢC mang text quan sát được trong bbox của chính nó. `media_extracted_regions.md` lên v1.4, `CHECK (role <> 'figure' OR text IS NULL)` bị loại bỏ, và `extraction_method` phải ghi đúng nguồn (`embedded_text` khi cắt theo bbox từ text layer, `ocr` khi chạy Tesseract trên crop). Quyết định KHÔNG mở vocabulary `role`: `figure` vẫn dùng chung cho biểu đồ, sơ đồ và ảnh chụp — phân loại vẫn thuộc ADR-0020.
+
+Phần crop (§ D7 điểm 4) CHƯA đóng. Contract đã được soạn ngày 2026-08-28 tại `media_extracted_regions.md` v1.5 § Ảnh crop của vùng: năm cột all-or-nothing đặt trên chính region (không dùng `media_variants`, vì crop thuộc về một vùng trong một revision chứ không phải asset thay thế của cả file), đường lưu có `processing_version` để hai revision không đè nhau, crop private qua signed delivery, và crop KHÔNG bị xoá khi revision `archived`. Còn hai việc trước migration: benchmark `max_crop_bytes_per_document` bằng tài liệu thật, và Spec B amendment cho cách trả crop ra consumer
+Superseded/Updated Documents: None
+Verification Evidence: media_files.id=20; job 27 `structured_extraction` ready, 201 region, coverage 16/16; `SELECT SUM(char_count)` — region 13.373 vs text 47.852; truy vấn chồng lấn bbox figure × text region trả 0 chứa hẳn, 2 chồng lấn một phần
+Related ADR/Review/Issue/PR: ADR-0019 § D7; ADR-0020; DOC-CONFLICT-0016
+Notes: Ghi lại vì sao phát hiện muộn: cả hai tài liệu đọc riêng đều mạch lạc, và table doc còn có một câu hoà giải nghe hợp lý ("chữ trong khối thuộc vùng text riêng"). Chỉ khi đo trên tài liệu thật mới thấy câu đó không đúng với dữ liệu. `docs:lint` và `schema:drift` xanh xuyên suốt — không công cụ nào so được yêu cầu của ADR với CHECK trong schema.
 ```
 
 ---

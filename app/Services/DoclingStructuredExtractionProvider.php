@@ -60,10 +60,109 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
                 throw new RuntimeException((string) ($result['error_code'] ?? 'provider_command_failed'));
             }
 
+            $result['regions'] = $this->fillFigureText($source, $result['regions'] ?? []);
+
             return $result;
         } finally {
             $this->removeDirectory($directory);
         }
+    }
+
+    /**
+     * Lay chu nam trong bbox cua vung `figure` tu chinh text layer cua PDF.
+     *
+     * ADR-0019 § D7 diem 3 buoc Media ghi "chu va so nam trong vung — nhan truc,
+     * chu thich, text trong khoi". Docling chay layout-only (`do_ocr=false`) va
+     * khong tra text cho `picture`, nen truoc day 100% figure region co
+     * `text = NULL`. Do tren ALLIVA: text theo trang 47.852 ky tu, text trong
+     * region chi 13.373 — 72% khong truy duoc o tang vung.
+     *
+     * Cat theo bbox la phep hinh hoc, khong phai dien giai: no khang dinh "nhung
+     * ky tu nay nam trong hinh chu nhat nay", khong khang dinh bieu do noi gi.
+     * Ranh gioi voi ADR-0020 khong doi.
+     *
+     * Trang scan khong co text layer thi `pdftotext` tra rong va `text` giu NULL —
+     * dung, vi nhanh do can OCR tren crop, thuoc hang muc A chua mo.
+     *
+     * @param  array<int, array<string, mixed>>  $regions
+     * @return array<int, array<string, mixed>>
+     */
+    private function fillFigureText(string $source, array $regions): array
+    {
+        $figures = array_filter($regions, static fn (array $region): bool => ($region['role'] ?? null) === 'figure'
+            && is_array($region['bbox'] ?? null));
+        if ($figures === []) {
+            return $regions;
+        }
+
+        $pageSizes = $this->pageSizes($source);
+        $binary = (string) config('media.processing.local_document.pdftotext_binary', 'pdftotext');
+
+        foreach ($figures as $index => $region) {
+            $page = (int) ($region['page'] ?? 0);
+            $size = $pageSizes[$page] ?? null;
+            if ($size === null) {
+                continue;
+            }
+            $bbox = $region['bbox'];
+            $x = (int) floor((float) $bbox['x'] * $size['width']);
+            $y = (int) floor((float) $bbox['y'] * $size['height']);
+            $width = (int) ceil((float) $bbox['width'] * $size['width']);
+            $height = (int) ceil((float) $bbox['height'] * $size['height']);
+            if ($width <= 0 || $height <= 0) {
+                continue;
+            }
+
+            try {
+                $text = trim($this->runner->run([
+                    $binary, '-f', (string) $page, '-l', (string) $page,
+                    '-x', (string) $x, '-y', (string) $y, '-W', (string) $width, '-H', (string) $height,
+                    '-layout', $source, '-',
+                ], 30));
+            } catch (RuntimeException) {
+                continue;
+            }
+
+            if ($text === '') {
+                continue;
+            }
+            $regions[$index]['text'] = $text;
+            $regions[$index]['char_count'] = mb_strlen($text);
+            $regions[$index]['extraction_method'] = 'embedded_text';
+        }
+
+        return $regions;
+    }
+
+    /**
+     * Kich thuoc tung trang theo point, de doi bbox chuan hoa 0..1 sang toa do
+     * ma `pdftotext` nhan.
+     *
+     * @return array<int, array{width: float, height: float}>
+     */
+    private function pageSizes(string $source): array
+    {
+        $binary = (string) config('media.processing.local_document.pdfinfo_binary', 'pdfinfo');
+        $sizes = [];
+        $default = null;
+
+        $output = $this->runner->run([$binary, '-f', '1', '-l', '-1', $source], 60);
+        foreach (preg_split('/\R/', $output) ?: [] as $line) {
+            if (preg_match('/^Page\s+(\d+)\s+size:\s+([\d.]+)\s+x\s+([\d.]+)\s+pts/i', $line, $m)) {
+                $sizes[(int) $m[1]] = ['width' => (float) $m[2], 'height' => (float) $m[3]];
+            } elseif ($default === null && preg_match('/^Page\s+size:\s+([\d.]+)\s+x\s+([\d.]+)\s+pts/i', $line, $m)) {
+                $default = ['width' => (float) $m[1], 'height' => (float) $m[2]];
+            }
+        }
+
+        if ($sizes === [] && $default !== null) {
+            // pdfinfo chi in mot dong khi moi trang cung kich thuoc.
+            for ($page = 1, $total = $this->pageCount($source); $page <= $total; $page++) {
+                $sizes[$page] = $default;
+            }
+        }
+
+        return $sizes;
     }
 
     private function pageCount(string $source): int

@@ -205,9 +205,9 @@ class StructuredExtractionPersistenceService
             if (($region['locator_value'] ?? null) !== $page.'#'.($region['ordinal'] ?? null)) {
                 throw new RuntimeException('structured_extraction_invalid');
             }
-            if (($region['role'] ?? null) === 'figure' && ($region['text'] ?? null) !== null) {
-                throw new RuntimeException('structured_extraction_invalid');
-            }
+            // Owner quyet dinh 2026-08-28 (DOC-CONFLICT-0022): region `figure`
+            // DUOC mang text quan sat duoc trong bbox cua chinh no. Guard cu cam
+            // dieu ma ADR-0019 § D7 diem 3 yeu cau.
         }
         foreach ($byPage as $pageRegions) {
             if (count($pageRegions) > $maxPerPage || ($pageRegions !== [] && array_column($pageRegions, 'ordinal') !== range(1, count($pageRegions)))) {

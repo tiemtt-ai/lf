@@ -19904,9 +19904,6 @@
           "expression": "`extraction_method` <> 'ocr' or `provider` is not null"
         },
         {
-          "expression": "`role` <> 'figure' or `text` is null"
-        },
-        {
           "expression": "`bbox_x` is null and `bbox_y` is null and `bbox_width` is null and `bbox_height` is null or `bbox_x` is not null and `bbox_y` is not null and `bbox_width` is not null and `bbox_height` is not null and `bbox_x` >= 0 and `bbox_y` >= 0 and `bbox_width` > 0 and `bbox_height` > 0 and `bbox_x` + `bbox_width` <= 1 and `bbox_y` + `bbox_height` <= 1"
         }
       ],

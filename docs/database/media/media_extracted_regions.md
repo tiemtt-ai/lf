@@ -1,6 +1,6 @@
 # Table: media_extracted_regions
 
-Version: 1.3
+Version: 1.5
 
 Document Status: Approved
 
@@ -85,11 +85,16 @@ tiết của cùng một lần chạy, nối với nhau bằng
 | bbox_y | DECIMAL(9,6) NULL | Cạnh trên, chuẩn hoá 0..1 theo chiều cao trang. |
 | bbox_width | DECIMAL(9,6) NULL | Chiều rộng, chuẩn hoá 0..1. |
 | bbox_height | DECIMAL(9,6) NULL | Chiều cao, chuẩn hoá 0..1. |
-| text | LONGTEXT NULL | Text thuộc vùng này. NULL với `figure`. |
+| text | LONGTEXT NULL | Text quan sát được **bên trong bbox của vùng này**, kể cả với `figure`. |
 | char_count | INT UNSIGNED NULL | Độ dài text, phục vụ chunking và đo lường. |
 | confidence_score | DECIMAL(5,2) NULL | Confidence 0–100 khi extractor báo cáo. |
 | extraction_method | VARCHAR(50) NOT NULL | `ocr` hoặc `embedded_text`. |
 | provider | VARCHAR(100) NULL | Extractor; NULL khi dùng text layer sẵn có. |
+| crop_storage_key | VARCHAR(1024) NULL | Object key của ảnh crop vùng này. **Not Implemented** cho tới migration crop. |
+| crop_mime_type | VARCHAR(100) NULL | MIME của crop, Phase 1 là `image/png`. **Not Implemented**. |
+| crop_width | INT UNSIGNED NULL | Chiều rộng crop theo pixel. **Not Implemented**. |
+| crop_height | INT UNSIGNED NULL | Chiều cao crop theo pixel. **Not Implemented**. |
+| crop_bytes | BIGINT UNSIGNED NULL | Kích thước crop, phục vụ trần tài nguyên. **Not Implemented**. |
 | processing_version | VARCHAR(100) NOT NULL | Phiên bản extractor/model/cấu hình. |
 | source_fingerprint | CHAR(64) NOT NULL | Vân tay nội dung nguồn khi trích xuất. |
 | status | VARCHAR(50) NOT NULL DEFAULT 'pending' | Trạng thái output. |
@@ -137,8 +142,81 @@ CHECK (
    AND bbox_width > 0 AND bbox_height > 0
    AND bbox_x + bbox_width <= 1 AND bbox_y + bbox_height <= 1)
 );
-CHECK (role <> 'figure' OR text IS NULL);
 ```
+
+`CHECK (role <> 'figure' OR text IS NULL)` của các bản trước đã **bị loại bỏ** —
+xem § Ghi chú `role` bên dưới.
+
+### Ảnh crop của vùng — v1.5, contract chờ Database review
+
+ADR-0019 § D7 điểm 4 buộc Media cung cấp **crop và citation** cho mọi khối đồ
+hoạ. Citation đã có (`page#ordinal`, ổn định theo `source_fingerprint`); crop thì
+chưa có chỗ chứa. Đây là phần còn lại của
+[DOC-CONFLICT-0022](../../quality/LF-Documentation-Conflicts.md).
+
+#### Vì sao đặt trên chính region, không dùng `media_variants`
+
+`media_variants` là asset thay thế **của cả file** — `720p`, `thumbnail`,
+`webp`. Crop thì thuộc về **một vùng trong một revision**: nó sinh ra cùng
+revision, phải `archived` cùng revision, và mất nghĩa nếu tách khỏi `bbox` đã
+tạo ra nó. Đặt ở `media_variants` sẽ cần thêm `region_id` và một quy tắc archive
+song song — tức mô phỏng lại quan hệ vốn đã có sẵn ở đây.
+
+#### Quy tắc
+
+* Năm cột crop là **tất-cả-hoặc-không-có**. Một row không được có
+  `crop_storage_key` mà thiếu kích thước, và ngược lại.
+* Crop được sinh cho `role = 'figure'` trong Phase 1. Schema không cấm role
+  khác — cấm sẽ phải sửa CHECK khi mở crop cho `table`, mà việc đó không đổi
+  ngữ nghĩa gì.
+* Crop là **private**, phục vụ qua signed delivery như mọi asset Media khác.
+  Không có URL công khai.
+* Crop **không bị xoá khi revision chuyển `archived`**. Một AI Proposal đã trích
+  dẫn crop của bản cũ phải xem lại được đúng ảnh đó. Crop chỉ mất khi Media File
+  bị xoá.
+* Crop **không** thay thế `bbox`. Toạ độ vẫn là nguồn sự thật về vị trí; crop là
+  tiện ích để consumer nhìn thấy vùng mà không phải tự render lại trang.
+
+#### Ràng buộc
+
+```sql
+CHECK (
+  (crop_storage_key IS NULL AND crop_mime_type IS NULL AND crop_width IS NULL
+    AND crop_height IS NULL AND crop_bytes IS NULL)
+  OR
+  (crop_storage_key IS NOT NULL AND crop_mime_type IS NOT NULL
+    AND crop_width > 0 AND crop_height > 0 AND crop_bytes > 0)
+);
+CHECK (crop_storage_key IS NULL OR bbox_x IS NOT NULL);
+```
+
+Ràng buộc thứ hai là điều kiện ngữ nghĩa: không có `bbox` thì không có gì để
+cắt, nên một crop không kèm toạ độ là dữ liệu không giải thích được.
+
+#### Đường lưu
+
+```text
+tenants/{customer}/media/{media_file_id}/regions/{processing_version}/{page}-{ordinal}.png
+```
+
+`processing_version` nằm trong đường dẫn để hai revision không ghi đè nhau —
+cùng nguyên tắc với việc output cũ chuyển `archived` thay vì bị thay thế.
+
+#### Trần tài nguyên — cần benchmark trước khi freeze
+
+Crop là chi phí lưu trữ mới và **chưa có trần**. Với ALLIVA: 62 figure, render
+200 DPI, mỗi crop ước tính vài trăm KB tới vài MB — một revision có thể vài chục
+MB, và mỗi lần bump `processing_version` lại sinh một bộ nữa.
+
+Phải chốt `max_crop_bytes_per_document` bằng đo trên tài liệu thật trước khi mở
+crop, không đặt số tuỳ ý. Vượt trần thì fail cả revision với
+`structured_extraction_too_large`, đúng luật hiện hành — không cắt bớt crop.
+
+#### Chưa quyết
+
+* Giá trị `max_crop_bytes_per_document`, và DPI render crop.
+* Read Contract trả crop thế nào — thêm `crop_url` vào unit `region`, hay một
+  `content_type` riêng. Đây là amendment cho Spec B, không thuộc tài liệu này.
 
 ### Ghi chú `role` — v1.1, Approved 2026-08-27
 
@@ -152,9 +230,46 @@ và [ADR-0020](../../adr/ADR-0020-AI-Vision-Interpretation-Boundary.md). Một
 vocabulary mà chính producer không điền đúng được thì thêm vào chỉ tạo dữ liệu sai
 có vẻ chính xác.
 
-`CHECK (role <> 'figure' OR text IS NULL)` giữ nguyên: vùng đồ hoạ không mang text
-của chính nó. Chữ nhìn thấy bên trong khối — nhãn trục, chú thích — là text quan
-sát được và thuộc vùng text riêng, không phải thuộc row `figure`.
+### `figure` mang text trong bbox — v1.4, Owner quyết định 2026-08-28
+
+`CHECK (role <> 'figure' OR text IS NULL)` của các bản trước **đã bị loại bỏ**,
+đóng [DOC-CONFLICT-0022](../../quality/LF-Documentation-Conflicts.md).
+
+Bản trước giải thích rằng chữ bên trong khối đồ hoạ *"thuộc vùng text riêng,
+không phải thuộc row `figure`"*. Đo trên PDF ALLIVA 16 trang cho thấy cách hoà
+giải đó không đúng với dữ liệu thật:
+
+```text
+62 region `figure`, cả 62 có text = NULL
+text region nằm trong bbox của figure : 0      (chồng lấn một phần: 2/62)
+text theo trang 47.852 ký tự · text trong region 13.373 → 72% không truy được ở tầng region
+```
+
+Không có "vùng text riêng" nào ở đó cả. Giữ CHECK nghĩa là phần lớn chữ của tài
+liệu không trích dẫn được ở mức vùng — trái với chính lý do các region tồn tại.
+
+Lý do quyết định, ngoài số đo:
+
+* **Cắt text theo bbox là quan sát, không phải diễn giải.** Nó khẳng định "những
+  ký tự này nằm trong hình chữ nhật này", không khẳng định biểu đồ nói gì. Ranh
+  giới với [ADR-0020](../../adr/ADR-0020-AI-Vision-Interpretation-Boundary.md)
+  không đổi.
+* **`figure` là role duy nhất không theo luật của chính pipeline.** `paragraph`,
+  `heading`, `list`, `caption` đều đã mang text trùng với text theo trang —
+  region vốn là một lát cắt có toạ độ của cùng nội dung, không phải kho riêng.
+  CHECK cũ không bảo vệ ranh giới nào; nó tạo một ngoại lệ.
+* **ADR-0019 § D7 vốn đã yêu cầu điều này** ở điểm 3. Tài liệu bảng mới là chỗ
+  lệch, không phải ADR.
+
+`extraction_method` của region **phải** ghi đúng nguồn, vì độ tin cậy khác nhau:
+
+| Nguồn | `extraction_method` | Cách lấy |
+| --- | --- | --- |
+| PDF có text layer | `embedded_text` | Cắt theo bbox bằng `pdftotext -x -y -W -H` |
+| PDF scan | `ocr` | Tesseract chạy trên crop của vùng |
+
+Quyết định này **không** mở vocabulary `role`: `figure` vẫn dùng chung cho biểu
+đồ, sơ đồ và ảnh chụp. Phân loại chúng vẫn thuộc ADR-0020.
 
 `UNIQUE (…, reading_order)` chỉ bảo đảm **không trùng** trong mỗi revision. Nó
 **không** bảo đảm dãy liên tục `1..N`: bộ giá trị `1, 2, 9` vẫn hợp lệ với
