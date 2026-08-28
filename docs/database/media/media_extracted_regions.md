@@ -1,6 +1,6 @@
 # Table: media_extracted_regions
 
-Version: 1.5
+Version: 1.6
 
 Document Status: Approved
 
@@ -204,17 +204,39 @@ cùng nguyên tắc với việc output cũ chuyển `archived` thay vì bị th
 
 #### Trần tài nguyên — cần benchmark trước khi freeze
 
-Crop là chi phí lưu trữ mới và **chưa có trần**. Với ALLIVA: 62 figure, render
-200 DPI, mỗi crop ước tính vài trăm KB tới vài MB — một revision có thể vài chục
-MB, và mỗi lần bump `processing_version` lại sinh một bộ nữa.
+Đo thật bằng `pdftoppm` trên hai tài liệu đã có trong hệ thống, cắt đúng bbox
+của từng figure region:
 
-Phải chốt `max_crop_bytes_per_document` bằng đo trên tài liệu thật trước khi mở
-crop, không đặt số tuỳ ý. Vượt trần thì fail cả revision với
-`structured_extraction_too_large`, đúng luật hiện hành — không cắt bớt crop.
+| Tài liệu | Figure | DPI | Tổng | Trung bình | Lớn nhất |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| ALLIVA, 16 trang, 960×540 pts | 62 | 100 | 2,59 MB | 42,8 KB | 386,5 KB |
+| ALLIVA | 62 | 150 | 4,71 MB | 77,8 KB | 695,7 KB |
+| ALLIVA | 62 | **200** | **7,31 MB** | 120,7 KB | 1.032,4 KB |
+| Tiếng Hàn sơ cấp, 100 trang, 544×748 pts | **300** | **200** | **14,00 MB** | 47,8 KB | 451,9 KB |
+
+Chi phí thật thấp hơn ước lượng ban đầu một bậc: tài liệu dày nhất đang có —
+300 figure trên 100 trang — chỉ tốn **14 MB** mỗi revision ở 200 DPI.
+
+**Đề xuất `max_crop_bytes_per_document = 64 MB`.** Nó gấp hơn bốn lần trường hợp
+dày nhất đo được, nên không chặn nhầm tài liệu bình thường, nhưng vẫn chặn được
+trường hợp bệnh lý — 5.000 region ở trần `max_regions_per_document` mà mỗi crop
+cỡ ảnh toàn trang.
+
+DPI đề xuất **200**: ở mức này crop của ALLIVA giữ đọc được nhãn trục và chữ
+trong sơ đồ, còn 100 DPI thì chữ nhỏ bắt đầu nhoè. Chênh lệch dung lượng giữa
+hai mức chỉ 2,59 MB so với 7,31 MB — không đáng đánh đổi lấy chất lượng.
+
+Vượt trần thì fail cả revision với `structured_extraction_too_large`, đúng luật
+hiện hành — **không cắt bớt crop**, vì một bộ crop thiếu vài vùng thì consumer
+không phân biệt được "vùng này không có crop" với "vùng này chưa được cắt".
+
+Định dạng Phase 1 là **PNG**: crop chủ yếu là sơ đồ và biểu đồ có chữ, nơi PNG
+không làm nhoè nét. Với ảnh chụp thì JPEG nhỏ hơn nhiều, nhưng phân biệt
+"biểu đồ" với "ảnh chụp" lại là phân loại — thuộc ADR-0020, không phải Phase 1.
+Chọn một định dạng an toàn cho mọi trường hợp là đúng ranh giới.
 
 #### Chưa quyết
 
-* Giá trị `max_crop_bytes_per_document`, và DPI render crop.
 * Read Contract trả crop thế nào — thêm `crop_url` vào unit `region`, hay một
   `content_type` riêng. Đây là amendment cho Spec B, không thuộc tài liệu này.
 
