@@ -1,6 +1,6 @@
 # LearnForge Documentation Conflict Register
 
-Version: 1.8
+Version: 1.9
 
 Document Status: Approved
 
@@ -247,7 +247,7 @@ liệu của miền Media. DOC-CONFLICT-0020 và DOC-CONFLICT-0021 được Owne
 | DOC-CONFLICT-0011 | Attendance ghi được cho Enrollment không `active` | IMPLEMENTATION_DRIFT | ACCEPTED_TEMPORARILY | LOW (giảm từ HIGH) | LiveClass × Course | Domain Owner (LiveClass) | Trước khi mở lại tab Điểm danh |
 | DOC-CONFLICT-0014 | `course_category` được dùng làm `owner_type` nhưng không tài liệu nào đặt tên nó | IMPLEMENTATION_DRIFT | DECISION_REQUIRED | LOW | Media × Course | Domain Owner (Media) | Immediate Owner decision |
 | DOC-CONFLICT-0015 | `owner_type` không có ràng buộc vật lý nên vocabulary trôi không bị phát hiện | GAP | DECISION_REQUIRED | MEDIUM | Media | Database Owner | Immediate, after 0014 |
-| DOC-CONFLICT-0022 | ADR-0019 § D7 bắt Media ghi chữ/số và crop trong vùng `figure`; `media_extracted_regions.md` cấm figure mang text và không có cột crop | DOCUMENT_CONTRADICTION | PARTIALLY_RESOLVED | HIGH | Media | Architecture Owner | Owner quyết "Có" 2026-08-28; crop đã có contract đủ (benchmark + Spec B v1.9), còn Database review và migration |
+| DOC-CONFLICT-0022 | ADR-0019 § D7 bắt Media ghi chữ/số và crop trong vùng `figure`; `media_extracted_regions.md` cấm figure mang text và không có cột crop | DOCUMENT_CONTRADICTION | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-08-28: text và crop đều đã implemented và có test |
 | DOC-CONFLICT-0016 | Revision identity của `media_table_cells` mâu thuẫn với ADR-0019 § D2 | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Architecture Owner | Đóng 2026-08-25 |
 | DOC-CONFLICT-0017 | `extraction_method` của đọc cell trực tiếp có hai tên trong hai bảng | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Domain Owner (Media) | Đóng 2026-08-25 |
 | DOC-CONFLICT-0018 | Processing Contract § 4 chưa mở locator sang `sheet`/`region` dù cùng tài liệu đã có resource control cho region | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Architecture Owner | Đóng 2026-08-27 |
@@ -1099,7 +1099,7 @@ Notes: Phát hiện phụ khi soạn amendment, không phải mục tiêu của 
 Conflict ID: DOC-CONFLICT-0022
 Title: ADR-0019 § D7 yêu cầu figure mang chữ/số và crop; table doc cấm cả hai
 Classification: DOCUMENT_CONTRADICTION
-Status: PARTIALLY_RESOLVED
+Status: RESOLVED
 Impact: HIGH
 Detected At: 2026-08-28
 Detected By: Nghiệm thu PDF ALLIVA 16 trang (media_files.id = 20)
@@ -1121,10 +1121,10 @@ Required Decision: Region `figure` có được mang text quan sát được tro
 Resolution Authority: Architecture Owner
 Resolution Plan: Không tự chọn bên. Nếu "Có": bỏ CHECK, bổ sung nguồn text theo bbox (PDF text-layer dùng `pdftotext -x -y -W -H`; scan dùng OCR trên crop), và thêm chỗ lưu crop — cả ba đều cần Database doc approved trước migration. Nếu "Không": sửa ADR-0019 § D7 bỏ điểm 3 và điểm crop, và ghi rõ chữ trong biểu đồ chỉ truy được ở mức trang
 Target Review Date: Cột crop — trước khi mở hạng mục A
-Resolved At: Phần text: 2026-08-28. Phần crop: chưa
+Resolved At: 2026-08-28
 Resolution: Owner quyết "Có" ngày 2026-08-28 — region `figure` ĐƯỢC mang text quan sát được trong bbox của chính nó. `media_extracted_regions.md` lên v1.4, `CHECK (role <> 'figure' OR text IS NULL)` bị loại bỏ, và `extraction_method` phải ghi đúng nguồn (`embedded_text` khi cắt theo bbox từ text layer, `ocr` khi chạy Tesseract trên crop). Quyết định KHÔNG mở vocabulary `role`: `figure` vẫn dùng chung cho biểu đồ, sơ đồ và ảnh chụp — phân loại vẫn thuộc ADR-0020.
 
-Phần crop (§ D7 điểm 4) CHƯA đóng. Contract đã được soạn ngày 2026-08-28 tại `media_extracted_regions.md` v1.5 § Ảnh crop của vùng: năm cột all-or-nothing đặt trên chính region (không dùng `media_variants`, vì crop thuộc về một vùng trong một revision chứ không phải asset thay thế của cả file), đường lưu có `processing_version` để hai revision không đè nhau, crop private qua signed delivery, và crop KHÔNG bị xoá khi revision `archived`. Hai điều kiện tiền-migration nay đã xong: (a) benchmark `max_crop_bytes_per_document` đo bằng `pdftoppm` trên hai tài liệu thật — ALLIVA 62 figure ở 200 DPI hết 7,31 MB, tài liệu dày nhất 300 figure/100 trang hết 14,00 MB — nên trần đề xuất là 64 MB ở 200 DPI, PNG; (b) Spec B v1.9 § 5.3 chốt crop đi trên `structure.crop` của chính unit `region`, không tạo `content_type` mới, với cờ `include_crop` mặc định `false`. Còn lại đúng hai việc: Database review cho năm cột, rồi migration
+Phần crop (§ D7 điểm 4) CHƯA đóng. Contract đã được soạn ngày 2026-08-28 tại `media_extracted_regions.md` v1.5 § Ảnh crop của vùng: năm cột all-or-nothing đặt trên chính region (không dùng `media_variants`, vì crop thuộc về một vùng trong một revision chứ không phải asset thay thế của cả file), đường lưu có `processing_version` để hai revision không đè nhau, crop private qua signed delivery, và crop KHÔNG bị xoá khi revision `archived`. Phần crop đã đóng nốt ngày 2026-08-28. Hai điều kiện tiền-migration: (a) benchmark `max_crop_bytes_per_document` đo bằng `pdftoppm` trên hai tài liệu thật — ALLIVA 62 figure ở 200 DPI hết 7,31 MB, tài liệu dày nhất 300 figure/100 trang hết 14,00 MB — nên trần đề xuất là 64 MB ở 200 DPI, PNG; (b) Spec B v1.9 § 5.3 chốt crop đi trên `structure.crop` của chính unit `region`, không tạo `content_type` mới, với cờ `include_crop` mặc định `false`. Database review sau đó tìm thêm một defect thật trong chính contract vừa soạn: đường lưu chỉ chứa `processing_version`, trong khi định danh một revision là bộ ba `(source_fingerprint, processing_version, locale)` — file bị thay nội dung mà extractor giữ nguyên version sẽ ghi đè crop của bản cũ, phá đúng lời hứa "bản cũ đọc được mãi mãi". Đã sửa đường lưu và thêm `UNIQUE (customer_id, crop_storage_key)` để database tự bảo đảm thay vì dựa vào suy luận cẩn thận. Migration `2026_08_28_000100_add_region_crop_columns` đã chạy; runtime sinh crop 200 DPI PNG và OCR trên crop khi vùng không có text layer; Spec B v1.10 trả `structure.crop` với cờ `include_crop`
 Superseded/Updated Documents: docs/database/media/media_extracted_regions.md v1.7; docs/platform/LF-Media-Read-Contract.md v1.9
 Verification Evidence: media_files.id=20; job 27 `structured_extraction` ready, 201 region, coverage 16/16; `SELECT SUM(char_count)` — region 13.373 vs text 47.852; truy vấn chồng lấn bbox figure × text region trả 0 chứa hẳn, 2 chồng lấn một phần
 Related ADR/Review/Issue/PR: ADR-0019 § D7; ADR-0020; DOC-CONFLICT-0016

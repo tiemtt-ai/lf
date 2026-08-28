@@ -45,6 +45,11 @@ class StructuredExtractionPersistenceService
                 'confidence_score' => $region['confidence_score'] ?? null,
                 'extraction_method' => $region['extraction_method'] ?? 'embedded_text',
                 'provider' => $job->provider,
+                'crop_storage_key' => $region['crop']['storage_key'] ?? null,
+                'crop_mime_type' => $region['crop']['mime_type'] ?? null,
+                'crop_width' => $region['crop']['width'] ?? null,
+                'crop_height' => $region['crop']['height'] ?? null,
+                'crop_bytes' => $region['crop']['bytes'] ?? null,
                 'processing_version' => $job->processing_version,
                 'source_fingerprint' => $job->source_fingerprint,
                 'status' => 'ready',
@@ -190,6 +195,7 @@ class StructuredExtractionPersistenceService
         $maxRegions = (int) config('media.processing.structured_extraction.max_regions_per_document', 5000);
         $maxCells = (int) config('media.processing.structured_extraction.max_table_cells_per_document', 200000);
         $maxChars = (int) config('media.processing.structured_extraction.max_extracted_characters', 500000);
+        $maxCropBytes = (int) config('media.processing.structured_extraction.max_crop_bytes_per_document', 67108864);
 
         if (count($regions) > $maxRegions || count($regions) !== count(array_unique(array_column($regions, 'reading_order')))) {
             throw new RuntimeException('structured_extraction_too_large');
@@ -199,11 +205,23 @@ class StructuredExtractionPersistenceService
         }
 
         $byPage = [];
+        $cropBytes = 0;
         foreach ($regions as $index => $region) {
             $page = (int) ($region['page'] ?? 0);
             $byPage[$page][] = $region;
             if (($region['locator_value'] ?? null) !== $page.'#'.($region['ordinal'] ?? null)) {
                 throw new RuntimeException('structured_extraction_invalid');
+            }
+            $crop = $region['crop'] ?? null;
+            if ($crop !== null) {
+                $complete = isset($crop['storage_key'], $crop['mime_type'])
+                    && (int) ($crop['width'] ?? 0) > 0
+                    && (int) ($crop['height'] ?? 0) > 0
+                    && (int) ($crop['bytes'] ?? 0) > 0;
+                if (! $complete || ! is_array($region['bbox'] ?? null)) {
+                    throw new RuntimeException('structured_extraction_invalid');
+                }
+                $cropBytes += (int) $crop['bytes'];
             }
             // Owner quyet dinh 2026-08-28 (DOC-CONFLICT-0022): region `figure`
             // DUOC mang text quan sat duoc trong bbox cua chinh no. Guard cu cam
@@ -264,7 +282,7 @@ class StructuredExtractionPersistenceService
         }
 
         $pageChars = (int) $canonicalTextRows->sum('char_count');
-        if ($cellCount > $maxCells || $pageChars + $structuredChars > $maxChars) {
+        if ($cellCount > $maxCells || $pageChars + $structuredChars > $maxChars || $cropBytes > $maxCropBytes) {
             throw new RuntimeException('structured_extraction_too_large');
         }
     }

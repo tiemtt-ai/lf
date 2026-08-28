@@ -129,6 +129,164 @@ class MediaProcessingSubstrateTest extends TestCase
         );
     }
 
+    /**
+     * Runner gia: tra ket qua theo lenh duoc goi, va voi `pdftoppm` thi ghi mot
+     * PNG that ra dia de duong crop chay den cung.
+     */
+    private function doclingRunner(string $resultPath, array $regions, string $figureText = '', string $ocrText = ''): DocumentProcessRunner
+    {
+        return new class($resultPath, $regions, $figureText, $ocrText) extends DocumentProcessRunner
+        {
+            public array $commands = [];
+
+            public function __construct(
+                private string $resultPath,
+                private array $regions,
+                private string $figureText,
+                private string $ocrText,
+            ) {}
+
+            public function run(array $command, int $timeoutSeconds): string
+            {
+                $this->commands[] = $command;
+                $binary = basename((string) $command[0]);
+
+                if ($binary === 'pdfinfo') {
+                    return "Pages: 1\nPage size: 720 x 540 pts\n";
+                }
+                if ($binary === 'pdftotext') {
+                    return $this->figureText;
+                }
+                if ($binary === 'tesseract') {
+                    return $this->ocrText;
+                }
+                if ($binary === 'pdftoppm') {
+                    $target = (string) $command[array_key_last($command)].'.png';
+                    file_put_contents($target, base64_decode(
+                        'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR4nGP8//8/AzJgYkAD'
+                        .'RAsAAP//AwCJsAPFAAAAAElFTkSuQmCC'
+                    ));
+
+                    return '';
+                }
+
+                $output = (string) $command[array_search('--output', $command, true) + 1];
+                file_put_contents($output, json_encode([
+                    'status' => 'ready',
+                    'regions' => $this->regions,
+                ], JSON_THROW_ON_ERROR));
+
+                return json_encode(['status' => 'ready'], JSON_THROW_ON_ERROR);
+            }
+        };
+    }
+
+    private function doclingFigureRegion(): array
+    {
+        return [[
+            'page' => 1, 'ordinal' => 1, 'reading_order' => 1, 'locator_value' => '1#1',
+            'role' => 'figure', 'bbox' => ['x' => 0.1, 'y' => 0.1, 'width' => 0.4, 'height' => 0.3],
+            'text' => null, 'extraction_method' => 'embedded_text',
+        ]];
+    }
+
+    private function doclingProcess(DocumentProcessRunner $runner, string $key, string $locale = 'vi'): array
+    {
+        Storage::disk('media_local')->put($key, 'pdf');
+
+        return (new DoclingStructuredExtractionProvider($runner))->process(
+            (object) ['id' => 7, 'customer_id' => 3, 'file_type' => 'document', 'extension' => 'pdf',
+                'storage_disk' => 'media_local', 'storage_key' => $key],
+            (object) ['job_type' => 'structured_extraction', 'output_profile' => 'locale='.$locale.';structure=layout',
+                'source_fingerprint' => str_repeat('a', 64), 'processing_version' => 'docling-test-v1'],
+        );
+    }
+
+    private function doclingConfig(array $overrides = []): void
+    {
+        config(array_merge([
+            'media.processing.structured_extraction.max_pages' => 100,
+            'media.processing.docling.python_binary' => PHP_BINARY,
+            'media.processing.docling.script' => __FILE__,
+            'media.processing.docling.artifacts_path' => __DIR__,
+            'media.processing.structured_extraction.crop_enabled' => true,
+            'media.processing.structured_extraction.crop_dpi' => 200,
+            'media.processing.structured_extraction.crop_ocr_enabled' => true,
+            'media.processing.structured_extraction.max_crop_bytes_per_document' => 67108864,
+        ], $overrides));
+    }
+
+    public function test_docling_provider_renders_region_crop_and_keys_it_by_full_revision_identity(): void
+    {
+        $this->doclingConfig();
+        $runner = $this->doclingRunner(sys_get_temp_dir().'/unused.json', $this->doclingFigureRegion(), 'nhan truc');
+        $result = $this->doclingProcess($runner, 'docling-crop.pdf');
+
+        $crop = $result['regions'][0]['crop'];
+        $this->assertSame('image/png', $crop['mime_type']);
+        $this->assertSame(2, $crop['width']);
+        $this->assertGreaterThan(0, $crop['bytes']);
+
+        // Duong dan phai chua ca ba chieu dinh danh mot revision. Chi co
+        // processing_version thi file doi noi dung se de len crop cua ban cu.
+        $this->assertSame(
+            'tenants/3/media/7/regions/'.str_repeat('a', 64).'/docling-test-v1/vi/1-1.png',
+            $crop['storage_key'],
+        );
+        Storage::disk('media_local')->assertExists($crop['storage_key']);
+    }
+
+    public function test_docling_provider_reads_figure_text_by_ocr_only_when_text_layer_is_empty(): void
+    {
+        $this->doclingConfig();
+        $runner = $this->doclingRunner(sys_get_temp_dir().'/unused.json', $this->doclingFigureRegion(), '', 'doanh thu 2026');
+        $result = $this->doclingProcess($runner, 'docling-crop-ocr.pdf');
+
+        $region = $result['regions'][0];
+        $this->assertSame('doanh thu 2026', $region['text']);
+        $this->assertSame('ocr', $region['extraction_method']);
+        $this->assertSame('tesseract', $region['metadata']['ocr_engine']);
+        $this->assertSame('vie', $region['metadata']['ocr_language']);
+    }
+
+    public function test_docling_provider_keeps_embedded_text_and_skips_ocr_when_text_layer_has_content(): void
+    {
+        $this->doclingConfig();
+        $runner = $this->doclingRunner(sys_get_temp_dir().'/unused.json', $this->doclingFigureRegion(), 'nhan truc', 'KHONG DUOC DUNG');
+        $result = $this->doclingProcess($runner, 'docling-crop-embedded.pdf');
+
+        $this->assertSame('nhan truc', $result['regions'][0]['text']);
+        $this->assertSame('embedded_text', $result['regions'][0]['extraction_method']);
+        $this->assertSame([], array_values(array_filter(
+            $runner->commands,
+            static fn (array $command): bool => basename((string) $command[0]) === 'tesseract',
+        )));
+    }
+
+    public function test_docling_provider_does_not_ocr_a_locale_with_no_language_mapping(): void
+    {
+        $this->doclingConfig();
+        $runner = $this->doclingRunner(sys_get_temp_dir().'/unused.json', $this->doclingFigureRegion(), '', 'rac');
+        $result = $this->doclingProcess($runner, 'docling-crop-unknown-locale.pdf', 'xx');
+
+        // Doan sang 'eng' se tra ve chuoi rac trong giong text that.
+        $this->assertNull($result['regions'][0]['text']);
+        $this->assertSame([], array_values(array_filter(
+            $runner->commands,
+            static fn (array $command): bool => basename((string) $command[0]) === 'tesseract',
+        )));
+    }
+
+    public function test_docling_provider_fails_whole_revision_when_crop_budget_is_exceeded(): void
+    {
+        $this->doclingConfig(['media.processing.structured_extraction.max_crop_bytes_per_document' => 1]);
+        $runner = $this->doclingRunner(sys_get_temp_dir().'/unused.json', $this->doclingFigureRegion(), 'nhan truc');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('structured_extraction_too_large');
+        $this->doclingProcess($runner, 'docling-crop-budget.pdf');
+    }
+
     public function test_docling_provider_preserves_stable_domain_error_from_json_protocol(): void
     {
         config([
@@ -493,6 +651,44 @@ class MediaProcessingSubstrateTest extends TestCase
         );
         $this->assertSame('heading', $units[0]['structure']['role']);
         $this->assertSame(1, $units[0]['structure']['reading_order']);
+
+        // Revision fake nay khong sinh crop. `null` khong mo ho: crop la
+        // tat-ca-hoac-khong-co trong mot revision.
+        $this->assertNull($units[0]['structure']['crop']);
+
+        DB::table('media_extracted_regions')->where('media_file_id', $media->id)
+            ->orderBy('id')->limit(1)->update([
+                'bbox_x' => 0.1, 'bbox_y' => 0.1, 'bbox_width' => 0.2, 'bbox_height' => 0.2,
+                'crop_storage_key' => 'tenants/1/media/'.$media->id.'/regions/fp/v1/vi/1-1.png',
+                'crop_mime_type' => 'image/png', 'crop_width' => 320, 'crop_height' => 200,
+                'crop_bytes' => 45907,
+            ]);
+
+        $units = app(MediaReadService::class)->read(
+            $this->admin->id, 'course_activity', 120, 'document', 'region', 'vi'
+        );
+        $crop = $units[0]['structure']['crop'];
+        $this->assertSame([320, 200, 45907], [$crop['width'], $crop['height'], $crop['bytes']]);
+        $this->assertNull($crop['delivery_url'], 'Khong duoc ky URL khi consumer khong xin.');
+
+        $units = app(MediaReadService::class)->read(
+            $this->admin->id, 'course_activity', 120, 'document', 'region', 'vi',
+            null, null, 'ai', [], null, true
+        );
+        $this->assertNotNull($units[0]['structure']['crop']['delivery_url']);
+
+        $audit = DB::table('media_access_logs')->where('media_file_id', $media->id)->latest('id')->first();
+        $this->assertTrue(json_decode($audit->metadata, true)['include_crop']);
+
+        try {
+            app(MediaReadService::class)->read(
+                $this->admin->id, 'course_activity', 120, 'document', 'extracted_text', 'vi',
+                null, null, 'ai', [], null, true
+            );
+            $this->fail('include_crop was accepted for a non-region content type.');
+        } catch (MediaReadException $exception) {
+            $this->assertSame('unsupported_source', $exception->errorCode);
+        }
     }
 
     public function test_structured_limit_failure_rolls_back_every_table_for_the_revision(): void

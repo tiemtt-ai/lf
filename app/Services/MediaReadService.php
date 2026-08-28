@@ -29,10 +29,16 @@ class MediaReadService
         string $consumer = 'ai',
         array $auditContext = [],
         ?int $page = null,
+        bool $includeCrop = false,
     ): array {
         $customerId = TenantContext::customerId() ?? throw new MediaReadException('unauthorized');
         $media = null;
         $selectedLocale = $locale;
+        if ($includeCrop) {
+            // Xin chu ky la mot selector, phai tra loi duoc "ai da xin URL crop
+            // nao, luc nao" — § 8.
+            $auditContext['include_crop'] = true;
+        }
 
         try {
             if (! $this->authorizer->authorized($customerId, $ownerType, $ownerId, $actorId)) {
@@ -41,6 +47,9 @@ class MediaReadService
             }
 
             $this->assertUsageTypeMatchesContentType($usageType, $contentType);
+            if ($includeCrop && $contentType !== 'region') {
+                throw new MediaReadException('unsupported_source');
+            }
             $usageQuery = DB::table('media_file_usages')->where('customer_id', $customerId)->where('owner_type', $ownerType)
                 ->where('owner_id', $ownerId)->where('usage_type', $usageType);
             $activeUsages = (clone $usageQuery)->where('status', 'active')->limit(2)->get();
@@ -135,7 +144,7 @@ class MediaReadService
                 throw new MediaReadException('revision_mismatch');
             }
 
-            $units = $rows->map(function ($row) use ($media, $contentType, $asset, $customerId): array {
+            $units = $rows->map(function ($row) use ($media, $contentType, $asset, $customerId, $includeCrop): array {
                 $structure = null;
                 $text = $asset ? null : ($row->text ?? null);
                 if ($contentType === 'region') {
@@ -145,6 +154,24 @@ class MediaReadService
                         'bbox' => $row->bbox_x === null ? null : [
                             'x' => (float) $row->bbox_x, 'y' => (float) $row->bbox_y,
                             'width' => (float) $row->bbox_width, 'height' => (float) $row->bbox_height,
+                        ],
+                        // Crop la thuoc tinh cua vung, khong phai mot content_type
+                        // rieng: tach ra se buoc consumer tu ghep lai theo
+                        // locator_value, dung viec ma § 1 cam. Xem Spec B § 5.3.
+                        //
+                        // `null` o day khong mo ho. Crop la tat-ca-hoac-khong-co
+                        // trong mot revision, nen null chi co mot nghia: revision
+                        // nay sinh ra truoc khi crop duoc bat.
+                        'crop' => $row->crop_storage_key === null ? null : [
+                            'width' => (int) $row->crop_width,
+                            'height' => (int) $row->crop_height,
+                            'bytes' => (int) $row->crop_bytes,
+                            // Khong ky URL khi consumer khong xin: mot trang co the
+                            // co 100 vung, va ky ca tram chu ky cho nguoi chi doc
+                            // text la lang phi va mo rong be mat ro ri vo co.
+                            'delivery_url' => $includeCrop
+                                ? $this->mediaService->generateDerivedSignedUrl($media, $row->crop_storage_key)
+                                : null,
                         ],
                     ];
                 } elseif ($contentType === 'table') {
@@ -332,7 +359,7 @@ class MediaReadService
                     'content_type' => $contentType,
                     'locale' => $locale, 'processing_version' => $processingVersion,
                     'source_fingerprint' => $sourceFingerprint, 'decision' => $decision, 'error_code' => $errorCode,
-                ]),
+                ] + array_intersect_key($context, ['include_crop' => true, 'page' => true])),
             ]);
         } catch (Throwable $exception) {
             Log::warning('Media derived-read audit insert failed.', [

@@ -19682,6 +19682,51 @@
           "generated": null
         },
         {
+          "name": "crop_storage_key",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "crop_mime_type",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "crop_width",
+          "type": "int",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "crop_height",
+          "type": "int",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "crop_bytes",
+          "type": "int",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
           "name": "processing_version",
           "type": "varchar",
           "nullable": false,
@@ -19842,6 +19887,14 @@
           ],
           "unique": true,
           "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "crop_storage_key"
+          ],
+          "unique": true,
+          "type": "btree"
         }
       ],
       "foreign_keys": [
@@ -19905,6 +19958,15 @@
         },
         {
           "expression": "`bbox_x` is null and `bbox_y` is null and `bbox_width` is null and `bbox_height` is null or `bbox_x` is not null and `bbox_y` is not null and `bbox_width` is not null and `bbox_height` is not null and `bbox_x` >= 0 and `bbox_y` >= 0 and `bbox_width` > 0 and `bbox_height` > 0 and `bbox_x` + `bbox_width` <= 1 and `bbox_y` + `bbox_height` <= 1"
+        },
+        {
+          "expression": "`crop_storage_key` is null and `crop_mime_type` is null and `crop_width` is null and `crop_height` is null and `crop_bytes` is null or `crop_storage_key` is not null and `crop_mime_type` is not null and `crop_width` > 0 and `crop_height` > 0 and `crop_bytes` > 0"
+        },
+        {
+          "expression": "`crop_storage_key` is null or `bbox_x` is not null"
+        },
+        {
+          "expression": "`crop_mime_type` is null or `crop_mime_type` = 'image/png'"
         }
       ],
       "triggers": [],

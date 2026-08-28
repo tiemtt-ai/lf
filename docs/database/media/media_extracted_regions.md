@@ -1,6 +1,6 @@
 # Table: media_extracted_regions
 
-Version: 1.7
+Version: 1.9
 
 Document Status: Approved
 
@@ -90,11 +90,11 @@ tiết của cùng một lần chạy, nối với nhau bằng
 | confidence_score | DECIMAL(5,2) NULL | Confidence 0–100 khi extractor báo cáo. |
 | extraction_method | VARCHAR(50) NOT NULL | `ocr` hoặc `embedded_text`. |
 | provider | VARCHAR(100) NULL | Extractor; NULL khi dùng text layer sẵn có. |
-| crop_storage_key | VARCHAR(1024) NULL | Object key của ảnh crop vùng này. **Not Implemented** cho tới migration crop. |
-| crop_mime_type | VARCHAR(100) NULL | MIME của crop, Phase 1 là `image/png`. **Not Implemented**. |
-| crop_width | INT UNSIGNED NULL | Chiều rộng crop theo pixel. **Not Implemented**. |
-| crop_height | INT UNSIGNED NULL | Chiều cao crop theo pixel. **Not Implemented**. |
-| crop_bytes | BIGINT UNSIGNED NULL | Kích thước crop, phục vụ trần tài nguyên. **Not Implemented**. |
+| crop_storage_key | VARCHAR(512) NULL | Object key của ảnh crop vùng này. Xem § Đường lưu. |
+| crop_mime_type | VARCHAR(100) NULL | MIME của crop; Phase 1 đóng ở `image/png`. |
+| crop_width | INT UNSIGNED NULL | Chiều rộng crop theo pixel. |
+| crop_height | INT UNSIGNED NULL | Chiều cao crop theo pixel. |
+| crop_bytes | INT UNSIGNED NULL | Kích thước crop theo byte, phục vụ trần tài nguyên. |
 | processing_version | VARCHAR(100) NOT NULL | Phiên bản extractor/model/cấu hình. |
 | source_fingerprint | CHAR(64) NOT NULL | Vân tay nội dung nguồn khi trích xuất. |
 | status | VARCHAR(50) NOT NULL DEFAULT 'pending' | Trạng thái output. |
@@ -115,6 +115,7 @@ INDEX  (customer_id, media_file_id, status);
 INDEX  (customer_id, source_fingerprint);
 INDEX  (customer_id, processing_job_id);
 INDEX  (customer_id, media_file_id, role);
+UNIQUE (customer_id, crop_storage_key);
 
 FOREIGN KEY (media_file_id, customer_id)
     REFERENCES media_files (id, customer_id) RESTRICT;
@@ -142,12 +143,21 @@ CHECK (
    AND bbox_width > 0 AND bbox_height > 0
    AND bbox_x + bbox_width <= 1 AND bbox_y + bbox_height <= 1)
 );
+CHECK (
+  (crop_storage_key IS NULL AND crop_mime_type IS NULL AND crop_width IS NULL
+   AND crop_height IS NULL AND crop_bytes IS NULL)
+  OR
+  (crop_storage_key IS NOT NULL AND crop_mime_type IS NOT NULL
+   AND crop_width > 0 AND crop_height > 0 AND crop_bytes > 0)
+);
+CHECK (crop_storage_key IS NULL OR bbox_x IS NOT NULL);
+CHECK (crop_mime_type IS NULL OR crop_mime_type IN ('image/png'));
 ```
 
 `CHECK (role <> 'figure' OR text IS NULL)` của các bản trước đã **bị loại bỏ** —
 xem § Ghi chú `role` bên dưới.
 
-### Ảnh crop của vùng — v1.5, contract chờ Database review
+### Ảnh crop của vùng — v1.9, đã migrate và có runtime
 
 ADR-0019 § D7 điểm 4 buộc Media cung cấp **crop và citation** cho mọi khối đồ
 hoạ. Citation đã có (`page#ordinal`, ổn định theo `source_fingerprint`); crop thì
@@ -174,6 +184,11 @@ song song — tức mô phỏng lại quan hệ vốn đã có sẵn ở đây.
 * Crop **không bị xoá khi revision chuyển `archived`**. Một AI Proposal đã trích
   dẫn crop của bản cũ phải xem lại được đúng ảnh đó. Crop chỉ mất khi Media File
   bị xoá.
+* `crop_mime_type` đóng ở `image/png` bằng CHECK, cùng kiểu với `role`,
+  `status` và `extraction_method`. Mở JPEG là một migration có chủ ý, không
+  phải một giá trị lọt vào.
+* `crop_bytes` là INT UNSIGNED (trần ~4 GB), không phải BIGINT: crop lớn nhất
+  đo được là 1 MB, và trần cả tài liệu là 64 MB.
 * Crop **không** thay thế `bbox`. Toạ độ vẫn là nguồn sự thật về vị trí; crop là
   tiện ích để consumer nhìn thấy vùng mà không phải tự render lại trang.
 
@@ -196,11 +211,31 @@ cắt, nên một crop không kèm toạ độ là dữ liệu không giải th�
 #### Đường lưu
 
 ```text
-tenants/{customer}/media/{media_file_id}/regions/{processing_version}/{page}-{ordinal}.png
+tenants/{customer}/media/{media_file_id}/regions/
+  {source_fingerprint}/{processing_version}/{locale}/{page}-{ordinal}.png
 ```
 
-`processing_version` nằm trong đường dẫn để hai revision không ghi đè nhau —
-cùng nguyên tắc với việc output cũ chuyển `archived` thay vì bị thay thế.
+**Sửa ở v1.8 (Database review).** Bản v1.5 chỉ đặt `processing_version` trong
+đường dẫn, với lý do "để hai revision không ghi đè nhau". Lý do đúng, đường dẫn
+sai: định danh một revision là **bộ ba** `(source_fingerprint,
+processing_version, locale)` — chính bộ ba của UNIQUE key ở trên — chứ không
+phải một mình `processing_version`. Hai trường hợp ghi đè thật mà bản cũ không
+chặn:
+
+* Nội dung file được thay trong khi extractor version giữ nguyên → cùng
+  `processing_version`, khác `source_fingerprint`, **cùng đường dẫn**. Crop của
+  tài liệu cũ bị crop của tài liệu mới đè lên, trong khi row cũ vẫn `archived`
+  và vẫn trỏ tới key đó. Consumer đọc revision cũ nhận về ảnh của nội dung khác.
+* Cùng file trích xuất ở hai locale → cùng đường dẫn.
+
+Cả hai đều phá đúng lời hứa lớn nhất của bảng này: bản cũ đọc được mãi mãi.
+
+`UNIQUE (customer_id, crop_storage_key)` được thêm ở cùng bản. Nó biến "đường
+dẫn duy nhất vì chúng ta suy ra cẩn thận" thành thứ database tự bảo đảm — đúng
+loại lỗi vừa xảy ra ở trên. Đó cũng là lý do `crop_storage_key` rút từ
+VARCHAR(1024) xuống **VARCHAR(512)**: utf8mb4 × 1024 = 4096 byte, vượt trần
+3072 byte của index InnoDB nên không thể UNIQUE; 512 vẫn dư cho đường dẫn dài
+nhất (~200 ký tự).
 
 #### Trần tài nguyên — cần benchmark trước khi freeze
 
@@ -242,8 +277,13 @@ Chọn một định dạng an toàn cho mọi trường hợp là đúng ranh g
   crop đi trên chính unit `region` ở `structure.crop`, **không** tạo
   `content_type` mới, và có cờ request `include_crop` mặc định `false` để không
   ký signed URL cho consumer chỉ đọc text.
-* Database review cho năm cột crop, rồi migration. Đây là hai việc còn lại
-  trước khi crop chuyển từ Not Implemented sang implemented.
+* ~~Database review cho năm cột crop, rồi migration.~~ Xong 2026-08-28:
+  migration `2026_08_28_000100_add_region_crop_columns`, và runtime sinh crop
+  200 DPI PNG trong `DoclingStructuredExtractionProvider::renderCrops()`.
+* Crop hiện chỉ sinh cho `role = 'figure'`. Mở cho `table` không cần đổi
+  schema, nhưng cần đo lại trần vì số vùng sẽ tăng.
+* Xoá crop khi Media File bị xoá vẫn chưa có runtime; nó nằm trong cùng hạng
+  mục retention/deletion đang mở của ADR-0018.
 
 ### Ghi chú `role` — v1.1, Approved 2026-08-27
 

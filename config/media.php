@@ -38,6 +38,17 @@ return [
             'max_table_cells_per_document' => (int) env('MEDIA_STRUCTURED_MAX_TABLE_CELLS_PER_DOCUMENT', 200000),
             'max_processing_seconds' => (int) env('MEDIA_STRUCTURED_MAX_PROCESSING_SECONDS', 3300),
             'command_timeout_seconds' => (int) env('MEDIA_STRUCTURED_COMMAND_TIMEOUT_SECONDS', 900),
+            'crop_enabled' => (bool) env('MEDIA_STRUCTURED_CROP_ENABLED', true),
+            'crop_dpi' => (int) env('MEDIA_STRUCTURED_CROP_DPI', 200),
+            'crop_ocr_enabled' => (bool) env('MEDIA_STRUCTURED_CROP_OCR_ENABLED', true),
+            // Locale canonical -> ma ngon ngu Tesseract. Locale khong co trong
+            // bang thi KHONG doan sang 'eng': OCR sai ngon ngu tra ra chuoi rac
+            // nhung trong nhu text that, va consumer khong phan biet duoc.
+            'crop_ocr_languages' => [
+                'vi' => 'vie', 'en' => 'eng', 'ko' => 'kor', 'ja' => 'jpn',
+                'zh' => 'chi_sim', 'fr' => 'fra', 'de' => 'deu', 'es' => 'spa',
+            ],
+            'max_crop_bytes_per_document' => (int) env('MEDIA_STRUCTURED_MAX_CROP_BYTES_PER_DOCUMENT', 67108864),
         ],
         'docling' => [
             'python_binary' => env('MEDIA_DOCLING_PYTHON_BINARY', base_path('runtime/docling/.venv/bin/python')),

@@ -1,6 +1,6 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.9
+Version: 1.10
 
 Document Status: Approved
 
@@ -37,9 +37,10 @@ sang `sheet`/`region`. Không có đường đọc mới, không có API riêng 
 data; mọi thứ khác của hợp đồng giữ nguyên.
 
 Version 1.9 mở đường trả **ảnh crop của vùng** trên chính unit `region`, không
-qua `content_type` mới. Toàn bộ phần crop trong tài liệu này là **Not
-Implemented**: nó là hợp đồng được chốt trước, để migration và runtime bám theo.
-Xem § 5.3 và [media_extracted_regions](../database/media/media_extracted_regions.md).
+qua `content_type` mới. Version 1.10 ghi nhận crop đã **implemented** cả hai
+đầu: runtime sinh crop khi trích xuất, và Read Service trả `structure.crop`
+cùng cờ `include_crop`. Xem § 5.3 và
+[media_extracted_regions](../database/media/media_extracted_regions.md).
 
 Version 1.7 đóng DOC-CONFLICT-0021 bằng selector canonical `usage_type`. Caller
 phải chỉ đúng media slot trong owner context; service không được dùng
@@ -283,9 +284,6 @@ biết được nó đã đọc bản nào, và là điều kiện để phát h
 
 ## 5.3. Ảnh crop của vùng
 
-**Not Implemented.** Cột crop chưa tồn tại trong schema; phần này là hợp đồng
-được chốt trước migration.
-
 Crop là ảnh cắt đúng `bbox` của một region. Nó **không** phải một
 `content_type` riêng, và đây là quyết định có chủ ý:
 
@@ -410,7 +408,7 @@ audit sink cho owner không resolve vẫn là implementation gate, không phải
 | B1 | ADR-0018 đã approve boundary PII/redaction/external processing; retention duration, deletion synchronization và full provenance audit chưa có implementation evidence. Chặn production/real-tenant rollout, không biến `PII_PRESENT` thành OCR failure |
 | B2 | Cue-level caption citation chưa có contract; nếu AI cần, phải review trước |
 | B3 | `region`/`table` đã có runtime và đã persist trên tài liệu thật; độ phủ region trên trang scan vẫn không đảm bảo. Consumer phải tôn trọng `structure_unavailable` và fallback về canonical page text (§ 5.1) |
-| B5 | Crop (§ 5.3) là **Not Implemented**: cột chưa tồn tại, chưa có runtime render, chưa qua Database review. Hợp đồng được chốt trước để migration bám theo; consumer không được giả định `structure.crop` đã có |
+| B5 | Crop (§ 5.3) đã implemented cho `role = figure` trên PDF. Vai trò khác chưa sinh crop, nên `structure.crop` của chúng luôn `null` |
 | B4 | Đã đóng ở contract v1.7: `usage_type` bắt buộc và nhiều active row trong cùng slot fail-closed bằng `ambiguous_source`. Runtime/test phải có evidence trước khi mở HTTP/API |
 
 ---
