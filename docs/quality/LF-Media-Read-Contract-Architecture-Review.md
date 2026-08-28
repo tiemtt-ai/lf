@@ -1,8 +1,8 @@
 # Media Read Contract Architecture Review
 
-Version: 1.6
+Version: 1.7
 
-Document Status: Review
+Document Status: Approved
 
 Implementation Status: Partial
 
@@ -139,11 +139,38 @@ review packet cho reviewer kế tiếp; chúng không tự tạo verdict Approve
 # Review Result
 
 ```text
-PENDING INDEPENDENT REVIEW — author self-assessment finds the contract
-deterministic, but no independent reviewer evidence is recorded. Scoped runtime
-exists under Owner implementation directive; this record must not be cited as
-an Approved architecture verdict. B1–B4 remain open.
+CLOSED BY OWNER ATTESTATION — 2026-08-28.
+
+Đóng bằng thẩm quyền Owner theo ADR-0017 § Course Template Mapping Intent
+Amendment: "Implementation review is optional assurance, not a mandatory gate:
+Owner attestation plus recorded HIGH test evidence may close an implementation
+gate."
+
+KHÔNG có independent architecture review nào được thực hiện. A–H record này do
+cùng implementation stream lập, và Spec B chưa từng được đọc bởi người không
+viết nó. Bất kỳ ai trích dẫn record này về sau phải hiểu đúng điều đó: đây là
+Owner attestation, không phải independent verdict.
 ```
+
+## Rủi ro đã biết khi đóng theo cách này
+
+Trong chính giai đoạn làm Spec B, bốn defect chặn đã được tìm ra và **không cái
+nào do công cụ tự động phát hiện** — `docs:lint` và `schema:drift` xanh xuyên
+suốt trong lúc chúng tồn tại:
+
+| Defect | Ai tìm ra |
+| --- | --- |
+| `structureCoverage()` trộn nhiều source/revision, báo coverage sai mà hợp lý | vòng review sau khi tác giả nói xong |
+| Bỏ qua guard `ambiguous_source` — hai lối vào cùng hợp đồng có hai luật | như trên |
+| Coverage read không ghi access audit, trái § 8 của chính hợp đồng | như trên |
+| Version của Spec B bị lùi từ 1.7 xuống 1.4 | như trên |
+
+Ba trong bốn là **sự không nhất quán với chính hợp đồng vừa được đọc kỹ**, nằm
+cách đó vài chục dòng trong cùng một file. Đó là dữ liệu về giới hạn của
+self-assessment, không phải về sự cẩu thả.
+
+Owner chấp nhận rủi ro này. Nếu về sau có reviewer độc lập đọc Spec B, kết quả
+của họ được ghi tiếp vào record này chứ không thay thế mục trên.
 
 ## Spec B Version 1.8 remediation evidence — 2026-08-28
 
