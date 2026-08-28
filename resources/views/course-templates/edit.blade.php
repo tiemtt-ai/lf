@@ -61,6 +61,14 @@
         </div>
     @endif
 
+    @if (session('info'))
+        <div class="admin-alert admin-alert-info admin-form-card"
+             role="status"
+             aria-live="polite">
+            {{ session('info') }}
+        </div>
+    @endif
+
     @if ($errors->any())
         <div class="admin-alert admin-alert-danger admin-form-card">
             <ul>

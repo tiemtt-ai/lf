@@ -1,12 +1,12 @@
 # Media Structured Extraction Architecture Review
 
-Version: 2.5
+Version: 2.6
 
 Document Status: Review
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-27
+Last Updated: 2026-08-28
 
 Review Date: 2026-08-25 (Round 1), 2026-08-26 (Round 2), 2026-08-27 (Round 3)
 
@@ -85,7 +85,7 @@ và kế thừa từ bảng cha.
 | Giới hạn | Giá trị |
 | --- | --- |
 | `max_extracted_characters` | `500000`, tính trên **tổng** text page/sheet + region + cell |
-| `max_regions_per_page` | `50` |
+| `max_regions_per_page` | `100` — Owner amendment 2026-08-28, dựa trên evidence PDF 100 trang có trang 15 sinh 61 region hợp lệ |
 | `max_regions_per_document` | `5000` |
 | `max_table_cells_per_document` | `200000`, đếm row cell thực persist; merged cell tính một row |
 | `max_tables_per_document` | **Không có** — đã bị chặn bởi trần region và `max_pages` |
@@ -98,6 +98,14 @@ Hai refinement do independent review yêu cầu đã được ghi đúng: ngân 
 **bao gồm text cell** (nếu bỏ, một workbook 199.000 cell × 20 ký tự vẫn dưới trần
 cell nhưng vượt xa ngân sách), và trần region freeze **cả hai mức** per-page và
 per-document (chỉ có trần tổng thì một trang vẫn sinh được 5.000 vùng).
+
+**Owner resource amendment — 2026-08-28.** Owner phê duyệt nâng riêng
+`max_regions_per_page` từ `50` lên `100` sau nghiệm thu PDF tiếng Hàn 100 trang:
+1.924 region toàn tài liệu, 14 bảng, 302 cell; trang 15 có 61 region và là giới
+hạn duy nhất bị vượt. Quyết định giữ `max_regions_per_document = 5000`, giữ
+atomic failure/no truncation và yêu cầu tăng processing version trước khi chạy
+lại. Đây là approval cho resource-policy amendment, không điền thay ô Owner
+Approval toàn bộ Architecture Review tại § H.
 
 `max_table_cells_per_document = 200000` là giá trị duy nhất không suy ra được từ
 một giới hạn đã freeze khác; nó phải được xem lại khi có workbook thật đầu tiên.
@@ -256,7 +264,7 @@ chỉ chứng minh cell biến mất.
 | 5.4 | vượt `max_table_cells_per_document` | `structured_extraction_too_large` |
 | 5.5 | đúng bằng trần, không vượt | accept |
 | 5.6 | sau mỗi lần fail ở 5.1–5.4 | **zero row** trong cả **bốn** bảng |
-| 5.7 | production default đọc từ config | `max_table_cells_per_document === 200000`, `max_regions_per_page === 50`, `max_regions_per_document === 5000`, `max_extracted_characters === 500000` |
+| 5.7 | production default đọc từ config | `max_table_cells_per_document === 200000`, `max_regions_per_page === 100`, `max_regions_per_document === 5000`, `max_extracted_characters === 500000` |
 
 **Dùng config override nhỏ, không insert theo giá trị production.** Case 5.4/5.5
 chạy với `max_table_cells_per_document` override thành `5`, rồi insert 6 và 5 row;
@@ -276,11 +284,11 @@ và là loại partial khó thấy nhất, vì ba bảng mới đều sạch.
 5.6 là assertion quan trọng nhất của nhóm: contract nói fail toàn revision, không
 truncate. Test phải đếm row sau khi fail, không chỉ bắt exception.
 
-**Ghi chú cho reviewer:** hiện `max_regions_per_document = 5000` đúng bằng
-`max_pages (100) × max_regions_per_page (50)`, nên với cấu hình mặc định nó
-**không bao giờ chặn độc lập** — case 5.2 chỉ dựng được bằng cách override config
-trong test. Đây không phải lỗi, nhưng reviewer nên xác nhận rằng trần tài liệu tồn
-tại để phòng khi `max_pages` được nâng, chứ không phải để chặn ở giá trị hôm nay.
+**Ghi chú cho reviewer:** sau Owner amendment 2026-08-28,
+`max_pages (100) × max_regions_per_page (100) = 10000`, lớn hơn
+`max_regions_per_document = 5000`. Trần tài liệu vì vậy có thể chặn độc lập ngay
+với production defaults. Case 5.2 vẫn dùng config override nhỏ để test nhanh;
+case 5.7 phải bảo vệ cả hai giá trị production mới.
 
 ## F.6 — Migration
 

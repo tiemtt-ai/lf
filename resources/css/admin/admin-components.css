@@ -1478,6 +1478,90 @@
     font-weight: 600;
 }
 
+.course-activity-document-source > .authoring-media-help {
+    margin-top: 10px;
+}
+
+.course-activity-upload-policy {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface-subtle);
+}
+
+.course-activity-upload-policy__metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.course-activity-upload-policy__metrics > span {
+    min-width: 0;
+    padding: 9px 10px;
+    border-radius: 8px;
+    background: var(--admin-surface);
+}
+
+.course-activity-upload-policy__metrics strong,
+.course-activity-upload-policy__metrics small {
+    display: block;
+}
+
+.course-activity-upload-policy__metrics strong {
+    color: var(--admin-control-text);
+    font-size: 15px;
+    line-height: 1.25;
+}
+
+.course-activity-upload-policy__metrics small {
+    margin-top: 2px;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.course-activity-upload-policy > p {
+    margin: 9px 2px 0;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.course-activity-locale-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.course-activity-locale-heading > label {
+    margin-bottom: 0;
+}
+
+.course-activity-required-badge {
+    padding: 4px 8px;
+    border-radius: 999px;
+    color: var(--admin-primary);
+    background: color-mix(in srgb, var(--admin-primary) 10%, transparent);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+    .course-activity-upload-policy__metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .course-activity-locale-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 5px;
+    }
+}
+
 @media (min-width: 1200px) {
     .lf-admin-page .course-template-activity-information-grid,
     :root.is-backend-sidebar-collapsed .backend-shell .course-template-activity-information-grid,

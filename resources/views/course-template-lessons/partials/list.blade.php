@@ -150,8 +150,41 @@
                                     <span class="course-template-activity-icon" aria-hidden="true">
                                         <x-backend-icon :name="$activityIcon" class="course-template-activity-type-icon" />
                                     </span>
-                                    <span class="course-template-activity-title-text">
-                                        {{ $activity->title }}
+                                    <span class="course-template-activity-copy">
+                                        <span class="course-template-activity-title-text">
+                                            {{ $activity->title }}
+                                        </span>
+                                        @if (($activity->structured_extraction_status ?? null) !== null)
+                                            @php
+                                                $structuredStatus = $activity->structured_extraction_status;
+                                                $structuredMessageKey = match ($structuredStatus) {
+                                                    'ready' => 'lf.LF_course_template_activity_structured_ready_help',
+                                                    'failed' => match ($activity->structured_extraction_error_code) {
+                                                        'structured_extraction_too_large' => 'lf.LF_course_template_activity_structured_failed_too_large_help',
+                                                        'page_limit_exceeded' => 'lf.LF_course_template_activity_structured_failed_page_limit_help',
+                                                        'provider_unavailable' => 'lf.LF_course_template_activity_structured_failed_provider_help',
+                                                        'provider_timeout' => 'lf.LF_course_template_activity_structured_failed_timeout_help',
+                                                        default => 'lf.LF_course_template_activity_structured_failed_help',
+                                                    },
+                                                    'processing' => 'lf.LF_course_template_activity_structured_processing_help',
+                                                    default => 'lf.LF_course_template_activity_structured_pending_help',
+                                                };
+                                            @endphp
+                                            <span class="course-template-activity-structured-status"
+                                                  role="status">
+                                                <span @class([
+                                                    'badge',
+                                                    'badge-success' => $structuredStatus === 'ready',
+                                                    'badge-danger' => $structuredStatus === 'failed',
+                                                    'badge-info' => in_array($structuredStatus, ['pending', 'processing'], true),
+                                                ])>
+                                                    {{ __('lf.LF_course_template_activity_structured_'.$structuredStatus) }}
+                                                </span>
+                                                <span class="lf-secondary-text">
+                                                    {{ __($structuredMessageKey) }}
+                                                </span>
+                                            </span>
+                                        @endif
                                     </span>
                                 </div>
                                 <div class="admin-table-actions">

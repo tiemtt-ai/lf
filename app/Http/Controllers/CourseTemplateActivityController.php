@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Services\CourseActivityMediaPresenter;
+use App\Services\DocumentProcessRunner;
 use App\Services\MediaService;
 use App\Services\TrustedVideoUrlService;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -361,7 +363,7 @@ class CourseTemplateActivityController extends Controller
             return $activityId;
         });
 
-        return redirect()
+        $response = redirect()
             ->to(
                 route(
                     $this->templateRoutePrefix($request).'.edit',
@@ -369,6 +371,12 @@ class CourseTemplateActivityController extends Controller
                 )."?tab=structure#course-template-lesson-{$lessonId}-activities"
             )
             ->with('success', __('lf.LF_course_template_activity_common_created'));
+
+        if ($this->structuredExtractionRequested($request)) {
+            $response->with('info', __('lf.LF_course_template_activity_structured_queued_notice'));
+        }
+
+        return $response;
     }
 
     private function editView(
@@ -523,7 +531,7 @@ class CourseTemplateActivityController extends Controller
             $this->recalculateLessonDuration($customerId, $templateId, $lessonId);
         });
 
-        return redirect()
+        $response = redirect()
             ->route(
                 $this->routePrefix($request, $sectionId).'.edit',
                 $this->activityRouteParameters(
@@ -534,6 +542,12 @@ class CourseTemplateActivityController extends Controller
                 )
             )
             ->with('success', __('lf.LF_course_template_activity_common_updated'));
+
+        if ($this->structuredExtractionRequested($request)) {
+            $response->with('info', __('lf.LF_course_template_activity_structured_queued_notice'));
+        }
+
+        return $response;
     }
 
     private function destroyActivity(
@@ -862,6 +876,31 @@ class CourseTemplateActivityController extends Controller
                 'nullable',
                 'file',
                 'max:'.UploadLimit::effectiveKilobytes(),
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! $value instanceof UploadedFile
+                        || strtolower((string) $value->getClientOriginalExtension()) !== 'pdf'
+                        || ! $value->isValid()) {
+                        return;
+                    }
+                    try {
+                        $output = app(DocumentProcessRunner::class)->run([
+                            (string) config('media.processing.local_document.pdfinfo_binary', 'pdfinfo'),
+                            $value->getRealPath(),
+                        ], 30);
+                    } catch (\RuntimeException) {
+                        // Provider preflight remains the fail-closed authority for
+                        // corrupt/unreadable PDFs; this validation only surfaces
+                        // the page-limit error before persistence.
+                        return;
+                    }
+                    if (! preg_match('/^Pages:\s+(\d+)$/mi', $output, $matches)) {
+                        return;
+                    }
+                    $maxPages = (int) config('media.processing.local_document.max_pages', 100);
+                    if ((int) $matches[1] > $maxPages) {
+                        $fail("PDF có {$matches[1]} trang. Hệ thống hiện hỗ trợ tối đa {$maxPages} trang cho mỗi tài liệu. Vui lòng chia tài liệu thành các phần nhỏ hơn.");
+                    }
+                },
             ],
             'processing_locale' => [
                 Rule::requiredIf(fn () => request()->hasFile('activity_video_file')
@@ -869,8 +908,7 @@ class CourseTemplateActivityController extends Controller
                     || request()->hasFile('activity_document_file')),
                 'nullable',
                 'string',
-                'max:20',
-                'regex:/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/',
+                Rule::in(['vi', 'ko', 'en']),
             ],
             // Opt-in cho Docling structured extraction. Chi co y nghia voi document;
             // khong tick thi luong upload giu nguyen hanh vi cu.
@@ -1110,6 +1148,15 @@ class CourseTemplateActivityController extends Controller
         }
 
         return null;
+    }
+
+    private function structuredExtractionRequested(Request $request): bool
+    {
+        $file = $request->file('activity_document_file');
+
+        return $file !== null
+            && strtolower((string) $file->getClientOriginalExtension()) === 'pdf'
+            && $request->boolean('structured_extraction');
     }
 
     private function synchronizeUploadedMediaDuration(

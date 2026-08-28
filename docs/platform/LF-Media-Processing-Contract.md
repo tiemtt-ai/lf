@@ -1,12 +1,12 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.5
+Version: 2.6
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-27
+Last Updated: 2026-08-28
 
 Document Path: platform/LF-Media-Processing-Contract.md
 
@@ -49,6 +49,16 @@ và `page_limit_exceeded` cùng bản chất vĩnh viễn nhưng chưa bao giờ
 ở § 2. Chúng cần một quyết định riêng — chỗ này chỉ ghi lại, không tự thêm.
 
 Amendment này **không** phê duyệt provider nào và không mở lại hồ sơ A0.
+
+**Bổ sung Version 2.6, Approved 2026-08-28.** Architecture Owner nâng
+`max_regions_per_page` từ `50` lên `100`, giữ nguyên
+`max_regions_per_document = 5000`. Quyết định dựa trên nghiệm thu local bằng
+tài liệu PDF tiếng Hàn 100 trang: Docling sinh 1.924 region toàn tài liệu, nhưng
+riêng trang 15 có 61 region hợp lệ và làm revision fail toàn phần dưới trần cũ.
+Trần `100` nhận tài liệu này mà vẫn giới hạn một trang; trần toàn tài liệu
+`5000` tiếp tục chặn output phân mảnh quá mức. Đây là resource-policy amendment,
+không cho phép truncate, không đổi `max_pages`, không đổi ngân sách ký tự/cell và
+không tự hợp thức hoá revision đã fail dưới processing version cũ.
 
 **Bổ sung Version 2.5, Approved 2026-08-27.** Architecture Owner đã mở quyết
 định A1 và phê duyệt provider `docling_local` cho structured extraction PDF.
@@ -417,7 +427,7 @@ phải áp lại tường minh, kể cả các trần trùng giá trị với `l
 | --- | ---: | --- |
 | `max_pages` | `100` | `MEDIA_STRUCTURED_MAX_PAGES` |
 | `max_extracted_characters` | `500000` | `MEDIA_STRUCTURED_MAX_EXTRACTED_CHARACTERS` |
-| `max_regions_per_page` | `50` | `MEDIA_STRUCTURED_MAX_REGIONS_PER_PAGE` |
+| `max_regions_per_page` | `100` | `MEDIA_STRUCTURED_MAX_REGIONS_PER_PAGE` |
 | `max_regions_per_document` | `5000` | `MEDIA_STRUCTURED_MAX_REGIONS_PER_DOCUMENT` |
 | `max_table_cells_per_document` | `200000` | `MEDIA_STRUCTURED_MAX_TABLE_CELLS_PER_DOCUMENT` |
 | `max_processing_seconds` | `3300` | `MEDIA_STRUCTURED_MAX_PROCESSING_SECONDS` |
@@ -684,13 +694,14 @@ cấp trang và cấp region vẫn **được tính theo dung lượng thực pe
 
 | Key | Giá trị | Ghi chú |
 | --- | --- | --- |
-| `max_regions_per_page` | `50` | Trần theo từng trang |
+| `max_regions_per_page` | `100` | Trần theo từng trang |
 | `max_regions_per_document` | `5000` | Trần toàn tài liệu |
 | `max_table_cells_per_document` | `200000` | Đếm **row cell thực persist**; merged cell chỉ tính một row |
 
 Hai trần region phải freeze **đồng thời**. Chỉ có trần tổng thì một trang vẫn sinh
-được 5.000 region; chỉ có trần trang thì 100 trang sinh được 5.000 mà không ai
-chặn ở mức tài liệu.
+được 5.000 region; chỉ có trần trang thì 100 trang có thể sinh tới 10.000 region
+mà không ai chặn ở mức tài liệu. Với giá trị hiện hành, trần tài liệu `5000` là
+một lớp chặn độc lập, không phải tích số suy ra từ hai trần còn lại.
 
 **Không có `max_tables_per_document`.** Số bảng đã bị chặn sẵn ở hai đường: bảng
 trong document neo 0..1 vào một region có `role = 'table'` nên bị trần region

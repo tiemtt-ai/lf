@@ -7,6 +7,10 @@
     $selectedUnlockRule = old('unlock_rule', $formActivity?->unlock_rule ?? 'none');
     $selectedPrerequisiteId = old('unlock_after_activity_id', $formActivity?->unlock_after_activity_id);
     $selectedLearningPhases = old('learning_phases');
+    $selectedProcessingLocale = old(
+        'processing_locale',
+        $currentActivityMedia['media']->processing_locale ?? ''
+    );
     if ($selectedLearningPhases === null) {
         $selectedLearningPhases = $formActivity
             ? array_keys(array_filter([
@@ -52,6 +56,7 @@
          mediaDurationState: @js($storedDurationSeconds > 0 ? 'ready' : 'empty'),
          mediaTypeError: '',
          documentIsPdf: false,
+         processingLocaleRequired: false,
          completionRule: @js($selectedCompletionRule),
          unlockRule: @js($selectedUnlockRule),
          learningPhases: @js(array_values((array) $selectedLearningPhases)),
@@ -72,6 +77,7 @@
              this.mediaDurationState = this.mediaDurationSeconds ? 'ready' : 'empty';
              this.mediaTypeError = '';
              this.documentIsPdf = false;
+             this.processingLocaleRequired = false;
              this.estimatedDurationMinutes = unchanged
                  ? this.storedEstimateMinutes
                  : null;
@@ -79,6 +85,7 @@
          documentFileChanged(event) {
              const file = event.target.files?.[0];
              const extension = file?.name.split('.').pop()?.toLowerCase() || '';
+             this.processingLocaleRequired = Boolean(file);
              this.documentIsPdf = extension === 'pdf';
              if (! this.documentIsPdf) {
                  const checkbox = this.$root.querySelector('#structured_extraction');
@@ -91,6 +98,7 @@
                  this.activityTypeChanged();
                  return;
              }
+             this.processingLocaleRequired = true;
              const extension = file.name.split('.').pop()?.toLowerCase() || '';
              const allowedExtensions = {
                  video: ['mp4', 'webm', 'mov', 'avi'],
@@ -100,6 +108,7 @@
                  && allowedExtensions[expectedType].includes(extension);
              if (! matchesType) {
                  event.target.value = '';
+                 this.processingLocaleRequired = false;
                  this.mediaDurationSeconds = null;
                  this.mediaDurationState = 'invalid_type';
                  this.mediaTypeError = expectedType;
@@ -230,25 +239,41 @@
             {{ __('lf.LF_course_template_activity_media_invalid_audio') }}
         </p>
     </div>
-    <div class="lf-form-group admin-form-conditional course-template-activity-source-field" x-show="activityType === 'document'" x-cloak>
+    <div class="lf-form-group admin-form-conditional course-template-activity-source-field course-activity-document-source" x-show="activityType === 'document'" x-cloak>
         <div class="authoring-media-picker-row">
             @include('course-template-activities.partials.current-media', ['mediaType' => 'document'])
             <x-authoring-media-upload id="activity_document_file" name="activity_document_file" :label="($currentActivityMedia['type'] ?? null) === 'document' ? __('lf.LF_media_replace_document') : __('lf.LF_media_upload_document')" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf" x-on:change="documentFileChanged($event)" />
         </div>
         <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX', 'TXT']" />
+        <div class="course-activity-upload-policy" role="note" aria-label="Giới hạn tài liệu tải lên">
+            <div class="course-activity-upload-policy__metrics">
+                <span><strong>1 GB</strong><small>Tối đa mỗi tệp</small></span>
+                <span><strong>100 trang</strong><small>Tối đa với PDF</small></span>
+            </div>
+            <p>PDF vượt 100 trang cần được chia thành các phần nhỏ hơn trước khi tải lên.</p>
+        </div>
     </div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field"
          x-show="['video', 'audio', 'document'].includes(activityType)"
          x-cloak>
-        <x-form-label for="processing_locale" value="Ngôn ngữ nội dung (BCP 47)" />
-        <input id="processing_locale"
-               type="text"
-               name="processing_locale"
-               class="lf-form-control"
-               value="{{ old('processing_locale') }}"
-               maxlength="20"
-               placeholder="vi, ko, en-US">
-        <p class="lf-form-help lf-secondary-text">Bắt buộc khi tải Media mới; không tự suy luận từ trình duyệt hoặc mô hình.</p>
+        <div class="course-activity-locale-heading">
+            <x-form-label for="processing_locale" value="Ngôn ngữ nội dung" />
+            <span class="course-activity-required-badge"
+                  x-show="processingLocaleRequired"
+                  x-cloak>Bắt buộc cho tệp mới</span>
+        </div>
+        <select id="processing_locale"
+                name="processing_locale"
+                class="lf-form-control"
+                :required="processingLocaleRequired">
+            <option value="" @selected($selectedProcessingLocale === '')>Chọn ngôn ngữ</option>
+            <option value="vi" @selected($selectedProcessingLocale === 'vi')>Tiếng Việt (vi)</option>
+            <option value="ko" @selected($selectedProcessingLocale === 'ko')>Tiếng Hàn (ko)</option>
+            <option value="en" @selected($selectedProcessingLocale === 'en')>Tiếng Anh (en)</option>
+        </select>
+        <p class="lf-form-help lf-secondary-text">
+            Dùng để chọn đúng bộ nhận dạng OCR. Hệ thống không tự suy luận ngôn ngữ.
+        </p>
     </div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field"
          x-show="activityType === 'document' && documentIsPdf"

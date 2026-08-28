@@ -33,7 +33,7 @@ return [
         'structured_extraction' => [
             'max_pages' => (int) env('MEDIA_STRUCTURED_MAX_PAGES', 100),
             'max_extracted_characters' => (int) env('MEDIA_STRUCTURED_MAX_EXTRACTED_CHARACTERS', 500000),
-            'max_regions_per_page' => (int) env('MEDIA_STRUCTURED_MAX_REGIONS_PER_PAGE', 50),
+            'max_regions_per_page' => (int) env('MEDIA_STRUCTURED_MAX_REGIONS_PER_PAGE', 100),
             'max_regions_per_document' => (int) env('MEDIA_STRUCTURED_MAX_REGIONS_PER_DOCUMENT', 5000),
             'max_table_cells_per_document' => (int) env('MEDIA_STRUCTURED_MAX_TABLE_CELLS_PER_DOCUMENT', 200000),
             'max_processing_seconds' => (int) env('MEDIA_STRUCTURED_MAX_PROCESSING_SECONDS', 3300),

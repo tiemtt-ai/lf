@@ -120,7 +120,7 @@ class StructuredExtractionPersistenceService
     /** @param array<int, array<string, mixed>> $regions @param array<int, array<string, mixed>> $tables */
     private function validate(int $customerId, object $media, object $job, string $locale, array $regions, array $tables): void
     {
-        $maxPerPage = (int) config('media.processing.structured_extraction.max_regions_per_page', 50);
+        $maxPerPage = (int) config('media.processing.structured_extraction.max_regions_per_page', 100);
         $maxRegions = (int) config('media.processing.structured_extraction.max_regions_per_document', 5000);
         $maxCells = (int) config('media.processing.structured_extraction.max_table_cells_per_document', 200000);
         $maxChars = (int) config('media.processing.structured_extraction.max_extracted_characters', 500000);

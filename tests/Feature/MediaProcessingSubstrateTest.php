@@ -507,6 +507,14 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertSame(0, DB::table('media_table_cells')->count());
     }
 
+    public function test_structured_extraction_uses_the_owner_approved_production_resource_defaults(): void
+    {
+        $this->assertSame(100, config('media.processing.structured_extraction.max_regions_per_page'));
+        $this->assertSame(5000, config('media.processing.structured_extraction.max_regions_per_document'));
+        $this->assertSame(200000, config('media.processing.structured_extraction.max_table_cells_per_document'));
+        $this->assertSame(500000, config('media.processing.structured_extraction.max_extracted_characters'));
+    }
+
     public function test_media_read_fails_closed_when_exact_usage_slot_is_ambiguous(): void
     {
         $first = $this->uploadVideo('lesson.mp4');
@@ -595,12 +603,21 @@ class MediaProcessingSubstrateTest extends TestCase
      */
     public function test_http_document_upload_with_checkbox_persists_flag_and_enqueues_structured_job(): void
     {
+        config([
+            'media.processing.providers.structured_extraction' => 'fake',
+            'media.processing.versions.structured_extraction' => 'fake-structured-http-v1',
+        ]);
         [$templateId, $lessonId] = $this->courseFixture();
 
         $this->actingAs($this->admin)
+            ->followingRedirects()
             ->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload([
                 'structured_extraction' => '1',
             ]))
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_structured_queued_notice'))
+            ->assertSeeText(__('lf.LF_course_template_activity_structured_ready'))
+            ->assertSeeText(__('lf.LF_course_template_activity_structured_ready_help'))
             ->assertSessionHasNoErrors();
 
         $usage = DB::table('media_file_usages')->where('owner_type', 'course_activity')->latest('id')->firstOrFail();
@@ -610,6 +627,30 @@ class MediaProcessingSubstrateTest extends TestCase
             'media_file_id' => $usage->media_file_id,
             'job_type' => 'structured_extraction',
             'output_profile' => 'locale=vi;structure=layout',
+        ]);
+    }
+
+    public function test_http_structured_failure_shows_a_non_blocking_admin_warning(): void
+    {
+        config(['media.processing.providers.structured_extraction' => 'unconfigured']);
+        [$templateId, $lessonId] = $this->courseFixture();
+
+        $this->actingAs($this->admin)
+            ->followingRedirects()
+            ->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload([
+                'structured_extraction' => '1',
+            ]))
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_structured_failed'))
+            ->assertSeeText(__('lf.LF_course_template_activity_structured_failed_provider_help'));
+
+        $usage = DB::table('media_file_usages')->where('owner_type', 'course_activity')->latest('id')->firstOrFail();
+        $this->assertDatabaseHas('media_files', ['id' => $usage->media_file_id, 'status' => 'ready']);
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id,
+            'job_type' => 'structured_extraction',
+            'status' => 'failed',
+            'error_code' => 'provider_unavailable',
         ]);
     }
 
@@ -672,6 +713,47 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertDatabaseMissing('media_processing_jobs', [
             'media_file_id' => $usage->media_file_id, 'job_type' => 'structured_extraction',
         ]);
+    }
+
+    public function test_http_document_upload_requires_a_supported_processing_locale(): void
+    {
+        [$templateId, $lessonId] = $this->courseFixture();
+
+        $this->actingAs($this->admin)
+            ->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload([
+                'processing_locale' => null,
+            ]))
+            ->assertSessionHasErrors('processing_locale');
+
+        $this->assertSame(0, DB::table('media_file_usages')->where('owner_type', 'course_activity')->count());
+    }
+
+    public function test_http_document_upload_rejects_a_locale_not_supported_in_phase_one(): void
+    {
+        [$templateId, $lessonId] = $this->courseFixture();
+
+        $this->actingAs($this->admin)
+            ->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload([
+                'processing_locale' => 'en-US',
+            ]))
+            ->assertSessionHasErrors('processing_locale');
+
+        $this->assertSame(0, DB::table('media_file_usages')->where('owner_type', 'course_activity')->count());
+    }
+
+    public function test_http_pdf_over_page_limit_returns_a_friendly_error_before_persistence(): void
+    {
+        [$templateId, $lessonId] = $this->courseFixture();
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldReceive('run')->once()->andReturn("Pages: 500\n");
+        $this->app->instance(DocumentProcessRunner::class, $runner);
+
+        $this->actingAs($this->admin)
+            ->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload())
+            ->assertSessionHasErrors('activity_document_file');
+
+        $this->assertSame(0, DB::table('media_file_usages')->where('owner_type', 'course_activity')->count());
+        $this->assertSame(0, DB::table('media_processing_jobs')->count());
     }
 
     private function activityUrl(int $templateId, int $lessonId): string

@@ -1,12 +1,12 @@
 # Table: media_extracted_regions
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-27
+Last Updated: 2026-08-28
 
 Document Path: database/media/media_extracted_regions.md
 
@@ -212,11 +212,16 @@ biết "có một khối ở đây" mà không đọc được khối đó. Cái
 phải được tính vào giới hạn tài nguyên: cap ký tự của một revision áp cho **tổng**
 text cấp trang và text region, không phải riêng từng bảng.
 
-Giới hạn đã được Owner freeze ngày 2026-08-25 tại
+Giới hạn ban đầu được Owner freeze ngày 2026-08-25 và được amendment ngày
+2026-08-28 tại
 [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md)
-§ Structured extraction resource controls: `max_regions_per_page = 50` và
+§ Structured extraction resource controls: `max_regions_per_page = 100` và
 `max_regions_per_document = 5000`, **cả hai cùng lúc**. Chỉ có trần tài liệu thì
-một trang vẫn sinh được 5.000 vùng.
+một trang vẫn sinh được 5.000 vùng; chỉ có trần trang thì một tài liệu 100 trang
+có thể sinh 10.000 vùng. Amendment dựa trên evidence tài liệu thật: một PDF 100
+trang sinh 1.924 vùng tổng cộng nhưng trang 15 có 61 vùng hợp lệ, vượt trần cũ
+`50`. Revision đã fail dưới processing version cũ không được sửa hoặc tái sử
+dụng; runtime phải tạo revision mới sau khi version/config tương ứng được mở.
 
 Text của region tính vào cùng ngân sách `max_extracted_characters = 500000` với
 text cấp trang và text cell — trùng lặp có chủ ý vẫn tính theo dung lượng thực

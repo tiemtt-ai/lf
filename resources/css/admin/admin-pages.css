@@ -2564,6 +2564,28 @@
     overflow-wrap: anywhere;
 }
 
+.course-template-activity-copy,
+.course-template-activity-structured-status {
+    display: flex;
+    min-width: 0;
+}
+
+.course-template-activity-copy {
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.course-template-activity-structured-status {
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    font-size: 0.82rem;
+}
+
+.course-template-activity-structured-status .badge {
+    flex: 0 0 auto;
+}
+
 .course-template-activity-empty {
     margin: 0;
     color: #6b7280;

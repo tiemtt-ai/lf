@@ -771,18 +771,55 @@ class CourseTemplateController extends Controller
 
     private function activitiesByLesson(int $customerId, int $templateId)
     {
-        return DB::table('core_course_template_activities')
+        $activities = DB::table('core_course_template_activities')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
             ->orderBy('template_lesson_id')
             ->orderBy('sort_order')
             ->orderBy('id')
+            ->get();
+
+        $activityIds = $activities->pluck('id')->map(static fn ($id): int => (int) $id);
+        $structuredUsages = DB::table('media_file_usages')
+            ->where('customer_id', $customerId)
+            ->where('owner_type', 'course_activity')
+            ->where('usage_type', 'document')
+            ->where('status', 'active')
+            ->whereIn('owner_id', $activityIds)
+            ->orderByDesc('id')
             ->get()
-            ->map(function (object $activity): object {
+            ->filter(static function (object $usage): bool {
+                $metadata = json_decode((string) ($usage->metadata ?? ''), true);
+
+                return (bool) ($metadata['structured_extraction'] ?? false);
+            })
+            ->unique('owner_id')
+            ->keyBy('owner_id');
+
+        $structuredJobs = DB::table('media_processing_jobs')
+            ->where('customer_id', $customerId)
+            ->where('job_type', 'structured_extraction')
+            ->whereIn('media_file_id', $structuredUsages->pluck('media_file_id'))
+            ->orderByDesc('id')
+            ->get()
+            ->unique('media_file_id')
+            ->keyBy('media_file_id');
+
+        return $activities
+            ->map(function (object $activity) use ($structuredUsages, $structuredJobs): object {
                 $activity->view_kind = 'readonly';
                 $activity->view_url = null;
                 $activity->view_mime_type = null;
                 $activity->view_behavior = 'readonly';
+                $activity->structured_extraction_status = null;
+                $activity->structured_extraction_error_code = null;
+
+                $structuredUsage = $structuredUsages->get($activity->id);
+                if ($structuredUsage !== null) {
+                    $structuredJob = $structuredJobs->get($structuredUsage->media_file_id);
+                    $activity->structured_extraction_status = $structuredJob?->status ?? 'pending';
+                    $activity->structured_extraction_error_code = $structuredJob?->error_code;
+                }
 
                 if (in_array($activity->activity_type, ['embedded_video', 'live_class'], true)) {
                     $activity->view_url = $this->safeExternalUrl(
