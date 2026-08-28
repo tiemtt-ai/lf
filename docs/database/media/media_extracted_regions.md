@@ -1,6 +1,6 @@
 # Table: media_extracted_regions
 
-Version: 1.6
+Version: 1.7
 
 Document Status: Approved
 
@@ -237,8 +237,13 @@ Chọn một định dạng an toàn cho mọi trường hợp là đúng ranh g
 
 #### Chưa quyết
 
-* Read Contract trả crop thế nào — thêm `crop_url` vào unit `region`, hay một
-  `content_type` riêng. Đây là amendment cho Spec B, không thuộc tài liệu này.
+* ~~Read Contract trả crop thế nào.~~ Đã chốt trong
+  [LF-Media-Read-Contract](../../platform/LF-Media-Read-Contract.md) v1.9 § 5.3:
+  crop đi trên chính unit `region` ở `structure.crop`, **không** tạo
+  `content_type` mới, và có cờ request `include_crop` mặc định `false` để không
+  ký signed URL cho consumer chỉ đọc text.
+* Database review cho năm cột crop, rồi migration. Đây là hai việc còn lại
+  trước khi crop chuyển từ Not Implemented sang implemented.
 
 ### Ghi chú `role` — v1.1, Approved 2026-08-27
 

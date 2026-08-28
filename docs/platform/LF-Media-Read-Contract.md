@@ -1,6 +1,6 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.8
+Version: 1.9
 
 Document Status: Approved
 
@@ -35,6 +35,11 @@ Version 1.5 áp dụng [ADR-0019](../adr/ADR-0019-Media-Structured-Extraction-Bo
 đã Approved: thêm hai content type `region` và `table`, và mở `locator_type`
 sang `sheet`/`region`. Không có đường đọc mới, không có API riêng cho structured
 data; mọi thứ khác của hợp đồng giữ nguyên.
+
+Version 1.9 mở đường trả **ảnh crop của vùng** trên chính unit `region`, không
+qua `content_type` mới. Toàn bộ phần crop trong tài liệu này là **Not
+Implemented**: nó là hợp đồng được chốt trước, để migration và runtime bám theo.
+Xem § 5.3 và [media_extracted_regions](../database/media/media_extracted_regions.md).
 
 Version 1.7 đóng DOC-CONFLICT-0021 bằng selector canonical `usage_type`. Caller
 phải chỉ đúng media slot trong owner context; service không được dùng
@@ -84,7 +89,8 @@ unit := {
   locale,
   locator: { type, value },   // page | timespan | sheet | region | null
   text,                   // null với caption_asset và variant
-  delivery_url,           // signed, chỉ với caption_asset và variant
+  delivery_url,           // signed; chỉ với caption_asset và variant
+                          // crop của region đi ở structure.crop — xem § 5.3
   confidence,             // null khi provider không báo cáo
   status
 }
@@ -94,7 +100,7 @@ unit := {
 phải đoạn trích dẫn được. Xem § 5.
 
 `region` và `table` trả thêm trường `structure`: với `region` là
-`{ role, reading_order, bbox }`, với `table` là
+`{ role, reading_order, bbox, crop }`, với `table` là
 `{ row_count, column_count, has_header, cells: [{ row, column, row_span,
 column_span, is_header, text }] }`. Đây là **quan sát**, không phải diễn giải:
 Media nói bảng có mấy hàng mấy cột và ô nào chứa chuỗi gì, không nói bảng đó nói
@@ -117,6 +123,7 @@ GET derived-content
   processing_version    (tuỳ chọn; xem § 4.1)
   source_fingerprint    (tuỳ chọn; xem § 4.1)
   page                  (tuỳ chọn; chỉ với `region` và `table` — xem § 5.1)
+  include_crop          (tuỳ chọn; mặc định false; chỉ với `region` — xem § 5.3)
 ```
 
 Media tự phân giải owner → active usage → Media File. Consumer không được cầm
@@ -274,6 +281,68 @@ Consumer lưu hai giá trị này cùng mọi thứ nó tạo ra: đó là cách
 biết được nó đã đọc bản nào, và là điều kiện để phát hiện stale mà không phải
 đoán.
 
+## 5.3. Ảnh crop của vùng
+
+**Not Implemented.** Cột crop chưa tồn tại trong schema; phần này là hợp đồng
+được chốt trước migration.
+
+Crop là ảnh cắt đúng `bbox` của một region. Nó **không** phải một
+`content_type` riêng, và đây là quyết định có chủ ý:
+
+* Một `content_type` riêng buộc consumer gọi hai lần rồi tự ghép theo
+  `locator_value`. Chính § 1 cấm consumer diễn giải lại quan hệ của Media —
+  cái ghép đó là việc của Media.
+* Crop vô nghĩa nếu tách khỏi `role`, `reading_order` và `bbox` của chính
+  region. Database đã quyết định như vậy rồi: crop nằm trên
+  `media_extracted_regions`, không nằm ở `media_variants`. Read shape phải kể
+  cùng một câu chuyện với schema.
+
+Hình dạng:
+
+```text
+region.structure.crop := null | { width, height, bytes, delivery_url }
+```
+
+| `include_crop` | `crop` | `crop.delivery_url` |
+| --- | --- | --- |
+| `false` (mặc định) | object nếu revision có crop | `null` |
+| `true` | object nếu revision có crop | signed URL, ngắn hạn |
+
+Mặc định `false` là bắt buộc chứ không phải tối ưu hoá: một trang có thể tới
+100 region, và ký 100 signed URL cho một consumer chỉ muốn đọc text là lãng phí
+và mở rộng bề mặt rò rỉ vô cớ. Không nêu cờ thì consumer vẫn biết crop **tồn
+tại** và nặng bao nhiêu, đủ để quyết định có xin URL hay không.
+
+Nêu `include_crop` với `content_type` khác `region` trả `unsupported_source`,
+cùng luật với `page` ở § 5.1.
+
+### `crop = null` không phải một sự vắng mặt im lặng
+
+`null` ở đây **không** lặp lại vấn đề mà `structure_unavailable` sinh ra để
+giải quyết, vì luật *"vượt trần thì fail cả revision, không cắt bớt crop"*
+khiến crop là **all-or-nothing trong một revision**. Không có trạng thái
+"revision này có crop cho vài vùng".
+
+Nên `null` chỉ mang đúng một nghĩa: **revision này được sinh ra trước khi crop
+được bật**. Consumer đọc được điều đó từ `processing_version` mà không phải
+đoán, và không cần mã lỗi mới.
+
+Đây là hệ quả có ích ngoài dự tính của luật fail-whole-revision. Nó là một lý
+do độc lập để giữ luật đó, bên cạnh lý do dung lượng.
+
+### Ràng buộc
+
+* Crop đi qua signed delivery private, ngắn hạn, tenant-aware — cùng đường với
+  `caption_asset` và `variant` ở § 5, không phải một cơ chế thứ hai.
+* Crop chịu đúng owner-context authorization, revision selection và audit như
+  mọi read khác. Một `delivery_url` đã ký không mở rộng quyền ra ngoài owner
+  context đã authorize.
+* Crop **không** bị xoá khi region chuyển `archived`. Revision cũ vẫn đọc được
+  đầy đủ khi consumer nêu đích danh `processing_version`, đúng § 4.1 — nếu ảnh
+  biến mất thì "đọc được mãi mãi" là câu nói sai.
+* Crop là **quan sát**, không phải diễn giải: Media trả ảnh của vùng, không nói
+  ảnh đó vẽ cái gì (ADR-0019 § D4). Mô tả nội dung ảnh thuộc consumer.
+
 ---
 
 # 6. Mã lỗi
@@ -340,7 +409,8 @@ audit sink cho owner không resolve vẫn là implementation gate, không phải
 | --- | --- |
 | B1 | ADR-0018 đã approve boundary PII/redaction/external processing; retention duration, deletion synchronization và full provenance audit chưa có implementation evidence. Chặn production/real-tenant rollout, không biến `PII_PRESENT` thành OCR failure |
 | B2 | Cue-level caption citation chưa có contract; nếu AI cần, phải review trước |
-| B3 | Sáu bảng substrate cơ bản đã implemented; `region`/`table` vẫn chưa có runtime và hai migration structured chưa được Gate M authorize |
+| B3 | `region`/`table` đã có runtime và đã persist trên tài liệu thật; độ phủ region trên trang scan vẫn không đảm bảo. Consumer phải tôn trọng `structure_unavailable` và fallback về canonical page text (§ 5.1) |
+| B5 | Crop (§ 5.3) là **Not Implemented**: cột chưa tồn tại, chưa có runtime render, chưa qua Database review. Hợp đồng được chốt trước để migration bám theo; consumer không được giả định `structure.crop` đã có |
 | B4 | Đã đóng ở contract v1.7: `usage_type` bắt buộc và nhiều active row trong cùng slot fail-closed bằng `ambiguous_source`. Runtime/test phải có evidence trước khi mở HTTP/API |
 
 ---
