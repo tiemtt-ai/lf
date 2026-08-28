@@ -1,12 +1,12 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.7
+Version: 1.8
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-24
+Last Updated: 2026-08-28
 
 Document Path: platform/LF-Media-Read-Contract.md
 
@@ -39,6 +39,13 @@ data; mọi thứ khác của hợp đồng giữ nguyên.
 Version 1.7 đóng DOC-CONFLICT-0021 bằng selector canonical `usage_type`. Caller
 phải chỉ đúng media slot trong owner context; service không được dùng
 `first()`/`latest()` để đoán source và không nhận bare `media_file_id`.
+
+Version 1.8 đặt tên cho structured coverage gap bằng
+`structure_unavailable`, bắt buộc page-text fallback, và thêm phép đo coverage
+live. Phép đo phải chọn đúng current ready structured revision rồi đối chiếu
+canonical page-text revision có cùng `source_fingerprint`; không được gộp row
+của nhiều source/revision. Lời gọi coverage đi qua cùng active-usage,
+tenant/owner authorization, ambiguity và audit boundary như derived-content.
 
 Version 1.4 áp dụng ADR-0018 đã được Architecture Owner approve ngày 2026-08-25.
 Approval này không authorize external processing và không tự đóng các gate triển
@@ -109,6 +116,7 @@ GET derived-content
   locale                (tuỳ chọn; xem § 4)
   processing_version    (tuỳ chọn; xem § 4.1)
   source_fingerprint    (tuỳ chọn; xem § 4.1)
+  page                  (tuỳ chọn; chỉ với `region` và `table` — xem § 5.1)
 ```
 
 Media tự phân giải owner → active usage → Media File. Consumer không được cầm
@@ -210,6 +218,51 @@ mảng rỗng.
 | `caption_asset` | `media_captions` | `null` — file VTT/SRT/ASS, trả `delivery_url` |
 | `variant` | `media_variants` | `null` — asset thay thế, trả `delivery_url` |
 
+## 5.1. Trang có text nhưng không có cấu trúc
+
+Structured extraction **không** đạt coverage 1.00. Đo trên tài liệu thật: PDF
+text-layer phủ đủ, còn trang scan thì không đảm bảo — một mẫu cho 20/67 trang
+scan có text mà không sinh region nào, với 278–2.017 ký tự mỗi trang. Chi tiết
+và số đo nằm trong [ADR-0019](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md).
+
+Nêu `page` với `content_type` là `region` hoặc `table`:
+
+| Tình huống | Kết quả |
+| --- | --- |
+| Trang có cấu trúc | Trả unit như bình thường |
+| Trang có canonical text nhưng **không** có region trong revision hiện hành | `structure_unavailable` |
+| Trang không có gì | `missing` |
+
+`structure_unavailable` **không phải lỗi hệ thống**. Nó là câu trả lời: *"trang
+này có nội dung, nhưng chưa được cấu trúc hoá."* Consumer gặp nó phải **fallback
+sang `extracted_text` của chính trang đó** — nội dung vẫn đầy đủ, chỉ mất độ
+chính xác của trích dẫn từ mức vùng xuống mức trang.
+
+Lý do mã này tồn tại: nếu trả mảng rỗng, consumer không phân biệt được ba tình
+huống khác nhau — trang trắng thật, trang có nội dung mà layout model trượt, và
+lỗi hệ thống. Khi đó AI **không thiếu dữ liệu; nó không biết là mình đang
+thiếu**, và sẽ trả lời tự tin trên phần đã có. Đặt tên cho sự vắng mặt là cách
+duy nhất để consumer hành xử đúng.
+
+`page` chỉ hợp lệ với `region` và `table`; nêu nó với `content_type` khác trả
+`unsupported_source`.
+
+## 5.2. Đo độ phủ trước khi đọc
+
+Consumer muốn biết toàn cảnh thay vì dò từng trang thì gọi:
+
+```text
+structure-coverage
+  owner_type, owner_id, usage_type, locale?
+→ { pages_with_text, pages_with_regions, pages_text_without_structure[] }
+```
+
+Giá trị được tính **trực tiếp từ bảng output** tại thời điểm đọc, không đọc
+`media_processing_jobs.metadata`. Hai lý do: hợp đồng này cấm consumer chạm bảng
+`media_*` của Media, và metadata coverage chỉ tồn tại cho job chạy sau khi tính
+năng đó được thêm — job cũ chưa backfill. Tính live thì luôn đúng cho mọi
+revision.
+
 **Caption không trích dẫn được ở mức cue.** Một row là một file chứa nhiều cue.
 Consumer cần trích dẫn theo thời gian phải dùng `transcript`, nơi một row đã là
 một đoạn có `timespan` thật. Nếu về sau cần citation ở mức cue của chính caption
@@ -241,6 +294,7 @@ biết được nó đã đọc bản nào, và là điều kiện để phát h
 | `unsupported_source` | MIME không nằm trong tập được hỗ trợ |
 | `revision_unavailable` | `processing_version` được nêu không tồn tại trong owner context này |
 | `revision_mismatch` | `source_fingerprint` không khớp revision đã nêu |
+| `structure_unavailable` | Trang có canonical text nhưng không có cấu trúc trong revision này |
 
 `archived` **vẫn đọc được** khi consumer nêu đích danh `processing_version`; quy
 tắc và mã lỗi đầy đủ ở § 4.1. Không nêu thì mặc định là bản hiện hành và

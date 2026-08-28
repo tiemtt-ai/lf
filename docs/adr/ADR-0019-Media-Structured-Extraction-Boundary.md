@@ -1,6 +1,6 @@
 # ADR-0019 — Media Structured Extraction Boundary
 
-Version: 1.4
+Version: 1.5
 
 Status: Approved
 
@@ -8,7 +8,7 @@ Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-27
+Last Updated: 2026-08-28
 
 Proposal Date: 2026-08-25
 
@@ -325,6 +325,41 @@ việc approve ADR này.
 # Consequences
 
 * Bảng trong PDF trở thành dữ liệu máy đọc được, thay vì text đã bị làm phẳng.
+* **Coverage không phải 1.00, và giới hạn nằm ở trang scan — đo 2026-08-28.**
+  Trên hai tài liệu thật:
+
+  | Tài liệu | Trang có text | Trang có region | Region |
+  | --- | --- | --- | --- |
+  | PDF gần như toàn text-layer | 100 | **100** | 1.924 |
+  | PDF hỗn hợp, 67/99 trang scan | 99 | **79** | 371 |
+
+  Phân tách theo nguồn text của tài liệu thứ hai cho thấy nguyên nhân rõ ràng:
+
+  ```text
+  embedded_text :  0/32 trang thiếu region
+  ocr (scan)    : 20/67 trang thiếu region      (~30%)
+  ```
+
+  Hai mươi trang đó **không trống** — chúng có từ 278 đến 2.017 ký tự. Runtime
+  hiện cố ý chạy Docling ở chế độ layout-only (`do_ocr = false`), nên structured
+  coverage trên trang scan không được bảo đảm. Evidence này không chứng minh
+  rằng trang "không có cấu trúc", cũng chưa tách riêng được lỗi model, chất lượng
+  ảnh và giới hạn của cấu hình adapter.
+
+  Hệ quả cần biết: canonical text vẫn đủ cho 99 trang có nội dung, nên consumer
+  đọc `extracted_text` không mất nội dung. Cái mất là khả năng trích dẫn theo vùng
+  trên những trang đó. Consumer chỉ đọc `region` hiện không phân biệt được ba tình
+  huống — trang trắng thật, trang có text nhưng thiếu cấu trúc, và lỗi hệ thống.
+
+  Quyết định: **không đuổi theo coverage 1.00.** Thay vào đó độ lệch được đo và
+  ghi lại — `media_processing_jobs.metadata.structure_coverage` mang
+  `pages_with_text`, `pages_with_regions` và danh sách `pages_text_without_structure`.
+  Việc để Media Read Contract trả một trạng thái có tên thay cho mảng rỗng là
+  Amendment riêng, chưa mở ở đây.
+
+  Tỷ lệ 47/67 (70,1%) chỉ là evidence của fixture hỗn hợp này, không phải SLA
+  chung cho PDF scan. Nếu sau này muốn nâng coverage, bật OCR pipeline của chính
+  Docling là một thí nghiệm cấu hình mới và phải đo/review lại trước khi cam kết.
 * **Phạm vi định dạng — chốt 2026-08-27: structured extraction chỉ nhận PDF.**
   Adapter Docling hiện đăng ký duy nhất `InputFormat.PDF`, và provider từ chối
   mọi extension khác bằng `unsupported_source`. Định dạng Office cần cấu trúc

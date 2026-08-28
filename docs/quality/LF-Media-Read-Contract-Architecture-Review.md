@@ -1,12 +1,12 @@
 # Media Read Contract Architecture Review
 
-Version: 1.4
+Version: 1.5
 
 Document Status: Review
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-27
+Last Updated: 2026-08-28
 
 Review Date: 2026-08-24
 
@@ -19,9 +19,9 @@ Document Path: quality/LF-Media-Read-Contract-Architecture-Review.md
 | Field | Value |
 | --- | --- |
 | Domain | Media × AI × Course |
-| Specification | [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md) v1.7 |
-| Producer Contract | [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md) v1.6 |
-| Parent ADRs | [ADR-0004](../adr/ADR-0004-Media-Foundation.md), [ADR-0006](../adr/ADR-0006-AI-Foundation.md), [ADR-0017](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md) |
+| Specification | [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md) v1.8 |
+| Producer Contract | [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md) v2.7 |
+| Parent ADRs | [ADR-0004](../adr/ADR-0004-Media-Foundation.md), [ADR-0006](../adr/ADR-0006-AI-Foundation.md), [ADR-0017](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md), [ADR-0018](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md), [ADR-0019](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) |
 | Review Scope | Internal Media Read Service/API for authorized derived output consumers |
 
 Runtime closure 2026-08-24: service nhận `actor_id` tường minh cho HTTP,
@@ -75,12 +75,21 @@ review packet cho reviewer kế tiếp; chúng không tự tạo verdict Approve
       same owner-context authorization and revision selection.
 - [x] Non-ready state returns the closed error contract rather than an empty
       collection or locale/revision fallback.
+- [x] A page with canonical text but no region returns
+      `structure_unavailable`; consumers must fallback to page-level
+      `extracted_text` rather than interpreting an empty structure result as a
+      blank page.
+- [x] Live structure coverage selects one current ready structured revision and
+      one canonical text revision with the same `source_fingerprint`; rows from
+      historical or different-source revisions are excluded.
 
 # E — Database And Audit
 
 - [x] Read paths are tenant-scoped and join through active usage ownership.
 - [x] Every successful derived read appends `media_access_logs.action =
       read_derived`; owner context and selectors belong in safe metadata.
+- [x] Structure-coverage reads use the same active usage, ambiguity,
+      authorization and audit boundary as unit reads.
 - [x] Access log is physically append-only through `BEFORE UPDATE` and `BEFORE
       DELETE` triggers; logs store no signed URL or credential.
 - [x] No schema relationship gives AI write authority over Media.
@@ -123,9 +132,9 @@ review packet cho reviewer kế tiếp; chúng không tự tạo verdict Approve
 | --- | --- | --- |
 | B1 | Retention/redaction for OCR/transcript content is not approved | Blocks real AI consumer rollout |
 | B2 | Cue-level caption citation has no contract | Use transcript locator; new cue contract requires review |
-| B3 | Base processing/read tables and scoped service now exist; structured `region`/`table` persistence and read branches remain unimplemented | Blocks structured operational reads |
+| B3 | Structured reads exist, but scan-page region coverage is not guaranteed under the current layout-only provider configuration | Consumer must honor `structure_unavailable` and fallback to canonical page text |
 | B4 | External processing providers are not configured | Blocks production-derived content generation |
-| B5 | Request identifies only owner context while an owner may have multiple active Media usages; implementation selects `first()` | DOC-CONFLICT-0021 blocks production HTTP/AI read until the selector is deterministic |
+| B5 | DOC-CONFLICT-0021 is resolved by required `usage_type`; multiple active rows in the exact slot fail closed as `ambiguous_source` | Closed in Spec B v1.7; retain regression coverage |
 
 # Review Result
 
@@ -135,6 +144,27 @@ deterministic, but no independent reviewer evidence is recorded. Scoped runtime
 exists under Owner implementation directive; this record must not be cited as
 an Approved architecture verdict. B1–B4 remain open.
 ```
+
+## Spec B Version 1.8 remediation evidence — 2026-08-28
+
+Review of the first `structureCoverage()` implementation found that it selected
+all ready rows for a tenant/media/locale, bypassed exact active-usage ambiguity,
+and emitted no access audit. That implementation could mix historical source
+revisions and report a plausible but false coverage value. Version 1.8 now:
+
+* resolves exactly one active `(owner_type, owner_id, usage_type)` slot and
+  fails closed for detached or ambiguous ownership;
+* selects the current ready structured revision before page filtering;
+* selects canonical page text from the same `source_fingerprint` and one text
+  revision only;
+* constrains table page lookup to regions in that same structured revision;
+* writes allowed/denied `read_derived` audit evidence for coverage reads; and
+* has regression coverage proving a ready row from another source revision is
+  excluded.
+
+This remediation closes the implementation defects found in this review pass.
+It does **not** satisfy the unchecked independent-review gate above, and it does
+not approve retention/redaction or real AI consumer rollout.
 
 # Owner Implementation Directive (not review approval)
 

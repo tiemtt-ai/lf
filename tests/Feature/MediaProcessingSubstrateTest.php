@@ -12,6 +12,7 @@ use App\Services\LocalDocumentProcessingProvider;
 use App\Services\MediaProcessingOrchestrator;
 use App\Services\MediaReadService;
 use App\Services\MediaService;
+use App\Services\StructuredExtractionPersistenceService;
 use App\Support\TenantContext;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Mockery;
 use Tests\TestCase;
 use ZipArchive;
@@ -465,6 +467,15 @@ class MediaProcessingSubstrateTest extends TestCase
             'media_file_id' => $media->id, 'job_type' => 'structured_extraction',
             'status' => 'ready', 'output_type' => 'extracted_region',
         ]);
+        $structuredJob = DB::table('media_processing_jobs')
+            ->where('media_file_id', $media->id)
+            ->where('job_type', 'structured_extraction')
+            ->firstOrFail();
+        $this->assertSame([
+            'pages_with_text' => 0,
+            'pages_with_regions' => 1,
+            'pages_text_without_structure' => [],
+        ], json_decode($structuredJob->metadata, true)['structure_coverage']);
         $this->assertSame(2, DB::table('media_extracted_regions')->where('media_file_id', $media->id)->count());
 
         DB::table('media_file_usages')->insert([
@@ -837,6 +848,238 @@ class MediaProcessingSubstrateTest extends TestCase
         ]);
 
         return [$templateId, $lessonId];
+    }
+
+    /**
+     * Trang co text nhung khong co region la su vang mat im lang: consumer hoi
+     * region se nhan mang rong va khong phan biet duoc "trang trang" voi "trang co
+     * noi dung nhung layout model truot". Test nay dong bang viec do lech duoc ghi
+     * lai thanh so, khong de no chi ton tai duoi dang phat hien tinh co.
+     */
+    public function test_structured_job_records_pages_that_have_text_but_no_structure(): void
+    {
+        $media = $this->uploadDocument();
+        DB::table('media_extracted_texts')->where('media_file_id', $media->id)->delete();
+        $fingerprint = str_repeat('a', 64);
+        $ocrJobId = DB::table('media_processing_jobs')->insertGetId([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'job_type' => 'ocr', 'status' => 'ready', 'attempt' => 1,
+            'idempotency_key' => 'coverage-ocr', 'correlation_id' => (string) Str::uuid(),
+            'source_fingerprint' => $fingerprint, 'processing_version' => 'ocr-v1',
+            'output_profile' => 'layout=preserve;locale=vi', 'output_profile_hash' => str_repeat('c', 64),
+            'provider' => 'fake', 'output_type' => 'extracted_text', 'created_by' => $this->admin->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        foreach ([1, 2, 3] as $page) {
+            DB::table('media_extracted_texts')->insert([
+                'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+                'processing_job_id' => $ocrJobId, 'locale' => 'vi', 'locator_type' => 'page',
+                'locator_value' => (string) $page, 'sequence' => $page, 'text' => 'noi dung trang '.$page,
+                'char_count' => 16, 'confidence_score' => null, 'extraction_method' => 'ocr',
+                'provider' => 'fake', 'processing_version' => 'ocr-v1',
+                'source_fingerprint' => $fingerprint, 'status' => 'ready',
+                'metadata' => null, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        // Provider gia lap chi nhan dien cau truc o trang 1 va 3; trang 2 co text
+        // nhung khong co region — dung hinh dang da do tren tai lieu scan that.
+        $jobId = DB::table('media_processing_jobs')->insertGetId([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'job_type' => 'structured_extraction', 'status' => 'processing', 'attempt' => 1,
+            'idempotency_key' => 'coverage-probe', 'correlation_id' => (string) Str::uuid(),
+            'source_fingerprint' => $fingerprint, 'processing_version' => 'structured-v1',
+            'output_profile' => 'locale=vi;structure=layout', 'output_profile_hash' => str_repeat('b', 64),
+            'provider' => 'fake', 'created_by' => $this->admin->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $job = DB::table('media_processing_jobs')->where('id', $jobId)->first();
+        $coverage = app(StructuredExtractionPersistenceService::class)->persist(
+            $this->customerId, $media, $job, 'vi', [
+                'regions' => [
+                    ['locator_value' => '1#1', 'page' => 1, 'ordinal' => 1, 'reading_order' => 1,
+                        'role' => 'paragraph', 'text' => 'a', 'bbox' => null, 'extraction_method' => 'ocr'],
+                    ['locator_value' => '3#1', 'page' => 3, 'ordinal' => 1, 'reading_order' => 2,
+                        'role' => 'paragraph', 'text' => 'b', 'bbox' => null, 'extraction_method' => 'ocr'],
+                ],
+                'tables' => [],
+            ]
+        )['coverage'];
+
+        $this->assertSame(3, $coverage['pages_with_text']);
+        $this->assertSame(2, $coverage['pages_with_regions']);
+        $this->assertSame([2], $coverage['pages_text_without_structure']);
+    }
+
+    public function test_structured_character_budget_includes_canonical_text_from_a_different_processing_version(): void
+    {
+        config(['media.processing.structured_extraction.max_extracted_characters' => 16]);
+        $media = $this->uploadDocument();
+        $fingerprint = str_repeat('d', 64);
+        $ocrJobId = DB::table('media_processing_jobs')->insertGetId([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'job_type' => 'ocr', 'status' => 'ready', 'attempt' => 1,
+            'idempotency_key' => 'budget-ocr', 'correlation_id' => (string) Str::uuid(),
+            'source_fingerprint' => $fingerprint, 'processing_version' => 'ocr-budget-v1',
+            'output_profile' => 'layout=preserve;locale=vi', 'output_profile_hash' => str_repeat('e', 64),
+            'provider' => 'fake', 'output_type' => 'extracted_text', 'created_by' => $this->admin->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('media_extracted_texts')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'processing_job_id' => $ocrJobId, 'locale' => 'vi', 'locator_type' => 'page',
+            'locator_value' => '1', 'sequence' => 1, 'text' => '1234567890123456', 'char_count' => 16,
+            'extraction_method' => 'ocr', 'provider' => 'fake', 'processing_version' => 'ocr-budget-v1',
+            'source_fingerprint' => $fingerprint, 'status' => 'ready',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $structuredJobId = DB::table('media_processing_jobs')->insertGetId([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'job_type' => 'structured_extraction', 'status' => 'processing', 'attempt' => 1,
+            'idempotency_key' => 'budget-structured', 'correlation_id' => (string) Str::uuid(),
+            'source_fingerprint' => $fingerprint, 'processing_version' => 'structured-budget-v1',
+            'output_profile' => 'locale=vi;structure=layout', 'output_profile_hash' => str_repeat('f', 64),
+            'provider' => 'fake', 'created_by' => $this->admin->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $structuredJob = DB::table('media_processing_jobs')->where('id', $structuredJobId)->first();
+
+        $this->expectExceptionMessage('structured_extraction_too_large');
+        app(StructuredExtractionPersistenceService::class)->persist(
+            $this->customerId, $media, $structuredJob, 'vi', [
+                'regions' => [[
+                    'locator_value' => '1#1', 'page' => 1, 'ordinal' => 1, 'reading_order' => 1,
+                    'role' => 'paragraph', 'text' => 'x', 'bbox' => null, 'extraction_method' => 'ocr',
+                ]],
+                'tables' => [],
+            ]
+        );
+    }
+
+    /**
+     * Muc dich cua `structure_unavailable`: consumer phai phan biet duoc "trang
+     * trang" voi "trang co noi dung nhung layout model truot". Tra mang rong cho
+     * ca hai la thu khien AI khong biet minh dang thieu.
+     */
+    public function test_read_returns_structure_unavailable_for_a_page_with_text_but_no_region(): void
+    {
+        $fixture = $this->structuredCoverageFixture();
+
+        try {
+            app(MediaReadService::class)->read(
+                $this->admin->id, 'course_activity', $fixture['activity_id'], 'document',
+                'region', 'vi', null, null, 'ai', [], 2
+            );
+            $this->fail('Trang 2 khong co region nen phai bao structure_unavailable.');
+        } catch (MediaReadException $exception) {
+            $this->assertSame('structure_unavailable', $exception->errorCode);
+        }
+
+        // Trang co cau truc van doc binh thuong qua cung mot tham so.
+        $units = app(MediaReadService::class)->read(
+            $this->admin->id, 'course_activity', $fixture['activity_id'], 'document',
+            'region', 'vi', null, null, 'ai', [], 1
+        );
+        $this->assertCount(1, $units);
+        $this->assertSame(1, $units[0]['locator']['page'] ?? 1);
+    }
+
+    public function test_structure_coverage_is_computed_live_from_output_tables(): void
+    {
+        $fixture = $this->structuredCoverageFixture();
+
+        // A ready row from another source revision must not inflate current
+        // coverage merely because tenant/media/locale match.
+        DB::table('media_extracted_texts')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $fixture['media_id'],
+            'processing_job_id' => null, 'locale' => 'vi', 'locator_type' => 'page',
+            'locator_value' => '4', 'sequence' => 4, 'text' => 'old revision', 'char_count' => 12,
+            'confidence_score' => null, 'extraction_method' => 'ocr', 'provider' => 'fake',
+            'processing_version' => 'ocr-old', 'source_fingerprint' => str_repeat('e', 64),
+            'status' => 'ready', 'metadata' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('media_extracted_regions')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $fixture['media_id'],
+            'processing_job_id' => null, 'locale' => 'vi', 'locator_type' => 'region',
+            'locator_value' => '4#1', 'page' => 4, 'ordinal' => 1, 'reading_order' => 1,
+            'role' => 'paragraph', 'text' => 'old region', 'char_count' => 10,
+            'bbox_x' => null, 'bbox_y' => null, 'bbox_width' => null, 'bbox_height' => null,
+            'confidence_score' => null, 'extraction_method' => 'ocr', 'provider' => 'fake',
+            'processing_version' => 'structured-old', 'source_fingerprint' => str_repeat('e', 64),
+            'status' => 'ready', 'metadata' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $coverage = app(MediaReadService::class)->structureCoverage(
+            $this->admin->id, 'course_activity', $fixture['activity_id'], 'document', 'vi'
+        );
+
+        $this->assertSame(3, $coverage['pages_with_text']);
+        $this->assertSame(2, $coverage['pages_with_regions']);
+        $this->assertSame([2], $coverage['pages_text_without_structure']);
+        $this->assertDatabaseHas('media_access_logs', [
+            'media_file_id' => $fixture['media_id'],
+            'action' => 'read_derived',
+        ]);
+    }
+
+    /**
+     * Ba trang co text canonical, nhung chi trang 1 va 3 co region — dung hinh dang
+     * da do tren tai lieu scan that.
+     *
+     * @return array{activity_id: int, media_id: int}
+     */
+    private function structuredCoverageFixture(): array
+    {
+        $activityId = 4242;
+        $media = $this->uploadDocument();
+        DB::table('media_extracted_texts')->where('media_file_id', $media->id)->delete();
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id, 'owner_type' => 'course_activity',
+            'owner_id' => $activityId, 'usage_type' => 'document', 'status' => 'active',
+            'created_by' => $this->admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('media_files')->where('id', $media->id)->update(['processing_locale' => 'vi']);
+
+        $jobId = DB::table('media_processing_jobs')->insertGetId([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'job_type' => 'structured_extraction', 'status' => 'ready', 'attempt' => 1,
+            'idempotency_key' => 'coverage-read-probe', 'correlation_id' => (string) Str::uuid(),
+            'source_fingerprint' => str_repeat('c', 64), 'processing_version' => 'fake-v1',
+            'output_profile' => 'locale=vi;structure=layout', 'output_profile_hash' => str_repeat('d', 64),
+            'provider' => 'fake', 'created_by' => $this->admin->id, 'completed_at' => now(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        foreach ([1, 2, 3] as $page) {
+            DB::table('media_extracted_texts')->insert([
+                'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+                'processing_job_id' => null, 'locale' => 'vi', 'locator_type' => 'page',
+                'locator_value' => (string) $page, 'sequence' => $page, 'text' => 'noi dung trang '.$page,
+                'char_count' => 16, 'confidence_score' => null, 'extraction_method' => 'ocr',
+                'provider' => 'fake', 'processing_version' => 'ocr-v1',
+                'source_fingerprint' => str_repeat('c', 64), 'status' => 'ready',
+                'metadata' => null, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+        foreach ([1, 3] as $index => $page) {
+            DB::table('media_extracted_regions')->insert([
+                'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+                'processing_job_id' => $jobId, 'locale' => 'vi', 'locator_type' => 'region',
+                'locator_value' => $page.'#1', 'page' => $page, 'ordinal' => 1,
+                'reading_order' => $index + 1, 'role' => 'paragraph', 'text' => 'vung trang '.$page,
+                'char_count' => 13, 'bbox_x' => null, 'bbox_y' => null, 'bbox_width' => null,
+                'bbox_height' => null, 'confidence_score' => null, 'extraction_method' => 'ocr',
+                'provider' => 'fake', 'processing_version' => 'fake-v1',
+                'source_fingerprint' => str_repeat('c', 64), 'status' => 'ready',
+                'metadata' => null, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        $authorizer = Mockery::mock(CourseMediaOwnerContextAuthorizer::class);
+        $authorizer->shouldReceive('authorized')->andReturnTrue();
+        $this->app->instance(CourseMediaOwnerContextAuthorizer::class, $authorizer);
+
+        return ['activity_id' => $activityId, 'media_id' => (int) $media->id];
     }
 
     private function uploadVideo(string $name = 'lesson.mp4'): object

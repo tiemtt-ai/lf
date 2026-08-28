@@ -28,6 +28,7 @@ class MediaReadService
         ?string $sourceFingerprint = null,
         string $consumer = 'ai',
         array $auditContext = [],
+        ?int $page = null,
     ): array {
         $customerId = TenantContext::customerId() ?? throw new MediaReadException('unauthorized');
         $media = null;
@@ -76,6 +77,10 @@ class MediaReadService
             if ($contentType !== 'variant') {
                 $query->where('locale', $selectedLocale);
             }
+            if ($page !== null && ! in_array($contentType, ['region', 'table'], true)) {
+                throw new MediaReadException('unsupported_source');
+            }
+            $selectedProcessingVersion = $processingVersion;
             if ($processingVersion !== null) {
                 $query->where('processing_version', $processingVersion)->whereIn('status', ['ready', 'archived']);
             } else {
@@ -83,10 +88,42 @@ class MediaReadService
                 $latestVersion = (clone $query)->orderByDesc('processing_job_id')->orderByDesc('id')->value('processing_version');
                 if ($latestVersion !== null) {
                     $query->where('processing_version', $latestVersion);
+                    $selectedProcessingVersion = $latestVersion;
                 }
+            }
+            $selectedOutputFingerprint = (clone $query)->orderByDesc('processing_job_id')->orderByDesc('id')
+                ->value('source_fingerprint');
+            if ($page !== null && $contentType === 'region') {
+                $query->where('page', $page);
+            } elseif ($page !== null && $contentType === 'table') {
+                // A table belongs to a region; constrain the region to the same
+                // structured revision before applying the requested page.
+                $query->whereIn('region_id', DB::table('media_extracted_regions')
+                    ->where('customer_id', $customerId)->where('media_file_id', $media->id)
+                    ->where('locale', $selectedLocale)->where('page', $page)
+                    ->when($selectedProcessingVersion !== null,
+                        fn ($q) => $q->where('processing_version', $selectedProcessingVersion))
+                    ->when($selectedOutputFingerprint !== null,
+                        fn ($q) => $q->where('source_fingerprint', $selectedOutputFingerprint))
+                    ->select('id'));
             }
             $rows = $query->orderBy('id')->get();
             if ($rows->isEmpty()) {
+                // Trang co canonical text nhung khong co cau truc trong revision nay.
+                // Tra mang rong o day se buoc consumer doan giua ba tinh huong khac
+                // nhau: trang trang, model truot, va loi he thong. Dat ten cho no de
+                // consumer fallback sang trich dan theo trang thay vi im lang bo qua.
+                if ($page !== null && in_array($contentType, ['region', 'table'], true)
+                    && DB::table('media_extracted_texts')->where('customer_id', $customerId)
+                        ->where('media_file_id', $media->id)->where('locale', $selectedLocale)
+                        ->where('locator_type', 'page')->where('locator_value', (string) $page)
+                        ->where('status', 'ready')
+                        ->when($selectedOutputFingerprint !== null,
+                            fn ($q) => $q->where('source_fingerprint', $selectedOutputFingerprint))
+                        ->exists()) {
+                    throw new MediaReadException('structure_unavailable');
+                }
+
                 $stateQuery = DB::table($table)->where('customer_id', $customerId)->where('media_file_id', $media->id)
                     ->when($contentType !== 'variant', fn ($q) => $q->where('locale', $selectedLocale));
                 $state = $stateQuery->orderByDesc('created_at')->value('status');
@@ -152,6 +189,104 @@ class MediaReadService
             }
             throw $exception;
         }
+    }
+
+    /**
+     * Do phu cua cau truc so voi text canonical, tinh truc tiep tu bang output.
+     *
+     * Co y KHONG doc `media_processing_jobs.metadata.structure_coverage`: hop dong
+     * nay cam consumer cham bang `media_*` cua Media, va metadata do chi ton tai
+     * cho job moi — job cu chua backfill. Tinh live tu hai bang output thi luon
+     * dung, ke ca voi revision da chay tu truoc.
+     *
+     * @return array{pages_with_text: int, pages_with_regions: int, pages_text_without_structure: array<int, int>}
+     */
+    public function structureCoverage(
+        int $actorId,
+        string $ownerType,
+        int $ownerId,
+        string $usageType,
+        ?string $locale = null,
+    ): array {
+        $customerId = TenantContext::customerId() ?? throw new MediaReadException('unauthorized');
+        $media = null;
+        $selectedLocale = $locale;
+
+        try {
+            if (! $this->authorizer->authorized($customerId, $ownerType, $ownerId, $actorId)) {
+                throw new MediaReadException('unauthorized');
+            }
+            $this->assertUsageTypeMatchesContentType($usageType, 'region');
+            $media = $this->activeMediaForOwner($customerId, $ownerType, $ownerId, $usageType);
+            $selectedLocale = $locale !== null ? $this->profiles->canonicalLocale($locale) : $media->processing_locale;
+            if ($selectedLocale === null) {
+                throw new MediaReadException('locale_unavailable');
+            }
+
+            $regionRevision = DB::table('media_extracted_regions')
+                ->where('customer_id', $customerId)->where('media_file_id', $media->id)
+                ->where('locale', $selectedLocale)->where('status', 'ready')
+                ->orderByDesc('processing_job_id')->orderByDesc('id')->first();
+            if (! $regionRevision) {
+                throw new MediaReadException('missing');
+            }
+
+            $regionPages = DB::table('media_extracted_regions')
+                ->where('customer_id', $customerId)->where('media_file_id', $media->id)
+                ->where('locale', $selectedLocale)->where('status', 'ready')
+                ->where('processing_version', $regionRevision->processing_version)
+                ->where('source_fingerprint', $regionRevision->source_fingerprint)
+                ->pluck('page')->map(static fn ($value): int => (int) $value)
+                ->unique()->sort()->values()->all();
+
+            $textRevisionQuery = DB::table('media_extracted_texts')
+                ->where('customer_id', $customerId)->where('media_file_id', $media->id)
+                ->where('locale', $selectedLocale)->where('locator_type', 'page')
+                ->where('status', 'ready')->where('source_fingerprint', $regionRevision->source_fingerprint);
+            $textRevision = (clone $textRevisionQuery)->orderByDesc('processing_job_id')->orderByDesc('id')->first();
+            $textPages = $textRevision === null ? [] : $textRevisionQuery
+                ->when($textRevision->processing_job_id !== null,
+                    fn ($q) => $q->where('processing_job_id', $textRevision->processing_job_id),
+                    fn ($q) => $q->where('processing_version', $textRevision->processing_version))
+                ->pluck('locator_value')->map(static fn ($value): int => (int) $value)
+                ->unique()->sort()->values()->all();
+
+            $coverage = [
+                'pages_with_text' => count($textPages),
+                'pages_with_regions' => count($regionPages),
+                'pages_text_without_structure' => array_values(array_diff($textPages, $regionPages)),
+            ];
+            $this->audit($customerId, $media, $actorId, 'ai', $ownerType, $ownerId, 'region',
+                $usageType, $selectedLocale, null, $regionRevision->source_fingerprint, 'allowed', null,
+                ['operation' => 'structure_coverage']);
+
+            return $coverage;
+        } catch (MediaReadException $exception) {
+            if ($media) {
+                $this->audit($customerId, $media, $actorId, 'ai', $ownerType, $ownerId, 'region',
+                    $usageType, $selectedLocale, null, null, 'denied', $exception->errorCode,
+                    ['operation' => 'structure_coverage']);
+            }
+            throw $exception;
+        }
+    }
+
+    private function activeMediaForOwner(int $customerId, string $ownerType, int $ownerId, string $usageType): object
+    {
+        $usageQuery = DB::table('media_file_usages')->where('customer_id', $customerId)
+            ->where('owner_type', $ownerType)->where('owner_id', $ownerId)->where('usage_type', $usageType);
+        $activeUsages = (clone $usageQuery)->where('status', 'active')->limit(2)->get();
+        if ($activeUsages->isEmpty()) {
+            throw new MediaReadException($usageQuery->exists() ? 'detached' : 'missing');
+        }
+        if ($activeUsages->count() > 1) {
+            throw new MediaReadException('ambiguous_source');
+        }
+
+        $media = DB::table('media_files')->where('customer_id', $customerId)
+            ->where('id', $activeUsages->first()->media_file_id)->first();
+
+        return $media ?? throw new MediaReadException('missing');
     }
 
     private function mediaForOwner(int $customerId, string $ownerType, int $ownerId, string $usageType): ?object

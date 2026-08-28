@@ -1,6 +1,6 @@
 # Media Structured Extraction Architecture Review
 
-Version: 2.6
+Version: 2.7
 
 Document Status: Review
 
@@ -19,7 +19,7 @@ Document Path: quality/LF-Media-Structured-Extraction-Architecture-Review.md
 | Field | Value |
 | --- | --- |
 | Domain | Media |
-| Parent ADR | [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) **v1.1** — Amendment Approved 2026-08-25 |
+| Parent ADR | [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) **v1.5** — Approved 2026-08-28 |
 | Constraining ADR | [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved |
 | Producer Contract | [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md) |
 | Consumer Contract | [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md) v1.7 |
@@ -133,6 +133,7 @@ ADR-0019 § D1, nhưng:
 | R3 | Khối lượng retention/purge chưa được đo | Một lần purge revision có thể chạm hàng trăm nghìn row cell; `CASCADE` làm nó nguyên tử nhưng không làm nó nhanh |
 | R4 | Chưa có database test cho composite FK 5 cột, các CHECK mới, và readiness invariants | Ba invariant vật lý và bốn readiness invariant hiện chỉ tồn tại trên giấy |
 | R5 | ~~`extraction_method` hai tên~~ — đóng 2026-08-25 theo phương án (a) | Còn lại: migration phải gộp `locator_type` và `extraction_method` vào **một** lần, không tách |
+| R6 | Structured coverage trên trang scan không được bảo đảm khi Docling chạy layout-only (`do_ocr = false`) | Job phải ghi coverage theo canonical text revision; consumer fallback/error có tên vẫn thuộc amendment Media Read riêng |
 
 R4 là điều kiện bắt buộc để review chạy lại: readiness invariants **không** biểu
 diễn được bằng CHECK, nên nếu không có test chứng minh chúng được thực thi trong
@@ -496,6 +497,20 @@ Poppler/Tesseract canonical. Review giữ các gate sau:
 Verdict provider design: **PASS WITH DOCUMENTED RISKS**. Runtime Gate R chỉ đổi
 sang YES sau test F.3–F.5 và provider acceptance F.9; approval này không tự biến
 implementation chưa chạy thành production-ready.
+
+## Implementation evidence addendum — 2026-08-28
+
+Hai fixture local cho thấy coverage khác biệt theo nguồn text: fixture gần như
+toàn text-layer đạt 100/100 trang có region; fixture hỗn hợp đạt 79/99 trang có
+text, trong đó 20/67 trang OCR không có region. Đây là evidence theo fixture,
+không phải SLA chung và không đổi verdict provider.
+
+Runtime phải ghi `media_processing_jobs.metadata.structure_coverage` theo
+canonical ready text revision cùng tenant/media/locale/source fingerprint. OCR
+và Docling có `processing_version` độc lập nên không được join bằng version.
+Thiếu region vẫn là documented optional-output limitation, không làm Media File
+mất `ready`; R6 giữ mở cho tới khi Media Read có fallback/error semantics được
+review riêng.
 
 # H — Owner Approval
 

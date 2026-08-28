@@ -164,11 +164,23 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 ->persist($this->customerId, $media, $job, (string) $locale, $result);
             $outputType = $output['output_type'];
             $outputId = $output['output_id'];
+            $coverage = $output['coverage'] ?? null;
         }
-        DB::table('media_processing_jobs')->where('customer_id', $this->customerId)->where('id', $job->id)->update([
+
+        $update = [
             'status' => 'ready', 'output_type' => $outputType, 'output_id' => $outputId,
             'completed_at' => $now, 'updated_at' => $now,
-        ]);
+        ];
+        if (isset($coverage)) {
+            // Giu metadata cu, chi them mot khoa: coverage la du kien do duoc, khong
+            // phai trang thai nghiep vu, nen no khong thay the gi dang co.
+            $existing = json_decode((string) ($job->metadata ?? ''), true);
+            $update['metadata'] = json_encode(
+                array_replace(is_array($existing) ? $existing : [], ['structure_coverage' => $coverage]),
+                JSON_THROW_ON_ERROR
+            );
+        }
+        DB::table('media_processing_jobs')->where('customer_id', $this->customerId)->where('id', $job->id)->update($update);
     }
 
     /**

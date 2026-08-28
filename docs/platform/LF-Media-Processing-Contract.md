@@ -1,6 +1,6 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.6
+Version: 2.7
 
 Document Status: Approved
 
@@ -16,7 +16,7 @@ Related ADR:
 * [ADR-0006 — AI Foundation](../adr/ADR-0006-AI-Foundation.md)
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 * [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
-* [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved v1.4
+* [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved v1.5
 
 ---
 
@@ -49,6 +49,12 @@ và `page_limit_exceeded` cùng bản chất vĩnh viễn nhưng chưa bao giờ
 ở § 2. Chúng cần một quyết định riêng — chỗ này chỉ ghi lại, không tự thêm.
 
 Amendment này **không** phê duyệt provider nào và không mở lại hồ sơ A0.
+
+**Bổ sung Version 2.7, Approved 2026-08-28.** Structured job phải ghi coverage
+giữa canonical text pages và structured region pages vào job metadata. Coverage
+được chọn theo source identity và canonical OCR revision, không ghép nhầm OCR
+version với Docling version. Đây là observability evidence; thiếu region không
+tự làm optional job thất bại và không thay đổi readiness của Media File.
 
 **Bổ sung Version 2.6, Approved 2026-08-28.** Architecture Owner nâng
 `max_regions_per_page` từ `50` lên `100`, giữ nguyên
@@ -672,6 +678,29 @@ Architecture Review.
 
 Owner freeze ngày 2026-08-25. Các giá trị dưới đây là **contract** theo § 3, không
 phải tuning tuỳ ý; một provider đọc namespace khác sẽ khởi động không giới hạn nào.
+
+### Structured coverage observability
+
+Structured extraction `ready` không đồng nghĩa mọi trang canonical text đều có
+region. Khi hoàn tất một structured revision, job phải ghi
+`metadata.structure_coverage` gồm:
+
+```text
+pages_with_text
+pages_with_regions
+pages_text_without_structure[]
+```
+
+`pages_with_text` và danh sách thiếu phải lấy từ **canonical ready text revision**
+cùng `customer_id`, `media_file_id`, `locale` và `source_fingerprint`; không được
+ghép theo `processing_version`, vì OCR và structured extraction có version độc
+lập. `pages_with_regions` lấy từ output của chính structured job. Coverage là
+observability evidence, không làm optional structured profile thành required và
+không tự chuyển job sang `failed`.
+
+Trang có canonical text nhưng không có region phải được ghi vào danh sách thiếu.
+Không được diễn giải sự vắng mặt đó thành trang trắng hoặc thành kết luận không có
+cấu trúc. Quy tắc consumer fallback/error có tên thuộc Media Read Contract riêng.
 
 ### Ngân sách ký tự
 

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -12,13 +13,14 @@ class StructuredExtractionPersistenceService
      * owns the surrounding transaction.
      *
      * @param  array<string, mixed>  $result
-     * @return array{output_type: string, output_id: int}
+     * @return array{output_type: string, output_id: int, coverage: array<string, mixed>}
      */
     public function persist(int $customerId, object $media, object $job, string $locale, array $result): array
     {
         $regions = array_values($result['regions'] ?? []);
         $tables = array_values($result['tables'] ?? []);
-        $this->validate($customerId, $media, $job, $locale, $regions, $tables);
+        $canonicalTextRows = $this->canonicalTextRows($customerId, $media, $job, $locale);
+        $this->validate($regions, $tables, $canonicalTextRows);
 
         $now = now();
         $regionIds = [];
@@ -107,18 +109,82 @@ class StructuredExtractionPersistenceService
                 ->update(['status' => 'archived', 'updated_at' => $now]);
         }
 
+        $coverage = $this->structureCoverage($canonicalTextRows, $regions);
+
         if ($regionIds !== []) {
-            return ['output_type' => 'extracted_region', 'output_id' => (int) $regionIds[0]];
+            return ['output_type' => 'extracted_region', 'output_id' => (int) $regionIds[0], 'coverage' => $coverage];
         }
         if ($firstTableId !== null) {
-            return ['output_type' => 'extracted_table', 'output_id' => $firstTableId];
+            return ['output_type' => 'extracted_table', 'output_id' => $firstTableId, 'coverage' => $coverage];
         }
 
         throw new RuntimeException('no_extractable_text');
     }
 
+    /**
+     * Do lech giua text canonical va cau truc, roi ghi lai thanh so.
+     *
+     * Mot trang co text nhung khong co region la mot su vang mat IM LANG: consumer
+     * hoi region se nhan mang rong, va khong the phan biet "trang trang" voi "trang
+     * co noi dung nhung layout model truot". Do tren tai lieu that: PDF text-layer
+     * dat coverage day du, con trang scan thi khong dam bao.
+     *
+     * Ghi so o day khong sua duoc do lech — no chi lam do lech tro thanh thu truy
+     * van duoc, thay vi mot phat hien tinh co.
+     *
+     * @param  array<int, array<string, mixed>>  $regions
+     * @return array<string, mixed>
+     */
+    private function structureCoverage(Collection $canonicalTextRows, array $regions): array
+    {
+        $textPages = $canonicalTextRows->pluck('locator_value')
+            ->map(static fn ($value): int => (int) $value)
+            ->unique()->sort()->values()->all();
+
+        $regionPages = collect($regions)->pluck('page')
+            ->map(static fn ($value): int => (int) $value)
+            ->unique()->sort()->values()->all();
+
+        $missing = array_values(array_diff($textPages, $regionPages));
+
+        return [
+            'pages_with_text' => count($textPages),
+            'pages_with_regions' => count($regionPages),
+            'pages_text_without_structure' => $missing,
+        ];
+    }
+
+    private function canonicalTextRows(int $customerId, object $media, object $job, string $locale): Collection
+    {
+        $base = DB::table('media_extracted_texts')
+            ->where('customer_id', $customerId)
+            ->where('media_file_id', $media->id)
+            ->where('locale', $locale)
+            ->where('locator_type', 'page')
+            ->where('source_fingerprint', $job->source_fingerprint)
+            ->where('status', 'ready');
+        $latest = (clone $base)
+            ->orderByDesc('processing_job_id')
+            ->orderByDesc('id')
+            ->first(['processing_job_id', 'processing_version']);
+
+        if ($latest === null) {
+            return collect();
+        }
+
+        return $base
+            ->when(
+                $latest->processing_job_id !== null,
+                fn ($query) => $query->where('processing_job_id', $latest->processing_job_id),
+                fn ($query) => $query->where('processing_version', $latest->processing_version),
+            )
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get(['locator_value', 'char_count']);
+    }
+
     /** @param array<int, array<string, mixed>> $regions @param array<int, array<string, mixed>> $tables */
-    private function validate(int $customerId, object $media, object $job, string $locale, array $regions, array $tables): void
+    private function validate(array $regions, array $tables, Collection $canonicalTextRows): void
     {
         $maxPerPage = (int) config('media.processing.structured_extraction.max_regions_per_page', 100);
         $maxRegions = (int) config('media.processing.structured_extraction.max_regions_per_document', 5000);
@@ -197,10 +263,7 @@ class StructuredExtractionPersistenceService
             }
         }
 
-        $pageChars = (int) DB::table('media_extracted_texts')->where('customer_id', $customerId)
-            ->where('media_file_id', $media->id)->where('locale', $locale)
-            ->where('processing_version', $job->processing_version)
-            ->where('source_fingerprint', $job->source_fingerprint)->sum('char_count');
+        $pageChars = (int) $canonicalTextRows->sum('char_count');
         if ($cellCount > $maxCells || $pageChars + $structuredChars > $maxChars) {
             throw new RuntimeException('structured_extraction_too_large');
         }
