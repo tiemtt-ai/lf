@@ -521,6 +521,14 @@
                 @csrf
                 @method('DELETE')
 
+                {{-- Giữ nguyên bộ lọc đang xem để sau khi xóa quay lại đúng danh sách
+                     người dùng đang đứng, thay vì bị ném về một bộ lọc khác. --}}
+                @foreach (request()->only(['tab', 'type', 'keyword', 'owner_type', 'usage_status', 'page']) as $filterKey => $filterValue)
+                    @if (filled($filterValue) && is_string($filterValue))
+                        <input type="hidden" name="{{ $filterKey }}" value="{{ $filterValue }}">
+                    @endif
+                @endforeach
+
                 <template x-for="mediaId in deleteTarget.ids" x-bind:key="mediaId">
                     <input type="hidden" name="media_ids[]" x-bind:value="mediaId">
                 </template>

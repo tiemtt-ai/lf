@@ -292,6 +292,53 @@ class MediaLibraryManagementTest extends TestCase
             ->assertHeader('content-type', 'image/png');
     }
 
+    /**
+     * Xoa xong phai quay lai dung danh sach nguoi dung dang dung.
+     *
+     * Truoc day bulkDestroy() ep `usage_status=unused`. Nguoi dung dang xem tab
+     * "Tat ca", xoa mot ban ghi, roi bi nem sang bo loc "Chua su dung" — va vi
+     * ban ghi vua xoa la ban chua dung duy nhat, danh sach ve rong. Man hinh bao
+     * "Khong tim thay Media phu hop" ngay duoi tab "Tat ca 17": dung ve ky thuat,
+     * doc len nhu mat du lieu.
+     */
+    public function test_bulk_delete_returns_to_the_list_filters_the_user_was_viewing(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        TenantContext::set((object) ['id' => $customerId]);
+
+        $media = app(MediaService::class)->upload(
+            UploadedFile::fake()->image('unused-cover.png', 100, 100),
+            ['file_type' => 'image', 'module' => 'course', 'entity_type' => 'categories', 'entity_id' => 1, 'purpose' => 'thumbnail'],
+            $admin->id
+        );
+
+        $this->actingAs($admin)
+            ->delete('https://tenant-a.localhost/admin/media/bulk', [
+                'media_ids' => [$media->id],
+                'tab' => 'images',
+                'keyword' => 'cover',
+            ])
+            ->assertRedirect('https://tenant-a.localhost/admin/media?tab=images&keyword=cover');
+    }
+
+    public function test_single_delete_keeps_the_current_filters_instead_of_dropping_them(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        TenantContext::set((object) ['id' => $customerId]);
+
+        $media = app(MediaService::class)->upload(
+            UploadedFile::fake()->image('single-cover.png', 100, 100),
+            ['file_type' => 'image', 'module' => 'course', 'entity_type' => 'categories', 'entity_id' => 1, 'purpose' => 'thumbnail'],
+            $admin->id
+        );
+
+        $this->actingAs($admin)
+            ->delete('https://tenant-a.localhost/admin/media/'.$media->id, ['tab' => 'images'])
+            ->assertRedirect('https://tenant-a.localhost/admin/media?tab=images');
+    }
+
     private function tableMediaElementCount(string $html, string $tagName): int
     {
         $previous = libxml_use_internal_errors(true);
@@ -509,6 +556,8 @@ class MediaLibraryManagementTest extends TestCase
         $this->actingAs($admin)
             ->delete('https://tenant-a.localhost/admin/media/bulk', [
                 'media_ids' => [$first->id, $second->id],
+                // Form gui kem bo loc dang xem; redirect phai quay lai dung do.
+                'usage_status' => 'unused',
             ])
             ->assertRedirect('https://tenant-a.localhost/admin/media?usage_status=unused')
             ->assertSessionHas(

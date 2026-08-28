@@ -93,13 +93,39 @@ class MediaFileController extends Controller
         ]);
     }
 
-    public function destroy(int $id): RedirectResponse
+    public function destroy(Request $request, int $id): RedirectResponse
     {
         $this->mediaService->deleteMedia($id);
 
         return redirect()
-            ->route('admin.media.index')
+            ->route('admin.media.index', $this->listFilters($request))
             ->with('success', __('lf.LF_media_file_common_deleted'));
+    }
+
+    /**
+     * Giu nguyen bo loc nguoi dung dang xem khi quay lai danh sach.
+     *
+     * Truoc day bulkDestroy() dieu huong cung `usage_status=unused`. Hau qua:
+     * xoa ban ghi chua dung cuoi cung thi danh sach ve rong va hien "Khong tim
+     * thay Media phu hop" ngay ben duoi tab "Tat ca 17" — dung ve ky thuat nhung
+     * doc len nhu mat du lieu. destroy() thi nguoc lai: vut bo moi bo loc va nem
+     * nguoi dung ve danh sach khong loc.
+     *
+     * Chi lay lai cac khoa bo loc da biet, khong nhan URL tu request, de khong mo
+     * duong open redirect.
+     *
+     * @return array<string, string>
+     */
+    private function listFilters(Request $request): array
+    {
+        return array_filter([
+            'tab' => (string) $request->input('tab', ''),
+            'type' => (string) $request->input('type', ''),
+            'keyword' => (string) $request->input('keyword', ''),
+            'owner_type' => (string) $request->input('owner_type', ''),
+            'usage_status' => (string) $request->input('usage_status', ''),
+            'page' => (string) $request->input('page', ''),
+        ], static fn (string $value): bool => $value !== '');
     }
 
     public function bulkDestroy(Request $request): RedirectResponse
@@ -114,7 +140,7 @@ class MediaFileController extends Controller
         );
 
         return redirect()
-            ->route('admin.media.index', ['usage_status' => 'unused'])
+            ->route('admin.media.index', $this->listFilters($request))
             ->with('success', trans_choice(
                 'lf.LF_media_file_bulk_deleted',
                 $deletedCount,
