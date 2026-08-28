@@ -2230,6 +2230,53 @@ class CourseMediaIntegrationTest extends TestCase
         }
     }
 
+    public function test_deleting_an_activity_detaches_only_its_active_media_usages(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Delete Activity Media', 'delete-activity-media', $admin->id);
+        $lessonId = $this->createLesson($customerId, $templateId, 'Lesson', 'lesson');
+        $mediaId = $this->createMediaFile($customerId, $admin->id, 'document', 'shared.pdf', 'application/pdf');
+        $now = now();
+        $activityValues = [
+            'customer_id' => $customerId, 'template_id' => $templateId, 'template_lesson_id' => $lessonId,
+            'description' => null, 'activity_type' => 'document', 'external_video_url' => null,
+            'live_class_url' => null, 'assessment_quiz_id' => null, 'duration_seconds' => 0,
+            'estimated_duration_seconds' => null, 'is_required' => true, 'completion_rule' => 'view',
+            'completion_threshold' => null, 'is_preview' => false, 'unlock_rule' => 'none',
+            'unlock_after_activity_id' => null, 'unlock_at' => null, 'created_by' => $admin->id,
+            'created_at' => $now, 'updated_at' => $now,
+        ];
+        $deletedActivityId = DB::table('core_course_template_activities')->insertGetId($activityValues + [
+            'title' => 'Deleted activity', 'sort_order' => 1,
+        ]);
+        $retainedActivityId = DB::table('core_course_template_activities')->insertGetId($activityValues + [
+            'title' => 'Retained activity', 'sort_order' => 2,
+        ]);
+        foreach ([$deletedActivityId, $retainedActivityId] as $activityId) {
+            DB::table('media_file_usages')->insert([
+                'customer_id' => $customerId, 'media_file_id' => $mediaId,
+                'owner_type' => 'course_activity', 'owner_id' => $activityId,
+                'usage_type' => 'document', 'status' => 'active', 'metadata' => null,
+                'created_by' => $admin->id, 'created_at' => $now, 'updated_at' => $now,
+            ]);
+        }
+
+        $this->actingAs($admin)->delete(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/{$deletedActivityId}"
+        )->assertRedirect();
+
+        $this->assertDatabaseMissing('core_course_template_activities', ['id' => $deletedActivityId]);
+        $this->assertDatabaseHas('media_file_usages', [
+            'customer_id' => $customerId, 'media_file_id' => $mediaId,
+            'owner_type' => 'course_activity', 'owner_id' => $deletedActivityId, 'status' => 'detached',
+        ]);
+        $this->assertDatabaseHas('media_file_usages', [
+            'customer_id' => $customerId, 'media_file_id' => $mediaId,
+            'owner_type' => 'course_activity', 'owner_id' => $retainedActivityId, 'status' => 'active',
+        ]);
+    }
+
     public function test_activity_media_preview_fails_closed_for_wrong_relationship_and_teacher_scope(): void
     {
         $customerId = $this->createTenant();

@@ -587,6 +587,24 @@ class CourseTemplateActivityController extends Controller
 
         DB::transaction(function () use ($customerId, $templateId, $lessonId, $activityId): void {
             $this->lockTemplate($customerId, $templateId);
+            $usageIds = DB::table('media_file_usages')
+                ->where('customer_id', $customerId)
+                ->where('owner_type', 'course_activity')
+                ->where('owner_id', $activityId)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->pluck('id');
+
+            if ($usageIds->isNotEmpty()) {
+                DB::table('media_file_usages')
+                    ->where('customer_id', $customerId)
+                    ->whereIn('id', $usageIds)
+                    ->update([
+                        'status' => 'detached',
+                        'updated_at' => now(),
+                    ]);
+            }
+
             DB::table('core_course_template_activities')
                 ->where('customer_id', $customerId)
                 ->where('template_id', $templateId)
