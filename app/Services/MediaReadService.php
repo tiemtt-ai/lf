@@ -262,6 +262,10 @@ class MediaReadService
 
             return $coverage;
         } catch (MediaReadException $exception) {
+            // Match `read()`: a denied or ambiguous owner lookup is still an
+            // auditable access attempt when an owner-scoped Media row can be
+            // resolved. Resolution here grants no read authority.
+            $media ??= $this->mediaForOwner($customerId, $ownerType, $ownerId, $usageType);
             if ($media) {
                 $this->audit($customerId, $media, $actorId, 'ai', $ownerType, $ownerId, 'region',
                     $usageType, $selectedLocale, null, null, 'denied', $exception->errorCode,

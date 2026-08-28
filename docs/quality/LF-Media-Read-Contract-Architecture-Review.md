@@ -1,6 +1,6 @@
 # Media Read Contract Architecture Review
 
-Version: 1.5
+Version: 1.6
 
 Document Status: Review
 
@@ -158,9 +158,12 @@ revisions and report a plausible but false coverage value. Version 1.8 now:
 * selects canonical page text from the same `source_fingerprint` and one text
   revision only;
 * constrains table page lookup to regions in that same structured revision;
-* writes allowed/denied `read_derived` audit evidence for coverage reads; and
+* writes allowed/denied `read_derived` audit evidence for coverage reads,
+  including authorization denial or ambiguity whenever the owner-scoped Media
+  row can be resolved without granting access; and
 * has regression coverage proving a ready row from another source revision is
-  excluded.
+  excluded, plus a denied coverage read is recorded with
+  `decision=denied/error_code=unauthorized`.
 
 This remediation closes the implementation defects found in this review pass.
 It does **not** satisfy the unchecked independent-review gate above, and it does

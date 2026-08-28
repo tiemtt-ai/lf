@@ -1022,6 +1022,30 @@ class MediaProcessingSubstrateTest extends TestCase
         ]);
     }
 
+    public function test_denied_structure_coverage_read_is_audited_when_media_can_be_resolved(): void
+    {
+        $fixture = $this->structuredCoverageFixture();
+        $authorizer = Mockery::mock(CourseMediaOwnerContextAuthorizer::class);
+        $authorizer->shouldReceive('authorized')->once()->andReturnFalse();
+        $this->app->instance(CourseMediaOwnerContextAuthorizer::class, $authorizer);
+
+        try {
+            app(MediaReadService::class)->structureCoverage(
+                $this->admin->id, 'course_activity', $fixture['activity_id'], 'document', 'vi'
+            );
+            $this->fail('Denied structure coverage read must fail closed.');
+        } catch (MediaReadException $exception) {
+            $this->assertSame('unauthorized', $exception->errorCode);
+        }
+
+        $log = DB::table('media_access_logs')->where('media_file_id', $fixture['media_id'])
+            ->orderByDesc('id')->firstOrFail();
+        $metadata = json_decode($log->metadata, true);
+        $this->assertSame('denied', $metadata['decision']);
+        $this->assertSame('unauthorized', $metadata['error_code']);
+        $this->assertSame('region', $metadata['content_type']);
+    }
+
     /**
      * Ba trang co text canonical, nhung chi trang 1 va 3 co region — dung hinh dang
      * da do tren tai lieu scan that.
