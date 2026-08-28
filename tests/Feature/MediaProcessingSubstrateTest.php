@@ -19,6 +19,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Tests\TestCase;
@@ -673,6 +674,32 @@ class MediaProcessingSubstrateTest extends TestCase
         ]);
     }
 
+    public function test_http_document_upload_redirect_renders_while_media_is_still_processing(): void
+    {
+        Queue::fake();
+        [$templateId, $lessonId] = $this->courseFixture();
+
+        $this->actingAs($this->admin)
+            ->followingRedirects()
+            ->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload([
+                'structured_extraction' => '1',
+            ]))
+            ->assertOk()
+            ->assertSeeText('Tai lieu bai hoc')
+            ->assertSeeText(__('lf.LF_course_template_activity_structured_queued_notice'))
+            ->assertSessionHasNoErrors();
+
+        $usage = DB::table('media_file_usages')
+            ->where('owner_type', 'course_activity')
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertDatabaseHas('media_files', [
+            'id' => $usage->media_file_id,
+            'status' => 'processing',
+        ]);
+    }
+
     /**
      * Checkbox chi hien voi document, nhung request thi gia mao duoc. Controller
      * phai ep co ve false theo file type, khong tin vao input.
@@ -748,9 +775,13 @@ class MediaProcessingSubstrateTest extends TestCase
         $runner->shouldReceive('run')->once()->andReturn("Pages: 500\n");
         $this->app->instance(DocumentProcessRunner::class, $runner);
 
+        $message = 'PDF có 500 trang. Hệ thống chỉ hỗ trợ tối đa 100 trang cho bước trích xuất text/OCR, dù có hoặc không bật Docling. Tệp cũng phải không vượt quá 1 GB. Vui lòng chia tài liệu thành các phần nhỏ hơn.';
+
         $this->actingAs($this->admin)
             ->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload())
-            ->assertSessionHasErrors('activity_document_file');
+            ->assertSessionHasErrors([
+                'activity_document_file' => $message,
+            ]);
 
         $this->assertSame(0, DB::table('media_file_usages')->where('owner_type', 'course_activity')->count());
         $this->assertSame(0, DB::table('media_processing_jobs')->count());

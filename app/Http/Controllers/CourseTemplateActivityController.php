@@ -898,7 +898,7 @@ class CourseTemplateActivityController extends Controller
                     }
                     $maxPages = (int) config('media.processing.local_document.max_pages', 100);
                     if ((int) $matches[1] > $maxPages) {
-                        $fail("PDF có {$matches[1]} trang. Hệ thống hiện hỗ trợ tối đa {$maxPages} trang cho mỗi tài liệu. Vui lòng chia tài liệu thành các phần nhỏ hơn.");
+                        $fail("PDF có {$matches[1]} trang. Hệ thống chỉ hỗ trợ tối đa {$maxPages} trang cho bước trích xuất text/OCR, dù có hoặc không bật Docling. Tệp cũng phải không vượt quá 1 GB. Vui lòng chia tài liệu thành các phần nhỏ hơn.");
                     }
                 },
             ],

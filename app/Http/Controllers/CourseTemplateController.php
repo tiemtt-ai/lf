@@ -839,7 +839,7 @@ class CourseTemplateController extends Controller
                     ->getOwnerMedia('course_activity', (int) $activity->id)
                     ->first();
 
-                if ($media) {
+                if ($media && $media->status === 'ready') {
                     $activity->view_url = $this->mediaService
                         ->generateSignedUrl((int) $media->id);
                     $activity->view_kind = 'media';

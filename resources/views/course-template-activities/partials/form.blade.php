@@ -250,7 +250,10 @@
                 <span><strong>1 GB</strong><small>Tối đa mỗi tệp</small></span>
                 <span><strong>100 trang</strong><small>Tối đa với PDF</small></span>
             </div>
-            <p>PDF vượt 100 trang cần được chia thành các phần nhỏ hơn trước khi tải lên.</p>
+            <p>
+                Tệp phải đồng thời không vượt quá 1 GB và, nếu là PDF, không vượt quá 100 trang.
+                Giới hạn 100 trang áp dụng cả khi không bật phân tích cấu trúc Docling.
+            </p>
         </div>
     </div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field"
