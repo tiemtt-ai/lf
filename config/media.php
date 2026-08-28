@@ -40,7 +40,14 @@ return [
             'command_timeout_seconds' => (int) env('MEDIA_STRUCTURED_COMMAND_TIMEOUT_SECONDS', 900),
             'crop_enabled' => (bool) env('MEDIA_STRUCTURED_CROP_ENABLED', true),
             'crop_dpi' => (int) env('MEDIA_STRUCTURED_CROP_DPI', 200),
+            // Tap vung du dieu kien cat crop. Consumer tu tinh duoc vi tu nay tu
+            // `role` + `bbox` da co san trong unit; xem Spec B § 5.3. Mo them role
+            // phai do lai tran dung luong.
+            'crop_roles' => ['figure'],
             'crop_ocr_enabled' => (bool) env('MEDIA_STRUCTURED_CROP_OCR_ENABLED', true),
+            // Text ngan hon nguong nay chua du de coi la noi dung figure co y
+            // nghia. OCR chi thay the khi ket qua dai hon text hien co.
+            'crop_ocr_min_text_characters' => (int) env('MEDIA_STRUCTURED_CROP_OCR_MIN_TEXT_CHARACTERS', 2),
             // Locale canonical -> ma ngon ngu Tesseract. Locale khong co trong
             // bang thi KHONG doan sang 'eng': OCR sai ngon ngu tra ra chuoi rac
             // nhung trong nhu text that, va consumer khong phan biet duoc.

@@ -267,6 +267,25 @@
         </button>
     </div>
 
+    {{-- Don rac storage: khong co lich tu dong, admin bam khi muon. --}}
+    <div class="media-library-storage-purge">
+        <div class="media-library-storage-purge__note">
+            <strong>{{ __('lf.LF_media_storage_purge_title') }}</strong>
+            <p>{{ __('lf.LF_media_storage_purge_note') }}</p>
+        </div>
+        <form method="POST"
+              action="{{ route('admin.media.purge-orphan-storage') }}"
+              onsubmit="return confirm(@js(__('lf.LF_media_storage_purge_confirm')));">
+            @csrf
+            @foreach ($listFilters as $filterKey => $filterValue)
+                <input type="hidden" name="{{ $filterKey }}" value="{{ $filterValue }}">
+            @endforeach
+            <button type="submit" class="btn btn-outline-secondary">
+                {{ __('lf.LF_media_storage_purge_action') }}
+            </button>
+        </form>
+    </div>
+
     <div class="admin-table-wrap media-library-table-wrap media-library-index-table-wrap">
         <table class="table media-library-table media-library-index-table admin-table-has-actions">
             <thead>

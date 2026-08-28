@@ -13,6 +13,10 @@ Route::delete('/media/bulk', [MediaFileController::class, 'bulkDestroy'])
 Route::delete('/media/{id}', [MediaFileController::class, 'destroy'])
     ->name('media.destroy');
 
+// Don rac storage: admin bam, khong co lich tu dong. Xem MediaStorageResidueSweeper.
+Route::post('/media/purge-orphan-storage', [MediaFileController::class, 'purgeOrphanStorage'])
+    ->name('media.purge-orphan-storage');
+
 Route::get('/media-categories', [MediaCategoryController::class, 'index'])
     ->name('media-categories.index');
 

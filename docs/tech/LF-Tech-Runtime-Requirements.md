@@ -1,12 +1,12 @@
 # LF-Tech-Runtime-Requirements.md
 
-Version: 1.2
+Version: 1.4
 
 Document Status: Draft
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-27
+Last Updated: 2026-08-28
 
 Document Path: tech/LF-Tech-Runtime-Requirements.md
 
@@ -404,25 +404,14 @@ nó vào extension list của CI và xác nhận nó có trên production. Hiệ
 chạy trong CI, và một production thiếu `ext-zip` sẽ hỏng đúng ở nhánh DOCX/XLSX
 mà không test nào báo.
 
-## 11.2. Giai đoạn layout PDF — chưa có phần mềm nào được duyệt
+## 11.2. Layout PDF bằng Docling — runtime đã có, production chưa deploy
 
-Sinh `role`, `bbox` và `reading_order` cho PDF cần một engine phân tích bố cục.
-Stack hiện tại — Poppler + Tesseract + LibreOffice — **không** có năng lực đó.
+[LF-Tech-Stack](LF-Tech-Stack.md) đã nhận Python 3.11 + Docling 2.119.0 làm
+runtime local/offline cho `structured_extraction`. Provider đã implemented tại
+`DoclingStructuredExtractionProvider`; checkbox PDF là opt-in và Docling **không
+thay** OCR canonical Poppler/Tesseract.
 
-Trước khi cài bất cứ thứ gì, các điều kiện sau là điều kiện tài liệu, không phải
-thủ tục:
-
-| # | Điều kiện |
-|---|---|
-| 1 | [LF-Tech-Stack](LF-Tech-Stack.md) § Official Stack **không có Python**, và Docker được ghi là `(Future)`. Chạy một engine Python đóng gói container là **Tech Stack amendment**, không phải một lệnh cài |
-| 2 | [ADR-0019](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) § D5 nói rõ ADR đó tạo **chỗ chứa**, không phê duyệt provider nào |
-| 3 | Hồ sơ A0 đã đóng ngày 2026-08-25 với quyết định giữ Poppler + Tesseract; harness đo **đã bị xoá**, nên mở lại phép đo là dựng lại từ đầu |
-| 4 | Điều kiện mở lại đã ghi sẵn: engine layout vào như `output_profile` riêng `layout=structured` song song với `layout=preserve`, **không thay** Tesseract |
-| 5 | Provider mới đọc namespace config khác sẽ khởi động với **không giới hạn nào** — § 5.2. Nó phải áp dụng lại tường minh cả trần trang, trần ký tự và ba trần structured |
-
-Nếu và khi engine được duyệt, đây là footprint đã đo thật trong run A0
-`a0-fair-baseline-20260825`, dùng để tính sizing worker chứ không phải để tranh
-luận lại quyết định:
+Footprint đo từ A0 dùng để sizing worker:
 
 | Chỉ số | Poppler + Tesseract | Docling |
 |---|---:|---:|
@@ -432,7 +421,231 @@ luận lại quyết định:
 Chênh lệch bộ nhớ 15× nghĩa là worker hiện tại **không** chạy được engine đó ở
 cùng cấu hình; đây là thay đổi hạ tầng có chi phí, không phải một dependency.
 
-## 11.3. Không thuộc phạm vi cài đặt
+### Inventory phải giữ parity
+
+| Thành phần | Giá trị đã xác minh local |
+|---|---|
+| Python | 3.11 x86_64 |
+| Docling | 2.119.0 |
+| `requirements.lock` SHA-256 | `6b2ae5e4e8055705ee693d924db7b83660ab6d6e990096e10477fd083583fa30` |
+| `extract.py` SHA-256 | `70a48024487d263860b9b49dfccb4a44ad340f3016b2b39ea674408c4a19f226` |
+| Model inventory | 60 files, khoảng 669 MB |
+| Model inventory SHA-256 | `53656bed209f4d3300eb5e4ba8e2c4c93b60e768eff9a1ee0bb132e5340b655e` |
+| Execution | CPU, offline, remote services disabled, `do_ocr=false` |
+
+Model hash được tính từ danh sách SHA-256 của từng file sau khi sort theo path.
+Không so hash của tar/zip vì metadata đóng gói có thể thay đổi dù nội dung model
+không đổi.
+
+### Blocker đóng gói trước production
+
+`runtime/docling/requirements.lock` hiện pin dependency trực tiếp nhưng **chưa
+phải full transitive lock có hash**. Chạy `pip install -r` trực tiếp từ Internet
+có thể resolve một dependency chuyển tiếp khác với local.
+
+Trước production phải tạo, review và lưu trong private deployment artifact:
+
+1. full lock cho đúng Python 3.11 và architecture của worker;
+2. wheelhouse chứa toàn bộ wheel chuyển tiếp;
+3. checksum manifest của wheelhouse và model;
+4. SBOM/vulnerability scan theo quy trình deployment;
+5. build provenance gắn với commit LF và `processing_version`.
+
+Production cài bằng `--no-index --find-links`, không tải package/model lúc worker
+khởi động. Không commit `.venv`, wheelhouse hoặc model lớn vào Git.
+
+## 11.3. Runbook cài production Docling
+
+### A. Chuẩn bị image/host
+
+Worker cần Python 3.11 đúng architecture, Poppler (`pdfinfo`, `pdftoppm`,
+`pdftotext`), Tesseract cùng language pack được dùng (`vie`, `kor`, `eng`), và
+disk tạm đủ cho render PDF/crop. LibreOffice vẫn cần cho nhánh Office canonical,
+không phải cho Docling PDF.
+
+Không dùng Python hệ thống của web process. Dùng virtualenv riêng dưới release
+hoặc shared runtime có version, ví dụ:
+
+```bash
+PY311=/absolute/path/to/python3.11
+$PY311 --version
+$PY311 -m venv /srv/learnforge/runtime/docling/.venv
+/srv/learnforge/runtime/docling/.venv/bin/python -m pip install \
+  --no-index --find-links=/srv/learnforge/artifacts/docling-wheelhouse \
+  -r /srv/learnforge/current/runtime/docling/requirements.lock
+/srv/learnforge/runtime/docling/.venv/bin/python -m pip check
+```
+
+`PY311` phải là đường dẫn tuyệt đối đã được quản lý bởi image/host. Không
+`pip install` system-wide, không `brew link`/sửa PATH toàn hệ thống và không dùng
+virtualenv benchmark làm production runtime.
+
+### B. Đặt model offline
+
+Copy model đã duyệt từ private build artifact vào thư mục chỉ worker đọc được:
+
+```text
+/srv/learnforge/runtime/docling/models/
+```
+
+Xác minh đủ 60 file và inventory SHA-256 ở trên. Worker production không cần
+quyền ghi vào model directory. Không cho phép fallback tải Hugging Face. Adapter
+gán cưỡng bức:
+
+```text
+HF_HUB_OFFLINE=1
+TRANSFORMERS_OFFLINE=1
+DOCLING_SERVE_ENABLE_REMOTE_SERVICES=false
+```
+
+và `enable_remote_services=false`, `allow_external_plugins=false` trong Docling.
+
+### C. Biến môi trường production
+
+Các đường dẫn sau chỉ là mẫu; thay bằng absolute path của release thực tế:
+
+```dotenv
+MEDIA_STRUCTURED_EXTRACTION_PROVIDER=docling_local
+MEDIA_STRUCTURED_EXTRACTION_VERSION=docling-2.119.0-layout-v5
+MEDIA_DOCLING_PYTHON_BINARY=/srv/learnforge/runtime/docling/.venv/bin/python
+MEDIA_DOCLING_SCRIPT=/srv/learnforge/current/runtime/docling/extract.py
+MEDIA_DOCLING_ARTIFACTS_PATH=/srv/learnforge/runtime/docling/models
+MEDIA_DOCLING_TIMEOUT_SECONDS=3300
+MEDIA_DOCLING_MAX_OUTPUT_BYTES=67108864
+
+MEDIA_STRUCTURED_MAX_PAGES=100
+MEDIA_STRUCTURED_MAX_EXTRACTED_CHARACTERS=500000
+MEDIA_STRUCTURED_MAX_REGIONS_PER_PAGE=100
+MEDIA_STRUCTURED_MAX_REGIONS_PER_DOCUMENT=5000
+MEDIA_STRUCTURED_MAX_TABLE_CELLS_PER_DOCUMENT=200000
+MEDIA_STRUCTURED_MAX_PROCESSING_SECONDS=3300
+MEDIA_STRUCTURED_COMMAND_TIMEOUT_SECONDS=900
+
+MEDIA_STRUCTURED_CROP_ENABLED=true
+MEDIA_STRUCTURED_CROP_DPI=200
+MEDIA_STRUCTURED_CROP_OCR_ENABLED=true
+MEDIA_STRUCTURED_CROP_OCR_MIN_TEXT_CHARACTERS=2
+MEDIA_STRUCTURED_MAX_CROP_BYTES_PER_DOCUMENT=67108864
+
+REDIS_QUEUE_RETRY_AFTER=3900
+DB_QUEUE_RETRY_AFTER=3900
+BEANSTALKD_QUEUE_RETRY_AFTER=3900
+```
+
+Không đổi `MEDIA_STRUCTURED_EXTRACTION_VERSION` cho một redeploy byte-identical.
+Phải đổi version khi package, model, adapter hoặc config làm thay đổi output;
+đó là revision boundary, không phải nhãn release trang trí.
+
+### D. Queue, process và tài nguyên
+
+Giữ bất biến:
+
+```text
+provider deadline 3300s < Laravel job timeout 3600s < visibility/retry_after 3900s
+```
+
+Supervisor/systemd không được override thấp hơn 3600 giây. Với SQS, visibility
+timeout phải lớn hơn 3600 giây và message retention phải lớn hơn visibility.
+
+Không đặt Docling worker chung concurrency với worker nhẹ nếu tổng RAM không đủ.
+Peak đã đo khoảng 2,23 GB/job; cộng headroom cho PHP, render crop, OS và file tạm.
+Sizing/concurrency phải được load-test trên instance AWS thực tế, không lấy số
+macOS làm SLA.
+
+### E. Storage và quyền
+
+Worker cần quyền tối thiểu để:
+
+* đọc source Media private;
+* ghi/đọc/xoá crop dưới prefix tenant/media tương ứng;
+* ghi file JSON tạm và ảnh render trong system temp;
+* không đọc bucket/prefix tenant khác ngoài đường xử lý đã scope.
+
+Nếu dùng S3, cấu hình `MEDIA_DISK` và `MEDIA_AWS_*` theo § 6. IAM phải cho phép
+delete crop vì rollback/failure cleanup và sweeper cần quyền đó. Lifecycle S3
+không thay thế database-aware purge.
+
+### F. Migration và thứ tự rollout
+
+1. Backup và kiểm migration ledger.
+2. Apply migration structured extraction/crop trên MariaDB.
+3. Chạy `schema:drift --connection=mysql`.
+4. Deploy PHP code, adapter, wheelhouse/venv và model inventory.
+5. Cấu hình env rồi clear/rebuild config cache.
+6. Khởi động worker Docling với concurrency đã sizing.
+7. Chạy smoke bằng PDF fixture đã được phép, không PII hoặc có approval cụ thể.
+8. Chỉ sau smoke mới cho admin sử dụng checkbox.
+
+Không bật provider trước khi Python executable, script và model path đều tồn
+tại; preflight sẽ fail `provider_unavailable`, nhưng đó vẫn là deployment lỗi.
+
+### G. Dọn rác storage — Owner quyết định 2026-08-28 (bản thay thế)
+
+**Thay thế policy "hourly + cảnh báo + mục tiêu 24 giờ" ghi trước đó cùng ngày.**
+
+**Không đăng ký sweeper vào scheduler.** Không có tác vụ nào tự động xoá file.
+Deployment nào thêm cron/scheduler cho lệnh này là **sai policy**, không phải bổ
+sung thiếu sót.
+
+Lý do: xoá file không hoàn tác được, và thứ bị xoá được nhận diện bằng suy luận
+"không còn row nào trỏ tới". Sai sót trong suy luận đó khi chạy tự động sẽ xoá
+dữ liệu thật mà không ai kịp thấy. Rác này lại không ai với tới được — không row
+thì không ký được URL — nên dọn sớm không mua thêm an toàn.
+
+Hai lối chạy, đều do người khởi động:
+
+* Nút **Dọn ngay** trong Quản lý Media (chỉ tenant hiện tại, có bước xác nhận).
+* Operator chạy tay, nên xem trước bằng `--dry-run`:
+
+```bash
+php artisan media:purge-deleted-storage --dry-run
+php artisan media:purge-deleted-storage
+```
+
+Vì không có job tự động nên **không có yêu cầu alerting hay lock single-server**.
+Hệ quả được chấp nhận: một lần dọn thất bại chỉ lộ ra qua log mức error cho tới
+khi có người bấm lại.
+
+### H. Smoke/verification bắt buộc
+
+Chạy dưới đúng OS user của queue worker:
+
+```bash
+test -x "$MEDIA_DOCLING_PYTHON_BINARY"
+test -f "$MEDIA_DOCLING_SCRIPT"
+test -d "$MEDIA_DOCLING_ARTIFACTS_PATH"
+"$MEDIA_DOCLING_PYTHON_BINARY" -m pip check
+php artisan migrate:status
+php artisan schema:drift --connection=mysql
+php artisan docs:lint
+```
+
+Smoke chức năng phải xác nhận:
+
+* PDF không tick: chỉ canonical OCR, không structured job;
+* PDF tick: job `structured_extraction` thành `ready` và có region/table/cell khi
+  fixture chứa các cấu trúc đó;
+* structured failure không làm Media mất `ready`;
+* PDF trên 100 trang trả `page_limit_exceeded` trước model processing;
+* crop private có signed delivery và tenant khác không đọc được;
+* failure/timeout không để crop mồ côi; sweeper dọn được residue chủ động tạo;
+* outbound network bị chặn mà Docling vẫn chạy từ model offline.
+
+### I. Monitoring và rollback
+
+Theo dõi ít nhất: số job pending/processing/ready/failed, latency p50/p95,
+`provider_unavailable`, `provider_timeout`, `structured_extraction_too_large`,
+RAM/OOM, temp disk, crop bytes và kết quả của mỗi lần dọn storage thủ công.
+
+Rollback an toàn:
+
+1. ngừng enqueue structured extraction/ẩn checkbox;
+2. drain hoặc dừng worker có kiểm soát;
+3. giữ model/venv cho tới khi không còn job đang chạy;
+4. không rollback crop columns khi còn row tham chiếu — migration cố ý fail-closed;
+5. không xoá canonical OCR text; Docling là optional derivative.
+
+## 11.4. Không thuộc phạm vi cài đặt
 
 Diễn giải ảnh/biểu đồ là AI theo
 [ADR-0020](../adr/ADR-0020-AI-Vision-Interpretation-Boundary.md): provider AI,

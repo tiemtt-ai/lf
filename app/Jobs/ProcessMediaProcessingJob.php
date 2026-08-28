@@ -6,6 +6,7 @@ use App\Contracts\MediaProcessingProvider;
 use App\Services\DoclingStructuredExtractionProvider;
 use App\Services\FakeMediaProcessingProvider;
 use App\Services\LocalDocumentProcessingProvider;
+use App\Services\RegionCropStorage;
 use App\Services\StructuredExtractionPersistenceService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -13,6 +14,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
 
@@ -59,7 +61,16 @@ class ProcessMediaProcessingJob implements ShouldQueue
 
         try {
             $result = $this->provider((string) $job->provider)->process($media, $job);
-            DB::transaction(fn () => $this->persistSuccess($media, $job, $result));
+            try {
+                DB::transaction(fn () => $this->persistSuccess($media, $job, $result));
+            } catch (Throwable $persistFailure) {
+                // Transaction rollback duoc, object storage thi khong. Crop da
+                // upload trong provider phai bi xoa, neu khong chung song sot ma
+                // khong con row nao tham chieu.
+                $this->purgeRegionCrops($media, $job);
+
+                throw $persistFailure;
+            }
         } catch (Throwable $e) {
             DB::transaction(function () use ($job, $e): void {
                 $knownErrorCodes = [
@@ -100,6 +111,45 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 'error_message' => mb_substr($exception?->getMessage() ?? 'Queue worker terminated the processing job.', 0, 1000),
                 'updated_at' => now(),
             ]);
+
+        // Worker bi giet giua chung van co the da day crop len storage. Khong don
+        // o day thi khong nhanh nao con chay de don.
+        $job = DB::table('media_processing_jobs')->where('customer_id', $this->customerId)
+            ->where('id', $this->processingJobId)->first();
+        $media = $job === null ? null : DB::table('media_files')->where('customer_id', $this->customerId)
+            ->where('id', $job->media_file_id)->first();
+        if ($job !== null && $media !== null) {
+            $this->purgeRegionCrops($media, $job);
+        }
+    }
+
+    /** Chi structured extraction sinh crop; job khac khong co gi de don. */
+    private function purgeRegionCrops(object $media, object $job): void
+    {
+        if ($job->job_type !== 'structured_extraction') {
+            return;
+        }
+
+        try {
+            if (app(RegionCropStorage::class)->purgeRevision($media, $job, RegionCropStorage::localeOf($job))) {
+                return;
+            }
+            // `false` nghia la object van con. Nuot no di nghia la bao da xoa PII
+            // trong khi no van nam do — va sweeper phai biet de quay lai.
+            Log::error('Region crop purge incomplete after a failed revision.', [
+                'media_file_id' => (int) $media->id,
+                'processing_job_id' => (int) $job->id,
+                'retry_with' => 'php artisan media:purge-deleted-storage',
+            ]);
+
+            return;
+        } catch (Throwable $exception) {
+            Log::error('Region crop purge failed after a failed revision.', [
+                'media_file_id' => (int) $media->id,
+                'processing_job_id' => (int) $job->id,
+                'exception' => $exception::class,
+            ]);
+        }
     }
 
     private function provider(string $provider): MediaProcessingProvider

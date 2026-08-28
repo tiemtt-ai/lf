@@ -1,6 +1,6 @@
 # Media Read Contract Architecture Review
 
-Version: 1.7
+Version: 1.13
 
 Document Status: Approved
 
@@ -19,7 +19,7 @@ Document Path: quality/LF-Media-Read-Contract-Architecture-Review.md
 | Field | Value |
 | --- | --- |
 | Domain | Media × AI × Course |
-| Specification | [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md) v1.8 |
+| Specification | [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md) v1.13 |
 | Producer Contract | [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md) v2.7 |
 | Parent ADRs | [ADR-0004](../adr/ADR-0004-Media-Foundation.md), [ADR-0006](../adr/ADR-0006-AI-Foundation.md), [ADR-0017](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md), [ADR-0018](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md), [ADR-0019](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) |
 | Review Scope | Internal Media Read Service/API for authorized derived output consumers |
@@ -122,8 +122,10 @@ review packet cho reviewer kế tiếp; chúng không tự tạo verdict Approve
 - [x] Owner directive đã authorize scoped implementation; không đồng nghĩa
       independent review approval.
 - [x] Runtime, migrations and HIGH tests completed.
-- [ ] Independent reviewer chưa được ghi nhận; reviewer phải kiểm Spec B và
-      implementation evidence này.
+- [x] Review độc lập 2026-08-28 đã đọc Spec B và implementation crop, kết luận
+      BLOCKED với 3 blocker; cả ba đã được sửa và ghi ở § Crop scope.
+- [ ] Reviewer độc lập chưa xác nhận lại sau khi sửa; crop chưa có
+      Architecture Review riêng.
 - [ ] Retention/redaction policy approved for real-consumer rollout.
 
 # Documented Risks
@@ -140,17 +142,57 @@ review packet cho reviewer kế tiếp; chúng không tự tạo verdict Approve
 
 ```text
 CLOSED BY OWNER ATTESTATION — 2026-08-28.
+SCOPE CORRECTED — 2026-08-28 sau review độc lập.
 
-Đóng bằng thẩm quyền Owner theo ADR-0017 § Course Template Mapping Intent
-Amendment: "Implementation review is optional assurance, not a mandatory gate:
-Owner attestation plus recorded HIGH test evidence may close an implementation
-gate."
+Đóng bằng chỉ thị trực tiếp của Architecture Owner trong phiên làm việc
+2026-08-28 ("tôi cho phép đóng"), áp dụng cho Spec B v1.8 tại thời điểm đó.
 
-KHÔNG có independent architecture review nào được thực hiện. A–H record này do
-cùng implementation stream lập, và Spec B chưa từng được đọc bởi người không
-viết nó. Bất kỳ ai trích dẫn record này về sau phải hiểu đúng điều đó: đây là
-Owner attestation, không phải independent verdict.
+SỬA CĂN CỨ: bản trước viện dẫn ADR-0017 § Course Template Mapping Intent
+Amendment. Điều khoản "implementation review is optional assurance" nằm trong
+amendment có phạm vi Course Template Mapping Intent, KHÔNG cấp thẩm quyền cho
+Media Read. Trích dẫn đó bị rút. Thẩm quyền thật là chỉ thị Owner trực tiếp —
+đủ để đóng, nhưng phải ghi đúng nguồn thay vì mượn phạm vi của ADR khác.
+
+KHÔNG có independent architecture review nào được thực hiện cho Spec B. A–H
+record này do cùng implementation stream lập.
+
+KHÔNG BAO GỒM: crop (Spec B § 5.3, v1.9–v1.11), signed delivery của crop, và
+vòng đời crop trên storage. Toàn bộ phần đó ra đời SAU lần đóng này và chưa
+từng được đóng bởi bất kỳ thẩm quyền nào. Xem § Crop scope bên dưới.
 ```
+
+## Crop scope — chưa được đóng
+
+Review độc lập ngày 2026-08-28 chặn crop với ba blocker; hai cái đầu là defect
+thật trong code và contract, cái thứ ba chính là phạm vi thẩm quyền ở trên:
+
+| # | Blocker | Trạng thái |
+| --- | --- | --- |
+| 1 | Crop upload ngoài transaction; revision thất bại để lại object mồ côi có thể chứa PII | Đã sửa: purge ở provider, job và `failed()` khi worker bị giết; kết quả `false` không còn bị nuốt; lỗi cleanup không thay thế lỗi gốc. Sweeper quét cả revision thất bại trên Media còn `ready`. **Chưa lên lịch tự động** |
+| 2 | Spec B nói crop all-or-nothing theo revision, runtime chỉ cắt `role = figure` — consumer diễn giải `crop = null` sai | Đã sửa: Spec B v1.11 đổi sang all-or-nothing trên **tập vùng đủ điều kiện** |
+| 3 | Đóng bằng thẩm quyền ngoài phạm vi, và tham chiếu Spec B v1.8 đã lạc hậu | Đã sửa ở record này |
+
+### Vòng hai — 2026-08-28
+
+Review độc lập lần hai xác nhận blocker 2 đã đóng, blocker 3 sửa đúng căn cứ, và
+mở thêm một blocker về vòng đời xoá Media:
+
+| # | Blocker | Trạng thái |
+| --- | --- | --- |
+| 5 | Sweeper sai phạm vi (chỉ quét `status = 'deleted'` nên bỏ sót crop của revision thất bại trên Media còn `ready`), `--limit` gây starvation, và một disk hỏng dừng cả lượt quét | Đã sửa: thêm nguồn revision thất bại với định nghĩa mồ côi theo row tham chiếu, `--limit` đếm Media đã xử lý, isolation try/catch theo từng Media. Năm test mới, năm mutation đều đổ |
+| 6 | Nút Dọn ngay có race với structured job đang chạy: crop đã lên storage nhưng row chưa commit trông y hệt rác mồ côi, nên "dọn orphan" có thể xoá asset hợp lệ. `--limit` còn bị row lỗi tiêu tốn | Đã sửa: ba lớp chặn (bỏ qua lúc quét, kiểm lại trong khoá row `media_files` cùng khoá mà job dùng để claim, tính lại danh sách key trong khoá) và tách ngân sách lỗi khỏi `--limit`. Bốn mutation, bốn test đổ |
+| 4 | `deleteMedia()` xoá crop trước source: hỏng một trong hai hướng đều để lại Media `ready` mất dữ liệu, hoặc Media `deleted` còn crop chứa PII; `deleteDirectory()` trả `false` bị nuốt | Đã sửa: DB đánh dấu `deleted` trước, hai hàm xoá kiểm chứng lại kết quả, thất bại được log mức error và có sweeper |
+
+Ba blocker đã đóng về mặt implementation. **Chưa đóng**, và không được coi là đã
+đóng:
+
+* Owner quyết định ngày 2026-08-28, **thay thế** policy "sweeper chạy mỗi giờ"
+  ghi trước đó cùng ngày: không có tác vụ nào tự động xoá file. Dọn rác là thao
+  tác thủ công có chủ đích — nút trong Quản lý Media, hoặc lệnh artisan. Đây là
+  quyết định đã đóng, không phải gate vận hành còn mở. Hệ quả được chấp nhận:
+  một lần dọn thất bại chỉ lộ ra qua log cho tới khi có người bấm lại.
+* Crop **vẫn cần một Architecture Review riêng** trước khi mở cho AI consumer
+  thật, cùng gate với retention/redaction (rủi ro B1).
 
 ## Rủi ro đã biết khi đóng theo cách này
 

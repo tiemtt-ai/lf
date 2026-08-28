@@ -1,6 +1,6 @@
 # LearnForge Documentation Conflict Register
 
-Version: 1.9
+Version: 1.10
 
 Document Status: Approved
 
@@ -1128,6 +1128,7 @@ Phần crop (§ D7 điểm 4) CHƯA đóng. Contract đã được soạn ngày 
 Superseded/Updated Documents: docs/database/media/media_extracted_regions.md v1.7; docs/platform/LF-Media-Read-Contract.md v1.9
 Verification Evidence: media_files.id=20; job 27 `structured_extraction` ready, 201 region, coverage 16/16; `SELECT SUM(char_count)` — region 13.373 vs text 47.852; truy vấn chồng lấn bbox figure × text region trả 0 chứa hẳn, 2 chồng lấn một phần
 Related ADR/Review/Issue/PR: ADR-0019 § D7; ADR-0020; DOC-CONFLICT-0016
+Post-Close Review 2026-08-28: review độc lập sau khi đóng tìm thêm ba blocker — (1) crop upload ngoài transaction persistence nên revision thất bại để lại object mồ côi có thể chứa PII; (2) Spec B nói crop all-or-nothing theo revision trong khi runtime chỉ cắt `role = figure`, khiến consumer diễn giải `crop = null` sai; (3) review record đóng bằng điều khoản của ADR-0017 vốn có phạm vi Course Template Mapping Intent. Cả ba đã sửa: purge crop ở provider và job có mutation test, Spec B v1.11 đổi sang all-or-nothing trên tập vùng đủ điều kiện, và review record sửa lại căn cứ đóng. Bài học lặp lại đúng bài học cũ của conflict này: tài liệu đọc riêng vẫn mạch lạc, sai lệch chỉ lộ ra khi đối chiếu với runtime
 Notes: Ghi lại vì sao phát hiện muộn: cả hai tài liệu đọc riêng đều mạch lạc, và table doc còn có một câu hoà giải nghe hợp lý ("chữ trong khối thuộc vùng text riêng"). Chỉ khi đo trên tài liệu thật mới thấy câu đó không đúng với dữ liệu. `docs:lint` và `schema:drift` xanh xuyên suốt — không công cụ nào so được yêu cầu của ADR với CHECK trong schema.
 ```
 

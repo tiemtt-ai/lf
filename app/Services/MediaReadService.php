@@ -34,10 +34,13 @@ class MediaReadService
         $customerId = TenantContext::customerId() ?? throw new MediaReadException('unauthorized');
         $media = null;
         $selectedLocale = $locale;
+        // Selector phai nam trong audit metadata (§ 8): phai tra loi duoc "ai doc
+        // trang nao, co xin chu ky crop khong, luc nao".
         if ($includeCrop) {
-            // Xin chu ky la mot selector, phai tra loi duoc "ai da xin URL crop
-            // nao, luc nao" — § 8.
             $auditContext['include_crop'] = true;
+        }
+        if ($page !== null) {
+            $auditContext['page'] = $page;
         }
 
         try {

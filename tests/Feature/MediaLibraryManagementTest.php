@@ -4,7 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Services\MediaService;
+use App\Services\MediaStorageResidueSweeper;
+use App\Services\RegionCropStorage;
 use App\Support\TenantContext;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -468,6 +471,427 @@ class MediaLibraryManagementTest extends TestCase
         $this->actingAs($teacher)
             ->get('https://tenant-a.localhost/admin/media')
             ->assertForbidden();
+    }
+
+    public function test_deleting_media_removes_region_crops_together_with_the_source(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+
+        $mediaFile = $this->uploadUnattachedMedia($admin, 'Crop Doc', 'document', 'crop-doc.pdf');
+        $cropKey = "tenants/{$customerId}/media/{$mediaFile->id}/regions/fp/v1/vi/1-1.png";
+        Storage::disk($mediaFile->storage_disk)->put($cropKey, 'png-bytes');
+
+        $this->actingAs($admin)
+            ->delete("https://tenant-a.localhost/admin/media/{$mediaFile->id}")
+            ->assertSessionHasNoErrors();
+
+        // Crop la derivative cua chinh file nay. Giu lai crop cua mot file da
+        // xoa la giu anh cua noi dung da bien mat, khong row nao tham chieu.
+        Storage::disk($mediaFile->storage_disk)->assertMissing($cropKey);
+        Storage::disk($mediaFile->storage_disk)->assertMissing($mediaFile->storage_key);
+        $this->assertDatabaseHas('media_files', ['id' => $mediaFile->id, 'status' => 'deleted']);
+    }
+
+    public function test_media_stays_readable_when_storage_purge_fails_and_sweeper_finishes_it(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+
+        $mediaFile = $this->uploadUnattachedMedia($admin, 'Crop Doc 2', 'document', 'crop-doc-2.pdf');
+        $cropKey = "tenants/{$customerId}/media/{$mediaFile->id}/regions/fp/v1/vi/1-1.png";
+        Storage::disk($mediaFile->storage_disk)->put($cropKey, 'png-bytes');
+
+        // Don storage that bai. Row van phai `deleted`: khong bao gio duoc ton
+        // tai mot Media con `ready` ma thieu source hoac thieu crop.
+        $crops = \Mockery::mock(RegionCropStorage::class);
+        $crops->shouldReceive('purgeMediaFile')->andThrow(new \RuntimeException('storage down'));
+        $this->app->instance(RegionCropStorage::class, $crops);
+
+        $this->actingAs($admin)
+            ->delete("https://tenant-a.localhost/admin/media/{$mediaFile->id}")
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('media_files', ['id' => $mediaFile->id, 'status' => 'deleted']);
+        Storage::disk($mediaFile->storage_disk)->assertExists($cropKey);
+
+        // Row `deleted` chinh la danh sach viec cua sweeper — khong can marker
+        // rieng, va marker rieng thi lai co the hong.
+        $this->app->forgetInstance(RegionCropStorage::class);
+        $this->artisan('media:purge-deleted-storage')->assertSuccessful();
+        Storage::disk($mediaFile->storage_disk)->assertMissing($cropKey);
+    }
+
+    public function test_crop_purge_reports_failure_when_objects_survive_the_delete_call(): void
+    {
+        // Driver co the tra `true` ma object van con. Coi gia tri tra ve la bang
+        // chung da xoa nghia la bao "PII da bien mat" trong khi no van nam do.
+        $disk = \Mockery::mock(Filesystem::class);
+        $disk->shouldReceive('allFiles')->andReturn(['con-sot.png']);
+        $disk->shouldReceive('deleteDirectory')->andReturnTrue();
+        Storage::shouldReceive('disk')->with('media_local')->andReturn($disk);
+
+        $this->assertFalse(
+            (new RegionCropStorage)->purgeMediaFile(
+                (object) ['id' => 1, 'customer_id' => 1, 'storage_disk' => 'media_local']
+            )
+        );
+    }
+
+    public function test_media_storage_purge_reports_failure_when_only_the_crop_side_fails(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+        $mediaFile = $this->uploadUnattachedMedia($admin, 'Crop Doc 3', 'document', 'crop-doc-3.pdf');
+
+        $crops = \Mockery::mock(RegionCropStorage::class);
+        $crops->shouldReceive('purgeMediaFile')->andReturnFalse();
+        $this->app->instance(RegionCropStorage::class, $crops);
+
+        // Source xoa duoc, crop thi khong. Ket qua phai la THAT BAI: bao thanh
+        // cong o day nghia la sweeper khong bao gio quay lai don not.
+        $this->assertFalse(app(MediaService::class)->purgeMediaStorage($mediaFile));
+    }
+
+    public function test_sweeper_cleans_crops_of_a_failed_revision_on_a_media_that_is_still_ready(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+        $mediaFile = $this->uploadUnattachedMedia($admin, 'Ready Doc', 'document', 'ready-doc.pdf');
+
+        // Mot lan trich xuat hong KHONG lam tai lieu mat `ready`. Sweeper quet
+        // theo status='deleted' vi the khong bao gio thay loai rac nay.
+        DB::table('media_processing_jobs')->insert([
+            'customer_id' => $customerId, 'media_file_id' => $mediaFile->id,
+            'job_type' => 'structured_extraction', 'status' => 'failed',
+            'provider' => 'docling_local', 'processing_version' => 'v1',
+            'source_fingerprint' => str_repeat('a', 64), 'output_profile' => 'locale=vi;structure=layout',
+            'output_profile_hash' => str_repeat('b', 64), 'attempt' => 1,
+            'idempotency_key' => 'sweeper-orphan-1', 'correlation_id' => 'sweeper-orphan-1',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $orphan = "tenants/{$customerId}/media/{$mediaFile->id}/regions/".str_repeat('a', 64).'/v1/vi/1-1.png';
+        Storage::disk($mediaFile->storage_disk)->put($orphan, 'png-bytes');
+
+        $this->artisan('media:purge-deleted-storage')->assertSuccessful();
+
+        Storage::disk($mediaFile->storage_disk)->assertMissing($orphan);
+        Storage::disk($mediaFile->storage_disk)->assertExists($mediaFile->storage_key);
+        $this->assertDatabaseHas('media_files', ['id' => $mediaFile->id, 'status' => 'ready']);
+    }
+
+    public function test_sweeper_keeps_crops_that_a_region_row_still_references(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+        $mediaFile = $this->uploadUnattachedMedia($admin, 'Ready Doc 2', 'document', 'ready-doc-2.pdf');
+
+        DB::table('media_processing_jobs')->insert([
+            'customer_id' => $customerId, 'media_file_id' => $mediaFile->id,
+            'job_type' => 'structured_extraction', 'status' => 'failed',
+            'provider' => 'docling_local', 'processing_version' => 'v1',
+            'source_fingerprint' => str_repeat('a', 64), 'output_profile' => 'locale=vi;structure=layout',
+            'output_profile_hash' => str_repeat('b', 64), 'attempt' => 1,
+            'idempotency_key' => 'sweeper-kept-1', 'correlation_id' => 'sweeper-kept-1',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $kept = "tenants/{$customerId}/media/{$mediaFile->id}/regions/".str_repeat('c', 64).'/v2/vi/1-1.png';
+        Storage::disk($mediaFile->storage_disk)->put($kept, 'png-bytes');
+        DB::table('media_extracted_regions')->insert([
+            'customer_id' => $customerId, 'media_file_id' => $mediaFile->id, 'locale' => 'vi',
+            'locator_type' => 'region', 'locator_value' => '1#1', 'page' => 1, 'ordinal' => 1,
+            'reading_order' => 1, 'role' => 'figure', 'extraction_method' => 'embedded_text',
+            'processing_version' => 'v2', 'source_fingerprint' => str_repeat('c', 64), 'status' => 'ready',
+            'bbox_x' => 0.1, 'bbox_y' => 0.1, 'bbox_width' => 0.2, 'bbox_height' => 0.2,
+            'crop_storage_key' => $kept, 'crop_mime_type' => 'image/png',
+            'crop_width' => 10, 'crop_height' => 10, 'crop_bytes' => 9,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        // Media nay co job that bai, nhung revision thanh cong sau do van dang
+        // tham chieu crop. "Mo coi" phai dinh nghia theo row, khong theo job.
+        $this->artisan('media:purge-deleted-storage')->assertSuccessful();
+        Storage::disk($mediaFile->storage_disk)->assertExists($kept);
+    }
+
+    public function test_sweeper_does_not_starve_residue_behind_clean_tombstones(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+
+        // Ba tombstone sach dung truoc. Neu --limit dem row DA QUET thay vi row
+        // DA XU LY thi residue phia sau khong bao gio toi luot.
+        foreach (['t1', 't2', 't3'] as $name) {
+            $clean = $this->uploadUnattachedMedia($admin, $name, 'image', $name.'.png');
+            $this->actingAs($admin)->delete("https://tenant-a.localhost/admin/media/{$clean->id}");
+        }
+
+        $last = $this->uploadUnattachedMedia($admin, 'Residue', 'image', 'residue.png');
+        $residueKey = $last->storage_key;
+        DB::table('media_files')->where('id', $last->id)->update(['status' => 'deleted']);
+
+        $this->artisan('media:purge-deleted-storage', ['--limit' => 1])->assertSuccessful();
+        Storage::disk($last->storage_disk)->assertMissing($residueKey);
+    }
+
+    public function test_sweeper_keeps_scanning_after_one_media_fails_its_storage_check(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+
+        $broken = $this->uploadUnattachedMedia($admin, 'Broken Disk', 'image', 'broken.png');
+        $healthy = $this->uploadUnattachedMedia($admin, 'Healthy', 'document', 'healthy.pdf');
+        $healthyKey = $healthy->storage_key;
+
+        DB::table('media_files')->where('id', $broken->id)
+            ->update(['status' => 'deleted', 'storage_disk' => 'khong-ton-tai']);
+        DB::table('media_files')->where('id', $healthy->id)->update(['status' => 'deleted']);
+
+        // Mot disk hong khong duoc lam ca luot quet dung lai — neu khong, lan
+        // chay sau van mac o dung row do va nhung row phia sau khong bao gio duoc don.
+        $this->artisan('media:purge-deleted-storage')->assertFailed();
+        Storage::disk($healthy->storage_disk)->assertMissing($healthyKey);
+    }
+
+    public function test_admin_button_purges_orphan_storage_only_for_the_current_tenant(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+
+        $mine = $this->uploadUnattachedMedia($admin, 'Mine', 'document', 'mine.pdf');
+        DB::table('media_files')->where('id', $mine->id)->update(['status' => 'deleted']);
+
+        // Media cua tenant khac cung dang co residue. TenantContext la ranh gioi,
+        // khong phai bo loc — nut nay khong duoc dong toi no.
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $otherId = DB::table('media_files')->insertGetId([
+            'customer_id' => $otherCustomerId, 'uploaded_by' => $admin->id,
+            'file_type' => 'document', 'mime_type' => 'application/pdf',
+            'original_name' => 'other.pdf', 'display_name' => 'Other', 'extension' => 'pdf',
+            'storage_disk' => 'media_local', 'storage_bucket' => 'lf-local',
+            'storage_key' => 'tenants/'.$otherCustomerId.'/other.pdf',
+            'file_size_bytes' => 10, 'visibility' => 'private', 'status' => 'deleted',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        Storage::disk('media_local')->put('tenants/'.$otherCustomerId.'/other.pdf', 'pdf');
+
+        $this->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/media/purge-orphan-storage', ['usage_status' => 'unused'])
+            ->assertRedirect('https://tenant-a.localhost/admin/media?usage_status=unused')
+            ->assertSessionHas('success');
+
+        Storage::disk('media_local')->assertMissing($mine->storage_key);
+        Storage::disk('media_local')->assertExists('tenants/'.$otherCustomerId.'/other.pdf');
+        $this->assertSame($otherId, $otherId);
+    }
+
+    public function test_media_index_explains_that_nothing_is_deleted_automatically(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/media')
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_media_storage_purge_action'))
+            ->assertSeeText(__('lf.LF_media_storage_purge_note'));
+    }
+
+    public function test_sweeper_never_touches_a_media_with_a_structured_job_in_flight(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+        $mediaFile = $this->uploadUnattachedMedia($admin, 'In Flight', 'document', 'in-flight.pdf');
+
+        // Provider day crop len storage TRUOC khi job ghi region row. Giua hai
+        // buoc do, crop chua co row nao tro toi — nhin tu ngoai vao khong phan
+        // biet duoc voi rac mo coi.
+        $crop = "tenants/{$customerId}/media/{$mediaFile->id}/regions/".str_repeat('a', 64).'/v1/vi/1-1.png';
+        Storage::disk($mediaFile->storage_disk)->put($crop, 'png-bytes');
+        DB::table('media_processing_jobs')->insert([
+            'customer_id' => $customerId, 'media_file_id' => $mediaFile->id,
+            'job_type' => 'structured_extraction', 'status' => 'processing',
+            'provider' => 'docling_local', 'processing_version' => 'v1',
+            'source_fingerprint' => str_repeat('a', 64), 'output_profile' => 'locale=vi;structure=layout',
+            'output_profile_hash' => str_repeat('b', 64), 'attempt' => 1,
+            'idempotency_key' => 'in-flight-1', 'correlation_id' => 'in-flight-1',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        // Mot job da that bai truoc do de Media nay van nam trong danh sach quet.
+        DB::table('media_processing_jobs')->insert([
+            'customer_id' => $customerId, 'media_file_id' => $mediaFile->id,
+            'job_type' => 'structured_extraction', 'status' => 'failed',
+            'provider' => 'docling_local', 'processing_version' => 'v0',
+            'source_fingerprint' => str_repeat('a', 64), 'output_profile' => 'locale=vi;structure=layout',
+            'output_profile_hash' => str_repeat('c', 64), 'attempt' => 1,
+            'idempotency_key' => 'in-flight-0', 'correlation_id' => 'in-flight-0',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/media/purge-orphan-storage')
+            ->assertSessionHasNoErrors();
+
+        // Job co the ket thuc `ready` ngay sau do; xoa crop bay gio se lam
+        // revision `ready` tro toi file khong con ton tai.
+        Storage::disk($mediaFile->storage_disk)->assertExists($crop);
+    }
+
+    public function test_broken_disks_do_not_consume_the_residue_budget(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+
+        // Ba Media tren disk hong dung truoc. Neu row loi cung tieu ton --limit
+        // thi residue hop le phia sau khong bao gio toi luot.
+        foreach (['b1', 'b2', 'b3'] as $name) {
+            $broken = $this->uploadUnattachedMedia($admin, $name, 'document', $name.'.pdf');
+            DB::table('media_files')->where('id', $broken->id)
+                ->update(['status' => 'deleted', 'storage_disk' => 'khong-ton-tai']);
+        }
+
+        $last = $this->uploadUnattachedMedia($admin, 'Residue Last', 'image', 'residue-last.png');
+        $residueKey = $last->storage_key;
+        DB::table('media_files')->where('id', $last->id)->update(['status' => 'deleted']);
+
+        $this->artisan('media:purge-deleted-storage', ['--limit' => 1])->assertFailed();
+        Storage::disk($last->storage_disk)->assertMissing($residueKey);
+    }
+
+    /** @return array{0: object, 1: string} */
+    private function mediaWithFailedRevisionAndCrop(string $name): array
+    {
+        $customerId = TenantContext::customerId();
+        $admin = $this->createUser($customerId, 'customer_admin', $name.'@example.test');
+        $mediaFile = $this->uploadUnattachedMedia($admin, $name, 'document', $name.'.pdf');
+        $crop = "tenants/{$customerId}/media/{$mediaFile->id}/regions/".str_repeat('a', 64).'/v1/vi/1-1.png';
+        Storage::disk($mediaFile->storage_disk)->put($crop, 'png-bytes');
+        DB::table('media_processing_jobs')->insert([
+            'customer_id' => $customerId, 'media_file_id' => $mediaFile->id,
+            'job_type' => 'structured_extraction', 'status' => 'failed',
+            'provider' => 'docling_local', 'processing_version' => 'v0',
+            'source_fingerprint' => str_repeat('a', 64), 'output_profile' => 'locale=vi;structure=layout',
+            'output_profile_hash' => str_repeat('c', 64), 'attempt' => 1,
+            'idempotency_key' => $name.'-0', 'correlation_id' => $name.'-0',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        return [$mediaFile, $crop];
+    }
+
+    public function test_scan_skips_media_whose_structured_job_is_in_flight(): void
+    {
+        $customerId = $this->createTenant();
+        $this->actingAs($this->createUser($customerId, 'customer_admin'));
+        TenantContext::set((object) ['id' => $customerId]);
+        [$mediaFile] = $this->mediaWithFailedRevisionAndCrop('scanskip');
+
+        $sweeper = app(MediaStorageResidueSweeper::class);
+        $this->assertCount(1, $sweeper->scan($customerId), 'Truoc khi co job chay, day la residue that.');
+
+        DB::table('media_processing_jobs')->insert([
+            'customer_id' => $customerId, 'media_file_id' => $mediaFile->id,
+            'job_type' => 'structured_extraction', 'status' => 'processing',
+            'provider' => 'docling_local', 'processing_version' => 'v1',
+            'source_fingerprint' => str_repeat('a', 64), 'output_profile' => 'locale=vi;structure=layout',
+            'output_profile_hash' => str_repeat('b', 64), 'attempt' => 1,
+            'idempotency_key' => 'scanskip-1', 'correlation_id' => 'scanskip-1',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->assertSame([], $sweeper->scan($customerId));
+    }
+
+    public function test_purge_refuses_when_a_job_starts_between_scan_and_delete(): void
+    {
+        $customerId = $this->createTenant();
+        $this->actingAs($this->createUser($customerId, 'customer_admin'));
+        TenantContext::set((object) ['id' => $customerId]);
+        [$mediaFile, $crop] = $this->mediaWithFailedRevisionAndCrop('betweenscan');
+
+        $sweeper = app(MediaStorageResidueSweeper::class);
+        $found = $sweeper->scan($customerId);
+        $this->assertCount(1, $found);
+
+        // Job duoc claim SAU khi quet xong. Lop chan thu hai nam trong khoa row
+        // phai bat duoc, neu khong thi khoang giua quet va xoa van la cua so ho.
+        DB::table('media_processing_jobs')->insert([
+            'customer_id' => $customerId, 'media_file_id' => $mediaFile->id,
+            'job_type' => 'structured_extraction', 'status' => 'processing',
+            'provider' => 'docling_local', 'processing_version' => 'v1',
+            'source_fingerprint' => str_repeat('a', 64), 'output_profile' => 'locale=vi;structure=layout',
+            'output_profile_hash' => str_repeat('b', 64), 'attempt' => 1,
+            'idempotency_key' => 'betweenscan-1', 'correlation_id' => 'betweenscan-1',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->assertSame(['success' => false, 'deleted_count' => 0], $sweeper->purge($found[0]));
+        Storage::disk($mediaFile->storage_disk)->assertExists($crop);
+    }
+
+    public function test_purge_recomputes_references_and_keeps_a_crop_claimed_after_the_scan(): void
+    {
+        $customerId = $this->createTenant();
+        $this->actingAs($this->createUser($customerId, 'customer_admin'));
+        TenantContext::set((object) ['id' => $customerId]);
+        [$mediaFile, $crop] = $this->mediaWithFailedRevisionAndCrop('reclaimed');
+
+        $sweeper = app(MediaStorageResidueSweeper::class);
+        $found = $sweeper->scan($customerId);
+        $this->assertCount(1, $found);
+
+        // Mot revision chay lai vua ghi de dung key do va da commit row. Danh
+        // sach keys tu luc quet gio da cu; xoa theo no la xoa asset hop le.
+        DB::table('media_extracted_regions')->insert([
+            'customer_id' => $customerId, 'media_file_id' => $mediaFile->id, 'locale' => 'vi',
+            'locator_type' => 'region', 'locator_value' => '1#1', 'page' => 1, 'ordinal' => 1,
+            'reading_order' => 1, 'role' => 'figure', 'extraction_method' => 'embedded_text',
+            'processing_version' => 'v1', 'source_fingerprint' => str_repeat('a', 64), 'status' => 'ready',
+            'bbox_x' => 0.1, 'bbox_y' => 0.1, 'bbox_width' => 0.2, 'bbox_height' => 0.2,
+            'crop_storage_key' => $crop, 'crop_mime_type' => 'image/png',
+            'crop_width' => 10, 'crop_height' => 10, 'crop_bytes' => 9,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->assertSame(['success' => true, 'deleted_count' => 0], $sweeper->purge($found[0]));
+        Storage::disk($mediaFile->storage_disk)->assertExists($crop);
+    }
+
+    public function test_purge_reports_the_number_of_objects_actually_deleted_after_recheck(): void
+    {
+        $customerId = $this->createTenant();
+        $this->actingAs($this->createUser($customerId, 'customer_admin'));
+        TenantContext::set((object) ['id' => $customerId]);
+        [, $crop] = $this->mediaWithFailedRevisionAndCrop('actualcount');
+
+        $sweeper = app(MediaStorageResidueSweeper::class);
+        $found = $sweeper->scan($customerId);
+
+        $this->assertCount(1, $found);
+        $this->assertSame(['success' => true, 'deleted_count' => 1], $sweeper->purge($found[0]));
+        Storage::disk('media_local')->assertMissing($crop);
     }
 
     public function test_cannot_delete_used_media_file(): void

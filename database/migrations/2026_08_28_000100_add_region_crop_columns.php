@@ -45,8 +45,26 @@ return new class extends Migration
             ." CHECK (crop_mime_type IS NULL OR crop_mime_type IN ('image/png'))");
     }
 
+    /**
+     * Preflight: drop nam cot nay se xoa moi tham chieu toi crop, trong khi file
+     * PNG van nam nguyen tren storage. Khong ai con biet chung thuoc ve dau —
+     * ke ca crop chua PII.
+     *
+     * KHONG co escape hatch bang bien moi truong. Mot bien env dat nham trong CI
+     * hay .env production se lam thao tac pha huy nay chay im lang. Duong dung la
+     * don storage truoc, roi rollback moi chay.
+     */
     public function down(): void
     {
+        $withCrop = DB::table('media_extracted_regions')->whereNotNull('crop_storage_key')->count();
+        if ($withCrop > 0) {
+            throw new RuntimeException(
+                "Rollback bi chan: {$withCrop} region dang tham chieu crop tren storage.\n"
+                ."Don storage truoc — 'php artisan media:purge-deleted-storage' cho Media da xoa,\n"
+                .'va xoa crop cua cac revision con lai theo runbook deletion cua ADR-0018.'
+            );
+        }
+
         if (DB::getDriverName() !== 'sqlite') {
             foreach (['chk_mer_crop_complete', 'chk_mer_crop_needs_bbox', 'chk_mer_crop_mime'] as $check) {
                 DB::statement('ALTER TABLE media_extracted_regions DROP CONSTRAINT '.$check);

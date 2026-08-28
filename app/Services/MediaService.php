@@ -492,8 +492,17 @@ class MediaService
             ]);
         }
 
-        $this->deleteStorageObject($mediaFile);
-
+        // Object storage va DB khong co transaction chung, nen thu tu quyet dinh
+        // huong hong. Danh dau `deleted` TRUOC roi moi cham storage:
+        //
+        // - Khong bao gio ton tai mot Media con `ready` ma thieu source hoac
+        //   thieu crop. Delivery tu choi moi trang thai khac `ready`.
+        // - Neu don storage that bai, object con lai la mo coi cua mot row da
+        //   `deleted` — sweeper tim duoc bang chinh danh sach row do, khong can
+        //   marker rieng de hong.
+        //
+        // Thu tu nguoc lai — xoa storage truoc — se de lai Media `ready` mat
+        // crop hoac mat source khi buoc sau hong, tuc mat du lieu that.
         DB::table('media_files')
             ->where('customer_id', $customerId)
             ->where('id', $mediaFile->id)
@@ -501,6 +510,8 @@ class MediaService
                 'status' => 'deleted',
                 'updated_at' => now(),
             ]);
+
+        $this->purgeMediaStorage($mediaFile);
 
         return DB::table('media_files')
             ->where('customer_id', $customerId)
@@ -552,29 +563,52 @@ class MediaService
         return $ownedIds->count();
     }
 
-    private function deleteStorageObject(object $mediaFile): void
+    /**
+     * Don toan bo storage cua mot Media da duoc danh dau `deleted`.
+     *
+     * Khong nem: row da `deleted` va khong con phuc vu ai. Nhung cung khong bao
+     * thanh cong khi that bai — that bai duoc log o muc error va `media:purge-
+     * deleted-storage` chay lai duoc, vi crop/source co the chua PII cua hoc lieu.
+     */
+    public function purgeMediaStorage(object $mediaFile): bool
     {
-        $disk = Storage::disk($mediaFile->storage_disk);
+        $purged = true;
 
         try {
+            $purged = app(RegionCropStorage::class)->purgeMediaFile($mediaFile);
+        } catch (Throwable $exception) {
+            $purged = false;
+        }
+
+        $purged = $this->deleteStorageObject($mediaFile) && $purged;
+
+        if (! $purged) {
+            Log::error('Media storage purge incomplete; objects may still hold PII.', [
+                'media_file_id' => $mediaFile->id,
+                'customer_id' => $mediaFile->customer_id,
+                'storage_disk' => $mediaFile->storage_disk,
+                'retry_with' => 'php artisan media:purge-deleted-storage',
+            ]);
+        }
+
+        return $purged;
+    }
+
+    /**
+     * Xoa object source. Tra ve ket qua thay vi nem: khi ham nay chay thi row
+     * da `deleted` roi, nem chi lam UI bao that bai cho mot viec da xong. That
+     * bai duoc log va `media:purge-deleted-storage` chay lai duoc.
+     */
+    private function deleteStorageObject(object $mediaFile): bool
+    {
+        try {
+            $disk = Storage::disk($mediaFile->storage_disk);
             if (! $disk->exists($mediaFile->storage_key)) {
-                return;
+                return true;
             }
 
-            if ($disk->delete($mediaFile->storage_key) === false) {
-                Log::warning('Media storage object delete returned false.', [
-                    'media_file_id' => $mediaFile->id,
-                    'customer_id' => $mediaFile->customer_id,
-                    'storage_disk' => $mediaFile->storage_disk,
-                    'storage_key' => $mediaFile->storage_key,
-                ]);
-
-                throw ValidationException::withMessages([
-                    'media_file_id' => __('lf.LF_media_file_delete_storage_failed'),
-                ]);
-            }
-        } catch (ValidationException $exception) {
-            throw $exception;
+            return $disk->delete($mediaFile->storage_key) !== false
+                && ! $disk->exists($mediaFile->storage_key);
         } catch (Throwable $exception) {
             Log::warning('Media storage object delete failed.', [
                 'media_file_id' => $mediaFile->id,
@@ -584,9 +618,7 @@ class MediaService
                 'exception' => $exception->getMessage(),
             ]);
 
-            throw ValidationException::withMessages([
-                'media_file_id' => __('lf.LF_media_file_delete_storage_failed'),
-            ]);
+            return false;
         }
     }
 

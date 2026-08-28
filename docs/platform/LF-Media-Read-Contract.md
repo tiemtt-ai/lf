@@ -1,6 +1,6 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.10
+Version: 1.14
 
 Document Status: Approved
 
@@ -314,19 +314,46 @@ tại** và nặng bao nhiêu, đủ để quyết định có xin URL hay khôn
 Nêu `include_crop` với `content_type` khác `region` trả `unsupported_source`,
 cùng luật với `page` ở § 5.1.
 
-### `crop = null` không phải một sự vắng mặt im lặng
+### `crop = null` và tập vùng đủ điều kiện
 
-`null` ở đây **không** lặp lại vấn đề mà `structure_unavailable` sinh ra để
-giải quyết, vì luật *"vượt trần thì fail cả revision, không cắt bớt crop"*
-khiến crop là **all-or-nothing trong một revision**. Không có trạng thái
-"revision này có crop cho vài vùng".
+**Sửa ở v1.11.** Bản v1.9–v1.10 viết rằng crop là all-or-nothing trong một
+revision, nên `null` chỉ có một nghĩa là "revision sinh trước khi crop được
+bật". **Câu đó sai so với runtime**, và review độc lập đã chỉ ra: runtime chỉ
+cắt crop cho `role = 'figure'`, và bỏ qua vùng không có `bbox`. Một revision
+hiện hành vì thế có cả vùng mang crop lẫn vùng `crop = null` cùng lúc — consumer
+đọc theo câu cũ sẽ kết luận sai.
 
-Nên `null` chỉ mang đúng một nghĩa: **revision này được sinh ra trước khi crop
-được bật**. Consumer đọc được điều đó từ `processing_version` mà không phải
-đoán, và không cần mã lỗi mới.
+Luật đúng là **all-or-nothing trên tập vùng đủ điều kiện**, không phải trên mọi
+vùng. Một vùng đủ điều kiện khi:
 
-Đây là hệ quả có ích ngoài dự tính của luật fail-whole-revision. Nó là một lý
-do độc lập để giữ luật đó, bên cạnh lý do dung lượng.
+```text
+crop_eligible(region) := role ∈ crop_roles  ∧  bbox ≠ null
+```
+
+Phase 1 `crop_roles = { figure }`. Consumer **tự tính được** vị từ này: `role`
+và `bbox` đã nằm sẵn trong `structure` của cùng unit, không cần trường mới và
+không cần gọi thêm lần nào.
+
+Từ đó `crop = null` có đúng hai nghĩa, và consumer phân biệt được bằng chính dữ
+liệu nó đang cầm:
+
+| `crop_eligible` | `crop` | Nghĩa |
+| --- | --- | --- |
+| `false` | luôn `null` | Vùng này không thuộc tập được cắt. Không thiếu gì cả |
+| `true` | object | Bình thường |
+| `true` | `null` | **Cả revision này không có crop** — sinh trước khi crop được bật, hoặc chạy khi crop bị tắt bằng config |
+
+Dòng thứ ba vẫn giữ được tính all-or-nothing: nếu một vùng đủ điều kiện mà
+`crop = null`, thì **mọi** vùng đủ điều kiện trong revision đó đều `null`. Luật
+*"vượt trần thì fail cả revision, không cắt bớt crop"* là thứ bảo đảm điều này —
+không có revision nào cắt được nửa chừng rồi dừng.
+
+Hai nguyên nhân của dòng thứ ba — revision cũ, và crop bị tắt — cố tình **không**
+được phân biệt, vì với consumer chúng dẫn tới cùng một hành động: revision này
+không có ảnh để xem, dùng `bbox` mà tự render nếu cần.
+
+Mở `crop_roles` sang `table` hay role khác là amendment của tài liệu này, và
+phải đo lại trần dung lượng vì số vùng đủ điều kiện sẽ tăng.
 
 ### Ràng buộc
 
@@ -408,7 +435,8 @@ audit sink cho owner không resolve vẫn là implementation gate, không phải
 | B1 | ADR-0018 đã approve boundary PII/redaction/external processing; retention duration, deletion synchronization và full provenance audit chưa có implementation evidence. Chặn production/real-tenant rollout, không biến `PII_PRESENT` thành OCR failure |
 | B2 | Cue-level caption citation chưa có contract; nếu AI cần, phải review trước |
 | B3 | `region`/`table` đã có runtime và đã persist trên tài liệu thật; độ phủ region trên trang scan vẫn không đảm bảo. Consumer phải tôn trọng `structure_unavailable` và fallback về canonical page text (§ 5.1) |
-| B5 | Crop (§ 5.3) đã implemented cho `role = figure` trên PDF. Vai trò khác chưa sinh crop, nên `structure.crop` của chúng luôn `null` |
+| B5 | Crop (§ 5.3) đã implemented cho `role = figure` trên PDF. Vùng ngoài tập đủ điều kiện luôn `crop = null`; consumer phải đọc theo bảng ở § 5.3 chứ không suy ra "revision không có crop" |
+| B6 | Xoá crop khi Media/revision thất bại đã có runtime. Dọn rác mồ côi do **người** khởi động — nút trong Quản lý Media hoặc `media:purge-deleted-storage`. Owner quyết định 2026-08-28 (thay thế policy "mỗi giờ" cùng ngày): **không có tác vụ nào tự động xoá file**. Legal hold và purge orchestration vẫn thuộc gate ADR-0018 |
 | B4 | Đã đóng ở contract v1.7: `usage_type` bắt buộc và nhiều active row trong cùng slot fail-closed bằng `ambiguous_source`. Runtime/test phải có evidence trước khi mở HTTP/API |
 
 ---

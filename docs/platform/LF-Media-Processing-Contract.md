@@ -1,6 +1,6 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.7
+Version: 2.8
 
 Document Status: Approved
 
@@ -55,6 +55,17 @@ giữa canonical text pages và structured region pages vào job metadata. Cover
 được chọn theo source identity và canonical OCR revision, không ghép nhầm OCR
 version với Docling version. Đây là observability evidence; thiếu region không
 tự làm optional job thất bại và không thay đổi readiness của Media File.
+
+**Bổ sung Version 2.8, Owner-directed 2026-08-28.** Nghiệm thu thật trên PDF
+tiếng Hàn 100 trang cho thấy figure ở trang scan có thể nhận text chỉ một ký tự,
+làm điều kiện cũ `text = null` bỏ qua OCR crop. Phase hiện tại coi text vùng có
+ít hơn `crop_ocr_min_text_characters = 2` ký tự là chưa đủ bằng chứng nội dung và
+cho Tesseract chạy với locale canonical. Kết quả OCR chỉ thay text hiện có khi
+dài hơn; text Docling có ý nghĩa không bị ghi đè. Provenance của kết quả thay thế
+vẫn phải ghi `ocr_engine` và `ocr_language`.
+Thay đổi output này bắt buộc dùng processing version
+`docling-2.119.0-layout-v5`; revision `layout-v4` là lịch sử bất biến và không
+được ghi đè hoặc tái diễn giải.
 
 **Bổ sung Version 2.6, Approved 2026-08-28.** Architecture Owner nâng
 `max_regions_per_page` từ `50` lên `100`, giữ nguyên

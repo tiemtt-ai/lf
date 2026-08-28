@@ -5,13 +5,17 @@ namespace App\Services;
 use App\Contracts\MediaProcessingProvider;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
+use Throwable;
 
 class DoclingStructuredExtractionProvider implements MediaProcessingProvider
 {
     /** @var array<string, array<int, array{width: float, height: float}>> */
     private array $pageSizeCache = [];
 
-    public function __construct(private readonly DocumentProcessRunner $runner) {}
+    public function __construct(
+        private readonly DocumentProcessRunner $runner,
+        private readonly RegionCropStorage $crops = new RegionCropStorage,
+    ) {}
 
     public function process(object $mediaFile, object $job): array
     {
@@ -163,7 +167,8 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
             return $regions;
         }
 
-        $figures = array_filter($regions, static fn (array $region): bool => ($region['role'] ?? null) === 'figure'
+        $roles = (array) config('media.processing.structured_extraction.crop_roles', ['figure']);
+        $figures = array_filter($regions, static fn (array $region): bool => in_array($region['role'] ?? null, $roles, true)
             && is_array($region['bbox'] ?? null));
         if ($figures === []) {
             return $regions;
@@ -216,7 +221,7 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
                     throw new RuntimeException('provider_command_failed');
                 }
 
-                $key = $this->cropKey($mediaFile, $job, $locale, $page, (int) $region['ordinal']);
+                $key = $this->crops->key($mediaFile, $job, $locale, $page, (int) $region['ordinal']);
                 $stream = fopen($file, 'rb');
                 if ($stream === false || Storage::disk($disk)->put($key, $stream) === false) {
                     if (is_resource($stream)) {
@@ -234,7 +239,7 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
                     'bytes' => $bytes,
                 ];
 
-                if (($regions[$index]['text'] ?? null) === null) {
+                if ($this->figureTextNeedsOcr($regions[$index])) {
                     $regions[$index] = $this->ocrCrop($regions[$index], $file, $locale);
                 }
 
@@ -242,6 +247,20 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
             }
 
             return $regions;
+        } catch (Throwable $exception) {
+            // Da co crop len storage truoc khi hong. Khong xoa thi chung thanh
+            // object mo coi khong row nao tham chieu, va co the chua PII.
+            //
+            // Cleanup KHONG duoc thay the loi goc: `structured_extraction_too_large`
+            // la thu job dich sang error code on dinh, con loi cua lenh xoa thi
+            // khong. Doi loi o day se lam ca chuoi chan doan noi sai nguyen nhan.
+            try {
+                $this->crops->purgeRevision($mediaFile, $job, $locale);
+            } catch (Throwable) {
+                // Nuot co chu dich; sweeper la duong quay lai.
+            }
+
+            throw $exception;
         } finally {
             $this->removeDirectory($directory);
         }
@@ -285,6 +304,11 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
             return $region;
         }
 
+        $existingText = trim((string) ($region['text'] ?? ''));
+        if (mb_strlen($text) <= mb_strlen($existingText)) {
+            return $region;
+        }
+
         $region['text'] = $text;
         $region['char_count'] = mb_strlen($text);
         $region['extraction_method'] = 'ocr';
@@ -293,16 +317,21 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
         return $region;
     }
 
-    private function cropKey(object $mediaFile, object $job, string $locale, int $page, int $ordinal): string
+    /**
+     * Docling/pdftotext co the tra mot ky tu rac cho figure tren trang scan.
+     * Khong coi no la text day du: cho Tesseract thu doc crop, nhung ocrCrop()
+     * chi thay the khi ket qua mang nhieu ky tu hon text hien co.
+     *
+     * @param  array<string, mixed>  $region
+     */
+    private function figureTextNeedsOcr(array $region): bool
     {
-        $safe = static fn (string $value): string => preg_replace('/[^A-Za-z0-9._-]/', '_', $value) ?? $value;
+        $minimum = max(1, (int) config(
+            'media.processing.structured_extraction.crop_ocr_min_text_characters',
+            2,
+        ));
 
-        return 'tenants/'.(int) $mediaFile->customer_id
-            .'/media/'.(int) $mediaFile->id
-            .'/regions/'.$safe((string) $job->source_fingerprint)
-            .'/'.$safe((string) $job->processing_version)
-            .'/'.$safe($locale)
-            .'/'.$page.'-'.$ordinal.'.png';
+        return mb_strlen(trim((string) ($region['text'] ?? ''))) < $minimum;
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\MediaProcessingProvider;
 use App\Exceptions\MediaReadException;
 use App\Jobs\ProcessMediaProcessingJob;
 use App\Models\User;
@@ -12,6 +13,7 @@ use App\Services\LocalDocumentProcessingProvider;
 use App\Services\MediaProcessingOrchestrator;
 use App\Services\MediaReadService;
 use App\Services\MediaService;
+use App\Services\RegionCropStorage;
 use App\Services\StructuredExtractionPersistenceService;
 use App\Support\TenantContext;
 use Illuminate\Database\QueryException;
@@ -212,6 +214,7 @@ class MediaProcessingSubstrateTest extends TestCase
             'media.processing.structured_extraction.crop_enabled' => true,
             'media.processing.structured_extraction.crop_dpi' => 200,
             'media.processing.structured_extraction.crop_ocr_enabled' => true,
+            'media.processing.structured_extraction.crop_ocr_min_text_characters' => 2,
             'media.processing.structured_extraction.max_crop_bytes_per_document' => 67108864,
         ], $overrides));
     }
@@ -263,6 +266,40 @@ class MediaProcessingSubstrateTest extends TestCase
         )));
     }
 
+    public function test_docling_provider_replaces_one_character_figure_noise_with_longer_crop_ocr(): void
+    {
+        $this->doclingConfig();
+        $runner = $this->doclingRunner(
+            sys_get_temp_dir().'/unused.json',
+            $this->doclingFigureRegion(),
+            '가',
+            '한국어 학습 자료',
+        );
+        $result = $this->doclingProcess($runner, 'docling-crop-short-text.pdf', 'ko');
+
+        $region = $result['regions'][0];
+        $this->assertSame('한국어 학습 자료', $region['text']);
+        $this->assertSame('ocr', $region['extraction_method']);
+        $this->assertSame('kor', $region['metadata']['ocr_language']);
+    }
+
+    public function test_docling_provider_keeps_short_figure_text_when_crop_ocr_is_not_better(): void
+    {
+        $this->doclingConfig();
+        $runner = $this->doclingRunner(
+            sys_get_temp_dir().'/unused.json',
+            $this->doclingFigureRegion(),
+            '가',
+            '나',
+        );
+        $result = $this->doclingProcess($runner, 'docling-crop-short-text-preserved.pdf', 'ko');
+
+        $region = $result['regions'][0];
+        $this->assertSame('가', $region['text']);
+        $this->assertSame('embedded_text', $region['extraction_method']);
+        $this->assertArrayNotHasKey('ocr_engine', $region['metadata'] ?? []);
+    }
+
     public function test_docling_provider_does_not_ocr_a_locale_with_no_language_mapping(): void
     {
         $this->doclingConfig();
@@ -277,14 +314,139 @@ class MediaProcessingSubstrateTest extends TestCase
         )));
     }
 
+    public function test_worker_kill_purges_crops_of_the_job_it_abandons(): void
+    {
+        $media = $this->uploadDocument();
+        $cropKey = "tenants/{$this->customerId}/media/{$media->id}/regions/".str_repeat('a', 64).'/v1/vi/1-1.png';
+        Storage::disk($media->storage_disk)->put($cropKey, 'png-bytes');
+
+        $jobId = DB::table('media_processing_jobs')->insertGetId([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'job_type' => 'structured_extraction', 'status' => 'processing',
+            'provider' => 'docling_local', 'processing_version' => 'v1',
+            'source_fingerprint' => str_repeat('a', 64), 'output_profile' => 'locale=vi;structure=layout',
+            'output_profile_hash' => str_repeat('b', 64), 'attempt' => 1,
+            'idempotency_key' => 'worker-kill-1', 'correlation_id' => 'worker-kill-1',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        // Worker bi giet giua chung: handle() khong chay het, nen chi failed()
+        // con co the don crop da len storage.
+        (new ProcessMediaProcessingJob($this->customerId, $jobId))->failed(null);
+
+        $this->assertSame('failed', DB::table('media_processing_jobs')->where('id', $jobId)->value('status'));
+        Storage::disk($media->storage_disk)->assertMissing($cropKey);
+    }
+
+    public function test_docling_provider_crops_only_eligible_regions_and_leaves_the_rest_null(): void
+    {
+        $this->doclingConfig();
+        $figure = $this->doclingFigureRegion()[0];
+        $paragraph = $figure;
+        $paragraph['role'] = 'paragraph';
+        $paragraph['ordinal'] = 2;
+        $paragraph['reading_order'] = 2;
+        $paragraph['locator_value'] = '1#2';
+        $figureNoBbox = $figure;
+        $figureNoBbox['bbox'] = null;
+        $figureNoBbox['ordinal'] = 3;
+        $figureNoBbox['reading_order'] = 3;
+        $figureNoBbox['locator_value'] = '1#3';
+
+        $runner = $this->doclingRunner(
+            sys_get_temp_dir().'/unused.json', [$figure, $paragraph, $figureNoBbox], 'nhan truc'
+        );
+        $result = $this->doclingProcess($runner, 'docling-crop-eligibility.pdf');
+
+        // Mot revision hien hanh co ca vung mang crop lan vung crop=null. Spec B
+        // § 5.3 phai doc duoc theo eligibility, khong phai theo ca revision.
+        $this->assertNotNull($result['regions'][0]['crop'] ?? null);
+        $this->assertNull($result['regions'][1]['crop'] ?? null, 'paragraph khong thuoc crop_roles.');
+        $this->assertNull($result['regions'][2]['crop'] ?? null, 'figure khong bbox thi khong co gi de cat.');
+    }
+
     public function test_docling_provider_fails_whole_revision_when_crop_budget_is_exceeded(): void
     {
-        $this->doclingConfig(['media.processing.structured_extraction.max_crop_bytes_per_document' => 1]);
-        $runner = $this->doclingRunner(sys_get_temp_dir().'/unused.json', $this->doclingFigureRegion(), 'nhan truc');
+        // Tran nam GIUA mot va hai crop: crop dau len storage thanh cong, crop
+        // thu hai vuot tran. Neu tran chan ngay tu crop dau thi test khong noi
+        // duoc gi ve viec don crop da upload.
+        $first = $this->doclingFigureRegion();
+        $second = $first[0];
+        $second['ordinal'] = 2;
+        $second['reading_order'] = 2;
+        $second['locator_value'] = '1#2';
+        $regions = [$first[0], $second];
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('structured_extraction_too_large');
-        $this->doclingProcess($runner, 'docling-crop-budget.pdf');
+        $this->doclingConfig(['media.processing.structured_extraction.max_crop_bytes_per_document' => 100]);
+        $runner = $this->doclingRunner(sys_get_temp_dir().'/unused.json', $regions, 'nhan truc');
+
+        try {
+            $this->doclingProcess($runner, 'docling-crop-budget.pdf');
+            $this->fail('Crop budget overrun was accepted.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('structured_extraction_too_large', $exception->getMessage());
+        }
+
+        // DB rollback duoc, storage thi khong. Crop da len truoc khi vuot tran
+        // phai bi xoa, neu khong chung la object mo coi co the chua PII.
+        $this->assertSame([], Storage::disk('media_local')->allFiles(
+            'tenants/3/media/7/regions/'.str_repeat('a', 64).'/docling-test-v1/vi'
+        ));
+    }
+
+    public function test_failed_persistence_leaves_no_orphan_crop_in_storage(): void
+    {
+        $this->doclingConfig();
+        // reading_order 2 khong lien tuc -> persistence nem sau khi crop da upload.
+        $regions = $this->doclingFigureRegion();
+        $regions[0]['reading_order'] = 2;
+        $runner = $this->doclingRunner(sys_get_temp_dir().'/unused.json', $regions, 'nhan truc');
+
+        $media = (object) ['id' => 7, 'customer_id' => 3, 'file_type' => 'document', 'extension' => 'pdf',
+            'storage_disk' => 'media_local', 'storage_key' => 'docling-orphan.pdf'];
+        $job = (object) ['id' => 1, 'job_type' => 'structured_extraction', 'provider' => 'docling_local',
+            'output_profile' => 'locale=vi;structure=layout', 'source_fingerprint' => str_repeat('a', 64),
+            'processing_version' => 'docling-test-v1'];
+        Storage::disk('media_local')->put($media->storage_key, 'pdf');
+
+        $result = (new DoclingStructuredExtractionProvider($runner, new RegionCropStorage))->process($media, $job);
+        $prefix = 'tenants/3/media/7/regions/'.str_repeat('a', 64).'/docling-test-v1/vi';
+        $this->assertCount(1, Storage::disk('media_local')->allFiles($prefix), 'Crop phai ton tai truoc khi persist.');
+
+        // Chay dung duong job that: provider da upload crop, persistence nem,
+        // transaction rollback — job phai don storage.
+        config([
+            'media.processing.providers.structured_extraction' => 'docling_local',
+            'media.processing.versions.structured_extraction' => 'docling-test-v1',
+        ]);
+        $realMedia = $this->uploadDocument();
+        $this->app->instance(DoclingStructuredExtractionProvider::class, new class($result) implements MediaProcessingProvider
+        {
+            public function __construct(private array $result) {}
+
+            public function process(object $mediaFile, object $job): array
+            {
+                Storage::disk((string) $mediaFile->storage_disk)->put(
+                    app(RegionCropStorage::class)->key($mediaFile, $job, 'vi', 1, 1), 'png-bytes'
+                );
+
+                return $this->result;
+            }
+        });
+
+        app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
+            $this->customerId, $realMedia->id, 'structured_extraction',
+            ['locale' => 'vi', 'structure' => 'layout'], $this->admin->id
+        );
+
+        $failed = DB::table('media_processing_jobs')->where('media_file_id', $realMedia->id)
+            ->where('job_type', 'structured_extraction')->firstOrFail();
+        $this->assertSame('failed', $failed->status);
+        $this->assertSame('structured_extraction_invalid', $failed->error_code);
+        $this->assertSame(0, DB::table('media_extracted_regions')->where('media_file_id', $realMedia->id)->count());
+        $this->assertSame([], Storage::disk((string) $realMedia->storage_disk)->allFiles(
+            app(RegionCropStorage::class)->revisionPrefix($realMedia, $failed, 'vi')
+        ), 'Job phai xoa crop cua revision that bai.');
     }
 
     public function test_docling_provider_preserves_stable_domain_error_from_json_protocol(): void
@@ -679,6 +841,14 @@ class MediaProcessingSubstrateTest extends TestCase
 
         $audit = DB::table('media_access_logs')->where('media_file_id', $media->id)->latest('id')->first();
         $this->assertTrue(json_decode($audit->metadata, true)['include_crop']);
+
+        // `page` cung la selector; § 8 buoc audit tra loi duoc "doc trang nao".
+        app(MediaReadService::class)->read(
+            $this->admin->id, 'course_activity', 120, 'document', 'region', 'vi',
+            null, null, 'ai', [], 1
+        );
+        $audit = DB::table('media_access_logs')->where('media_file_id', $media->id)->latest('id')->first();
+        $this->assertSame(1, json_decode($audit->metadata, true)['page']);
 
         try {
             app(MediaReadService::class)->read(

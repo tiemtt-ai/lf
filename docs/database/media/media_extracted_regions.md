@@ -1,6 +1,6 @@
 # Table: media_extracted_regions
 
-Version: 1.9
+Version: 1.15
 
 Document Status: Approved
 
@@ -176,9 +176,14 @@ song song — tức mô phỏng lại quan hệ vốn đã có sẵn ở đây.
 
 * Năm cột crop là **tất-cả-hoặc-không-có**. Một row không được có
   `crop_storage_key` mà thiếu kích thước, và ngược lại.
-* Crop được sinh cho `role = 'figure'` trong Phase 1. Schema không cấm role
-  khác — cấm sẽ phải sửa CHECK khi mở crop cho `table`, mà việc đó không đổi
-  ngữ nghĩa gì.
+* Crop được sinh cho `role = 'figure'` trong Phase 1, và chỉ khi vùng có `bbox`.
+  Hai điều kiện đó hợp thành **tập vùng đủ điều kiện**; ngoài tập đó thì năm cột
+  crop luôn NULL và đó **không** phải dữ liệu thiếu. Consumer đọc theo bảng ở
+  [Spec B § 5.3](../../platform/LF-Media-Read-Contract.md). Schema không cấm
+  role khác — tập này là cấu hình runtime (`crop_roles`), không phải CHECK.
+* All-or-nothing áp dụng **trên tập đủ điều kiện**, không phải trên mọi row: nếu
+  một vùng đủ điều kiện có crop thì mọi vùng đủ điều kiện trong cùng revision
+  đều có. Luật fail-whole-revision là thứ bảo đảm điều này.
 * Crop là **private**, phục vụ qua signed delivery như mọi asset Media khác.
   Không có URL công khai.
 * Crop **không bị xoá khi revision chuyển `archived`**. Một AI Proposal đã trích
@@ -237,6 +242,108 @@ VARCHAR(1024) xuống **VARCHAR(512)**: utf8mb4 × 1024 = 4096 byte, vượt tr�
 3072 byte của index InnoDB nên không thể UNIQUE; 512 vẫn dư cho đường dẫn dài
 nhất (~200 ký tự).
 
+#### Xoá crop — v1.11
+
+Object storage và DB **không có transaction chung**, nên thứ tự quyết định
+hướng hỏng. `MediaService::deleteMedia()` đánh dấu `deleted` trong DB **trước**
+rồi mới chạm storage:
+
+* Không bao giờ tồn tại một Media còn `ready` mà thiếu source hoặc thiếu crop.
+  Delivery từ chối mọi trạng thái khác `ready`, nên row `deleted` không phục vụ
+  ai kể cả khi storage chưa dọn xong.
+* Thứ tự ngược lại — xoá storage trước — để lại Media `ready` mất crop hoặc mất
+  source khi bước sau hỏng. Đó là mất dữ liệu thật, không phải rác thừa.
+
+Hai hàm xoá đều **kiểm chứng lại** thay vì tin giá trị trả về: `deleteDirectory()`
+có thể trả `true` mà object vẫn còn, và coi `false` là thành công nghĩa là báo
+"PII đã biến mất" trong khi nó vẫn nằm đó.
+
+Nếu dọn storage thất bại, row vẫn `deleted` và object trở thành rác mồ côi. Đó
+là chi phí bắt buộc của việc không có transaction chung, và nó **có đường quay
+lại**:
+
+```bash
+php artisan media:purge-deleted-storage
+```
+
+#### Hai nguồn rác, không cùng một điều kiện — v1.12
+
+Bản v1.11 nói sweeper lấy danh sách row `deleted` làm danh sách việc. **Câu đó
+chỉ đúng một nửa**, và review độc lập đã chỉ ra. Có hai loại rác:
+
+1. **Media đã `deleted`** — cả source lẫn cây crop phải biến mất.
+2. **Revision structured thất bại trên một Media vẫn `ready`** — crop đã lên
+   storage trước khi persistence hỏng. Media **không** đổi trạng thái, đúng theo
+   thiết kế: một lần trích xuất hỏng không được làm tài liệu mất `ready`.
+
+Quét theo `status = 'deleted'` **không bao giờ thấy loại 2**. Đó là loại rác
+thường gặp nhất, vì nó sinh ra từ chính đường hỏng mà crop cleanup phục vụ.
+
+Với loại 2, thứ được xoá là crop **không được row `media_extracted_regions` nào
+tham chiếu**. Đó là định nghĩa chính xác của "mồ côi", và nó đúng cả khi
+revision được chạy lại thành công sau đó — crop của bản thành công có row trỏ
+tới nên được giữ.
+
+`--limit` đếm số Media **đã xử lý**, không phải số row đã quét. Đếm theo row quét
+thì hàng trăm tombstone sạch đứng trước sẽ làm residue phía sau đói vĩnh viễn.
+
+Mỗi Media được cô lập bằng try/catch riêng: một disk hỏng không được làm cả lượt
+quét dừng lại, nếu không thì lần chạy sau vẫn mắc ở đúng row đó. Row lỗi **không
+tính vào `--limit`** — nếu tính thì 500 Media trên một disk đang hỏng sẽ chặn
+vĩnh viễn mọi residue hợp lệ phía sau, đúng kiểu đói mà `--limit` sinh ra để
+tránh. Command trả exit code thất bại ở cuối lượt.
+
+#### Không được dọn khi có job đang chạy
+
+Provider đẩy crop lên storage **trước** khi job ghi `media_extracted_regions`.
+Giữa hai bước đó, crop tồn tại mà chưa row nào trỏ tới — nhìn từ ngoài vào
+**không phân biệt được với rác mồ côi**. Bấm Dọn ngay đúng lúc đó sẽ xoá crop
+của một job sắp thành công, và revision `ready` sẽ trỏ tới file không còn tồn
+tại. Nút "dọn rác" khi đó trở thành lệnh xoá asset hợp lệ.
+
+Ba lớp chặn, mỗi lớp có test riêng và mutation riêng:
+
+1. **Lúc quét**: bỏ qua mọi Media có job `structured_extraction` ở trạng thái
+   `pending` hoặc `processing`. `pending` cũng tính, vì từ lúc claim tới lúc
+   crop đầu tiên lên storage chỉ là một lệnh render.
+2. **Lúc xoá, trong khoá row**: kiểm tra lại điều kiện trên. Job có thể được
+   claim ngay sau khi quét xong. `ProcessMediaProcessingJob` claim job trong một
+   transaction có `lockForUpdate()` trên đúng row `media_files` này, nên hai bên
+   xếp hàng — không thể vừa claim job vừa xoá file của nó.
+3. **Danh sách key được tính lại trong khoá**, không dùng lại danh sách lúc
+   quét. Một revision chạy lại có thể vừa ghi đè đúng những key đó và đã commit
+   row; xoá theo danh sách cũ là xoá asset hợp lệ.
+
+#### Owner purge policy — 2026-08-28, bản thay thế
+
+**Thay thế policy "sweeper chạy mỗi giờ" ghi trước đó cùng ngày.** Bản cũ đặt
+lịch tự động; bản này bỏ hoàn toàn lịch tự động.
+
+Quyết định: **không có tác vụ nào tự động xoá file.** Sweeper không được đăng ký
+vào bất kỳ scheduler nào. Đây là quyết định, không phải hạng mục còn thiếu.
+
+Lý do: xoá file là thao tác không hoàn tác được, và thứ bị xoá được nhận diện
+bằng **suy luận** — "không còn row nào trỏ tới". Một sai sót trong suy luận đó,
+khi chạy tự động lúc 3 giờ sáng, sẽ xoá dữ liệu thật mà không ai kịp thấy. Trong
+khi đó rác này **không ai với tới được**: không có row thì không có
+`crop_storage_key` để ký URL, và `generateDerivedSignedUrl()` từ chối mọi Media
+khác `ready`. Dọn sớm hơn vì thế không mua thêm an toàn, chỉ mua thêm rủi ro.
+
+Hai lối chạy, cả hai đều do người khởi động:
+
+* Nút **Dọn ngay** trong Quản lý Media, kèm ghi chú giải thích và một bước xác
+  nhận. Chỉ quét tenant hiện tại — `TenantContext` là ranh giới, không phải bộ lọc.
+* `php artisan media:purge-deleted-storage` cho operator, có `--dry-run`.
+
+Cả hai dùng chung `MediaStorageResidueSweeper`, nên không tồn tại luật thứ hai.
+
+Hệ quả được chấp nhận: một lần dọn thất bại chỉ lộ ra qua log mức error cho tới
+khi có người bấm lại. Không có alerting vận hành, vì không có job vận hành.
+
+Legal hold và purge orchestration đầy đủ vẫn thuộc ADR-0018. Khi mở chúng, quyết
+định "không tự động xoá" ở đây phải được xem lại **tường minh**, không mặc nhiên
+bị ghi đè.
+
 #### Trần tài nguyên — cần benchmark trước khi freeze
 
 Đo thật bằng `pdftoppm` trên hai tài liệu đã có trong hệ thống, cắt đúng bbox
@@ -282,8 +389,10 @@ Chọn một định dạng an toàn cho mọi trường hợp là đúng ranh g
   200 DPI PNG trong `DoclingStructuredExtractionProvider::renderCrops()`.
 * Crop hiện chỉ sinh cho `role = 'figure'`. Mở cho `table` không cần đổi
   schema, nhưng cần đo lại trần vì số vùng sẽ tăng.
-* Xoá crop khi Media File bị xoá vẫn chưa có runtime; nó nằm trong cùng hạng
-  mục retention/deletion đang mở của ADR-0018.
+* ~~Xoá crop khi Media File bị xoá chưa có runtime.~~ Xong 2026-08-28, sửa lại
+  ở v1.11 sau review độc lập lần hai. Chi tiết ở § Xoá crop bên dưới.
+* Retention theo lịch, legal hold và purge orchestration vẫn thuộc gate đang mở
+  của ADR-0018.
 
 ### Ghi chú `role` — v1.1, Approved 2026-08-27
 

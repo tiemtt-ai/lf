@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\MediaService;
+use App\Services\MediaStorageResidueSweeper;
 use App\Services\MediaThumbnailPresenter;
 use App\Support\TenantContext;
 use Illuminate\Http\RedirectResponse;
@@ -29,8 +30,53 @@ class MediaFileController extends Controller
 
     public function __construct(
         private readonly MediaService $mediaService,
-        private readonly MediaThumbnailPresenter $thumbnails
+        private readonly MediaThumbnailPresenter $thumbnails,
+        private readonly MediaStorageResidueSweeper $sweeper
     ) {}
+
+    /**
+     * Don file mo coi tren storage cho tenant hien tai.
+     *
+     * KHONG co lich chay tu dong. Storage va DB khong co transaction chung, nen
+     * mot revision trich xuat hong hoac mot lan xoa Media hong co the de lai file
+     * khong con dong nao trong DB tro toi. Xoa file la thao tac khong hoan tac
+     * duoc, nen no do admin bam, khong do he thong tu quyet.
+     *
+     * Chi quet tenant hien tai: TenantContext la ranh gioi, khong phai bo loc.
+     */
+    public function purgeOrphanStorage(Request $request): RedirectResponse
+    {
+        $found = $this->sweeper->scan($this->customerId());
+
+        if ($found === []) {
+            return redirect()
+                ->route('admin.media.index', $this->listFilters($request))
+                ->with('success', __('lf.LF_media_storage_purge_nothing'));
+        }
+
+        $purged = 0;
+        $failed = 0;
+        foreach ($found as $item) {
+            $result = $item['keys'] === []
+                ? ['success' => false, 'deleted_count' => 0]
+                : $this->sweeper->purge($item);
+            if ($result['success']) {
+                $purged += $result['deleted_count'];
+
+                continue;
+            }
+            $failed++;
+        }
+
+        $redirect = redirect()->route('admin.media.index', $this->listFilters($request));
+
+        return $failed === 0
+            ? $redirect->with('success', __('lf.LF_media_storage_purge_done', ['count' => $purged]))
+            : $redirect->with('error', __('lf.LF_media_storage_purge_partial', [
+                'count' => $purged,
+                'failed' => $failed,
+            ]));
+    }
 
     public function index(Request $request): View
     {
@@ -90,6 +136,7 @@ class MediaFileController extends Controller
             'usageStatus' => $usageStatus,
             'ownerTypeOptions' => $ownerTypeOptions,
             'tabCounts' => $this->tabCounts($customerId),
+            'listFilters' => $this->listFilters($request),
         ]);
     }
 
