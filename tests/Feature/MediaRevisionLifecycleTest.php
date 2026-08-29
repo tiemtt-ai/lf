@@ -56,6 +56,65 @@ class MediaRevisionLifecycleTest extends TestCase
             ->where('locale', 'vi')->where('status', 'ready')->count());
     }
 
+    /**
+     * Caption dung TU transcript, nen transcript revision moi lam caption cua ban
+     * cu thanh stale. `source_fingerprint` khong bat duoc: no la van tay binary
+     * goc, khong doi khi transcript len version moi.
+     */
+    public function test_a_new_transcript_revision_archives_the_caption_built_on_the_old_one(): void
+    {
+        $media = $this->uploadVideo();
+        $this->materialize($media->id);
+        $fingerprint = DB::table('media_transcripts')->where('media_file_id', $media->id)
+            ->where('processing_version', 'fake-v1')->value('source_fingerprint');
+
+        $captionId = DB::table('media_captions')->insertGetId([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'locale' => 'vi', 'caption_type' => 'vtt',
+            'storage_key' => 'tenants/1/captions/v1.vtt', 'status' => 'ready',
+            'processing_job_id' => DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+                ->where('job_type', 'speech_to_text')->value('id'),
+            'processing_version' => 'caption-v1',
+            'transcript_processing_version' => 'fake-v1',
+            'source_fingerprint' => $fingerprint,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        // Caption khong do job sinh ra, va mang fingerprint khac. Khong dung tu
+        // transcript nao nen khong duoc dung toi — ke ca khi fingerprint lech.
+        $manualId = DB::table('media_captions')->insertGetId([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'locale' => 'vi', 'caption_type' => 'srt',
+            'storage_key' => 'tenants/1/captions/manual.srt', 'status' => 'ready',
+            'processing_job_id' => null, 'processing_version' => 'manual-v1',
+            'transcript_processing_version' => null, 'source_fingerprint' => str_repeat('f', 64),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        // Caption dung tu transcript SAP toi (fake-v2). `processing_version` cua
+        // chinh no van la caption-v1, nen so nham cot se archive nham row nay.
+        $currentId = DB::table('media_captions')->insertGetId([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'locale' => 'vi', 'caption_type' => 'ass',
+            'storage_key' => 'tenants/1/captions/v2.ass', 'status' => 'ready',
+            'processing_job_id' => DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+                ->where('job_type', 'speech_to_text')->value('id'),
+            'processing_version' => 'caption-v1',
+            'transcript_processing_version' => 'fake-v2',
+            'source_fingerprint' => $fingerprint,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        config(['media.processing.versions.speech_to_text' => 'fake-v2']);
+        $this->materialize($media->id);
+
+        $this->assertSame('archived', $this->transcriptStatus($media->id, 'fake-v1'));
+        $this->assertSame('archived', DB::table('media_captions')->where('id', $captionId)->value('status'),
+            'Caption dung tu transcript da bi thay the phai stale.');
+        $this->assertSame('ready', DB::table('media_captions')->where('id', $manualId)->value('status'),
+            'Caption khong dung tu transcript khong duoc dung toi.');
+        $this->assertSame('ready', DB::table('media_captions')->where('id', $currentId)->value('status'),
+            'Caption dung tu transcript hien hanh phai giu ready.');
+    }
+
     public function test_a_version_bump_does_not_archive_a_coexisting_locale(): void
     {
         $media = $this->uploadVideo();

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\CourseActivityMediaPresenter;
 use App\Services\DocumentProcessRunner;
+use App\Services\MediaProcessingOrchestrator;
 use App\Services\MediaService;
 use App\Services\TrustedVideoUrlService;
 use App\Support\TenantContext;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use InvalidArgumentException;
 
 class CourseTemplateActivityController extends Controller
 {
@@ -43,9 +45,52 @@ class CourseTemplateActivityController extends Controller
 
     public function __construct(
         private readonly MediaService $mediaService,
+        private readonly MediaProcessingOrchestrator $processingOrchestrator,
         private readonly CourseActivityMediaPresenter $activityMediaPresenter,
         private readonly TrustedVideoUrlService $trustedVideoUrls,
     ) {}
+
+    public function initializeTranscriptionDirect(Request $request, int $templateId, int $lessonId, int $activityId)
+    {
+        return $this->initializeTranscriptionForActivity($request, $templateId, $lessonId, $activityId, null);
+    }
+
+    public function initializeTranscription(Request $request, int $templateId, int $sectionId, int $lessonId, int $activityId)
+    {
+        return $this->initializeTranscriptionForActivity($request, $templateId, $lessonId, $activityId, $sectionId);
+    }
+
+    private function initializeTranscriptionForActivity(
+        Request $request,
+        int $templateId,
+        int $lessonId,
+        int $activityId,
+        ?int $sectionId,
+    ) {
+        $customerId = $this->customerId();
+        $this->findHierarchy($customerId, $templateId, $sectionId, $lessonId);
+        $activity = $this->findActivity($customerId, $templateId, $lessonId, $activityId);
+        abort_unless($activity->activity_type === 'audio', 404);
+
+        $validated = $request->validate([
+            'processing_locale' => ['required', Rule::in(['vi', 'ko', 'en'])],
+        ]);
+        try {
+            $this->processingOrchestrator->initializeLegacySpeechToText(
+                $customerId,
+                $activityId,
+                $validated['processing_locale'],
+                (int) $request->user()->id,
+            );
+        } catch (InvalidArgumentException $exception) {
+            return back()->withErrors(['processing_locale' => __('lf.LF_course_template_activity_stt_initialize_ineligible')]);
+        }
+
+        return redirect()->to(
+            route($this->templateRoutePrefix($request).'.edit', $templateId)
+            ."?tab=structure#course-template-lesson-{$lessonId}-activities"
+        )->with('success', __('lf.LF_course_template_activity_stt_initialized'));
+    }
 
     public function index(
         Request $request,
@@ -374,6 +419,8 @@ class CourseTemplateActivityController extends Controller
 
         if ($this->structuredExtractionRequested($request)) {
             $response->with('info', __('lf.LF_course_template_activity_structured_queued_notice'));
+        } elseif ($this->speechToTextRequested($request)) {
+            $response->with('info', __('lf.LF_course_template_activity_stt_queued_notice'));
         }
 
         return $response;
@@ -545,6 +592,8 @@ class CourseTemplateActivityController extends Controller
 
         if ($this->structuredExtractionRequested($request)) {
             $response->with('info', __('lf.LF_course_template_activity_structured_queued_notice'));
+        } elseif ($this->speechToTextRequested($request)) {
+            $response->with('info', __('lf.LF_course_template_activity_stt_queued_notice'));
         }
 
         return $response;
@@ -745,7 +794,7 @@ class CourseTemplateActivityController extends Controller
             try {
                 $input['external_video_url'] = $this->trustedVideoUrls
                     ->normalize($input['external_video_url'])['url'];
-            } catch (\InvalidArgumentException) {
+            } catch (InvalidArgumentException) {
                 // Preserve the submitted value so canonical validation rejects it.
             }
         }
@@ -807,7 +856,7 @@ class CourseTemplateActivityController extends Controller
                     }
                     try {
                         $normalized = $this->trustedVideoUrls->normalize($value);
-                    } catch (\InvalidArgumentException) {
+                    } catch (InvalidArgumentException) {
                         $fail(__('validation.url', ['attribute' => $attribute]));
 
                         return;
@@ -922,7 +971,7 @@ class CourseTemplateActivityController extends Controller
             ],
             'processing_locale' => [
                 Rule::requiredIf(fn () => request()->hasFile('activity_video_file')
-                    || request()->hasFile('activity_audio_file')
+                    || (request()->hasFile('activity_audio_file') && request()->boolean('speech_to_text'))
                     || request()->hasFile('activity_document_file')),
                 'nullable',
                 'string',
@@ -931,6 +980,7 @@ class CourseTemplateActivityController extends Controller
             // Opt-in cho Docling structured extraction. Chi co y nghia voi document;
             // khong tick thi luong upload giu nguyen hanh vi cu.
             'structured_extraction' => ['nullable', 'boolean'],
+            'speech_to_text' => ['nullable', 'boolean'],
             'activity_attachment_file' => [
                 'nullable',
                 'file',
@@ -1159,6 +1209,7 @@ class CourseTemplateActivityController extends Controller
                     'structured_extraction' => $fileType === 'document'
                         && strtolower((string) $request->file($field)?->getClientOriginalExtension()) === 'pdf'
                         && $request->boolean('structured_extraction'),
+                    'speech_to_text' => $fileType !== 'audio' || $request->boolean('speech_to_text'),
                 ]
             );
 
@@ -1175,6 +1226,11 @@ class CourseTemplateActivityController extends Controller
         return $file !== null
             && strtolower((string) $file->getClientOriginalExtension()) === 'pdf'
             && $request->boolean('structured_extraction');
+    }
+
+    private function speechToTextRequested(Request $request): bool
+    {
+        return $request->hasFile('activity_audio_file') && $request->boolean('speech_to_text');
     }
 
     private function synchronizeUploadedMediaDuration(

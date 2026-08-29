@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Services\CourseMediaOwnerContextAuthorizer;
 use App\Services\DoclingStructuredExtractionProvider;
 use App\Services\DocumentProcessRunner;
+use App\Services\FakeMediaProcessingProvider;
+use App\Services\FasterWhisperSpeechToTextProvider;
 use App\Services\LocalDocumentProcessingProvider;
 use App\Services\MediaProcessingOrchestrator;
 use App\Services\MediaReadService;
@@ -97,6 +99,85 @@ class MediaProcessingSubstrateTest extends TestCase
             'media_file_id' => $media->id, 'locale' => 'vi', 'text' => $text,
             'extraction_method' => 'embedded_text', 'provider' => 'local_document', 'status' => 'ready',
         ]);
+    }
+
+    public function test_faster_whisper_provider_returns_timestamped_units_with_explicit_locale(): void
+    {
+        Storage::disk('media_local')->put('lesson.mp3', 'audio bytes');
+        config([
+            'media.processing.speech_to_text.python_binary' => base_path('artisan'),
+            'media.processing.speech_to_text.script' => base_path('runtime/stt/transcribe.py'),
+            'media.processing.speech_to_text.model_path' => base_path('runtime'),
+        ]);
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldReceive('run')->once()->withArgs(function (array $command, int $timeout): bool {
+            $this->assertContains('ko', $command);
+            $this->assertSame(3300, $timeout);
+            $outputIndex = array_search('--output', $command, true);
+            file_put_contents($command[$outputIndex + 1], json_encode([
+                'status' => 'ready',
+                'units' => [
+                    ['locator_type' => 'timespan', 'locator_value' => '0-1000', 'text' => '안녕하세요'],
+                    ['locator_type' => 'timespan', 'locator_value' => '1000-2000', 'text' => '반갑습니다'],
+                ],
+            ], JSON_THROW_ON_ERROR));
+
+            return true;
+        })->andReturn('{"status":"ready","units":2}');
+
+        $result = (new FasterWhisperSpeechToTextProvider($runner))->process(
+            (object) [
+                'file_type' => 'audio', 'mime_type' => 'audio/mpeg', 'extension' => 'mp3',
+                'file_size_bytes' => 11, 'duration_seconds' => 2,
+                'storage_disk' => 'media_local', 'storage_key' => 'lesson.mp3',
+            ],
+            (object) ['job_type' => 'speech_to_text', 'output_profile' => 'diarization=off;locale=ko'],
+        );
+
+        $this->assertSame('0-1000', $result['units'][0]['locator_value']);
+        $this->assertSame('1000-2000', $result['units'][1]['locator_value']);
+    }
+
+    public function test_faster_whisper_provider_fails_before_model_when_audio_exceeds_duration_limit(): void
+    {
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldNotReceive('run');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('audio_limit_exceeded');
+        (new FasterWhisperSpeechToTextProvider($runner))->process(
+            (object) [
+                'file_type' => 'audio', 'mime_type' => 'audio/mpeg', 'extension' => 'mp3',
+                'file_size_bytes' => 1024, 'duration_seconds' => 7201,
+            ],
+            (object) ['job_type' => 'speech_to_text', 'output_profile' => 'diarization=off;locale=ko'],
+        );
+    }
+
+    public function test_invalid_transcript_rolls_back_every_segment_and_names_the_error(): void
+    {
+        config([
+            'media.processing.providers.speech_to_text' => 'fake',
+            'media.processing.versions.speech_to_text' => 'fake-invalid-v1',
+        ]);
+        $media = $this->uploadVideo('invalid-transcript.mp4');
+        $provider = Mockery::mock(FakeMediaProcessingProvider::class);
+        $provider->shouldReceive('process')->once()->andReturn(['units' => [
+            ['locator_type' => 'timespan', 'locator_value' => '0-1000', 'text' => 'first'],
+            ['locator_type' => 'timespan', 'locator_value' => '500-1500', 'text' => 'overlap'],
+        ]]);
+        $this->app->instance(FakeMediaProcessingProvider::class, $provider);
+
+        app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
+            $this->customerId, $media->id, 'speech_to_text',
+            ['locale' => 'ko', 'diarization' => 'off'], $this->admin->id,
+        );
+
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $media->id, 'job_type' => 'speech_to_text',
+            'status' => 'failed', 'error_code' => 'transcript_invalid',
+        ]);
+        $this->assertSame(0, DB::table('media_transcripts')->where('media_file_id', $media->id)->count());
     }
 
     public function test_local_document_provider_rejects_pdf_over_page_limit_before_extraction(): void
@@ -1101,6 +1182,148 @@ class MediaProcessingSubstrateTest extends TestCase
         ]);
     }
 
+    public function test_http_audio_upload_enqueues_transcript_and_shows_success_status(): void
+    {
+        config([
+            'media.processing.providers.speech_to_text' => 'fake',
+            'media.processing.versions.speech_to_text' => 'fake-stt-http-v1',
+        ]);
+        [$templateId, $lessonId] = $this->courseFixture();
+
+        $this->actingAs($this->admin)
+            ->followingRedirects()
+            ->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload([
+                'title' => 'Audio tieng Han',
+                'activity_type' => 'audio',
+                'activity_document_file' => null,
+                'activity_audio_file' => UploadedFile::fake()->create('lesson.mp3', 24, 'audio/mpeg'),
+                'processing_locale' => 'ko',
+                'speech_to_text' => '1',
+            ]))
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_stt_queued_notice'))
+            ->assertSeeText(__('lf.LF_course_template_activity_stt_ready'))
+            ->assertSeeText(__('lf.LF_course_template_activity_stt_ready_help'))
+            ->assertSessionHasNoErrors();
+
+        $usage = DB::table('media_file_usages')->where('usage_type', 'audio')->latest('id')->firstOrFail();
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id, 'job_type' => 'speech_to_text',
+            'provider' => 'fake', 'status' => 'ready',
+        ]);
+        $this->assertDatabaseHas('media_transcripts', [
+            'media_file_id' => $usage->media_file_id, 'locale' => 'ko',
+            'locator_type' => 'timespan', 'status' => 'ready',
+        ]);
+    }
+
+    public function test_http_audio_transcription_failure_is_visible_but_audio_remains_ready(): void
+    {
+        config(['media.processing.providers.speech_to_text' => 'unconfigured']);
+        [$templateId, $lessonId] = $this->courseFixture();
+
+        $this->actingAs($this->admin)
+            ->followingRedirects()
+            ->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload([
+                'title' => 'Audio khong co provider',
+                'activity_type' => 'audio',
+                'activity_document_file' => null,
+                'activity_audio_file' => UploadedFile::fake()->create('lesson.mp3', 24, 'audio/mpeg'),
+                'processing_locale' => 'ko',
+                'speech_to_text' => '1',
+            ]))
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_stt_failed'))
+            ->assertSeeText(__('lf.LF_course_template_activity_stt_failed_provider_help'));
+
+        $usage = DB::table('media_file_usages')->where('usage_type', 'audio')->latest('id')->firstOrFail();
+        $this->assertDatabaseHas('media_files', ['id' => $usage->media_file_id, 'status' => 'ready']);
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id, 'job_type' => 'speech_to_text',
+            'status' => 'failed', 'error_code' => 'provider_unavailable',
+        ]);
+    }
+
+    public function test_http_audio_upload_without_transcription_needs_no_locale_and_creates_no_stt_job(): void
+    {
+        [$templateId, $lessonId] = $this->courseFixture();
+
+        $this->actingAs($this->admin)
+            ->followingRedirects()
+            ->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload([
+                'title' => 'Audio chi de nghe',
+                'activity_type' => 'audio',
+                'activity_document_file' => null,
+                'activity_audio_file' => UploadedFile::fake()->create('listen-only.mp3', 24, 'audio/mpeg'),
+                'processing_locale' => null,
+                'speech_to_text' => null,
+            ]))
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_stt_disabled'))
+            ->assertSeeText(__('lf.LF_course_template_activity_stt_disabled_help'))
+            ->assertDontSeeText(__('lf.LF_course_template_activity_stt_queued_notice'))
+            ->assertSessionHasNoErrors();
+
+        $usage = DB::table('media_file_usages')->where('usage_type', 'audio')->latest('id')->firstOrFail();
+        $metadata = json_decode($usage->metadata, true);
+        $this->assertFalse((bool) $metadata['speech_to_text']);
+        $this->assertNull($metadata['processing_locale']);
+        $this->assertDatabaseMissing('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id,
+            'job_type' => 'speech_to_text',
+        ]);
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id,
+            'job_type' => 'virus_scan',
+        ]);
+    }
+
+    public function test_audio_form_defaults_transcription_on_and_explains_both_choices(): void
+    {
+        [$templateId, $lessonId] = $this->courseFixture();
+
+        $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/create")
+            ->assertOk()
+            ->assertSee('name="speech_to_text"', false)
+            ->assertSee('checked', false)
+            ->assertSeeText('Tự động phiên âm nội dung audio')
+            ->assertSeeText('Không tick: hệ thống chỉ lưu và quét an toàn file');
+    }
+
+    public function test_unchecked_deduplicated_audio_still_shows_an_existing_transcript(): void
+    {
+        config([
+            'media.processing.providers.speech_to_text' => 'fake',
+            'media.processing.versions.speech_to_text' => 'fake-stt-existing-v1',
+        ]);
+        [$templateId, $lessonId] = $this->courseFixture();
+        $media = $this->uploadDocument();
+        DB::table('media_files')->where('id', $media->id)
+            ->update(['file_type' => 'audio', 'status' => 'ready', 'processing_locale' => null]);
+        DB::table('media_processing_jobs')->where('media_file_id', $media->id)->delete();
+        app(MediaProcessingOrchestrator::class)->materializeForCourseActivity(
+            $this->customerId, $media->id, 'ko', $this->admin->id
+        );
+        $activityId = DB::table('core_course_template_activities')->insertGetId([
+            'customer_id' => $this->customerId, 'template_id' => $templateId,
+            'template_lesson_id' => $lessonId, 'title' => 'Audio deduplicated',
+            'activity_type' => 'audio', 'sort_order' => 1,
+            'created_by' => $this->admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'owner_type' => 'course_activity', 'owner_id' => $activityId,
+            'usage_type' => 'audio', 'status' => 'active',
+            'metadata' => json_encode(['speech_to_text' => false, 'processing_locale' => null]),
+            'created_by' => $this->admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure")
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_stt_ready'))
+            ->assertDontSeeText(__('lf.LF_course_template_activity_stt_disabled'));
+    }
+
     public function test_http_non_pdf_document_forging_the_checkbox_creates_no_structured_job(): void
     {
         [$templateId, $lessonId] = $this->courseFixture();
@@ -1162,6 +1385,109 @@ class MediaProcessingSubstrateTest extends TestCase
 
         $this->assertSame(0, DB::table('media_file_usages')->where('owner_type', 'course_activity')->count());
         $this->assertSame(0, DB::table('media_processing_jobs')->count());
+    }
+
+    /**
+     * Media audio cu khong co job STT nao. Bao "Cho xu ly" o day la noi sai:
+     * khong co gi duoc xep hang, nen admin refresh mai mot thu khong bao gio toi.
+     * Cung loai loi ma `structure_unavailable` sinh ra de chan.
+     */
+    public function test_activity_with_audio_but_no_speech_job_is_not_shown_as_queued(): void
+    {
+        [$templateId, $lessonId] = $this->courseFixture();
+        $media = $this->uploadDocument();
+        DB::table('media_files')->where('id', $media->id)
+            ->update(['file_type' => 'audio', 'status' => 'ready', 'processing_locale' => null]);
+        DB::table('media_processing_jobs')->where('media_file_id', $media->id)->delete();
+
+        $activityId = DB::table('core_course_template_activities')->insertGetId([
+            'customer_id' => $this->customerId, 'template_id' => $templateId,
+            'template_lesson_id' => $lessonId, 'title' => 'Phat am 1',
+            'activity_type' => 'audio', 'sort_order' => 1,
+            'created_by' => $this->admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'owner_type' => 'course_activity', 'owner_id' => $activityId,
+            'usage_type' => 'audio', 'status' => 'active', 'created_by' => $this->admin->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure")
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_stt_absent'))
+            ->assertSeeText(__('lf.LF_course_template_activity_stt_absent_help'))
+            ->assertDontSeeText(__('lf.LF_course_template_activity_stt_pending_help'));
+    }
+
+    public function test_admin_can_initialize_first_transcription_job_for_legacy_audio_once(): void
+    {
+        Queue::fake();
+        [$templateId, $lessonId] = $this->courseFixture();
+        $media = $this->uploadDocument();
+        DB::table('media_files')->where('id', $media->id)
+            ->update(['file_type' => 'audio', 'status' => 'ready', 'processing_locale' => null]);
+        DB::table('media_processing_jobs')->where('media_file_id', $media->id)->delete();
+        $activityId = DB::table('core_course_template_activities')->insertGetId([
+            'customer_id' => $this->customerId, 'template_id' => $templateId,
+            'template_lesson_id' => $lessonId, 'title' => 'Audio legacy',
+            'activity_type' => 'audio', 'sort_order' => 1,
+            'created_by' => $this->admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'owner_type' => 'course_activity', 'owner_id' => $activityId,
+            'usage_type' => 'audio', 'status' => 'active', 'created_by' => $this->admin->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $url = "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/{$activityId}/initialize-transcription";
+
+        $this->post($url, ['processing_locale' => 'ko'])->assertSessionHas('success');
+
+        $this->assertDatabaseHas('media_files', ['id' => $media->id, 'processing_locale' => 'ko']);
+        $usageMetadata = json_decode((string) DB::table('media_file_usages')
+            ->where('media_file_id', $media->id)->where('usage_type', 'audio')->value('metadata'), true);
+        $this->assertTrue((bool) $usageMetadata['speech_to_text']);
+        $this->assertSame('ko', $usageMetadata['processing_locale']);
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $media->id,
+            'job_type' => 'speech_to_text',
+            'status' => 'pending',
+            'output_profile' => 'diarization=off;locale=ko',
+        ]);
+
+        $this->post($url, ['processing_locale' => 'vi'])->assertSessionHasErrors('processing_locale');
+        $this->assertSame(1, DB::table('media_processing_jobs')
+            ->where('media_file_id', $media->id)->where('job_type', 'speech_to_text')->count());
+        $this->assertSame('ko', DB::table('media_files')->where('id', $media->id)->value('processing_locale'));
+    }
+
+    public function test_requested_docling_without_a_job_is_not_shown_as_queued(): void
+    {
+        [$templateId, $lessonId] = $this->courseFixture();
+        $media = $this->uploadDocument();
+        DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+            ->where('job_type', 'structured_extraction')->delete();
+        $activityId = DB::table('core_course_template_activities')->insertGetId([
+            'customer_id' => $this->customerId, 'template_id' => $templateId,
+            'template_lesson_id' => $lessonId, 'title' => 'Document legacy',
+            'activity_type' => 'document', 'sort_order' => 1,
+            'created_by' => $this->admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'owner_type' => 'course_activity', 'owner_id' => $activityId,
+            'usage_type' => 'document', 'status' => 'active',
+            'metadata' => json_encode(['structured_extraction' => true]),
+            'created_by' => $this->admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure")
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_structured_absent'))
+            ->assertSeeText(__('lf.LF_course_template_activity_structured_absent_help'))
+            ->assertDontSeeText(__('lf.LF_course_template_activity_structured_pending_help'));
     }
 
     private function activityUrl(int $templateId, int $lessonId): string
@@ -1410,6 +1736,37 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertSame('denied', $metadata['decision']);
         $this->assertSame('unauthorized', $metadata['error_code']);
         $this->assertSame('region', $metadata['content_type']);
+    }
+
+    public function test_deleting_media_purges_derived_content_and_storage_assets(): void
+    {
+        $fixture = $this->structuredCoverageFixture();
+        $mediaId = $fixture['media_id'];
+        DB::table('media_file_usages')->where('media_file_id', $mediaId)->update(['status' => 'archived']);
+
+        DB::table('media_transcripts')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $mediaId, 'locale' => 'ko',
+            'provider' => 'fake', 'status' => 'ready', 'text' => '삭제할 전사',
+            'processing_job_id' => null, 'processing_version' => 'retention-v1',
+            'source_fingerprint' => str_repeat('a', 64), 'locator_type' => 'timespan',
+            'locator_value' => '0-1000', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $captionKey = 'tenants/'.$this->customerId.'/captions/delete-me.vtt';
+        Storage::disk('media_local')->put($captionKey, 'WEBVTT');
+        DB::table('media_captions')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $mediaId, 'locale' => 'ko',
+            'caption_type' => 'vtt', 'storage_key' => $captionKey, 'status' => 'ready',
+            'processing_job_id' => null, 'processing_version' => 'retention-v1',
+            'source_fingerprint' => str_repeat('a', 64), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        app(MediaService::class)->deleteMedia($mediaId);
+
+        $this->assertDatabaseHas('media_files', ['id' => $mediaId, 'status' => 'deleted']);
+        foreach (['media_extracted_texts', 'media_extracted_regions', 'media_transcripts', 'media_captions'] as $table) {
+            $this->assertSame(0, DB::table($table)->where('media_file_id', $mediaId)->count(), $table);
+        }
+        Storage::disk('media_local')->assertMissing($captionKey);
     }
 
     /**

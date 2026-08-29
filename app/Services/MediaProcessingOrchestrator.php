@@ -27,16 +27,16 @@ class MediaProcessingOrchestrator
      * @param  bool  $structuredExtraction  Opt-in cua tac gia tren form upload. Docling khong thay
      *                                      the OCR — no them lop cau truc ben tren cung text.
      */
-    public function materializeForCourseActivity(int $customerId, int $mediaFileId, ?string $locale, ?int $actorId, bool $structuredExtraction = false): void
+    public function materializeForCourseActivity(int $customerId, int $mediaFileId, ?string $locale, ?int $actorId, bool $structuredExtraction = false, bool $speechToText = true): void
     {
-        DB::transaction(function () use ($customerId, $mediaFileId, $locale, $actorId, $structuredExtraction): void {
+        DB::transaction(function () use ($customerId, $mediaFileId, $locale, $actorId, $structuredExtraction, $speechToText): void {
             $media = DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaFileId)->lockForUpdate()->first();
             if (! $media) {
                 throw new InvalidArgumentException('Media File not found.');
             }
 
             try {
-                $canonicalLocale = $this->canonicalLocaleFor($media, $locale);
+                $canonicalLocale = $this->canonicalLocaleFor($media, $locale, $speechToText);
             } catch (InvalidArgumentException) {
                 DB::table('media_files')->where('id', $mediaFileId)->where('customer_id', $customerId)->update([
                     'status' => 'failed', 'processing_error_code' => 'required_profile_configuration_missing', 'updated_at' => now(),
@@ -59,7 +59,7 @@ class MediaProcessingOrchestrator
                 'updated_at' => now(),
             ]);
 
-            foreach ($this->requiredProfiles($media->file_type, $canonicalLocale) as [$jobType, $profile]) {
+            foreach ($this->requiredProfiles($media->file_type, $canonicalLocale, $speechToText) as [$jobType, $profile]) {
                 $this->createInitialJob($customerId, $media, $jobType, $profile, $actorId);
             }
 
@@ -71,6 +71,70 @@ class MediaProcessingOrchestrator
                     $this->profiles->canonical(['locale' => (string) $canonicalLocale, 'structure' => 'layout']),
                     $actorId);
             }
+        });
+    }
+
+    /**
+     * Khoi tao STT lan dau cho Media legacy duoc upload truoc khi locale bat buoc.
+     * Day khong phai retry: Media da co bat ky STT job nao phai di theo state
+     * machine/retry chain hien co, va locale da ghi khong duoc sua tai day.
+     */
+    public function initializeLegacySpeechToText(int $customerId, int $activityId, string $locale, ?int $actorId): void
+    {
+        DB::transaction(function () use ($customerId, $activityId, $locale, $actorId): void {
+            $usage = DB::table('media_file_usages')
+                ->where('customer_id', $customerId)
+                ->where('owner_type', 'course_activity')
+                ->where('owner_id', $activityId)
+                ->where('usage_type', 'audio')
+                ->where('status', 'active')
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->first();
+            if (! $usage) {
+                throw new InvalidArgumentException('Active audio usage not found.');
+            }
+            $mediaFileId = (int) $usage->media_file_id;
+            $media = DB::table('media_files')
+                ->where('customer_id', $customerId)
+                ->where('id', $mediaFileId)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $media || $media->status !== 'ready' || $media->file_type !== 'audio') {
+                throw new InvalidArgumentException('Media is not eligible for initial transcription.');
+            }
+            if ($media->processing_locale !== null) {
+                throw new InvalidArgumentException('Processing locale is already fixed.');
+            }
+            if (DB::table('media_processing_jobs')->where('customer_id', $customerId)
+                ->where('media_file_id', $mediaFileId)->where('job_type', 'speech_to_text')->exists()) {
+                throw new InvalidArgumentException('A transcription job already exists.');
+            }
+
+            $canonicalLocale = $this->profiles->canonicalLocale($locale);
+            $usageMetadata = json_decode((string) ($usage->metadata ?? ''), true);
+            $usageMetadata = is_array($usageMetadata) ? $usageMetadata : [];
+            $usageMetadata['speech_to_text'] = true;
+            $usageMetadata['processing_locale'] = $canonicalLocale;
+            DB::table('media_file_usages')->where('customer_id', $customerId)->where('id', $usage->id)->update([
+                'metadata' => json_encode($usageMetadata, JSON_THROW_ON_ERROR),
+                'updated_at' => now(),
+            ]);
+            DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaFileId)->update([
+                'processing_locale' => $canonicalLocale,
+                'processing_error_code' => null,
+                'updated_at' => now(),
+            ]);
+
+            $media->processing_locale = $canonicalLocale;
+            $this->createInitialJob(
+                $customerId,
+                $media,
+                'speech_to_text',
+                $this->profiles->canonical(['diarization' => 'off', 'locale' => $canonicalLocale]),
+                $actorId,
+            );
         });
     }
 
@@ -177,13 +241,13 @@ class MediaProcessingOrchestrator
     }
 
     /** @return array<int, array{string, string}> */
-    private function requiredProfiles(string $fileType, ?string $locale): array
+    private function requiredProfiles(string $fileType, ?string $locale, bool $speechToText = true): array
     {
         $jobs = [['virus_scan', '']];
         if ($fileType === 'document') {
             $jobs[] = ['ocr', $this->profiles->canonical(['layout' => 'preserve', 'locale' => (string) $locale])];
         }
-        if (in_array($fileType, ['audio', 'video'], true)) {
+        if ($fileType === 'video' || ($fileType === 'audio' && $speechToText)) {
             $jobs[] = ['speech_to_text', $this->profiles->canonical(['diarization' => 'off', 'locale' => (string) $locale])];
         }
         if ($fileType === 'video') {
@@ -222,9 +286,10 @@ class MediaProcessingOrchestrator
         DB::afterCommit(fn () => ProcessMediaProcessingJob::dispatch($customerId, $jobId));
     }
 
-    private function canonicalLocaleFor(object $media, ?string $locale): ?string
+    private function canonicalLocaleFor(object $media, ?string $locale, bool $speechToText = true): ?string
     {
-        return in_array($media->file_type, ['document', 'audio', 'video'], true)
+        return ($media->file_type !== 'audio' || $speechToText)
+            && in_array($media->file_type, ['document', 'audio', 'video'], true)
             ? $this->profiles->canonicalLocale((string) $locale)
             : null;
     }

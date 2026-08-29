@@ -144,4 +144,5 @@ jobs:
             tests/Integration/CourseTemplateLearningMappingPromotionMariaDbTest.php \
             tests/Integration/CourseTemplateLearningMappingHttpMariaDbTest.php \
             tests/Integration/MediaProcessingSubstrateMariaDbTest.php \
-            tests/Integration/MediaStructuredExtractionMariaDbTest.php
+            tests/Integration/MediaStructuredExtractionMariaDbTest.php \
+            tests/Integration/MediaCaptionProvenanceMariaDbTest.php

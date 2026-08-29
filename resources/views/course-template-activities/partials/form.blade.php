@@ -11,6 +11,7 @@
         'processing_locale',
         $currentActivityMedia['media']->processing_locale ?? ''
     );
+    $selectedSpeechToText = (bool) old('speech_to_text', true);
     if ($selectedLearningPhases === null) {
         $selectedLearningPhases = $formActivity
             ? array_keys(array_filter([
@@ -57,6 +58,8 @@
          mediaTypeError: '',
          documentIsPdf: false,
          processingLocaleRequired: false,
+         audioFileSelected: false,
+         speechToTextEnabled: @js($selectedSpeechToText),
          completionRule: @js($selectedCompletionRule),
          unlockRule: @js($selectedUnlockRule),
          learningPhases: @js(array_values((array) $selectedLearningPhases)),
@@ -78,6 +81,7 @@
              this.mediaTypeError = '';
              this.documentIsPdf = false;
              this.processingLocaleRequired = false;
+             this.audioFileSelected = false;
              this.estimatedDurationMinutes = unchanged
                  ? this.storedEstimateMinutes
                  : null;
@@ -98,7 +102,10 @@
                  this.activityTypeChanged();
                  return;
              }
-             this.processingLocaleRequired = true;
+             this.audioFileSelected = expectedType === 'audio';
+             this.processingLocaleRequired = expectedType === 'audio'
+                 ? this.speechToTextEnabled
+                 : true;
              const extension = file.name.split('.').pop()?.toLowerCase() || '';
              const allowedExtensions = {
                  video: ['mp4', 'webm', 'mov', 'avi'],
@@ -109,6 +116,7 @@
              if (! matchesType) {
                  event.target.value = '';
                  this.processingLocaleRequired = false;
+                 this.audioFileSelected = false;
                  this.mediaDurationSeconds = null;
                  this.mediaDurationState = 'invalid_type';
                  this.mediaTypeError = expectedType;
@@ -139,6 +147,11 @@
                  URL.revokeObjectURL(objectUrl);
              };
              media.src = objectUrl;
+         },
+         speechToTextChanged() {
+             this.processingLocaleRequired = this.activityType === 'audio'
+                 && this.audioFileSelected
+                 && this.speechToTextEnabled;
          },
          formattedMediaDuration() {
              if (! this.mediaDurationSeconds) return '—';
@@ -238,6 +251,34 @@
            x-show="mediaDurationState === 'invalid_type' && mediaTypeError === 'audio'">
             {{ __('lf.LF_course_template_activity_media_invalid_audio') }}
         </p>
+        <div class="admin-checkbox-list">
+            <label class="admin-checkbox-option admin-form-option-panel admin-form-option-panel--compact">
+                <input id="speech_to_text"
+                       type="checkbox"
+                       name="speech_to_text"
+                       value="1"
+                       x-model="speechToTextEnabled"
+                       x-on:change="speechToTextChanged()"
+                       @checked($selectedSpeechToText)>
+                <span>Tự động phiên âm nội dung audio</span>
+            </label>
+        </div>
+        <div class="course-activity-upload-policy" role="note" aria-label="Thông tin phiên âm audio">
+            <div class="course-activity-upload-policy__metrics">
+                <span><strong>1 GB</strong><small>Tối đa mỗi tệp</small></span>
+                <span><strong>120 phút</strong><small>Tối đa để phiên âm</small></span>
+            </div>
+            <p>
+                Có tick: hệ thống chạy phiên âm nền và lưu transcript theo từng khoảng thời gian
+                để chuẩn bị cho tìm kiếm và tính năng AI ở phase sau. Nếu phiên âm thất bại,
+                file audio vẫn nghe được bình thường.
+            </p>
+            <p>
+                Không tick: hệ thống chỉ lưu và quét an toàn file; không tạo transcript,
+                vì vậy audio chưa thể dùng làm nguồn nội dung cho AI. Có thể khởi tạo phiên âm
+                sau mà không cần tải file lại.
+            </p>
+        </div>
     </div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field course-activity-document-source" x-show="activityType === 'document'" x-cloak>
         <div class="authoring-media-picker-row">
@@ -274,8 +315,15 @@
             <option value="ko" @selected($selectedProcessingLocale === 'ko')>Tiếng Hàn (ko)</option>
             <option value="en" @selected($selectedProcessingLocale === 'en')>Tiếng Anh (en)</option>
         </select>
-        <p class="lf-form-help lf-secondary-text">
+        <p class="lf-form-help lf-secondary-text" x-show="activityType === 'document'">
             Dùng để chọn đúng bộ nhận dạng OCR. Hệ thống không tự suy luận ngôn ngữ.
+        </p>
+        <p class="lf-form-help lf-secondary-text" x-show="activityType === 'audio'">
+            Bắt buộc khi bật tự động phiên âm; dùng để chọn đúng model ngôn ngữ.
+            Hệ thống không tự nhận diện ngôn ngữ.
+        </p>
+        <p class="lf-form-help lf-secondary-text" x-show="activityType === 'video'">
+            Dùng cho transcript và phụ đề của video. Hệ thống không tự nhận diện ngôn ngữ.
         </p>
     </div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field"

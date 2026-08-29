@@ -1,6 +1,6 @@
 # LearnForge Documentation Conflict Register
 
-Version: 1.10
+Version: 1.17
 
 Document Status: Approved
 
@@ -234,10 +234,14 @@ trung lập.
 
 # Active Conflict Register
 
-Active items: 7. DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25;
+Active items: 6. DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25;
 DOC-CONFLICT-0018 và DOC-CONFLICT-0019 đóng 2026-08-27 bằng đợt amendment tài
 liệu của miền Media. DOC-CONFLICT-0020 và DOC-CONFLICT-0021 được Owner đóng
-2026-08-27; hiệu lực runtime/schema vẫn chịu Gate M/Gate R.
+2026-08-27; hiệu lực runtime/schema vẫn chịu Gate M/Gate R. DOC-CONFLICT-0022,
+0023 và 0024 được Owner đóng 2026-08-28 và 2026-08-29.
+
+Con số `Active items` được duy trì bằng tay và không có công cụ nào kiểm; đếm lại
+từ cột Status của bảng dưới mới là nguồn sự thật.
 
 | ID | Title | Classification | Status | Impact | Domain | Owner | Target Review |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -247,6 +251,8 @@ liệu của miền Media. DOC-CONFLICT-0020 và DOC-CONFLICT-0021 được Owne
 | DOC-CONFLICT-0011 | Attendance ghi được cho Enrollment không `active` | IMPLEMENTATION_DRIFT | ACCEPTED_TEMPORARILY | LOW (giảm từ HIGH) | LiveClass × Course | Domain Owner (LiveClass) | Trước khi mở lại tab Điểm danh |
 | DOC-CONFLICT-0014 | `course_category` được dùng làm `owner_type` nhưng không tài liệu nào đặt tên nó | IMPLEMENTATION_DRIFT | DECISION_REQUIRED | LOW | Media × Course | Domain Owner (Media) | Immediate Owner decision |
 | DOC-CONFLICT-0015 | `owner_type` không có ràng buộc vật lý nên vocabulary trôi không bị phát hiện | GAP | DECISION_REQUIRED | MEDIUM | Media | Database Owner | Immediate, after 0014 |
+| DOC-CONFLICT-0024 | Caption dựng từ transcript hay chạy độc lập chưa được quyết; `media_captions` không có chỗ ghi transcript revision đã dùng | GAP | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-08-29: dựng từ transcript, đã có cột provenance |
+| DOC-CONFLICT-0023 | Xoá Media không xoá transcript/text/region/caption; chưa có quyết định retention cho output dẫn xuất | GAP | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-08-29: purge cùng Media |
 | DOC-CONFLICT-0022 | ADR-0019 § D7 bắt Media ghi chữ/số và crop trong vùng `figure`; `media_extracted_regions.md` cấm figure mang text và không có cột crop | DOCUMENT_CONTRADICTION | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-08-28: text và crop đều đã implemented và có test |
 | DOC-CONFLICT-0016 | Revision identity của `media_table_cells` mâu thuẫn với ADR-0019 § D2 | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Architecture Owner | Đóng 2026-08-25 |
 | DOC-CONFLICT-0017 | `extraction_method` của đọc cell trực tiếp có hai tên trong hai bảng | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Domain Owner (Media) | Đóng 2026-08-25 |
@@ -1089,6 +1095,83 @@ Superseded/Updated Documents: docs/database/media/media_processing_jobs.md v2.6
 Verification Evidence: docs/database/LF-SCHEMA-CONTRACT.json § tables.media_processing_jobs.checks liệt kê đúng sáu CHECK
 Related ADR/Review/Issue/PR: DOC-CONFLICT-0019; ADR-0004
 Notes: Phát hiện phụ khi soạn amendment, không phải mục tiêu của đợt đối chiếu
+```
+
+---
+
+## DOC-CONFLICT-0024
+
+```text
+Conflict ID: DOC-CONFLICT-0024
+Title: Nguồn dựng caption chưa được quyết, và schema chưa có provenance được định kiểu tới transcript revision
+Classification: GAP
+Status: RESOLVED
+Impact: HIGH
+Detected At: 2026-08-29
+Detected By: Review tài liệu giải thích khác biệt STT và Caption
+Owner: Architecture Owner
+Affected Domain: Media
+Affected Concern: Nguồn nội dung và quan hệ stale của caption asset
+Sources In Conflict:
+Source A: docs/platform/LF-Media-Processing-Contract.md § Fingerprint — source_fingerprint = SHA-256(media_files.checksum || ':' || file_type), tức vân tay của BINARY GỐC, không phải của output trung gian
+Source B: docs/database/media/media_captions.md — caption là output dẫn xuất mang processing_version và source_fingerprint của lần chạy caption; không có cột nào tham chiếu transcript revision. Cột `metadata` (JSON) chỉ lưu được bằng chứng phụ: nó không định kiểu, không cưỡng chế bằng constraint và không dùng làm revision identity hay stale dependency được
+Additional Sources: docs/platform/LF-Media-Processing-Contract.md § Locale canonical (required set của video gồm caption); docs/platform/LF-Media-Read-Contract.md § rủi ro B2
+Contradictory Requirements:
+- Nếu caption dựng TỪ transcript: caption phụ thuộc một transcript revision cụ thể, nên phải stale khi revision đó bị archived
+- Source A + B implement: source_fingerprint của caption trỏ tới binary gốc, không đổi khi transcript sinh revision mới; không có provenance được định kiểu tới transcript revision, và `metadata` không thay thế được vai trò đó
+Why They Cannot Both Be True: Một caption dựng từ transcript v1 vẫn giữ nguyên source_fingerprint sau khi transcript lên v2. Không có tín hiệu nào làm nó stale, và không có dữ liệu nào cho biết nó đến từ v1
+Runtime/Business Impact: Nâng cấp engine STT sinh transcript revision mới; transcript cũ chuyển archived. Caption dựng từ bản cũ vẫn `ready`. Người học xem phụ đề của bản phiên âm đã lỗi thời trong khi AI đọc bản mới — HAI nội dung khác nhau cho cùng một video, không có tín hiệu nào phát hiện. Nếu chọn hướng độc lập thì hai đường vẫn có thể lệch nội dung, và chi phí chạy model gấp đôi
+Affected Implementation: Chưa có caption runtime; provider `caption` = `unconfigured`, media_captions 0 row. Quyết định phải có TRƯỚC khi viết runtime
+Temporary Safety Rule: Không viết caption runtime cho tới khi có quyết định. Không suy ra rằng caption dựng từ transcript chỉ vì cả hai cùng nói về một video
+Required Decision: Caption được dựng TỪ transcript, hay chạy độc lập từ binary gốc?
+Resolution Authority: Architecture Owner
+Resolution Plan: Nếu "từ transcript": bổ sung provenance vào media_captions (transcript processing_version và source_fingerprint của revision đã dùng), định nghĩa luật stale dây chuyền, và cần Database review trước migration. Nếu "độc lập": ghi rõ caption và transcript có thể lệch nội dung trên cùng một video, và nói rõ bên nào là nguồn sự thật khi chúng mâu thuẫn
+Target Review Date: Trước khi cấu hình provider caption
+Resolved At: 2026-08-29
+Resolution: Owner quyết "dựng từ transcript" ngày 2026-08-29. Caption không chạy model riêng trên binary: hai đường độc lập cho hai nội dung khác nhau trên cùng một video và tốn gấp đôi chi phí model. Kèm theo: (a) thêm cột `media_captions.transcript_processing_version` ghi transcript revision đã dùng — `source_fingerprint` không thay được vì nó là vân tay binary gốc, không đổi khi transcript lên revision mới; (b) CHECK `processing_job_id IS NULL OR transcript_processing_version IS NOT NULL`, neo vào việc có job chứ không vào `status`, vì `processing_job_id` nullable nên bảng chứa được caption không do job sinh ra; (c) luật stale dây chuyền: transcript revision chuyển `archived` thì mọi caption dựng từ nó cũng `archived` trong cùng transaction; (d) Phase 1 caption cùng locale với transcript nguồn, dịch sang locale khác là quyết định riêng chưa duyệt. Migration `2026_08_29_000000_add_caption_transcript_provenance`
+Superseded/Updated Documents: docs/database/media/media_captions.md v1.10; docs/platform/LF-Media-Processing-Contract.md v2.16
+Verification Evidence: TRUOC quyet dinh — media_captions khong co cot nao tro toi transcript revision (13 cot: id, customer_id, media_file_id, locale, caption_type, storage_key, status, metadata, processing_job_id, processing_version, source_fingerprint, created_at, updated_at); config providers.caption = unconfigured; SELECT COUNT(*) media_captions = 0. SAU quyet dinh — migration 2026_08_29_000000_add_caption_transcript_provenance da apply len learnforge_db: cot transcript_processing_version (varchar 100, nullable) va CHECK chk_mc_transcript_provenance; kiem tren MariaDB disposable: co job + khong khai -> CHAN, co job + co khai -> nhan, khong job + khong khai -> nhan, rollback khi con provenance -> CHAN. Luat stale day chuyen co runtime trong ProcessMediaProcessingJob::archiveCaptionsBuiltOnSupersededTranscript() voi test + 3 mutation
+Open After Resolution: (a) ~~Gate M~~ DA DONG 2026-08-29 bang Owner attestation (chi thi truc tiep trong phien), tren bang chung: schema contract, test doc CHECK vat ly tren MariaDB `tests/Integration/MediaCaptionProvenanceMariaDbTest.php` 5 passed, `schema:drift --fresh` xanh, da noi vao CI. KHONG co independent Architecture Review; tham quyen la chi thi Owner truc tiep, khong vien dan amendment cua ADR-0017. Pham vi dong dung bang pham vi Gate M — migration va schema, khong bao gom runtime; (b) bat bien kiem-ton-tai transcript revision o tang persist chua co runtime vi chua co caption runtime; (c) provider caption van unconfigured nen moi video upload van sinh mot job caption fail
+Related ADR/Review/Issue/PR: ADR-0004; LF-Media-Read-Contract § B2; DOC-CONFLICT-0023
+Notes: Caption đang là REQUIRED profile của video, nên mỗi video upload hôm nay đều sinh một job caption fail `provider_unavailable`. Khoảng trống này vì thế không phải chuyện tương lai xa. Ghi thêm: caption KHÔNG mang locator và không trích dẫn được ở mức cue; trích dẫn theo thời gian luôn phải dùng media_transcripts, nên quyết định ở đây không đổi được ranh giới citation.
+```
+
+---
+
+## DOC-CONFLICT-0023
+
+```text
+Conflict ID: DOC-CONFLICT-0023
+Title: Xoá Media không xoá output dẫn xuất, và chưa có quyết định retention cho chúng
+Classification: GAP
+Status: RESOLVED
+Impact: HIGH
+Detected At: 2026-08-29
+Detected By: Đối chiếu đề xuất STT Phase 1 mục 8 với runtime
+Owner: Architecture Owner
+Affected Domain: Media
+Affected Concern: Vòng đời của output dẫn xuất khi Media bị xoá
+Sources In Conflict:
+Source A: Đề xuất STT Phase 1 mục 8 — "transcript theo lifecycle Media gốc; xóa/purge cùng Media"
+Source B: app/Services/MediaService::deleteMedia() — chỉ đánh dấu media_files.status = 'deleted' và dọn storage (source + cây crop)
+Additional Sources: docs/adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md; docs/database/media/media_transcripts.md v1.5
+Contradictory Requirements:
+- Source A requires: transcript bị xoá cùng Media
+- Source B implements: không row nào của media_transcripts, media_extracted_texts, media_extracted_regions, media_captions bị đụng tới
+Why They Cannot Both Be True: Duyệt mục 8 nguyên văn sẽ tạo một tài liệu approved mô tả hành vi không tồn tại
+Runtime/Business Impact: Transcript và extracted text có thể chứa PII của học liệu. Xoá Media hiện để lại toàn bộ nội dung đó trong DB, không còn ai truy được qua Media Read (Media khác `ready` thì bị từ chối) nhưng vẫn nằm trong tenant và ngoài mọi lịch retention. Đây cũng là điều kiện thứ hai mà ADR-0018 đòi trước khi mở provider ngoài
+Affected Implementation: MediaService::deleteMedia(); media_transcripts; media_extracted_texts; media_extracted_regions; media_captions
+Temporary Safety Rule: Đã hết hiệu lực sau implementation và verification ngày 2026-08-29
+Required Decision: Output dẫn xuất có bị xoá cùng Media không — Có hay Không?
+Resolution Authority: Architecture Owner
+Resolution Plan: Nếu "Có": viết runtime xoá trước, có test, rồi mới sửa contract. Nếu "Không": ghi rõ lý do giữ lại (citation lịch sử đọc được) và đưa output dẫn xuất vào phạm vi retention của ADR-0018
+Target Review Date: Trước khi mở bất kỳ provider ngoài nào
+Resolved At: 2026-08-29
+Resolution: Architecture Owner phê duyệt xoá output dẫn xuất cùng Media. Nội dung database bị purge nguyên tử cùng tombstone; caption/variant row chỉ bị xoá sau khi storage object được xác minh đã biến mất. Pending job bị cancelled và job không được persist output sau tombstone.
+Superseded/Updated Documents: docs/platform/LF-Media-Processing-Contract.md v2.13; docs/database/media/media_transcripts.md v1.8; app/Services/MediaService.php; app/Jobs/ProcessMediaProcessingJob.php
+Verification Evidence: tests/Feature/MediaProcessingSubstrateTest.php::test_deleting_media_purges_derived_content_and_storage_assets; targeted test 1 passed / 6 assertions ngày 2026-08-29
+Related ADR/Review/Issue/PR: ADR-0018; DOC-CONFLICT-0022
+Notes: Phát hiện khi soát một đề xuất, không phải khi soát code. Không có blanket consent cho external provider; approval này chỉ đóng lifecycle của output local thuộc Media bị xoá.
 ```
 
 ---

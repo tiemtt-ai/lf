@@ -1,12 +1,12 @@
 # Table: media_transcripts
 
-Version: 1.4
+Version: 1.8
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-24
+Last Updated: 2026-08-29
 
 Document Path: database/media/media_transcripts.md
 
@@ -40,11 +40,62 @@ media_processing_jobs 1 → N media_transcripts
   mới, bộ cũ chuyển `archived`. Quy tắc stale đầy đủ nằm trong
   [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md).
 * Locator theo hợp đồng chung: `locator_type = 'timespan'`, `locator_value` là
-  `<start_ms>-<end_ms>`. Mọi nội dung trả cho consumer phải kèm locator.
+  `<start_ms>-<end_ms>`, đơn vị **millisecond**. Mọi nội dung trả cho consumer
+  phải kèm locator.
+* Trong một revision, segment phải **tăng dần theo `start_ms`** và **không chồng
+  lấn**. `timespan` là khoảng **nửa mở** `[start_ms, end_ms)`, nên luật là
+  `start_ms >= prev.end_ms`; segment giáp ranh là hợp lệ và trên thực tế là
+  thường gặp. Với `N` segment chỉ có tối đa `N-1` cặp liền kề; mọi tỷ lệ đo phải
+  dùng mẫu số này và lưu raw per-segment artefact. Độ dài 0 không hợp lệ. Vi phạm thì fail cả revision bằng
+  `transcript_invalid`, không ghi row nào. Xem § Vì sao luật này nằm ở tầng
+  persist.
 * Chỉ row `ready` được Media Read Service trả ra.
 * Mỗi locale/diarization profile có retry chain độc lập. Một transcript locale
   hết retry không chặn enqueue/ready/retry của locale khác và không làm binary
   Media File mất `ready`; Media Read Service trả readiness của transcript riêng.
+
+## Vì sao luật thứ tự nằm ở tầng persist — v1.5
+
+Bảng này **không có** cột `start_ms`, `end_ms` hay `sequence`. Chỉ có
+`locator_value` kiểu VARCHAR. Ba hệ quả, và cả ba đều phải nói ra:
+
+* `UNIQUE (customer_id, media_file_id, locale, locator_type, locator_value,
+  processing_version)` chặn hai segment **trùng khít**, nhưng `0-1000` và
+  `500-1500` là hai chuỗi khác nhau — **chồng lấn vẫn lọt qua**.
+* Không sắp xếp được bằng SQL. Sắp theo chuỗi thì `'1000-2000'` đứng trước
+  `'500-1500'`, tức sai thứ tự thời gian.
+* `MediaReadService` trả transcript theo `ORDER BY id`. Nghĩa là thứ tự thời gian
+  hiện **đúng do tình cờ** — nó trùng thứ tự provider chèn row, và không có gì
+  bảo đảm điều đó.
+
+Vì thế luật "tăng dần, không chồng lấn" được cưỡng chế **trước khi ghi row đầu
+tiên**, cùng cách `reading_order` được cưỡng chế cho `media_extracted_regions`.
+Khi persist đã bảo đảm thứ tự chèn, `ORDER BY id` trở thành thứ tự thời gian
+**theo cấu trúc**, không còn là may mắn.
+
+Runtime `faster_whisper_local` validate toàn bộ unit trước insert đầu tiên. Một
+locator sai định dạng, segment rỗng, độ dài 0 hoặc overlap làm transaction fail
+`transcript_invalid`; revision đó để lại 0 row. Segment giáp ranh
+`start_ms == previous_end_ms` vẫn hợp lệ theo khoảng nửa mở.
+
+Đổi sang cột `start_ms`/`end_ms` thật sẽ cho phép cưỡng chế bằng schema và sắp
+xếp bằng SQL. Đó là amendment riêng, cần Database review và migration; nó **không**
+được ngầm hiểu là đã quyết ở đây.
+
+## Retention — v1.8, Owner approved
+
+Owner phê duyệt ngày 2026-08-29: transcript bị xoá khi Media nguồn bị xoá. Runtime
+purge `media_transcripts` trong cùng transaction ghi tombstone
+`media_files.status = 'deleted'`; không giữ transcript để phục vụ citation lịch
+sử sau khi source đã bị xoá.
+
+Luật này áp dụng cùng extracted text và structured content theo
+[Processing Contract](../../platform/LF-Media-Processing-Contract.md). Processing
+job cùng access log được giữ làm provenance/audit, nhưng Media Read từ chối Media
+đã `deleted` và không còn row transcript nào để trả.
+
+Đường đọc dẫn xuất **đã** được audit bằng `media_access_logs.action =
+'read_derived'`.
 
 ## Fields
 

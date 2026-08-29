@@ -358,6 +358,11 @@ Route::delete(
     [CourseTemplateActivityController::class, 'destroyDirect']
 )->name('course-templates.lessons.activities.destroy');
 
+Route::post(
+    '/course-templates/{templateId}/lessons/{lessonId}/activities/{activityId}/initialize-transcription',
+    [CourseTemplateActivityController::class, 'initializeTranscriptionDirect']
+)->name('course-templates.lessons.activities.initialize-transcription');
+
 Route::get(
     '/course-templates/{templateId}/sections',
     [CourseTemplateSectionController::class, 'index']
@@ -452,6 +457,11 @@ Route::delete(
     '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}/activities/{activityId}',
     [CourseTemplateActivityController::class, 'destroy']
 )->name('course-templates.sections.lessons.activities.destroy');
+
+Route::post(
+    '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}/activities/{activityId}/initialize-transcription',
+    [CourseTemplateActivityController::class, 'initializeTranscription']
+)->name('course-templates.sections.lessons.activities.initialize-transcription');
 
 if ($registerCourseTemplateLifecycleRoutes ?? false) {
     Route::get(

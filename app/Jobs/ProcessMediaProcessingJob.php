@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Contracts\MediaProcessingProvider;
 use App\Services\DoclingStructuredExtractionProvider;
 use App\Services\FakeMediaProcessingProvider;
+use App\Services\FasterWhisperSpeechToTextProvider;
 use App\Services\LocalDocumentProcessingProvider;
 use App\Services\RegionCropStorage;
 use App\Services\StructuredExtractionPersistenceService;
@@ -44,6 +45,13 @@ class ProcessMediaProcessingJob implements ShouldQueue
             if (! $media) {
                 return null;
             }
+            if ($media->status === 'deleted') {
+                DB::table('media_processing_jobs')->where('id', $job->id)->where('customer_id', $this->customerId)->update([
+                    'status' => 'cancelled', 'completed_at' => now(), 'updated_at' => now(),
+                ]);
+
+                return null;
+            }
             $alreadyProcessing = DB::table('media_processing_jobs')->where('customer_id', $this->customerId)
                 ->where('media_file_id', $job->media_file_id)->where('job_type', $job->job_type)
                 ->where('status', 'processing')->where('id', '<>', $job->id)->exists();
@@ -79,6 +87,8 @@ class ProcessMediaProcessingJob implements ShouldQueue
                     'no_extractable_text', 'extracted_text_too_large', 'missing_canonical_locale',
                     'page_limit_exceeded', 'source_expansion_limit_exceeded',
                     'structured_extraction_too_large', 'structured_extraction_invalid',
+                    'audio_limit_exceeded', 'transcript_invalid', 'locale_unavailable',
+                    'unsupported_output_profile',
                 ];
                 $errorCode = $e instanceof RuntimeException && in_array($e->getMessage(), $knownErrorCodes, true)
                     ? $e->getMessage()
@@ -158,6 +168,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
             'fake' => app(FakeMediaProcessingProvider::class),
             'local_document' => app(LocalDocumentProcessingProvider::class),
             'docling_local' => app(DoclingStructuredExtractionProvider::class),
+            'faster_whisper_local' => app(FasterWhisperSpeechToTextProvider::class),
             default => throw new RuntimeException('provider_unavailable'),
         };
     }
@@ -165,6 +176,15 @@ class ProcessMediaProcessingJob implements ShouldQueue
     /** @param array<string, mixed> $result */
     private function persistSuccess(object $media, object $job, array $result): void
     {
+        $currentMedia = DB::table('media_files')
+            ->where('customer_id', $this->customerId)
+            ->where('id', $media->id)
+            ->lockForUpdate()
+            ->first(['status']);
+        if ($currentMedia === null || $currentMedia->status === 'deleted') {
+            throw new RuntimeException('source_unavailable');
+        }
+
         $outputType = null;
         $outputId = null;
         $now = now();
@@ -189,15 +209,19 @@ class ProcessMediaProcessingJob implements ShouldQueue
             $this->archiveSupersededRevisions('media_extracted_texts', $media, $job, ['locale' => $locale], $now);
             $outputType = 'extracted_text';
         } elseif ($job->job_type === 'speech_to_text') {
-            foreach ($result['units'] ?? [] as $unit) {
+            $units = $this->validatedTranscriptUnits($result['units'] ?? []);
+            foreach ($units as $unit) {
                 $outputId = DB::table('media_transcripts')->insertGetId([
                     'customer_id' => $this->customerId, 'media_file_id' => $media->id, 'locale' => $locale,
                     'provider' => $job->provider, 'status' => 'ready', 'text' => $unit['text'], 'processing_job_id' => $job->id,
                     'processing_version' => $job->processing_version, 'source_fingerprint' => $job->source_fingerprint,
-                    'locator_type' => $unit['locator_type'], 'locator_value' => $unit['locator_value'], 'created_at' => $now, 'updated_at' => $now,
+                    'locator_type' => $unit['locator_type'], 'locator_value' => $unit['locator_value'],
+                    'metadata' => isset($unit['metadata']) ? json_encode($unit['metadata'], JSON_THROW_ON_ERROR) : null,
+                    'created_at' => $now, 'updated_at' => $now,
                 ]);
             }
             $this->archiveSupersededRevisions('media_transcripts', $media, $job, ['locale' => $locale], $now);
+            $this->archiveCaptionsBuiltOnSupersededTranscript($media, $job, $locale, $now);
             $outputType = 'transcript';
         } elseif ($job->job_type === 'caption') {
             $captionType = $this->profileValue($job->output_profile, 'format');
@@ -255,6 +279,35 @@ class ProcessMediaProcessingJob implements ShouldQueue
             ->update(['status' => 'archived', 'updated_at' => $now]);
     }
 
+    /**
+     * Caption duoc dung TU transcript (Owner 2026-08-29, DOC-CONFLICT-0024), nen
+     * mot transcript revision moi lam moi caption dung tu ban cu tro thanh stale.
+     *
+     * `source_fingerprint` cua caption khong bat duoc dieu do: no la van tay cua
+     * BINARY GOC nen khong doi khi transcript len revision moi. Phai so bang
+     * `transcript_processing_version`.
+     *
+     * Chay trong CHINH transaction dang archive transcript: hai ban ghi khong duoc
+     * phep roi vao trang thai nua chung, nguoi hoc xem phu de cua ban phien am da
+     * bi thay the.
+     *
+     * Caption khong do job sinh ra (`transcript_processing_version IS NULL`) khong
+     * dung tu transcript nao, nen khong bi dung toi.
+     */
+    private function archiveCaptionsBuiltOnSupersededTranscript(object $media, object $job, ?string $locale, mixed $now): void
+    {
+        DB::table('media_captions')
+            ->where('customer_id', $this->customerId)
+            ->where('media_file_id', $media->id)
+            ->where('locale', $locale)
+            ->where('status', 'ready')
+            ->whereNotNull('transcript_processing_version')
+            ->where(fn ($query) => $query
+                ->where('transcript_processing_version', '<>', $job->processing_version)
+                ->orWhere('source_fingerprint', '<>', $job->source_fingerprint))
+            ->update(['status' => 'archived', 'updated_at' => $now]);
+    }
+
     private function profileValue(string $profile, string $key): ?string
     {
         foreach (array_filter(explode(';', $profile)) as $pair) {
@@ -265,5 +318,35 @@ class ProcessMediaProcessingJob implements ShouldQueue
         }
 
         return null;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function validatedTranscriptUnits(mixed $units): array
+    {
+        if (! is_array($units) || $units === []) {
+            throw new RuntimeException('no_extractable_text');
+        }
+
+        $validated = [];
+        $previousEnd = null;
+        foreach ($units as $unit) {
+            if (! is_array($unit) || ($unit['locator_type'] ?? null) !== 'timespan'
+                || ! is_string($unit['locator_value'] ?? null)
+                || preg_match('/^(0|[1-9][0-9]*)-(0|[1-9][0-9]*)$/D', $unit['locator_value'], $matches) !== 1
+                || ! is_string($unit['text'] ?? null) || trim($unit['text']) === '') {
+                throw new RuntimeException('transcript_invalid');
+            }
+            $start = (int) $matches[1];
+            $end = (int) $matches[2];
+            if ($start >= $end || ($previousEnd !== null && $start < $previousEnd)) {
+                throw new RuntimeException('transcript_invalid');
+            }
+            $previousEnd = $end;
+            $validated[] = $unit;
+        }
+
+        return $validated;
     }
 }

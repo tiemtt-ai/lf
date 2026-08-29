@@ -805,20 +805,56 @@ class CourseTemplateController extends Controller
             ->unique('media_file_id')
             ->keyBy('media_file_id');
 
+        $audioUsages = DB::table('media_file_usages')
+            ->where('customer_id', $customerId)
+            ->where('owner_type', 'course_activity')
+            ->where('usage_type', 'audio')
+            ->where('status', 'active')
+            ->whereIn('owner_id', $activities->pluck('id'))
+            ->orderByDesc('id')
+            ->get()
+            ->unique('owner_id')
+            ->keyBy('owner_id');
+        $speechJobs = DB::table('media_processing_jobs')
+            ->where('customer_id', $customerId)
+            ->where('job_type', 'speech_to_text')
+            ->whereIn('media_file_id', $audioUsages->pluck('media_file_id'))
+            ->orderByDesc('id')
+            ->get()
+            ->unique('media_file_id')
+            ->keyBy('media_file_id');
+
         return $activities
-            ->map(function (object $activity) use ($structuredUsages, $structuredJobs): object {
+            ->map(function (object $activity) use ($structuredUsages, $structuredJobs, $audioUsages, $speechJobs): object {
                 $activity->view_kind = 'readonly';
                 $activity->view_url = null;
                 $activity->view_mime_type = null;
                 $activity->view_behavior = 'readonly';
                 $activity->structured_extraction_status = null;
                 $activity->structured_extraction_error_code = null;
+                $activity->speech_to_text_status = null;
+                $activity->speech_to_text_error_code = null;
 
                 $structuredUsage = $structuredUsages->get($activity->id);
                 if ($structuredUsage !== null) {
                     $structuredJob = $structuredJobs->get($structuredUsage->media_file_id);
-                    $activity->structured_extraction_status = $structuredJob?->status ?? 'pending';
+                    $activity->structured_extraction_status = $structuredJob?->status ?? 'absent';
                     $activity->structured_extraction_error_code = $structuredJob?->error_code;
+                }
+                $audioUsage = $audioUsages->get($activity->id);
+                if ($audioUsage !== null) {
+                    $audioMetadata = json_decode((string) ($audioUsage->metadata ?? ''), true);
+                    $speechToTextRequested = ! array_key_exists('speech_to_text', (array) $audioMetadata)
+                        || (bool) $audioMetadata['speech_to_text'];
+                    $speechJob = $speechJobs->get($audioUsage->media_file_id);
+                    // Khong co job KHAC voi job dang cho. Bao `pending` khi chua
+                    // tung co job nao la noi sai: admin se refresh mai mot thu
+                    // khong bao gio toi. Cung loai loi ma `structure_unavailable`
+                    // sinh ra de chan — su vang mat khong duoc doc thanh mot
+                    // trang thai da biet.
+                    $activity->speech_to_text_status = $speechJob?->status
+                        ?? ($speechToTextRequested ? 'absent' : 'disabled');
+                    $activity->speech_to_text_error_code = $speechJob?->error_code;
                 }
 
                 if (in_array($activity->activity_type, ['embedded_video', 'live_class'], true)) {

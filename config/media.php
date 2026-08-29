@@ -30,6 +30,34 @@ return [
             'ocr_dpi' => (int) env('MEDIA_OCR_DPI', 200),
             'max_extracted_characters' => (int) env('MEDIA_MAX_EXTRACTED_CHARACTERS', 500000),
         ],
+        // Speech-to-text Phase 1. Gia tri contract theo
+        // LF-Media-Processing-Contract § Speech-to-text resource controls,
+        // khong phai tuning tuy y.
+        'speech_to_text' => [
+            'mime_types' => [
+                'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav',
+                'audio/ogg', 'audio/webm', 'audio/mp4',
+            ],
+            // Vuot tran thi FAIL CA JOB bang `audio_limit_exceeded`, khong cat bot:
+            // transcript cua 120 phut dau tren file ba gio khien consumer khong
+            // phan biet duoc "het noi dung" voi "bi cat", ma citation van hop le.
+            'max_bytes' => (int) env('MEDIA_STT_MAX_BYTES', 1073741824),
+            'max_duration_seconds' => (int) env('MEDIA_STT_MAX_DURATION_SECONDS', 7200),
+            // Provider deadline phai nho hon job timeout 3600s; retry_after la
+            // 3900s. Neu bang nhau, worker co the giet job truoc khi provider
+            // tra loi co kiem soat va ghi error_code.
+            'timeout_seconds' => (int) env('MEDIA_STT_TIMEOUT_SECONDS', 3300),
+            // canonicalLocale() chi validate cu phap BCP 47. Khong co allowlist
+            // thi `fr` di lot toi provider.
+            'locales' => ['vi', 'ko', 'en'],
+            'diarization' => 'off',
+            'python_binary' => env('MEDIA_STT_PYTHON_BINARY', base_path('runtime/stt/.venv/bin/python')),
+            'script' => env('MEDIA_STT_SCRIPT', base_path('runtime/stt/transcribe.py')),
+            'model_path' => env('MEDIA_STT_MODEL_PATH', base_path('runtime/stt/models/small')),
+            'compute_type' => env('MEDIA_STT_COMPUTE_TYPE', 'int8'),
+            'threads' => (int) env('MEDIA_STT_THREADS', 0),
+            'max_output_bytes' => (int) env('MEDIA_STT_MAX_OUTPUT_BYTES', 16777216),
+        ],
         'structured_extraction' => [
             'max_pages' => (int) env('MEDIA_STRUCTURED_MAX_PAGES', 100),
             'max_extracted_characters' => (int) env('MEDIA_STRUCTURED_MAX_EXTRACTED_CHARACTERS', 500000),

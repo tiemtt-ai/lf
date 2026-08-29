@@ -19164,6 +19164,15 @@
           "generated": null
         },
         {
+          "name": "transcript_processing_version",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
           "name": "source_fingerprint",
           "type": "char",
           "nullable": false,
@@ -19293,6 +19302,9 @@
         },
         {
           "expression": "`caption_type` in ('vtt','srt','ass')"
+        },
+        {
+          "expression": "`processing_job_id` is null or `transcript_processing_version` is not null"
         }
       ],
       "triggers": [],

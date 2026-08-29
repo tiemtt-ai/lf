@@ -355,13 +355,15 @@ class MediaService
             && array_key_exists('processing_locale', $usage['metadata'])) {
             $locale = $usage['metadata']['processing_locale'] ?? null;
             $structured = (bool) ($usage['metadata']['structured_extraction'] ?? false);
+            $speechToText = (bool) ($usage['metadata']['speech_to_text'] ?? true);
             DB::afterCommit(fn () => app(MediaProcessingOrchestrator::class)
                 ->materializeForCourseActivity(
                     $customerId,
                     $mediaFileId,
                     is_string($locale) ? $locale : null,
                     $createdBy,
-                    $structured
+                    $structured,
+                    $speechToText,
                 ));
         }
 
@@ -481,16 +483,47 @@ class MediaService
     public function deleteMedia(int $mediaFileId): object
     {
         $customerId = $this->customerId();
-        $mediaFile = $this->assertMediaFileBelongsToTenant(
-            $customerId,
-            $mediaFileId
-        );
+        $mediaFile = DB::transaction(function () use ($customerId, $mediaFileId): object {
+            $mediaFile = DB::table('media_files')
+                ->where('customer_id', $customerId)
+                ->where('id', $mediaFileId)
+                ->lockForUpdate()
+                ->first();
 
-        if ($this->isInUse($mediaFileId)) {
-            throw ValidationException::withMessages([
-                'media_file_id' => __('lf.LF_media_file_delete_blocked_in_use'),
-            ]);
-        }
+            abort_if($mediaFile === null, 404);
+
+            if (DB::table('media_file_usages')
+                ->where('customer_id', $customerId)
+                ->where('media_file_id', $mediaFileId)
+                ->where('status', 'active')
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'media_file_id' => __('lf.LF_media_file_delete_blocked_in_use'),
+                ]);
+            }
+
+            DB::table('media_files')
+                ->where('customer_id', $customerId)
+                ->where('id', $mediaFile->id)
+                ->update([
+                    'status' => 'deleted',
+                    'updated_at' => now(),
+                ]);
+
+            DB::table('media_processing_jobs')
+                ->where('customer_id', $customerId)
+                ->where('media_file_id', $mediaFile->id)
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'cancelled',
+                    'completed_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+            $this->purgeDatabaseDerivedContent($customerId, (int) $mediaFile->id);
+
+            return $mediaFile;
+        });
 
         // Object storage va DB khong co transaction chung, nen thu tu quyet dinh
         // huong hong. Danh dau `deleted` TRUOC roi moi cham storage:
@@ -503,14 +536,6 @@ class MediaService
         //
         // Thu tu nguoc lai — xoa storage truoc — se de lai Media `ready` mat
         // crop hoac mat source khi buoc sau hong, tuc mat du lieu that.
-        DB::table('media_files')
-            ->where('customer_id', $customerId)
-            ->where('id', $mediaFile->id)
-            ->update([
-                'status' => 'deleted',
-                'updated_at' => now(),
-            ]);
-
         $this->purgeMediaStorage($mediaFile);
 
         return DB::table('media_files')
@@ -580,6 +605,7 @@ class MediaService
             $purged = false;
         }
 
+        $purged = $this->purgeStorageBackedDerivedContent($mediaFile) && $purged;
         $purged = $this->deleteStorageObject($mediaFile) && $purged;
 
         if (! $purged) {
@@ -589,6 +615,79 @@ class MediaService
                 'storage_disk' => $mediaFile->storage_disk,
                 'retry_with' => 'php artisan media:purge-deleted-storage',
             ]);
+        }
+
+        return $purged;
+    }
+
+    /**
+     * Purge content-bearing database output atomically with the Media tombstone.
+     * Processing/audit rows remain as provenance, but may no longer expose the
+     * deleted source's extracted content.
+     */
+    private function purgeDatabaseDerivedContent(int $customerId, int $mediaFileId): void
+    {
+        $tableIds = DB::table('media_extracted_tables')
+            ->where('customer_id', $customerId)
+            ->where('media_file_id', $mediaFileId)
+            ->select('id');
+
+        DB::table('media_table_cells')
+            ->where('customer_id', $customerId)
+            ->whereIn('extracted_table_id', $tableIds)
+            ->delete();
+
+        foreach (['media_extracted_tables', 'media_extracted_regions', 'media_extracted_texts', 'media_transcripts'] as $table) {
+            DB::table($table)
+                ->where('customer_id', $customerId)
+                ->where('media_file_id', $mediaFileId)
+                ->delete();
+        }
+    }
+
+    /**
+     * Caption/variant rows are retry markers until their object is confirmed
+     * absent. A failed storage delete therefore remains visible to the manual
+     * residue sweeper instead of becoming an untraceable orphan.
+     */
+    private function purgeStorageBackedDerivedContent(object $mediaFile): bool
+    {
+        $purged = true;
+        $disk = Storage::disk((string) $mediaFile->storage_disk);
+
+        foreach (['media_captions', 'media_variants'] as $table) {
+            $rows = DB::table($table)
+                ->where('customer_id', $mediaFile->customer_id)
+                ->where('media_file_id', $mediaFile->id)
+                ->get(['id', 'storage_key']);
+
+            foreach ($rows as $row) {
+                try {
+                    if ($disk->exists((string) $row->storage_key)) {
+                        $disk->delete((string) $row->storage_key);
+                    }
+
+                    if ($disk->exists((string) $row->storage_key)) {
+                        $purged = false;
+
+                        continue;
+                    }
+
+                    DB::table($table)
+                        ->where('customer_id', $mediaFile->customer_id)
+                        ->where('id', $row->id)
+                        ->delete();
+                } catch (Throwable $exception) {
+                    $purged = false;
+                    Log::warning('Media derived storage object delete failed.', [
+                        'media_file_id' => $mediaFile->id,
+                        'customer_id' => $mediaFile->customer_id,
+                        'table' => $table,
+                        'storage_key' => $row->storage_key,
+                        'exception' => $exception->getMessage(),
+                    ]);
+                }
+            }
         }
 
         return $purged;

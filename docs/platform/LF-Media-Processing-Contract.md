@@ -1,12 +1,12 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.8
+Version: 2.18
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-28
+Last Updated: 2026-08-29
 
 Document Path: platform/LF-Media-Processing-Contract.md
 
@@ -17,6 +17,50 @@ Related ADR:
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 * [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 * [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved v1.5
+
+---
+
+# Amendment Record — Version 2.18
+
+Amendment Status: **Approved by Architecture Owner, 2026-08-29.** Với Activity
+audio, `speech_to_text` chuyển từ required profile mặc định sang lựa chọn tường
+minh của người upload. UI mặc định bật lựa chọn để ưu tiên audio có thể trở thành
+nguồn nội dung cho AI, nhưng actor được phép bỏ chọn nếu chỉ cần phát/nghe file.
+
+- Có chọn: bắt buộc locale Phase 1 (`vi`, `ko`, `en`), tạo job
+  `speech_to_text`, lưu transcript theo `timespan`.
+- Không chọn: chỉ tạo `virus_scan`; không yêu cầu locale, không tạo transcript,
+  và UI phải ghi rõ audio chưa thể dùng làm nguồn nội dung cho AI.
+- Quyết định được lưu trong metadata của `media_file_usages`; “không yêu cầu”
+  phải khác “đã yêu cầu nhưng không có job”.
+- STT thất bại không làm mất deliverability của audio. Actor có thể khởi tạo STT
+  sau mà không upload lại, theo luồng được authorize và khóa row Media.
+
+Thay đổi này chỉ áp dụng cho `audio`. Required set của `video` vẫn gồm STT và
+caption; Docling structured extraction của document vẫn là opt-in độc lập.
+
+---
+
+# Amendment Record — Version 2.14
+
+Amendment Status: **Approved by Architecture Owner, 2026-08-29.** Media audio
+legacy được tạo trước khi locale canonical trở thành bắt buộc có thể khởi tạo
+STT lần đầu, nhưng chỉ bằng thao tác tường minh của actor đã được authorize trên
+Course Activity.
+
+Đây là phép **điền lần đầu**, không phải sửa locale hay retry:
+
+- Media phải `ready`, thuộc đúng tenant, có `file_type = audio`,
+  `processing_locale IS NULL` và chưa từng có job `speech_to_text`;
+- actor phải chọn tường minh một locale Phase 1 (`vi`, `ko`, `en`);
+- khóa row Media, ghi locale và tạo job đầu tiên trong cùng transaction;
+- nếu locale đã có hoặc đã từng có STT job, thao tác fail-closed. Job `failed`
+  dùng retry chain; `pending`/`processing` không được tạo trùng; `ready` tái sử
+  dụng output hiện có.
+
+Sự vắng mặt của job phải hiển thị là trạng thái `absent`/“Chưa có tác vụ”, không
+được suy diễn thành `pending`. Quy tắc này áp dụng tương tự cho optional job
+`structured_extraction`; amendment này không cấp action phục hồi Docling mới.
 
 ---
 
@@ -255,7 +299,7 @@ người viết code **phải hỏi Owner**, không được tự chọn.
 | `file_type` | Job bắt buộc | Job tuỳ chọn |
 | --- | --- | --- |
 | `document` | `virus_scan`, `ocr` | `thumbnail`, `structured_extraction` |
-| `audio` | `virus_scan`, `speech_to_text` | — |
+| `audio` | `virus_scan` | `speech_to_text` khi actor bật tự động phiên âm |
 | `video` | `virus_scan`, `speech_to_text`, `caption` | `transcode`, `thumbnail` |
 | `image` | `virus_scan` | `thumbnail` |
 
@@ -295,7 +339,12 @@ phải là language tag BCP 47 canonical. Internationalization default `vi`, bro
 locale, user locale và model/provider language detection **không** phải source of
 truth và không được dùng làm fallback.
 
-Attach một document/audio/video mà thiếu `processing_locale`, có locale không
+Ngoại lệ duy nhất là phép điền lần đầu cho Media audio legacy theo Amendment
+2.14: field còn `NULL`, chưa từng có STT job, actor chọn locale tường minh và
+toàn bộ thay đổi được khóa/ghi nguyên tử. Ngoại lệ này không cho phép đổi locale
+đã ghi và không thay thế retry semantics.
+
+Attach một document/video, hoặc audio **đã bật STT**, mà thiếu `processing_locale`, có locale không
 hợp lệ, hoặc xung đột với locale canonical đã lưu thì orchestration fail-closed:
 
 ```text
@@ -313,11 +362,11 @@ Required output profile set Phase 1 được materialize một lần tại trigg
 | `file_type` | Required profile chính xác | Optional/on-demand |
 | --- | --- | --- |
 | `document` | `virus_scan` profile rỗng; `ocr`: `layout=preserve;locale=<canonical-locale>` | `thumbnail`; PDF `structured_extraction`: `locale=<canonical-locale>;structure=layout`; spreadsheet `structured_extraction`: `locale=<canonical-locale>;structure=cells` |
-| `audio` | `virus_scan` profile rỗng; `speech_to_text`: `diarization=off;locale=<canonical-locale>` | Additional transcript locale/profile |
+| `audio` | `virus_scan` profile rỗng | Khi actor bật STT: `speech_to_text`: `diarization=off;locale=<canonical-locale>`; additional transcript locale/profile |
 | `video` | `virus_scan` profile rỗng; `speech_to_text`: `diarization=off;locale=<canonical-locale>`; `caption`: `format=vtt;locale=<canonical-locale>` | `transcode`, `thumbnail`, additional transcript/caption locale hoặc format |
 | `image` | `virus_scan` profile rỗng | `thumbnail` |
 
-Phase 1 chỉ có **một** required locale cho OCR/speech-to-text và chỉ có **một**
+Khi OCR/STT được yêu cầu, Phase 1 chỉ có **một** locale canonical cho output đó và chỉ có **một**
 required caption format (`vtt`). Locale/format/profile bổ sung là
 optional/on-demand; chúng không được tự động nhập vào required set và không được
 làm file ở `processing` mãi.
@@ -360,7 +409,8 @@ tính phí đều để lại đúng một row, kể cả lần thất bại, n�
 * Chỉ retry khi `error_code` thuộc nhóm tạm thời (`provider_timeout`,
   `provider_unavailable`, `rate_limited`). Lỗi vĩnh viễn
   (`unsupported_source`, `corrupt_source`, `quota_exceeded`,
-  `structured_extraction_too_large`) không retry. Một revision vượt trần tài
+  `structured_extraction_too_large`, `audio_limit_exceeded`,
+  `transcript_invalid`) không retry. Một revision vượt trần tài
   nguyên sẽ vượt lại y hệt ở lần thử sau: input không đổi, giới hạn không đổi,
   nên retry chỉ tiêu attempt và thời gian worker mà không đổi kết quả.
 * Retry của một output profile không tiêu hao attempt, không chặn enqueue và
@@ -684,6 +734,220 @@ local hiện tại chưa implement sweeper.
 source + PDF/image trung gian và IAM read source object; browser/admin không chạy
 binary. Production activation vẫn chịu R1/R2 và deployment/provider gates trong
 Architecture Review.
+
+## Speech-to-text resource controls — Phase 1
+
+Owner freeze ngày 2026-08-29. Cùng hạng với structured extraction resource
+controls bên dưới: đây là **contract**, không phải tuning.
+
+### Provider Phase 1
+
+Phase 1 dùng adapter local `faster_whisper_local`, engine `faster-whisper 1.2.1`,
+model `small`, `compute_type=int8`, CPU và diarization tắt. Python/model nằm trong
+namespace `runtime/stt/` riêng, không dùng chung venv với Docling. Model được gọi
+bằng đường dẫn local và ba biến offline được ép trong process; runtime không tự
+tải model.
+
+`MEDIA_SPEECH_TO_TEXT_PROVIDER` mặc định
+`unconfigured`; provider chưa cấu hình thì job fail `provider_unavailable`, không
+im lặng bỏ qua và không tự rơi sang đường khác.
+
+**Không gọi provider ngoài trong Phase 1.** Đường external fail-closed. PII
+presence **không** làm job fail — giữ nguyên luật ADR-0018 — nhưng cũng không cấp
+quyền gửi source ra ngoài.
+
+Mở một provider ngoài (ví dụ AWS Transcribe) cần ba thứ, và **không thứ nào nằm
+trong contract này**:
+
+1. quyết định riêng cho đúng provider đó theo
+   [ADR-0018](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) —
+   ADR đó ghi rõ *"Mọi provider ngoài boundary cần quyết định riêng; ADR này
+   không phải blanket consent"*;
+2. retention/deletion có evidence triển khai;
+3. audit coverage có evidence triển khai.
+
+### Định dạng và trần
+
+| Ràng buộc | Giá trị |
+| --- | --- |
+| MIME được nhận | `audio/mpeg`, `audio/mp3`, `audio/wav`, `audio/x-wav`, `audio/ogg`, `audio/webm`, `audio/mp4` |
+| Dung lượng tối đa | 1 GB |
+| Thời lượng tối đa | 120 phút |
+| Provider deadline | 3.300 giây |
+
+MIME ngoài allowlist → `unsupported_source`.
+
+**Vượt trần dung lượng hoặc thời lượng → fail cả job** với `audio_limit_exceeded`.
+**Không cắt bớt.** Transcript của 120 phút đầu trên một file ba giờ khiến consumer
+không phân biệt được "hết nội dung" với "bị cắt", trong khi mọi citation vẫn hợp
+lệ — sai không lộ ra ở đâu cả. Cùng nguyên tắc với
+`structured_extraction_too_large`.
+
+### Segmentation
+
+Một row là một segment. Locator theo hợp đồng chung: `locator_type = 'timespan'`,
+`locator_value = '<start_ms>-<end_ms>'`, đơn vị **millisecond**.
+
+Trong một revision, các segment phải **sắp xếp tăng dần theo `start_ms`** và
+**không chồng lấn**. Vi phạm → `transcript_invalid`, fail cả revision, không ghi
+row nào.
+
+**`timespan` là khoảng nửa mở `[start_ms, end_ms)`.** Luật chính xác là
+`start_ms >= prev.end_ms`, **không** phải `>`. Khảo sát exploratory trên output
+faster-whisper cho thấy phần lớn segment giáp ranh chính xác
+(`start_ms == prev.end_ms`) và không chồng lấn thật. Tỷ lệ cụ thể không được
+freeze trong contract cho tới khi raw per-segment artefact được lưu và phép đếm
+được tái lập; với `N` segment chỉ có tối đa `N-1` cặp liền kề.
+
+Segment độ dài 0 (`start_ms == end_ms`) không hợp lệ.
+
+Luật này được cưỡng chế ở **tầng persist**, cùng cách `reading_order` được cưỡng
+chế cho region. Lý do phải nói rõ:
+
+* `UNIQUE (… locator_value …)` chặn trùng **chính xác**, nhưng `0-1000` và
+  `500-1500` là hai giá trị khác nhau nên **overlap vẫn lọt**.
+* `media_transcripts` không có cột `start_ms`, `end_ms` hay `sequence` — chỉ một
+  VARCHAR. Không có gì sắp xếp được bằng SQL, và sắp xếp chuỗi thì `'1000-2000'`
+  đứng trước `'500-1500'`.
+* Media Read trả transcript theo thứ tự `id`. Kiểm ở tầng persist khiến thứ tự
+  insert **trùng** thứ tự thời gian, nên thứ tự đọc trở thành bảo đảm thay vì
+  tình cờ.
+
+### Locale
+
+Phase 1 nhận đúng `vi`, `ko`, `en`. Ép tường minh theo `processing_locale`;
+**không auto-detect**, không dùng browser/user locale làm fallback — đúng § Locale
+canonical ở trên. Locale ngoài allowlist → `locale_unavailable`.
+
+Ràng buộc này cần thiết vì `MediaOutputProfile::canonicalLocale()` chỉ validate cú
+pháp BCP 47; không có allowlist thì `fr` đi lọt tới provider.
+
+### Diarization
+
+`off` trong Phase 1. Đây là ghi nhận nguồn quyết định cho giá trị **đã là** profile
+canonical, không phải hạng mục triển khai mới.
+
+### Concurrency và quota
+
+Tối đa **một STT job đang `processing` trên mỗi Media** — đã được cưỡng chế ở
+orchestration theo `(customer_id, media_file_id, job_type)`.
+
+Quota theo phút audio: **chưa triển khai**. Đây là gate mở, không phải giá trị đã
+chốt.
+
+### Mã lỗi mới của STT
+
+`audio_limit_exceeded` và `transcript_invalid` là **lỗi vĩnh viễn**, không retry:
+input không đổi thì trần và luật segment cũng không đổi.
+
+Cả hai phải được đăng ký vào danh sách mã lỗi ổn định của job runner. Mã không
+đăng ký sẽ rơi về `processing_failed`, và khi đó operator không phân biệt được
+"file quá dài" với "provider chết" — trong khi hai thứ đó cần hai hành động khác
+hẳn nhau.
+
+### Đo thời lượng
+
+Trần 120 phút đo bằng `media_files.duration_seconds`, đã có sẵn do
+`MediaMetadataProbe` ghi bằng `ffprobe` lúc upload.
+
+Không đo được thời lượng (`duration_seconds IS NULL`) → `corrupt_source`, **không**
+mặc định cho qua. Cho qua một file không đo được là tự bỏ chính cái trần vừa đặt.
+
+### Acceptance
+
+Fixture `vi`, `ko`, `en`; đo WER, biên timestamp, p50/p95. **Không freeze ngưỡng
+cho tới khi có dry-run** trên fixture thật.
+
+Fixture phải là audio **không chứa PII**, hoặc có approval riêng — cùng luật đã áp
+cho fixture PDF của structured extraction.
+
+Harness tái lập nằm tại `runtime/stt/benchmark/`. Fixture thật, ground truth và
+result có thể chứa nội dung học liệu nên bị gitignore. Một engine/model chỉ được
+freeze sau khi report máy đọc được chứa source hash, model hash, dependency
+inventory, raw segment timing và metric theo từng fixture.
+
+Runtime Phase 1 được phép hoạt động trước khi quality threshold được freeze,
+nhưng UI phải mô tả đây là transcript máy tạo và job có readiness riêng. Dry-run
+trên audio người thật tiếng Hàn dài 196,807 giây đã chứng minh đường local tạo 21
+segment, 0 overlap và 0 segment độ dài 0; chưa có ground truth nên CER vẫn
+`unavailable`, không được diễn giải thành quality pass.
+
+**Owner acceptance, 2026-08-29:** trạng thái CER `unavailable` của fixture này
+được chấp nhận cho Phase 1 local. Đây là chấp nhận giới hạn evidence, không phải
+quality threshold, SLA hoặc quyền mở external provider. Khi có ground truth được
+duyệt, benchmark phải báo lại CER thay vì kế thừa acceptance này.
+
+### Retention khi xoá Media
+
+**Owner approved, 2026-08-29:** xoá Media phải purge nội dung dẫn xuất cùng tenant
+và Media, gồm extracted text, transcript, region, structured table/cell, caption
+asset và variant asset. Processing job và access log được giữ làm provenance/audit
+nhưng không được giữ bản sao nội dung đã purge.
+
+Nội dung chỉ nằm trong database được xoá trong cùng transaction tạo tombstone
+`media_files.status = 'deleted'`. Output có object storage chỉ xoá row sau khi
+object được xác minh đã biến mất; nếu storage lỗi, row còn lại là retry marker cho
+lần dọn thủ công kế tiếp. Pending processing job bị `cancelled`, và job đã chạy
+không được persist output mới sau khi Media thành `deleted`.
+
+Approval này đóng quyết định của DOC-CONFLICT-0023. Nó không cấp quyền gọi
+provider ngoài; external processing vẫn cần approval provider/purpose riêng theo
+ADR-0018.
+
+## Caption dựng từ transcript — Owner quyết định 2026-08-29
+
+Caption **không** chạy model riêng trên binary. Nó được dựng từ transcript đã
+`ready` của cùng Media và cùng locale.
+
+Lý do loại bỏ hướng độc lập: hai đường chạy riêng sẽ cho hai nội dung khác nhau
+trên cùng một video — người học đọc một bản, AI đọc bản khác — và tốn gấp đôi chi
+phí model để tạo ra sự bất nhất đó.
+
+Hệ quả bắt buộc:
+
+* Job `caption` **phụ thuộc** một transcript revision `ready`. Chưa có transcript
+  thì chưa dựng được caption; đây là phụ thuộc thật giữa hai job của cùng Media,
+  không phải hai đường song song.
+* `media_captions.transcript_processing_version` ghi transcript revision đã dùng.
+  `source_fingerprint` **không** thay thế được: nó là vân tay của binary gốc nên
+  không đổi khi transcript sinh revision mới.
+* **Stale dây chuyền:** transcript revision chuyển `archived` thì mọi caption
+  dựng từ nó cũng chuyển `archived`, trong cùng transaction.
+
+Đây là hiệu ứng **liên output type** đầu tiên của Media: một job STT chạm row
+caption của chính Media đó. Nó nằm trong ranh giới Media — không chạm Course,
+Assessment hay AI output — nên không vi phạm § Ranh giới tác dụng phụ. Vì là lần
+đầu, nó được viết ra ở đây thay vì để ngầm hiểu.
+
+Phase 1 caption cùng locale với transcript nguồn. Dịch sang locale khác là quyết
+định riêng, chưa duyệt.
+
+### Bất biến phải cưỡng chế ở tầng persist
+
+CHECK trong schema chỉ bắt caption do job sinh ra **có khai** một transcript
+version; nó không chứng minh version đó có thật. FK không dùng được vì
+`media_transcripts` không có khoá nào đại diện cho *một revision* — UNIQUE của nó
+gồm `locator_value`, do một revision là nhiều row segment.
+
+Trước khi ghi caption row, persistence **phải** xác nhận tồn tại transcript
+`ready` cùng `customer_id`, `media_file_id`, `locale`, `source_fingerprint` và
+`processing_version = transcript_processing_version`. Không thoả thì fail cả
+revision caption, không ghi row nào.
+
+### Trạng thái triển khai
+
+Luật stale dây chuyền **đã có runtime**: đường persist của STT archive caption
+dựng từ transcript vừa bị thay thế, trong cùng transaction, và có test kèm
+mutation. Caption không do job sinh ra không bị đụng tới.
+
+Migration provenance đã qua **Gate M**, đóng 2026-08-29 bằng Owner attestation
+trên bằng chứng ghi ở
+[media_captions](../database/media/media_captions.md) § Gate M. Không có
+independent Architecture Review; phạm vi đóng đúng bằng migration và schema.
+
+Bất biến kiểm-tồn-tại ở trên **chưa có runtime**, vì chưa có caption runtime để
+đặt vào. Provider `caption` vẫn `unconfigured`; quyết định này mở đường cho
+runtime, không phải là runtime.
 
 ## Structured extraction resource controls
 

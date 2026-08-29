@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "approved_by": "PENDING_OWNER_APPROVAL",
+  "approved_at": null,
+  "revision": "PENDING_OWNER_REVISION",
+  "fixtures": [
+    {
+      "id": "vi-real-001",
+      "locale": "vi",
+      "audio_path": "/absolute/path/vi-real-001.wav",
+      "sha256": "REQUIRED_64_HEX",
+      "reference_path": "/absolute/path/vi-real-001.txt",
+      "synthetic": false,
+      "contains_pii": false,
+      "purpose": "quality"
+    }
+  ]
+}

@@ -23,6 +23,12 @@ yarn-error.log
 .DS_Store
 
 /runtime/docling/.venv/
+/runtime/stt/.venv/
+/runtime/stt/models/
+/runtime/stt/benchmark/fixtures/
+/runtime/stt/benchmark/results/
+/runtime/stt/**/__pycache__/
+/runtime/stt/**/*.pyc
 /runtime/docling/models/
 /runtime/docling/output/
 /runtime/docling/**/__pycache__/

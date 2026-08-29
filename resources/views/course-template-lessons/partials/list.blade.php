@@ -150,7 +150,7 @@
                                     <span class="course-template-activity-icon" aria-hidden="true">
                                         <x-backend-icon :name="$activityIcon" class="course-template-activity-type-icon" />
                                     </span>
-                                    <span class="course-template-activity-copy">
+                                    <div class="course-template-activity-copy">
                                         <span class="course-template-activity-title-text">
                                             {{ $activity->title }}
                                         </span>
@@ -167,6 +167,7 @@
                                                         default => 'lf.LF_course_template_activity_structured_failed_help',
                                                     },
                                                     'processing' => 'lf.LF_course_template_activity_structured_processing_help',
+                                                    'absent' => 'lf.LF_course_template_activity_structured_absent_help',
                                                     default => 'lf.LF_course_template_activity_structured_pending_help',
                                                 };
                                             @endphp
@@ -177,6 +178,7 @@
                                                     'badge-success' => $structuredStatus === 'ready',
                                                     'badge-danger' => $structuredStatus === 'failed',
                                                     'badge-info' => in_array($structuredStatus, ['pending', 'processing'], true),
+                                                    'badge-secondary' => $structuredStatus === 'absent',
                                                 ])>
                                                     {{ __('lf.LF_course_template_activity_structured_'.$structuredStatus) }}
                                                 </span>
@@ -185,7 +187,60 @@
                                                 </span>
                                             </span>
                                         @endif
-                                    </span>
+                                        @if (($activity->speech_to_text_status ?? null) !== null)
+                                            @php
+                                                $speechStatus = $activity->speech_to_text_status;
+                                                $speechMessageKey = match ($speechStatus) {
+                                                    'ready' => 'lf.LF_course_template_activity_stt_ready_help',
+                                                    'failed' => match ($activity->speech_to_text_error_code) {
+                                                        'audio_limit_exceeded' => 'lf.LF_course_template_activity_stt_failed_limit_help',
+                                                        'locale_unavailable' => 'lf.LF_course_template_activity_stt_failed_locale_help',
+                                                        'provider_unavailable' => 'lf.LF_course_template_activity_stt_failed_provider_help',
+                                                        'provider_timeout' => 'lf.LF_course_template_activity_stt_failed_timeout_help',
+                                                        default => 'lf.LF_course_template_activity_stt_failed_help',
+                                                    },
+                                                    'processing' => 'lf.LF_course_template_activity_stt_processing_help',
+                                                    'absent' => 'lf.LF_course_template_activity_stt_absent_help',
+                                                    'disabled' => 'lf.LF_course_template_activity_stt_disabled_help',
+                                                    default => 'lf.LF_course_template_activity_stt_pending_help',
+                                                };
+                                            @endphp
+                                            <div class="course-template-activity-structured-status" role="status">
+                                                <span @class([
+                                                    'badge',
+                                                    'badge-success' => $speechStatus === 'ready',
+                                                    'badge-danger' => $speechStatus === 'failed',
+                                                    'badge-info' => in_array($speechStatus, ['pending', 'processing'], true),
+                                                    'badge-secondary' => in_array($speechStatus, ['absent', 'disabled'], true),
+                                                ])>
+                                                    {{ __('lf.LF_course_template_activity_stt_'.$speechStatus) }}
+                                                </span>
+                                                <span class="lf-secondary-text">{{ __($speechMessageKey) }}</span>
+                                                @if (in_array($speechStatus, ['absent', 'disabled'], true))
+                                                    <form method="POST"
+                                                          action="{{ route($activityRoutePrefix.'.initialize-transcription', $activityParameters) }}"
+                                                          class="course-template-activity-stt-initialize-form">
+                                                        @csrf
+                                                        <label class="sr-only" for="stt-locale-{{ $activity->id }}">
+                                                            {{ __('lf.LF_course_template_activity_stt_initialize_locale') }}
+                                                        </label>
+                                                        <select id="stt-locale-{{ $activity->id }}"
+                                                                name="processing_locale"
+                                                                class="lf-form-control"
+                                                                required>
+                                                            <option value="">{{ __('lf.LF_course_template_activity_stt_initialize_choose') }}</option>
+                                                            <option value="vi">{{ __('lf.LF_common_language_vi') }} (vi)</option>
+                                                            <option value="ko">{{ __('lf.LF_common_language_ko') }} (ko)</option>
+                                                            <option value="en">{{ __('lf.LF_common_language_en') }} (en)</option>
+                                                        </select>
+                                                        <button type="submit" class="admin-text-action">
+                                                            {{ __('lf.LF_course_template_activity_stt_initialize') }}
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                                 <div class="admin-table-actions">
                                     @if (($activity->view_behavior ?? null) === 'popup')
