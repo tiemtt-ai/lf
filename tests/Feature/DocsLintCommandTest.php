@@ -80,6 +80,32 @@ class DocsLintCommandTest extends TestCase
         $this->assertLintFails();
     }
 
+    public function test_conflict_register_active_count_must_match_table_statuses(): void
+    {
+        $register = $this->metadata('quality/LF-Documentation-Conflicts.md').<<<'MARKDOWN'
+
+        Active items: 1.
+
+        | ID | Title | Classification | Status | Impact |
+        | --- | --- | --- | --- | --- |
+        | DOC-CONFLICT-0001 | Open | GAP | DECISION_REQUIRED | HIGH |
+        | DOC-CONFLICT-0002 | Closed | GAP | RESOLVED | LOW |
+        MARKDOWN;
+        $this->write('quality/LF-Documentation-Conflicts.md', $register);
+
+        $this->assertLintPasses();
+
+        $this->write(
+            'quality/LF-Documentation-Conflicts.md',
+            str_replace('Active items: 1.', 'Active items: 2.', $register)
+        );
+
+        $exit = Artisan::call('docs:lint', ['--path' => $this->docsRoot, '--metadata-only' => true]);
+        $output = Artisan::output();
+        $this->assertSame(1, $exit, $output);
+        $this->assertStringContainsString('khai 2 nhưng bảng có 1', $output);
+    }
+
     public function test_adr_with_contradictory_status_fails(): void
     {
         $content = str_replace('Document Status: Approved', 'Status: Approved', $this->metadata('adr/ADR-9999-Test.md'));

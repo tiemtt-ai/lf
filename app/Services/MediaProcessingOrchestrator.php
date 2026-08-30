@@ -59,7 +59,7 @@ class MediaProcessingOrchestrator
                 'updated_at' => now(),
             ]);
 
-            foreach ($this->requiredProfiles($media->file_type, $canonicalLocale, $speechToText) as [$jobType, $profile]) {
+            foreach ($this->initialMaterializationProfiles($media->file_type, $canonicalLocale, $speechToText) as [$jobType, $profile]) {
                 $this->createInitialJob($customerId, $media, $jobType, $profile, $actorId);
             }
 
@@ -223,8 +223,8 @@ class MediaProcessingOrchestrator
 
         $fingerprint = $this->sourceFingerprint($media);
         $plan = [];
-        foreach ($this->requiredProfiles($media->file_type, $canonicalLocale) as [$jobType, $profile]) {
-            $version = $this->versionFor($jobType);
+        foreach ($this->initialMaterializationProfiles($media->file_type, $canonicalLocale) as [$jobType, $profile]) {
+            $version = $this->versionFor($jobType, $media, $this->profiles->parse($profile));
             $key = $this->initialIdempotencyKey($media, $jobType, $fingerprint, $version, $this->profiles->hash($profile));
             $existing = DB::table('media_processing_jobs')->where('customer_id', $customerId)
                 ->where('idempotency_key', $key)->value('id');
@@ -241,25 +241,50 @@ class MediaProcessingOrchestrator
     }
 
     /** @return array<int, array{string, string}> */
-    private function requiredProfiles(string $fileType, ?string $locale, bool $speechToText = true): array
+    /**
+     * Profile duoc materialize NGAY luc upload — khong phai toan bo required set.
+     *
+     * `caption` van la output bat buoc cua video, nhung deferred: no chi duoc tao
+     * sau khi STT commit mot transcript revision `ready`. Ten cu
+     * `requiredProfiles()` vi the noi sai pham vi cua chinh no.
+     */
+    /** Transcript revision `ready` hien hanh cua mot Media/locale, neu co dung mot. */
+    private function currentTranscriptRevision(object $media, string $locale): ?string
+    {
+        $versions = DB::table('media_transcripts')
+            ->where('customer_id', $media->customer_id)
+            ->where('media_file_id', $media->id)
+            ->where('locale', $locale)
+            ->where('status', 'ready')
+            ->distinct()
+            ->pluck('processing_version')
+            ->all();
+
+        return count($versions) === 1 ? (string) $versions[0] : null;
+    }
+
+    private function initialMaterializationProfiles(string $fileType, ?string $locale, bool $speechToText = true): array
     {
         $jobs = [['virus_scan', '']];
         if ($fileType === 'document') {
             $jobs[] = ['ocr', $this->profiles->canonical(['layout' => 'preserve', 'locale' => (string) $locale])];
         }
-        if ($fileType === 'video' || ($fileType === 'audio' && $speechToText)) {
+        $videoSttEnabled = (bool) config('media.processing.speech_to_text.video_enabled', false);
+        if (($fileType === 'video' && $videoSttEnabled) || ($fileType === 'audio' && $speechToText)) {
             $jobs[] = ['speech_to_text', $this->profiles->canonical(['diarization' => 'off', 'locale' => (string) $locale])];
         }
-        if ($fileType === 'video') {
-            $jobs[] = ['caption', $this->profiles->canonical(['format' => 'vtt', 'locale' => (string) $locale])];
-        }
+        // Caption KHONG thuoc initial required set. Amendment 2.19 / conflict
+        // 0025 chot rang caption chi duoc materialize sau khi STT da commit mot
+        // transcript revision `ready`. Tao no o day se dispatch dong thoi voi
+        // STT; khi video gate tat thi con te hon: caption ton tai trong khi
+        // transcript bi quyet dinh khong sinh ra.
 
         return $jobs;
     }
 
     private function createInitialJob(int $customerId, object $media, string $jobType, string $profile, ?int $actorId): void
     {
-        $version = $this->versionFor($jobType);
+        $version = $this->versionFor($jobType, $media, $this->profiles->parse($profile));
         $provider = $this->providerFor($jobType);
         $fingerprint = $this->sourceFingerprint($media);
         $profileHash = $this->profiles->hash($profile);
@@ -313,8 +338,42 @@ class MediaProcessingOrchestrator
         return (string) config("media.processing.providers.$jobType", 'unconfigured');
     }
 
-    private function versionFor(string $jobType): string
+    /**
+     * Version cau hinh hien hanh cho mot job type tren mot Media cu the.
+     *
+     * Public vi consumer ngoai orchestrator — vi du `media:reprocess` khi so
+     * chain cu voi cau hinh hien tai — phai dung DUNG mot phep dung version.
+     * Doc thang `config(...)` o noi khac se bo qua extraction profile cua video
+     * va bao "version da doi" trong khi khong co gi doi.
+     */
+    public function versionFor(string $jobType, ?object $media = null, array $parameters = []): string
     {
-        return (string) config("media.processing.versions.$jobType", 'unconfigured-v1');
+        $version = (string) config("media.processing.versions.$jobType", 'unconfigured-v1');
+
+        // Caption duoc dung TU transcript, nen identity cua no phai gom ca
+        // revision nguon. Neu khong: caption dung tu transcript v1 va tu v2 co
+        // cung processing_version, cung idempotency key — va lan materialize thu
+        // hai bi dedupe. STT chay lai se khong bao gio sinh caption moi, trong khi
+        // caption cu da bi stale cascade archive. Video mat phu de vinh vien.
+        if ($jobType === 'caption' && $media !== null && isset($parameters['locale'])) {
+            $source = $this->currentTranscriptRevision($media, (string) $parameters['locale']);
+            if ($source !== null) {
+                $version .= '+from-'.substr(hash('sha256', $source), 0, 8);
+            }
+        }
+
+        // Transcript cua video phu thuoc CACH audio duoc tach ra, nhung
+        // `source_fingerprint` chi la van tay cua binary goc. Khong dua
+        // extraction profile vao version thi doi mot tham so ffmpeg se lam
+        // transcript doi noi dung ma khong sinh revision moi.
+        //
+        // Chi nhanh video duoc them hau to. Them cho ca audio se doi identity
+        // cua moi transcript audio dang chay, archive toan bo va bat chay lai —
+        // Amendment Record 2.19 § 1 canh bao dung dieu nay.
+        if ($jobType === 'speech_to_text' && ($media->file_type ?? null) === 'video') {
+            $version .= '+'.app(VideoSpeechToTextProfile::class)->label();
+        }
+
+        return $version;
     }
 }

@@ -3,12 +3,16 @@
 namespace App\Jobs;
 
 use App\Contracts\MediaProcessingProvider;
+use App\Services\CaptionAssetStorage;
 use App\Services\DoclingStructuredExtractionProvider;
 use App\Services\FakeMediaProcessingProvider;
 use App\Services\FasterWhisperSpeechToTextProvider;
 use App\Services\LocalDocumentProcessingProvider;
+use App\Services\MediaProcessingOrchestrator;
 use App\Services\RegionCropStorage;
 use App\Services\StructuredExtractionPersistenceService;
+use App\Services\TranscriptVttCaptionProvider;
+use App\Services\VideoAudioWorkspace;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -72,10 +76,11 @@ class ProcessMediaProcessingJob implements ShouldQueue
             try {
                 DB::transaction(fn () => $this->persistSuccess($media, $job, $result));
             } catch (Throwable $persistFailure) {
-                // Transaction rollback duoc, object storage thi khong. Crop da
-                // upload trong provider phai bi xoa, neu khong chung song sot ma
+                // Transaction rollback duoc, object storage thi khong. Object da
+                // ghi trong provider phai bi xoa, neu khong chung song sot ma
                 // khong con row nao tham chieu.
                 $this->purgeRegionCrops($media, $job);
+                $this->purgeCaptionAsset($media, $result);
 
                 throw $persistFailure;
             }
@@ -88,6 +93,10 @@ class ProcessMediaProcessingJob implements ShouldQueue
                     'page_limit_exceeded', 'source_expansion_limit_exceeded',
                     'structured_extraction_too_large', 'structured_extraction_invalid',
                     'audio_limit_exceeded', 'transcript_invalid', 'locale_unavailable',
+                    'video_limit_exceeded', 'audio_extraction_limit_exceeded', 'audio_extraction_failed',
+                    'video_stt_disabled', 'extraction_profile_mismatch',
+                    'caption_invalid', 'caption_too_large', 'caption_write_failed', 'transcript_unavailable',
+                    'ambiguous_source',
                     'unsupported_output_profile',
                 ];
                 $errorCode = $e instanceof RuntimeException && in_array($e->getMessage(), $knownErrorCodes, true)
@@ -130,6 +139,61 @@ class ProcessMediaProcessingJob implements ShouldQueue
             ->where('id', $job->media_file_id)->first();
         if ($job !== null && $media !== null) {
             $this->purgeRegionCrops($media, $job);
+            $this->purgeVideoAudioWorkspace($media, $job);
+        }
+    }
+
+    /**
+     * Audio tach tu video la audio DAY DU cua hoc lieu nam ngoai moi kiem soat
+     * retention. Worker bi giet truoc `finally` thi day la nhanh duy nhat con
+     * chay de don no.
+     */
+    private function purgeVideoAudioWorkspace(object $media, object $job): void
+    {
+        if ($job->job_type !== 'speech_to_text' || $media->file_type !== 'video') {
+            return;
+        }
+
+        try {
+            if (! app(VideoAudioWorkspace::class)->purge($media, $job)) {
+                Log::error('Video audio workspace purge incomplete; extracted audio may remain on disk.', [
+                    'media_file_id' => (int) $media->id,
+                    'processing_job_id' => (int) $job->id,
+                ]);
+            }
+        } catch (Throwable $exception) {
+            Log::error('Video audio workspace purge failed.', [
+                'media_file_id' => (int) $media->id,
+                'processing_job_id' => (int) $job->id,
+                'exception' => $exception::class,
+            ]);
+        }
+    }
+
+    /**
+     * Caption asset duoc ghi trong provider, truoc transaction persist. Persist
+     * hong ma khong don thi file VTT nam lai khong row nao tham chieu.
+     *
+     * @param  array<string, mixed>  $result
+     */
+    private function purgeCaptionAsset(object $media, array $result): void
+    {
+        $key = $result['storage_key'] ?? null;
+        if (! is_string($key) || $key === '') {
+            return;
+        }
+
+        try {
+            if (! app(CaptionAssetStorage::class)->purge($media, $key)) {
+                Log::error('Caption asset purge incomplete after a failed persist.', [
+                    'media_file_id' => (int) $media->id, 'storage_key' => $key,
+                ]);
+            }
+        } catch (Throwable $exception) {
+            Log::error('Caption asset purge failed.', [
+                'media_file_id' => (int) $media->id, 'storage_key' => $key,
+                'exception' => $exception::class,
+            ]);
         }
     }
 
@@ -168,6 +232,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
             'fake' => app(FakeMediaProcessingProvider::class),
             'local_document' => app(LocalDocumentProcessingProvider::class),
             'docling_local' => app(DoclingStructuredExtractionProvider::class),
+            'transcript_vtt' => app(TranscriptVttCaptionProvider::class),
             'faster_whisper_local' => app(FasterWhisperSpeechToTextProvider::class),
             default => throw new RuntimeException('provider_unavailable'),
         };
@@ -222,6 +287,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
             }
             $this->archiveSupersededRevisions('media_transcripts', $media, $job, ['locale' => $locale], $now);
             $this->archiveCaptionsBuiltOnSupersededTranscript($media, $job, $locale, $now);
+            $this->materializeCaptionAfterTranscript($media, $locale);
             $outputType = 'transcript';
         } elseif ($job->job_type === 'caption') {
             $captionType = $this->profileValue($job->output_profile, 'format');
@@ -229,6 +295,10 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 'customer_id' => $this->customerId, 'media_file_id' => $media->id, 'locale' => $locale,
                 'caption_type' => $captionType, 'storage_key' => $result['storage_key'],
                 'status' => 'ready', 'processing_job_id' => $job->id, 'processing_version' => $job->processing_version,
+                // Caption dung TU transcript, nen phai ghi revision nguon.
+                // `source_fingerprint` khong dien dat duoc dieu do: no la van tay
+                // binary goc, khong doi khi transcript len revision moi.
+                'transcript_processing_version' => $result['transcript_processing_version'] ?? null,
                 'source_fingerprint' => $job->source_fingerprint, 'created_at' => $now, 'updated_at' => $now,
             ]);
             $this->archiveSupersededRevisions('media_captions', $media, $job, ['locale' => $locale, 'caption_type' => $captionType], $now);
@@ -306,6 +376,38 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 ->where('transcript_processing_version', '<>', $job->processing_version)
                 ->orWhere('source_fingerprint', '<>', $job->source_fingerprint))
             ->update(['status' => 'archived', 'updated_at' => $now]);
+    }
+
+    /**
+     * Caption la required-nhung-deferred: no chi duoc materialize SAU khi
+     * transcript revision hien hanh da commit `ready` (DOC-CONFLICT-0025).
+     *
+     * Goi trong cung transaction ghi transcript, nhung viec dispatch job that su
+     * xay ra sau commit — orchestrator dung `DB::afterCommit`. Neu transaction
+     * rollback thi khong co caption job nao duoc gui di.
+     *
+     * Idempotent qua idempotency key: STT chay lai duoi mot revision moi se sinh
+     * mot caption chain moi, con chay lai cung revision thi khong tao trung.
+     */
+    private function materializeCaptionAfterTranscript(object $media, ?string $locale): void
+    {
+        if ($media->file_type !== 'video' || $locale === null) {
+            return;
+        }
+
+        try {
+            app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
+                $this->customerId, (int) $media->id, 'caption',
+                ['format' => (string) config('media.processing.caption.format', 'vtt'), 'locale' => $locale],
+            );
+        } catch (Throwable $exception) {
+            // Khong lam hong transcript vua ghi: transcript la output doc lap va
+            // van dung duoc. Caption thieu se hien o trang thai cua chinh no.
+            Log::error('Caption materialization after transcript failed.', [
+                'media_file_id' => (int) $media->id, 'locale' => $locale,
+                'exception' => $exception::class, 'message' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function profileValue(string $profile, string $key): ?string

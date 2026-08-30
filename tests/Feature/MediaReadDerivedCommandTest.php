@@ -29,6 +29,13 @@ class MediaReadDerivedCommandTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Cac test nay dung fixture VIDEO de kiem co che STT, nen phai bat
+        // gate mot cach tuong minh. Gate mac dinh TAT theo Temporary Safety
+        // Rule cua DOC-CONFLICT-0027 — xem test_video_stt_is_off_by_default.
+        config([
+            'media.processing.speech_to_text.video_enabled' => true,
+            'media.processing.video_audio.ffmpeg_version' => '7.1.1',
+        ]);
         Storage::fake('media_local');
         config(['media.disk' => 'media_local', 'media.bucket' => 'test-media']);
         $this->customerId = DB::table('saas_customers')->insertGetId([

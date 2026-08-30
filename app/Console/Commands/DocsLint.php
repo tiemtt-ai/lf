@@ -68,6 +68,7 @@ class DocsLint extends Command
                 ...$this->checkAdrSelfContradiction(),
                 ...($this->option('metadata-only') ? [] : $this->checkSupersededHasLink()),
                 ...$this->checkRequiredMetadata(),
+                ...$this->checkConflictRegisterActiveCount(),
                 ...($this->option('metadata-only') ? [] : $this->checkDocumentationManifest()),
             ];
 
@@ -350,6 +351,43 @@ class DocsLint extends Command
         $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
 
         return $date !== false && $date->format('Y-m-d') === $value;
+    }
+
+    /**
+     * Derive the conflict-register summary from its table instead of trusting
+     * a manually maintained claim. An alternate --path fixture may omit the
+     * register; catalog checks cover its presence in the canonical docs tree.
+     */
+    private function checkConflictRegisterActiveCount(): array
+    {
+        $path = $this->docsPath.'/quality/LF-Documentation-Conflicts.md';
+        if (! is_file($path)) {
+            return [];
+        }
+
+        $content = file_get_contents($path);
+        if (! preg_match('/^Active items:\s*(\d+)\b/m', $content, $declaredMatch)) {
+            return ['quality/LF-Documentation-Conflicts.md: thiếu dòng `Active items: <number>`'];
+        }
+
+        $active = 0;
+        foreach (preg_split('/\R/', $content) as $line) {
+            if (! preg_match('/^\|\s*DOC-CONFLICT-\d+\s*\|/', $line)) {
+                continue;
+            }
+
+            $columns = array_map('trim', explode('|', trim($line, "| \t")));
+            if (($columns[3] ?? null) !== 'RESOLVED') {
+                $active++;
+            }
+        }
+
+        $declared = (int) $declaredMatch[1];
+        if ($declared !== $active) {
+            return ["quality/LF-Documentation-Conflicts.md: Active items khai $declared nhưng bảng có $active item chưa RESOLVED"];
+        }
+
+        return [];
     }
 
     /**

@@ -1,12 +1,12 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.18
+Version: 2.27
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-29
+Last Updated: 2026-08-30
 
 Document Path: platform/LF-Media-Processing-Contract.md
 
@@ -17,6 +17,503 @@ Related ADR:
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 * [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 * [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved v1.5
+
+---
+
+# Amendment Record — Version 2.21
+
+Amendment Status: **Approved by Architecture Owner, 2026-08-30.** Hiệu chỉnh
+Amendment 2.19 sau khi đo STT trên video thật. Hai resource cap của 2.19 bị chính
+phép đo bác bỏ và được thay:
+
+| Giá trị | 2.19 | 2.21 | Cơ sở |
+| --- | --- | --- | --- |
+| Thời lượng video | `max_duration_seconds = 7.200` (dùng chung với audio) | **`max_video_duration_seconds = 5.400`** | RTF 0,48 trên video thật ⇒ 7.200s cần 3.432s xử lý, vượt provider deadline 3.300s |
+| Caption cue | `max_caption_cues = 5.000` | **`10.000`** | Video thật 23,1 cue/phút, gấp 3–5 lần mẫu audio tiếng Hàn |
+
+Bốn giá trị còn lại của 2.19 không đổi. Audio giữ nguyên `max_duration_seconds =
+7.200`; trần `5.400` **chỉ** áp cho video.
+
+Ở tài liệu v2.20 hai giá trị này được đánh dấu `SUSPENDED` trong thời gian chờ
+Owner quyết định; v2.21 thay chúng bằng giá trị đã chốt. Chi tiết ở
+[DOC-CONFLICT-0026](../quality/LF-Documentation-Conflicts.md).
+
+Approval này **không** thay đổi phần semantics đã duyệt ở 2.19: ordering STT →
+caption, revision identity gồm canonical ffmpeg extraction profile, và quy tắc
+VTT.
+
+---
+
+# Amendment Record — Version 2.19
+
+Amendment Status: **Approved by Architecture Owner, 2026-08-30.** Amendment này
+chốt contract để triển khai `Video → transcript + caption asset` và đóng
+[DOC-CONFLICT-0025](../quality/LF-Documentation-Conflicts.md) theo phương án chỉ
+materialize caption sau khi STT commit transcript `ready`.
+
+Approval này chốt semantics và resource controls; nó không tuyên bố runtime đã
+implemented, không tự cấu hình provider `caption`, và không bỏ gate nghiệm thu
+video STT/caption thật trước production.
+
+## 1. Phạm vi dùng chung với Audio STT
+
+Video dùng lại engine, model, locale, profile, segment validation, revision,
+tenant boundary, retention và Media Read của Audio STT. Khác biệt nằm ở bước
+chuẩn bị source:
+
+```text
+Audio source ─────────────────────────────┐
+                                         ├→ faster-whisper → media_transcripts
+Video source → ffmpeg → audio tạm ───────┘
+```
+
+Provider hiện tại **chưa hỗ trợ nhánh video**: nó chặn `file_type <> audio`, và
+allowlist STT chỉ có MIME audio. Trước khi code phải mở có chủ đích cả hai cổng;
+không được chỉ bỏ một guard rồi để MIME gate tiếp tục làm video fail.
+
+### Feature gate — bắt buộc, mặc định TẮT
+
+Video STT phải có gate riêng (`MEDIA_VIDEO_STT_ENABLED`, mặc định `false`), kiểm
+ở **hai tầng**: lúc materialize required set, và trong provider.
+
+Không có gate thì deploy code sẽ **tự động bật** Video STT trên mọi hệ thống đang
+bật STT audio — trái Temporary Safety Rule của
+[DOC-CONFLICT-0027](../quality/LF-Documentation-Conflicts.md), vì trần thời lượng
+hiện là provisional.
+
+Kiểm ở tầng provider là bắt buộc chứ không thừa: một job đã nằm trong hàng đợi từ
+trước không được lọt qua sau khi gate bị tắt. Job bị chặn fail bằng
+`video_stt_disabled`.
+
+### Revision identity của nhánh video
+
+`source_fingerprint` tiếp tục định danh binary video gốc và không được thay đổi
+thành fingerprint của audio tạm. Nhưng `processing_version` của STT video phải
+định danh **cả engine STT lẫn phép biến đổi video → audio**. Nếu không, đổi
+sample rate, channel, codec, filter hoặc binary ffmpeg có thể sinh transcript
+khác mà idempotency vẫn coi là cùng revision.
+
+Identity tối thiểu phải được dựng xác định từ:
+
+```text
+STT engine + model + compute type
+ffmpeg binary/version
+output codec + sample format + sample rate + channels
+canonical filter/normalization profile
+```
+
+Hình dạng canonical phải mang đủ các thành phần sau; literal/version builder do
+implementation sinh xác định từ inventory và canonical config:
+
+```text
+faster-whisper-1.2.1-small-int8
++ffmpeg-<version>
++pcm-s16le-ar16000-ac1
++<canonical-extraction-config-hash>
+```
+
+Không ghi một nhãn tay không truy được về cấu hình thật. Canonical extraction
+profile/hash phải được tạo từ chính argument set truyền cho `Process`, theo thứ
+tự ổn định. Thay đổi bất kỳ input nào ở trên phải sinh `processing_version` mới,
+idempotency key mới, transcript revision mới và kích hoạt stale lifecycle của
+revision cũ.
+
+Runtime hiện dùng `versionFor(jobType)` và vì thế không biết source là audio hay
+video. Implementation phải hoặc dùng version builder nhận Media + extraction
+profile, hoặc có video-STT version namespace riêng; không được làm thay đổi
+identity của audio STT hiện hành một cách ngầm định.
+
+#### Version ffmpeg là inventory, không phải kết quả probe
+
+`ffmpeg version` trong `processing_version` phải đến từ **cấu hình deployment**
+(`MEDIA_FFMPEG_VERSION`), **không** từ việc chạy `ffmpeg -version` lúc tạo job.
+
+Lý do là ranh giới tiến trình: job được tạo trong web request, có thể trên node
+**không có** ffmpeg. Node đó sẽ ghi một giá trị "không khả dụng" vào
+`processing_version`, rồi worker **có** ffmpeg xử lý bằng binary thật — output
+được lưu dưới một identity nói rằng ffmpeg không tồn tại. Transcript vẫn `ready`;
+không có tín hiệu nào. Cache kết quả probe còn làm nặng thêm: thay binary tại
+cùng đường dẫn trong một worker sống lâu sẽ không làm version đổi.
+
+Đổi lại, **worker phải kiểm binary thật khớp inventory trước khi xử lý** — đó là
+nơi duy nhất được phép probe, vì đó là tiến trình sẽ thực sự chạy lệnh. Lệch thì
+fail-closed bằng `extraction_profile_mismatch`; inventory chưa khai thì
+`provider_unavailable`.
+
+Mọi **transformation input** trong `media.processing.video_audio.*` phải thực sự
+đi vào argument set và vào hash: binary/version, codec, sample format, sample
+rate, channels và filters. Một transformation input được khai mà không truyền
+vào lệnh là cấu hình trông như có tác dụng nhưng không có. Runtime controls
+(`timeout_seconds`, `max_output_bytes`, `workspace_root`) không đổi nội dung và
+không được làm sinh revision mới.
+
+Riêng video STT, execution profile còn phải định danh `compute_type` và
+`threads`. Hai giá trị này chỉ được nối vào identity của **video**; audio giữ
+identity hiện hành cho tới khi có amendment/migration plan riêng. Đây là
+configuration identity, không phải lời hứa output tái lập byte-for-byte: evidence
+198/182/199/168 segment trên cùng input cho thấy non-determinism vẫn chưa được
+giải thích và tiếp tục thuộc DOC-CONFLICT-0027.
+
+## 2. Resource boundary của video — Owner freeze 2026-08-30, hiệu chỉnh 2026-08-30
+
+Trần `1 GB` hiện kiểm trên binary
+audio nguồn và **không được áp nguyên trạng lên video nguồn**: một video hợp lệ
+có thể lớn hơn nhiều dù audio đã tách nhỏ và thời lượng vẫn trong giới hạn.
+
+| Giới hạn | Trạng thái | Semantics bắt buộc |
+| --- | --- | --- |
+| `max_video_source_bytes = 1.073.741.824` (1 GiB) | Frozen | Áp lên binary video trước ffmpeg; bằng upload limit hiệu lực hiện hành |
+| `max_video_duration_seconds = 5.400` (90 phút) | **PROVISIONAL / local-test only** — Owner xác nhận 2026-08-30; chưa phải production-safe | Áp lên thời lượng video nguồn. **Chỉ cho video**; audio giữ nguyên `max_duration_seconds = 7.200` |
+| `max_extracted_audio_bytes = 268.435.456` (256 MiB) | Frozen | Áp lên PCM tạm sau ffmpeg |
+| `video_audio_extraction_timeout_seconds = 600` | Frozen | Nhỏ hơn provider deadline 3.300s và job timeout 3.600s |
+
+### Vì sao 5.400 chứ không phải 7.200
+
+Đo STT trên video thật (media 10, tiếng Việt, 514s) cho **RTF 0,48** — chậm 2,5
+lần audio bài giảng (0,19–0,28). Chiếu lên hai mốc:
+
+| Thời lượng | Xử lý | So với provider deadline 3.300s |
+| ---: | ---: | --- |
+| 7.200s (120 phút) | 3.432s | **105% — vượt 132 giây** |
+| **5.400s (90 phút)** | **2.592s** | **79% — dự phòng 708s (21,5%)** |
+
+Ở 7.200s, kiểu hỏng là tệ nhất có thể: đốt gần một giờ worker rồi chết bằng
+`provider_timeout`, không ra output nào. Và không test nào bắt được, vì fixture
+test đều ngắn.
+
+Phương án nâng deadline riêng cho video-STT bị loại ở Phase 1: nó kéo theo job
+timeout, worker timeout, `retry_after`, supervisor termination và queue
+visibility timeout — năm mục phải đổi đồng bộ để mua thêm 30 phút.
+
+**Hệ quả phải công bố:** media 6 (`5.795s`, 96,6 phút) **không đủ điều kiện video
+STT**. Video vẫn upload và phát được bình thường nếu virus scan đạt; chỉ
+STT/caption bị từ chối bằng `video_limit_exceeded`. Từ chối trước khi chạy khác
+hẳn với chạy 57 phút rồi chết.
+
+#### PROVISIONAL — RTF không ổn định trên máy đo
+
+Nghiệm thu end-to-end ngày 2026-08-30 cho thấy con số 5.400s **không đứng vững**.
+Cùng một file, cùng model, cùng `compute_type`:
+
+| Lần đo | Cấu hình | RTF |
+| --- | --- | ---: |
+| Benchmark ban đầu, máy nguội | `cpu_threads=8` | 0,48 |
+| Chạy qua pipeline thật | `cpu_threads=0` (mặc định runtime) | 0,81 |
+| Đo lại | `cpu_threads=0` | 2,22 |
+| Đo lại | `cpu_threads=8` | 1,55 |
+
+Dao động **4,6 lần**. Nguyên nhân đo được: `pmset -g therm` báo
+`CPU_Speed_Limit = 20` — CPU chạy ở 20% tốc độ danh định do throttling nhiệt,
+cộng load average 6,04.
+
+Hai hệ quả phải nói rõ:
+
+* Benchmark 0,48 dùng `cpu_threads=8`, còn runtime truyền `--threads 0`. **Cấu
+  hình được đo không phải cấu hình được chạy.** `threads=8` thật sự nhanh hơn
+  (1,55 so với 2,22), nhưng chênh lệch đó không giải thích được khoảng cách với
+  0,48 — phần lớn là throttling.
+* Máy throttle **theo thời gian chạy liên tục**, nên RTF **xấu đi theo độ dài
+  job**. Suy trần cho job 90 phút từ RTF đo trên clip 8 phút vì thế sai một cách
+  **hệ thống**, luôn lạc quan, và lạc quan nhiều hơn khi job dài hơn.
+
+`5.400` vì thế là **provisional, đo trên dev**. Nó phải được đo lại trên hardware
+class của production trước khi thành giá trị production. Xem
+[DOC-CONFLICT-0027](../quality/LF-Documentation-Conflicts.md) cho câu hỏi sâu hơn:
+buộc một trần *thời lượng* vào một *deadline thời gian* qua một hằng số RTF chỉ
+đúng khi RTF là hằng số.
+
+**Owner decision 2026-08-30:** Phase hiện tại giữ `5.400` làm cap bảo thủ cho
+development/test, đồng bộ `threads` giữa benchmark và runtime khi đo lại, và
+giữ feature gate Video STT mặc định **tắt**. Không được mở provider Video STT
+hoặc Caption ở production cho tới khi có phép đo soak trên đúng hardware class
+production và chốt đồng bộ duration cap, provider deadline, worker timeout,
+`retry_after` cùng queue visibility timeout. Quyết định này đóng mâu thuẫn tài
+liệu; nó **không** chứng nhận con số 5.400 là production-safe.
+
+**Giới hạn khác của bằng chứng:** RTF đến từ **một** video, giọng đọc liên tục.
+Video hội thoại nhiều người hoặc thu âm kém có thể chậm hơn nữa.
+
+Với trần 5.400s, PCM tạm tối đa là `5.400 × 32.000 = 164,8 MiB`; trần
+`max_extracted_audio_bytes = 256 MiB` vẫn rộng và giữ đúng vai trò phát hiện
+cấu hình bất thường.
+
+Không dùng `audio_limit_exceeded` cho video nguồn quá lớn. Error vocabulary
+**được freeze**:
+
+```text
+video_limit_exceeded
+audio_extraction_limit_exceeded
+audio_extraction_failed
+```
+
+Không được truncate video hoặc audio tạm: vượt trần làm fail cả STT revision để
+consumer không nhầm "hết nội dung" với "bị cắt".
+
+### Evidence cho resource limits
+
+Đo local trên hai video thật trong hệ thống:
+
+| Media | Video source | Thời lượng | PCM s16le 16 kHz mono | Thời gian tách |
+| ---: | ---: | ---: | ---: | ---: |
+| 10 | 172.448.123 byte (~164,5 MiB) | 515s | ~15 MiB | 1s |
+| 6 | 958.267.742 byte (~913,9 MiB) | 5.795s | ~176 MiB | 8s |
+
+PCM s16le 16 kHz mono có tốc độ cố định `32.000 byte/s`; ở trần 7.200s cần
+`230.400.000 byte` (~219,7 MiB). Trần 256 MiB phủ toàn bộ duration cap và header;
+vượt trần này là tín hiệu duration/config validation đã lệch, không phải tình
+huống cần truncate.
+
+Upload limit hiệu lực là `min(upload_max_filesize, post_max_size) = 1 GiB`, nên
+`max_video_source_bytes` lớn hơn 1 GiB hiện không mở thêm input hợp lệ. Nâng cap
+này về sau bắt buộc đổi PHP/web-server upload limits trước hoặc đồng thời, rồi
+review lại benchmark/resource impact; không chỉ sửa một dòng Media config.
+
+### Namespace cấu hình ffmpeg bắt buộc
+
+`media.ffprobe_binary` chỉ đọc metadata và không thay thế được binary tách
+audio. Trước implementation phải có namespace tường minh, tối thiểu:
+
+```text
+media.processing.video_audio.ffmpeg_binary
+media.processing.video_audio.timeout_seconds
+media.processing.video_audio.codec
+media.processing.video_audio.sample_format
+media.processing.video_audio.sample_rate
+media.processing.video_audio.channels
+media.processing.video_audio.filters
+media.processing.video_audio.max_output_bytes
+media.processing.video_audio.workspace_root
+```
+
+Preflight phải kiểm binary tồn tại và executable, workspace tạo được, argument
+profile thuộc vocabulary đã freeze và timeout nhỏ hơn job timeout. Config chỉ
+định sai phải fail `provider_unavailable`; không tự tìm một ffmpeg khác trên
+`PATH`, vì làm vậy phá revision identity và local/production parity.
+
+## 3. Audio tạm từ video
+
+Audio tạm là workspace nội bộ của một job/attempt, không phải Media asset:
+
+* không tạo `media_files` hoặc `media_file_usages`;
+* không upload object storage và không có signed URL;
+* đường dẫn phải deterministic theo tenant, Media, job và attempt, không dùng
+  tên file client;
+* permission local phải giới hạn cho process benchmark/runtime;
+* dọn khi success, exception, timeout và `failed()`;
+* worker chết trước `finally` không được biến audio tạm thành dữ liệu ngoài
+  retention: đường `failed()` phải suy ra được workspace để dọn, và deployment
+  phải có runbook dọn residue cho process bị kill trước callback.
+
+## 4. Dependency STT → caption — Owner resolved 2026-08-30
+
+Required set hiện tạo và dispatch `speech_to_text` cùng `caption`, trong khi
+caption bắt buộc đọc một transcript revision `ready`. Không có dependency state
+hoặc ordering guarantee trong runtime hiện tại. Conflict này được đóng về mặt
+contract tại [DOC-CONFLICT-0025](../quality/LF-Documentation-Conflicts.md).
+
+Semantics được freeze:
+
+```text
+video upload
+→ materialize virus_scan + speech_to_text
+→ STT persist transcript và commit ready
+→ materialize caption idempotently
+→ caption persist VTT
+```
+
+Không dùng retry/backoff hiện có làm dependency ngầm. Chờ dependency không phải
+provider failure và không được tiêu attempt. Nếu STT fail vĩnh viễn thì caption
+không được materialize; trạng thái UI phải suy ra từ STT failure, không tạo thêm
+một caption failure giả.
+
+Quy tắc này áp dụng cho **mọi transcript revision mới**, không chỉ upload đầu
+tiên. Khi STT video chạy lại thành công:
+
+```text
+transcript v2 commit ready
+→ archive transcript v1
+→ stale cascade archive caption dựng từ transcript v1
+→ materialize caption job cho transcript v2
+```
+
+Không được dừng sau stale cascade: nếu không materialize revision mới, video sẽ
+vĩnh viễn không có caption `ready` tương ứng với transcript hiện hành. Việc tạo
+caption mới phải idempotent theo Media, locale, source fingerprint, transcript
+processing version, caption processing version và format; nếu identity đó đã có
+job/output thì tái sử dụng thay vì tạo bản trùng.
+
+## 5. Bất biến caption persistence
+
+Trước khi tạo asset hoặc ghi row, caption persistence phải chọn đúng **một**
+transcript revision `ready` thỏa tất cả:
+
+```text
+customer_id
+media_file_id
+locale
+source_fingerprint
+processing_version = transcript_processing_version được ghi vào caption
+```
+
+Không tìm thấy hoặc tìm thấy mơ hồ → fail-closed, không tạo file và không ghi
+row. CHECK vật lý chỉ bắt `transcript_processing_version` có giá trị; nó không
+chứng minh revision có thật, nên test tầng persist là bắt buộc.
+
+Runtime hiện tại đã cưỡng chế bất biến này: provider chọn đúng một transcript
+revision `ready`, và đường persist ghi chính revision đó vào
+`transcript_processing_version`. Không tìm thấy hoặc có nhiều revision `ready`
+thì job fail bằng mã có tên; không viết một cơ chế stale thứ hai.
+
+## 6. VTT Phase 1 — Owner freeze 2026-08-30
+
+Các luật serialization được freeze:
+
+* một transcript segment sinh đúng một VTT cue;
+* giữ nguyên timespan nửa mở `[start_ms, end_ms)`; không ghép, chia hoặc đoán lại;
+* file bắt đầu bằng `WEBVTT`, UTF-8 không BOM, newline LF;
+* timestamp dùng `HH:MM:SS.mmm`, làm từ millisecond nguyên đã persist, không dùng
+  float;
+* cue không cần sequence/id; thứ tự cue đúng thứ tự segment;
+* text giữ nguyên nội dung transcript, chuẩn hóa line ending; text có dòng chứa
+  token `-->` hoặc ký tự điều khiển không hợp lệ phải fail toàn revision thay vì
+  sinh VTT mơ hồ;
+* asset được ghi atomically; database chỉ chuyển `ready` sau khi object tồn tại
+  và được xác minh;
+* persistence fail sau khi ghi object phải dọn object; cleanup fail phải để lại
+  retry evidence, không nuốt lỗi;
+* storage key phải chứa tenant, Media, locale, source fingerprint, caption
+  processing version và format để revision không ghi đè nhau.
+
+### Trạng thái triển khai — 2026-08-30
+
+**Serialization đã có runtime.** `TranscriptVttSerializer` hiện thực toàn bộ luật
+trên: thuần deterministic, không đọc DB, không ghi storage, không chạy model —
+cùng một đầu vào luôn cho cùng một chuỗi byte.
+
+Nó được viết **trước** phần materialize có chủ ý: serialization không phụ thuộc
+`max_video_duration_seconds` (DOC-CONFLICT-0027) lẫn độ rộng `idempotency_key`
+(DOC-CONFLICT-0028), nên hai gate đó không chặn nó và nó test được đầy đủ ngay.
+
+**Cả ba phần còn lại nay đã có runtime** sau khi DOC-CONFLICT-0027 và 0028 đóng:
+
+* `TranscriptVttCaptionProvider` — chọn đúng **một** transcript revision `ready`,
+  fail-closed bằng `transcript_unavailable` hoặc `ambiguous_source`;
+* `CaptionAssetStorage` — ghi rồi **xác minh** object tồn tại và đúng độ dài trước
+  khi trả về; `put()` trả `true` không chứng minh object đã nằm trên storage;
+* trigger post-STT materialize caption ngay sau khi transcript commit `ready`, và
+  persist ghi `transcript_processing_version` làm provenance.
+
+#### E2E local/test — PASS 2026-08-30
+
+Chạy trên một bản remux riêng của video thật 514 giây, không dùng Media đang gắn
+Activity production-like:
+
+Inventory và execution identity đã dùng trong đúng lần chạy này (evidence được
+ghi tại đây vì `.env` là file local bị Git ignore, không phải nguồn bằng chứng):
+
+| Input | Giá trị nghiệm thu |
+| --- | --- |
+| `MEDIA_FFMPEG_BINARY` | `/usr/local/bin/ffmpeg` |
+| `MEDIA_FFMPEG_VERSION` | `7.1.1` |
+| Binary probe | `ffmpeg version 7.1.1 Copyright (c) 2000-2025 the FFmpeg developers` |
+| Extraction profile | `pcm_s16le`, `sample_fmt=s16`, `ar=16000`, `ac=1`, không filter |
+| STT execution | `faster-whisper 1.2.1`, model `small`, `int8`, `threads=0` |
+| Job `processing_version` | `faster-whisper-1.2.1-small-int8+ffmpeg-7.1.1+pcm_s16le-ar16000-ac1+d61e370f+stt-2a28d603` |
+
+Đây là snapshot inventory của lần nghiệm thu, không phải hướng dẫn lấy identity
+từ tài liệu. Mỗi deployment vẫn phải khai inventory trong cấu hình của chính nó
+và worker phải probe binary thật theo luật fail-closed ở trên.
+
+```text
+upload → virus_scan ready
+→ Video STT ready: 213 transcript segment
+→ post-STT caption ready: 1 VTT asset / 213 cue
+→ Media Read: 213 transcript unit + 1 caption asset, audit allowed;
+  caption locator/text/structure = null, delivery_url được ký
+→ STT revision 2: caption v1 archived, caption v2 ready, hai storage key riêng
+→ detach + delete Media: source, transcript rows, caption rows và cả hai VTT
+  object đều bằng 0; processing jobs và access logs được giữ làm audit
+```
+
+Caption v1 mang `processing_version = transcript-vtt-v1+from-fb8833d1`; caption
+v2 mang `transcript-vtt-v1+from-72c9c0d6`, chứng minh transcript revision tham
+gia identity và lần materialize thứ hai không bị dedupe. VTT thật bắt đầu bằng
+`WEBVTT`, dài 14.917 byte và có đúng 213 timing arrow.
+
+Failure evidence tách biệt cũng bắt buộc: job giữ nguyên mã
+`ambiguous_source`; nếu provider đã ghi VTT nhưng transaction persist rollback,
+object mới bị purge trong khi object/row có sẵn không bị đụng tới.
+`include_crop` bị từ chối cho `caption_asset`: caption là asset cấp file, không
+có crop và không được bịa locator cue-level.
+
+Đường từ chối cũng được đo trên dữ liệu thật mà không chạy model: Media 6 dài
+5.795 giây (96,6 phút) vượt cap provisional 5.400 giây và provider trả đúng
+`video_limit_exceeded` trước ffmpeg/STT.
+
+Evidence này cho phép tuyên bố luồng Video STT + Caption **hoàn tất ở local/test**.
+Nó không mở production: feature gate Video STT vẫn mặc định tắt và điều kiện soak
+hardware production của DOC-CONFLICT-0027 vẫn còn hiệu lực.
+
+#### Identity của caption gồm cả revision nguồn
+
+`processing_version` của caption phải chứa transcript revision đã dùng. Nếu không,
+caption dựng từ transcript v1 và v2 có **cùng** version, **cùng** idempotency key —
+lần materialize thứ hai bị dedupe. Hậu quả: caption cũ bị stale cascade archive,
+caption mới không bao giờ được tạo, và video **mất phụ đề vĩnh viễn**.
+
+Lỗi này chỉ lộ ra khi đếm số chain sau một lần STT chạy lại.
+
+Resource caps:
+
+```text
+max_caption_cues  = 10.000
+max_caption_bytes = 1.048.576 (1 MiB)
+```
+
+`max_caption_cues` nâng từ `5.000` lên `10.000` ngày 2026-08-30. Số cũ chốt trên
+mẫu chỉ gồm audio tiếng Hàn (4,5–7,0 cue/phút); video thật cho **23,1 cue/phút**,
+dày gấp 3–5 lần. Ở trần 5.400s là ~2.079 cue, nên `10.000` cho biên **4,8×** —
+đủ rộng cho đối thoại ngắn liên tục, nhiều người nói, hoặc provider đổi cách chia
+segment. Số cũ chỉ còn biên `2,4×`, quá chật khi mới có một fixture video.
+
+`max_caption_bytes = 1 MiB` **không đổi**: 1.527 byte/phút ⇒ 134 KB ở 90 phút,
+biên `7,6×`.
+
+Evidence video thật, media 10 (`video/mp4`, 514s, tiếng Việt tự phát hiện 0,97),
+chạy engine trực tiếp trong thư mục tạm, không tạo row nào:
+
+```text
+RTF 0,48   |   198 cue   |   5.113 ký tự   |   VTT 13.088 byte
+=> 23,1 cue/phút, 1.527 byte/phút, 177/197 cặp giáp ranh, 0 chồng lấn
+```
+
+Lần chạy này **chỉ** chứng minh hiệu năng model, cue density và kích thước VTT.
+Nó **không** chứng minh orchestration, cleanup audio tạm, persistence, caption
+dependency, Media Read hay deletion lifecycle — vì thế nó đủ để chỉnh resource
+contract, không phải nghiệm thu end-to-end.
+
+Evidence cũ từ hai transcript tiếng Hàn dài khoảng 3,3 phút: 4,5–7,0
+cue/phút và 449–519 byte/phút. Ngoại suy 120 phút là tối đa khoảng 840 cue và
+62 KB trên mẫu này; caps tương ứng khoảng 6× và 16×. Đây là resource safety cap,
+không phải SLA chất lượng. Mẫu hẹp (tiếng Hàn, audio ngắn) phải được ghi trong
+acceptance report; STT video thật vẫn phải nghiệm thu trước production.
+
+## 7. Điều kiện trước khi cấu hình provider và mở production
+
+Thiết kế và resource caps ở trên đã đủ để **bắt đầu code**. Bốn mục dưới là điều
+kiện để **mở provider**, không phải điều kiện để viết dòng đầu tiên — mục 1 và 2
+chính là công việc implementation, nên đặt chúng sau một cổng "trước
+implementation" là tự mâu thuẫn.
+
+1. Implement canonical video-STT revision identity và ffmpeg extraction profile;
+   test chứng minh đổi một extraction parameter sinh revision mới.
+2. Test plan phủ ordering, dependency failure, transcript existence, VTT escape,
+   atomic asset/database persistence, re-materialize caption sau STT rerun và
+   cleanup sau worker failure.
+3. Chạy nghiệm thu thật trên ít nhất một video: audio extraction, STT, caption
+   VTT, Media Read delivery, deletion/cleanup và resource evidence.
+4. Provider `caption` giữ `unconfigured` cho tới khi các implementation gates
+   trên chạy xanh.
 
 ---
 
@@ -300,8 +797,22 @@ người viết code **phải hỏi Owner**, không được tự chọn.
 | --- | --- | --- |
 | `document` | `virus_scan`, `ocr` | `thumbnail`, `structured_extraction` |
 | `audio` | `virus_scan` | `speech_to_text` khi actor bật tự động phiên âm |
-| `video` | `virus_scan`, `speech_to_text`, `caption` | `transcode`, `thumbnail` |
+| `video` | `virus_scan`; `speech_to_text` khi Video STT gate bật; `caption` **required nhưng deferred** | `transcode`, `thumbnail` |
 | `image` | `virus_scan` | `thumbnail` |
+
+**`caption` là required nhưng deferred.** Nó vẫn là output bắt buộc của video —
+không phải optional — nhưng **không** nằm trong initial required set và không
+được materialize cùng lúc với STT. Nó chỉ được tạo sau khi STT commit một
+transcript revision `ready`, theo quyết định
+[DOC-CONFLICT-0025](../quality/LF-Documentation-Conflicts.md).
+
+Hai hệ quả phải đọc đúng:
+
+* Video vừa upload có required set **chưa đầy đủ** một cách hợp lệ. Đó là trạng
+  thái trung gian đã được thiết kế, không phải thiếu sót.
+* Khi Video STT gate tắt, video **không** sinh `speech_to_text` lẫn `caption`.
+  Tạo caption trong trạng thái đó sẽ để lại một job không bao giờ thoả được: nó
+  chờ một transcript mà chính hệ thống đã quyết định không sinh ra.
 
 MIME không nằm trong tập được hỗ trợ thì không sinh job nào và không đánh dấu
 file `failed` — nó chỉ không có output, và Read Service trả mã lỗi
@@ -363,7 +874,7 @@ Required output profile set Phase 1 được materialize một lần tại trigg
 | --- | --- | --- |
 | `document` | `virus_scan` profile rỗng; `ocr`: `layout=preserve;locale=<canonical-locale>` | `thumbnail`; PDF `structured_extraction`: `locale=<canonical-locale>;structure=layout`; spreadsheet `structured_extraction`: `locale=<canonical-locale>;structure=cells` |
 | `audio` | `virus_scan` profile rỗng | Khi actor bật STT: `speech_to_text`: `diarization=off;locale=<canonical-locale>`; additional transcript locale/profile |
-| `video` | `virus_scan` profile rỗng; `speech_to_text`: `diarization=off;locale=<canonical-locale>`; `caption`: `format=vtt;locale=<canonical-locale>` | `transcode`, `thumbnail`, additional transcript/caption locale hoặc format |
+| `video` | `virus_scan` profile rỗng; khi gate bật, `speech_to_text`: `diarization=off;locale=<canonical-locale>`. `caption`: `format=vtt;locale=<canonical-locale>` — required nhưng **deferred tới sau transcript `ready`**, không nằm trong initial set | `transcode`, `thumbnail`, additional transcript/caption locale hoặc format |
 | `image` | `virus_scan` profile rỗng | `thumbnail` |
 
 Khi OCR/STT được yêu cầu, Phase 1 chỉ có **một** locale canonical cho output đó và chỉ có **một**
@@ -945,9 +1456,10 @@ trên bằng chứng ghi ở
 [media_captions](../database/media/media_captions.md) § Gate M. Không có
 independent Architecture Review; phạm vi đóng đúng bằng migration và schema.
 
-Bất biến kiểm-tồn-tại ở trên **chưa có runtime**, vì chưa có caption runtime để
-đặt vào. Provider `caption` vẫn `unconfigured`; quyết định này mở đường cho
-runtime, không phải là runtime.
+Bất biến kiểm-tồn-tại **đã có runtime** trong `TranscriptVttCaptionProvider` và
+được kiểm lại ở đường job/persist. Provider chỉ được cấu hình
+`transcript_vtt` trong local/test đã bật gate; production vẫn giữ gate Video STT
+tắt cho tới khi hoàn tất soak evidence của DOC-CONFLICT-0027.
 
 ## Structured extraction resource controls
 

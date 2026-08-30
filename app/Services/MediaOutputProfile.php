@@ -28,6 +28,24 @@ class MediaOutputProfile
     }
 
     /** @param array<string, string> $values */
+    /**
+     * Nghich dao cua `canonical()`. Dung khi mot consumer nhan chuoi profile va
+     * can doc lai tham so — vi du version builder cua caption can `locale` de tim
+     * transcript revision nguon.
+     *
+     * @return array<string, string>
+     */
+    public function parse(string $profile): array
+    {
+        $values = [];
+        foreach (array_filter(explode(';', $profile)) as $pair) {
+            [$key, $value] = array_pad(explode('=', $pair, 2), 2, '');
+            $values[$key] = $value;
+        }
+
+        return $values;
+    }
+
     public function canonical(array $values): string
     {
         ksort($values, SORT_STRING);

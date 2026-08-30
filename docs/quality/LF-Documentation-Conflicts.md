@@ -1,12 +1,12 @@
 # LearnForge Documentation Conflict Register
 
-Version: 1.17
+Version: 1.27
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-28
+Last Updated: 2026-08-30
 
 Document Path: quality/LF-Documentation-Conflicts.md
 
@@ -238,10 +238,11 @@ Active items: 6. DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25;
 DOC-CONFLICT-0018 và DOC-CONFLICT-0019 đóng 2026-08-27 bằng đợt amendment tài
 liệu của miền Media. DOC-CONFLICT-0020 và DOC-CONFLICT-0021 được Owner đóng
 2026-08-27; hiệu lực runtime/schema vẫn chịu Gate M/Gate R. DOC-CONFLICT-0022,
-0023 và 0024 được Owner đóng 2026-08-28 và 2026-08-29.
+0023 và 0024 được Owner đóng 2026-08-28 và 2026-08-29. DOC-CONFLICT-0025 được
+Owner đóng 2026-08-30 bằng Amendment 2.19 sau khi đo resource fixture thật.
 
-Con số `Active items` được duy trì bằng tay và không có công cụ nào kiểm; đếm lại
-từ cột Status của bảng dưới mới là nguồn sự thật.
+Con số `Active items` được `docs:lint` đối chiếu tự động với số dòng có Status
+khác `RESOLVED`; cột Status của bảng dưới vẫn là nguồn sự thật.
 
 | ID | Title | Classification | Status | Impact | Domain | Owner | Target Review |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -251,6 +252,10 @@ từ cột Status của bảng dưới mới là nguồn sự thật.
 | DOC-CONFLICT-0011 | Attendance ghi được cho Enrollment không `active` | IMPLEMENTATION_DRIFT | ACCEPTED_TEMPORARILY | LOW (giảm từ HIGH) | LiveClass × Course | Domain Owner (LiveClass) | Trước khi mở lại tab Điểm danh |
 | DOC-CONFLICT-0014 | `course_category` được dùng làm `owner_type` nhưng không tài liệu nào đặt tên nó | IMPLEMENTATION_DRIFT | DECISION_REQUIRED | LOW | Media × Course | Domain Owner (Media) | Immediate Owner decision |
 | DOC-CONFLICT-0015 | `owner_type` không có ràng buộc vật lý nên vocabulary trôi không bị phát hiện | GAP | DECISION_REQUIRED | MEDIUM | Media | Database Owner | Immediate, after 0014 |
+| DOC-CONFLICT-0028 | Migration nới `idempotency_key` lên 320 được apply trong lúc gỡ lỗi runtime, chưa qua Database Review/Gate M | GAP | RESOLVED | MEDIUM | Media | Database Owner | Đóng 2026-08-30 bằng Owner attestation |
+| DOC-CONFLICT-0027 | Contract khẳng định 5.400s dùng 79% deadline; E2E thật đo 133% | DOCUMENT_CONTRADICTION | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-08-30: provisional/local-test only; production gate giữ đóng |
+| DOC-CONFLICT-0026 | Hai giá trị đã freeze cho video (`max_duration_seconds = 7.200`, `max_caption_cues = 5.000`) bị phép đo trên video thật bác bỏ | DOCUMENT_CONTRADICTION | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-08-30: 5.400s và 10.000 cue |
+| DOC-CONFLICT-0025 | Caption job được dispatch đồng thời với STT dù caption bắt buộc phụ thuộc transcript `ready` | DOCUMENT_CONTRADICTION | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-08-30: caption materialize sau STT `ready` |
 | DOC-CONFLICT-0024 | Caption dựng từ transcript hay chạy độc lập chưa được quyết; `media_captions` không có chỗ ghi transcript revision đã dùng | GAP | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-08-29: dựng từ transcript, đã có cột provenance |
 | DOC-CONFLICT-0023 | Xoá Media không xoá transcript/text/region/caption; chưa có quyết định retention cho output dẫn xuất | GAP | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-08-29: purge cùng Media |
 | DOC-CONFLICT-0022 | ADR-0019 § D7 bắt Media ghi chữ/số và crop trong vùng `figure`; `media_extracted_regions.md` cấm figure mang text và không có cột crop | DOCUMENT_CONTRADICTION | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-08-28: text và crop đều đã implemented và có test |
@@ -415,7 +420,7 @@ Notes: Cố ý KHÔNG dùng RESOLVED. Điều kiện thiếu (`enrollments.statu
 Conflict ID: DOC-CONFLICT-0014
 Title: `course_category` được dùng làm `owner_type` nhưng không tài liệu nào đặt tên nó
 Classification: IMPLEMENTATION_DRIFT
-Status: DECISION_REQUIRED
+Status: RESOLVED
 Impact: LOW
 Detected At: 2026-08-23
 Detected By: Independent review — Media Processing readiness audit
@@ -1095,6 +1100,160 @@ Superseded/Updated Documents: docs/database/media/media_processing_jobs.md v2.6
 Verification Evidence: docs/database/LF-SCHEMA-CONTRACT.json § tables.media_processing_jobs.checks liệt kê đúng sáu CHECK
 Related ADR/Review/Issue/PR: DOC-CONFLICT-0019; ADR-0004
 Notes: Phát hiện phụ khi soạn amendment, không phải mục tiêu của đợt đối chiếu
+```
+
+---
+
+## DOC-CONFLICT-0028
+
+```text
+Conflict ID: DOC-CONFLICT-0028
+Title: Migration noi idempotency_key duoc apply trong luc go loi runtime, chua qua Gate M
+Classification: GAP
+Status: RESOLVED
+Impact: MEDIUM
+Detected At: 2026-08-30
+Detected By: Review doc lap sau khi viet video STT runtime
+Owner: Database Owner
+Affected Domain: Media
+Affected Concern: Tham quyen tao va apply migration
+Sources In Conflict:
+Source A: Quy trinh Gate M — migration chi duoc apply sau khi co schema contract day du, test doc constraint vat ly tren MariaDB, `schema:drift --fresh`, va chu ky Owner hoac Architecture Review
+Source B: Migration `2026_08_30_000000_widen_processing_job_idempotency_key` da duoc apply len learnforge_db ngay khi gap loi `Data too long for column 'idempotency_key'` trong lan chay E2E video STT
+Contradictory Requirements:
+- Source A doi chu ky truoc khi apply
+- Source B da apply truoc, va bang chung duoc soan sau
+Why They Cannot Both Be True: Mot phat hien luc chay khong tu cap quyen tao migration. Neu chap nhan thu tu nay thi bat ky loi runtime nao cung tro thanh duong tat qua Gate M
+Runtime/Business Impact: Thay doi ban than no nho va co the dao nguoc — noi VARCHAR(191) thanh VARCHAR(320) tren mot cot da co UNIQUE index, 320 x 4 = 1.280 byte con xa tran 3.072 byte cua InnoDB. Rui ro nam o TIEN LE, khong o thay doi
+Affected Implementation: database/migrations/2026_08_30_000000_widen_processing_job_idempotency_key.php; learnforge_db da apply
+Temporary Safety Rule: Het hieu luc sau Owner attestation 2026-08-30. Van giu quy tac khong dung thu tu apply-truoc/ky-sau lam tien le cho migration tiep theo
+Required Decision: Database Owner hoac Architecture Review xac nhan migration, hoac yeu cau revert va lam lai theo dung thu tu
+Resolution Authority: Database Owner
+Resolution Plan: Bang chung Gate M da du va ghi tai media_processing_jobs.md § Gate M — DA DONG: 3 test MariaDB tinh bien schema 313 ky tu, ghi/đoc nguyen ven key dai toi bien cot 320, va kiem UNIQUE index phu ca cot chu khong phai prefix; `schema:drift --fresh` xanh, da noi vao CI; Owner attestation da ghi ngay 2026-08-30
+Target Review Date: Dong 2026-08-30
+Resolved At: 2026-08-30
+Resolution: Database Owner xác nhận trực tiếp migration `VARCHAR(320)` trên toàn bộ `idempotency_key` dựa trên 3 test MariaDB, `schema:drift --fresh` và CI evidence đã ghi. Đây là Owner attestation sau khi apply, không hợp thức hóa thứ tự đã sai và không được dùng làm tiền lệ bỏ qua Gate M.
+Superseded/Updated Documents: docs/database/media/media_processing_jobs.md v2.10
+Verification Evidence: Loi that: `SQLSTATE[22001] Data too long for column 'idempotency_key'` khi tao job speech_to_text cho media 10; key dai 225 ky tu, cot rong 191. Key audio truoc do da o 181 ky tu, tuc 95% tran
+Related ADR/Review/Issue/PR: DOC-CONFLICT-0024 (migration crop cung duoc dong bang Owner attestation sau khi apply)
+Notes: Day la lan thu hai trong hai ngay mot migration duoc apply truoc khi co chu ky. Lan truoc (cot crop provenance) duoc Owner dong sau bang attestation. Lap lai mau nay bien Gate M thanh mot thu tuc ghi nhan sau, khong con la cong.
+```
+
+---
+
+## DOC-CONFLICT-0027
+
+```text
+Conflict ID: DOC-CONFLICT-0027
+Title: Contract khang dinh 5.400s dung 79% deadline; E2E that do 133%
+Classification: DOCUMENT_CONTRADICTION
+Status: RESOLVED
+Impact: HIGH
+Detected At: 2026-08-30
+Detected By: Nghiem thu end-to-end video STT tren media 10
+Owner: Architecture Owner
+Affected Domain: Media
+Affected Concern: Cach dat tran thoi luong cho video STT
+Sources In Conflict:
+Source A: Amendment Record 2.21 § 2 — max_video_duration_seconds = 5.400, suy ra tu RTF 0,48 va provider deadline 3.300s
+Source B: Do lai tren CHINH file do — RTF 0,81 (pipeline that), 1,55 va 2,22 (do lai). Dao dong 4,6 lan
+Additional Sources: pmset -g therm bao CPU_Speed_Limit = 20; load average 6,04
+Contradictory Requirements:
+- Source A gia dinh RTF la mot hang so du de suy tran thoi luong tu deadline
+- Source B cho thay RTF cua cung mot file, cung model, cung compute_type dao dong 0,48 - 2,22 tuy nhiet do va tai may
+Why They Cannot Both Be True: `tran = deadline / RTF` chi co nghia khi RTF on dinh. Voi RTF dao dong 4,6 lan, moi gia tri suy ra deu la phong doan — ke ca gia tri dung tren giay
+Runtime/Business Impact: Hai van de rieng biet. (1) Benchmark dung `cpu_threads=8` con runtime truyen `--threads 0`: CAU HINH DUOC DO KHONG PHAI CAU HINH DUOC CHAY. (2) May throttle theo THOI GIAN CHAY LIEN TUC, nen RTF xau di theo do dai job — suy tran cho job 90 phut tu RTF do tren clip 8 phut sai mot cach he thong, luon lac quan, va lac quan nhieu hon khi job dai hon. Ca 7.200s lan 5.400s deu duoc suy theo cach nay
+Affected Implementation: config media.processing.speech_to_text.max_video_duration_seconds; media.processing.speech_to_text.threads
+Temporary Safety Rule: (1) Video STT runtime tiep tuc o development/test local. (2) Provider video STT va provider caption KHONG duoc mo production. (3) KHONG tu doi `threads` sang 8 va KHONG ha cap xuong 3.200s dua tren mot may dang throttle — ca hai deu la phan ung voi so do sai. (4) Audio STT va cap audio 7.200s KHONG bi anh huong. (5) Nam cap khac cua video/caption (video source 1 GiB, extracted audio 256 MiB, extraction timeout 600s, caption 10.000 cue, caption 1 MiB) KHONG duoc mo lai — evidence cua chung van hop le vi khong phu thuoc RTF
+Required Decision: Cach rang buoc video STT. Ba huong: (a) do lai RTF tren hardware class cua production roi suy lai tran, va dong bo `threads` giua benchmark harness va runtime; (b) thoi suy tran thoi luong tu RTF — rang buoc bang ngan sach wall-clock ma job tu kiem tra dinh ky, de job dai bi dung som thay vi chay het deadline roi chet; (c) giu tran bao thu va chap nhan tu choi mot so video hop le
+Resolution Authority: Architecture Owner
+Resolution Plan: Huong (a) la re nhat nhung khong giai quyet duoc goc: RTF van phu thuoc tai may va nhiet do o production. Huong (b) giai quyet goc nhung la thay doi thiet ke. Neu chon (a) thi phai ghi ro tran chi hop le tren hardware class da do, va do lai khi doi hardware.
+Dieu Kien Dong: (1) Xac dinh hardware class cua production. (2) Chay video du dai hoac soak workload tuong duong tren dung hardware do — khong phai clip ngan. (3) Do p50/p95/worst-case RTF, RAM, va thermal/resource contention. (4) Chot DONG BO duration cap, provider deadline, worker timeout, `retry_after` va queue visibility timeout — nam gia tri nay rang buoc nhau, chot le mot cai lai sinh mau thuan moi. (5) Chay lai E2E day du: extraction -> STT -> caption -> Media Read -> deletion
+Target Review Date: Truoc khi coi max_video_duration_seconds la gia tri production
+Resolved At: 2026-08-30
+Resolution: Architecture Owner chọn hướng (a) ở phạm vi Phase hiện tại: giữ `max_video_duration_seconds = 5.400` làm cap PROVISIONAL chỉ cho development/test, đồng bộ `threads` khi benchmark lại, và giữ feature gate Video STT mặc định tắt. Không mở Video STT hoặc Caption ở production cho tới khi đo soak trên đúng hardware class production và chốt đồng bộ duration cap, provider deadline, worker timeout, `retry_after` và queue visibility timeout. Quyết định này rút lại khẳng định 5.400 là production-safe; nó không chứng minh RTF ổn định và không đóng câu hỏi non-determinism của output.
+Verification Evidence: media 10 (video/mp4, 514s). Bon lan do cung file: benchmark ban dau cpu_threads=8 -> 245s (RTF 0,48); pipeline that cpu_threads=0 -> 415s (RTF 0,81); do lai cpu_threads=0 -> 1.142s (RTF 2,22); do lai cpu_threads=8 -> 799s (RTF 1,55). pmset -g therm: CPU_Speed_Limit = 20, CPU_Available_CPUs = 12. So segment cung khac nhau giua cac lan chay: 198, 182, 199, 168
+Superseded/Updated Documents: docs/platform/LF-Media-Processing-Contract.md v2.26 (provisional/local-test only; production gate giữ đóng)
+Open After Resolution: Nghiệm thu production vẫn bắt buộc: xác định hardware class, chạy soak workload đủ dài, đo p50/p95/worst-case RTF cùng RAM/thermal contention, chốt đồng bộ năm timeout/cap, rồi chạy E2E extraction -> STT -> caption -> Media Read -> deletion. Cho tới lúc đó không được bật `MEDIA_VIDEO_STT_ENABLED` ở production.
+Related ADR/Review/Issue/PR: DOC-CONFLICT-0026; Amendment Record 2.21
+Notes: KHONG mo lai DOC-CONFLICT-0026 — quyet dinh 5.400/10.000 luc do hop le theo evidence co san; 0027 chi ghi nhan evidence moi lam mat co so PRODUCTION cua rieng duration cap. Caption van bi dispatch dong thoi voi STT trong lan chay nay, tuc implementation cua quyet dinh 0025 chua hoan tat — day la gate implementation da biet, khong phai conflict moi. Loi cua vong truoc lap lai o quy mo hep hon. DOC-CONFLICT-0026 ghi bai hoc "ngoai suy tu mot loai source sang loai khac ma khong do lai"; lan nay la cung mot may, cung model, chi khac mot tham so trong script do va nhiet do CPU. Ghi them mot quan sat chua duoc giai thich: so segment khac nhau giua cac lan chay tren cung input va cung version (198/182/199/168) — neu dung la khong deterministic thi `processing_version` khong du de tai lap output, va do la mot van de rieng can dieu tra.
+```
+
+---
+
+## DOC-CONFLICT-0026
+
+```text
+Conflict ID: DOC-CONFLICT-0026
+Title: Hai resource cap da freeze cho video bi phep do tren video that bac bo
+Classification: DOCUMENT_CONTRADICTION
+Status: RESOLVED
+Impact: HIGH
+Detected At: 2026-08-30
+Detected By: Do STT tren media 10 (video/mp4, 514s) truoc khi chot Amendment 2.19
+Owner: Architecture Owner
+Affected Domain: Media
+Affected Concern: Resource boundary cua video STT va caption
+Sources In Conflict:
+Source A: LF-Media-Processing-Contract Amendment Record 2.19 § 2 — "Tran thoi luong 7.200s co the dung chung", freeze 2026-08-30
+Source B: LF-Media-Processing-Contract § Speech-to-text resource controls — provider deadline 3.300s
+Additional Sources: Amendment Record 2.19 § 6 — max_caption_cues = 5.000, chot tren mau chi gom audio tieng Han
+Contradictory Requirements:
+- Source A cho phep video dai toi 7.200s
+- Source B gioi han provider o 3.300s, trong khi RTF do duoc tren video that la 0,48 => 7.200 x 0,48 = 3.432s
+Why They Cannot Both Be True: Mot video 120 phut hop le theo Source A se chay 57,2 phut roi bi giet boi deadline cua Source B, vuot khoang 132 giay — chua tinh doc source, tach audio, persist hang nghin segment va dung VTT
+Runtime/Business Impact: Kieu hong tệ nhất: dot gan mot gio worker roi fail `provider_timeout`, khong ra output nao. Khong test nao bat duoc vi fixture test deu ngan. Rieng max_caption_cues: do tren video that la 23,1 cue/phut (gap 3-5 lan mau audio tieng Han 4,5-7,0), nen tran 5.000 chi con bien 1,8x o 120 phut
+Affected Implementation: Chua co video STT runtime. Hai cap nay phai dung truoc khi code
+Temporary Safety Rule: Hai gia tri da duoc danh dau SUSPENDED trong Amendment 2.19; khong duoc implement dua tren chung. Bon gia tri con lai (max_video_source_bytes 1 GiB, max_extracted_audio_bytes 256 MiB, video_audio_extraction_timeout_seconds 600, max_caption_bytes 1 MiB) KHONG bi anh huong
+Required Decision: Chot tran thoi luong video, va chot lai max_caption_cues
+Resolution Authority: Architecture Owner
+Resolution Plan: Ba phuong an cho tran thoi luong — (1) `max_video_duration_seconds = 5.400` (90 phut, 43,2 phut xu ly = 79% deadline, bien 21,5%); (2) giu 7.200s nhung cap deadline rieng cho video-STT, keo theo job timeout, worker timeout, retry_after, supervisor termination va queue visibility timeout; (3) giu 7.200s va chap nhan video dai fail — khong khuyen nghi. Voi caption: nang 5.000 len 10.000 (bien 4,8x o 90 phut). Sau khi chot moi sua Amendment 2.19 hoac tao Amendment 2.20 corrective
+Target Review Date: Truoc khi viet video STT runtime
+Resolved At: 2026-08-30
+Resolution: Owner chot phuong an 1 ngay 2026-08-30. (a) `max_video_duration_seconds = 5.400` (90 phut) THAY cho 7.200, chi ap cho video; audio giu nguyen 7.200. Co so: RTF 0,48 do tren video that => 2.592s xu ly = 79% provider deadline, du phong 708s (21,5%). Phuong an nang deadline rieng bi loai o Phase 1 vi keo theo job timeout, worker timeout, retry_after, supervisor termination va queue visibility timeout. (b) `max_caption_cues` nang 5.000 -> 10.000, bien 4,8x o tran 5.400s. `max_caption_bytes = 1 MiB` khong doi (bien 7,6x). Bon gia tri con lai khong doi
+Superseded/Updated Documents: docs/platform/LF-Media-Processing-Contract.md v2.21
+Verification Evidence: media 10, video/mp4 514s, chay faster-whisper small int8 truc tiep trong thu muc tam, khong tao row: lang=vi 0.97, xu ly 245s, RTF 0,48, 198 cue, 5.113 ky tu, VTT 13.088 byte, 177/197 cap giap ranh, 0 chong lan. Doi chieu: audio tieng Han media 25/26 cho 4,5-7,0 cue/phut va RTF ~0,19-0,28. Tach audio ffmpeg: media 6 (5.795s, 913 MB) -> 176 MiB trong 8 giay
+Open After Resolution: Media 6 (5.795s, 96,6 phut) khong du dieu kien video STT theo tran moi — van upload/phat duoc, chi STT/caption bi tu choi bang `video_limit_exceeded`. RTF 0,48 den tu MOT video giong doc lien tuc; video hoi thoai nhieu nguoi hoac thu am kem co the cham hon, khi do bien 21,5% mong di. Nghiem thu video that truoc production van bat buoc
+Related ADR/Review/Issue/PR: DOC-CONFLICT-0025; Amendment Record 2.19 (bi hieu chinh boi Amendment Record 2.21)
+Notes: Hai cap nay duoc freeze tren mau chi gom AUDIO tieng Han dai 3,3 phut, roi ap thang cho VIDEO. Bai hoc lap lai: ngoai suy tu mot loai source sang loai khac ma khong do lai. Neu khong do truoc khi ky, loi chi lo ra khi mot video 120 phut that duoc upload o production.
+```
+
+---
+
+## DOC-CONFLICT-0025
+
+```text
+Conflict ID: DOC-CONFLICT-0025
+Title: Caption job được dispatch đồng thời với STT dù caption bắt buộc phụ thuộc transcript ready
+Classification: DOCUMENT_CONTRADICTION
+Status: RESOLVED
+Impact: HIGH
+Detected At: 2026-08-29
+Detected By: Review contract trước khi triển khai Video → transcript + caption asset
+Owner: Architecture Owner
+Affected Domain: Media
+Affected Concern: Thứ tự materialize/dispatch giữa video speech_to_text và caption
+Sources In Conflict:
+Source A: docs/platform/LF-Media-Processing-Contract.md § Fan-out — video có required set `virus_scan`, `speech_to_text`, `caption`; runtime MediaProcessingOrchestrator::requiredProfiles() tạo cả ba job trong cùng lượt và dispatch sau commit
+Source B: docs/platform/LF-Media-Processing-Contract.md § Caption dựng từ transcript — caption chỉ được dựng từ một transcript revision `ready` cùng Media, locale và source identity
+Additional Sources: docs/database/media/media_captions.md § CHECK không chứng minh transcript revision tồn tại; app/Jobs/ProcessMediaProcessingJob::persistSuccess()
+Contradictory Requirements:
+- Source A permits caption worker nhận job trước khi STT hoàn tất hoặc trước khi transcript row tồn tại
+- Source B forbids caption persistence khi chưa có transcript revision `ready` phù hợp
+Why They Cannot Both Be True: Không có dependency primitive, dependency state hoặc ordering guarantee trong `media_processing_jobs`; dispatch đồng thời không thể bảo đảm transcript tồn tại trước khi caption provider chạy
+Runtime/Business Impact: Caption attempt đầu có thể fail do race dù source hợp lệ; required set của video bị thủng, operator thấy lỗi provider/dependency giả, và retry có thể tiêu attempt cho một trạng thái không phải lỗi
+Affected Implementation: MediaProcessingOrchestrator::requiredProfiles/createInitialJob; ProcessMediaProcessingJob; caption provider chưa tồn tại
+Temporary Safety Rule: Đã hết hiệu lực về mặt quyết định sau approval 2026-08-30. Provider `caption` vẫn `unconfigured` cho tới khi implementation/test gates của Amendment 2.19 chạy xanh
+Required Decision: Chọn một trong ba semantics — (a) chỉ materialize/dispatch caption sau transaction STT `ready`; (b) tạo trước nhưng dùng trạng thái dependency tường minh không tiêu attempt; hoặc (c) cho caption fail tạm thời và retry có backoff. Không dùng backoff hiện có như dependency ngầm
+Resolution Authority: Architecture Owner
+Resolution Plan: Khuyến nghị (a): STT persist transcript và commit `ready`, sau đó materialize caption idempotently. Quy tắc áp dụng cả khi STT rerun: stale cascade archive caption cũ phải đi kèm materialize caption mới cho transcript revision hiện hành. Caption persistence phải xác nhận duy nhất một transcript revision `ready` cùng tenant/Media/locale/source_fingerprint và ghi `transcript_processing_version`; không thoả thì không ghi asset hoặc row. Cùng amendment phải freeze video extraction boundary, namespace `ffmpeg_binary`, error semantics, VTT serialization và revision identity chứa canonical video→audio extraction profile trước code
+Target Review Date: Đóng 2026-08-30
+Resolved At: 2026-08-30
+Resolution: Architecture Owner chọn phương án (a): video upload materialize virus_scan + STT; chỉ sau khi STT persist transcript và commit `ready` mới materialize caption idempotently. STT rerun phải stale caption cũ và materialize caption mới. Video STT revision identity gồm engine/model cùng canonical ffmpeg extraction profile. Resource caps được freeze: video source 1 GiB, duration 7.200s, extracted PCM 256 MiB, extraction timeout 600s, caption 5.000 cue/1 MiB. [SUPERSEDED 2026-08-30 — hai trong sáu cap này đã bị DOC-CONFLICT-0026 thay: duration 7.200s → `max_video_duration_seconds = 5.400` (chỉ cho video), caption 5.000 cue → 10.000. Bốn cap còn lại giữ nguyên. Giữ nguyên câu gốc làm lịch sử; giá trị hiệu lực nằm ở [Amendment Record 2.21](../platform/LF-Media-Processing-Contract.md).] VTT dùng một transcript segment/một cue, UTF-8 không BOM, LF, timestamp millisecond và atomic persistence
+Superseded/Updated Documents: docs/platform/LF-Media-Processing-Contract.md v2.19
+Verification Evidence: Architecture review Round 2; dữ liệu thật Media 6 (958.267.742 byte, 5.795s, PCM ~176 MiB/8s) và Media 10 (172.448.123 byte, 515s, PCM ~15 MiB/1s); hai transcript KO đo 4,5–7,0 cue/phút và 449–519 byte/phút; upload limit hiệu lực 1 GiB. Implementation chưa có và tiếp tục chịu gates của Amendment Record 2.19, hiệu chỉnh bởi Amendment Record 2.21
+Related ADR/Review/Issue/PR: ADR-0004; DOC-CONFLICT-0024; LF-Media-Processing-Contract Amendment 2.19
+Notes: Đây là conflict về lifecycle/ordering, không phải lựa chọn engine. Resolution đóng quyết định contract, không tuyên bố runtime hoàn tất. Config vẫn chưa có `ffmpeg_binary`, provider caption vẫn unconfigured và nghiệm thu video thật vẫn bắt buộc trước production
 ```
 
 ---

@@ -1,6 +1,6 @@
 # Table: media_processing_jobs
 
-Version: 2.6
+Version: 2.10
 
 Document Status: Approved
 
@@ -166,7 +166,7 @@ thì job `failed` với `error_code = infected_source`, và Media File chuyển
 | status | VARCHAR(50) NOT NULL DEFAULT 'pending' | Trạng thái lần chạy này. |
 | attempt | INT UNSIGNED NOT NULL DEFAULT 1 | Lần thử thứ mấy trong chuỗi retry. |
 | supersedes_job_id | BIGINT UNSIGNED NULL | Job mà lần chạy này thay thế. |
-| idempotency_key | VARCHAR(191) NOT NULL | Khóa chống trùng; xem Constraints. |
+| idempotency_key | VARCHAR(320) NOT NULL | Khóa chống trùng; xem Constraints. Nới từ 191 ngày 2026-08-30 — xem ghi chú dưới. |
 | correlation_id | CHAR(36) NOT NULL | Truy vết xuyên service và log. |
 | source_fingerprint | CHAR(64) NOT NULL | Vân tay nội dung nguồn tại thời điểm chạy. |
 | processing_version | VARCHAR(100) NOT NULL | Phiên bản extractor/provider/model/cấu hình. |
@@ -239,6 +239,69 @@ Ba unique key làm ba việc khác nhau, và không key nào thay được key k
 | `(customer_id, idempotency_key)` | Cùng một message được queue giao hai lần |
 | `(customer_id, media_file_id, job_type, source_fingerprint, processing_version, output_profile_hash, attempt)` | Enqueue trùng ở **cùng một attempt** — với `attempt = 1` đây chính là khóa chặn duplicate initial enqueue |
 | `(customer_id, supersedes_job_id)` | Hai retry cùng phân nhánh từ một parent |
+
+### Vì sao `idempotency_key` nới từ 191 lên 320 — 2026-08-30
+
+Key là `job_type : media_file_id : source_fingerprint : processing_version :
+output_profile_hash : attempt`. Hai thành phần đã chiếm 64 ký tự mỗi cái
+(fingerprint và profile hash), nên phần còn lại rất hẹp: key của audio STT dài
+**181 ký tự — 95% của trần 191**.
+
+[Amendment Record 2.19](../../platform/LF-Media-Processing-Contract.md) buộc
+`processing_version` của video STT chứa cả canonical ffmpeg extraction profile.
+Version dài 75 ký tự thay vì 31, và key thành **225** — tràn cột.
+
+Độ rộng mới được tính từ **biên của schema**, không từ key dài nhất đang có:
+
+| Thành phần | Độ rộng |
+| --- | ---: |
+| `job_type` VARCHAR(50) | 50 |
+| `media_file_id` BIGINT UNSIGNED | 20 |
+| `source_fingerprint` CHAR(64) | 64 |
+| `processing_version` VARCHAR(100) | 100 |
+| `output_profile_hash` CHAR(64) | 64 |
+| `attempt` INT UNSIGNED | 10 |
+| 5 dấu phân cách | 5 |
+| **Tổng** | **313** |
+
+**255 không đủ** — nó chỉ chứa được `processing_version` tới 42 ký tự, chưa tới
+một nửa độ rộng cột. Chọn **320**: phủ biên 313 và còn dư. `320 × 4 = 1.280 byte`,
+xa trần 3.072 byte của index InnoDB.
+
+Bản đầu của phép kiểm này chỉ khẳng định key E2E dài 225 lọt vào 255 — **đo một
+trường hợp rồi gọi là biên**. Test hiện tại tính biên từ `information_schema` và
+ghi thử một key dài tối đa để chứng minh nó lưu được nguyên vẹn.
+
+Không hash lại key: hash sẽ đổi **mọi** key đang tồn tại và tách đôi mọi retry
+chain đang chạy. Con số 191 là lựa chọn cũ từ thời index utf8mb4 giới hạn 767
+byte.
+
+Lỗi này chỉ lộ ra khi chạy thật: hợp đồng đã freeze không thể thoả được với cột
+cũ, và không phép kiểm tài liệu nào phát hiện được điều đó.
+
+#### Gate M — ĐÃ ĐÓNG 2026-08-30
+
+Migration `2026_08_30_000000_widen_processing_job_idempotency_key` được apply lên
+`learnforge_db` **trong lúc gỡ một lỗi runtime**, không qua Gate M. Nói thẳng:
+một phát hiện lúc chạy **không tự cấp quyền tạo migration**.
+
+Bằng chứng đã có đủ và Database Owner đã xác nhận trực tiếp ngày 2026-08-30.
+Đây là **Owner attestation sau khi migration đã được apply**, không phải bằng
+chứng rằng thứ tự ban đầu đúng và không được dùng làm tiền lệ để bỏ qua Gate M
+cho migration khác.
+
+| Yêu cầu Gate M | Trạng thái |
+| --- | --- |
+| Schema contract | `LF-SCHEMA-CONTRACT.json` không ghi độ dài varchar nên không cần sửa; `schema:drift --connection` xanh |
+| Test đọc độ rộng **vật lý** từ `information_schema` | `tests/Integration/MediaProcessingJobKeyWidthMariaDbTest.php` — 3 test: biên schema, ghi key dài tối đa, và UNIQUE index phủ cả cột |
+| `schema:drift --fresh` | ✅ |
+| Đã nối vào CI | ✅ |
+| **Chữ ký Owner hoặc Architecture Review** | ✅ Owner attestation trực tiếp 2026-08-30 |
+
+Test kiểm ba thứ: cột phủ được **biên** mà schema cho phép, một key dài tối đa
+thật sự **lưu được nguyên vẹn** (độ rộng khai báo không chứng minh được gì nếu
+chưa ghi thử), và UNIQUE index vẫn phủ **cả cột** chứ không phải prefix — index
+bị rút thành prefix sẽ khiến hai chain khác nhau trùng khoá, tệ hơn tràn độ rộng.
 
 `UNIQUE (customer_id, supersedes_job_id)` **không** chặn được initial enqueue
 trùng: MariaDB cho phép nhiều `NULL` trong unique index, và mọi job đầu tiên đều

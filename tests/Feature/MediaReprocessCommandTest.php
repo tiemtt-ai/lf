@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Services\MediaProcessingOrchestrator;
 use App\Services\MediaService;
+use App\Services\VideoSpeechToTextProfile;
 use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -24,6 +25,13 @@ class MediaReprocessCommandTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Cac test nay dung fixture VIDEO de kiem co che STT, nen phai bat
+        // gate mot cach tuong minh. Gate mac dinh TAT theo Temporary Safety
+        // Rule cua DOC-CONFLICT-0027 — xem test_video_stt_is_off_by_default.
+        config([
+            'media.processing.speech_to_text.video_enabled' => true,
+            'media.processing.video_audio.ffmpeg_version' => '7.1.1',
+        ]);
         Storage::fake('media_local');
         config(['media.disk' => 'media_local', 'media.bucket' => 'test-media']);
         $this->customerId = $this->createCustomer('tenant-a');
@@ -52,9 +60,13 @@ class MediaReprocessCommandTest extends TestCase
         $this->assertSame(2, $this->chainCount($media->id, 'speech_to_text'));
         $this->assertDatabaseHas('media_processing_jobs', [
             'media_file_id' => $media->id, 'job_type' => 'speech_to_text',
-            'processing_version' => 'fake-v2', 'attempt' => 1, 'created_by' => $this->admin->id,
+            'processing_version' => $this->videoVersion('fake-v2'), 'attempt' => 1, 'created_by' => $this->admin->id,
         ]);
-        $this->assertSame(1, $this->chainCount($media->id, 'caption'));
+        // Caption khong nam trong initial/reprocess set, nhung transcript vua
+        // chuyen `ready` nen trigger post-STT da materialize dung MOT chain.
+        // Reprocess mo revision moi => caption cua revision cu va moi la hai chain.
+        $this->assertSame(2, $this->chainCount($media->id, 'caption'),
+            'Moi transcript revision `ready` phai co dung mot caption chain tuong ung.');
     }
 
     public function test_dry_run_reports_the_plan_without_writing(): void
@@ -98,7 +110,7 @@ class MediaReprocessCommandTest extends TestCase
         ])->expectsOutputToContain('as attempt 2')->assertExitCode(0);
 
         $this->assertDatabaseHas('media_processing_jobs', [
-            'supersedes_job_id' => $job->id, 'attempt' => 2, 'processing_version' => 'unconfigured-v1',
+            'supersedes_job_id' => $job->id, 'attempt' => 2, 'processing_version' => $this->videoVersion('unconfigured-v1'),
         ]);
     }
 
@@ -172,6 +184,15 @@ class MediaReprocessCommandTest extends TestCase
             'name' => ucfirst($slug), 'slug' => $slug, 'subdomain' => $slug, 'status' => 'active',
             'created_at' => now(), 'updated_at' => now(),
         ]);
+    }
+
+    /**
+     * Fixture o day la video, va `processing_version` cua video STT gom ca
+     * canonical ffmpeg extraction profile (Amendment Record 2.19 § 1).
+     */
+    private function videoVersion(string $base): string
+    {
+        return $base.'+'.app(VideoSpeechToTextProfile::class)->label();
     }
 
     private function uploadVideo(): object

@@ -51,12 +51,70 @@ return [
             // thi `fr` di lot toi provider.
             'locales' => ['vi', 'ko', 'en'],
             'diarization' => 'off',
+            // Video co profile hieu nang khac han audio: do tren video that cho
+            // RTF 0,48, audio bai giang 0,19-0,28. 7.200s x 0,48 = 3.432s, vuot
+            // provider deadline 3.300s. Xem Amendment Record 2.21 § 2.
+            // Mac dinh TAT. DOC-CONFLICT-0027 Temporary Safety Rule: video STT chi
+            // chay o development/test cho toi khi tran thoi luong duoc do lai tren
+            // hardware production. Khong co gate nay thi deploy code se tu dong bat
+            // video STT o bat ky he thong nao dang bat STT audio.
+            'video_enabled' => (bool) env('MEDIA_VIDEO_STT_ENABLED', false),
+            'video_mime_types' => [
+                'video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska',
+            ],
+            'max_video_source_bytes' => (int) env('MEDIA_STT_MAX_VIDEO_SOURCE_BYTES', 1073741824),
+            'max_video_duration_seconds' => (int) env('MEDIA_STT_MAX_VIDEO_DURATION_SECONDS', 5400),
             'python_binary' => env('MEDIA_STT_PYTHON_BINARY', base_path('runtime/stt/.venv/bin/python')),
             'script' => env('MEDIA_STT_SCRIPT', base_path('runtime/stt/transcribe.py')),
             'model_path' => env('MEDIA_STT_MODEL_PATH', base_path('runtime/stt/models/small')),
             'compute_type' => env('MEDIA_STT_COMPUTE_TYPE', 'int8'),
             'threads' => (int) env('MEDIA_STT_THREADS', 0),
             'max_output_bytes' => (int) env('MEDIA_STT_MAX_OUTPUT_BYTES', 16777216),
+        ],
+        // Tach audio tu video truoc khi dua vao STT.
+        // LF-Media-Processing-Contract Amendment Record 2.21 § 2, § 3.
+        //
+        // Moi TRANSFORMATION input o day (binary/version, codec, sample format,
+        // sample rate, channels, filters) di vao canonical profile/hash va
+        // `processing_version`. Timeout, budget va workspace la runtime controls,
+        // khong doi noi dung nen khong duoc lam sinh revision moi.
+        'video_audio' => [
+            // Duong dan tuyet doi. KHONG fallback sang ffmpeg tren PATH: mot
+            // binary khac tren may khac se pha revision identity va parity giua
+            // local va production.
+            'ffmpeg_binary' => env('MEDIA_FFMPEG_BINARY', '/usr/local/bin/ffmpeg'),
+            // Version la INVENTORY cua deployment, khong phai ket qua probe.
+            //
+            // Truoc day version duoc doc bang `ffmpeg -version` ngay luc TAO job —
+            // co the tren web node khong co ffmpeg. Node do ghi `unavailable` vao
+            // processing_version, roi worker CO ffmpeg xu ly bang binary that:
+            // output duoc luu duoi mot identity noi rang ffmpeg khong ton tai.
+            // Hong im lang, transcript van `ready`.
+            //
+            // Nay identity den tu config, va worker KIEM binary that khop inventory
+            // truoc khi xu ly. Lech thi fail-closed.
+            'ffmpeg_version' => env('MEDIA_FFMPEG_VERSION', ''),
+            'timeout_seconds' => (int) env('MEDIA_VIDEO_AUDIO_TIMEOUT_SECONDS', 600),
+            'codec' => 'pcm_s16le',
+            'sample_format' => 's16',   // truyen bang -sample_fmt; xem VideoAudioExtractionProfile
+            'sample_rate' => 16000,
+            'channels' => 1,
+            'filters' => [],
+            // 5.400s x 32.000 byte/s = 164,8 MiB. 256 MiB la muc phat hien cau
+            // hinh bat thuong, khong phai muc van hanh.
+            'max_output_bytes' => (int) env('MEDIA_VIDEO_AUDIO_MAX_OUTPUT_BYTES', 268435456),
+            'workspace_root' => env('MEDIA_VIDEO_AUDIO_WORKSPACE', sys_get_temp_dir()),
+        ],
+        // Caption Phase 1: VTT dung tu transcript, khong chay model.
+        // LF-Media-Processing-Contract Amendment Record 2.21 § 6.
+        'caption' => [
+            'format' => 'vtt',
+            // Do tren video that: 23,1 cue/phut. O tran 5.400s la ~2.079 cue,
+            // nen 10.000 cho bien 4,8x. Con so cu 5.000 chot tren mau chi gom
+            // audio tieng Han (4,5-7,0 cue/phut) va chi con bien 2,4x.
+            'max_cues' => (int) env('MEDIA_CAPTION_MAX_CUES', 10000),
+            // 1.527 byte/phut => 134 KB o 90 phut; 1 MiB cho bien 7,6x.
+            'max_bytes' => (int) env('MEDIA_CAPTION_MAX_BYTES', 1048576),
         ],
         'structured_extraction' => [
             'max_pages' => (int) env('MEDIA_STRUCTURED_MAX_PAGES', 100),

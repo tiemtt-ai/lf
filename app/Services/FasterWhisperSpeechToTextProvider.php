@@ -8,26 +8,51 @@ use RuntimeException;
 
 class FasterWhisperSpeechToTextProvider implements MediaProcessingProvider
 {
-    public function __construct(private readonly DocumentProcessRunner $runner) {}
+    public function __construct(
+        private readonly DocumentProcessRunner $runner,
+        private readonly VideoAudioWorkspace $workspace = new VideoAudioWorkspace,
+    ) {}
 
     public function process(object $mediaFile, object $job): array
     {
-        if ($job->job_type !== 'speech_to_text' || $mediaFile->file_type !== 'audio') {
+        $isVideo = $mediaFile->file_type === 'video';
+        if ($job->job_type !== 'speech_to_text' || ! in_array($mediaFile->file_type, ['audio', 'video'], true)) {
             throw new RuntimeException('unsupported_source');
         }
+        // Gate thu hai. Video STT mac dinh TAT cho toi khi DOC-CONFLICT-0027 dong:
+        // tran thoi luong hien la provisional, do tren may dev dang throttle.
+        // Kiem ca o day chu khong chi luc materialize, de mot job da nam trong
+        // hang doi tu truoc khong lot qua sau khi gate duoc tat.
+        if ($isVideo && ! (bool) config('media.processing.speech_to_text.video_enabled', false)) {
+            throw new RuntimeException('video_stt_disabled');
+        }
 
-        $mimeTypes = (array) config('media.processing.speech_to_text.mime_types', []);
+        // Video co tran rieng va ma loi rieng. Amendment Record 2.21 § 2: video
+        // 120 phut can 3.432s xu ly, vuot provider deadline 3.300s — tu choi
+        // truoc khi chay khac han chay 57 phut roi chet.
+        $mimeTypes = (array) config($isVideo
+            ? 'media.processing.speech_to_text.video_mime_types'
+            : 'media.processing.speech_to_text.mime_types', []);
         if (! in_array((string) $mediaFile->mime_type, $mimeTypes, true)) {
             throw new RuntimeException('unsupported_source');
         }
-        if ((int) $mediaFile->file_size_bytes > (int) config('media.processing.speech_to_text.max_bytes')) {
-            throw new RuntimeException('audio_limit_exceeded');
+
+        $limitError = $isVideo ? 'video_limit_exceeded' : 'audio_limit_exceeded';
+        $maxBytes = (int) config($isVideo
+            ? 'media.processing.speech_to_text.max_video_source_bytes'
+            : 'media.processing.speech_to_text.max_bytes');
+        $maxDuration = (int) config($isVideo
+            ? 'media.processing.speech_to_text.max_video_duration_seconds'
+            : 'media.processing.speech_to_text.max_duration_seconds');
+
+        if ((int) $mediaFile->file_size_bytes > $maxBytes) {
+            throw new RuntimeException($limitError);
         }
         if ($mediaFile->duration_seconds === null || (int) $mediaFile->duration_seconds <= 0) {
             throw new RuntimeException('corrupt_source');
         }
-        if ((int) $mediaFile->duration_seconds > (int) config('media.processing.speech_to_text.max_duration_seconds')) {
-            throw new RuntimeException('audio_limit_exceeded');
+        if ((int) $mediaFile->duration_seconds > $maxDuration) {
+            throw new RuntimeException($limitError);
         }
 
         $locale = $this->profileValue((string) $job->output_profile, 'locale');
@@ -52,6 +77,9 @@ class FasterWhisperSpeechToTextProvider implements MediaProcessingProvider
             $source = $directory.'/source.'.preg_replace('/[^a-z0-9]/', '', $extension);
             $output = $directory.'/result.json';
             $this->copySource($mediaFile, $source);
+            if ($isVideo) {
+                $source = $this->extractAudio($mediaFile, $job, $source);
+            }
 
             $envelope = json_decode($this->runner->run([
                 $python, $script,
@@ -79,7 +107,51 @@ class FasterWhisperSpeechToTextProvider implements MediaProcessingProvider
             return $result;
         } finally {
             $this->removeDirectory($directory);
+            if ($isVideo) {
+                $this->workspace->purge($mediaFile, $job);
+            }
         }
+    }
+
+    /**
+     * Tach audio tu video vao workspace deterministic cua job/attempt.
+     *
+     * Argument set den tu VideoSpeechToTextProfile — cung nguon voi hash di
+     * vao `processing_version`. Hai thu khong duoc phep lech nhau, neu khong
+     * version se noi ve mot cau hinh khac cau hinh thuc su da chay.
+     */
+    private function extractAudio(object $mediaFile, object $job, string $source): string
+    {
+        // Worker la tien trinh SE chay lenh, nen day la noi duy nhat duoc phep
+        // probe binary. Lech voi inventory thi fail-closed: mot transcript sinh
+        // boi binary khac voi identity da ghi la du lieu noi doi ve chinh no.
+        // KHONG do tim ffmpeg tren PATH.
+        $profile = app(VideoSpeechToTextProfile::class);
+        $profile->assertBinaryMatchesInventory();
+
+        $this->workspace->create($mediaFile, $job);
+        $destination = $this->workspace->audioPath($mediaFile, $job);
+
+        try {
+            $this->runner->run(
+                $profile->arguments($source, $destination),
+                (int) config('media.processing.video_audio.timeout_seconds', 600),
+            );
+        } catch (RuntimeException $exception) {
+            throw new RuntimeException(
+                $exception->getMessage() === 'provider_timeout' ? 'provider_timeout' : 'audio_extraction_failed'
+            );
+        }
+
+        $bytes = is_file($destination) ? (int) filesize($destination) : 0;
+        if ($bytes <= 0) {
+            throw new RuntimeException('audio_extraction_failed');
+        }
+        if ($bytes > (int) config('media.processing.video_audio.max_output_bytes')) {
+            throw new RuntimeException('audio_extraction_limit_exceeded');
+        }
+
+        return $destination;
     }
 
     private function copySource(object $mediaFile, string $destination): void

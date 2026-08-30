@@ -6,6 +6,7 @@ use App\Contracts\MediaProcessingProvider;
 use App\Exceptions\MediaReadException;
 use App\Jobs\ProcessMediaProcessingJob;
 use App\Models\User;
+use App\Services\CaptionAssetStorage;
 use App\Services\CourseMediaOwnerContextAuthorizer;
 use App\Services\DoclingStructuredExtractionProvider;
 use App\Services\DocumentProcessRunner;
@@ -17,7 +18,9 @@ use App\Services\MediaReadService;
 use App\Services\MediaService;
 use App\Services\RegionCropStorage;
 use App\Services\StructuredExtractionPersistenceService;
+use App\Services\VideoSpeechToTextProfile;
 use App\Support\TenantContext;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -43,7 +46,14 @@ class MediaProcessingSubstrateTest extends TestCase
     {
         parent::setUp();
         Storage::fake('media_local');
-        config(['media.disk' => 'media_local', 'media.bucket' => 'test-media']);
+        // Nhieu test o day dung fixture VIDEO de kiem co che STT, nen bat gate
+        // tuong minh. Gate mac dinh TAT theo Temporary Safety Rule cua
+        // DOC-CONFLICT-0027 — test_video_stt_is_off_by_default kiem dieu do.
+        config([
+            'media.disk' => 'media_local', 'media.bucket' => 'test-media',
+            'media.processing.speech_to_text.video_enabled' => true,
+            'media.processing.video_audio.ffmpeg_version' => '7.1.1',
+        ]);
         $this->customerId = DB::table('saas_customers')->insertGetId([
             'name' => 'Tenant A', 'slug' => 'tenant-a', 'subdomain' => 'tenant-a', 'status' => 'active',
             'created_at' => now(), 'updated_at' => now(),
@@ -63,9 +73,32 @@ class MediaProcessingSubstrateTest extends TestCase
 
         $this->assertDatabaseHas('media_files', ['id' => $media->id, 'processing_locale' => 'vi', 'status' => 'ready']);
         $this->assertDatabaseHas('media_processing_jobs', ['media_file_id' => $media->id, 'job_type' => 'speech_to_text', 'output_profile' => 'diarization=off;locale=vi', 'status' => 'ready']);
-        $this->assertDatabaseHas('media_processing_jobs', ['media_file_id' => $media->id, 'job_type' => 'caption', 'output_profile' => 'format=vtt;locale=vi', 'status' => 'ready']);
         $this->assertDatabaseHas('media_transcripts', ['media_file_id' => $media->id, 'locale' => 'vi', 'status' => 'ready']);
-        $this->assertDatabaseHas('media_captions', ['media_file_id' => $media->id, 'locale' => 'vi', 'caption_type' => 'vtt', 'status' => 'ready']);
+
+        // Caption la required-nhung-deferred: khong nam trong initial set, nhung
+        // duoc materialize SAU khi transcript commit `ready` (DOC-CONFLICT-0025).
+        // Job caption ton tai o day chinh la bang chung trigger da chay.
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $media->id, 'job_type' => 'caption',
+            'output_profile' => 'format=vtt;locale=vi',
+        ]);
+    }
+
+    /**
+     * Trigger chi chay sau transcript. Khi Video STT gate tat thi khong co
+     * transcript nao, nen cung khong duoc co caption job — neu khong no se cho
+     * mot transcript ma he thong da quyet dinh khong sinh ra.
+     */
+    public function test_no_caption_job_exists_when_the_video_stt_gate_is_off(): void
+    {
+        config(['media.processing.speech_to_text.video_enabled' => false]);
+        $media = $this->uploadVideo();
+
+        app(MediaProcessingOrchestrator::class)
+            ->materializeForCourseActivity($this->customerId, $media->id, 'vi', $this->admin->id);
+
+        $this->assertDatabaseMissing('media_processing_jobs', ['media_file_id' => $media->id, 'job_type' => 'speech_to_text']);
+        $this->assertDatabaseMissing('media_processing_jobs', ['media_file_id' => $media->id, 'job_type' => 'caption']);
     }
 
     public function test_local_document_provider_persists_real_embedded_text(): void
@@ -152,6 +185,257 @@ class MediaProcessingSubstrateTest extends TestCase
             ],
             (object) ['job_type' => 'speech_to_text', 'output_profile' => 'diarization=off;locale=ko'],
         );
+    }
+
+    /**
+     * Video 120 phut can 3.432s xu ly (RTF 0,48 do tren video that), vuot provider
+     * deadline 3.300s. Tu choi TRUOC khi chay khac han chay 57 phut roi chet:
+     * Amendment Record 2.21 § 2.
+     */
+    /**
+     * Khong co gate nay thi deploy code se tu dong bat Video STT tren bat ky he
+     * thong nao dang bat STT audio — trai Temporary Safety Rule cua
+     * DOC-CONFLICT-0027, vi tran thoi luong hien la provisional.
+     */
+    /**
+     * `put()` tra `true` khong chung minh object da nam tren storage — driver co
+     * the bao thanh cong roi that bai o tang duoi. Database chi duoc chuyen `ready`
+     * sau khi object duoc XAC MINH, nen phep xac minh phai nam trong buoc ghi.
+     */
+    public function test_a_caption_write_that_silently_stores_nothing_is_refused(): void
+    {
+        $disk = Mockery::mock(Filesystem::class);
+        $disk->shouldReceive('put')->once()->andReturnTrue();
+        $disk->shouldReceive('exists')->andReturnFalse();
+        $disk->shouldReceive('delete')->andReturnTrue();
+        Storage::shouldReceive('disk')->with('media_local')->andReturn($disk);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('caption_write_failed');
+        (new CaptionAssetStorage)->write(
+            (object) ['storage_disk' => 'media_local'], 'tenants/1/captions/a.vtt', "WEBVTT\n\n"
+        );
+    }
+
+    public function test_video_stt_is_off_by_default_and_creates_no_job(): void
+    {
+        // Doc gia tri mac dinh tu file config, khong phai gia tri setUp() da bat.
+        $this->assertFalse((bool) (require config_path('media.php'))['processing']['speech_to_text']['video_enabled'],
+            'Video STT phai mac dinh TAT trong config.');
+        config(['media.processing.speech_to_text.video_enabled' => false]);
+
+        $media = $this->uploadDocument();
+        DB::table('media_files')->where('id', $media->id)->update(['file_type' => 'video']);
+        DB::table('media_processing_jobs')->where('media_file_id', $media->id)->delete();
+
+        app(MediaProcessingOrchestrator::class)
+            ->materializeForCourseActivity($this->customerId, $media->id, 'vi', $this->admin->id);
+
+        $this->assertDatabaseMissing('media_processing_jobs', [
+            'media_file_id' => $media->id, 'job_type' => 'speech_to_text',
+        ]);
+        $this->assertDatabaseMissing('media_processing_jobs', [
+            'media_file_id' => $media->id, 'job_type' => 'caption',
+        ]);
+    }
+
+    /**
+     * Gate thu hai o tang provider: mot job da nam trong hang doi tu truoc khong
+     * duoc lot qua sau khi gate bi tat.
+     */
+    public function test_the_provider_refuses_video_even_when_a_job_already_exists(): void
+    {
+        config(['media.processing.speech_to_text.video_enabled' => false]);
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldNotReceive('run');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('video_stt_disabled');
+        (new FasterWhisperSpeechToTextProvider($runner))->process(
+            (object) [
+                'file_type' => 'video', 'mime_type' => 'video/mp4', 'extension' => 'mp4',
+                'file_size_bytes' => 1024, 'duration_seconds' => 600,
+            ],
+            (object) ['job_type' => 'speech_to_text', 'output_profile' => 'diarization=off;locale=ko'],
+        );
+    }
+
+    /**
+     * Revision identity phai den tu inventory cua deployment, khong tu probe.
+     *
+     * Ban truoc doc `ffmpeg -version` ngay luc TAO job — co the tren web node
+     * khong co ffmpeg. Node do ghi `unavailable` vao processing_version, roi
+     * worker CO ffmpeg xu ly bang binary that: output mang mot identity noi rang
+     * ffmpeg khong ton tai. Transcript van `ready`, khong ai thay.
+     */
+    public function test_video_revision_identity_comes_from_inventory_not_from_probing(): void
+    {
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldNotReceive('run');
+        $profile = new VideoSpeechToTextProfile($runner);
+
+        config(['media.processing.video_audio.ffmpeg_version' => '7.1.1']);
+        $this->assertStringContainsString('ffmpeg-7.1.1', $profile->label());
+
+        config(['media.processing.video_audio.ffmpeg_version' => '6.0']);
+        $this->assertStringContainsString('ffmpeg-6.0', $profile->label());
+    }
+
+    public function test_the_worker_refuses_when_the_real_binary_does_not_match_inventory(): void
+    {
+        config([
+            'media.processing.video_audio.ffmpeg_version' => '99.9',
+            'media.processing.video_audio.ffmpeg_binary' => PHP_BINARY,
+        ]);
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldReceive('run')->once()->andReturn("ffmpeg version 7.1.1 Copyright\n");
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('extraction_profile_mismatch');
+        (new VideoSpeechToTextProfile($runner))->assertBinaryMatchesInventory();
+    }
+
+    public function test_an_undeclared_ffmpeg_version_fails_closed(): void
+    {
+        config(['media.processing.video_audio.ffmpeg_version' => '']);
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldNotReceive('run');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('provider_unavailable');
+        (new VideoSpeechToTextProfile($runner))->assertBinaryMatchesInventory();
+    }
+
+    public function test_sample_format_participates_in_the_command_and_the_identity(): void
+    {
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $profile = new VideoSpeechToTextProfile($runner);
+        config(['media.processing.video_audio.ffmpeg_version' => '7.1.1']);
+
+        $this->assertContains('-sample_fmt', $profile->arguments('/a.mp4', '/b.wav'));
+        $before = $profile->hash();
+
+        config(['media.processing.video_audio.sample_format' => 's32']);
+        $this->assertNotSame($before, $profile->hash(),
+            'Doi sample_format phai doi ca lenh lan identity.');
+    }
+
+    public function test_video_threads_participate_in_identity_without_changing_audio_identity(): void
+    {
+        $orchestrator = app(MediaProcessingOrchestrator::class);
+        $video = (object) ['file_type' => 'video'];
+        $audio = (object) ['file_type' => 'audio'];
+
+        config(['media.processing.speech_to_text.threads' => 0]);
+        $videoBefore = $orchestrator->versionFor('speech_to_text', $video);
+        $audioBefore = $orchestrator->versionFor('speech_to_text', $audio);
+
+        config(['media.processing.speech_to_text.threads' => 8]);
+
+        $this->assertNotSame($videoBefore, $orchestrator->versionFor('speech_to_text', $video));
+        $this->assertSame($audioBefore, $orchestrator->versionFor('speech_to_text', $audio));
+    }
+
+    public function test_video_over_ninety_minutes_is_refused_before_the_model_runs(): void
+    {
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldNotReceive('run');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('video_limit_exceeded');
+        (new FasterWhisperSpeechToTextProvider($runner))->process(
+            (object) [
+                'file_type' => 'video', 'mime_type' => 'video/mp4', 'extension' => 'mp4',
+                'file_size_bytes' => 1024, 'duration_seconds' => 5401,
+            ],
+            (object) ['job_type' => 'speech_to_text', 'output_profile' => 'diarization=off;locale=ko'],
+        );
+    }
+
+    public function test_audio_keeps_its_own_two_hour_ceiling(): void
+    {
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldNotReceive('run');
+
+        // 5.401s vuot tran video nhung nam trong tran audio 7.200s. Locale `fr`
+        // khong nam trong allowlist, va no duoc kiem SAU tran thoi luong — nen
+        // `locale_unavailable` chung minh tran thoi luong da di qua.
+        // Mot dong sua nham se lam co tran cua moi audio dang chay.
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('locale_unavailable');
+        (new FasterWhisperSpeechToTextProvider($runner))->process(
+            (object) [
+                'file_type' => 'audio', 'mime_type' => 'audio/mpeg', 'extension' => 'mp3',
+                'file_size_bytes' => 1024, 'duration_seconds' => 5401,
+            ],
+            (object) ['job_type' => 'speech_to_text', 'output_profile' => 'diarization=off;locale=fr'],
+        );
+    }
+
+    public function test_video_over_one_gibibyte_is_refused_with_the_video_error_code(): void
+    {
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldNotReceive('run');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('video_limit_exceeded');
+        (new FasterWhisperSpeechToTextProvider($runner))->process(
+            (object) [
+                'file_type' => 'video', 'mime_type' => 'video/mp4', 'extension' => 'mp4',
+                'file_size_bytes' => 1073741825, 'duration_seconds' => 600,
+            ],
+            (object) ['job_type' => 'speech_to_text', 'output_profile' => 'diarization=off;locale=ko'],
+        );
+    }
+
+    public function test_a_video_mime_outside_the_allowlist_is_unsupported(): void
+    {
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldNotReceive('run');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('unsupported_source');
+        (new FasterWhisperSpeechToTextProvider($runner))->process(
+            (object) [
+                'file_type' => 'video', 'mime_type' => 'video/x-flv', 'extension' => 'flv',
+                'file_size_bytes' => 1024, 'duration_seconds' => 600,
+            ],
+            (object) ['job_type' => 'speech_to_text', 'output_profile' => 'diarization=off;locale=ko'],
+        );
+    }
+
+    /**
+     * `source_fingerprint` la van tay cua BINARY GOC, khong doi khi tham so tach
+     * audio doi. Neu extraction profile khong nam trong `processing_version` thi
+     * doi `-ar` se lam transcript doi noi dung ma khong sinh revision moi.
+     */
+    public function test_changing_an_extraction_parameter_changes_the_video_processing_version(): void
+    {
+        $media = (object) ['file_type' => 'video'];
+        $orchestrator = app(MediaProcessingOrchestrator::class);
+
+        config(['media.processing.versions.speech_to_text' => 'stt-v1']);
+        $before = $orchestrator->versionFor('speech_to_text', $media);
+
+        config(['media.processing.video_audio.sample_rate' => 44100]);
+        $after = $orchestrator->versionFor('speech_to_text', $media);
+
+        $this->assertNotSame($before, $after, 'Doi sample rate phai sinh processing_version moi.');
+        $this->assertStringContainsString('ar16000', $before);
+        $this->assertStringContainsString('ar44100', $after);
+    }
+
+    public function test_the_extraction_profile_never_touches_audio_identity(): void
+    {
+        config(['media.processing.versions.speech_to_text' => 'stt-v1']);
+        $orchestrator = app(MediaProcessingOrchestrator::class);
+
+        // Them profile cho ca audio se doi identity cua MOI transcript audio dang
+        // chay, archive toan bo va bat chay lai. Amendment Record 2.19 § 1.
+        $this->assertSame('stt-v1', $orchestrator->versionFor('speech_to_text', (object) ['file_type' => 'audio']));
+        $this->assertSame('stt-v1', $orchestrator->versionFor('speech_to_text', null));
+        $this->assertStringStartsWith('stt-v1+ffmpeg-',
+            $orchestrator->versionFor('speech_to_text', (object) ['file_type' => 'video']));
     }
 
     public function test_invalid_transcript_rolls_back_every_segment_and_names_the_error(): void
@@ -668,7 +952,12 @@ class MediaProcessingSubstrateTest extends TestCase
         );
     }
 
-    public function test_transcript_and_caption_profiles_have_independent_three_attempt_chains(): void
+    /**
+     * Ba attempt duoc chung minh cho STT; phia caption chi chung minh hai profile
+     * co chain doc lap. Chuoi retry cua chinh caption nam o
+     * `test_a_failed_caption_chain_retries_independently_up_to_three_attempts`.
+     */
+    public function test_transcript_retries_three_times_while_caption_profiles_stay_independent(): void
     {
         $media = $this->uploadVideo();
         $orchestrator = app(MediaProcessingOrchestrator::class);
@@ -681,6 +970,9 @@ class MediaProcessingSubstrateTest extends TestCase
         $ko2 = DB::table('media_processing_jobs')->where('supersedes_job_id', $ko->id)->first();
         $orchestrator->retry($this->customerId, $ko2->id, $this->admin->id);
 
+        // Caption khong con nam trong initial set; test chain caption phai
+        // materialize no tuong minh, tuong duong buoc sau transcript `ready`.
+        $orchestrator->materializeOnDemandProfile($this->customerId, $media->id, 'caption', ['locale' => 'vi', 'format' => 'vtt'], $this->admin->id);
         config(['media.processing.providers.caption' => 'unconfigured']);
         $orchestrator->materializeOnDemandProfile($this->customerId, $media->id, 'caption', ['locale' => 'vi', 'format' => 'srt'], $this->admin->id);
 
@@ -691,11 +983,70 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertDatabaseHas('media_files', ['id' => $media->id, 'status' => 'ready']);
     }
 
+    /**
+     * Caption that bai phai retry duoc doc lap, khong keo theo STT lan Media.
+     *
+     * Truoc day khong test nao goi `retry()` tren mot caption job that bai — test
+     * ten "three attempt chains" chi retry STT tieng Han, con phia caption chi tao
+     * mot job `ready` va mot job `failed`. Ten hua nhieu hon noi dung.
+     */
+    public function test_a_failed_caption_chain_retries_independently_up_to_three_attempts(): void
+    {
+        $media = $this->uploadVideo();
+        $orchestrator = app(MediaProcessingOrchestrator::class);
+        $orchestrator->materializeForCourseActivity($this->customerId, $media->id, 'vi', $this->admin->id);
+
+        // Caption fail bang `provider_unavailable` — mot trong ba ma loi tam thoi
+        // duy nhat duoc phep retry theo LF-Media-Processing-Contract § Retry.
+        config(['media.processing.providers.caption' => 'unconfigured']);
+        $orchestrator->materializeOnDemandProfile(
+            $this->customerId, $media->id, 'caption', ['locale' => 'vi', 'format' => 'srt'], $this->admin->id
+        );
+        $attempt1 = DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+            ->where('job_type', 'caption')->where('output_profile', 'format=srt;locale=vi')->firstOrFail();
+        $this->assertSame('failed', $attempt1->status);
+        $this->assertSame('provider_unavailable', $attempt1->error_code);
+        $this->assertSame(1, (int) $attempt1->attempt);
+
+        $orchestrator->retry($this->customerId, $attempt1->id, $this->admin->id);
+        $attempt2 = DB::table('media_processing_jobs')->where('supersedes_job_id', $attempt1->id)->firstOrFail();
+
+        // Retry TIEP TUC chain cu, khong mo chain moi: cung profile va cung
+        // revision identity, chi khac `attempt`.
+        $this->assertSame(2, (int) $attempt2->attempt);
+        $this->assertSame($attempt1->output_profile, $attempt2->output_profile);
+        $this->assertSame($attempt1->output_profile_hash, $attempt2->output_profile_hash);
+        $this->assertSame($attempt1->processing_version, $attempt2->processing_version);
+        $this->assertSame($attempt1->source_fingerprint, $attempt2->source_fingerprint);
+        $this->assertSame($attempt1->correlation_id, $attempt2->correlation_id);
+
+        $orchestrator->retry($this->customerId, $attempt2->id, $this->admin->id);
+        $attempt3 = DB::table('media_processing_jobs')->where('supersedes_job_id', $attempt2->id)->firstOrFail();
+        $this->assertSame(3, (int) $attempt3->attempt);
+
+        // Het ba attempt: chain dung lai, khong tu keo dai vo han.
+        try {
+            $orchestrator->retry($this->customerId, $attempt3->id, $this->admin->id);
+            $this->fail('Chain caption da het attempt van duoc retry.');
+        } catch (\InvalidArgumentException) {
+            // Dung theo hop dong: toi da ba attempt.
+        }
+        $this->assertSame(3, DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+            ->where('job_type', 'caption')->where('output_profile_hash', $attempt1->output_profile_hash)->count());
+
+        // Caption that bai khong duoc lam hong transcript lan deliverability:
+        // chi `virus_scan` moi gate `media_files.status`.
+        $this->assertDatabaseHas('media_transcripts', ['media_file_id' => $media->id, 'locale' => 'vi', 'status' => 'ready']);
+        $this->assertDatabaseHas('media_files', ['id' => $media->id, 'status' => 'ready']);
+        $this->assertSame(1, DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+            ->where('job_type', 'speech_to_text')->count());
+    }
+
     public function test_database_blocks_duplicate_same_profile_and_attempt(): void
     {
         $media = $this->uploadVideo();
         app(MediaProcessingOrchestrator::class)->materializeForCourseActivity($this->customerId, $media->id, 'vi', $this->admin->id);
-        $job = DB::table('media_processing_jobs')->where('media_file_id', $media->id)->where('job_type', 'caption')->first();
+        $job = DB::table('media_processing_jobs')->where('media_file_id', $media->id)->where('job_type', 'speech_to_text')->first();
         $duplicate = (array) $job;
         unset($duplicate['id']);
         $this->expectException(QueryException::class);
@@ -1742,6 +2093,14 @@ class MediaProcessingSubstrateTest extends TestCase
     {
         $fixture = $this->structuredCoverageFixture();
         $mediaId = $fixture['media_id'];
+        $jobCount = DB::table('media_processing_jobs')->where('media_file_id', $mediaId)->count();
+        DB::table('media_access_logs')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $mediaId,
+            'user_id' => $this->admin->id, 'action' => 'read_derived',
+            'source_type' => 'ai', 'source_id' => null, 'accessed_at' => now(),
+            'metadata' => json_encode(['decision' => 'allowed']),
+        ]);
+        $accessLogCount = DB::table('media_access_logs')->where('media_file_id', $mediaId)->count();
         DB::table('media_file_usages')->where('media_file_id', $mediaId)->update(['status' => 'archived']);
 
         DB::table('media_transcripts')->insert([
@@ -1767,6 +2126,10 @@ class MediaProcessingSubstrateTest extends TestCase
             $this->assertSame(0, DB::table($table)->where('media_file_id', $mediaId)->count(), $table);
         }
         Storage::disk('media_local')->assertMissing($captionKey);
+        $this->assertSame($jobCount, DB::table('media_processing_jobs')->where('media_file_id', $mediaId)->count(),
+            'Processing jobs la provenance va phai duoc giu sau deletion.');
+        $this->assertSame($accessLogCount, DB::table('media_access_logs')->where('media_file_id', $mediaId)->count(),
+            'Access logs la audit append-only va phai duoc giu sau deletion.');
     }
 
     /**

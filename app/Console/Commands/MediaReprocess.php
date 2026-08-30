@@ -86,7 +86,7 @@ class MediaReprocess extends Command
             return self::FAILURE;
         }
 
-        $blocker = $this->retryBlocker($customerId, $job);
+        $blocker = $this->retryBlocker($orchestrator, $customerId, $job);
         if ($blocker !== null) {
             $this->error($blocker);
 
@@ -123,7 +123,7 @@ class MediaReprocess extends Command
      * Diagnoses why a chain cannot continue. MediaProcessingOrchestrator::retry
      * re-checks every rule under a row lock; this only names the reason first.
      */
-    private function retryBlocker(int $customerId, object $job): ?string
+    private function retryBlocker(MediaProcessingOrchestrator $orchestrator, int $customerId, object $job): ?string
     {
         if ($job->status !== 'failed') {
             return "Job {$job->id} is {$job->status}; only a failed job can be retried.";
@@ -147,7 +147,13 @@ class MediaReprocess extends Command
         }
 
         $provider = (string) config("media.processing.providers.$job->job_type", 'unconfigured');
-        $version = (string) config("media.processing.versions.$job->job_type", 'unconfigured-v1');
+        // Qua orchestrator chu khong doc thang config: version cua video STT gom
+        // ca canonical ffmpeg extraction profile. Doc thang se khong bao gio khop
+        // va tu choi retry bang mot thong bao sai — "version da doi" trong khi
+        // khong co gi doi.
+        $media = DB::table('media_files')->where('customer_id', $customerId)
+            ->where('id', $job->media_file_id)->first(['file_type']);
+        $version = $orchestrator->versionFor((string) $job->job_type, $media);
         if ($job->provider !== $provider || $job->processing_version !== $version) {
             return sprintf(
                 "Job %d was recorded against provider=%s version=%s, but %s is now configured as provider=%s version=%s.\n"
