@@ -7,6 +7,7 @@ use App\Services\DocumentProcessRunner;
 use App\Services\MediaProcessingOrchestrator;
 use App\Services\MediaService;
 use App\Services\TrustedVideoUrlService;
+use App\Services\VideoSttQualification;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
 use Illuminate\Http\Request;
@@ -48,6 +49,7 @@ class CourseTemplateActivityController extends Controller
         private readonly MediaProcessingOrchestrator $processingOrchestrator,
         private readonly CourseActivityMediaPresenter $activityMediaPresenter,
         private readonly TrustedVideoUrlService $trustedVideoUrls,
+        private readonly VideoSttQualification $videoSttQualification,
     ) {}
 
     public function initializeTranscriptionDirect(Request $request, int $templateId, int $lessonId, int $activityId)
@@ -339,6 +341,7 @@ class CourseTemplateActivityController extends Controller
             ),
             'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
+            'videoSttQualification' => $this->videoSttQualification->status(),
         ]);
     }
 
@@ -419,8 +422,15 @@ class CourseTemplateActivityController extends Controller
 
         if ($this->structuredExtractionRequested($request)) {
             $response->with('info', __('lf.LF_course_template_activity_structured_queued_notice'));
-        } elseif ($this->speechToTextRequested($request)) {
+        } elseif ($this->audioSpeechToTextRequested($request)) {
             $response->with('info', __('lf.LF_course_template_activity_stt_queued_notice'));
+        } elseif ($this->videoSpeechToTextRequested($request)) {
+            $response->with(
+                $this->videoSttQualification->isQualified() ? 'info' : 'warning',
+                __($this->videoSttQualification->isQualified()
+                    ? 'lf.LF_course_template_activity_video_stt_queued_notice'
+                    : $this->videoSttQualification->status()['message_key'])
+            );
         }
 
         return $response;
@@ -476,6 +486,7 @@ class CourseTemplateActivityController extends Controller
             'currentActivityMedia' => $currentMedia,
             'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
+            'videoSttQualification' => $this->videoSttQualification->status(),
         ]);
     }
 
@@ -592,8 +603,15 @@ class CourseTemplateActivityController extends Controller
 
         if ($this->structuredExtractionRequested($request)) {
             $response->with('info', __('lf.LF_course_template_activity_structured_queued_notice'));
-        } elseif ($this->speechToTextRequested($request)) {
+        } elseif ($this->audioSpeechToTextRequested($request)) {
             $response->with('info', __('lf.LF_course_template_activity_stt_queued_notice'));
+        } elseif ($this->videoSpeechToTextRequested($request)) {
+            $response->with(
+                $this->videoSttQualification->isQualified() ? 'info' : 'warning',
+                __($this->videoSttQualification->isQualified()
+                    ? 'lf.LF_course_template_activity_video_stt_queued_notice'
+                    : $this->videoSttQualification->status()['message_key'])
+            );
         }
 
         return $response;
@@ -769,6 +787,8 @@ class CourseTemplateActivityController extends Controller
             'unlock_after_activity_id',
             'processing_locale',
             'structured_extraction',
+            'speech_to_text',
+            'video_speech_to_text',
         ];
 
         $input = array_intersect_key(
@@ -970,7 +990,7 @@ class CourseTemplateActivityController extends Controller
                 },
             ],
             'processing_locale' => [
-                Rule::requiredIf(fn () => request()->hasFile('activity_video_file')
+                Rule::requiredIf(fn () => (request()->hasFile('activity_video_file') && request()->boolean('video_speech_to_text'))
                     || (request()->hasFile('activity_audio_file') && request()->boolean('speech_to_text'))
                     || request()->hasFile('activity_document_file')),
                 'nullable',
@@ -981,6 +1001,7 @@ class CourseTemplateActivityController extends Controller
             // khong tick thi luong upload giu nguyen hanh vi cu.
             'structured_extraction' => ['nullable', 'boolean'],
             'speech_to_text' => ['nullable', 'boolean'],
+            'video_speech_to_text' => ['nullable', 'boolean'],
             'activity_attachment_file' => [
                 'nullable',
                 'file',
@@ -1209,7 +1230,18 @@ class CourseTemplateActivityController extends Controller
                     'structured_extraction' => $fileType === 'document'
                         && strtolower((string) $request->file($field)?->getClientOriginalExtension()) === 'pdf'
                         && $request->boolean('structured_extraction'),
-                    'speech_to_text' => $fileType !== 'audio' || $request->boolean('speech_to_text'),
+                    'speech_to_text_requested' => $fileType === 'video'
+                        ? $request->boolean('video_speech_to_text')
+                        : $request->boolean('speech_to_text'),
+                    'speech_to_text' => match ($fileType) {
+                        'audio' => $request->boolean('speech_to_text'),
+                        'video' => $request->boolean('video_speech_to_text')
+                            && $this->videoSttQualification->isQualified(),
+                        default => false,
+                    },
+                    'video_stt_qualification' => $fileType === 'video'
+                        ? $this->videoSttQualification->status()['code']
+                        : null,
                 ]
             );
 
@@ -1228,9 +1260,14 @@ class CourseTemplateActivityController extends Controller
             && $request->boolean('structured_extraction');
     }
 
-    private function speechToTextRequested(Request $request): bool
+    private function audioSpeechToTextRequested(Request $request): bool
     {
         return $request->hasFile('activity_audio_file') && $request->boolean('speech_to_text');
+    }
+
+    private function videoSpeechToTextRequested(Request $request): bool
+    {
+        return $request->hasFile('activity_video_file') && $request->boolean('video_speech_to_text');
     }
 
     private function synchronizeUploadedMediaDuration(

@@ -94,7 +94,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                     'structured_extraction_too_large', 'structured_extraction_invalid',
                     'audio_limit_exceeded', 'transcript_invalid', 'locale_unavailable',
                     'video_limit_exceeded', 'audio_extraction_limit_exceeded', 'audio_extraction_failed',
-                    'video_stt_disabled', 'extraction_profile_mismatch',
+                    'video_stt_disabled', 'video_stt_unqualified', 'extraction_profile_mismatch',
                     'caption_invalid', 'caption_too_large', 'caption_write_failed', 'transcript_unavailable',
                     'ambiguous_source',
                     'unsupported_output_profile',

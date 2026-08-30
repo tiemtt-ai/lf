@@ -1483,6 +1483,8 @@
 }
 
 .course-activity-upload-policy {
+    min-width: 0;
+    overflow-wrap: anywhere;
     margin-top: 12px;
     padding: 12px;
     border: 1px solid var(--admin-border);
@@ -1521,11 +1523,21 @@
     line-height: 1.35;
 }
 
-.course-activity-upload-policy > p {
+.course-activity-upload-policy > p,
+.course-activity-upload-policy__details {
     margin: 9px 2px 0;
     color: var(--admin-text-muted);
     font-size: 12px;
     line-height: 1.45;
+}
+
+.course-activity-upload-policy__details summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.course-activity-upload-policy__details p {
+    margin: 8px 0 0;
 }
 
 .course-activity-locale-heading {

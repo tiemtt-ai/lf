@@ -160,6 +160,8 @@
                                                 $structuredMessageKey = match ($structuredStatus) {
                                                     'ready' => 'lf.LF_course_template_activity_structured_ready_help',
                                                     'failed' => match ($activity->structured_extraction_error_code) {
+                                                        'unsupported_source' => 'lf.LF_media_processing_unsupported',
+                                                        'corrupt_source', 'source_unavailable', 'provider_command_failed' => 'lf.LF_media_processing_invalid',
                                                         'structured_extraction_too_large' => 'lf.LF_course_template_activity_structured_failed_too_large_help',
                                                         'page_limit_exceeded' => 'lf.LF_course_template_activity_structured_failed_page_limit_help',
                                                         'provider_unavailable' => 'lf.LF_course_template_activity_structured_failed_provider_help',
@@ -193,6 +195,12 @@
                                                 $speechMessageKey = match ($speechStatus) {
                                                     'ready' => 'lf.LF_course_template_activity_stt_ready_help',
                                                     'failed' => match ($activity->speech_to_text_error_code) {
+                                                        'unsupported_source' => 'lf.LF_media_processing_unsupported',
+                                                        'corrupt_source', 'source_unavailable', 'transcript_invalid' => 'lf.LF_media_processing_invalid',
+                                                        'audio_extraction_failed', 'audio_extraction_limit_exceeded' => 'lf.LF_media_processing_extraction',
+                                                        'video_stt_disabled' => 'lf.LF_course_template_activity_video_stt_qualification_feature_disabled',
+                                                        'video_stt_unqualified', 'extraction_profile_mismatch' => 'lf.LF_course_template_activity_stt_unqualified_help',
+                                                        'video_limit_exceeded' => 'lf.LF_course_template_activity_video_stt_failed_limit_help',
                                                         'audio_limit_exceeded' => 'lf.LF_course_template_activity_stt_failed_limit_help',
                                                         'locale_unavailable' => 'lf.LF_course_template_activity_stt_failed_locale_help',
                                                         'provider_unavailable' => 'lf.LF_course_template_activity_stt_failed_provider_help',
@@ -200,6 +208,7 @@
                                                         default => 'lf.LF_course_template_activity_stt_failed_help',
                                                     },
                                                     'processing' => 'lf.LF_course_template_activity_stt_processing_help',
+                                                    'unqualified' => 'lf.LF_course_template_activity_stt_unqualified_help',
                                                     'absent' => 'lf.LF_course_template_activity_stt_absent_help',
                                                     'disabled' => 'lf.LF_course_template_activity_stt_disabled_help',
                                                     default => 'lf.LF_course_template_activity_stt_pending_help',
@@ -211,12 +220,12 @@
                                                     'badge-success' => $speechStatus === 'ready',
                                                     'badge-danger' => $speechStatus === 'failed',
                                                     'badge-info' => in_array($speechStatus, ['pending', 'processing'], true),
-                                                    'badge-secondary' => in_array($speechStatus, ['absent', 'disabled'], true),
+                                                    'badge-secondary' => in_array($speechStatus, ['absent', 'disabled', 'unqualified'], true),
                                                 ])>
                                                     {{ __('lf.LF_course_template_activity_stt_'.$speechStatus) }}
                                                 </span>
-                                                <span class="lf-secondary-text">{{ __($speechMessageKey) }}</span>
-                                                @if (in_array($speechStatus, ['absent', 'disabled'], true))
+                                                <span class="lf-secondary-text">{{ __($speechMessageKey, ['minutes' => config('media.processing.speech_to_text.'.($activity->activity_type === 'video' ? 'max_video_duration_seconds' : 'max_duration_seconds')) / 60, 'gib' => config('media.processing.speech_to_text.'.($activity->activity_type === 'video' ? 'max_video_source_bytes' : 'max_bytes')) / 1073741824]) }}</span>
+                                                @if (in_array($speechStatus, ['absent', 'disabled'], true) && $activity->activity_type === 'audio')
                                                     <form method="POST"
                                                           action="{{ route($activityRoutePrefix.'.initialize-transcription', $activityParameters) }}"
                                                           class="course-template-activity-stt-initialize-form">

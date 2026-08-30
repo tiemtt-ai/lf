@@ -805,10 +805,10 @@ class CourseTemplateController extends Controller
             ->unique('media_file_id')
             ->keyBy('media_file_id');
 
-        $audioUsages = DB::table('media_file_usages')
+        $speechUsages = DB::table('media_file_usages')
             ->where('customer_id', $customerId)
             ->where('owner_type', 'course_activity')
-            ->where('usage_type', 'audio')
+            ->whereIn('usage_type', ['audio', 'video'])
             ->where('status', 'active')
             ->whereIn('owner_id', $activities->pluck('id'))
             ->orderByDesc('id')
@@ -818,14 +818,14 @@ class CourseTemplateController extends Controller
         $speechJobs = DB::table('media_processing_jobs')
             ->where('customer_id', $customerId)
             ->where('job_type', 'speech_to_text')
-            ->whereIn('media_file_id', $audioUsages->pluck('media_file_id'))
+            ->whereIn('media_file_id', $speechUsages->pluck('media_file_id'))
             ->orderByDesc('id')
             ->get()
             ->unique('media_file_id')
             ->keyBy('media_file_id');
 
         return $activities
-            ->map(function (object $activity) use ($structuredUsages, $structuredJobs, $audioUsages, $speechJobs): object {
+            ->map(function (object $activity) use ($structuredUsages, $structuredJobs, $speechUsages, $speechJobs): object {
                 $activity->view_kind = 'readonly';
                 $activity->view_url = null;
                 $activity->view_mime_type = null;
@@ -841,19 +841,24 @@ class CourseTemplateController extends Controller
                     $activity->structured_extraction_status = $structuredJob?->status ?? 'absent';
                     $activity->structured_extraction_error_code = $structuredJob?->error_code;
                 }
-                $audioUsage = $audioUsages->get($activity->id);
-                if ($audioUsage !== null) {
-                    $audioMetadata = json_decode((string) ($audioUsage->metadata ?? ''), true);
-                    $speechToTextRequested = ! array_key_exists('speech_to_text', (array) $audioMetadata)
-                        || (bool) $audioMetadata['speech_to_text'];
-                    $speechJob = $speechJobs->get($audioUsage->media_file_id);
+                $speechUsage = $speechUsages->get($activity->id);
+                if ($speechUsage !== null) {
+                    $speechMetadata = json_decode((string) ($speechUsage->metadata ?? ''), true);
+                    $speechMetadata = is_array($speechMetadata) ? $speechMetadata : [];
+                    $speechToTextRequested = array_key_exists('speech_to_text_requested', $speechMetadata)
+                        ? (bool) $speechMetadata['speech_to_text_requested']
+                        : (! array_key_exists('speech_to_text', $speechMetadata) || (bool) $speechMetadata['speech_to_text']);
+                    $speechToTextEligible = (bool) ($speechMetadata['speech_to_text'] ?? $speechToTextRequested);
+                    $speechJob = $speechJobs->get($speechUsage->media_file_id);
                     // Khong co job KHAC voi job dang cho. Bao `pending` khi chua
                     // tung co job nao la noi sai: admin se refresh mai mot thu
                     // khong bao gio toi. Cung loai loi ma `structure_unavailable`
                     // sinh ra de chan — su vang mat khong duoc doc thanh mot
                     // trang thai da biet.
                     $activity->speech_to_text_status = $speechJob?->status
-                        ?? ($speechToTextRequested ? 'absent' : 'disabled');
+                        ?? ($speechToTextRequested && ! $speechToTextEligible
+                            ? 'unqualified'
+                            : ($speechToTextRequested ? 'absent' : 'disabled'));
                     $activity->speech_to_text_error_code = $speechJob?->error_code;
                 }
 

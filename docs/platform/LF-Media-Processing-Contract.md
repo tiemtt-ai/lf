@@ -1,6 +1,6 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.27
+Version: 2.28
 
 Document Status: Approved
 
@@ -17,6 +17,40 @@ Related ADR:
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 * [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 * [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved v1.5
+
+---
+
+# Amendment Record — Version 2.28
+
+Amendment Status: **Approved by Architecture Owner, 2026-08-30.** Video upload
+chuyển sang opt-in giống Document structured extraction: checkbox chỉ ghi nhận
+yêu cầu STT/caption; không tick thì video chỉ được lưu, quét an toàn và phát.
+
+Production có thêm qualification gate độc lập với feature gate. Một deployment
+chỉ được enqueue Video STT khi evidence JSON:
+
+* có `schema_version = 1`, `verdict = PASS` và `expires_at` còn hạn;
+* mang đúng `processing_version` hiện hành;
+* mang đúng hash snapshot của duration cap, provider/extraction timeout,
+  queue `retry_after` và caption budgets.
+
+Đổi model, ffmpeg inventory, extraction/STT execution profile hoặc resource
+control làm evidence cũ mất hiệu lực. Request giả mạo checkbox không được vượt
+guard ở orchestrator/provider. Nếu qualification không đạt, source video vẫn
+được upload và deliver; không tạo STT/caption job, metadata giữ lại intent và UI
+phải báo lý do có tên thay vì hiển thị `pending` giả.
+
+Local/test được phép chạy correctness E2E không có production evidence và phải
+hiển thị rõ đây không phải production approval. Production mặc định yêu cầu
+evidence qua `MEDIA_VIDEO_STT_QUALIFICATION_REQUIRED=true`; kiểm trạng thái bằng:
+
+```bash
+php artisan media:video-stt-qualification --json
+```
+
+Lệnh chỉ kiểm và xuất identity/snapshot. Kết quả benchmark/soak trên hardware
+production-like là đầu vào để deployment tạo evidence candidate; Owner/deployment
+approval vẫn là bước mở gate, không được tự động suy từ một lần máy đang rảnh.
 
 ---
 

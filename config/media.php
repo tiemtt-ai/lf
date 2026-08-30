@@ -105,6 +105,12 @@ return [
             'max_output_bytes' => (int) env('MEDIA_VIDEO_AUDIO_MAX_OUTPUT_BYTES', 268435456),
             'workspace_root' => env('MEDIA_VIDEO_AUDIO_WORKSPACE', sys_get_temp_dir()),
         ],
+        'video_qualification' => [
+            // Local/test proves correctness. Production additionally requires a
+            // PASS evidence record bound to the exact runtime identity/caps.
+            'required' => (bool) env('MEDIA_VIDEO_STT_QUALIFICATION_REQUIRED', env('APP_ENV') === 'production'),
+            'evidence_path' => env('MEDIA_VIDEO_STT_QUALIFICATION_EVIDENCE', ''),
+        ],
         // Caption Phase 1: VTT dung tu transcript, khong chay model.
         // LF-Media-Processing-Contract Amendment Record 2.21 § 6.
         'caption' => [

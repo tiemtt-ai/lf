@@ -19,6 +19,7 @@ use App\Services\MediaService;
 use App\Services\RegionCropStorage;
 use App\Services\StructuredExtractionPersistenceService;
 use App\Services\VideoSpeechToTextProfile;
+use App\Services\VideoSttQualification;
 use App\Support\TenantContext;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\QueryException;
@@ -219,9 +220,17 @@ class MediaProcessingSubstrateTest extends TestCase
 
     public function test_video_stt_is_off_by_default_and_creates_no_job(): void
     {
-        // Doc gia tri mac dinh tu file config, khong phai gia tri setUp() da bat.
-        $this->assertFalse((bool) (require config_path('media.php'))['processing']['speech_to_text']['video_enabled'],
-            'Video STT phai mac dinh TAT trong config.');
+        // Kiem MAC DINH DUOC SHIP, khong phai gia tri da resolve.
+        //
+        // `require config_path(...)` van goi env(), nen no doc `.env` cua may
+        // dang chay: test se do tren may co MEDIA_VIDEO_STT_ENABLED=true de test
+        // local, du code khong doi gi. Doc thang doi so mac dinh moi tra loi dung
+        // cau hoi "ban ship ra co tat khong".
+        $this->assertStringContainsString(
+            "env('MEDIA_VIDEO_STT_ENABLED', false)",
+            (string) file_get_contents(config_path('media.php')),
+            'Video STT phai mac dinh TAT trong config duoc ship.',
+        );
         config(['media.processing.speech_to_text.video_enabled' => false]);
 
         $media = $this->uploadDocument();
@@ -239,6 +248,36 @@ class MediaProcessingSubstrateTest extends TestCase
         ]);
     }
 
+    public function test_production_video_stt_requires_current_unexpired_qualification_evidence(): void
+    {
+        $path = sys_get_temp_dir().'/lf-video-qualification-'.Str::random(12).'.json';
+        config([
+            'media.processing.speech_to_text.video_enabled' => true,
+            'media.processing.video_qualification.required' => true,
+            'media.processing.video_qualification.evidence_path' => $path,
+        ]);
+        $qualification = app(VideoSttQualification::class);
+        $this->assertSame('evidence_missing', $qualification->status()['code']);
+
+        file_put_contents($path, json_encode([
+            'schema_version' => 1,
+            'verdict' => 'PASS',
+            'expires_at' => now()->addDay()->toIso8601String(),
+            'processing_version' => $qualification->processingVersion(),
+            'configuration_hash' => $qualification->configurationHash(),
+        ], JSON_THROW_ON_ERROR));
+        try {
+            $this->assertSame('qualified', $qualification->status()['code']);
+            $this->assertTrue($qualification->isQualified());
+
+            config(['media.processing.speech_to_text.threads' => 8]);
+            $this->assertSame('identity_mismatch', $qualification->status()['code']);
+            $this->assertFalse($qualification->isQualified());
+        } finally {
+            @unlink($path);
+        }
+    }
+
     /**
      * Gate thu hai o tang provider: mot job da nam trong hang doi tu truoc khong
      * duoc lot qua sau khi gate bi tat.
@@ -251,6 +290,27 @@ class MediaProcessingSubstrateTest extends TestCase
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('video_stt_disabled');
+        (new FasterWhisperSpeechToTextProvider($runner))->process(
+            (object) [
+                'file_type' => 'video', 'mime_type' => 'video/mp4', 'extension' => 'mp4',
+                'file_size_bytes' => 1024, 'duration_seconds' => 600,
+            ],
+            (object) ['job_type' => 'speech_to_text', 'output_profile' => 'diarization=off;locale=ko'],
+        );
+    }
+
+    public function test_the_provider_refuses_a_queued_video_when_qualification_is_no_longer_valid(): void
+    {
+        config([
+            'media.processing.speech_to_text.video_enabled' => true,
+            'media.processing.video_qualification.required' => true,
+            'media.processing.video_qualification.evidence_path' => '/missing/evidence.json',
+        ]);
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldNotReceive('run');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('video_stt_unqualified');
         (new FasterWhisperSpeechToTextProvider($runner))->process(
             (object) [
                 'file_type' => 'video', 'mime_type' => 'video/mp4', 'extension' => 'mp4',
@@ -1639,6 +1699,186 @@ class MediaProcessingSubstrateTest extends TestCase
             ->assertSee('checked', false)
             ->assertSeeText('Tự động phiên âm nội dung audio')
             ->assertSeeText('Không tick: hệ thống chỉ lưu và quét an toàn file');
+    }
+
+    public function test_video_form_shows_opt_in_and_named_qualification_status(): void
+    {
+        config([
+            'media.processing.video_qualification.required' => true,
+            'media.processing.video_qualification.evidence_path' => '/missing/evidence.json',
+        ]);
+        [$templateId, $lessonId] = $this->courseFixture();
+
+        $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/create")
+            ->assertOk()
+            ->assertSee('name="video_speech_to_text"', false)
+            ->assertSee('disabled', false)
+            ->assertSeeText(__('lf.LF_course_template_activity_video_stt_option'))
+            ->assertSeeText(__('lf.LF_media_processing_audio_limits', ['minutes' => 120, 'gib' => 1]))
+            ->assertSeeText(__('lf.LF_media_processing_document_limits', ['pages' => 100, 'ocr_pages' => 100, 'regions' => 100, 'total' => 5000]))
+            ->assertSeeText(__('lf.LF_media_processing_processing_requirements'))
+            ->assertSeeText(__('lf.LF_media_processing_video_limits', ['minutes' => 90, 'gib' => 1]))
+            ->assertSeeText(__('lf.LF_course_template_activity_video_stt_qualification_evidence_missing'));
+    }
+
+    public function test_video_ui_translations_exist_in_both_languages_and_never_render_raw_keys(): void
+    {
+        [$templateId, $lessonId] = $this->courseFixture();
+        foreach (['vi', 'en'] as $locale) {
+            foreach (['max_file', 'max_duration', 'help', 'queued_notice', 'failed_limit_help',
+                'qualification_feature_disabled', 'qualification_local_test', 'qualification_evidence_missing',
+                'qualification_evidence_invalid', 'qualification_evidence_expired', 'qualification_identity_mismatch',
+                'qualification_qualified'] as $suffix) {
+                $key = 'lf.LF_course_template_activity_video_stt_'.$suffix;
+                $this->assertTrue(app('translator')->hasForLocale($key, $locale), "$locale missing $key");
+                $this->assertNotSame($key, __($key, [], $locale));
+            }
+        }
+        $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/create")
+            ->assertOk()
+            ->assertDontSee('lf.LF_course_template_activity_video_stt_', false)
+            ->assertSee('<details', false)
+            ->assertSeeText(__('lf.LF_media_processing_details'));
+    }
+
+    public function test_video_limit_failure_displays_specific_warning_without_claiming_partial_transcription(): void
+    {
+        config(['media.processing.video_qualification.required' => false]);
+        Queue::fake();
+        [$templateId, $lessonId] = $this->courseFixture();
+        $this->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload([
+            'title' => 'Video over processing limit',
+            'activity_type' => 'video',
+            'activity_document_file' => null,
+            'activity_video_file' => UploadedFile::fake()->create('over-limit.mp4', 32, 'video/mp4'),
+            'processing_locale' => 'vi',
+            'video_speech_to_text' => '1',
+        ]))->assertSessionHasNoErrors();
+
+        $usage = DB::table('media_file_usages')->where('usage_type', 'video')->latest('id')->firstOrFail();
+        $this->assertSame(1, DB::table('media_processing_jobs')
+            ->where('media_file_id', $usage->media_file_id)->where('job_type', 'speech_to_text')
+            ->update(['status' => 'failed', 'error_code' => 'video_limit_exceeded']));
+
+        $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure")
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_video_stt_failed_limit_help', ['minutes' => 90, 'gib' => 1]))
+            ->assertDontSeeText(__('lf.LF_course_template_activity_stt_failed_help'));
+        $this->assertDatabaseMissing('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id, 'job_type' => 'caption',
+        ]);
+        foreach ([
+            'unsupported_source' => 'lf.LF_media_processing_unsupported',
+            'transcript_invalid' => 'lf.LF_media_processing_invalid',
+            'audio_extraction_limit_exceeded' => 'lf.LF_media_processing_extraction',
+            'video_stt_disabled' => 'lf.LF_course_template_activity_video_stt_qualification_feature_disabled',
+        ] as $error => $message) {
+            DB::table('media_processing_jobs')->where('media_file_id', $usage->media_file_id)
+                ->where('job_type', 'speech_to_text')->update(['error_code' => $error]);
+            $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure")
+                ->assertOk()->assertSeeText(__($message));
+        }
+    }
+
+    public function test_unqualified_video_request_uploads_but_creates_no_stt_or_caption_job(): void
+    {
+        config([
+            'media.processing.video_qualification.required' => true,
+            'media.processing.video_qualification.evidence_path' => '/missing/evidence.json',
+        ]);
+        [$templateId, $lessonId] = $this->courseFixture();
+
+        $this->followingRedirects()->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload([
+            'title' => 'Video unqualified',
+            'activity_type' => 'video',
+            'activity_document_file' => null,
+            'activity_video_file' => UploadedFile::fake()->create('lesson.mp4', 32, 'video/mp4'),
+            'processing_locale' => 'vi',
+            'video_speech_to_text' => '1',
+        ]))
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_video_stt_qualification_evidence_missing'))
+            ->assertSeeText(__('lf.LF_course_template_activity_stt_unqualified'))
+            ->assertSessionHasNoErrors();
+
+        $usage = DB::table('media_file_usages')->where('usage_type', 'video')->latest('id')->firstOrFail();
+        $metadata = json_decode($usage->metadata, true);
+        $this->assertTrue($metadata['speech_to_text_requested']);
+        $this->assertFalse($metadata['speech_to_text']);
+        $this->assertSame('evidence_missing', $metadata['video_stt_qualification']);
+        $this->assertDatabaseMissing('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id,
+            'job_type' => 'speech_to_text',
+        ]);
+        $this->assertDatabaseMissing('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id,
+            'job_type' => 'caption',
+        ]);
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id,
+            'job_type' => 'virus_scan',
+        ]);
+    }
+
+    public function test_qualified_video_opt_in_enqueues_stt_and_deferred_caption(): void
+    {
+        config([
+            'media.processing.video_qualification.required' => false,
+            'media.processing.providers.speech_to_text' => 'fake',
+            'media.processing.versions.speech_to_text' => 'fake-video-http-v1',
+        ]);
+        [$templateId, $lessonId] = $this->courseFixture();
+
+        $this->followingRedirects()->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload([
+            'title' => 'Video qualified',
+            'activity_type' => 'video',
+            'activity_document_file' => null,
+            'activity_video_file' => UploadedFile::fake()->create('qualified.mp4', 32, 'video/mp4'),
+            'processing_locale' => 'ko',
+            'video_speech_to_text' => '1',
+        ]))
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_video_stt_queued_notice'))
+            ->assertSeeText(__('lf.LF_course_template_activity_stt_ready'))
+            ->assertSessionHasNoErrors();
+
+        $usage = DB::table('media_file_usages')->where('usage_type', 'video')->latest('id')->firstOrFail();
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id,
+            'job_type' => 'speech_to_text',
+            'status' => 'ready',
+        ]);
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id,
+            'job_type' => 'caption',
+        ]);
+    }
+
+    public function test_video_without_opt_in_needs_no_locale_and_creates_no_stt_job(): void
+    {
+        [$templateId, $lessonId] = $this->courseFixture();
+
+        $this->followingRedirects()->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload([
+            'title' => 'Video playback only',
+            'activity_type' => 'video',
+            'activity_document_file' => null,
+            'activity_video_file' => UploadedFile::fake()->create('playback.mp4', 32, 'video/mp4'),
+            'processing_locale' => null,
+            'video_speech_to_text' => null,
+        ]))
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_stt_disabled'))
+            ->assertSessionHasNoErrors();
+
+        $usage = DB::table('media_file_usages')->where('usage_type', 'video')->latest('id')->firstOrFail();
+        $metadata = json_decode($usage->metadata, true);
+        $this->assertFalse($metadata['speech_to_text_requested']);
+        $this->assertFalse($metadata['speech_to_text']);
+        $this->assertNull($metadata['processing_locale']);
+        $this->assertDatabaseMissing('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id,
+            'job_type' => 'speech_to_text',
+        ]);
     }
 
     public function test_unchecked_deduplicated_audio_still_shows_an_existing_transcript(): void

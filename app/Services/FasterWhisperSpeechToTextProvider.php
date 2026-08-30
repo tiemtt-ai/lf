@@ -26,6 +26,9 @@ class FasterWhisperSpeechToTextProvider implements MediaProcessingProvider
         if ($isVideo && ! (bool) config('media.processing.speech_to_text.video_enabled', false)) {
             throw new RuntimeException('video_stt_disabled');
         }
+        if ($isVideo && ! app(VideoSttQualification::class)->isQualified()) {
+            throw new RuntimeException('video_stt_unqualified');
+        }
 
         // Video co tran rieng va ma loi rieng. Amendment Record 2.21 § 2: video
         // 120 phut can 3.432s xu ly, vuot provider deadline 3.300s — tu choi

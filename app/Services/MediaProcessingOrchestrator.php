@@ -269,8 +269,9 @@ class MediaProcessingOrchestrator
         if ($fileType === 'document') {
             $jobs[] = ['ocr', $this->profiles->canonical(['layout' => 'preserve', 'locale' => (string) $locale])];
         }
-        $videoSttEnabled = (bool) config('media.processing.speech_to_text.video_enabled', false);
-        if (($fileType === 'video' && $videoSttEnabled) || ($fileType === 'audio' && $speechToText)) {
+        $videoSttEligible = (bool) config('media.processing.speech_to_text.video_enabled', false)
+            && app(VideoSttQualification::class)->isQualified();
+        if (($fileType === 'video' && $speechToText && $videoSttEligible) || ($fileType === 'audio' && $speechToText)) {
             $jobs[] = ['speech_to_text', $this->profiles->canonical(['diarization' => 'off', 'locale' => (string) $locale])];
         }
         // Caption KHONG thuoc initial required set. Amendment 2.19 / conflict
@@ -313,8 +314,8 @@ class MediaProcessingOrchestrator
 
     private function canonicalLocaleFor(object $media, ?string $locale, bool $speechToText = true): ?string
     {
-        return ($media->file_type !== 'audio' || $speechToText)
-            && in_array($media->file_type, ['document', 'audio', 'video'], true)
+        return ($media->file_type === 'document'
+            || (in_array($media->file_type, ['audio', 'video'], true) && $speechToText))
             ? $this->profiles->canonicalLocale((string) $locale)
             : null;
     }

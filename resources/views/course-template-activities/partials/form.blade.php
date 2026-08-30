@@ -12,6 +12,12 @@
         $currentActivityMedia['media']->processing_locale ?? ''
     );
     $selectedSpeechToText = (bool) old('speech_to_text', true);
+    $selectedVideoSpeechToText = (bool) old('video_speech_to_text', false);
+    $videoSttQualification ??= [
+        'qualified' => false,
+        'code' => 'evidence_missing',
+        'message_key' => 'lf.LF_course_template_activity_video_stt_qualification_evidence_missing',
+    ];
     if ($selectedLearningPhases === null) {
         $selectedLearningPhases = $formActivity
             ? array_keys(array_filter([
@@ -60,6 +66,7 @@
          processingLocaleRequired: false,
          audioFileSelected: false,
          speechToTextEnabled: @js($selectedSpeechToText),
+         videoSpeechToTextEnabled: @js($selectedVideoSpeechToText),
          completionRule: @js($selectedCompletionRule),
          unlockRule: @js($selectedUnlockRule),
          learningPhases: @js(array_values((array) $selectedLearningPhases)),
@@ -82,6 +89,7 @@
              this.documentIsPdf = false;
              this.processingLocaleRequired = false;
              this.audioFileSelected = false;
+             this.videoSpeechToTextEnabled = false;
              this.estimatedDurationMinutes = unchanged
                  ? this.storedEstimateMinutes
                  : null;
@@ -105,7 +113,7 @@
              this.audioFileSelected = expectedType === 'audio';
              this.processingLocaleRequired = expectedType === 'audio'
                  ? this.speechToTextEnabled
-                 : true;
+                 : this.videoSpeechToTextEnabled;
              const extension = file.name.split('.').pop()?.toLowerCase() || '';
              const allowedExtensions = {
                  video: ['mp4', 'webm', 'mov', 'avi'],
@@ -152,6 +160,11 @@
              this.processingLocaleRequired = this.activityType === 'audio'
                  && this.audioFileSelected
                  && this.speechToTextEnabled;
+         },
+         videoSpeechToTextChanged() {
+             this.processingLocaleRequired = this.activityType === 'video'
+                 && this.mediaDurationState !== 'invalid_type'
+                 && this.videoSpeechToTextEnabled;
          },
          formattedMediaDuration() {
              if (! this.mediaDurationSeconds) return '—';
@@ -238,6 +251,41 @@
            x-show="mediaDurationState === 'invalid_type' && mediaTypeError === 'video'">
             {{ __('lf.LF_course_template_activity_media_invalid_video') }}
         </p>
+        <div class="admin-checkbox-list">
+            <label class="admin-checkbox-option admin-form-option-panel admin-form-option-panel--compact">
+                <input id="video_speech_to_text"
+                       type="checkbox"
+                       name="video_speech_to_text"
+                       value="1"
+                       x-model="videoSpeechToTextEnabled"
+                       x-on:change="videoSpeechToTextChanged()"
+                       @disabled(! $videoSttQualification['qualified'])
+                       @checked($selectedVideoSpeechToText && $videoSttQualification['qualified'])>
+                <span>{{ __('lf.LF_course_template_activity_video_stt_option') }}</span>
+            </label>
+        </div>
+        <div class="course-activity-upload-policy" role="note" aria-label="Thông tin phiên âm video">
+            <div class="course-activity-upload-policy__metrics">
+                <span><strong>{{ config('media.processing.speech_to_text.max_video_source_bytes') / 1073741824 }} GiB</strong><small>{{ __('lf.LF_course_template_activity_video_stt_max_file') }}</small></span>
+                <span><strong>{{ __('lf.LF_media_processing_minutes', ['minutes' => config('media.processing.speech_to_text.max_video_duration_seconds') / 60]) }}</strong><small>{{ __('lf.LF_course_template_activity_video_stt_max_duration') }}</small></span>
+            </div>
+            <p>{{ __('lf.LF_course_template_activity_video_stt_help') }}</p>
+            <p>{{ __('lf.LF_media_processing_video_short_warning') }}</p>
+            <details class="course-activity-upload-policy__details">
+                <summary>{{ __('lf.LF_media_processing_details') }}</summary>
+            <p>{{ __('lf.LF_media_processing_processing_requirements') }}</p>
+            <p>{{ __('lf.LF_media_processing_video_limits', [
+                'minutes' => config('media.processing.speech_to_text.max_video_duration_seconds') / 60,
+                'gib' => config('media.processing.speech_to_text.max_video_source_bytes') / 1073741824,
+            ]) }}</p>
+            </details>
+            <p @class([
+                'lf-secondary-text',
+                'lf-form-error' => ! $videoSttQualification['qualified'],
+            ])>
+                {{ __($videoSttQualification['message_key']) }}
+            </p>
+        </div>
     </div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field" x-show="activityType === 'embedded_video'" x-cloak><x-form-label for="external_video_url" value="External video URL" /><input id="external_video_url" type="url" name="external_video_url" class="lf-form-control" value="{{ old('external_video_url', $formActivity?->external_video_url) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_video_url') }}"></div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field" x-show="activityType === 'audio'" x-cloak>
@@ -264,9 +312,11 @@
             </label>
         </div>
         <div class="course-activity-upload-policy" role="note" aria-label="Thông tin phiên âm audio">
+            <p>{{ __('lf.LF_media_processing_audio_limits', ['minutes' => config('media.processing.speech_to_text.max_duration_seconds') / 60, 'gib' => config('media.processing.speech_to_text.max_bytes') / 1073741824]) }}</p>
+            <p>{{ __('lf.LF_media_processing_processing_requirements') }}</p>
             <div class="course-activity-upload-policy__metrics">
                 <span><strong>1 GB</strong><small>Tối đa mỗi tệp</small></span>
-                <span><strong>120 phút</strong><small>Tối đa để phiên âm</small></span>
+                <span><strong>{{ config('media.processing.speech_to_text.max_duration_seconds') / 60 }} min</strong><small>Tối đa để phiên âm</small></span>
             </div>
             <p>
                 Có tick: hệ thống chạy phiên âm nền và lưu transcript theo từng khoảng thời gian
@@ -350,6 +400,8 @@
             tính năng này.
             Ảnh và biểu đồ chỉ được đánh dấu vị trí, chưa được diễn giải nội dung.
         </p>
+        <p class="lf-form-help lf-secondary-text">{{ __('lf.LF_media_processing_document_limits', ['pages' => config('media.processing.structured_extraction.max_pages'), 'ocr_pages' => config('media.processing.local_document.max_pages'), 'regions' => config('media.processing.structured_extraction.max_regions_per_page'), 'total' => config('media.processing.structured_extraction.max_regions_per_document')]) }}</p>
+        <p class="lf-form-help lf-secondary-text">{{ __('lf.LF_media_processing_processing_requirements') }}</p>
     </div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field" x-show="activityType === 'quiz'" x-cloak><x-form-label for="assessment_quiz_id" value="Assessment Quiz ID" /><input id="assessment_quiz_id" type="number" min="1" name="assessment_quiz_id" class="lf-form-control" value="{{ old('assessment_quiz_id', $formActivity?->assessment_quiz_id) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_assessment') }}"></div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field" x-show="activityType === 'live_class'" x-cloak><x-form-label for="live_class_url" value="Live class URL" /><input id="live_class_url" type="url" name="live_class_url" class="lf-form-control" value="{{ old('live_class_url', $formActivity?->live_class_url) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_live_class_url') }}"></div>

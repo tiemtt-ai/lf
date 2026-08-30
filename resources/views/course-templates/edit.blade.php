@@ -68,6 +68,11 @@
             {{ session('info') }}
         </div>
     @endif
+    @if (session('warning'))
+        <div class="admin-alert admin-alert-warning admin-form-card" role="alert">
+            {{ session('warning') }}
+        </div>
+    @endif
 
     @if ($errors->any())
         <div class="admin-alert admin-alert-danger admin-form-card">
