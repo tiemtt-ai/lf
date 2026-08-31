@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Contracts\MediaProcessingProvider;
+use App\Exceptions\DocumentUsageException;
 use App\Exceptions\MediaReadException;
 use App\Jobs\ProcessMediaProcessingJob;
 use App\Models\User;
@@ -118,6 +119,10 @@ class MediaProcessingSubstrateTest extends TestCase
             $this->admin->id,
         );
 
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'owner_type' => 'course_activity', 'owner_id' => 99, 'usage_type' => 'document', 'status' => 'active',
+        ]);
         app(MediaProcessingOrchestrator::class)->materializeForCourseActivity(
             $this->customerId,
             $media->id,
@@ -560,6 +565,43 @@ class MediaProcessingSubstrateTest extends TestCase
      * Runner gia: tra ket qua theo lenh duoc goi, va voi `pdftoppm` thi ghi mot
      * PNG that ra dia de duong crop chay den cung.
      */
+    public function test_docling_deadline_is_shared_and_cannot_be_swallowed_as_optional_ocr_failure(): void
+    {
+        $this->doclingConfig(['media.processing.structured_extraction.max_processing_seconds' => 10]);
+        Storage::disk('media_local')->put('deadline.pdf', 'pdf');
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $provider = new DoclingStructuredExtractionProvider($runner);
+        $runner->shouldReceive('run')->once()->andReturnUsing(function (array $command, int $timeout) use ($provider): string {
+            $this->assertLessThanOrEqual(10, $timeout);
+            // Simulate a command exhausting the entire remaining revision budget.
+            (new \ReflectionProperty($provider, 'deadline'))->setValue($provider, microtime(true) - 1);
+
+            return "Pages: 1\n";
+        });
+        $this->expectExceptionMessage('provider_timeout');
+        $provider->process((object) ['file_type' => 'document', 'extension' => 'pdf', 'storage_disk' => 'media_local', 'storage_key' => 'deadline.pdf'],
+            (object) ['job_type' => 'structured_extraction', 'output_profile' => 'locale=vi;structure=layout']);
+    }
+
+    public function test_docling_figure_text_timeout_fails_instead_of_returning_partial_ready(): void
+    {
+        $this->doclingConfig();
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldReceive('run')->withArgs(fn ($command) => basename($command[0]) === 'pdfinfo')
+            ->andReturn("Pages: 1\nPage size: 720 x 540 pts\n");
+        $runner->shouldReceive('run')->withArgs(fn ($command) => in_array('--output', $command, true))
+            ->andReturnUsing(function ($command): string {
+                file_put_contents($command[array_search('--output', $command, true) + 1],
+                    json_encode(['status' => 'ready', 'regions' => $this->doclingFigureRegion()]));
+
+                return '{"status":"ready"}';
+            });
+        $runner->shouldReceive('run')->withArgs(fn ($command) => basename($command[0]) === 'pdftotext')
+            ->once()->andThrow(new \RuntimeException('provider_timeout'));
+        $this->expectExceptionMessage('provider_timeout');
+        $this->doclingProcess($runner, 'figure-timeout.pdf');
+    }
+
     private function doclingRunner(string $resultPath, array $regions, string $figureText = '', string $ocrText = ''): DocumentProcessRunner
     {
         return new class($resultPath, $regions, $figureText, $ocrText) extends DocumentProcessRunner
@@ -829,7 +871,7 @@ class MediaProcessingSubstrateTest extends TestCase
 
         $media = (object) ['id' => 7, 'customer_id' => 3, 'file_type' => 'document', 'extension' => 'pdf',
             'storage_disk' => 'media_local', 'storage_key' => 'docling-orphan.pdf'];
-        $job = (object) ['id' => 1, 'job_type' => 'structured_extraction', 'provider' => 'docling_local',
+        $job = (object) ['job_type' => 'structured_extraction', 'provider' => 'docling_local',
             'output_profile' => 'locale=vi;structure=layout', 'source_fingerprint' => str_repeat('a', 64),
             'processing_version' => 'docling-test-v1'];
         Storage::disk('media_local')->put($media->storage_key, 'pdf');
@@ -845,6 +887,7 @@ class MediaProcessingSubstrateTest extends TestCase
             'media.processing.versions.structured_extraction' => 'docling-test-v1',
         ]);
         $realMedia = $this->uploadDocument();
+        app(MediaProcessingOrchestrator::class)->materializeForCourseActivity($this->customerId, $realMedia->id, 'vi', $this->admin->id);
         $this->app->instance(DoclingStructuredExtractionProvider::class, new class($result) implements MediaProcessingProvider
         {
             public function __construct(private array $result) {}
@@ -868,6 +911,8 @@ class MediaProcessingSubstrateTest extends TestCase
             ->where('job_type', 'structured_extraction')->firstOrFail();
         $this->assertSame('failed', $failed->status);
         $this->assertSame('structured_extraction_invalid', $failed->error_code);
+        $this->assertSame('page', $failed->billable_unit_type);
+        $this->assertSame(1, (int) $failed->billable_units);
         $this->assertSame(0, DB::table('media_extracted_regions')->where('media_file_id', $realMedia->id)->count());
         $this->assertSame([], Storage::disk((string) $realMedia->storage_disk)->allFiles(
             app(RegionCropStorage::class)->revisionPrefix($realMedia, $failed, 'vi')
@@ -915,16 +960,21 @@ class MediaProcessingSubstrateTest extends TestCase
             $outputIndex = array_search('--output', $command, true);
             file_put_contents($command[$outputIndex + 1], '{"status":"ready"}');
 
-            return '{"status":"written"}';
+            return '{"status":"written","completed_pages":1}';
         });
         $provider = new DoclingStructuredExtractionProvider($runner);
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('structured_extraction_too_large');
-        $provider->process(
-            (object) ['file_type' => 'document', 'extension' => 'pdf', 'storage_disk' => 'media_local', 'storage_key' => 'docling-large-result.pdf'],
-            (object) ['job_type' => 'structured_extraction', 'output_profile' => 'locale=vi;structure=layout'],
-        );
+        try {
+            $provider->process(
+                (object) ['file_type' => 'document', 'extension' => 'pdf', 'storage_disk' => 'media_local', 'storage_key' => 'docling-large-result.pdf'],
+                (object) ['job_type' => 'structured_extraction', 'output_profile' => 'locale=vi;structure=layout'],
+            );
+            $this->fail('Oversized output accepted.');
+        } catch (DocumentUsageException $exception) {
+            $this->assertSame('structured_extraction_too_large', $exception->getMessage());
+            $this->assertSame(1, $exception->pages);
+            $this->assertSame('page', $exception->unitType);
+        }
     }
 
     public function test_local_document_provider_rejects_docx_expansion_before_copy(): void
@@ -1270,6 +1320,7 @@ class MediaProcessingSubstrateTest extends TestCase
             'media.processing.versions.structured_extraction' => 'fake-structured-v1',
         ]);
         $media = $this->uploadDocument();
+        app(MediaProcessingOrchestrator::class)->materializeForCourseActivity($this->customerId, $media->id, 'vi', $this->admin->id);
         app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
             $this->customerId, $media->id, 'structured_extraction',
             ['locale' => 'vi', 'structure' => 'layout'], $this->admin->id
@@ -1284,18 +1335,12 @@ class MediaProcessingSubstrateTest extends TestCase
             ->where('job_type', 'structured_extraction')
             ->firstOrFail();
         $this->assertSame([
-            'pages_with_text' => 0,
+            'pages_with_text' => 1,
             'pages_with_regions' => 1,
             'pages_text_without_structure' => [],
         ], json_decode($structuredJob->metadata, true)['structure_coverage']);
         $this->assertSame(2, DB::table('media_extracted_regions')->where('media_file_id', $media->id)->count());
 
-        DB::table('media_file_usages')->insert([
-            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
-            'owner_type' => 'course_activity', 'owner_id' => 120,
-            'usage_type' => 'document', 'status' => 'active', 'created_by' => $this->admin->id,
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
         $authorizer = Mockery::mock(CourseMediaOwnerContextAuthorizer::class);
         $authorizer->shouldReceive('authorized')->andReturnTrue();
         $this->app->instance(CourseMediaOwnerContextAuthorizer::class, $authorizer);
@@ -1361,6 +1406,7 @@ class MediaProcessingSubstrateTest extends TestCase
             'media.processing.structured_extraction.max_regions_per_page' => 1,
         ]);
         $media = $this->uploadDocument();
+        app(MediaProcessingOrchestrator::class)->materializeForCourseActivity($this->customerId, $media->id, 'vi', $this->admin->id);
         app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
             $this->customerId, $media->id, 'structured_extraction',
             ['locale' => 'vi', 'structure' => 'layout'], $this->admin->id
@@ -2170,6 +2216,7 @@ class MediaProcessingSubstrateTest extends TestCase
         $jobId = DB::table('media_processing_jobs')->insertGetId([
             'customer_id' => $this->customerId, 'media_file_id' => $media->id,
             'job_type' => 'structured_extraction', 'status' => 'processing', 'attempt' => 1,
+            'metadata' => json_encode(['canonical_processing_job_id' => $ocrJobId]),
             'idempotency_key' => 'coverage-probe', 'correlation_id' => (string) Str::uuid(),
             'source_fingerprint' => $fingerprint, 'processing_version' => 'structured-v1',
             'output_profile' => 'locale=vi;structure=layout', 'output_profile_hash' => str_repeat('b', 64),
@@ -2219,6 +2266,7 @@ class MediaProcessingSubstrateTest extends TestCase
         $structuredJobId = DB::table('media_processing_jobs')->insertGetId([
             'customer_id' => $this->customerId, 'media_file_id' => $media->id,
             'job_type' => 'structured_extraction', 'status' => 'processing', 'attempt' => 1,
+            'metadata' => json_encode(['canonical_processing_job_id' => $ocrJobId]),
             'idempotency_key' => 'budget-structured', 'correlation_id' => (string) Str::uuid(),
             'source_fingerprint' => $fingerprint, 'processing_version' => 'structured-budget-v1',
             'output_profile' => 'locale=vi;structure=layout', 'output_profile_hash' => str_repeat('f', 64),
@@ -2244,6 +2292,16 @@ class MediaProcessingSubstrateTest extends TestCase
      * trang" voi "trang co noi dung nhung layout model truot". Tra mang rong cho
      * ca hai la thu khien AI khong biet minh dang thieu.
      */
+    public function test_d4_live_coverage_does_not_count_blank_canonical_pages(): void
+    {
+        $fixture = $this->structuredCoverageFixture();
+        DB::table('media_extracted_texts')->where('media_file_id', $fixture['media_id'])->where('locator_value', '2')
+            ->update(['text' => '', 'char_count' => 0]);
+        $coverage = app(MediaReadService::class)->structureCoverage($this->admin->id, 'course_activity', $fixture['activity_id'], 'document', 'vi');
+        $this->assertSame(2, $coverage['pages_with_text']);
+        $this->assertSame([], $coverage['pages_text_without_structure']);
+    }
+
     public function test_read_returns_structure_unavailable_for_a_page_with_text_but_no_region(): void
     {
         $fixture = $this->structuredCoverageFixture();
@@ -2443,9 +2501,16 @@ class MediaProcessingSubstrateTest extends TestCase
 
     private function uploadDocument(): object
     {
-        return app(MediaService::class)->upload(UploadedFile::fake()->createWithContent('structured.txt', 'page text'), [
+        $media = app(MediaService::class)->upload(UploadedFile::fake()->createWithContent('structured.txt', 'page text'), [
             'file_type' => 'document', 'module' => 'course', 'entity_type' => 'activities',
             'entity_id' => 120, 'purpose' => 'document',
         ], $this->admin->id);
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'owner_type' => 'course_activity', 'owner_id' => 120, 'usage_type' => 'document',
+            'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        return $media;
     }
 }

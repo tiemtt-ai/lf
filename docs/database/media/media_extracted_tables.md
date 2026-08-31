@@ -1,12 +1,12 @@
 # Table: media_extracted_tables
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-27
+Last Updated: 2026-08-31
 
 Document Path: database/media/media_extracted_tables.md
 
@@ -182,3 +182,10 @@ Bảng trải nhiều trang (bảng dài trong PDF) **chưa được xử lý �
 phần trên mỗi trang là một region riêng nên thành một bảng riêng. Ghép chúng lại
 cần một quy tắc nối có review, và đoán sai sẽ tạo ra một bảng không tồn tại trên
 tài liệu.
+---
+
+## D1–D6 amendment — Approved 2026-08-31
+
+Owner approval trong task Document Processing. D1 CHECK OCR provider non-null và has_header IN (0,1). D2 worksheet native cells/merged ranges; D3 aggregate cap gắn canonical input.
+
+Migration forward mới sau review; preflight báo count và IDs vi phạm rồi abort, không tự fill/delete. Approval thiết kế không phải evidence schema đã deployed.

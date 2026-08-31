@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-08-28",
+  "generated_or_updated_at": "2026-08-31",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 245,
+  "document_count": 246,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -8830,6 +8830,47 @@
         "adr/ADR-0001-Course-Foundation.md",
         "adr/ADR-0012-Course-Template-Published-Version-Snapshot.md",
         "core/LF-Core-Course.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Document-Processing-Final-Code-Review.md",
+      "title": "Document Processing — Final Code Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "media",
+        "document processing",
+        "local review",
+        "ocr",
+        "revision",
+        "citation"
+      ],
+      "keywords": {
+        "vi": [
+          "kiểm thử document local",
+          "OCR theo trang",
+          "review Media Processing"
+        ],
+        "en": [
+          "document processing review",
+          "local OCR integration",
+          "revision readiness"
+        ]
+      },
+      "identifiers": [
+        "LF-Document-Processing-Final-Code-Review"
+      ],
+      "related_documents": [
+        "platform/LF-Media-Processing-Contract.md",
+        "platform/LF-Media-Read-Contract.md",
+        "quality/LF-Media-Structured-Extraction-Architecture-Review.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

@@ -1,12 +1,12 @@
 # Table: media_processing_jobs
 
-Version: 2.10
+Version: 2.11
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-27
+Last Updated: 2026-08-31
 
 Document Path: database/media/media_processing_jobs.md
 
@@ -21,11 +21,21 @@ Related Specification:
 
 ---
 
+## D1–D6 amendment — Approved 2026-08-31
+
+Owner approval trong task Document Processing. D6: job dispatch_generation unsigned >=1 default1; unique profile/attempt thêm generation. Explicit authorized reattach sau cancelled tạo successor generation+1, giữ attempt/correlation, supersedes_job_id trỏ cancelled. Failed retry tăng attempt nhưng giữ generation, trần3 xuyên generation. Redelivery/on-demand không mở generation. Gen1 giữ key cũ; gen>1 SHA256 full tuple gồm customer_id và generation. Terminal rows không hồi sinh; output identity không đổi vì cancellation chưa có output.
+D3 canonical_processing_job_id nằm trong metadata đã có; không thêm FK/cột input. D5 structured billable_unit_type page/sheet theo nguồn; monotonic completed-unit checkpoint. Rollback generation chỉ được phép khi mọi row generation=1; nếu có generation>1 phải abort, không xoá lịch sử.
+
+Migration forward mới sau review; preflight báo count và IDs vi phạm rồi abort, không tự fill/delete. Approval thiết kế không phải evidence schema đã deployed.
+
+---
+
 # Amendment Record — Version 2.5
 
-Amendment Status: **Approved by Architecture Owner, 2026-08-27.** Vocabulary mới
-đã được duyệt nhưng **chưa migrate**, nên Implementation Status của tài liệu này
-là `Partial` cho tới khi CHECK vật lý được xác minh trên MariaDB.
+Amendment Status: **Approved by Architecture Owner, 2026-08-27.** Tại thời điểm amendment 2.5, vocabulary chưa migrate. Migration
+`2026_08_26_000200_open_media_processing_job_structured_identity.php` hiện đã
+có trong repository và được xác minh trên MariaDB disposable; trạng thái runtime
+hiện hành xem Document Final Code Review, không suy ra production deployment.
 
 ## Thay đổi đã duyệt
 
@@ -164,6 +174,7 @@ thì job `failed` với `error_code = infected_source`, và Media File chuyển
 | media_file_id | BIGINT UNSIGNED NOT NULL | File được xử lý. |
 | job_type | VARCHAR(50) NOT NULL | Loại processing. |
 | status | VARCHAR(50) NOT NULL DEFAULT 'pending' | Trạng thái lần chạy này. |
+| dispatch_generation | INT UNSIGNED NOT NULL DEFAULT 1 | Dispatch generation; >=1; D6 reattach only. |
 | attempt | INT UNSIGNED NOT NULL DEFAULT 1 | Lần thử thứ mấy trong chuỗi retry. |
 | supersedes_job_id | BIGINT UNSIGNED NULL | Job mà lần chạy này thay thế. |
 | idempotency_key | VARCHAR(320) NOT NULL | Khóa chống trùng; xem Constraints. Nới từ 191 ngày 2026-08-30 — xem ghi chú dưới. |
@@ -195,7 +206,7 @@ vụ không được sống trong JSON tự do.
 ```sql
 UNIQUE (customer_id, idempotency_key);
 UNIQUE (customer_id, media_file_id, job_type, source_fingerprint,
-        processing_version, output_profile_hash, attempt);
+        processing_version, output_profile_hash, dispatch_generation, attempt);
 UNIQUE (customer_id, supersedes_job_id);
 INDEX  (customer_id, media_file_id, job_type, status);
 INDEX  (customer_id, status, created_at);
@@ -211,11 +222,11 @@ FOREIGN KEY (created_by, customer_id)
 
 CHECK (job_type IN ('transcode','thumbnail','ocr','speech_to_text',
                     'caption','virus_scan','compress',
-                    'structured_extraction'));   -- v2.5, chưa migrate
+                    'structured_extraction'));   -- v2.5, migration 2026_08_26_000200
 CHECK (status IN ('pending','processing','ready','failed','cancelled'));
 CHECK (attempt >= 1);
--- v2.6: CHECK này được freeze để tạo vật lý cùng migration job identity;
--- schema đã chạy chưa có nó cho tới khi Gate M pass.
+CHECK (dispatch_generation >= 1);
+-- v2.6: CHECK vật lý trong migration job identity 2026_08_26_000200.
 CHECK (output_type IS NULL OR output_type IN
        ('transcript','caption','extracted_text','variant',
         'extracted_region','extracted_table'));
@@ -237,7 +248,7 @@ Ba unique key làm ba việc khác nhau, và không key nào thay được key k
 | Key | Chặn |
 | --- | --- |
 | `(customer_id, idempotency_key)` | Cùng một message được queue giao hai lần |
-| `(customer_id, media_file_id, job_type, source_fingerprint, processing_version, output_profile_hash, attempt)` | Enqueue trùng ở **cùng một attempt** — với `attempt = 1` đây chính là khóa chặn duplicate initial enqueue |
+| `(customer_id, media_file_id, job_type, source_fingerprint, processing_version, output_profile_hash, dispatch_generation, attempt)` | Enqueue trùng ở **cùng một attempt** — với `attempt = 1` đây chính là khóa chặn duplicate initial enqueue |
 | `(customer_id, supersedes_job_id)` | Hai retry cùng phân nhánh từ một parent |
 
 ### Vì sao `idempotency_key` nới từ 191 lên 320 — 2026-08-30
@@ -318,9 +329,8 @@ profile layout khác cho kết quả khác. Thiếu nó thì mọi locale thứ 
 Trộn hai câu hỏi vào một hash làm mất khả năng nhận ra hai job đang đọc cùng một
 nội dung.
 
-Chính key thứ hai cũng định nghĩa retry scope vật lý. Vì
-`output_profile_hash` đứng trước `attempt`, duplicate cùng profile/cùng attempt
-bị database chặn, trong khi `vi` và `ko`, hoặc `vi-VTT` và `vi-SRT`, có chuỗi
+Key thứ hai chặn duplicate cùng profile/generation/attempt. Retry budget vẫn
+được tính xuyên generation theo profile, không reset về 1 khi reattach; trong khi `vi` và `ko`, hoặc `vi-VTT` và `vi-SRT`, có chuỗi
 attempt độc lập. Canonicalization và required/default profile Phase 1 thuộc
 [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md);
 worker không được tự chọn default.

@@ -1,12 +1,12 @@
 # Media Structured Extraction Architecture Review
 
-Version: 2.7
+Version: 2.8
 
 Document Status: Review
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-28
+Last Updated: 2026-08-31
 
 Review Date: 2026-08-25 (Round 1), 2026-08-26 (Round 2), 2026-08-27 (Round 3)
 
@@ -277,10 +277,14 @@ Giá trị production được test **riêng** ở case 5.7: đọc thẳng từ
 hằng số. Nó bảo vệ chống việc ai đó đổi trần mà không đổi contract — thứ mà các
 case override không bao giờ phát hiện được.
 
-**5.6 kiểm cả bốn bảng, gồm `media_extracted_texts`.** Ba bảng structured mới là
-chưa đủ: một revision spreadsheet ghi text cấp sheet vào `media_extracted_texts`
-trước, nên fail toàn revision mà bảng đó còn row là partial write đúng nghĩa —
-và là loại partial khó thấy nhất, vì ba bảng mới đều sạch.
+**D3 amendment, Owner duyệt 2026-08-31:** 5.6 kiểm zero output của
+**structured job/revision bị lỗi** trong cả bốn bảng. Canonical OCR là input
+ready thuộc job/version riêng; phải giữ nguyên nó khi structured fail, không
+xoá canonical để làm assertion xanh. D2 không ghi sheet text từ structured job:
+canonical sheet text do OCR job ghi, structured job chỉ ghi table/cell.
+Test phải đồng thời assert canonical unchanged/ready và không có row của failed
+structured revision. Đây là clarification theo D2/D3 đã duyệt tại
+[Document Final Code Review §18](LF-Document-Processing-Final-Code-Review.md#18-remediation-d1d6-sau-owner-approval--2026-08-31), không nới atomicity hoặc resource cap.
 
 5.6 là assertion quan trọng nhất của nhóm: contract nói fail toàn revision, không
 truncate. Test phải đếm row sau khi fail, không chỉ bắt exception.

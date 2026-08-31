@@ -4,6 +4,12 @@ Media Foundation
 
 ---
 
+## D6 — Approved 2026-08-31
+
+* D6: job dispatch_generation unsigned >=1 default1; unique profile/attempt thêm generation. Explicit authorized reattach sau cancelled tạo successor generation+1, giữ attempt/correlation, supersedes_job_id trỏ cancelled. Failed retry tăng attempt nhưng giữ generation, trần3 xuyên generation. Redelivery/on-demand không mở generation. Gen1 giữ key cũ; gen>1 SHA256 full tuple gồm customer_id và generation. Terminal rows không hồi sinh; output identity không đổi vì cancellation chưa có output.
+
+---
+
 ## Status
 
 Approved

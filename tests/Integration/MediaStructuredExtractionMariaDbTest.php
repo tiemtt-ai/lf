@@ -13,9 +13,10 @@ use Tests\TestCase;
  *
  * Covers the groups that are enforced by the database itself: F.1 CHECK
  * vocabulary, F.2 scoped foreign key, F.4.5 unique coordinate, F.4.7 CASCADE,
- * and F.6 migration. F.3, F.4.1–F.4.4 and F.5 assert readiness and resource
- * behaviour that lives in an extraction runtime which does not exist yet; they
- * are deliberately absent rather than written hollow.
+ * and F.6 migration. Application readiness/resource cases live in
+ * MediaProcessingSubstrateTest and DocumentProcessingLocalReviewTest;
+ * DocumentCellOverlapTest covers the bounded merged-cell overlap algorithm.
+ * This physical suite alone does not establish complete F.3–F.5 acceptance.
  */
 class MediaStructuredExtractionMariaDbTest extends TestCase
 {
@@ -116,7 +117,7 @@ class MediaStructuredExtractionMariaDbTest extends TestCase
         }
     }
 
-    public function test_f1_13_and_f1_14_provider_and_figure_rules(): void
+    public function test_ocr_provider_is_required_and_figure_observed_text_is_allowed(): void
     {
         [, , $mediaId] = $this->fixture();
 
@@ -127,8 +128,9 @@ class MediaStructuredExtractionMariaDbTest extends TestCase
             $this->addToAssertionCount(1);
         }
 
-        $this->expectException(QueryException::class);
-        $this->insertRegion($mediaId, ['role' => 'figure', 'text' => 'a figure carries no text']);
+        // ADR-0019 D7 / DOC-CONFLICT-0022 superseded the old figure-text ban.
+        $id = $this->insertRegion($mediaId, ['role' => 'figure', 'text' => 'Axis label 2026']);
+        $this->assertDatabaseHas('media_extracted_regions', ['id' => $id, 'text' => 'Axis label 2026']);
     }
 
     // ---------------------------------------------------------------- F.2 ---
@@ -396,6 +398,102 @@ class MediaStructuredExtractionMariaDbTest extends TestCase
             'SELECT CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS'
             .' WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = ?', ['media_processing_jobs']
         ))->pluck('CHECK_CLAUSE', 'CONSTRAINT_NAME')->all());
+    }
+
+    public function test_d1_rejects_missing_ocr_provider_and_non_boolean_headers(): void
+    {
+        [$tenant, , $media] = $this->fixture();
+        $table = $this->insertTableWithRegion($media);
+        $this->insertCell($tenant, $table, 1, 1);
+        $cases = [
+            fn () => $this->textInsertSucceeds($media, ['extraction_method' => 'ocr', 'provider' => null]),
+            fn () => DB::table('media_extracted_tables')->where('id', $table)->update(['extraction_method' => 'ocr', 'provider' => null]),
+            fn () => DB::table('media_extracted_tables')->where('id', $table)->update(['has_header' => 2]),
+            fn () => DB::table('media_table_cells')->where('extracted_table_id', $table)->update(['is_header' => 2]),
+        ];
+        foreach ($cases as $case) {
+            try {
+                $case();
+                $this->fail('Invalid Document output accepted by physical schema.');
+            } catch (QueryException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
+    public function test_d1_crop_partial_null_zero_and_bad_mime_are_rejected(): void
+    {
+        [, , $media] = $this->fixture();
+        $crop = ['crop_storage_key' => 'synthetic-crop.png', 'crop_mime_type' => 'image/png',
+            'crop_width' => 10, 'crop_height' => 10, 'crop_bytes' => 10,
+            'bbox_x' => 0, 'bbox_y' => 0, 'bbox_width' => 1, 'bbox_height' => 1];
+        foreach (['crop_storage_key', 'crop_mime_type', 'crop_width', 'crop_height', 'crop_bytes'] as $field) {
+            try {
+                $this->insertRegion($media, array_replace($crop, [$field => null]));
+                $this->fail('Partial crop accepted: '.$field);
+            } catch (QueryException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+        foreach (['crop_width', 'crop_height', 'crop_bytes'] as $field) {
+            try {
+                $this->insertRegion($media, array_replace($crop, [$field => 0]));
+                $this->fail('Zero crop dimension accepted.');
+            } catch (QueryException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+        try {
+            $this->insertRegion($media, array_replace($crop, ['crop_mime_type' => 'image/jpeg']));
+            $this->fail('Non-PNG crop accepted.');
+        } catch (QueryException) {
+            $this->addToAssertionCount(1);
+        }
+        $this->assertGreaterThan(0, $this->insertRegion($media, $crop));
+    }
+
+    public function test_d1_existing_invalid_row_aborts_preflight_without_rewriting_it(): void
+    {
+        [, , $media] = $this->fixture();
+        // Session-local fault injection in the disposable database only.
+        DB::statement('SET SESSION check_constraint_checks = OFF');
+        try {
+            $this->textInsertSucceeds($media, ['extraction_method' => 'ocr', 'provider' => null]);
+        } finally {
+            DB::statement('SET SESSION check_constraint_checks = ON');
+        }
+        $before = DB::table('media_extracted_texts')->where('media_file_id', $media)->first();
+        try {
+            (require base_path('database/migrations/2026_08_31_000100_enforce_document_output_constraints.php'))->up();
+            $this->fail('Preflight accepted invalid historical row.');
+        } catch (RuntimeException $error) {
+            $this->assertStringContainsString('preflight failed', $error->getMessage());
+            $this->assertStringContainsString((string) $before->id, $error->getMessage());
+        }
+        $this->assertSame((array) $before, (array) DB::table('media_extracted_texts')->where('id', $before->id)->first());
+    }
+
+    public function test_d1_timestamp_default_and_d6_generation_constraints(): void
+    {
+        [$tenant, $user, $media] = $this->fixture();
+        $default = DB::selectOne("SELECT COLUMN_DEFAULT AS value FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'media_access_logs' AND COLUMN_NAME = 'accessed_at'");
+        $this->assertSame('current_timestamp()', strtolower($default->value));
+        $first = $this->insertProcessingJob($tenant, $user, $media);
+        $second = $this->insertProcessingJob($tenant, $user, $media, ['dispatch_generation' => 2, 'supersedes_job_id' => $first]);
+        $this->assertSame(1, (int) DB::table('media_processing_jobs')->where('id', $first)->value('dispatch_generation'));
+        $this->assertGreaterThan($first, $second);
+        try {
+            $this->insertProcessingJob($tenant, $user, $media, ['dispatch_generation' => 2]);
+            $this->fail('Duplicate generation/profile/attempt accepted.');
+        } catch (QueryException) {
+            $this->addToAssertionCount(1);
+        }
+        try {
+            (require base_path('database/migrations/2026_08_31_000200_add_document_dispatch_generation.php'))->down();
+            $this->fail('Rollback discarded generation history.');
+        } catch (RuntimeException $error) {
+            $this->assertStringContainsString('Rollback refused', $error->getMessage());
+        }
     }
 
     // ------------------------------------------------------------ helpers ---

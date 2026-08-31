@@ -10,6 +10,7 @@ import pathlib
 import sys
 
 RESULT_PATH: pathlib.Path | None = None
+COMPLETED_PAGES = 0
 
 ROLE_MAP = {
     "title": "heading",
@@ -33,7 +34,7 @@ def emit(payload: dict[str, object]) -> None:
         print(encoded)
         return
     RESULT_PATH.write_text(encoded, encoding="utf-8")
-    print('{"status":"written"}')
+    print(json.dumps({'status': 'written', 'completed_pages': COMPLETED_PAGES}))
 
 
 def fail(code: str, detail: str = "") -> None:
@@ -122,7 +123,11 @@ def convert(source: pathlib.Path, locale: str, artifacts: pathlib.Path, max_page
     except Exception as exc:
         fail("provider_command_failed", str(exc))
 
+    if str(getattr(result.status, "value", result.status)) != "success":
+        fail("provider_command_failed", "incomplete conversion")
+    global COMPLETED_PAGES
     document = result.document
+    COMPLETED_PAGES = len(document.pages)
     page_ordinals: dict[int, int] = {}
     regions: list[dict[str, object]] = []
     tables: list[dict[str, object]] = []

@@ -302,13 +302,16 @@ class MediaService
         $now = now();
         $createdBy = $this->currentTenantUserId($customerId);
 
+        $reattach = false;
         $result = DB::transaction(function () use (
             $customerId,
             $mediaFileId,
             $usage,
             $now,
-            $createdBy
+            $createdBy,
+            &$reattach
         ): object {
+            DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaFileId)->lockForUpdate()->first();
             $existing = DB::table('media_file_usages')
                 ->where('customer_id', $customerId)
                 ->where('media_file_id', $mediaFileId)
@@ -318,6 +321,7 @@ class MediaService
                 ->lockForUpdate()
                 ->first();
 
+            $reattach = $existing === null || $existing->status !== 'active';
             if ($existing) {
                 DB::table('media_file_usages')
                     ->where('customer_id', $customerId)
@@ -364,6 +368,7 @@ class MediaService
                     $createdBy,
                     $structured,
                     $speechToText,
+                    $reattach,
                 ));
         }
 
@@ -384,25 +389,31 @@ class MediaService
             $usageType
         );
 
-        $existing = DB::table('media_file_usages')
-            ->where('customer_id', $customerId)
-            ->where('media_file_id', $mediaFileId)
-            ->where('owner_type', $usage['owner_type'])
-            ->where('owner_id', $usage['owner_id'])
-            ->where('usage_type', $usage['usage_type'])
-            ->first();
+        return DB::transaction(function () use ($customerId, $mediaFileId, $usage): object {
+            // Serialize detach with Document claim; once claim commits processing,
+            // detaching no longer cancels that job.
+            DB::table('media_files')->where('customer_id', $customerId)
+                ->where('id', $mediaFileId)->where('file_type', 'document')->lockForUpdate()->first();
+            $existing = DB::table('media_file_usages')
+                ->where('customer_id', $customerId)
+                ->where('media_file_id', $mediaFileId)
+                ->where('owner_type', $usage['owner_type'])
+                ->where('owner_id', $usage['owner_id'])
+                ->where('usage_type', $usage['usage_type'])
+                ->first();
 
-        abort_if(! $existing, 404);
+            abort_if(! $existing, 404);
 
-        DB::table('media_file_usages')
-            ->where('customer_id', $customerId)
-            ->where('id', $existing->id)
-            ->update([
-                'status' => 'detached',
-                'updated_at' => now(),
-            ]);
+            DB::table('media_file_usages')
+                ->where('customer_id', $customerId)
+                ->where('id', $existing->id)
+                ->update([
+                    'status' => 'detached',
+                    'updated_at' => now(),
+                ]);
 
-        return $this->findUsage($customerId, (int) $existing->id);
+            return $this->findUsage($customerId, (int) $existing->id);
+        });
     }
 
     public function getUsages(int $mediaFileId): object

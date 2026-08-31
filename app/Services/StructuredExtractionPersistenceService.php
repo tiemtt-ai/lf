@@ -142,7 +142,7 @@ class StructuredExtractionPersistenceService
      */
     private function structureCoverage(Collection $canonicalTextRows, array $regions): array
     {
-        $textPages = $canonicalTextRows->pluck('locator_value')
+        $textPages = $canonicalTextRows->where('char_count', '>', 0)->where('locator_type', 'page')->pluck('locator_value')
             ->map(static fn ($value): int => (int) $value)
             ->unique()->sort()->values()->all();
 
@@ -161,31 +161,7 @@ class StructuredExtractionPersistenceService
 
     private function canonicalTextRows(int $customerId, object $media, object $job, string $locale): Collection
     {
-        $base = DB::table('media_extracted_texts')
-            ->where('customer_id', $customerId)
-            ->where('media_file_id', $media->id)
-            ->where('locale', $locale)
-            ->where('locator_type', 'page')
-            ->where('source_fingerprint', $job->source_fingerprint)
-            ->where('status', 'ready');
-        $latest = (clone $base)
-            ->orderByDesc('processing_job_id')
-            ->orderByDesc('id')
-            ->first(['processing_job_id', 'processing_version']);
-
-        if ($latest === null) {
-            return collect();
-        }
-
-        return $base
-            ->when(
-                $latest->processing_job_id !== null,
-                fn ($query) => $query->where('processing_job_id', $latest->processing_job_id),
-                fn ($query) => $query->where('processing_version', $latest->processing_version),
-            )
-            ->orderBy('sequence')
-            ->orderBy('id')
-            ->get(['locator_value', 'char_count']);
+        return app(DocumentCanonicalRevision::class)->forStructure($customerId, $media, $job, $locale);
     }
 
     /** @param array<int, array<string, mixed>> $regions @param array<int, array<string, mixed>> $tables */
@@ -247,27 +223,21 @@ class StructuredExtractionPersistenceService
                 throw new RuntimeException('structured_extraction_invalid');
             }
             $cellCount += count($cells);
-            $occupied = [];
+            if ($cellCount > $maxCells) {
+                throw new RuntimeException('structured_extraction_too_large');
+            }
             foreach ($cells as $cell) {
                 $row = (int) ($cell['row'] ?? 0);
                 $column = (int) ($cell['column'] ?? 0);
                 $rowSpan = (int) ($cell['row_span'] ?? 1);
                 $columnSpan = (int) ($cell['column_span'] ?? 1);
-                if ($row < 1 || $column < 1 || $row + $rowSpan - 1 > (int) $table['row_count']
+                if ($row < 1 || $column < 1 || $rowSpan < 1 || $columnSpan < 1 || $row + $rowSpan - 1 > (int) $table['row_count']
                     || $column + $columnSpan - 1 > (int) $table['column_count']) {
                     throw new RuntimeException('structured_extraction_invalid');
                 }
-                for ($r = $row; $r < $row + $rowSpan; $r++) {
-                    for ($c = $column; $c < $column + $columnSpan; $c++) {
-                        $key = $r.':'.$c;
-                        if (isset($occupied[$key])) {
-                            throw new RuntimeException('structured_extraction_invalid');
-                        }
-                        $occupied[$key] = true;
-                    }
-                }
                 $structuredChars += mb_strlen((string) ($cell['text'] ?? ''));
             }
+            app(DocumentCellOverlap::class)->validate($cells);
             $regionIndex = $table['region_index'] ?? null;
             if (($table['locator_type'] ?? null) === 'region'
                 && ($regionIndex === null

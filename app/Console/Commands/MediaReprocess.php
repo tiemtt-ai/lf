@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\MediaOutputProfile;
 use App\Services\MediaProcessingOrchestrator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -146,14 +147,15 @@ class MediaReprocess extends Command
             return sprintf('Job %d is attempt %d; only the highest attempt (%d) of the chain may retry.', $job->id, (int) $job->attempt, (int) $highest);
         }
 
-        $provider = (string) config("media.processing.providers.$job->job_type", 'unconfigured');
         // Qua orchestrator chu khong doc thang config: version cua video STT gom
         // ca canonical ffmpeg extraction profile. Doc thang se khong bao gio khop
         // va tu choi retry bang mot thong bao sai — "version da doi" trong khi
         // khong co gi doi.
         $media = DB::table('media_files')->where('customer_id', $customerId)
-            ->where('id', $job->media_file_id)->first(['file_type']);
-        $version = $orchestrator->versionFor((string) $job->job_type, $media);
+            ->where('id', $job->media_file_id)->first();
+        $parameters = $job->job_type === 'structured_extraction' ? app(MediaOutputProfile::class)->parse($job->output_profile) : [];
+        $version = $orchestrator->versionFor((string) $job->job_type, $media, $parameters);
+        $provider = $orchestrator->providerFor((string) $job->job_type, $media);
         if ($job->provider !== $provider || $job->processing_version !== $version) {
             return sprintf(
                 "Job %d was recorded against provider=%s version=%s, but %s is now configured as provider=%s version=%s.\n"

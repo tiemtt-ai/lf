@@ -1,12 +1,12 @@
 # LearnForge Quality
 
-Version: 1.14
+Version: 1.15
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-24
+Last Updated: 2026-08-31
 
 Document Path: quality/README.md
 
@@ -50,6 +50,7 @@ criteria hay không.
   risks and scoped implementation authorization.
 * [LF-A0-Docling-Closure-Evidence.md](LF-A0-Docling-Closure-Evidence.md)
 * [LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md](LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md)
+* [LF-Document-Processing-Final-Code-Review.md](LF-Document-Processing-Final-Code-Review.md) — review Document local, real OCR/Docling E2E và các findings còn mở.
 * [LF-Media-Read-Contract-Architecture-Review.md](LF-Media-Read-Contract-Architecture-Review.md)
 * [LF-Media-Structured-Extraction-Architecture-Review.md](LF-Media-Structured-Extraction-Architecture-Review.md)
   — owner-context, revision, citation, signed-delivery and append-only audit

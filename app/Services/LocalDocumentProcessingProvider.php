@@ -3,46 +3,113 @@
 namespace App\Services;
 
 use App\Contracts\MediaProcessingProvider;
+use App\Exceptions\DocumentCommandFailure;
+use App\Exceptions\DocumentUsageException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
+use Symfony\Component\Process\ExecutableFinder;
+use Throwable;
 use ZipArchive;
 
 class LocalDocumentProcessingProvider implements MediaProcessingProvider
 {
     private float $deadline;
 
+    private int $processedPages = 0;
+
+    private ?array $usageScope = null;
+
+    private string $usageUnit = 'page';
+
     public function __construct(private readonly DocumentProcessRunner $runner) {}
 
     public function process(object $mediaFile, object $job): array
     {
-        if ($job->job_type !== 'ocr' || $mediaFile->file_type !== 'document') {
+        if (! in_array($job->job_type, ['ocr', 'structured_extraction'], true) || $mediaFile->file_type !== 'document') {
             throw new RuntimeException('unsupported_source');
         }
 
-        $this->deadline = microtime(true) + (int) config('media.processing.local_document.max_processing_seconds');
+        // Pending jobs recorded before D2/D4 must not publish new semantics under
+        // their old version. Standalone provider fixtures have no persisted identity.
+        if ($job->job_type === 'ocr' && isset($job->id)
+            && ! str_ends_with((string) $job->processing_version, '+document-v2')
+            && ! str_starts_with((string) $job->processing_version, 'document-v2-')) {
+            throw new RuntimeException('unsupported_output_profile');
+        }
+
+        $this->processedPages = 0;
+        $this->usageUnit = $job->job_type === 'structured_extraction' ? 'sheet' : 'page';
+        $this->usageScope = isset($mediaFile->customer_id, $mediaFile->id, $job->id)
+            ? ['customer_id' => $mediaFile->customer_id, 'media_file_id' => $mediaFile->id, 'id' => $job->id, 'job_type' => $job->job_type]
+            : null;
+        $this->deadline = microtime(true) + (int) config('media.processing.'.($job->job_type === 'structured_extraction' ? 'structured_extraction' : 'local_document').'.max_processing_seconds');
         $directory = $this->temporaryDirectory();
 
         try {
+            $this->recordCompletedPages(0);
             $extension = strtolower((string) ($mediaFile->extension ?? pathinfo((string) $mediaFile->storage_key, PATHINFO_EXTENSION)));
             $source = $directory.'/source'.($extension !== '' ? '.'.$extension : '');
             $this->copySource($mediaFile, $source);
 
-            $units = match ($extension) {
-                'txt' => $this->textUnits($source),
-                'docx' => $this->docxUnits($source, $directory, $this->locale($job)),
-                'xlsx' => $this->xlsxUnits($source, $directory, $this->locale($job)),
-                'pdf' => $this->pdfUnits($source, $directory, $this->locale($job)),
-                'doc', 'xls', 'ppt', 'pptx' => $this->officeUnits($source, $directory, $this->locale($job)),
-                default => throw new RuntimeException('unsupported_source'),
-            };
-
-            if ($units === []) {
-                throw new RuntimeException('no_extractable_text');
+            if (in_array($extension, ['xls', 'xlsx'], true)) {
+                if ($extension === 'xls') {
+                    $profile = $directory.'/libreoffice-profile';
+                    mkdir($profile, 0700, true);
+                    $this->runCommand([
+                        config('media.processing.local_document.soffice_binary'),
+                        '-env:UserInstallation=file://'.$profile,
+                        '--headless', '--convert-to', 'xlsx', '--outdir', $directory, $source,
+                    ], $this->commandTimeout('office_timeout_seconds'));
+                    $source = $directory.'/source.xlsx';
+                    if (! is_file($source)) {
+                        throw new RuntimeException('corrupt_source');
+                    }
+                }
+                $result = app(DocumentSpreadsheetReader::class)->read($source, function (int $count): void {
+                    $this->assertDeadline();
+                    $this->recordCompletedPages($count);
+                }, $job->job_type === 'structured_extraction');
+                if ($job->job_type === 'ocr') {
+                    $result = ['units' => app(DocumentTextUnits::class)->validate($result['units'])];
+                } elseif (! collect($result['units'])->contains(fn ($unit) => trim($unit['text']) !== '')) {
+                    throw new RuntimeException('no_extractable_text');
+                }
+            } else {
+                if ($job->job_type !== 'ocr') {
+                    throw new RuntimeException('unsupported_source');
+                }
+                $units = match ($extension) {
+                    'txt' => $this->textUnits($source),
+                    'docx' => $this->docxUnits($source, $directory, $this->locale($job)),
+                    'pdf' => $this->pdfUnits($source, $directory, $this->locale($job)),
+                    'doc', 'ppt', 'pptx' => $this->officeUnits($source, $directory, $this->locale($job)),
+                    default => throw new RuntimeException('unsupported_source'),
+                };
+                $result = ['units' => app(DocumentTextUnits::class)->validate($units)];
             }
 
-            return ['units' => $units];
+            return $result + ['usage' => ['units' => $this->processedPages, 'unit_type' => $this->usageUnit]];
+        } catch (Throwable $exception) {
+            throw new DocumentUsageException($exception, $this->processedPages, $this->usageUnit);
         } finally {
             $this->removeDirectory($directory);
+        }
+    }
+
+    /** Absolute monotonic progress: rereading a page during fallback is not another unit. */
+    private function recordCompletedPages(int $pages): void
+    {
+        $this->processedPages = max($this->processedPages, $pages);
+        if ($this->usageScope === null) {
+            return; // Standalone provider fixture without a persisted job.
+        }
+        $processing = DB::table('media_processing_jobs')->where($this->usageScope)->where('status', 'processing');
+        $updated = (clone $processing)->where(fn ($q) => $q->whereNull('billable_units')
+            ->orWhere('billable_units', '<', $this->processedPages))
+            ->update(['billable_units' => $this->processedPages, 'billable_unit_type' => $this->usageUnit]);
+        if ($updated === 0 && ! $processing->exists()) {
+            throw new RuntimeException('provider_timeout');
         }
     }
 
@@ -74,6 +141,8 @@ class LocalDocumentProcessingProvider implements MediaProcessingProvider
         if (! mb_check_encoding($text, 'UTF-8')) {
             throw new RuntimeException('corrupt_source');
         }
+
+        $this->recordCompletedPages(1);
 
         return $this->unit(trim($text), 1, 'embedded_text');
     }
@@ -119,197 +188,10 @@ class LocalDocumentProcessingProvider implements MediaProcessingProvider
         }
         $reader->close();
 
+        $this->recordCompletedPages(1);
         $units = $this->unit(implode("\n", $paragraphs), 1, 'embedded_text');
 
         return $units !== [] ? $units : $this->officeUnits($source, $directory, $locale);
-    }
-
-    /**
-     * Spreadsheets are read as cells, not as a LibreOffice PDF rendering: a
-     * rendering loses the sheet a value came from and the row/column it sat in.
-     * One unit per worksheet keeps the frozen `page` locator vocabulary while the
-     * sheet name travels in metadata.
-     */
-    private function xlsxUnits(string $source, string $directory, string $locale): array
-    {
-        $archive = new ZipArchive;
-        if ($archive->open($source) !== true) {
-            throw new RuntimeException('corrupt_source');
-        }
-
-        try {
-            $sharedStrings = $this->extractOoxmlPart($archive, 'xl/sharedStrings.xml', $directory.'/sharedStrings.xml', null)
-                ? $this->sharedStrings($directory.'/sharedStrings.xml')
-                : [];
-            $sheets = $this->workbookSheets($archive, $directory);
-            if (count($sheets) > (int) config('media.processing.local_document.max_pages')) {
-                throw new RuntimeException('page_limit_exceeded');
-            }
-
-            $units = [];
-            $characters = 0;
-            foreach ($sheets as $index => [$name, $part]) {
-                $this->assertDeadline();
-                $path = $directory.'/sheet-'.($index + 1).'.xml';
-                if (! $this->extractOoxmlPart($archive, $part, $path, null)) {
-                    continue;
-                }
-                $text = $this->sheetText($path, $sharedStrings, $characters);
-                $units = array_merge($units, $this->unit($text, $index + 1, 'embedded_text', ['sheet_name' => $name]));
-            }
-        } finally {
-            $archive->close();
-        }
-
-        return $units !== [] ? $units : $this->officeUnits($source, $directory, $locale);
-    }
-
-    /** @return array<int, array{0: string, 1: string}> */
-    private function workbookSheets(ZipArchive $archive, string $directory): array
-    {
-        $workbookPath = $directory.'/workbook.xml';
-        $relationshipPath = $directory.'/workbook.xml.rels';
-        $this->extractOoxmlPart($archive, 'xl/workbook.xml', $workbookPath, 'corrupt_source');
-        $this->extractOoxmlPart($archive, 'xl/_rels/workbook.xml.rels', $relationshipPath, 'corrupt_source');
-
-        $targets = [];
-        $reader = $this->xmlReader($relationshipPath);
-        while ($reader->read()) {
-            if ($reader->nodeType === \XMLReader::ELEMENT && $reader->localName === 'Relationship') {
-                $targets[(string) $reader->getAttribute('Id')] = ltrim((string) $reader->getAttribute('Target'), '/');
-            }
-        }
-        $reader->close();
-
-        $sheets = [];
-        $reader = $this->xmlReader($workbookPath);
-        while ($reader->read()) {
-            if ($reader->nodeType !== \XMLReader::ELEMENT || $reader->localName !== 'sheet') {
-                continue;
-            }
-            $relationshipId = $reader->getAttribute('r:id')
-                ?? $reader->getAttributeNs('id', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships');
-            $target = $targets[(string) $relationshipId] ?? null;
-            if ($target !== null) {
-                $sheets[] = [
-                    (string) $reader->getAttribute('name'),
-                    str_starts_with($target, 'xl/') ? $target : 'xl/'.$target,
-                ];
-            }
-        }
-        $reader->close();
-
-        return $sheets;
-    }
-
-    /** @return array<int, string> */
-    private function sharedStrings(string $path): array
-    {
-        $reader = $this->xmlReader($path);
-        $strings = [];
-        $current = null;
-        while ($reader->read()) {
-            if ($reader->nodeType === \XMLReader::ELEMENT && $reader->localName === 'si') {
-                if ($reader->isEmptyElement) {
-                    $strings[] = '';
-
-                    continue;
-                }
-                $current = '';
-            } elseif ($reader->nodeType === \XMLReader::ELEMENT && $reader->localName === 't' && $current !== null) {
-                $current .= $reader->readString();
-            } elseif ($reader->nodeType === \XMLReader::END_ELEMENT && $reader->localName === 'si') {
-                $strings[] = (string) $current;
-                $current = null;
-            }
-        }
-        $reader->close();
-
-        return $strings;
-    }
-
-    /**
-     * @param  array<int, string>  $sharedStrings
-     * @param  int  $characters  Running total across the workbook, so the character
-     *                           cap fails the whole revision instead of truncating one sheet.
-     */
-    private function sheetText(string $path, array $sharedStrings, int &$characters): string
-    {
-        $limit = (int) config('media.processing.local_document.max_extracted_characters');
-        $reader = $this->xmlReader($path);
-        $lines = [];
-        $cells = [];
-        $column = 0;
-        $type = '';
-
-        try {
-            while ($reader->read()) {
-                if ($reader->nodeType === \XMLReader::ELEMENT && $reader->localName === 'row') {
-                    $cells = [];
-                } elseif ($reader->nodeType === \XMLReader::ELEMENT && $reader->localName === 'c') {
-                    $column = $this->columnIndex((string) $reader->getAttribute('r'));
-                    $type = (string) $reader->getAttribute('t');
-                } elseif ($reader->nodeType === \XMLReader::ELEMENT && in_array($reader->localName, ['v', 't'], true)) {
-                    $value = $this->cellValue($reader->readString(), $reader->localName === 't' ? 'inlineStr' : $type, $sharedStrings);
-                    if ($value !== '') {
-                        $cells[$column] = $value;
-                    }
-                } elseif ($reader->nodeType === \XMLReader::END_ELEMENT && $reader->localName === 'row') {
-                    $line = $this->rowLine($cells);
-                    if ($line === '') {
-                        continue;
-                    }
-                    $characters += mb_strlen($line) + 1;
-                    if ($characters > $limit) {
-                        throw new RuntimeException('extracted_text_too_large');
-                    }
-                    $lines[] = $line;
-                }
-            }
-        } finally {
-            $reader->close();
-        }
-
-        return implode("\n", $lines);
-    }
-
-    /** @param array<int, string> $sharedStrings */
-    private function cellValue(string $raw, string $type, array $sharedStrings): string
-    {
-        return match ($type) {
-            's' => $sharedStrings[(int) $raw] ?? '',
-            'b' => $raw === '1' ? 'TRUE' : 'FALSE',
-            default => trim($raw),
-        };
-    }
-
-    /** @param array<int, string> $cells */
-    private function rowLine(array $cells): string
-    {
-        if ($cells === []) {
-            return '';
-        }
-        ksort($cells, SORT_NUMERIC);
-        $line = [];
-        for ($column = 0; $column <= array_key_last($cells); $column++) {
-            $line[] = $cells[$column] ?? '';
-        }
-
-        return trim(implode("\t", $line)) === '' ? '' : implode("\t", $line);
-    }
-
-    private function columnIndex(string $reference): int
-    {
-        $letters = rtrim($reference, '0123456789');
-        $index = 0;
-        foreach (str_split(strtoupper($letters)) as $letter) {
-            if ($letter < 'A' || $letter > 'Z') {
-                return 0;
-            }
-            $index = $index * 26 + (ord($letter) - 64);
-        }
-
-        return max(0, $index - 1);
     }
 
     /**
@@ -377,7 +259,7 @@ class LocalDocumentProcessingProvider implements MediaProcessingProvider
     {
         $profile = $directory.'/libreoffice-profile';
         mkdir($profile, 0700, true);
-        $this->runner->run([
+        $this->runCommand([
             config('media.processing.local_document.soffice_binary'),
             '-env:UserInstallation=file://'.$profile,
             '--headless', '--convert-to', 'pdf', '--outdir', $directory, $source,
@@ -385,7 +267,7 @@ class LocalDocumentProcessingProvider implements MediaProcessingProvider
 
         $pdfs = glob($directory.'/*.pdf') ?: [];
         if ($pdfs === []) {
-            throw new RuntimeException('provider_command_failed');
+            throw new RuntimeException('corrupt_source');
         }
 
         return $this->pdfUnits($pdfs[0], $directory, $locale);
@@ -399,7 +281,7 @@ class LocalDocumentProcessingProvider implements MediaProcessingProvider
         }
 
         $textPath = $directory.'/document.txt';
-        $this->runner->run([
+        $this->runCommand([
             config('media.processing.local_document.pdftotext_binary'), '-layout', $source, $textPath,
         ], $this->commandTimeout());
 
@@ -410,11 +292,19 @@ class LocalDocumentProcessingProvider implements MediaProcessingProvider
         // as soon as any exist would silently drop every scanned page of a mixed
         // document — the reader gets a shorter document and no error.
         $units = [];
+        $characters = 0;
         for ($page = 1; $page <= $pageCount; $page++) {
             $embedded = trim($pages[$page - 1] ?? '');
-            $units = array_merge($units, $embedded !== ''
-                ? $this->unit($embedded, $page, 'embedded_text')
-                : $this->unit($this->ocrPage($source, $directory, $locale, $page), $page, 'ocr'));
+            $text = $embedded !== '' ? $embedded : $this->ocrPage($source, $directory, $locale, $page);
+            $this->recordCompletedPages($page);
+            $pageUnits = $this->unit($text, $page, $embedded !== '' ? 'embedded_text' : 'ocr', [], true);
+            foreach ($pageUnits as $unit) {
+                $characters += mb_strlen($unit['text'], 'UTF-8');
+            }
+            if ($characters > (int) config('media.processing.local_document.max_extracted_characters')) {
+                throw new RuntimeException('extracted_text_too_large');
+            }
+            $units = array_merge($units, $pageUnits);
         }
 
         return $units;
@@ -423,14 +313,14 @@ class LocalDocumentProcessingProvider implements MediaProcessingProvider
     private function ocrPage(string $source, string $directory, string $locale, int $page): string
     {
         $prefix = $directory.'/page-'.$page;
-        $this->runner->run([
+        $this->runCommand([
             config('media.processing.local_document.pdftoppm_binary'),
             '-f', (string) $page, '-l', (string) $page, '-singlefile',
             '-r', (string) config('media.processing.local_document.ocr_dpi'),
             '-png', $source, $prefix,
         ], $this->commandTimeout());
 
-        return trim($this->runner->run([
+        return trim($this->runCommand([
             config('media.processing.local_document.tesseract_binary'),
             $prefix.'.png', 'stdout', '-l', $this->tesseractLocale($locale),
         ], $this->commandTimeout()));
@@ -438,7 +328,7 @@ class LocalDocumentProcessingProvider implements MediaProcessingProvider
 
     private function pdfPageCount(string $source): int
     {
-        $info = $this->runner->run([
+        $info = $this->runCommand([
             config('media.processing.local_document.pdfinfo_binary'), $source,
         ], $this->commandTimeout());
         if (! preg_match('/^Pages:\s+(\d+)$/mi', $info, $matches) || (int) $matches[1] < 1) {
@@ -448,11 +338,45 @@ class LocalDocumentProcessingProvider implements MediaProcessingProvider
         return (int) $matches[1];
     }
 
+    /** Keep subprocess diagnostics out of stored error metadata. */
+    private function runCommand(array $command, int $timeout): string
+    {
+        try {
+            return $this->runner->run($command, $timeout);
+        } catch (RuntimeException $exception) {
+            if (! str_starts_with($exception->getMessage(), 'provider_command_failed')) {
+                throw $exception;
+            }
+            $binary = (string) $command[0];
+            if (! is_executable($binary) && (new ExecutableFinder)->find($binary) === null) {
+                throw new RuntimeException('provider_unavailable', 0, $exception);
+            }
+            $failure = 'processing_failed';
+            if ($exception instanceof DocumentCommandFailure) {
+                $poppler = in_array(basename($binary), ['pdfinfo', 'pdftotext', 'pdftoppm'], true);
+                // Poppler's documented codes distinguish input/permissions (1/3)
+                // from output-file failures (2). Other failures stay unclassified.
+                if ($exception->signal !== null || in_array($exception->exitCode, [126, 127, 137], true)
+                    || ($poppler && $exception->exitCode === 2)) {
+                    $failure = 'provider_unavailable';
+                } elseif ($poppler && in_array($exception->exitCode, [1, 3], true)) {
+                    $failure = 'corrupt_source';
+                }
+            }
+            throw new RuntimeException($failure, 0, $exception);
+        }
+    }
+
     private function commandTimeout(string $configKey = 'command_timeout_seconds'): int
     {
         $remaining = $this->assertDeadline();
 
-        return min((int) config('media.processing.local_document.'.$configKey), $remaining);
+        $timeout = (int) config('media.processing.local_document.'.$configKey);
+        if ($this->usageUnit === 'sheet') {
+            $timeout = min($timeout, (int) config('media.processing.structured_extraction.command_timeout_seconds', 900));
+        }
+
+        return min($timeout, $remaining);
     }
 
     private function assertDeadline(): int
@@ -466,9 +390,9 @@ class LocalDocumentProcessingProvider implements MediaProcessingProvider
     }
 
     /** @param array<string, string> $metadata */
-    private function unit(string $text, int $page, string $method, array $metadata = []): array
+    private function unit(string $text, int $page, string $method, array $metadata = [], bool $keepBlank = false): array
     {
-        if ($text === '') {
+        if ($text === '' && ! $keepBlank) {
             return [];
         }
 

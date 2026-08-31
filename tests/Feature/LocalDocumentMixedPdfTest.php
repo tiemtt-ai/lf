@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Exceptions\DocumentCommandFailure;
 use App\Services\DocumentProcessRunner;
 use App\Services\LocalDocumentProcessingProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -50,6 +51,24 @@ class LocalDocumentMixedPdfTest extends TestCase
 
         $this->assertSame(['ocr', 'ocr', 'ocr', 'ocr'], array_column($units, 'extraction_method'));
         $this->assertSame(['ocr-page-1', 'ocr-page-2', 'ocr-page-3', 'ocr-page-4'], array_column($units, 'text'));
+    }
+
+    public function test_command_failures_distinguish_input_output_and_unknown_errors(): void
+    {
+        foreach ([[1, null, 'corrupt_source'], [3, null, 'corrupt_source'],
+            [2, null, 'provider_unavailable'], [137, 9, 'provider_unavailable'],
+            [99, null, 'processing_failed']] as [$exit, $signal, $expected]) {
+            $runner = Mockery::mock(DocumentProcessRunner::class);
+            $runner->shouldReceive('run')->once()->andThrow(new DocumentCommandFailure(
+                'provider_command_failed: private source and credentials', $exit, $signal,
+            ));
+            try {
+                $this->process($runner);
+                $this->fail('Expected command failure.');
+            } catch (\RuntimeException $e) {
+                $this->assertSame($expected, $e->getMessage());
+            }
+        }
     }
 
     private function runner(string $pdfText, bool $ocr = true): DocumentProcessRunner

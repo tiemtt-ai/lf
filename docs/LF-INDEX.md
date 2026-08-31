@@ -1,12 +1,12 @@
 # LF-INDEX.md
 
-Version: 2.23
+Version: 2.24
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-25
+Last Updated: 2026-08-31
 
 Document Path: LF-INDEX.md
 
@@ -388,6 +388,7 @@ docs/quality/
 | [quality/LF-Media-Processing-Substrate-Architecture-Review.md](quality/LF-Media-Processing-Substrate-Architecture-Review.md) | Media Processing substrate review; PII/external-processing amendment v1.15 Approved with documented implementation risks |
 | [quality/LF-A0-Docling-Closure-Evidence.md](quality/LF-A0-Docling-Closure-Evidence.md) | Only surviving copy of the A0 run behind the closure decision; exploratory evidence, not a verdict |
 | [quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md](quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md) | AI Foundation Media-consumer subset A–H packet; CHANGES REQUIRED, migration not authorized |
+| [quality/LF-Document-Processing-Final-Code-Review.md](quality/LF-Document-Processing-Final-Code-Review.md) | Document local code review, real OCR/Docling E2E; CHANGES_REQUIRED, không phải production approval |
 | [quality/LF-Media-Read-Contract-Architecture-Review.md](quality/LF-Media-Read-Contract-Architecture-Review.md) | Media Read A–H self-assessment packet; independent review pending |
 | [quality/LF-Media-Structured-Extraction-Architecture-Review.md](quality/LF-Media-Structured-Extraction-Architecture-Review.md) | Round 3 của region/table/cell + job identity/read selector; Gate M PASS và schema đã apply, Runtime Gate R vẫn NO |
 | [quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md](quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md) | Approved Course Lesson multiple-prerequisite architecture review |

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\MediaReadException;
 use App\Support\TenantContext;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -70,7 +71,15 @@ class MediaReadService
             if (! $media) {
                 throw new MediaReadException('missing');
             }
-            $selectedLocale = $locale !== null ? $this->profiles->canonicalLocale($locale) : $media->processing_locale;
+            $documentContent = in_array($contentType, ['extracted_text', 'region', 'table'], true);
+            if ($documentContent && $media->file_type !== 'document') {
+                throw new MediaReadException('unsupported_source');
+            }
+            try {
+                $selectedLocale = $locale !== null ? $this->profiles->canonicalLocale($locale) : $media->processing_locale;
+            } catch (\InvalidArgumentException) {
+                throw new MediaReadException('locale_unavailable');
+            }
             if ($selectedLocale === null && $contentType !== 'variant') {
                 throw new MediaReadException('locale_unavailable');
             }
@@ -86,6 +95,9 @@ class MediaReadService
             };
 
             $query = DB::table($table)->where('customer_id', $customerId)->where('media_file_id', $media->id);
+            if ($documentContent) {
+                $this->withReadyDocumentJob($query, $table, $contentType === 'extracted_text' ? 'ocr' : 'structured_extraction');
+            }
             if ($contentType !== 'variant') {
                 $query->where('locale', $selectedLocale);
             }
@@ -105,6 +117,14 @@ class MediaReadService
             }
             $selectedOutputFingerprint = (clone $query)->orderByDesc('processing_job_id')->orderByDesc('id')
                 ->value('source_fingerprint');
+            if ($documentContent) {
+                $revision = (clone $query)->orderByDesc('processing_job_id')->orderByDesc('id')->first();
+                if ($revision !== null) {
+                    $query->where('source_fingerprint', $revision->source_fingerprint)
+                        ->where('processing_version', $revision->processing_version)
+                        ->where('processing_job_id', $revision->processing_job_id);
+                }
+            }
             if ($page !== null && $contentType === 'region') {
                 $query->where('page', $page);
             } elseif ($page !== null && $contentType === 'table') {
@@ -119,8 +139,28 @@ class MediaReadService
                         fn ($q) => $q->where('source_fingerprint', $selectedOutputFingerprint))
                     ->select('id'));
             }
+            if ($contentType === 'extracted_text') {
+                $query->orderBy('sequence');
+            } elseif ($contentType === 'region') {
+                $query->orderBy('reading_order');
+            } elseif ($contentType === 'table') {
+                $query->orderBy('sequence');
+            }
             $rows = $query->orderBy('id')->get();
             if ($rows->isEmpty()) {
+                if ($documentContent) {
+                    $jobState = DB::table('media_processing_jobs')->where('customer_id', $customerId)
+                        ->where('media_file_id', $media->id)
+                        ->where('job_type', $contentType === 'extracted_text' ? 'ocr' : 'structured_extraction')
+                        ->when($processingVersion !== null, fn ($q) => $q->where('processing_version', $processingVersion))
+                        ->where(function ($q) use ($selectedLocale): void {
+                            $q->where('output_profile', 'like', '%;locale='.$selectedLocale)
+                                ->orWhere('output_profile', 'like', 'locale='.$selectedLocale.';%');
+                        })->orderByDesc('id')->value('status');
+                    if (in_array($jobState, ['pending', 'processing', 'failed'], true)) {
+                        throw new MediaReadException($jobState);
+                    }
+                }
                 // Trang co canonical text nhung khong co cau truc trong revision nay.
                 // Tra mang rong o day se buoc consumer doan giua ba tinh huong khac
                 // nhau: trang trang, model truot, va loi he thong. Dat ten cho no de
@@ -129,7 +169,7 @@ class MediaReadService
                     && DB::table('media_extracted_texts')->where('customer_id', $customerId)
                         ->where('media_file_id', $media->id)->where('locale', $selectedLocale)
                         ->where('locator_type', 'page')->where('locator_value', (string) $page)
-                        ->where('status', 'ready')
+                        ->where('char_count', '>', 0)->where('status', 'ready')
                         ->when($selectedOutputFingerprint !== null,
                             fn ($q) => $q->where('source_fingerprint', $selectedOutputFingerprint))
                         ->exists()) {
@@ -248,22 +288,26 @@ class MediaReadService
             }
             $this->assertUsageTypeMatchesContentType($usageType, 'region');
             $media = $this->activeMediaForOwner($customerId, $ownerType, $ownerId, $usageType);
-            $selectedLocale = $locale !== null ? $this->profiles->canonicalLocale($locale) : $media->processing_locale;
+            try {
+                $selectedLocale = $locale !== null ? $this->profiles->canonicalLocale($locale) : $media->processing_locale;
+            } catch (\InvalidArgumentException) {
+                throw new MediaReadException('locale_unavailable');
+            }
             if ($selectedLocale === null) {
                 throw new MediaReadException('locale_unavailable');
             }
 
-            $regionRevision = DB::table('media_extracted_regions')
+            $regionQuery = DB::table('media_extracted_regions')
                 ->where('customer_id', $customerId)->where('media_file_id', $media->id)
-                ->where('locale', $selectedLocale)->where('status', 'ready')
-                ->orderByDesc('processing_job_id')->orderByDesc('id')->first();
+                ->where('locale', $selectedLocale)->where('status', 'ready');
+            $this->withReadyDocumentJob($regionQuery, 'media_extracted_regions', 'structured_extraction');
+            $regionRevision = (clone $regionQuery)->orderByDesc('processing_job_id')->orderByDesc('id')->first();
             if (! $regionRevision) {
                 throw new MediaReadException('missing');
             }
 
-            $regionPages = DB::table('media_extracted_regions')
-                ->where('customer_id', $customerId)->where('media_file_id', $media->id)
-                ->where('locale', $selectedLocale)->where('status', 'ready')
+            $regionPages = $regionQuery
+                ->where('processing_job_id', $regionRevision->processing_job_id)
                 ->where('processing_version', $regionRevision->processing_version)
                 ->where('source_fingerprint', $regionRevision->source_fingerprint)
                 ->pluck('page')->map(static fn ($value): int => (int) $value)
@@ -273,8 +317,9 @@ class MediaReadService
                 ->where('customer_id', $customerId)->where('media_file_id', $media->id)
                 ->where('locale', $selectedLocale)->where('locator_type', 'page')
                 ->where('status', 'ready')->where('source_fingerprint', $regionRevision->source_fingerprint);
+            $this->withReadyDocumentJob($textRevisionQuery, 'media_extracted_texts', 'ocr');
             $textRevision = (clone $textRevisionQuery)->orderByDesc('processing_job_id')->orderByDesc('id')->first();
-            $textPages = $textRevision === null ? [] : $textRevisionQuery
+            $textPages = $textRevision === null ? [] : $textRevisionQuery->where('char_count', '>', 0)
                 ->when($textRevision->processing_job_id !== null,
                     fn ($q) => $q->where('processing_job_id', $textRevision->processing_job_id),
                     fn ($q) => $q->where('processing_version', $textRevision->processing_version))
@@ -321,6 +366,22 @@ class MediaReadService
             ->where('id', $activeUsages->first()->media_file_id)->first();
 
         return $media ?? throw new MediaReadException('missing');
+    }
+
+    /** Legacy rows without job provenance remain readable; linked rows must match a committed job. */
+    private function withReadyDocumentJob(Builder $query, string $table, string $jobType): void
+    {
+        $query->where(function ($q) use ($table, $jobType): void {
+            $q->whereNull($table.'.processing_job_id')->orWhereExists(function ($jobs) use ($table, $jobType): void {
+                $jobs->selectRaw('1')->from('media_processing_jobs as read_job')
+                    ->whereColumn('read_job.id', $table.'.processing_job_id')
+                    ->whereColumn('read_job.customer_id', $table.'.customer_id')
+                    ->whereColumn('read_job.media_file_id', $table.'.media_file_id')
+                    ->whereColumn('read_job.processing_version', $table.'.processing_version')
+                    ->whereColumn('read_job.source_fingerprint', $table.'.source_fingerprint')
+                    ->where('read_job.job_type', $jobType)->where('read_job.status', 'ready');
+            });
+        });
     }
 
     private function mediaForOwner(int $customerId, string $ownerType, int $ownerId, string $usageType): ?object

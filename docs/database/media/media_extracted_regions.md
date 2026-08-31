@@ -1,12 +1,12 @@
 # Table: media_extracted_regions
 
-Version: 1.15
+Version: 1.16
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-28
+Last Updated: 2026-08-31
 
 Document Path: database/media/media_extracted_regions.md
 
@@ -148,6 +148,7 @@ CHECK (
    AND crop_height IS NULL AND crop_bytes IS NULL)
   OR
   (crop_storage_key IS NOT NULL AND crop_mime_type IS NOT NULL
+   AND crop_width IS NOT NULL AND crop_height IS NOT NULL AND crop_bytes IS NOT NULL
    AND crop_width > 0 AND crop_height > 0 AND crop_bytes > 0)
 );
 CHECK (crop_storage_key IS NULL OR bbox_x IS NOT NULL);
@@ -205,6 +206,7 @@ CHECK (
     AND crop_height IS NULL AND crop_bytes IS NULL)
   OR
   (crop_storage_key IS NOT NULL AND crop_mime_type IS NOT NULL
+    AND crop_width IS NOT NULL AND crop_height IS NOT NULL AND crop_bytes IS NOT NULL
     AND crop_width > 0 AND crop_height > 0 AND crop_bytes > 0)
 );
 CHECK (crop_storage_key IS NULL OR bbox_x IS NOT NULL);
@@ -521,3 +523,10 @@ revision, không truncate.
 
 Region cho spreadsheet: **không có**. Sheet không có hình học trang, nên
 worksheet đi thẳng vào `media_extracted_tables` với `locator_type = 'sheet'`.
+---
+
+## D1–D6 amendment — Approved 2026-08-31
+
+Owner approval trong task Document Processing. D1 crop present phải non-null đủ dimensions/bytes, positive; giữ all-null branch. D3 canonical input transition archive output cũ, giữ citation/crop.
+
+Migration forward mới sau review; preflight báo count và IDs vi phạm rồi abort, không tự fill/delete. Approval thiết kế không phải evidence schema đã deployed.

@@ -27,13 +27,15 @@ class MediaProcessingOrchestrator
      * @param  bool  $structuredExtraction  Opt-in cua tac gia tren form upload. Docling khong thay
      *                                      the OCR — no them lop cau truc ben tren cung text.
      */
-    public function materializeForCourseActivity(int $customerId, int $mediaFileId, ?string $locale, ?int $actorId, bool $structuredExtraction = false, bool $speechToText = true): void
+    public function materializeForCourseActivity(int $customerId, int $mediaFileId, ?string $locale, ?int $actorId, bool $structuredExtraction = false, bool $speechToText = true, bool $reattach = false): void
     {
-        DB::transaction(function () use ($customerId, $mediaFileId, $locale, $actorId, $structuredExtraction, $speechToText): void {
+        DB::transaction(function () use ($customerId, $mediaFileId, $locale, $actorId, $structuredExtraction, $speechToText, $reattach): void {
             $media = DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaFileId)->lockForUpdate()->first();
             if (! $media) {
                 throw new InvalidArgumentException('Media File not found.');
             }
+
+            $this->assertDocumentUsage($customerId, $media);
 
             try {
                 $canonicalLocale = $this->canonicalLocaleFor($media, $locale, $speechToText);
@@ -60,7 +62,7 @@ class MediaProcessingOrchestrator
             ]);
 
             foreach ($this->initialMaterializationProfiles($media->file_type, $canonicalLocale, $speechToText) as [$jobType, $profile]) {
-                $this->createInitialJob($customerId, $media, $jobType, $profile, $actorId);
+                $this->createInitialJob($customerId, $media, $jobType, $profile, $actorId, $reattach, $structuredExtraction);
             }
 
             // Opt-in, khong nam trong required set: structured extraction that bai
@@ -68,8 +70,8 @@ class MediaProcessingOrchestrator
             // van upload duoc binh thuong.
             if ($structuredExtraction && $media->file_type === 'document') {
                 $this->createInitialJob($customerId, $media, 'structured_extraction',
-                    $this->profiles->canonical(['locale' => (string) $canonicalLocale, 'structure' => 'layout']),
-                    $actorId);
+                    $this->profiles->canonical(['locale' => (string) $canonicalLocale, 'structure' => $this->structureFor($media)]),
+                    $actorId, $reattach);
             }
         });
     }
@@ -147,18 +149,26 @@ class MediaProcessingOrchestrator
                 || (int) $failed->attempt >= 3) {
                 throw new InvalidArgumentException('Job is not retry eligible.');
             }
+            if (in_array($failed->job_type, ['ocr', 'structured_extraction'], true)) {
+                $media = DB::table('media_files')->where('customer_id', $customerId)->where('id', $failed->media_file_id)->lockForUpdate()->first();
+                if (! $media) {
+                    throw new InvalidArgumentException('Media File not found.');
+                }
+                $this->assertDocumentUsage($customerId, $media);
+            }
             $highest = DB::table('media_processing_jobs')->where('customer_id', $customerId)
                 ->where('media_file_id', $failed->media_file_id)->where('job_type', $failed->job_type)
                 ->where('source_fingerprint', $failed->source_fingerprint)->where('processing_version', $failed->processing_version)
                 ->where('output_profile_hash', $failed->output_profile_hash)->max('attempt');
-            if ((int) $highest !== (int) $failed->attempt) {
+            if (DB::table('media_processing_jobs')->where('customer_id', $customerId)->where('supersedes_job_id', $failed->id)->exists() || (int) $highest !== (int) $failed->attempt) {
                 throw new InvalidArgumentException('Only the highest attempt may retry.');
             }
             $attempt = (int) $failed->attempt + 1;
-            $key = implode(':', [$failed->job_type, $failed->media_file_id, $failed->source_fingerprint, $failed->processing_version, $failed->output_profile_hash, $attempt]);
+            $key = $this->generationKey($customerId, $failed->media_file_id, $failed->job_type, $failed->source_fingerprint, $failed->processing_version, $failed->output_profile_hash, $attempt, (int) $failed->dispatch_generation);
             $id = DB::table('media_processing_jobs')->insertGetId([
                 'customer_id' => $customerId, 'media_file_id' => $failed->media_file_id, 'job_type' => $failed->job_type,
-                'status' => 'pending', 'attempt' => $attempt, 'supersedes_job_id' => $failed->id,
+                'status' => 'pending', 'attempt' => $attempt, 'dispatch_generation' => $failed->dispatch_generation, 'supersedes_job_id' => $failed->id,
+                'metadata' => in_array($failed->job_type, ['ocr', 'structured_extraction'], true) ? $failed->metadata : null,
                 'idempotency_key' => $key, 'correlation_id' => $failed->correlation_id,
                 'source_fingerprint' => $failed->source_fingerprint, 'processing_version' => $failed->processing_version,
                 'output_profile' => $failed->output_profile, 'output_profile_hash' => $failed->output_profile_hash,
@@ -193,11 +203,26 @@ class MediaProcessingOrchestrator
         if (isset($parameters['locale'])) {
             $parameters['locale'] = $this->profiles->canonicalLocale($parameters['locale']);
         }
+        if (($jobType === 'ocr' && ($parameters['layout'] ?? null) !== 'preserve')
+            || ($jobType === 'structured_extraction' && ! in_array($parameters['structure'] ?? null, ['layout', 'cells'], true))) {
+            throw new InvalidArgumentException('Unsupported output profile.');
+        }
         $profile = $this->profiles->canonical($parameters);
         DB::transaction(function () use ($customerId, $mediaFileId, $jobType, $profile, $actorId): void {
             $media = DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaFileId)->lockForUpdate()->first();
             if (! $media) {
                 throw new InvalidArgumentException('Media File not found.');
+            }
+            if ($jobType === 'structured_extraction') {
+                $locale = $this->profiles->parse($profile)['locale'];
+                if (app(DocumentCanonicalRevision::class)->current($customerId, (int) $media->id, $this->sourceFingerprint($media), $locale) === null) {
+                    throw new InvalidArgumentException('Canonical OCR revision is not ready.');
+                }
+                $extension = strtolower((string) ($media->extension ?? pathinfo($media->storage_key, PATHINFO_EXTENSION)));
+                $expected = in_array($extension, ['xls', 'xlsx'], true) ? 'cells' : 'layout';
+                if (($this->profiles->parse($profile)['structure'] ?? null) !== $expected) {
+                    throw new InvalidArgumentException('Unsupported output profile.');
+                }
             }
             $this->createInitialJob($customerId, $media, $jobType, $profile, $actorId);
         });
@@ -224,14 +249,21 @@ class MediaProcessingOrchestrator
         $fingerprint = $this->sourceFingerprint($media);
         $plan = [];
         foreach ($this->initialMaterializationProfiles($media->file_type, $canonicalLocale) as [$jobType, $profile]) {
+            if (in_array($jobType, ['ocr', 'structured_extraction'], true)) {
+                $this->assertDocumentUsage($customerId, $media);
+            }
             $version = $this->versionFor($jobType, $media, $this->profiles->parse($profile));
             $key = $this->initialIdempotencyKey($media, $jobType, $fingerprint, $version, $this->profiles->hash($profile));
             $existing = DB::table('media_processing_jobs')->where('customer_id', $customerId)
-                ->where('idempotency_key', $key)->value('id');
+                ->when($media->file_type === 'document' && $jobType === 'ocr',
+                    fn ($q) => $q->where('media_file_id', $media->id)->where('job_type', $jobType)->where('source_fingerprint', $fingerprint)
+                        ->where('processing_version', $version)->where('output_profile_hash', $this->profiles->hash($profile)),
+                    fn ($q) => $q->where('idempotency_key', $key))
+                ->orderByDesc('dispatch_generation')->orderByDesc('attempt')->value('id');
             $plan[] = [
                 'job_type' => $jobType,
                 'output_profile' => $profile,
-                'provider' => $this->providerFor($jobType),
+                'provider' => $this->providerFor($jobType, $media),
                 'processing_version' => $version,
                 'existing_job_id' => $existing !== null ? (int) $existing : null,
             ];
@@ -283,21 +315,51 @@ class MediaProcessingOrchestrator
         return $jobs;
     }
 
-    private function createInitialJob(int $customerId, object $media, string $jobType, string $profile, ?int $actorId): void
+    private function createInitialJob(int $customerId, object $media, string $jobType, string $profile, ?int $actorId, bool $reattach = false, bool $requestStructure = false): void
     {
+        if (in_array($jobType, ['ocr', 'structured_extraction'], true)) {
+            $this->assertDocumentUsage($customerId, $media);
+        }
+        $metadata = $jobType === 'ocr' && $requestStructure ? ['structured_requested' => true] : [];
+        if ($jobType === 'structured_extraction') {
+            $locale = $this->profiles->parse($profile)['locale'];
+            $input = app(DocumentCanonicalRevision::class)->current($customerId, (int) $media->id, $this->sourceFingerprint($media), $locale);
+            if ($input === null) {
+                return; // Initial opt-in is recorded on OCR and active usage, then dispatched after ready.
+            }
+            $metadata['canonical_processing_job_id'] = (int) $input->id;
+        }
         $version = $this->versionFor($jobType, $media, $this->profiles->parse($profile));
-        $provider = $this->providerFor($jobType);
+        $provider = $this->providerFor($jobType, $media);
         $fingerprint = $this->sourceFingerprint($media);
         $profileHash = $this->profiles->hash($profile);
         $key = $this->initialIdempotencyKey($media, $jobType, $fingerprint, $version, $profileHash);
-        $id = DB::table('media_processing_jobs')->where('customer_id', $customerId)->where('idempotency_key', $key)->value('id');
+        $latest = DB::table('media_processing_jobs')->where('customer_id', $customerId)
+            ->where('media_file_id', $media->id)->where('job_type', $jobType)
+            ->where('source_fingerprint', $fingerprint)->where('processing_version', $version)
+            ->where('output_profile_hash', $profileHash)
+            ->when($media->file_type !== 'document' || ! in_array($jobType, ['ocr', 'structured_extraction'], true), fn ($q) => $q->where('idempotency_key', $key))
+            ->orderByDesc('dispatch_generation')->orderByDesc('attempt')->first();
+        $successor = $reattach && $media->file_type === 'document'
+            && in_array($jobType, ['ocr', 'structured_extraction'], true)
+            && $latest?->status === 'cancelled' && $latest->started_at === null
+            && $latest->error_code === null;
+        $generation = $successor ? (int) $latest->dispatch_generation + 1 : 1;
+        $attempt = $successor ? (int) $latest->attempt : 1;
+        if ($successor) {
+            $key = $this->generationKey($customerId, $media->id, $jobType, $fingerprint, $version, $profileHash, $attempt, $generation);
+        }
+        $id = $successor ? null : $latest?->id;
         if (! $id) {
             try {
                 $id = DB::table('media_processing_jobs')->insertGetId([
                     'customer_id' => $customerId, 'media_file_id' => $media->id, 'job_type' => $jobType,
-                    'status' => 'pending', 'attempt' => 1, 'idempotency_key' => $key, 'correlation_id' => (string) Str::uuid(),
+                    'status' => 'pending', 'attempt' => $attempt, 'dispatch_generation' => $generation,
+                    'supersedes_job_id' => $successor ? $latest->id : null,
+                    'idempotency_key' => $key, 'correlation_id' => $successor ? $latest->correlation_id : (string) Str::uuid(),
                     'source_fingerprint' => $fingerprint, 'processing_version' => $version, 'output_profile' => $profile,
                     'output_profile_hash' => $profileHash, 'provider' => $provider, 'created_by' => $actorId,
+                    'metadata' => $metadata === [] ? null : json_encode($metadata, JSON_THROW_ON_ERROR),
                     'created_at' => now(), 'updated_at' => now(),
                 ]);
             } catch (QueryException $exception) {
@@ -308,8 +370,31 @@ class MediaProcessingOrchestrator
                 }
             }
         }
+        if ($jobType === 'ocr' && $requestStructure) {
+            $pending = DB::table('media_processing_jobs')->where('customer_id', $customerId)->where('id', $id)->where('status', 'pending')->first();
+            if ($pending !== null) {
+                $meta = json_decode((string) ($pending->metadata ?? ''), true) ?: [];
+                DB::table('media_processing_jobs')->where('customer_id', $customerId)->where('id', $id)->where('status', 'pending')
+                    ->update(['metadata' => json_encode($meta + ['structured_requested' => true], JSON_THROW_ON_ERROR)]);
+            }
+        }
         $jobId = (int) $id;
         DB::afterCommit(fn () => ProcessMediaProcessingJob::dispatch($customerId, $jobId));
+    }
+
+    private function structureFor(object $media): string
+    {
+        $extension = strtolower((string) ($media->extension ?? pathinfo($media->storage_key, PATHINFO_EXTENSION)));
+
+        return in_array($extension, ['xls', 'xlsx'], true) ? 'cells' : 'layout';
+    }
+
+    private function assertDocumentUsage(int $customerId, object $media): void
+    {
+        if ($media->file_type === 'document' && ($media->status === 'deleted'
+            || ! app(DocumentProcessingEligibility::class)->hasActiveUsage($customerId, (int) $media->id))) {
+            throw new InvalidArgumentException('Active Document Course usage is required.');
+        }
     }
 
     private function canonicalLocaleFor(object $media, ?string $locale, bool $speechToText = true): ?string
@@ -329,13 +414,25 @@ class MediaProcessingOrchestrator
         return hash('sha256', $media->checksum.':'.$media->file_type);
     }
 
+    private function generationKey(int $customerId, int $mediaId, string $type, string $fingerprint, string $version, string $profileHash, int $attempt, int $generation): string
+    {
+        $tuple = [$type, $mediaId, $fingerprint, $version, $profileHash, $attempt];
+
+        return $generation === 1 ? implode(':', $tuple)
+            : hash('sha256', json_encode([$customerId, ...$tuple, $generation], JSON_THROW_ON_ERROR));
+    }
+
     private function initialIdempotencyKey(object $media, string $jobType, string $fingerprint, string $version, string $profileHash): string
     {
         return implode(':', [$jobType, $media->id, $fingerprint, $version, $profileHash, 1]);
     }
 
-    private function providerFor(string $jobType): string
+    public function providerFor(string $jobType, ?object $media = null): string
     {
+        if ($jobType === 'structured_extraction' && $media !== null && $this->structureFor($media) === 'cells') {
+            return 'local_document';
+        }
+
         return (string) config("media.processing.providers.$jobType", 'unconfigured');
     }
 
@@ -350,6 +447,20 @@ class MediaProcessingOrchestrator
     public function versionFor(string $jobType, ?object $media = null, array $parameters = []): string
     {
         $version = (string) config("media.processing.versions.$jobType", 'unconfigured-v1');
+
+        if ($jobType === 'ocr' && ($media->file_type ?? null) === 'document' && $this->providerFor('ocr') === 'local_document') {
+            $version .= '+document-v2';
+            if (strlen($version) > 100) {
+                $version = 'document-v2-'.hash('sha256', $version);
+            }
+        }
+
+        if ($jobType === 'structured_extraction' && $media !== null && isset($parameters['locale'])) {
+            $input = app(DocumentCanonicalRevision::class)->current((int) $media->customer_id, (int) $media->id, $this->sourceFingerprint($media), $parameters['locale']);
+            if ($input !== null) {
+                $version = 'structure-v2-'.hash('sha256', json_encode([$version, $this->structureFor($media), (int) $input->id, $input->processing_version], JSON_THROW_ON_ERROR));
+            }
+        }
 
         // Caption duoc dung TU transcript, nen identity cua no phai gom ca
         // revision nguon. Neu khong: caption dung tu transcript v1 va tu v2 co

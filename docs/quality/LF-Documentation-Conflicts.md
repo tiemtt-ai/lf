@@ -1,12 +1,12 @@
 # LearnForge Documentation Conflict Register
 
-Version: 1.27
+Version: 1.30
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-30
+Last Updated: 2026-08-31
 
 Document Path: quality/LF-Documentation-Conflicts.md
 
@@ -246,6 +246,10 @@ khác `RESOLVED`; cột Status của bảng dưới vẫn là nguồn sự thậ
 
 | ID | Title | Classification | Status | Impact | Domain | Owner | Target Review |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| DOC-CONFLICT-0032 | Reattach sau cancelled chưa có chain/generation contract | GAP | RESOLVED | HIGH | Media | Architecture Owner | Not set |
+| DOC-CONFLICT-0029 | Spreadsheet local-provider contract chưa đồng bộ resolution 0017/0018 | CONFLICT | RESOLVED | BLOCKER | Media | Domain Owner (Media) | Not set |
+| DOC-CONFLICT-0030 | Document output CHECKs chưa khớp table docs | IMPLEMENTATION_DRIFT | RESOLVED | HIGH | Media | Database Owner | Not set |
+| DOC-CONFLICT-0031 | Fresh media_access_logs timestamp default khác JSON trên MariaDB 11.4 | IMPLEMENTATION_DRIFT | RESOLVED | HIGH | Media | Database Owner | Not set |
 | DOC-CONFLICT-0006 | Recording table doc không khớp migration | IMPLEMENTATION_DRIFT | ACCEPTED_TEMPORARILY | MEDIUM | LiveClass × Media | Database Owner | Trước khi phát triển tab Ghi hình |
 | DOC-CONFLICT-0007 | Attendance table doc không khớp migration | IMPLEMENTATION_DRIFT | ACCEPTED_TEMPORARILY | MEDIUM | LiveClass | Database Owner | Trước khi phát triển tab Điểm danh |
 | DOC-CONFLICT-0008 | Attendance/Recording chưa có Architecture Review chuyên biệt | GAP | ACCEPTED_TEMPORARILY | MEDIUM | LiveClass | Architecture Team | Trước khi phát triển hai tab |
@@ -265,6 +269,158 @@ khác `RESOLVED`; cột Status của bảng dưới vẫn là nguồn sự thậ
 | DOC-CONFLICT-0019 | `job_type`/`output_type` không có giá trị nào chứa được một revision structured | GAP | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-08-27 |
 | DOC-CONFLICT-0020 | Bốn CHECK trong doc `media_processing_jobs` không tồn tại trong schema vật lý | IMPLEMENTATION_DRIFT | RESOLVED | MEDIUM | Media | Database Owner | Đóng 2026-08-27 |
 | DOC-CONFLICT-0021 | Media Read owner context không xác định Media File khi owner có nhiều active usage | GAP | RESOLVED | HIGH | Media × Course × AI | Đóng 2026-08-27 |
+
+---
+
+## DOC-CONFLICT-0032
+
+```text
+Conflict ID: DOC-CONFLICT-0032
+Title: Reattach sau cancelled chưa có chain/generation contract
+Classification: GAP
+Status: RESOLVED
+Impact: HIGH
+Detected At: 2026-08-31
+Detected By: Document Processing remediation and executable reattach probe
+Owner: Architecture Owner
+Affected Domain: Media
+Affected Concern: Re-materialization after a pending job was cancelled on detach
+Sources In Conflict:
+Source A: docs/platform/LF-Media-Processing-Contract.md#cancellation
+Source B: docs/platform/LF-Media-Processing-Contract.md#fingerprint; docs/database/media/media_processing_jobs.md#constraints-and-indexes
+Additional Sources: app/Services/MediaProcessingOrchestrator.php::createInitialJob; docs/quality/LF-Document-Processing-Final-Code-Review.md
+Contradictory Requirements:
+- Source A requires: detach before start cancels pending work; already processing work is not cancelled.
+- Source B requires: deterministic full-profile attempt identity; failed retries are new rows with bounded provider attempt count.
+Why They Cannot Both Be True: Not a contradiction. Neither source defines how explicit reattach resumes a cancelled identity without overwriting history or charging a provider attempt that never ran.
+Runtime/Business Impact: After cancellation, reattach with unchanged fingerprint/version/profile resolves to the cancelled row and produces no derivative.
+Affected Implementation: MediaProcessingOrchestrator::createInitialJob/retry; ProcessMediaProcessingJob::handle
+Temporary Safety Rule: Do not resurrect terminal rows, mutate historical output or reset provider retry budget by assumption.
+Required Decision: Approve the concrete dispatch_generation proposal D6 in the Document review, or provide an alternative lifecycle contract.
+Resolution Authority: Architecture Owner and Database Owner
+Resolution Plan: Review ADR/database/profile identity amendment; approve docs and Architecture Review before migration; preserve old cancelled rows and test reattach, concurrency, retry cap and citations.
+Target Review Date: Not set
+Resolved At: 2026-08-31
+Resolution: Owner duyệt D1–D6 trong task ngày 2026-08-31. Canonical Processing Contract, ADR và Database Docs đã đồng bộ; runtime verification ghi riêng trong Document Final Code Review.
+Superseded/Updated Documents: None — no new generation field or policy implemented
+Verification Evidence: /tmp/lf-document-reattach-probe.log: 1 test, 1 assertion, failure expected ready versus actual cancelled; reproduced on local SQLite after cancellation guard repair.
+Related ADR/Review/Issue/PR: ADR-0004; docs/quality/LF-Document-Processing-Final-Code-Review.md §17 D6; H02
+Notes: Other authorized runtime repairs continue; this record only blocks the undefined cancelled-reattach transition.
+```
+
+---
+
+## DOC-CONFLICT-0029
+
+```text
+Conflict ID: DOC-CONFLICT-0029
+Title: Spreadsheet local-provider contract chưa đồng bộ resolution 0017/0018
+Classification: CONFLICT
+Status: RESOLVED
+Impact: BLOCKER
+Detected At: 2026-08-31
+Detected By: Document Processing review follow-up
+Owner: Domain Owner (Media)
+Affected Domain: Media
+Affected Concern: Spreadsheet local-provider contract chưa đồng bộ resolution 0017/0018
+Sources In Conflict:
+Source A: docs/platform/LF-Media-Processing-Contract.md#phase-1-local-document-provider
+Source B: docs/database/media/media_extracted_texts.md#constraints-and-indexes
+Additional Sources: docs/quality/LF-Document-Processing-Final-Code-Review.md
+Contradictory Requirements:
+- Source A requires: Bảng normative XLSX vẫn embedded_text; ghi chú nói vocabulary chỉ ocr/embedded_text và 0017 chờ Owner.
+- Source B requires: Vocabulary đã mở sheet/spreadsheet_cells; resolution DOC-CONFLICT-0017/0018 yêu cầu worksheet dùng vocabulary mới cùng processing_version mới.
+Why They Cannot Both Be True: Cùng đường đọc OOXML không thể vừa bị giới hạn vocabulary cũ vừa tuân thủ resolution mới; bảng provider chưa có supersession rõ.
+Runtime/Business Impact: Concern còn mở, không được claim Document processing acceptance đầy đủ; xem findings trong review.
+Affected Implementation: app/Services/LocalDocumentProcessingProvider.php::xlsxUnits; app/Jobs/ProcessMediaProcessingJob.php
+Temporary Safety Rule: STOP implementation for the affected concern. Do not guess. Không sửa schema/locator/history trước review và approval tương ứng.
+Required Decision: Đồng bộ amendment local-provider contract với resolution đã duyệt; xác nhận version rollout và bảo toàn citation cũ trước code change.
+Resolution Authority: Domain Owner (Media) cùng Architecture Owner khi chạm foundation
+Resolution Plan: Đối chiếu nguồn, duyệt amendment/preflight, review tác động, triển khai trong scope rồi chạy regression và physical verification.
+Target Review Date: Not set
+Resolved At: 2026-08-31
+Resolution: Owner duyệt D1–D6 trong task ngày 2026-08-31. Canonical Processing Contract, ADR và Database Docs đã đồng bộ; runtime verification ghi riêng trong Document Final Code Review.
+Superseded/Updated Documents: LF-Media-Processing-Contract; ADR-0004/0019; media_processing_jobs; media_extracted_texts
+Verification Evidence: docs/quality/LF-Document-Processing-Final-Code-Review.md §10–11; code/source inspection; supported fresh schema evidence đã ghi trong report
+Related ADR/Review/Issue/PR: DOC-CONFLICT-0017; DOC-CONFLICT-0018; report M02
+Notes: Follow-up độc lập do người dùng cung cấp đã được đối chiếu. Giữ nguyên các resolution lịch sử; không ký thay Owner.
+```
+
+---
+
+## DOC-CONFLICT-0030
+
+```text
+Conflict ID: DOC-CONFLICT-0030
+Title: Document output CHECKs chưa khớp table docs
+Classification: IMPLEMENTATION_DRIFT
+Status: RESOLVED
+Impact: HIGH
+Detected At: 2026-08-31
+Detected By: Document Processing review follow-up
+Owner: Database Owner
+Affected Domain: Media
+Affected Concern: Document output CHECKs chưa khớp table docs
+Sources In Conflict:
+Source A: docs/database/media/media_extracted_texts.md#constraints-and-indexes; docs/database/media/media_extracted_tables.md#constraints-and-indexes; docs/database/media/media_table_cells.md#constraints-and-indexes; docs/database/media/media_extracted_regions.md
+Source B: docs/database/LF-SCHEMA-CONTRACT.json; database/migrations/2026_08_24_000000_create_media_processing_substrate.php; database/migrations/2026_08_26_000100_create_media_structured_extraction.php; database/migrations/2026_08_28_000100_add_region_crop_columns.php
+Additional Sources: docs/quality/LF-Document-Processing-Final-Code-Review.md
+Contradictory Requirements:
+- Source A requires: OCR provider bắt buộc, header booleans và crop all-or-none phải được enforce.
+- Source B requires: JSON/migrations thiếu CHECK provider/header; crop present branch cho SQL UNKNOWN khi dimension/bytes NULL.
+Why They Cannot Both Be True: Không phải hai policy đối nghịch; đây là physical enforcement/manifest thiếu so với table docs.
+Runtime/Business Impact: Concern còn mở, không được claim Document processing acceptance đầy đủ; xem findings trong review.
+Affected Implementation: Document OCR/structured persistence và physical constraints
+Temporary Safety Rule: STOP implementation for the affected concern. Do not guess. Không sửa schema/locator/history trước review và approval tương ứng.
+Required Decision: Review invariant, preflight dữ liệu và forward migration sau Database approval/Architecture Review; không sửa migration đã phát hành hoặc bỏ invariant để khớp tool.
+Resolution Authority: Database Owner cùng Architecture Owner khi chạm foundation
+Resolution Plan: Đối chiếu nguồn, duyệt amendment/preflight, review tác động, triển khai trong scope rồi chạy regression và physical verification.
+Target Review Date: Not set
+Resolved At: 2026-08-31
+Resolution: D1 được Owner duyệt; forward migration 2026_08_31_000100 bổ sung CHECK/default với preflight fail-closed, JSON đồng bộ. Không sửa migration cũ hoặc backfill dữ liệu.
+Superseded/Updated Documents: Media table docs và LF-SCHEMA-CONTRACT.json theo D1
+Verification Evidence: MariaDB 11.4.12 physical suite 24 tests / 83 assertions PASS, gồm D1 negative/preflight và D6 unique/rollback; schema:drift --fresh PASS với 90 migrations. Logs /tmp/lf-d1-d6-physical-schema.log, /tmp/lf-d1-d6-fresh.log; Document Final Code Review §18.
+Related ADR/Review/Issue/PR: DOC-CONFLICT-0020 (precedent, không tái mở); report M01
+Notes: Follow-up độc lập do người dùng cung cấp đã được đối chiếu. Giữ nguyên các resolution lịch sử; không ký thay Owner.
+```
+
+---
+
+## DOC-CONFLICT-0031
+
+```text
+Conflict ID: DOC-CONFLICT-0031
+Title: Fresh media_access_logs timestamp default khác JSON trên MariaDB 11.4
+Classification: IMPLEMENTATION_DRIFT
+Status: RESOLVED
+Impact: HIGH
+Detected At: 2026-08-31
+Detected By: Document Processing review follow-up
+Owner: Database Owner
+Affected Domain: Media
+Affected Concern: Fresh media_access_logs timestamp default khác JSON trên MariaDB 11.4
+Sources In Conflict:
+Source A: docs/database/LF-SCHEMA-CONTRACT.json (media_access_logs.accessed_at)
+Source B: database/migrations/2026_08_24_000000_create_media_processing_substrate.php (accessed_at); .github/workflows/docs-lint.yml (schema-drift)
+Additional Sources: docs/quality/LF-Document-Processing-Final-Code-Review.md
+Contradictory Requirements:
+- Source A requires: JSON yêu cầu default current_timestamp().
+- Source B requires: Migration timestamp không explicit default; fresh MariaDB 11.4.12 với explicit_defaults_for_timestamp=ON cho COLUMN_DEFAULT=NULL, IS_NULLABLE=NO.
+Why They Cannot Both Be True: Không phải conflict policy; migration reconstruction phụ thuộc server và không khớp manifest.
+Runtime/Business Impact: Concern còn mở, không được claim Document processing acceptance đầy đủ; xem findings trong review.
+Affected Implementation: Schema fresh và CI schema-drift gate; writer read audit hiện truyền accessed_at
+Temporary Safety Rule: STOP implementation for the affected concern. Do not guess. Không sửa schema/locator/history trước review và approval tương ứng.
+Required Decision: Chốt explicit default canonical intent, review forward migration và manifest; không normalize NULL thành current_timestamp để che drift.
+Resolution Authority: Database Owner cùng Architecture Owner khi chạm foundation
+Resolution Plan: Đối chiếu nguồn, duyệt amendment/preflight, review tác động, triển khai trong scope rồi chạy regression và physical verification.
+Target Review Date: Not set
+Resolved At: 2026-08-31
+Resolution: D1 được Owner duyệt; forward migration 2026_08_31_000100 bổ sung CHECK/default với preflight fail-closed, JSON đồng bộ. Không sửa migration cũ hoặc backfill dữ liệu.
+Superseded/Updated Documents: Media table docs và LF-SCHEMA-CONTRACT.json theo D1
+Verification Evidence: MariaDB 11.4.12 physical suite 24 tests / 83 assertions PASS, gồm D1 negative/preflight và D6 unique/rollback; schema:drift --fresh PASS với 90 migrations. Logs /tmp/lf-d1-d6-physical-schema.log, /tmp/lf-d1-d6-fresh.log; Document Final Code Review §18.
+Related ADR/Review/Issue/PR: report H03; docs/database/LF-Schema-Drift.md
+Notes: Follow-up độc lập do người dùng cung cấp đã được đối chiếu. Giữ nguyên các resolution lịch sử; không ký thay Owner.
+```
 
 ---
 

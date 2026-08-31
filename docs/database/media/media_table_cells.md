@@ -1,12 +1,12 @@
 # Table: media_table_cells
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-27
+Last Updated: 2026-08-31
 
 Document Path: database/media/media_table_cells.md
 
@@ -157,3 +157,10 @@ thật đầu tiên**.
 Ô gộp chỉ sinh một row là lựa chọn giữ **đúng thứ có trên tài liệu**. Nhân bản giá
 trị ra các ô bị che sẽ dễ đọc hơn cho consumer đơn giản, nhưng tạo ra dữ liệu
 không tồn tại và làm hỏng phép đếm ô.
+---
+
+## D1–D6 amendment — Approved 2026-08-31
+
+Owner approval trong task Document Processing. D1 CHECK is_header IN (0,1); D2 giữ tọa độ và merged spans, không mở rộng area thành các row giả.
+
+Migration forward mới sau review; preflight báo count và IDs vi phạm rồi abort, không tự fill/delete. Approval thiết kế không phải evidence schema đã deployed.

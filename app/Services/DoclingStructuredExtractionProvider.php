@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Contracts\MediaProcessingProvider;
+use App\Exceptions\DocumentUsageException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Throwable;
@@ -11,6 +13,8 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
 {
     /** @var array<string, array<int, array{width: float, height: float}>> */
     private array $pageSizeCache = [];
+
+    private float $deadline;
 
     public function __construct(
         private readonly DocumentProcessRunner $runner,
@@ -27,12 +31,17 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
             throw new RuntimeException('unsupported_source');
         }
 
+        $this->deadline = microtime(true) + (int) config('media.processing.structured_extraction.max_processing_seconds', 3300);
+        $this->pageSizeCache = [];
         $directory = $this->temporaryDirectory();
+        $completedPages = 0;
         try {
+            $this->checkpoint($mediaFile, $job, 0);
             $source = $directory.'/source.pdf';
             $this->copySource($mediaFile, $source);
             $maxPages = (int) config('media.processing.structured_extraction.max_pages', 100);
-            if ($this->pageCount($source) > $maxPages) {
+            $pageCount = $this->pageCount($source);
+            if ($pageCount > $maxPages) {
                 throw new RuntimeException('page_limit_exceeded');
             }
 
@@ -44,13 +53,20 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
                 throw new RuntimeException('provider_unavailable');
             }
 
-            $output = $this->runner->run([
+            $output = $this->runCommand([
                 $python, $script, '--source', $source,
                 '--locale', (string) $this->profileValue((string) $job->output_profile, 'locale'),
                 '--artifacts', $artifacts, '--max-pages', (string) $maxPages,
                 '--output', $resultPath,
             ], (int) config('media.processing.docling.timeout_seconds', 3300));
             $envelope = json_decode($output, true);
+            if (isset($envelope['completed_pages'])) {
+                if (! is_int($envelope['completed_pages']) || $envelope['completed_pages'] < 0 || $envelope['completed_pages'] > $pageCount) {
+                    throw new RuntimeException('provider_command_failed');
+                }
+                $completedPages = $envelope['completed_pages'];
+                $this->checkpoint($mediaFile, $job, $completedPages);
+            }
             if (($envelope['status'] ?? null) === 'failed') {
                 throw new RuntimeException((string) ($envelope['error_code'] ?? 'provider_command_failed'));
             }
@@ -67,12 +83,37 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
                 throw new RuntimeException((string) ($result['error_code'] ?? 'provider_command_failed'));
             }
 
+            if (isset($result['page_count']) && $result['page_count'] !== $pageCount) {
+                throw new RuntimeException('provider_command_failed');
+            }
+            $completedPages = $pageCount;
+            $this->checkpoint($mediaFile, $job, $completedPages);
+            $result['usage'] = ['units' => $completedPages, 'unit_type' => 'page'];
             $result['regions'] = $this->fillFigureText($source, $result['regions'] ?? []);
             $result['regions'] = $this->renderCrops($mediaFile, $job, $source, $result['regions']);
 
+            $this->remainingSeconds();
+
             return $result;
+        } catch (Throwable $exception) {
+            throw new DocumentUsageException($exception, $completedPages);
         } finally {
+            $this->pageSizeCache = [];
             $this->removeDirectory($directory);
+        }
+    }
+
+    private function checkpoint(object $media, object $job, int $pages): void
+    {
+        if (! isset($media->customer_id, $media->id, $job->id)) {
+            return;
+        }
+        $query = DB::table('media_processing_jobs')->where('customer_id', $media->customer_id)
+            ->where('media_file_id', $media->id)->where('id', $job->id)->where('job_type', 'structured_extraction')->where('status', 'processing');
+        $updated = (clone $query)->where(fn ($q) => $q->whereNull('billable_units')->orWhere('billable_units', '<', $pages))
+            ->update(['billable_units' => $pages, 'billable_unit_type' => 'page']);
+        if ($updated === 0 && ! $query->exists()) {
+            throw new RuntimeException('provider_timeout');
         }
     }
 
@@ -90,7 +131,7 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
      * Ranh gioi voi ADR-0020 khong doi.
      *
      * Trang scan khong co text layer thi `pdftotext` tra rong va `text` giu NULL —
-     * dung, vi nhanh do can OCR tren crop, thuoc hang muc A chua mo.
+     * renderCrops se thu OCR tren crop theo locale da chon.
      *
      * @param  array<int, array<string, mixed>>  $regions
      * @return array<int, array<string, mixed>>
@@ -122,12 +163,16 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
             }
 
             try {
-                $text = trim($this->runner->run([
+                $text = trim($this->runCommand([
                     $binary, '-f', (string) $page, '-l', (string) $page,
                     '-x', (string) $x, '-y', (string) $y, '-W', (string) $width, '-H', (string) $height,
                     '-layout', $source, '-',
                 ], 30));
-            } catch (RuntimeException) {
+            } catch (RuntimeException $exception) {
+                if ($exception->getMessage() === 'provider_timeout') {
+                    throw $exception;
+                }
+
                 continue;
             }
 
@@ -186,6 +231,7 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
 
         try {
             foreach ($figures as $index => $region) {
+                $this->remainingSeconds();
                 $page = (int) ($region['page'] ?? 0);
                 $size = $pageSizes[$page] ?? null;
                 if ($size === null) {
@@ -201,7 +247,7 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
                 }
 
                 $prefix = $directory.'/crop';
-                $this->runner->run([
+                $this->runCommand([
                     $binary, '-f', (string) $page, '-l', (string) $page, '-r', (string) $dpi,
                     '-x', (string) $x, '-y', (string) $y, '-W', (string) $width, '-H', (string) $height,
                     '-png', '-singlefile', $source, $prefix,
@@ -223,13 +269,16 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
 
                 $key = $this->crops->key($mediaFile, $job, $locale, $page, (int) $region['ordinal']);
                 $stream = fopen($file, 'rb');
-                if ($stream === false || Storage::disk($disk)->put($key, $stream) === false) {
-                    if (is_resource($stream)) {
-                        fclose($stream);
-                    }
+                if ($stream === false) {
                     throw new RuntimeException('provider_command_failed');
                 }
-                fclose($stream);
+                try {
+                    if (! $this->crops->put($mediaFile, $job, $key, $stream)) {
+                        throw new RuntimeException('provider_command_failed');
+                    }
+                } finally {
+                    fclose($stream);
+                }
 
                 $regions[$index]['crop'] = [
                     'storage_key' => $key,
@@ -295,8 +344,12 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
         }
 
         try {
-            $text = trim($this->runner->run([$binary, $file, 'stdout', '-l', $language], 60));
-        } catch (RuntimeException) {
+            $text = trim($this->runCommand([$binary, $file, 'stdout', '-l', $language], 60));
+        } catch (RuntimeException $exception) {
+            if ($exception->getMessage() === 'provider_timeout') {
+                throw $exception;
+            }
+
             return $region;
         }
 
@@ -349,7 +402,7 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
         $sizes = [];
         $default = null;
 
-        $output = $this->runner->run([$binary, '-f', '1', '-l', '-1', $source], 60);
+        $output = $this->runCommand([$binary, '-f', '1', '-l', '-1', $source], 60);
         foreach (preg_split('/\R/', $output) ?: [] as $line) {
             if (preg_match('/^Page\s+(\d+)\s+size:\s+([\d.]+)\s+x\s+([\d.]+)\s+pts/i', $line, $m)) {
                 $sizes[(int) $m[1]] = ['width' => (float) $m[2], 'height' => (float) $m[3]];
@@ -368,9 +421,29 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
         return $this->pageSizeCache[$source] = $sizes;
     }
 
+    private function remainingSeconds(): int
+    {
+        $remaining = (int) floor($this->deadline - microtime(true));
+        if ($remaining < 1) {
+            throw new RuntimeException('provider_timeout');
+        }
+
+        return $remaining;
+    }
+
+    private function runCommand(array $command, int $timeout): string
+    {
+        $output = $this->runner->run($command, min($timeout,
+            (int) config('media.processing.structured_extraction.command_timeout_seconds', 900),
+            $this->remainingSeconds()));
+        $this->remainingSeconds();
+
+        return $output;
+    }
+
     private function pageCount(string $source): int
     {
-        $output = $this->runner->run([(string) config('media.processing.local_document.pdfinfo_binary', 'pdfinfo'), $source], 30);
+        $output = $this->runCommand([(string) config('media.processing.local_document.pdfinfo_binary', 'pdfinfo'), $source], 30);
         if (! preg_match('/^Pages:\s+(\d+)$/mi', $output, $matches)) {
             throw new RuntimeException('corrupt_source');
         }

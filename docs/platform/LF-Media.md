@@ -1,12 +1,12 @@
 # LF-Media.md
 
-Version: 1.8
+Version: 1.9
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-27
+Last Updated: 2026-08-31
 
 Document Path: platform/LF-Media.md
 
@@ -54,10 +54,11 @@ runtime** từ `2026_08_24_000000_create_media_processing_substrate.php`, với
 provider tài liệu self-hosted `local_document`. Câu trước đó — "chưa có physical
 migration/runtime" — là mô tả cũ, không còn đúng.
 
-Structured extraction (region/table/cell) thì **chưa** có runtime: hai migration
-đã viết nhưng Gate M chưa mở, và không có đường ghi nào trong `app/`. Mục
-[Structured extraction](#structured-extraction) bên dưới là approved contract,
-không phải tuyên bố pipeline đang vận hành.
+Structured extraction hiện có runtime local: Docling PDF và native spreadsheet
+cells, persistence/read/crop, được kiểm chứng cùng D1–D6 tại
+[Document Final Code Review](../quality/LF-Document-Processing-Final-Code-Review.md).
+Đây là evidence local/disposable, không phải application database hoặc production
+deployment; Media Domain tổng thể vẫn Partial.
 
 Media quản lý Digital Assets và hạ tầng liên quan:
 

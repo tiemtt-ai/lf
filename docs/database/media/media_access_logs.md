@@ -1,12 +1,12 @@
 # Table: media_access_logs
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-24
+Last Updated: 2026-08-31
 
 Document Path: database/media/media_access_logs.md
 
@@ -47,7 +47,7 @@ Append-only audit log cho thao tác truy cập Media File.
 | source_id | BIGINT UNSIGNED NULL | ID context generic. |
 | ip_address | VARCHAR(45) NULL | IPv4/IPv6. |
 | user_agent | TEXT NULL | User agent. |
-| accessed_at | TIMESTAMP NOT NULL | Event time. |
+| accessed_at | TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP | Event time. |
 | metadata | JSON NULL | Request/audit metadata an toàn. |
 
 ## Constraints And Indexes
@@ -76,3 +76,10 @@ kiểu với `trg_lrn_evidence_bu_immutable`; tên trigger chốt tại migratio
 ## Design Notes
 
 Behavior/progress analytics thuộc Track/Course Domain; Media log chỉ chứng minh access event.
+---
+
+## D1–D6 amendment — Approved 2026-08-31
+
+Owner approval trong task Document Processing. D1: explicit DEFAULT CURRENT_TIMESTAMP; không backfill event time.
+
+Migration forward mới sau review; preflight báo count và IDs vi phạm rồi abort, không tự fill/delete. Approval thiết kế không phải evidence schema đã deployed.

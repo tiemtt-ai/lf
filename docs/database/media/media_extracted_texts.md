@@ -1,12 +1,12 @@
 # Table: media_extracted_texts
 
-Version: 1.3
+Version: 1.5
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-24
+Last Updated: 2026-08-31
 
 Document Path: database/media/media_extracted_texts.md
 
@@ -32,12 +32,13 @@ theo phương án (a) Owner chọn ngày 2026-08-25: `extraction_method` mở th
 PDF", và gọi nó là `embedded_text` xoá mất đúng phân biệt mà
 [media_extracted_tables](media_extracted_tables.md) được thiết kế để giữ.
 
-Implementation Status là `Partial` chứ không phải `Implemented`: bảng đã tồn tại
-trong database, nhưng **hai CHECK của Version 1.2–1.3 chưa được migrate** —
-`locator_type` vẫn là `page`, `extraction_method` vẫn là hai giá trị. Cả hai đi
-chung **một** migration và **một** `processing_version` mới cho spreadsheet; tách
-làm hai lần migrate cùng bảng là tự tạo thêm một thế hệ revision không cần thiết.
-Trạng thái trở lại `Implemented` khi migration đó được apply.
+Migration `2026_08_26_000000_open_extracted_text_sheet_locator.php` mở
+vocabulary sheet/spreadsheet_cells; D1 thêm OCR provider CHECK bằng forward
+migration `2026_08_31_000100_enforce_document_output_constraints.php`.
+D2/D4 runtime dùng version mới, giữ archived citation và blank-page locator.
+Verification hiện hành nằm ở
+[Document Final Code Review §18](../../quality/LF-Document-Processing-Final-Code-Review.md#18-remediation-d1d6-sau-owner-approval--2026-08-31).
+Không suy ra application database/production đã migrate từ evidence disposable.
 
 ## Purpose
 
@@ -53,7 +54,7 @@ bảng mà một nửa số cột luôn NULL, và buộc consumer phải đoán 
 
 ```text
 media_files 1 → N media_extracted_texts   (nhiều locale, nhiều trang)
-media_processing_jobs 1 → 0..1 media_extracted_texts
+media_processing_jobs 1 → 0..N media_extracted_texts
 ```
 
 ## Business Rules
@@ -67,7 +68,7 @@ media_processing_jobs 1 → 0..1 media_extracted_texts
   cùng vocabulary với transcript, caption và Media File.
 * `confidence_score` từ `0.00` đến `100.00`, chỉ có khi provider báo cáo; text
   layer có sẵn trong PDF không có confidence và để NULL.
-* Chỉ row `ready` được Media Read Service trả cho consumer.
+* Read mặc định trả row `ready`; explicit historical citation được đọc row `archived` theo Media Read Contract.
 * Extracted text là Digital Asset output. AI Domain tự quyết định dùng thế nào;
   Media không diễn giải nội dung và không tạo business state từ nó.
 * Theo ADR-0018, text có PII vẫn là output hợp lệ; PII presence
@@ -174,3 +175,10 @@ dẫn thì không làm được sau khi đã mất ranh giới trang.
 
 `char_count` là cột thật vì AI chunking đọc nó liên tục; tính lại từ `LONGTEXT`
 mỗi lần truy vấn là chi phí không cần thiết trên đường nóng.
+---
+
+## D1–D6 amendment — Approved 2026-08-31
+
+Owner approval trong task Document Processing. D1 OCR provider non-null CHECK. D2 sheet/spreadsheet_cells; D4 blank page text rỗng/char_count0 hợp lệ trong mixed revision, toàn trắng không persist.
+
+Migration forward mới sau review; preflight báo count và IDs vi phạm rồi abort, không tự fill/delete. Approval thiết kế không phải evidence schema đã deployed.

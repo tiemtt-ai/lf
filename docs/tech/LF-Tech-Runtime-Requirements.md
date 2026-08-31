@@ -1,12 +1,12 @@
 # LF-Tech-Runtime-Requirements.md
 
-Version: 1.4
+Version: 1.5
 
 Document Status: Draft
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-28
+Last Updated: 2026-08-31
 
 Document Path: tech/LF-Tech-Runtime-Requirements.md
 
@@ -393,8 +393,8 @@ Câu trả lời khác nhau theo từng giai đoạn, nên tách rõ.
 | Cần | Trạng thái |
 |---|---|
 | `ext-zip` | Đã dùng trong `LocalDocumentProcessingProvider`; **thiếu trong mọi job CI** — xem § 10 mục 2 |
-| `ext-xmlreader` | Đã dùng để đọc `xl/worksheets/*.xml` |
-| Binary ngoài | **Không cần thêm.** Nhánh này không gọi Poppler, Tesseract hay LibreOffice |
+| `ext-dom` | D2 native worksheet parser `DocumentSpreadsheetReader`; đã thuộc extension nền ở §1.1. DOCX vẫn dùng XMLReader. |
+| Binary ngoài | XLSX không cần binary; XLS legacy dùng LibreOffice đã có để chuyển XLSX, không render PDF. |
 | Database | MariaDB `11.4.3` của job `integration-mysql` — đã có |
 
 Nghĩa là năng lực bảng/ô đầu tiên của LearnForge **không phụ thuộc một phần mềm

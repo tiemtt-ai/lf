@@ -1,12 +1,12 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.28
+Version: 2.29
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-30
+Last Updated: 2026-08-31
 
 Document Path: platform/LF-Media-Processing-Contract.md
 
@@ -17,6 +17,22 @@ Related ADR:
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 * [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 * [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved v1.5
+
+---
+
+## Document remediation D1–D6 — Approved
+
+Owner duyệt D1–D6 ngày 2026-08-31 trong task Document Processing. Phạm vi chỉ khắc phục các finding của [review](../quality/LF-Document-Processing-Final-Code-Review.md); approval không đồng nghĩa runtime đã nghiệm thu hoặc production đã được mở.
+
+* D1: explicit timestamp default và CHECK OCR provider, boolean header, crop all-or-none; preflight abort nếu dữ liệu cũ vi phạm, không sửa dữ liệu lịch sử.
+* D2: XLS chuyển XLSX bằng LibreOffice, rồi đọc worksheet/cell trực tiếp như XLSX; `sheet` / `spreadsheet_cells`, không fallback PDF. Structured spreadsheet dùng `structure=cells`, PDF dùng `structure=layout`. Version mới; bản cũ vẫn đọc được qua citation archived.
+* D3: OCR độc lập, không chờ structured. Structured chỉ materialize khi canonical OCR revision tương ứng ready; metadata `canonical_processing_job_id` ghi immutable input, processing_version hash full extractor version + canonical identity (SHA-256, không truncate). Opt-in đã ghi trên active usage được materialize sau OCR commit. On-demand chưa có canonical ready không gọi provider. Khi OCR mới ready, archive structure thuộc canonical cũ; giữ terminal jobs, citation, crop. Validate tổng canonical+region+cell <=500000 dưới Media lock; vượt cap chỉ fail structured, không truncate OCR.
+* D4: PDF hỗn hợp giữ mọi page locator, kể cả text rỗng/char_count=0; extraction_method theo đường thực chạy. Toàn trắng fail no_extractable_text, không persist revision. pages_with_text chỉ tính char_count>0. Version output mới bảo vệ citation cũ.
+* D5: completed-unit checkpoint monotonic: OCR page (worksheet tính một unit trong OCR); structured PDF page, structured spreadsheet sheet. Chỉ ghi khi hoàn tất quan sát unit; Docling batch hoàn tất conversion mới chứng minh các page đã xử lý, crash trước mốc này không đoán số page. Crop/validation lỗi sau đó giữ checkpoint. Checkpoint là số tuyệt đối monotonic trong từng job; retry đo riêng work thực tế, không cộng checkpoint lặp. Không suy ra tiền, quota hay SaaS aggregation.
+* D6: job dispatch_generation unsigned >=1 default1; unique profile/attempt thêm generation. Explicit authorized reattach sau cancelled tạo successor generation+1, giữ attempt/correlation, supersedes_job_id trỏ cancelled. Failed retry tăng attempt nhưng giữ generation, trần3 xuyên generation. Redelivery/on-demand không mở generation. Gen1 giữ key cũ; gen>1 SHA256 full tuple gồm customer_id và generation. Terminal rows không hồi sinh; output identity không đổi vì cancellation chưa có output.
+
+Document output revision sử dụng suffix `+document-v2` cho local OCR để áp dụng D2/D4 kể cả configured base version cũ; base+suffix quá100 ký tự dùng SHA256 full tuple. Job local OCR pending từ trước D2/D4 không được chạy semantics mới dưới version cũ: fail-closed `unsupported_output_profile`, operator materialize version mới; không sửa ready/archived history. Không đổi identity Audio/Video. Structured input metadata được validate cùng tenant/media/fingerprint/locale và ready OCR job ở claim/persistence. Input stale không được publish output.
+
 
 ---
 
@@ -1208,25 +1224,10 @@ path. Ba đường xử lý deterministic là:
 | --- | --- | --- |
 | `txt`, DOCX có text | đọc UTF-8 hoặc `word/document.xml` | `embedded_text` |
 | PDF có text layer | Poppler `pdftotext -layout`, tách theo page break; **từng trang** quyết định riêng | `embedded_text` |
-| `xlsx` | đọc trực tiếp OOXML: `xl/workbook.xml`, `xl/_rels`, `xl/sharedStrings.xml`, từng `xl/worksheets/sheetN.xml`; một unit mỗi worksheet | `embedded_text` — xem ghi chú vocabulary bên dưới |
-| PDF scan; Office cần conversion (`doc`, `xls`, `ppt`, `pptx`); DOCX không có text; `xlsx` không có cell nào đọc được | LibreOffice headless → PDF khi cần; Poppler render **từng trang thiếu text layer** → Tesseract theo locale canonical | `ocr` nếu fallback OCR, nếu PDF chuyển đổi có text layer thì `embedded_text` |
+| `xlsx`, `xls` | XLS chuyển XLSX; đọc OOXML worksheet/cell, giữ sheet và merged ranges | `spreadsheet_cells`, locator `sheet` |
+| PDF scan; Office (`doc`, `ppt`, `pptx`); DOCX không có text | LibreOffice → PDF khi cần; từng trang thiếu text layer dùng Tesseract | `ocr` hoặc `embedded_text` theo từng trang |
 
-Hai điểm đã đổi so với mô tả trước và phải đọc đúng:
-
-* **PDF trộn quyết định theo từng trang.** Trang có text layer dùng
-  `embedded_text`, trang không có được render và OCR riêng. Hình thức cũ trả về
-  các trang có text layer ngay khi tồn tại ít nhất một trang như vậy, và bỏ im
-  lặng mọi trang scan của một tài liệu trộn.
-* **`xlsx` không còn đi qua LibreOffice** khi workbook có cell đọc được. Render
-  worksheet thành ảnh rồi OCR sẽ xoá sạch sheet, hàng và cột. LibreOffice chỉ còn
-  là fallback khi không unit nào sinh ra được.
-
-Ghi chú vocabulary: đọc cell trực tiếp hiện persist `embedded_text` vì
-`media_extracted_texts` chỉ mở hai giá trị `('ocr','embedded_text')`. Giá trị đó
-làm mất phân biệt giữa "lớp text của một PDF" và "đọc cấu trúc nguồn". Mâu thuẫn
-với `spreadsheet_cells` của
-[media_extracted_tables](../database/media/media_extracted_tables.md) đã được ghi
-là **DOC-CONFLICT-0017** và chờ Owner quyết.
+Spreadsheet không fallback PDF. Đọc cell không có text toàn revision trả `no_extractable_text`. DOC-CONFLICT-0029 được đồng bộ theo D2 đã duyệt; các quyết định 0017/0018 vẫn được bảo toàn.
 
 Locale Tesseract Phase 1 được map tường minh `vi → vie+eng`, `ko → kor+eng`,
 `en → eng`; locale khác fail-closed bằng `unsupported_source`, không language

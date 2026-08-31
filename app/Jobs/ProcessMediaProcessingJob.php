@@ -3,8 +3,13 @@
 namespace App\Jobs;
 
 use App\Contracts\MediaProcessingProvider;
+use App\Exceptions\DocumentCommandFailure;
+use App\Exceptions\DocumentUsageException;
 use App\Services\CaptionAssetStorage;
 use App\Services\DoclingStructuredExtractionProvider;
+use App\Services\DocumentCanonicalRevision;
+use App\Services\DocumentProcessingEligibility;
+use App\Services\DocumentTextUnits;
 use App\Services\FakeMediaProcessingProvider;
 use App\Services\FasterWhisperSpeechToTextProvider;
 use App\Services\LocalDocumentProcessingProvider;
@@ -49,7 +54,9 @@ class ProcessMediaProcessingJob implements ShouldQueue
             if (! $media) {
                 return null;
             }
-            if ($media->status === 'deleted') {
+            if ($media->status === 'deleted'
+                || ($media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
+                    && ! app(DocumentProcessingEligibility::class)->hasActiveUsage($this->customerId, (int) $media->id))) {
                 DB::table('media_processing_jobs')->where('id', $job->id)->where('customer_id', $this->customerId)->update([
                     'status' => 'cancelled', 'completed_at' => now(), 'updated_at' => now(),
                 ]);
@@ -60,6 +67,17 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 ->where('media_file_id', $job->media_file_id)->where('job_type', $job->job_type)
                 ->where('status', 'processing')->where('id', '<>', $job->id)->exists();
             if ($alreadyProcessing) {
+                // A fresh queue envelope preserves the same provider attempt.
+                // Sync cannot honor delay: completion and scheduled recovery
+                // drain its durable pending row instead of recursing here.
+                if ($media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
+                    && config('queue.connections.'.($this->connection ?? config('queue.default')).'.driver') !== 'sync') {
+                    $connection = $this->connection ?? $this->job?->getConnectionName();
+                    $queue = $this->queue ?? $this->job?->getQueue();
+                    DB::afterCommit(fn () => self::dispatch($this->customerId, (int) $job->id)
+                        ->onConnection($connection)->onQueue($queue)->delay(now()->addMinute()));
+                }
+
                 return null;
             }
             DB::table('media_processing_jobs')->where('id', $job->id)->where('customer_id', $this->customerId)->update(['status' => 'processing', 'started_at' => now(), 'updated_at' => now()]);
@@ -70,8 +88,12 @@ class ProcessMediaProcessingJob implements ShouldQueue
             return;
         }
         [$media, $job] = $claimed;
+        $result = null;
 
         try {
+            if ($job->job_type === 'structured_extraction') {
+                app(DocumentCanonicalRevision::class)->forStructure($this->customerId, $media, $job, (string) $this->profileValue($job->output_profile, 'locale'));
+            }
             $result = $this->provider((string) $job->provider)->process($media, $job);
             try {
                 DB::transaction(fn () => $this->persistSuccess($media, $job, $result));
@@ -85,9 +107,23 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 throw $persistFailure;
             }
         } catch (Throwable $e) {
-            DB::transaction(function () use ($job, $e): void {
+            if (in_array($job->job_type, ['ocr', 'structured_extraction'], true)) {
+                // Operator diagnostics contain only identifiers and exception
+                // categories, never message, stack, source text or stderr.
+                $diagnostic = $e;
+                while (! $diagnostic instanceof DocumentCommandFailure && $diagnostic->getPrevious() !== null) {
+                    $diagnostic = $diagnostic->getPrevious();
+                }
+                Log::warning('Document processing failed.', [
+                    'customer_id' => $this->customerId, 'processing_job_id' => (int) $job->id,
+                    'exception' => $e::class, 'cause' => $e->getPrevious() ? $e->getPrevious()::class : null,
+                    'exit_code' => $diagnostic instanceof DocumentCommandFailure ? $diagnostic->exitCode : null,
+                    'signal' => $diagnostic instanceof DocumentCommandFailure ? $diagnostic->signal : null,
+                ]);
+            }
+            DB::transaction(function () use ($job, $e, $result): void {
                 $knownErrorCodes = [
-                    'infected_source', 'provider_unavailable', 'provider_timeout',
+                    'infected_source', 'provider_unavailable', 'provider_timeout', 'rate_limited',
                     'unsupported_source', 'corrupt_source', 'source_unavailable',
                     'no_extractable_text', 'extracted_text_too_large', 'missing_canonical_locale',
                     'page_limit_exceeded', 'source_expansion_limit_exceeded',
@@ -102,11 +138,19 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 $errorCode = $e instanceof RuntimeException && in_array($e->getMessage(), $knownErrorCodes, true)
                     ? $e->getMessage()
                     : 'processing_failed';
-                DB::table('media_processing_jobs')->where('customer_id', $this->customerId)->where('id', $job->id)->update([
+                $measured = $result['usage'] ?? null;
+                $pages = $e instanceof DocumentUsageException ? $e->pages
+                    : (is_array($measured) && in_array($measured['unit_type'] ?? null, ['page', 'sheet'], true)
+                        && is_int($measured['units'] ?? null) && $measured['units'] >= 0 ? $measured['units'] : null);
+                $unitType = $e instanceof DocumentUsageException ? $e->unitType : ($measured['unit_type'] ?? null);
+                $usage = $pages !== null && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
+                    ? ['billable_units' => $pages, 'billable_unit_type' => $unitType] : [];
+                DB::table('media_processing_jobs')->where('customer_id', $this->customerId)->where('id', $job->id)->where('status', 'processing')->update([
                     'status' => 'failed', 'completed_at' => now(),
                     'error_code' => $errorCode,
-                    'error_message' => mb_substr($e->getMessage(), 0, 1000), 'updated_at' => now(),
-                ]);
+                    'error_message' => in_array($job->job_type, ['ocr', 'structured_extraction'], true)
+                        ? $errorCode : mb_substr($e->getMessage(), 0, 1000), 'updated_at' => now(),
+                ] + $usage);
                 if ($job->job_type === 'virus_scan' && ($errorCode === 'infected_source'
                     || $errorCode === 'provider_unavailable' || (int) $job->attempt >= 3)) {
                     DB::table('media_files')->where('customer_id', $this->customerId)->where('id', $job->media_file_id)->update([
@@ -114,12 +158,24 @@ class ProcessMediaProcessingJob implements ShouldQueue
                     ]);
                 }
             });
+        } finally {
+            if ($media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
+                && config('queue.connections.'.($this->connection ?? config('queue.default')).'.driver') === 'sync') {
+                $pending = DB::table('media_processing_jobs')->where('customer_id', $this->customerId)
+                    ->where('media_file_id', $media->id)->where('job_type', $job->job_type)
+                    ->where('status', 'pending')->orderBy('id')->value('id');
+                if ($pending !== null) {
+                    DB::afterCommit(fn () => self::dispatch($this->customerId, (int) $pending));
+                }
+            }
         }
     }
 
     public function failed(?Throwable $exception): void
     {
-        DB::table('media_processing_jobs')
+        $documentJob = DB::table('media_processing_jobs')->where('customer_id', $this->customerId)
+            ->where('id', $this->processingJobId)->whereIn('job_type', ['ocr', 'structured_extraction'])->exists();
+        $transitioned = DB::table('media_processing_jobs')
             ->where('customer_id', $this->customerId)
             ->where('id', $this->processingJobId)
             ->where('status', 'processing')
@@ -127,9 +183,15 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 'status' => 'failed',
                 'completed_at' => now(),
                 'error_code' => 'provider_timeout',
-                'error_message' => mb_substr($exception?->getMessage() ?? 'Queue worker terminated the processing job.', 0, 1000),
+                'error_message' => $documentJob ? 'provider_timeout'
+                    : mb_substr($exception?->getMessage() ?? 'Queue worker terminated the processing job.', 0, 1000),
                 'updated_at' => now(),
             ]);
+
+        if ($documentJob && $transitioned === 0) {
+            // A repeated failure notification must not purge a committed revision.
+            return;
+        }
 
         // Worker bi giet giua chung van co the da day crop len storage. Khong don
         // o day thi khong nhanh nao con chay de don.
@@ -241,11 +303,18 @@ class ProcessMediaProcessingJob implements ShouldQueue
     /** @param array<string, mixed> $result */
     private function persistSuccess(object $media, object $job, array $result): void
     {
+        if (in_array($job->job_type, ['ocr', 'structured_extraction'], true)) {
+            $currentJob = DB::table('media_processing_jobs')->where('customer_id', $this->customerId)
+                ->where('id', $job->id)->lockForUpdate()->first();
+            if ($currentJob === null || $currentJob->status !== 'processing') {
+                throw new RuntimeException('source_unavailable');
+            }
+        }
         $currentMedia = DB::table('media_files')
             ->where('customer_id', $this->customerId)
             ->where('id', $media->id)
             ->lockForUpdate()
-            ->first(['status']);
+            ->first(['status', 'processing_error_code']);
         if ($currentMedia === null || $currentMedia->status === 'deleted') {
             throw new RuntimeException('source_unavailable');
         }
@@ -258,9 +327,11 @@ class ProcessMediaProcessingJob implements ShouldQueue
             if (! ($result['clean'] ?? false)) {
                 throw new RuntimeException('infected_source');
             }
-            DB::table('media_files')->where('customer_id', $this->customerId)->where('id', $media->id)->update(['status' => 'ready', 'processing_error_code' => null, 'updated_at' => $now]);
+            if ($media->file_type !== 'document' || $currentMedia->processing_error_code !== 'required_profile_configuration_missing') {
+                DB::table('media_files')->where('customer_id', $this->customerId)->where('id', $media->id)->update(['status' => 'ready', 'processing_error_code' => null, 'updated_at' => $now]);
+            }
         } elseif ($job->job_type === 'ocr') {
-            foreach ($result['units'] ?? [] as $unit) {
+            foreach (app(DocumentTextUnits::class)->validate($result['units'] ?? []) as $unit) {
                 $outputId = DB::table('media_extracted_texts')->insertGetId([
                     'customer_id' => $this->customerId, 'media_file_id' => $media->id, 'processing_job_id' => $job->id,
                     'locale' => $locale, 'locator_type' => $unit['locator_type'], 'locator_value' => $unit['locator_value'],
@@ -272,6 +343,10 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 ]);
             }
             $this->archiveSupersededRevisions('media_extracted_texts', $media, $job, ['locale' => $locale], $now);
+            foreach (['media_extracted_regions', 'media_extracted_tables'] as $table) {
+                DB::table($table)->where('customer_id', $this->customerId)->where('media_file_id', $media->id)
+                    ->where('locale', $locale)->where('status', 'ready')->update(['status' => 'archived', 'updated_at' => $now]);
+            }
             $outputType = 'extracted_text';
         } elseif ($job->job_type === 'speech_to_text') {
             $units = $this->validatedTranscriptUnits($result['units'] ?? []);
@@ -315,6 +390,15 @@ class ProcessMediaProcessingJob implements ShouldQueue
             'status' => 'ready', 'output_type' => $outputType, 'output_id' => $outputId,
             'completed_at' => $now, 'updated_at' => $now,
         ];
+        if (in_array($job->job_type, ['ocr', 'structured_extraction'], true) && isset($result['usage'])) {
+            $usage = $result['usage'];
+            if (! is_array($usage) || ! in_array($usage['unit_type'] ?? null, ['page', 'sheet'], true)
+                || ! is_int($usage['units'] ?? null) || $usage['units'] < 0) {
+                throw new RuntimeException('processing_failed');
+            }
+            $update['billable_units'] = $usage['units'];
+            $update['billable_unit_type'] = $usage['unit_type'];
+        }
         if (isset($coverage)) {
             // Giu metadata cu, chi them mot khoa: coverage la du kien do duoc, khong
             // phai trang thai nghiep vu, nen no khong thay the gi dang co.
@@ -325,6 +409,27 @@ class ProcessMediaProcessingJob implements ShouldQueue
             );
         }
         DB::table('media_processing_jobs')->where('customer_id', $this->customerId)->where('id', $job->id)->update($update);
+        if ($job->job_type === 'ocr') {
+            $metadata = json_decode((string) ($job->metadata ?? ''), true) ?: [];
+            $requested = ($metadata['structured_requested'] ?? false) === true;
+            $usages = DB::table('media_file_usages')->where('customer_id', $this->customerId)->where('media_file_id', $media->id)
+                ->where('owner_type', 'course_activity')->where('usage_type', 'document')->where('status', 'active')->pluck('metadata');
+            foreach ($usages as $usage) {
+                $requested = $requested || ((json_decode((string) $usage, true)['structured_extraction'] ?? false) === true);
+            }
+            if ($requested && $usages->isNotEmpty()) {
+                $extension = strtolower((string) ($media->extension ?? pathinfo($media->storage_key, PATHINFO_EXTENSION)));
+                DB::afterCommit(function () use ($media, $locale, $extension): void {
+                    try {
+                        app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile($this->customerId, (int) $media->id, 'structured_extraction',
+                            ['locale' => (string) $locale, 'structure' => in_array($extension, ['xls', 'xlsx'], true) ? 'cells' : 'layout']);
+                    } catch (\InvalidArgumentException) {
+                        // Detach or canonical supersession between commits: OCR remains ready.
+                    }
+                });
+            }
+        }
+
     }
 
     /**

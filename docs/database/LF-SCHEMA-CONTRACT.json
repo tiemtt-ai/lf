@@ -19972,7 +19972,7 @@
           "expression": "`bbox_x` is null and `bbox_y` is null and `bbox_width` is null and `bbox_height` is null or `bbox_x` is not null and `bbox_y` is not null and `bbox_width` is not null and `bbox_height` is not null and `bbox_x` >= 0 and `bbox_y` >= 0 and `bbox_width` > 0 and `bbox_height` > 0 and `bbox_x` + `bbox_width` <= 1 and `bbox_y` + `bbox_height` <= 1"
         },
         {
-          "expression": "`crop_storage_key` is null and `crop_mime_type` is null and `crop_width` is null and `crop_height` is null and `crop_bytes` is null or `crop_storage_key` is not null and `crop_mime_type` is not null and `crop_width` > 0 and `crop_height` > 0 and `crop_bytes` > 0"
+          "expression": "`crop_storage_key` is null and `crop_mime_type` is null and `crop_width` is null and `crop_height` is null and `crop_bytes` is null or `crop_storage_key` is not null and `crop_mime_type` is not null and `crop_width` is not null and `crop_height` is not null and `crop_bytes` is not null and `crop_width` > 0 and `crop_height` > 0 and `crop_bytes` > 0"
         },
         {
           "expression": "`crop_storage_key` is null or `bbox_x` is not null"
@@ -20368,6 +20368,12 @@
         },
         {
           "expression": "`locator_type` = 'region' and `region_id` is not null or `locator_type` = 'sheet' and `region_id` is null"
+        },
+        {
+          "expression": "`extraction_method` <> 'ocr' or `provider` is not null"
+        },
+        {
+          "expression": "`has_header` in (0,1)"
         }
       ],
       "triggers": [],
@@ -20675,6 +20681,9 @@
         },
         {
           "expression": "`status` <> 'ready' or `text` is not null"
+        },
+        {
+          "expression": "`extraction_method` <> 'ocr' or `provider` is not null"
         }
       ],
       "triggers": [],
@@ -21549,6 +21558,15 @@
           "unsigned": false,
           "auto_increment": false,
           "generated": null
+        },
+        {
+          "name": "dispatch_generation",
+          "type": "int",
+          "nullable": false,
+          "default": "1",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
         }
       ],
       "primary_key": [
@@ -21631,6 +21649,7 @@
             "source_fingerprint",
             "processing_version",
             "output_profile_hash",
+            "dispatch_generation",
             "attempt"
           ],
           "unique": true,
@@ -21727,6 +21746,9 @@
         },
         {
           "expression": "`billable_units` is null and `billable_unit_type` is null or `billable_units` is not null and `billable_unit_type` is not null"
+        },
+        {
+          "expression": "`dispatch_generation` >= 1"
         }
       ],
       "triggers": [],
@@ -21946,6 +21968,9 @@
         },
         {
           "expression": "`confidence_score` is null or `confidence_score` between 0 and 100"
+        },
+        {
+          "expression": "`is_header` in (0,1)"
         }
       ],
       "triggers": [],

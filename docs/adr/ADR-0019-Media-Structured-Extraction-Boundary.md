@@ -1,6 +1,6 @@
 # ADR-0019 — Media Structured Extraction Boundary
 
-Version: 1.5
+Version: 1.6
 
 Status: Approved
 
@@ -8,7 +8,7 @@ Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-28
+Last Updated: 2026-08-31
 
 Proposal Date: 2026-08-25
 
@@ -30,6 +30,16 @@ Related Specification:
 * [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md)
 * [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md)
 * [media_extracted_texts](../database/media/media_extracted_texts.md)
+
+---
+
+## D2–D5 — Approved 2026-08-31
+
+Owner duyệt D2–D5: * D2: XLS chuyển XLSX bằng LibreOffice, rồi đọc worksheet/cell trực tiếp như XLSX; `sheet` / `spreadsheet_cells`, không fallback PDF. Structured spreadsheet dùng `structure=cells`, PDF dùng `structure=layout`. Version mới; bản cũ vẫn đọc được qua citation archived.
+* D3: OCR độc lập, không chờ structured. Structured chỉ materialize khi canonical OCR revision tương ứng ready; metadata `canonical_processing_job_id` ghi immutable input, processing_version hash full extractor version + canonical identity (SHA-256, không truncate). Opt-in đã ghi trên active usage được materialize sau OCR commit. On-demand chưa có canonical ready không gọi provider. Khi OCR mới ready, archive structure thuộc canonical cũ; giữ terminal jobs, citation, crop. Validate tổng canonical+region+cell <=500000 dưới Media lock; vượt cap chỉ fail structured, không truncate OCR.
+* D4: PDF hỗn hợp giữ mọi page locator, kể cả text rỗng/char_count=0; extraction_method theo đường thực chạy. Toàn trắng fail no_extractable_text, không persist revision. pages_with_text chỉ tính char_count>0. Version output mới bảo vệ citation cũ.
+* D5: completed-unit checkpoint monotonic: OCR page (worksheet tính một unit trong OCR); structured PDF page, structured spreadsheet sheet. Chỉ ghi khi hoàn tất quan sát unit; Docling batch hoàn tất conversion mới chứng minh các page đã xử lý, crash trước mốc này không đoán số page. Crop/validation lỗi sau đó giữ checkpoint. Checkpoint là số tuyệt đối monotonic trong từng job; retry đo riêng work thực tế. Không suy ra tiền, quota hay SaaS aggregation.
+
 
 ---
 

@@ -1,12 +1,12 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.14
+Version: 1.15
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-28
+Last Updated: 2026-08-31
 
 Document Path: platform/LF-Media-Read-Contract.md
 
@@ -20,6 +20,12 @@ Related ADR:
 
 Related Specification:
 [LF-Media-Processing-Contract](LF-Media-Processing-Contract.md)
+
+---
+
+## D2–D4 — Approved 2026-08-31
+
+Owner duyệt: canonical spreadsheet mới dùng sheet/spreadsheet_cells, archived page/embedded_text citation cũ vẫn đọc nguyên bản. PDF mixed blank trả page thật với text rỗng và char_count=0; pages_with_text chỉ tính char_count>0. OCR revision mới archive cấu trúc thuộc canonical cũ, không đổi terminal job hoặc xoá citation/crop. Không đổi authorization/owner/tenant/locale boundary.
 
 ---
 
