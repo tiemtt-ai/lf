@@ -23,9 +23,9 @@ Evidence chốt ở §18. Các mô tả lỗi và test đỏ trong các mục tr
 | Document OCR/text | PDF text/scan/mixed/blank, DOCX/DOC/PPTX/PPT/XLSX/XLS; tenant/locale/read/history/retry | **DONE trong scope local.** D1–D6 đã sửa và kiểm chứng trên SQLite + MariaDB disposable. |
 | Docling structured extraction | PDF table/merged cells/chart/diagram, crop, canonical input, aggregate budget và metering | **DONE trong scope local.** Spreadsheet structure dùng native cells provider theo D2, không giả làm Docling PDF. |
 
-Kết luận được phép dùng: **PDF OCR và Docling local E2E đã chạy thành công trên fixtures đã kiểm.** Chưa được đánh dấu **Document Processing DONE** hoặc **Docling DONE theo toàn bộ contract**. Đây là tổng kết evidence hiện có, không phải lượt nghiệm thu mới, không thay Architecture Gate/Owner Approval và không chứng nhận production readiness.
+Kết luận hiện tại: **Document Processing và Docling hoàn tất phần implementation và kiểm chứng local trong phạm vi báo cáo, bao gồm D1–D6 đã duyệt.** Không còn lỗi đã xác định hoặc quyết định chờ duyệt trong phạm vi sửa này. Đây không phải chứng nhận production readiness hoặc toàn bộ Media.
 
-Có các sửa chữa về validation output OCR, atomic readiness, terminal-state guard, lỗi subprocess, metadata lỗi, scan/configuration race và lựa chọn revision/readiness khi đọc. Tuy nhiên, còn lỗi lifecycle/queue và schema-contract gaps trong phạm vi; không được chuyển chúng thành production backlog rồi kết luận PASS.
+Validation output OCR, atomic readiness, terminal-state guard, lỗi subprocess, metadata lỗi, scan/configuration race, revision/readiness, lifecycle/queue và schema-contract gaps đã được xử lý; evidence chốt tại §18. Các kết luận trước remediation được giữ làm lịch sử, không dùng để mở lại approval đã có.
 
 Repository: `tiemtt-ai/lf`, branch `main`; baseline commit `e154407e205754c53feb0a84c67db4a0ff11506b`. Không commit/push/deploy, không sửa `.env`, không backfill hay sửa migration cũ.
 
@@ -78,6 +78,8 @@ Không review nghiệp vụ Audio/Video. Full suite có chạy các test dùng c
 Inventory theo symbol không tuyên bố review mọi chức năng không liên quan trong controller/service lớn. Không thêm model, enum, route, middleware, public API hay dependency production.
 
 ## 4. Contract-to-code traceability matrix
+
+**Snapshot trước D1–D6:** các nhãn PARTIAL/NOT_IMPLEMENTED và mô tả thiếu sót trong §4–§10 ghi nhận thời điểm review ban đầu. Trạng thái đóng hiện tại xem §18–§19; không dùng snapshot này làm danh sách backlog hiện tại.
 
 Đường dẫn viết gọn trong bảng được định nghĩa đầy đủ ở §3; symbol/test name là locator evidence.
 
@@ -249,6 +251,8 @@ Lần supported harness đầu timeout 300s trong fresh setup; database vẫn đ
 Logs trong session `/tmp/lf-document-*.log`; chúng là working evidence, không là canonical docs. Fixture generator cần reportlab/Pillow/pypdf và một Unicode TTF path; PDF đã render và kiểm hình page 1/page 2, không thêm thư viện Python vào dependency ứng dụng.
 
 ## 11. Findings — root cause trước D1–D6, đã đóng tại §18
+
+Các mô tả PARTIAL/BLOCKED/cần duyệt bên dưới là root cause lịch sử. Toàn bộ H01–H04, M01–M08 và L01–L04 đã đóng trong phạm vi báo cáo; đối chiếu closure tại §19.
 
 ### Critical
 
@@ -513,3 +517,24 @@ Final Audit Level: **HIGH**, không hạ mức. Final Verdict: **PASS / APPROVE 
 
 
 Cleanup chốt 2026-08-31 15:38:21: information_schema xác nhận **0 review database** còn lại; MariaDB disposable shutdown complete và pid file đã biến mất. Không có thay đổi `.env`, composer.lock/package-lock.json hoặc DB ứng dụng. `git diff --check` cuối PASS sau dọn blank line EOF của table docs. Không commit/push/deploy. Hai forward migrations sẵn sàng để review/apply trên môi trường được chỉ định phù hợp runtime floor; kết quả này không tự nâng cấp XAMPP MariaDB 10.4.
+
+## 19. Closure register và cách review lại
+
+Đối chiếu ngày 2026-08-31: đây là xác nhận trạng thái và chỉnh wording báo cáo, không phải một lượt chạy lại toàn bộ tests. Evidence runtime/schema vẫn là các lượt §18.
+
+| Findings / quyết định | Trạng thái | Căn cứ đóng |
+| --- | --- | --- |
+| H01/H04, M04, L01–L04 | CLOSED | Runtime repairs và regression tại §11/§17; final suite và queue acceptance §18 |
+| H03/M01 — D1 | CLOSED | Forward constraints/default/preflight; fresh drift và physical schema PASS |
+| M02/M07/M08 — D2 | CLOSED | Native spreadsheet text/cells, version/history; real XLS marker và CLI/physical corpus PASS |
+| M03 — D3 | CLOSED | Canonical dependency, aggregate budget và archive/history tests PASS |
+| M06 — D4 | CLOSED | Mixed blank/all-blank và coverage tests PASS |
+| M05 — D5 | CLOSED | Completed-unit checkpoints; structured measurement và OCR queue recovery PASS |
+| H02 — D6 | CLOSED | Reattach generation, terminal history, retry cap và physical unique/rollback PASS |
+| DOC-CONFLICT-0029–0032 | RESOLVED | Owner approval đã ghi tại §17; canonical amendments và verification §18 |
+
+Không còn approval implementation D1–D6 đang chờ. Không yêu cầu Owner duyệt lại cùng quyết định chỉ vì các đoạn lịch sử dùng wording “chưa duyệt”. Không biến hạng mục Product/production ngoài phạm vi thành thiếu sót implementation của lần nghiệm thu này.
+
+Review sau phải đối chiếu phạm vi, code và evidence đã chốt. Chỉ mở lại finding khi có bằng chứng cụ thể về lỗi còn tồn tại, regression hoặc thay đổi yêu cầu/môi trường; ghi rõ requirement, cách tái hiện và ảnh hưởng. Nếu phát hiện lỗi thuộc phạm vi đã duyệt, xử lý như defect, không tự gọi là nâng cấp mới để yêu cầu duyệt lại. Quy tắc này không cho phép che giấu lỗi mới hoặc bỏ qua approval nếu thực sự cần thay đổi architecture/contract ngoài quyết định đã có.
+
+Giới hạn đã công bố: chưa migrate DB ứng dụng/chứng nhận production; kiểm thử không bảo đảm tuyệt đối không còn lỗi chưa phát hiện. Không có hạng mục implementation đã biết nào trong báo cáo bị để lại dưới dạng approval ẩn.
