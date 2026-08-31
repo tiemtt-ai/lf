@@ -1,6 +1,6 @@
 # Document Processing — Final Code Review
 
-Version: 1.4
+Version: 1.5
 
 Document Status: Review
 
@@ -14,7 +14,7 @@ Document Path: quality/LF-Document-Processing-Final-Code-Review.md
 
 **Verdict: APPROVE — phạm vi Document local và D1–D6.** Không còn finding mở trong phạm vi sửa: **0 Critical, 0 High, 0 Medium, 0 Low**. Sáu quyết định được Owner duyệt ngày 2026-08-31 đã được đưa vào contract, migration, runtime và kiểm chứng. Không suy rộng thành nghiệm thu Audio/Video, toàn bộ Media hoặc production.
 
-Evidence chốt ở §18. Các mô tả lỗi và test đỏ trong các mục trước §18 được giữ theo thời điểm để trace root cause; chúng không phải trạng thái hiện tại. Database ứng dụng chưa được migrate, `.env` không thay đổi.
+Evidence implementation chốt ở §18; trạng thái Git/database và smoke test sau khi Owner migrate nằm tại §20. Các mô tả lỗi, test đỏ và trạng thái chưa commit/migrate ở các mục lịch sử không phải trạng thái hiện tại. `.env` không thay đổi trong lượt kiểm chứng.
 
 ### Trạng thái riêng Document và Docling
 
@@ -27,7 +27,7 @@ Kết luận hiện tại: **Document Processing và Docling hoàn tất phần 
 
 Validation output OCR, atomic readiness, terminal-state guard, lỗi subprocess, metadata lỗi, scan/configuration race, revision/readiness, lifecycle/queue và schema-contract gaps đã được xử lý; evidence chốt tại §18. Các kết luận trước remediation được giữ làm lịch sử, không dùng để mở lại approval đã có.
 
-Repository: `tiemtt-ai/lf`, branch `main`; baseline commit `e154407e205754c53feb0a84c67db4a0ff11506b`. Không commit/push/deploy, không sửa `.env`, không backfill hay sửa migration cũ.
+Repository: `tiemtt-ai/lf`; baseline review `e154407e205754c53feb0a84c67db4a0ff11506b`. Implementation và closure report đã có trên GitHub `main` tại `72d5f8e3aac8865c7858f6e3a14bc5fe0ff4982b`, xác minh bằng `git ls-remote` ở lượt §20. Không deploy, không sửa `.env`, không backfill hay sửa migration cũ.
 
 Audit Level trước và sau sửa: **HIGH** — thay đổi query/readiness, transaction và revision lịch sử. Theo taxonomy của Regression Audit: **PASS** trong phạm vi local/D1–D6; verdict theo đề bài: `APPROVE`.
 
@@ -340,7 +340,7 @@ Không deferred: lifecycle/cancellation/concurrency, tenant isolation, schema pa
 | Code Gate | PASS | Không còn finding mở thuộc D1–D6; history, tenant scope, attempts và canonical provenance được giữ |
 | Local Runtime Gate | PASS | Real Document/Docling/Office E2E và queue worker recovery trên disposable database |
 | Test Gate | PASS trong scope local/D1–D6 | Full suite, physical schema/corpus/queue, build, Pint, docs lint và drift |
-| Product/Production Gate | DEFERRED_PRODUCT_OR_PRODUCTION | Không deploy, không migrate DB ứng dụng, không chứng nhận sizing/quality benchmark/virus scanner production |
+| Product/Production Gate | DEFERRED_PRODUCT_OR_PRODUCTION | Không deploy/chứng nhận sizing, quality benchmark hoặc virus scanner production; schema ứng dụng và smoke sau migrate được kiểm riêng tại §20 |
 
 Không tự ký field Owner Approval hoặc đổi formal Gate R của review foundation
 cũ thành production authorization. Kết quả này đóng các vấn đề local đã xác
@@ -348,9 +348,9 @@ cũ thành production authorization. Kết quả này đóng các vấn đề lo
 
 ## 15. Final verdict
 
-**APPROVE / PASS — Document local, D1–D6 hoàn tất.** Code và forward migrations
-đã được kiểm chứng, không còn High/Medium mở trong scope. Migration trên DB ứng
-dụng, commit/push và deployment chưa thực hiện, theo ranh giới nhiệm vụ.
+**PASS_LOCAL_DOCUMENT_PROCESSING — Document local, D1–D6 hoàn tất.** Code và forward migrations
+đã được kiểm chứng, không còn finding mở trong scope. Git/database đã tiến thêm
+sau nghiệm thu ban đầu; trạng thái hiện tại và giới hạn môi trường xem §20.
 
 ## 16. Files thay đổi
 
@@ -537,4 +537,48 @@ Không còn approval implementation D1–D6 đang chờ. Không yêu cầu Owner
 
 Review sau phải đối chiếu phạm vi, code và evidence đã chốt. Chỉ mở lại finding khi có bằng chứng cụ thể về lỗi còn tồn tại, regression hoặc thay đổi yêu cầu/môi trường; ghi rõ requirement, cách tái hiện và ảnh hưởng. Nếu phát hiện lỗi thuộc phạm vi đã duyệt, xử lý như defect, không tự gọi là nâng cấp mới để yêu cầu duyệt lại. Quy tắc này không cho phép che giấu lỗi mới hoặc bỏ qua approval nếu thực sự cần thay đổi architecture/contract ngoài quyết định đã có.
 
-Giới hạn đã công bố: chưa migrate DB ứng dụng/chứng nhận production; kiểm thử không bảo đảm tuyệt đối không còn lỗi chưa phát hiện. Không có hạng mục implementation đã biết nào trong báo cáo bị để lại dưới dạng approval ẩn.
+Giới hạn tại thời điểm đóng §19: chưa migrate DB ứng dụng/chứng nhận production; trạng thái migration đã được cập nhật sau đó tại §20. Kiểm thử không bảo đảm tuyệt đối không còn lỗi chưa phát hiện. Không có hạng mục implementation đã biết nào trong báo cáo bị để lại dưới dạng approval ẩn.
+
+## 20. Checkpoint sau Owner migrate và smoke tài liệu thật — 2026-08-31
+
+Mục này supersede trạng thái Git/database chưa thực hiện trong các snapshot §17–§19; không mở lại D1–D6 hoặc mở chức năng mới.
+
+### Git và schema ứng dụng
+
+- Đầu lượt working tree sạch, local `main` tại `72d5f8e3aac8865c7858f6e3a14bc5fe0ff4982b`. `git ls-remote origin refs/heads/main` trả đúng SHA này: implementation (`fa15f1d`) và closure report (`72d5f8e`) đã commit/push, không còn chỉ nằm trong working tree.
+- Branch follow-up: `codex/document-processing-checkpoint-20260831`, từ checkpoint trên. Chỉ cập nhật evidence và `.gitattributes` khai báo PDF fixture là binary; không chỉnh byte PDF, runtime, migration hoặc dependency.
+- Owner đã chạy migrate. Read-only ledger xác nhận hai migration `2026_08_31_000100_enforce_document_output_constraints` và `2026_08_31_000200_add_document_dispatch_generation` ở batch 21 trên `learnforge_db`.
+- `php artisan schema:drift --connection=mysql --format=json`: **PASS**, 90 migration files, ledger `pending=[]`, `missing_source=[]`. Đây là selected-database inspection, không chạy fresh/rollback trên ứng dụng.
+- Runtime thực tế: `APP_ENV=local`, MariaDB **10.4.21**, OCR `local_document`, structure `docling_local`, queue `redis`, virus scan `fake`. MariaDB này thấp hơn supported floor; schema PASS không thay đổi giới hạn đó. Không tự nâng cấp server hoặc sửa `.env`.
+
+### Regression và smoke schema đang chạy
+
+- Rerun `DocumentProcessingLocalReviewTest`: **49 tests / 234 assertions PASS**, 111.41s, SQLite test cô lập; log `/tmp/lf-document-checkpoint-review.log`. Không cộng vào 941 tests của lượt §18.
+- Hai bài smoke real mixed-PDF/read và Docling/read chạy trên schema `learnforge_db` hiện có: **2 tests / 24 assertions PASS**, 22.288s; log `/tmp/lf-application-document-smoke.log`.
+- Harness tạm `/tmp/ApplicationDocumentSmokeTest.php` override `refreshDatabase` để chỉ mở test transaction, tuyệt đối không gọi migrate/fresh/DDL. Fixture được rollback ở teardown; kiểm tra sau chạy: fixture customer=0, fixture user=0. Storage riêng của smoke đã dọn.
+- Smoke dùng provider thật nhưng queue **sync** và virus scan **fake** trong test; không phải kiểm chứng Redis worker/scheduler đang vận hành. Không dùng kết quả này để chứng nhận development trên supported runtime hoặc production.
+
+### Sáu tài liệu do Owner cung cấp
+
+Chạy qua upload → Course usage → provider → persist → authorized read trong SQLite memory và storage test riêng. PDF/Office/OCR/Docling dùng executable local, không gửi tài liệu ra dịch vụ bên ngoài. Locale lần lượt ko/vi/en/ko/vi/ko được truyền tường minh; đây là smoke kỹ thuật, chưa phải benchmark độ chính xác OCR tiếng Hàn/Việt.
+
+Ba PDF có 100/100/16 trang. Hai PDF 100 trang chạy canonical text toàn bộ và assert đủ 100 locators, không cắt mẫu. PDF 16 trang chạy thêm Docling structured; XLSX chạy thêm native cells theo D2. DOCX/PPTX chạy canonical extraction. Không bật Docling cho DOCX/PPTX hoặc giả gọi native spreadsheet là Docling.
+
+File gốc và nội dung trích xuất không đưa vào Git. Harness/input manifest nằm trong `/tmp`; kết quả chỉ ghi metadata và số lượng, không log nội dung. Kết quả cuối của cả sáu test đã hoàn tất được ghi dưới đây.
+
+| Tài liệu | Units đọc canonical | Ký tự đọc | Structured | Kết quả |
+| --- | --- | --- | --- | --- |
+| TOPCIT PDF | 100 | 126071 | Không yêu cầu | PASS |
+| HKCA DOCX | 1 | 21666 | Không yêu cầu | PASS |
+| IT Work Plan PPTX | 15 | 5174 | Không yêu cầu | PASS |
+| Tiếng Hàn sơ cấp 2 PDF | 100 | 147927 | Không yêu cầu | PASS |
+| ALLIVA PDF | 16 | 47852 | Docling: 16 trang | PASS |
+| Báo cáo thiết bị XLSX | 1 | 23930 | Native cells: 1 sheet | PASS |
+
+**6 tests / 52 assertions PASS**, không skip; 07:23.616, peak PHPUnit memory 66.13 MB (không phải tổng RSS subprocess hoặc benchmark capacity). Logs: `/tmp/lf-user-document-smoke.log`, `/tmp/lf-user-document-results.jsonl`. Harness: `/tmp/UserDocumentSmokeTest.php`; manifest input `/tmp/lf-user-document-inputs.json`.
+
+DOCX trả 1 unit text canonical theo provider hiện tại, không suy ra tài liệu chỉ có 1 trang render. XLSX trả sheet locator; OCR metering vẫn dùng page theo contract, structured metering dùng sheet. Hai PDF 100 trang đều assert locator cuối là 100 và đủ 100 units. Mỗi file assert output ready, authorized read không rỗng, tổng text trong cap và SHA-256 file gốc không đổi. Hai structured cases assert job ready và có table/region được persist.
+
+Cleanup: SQLite memory đóng cùng process; storage riêng của sáu file đã xoá. Đối chiếu lại SHA-256 cả sáu file gốc không đổi. Không đưa source/crop/text khách hàng vào repo. Smoke ứng dụng đã rollback fixture; không có worker/server mới được để chạy.
+
+**Kết luận follow-up:** PASS_LOCAL_DOCUMENT_PROCESSING; GitHub main đã có D1–D6, schema ứng dụng sau migrate PASS, smoke Document/Docling trên schema ứng dụng PASS và sáu file thật PASS. Không có runtime defect mới trong lượt này. Vẫn không chứng nhận Redis/scheduler đang vận hành, supported-development deployment hoặc production; MariaDB 10.4.21 và fake virus scan là giới hạn môi trường đã công bố, không phải approval D1–D6 còn thiếu. Không sửa runtime hoặc thêm chức năng Document.
