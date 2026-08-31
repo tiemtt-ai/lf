@@ -1,8 +1,8 @@
 # Document Processing — Final Code Review
 
-Version: 1.5
+Version: 1.6
 
-Document Status: Review
+Document Status: Approved
 
 Implementation Status: Implemented
 
@@ -11,6 +11,8 @@ Last Updated: 2026-08-31
 Document Path: quality/LF-Document-Processing-Final-Code-Review.md
 
 ## 1. Executive summary
+
+**Review closure: CLOSED — theo xác nhận của Owner ngày 2026-08-31.** Đóng đợt sửa, review và kiểm chứng Document/Docling, gồm D1–D6 và smoke test tại §18–§20. Không còn finding hoặc approval implementation đang chờ trong phạm vi này. Không bổ sung công việc mới; các giới hạn vận hành đã công bố giữ nguyên và không được coi là chứng nhận production. Approval này áp dụng cho báo cáo, không thay các gate Foundation/deployment khác.
 
 **Verdict: APPROVE — phạm vi Document local và D1–D6.** Không còn finding mở trong phạm vi sửa: **0 Critical, 0 High, 0 Medium, 0 Low**. Sáu quyết định được Owner duyệt ngày 2026-08-31 đã được đưa vào contract, migration, runtime và kiểm chứng. Không suy rộng thành nghiệm thu Audio/Video, toàn bộ Media hoặc production.
 
