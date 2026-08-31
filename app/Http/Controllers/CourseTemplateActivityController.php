@@ -1343,9 +1343,9 @@ class CourseTemplateActivityController extends Controller
         return $this->mediaService
             ->getOwnerMedia($ownerType, $ownerId)
             ->map(function (object $media): object {
-                $media->signed_url = $this->mediaService->generateSignedUrl(
-                    (int) $media->id
-                );
+                $media->signed_url = $media->status === 'ready'
+                    ? $this->mediaService->generateSignedUrl((int) $media->id)
+                    : null;
 
                 return $media;
             });

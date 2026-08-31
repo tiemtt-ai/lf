@@ -78,10 +78,17 @@
                 <ul>
                     @foreach ($activityMedia as $media)
                         <li>
-                            <a href="{{ $media->signed_url }}"
-                               target="_blank" rel="noopener noreferrer">
-                                {{ $media->display_name ?: $media->original_name }}
-                            </a>
+                            @if ($media->signed_url)
+                                <a href="{{ $media->signed_url }}"
+                                   target="_blank" rel="noopener noreferrer">
+                                    {{ $media->display_name ?: $media->original_name }}
+                                </a>
+                            @else
+                                <span>{{ $media->display_name ?: $media->original_name }}</span>
+                                <p class="lf-secondary-text">
+                                    {{ __('lf.LF_course_template_activity_media_unavailable') }}
+                                </p>
+                            @endif
                         </li>
                     @endforeach
                 </ul>

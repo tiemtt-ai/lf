@@ -2230,6 +2230,35 @@ class CourseMediaIntegrationTest extends TestCase
         }
     }
 
+    public function test_activity_detail_remains_readable_when_attached_document_is_not_ready(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Document Detail', 'document-detail', $admin->id);
+        $lessonId = $this->createLesson($customerId, $templateId, 'Lesson', 'lesson');
+        $storeUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities";
+        $this->actingAs($admin)->post($storeUrl, $this->validActivityData([
+            'title' => 'Document detail fallback',
+            'activity_document_file' => UploadedFile::fake()->create('detail.pdf', 16, 'application/pdf'),
+        ]))->assertRedirect()->assertSessionHasNoErrors();
+        $activityId = DB::table('core_course_template_activities')->where('template_id', $templateId)->value('id');
+        $mediaId = DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->value('media_file_id');
+        $showUrl = $storeUrl.'/'.$activityId;
+        $ready = $this->get($showUrl)->assertOk()->assertSeeText('Document detail fallback');
+        $signedUrl = $ready->viewData('activityMedia')->first()->signed_url;
+        $this->assertNotEmpty($signedUrl);
+
+        foreach (['failed', 'processing', 'uploading', 'archived', 'deleted'] as $status) {
+            DB::table('media_files')->where('id', $mediaId)->update(['status' => $status]);
+            $this->get($showUrl)->assertOk()
+                ->assertSeeText('Document detail fallback')
+                ->assertSeeText(__('lf.LF_course_template_activity_media_unavailable'))
+                ->assertDontSee('/media/files/'.$mediaId.'/signed', false);
+            $this->get($signedUrl)->assertNotFound();
+            $this->assertDatabaseHas('media_files', ['id' => $mediaId, 'status' => $status]);
+        }
+    }
+
     public function test_deleting_an_activity_detaches_only_its_active_media_usages(): void
     {
         $customerId = $this->createTenant();
