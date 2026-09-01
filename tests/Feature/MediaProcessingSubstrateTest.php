@@ -14,6 +14,7 @@ use App\Services\DocumentProcessRunner;
 use App\Services\FakeMediaProcessingProvider;
 use App\Services\FasterWhisperSpeechToTextProvider;
 use App\Services\LocalDocumentProcessingProvider;
+use App\Services\MediaMetadataProbe;
 use App\Services\MediaProcessingOrchestrator;
 use App\Services\MediaReadService;
 use App\Services\MediaService;
@@ -1645,6 +1646,9 @@ class MediaProcessingSubstrateTest extends TestCase
             'media.processing.providers.speech_to_text' => 'fake',
             'media.processing.versions.speech_to_text' => 'fake-stt-http-v1',
         ]);
+        $probe = Mockery::mock(MediaMetadataProbe::class);
+        $probe->shouldReceive('durationSeconds')->once()->andReturn(3);
+        $this->app->instance(MediaMetadataProbe::class, $probe);
         [$templateId, $lessonId] = $this->courseFixture();
 
         $this->actingAs($this->admin)
@@ -1936,7 +1940,7 @@ class MediaProcessingSubstrateTest extends TestCase
         [$templateId, $lessonId] = $this->courseFixture();
         $media = $this->uploadDocument();
         DB::table('media_files')->where('id', $media->id)
-            ->update(['file_type' => 'audio', 'status' => 'ready', 'processing_locale' => null]);
+            ->update(['file_type' => 'audio', 'status' => 'ready', 'processing_locale' => null, 'duration_seconds' => 3]);
         DB::table('media_processing_jobs')->where('media_file_id', $media->id)->delete();
         $activityId = DB::table('core_course_template_activities')->insertGetId([
             'customer_id' => $this->customerId, 'template_id' => $templateId,

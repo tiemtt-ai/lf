@@ -1,12 +1,12 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.29
+Version: 2.30
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-31
+Last Updated: 2026-09-01
 
 Document Path: platform/LF-Media-Processing-Contract.md
 
@@ -1346,6 +1346,12 @@ freeze trong contract cho tới khi raw per-segment artefact được lưu và p
 được tái lập; với `N` segment chỉ có tối đa `N-1` cặp liền kề.
 
 Segment độ dài 0 (`start_ms == end_ms`) không hợp lệ.
+
+Mọi segment phải nằm hoàn toàn trong Media nguồn:
+`end_ms <= media_files.duration_seconds * 1000`. Provider trả timestamp vượt
+thời lượng làm toàn revision fail bằng `transcript_invalid`; không cắt, clamp
+hoặc persist citation trỏ ra ngoài audio. `duration_seconds` là số giây nguyên
+do `MediaMetadataProbe` ghi, nên phép so dùng đúng upper bound đã persist.
 
 Luật này được cưỡng chế ở **tầng persist**, cùng cách `reading_order` được cưỡng
 chế cho region. Lý do phải nói rõ:

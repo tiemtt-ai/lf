@@ -361,7 +361,8 @@ class ProcessMediaProcessingJob implements ShouldQueue
             }
             $outputType = 'extracted_text';
         } elseif ($job->job_type === 'speech_to_text') {
-            $units = $this->validatedTranscriptUnits($result['units'] ?? []);
+            $sourceDurationMs = $media->file_type === 'audio' ? (int) $media->duration_seconds * 1000 : null;
+            $units = $this->validatedTranscriptUnits($result['units'] ?? [], $sourceDurationMs);
             foreach ($units as $unit) {
                 $outputId = DB::table('media_transcripts')->insertGetId([
                     'customer_id' => $this->customerId, 'media_file_id' => $media->id, 'locale' => $locale,
@@ -543,9 +544,9 @@ class ProcessMediaProcessingJob implements ShouldQueue
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function validatedTranscriptUnits(mixed $units): array
+    private function validatedTranscriptUnits(mixed $units, ?int $sourceDurationMs): array
     {
-        if (! is_array($units) || $units === []) {
+        if (! is_array($units) || $units === [] || ($sourceDurationMs !== null && $sourceDurationMs <= 0)) {
             throw new RuntimeException('no_extractable_text');
         }
 
@@ -564,7 +565,8 @@ class ProcessMediaProcessingJob implements ShouldQueue
             if ($confidence !== null && (! is_numeric($confidence) || (float) $confidence < 0 || (float) $confidence > 100)) {
                 throw new RuntimeException('transcript_invalid');
             }
-            if ($start >= $end || ($previousEnd !== null && $start < $previousEnd)) {
+            if ($start >= $end || ($sourceDurationMs !== null && $end > $sourceDurationMs)
+                || ($previousEnd !== null && $start < $previousEnd)) {
                 throw new RuntimeException('transcript_invalid');
             }
             $previousEnd = $end;

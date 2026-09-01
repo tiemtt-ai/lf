@@ -1,6 +1,6 @@
 # Audio Processing — Final Code Review
 
-Version: 2.0
+Version: 2.1
 
 Document Status: Approved
 
@@ -18,7 +18,7 @@ Document Path: quality/LF-Audio-Processing-Final-Code-Review.md
 
 Đường Audio local từ Course Activity usage đến `speech_to_text`,
 `media_transcripts` theo timespan và Media Read đã được đối chiếu contract ↔ code
-↔ test, sửa bốn lỗi thực tế, và kiểm chứng bằng engine `faster_whisper_local`
+↔ test, sửa năm lỗi thực tế, và kiểm chứng bằng engine `faster_whisper_local`
 thật trên cả SQLite lẫn MariaDB 11.4.12.
 
 Sau khi sửa, trong phạm vi Audio local còn **0 Critical, 0 High, 0 Medium, 0 Low**
@@ -61,7 +61,7 @@ và cap `7.200s` không bị ảnh hưởng bởi conflict video.
 ## 3. Tài liệu và code đã đọc
 
 **Tài liệu:** `LF-INDEX.md` (routing § Media Processing);
-`platform/LF-Media.md`; `platform/LF-Media-Processing-Contract.md` (v2.29, toàn
+`platform/LF-Media.md`; `platform/LF-Media-Processing-Contract.md` (v2.30, toàn
 bộ § Scope, § 1 Trigger, § 2 Orchestration, § 3 Fingerprint/Output profile/
 Processing version/Stale, § 4 Citation locator, § 5 Đo lường, § Speech-to-text
 resource controls, Amendment 2.19/2.21/2.28, D1–D6);
@@ -122,6 +122,7 @@ và `VideoSttQualification` chỉ được đọc để xác nhận **không** c
 | Locale exact `vi|ko|en`, không auto-detect, không fallback (§ Locale) | `config('media.processing.speech_to_text.locales')` + `--locale` ép vào engine | `test_locale_outside_the_phase_one_allowlist_never_produces_a_transcript` |
 | Source đọc qua storage abstraction | `copySource` dùng `Storage::disk()->readStream()` | E2E thật (disk `media_local` fake) |
 | Một row = một segment; locator `timespan` `<start_ms>-<end_ms>`; nửa mở; tăng dần; không overlap; không zero-length (§ Segmentation) | `validatedTranscriptUnits` | `test_real_audio_...`, `test_invalid_audio_timing_...`, `test_abutting_segments_are_valid...` |
+| Timespan không vượt thời lượng Media nguồn | `validatedTranscriptUnits(..., sourceDurationMs)` | data set `vuot thoi luong audio`; smoke data `thêm audio ext2` |
 | Vi phạm timing → fail cả revision, 0 row `ready` | validate trước insert, trong transaction | `test_invalid_audio_timing_fails_the_whole_revision` |
 | Thứ tự đọc là thứ tự thời gian theo cấu trúc, không theo chuỗi locator | validate ép thứ tự insert; `MediaReadService` `ORDER BY id` | `test_abutting_segments_are_valid_and_read_in_temporal_order` (`2000-15000` sau `1000-2000`) |
 | `confidence_score` đúng range, không bịa | `validatedTranscriptUnits` + CHECK `chk_mt_confidence` | `test_audio_transcript_confidence_is_validated_persisted_and_returned_in_temporal_order`, `test_audio_invalid_confidence_fails_entire_revision` |
@@ -144,7 +145,7 @@ và `VideoSttQualification` chỉ được đọc để xác nhận **không** c
 11.4.12 (đọc từ `information_schema`, in ra bởi
 `tests/Support/audio-mariadb-review.php`).
 
-**`media_transcripts`** khớp doc v1.8 từng mục:
+**`media_transcripts`** khớp doc v1.9 từng mục:
 
 ```text
 UNIQUE uk_mt_revision_locator (customer_id, media_file_id, locale,
@@ -183,7 +184,7 @@ CHECK chk_mt_ready       status <> 'ready' OR text IS NOT NULL
   provider báo. `transcribe.py` không báo confidence, nên đường thật ghi `NULL` —
   không bịa từ `avg_logprob`.
 * **Không sửa migration lịch sử.** Không cần forward migration cho lượt này:
-  cả bốn lỗi đều là lỗi code/registration, không phải lỗi schema.
+  cả năm lỗi đều là lỗi code/registration, không phải lỗi schema.
 * `schema:drift --docs-only` và `schema:drift --fresh` (MariaDB 11.4.12,
   90 migration files) đều **pass**. DOC-CONFLICT-0031 (`media_access_logs.accessed_at`
   default) không còn tái hiện.
@@ -295,7 +296,7 @@ deferred scope.
 
 ## 9. Findings
 
-Cả bốn đều tái hiện được, đều đã sửa trong lượt này, và đều có test chứng minh.
+Cả năm đều tái hiện được, đều đã sửa trong lượt này, và đều có test chứng minh.
 
 ### F1 — MEDIUM — `speech_to_text` không bao giờ ghi `billable_units` (đã sửa)
 
@@ -405,6 +406,25 @@ Cả bốn đều tái hiện được, đều đã sửa trong lượt này, v�
 * **Test:** `test_unready_detached_and_deleted_reads_return_stable_errors` assert
   row `read_derived` với `decision=denied`, `error_code=detached`, và assert
   metadata **không** chứa nội dung transcript.
+
+### F5 — HIGH — Timespan có thể vượt thời lượng Audio nguồn (đã sửa)
+
+* **Requirement:** transcript timespan là citation vào binary nguồn; locator
+  ngoài thời lượng nguồn không trỏ tới nội dung tồn tại. Processing Contract
+  v2.30 và `media_transcripts` v1.9 chốt
+  `end_ms <= media_files.duration_seconds * 1000`.
+* **File/symbol:** `ProcessMediaProcessingJob::validatedTranscriptUnits()` trước
+  đây chỉ kiểm format, `start < end`, ordering và overlap.
+* **Tái hiện thật:** activity `thêm audio ext2`, Media `id=30`; `ffprobe` đo
+  `80.979575s`, database ghi `81s`, nhưng Faster Whisper sinh hai locator cuối
+  `75000-85000` và `85000-95000`. Job `id=70` vẫn bị đánh dấu `ready`.
+* **Ảnh hưởng:** Media Read trả citation trỏ ra ngoài audio; segment cuối hoàn
+  toàn không có khoảng thời gian tương ứng trong source.
+* **Cách sửa:** truyền upper bound từ Media vào validator và fail toàn revision
+  bằng `transcript_invalid` khi bất kỳ `end_ms` vượt bound; không clamp, không
+  persist một phần.
+* **Test:** data set `vuot thoi luong audio` dùng Media 3 giây và segment
+  `0-3001`, assert job failed và 0 transcript rows.
 
 ### Findings còn mở trong phạm vi Audio local
 
@@ -552,7 +572,7 @@ Owner — không phải hệ quả tự động của review này.
 | Command | Kết quả |
 | --- | --- |
 | `php artisan test` | **968 passed, 2 skipped, 9.706 assertions**, 121,38s |
-| `php artisan test --filter=AudioProcessingLocalReviewTest` | **21 passed, 236 assertions**, 21,18s (gồm 3 case chạy engine thật) |
+| `php artisan test --filter=AudioProcessingLocalReviewTest` | **22 passed, 240 assertions** (gồm 3 case chạy engine thật) |
 | `vendor/bin/pint --test` trên toàn bộ file đã sửa/thêm | **PASS** |
 | `php -l` trên toàn bộ file PHP đã sửa/thêm | **PASS** |
 | `php artisan docs:lint` | **PASS** |
@@ -647,7 +667,7 @@ trong chính process.
 
 | File | Thay đổi |
 | --- | --- |
-| `tests/Feature/AudioProcessingLocalReviewTest.php` | Mới — 21 case Audio local, 3 case chạy engine thật, fixture tự tổng hợp |
+| `tests/Feature/AudioProcessingLocalReviewTest.php` | Mới — 22 case Audio local, 3 case chạy engine thật, fixture tự tổng hợp |
 | `tests/Integration/AudioQueueRecoveryMariaDbTest.php` | Mới — queue database thật + worker thật + `SIGKILL` + recovery + engine thật |
 | `tests/Support/audio-queue-worker.php` | Mới — worker probe, guard theo tên database disposable |
 | `tests/Support/audio-mariadb-review.php` | Mới — harness MariaDB disposable cho Audio, in bằng chứng CHECK/FK/index vật lý |

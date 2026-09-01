@@ -1,12 +1,12 @@
 # Table: media_transcripts
 
-Version: 1.8
+Version: 1.9
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-29
+Last Updated: 2026-09-01
 
 Document Path: database/media/media_transcripts.md
 
@@ -49,6 +49,9 @@ media_processing_jobs 1 → N media_transcripts
   dùng mẫu số này và lưu raw per-segment artefact. Độ dài 0 không hợp lệ. Vi phạm thì fail cả revision bằng
   `transcript_invalid`, không ghi row nào. Xem § Vì sao luật này nằm ở tầng
   persist.
+* `end_ms` không được vượt `media_files.duration_seconds * 1000`. Timestamp nằm
+  ngoài binary nguồn không phải citation hợp lệ; vi phạm fail cả revision bằng
+  `transcript_invalid`, không clamp hoặc giữ một revision một phần.
 * Chỉ row `ready` được Media Read Service trả ra.
 * Mỗi locale/diarization profile có retry chain độc lập. Một transcript locale
   hết retry không chặn enqueue/ready/retry của locale khác và không làm binary

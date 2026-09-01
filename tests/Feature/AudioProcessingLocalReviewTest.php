@@ -278,6 +278,7 @@ class AudioProcessingLocalReviewTest extends TestCase
             'giam dan' => [[$unit('2000-3000'), $unit('0-1000')]],
             'locator sai dinh dang' => [[$unit('0:00-0:01')]],
             'text rong' => [[$unit('0-1000', '   ')]],
+            'vuot thoi luong audio' => [[$unit('0-3001')]],
         ];
     }
 
@@ -286,6 +287,8 @@ class AudioProcessingLocalReviewTest extends TestCase
     {
         config(['media.processing.providers.speech_to_text' => 'fake']);
         $media = $this->uploadAudio();
+        DB::table('media_files')->where('id', $media->id)->update(['duration_seconds' => 15]);
+        $media->duration_seconds = 15;
         $provider = Mockery::mock(FakeMediaProcessingProvider::class);
         $provider->shouldReceive('process')->once()->andReturn(['units' => [
             ['locator_type' => 'timespan', 'locator_value' => '0-1000', 'text' => 'mot'],
