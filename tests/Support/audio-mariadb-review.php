@@ -8,8 +8,8 @@ use Symfony\Component\Process\Process;
  * Chay lai bo test Audio local tren MariaDB that, trong mot database dung mot
  * lan. Khong cham DB_DATABASE, khong sua server dang chay cua developer.
  */
-if (array_diff(array_slice($argv, 1), ['--feature-only', '--schema-only']) !== []) {
-    throw new RuntimeException('Only --feature-only or --schema-only is supported.');
+if (array_diff(array_slice($argv, 1), ['--feature-only', '--schema-only', '--queue-only']) !== []) {
+    throw new RuntimeException('Only --feature-only, --schema-only or --queue-only is supported.');
 }
 
 require __DIR__.'/../../vendor/autoload.php';
@@ -50,12 +50,18 @@ try {
     $tests = ['tests/Feature/AudioProcessingLocalReviewTest.php'];
     if (in_array('--schema-only', $argv, true)) {
         $tests = ['tests/Integration/MediaProcessingSubstrateMariaDbTest.php'];
+    } elseif (in_array('--queue-only', $argv, true)) {
+        $tests = ['tests/Integration/AudioQueueRecoveryMariaDbTest.php'];
     } elseif (! in_array('--feature-only', $argv, true)) {
         // MediaProcessingSubstrateTest CO Y khong nam o day: fixture cua no chen
         // truc tiep cac row `media_processing_jobs` vi pham chinh CHECK that
         // (`chk_mpj_ready`, `chk_mpj_output_pair`). SQLite bo qua CHECK nen chung
         // xanh o suite mac dinh. Day la no cua fixture Document/Video/Caption,
         // ngoai pham vi Audio local; xem review Audio § Findings ngoai pham vi.
+        // AudioQueueRecoveryMariaDbTest nam o `--queue-only`, dung precedent cua
+        // document-mariadb-review.php: no dieu phoi bon tien trinh that cong engine
+        // that nen chiem nhieu phut va nhay voi tai may. Giu no ngoai luot mac dinh
+        // de mot lan review binh thuong khong phu thuoc vao dieu do.
         $tests = [...$tests,
             'tests/Integration/MediaProcessingSubstrateMariaDbTest.php',
             'tests/Integration/MediaCaptionProvenanceMariaDbTest.php',

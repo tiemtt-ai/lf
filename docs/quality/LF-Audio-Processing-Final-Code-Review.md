@@ -438,7 +438,116 @@ Hai mục `DECISION_REQUIRED` sẵn có của register — DOC-CONFLICT-0014 và
 
 ---
 
-## 11. Commands đã chạy và kết quả thật
+## 11. Rủi ro tồn dư trong phạm vi Audio local — đã cân nhắc, không phải finding
+
+Mục này tồn tại để lượt review sau **không** phải tự phát hiện lại. Mỗi mục dưới
+đây tôi đã soi, và mỗi mục đều có lý do cụ thể để không tính là finding chặn.
+Không mục nào trong số này tái hiện được thành hành vi sai với cấu hình hiện tại.
+
+### R1 — `processing_version` của audio không định danh model/compute type
+
+`MediaProcessingOrchestrator::versionFor('speech_to_text', <audio>)` trả thẳng
+`config('media.processing.versions.speech_to_text')`, **không** nối hậu tố nào;
+chỉ nhánh video mới nối `VideoSpeechToTextProfile::label()`. Hệ quả: nếu operator
+đổi `MEDIA_STT_MODEL_PATH` (small → tiny) hoặc `MEDIA_STT_COMPUTE_TYPE`
+(int8 → float16) mà quên đổi `MEDIA_SPEECH_TO_TEXT_VERSION`, transcript đổi nội
+dung dưới **cùng** một `processing_version` — idempotency coi là cùng revision,
+không sinh revision mới, bản cũ không được archive. Audio cũng không có bước
+`assertBinaryMatchesInventory()` như nhánh video.
+
+**Vì sao không phải finding:** Amendment Record 2.19 § 1 chốt tường minh rằng
+`compute_type` và `threads` *"chỉ được nối vào identity của **video**; audio giữ
+identity hiện hành cho tới khi có amendment/migration plan riêng"*. Đây là
+deferral do Owner quyết, không phải chỗ bị bỏ sót.
+
+**Điều kiện đóng (Owner):** một amendment kèm migration plan — đổi identity audio
+sẽ archive toàn bộ transcript đang hiện hành và bắt chạy lại, nên không thể sửa
+lặng lẽ. Giảm nhẹ hiện tại: `.env.example` hướng dẫn đặt
+`MEDIA_SPEECH_TO_TEXT_VERSION=faster-whisper-1.2.1-small-int8`, tức yêu cầu
+operator tự mã hoá model/compute type vào version.
+
+### R2 — Video STT ghi `error_message` thô (ngoài phạm vi Audio)
+
+Guard privacy trong `ProcessMediaProcessingJob` là
+`in_array($job->job_type, ['ocr','structured_extraction']) || ($media->file_type === 'audio' && $job->job_type === 'speech_to_text')`.
+Job `speech_to_text` trên **video** rơi ra ngoài guard và nhận
+`mb_substr($e->getMessage(), 0, 1000)`. Cùng một dòng code với nhánh audio nên
+reviewer sau sẽ nhìn thấy; nó thuộc Video STT, ngoài phạm vi mandate này, và
+không ảnh hưởng audio.
+
+### R3 — Read transcript không ghim `processing_job_id`
+
+Nhánh document ghim cả bộ ba `(source_fingerprint, processing_version,
+processing_job_id)` trước khi trả row; nhánh transcript chỉ ghim
+`processing_version`. Hiện **không** kích hoạt được: `archiveSupersededRevisions`
+archive theo cả `processing_version` lẫn `source_fingerprint`, và
+`media_files.checksum` bất biến sau upload nên một Media chỉ có một fingerprint.
+Đây là bất đối xứng về defence-in-depth, không phải lỗi tái hiện được — ghi lại
+để lần sau không mất thời gian truy lại cùng câu hỏi.
+
+### R4 — `pendingCutoff = 3900` hardcoded trong recovery command
+
+Cả `RecoverAudioProcessing` lẫn `RecoverDocumentProcessing` hardcode `3900`, trùng
+với default `DB_QUEUE_RETRY_AFTER=3900` nhưng **không** đọc từ config. Đổi
+`retry_after` mà quên hai command này sẽ làm cutoff lệch khỏi transport. Bản
+Audio giữ đúng precedent của bản Document; sửa thì nên sửa cả hai trong một lượt
+riêng, không phải việc của mandate Audio.
+
+### R5 — Fixture E2E là giọng tổng hợp, không phải giọng người thật
+
+Fixture dựng bằng `say` chứng minh **correctness** của đường dẫn (tiếng nói →
+transcript → timestamp → locale → read), và cố tình không nói gì về chất lượng
+nhận dạng. CER/WER vẫn `unavailable` theo Owner acceptance 2026-08-29. Fixture
+`vi`/`ko` giọng người thật vẫn chưa có trong repo vì § Acceptance bắt gitignore
+chúng. Bất kỳ ai muốn số liệu chất lượng phải đi qua `runtime/stt/benchmark/`,
+không phải qua suite này.
+
+### R6 — Test cross-process: một lỗi harness đã tìm ra và sửa
+
+`AudioQueueRecoveryMariaDbTest` phối hợp bốn tiến trình thật (test, worker bị
+chặn, worker busy, worker drain) cộng engine thật. Lượt đầu nó fail 1/4 lần. Đã
+truy ra nguyên nhân gốc — và đó **không** phải race ngẫu nhiên mà là lỗi thiết
+kế của chính test:
+
+Điều kiện chờ trước khi `SIGKILL` là "job đã `processing` và `billable_units` đã
+được ghi". Nhưng `recordBillableSeconds()` chạy **trước** lời gọi engine, nên
+điều kiện đó đúng ngay khi engine mới bắt đầu. `SIGKILL` giết tiến trình PHP
+nhưng để lại tiến trình Python **mồ côi vẫn đang chạy**, và nó cạnh tranh CPU với
+lần chạy engine của worker drain — làm drain vượt timeout 300s. Máy càng tải thì
+càng dễ trúng, khớp với việc nó chỉ fail trong ngữ cảnh full harness.
+
+Đã sửa bằng cách để provider bị chặn ghi một mốc `probe=blocked` **sau khi**
+`parent::process()` trả về, và test phải chờ mốc đó rồi mới `SIGKILL`. Cửa sổ
+crash được kiểm nay là "provider đã có kết quả, writer chưa kịp persist" — đúng
+cửa sổ đáng quan tâm hơn, và không còn tiến trình mồ côi nào. Timeout worker
+nâng lên 900s cho biên an toàn.
+
+Đo trong lúc verify bản đã sửa: `pmset -g therm` báo `CPU_Speed_Limit = 20`,
+load average 5,34 — máy review chạy ở 20% tốc độ danh định. Đây chính là điều
+kiện DOC-CONFLICT-0027 mô tả (RTF dao động 4,6 lần trên cùng một input), và là lý
+do mọi ngưỡng thời gian trong test này phải rộng chứ không được chỉnh khít.
+
+Test này được đặt ở `--queue-only`, **không** nằm trong lượt harness mặc định —
+đúng precedent của `document-mariadb-review.php`, nơi
+`DocumentQueueRecoveryMariaDbTest` cũng là opt-in. Lý do là chi phí thời gian và
+độ nhạy với tải máy, không phải độ tin cậy của runtime: không lượt nào ghi sai
+dữ liệu, khác biệt chỉ nằm ở thời điểm quan sát.
+
+### R7 — Nợ fixture MariaDB của các suite Media khác
+
+Xem § 10. Ngoài phạm vi Audio, không sửa trong lượt này.
+
+### R8 — Rủi ro B4 của Spec B chỉ mới được phủ cho `usage_type=audio`
+
+`LF-Media-Read-Contract` § Rủi ro B4 đòi runtime/test evidence cho `usage_type`
+fail-closed trước khi mở HTTP/API. Evidence đó nay đã có **cho audio**
+(owner context chính xác, `ambiguous_source`, cross-tenant từ chối, audit cả
+allowed lẫn denied). Nó không tự phủ `document`/`video`, và đóng B4 là quyết định
+Owner — không phải hệ quả tự động của review này.
+
+---
+
+## 12. Commands đã chạy và kết quả thật
 
 | Command | Kết quả |
 | --- | --- |
@@ -449,7 +558,8 @@ Hai mục `DECISION_REQUIRED` sẵn có của register — DOC-CONFLICT-0014 và
 | `php artisan docs:lint` | **PASS** |
 | `php artisan schema:drift --docs-only` | **PASS**, 90 migration files |
 | `php artisan schema:drift --fresh` trên MariaDB 11.4.12 | **PASS**, 90 migration files, `mode=fresh-ephemeral` |
-| `php tests/Support/audio-mariadb-review.php` trên MariaDB 11.4.12 | **OK (31 tests, 253 assertions)**, ~4 phút gồm fresh migrate + engine thật |
+| `php tests/Support/audio-mariadb-review.php` (lượt mặc định) trên MariaDB 11.4.12 | **OK (31 tests, 253 assertions)**, 5:26 gồm fresh migrate + engine thật |
+| `php tests/Support/audio-mariadb-review.php --queue-only` | **OK (1 test, 35 assertions)**, 6:21 — queue database thật, worker thật, `SIGKILL`, recovery, engine thật. Số assertion dao động theo số segment engine trả về (quan sát 35–45); các assert về số lượng dùng `assertGreaterThanOrEqual` nên không phụ thuộc con số đó. Xem § 11 R6 |
 | `runtime/stt/transcribe.py` trực tiếp trên fixture | `{"status":"ready","units":5}`, 5,7s cho 18,2s audio |
 
 Hai test bị skip trong suite mặc định:
@@ -485,6 +595,13 @@ RT=/tmp/lf-audio-mariadb; rm -rf "$RT"; mkdir -p "$RT/data" \
 DB_SOCKET=/tmp/lf-audio-mariadb/server.sock DB_HOST=localhost DB_USERNAME=root DB_PASSWORD='' DB_URL='' php tests/Support/audio-mariadb-review.php
 ```
 
+Chỉ chạy riêng nhánh cross-process (`--queue-only`), hoặc chỉ suite feature
+(`--feature-only`), khi cần khoanh vùng:
+
+```bash
+DB_SOCKET=/tmp/lf-audio-mariadb/server.sock DB_HOST=localhost DB_USERNAME=root DB_PASSWORD='' DB_URL='' php tests/Support/audio-mariadb-review.php --queue-only
+```
+
 ```bash
 DB_CONNECTION=mysql DB_SOCKET=/tmp/lf-audio-mariadb/server.sock DB_HOST=localhost DB_USERNAME=root DB_PASSWORD='' DB_URL='' php artisan schema:drift --fresh
 ```
@@ -516,7 +633,7 @@ trong chính process.
 
 ---
 
-## 12. Files thay đổi
+## 13. Files thay đổi
 
 ### Sửa lỗi (production code)
 
@@ -531,6 +648,8 @@ trong chính process.
 | File | Thay đổi |
 | --- | --- |
 | `tests/Feature/AudioProcessingLocalReviewTest.php` | Mới — 21 case Audio local, 3 case chạy engine thật, fixture tự tổng hợp |
+| `tests/Integration/AudioQueueRecoveryMariaDbTest.php` | Mới — queue database thật + worker thật + `SIGKILL` + recovery + engine thật |
+| `tests/Support/audio-queue-worker.php` | Mới — worker probe, guard theo tên database disposable |
 | `tests/Support/audio-mariadb-review.php` | Mới — harness MariaDB disposable cho Audio, in bằng chứng CHECK/FK/index vật lý |
 
 ### Đã có trong working tree trước lượt review này (đọc, xác minh, giữ nguyên)
@@ -546,7 +665,7 @@ cùng đăng ký tài liệu trong `docs/LF-INDEX.md`, `docs/quality/README.md`,
 
 ---
 
-## 13. Gate table
+## 14. Gate table
 
 | Gate | Kết quả | Cơ sở |
 | --- | --- | --- |
@@ -559,7 +678,7 @@ cùng đăng ký tài liệu trong `docs/LF-INDEX.md`, `docs/quality/README.md`,
 
 ---
 
-## 14. Kết luận
+## 15. Kết luận
 
 **PASS_LOCAL_AUDIO_PROCESSING.**
 

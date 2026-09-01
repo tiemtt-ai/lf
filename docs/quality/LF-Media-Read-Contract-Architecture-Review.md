@@ -1,12 +1,12 @@
 # Media Read Contract Architecture Review
 
-Version: 1.13
+Version: 1.14
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-28
+Last Updated: 2026-09-01
 
 Review Date: 2026-08-24
 
@@ -237,6 +237,43 @@ revisions and report a plausible but false coverage value. Version 1.8 now:
 This remediation closes the implementation defects found in this review pass.
 It does **not** satisfy the unchecked independent-review gate above, and it does
 not approve retention/redaction or real AI consumer rollout.
+
+## Independent review of Spec B — 2026-09-01
+
+Mục § "Ai tìm ra" ở trên ghi rằng nếu về sau có reviewer độc lập đọc Spec B thì
+kết quả của họ **được ghi tiếp** vào record này. Đây là mục đó. Nguồn:
+[LF-Audio-Processing-Final-Code-Review](LF-Audio-Processing-Final-Code-Review.md)
+v2.0. Phạm vi reviewer đó là Audio local, nên hai finding dưới đây được tìm thấy
+qua đường `transcript`; cả hai đều nằm trong `MediaReadService` dùng chung.
+
+| Defect | Ai tìm ra |
+| --- | --- |
+| Mã lỗi có tên (`pending`/`processing`/`failed`) chỉ áp cho document content; transcript trả `locale_unavailable` | independent review 2026-09-01 |
+| `read()` không audit lần đọc bị từ chối vì `detached`, trong khi `structureCoverage()` cùng file thì có | như trên |
+
+**Đính chính một khẳng định của chính review này.** Dòng mở đầu ("Runtime closure
+2026-08-24") viết *"denied read trên Media File resolve được được audit với
+decision/error code"*. Câu đó đúng với `structureCoverage()` sau remediation
+v1.8, nhưng **không** đúng với `read()`: `read()` ném `detached`/`missing`
+**trước** khi `$media` được gán, và khối `catch` chỉ audit khi `$media` đã có
+giá trị. Một actor dò owner context đã detach vì thế không để lại dấu vết nào,
+dù Media resolve được — tức ngoại lệ "không invent FK giả" của § 8 không áp
+dụng. Đã sửa bằng `$media ??= $this->mediaForOwner(...)` trong `catch` của
+`read()`, đúng mẫu `structureCoverage()` đã dùng từ v1.8.
+
+Finding thứ hai là cùng một họ với ba defect đã ghi ở trên: **không nhất quán
+với chính hợp đồng vừa được đọc kỹ**, và lần này là không nhất quán giữa hai
+phương thức nằm cách nhau vài chục dòng trong cùng một file. Đó tiếp tục là dữ
+liệu về giới hạn của self-assessment.
+
+Hệ quả cho rủi ro **B4**: `usage_type` fail-closed và `ambiguous_source` nay đã
+có runtime/test evidence trên đường Audio (owner context chính xác, cross-tenant
+từ chối, allowed và denied đều audit). Evidence này **chỉ** phủ `transcript` với
+`usage_type=audio`; nó không tự đóng B4 cho `document`/`video`, và việc mở
+HTTP/API vẫn là quyết định của Owner, không phải hệ quả của review này.
+
+Không mục nào ở trên bị thay thế; independent-review gate của Spec B vẫn chưa
+được đóng, và retention/redaction cùng production-provider gate vẫn mở.
 
 # Owner Implementation Directive (not review approval)
 

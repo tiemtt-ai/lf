@@ -1,12 +1,12 @@
 # Media Processing Substrate Architecture Review
 
-Version: 1.16
+Version: 1.17
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-27
+Last Updated: 2026-09-01
 
 Review Date: 2026-08-23
 
@@ -447,6 +447,44 @@ Closure evidence nằm ở implementation và regression suite hiện hành:
 production access, provider OCR/STT/caption production, retention/redaction hay
 AI Knowledge. Không được dùng verdict hẹp này để đổi `Implementation Status` của
 toàn review khỏi `Partial`.
+
+---
+
+## Audio local closure — independent review 2026-09-01
+
+Nguồn: [LF-Audio-Processing-Final-Code-Review](LF-Audio-Processing-Final-Code-Review.md)
+v2.0, verdict `PASS_LOCAL_AUDIO_PROCESSING`. Ghi tiếp vào record này, **không**
+thay thế mục nào ở trên.
+
+Hai finding thuộc substrate được reviewer độc lập tìm ra và đã sửa:
+
+* **Metering STT không tồn tại.** `ProcessMediaProcessingJob` gate
+  `billable_units`/`billable_unit_type` cho `ocr`/`structured_extraction`, nên
+  mọi job `speech_to_text` kết thúc với hai cột `NULL` — trái § 5 của Processing
+  Contract, vốn đòi ghi phép đo *kể cả khi chưa có nơi tổng hợp*. Đã sửa bằng
+  `FasterWhisperSpeechToTextProvider::recordBillableSeconds()`, ghi
+  `second`/`duration_seconds` lên row job **trước** khi gọi engine, cùng mô hình
+  `LocalDocumentProcessingProvider::recordCompletedPages()`. Vì call site dùng
+  chung, nhánh **video STT cũng bắt đầu ghi phép đo**; đây là phép ghi thuần
+  provenance, không đổi hành vi, không mở gate video nào.
+* **`media:recover-audio-processing` chưa từng chạy.** Command tồn tại và đúng,
+  nhưng `routes/console.php` chỉ đăng ký bản Document, nên job STT kẹt ở
+  `processing` không có đường về terminal. Đã đăng ký cùng cadence
+  `everyMinute()->withoutOverlapping(2)`.
+
+Câu *"STT/caption vẫn unconfigured"* ở mục evidence ngày 2026-08-25 phản ánh
+đúng thời điểm đó và **không** còn mô tả trạng thái Audio hiện hành: provider
+`faster_whisper_local` đã được cấu hình và chạy thật ở local. Caption và Video
+STT không đổi. Đây là closure **local**; nó không đụng tới R1/R2, virus-provider
+gate, AWS deployment hay bất kỳ gate production nào, và không được dùng để đổi
+`Implementation Status` của review này khỏi `Partial`.
+
+Evidence cross-process mới: `tests/Integration/AudioQueueRecoveryMariaDbTest.php`
+chạy queue database thật + worker thật + engine thật trên MariaDB 11.4.12 —
+busy delivery để lại envelope delay, worker bị `SIGKILL` bỏ job lại `processing`
+(vì `failed()` không được gọi), recovery đưa về `provider_timeout` **giữ nguyên
+`billable_units`**, envelope của job terminal không hồi sinh nó, và job còn lại
+chạy hết ra transcript timespan hợp lệ.
 
 ---
 
