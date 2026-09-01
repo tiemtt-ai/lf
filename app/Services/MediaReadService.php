@@ -93,6 +93,17 @@ class MediaReadService
                 'table' => ['media_extracted_tables', false],
                 default => throw new MediaReadException('unsupported_source'),
             };
+            // Spec B § 6: vang mat phai co TEN. Khi chua co row output nao, trang
+            // thai cua chinh job la nguon duy nhat phan biet duoc "dang xu ly",
+            // "that bai" va "khong co locale nay". Transcript truoc day khong co
+            // buoc nay nen mot STT `failed` doc ra thanh `locale_unavailable` —
+            // consumer khong biet la minh dang thieu.
+            $derivedJobType = match ($contentType) {
+                'extracted_text' => 'ocr',
+                'region', 'table' => 'structured_extraction',
+                'transcript' => 'speech_to_text',
+                default => null,
+            };
 
             $query = DB::table($table)->where('customer_id', $customerId)->where('media_file_id', $media->id);
             if ($documentContent) {
@@ -148,10 +159,10 @@ class MediaReadService
             }
             $rows = $query->orderBy('id')->get();
             if ($rows->isEmpty()) {
-                if ($documentContent) {
+                if ($derivedJobType !== null) {
                     $jobState = DB::table('media_processing_jobs')->where('customer_id', $customerId)
                         ->where('media_file_id', $media->id)
-                        ->where('job_type', $contentType === 'extracted_text' ? 'ocr' : 'structured_extraction')
+                        ->where('job_type', $derivedJobType)
                         ->when($processingVersion !== null, fn ($q) => $q->where('processing_version', $processingVersion))
                         ->where(function ($q) use ($selectedLocale): void {
                             $q->where('output_profile', 'like', '%;locale='.$selectedLocale)
@@ -253,6 +264,12 @@ class MediaReadService
 
             return $units;
         } catch (MediaReadException $exception) {
+            // Spec B § 8: mot lan doc BI TU CHOI cung phai duoc audit khi owner
+            // van resolve duoc toi Media File. `detached` va `missing-voi-usage-cu`
+            // duoc nem TRUOC khi $media duoc gan, nen khong co buoc nay thi mot
+            // no luc doc transcript da detach khong de lai dau vet nao. Resolve o
+            // day KHONG cap quyen doc — no chi dinh danh muc tieu de ghi log.
+            $media ??= $this->mediaForOwner($customerId, $ownerType, $ownerId, $usageType);
             if ($media) {
                 $this->audit($customerId, $media, $actorId, $consumer, $ownerType, $ownerId, $contentType,
                     $usageType, $selectedLocale, $processingVersion, $sourceFingerprint, 'denied', $exception->errorCode, $auditContext);

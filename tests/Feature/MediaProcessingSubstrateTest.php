@@ -1938,9 +1938,6 @@ class MediaProcessingSubstrateTest extends TestCase
         DB::table('media_files')->where('id', $media->id)
             ->update(['file_type' => 'audio', 'status' => 'ready', 'processing_locale' => null]);
         DB::table('media_processing_jobs')->where('media_file_id', $media->id)->delete();
-        app(MediaProcessingOrchestrator::class)->materializeForCourseActivity(
-            $this->customerId, $media->id, 'ko', $this->admin->id
-        );
         $activityId = DB::table('core_course_template_activities')->insertGetId([
             'customer_id' => $this->customerId, 'template_id' => $templateId,
             'template_lesson_id' => $lessonId, 'title' => 'Audio deduplicated',
@@ -1954,6 +1951,9 @@ class MediaProcessingSubstrateTest extends TestCase
             'metadata' => json_encode(['speech_to_text' => false, 'processing_locale' => null]),
             'created_by' => $this->admin->id, 'created_at' => now(), 'updated_at' => now(),
         ]);
+        app(MediaProcessingOrchestrator::class)->materializeForCourseActivity(
+            $this->customerId, $media->id, 'ko', $this->admin->id
+        );
 
         $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure")
             ->assertOk()
@@ -2098,6 +2098,161 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertSame(1, DB::table('media_processing_jobs')
             ->where('media_file_id', $media->id)->where('job_type', 'speech_to_text')->count());
         $this->assertSame('ko', DB::table('media_files')->where('id', $media->id)->value('processing_locale'));
+    }
+
+    public function test_audio_detach_cancels_pending_stt_and_reattach_creates_a_new_generation(): void
+    {
+        Queue::fake();
+        [$media, $activityId] = $this->audioCourseUsage();
+        $orchestrator = app(MediaProcessingOrchestrator::class);
+        $orchestrator->materializeForCourseActivity($this->customerId, $media->id, 'vi', $this->admin->id);
+        $first = DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+            ->where('job_type', 'speech_to_text')->firstOrFail();
+
+        app(MediaService::class)->detachUsage($media->id, 'course_activity', $activityId, 'audio');
+        $this->assertDatabaseHas('media_processing_jobs', ['id' => $first->id, 'status' => 'cancelled']);
+
+        DB::table('media_file_usages')->where('media_file_id', $media->id)->where('usage_type', 'audio')
+            ->update(['status' => 'active', 'updated_at' => now()]);
+        $orchestrator->materializeForCourseActivity($this->customerId, $media->id, 'vi', $this->admin->id,
+            speechToText: true, reattach: true);
+
+        $second = DB::table('media_processing_jobs')->where('supersedes_job_id', $first->id)->firstOrFail();
+        $this->assertSame(2, (int) $second->dispatch_generation);
+        $this->assertSame($first->correlation_id, $second->correlation_id);
+        $this->assertSame('pending', $second->status);
+    }
+
+    public function test_audio_callback_after_detach_cannot_persist_transcript_or_resurrect_job(): void
+    {
+        config(['media.processing.providers.speech_to_text' => 'fake']);
+        [$media] = $this->audioCourseUsage();
+        $provider = Mockery::mock(FakeMediaProcessingProvider::class);
+        $provider->shouldReceive('process')->once()->andReturnUsing(function () use ($media): array {
+            DB::table('media_file_usages')->where('media_file_id', $media->id)->where('usage_type', 'audio')
+                ->update(['status' => 'detached', 'updated_at' => now()]);
+
+            return ['units' => [['locator_type' => 'timespan', 'locator_value' => '0-1000', 'text' => 'late']]];
+        });
+        $this->app->instance(FakeMediaProcessingProvider::class, $provider);
+
+        app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
+            $this->customerId, $media->id, 'speech_to_text', ['locale' => 'vi', 'diarization' => 'off'], $this->admin->id
+        );
+
+        $this->assertSame(0, DB::table('media_transcripts')->where('media_file_id', $media->id)->count());
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $media->id, 'job_type' => 'speech_to_text',
+            'status' => 'failed', 'error_code' => 'source_unavailable', 'error_message' => 'source_unavailable',
+        ]);
+    }
+
+    public function test_audio_transcript_confidence_is_validated_persisted_and_returned_in_temporal_order(): void
+    {
+        config(['media.processing.providers.speech_to_text' => 'fake']);
+        [$media, $activityId] = $this->audioCourseUsage();
+        $provider = Mockery::mock(FakeMediaProcessingProvider::class);
+        $provider->shouldReceive('process')->once()->andReturn(['units' => [
+            ['locator_type' => 'timespan', 'locator_value' => '500-1000', 'text' => 'first', 'confidence_score' => 91.234],
+            ['locator_type' => 'timespan', 'locator_value' => '1000-1500', 'text' => 'second', 'confidence_score' => 88],
+        ]]);
+        $this->app->instance(FakeMediaProcessingProvider::class, $provider);
+        app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
+            $this->customerId, $media->id, 'speech_to_text', ['locale' => 'vi', 'diarization' => 'off'], $this->admin->id
+        );
+        $job = DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+            ->where('job_type', 'speech_to_text')->firstOrFail();
+        $authorizer = Mockery::mock(CourseMediaOwnerContextAuthorizer::class);
+        $authorizer->shouldReceive('authorized')->once()->andReturnTrue();
+        $this->app->instance(CourseMediaOwnerContextAuthorizer::class, $authorizer);
+        $units = app(MediaReadService::class)->read($this->admin->id, 'course_activity', $activityId, 'audio', 'transcript', 'vi');
+
+        $this->assertSame(['500-1000', '1000-1500'], array_column(array_column($units, 'locator'), 'value'));
+        $this->assertSame(91.23, (float) $units[0]['confidence']);
+        $this->assertSame(88.0, (float) $units[1]['confidence']);
+    }
+
+    public function test_audio_invalid_confidence_fails_entire_revision(): void
+    {
+        config(['media.processing.providers.speech_to_text' => 'fake']);
+        [$media] = $this->audioCourseUsage();
+        $provider = Mockery::mock(FakeMediaProcessingProvider::class);
+        $provider->shouldReceive('process')->once()->andReturn(['units' => [
+            ['locator_type' => 'timespan', 'locator_value' => '0-1000', 'text' => 'invalid', 'confidence_score' => 101],
+        ]]);
+        $this->app->instance(FakeMediaProcessingProvider::class, $provider);
+        app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
+            $this->customerId, $media->id, 'speech_to_text', ['locale' => 'vi', 'diarization' => 'off'], $this->admin->id
+        );
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $media->id, 'job_type' => 'speech_to_text',
+            'status' => 'failed', 'error_code' => 'transcript_invalid',
+        ]);
+        $this->assertSame(0, DB::table('media_transcripts')->where('media_file_id', $media->id)->count());
+    }
+
+    public function test_real_local_audio_provider_persists_timespans_and_media_read_returns_them(): void
+    {
+        $fixture = getenv('LF_REAL_AUDIO_FIXTURE') ?: null;
+        if (! is_string($fixture) || ! is_file($fixture)) {
+            $this->markTestSkipped('Set LF_REAL_AUDIO_FIXTURE to a non-PII speech fixture.');
+        }
+        config([
+            'media.processing.providers.speech_to_text' => 'faster_whisper_local',
+            'media.processing.versions.speech_to_text' => 'faster-whisper-small-local-v1',
+            'media.processing.speech_to_text.timeout_seconds' => 3300,
+        ]);
+        [$media, $activityId] = $this->audioCourseUsage();
+        $bytes = file_get_contents($fixture);
+        $this->assertIsString($bytes);
+        Storage::disk($media->storage_disk)->put($media->storage_key, $bytes);
+        DB::table('media_files')->where('id', $media->id)->update([
+            'file_size_bytes' => strlen($bytes), 'checksum' => hash('sha256', $bytes),
+            'duration_seconds' => 30, 'processing_locale' => null,
+        ]);
+
+        app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
+            $this->customerId, $media->id, 'speech_to_text', ['locale' => 'en', 'diarization' => 'off'], $this->admin->id
+        );
+        $job = DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+            ->where('job_type', 'speech_to_text')->firstOrFail();
+        $this->assertSame('ready', $job->status, (string) $job->error_code);
+        $this->assertGreaterThanOrEqual(2, DB::table('media_transcripts')->where('processing_job_id', $job->id)->count());
+
+        $authorizer = Mockery::mock(CourseMediaOwnerContextAuthorizer::class);
+        $authorizer->shouldReceive('authorized')->once()->andReturnTrue();
+        $this->app->instance(CourseMediaOwnerContextAuthorizer::class, $authorizer);
+        $units = app(MediaReadService::class)->read($this->admin->id, 'course_activity', $activityId, 'audio', 'transcript', 'en');
+        $this->assertGreaterThanOrEqual(2, count($units));
+        $this->assertSame('timespan', $units[0]['locator']['type']);
+        $this->assertStringContainsString('learning', strtolower(implode(' ', array_column($units, 'text'))));
+        $audit = DB::table('media_access_logs')->where('media_file_id', $media->id)
+            ->where('action', 'read_derived')->firstOrFail();
+        $this->assertSame('allowed', json_decode((string) $audit->metadata, true)['decision']);
+    }
+
+    public function test_audio_recovery_redelivers_only_expired_pending_and_fails_only_expired_processing(): void
+    {
+        Queue::fake();
+        [$media] = $this->audioCourseUsage();
+        app(MediaProcessingOrchestrator::class)->materializeForCourseActivity(
+            $this->customerId, $media->id, 'vi', $this->admin->id
+        );
+        $pending = DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+            ->where('job_type', 'speech_to_text')->firstOrFail();
+        DB::table('media_processing_jobs')->where('id', $pending->id)->update(['updated_at' => now()->subHours(2)]);
+
+        $this->artisan('media:recover-audio-processing --customer='.$this->customerId)->assertSuccessful();
+        Queue::assertPushed(ProcessMediaProcessingJob::class, fn ($job) => $job->processingJobId === $pending->id);
+
+        DB::table('media_processing_jobs')->where('id', $pending->id)->update([
+            'status' => 'processing', 'started_at' => now()->subHours(2), 'updated_at' => now()->subHours(2),
+        ]);
+        $this->artisan('media:recover-audio-processing --customer='.$this->customerId)->assertSuccessful();
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'id' => $pending->id, 'status' => 'failed', 'error_code' => 'provider_timeout',
+            'error_message' => 'provider_timeout',
+        ]);
     }
 
     public function test_requested_docling_without_a_job_is_not_shown_as_queued(): void
@@ -2497,6 +2652,33 @@ class MediaProcessingSubstrateTest extends TestCase
         return app(MediaService::class)->upload(UploadedFile::fake()->create($name, $size, 'video/mp4'), [
             'file_type' => 'video', 'module' => 'course', 'entity_type' => 'activities', 'entity_id' => 99, 'purpose' => 'video',
         ], $this->admin->id);
+    }
+
+    /** @return array{object, int} */
+    private function audioCourseUsage(): array
+    {
+        [$templateId, $lessonId] = $this->courseFixture();
+        $media = $this->uploadDocument();
+        DB::table('media_processing_jobs')->where('media_file_id', $media->id)->delete();
+        DB::table('media_file_usages')->where('media_file_id', $media->id)->delete();
+        DB::table('media_files')->where('id', $media->id)->update([
+            'file_type' => 'audio', 'mime_type' => 'audio/wav', 'extension' => 'wav',
+            'duration_seconds' => 3, 'status' => 'ready', 'processing_locale' => null,
+        ]);
+        $activityId = DB::table('core_course_template_activities')->insertGetId([
+            'customer_id' => $this->customerId, 'template_id' => $templateId,
+            'template_lesson_id' => $lessonId, 'title' => 'Audio review',
+            'activity_type' => 'audio', 'sort_order' => 1,
+            'created_by' => $this->admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'owner_type' => 'course_activity', 'owner_id' => $activityId, 'usage_type' => 'audio',
+            'status' => 'active', 'metadata' => json_encode(['speech_to_text' => true, 'processing_locale' => 'vi']),
+            'created_by' => $this->admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        return [$media, $activityId];
     }
 
     private function uploadDocument(): object

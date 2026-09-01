@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Contracts\MediaProcessingProvider;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
@@ -84,6 +85,14 @@ class FasterWhisperSpeechToTextProvider implements MediaProcessingProvider
                 $source = $this->extractAudio($mediaFile, $job, $source);
             }
 
+            // LF-Media-Processing-Contract § 5: moi job ghi `billable_units` khi
+            // ket thuc, don vi `second` cho speech-to-text. Ghi TRUOC khi goi
+            // engine, cung cach LocalDocumentProcessingProvider ghi so trang:
+            // chi phi phat sinh tu luc engine chay, nen mot job chet giua chung
+            // van phai de lai dau vet cua lan goi do. Preflight tu choi truoc
+            // day (MIME, tran, locale) khong ton chi phi va giu NULL.
+            $this->recordBillableSeconds($mediaFile, $job);
+
             $envelope = json_decode($this->runner->run([
                 $python, $script,
                 '--source', $source,
@@ -114,6 +123,20 @@ class FasterWhisperSpeechToTextProvider implements MediaProcessingProvider
                 $this->workspace->purge($mediaFile, $job);
             }
         }
+    }
+
+    /** Do bang `media_files.duration_seconds`, da duoc preflight bao dam > 0. */
+    private function recordBillableSeconds(object $mediaFile, object $job): void
+    {
+        if (! isset($job->id, $job->customer_id)) {
+            return; // Standalone provider fixture without a persisted job.
+        }
+
+        DB::table('media_processing_jobs')
+            ->where('customer_id', $job->customer_id)
+            ->where('id', $job->id)
+            ->where('status', 'processing')
+            ->update(['billable_units' => (int) $mediaFile->duration_seconds, 'billable_unit_type' => 'second']);
     }
 
     /**

@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 // Job-state recovery only; this does not schedule Media storage deletion.
 Schedule::command('media:recover-document-processing')->everyMinute()->withoutOverlapping(2);
+Schedule::command('media:recover-audio-processing')->everyMinute()->withoutOverlapping(2);

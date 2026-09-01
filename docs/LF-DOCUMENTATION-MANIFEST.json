@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-08-31",
+  "generated_or_updated_at": "2026-09-01",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 246,
+  "document_count": 247,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -8155,6 +8155,47 @@
         "platform/LF-Media-Read-Contract.md",
         "database/ai/ai_knowledge_sources.md",
         "quality/LF-Media-Read-Contract-Architecture-Review.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Audio-Processing-Final-Code-Review.md",
+      "title": "Audio Processing — Final Code Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "media",
+        "audio processing",
+        "local review",
+        "speech to text",
+        "transcript",
+        "timespan"
+      ],
+      "keywords": {
+        "vi": [
+          "kiểm thử Audio local",
+          "phiên âm theo timespan",
+          "review Media Processing"
+        ],
+        "en": [
+          "audio processing review",
+          "local speech to text",
+          "transcript timespan"
+        ]
+      },
+      "identifiers": [
+        "LF-Audio-Processing-Final-Code-Review"
+      ],
+      "related_documents": [
+        "platform/LF-Media-Processing-Contract.md",
+        "platform/LF-Media-Read-Contract.md",
+        "database/media/media_transcripts.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

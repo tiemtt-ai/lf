@@ -50,6 +50,7 @@ criteria hay không.
   risks and scoped implementation authorization.
 * [LF-A0-Docling-Closure-Evidence.md](LF-A0-Docling-Closure-Evidence.md)
 * [LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md](LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md)
+* [LF-Audio-Processing-Final-Code-Review.md](LF-Audio-Processing-Final-Code-Review.md) — review Audio local, real offline Faster Whisper E2E và `PASS_LOCAL_AUDIO_PROCESSING`.
 * [LF-Document-Processing-Final-Code-Review.md](LF-Document-Processing-Final-Code-Review.md) — review Document local, real OCR/Docling E2E và các findings còn mở.
 * [LF-Media-Read-Contract-Architecture-Review.md](LF-Media-Read-Contract-Architecture-Review.md)
 * [LF-Media-Structured-Extraction-Architecture-Review.md](LF-Media-Structured-Extraction-Architecture-Review.md)

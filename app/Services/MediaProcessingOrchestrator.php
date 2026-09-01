@@ -36,6 +36,7 @@ class MediaProcessingOrchestrator
             }
 
             $this->assertDocumentUsage($customerId, $media);
+            $this->assertAudioUsage($customerId, $media, $speechToText);
 
             try {
                 $canonicalLocale = $this->canonicalLocaleFor($media, $locale, $speechToText);
@@ -149,12 +150,14 @@ class MediaProcessingOrchestrator
                 || (int) $failed->attempt >= 3) {
                 throw new InvalidArgumentException('Job is not retry eligible.');
             }
-            if (in_array($failed->job_type, ['ocr', 'structured_extraction'], true)) {
+            if (in_array($failed->job_type, ['ocr', 'structured_extraction'], true)
+                || $failed->job_type === 'speech_to_text') {
                 $media = DB::table('media_files')->where('customer_id', $customerId)->where('id', $failed->media_file_id)->lockForUpdate()->first();
                 if (! $media) {
                     throw new InvalidArgumentException('Media File not found.');
                 }
                 $this->assertDocumentUsage($customerId, $media);
+                $this->assertAudioUsage($customerId, $media, true);
             }
             $highest = DB::table('media_processing_jobs')->where('customer_id', $customerId)
                 ->where('media_file_id', $failed->media_file_id)->where('job_type', $failed->job_type)
@@ -320,6 +323,9 @@ class MediaProcessingOrchestrator
         if (in_array($jobType, ['ocr', 'structured_extraction'], true)) {
             $this->assertDocumentUsage($customerId, $media);
         }
+        if ($jobType === 'speech_to_text') {
+            $this->assertAudioUsage($customerId, $media, true);
+        }
         $metadata = $jobType === 'ocr' && $requestStructure ? ['structured_requested' => true] : [];
         if ($jobType === 'structured_extraction') {
             $locale = $this->profiles->parse($profile)['locale'];
@@ -340,8 +346,9 @@ class MediaProcessingOrchestrator
             ->where('output_profile_hash', $profileHash)
             ->when($media->file_type !== 'document' || ! in_array($jobType, ['ocr', 'structured_extraction'], true), fn ($q) => $q->where('idempotency_key', $key))
             ->orderByDesc('dispatch_generation')->orderByDesc('attempt')->first();
-        $successor = $reattach && $media->file_type === 'document'
-            && in_array($jobType, ['ocr', 'structured_extraction'], true)
+        $successor = $reattach
+            && (($media->file_type === 'document' && in_array($jobType, ['ocr', 'structured_extraction'], true))
+                || ($media->file_type === 'audio' && $jobType === 'speech_to_text'))
             && $latest?->status === 'cancelled' && $latest->started_at === null
             && $latest->error_code === null;
         $generation = $successor ? (int) $latest->dispatch_generation + 1 : 1;
@@ -394,6 +401,14 @@ class MediaProcessingOrchestrator
         if ($media->file_type === 'document' && ($media->status === 'deleted'
             || ! app(DocumentProcessingEligibility::class)->hasActiveUsage($customerId, (int) $media->id))) {
             throw new InvalidArgumentException('Active Document Course usage is required.');
+        }
+    }
+
+    private function assertAudioUsage(int $customerId, object $media, bool $speechToText): void
+    {
+        if ($speechToText && $media->file_type === 'audio' && ($media->status === 'deleted'
+            || ! app(AudioProcessingEligibility::class)->hasActiveUsage($customerId, (int) $media->id))) {
+            throw new InvalidArgumentException('Active Audio Course usage is required.');
         }
     }
 

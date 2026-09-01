@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Contracts\MediaProcessingProvider;
 use App\Exceptions\DocumentCommandFailure;
 use App\Exceptions\DocumentUsageException;
+use App\Services\AudioProcessingEligibility;
 use App\Services\CaptionAssetStorage;
 use App\Services\DoclingStructuredExtractionProvider;
 use App\Services\DocumentCanonicalRevision;
@@ -56,7 +57,9 @@ class ProcessMediaProcessingJob implements ShouldQueue
             }
             if ($media->status === 'deleted'
                 || ($media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
-                    && ! app(DocumentProcessingEligibility::class)->hasActiveUsage($this->customerId, (int) $media->id))) {
+                    && ! app(DocumentProcessingEligibility::class)->hasActiveUsage($this->customerId, (int) $media->id))
+                || ($media->file_type === 'audio' && $job->job_type === 'speech_to_text'
+                    && ! app(AudioProcessingEligibility::class)->hasActiveUsage($this->customerId, (int) $media->id))) {
                 DB::table('media_processing_jobs')->where('id', $job->id)->where('customer_id', $this->customerId)->update([
                     'status' => 'cancelled', 'completed_at' => now(), 'updated_at' => now(),
                 ]);
@@ -70,7 +73,8 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 // A fresh queue envelope preserves the same provider attempt.
                 // Sync cannot honor delay: completion and scheduled recovery
                 // drain its durable pending row instead of recursing here.
-                if ($media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
+                if (($media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
+                    || ($media->file_type === 'audio' && $job->job_type === 'speech_to_text'))
                     && config('queue.connections.'.($this->connection ?? config('queue.default')).'.driver') !== 'sync') {
                     $connection = $this->connection ?? $this->job?->getConnectionName();
                     $queue = $this->queue ?? $this->job?->getQueue();
@@ -107,7 +111,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 throw $persistFailure;
             }
         } catch (Throwable $e) {
-            if (in_array($job->job_type, ['ocr', 'structured_extraction'], true)) {
+            if (in_array($job->job_type, ['ocr', 'structured_extraction', 'speech_to_text'], true)) {
                 // Operator diagnostics contain only identifiers and exception
                 // categories, never message, stack, source text or stderr.
                 $diagnostic = $e;
@@ -121,7 +125,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                     'signal' => $diagnostic instanceof DocumentCommandFailure ? $diagnostic->signal : null,
                 ]);
             }
-            DB::transaction(function () use ($job, $e, $result): void {
+            DB::transaction(function () use ($job, $media, $e, $result): void {
                 $knownErrorCodes = [
                     'infected_source', 'provider_unavailable', 'provider_timeout', 'rate_limited',
                     'unsupported_source', 'corrupt_source', 'source_unavailable',
@@ -148,7 +152,8 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 DB::table('media_processing_jobs')->where('customer_id', $this->customerId)->where('id', $job->id)->where('status', 'processing')->update([
                     'status' => 'failed', 'completed_at' => now(),
                     'error_code' => $errorCode,
-                    'error_message' => in_array($job->job_type, ['ocr', 'structured_extraction'], true)
+                    'error_message' => (in_array($job->job_type, ['ocr', 'structured_extraction'], true)
+                        || ($media->file_type === 'audio' && $job->job_type === 'speech_to_text'))
                         ? $errorCode : mb_substr($e->getMessage(), 0, 1000), 'updated_at' => now(),
                 ] + $usage);
                 if ($job->job_type === 'virus_scan' && ($errorCode === 'infected_source'
@@ -159,7 +164,8 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 }
             });
         } finally {
-            if ($media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
+            if (($media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
+                || ($media->file_type === 'audio' && $job->job_type === 'speech_to_text'))
                 && config('queue.connections.'.($this->connection ?? config('queue.default')).'.driver') === 'sync') {
                 $pending = DB::table('media_processing_jobs')->where('customer_id', $this->customerId)
                     ->where('media_file_id', $media->id)->where('job_type', $job->job_type)
@@ -183,7 +189,8 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 'status' => 'failed',
                 'completed_at' => now(),
                 'error_code' => 'provider_timeout',
-                'error_message' => $documentJob ? 'provider_timeout'
+                'error_message' => ($documentJob || DB::table('media_processing_jobs')->where('customer_id', $this->customerId)
+                    ->where('id', $this->processingJobId)->where('job_type', 'speech_to_text')->exists()) ? 'provider_timeout'
                     : mb_substr($exception?->getMessage() ?? 'Queue worker terminated the processing job.', 0, 1000),
                 'updated_at' => now(),
             ]);
@@ -303,7 +310,8 @@ class ProcessMediaProcessingJob implements ShouldQueue
     /** @param array<string, mixed> $result */
     private function persistSuccess(object $media, object $job, array $result): void
     {
-        if (in_array($job->job_type, ['ocr', 'structured_extraction'], true)) {
+        if (in_array($job->job_type, ['ocr', 'structured_extraction'], true)
+            || ($media->file_type === 'audio' && $job->job_type === 'speech_to_text')) {
             $currentJob = DB::table('media_processing_jobs')->where('customer_id', $this->customerId)
                 ->where('id', $job->id)->lockForUpdate()->first();
             if ($currentJob === null || $currentJob->status !== 'processing') {
@@ -316,6 +324,10 @@ class ProcessMediaProcessingJob implements ShouldQueue
             ->lockForUpdate()
             ->first(['status', 'processing_error_code']);
         if ($currentMedia === null || $currentMedia->status === 'deleted') {
+            throw new RuntimeException('source_unavailable');
+        }
+        if ($media->file_type === 'audio' && $job->job_type === 'speech_to_text'
+            && ! app(AudioProcessingEligibility::class)->hasActiveUsage($this->customerId, (int) $media->id)) {
             throw new RuntimeException('source_unavailable');
         }
 
@@ -356,6 +368,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                     'provider' => $job->provider, 'status' => 'ready', 'text' => $unit['text'], 'processing_job_id' => $job->id,
                     'processing_version' => $job->processing_version, 'source_fingerprint' => $job->source_fingerprint,
                     'locator_type' => $unit['locator_type'], 'locator_value' => $unit['locator_value'],
+                    'confidence_score' => $unit['confidence_score'] ?? null,
                     'metadata' => isset($unit['metadata']) ? json_encode($unit['metadata'], JSON_THROW_ON_ERROR) : null,
                     'created_at' => $now, 'updated_at' => $now,
                 ]);
@@ -547,10 +560,17 @@ class ProcessMediaProcessingJob implements ShouldQueue
             }
             $start = (int) $matches[1];
             $end = (int) $matches[2];
+            $confidence = $unit['confidence_score'] ?? null;
+            if ($confidence !== null && (! is_numeric($confidence) || (float) $confidence < 0 || (float) $confidence > 100)) {
+                throw new RuntimeException('transcript_invalid');
+            }
             if ($start >= $end || ($previousEnd !== null && $start < $previousEnd)) {
                 throw new RuntimeException('transcript_invalid');
             }
             $previousEnd = $end;
+            if ($confidence !== null) {
+                $unit['confidence_score'] = round((float) $confidence, 2);
+            }
             $validated[] = $unit;
         }
 
