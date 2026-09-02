@@ -47,6 +47,21 @@ try {
         'DB_USERNAME' => $base['username'], 'DB_PASSWORD' => $base['password'],
         'DB_SOCKET' => $base['unix_socket'] ?? '',
     ];
+    // Harness nay bootstrap Laravel de doc cau hinh database, nen Dotenv da nap
+    // `.env` VAO ENVIRONMENT cua tien trinh. Tien trinh PHPUnit con thua ke no, va
+    // `<env>` trong phpunit.xml KHONG ghi de mot bien da ton tai vi khong khai
+    // `force="true"`. Bien quyet dinh la `QUEUE_CONNECTION`: `.env` dat `redis`,
+    // nen job di vao Redis thay vi chay sync va KHONG output nao duoc tao.
+    //
+    // Go DUNG tap bien ma phpunit.xml dinh nghia, doc tu chinh file do thay vi mot
+    // danh sach chep tay. `false` xoa bien khoi child environment.
+    $suiteEnvironment = simplexml_load_file(base_path('phpunit.xml'));
+    foreach ($suiteEnvironment?->php?->env ?? [] as $declared) {
+        $key = (string) $declared['name'];
+        if ($key !== '' && ! array_key_exists($key, $environment)) {
+            $environment[$key] = false;
+        }
+    }
     $tests = ['tests/Feature/AudioProcessingLocalReviewTest.php'];
     if (in_array('--schema-only', $argv, true)) {
         $tests = ['tests/Integration/MediaProcessingSubstrateMariaDbTest.php'];

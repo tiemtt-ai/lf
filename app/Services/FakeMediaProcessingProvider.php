@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Contracts\MediaProcessingProvider;
+use Illuminate\Support\Facades\DB;
 
 class FakeMediaProcessingProvider implements MediaProcessingProvider
 {
@@ -12,7 +13,14 @@ class FakeMediaProcessingProvider implements MediaProcessingProvider
             'virus_scan' => ['clean' => ! config('media.processing.fake.virus_infected', false)],
             'ocr' => ['units' => [['locator_type' => 'page', 'locator_value' => '1', 'sequence' => 1, 'text' => 'Fake extracted text', 'extraction_method' => 'ocr']]],
             'speech_to_text' => ['units' => [['locator_type' => 'timespan', 'locator_value' => '0-1000', 'text' => 'Fake transcript']]],
-            'caption' => ['storage_key' => $mediaFile->storage_key.'.captions/'.$job->output_profile_hash.'.vtt'],
+            // Caption do job sinh ra PHAI khai transcript revision da dung:
+            // `chk_mc_provenance` cuong che dieu do o database that, va
+            // media_captions.md dat bat bien ton-tai-revision o tang persist.
+            // Fake tra NULL se sinh mot row khong the ton tai tren MariaDB.
+            'caption' => [
+                'storage_key' => $mediaFile->storage_key.'.captions/'.$job->output_profile_hash.'.vtt',
+                'transcript_processing_version' => $this->readyTranscriptRevision($mediaFile, $job),
+            ],
             'thumbnail', 'transcode', 'compress' => ['storage_key' => $mediaFile->storage_key.'.variants/'.$job->output_profile_hash],
             'structured_extraction' => str_contains($job->output_profile, 'structure=cells')
                 ? ['tables' => [[
@@ -32,5 +40,24 @@ class FakeMediaProcessingProvider implements MediaProcessingProvider
                 ]],
             default => throw new \RuntimeException('Unsupported fake capability.'),
         };
+    }
+
+    private function readyTranscriptRevision(object $mediaFile, object $job): ?string
+    {
+        $locale = null;
+        foreach (array_filter(explode(';', (string) $job->output_profile)) as $pair) {
+            [$key, $value] = array_pad(explode('=', $pair, 2), 2, '');
+            if ($key === 'locale') {
+                $locale = $value;
+            }
+        }
+
+        return $locale === null ? null : DB::table('media_transcripts')
+            ->where('customer_id', $mediaFile->customer_id)
+            ->where('media_file_id', $mediaFile->id)
+            ->where('locale', $locale)
+            ->where('source_fingerprint', $job->source_fingerprint)
+            ->where('status', 'ready')
+            ->value('processing_version');
     }
 }

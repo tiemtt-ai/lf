@@ -348,7 +348,7 @@ class MediaProcessingOrchestrator
             ->orderByDesc('dispatch_generation')->orderByDesc('attempt')->first();
         $successor = $reattach
             && (($media->file_type === 'document' && in_array($jobType, ['ocr', 'structured_extraction'], true))
-                || ($media->file_type === 'audio' && $jobType === 'speech_to_text'))
+                || (in_array($media->file_type, ['audio', 'video'], true) && $jobType === 'speech_to_text'))
             && $latest?->status === 'cancelled' && $latest->started_at === null
             && $latest->error_code === null;
         $generation = $successor ? (int) $latest->dispatch_generation + 1 : 1;
@@ -406,9 +406,15 @@ class MediaProcessingOrchestrator
 
     private function assertAudioUsage(int $customerId, object $media, bool $speechToText): void
     {
-        if ($speechToText && $media->file_type === 'audio' && ($media->status === 'deleted'
-            || ! app(AudioProcessingEligibility::class)->hasActiveUsage($customerId, (int) $media->id))) {
-            throw new InvalidArgumentException('Active Audio Course usage is required.');
+        $requiresUsage = $media->file_type === 'audio'
+            || ($media->file_type === 'video' && (bool) config('media.processing.speech_to_text.video_enabled', false)
+                && app(VideoSttQualification::class)->isQualified());
+        if ($speechToText && $requiresUsage && ($media->status === 'deleted'
+            || ! app(SpeechToTextProcessingEligibility::class)
+                ->hasActiveUsage($customerId, (int) $media->id, $media->file_type))) {
+            throw new InvalidArgumentException($media->file_type === 'audio'
+                ? 'Active Audio Course usage is required.'
+                : 'Active Video Course usage is required.');
         }
     }
 
@@ -499,6 +505,15 @@ class MediaProcessingOrchestrator
         // Amendment Record 2.19 § 1 canh bao dung dieu nay.
         if ($jobType === 'speech_to_text' && ($media->file_type ?? null) === 'video') {
             $version .= '+'.app(VideoSpeechToTextProfile::class)->label();
+            // `processing_version` la VARCHAR(100). Base version + label da la
+            // 88 ky tu voi cau hinh khuyen nghi, va `ffmpeg_version` la chuoi
+            // INVENTORY tu do do deployment khai (`7:6.1.1-3ubuntu5` day len 99).
+            // Tran thi MariaDB nem 22001 ngay trong afterCommit cua attachUsage:
+            // usage da commit, job khong bao gio duoc tao. SQLite khong cuong che
+            // do dai nen loi nay vo hinh o local. Cung guard nhu nhanh OCR.
+            if (strlen($version) > 100) {
+                $version = 'video-stt-'.hash('sha256', $version);
+            }
         }
 
         return $version;

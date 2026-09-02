@@ -392,7 +392,7 @@ class MediaService
         return DB::transaction(function () use ($customerId, $mediaFileId, $usage): object {
             // Serialize detach with derived-processing claim.
             DB::table('media_files')->where('customer_id', $customerId)
-                ->where('id', $mediaFileId)->whereIn('file_type', ['document', 'audio'])->lockForUpdate()->first();
+                ->where('id', $mediaFileId)->whereIn('file_type', ['document', 'audio', 'video'])->lockForUpdate()->first();
             $existing = DB::table('media_file_usages')
                 ->where('customer_id', $customerId)
                 ->where('media_file_id', $mediaFileId)
@@ -411,12 +411,14 @@ class MediaService
                     'updated_at' => now(),
                 ]);
 
-            if ($usage['owner_type'] === 'course_activity' && in_array($usage['usage_type'], ['document', 'audio'], true)) {
+            if ($usage['owner_type'] === 'course_activity' && in_array($usage['usage_type'], ['document', 'audio', 'video'], true)) {
                 $hasActive = DB::table('media_file_usages')->where('customer_id', $customerId)
                     ->where('media_file_id', $mediaFileId)->where('owner_type', 'course_activity')
                     ->where('usage_type', $usage['usage_type'])->where('status', 'active')->exists();
                 if (! $hasActive) {
-                    $jobTypes = $usage['usage_type'] === 'audio' ? ['speech_to_text'] : ['ocr', 'structured_extraction'];
+                    $jobTypes = in_array($usage['usage_type'], ['audio', 'video'], true)
+                        ? ['speech_to_text', 'caption']
+                        : ['ocr', 'structured_extraction'];
                     DB::table('media_processing_jobs')->where('customer_id', $customerId)
                         ->where('media_file_id', $mediaFileId)->whereIn('job_type', $jobTypes)
                         ->where('status', 'pending')->update([

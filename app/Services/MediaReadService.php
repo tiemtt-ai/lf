@@ -102,6 +102,7 @@ class MediaReadService
                 'extracted_text' => 'ocr',
                 'region', 'table' => 'structured_extraction',
                 'transcript' => 'speech_to_text',
+                'caption_asset' => 'caption',
                 default => null,
             };
 

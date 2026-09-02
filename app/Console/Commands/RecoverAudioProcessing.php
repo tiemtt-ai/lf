@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Jobs\ProcessMediaProcessingJob;
-use App\Services\AudioProcessingEligibility;
+use App\Services\SpeechToTextProcessingEligibility;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -13,7 +13,7 @@ class RecoverAudioProcessing extends Command
 {
     protected $signature = 'media:recover-audio-processing {--customer= : Limit recovery to one tenant}';
 
-    protected $description = 'Recover expired Audio STT jobs and redeliver durable pending work.';
+    protected $description = 'Recover expired Course Audio/Video STT jobs and redeliver durable pending work.';
 
     public function handle(): int
     {
@@ -33,7 +33,7 @@ class RecoverAudioProcessing extends Command
             ->whereExists(fn ($q) => $q->selectRaw('1')->from('media_files')
                 ->whereColumn('media_files.id', 'media_processing_jobs.media_file_id')
                 ->whereColumn('media_files.customer_id', 'media_processing_jobs.customer_id')
-                ->where('file_type', 'audio'))
+                ->whereIn('file_type', ['audio', 'video']))
             ->where(fn ($q) => $q->where(fn ($p) => $p->where('status', 'pending')->where('updated_at', '<=', $pendingCutoff))
                 ->orWhere(fn ($p) => $p->where('status', 'processing')->whereRaw('COALESCE(started_at, updated_at) <= ?', [$cutoff])))
             ->orderBy('id')->chunkById(100, function ($jobs) use ($cutoff, $pendingCutoff, &$recovered, &$errors): void {
@@ -44,8 +44,8 @@ class RecoverAudioProcessing extends Command
                                 ->where('id', $candidate->media_file_id)->lockForUpdate()->first();
                             $job = DB::table('media_processing_jobs')->where('customer_id', $candidate->customer_id)
                                 ->where('id', $candidate->id)->lockForUpdate()->first();
-                            if (! $media || ! $job || ! app(AudioProcessingEligibility::class)
-                                ->hasActiveUsage((int) $candidate->customer_id, (int) $candidate->media_file_id)) {
+                            if (! $media || ! $job || ! app(SpeechToTextProcessingEligibility::class)
+                                ->hasActiveUsage((int) $candidate->customer_id, (int) $candidate->media_file_id, (string) ($media->file_type ?? ''))) {
                                 if ($job?->status === 'pending') {
                                     DB::table('media_processing_jobs')->where('id', $job->id)->where('customer_id', $job->customer_id)
                                         ->update(['status' => 'cancelled', 'completed_at' => now(), 'updated_at' => now()]);
@@ -74,7 +74,7 @@ class RecoverAudioProcessing extends Command
                     }
                 }
             });
-        $this->info("Recovered {$recovered} Audio job(s); {$errors} error(s).");
+        $this->info("Recovered {$recovered} speech-to-text job(s); {$errors} error(s).");
 
         return $errors === 0 ? self::SUCCESS : self::FAILURE;
     }

@@ -276,6 +276,111 @@ class MediaRevisionLifecycleTest extends TestCase
     }
 
     /**
+     * Spec B § 6: vang mat phai co TEN. Caption chua chay xong hoac da that bai
+     * khong duoc doc ra thanh `locale_unavailable` — consumer se ket luan "locale
+     * nay khong co phu de" va bo qua, trong khi su that la "dang dung" hoac "da
+     * hong va se khong tu co ket qua".
+     */
+    public function test_an_unready_caption_asset_reports_the_job_state_not_a_missing_locale(): void
+    {
+        config(['media.processing.providers.caption' => 'unconfigured']);
+        $media = $this->uploadVideo();
+        $this->materialize($media->id);
+
+        $caption = DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+            ->where('job_type', 'caption')->orderByDesc('id')->firstOrFail();
+        $this->assertSame('failed', $caption->status);
+        $this->assertSame('provider_unavailable', $caption->error_code);
+        $this->assertSame(0, DB::table('media_captions')->where('media_file_id', $media->id)->count());
+
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'owner_type' => 'course_activity', 'owner_id' => 4242, 'usage_type' => 'video',
+            'status' => 'active', 'created_by' => $this->admin->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $authorizer = Mockery::mock(CourseMediaOwnerContextAuthorizer::class);
+        $authorizer->shouldReceive('authorized')->andReturnTrue();
+        $this->app->instance(CourseMediaOwnerContextAuthorizer::class, $authorizer);
+
+        try {
+            app(MediaReadService::class)->read(
+                $this->admin->id, 'course_activity', 4242, 'video', 'caption_asset', 'vi'
+            );
+            $this->fail('Caption asset chua ready phai tra mot ma loi co ten.');
+        } catch (MediaReadException $exception) {
+            $this->assertSame('failed', $exception->errorCode);
+        }
+    }
+
+    /**
+     * Cua so callback muon cua caption.
+     *
+     * Provider chon transcript revision roi ghi VTT trong MOT transaction khac;
+     * persist xay ra sau do. Giua hai moc, mot STT revision moi co the commit va
+     * archive dung revision vua duoc chon — `speech_to_text` va `caption` la hai
+     * job_type khac nhau nen guard concurrency mot-job-moi-(media,job_type)
+     * KHONG serialize chung.
+     *
+     * media_captions.md § "CHECK khong chung minh transcript revision ton tai"
+     * dat bat bien nay o TANG PERSIST chu khong phai tang provider.
+     */
+    public function test_a_caption_callback_landing_after_a_new_transcript_revision_is_rejected(): void
+    {
+        config([
+            'media.processing.providers.caption' => 'transcript_vtt',
+            'media.processing.versions.caption' => 'transcript-vtt-late-v1',
+        ]);
+        $media = $this->uploadVideo();
+        $this->materialize($media->id);
+        $v1 = $this->videoVersion('fake-v1');
+        $this->assertSame('ready', $this->transcriptStatus($media->id, 'fake-v1'));
+        $fingerprint = DB::table('media_transcripts')->where('media_file_id', $media->id)->value('source_fingerprint');
+        $captionsBefore = DB::table('media_captions')->where('media_file_id', $media->id)->count();
+
+        // Provider tra ve revision v1 dung nhu no da chon, nhung trong luc no chay
+        // thi STT v2 commit: v1 bi archive, v2 thanh ban hien hanh.
+        // Chain caption MOI: neu dung lai version cu, materializeOnDemandProfile se
+        // dedupe vao chinh job da `ready` va khong co callback nao de kiem.
+        config(['media.processing.versions.caption' => 'transcript-vtt-late-v2']);
+        $provider = Mockery::mock(TranscriptVttCaptionProvider::class);
+        $provider->shouldReceive('process')->once()->andReturnUsing(
+            function (object $mediaFile, object $job) use ($media, $fingerprint, $v1): array {
+                DB::table('media_transcripts')->where('media_file_id', $media->id)
+                    ->where('processing_version', $v1)->update(['status' => 'archived', 'updated_at' => now()]);
+                DB::table('media_transcripts')->insert([
+                    'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+                    'locale' => 'vi', 'locator_type' => 'timespan', 'locator_value' => '0-1000',
+                    'text' => 'ban phien am moi', 'status' => 'ready', 'provider' => 'fake',
+                    'processing_version' => $this->videoVersion('fake-v2'),
+                    'source_fingerprint' => $fingerprint, 'created_at' => now(), 'updated_at' => now(),
+                ]);
+                $key = 'tenants/'.$this->customerId.'/captions/late-callback.vtt';
+                Storage::disk('media_local')->put($key, "WEBVTT\n\n00:00:00.000 --> 00:00:01.000\ncu\n\n");
+
+                return ['storage_key' => $key, 'transcript_processing_version' => $v1];
+            }
+        );
+        $this->app->instance(TranscriptVttCaptionProvider::class, $provider);
+
+        app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
+            $this->customerId, $media->id, 'caption', ['format' => 'vtt', 'locale' => 'vi'], $this->admin->id
+        );
+
+        $job = DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+            ->where('job_type', 'caption')->where('processing_version', 'like', 'transcript-vtt-late-v2%')
+            ->orderByDesc('id')->firstOrFail();
+        $this->assertSame('failed', $job->status,
+            'Caption dung tu mot transcript revision da archive khong duoc phep `ready`.');
+        $this->assertSame('transcript_unavailable', $job->error_code);
+        $this->assertSame($captionsBefore, DB::table('media_captions')->where('media_file_id', $media->id)->count(),
+            'Callback muon khong duoc ghi them caption row nao.');
+        $this->assertNull(DB::table('media_captions')->where('processing_job_id', $job->id)->first());
+        // Object da ghi truoc khi persist hong phai duoc don.
+        Storage::disk('media_local')->assertMissing('tenants/'.$this->customerId.'/captions/late-callback.vtt');
+    }
+
+    /**
      * Object storage is outside the database transaction. If the provider has
      * written VTT but the caption row cannot be inserted, the new object must
      * be removed while the pre-existing row/object remain untouched.
@@ -434,8 +539,18 @@ class MediaRevisionLifecycleTest extends TestCase
 
     private function uploadVideo(): object
     {
-        return app(MediaService::class)->upload(UploadedFile::fake()->create('lesson.mp4', 32, 'video/mp4'), [
+        $media = app(MediaService::class)->upload(UploadedFile::fake()->create('lesson.mp4', 32, 'video/mp4'), [
             'file_type' => 'video', 'module' => 'course', 'entity_type' => 'activities', 'entity_id' => 99, 'purpose' => 'video',
         ], $this->admin->id);
+        DB::table('media_files')->where('id', $media->id)->update(['duration_seconds' => 3]);
+        $media->duration_seconds = 3;
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'owner_type' => 'course_activity', 'owner_id' => 999999, 'usage_type' => 'video',
+            'status' => 'active', 'created_by' => $this->admin->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        return $media;
     }
 }

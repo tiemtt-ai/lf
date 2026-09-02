@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 247,
+  "document_count": 248,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -9663,6 +9663,47 @@
         "LF-Version-Activity-Media-Snapshot-Architecture-Review"
       ],
       "related_documents": [],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Video-Transcript-Caption-Final-Code-Review.md",
+      "title": "Video Transcript And Caption — Final Code Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "media",
+        "video processing",
+        "speech to text",
+        "caption",
+        "media read"
+      ],
+      "keywords": {
+        "vi": [
+          "kiểm thử Video local",
+          "phiên âm và phụ đề",
+          "review Media Processing"
+        ],
+        "en": [
+          "video transcript review",
+          "local caption VTT",
+          "media read"
+        ]
+      },
+      "identifiers": [
+        "LF-Video-Transcript-Caption-Final-Code-Review"
+      ],
+      "related_documents": [
+        "platform/LF-Media-Processing-Contract.md",
+        "platform/LF-Media-Read-Contract.md",
+        "database/media/media_transcripts.md",
+        "database/media/media_captions.md"
+      ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
     },

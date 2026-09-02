@@ -389,6 +389,7 @@ docs/quality/
 | [quality/LF-A0-Docling-Closure-Evidence.md](quality/LF-A0-Docling-Closure-Evidence.md) | Only surviving copy of the A0 run behind the closure decision; exploratory evidence, not a verdict |
 | [quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md](quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md) | AI Foundation Media-consumer subset A–H packet; CHANGES REQUIRED, migration not authorized |
 | [quality/LF-Audio-Processing-Final-Code-Review.md](quality/LF-Audio-Processing-Final-Code-Review.md) | Audio Processing local final review; real offline Faster Whisper E2E and PASS_LOCAL_AUDIO_PROCESSING |
+| [quality/LF-Video-Transcript-Caption-Final-Code-Review.md](quality/LF-Video-Transcript-Caption-Final-Code-Review.md) | Video Transcript + Caption local final review; real FFmpeg/Faster Whisper/VTT E2E |
 | [quality/LF-Document-Processing-Final-Code-Review.md](quality/LF-Document-Processing-Final-Code-Review.md) | Document local code review, real OCR/Docling E2E; CHANGES_REQUIRED, không phải production approval |
 | [quality/LF-Media-Read-Contract-Architecture-Review.md](quality/LF-Media-Read-Contract-Architecture-Review.md) | Media Read A–H self-assessment packet; independent review pending |
 | [quality/LF-Media-Structured-Extraction-Architecture-Review.md](quality/LF-Media-Structured-Extraction-Architecture-Review.md) | Round 3 của region/table/cell + job identity/read selector; Gate M PASS và schema đã apply, Runtime Gate R vẫn NO |

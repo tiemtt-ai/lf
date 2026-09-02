@@ -453,6 +453,16 @@ thuộc Audio. Vì mandate cấm mở rộng sang Document/Video/Caption, tôi *
 sửa chúng và cũng **không** đưa chúng vào harness Audio —
 `tests/Support/audio-mariadb-review.php` ghi rõ lý do loại trừ ngay tại chỗ.
 
+**Đính chính 2026-09-02.** Đoạn trên gộp hai nguyên nhân khác nhau. Các row
+`media_processing_jobs` vi phạm `chk_mpj_ready`/`chk_mpj_output_pair` đúng là nợ
+fixture. Nhưng phần `MediaRevisionLifecycleTest` thì **không**: lượt review Video
+truy ra nguyên nhân thật là chính harness — nó bootstrap Laravel nên Dotenv nạp
+`.env` vào environment, tiến trình PHPUnit con thừa kế, và `<env>` trong
+`phpunit.xml` **không** ghi đè một biến đã tồn tại (thiếu `force="true"`). Test vì
+thế chạy bằng provider/version thật thay vì `fake`. Đã sửa ở cả hai harness bằng
+cách gỡ tám biến `MEDIA_*` khỏi child environment. `MediaRevisionLifecycleTest`
+chạy xanh trên MariaDB 11.4.12 (12 tests, 48 assertions).
+
 Hai mục `DECISION_REQUIRED` sẵn có của register — DOC-CONFLICT-0014 và 0015
 (`owner_type` vocabulary) — vẫn mở ở cấp Owner và không tái hiện trên đường Audio.
 

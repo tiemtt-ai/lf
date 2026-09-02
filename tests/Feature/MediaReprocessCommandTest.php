@@ -197,8 +197,18 @@ class MediaReprocessCommandTest extends TestCase
 
     private function uploadVideo(): object
     {
-        return app(MediaService::class)->upload(UploadedFile::fake()->create('lesson-'.uniqid().'.mp4', 32, 'video/mp4'), [
+        $media = app(MediaService::class)->upload(UploadedFile::fake()->create('lesson-'.uniqid().'.mp4', 32, 'video/mp4'), [
             'file_type' => 'video', 'module' => 'course', 'entity_type' => 'activities', 'entity_id' => 99, 'purpose' => 'video',
         ], $this->admin->id);
+        DB::table('media_files')->where('id', $media->id)->update(['duration_seconds' => 3]);
+        $media->duration_seconds = 3;
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'owner_type' => 'course_activity', 'owner_id' => 999999, 'usage_type' => 'video',
+            'status' => 'active', 'created_by' => $this->admin->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        return $media;
     }
 }

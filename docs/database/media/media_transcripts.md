@@ -49,7 +49,8 @@ media_processing_jobs 1 → N media_transcripts
   dùng mẫu số này và lưu raw per-segment artefact. Độ dài 0 không hợp lệ. Vi phạm thì fail cả revision bằng
   `transcript_invalid`, không ghi row nào. Xem § Vì sao luật này nằm ở tầng
   persist.
-* `end_ms` không được vượt `media_files.duration_seconds * 1000`. Timestamp nằm
+* Với Audio và Video, `end_ms` không được vượt
+  `media_files.duration_seconds * 1000`. Timestamp nằm
   ngoài binary nguồn không phải citation hợp lệ; vi phạm fail cả revision bằng
   `transcript_invalid`, không clamp hoặc giữ một revision một phần.
 * Chỉ row `ready` được Media Read Service trả ra.

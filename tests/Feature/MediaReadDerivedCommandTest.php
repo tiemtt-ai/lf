@@ -153,12 +153,12 @@ class MediaReadDerivedCommandTest extends TestCase
         $media = app(MediaService::class)->upload(UploadedFile::fake()->create('lesson.mp4', 32, 'video/mp4'), [
             'file_type' => 'video', 'module' => 'course', 'entity_type' => 'activities', 'entity_id' => self::OWNER_ID, 'purpose' => 'video',
         ], $this->admin->id);
-        app(MediaProcessingOrchestrator::class)->materializeForCourseActivity($this->customerId, $media->id, 'vi', $this->admin->id);
         DB::table('media_file_usages')->insert([
             'customer_id' => $this->customerId, 'media_file_id' => $media->id, 'owner_type' => 'course_activity',
             'owner_id' => self::OWNER_ID, 'usage_type' => 'video', 'status' => 'active', 'created_by' => $this->admin->id,
             'created_at' => now(), 'updated_at' => now(),
         ]);
+        app(MediaProcessingOrchestrator::class)->materializeForCourseActivity($this->customerId, $media->id, 'vi', $this->admin->id);
 
         return $media;
     }

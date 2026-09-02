@@ -5,7 +5,6 @@ namespace App\Jobs;
 use App\Contracts\MediaProcessingProvider;
 use App\Exceptions\DocumentCommandFailure;
 use App\Exceptions\DocumentUsageException;
-use App\Services\AudioProcessingEligibility;
 use App\Services\CaptionAssetStorage;
 use App\Services\DoclingStructuredExtractionProvider;
 use App\Services\DocumentCanonicalRevision;
@@ -16,6 +15,7 @@ use App\Services\FasterWhisperSpeechToTextProvider;
 use App\Services\LocalDocumentProcessingProvider;
 use App\Services\MediaProcessingOrchestrator;
 use App\Services\RegionCropStorage;
+use App\Services\SpeechToTextProcessingEligibility;
 use App\Services\StructuredExtractionPersistenceService;
 use App\Services\TranscriptVttCaptionProvider;
 use App\Services\VideoAudioWorkspace;
@@ -58,8 +58,10 @@ class ProcessMediaProcessingJob implements ShouldQueue
             if ($media->status === 'deleted'
                 || ($media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
                     && ! app(DocumentProcessingEligibility::class)->hasActiveUsage($this->customerId, (int) $media->id))
-                || ($media->file_type === 'audio' && $job->job_type === 'speech_to_text'
-                    && ! app(AudioProcessingEligibility::class)->hasActiveUsage($this->customerId, (int) $media->id))) {
+                || (in_array($media->file_type, ['audio', 'video'], true)
+                    && ($job->job_type === 'speech_to_text' || ($media->file_type === 'video' && $job->job_type === 'caption'))
+                    && ! app(SpeechToTextProcessingEligibility::class)
+                        ->hasActiveUsage($this->customerId, (int) $media->id, $media->file_type))) {
                 DB::table('media_processing_jobs')->where('id', $job->id)->where('customer_id', $this->customerId)->update([
                     'status' => 'cancelled', 'completed_at' => now(), 'updated_at' => now(),
                 ]);
@@ -74,7 +76,8 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 // Sync cannot honor delay: completion and scheduled recovery
                 // drain its durable pending row instead of recursing here.
                 if (($media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
-                    || ($media->file_type === 'audio' && $job->job_type === 'speech_to_text'))
+                    || (in_array($media->file_type, ['audio', 'video'], true)
+                        && in_array($job->job_type, ['speech_to_text', 'caption'], true)))
                     && config('queue.connections.'.($this->connection ?? config('queue.default')).'.driver') !== 'sync') {
                     $connection = $this->connection ?? $this->job?->getConnectionName();
                     $queue = $this->queue ?? $this->job?->getQueue();
@@ -153,7 +156,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                     'status' => 'failed', 'completed_at' => now(),
                     'error_code' => $errorCode,
                     'error_message' => (in_array($job->job_type, ['ocr', 'structured_extraction'], true)
-                        || ($media->file_type === 'audio' && $job->job_type === 'speech_to_text'))
+                        || (in_array($media->file_type, ['audio', 'video'], true) && $job->job_type === 'speech_to_text'))
                         ? $errorCode : mb_substr($e->getMessage(), 0, 1000), 'updated_at' => now(),
                 ] + $usage);
                 if ($job->job_type === 'virus_scan' && ($errorCode === 'infected_source'
@@ -165,7 +168,8 @@ class ProcessMediaProcessingJob implements ShouldQueue
             });
         } finally {
             if (($media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
-                || ($media->file_type === 'audio' && $job->job_type === 'speech_to_text'))
+                || (in_array($media->file_type, ['audio', 'video'], true)
+                    && in_array($job->job_type, ['speech_to_text', 'caption'], true)))
                 && config('queue.connections.'.($this->connection ?? config('queue.default')).'.driver') === 'sync') {
                 $pending = DB::table('media_processing_jobs')->where('customer_id', $this->customerId)
                     ->where('media_file_id', $media->id)->where('job_type', $job->job_type)
@@ -311,7 +315,8 @@ class ProcessMediaProcessingJob implements ShouldQueue
     private function persistSuccess(object $media, object $job, array $result): void
     {
         if (in_array($job->job_type, ['ocr', 'structured_extraction'], true)
-            || ($media->file_type === 'audio' && $job->job_type === 'speech_to_text')) {
+            || (in_array($media->file_type, ['audio', 'video'], true)
+                && in_array($job->job_type, ['speech_to_text', 'caption'], true))) {
             $currentJob = DB::table('media_processing_jobs')->where('customer_id', $this->customerId)
                 ->where('id', $job->id)->lockForUpdate()->first();
             if ($currentJob === null || $currentJob->status !== 'processing') {
@@ -326,8 +331,10 @@ class ProcessMediaProcessingJob implements ShouldQueue
         if ($currentMedia === null || $currentMedia->status === 'deleted') {
             throw new RuntimeException('source_unavailable');
         }
-        if ($media->file_type === 'audio' && $job->job_type === 'speech_to_text'
-            && ! app(AudioProcessingEligibility::class)->hasActiveUsage($this->customerId, (int) $media->id)) {
+        if (in_array($media->file_type, ['audio', 'video'], true)
+            && ($job->job_type === 'speech_to_text' || ($media->file_type === 'video' && $job->job_type === 'caption'))
+            && ! app(SpeechToTextProcessingEligibility::class)
+                ->hasActiveUsage($this->customerId, (int) $media->id, $media->file_type)) {
             throw new RuntimeException('source_unavailable');
         }
 
@@ -361,7 +368,10 @@ class ProcessMediaProcessingJob implements ShouldQueue
             }
             $outputType = 'extracted_text';
         } elseif ($job->job_type === 'speech_to_text') {
-            $sourceDurationMs = $media->file_type === 'audio' ? (int) $media->duration_seconds * 1000 : null;
+            $sourceDurationMs = in_array($media->file_type, ['audio', 'video'], true)
+                && $media->duration_seconds !== null
+                    ? (int) $media->duration_seconds * 1000
+                    : null;
             $units = $this->validatedTranscriptUnits($result['units'] ?? [], $sourceDurationMs);
             foreach ($units as $unit) {
                 $outputId = DB::table('media_transcripts')->insertGetId([
@@ -380,6 +390,22 @@ class ProcessMediaProcessingJob implements ShouldQueue
             $outputType = 'transcript';
         } elseif ($job->job_type === 'caption') {
             $captionType = $this->profileValue($job->output_profile, 'format');
+            // media_captions.md § "CHECK khong chung minh transcript revision ton tai":
+            // bat bien nay phai nam o TANG PERSIST. Provider da chon revision trong
+            // mot transaction KHAC, truoc khi ghi object; giua hai moc do mot STT
+            // revision moi co the commit va archive dung revision vua chon —
+            // `speech_to_text` va `caption` la hai job_type khac nhau nen guard
+            // mot-job-moi-(media,job_type) khong serialize chung. Khong kiem lai o
+            // day thi nguoi hoc xem phu de cua ban phien am da bi thay the.
+            $transcriptRevision = $result['transcript_processing_version'] ?? null;
+            if (! is_string($transcriptRevision) || $transcriptRevision === ''
+                || ! DB::table('media_transcripts')->where('customer_id', $this->customerId)
+                    ->where('media_file_id', $media->id)->where('locale', $locale)
+                    ->where('source_fingerprint', $job->source_fingerprint)
+                    ->where('processing_version', $transcriptRevision)
+                    ->where('status', 'ready')->exists()) {
+                throw new RuntimeException('transcript_unavailable');
+            }
             $outputId = DB::table('media_captions')->insertGetId([
                 'customer_id' => $this->customerId, 'media_file_id' => $media->id, 'locale' => $locale,
                 'caption_type' => $captionType, 'storage_key' => $result['storage_key'],
@@ -387,7 +413,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 // Caption dung TU transcript, nen phai ghi revision nguon.
                 // `source_fingerprint` khong dien dat duoc dieu do: no la van tay
                 // binary goc, khong doi khi transcript len revision moi.
-                'transcript_processing_version' => $result['transcript_processing_version'] ?? null,
+                'transcript_processing_version' => $transcriptRevision,
                 'source_fingerprint' => $job->source_fingerprint, 'created_at' => $now, 'updated_at' => $now,
             ]);
             $this->archiveSupersededRevisions('media_captions', $media, $job, ['locale' => $locale, 'caption_type' => $captionType], $now);
