@@ -1,12 +1,12 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.30
+Version: 2.31
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-01
+Last Updated: 2026-09-03
 
 Document Path: platform/LF-Media-Processing-Contract.md
 
@@ -17,6 +17,34 @@ Related ADR:
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 * [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 * [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved v1.5
+
+---
+
+## Document language profile and STEM evidence — Approved 2026-09-03
+
+Document OCR/structured jobs nhận `locales` là tập 1–3 locale thuộc
+`media.processing.document.locales`. Canonical form chuẩn hóa BCP 47, từ chối
+input rỗng, duplicate, quá ba hoặc không hỗ trợ, rồi sắp xếp tăng dần. Profile
+canonical dùng `locales=<csv>`; profile cũ `locale=vi` được đọc tương đương tập
+một locale. Provider không được tự đổi tập locale.
+
+Danh sách canonical tham gia `output_profile`, `output_profile_hash`,
+`processing_version` và idempotency key. Job mới ghi 1–3 child row
+`media_processing_job_locales`. Retry, recovery, detach/reattach và callback
+muộn giữ profile của job, không đọc lại lựa chọn hiện tại trên Activity.
+
+Page text là canonical fallback và không có bbox giả. Region mang page, reading
+order, bbox, role, text quan sát được, detected locale/script nullable và crop
+khi đủ điều kiện. Signal không chắc chắn phải là NULL/`undetermined`.
+
+Mỗi formula region có thể có một `media_extracted_formulas` row. Raw text và
+crop là evidence; normalized LaTeX/MathML chỉ `ready` khi provider khai format,
+value và confidence đạt ngưỡng cấu hình. Nếu không có hoặc không đạt, formula
+row là `unavailable`/`failed` trong khi page text và region vẫn `ready`. Media
+không giải công thức và không diễn giải chart/diagram/geometry.
+
+Error codes mới: `document_language_profile_invalid`,
+`document_language_profile_unsupported`, `formula_normalization_invalid`.
 
 ---
 

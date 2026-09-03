@@ -769,18 +769,12 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertArrayNotHasKey('ocr_engine', $region['metadata'] ?? []);
     }
 
-    public function test_docling_provider_does_not_ocr_a_locale_with_no_language_mapping(): void
+    public function test_docling_provider_fails_closed_for_an_unsupported_language_profile(): void
     {
         $this->doclingConfig();
         $runner = $this->doclingRunner(sys_get_temp_dir().'/unused.json', $this->doclingFigureRegion(), '', 'rac');
-        $result = $this->doclingProcess($runner, 'docling-crop-unknown-locale.pdf', 'xx');
-
-        // Doan sang 'eng' se tra ve chuoi rac trong giong text that.
-        $this->assertNull($result['regions'][0]['text']);
-        $this->assertSame([], array_values(array_filter(
-            $runner->commands,
-            static fn (array $command): bool => basename((string) $command[0]) === 'tesseract',
-        )));
+        $this->expectExceptionMessage('document_language_profile_unsupported');
+        $this->doclingProcess($runner, 'docling-crop-unknown-locale.pdf', 'xx');
     }
 
     public function test_worker_kill_purges_crops_of_the_job_it_abandons(): void
@@ -1341,7 +1335,7 @@ class MediaProcessingSubstrateTest extends TestCase
             'pages_with_regions' => 1,
             'pages_text_without_structure' => [],
         ], json_decode($structuredJob->metadata, true)['structure_coverage']);
-        $this->assertSame(2, DB::table('media_extracted_regions')->where('media_file_id', $media->id)->count());
+        $this->assertSame(3, DB::table('media_extracted_regions')->where('media_file_id', $media->id)->count());
 
         $authorizer = Mockery::mock(CourseMediaOwnerContextAuthorizer::class);
         $authorizer->shouldReceive('authorized')->andReturnTrue();
@@ -1995,7 +1989,7 @@ class MediaProcessingSubstrateTest extends TestCase
             ->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload([
                 'processing_locale' => null,
             ]))
-            ->assertSessionHasErrors('processing_locale');
+            ->assertSessionHasErrors('processing_locales');
 
         $this->assertSame(0, DB::table('media_file_usages')->where('owner_type', 'course_activity')->count());
     }

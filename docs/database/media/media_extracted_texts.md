@@ -1,12 +1,12 @@
 # Table: media_extracted_texts
 
-Version: 1.5
+Version: 1.6
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-31
+Last Updated: 2026-09-03
 
 Document Path: database/media/media_extracted_texts.md
 
@@ -18,6 +18,15 @@ Related ADR:
 
 Related Specification:
 [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md)
+
+## Multilingual compatibility — Approved 2026-09-03
+
+Canonical page text giữ locator theo trang và không tạo bbox giả. Với job đa
+ngôn ngữ, cột `locale` giữ locale canonical đầu tiên để tương thích API cũ;
+profile authoritative nằm ở processing job và `media_processing_job_locales`.
+Consumer mới scope bằng processing job/profile hash, không gộp row chỉ vì
+`locale` giống nhau. Detected locale/script thuộc region; page hỗn hợp không bị
+ép nhận một detected locale duy nhất.
 
 Version 1.1 áp dụng policy ADR-0018 đã Approved; schema/table implemented không
 thay đổi, không có migration hoặc backfill đi kèm.

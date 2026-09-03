@@ -23,22 +23,28 @@ class DocumentCanonicalRevision
             ->where('text.status', 'ready')->where('job.status', 'ready')->where('job.job_type', 'ocr');
     }
 
-    public function current(int $customerId, int $mediaId, string $fingerprint, string $locale): ?object
+    /** @param string|array<int, string> $profile */
+    public function current(int $customerId, int $mediaId, string $fingerprint, string|array $profile): ?object
     {
-        return $this->rows($customerId, $mediaId, $fingerprint, $locale)
-            ->orderByDesc('job.id')->first(['job.id', 'job.processing_version']);
+        $locales = app(DocumentLanguageProfile::class)->canonical($profile);
+
+        return $this->rows($customerId, $mediaId, $fingerprint, $locales[0])
+            ->orderByDesc('job.id')->get(['job.id', 'job.processing_version', 'job.output_profile'])
+            ->first(fn (object $row): bool => app(DocumentLanguageProfile::class)
+                ->fromProfile((string) $row->output_profile) === $locales);
     }
 
-    public function forStructure(int $customerId, object $media, object $job, string $locale): Collection
+    public function forStructure(int $customerId, object $media, object $job, string|array $profile): Collection
     {
+        $locales = app(DocumentLanguageProfile::class)->canonical($profile);
         $metadata = json_decode((string) ($job->metadata ?? ''), true);
         $inputId = $metadata['canonical_processing_job_id'] ?? null;
-        $current = $this->current($customerId, (int) $media->id, $job->source_fingerprint, $locale);
+        $current = $this->current($customerId, (int) $media->id, $job->source_fingerprint, $locales);
         if (! is_int($inputId) || $current === null || (int) $current->id !== $inputId) {
             throw new RuntimeException('source_unavailable');
         }
 
-        return $this->rows($customerId, (int) $media->id, $job->source_fingerprint, $locale)
+        return $this->rows($customerId, (int) $media->id, $job->source_fingerprint, $locales[0])
             ->where('job.id', $inputId)->orderBy('text.sequence')
             ->get(['text.locator_type', 'text.locator_value', 'text.char_count']);
     }

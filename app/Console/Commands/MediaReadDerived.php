@@ -15,7 +15,7 @@ class MediaReadDerived extends Command
     private const OWNER_TYPES = ['course_activity', 'course_version_activity'];
 
     /** LF-Media-Read-Contract § 5. */
-    private const CONTENT_TYPES = ['extracted_text', 'transcript', 'caption_asset', 'variant', 'region', 'table'];
+    private const CONTENT_TYPES = ['extracted_text', 'transcript', 'caption_asset', 'variant', 'region', 'table', 'formula'];
 
     protected $signature = 'media:read-derived
         {--customer= : Tenant saas_customers.id resolved into the tenant context}
@@ -23,8 +23,9 @@ class MediaReadDerived extends Command
         {--owner-type= : course_activity or course_version_activity}
         {--owner-id= : Owner record the media is attached to}
         {--usage-type= : Required media slot, for example document, audio or video}
-        {--content-type= : extracted_text, transcript, caption_asset, variant, region or table}
+        {--content-type= : extracted_text, transcript, caption_asset, variant, region, table or formula}
         {--locale= : BCP 47 locale; defaults to the canonical media_files.processing_locale}
+        {--language-profile= : Exact unordered Document locale set, for example vi,en,ko}
         {--processing-version= : Read this exact revision, including an archived one}
         {--source-fingerprint= : Require the revision to be built from this source content}
         {--consumer=console : Value recorded as media_access_logs.source_type}
@@ -90,6 +91,8 @@ class MediaReadDerived extends Command
                 $this->stringOption('processing-version'),
                 $this->stringOption('source-fingerprint'),
                 (string) $this->option('consumer'),
+                [], null, false,
+                $this->stringOption('language-profile'),
             );
         } catch (MediaReadException $exception) {
             // The contract's error codes are the interface; they are never flattened

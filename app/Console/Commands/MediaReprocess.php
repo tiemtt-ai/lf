@@ -23,6 +23,7 @@ class MediaReprocess extends Command
         {--media= : Re-materialize the required output profiles of this media_files.id}
         {--job= : Retry the failed media_processing_jobs.id attempt chain}
         {--locale= : Canonical processing locale for --media; defaults to media_files.processing_locale}
+        {--locales= : Unordered comma-separated 1-3 locale Document profile for --media}
         {--actor= : users.id recorded as created_by on the enqueued rows}
         {--dry-run : Report the plan without writing or dispatching}';
 
@@ -59,6 +60,16 @@ class MediaReprocess extends Command
         }
         if ($jobId !== null && $this->option('locale') !== null) {
             $this->error('Option --locale applies to --media only: a retry keeps the output profile of the chain it continues.');
+
+            return self::FAILURE;
+        }
+        if ($jobId !== null && $this->option('locales') !== null) {
+            $this->error('Option --locales applies to --media only: a retry keeps its recorded language profile.');
+
+            return self::FAILURE;
+        }
+        if ($this->option('locale') !== null && $this->option('locales') !== null) {
+            $this->error('Select only one of --locale or --locales.');
 
             return self::FAILURE;
         }
@@ -179,7 +190,9 @@ class MediaReprocess extends Command
             return self::FAILURE;
         }
 
-        $locale = $this->option('locale') ?? $media->processing_locale;
+        $locale = $this->option('locales') !== null
+            ? explode(',', (string) $this->option('locales'))
+            : ($this->option('locale') ?? $media->processing_locale);
         if ($locale === null && in_array($media->file_type, ['document', 'audio', 'video'], true)) {
             $this->error("Media file {$mediaId} has no processing_locale recorded; pass --locale=<BCP 47>.");
 
@@ -187,7 +200,7 @@ class MediaReprocess extends Command
         }
 
         try {
-            $plan = $orchestrator->planForCourseActivity($customerId, $mediaId, $locale === null ? null : (string) $locale);
+            $plan = $orchestrator->planForCourseActivity($customerId, $mediaId, $locale);
         } catch (InvalidArgumentException $exception) {
             $this->error($exception->getMessage());
 
@@ -222,7 +235,7 @@ class MediaReprocess extends Command
             return self::SUCCESS;
         }
 
-        $orchestrator->materializeForCourseActivity($customerId, $mediaId, $locale === null ? null : (string) $locale, $actorId);
+        $orchestrator->materializeForCourseActivity($customerId, $mediaId, $locale, $actorId);
 
         $refreshed = DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaId)->first();
         if ($refreshed->processing_error_code !== null) {

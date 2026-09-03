@@ -31,6 +31,7 @@ class MediaReadService
         array $auditContext = [],
         ?int $page = null,
         bool $includeCrop = false,
+        string|array|null $languageProfile = null,
     ): array {
         $customerId = TenantContext::customerId() ?? throw new MediaReadException('unauthorized');
         $media = null;
@@ -43,6 +44,7 @@ class MediaReadService
         if ($page !== null) {
             $auditContext['page'] = $page;
         }
+        $selectedLanguageProfile = null;
 
         try {
             if (! $this->authorizer->authorized($customerId, $ownerType, $ownerId, $actorId)) {
@@ -51,7 +53,7 @@ class MediaReadService
             }
 
             $this->assertUsageTypeMatchesContentType($usageType, $contentType);
-            if ($includeCrop && $contentType !== 'region') {
+            if ($includeCrop && ! in_array($contentType, ['region', 'formula'], true)) {
                 throw new MediaReadException('unsupported_source');
             }
             $usageQuery = DB::table('media_file_usages')->where('customer_id', $customerId)->where('owner_type', $ownerType)
@@ -71,12 +73,18 @@ class MediaReadService
             if (! $media) {
                 throw new MediaReadException('missing');
             }
-            $documentContent = in_array($contentType, ['extracted_text', 'region', 'table'], true);
+            $documentContent = in_array($contentType, ['extracted_text', 'region', 'table', 'formula'], true);
             if ($documentContent && $media->file_type !== 'document') {
                 throw new MediaReadException('unsupported_source');
             }
             try {
-                $selectedLocale = $locale !== null ? $this->profiles->canonicalLocale($locale) : $media->processing_locale;
+                if ($documentContent && $languageProfile !== null) {
+                    $selectedLanguageProfile = app(DocumentLanguageProfile::class)->canonical($languageProfile);
+                    $selectedLocale = $selectedLanguageProfile[0];
+                    $auditContext['language_profile'] = $selectedLanguageProfile;
+                } else {
+                    $selectedLocale = $locale !== null ? $this->profiles->canonicalLocale($locale) : $media->processing_locale;
+                }
             } catch (\InvalidArgumentException) {
                 throw new MediaReadException('locale_unavailable');
             }
@@ -91,6 +99,7 @@ class MediaReadService
                 'variant' => ['media_variants', true],
                 'region' => ['media_extracted_regions', false],
                 'table' => ['media_extracted_tables', false],
+                'formula' => ['media_extracted_formulas', false],
                 default => throw new MediaReadException('unsupported_source'),
             };
             // Spec B § 6: vang mat phai co TEN. Khi chua co row output nao, trang
@@ -100,20 +109,45 @@ class MediaReadService
             // consumer khong biet la minh dang thieu.
             $derivedJobType = match ($contentType) {
                 'extracted_text' => 'ocr',
-                'region', 'table' => 'structured_extraction',
+                'region', 'table', 'formula' => 'structured_extraction',
                 'transcript' => 'speech_to_text',
                 'caption_asset' => 'caption',
                 default => null,
             };
 
-            $query = DB::table($table)->where('customer_id', $customerId)->where('media_file_id', $media->id);
+            $query = $contentType === 'formula'
+                ? DB::query()->fromSub(
+                    DB::table('media_extracted_formulas as formula')
+                        ->join('media_extracted_regions as region', function ($join): void {
+                            $join->on('region.id', '=', 'formula.region_id')
+                                ->on('region.customer_id', '=', 'formula.customer_id')
+                                ->on('region.media_file_id', '=', 'formula.media_file_id')
+                                ->on('region.processing_job_id', '=', 'formula.processing_job_id');
+                        })->select([
+                            'formula.id', 'formula.customer_id', 'formula.media_file_id', 'formula.processing_job_id',
+                            'formula.raw_text as text', 'formula.normalized_format', 'formula.normalized_value',
+                            'formula.normalization_status', 'formula.confidence_score',
+                            'region.locale', 'region.locator_type', 'region.locator_value', 'region.page',
+                            'region.reading_order', 'region.bbox_x', 'region.bbox_y', 'region.bbox_width', 'region.bbox_height',
+                            'region.crop_storage_key', 'region.crop_width', 'region.crop_height', 'region.crop_bytes',
+                            'region.source_fingerprint', 'region.processing_version', 'region.status',
+                        ]),
+                    'media_extracted_formulas'
+                )->where('customer_id', $customerId)->where('media_file_id', $media->id)
+                : DB::table($table)->where('customer_id', $customerId)->where('media_file_id', $media->id);
             if ($documentContent) {
                 $this->withReadyDocumentJob($query, $table, $contentType === 'extracted_text' ? 'ocr' : 'structured_extraction');
+                if ($selectedLanguageProfile !== null) {
+                    $query->whereIn($table.'.processing_job_id', $this->documentJobIdsForProfile(
+                        $customerId, (int) $media->id, $selectedLanguageProfile,
+                        $contentType === 'extracted_text' ? 'ocr' : 'structured_extraction'
+                    ));
+                }
             }
             if ($contentType !== 'variant') {
                 $query->where('locale', $selectedLocale);
             }
-            if ($page !== null && ! in_array($contentType, ['region', 'table'], true)) {
+            if ($page !== null && ! in_array($contentType, ['region', 'table', 'formula'], true)) {
                 throw new MediaReadException('unsupported_source');
             }
             $selectedProcessingVersion = $processingVersion;
@@ -139,6 +173,8 @@ class MediaReadService
             }
             if ($page !== null && $contentType === 'region') {
                 $query->where('page', $page);
+            } elseif ($page !== null && $contentType === 'formula') {
+                $query->where('page', $page);
             } elseif ($page !== null && $contentType === 'table') {
                 // A table belongs to a region; constrain the region to the same
                 // structured revision before applying the requested page.
@@ -157,6 +193,8 @@ class MediaReadService
                 $query->orderBy('reading_order');
             } elseif ($contentType === 'table') {
                 $query->orderBy('sequence');
+            } elseif ($contentType === 'formula') {
+                $query->orderBy('reading_order');
             }
             $rows = $query->orderBy('id')->get();
             if ($rows->isEmpty()) {
@@ -166,8 +204,25 @@ class MediaReadService
                         ->where('job_type', $derivedJobType)
                         ->when($processingVersion !== null, fn ($q) => $q->where('processing_version', $processingVersion))
                         ->where(function ($q) use ($selectedLocale): void {
-                            $q->where('output_profile', 'like', '%;locale='.$selectedLocale)
-                                ->orWhere('output_profile', 'like', 'locale='.$selectedLocale.';%');
+                            // Profile da chuan hoa co bang con; doan locale bang chuoi
+                            // truot khi locale khong dung dau CSV (`locales=en,vi`) va
+                            // khop nham tien to (`vi` vs `vi-VN`).
+                            $q->whereExists(fn ($profile) => $profile->selectRaw('1')
+                                ->from('media_processing_job_locales as read_profile')
+                                ->whereColumn('read_profile.processing_job_id', 'media_processing_jobs.id')
+                                ->whereColumn('read_profile.customer_id', 'media_processing_jobs.customer_id')
+                                ->where('read_profile.locale', $selectedLocale))
+                                // Job legacy khong co row con: `locale=<value>` la profile
+                                // mot locale. Hai pattern nay neo hai dau bang `;` nen
+                                // khong the khop mot locale khac co cung tien to.
+                                ->orWhere(fn ($legacy) => $legacy
+                                    ->whereNotExists(fn ($profile) => $profile->selectRaw('1')
+                                        ->from('media_processing_job_locales as legacy_profile')
+                                        ->whereColumn('legacy_profile.processing_job_id', 'media_processing_jobs.id')
+                                        ->whereColumn('legacy_profile.customer_id', 'media_processing_jobs.customer_id'))
+                                    ->where(fn ($profile) => $profile
+                                        ->where('output_profile', 'like', '%;locale='.$selectedLocale)
+                                        ->orWhere('output_profile', 'like', 'locale='.$selectedLocale.';%')));
                         })->orderByDesc('id')->value('status');
                     if (in_array($jobState, ['pending', 'processing', 'failed'], true)) {
                         throw new MediaReadException($jobState);
@@ -188,8 +243,11 @@ class MediaReadService
                     throw new MediaReadException('structure_unavailable');
                 }
 
-                $stateQuery = DB::table($table)->where('customer_id', $customerId)->where('media_file_id', $media->id)
-                    ->when($contentType !== 'variant', fn ($q) => $q->where('locale', $selectedLocale));
+                $stateQuery = $contentType === 'formula'
+                    ? DB::table('media_extracted_regions')->where('customer_id', $customerId)
+                        ->where('media_file_id', $media->id)->where('locale', $selectedLocale)->where('role', 'formula')
+                    : DB::table($table)->where('customer_id', $customerId)->where('media_file_id', $media->id)
+                        ->when($contentType !== 'variant', fn ($q) => $q->where('locale', $selectedLocale));
                 $state = $stateQuery->orderByDesc('created_at')->value('status');
                 throw new MediaReadException($processingVersion !== null
                     ? 'revision_unavailable'
@@ -199,12 +257,15 @@ class MediaReadService
                 throw new MediaReadException('revision_mismatch');
             }
 
-            $units = $rows->map(function ($row) use ($media, $contentType, $asset, $customerId, $includeCrop): array {
+            $jobProfiles = [];
+            $units = $rows->map(function ($row) use ($media, $contentType, $asset, $customerId, $includeCrop, &$jobProfiles): array {
                 $structure = null;
                 $text = $asset ? null : ($row->text ?? null);
                 if ($contentType === 'region') {
                     $structure = [
                         'role' => $row->role,
+                        'detected_locale' => $row->detected_locale ?? 'undetermined',
+                        'script' => $row->script ?? 'undetermined',
                         'reading_order' => (int) $row->reading_order,
                         'bbox' => $row->bbox_x === null ? null : [
                             'x' => (float) $row->bbox_x, 'y' => (float) $row->bbox_y,
@@ -229,6 +290,25 @@ class MediaReadService
                                 : null,
                         ],
                     ];
+                } elseif ($contentType === 'formula') {
+                    $structure = [
+                        'page' => (int) $row->page,
+                        'reading_order' => (int) $row->reading_order,
+                        'bbox' => $row->bbox_x === null ? null : [
+                            'x' => (float) $row->bbox_x, 'y' => (float) $row->bbox_y,
+                            'width' => (float) $row->bbox_width, 'height' => (float) $row->bbox_height,
+                        ],
+                        'crop' => $row->crop_storage_key === null ? null : [
+                            'width' => (int) $row->crop_width, 'height' => (int) $row->crop_height,
+                            'bytes' => (int) $row->crop_bytes,
+                            'delivery_url' => $includeCrop
+                                ? $this->mediaService->generateDerivedSignedUrl($media, $row->crop_storage_key)
+                                : null,
+                        ],
+                        'normalization_status' => $row->normalization_status,
+                        'normalized_format' => $row->normalized_format,
+                        'normalized_value' => $row->normalized_value,
+                    ];
                 } elseif ($contentType === 'table') {
                     $cells = DB::table('media_table_cells')->where('customer_id', $customerId)
                         ->where('extracted_table_id', $row->id)->orderBy('row_index')->orderBy('column_index')->get()
@@ -251,6 +331,9 @@ class MediaReadService
                     'processing_version' => $row->processing_version,
                     'content_type' => $contentType,
                     'locale' => $row->locale ?? null,
+                    'language_profile' => isset($row->processing_job_id)
+                        ? ($jobProfiles[$row->processing_job_id] ??= $this->languageProfileForJob((int) $row->processing_job_id))
+                        : (($row->locale ?? null) === null ? null : [$row->locale]),
                     'locator' => $asset ? null : ['type' => $row->locator_type, 'value' => $row->locator_value],
                     'text' => $text,
                     'delivery_url' => $asset ? $this->mediaService->generateDerivedSignedUrl($media, $row->storage_key) : null,
@@ -402,6 +485,34 @@ class MediaReadService
         });
     }
 
+    /** @param array<int, string> $profile @return array<int, int> */
+    private function documentJobIdsForProfile(int $customerId, int $mediaId, array $profile, string $jobType): array
+    {
+        return DB::table('media_processing_jobs')->where('customer_id', $customerId)
+            ->where('media_file_id', $mediaId)->where('job_type', $jobType)->get(['id', 'output_profile'])
+            ->filter(function (object $job) use ($profile): bool {
+                try {
+                    return app(DocumentLanguageProfile::class)->fromProfile((string) $job->output_profile) === $profile;
+                } catch (\InvalidArgumentException) {
+                    return false;
+                }
+            })->pluck('id')->map(fn ($id): int => (int) $id)->all();
+    }
+
+    /** @return array<int, string>|null */
+    private function languageProfileForJob(int $jobId): ?array
+    {
+        $profile = DB::table('media_processing_jobs')->where('id', $jobId)->value('output_profile');
+        if (! is_string($profile)) {
+            return null;
+        }
+        try {
+            return app(DocumentLanguageProfile::class)->fromProfile($profile);
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
+    }
+
     private function mediaForOwner(int $customerId, string $ownerType, int $ownerId, string $usageType): ?object
     {
         return DB::table('media_file_usages as usages')
@@ -415,7 +526,7 @@ class MediaReadService
     private function assertUsageTypeMatchesContentType(string $usageType, string $contentType): void
     {
         $allowed = match ($contentType) {
-            'extracted_text', 'region', 'table' => ['document'],
+            'extracted_text', 'region', 'table', 'formula' => ['document'],
             'transcript' => ['audio', 'video'],
             'caption_asset', 'variant' => ['video'],
             default => throw new MediaReadException('unsupported_source'),

@@ -1,12 +1,12 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.15
+Version: 1.16
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-31
+Last Updated: 2026-09-03
 
 Document Path: platform/LF-Media-Read-Contract.md
 
@@ -20,6 +20,25 @@ Related ADR:
 
 Related Specification:
 [LF-Media-Processing-Contract](LF-Media-Processing-Contract.md)
+
+---
+
+## Document language-profile reads and formula evidence — Approved 2026-09-03
+
+Document consumer có thể chọn canonical `language_profile` cùng
+`processing_version`/`source_fingerprint`. Nếu không nêu, service chỉ chọn đúng
+một current profile; nhiều current profile là `ambiguous_profile`, không tự gộp.
+Page text, region, table và formula trả về phải thuộc cùng processing job,
+profile hash, source fingerprint và revision.
+
+`content_type = formula` trả raw evidence, region locator/page/bbox/crop,
+normalization status, format, value và confidence. `unavailable`/`failed` là dữ
+liệu có tên. Page text và region vẫn đọc được khi normalization thất bại. Media
+Read không diễn giải hoặc xác nhận công thức đúng.
+
+Region trả `detected_locale` và `script` khi có signal đủ tin cậy; NULL được
+biểu diễn là `undetermined`. Mã lỗi bổ sung: `ambiguous_profile`,
+`language_profile_unavailable`.
 
 ---
 
@@ -229,6 +248,7 @@ mảng rỗng.
 | `transcript` | `media_transcripts` | `timespan` |
 | `region` | `media_extracted_regions` | `region` |
 | `table` | `media_extracted_tables` + `media_table_cells` | `region` hoặc `sheet` |
+| `formula` | `media_extracted_formulas` + `media_extracted_regions` | `region` — locator/page/bbox/crop kế thừa từ formula region cha |
 | `caption_asset` | `media_captions` | `null` — file VTT/SRT/ASS, trả `delivery_url` |
 | `variant` | `media_variants` | `null` — asset thay thế, trả `delivery_url` |
 
@@ -391,6 +411,8 @@ phải đo lại trần dung lượng vì số vùng đủ điều kiện sẽ t
 | `missing` | Owner không có Media nào ở `content_type` yêu cầu |
 | `ambiguous_source` | Owner có nhiều active Media trong đúng `usage_type`; service từ chối đoán source |
 | `locale_unavailable` | Không có output ở locale yêu cầu |
+| `language_profile_unavailable` | Không có revision nào ở `language_profile` được nêu |
+| `ambiguous_profile` | Owner có nhiều current language profile; service từ chối gộp hoặc đoán profile |
 | `unsupported_source` | MIME không nằm trong tập được hỗ trợ |
 | `revision_unavailable` | `processing_version` được nêu không tồn tại trong owner context này |
 | `revision_mismatch` | `source_fingerprint` không khớp revision đã nêu |

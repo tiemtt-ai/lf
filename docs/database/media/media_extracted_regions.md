@@ -1,12 +1,12 @@
 # Table: media_extracted_regions
 
-Version: 1.16
+Version: 1.17
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-31
+Last Updated: 2026-09-03
 
 Document Path: database/media/media_extracted_regions.md
 
@@ -19,6 +19,17 @@ Related ADR:
 Related Specification:
 [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md),
 [LF-Media-Read-Contract](../../platform/LF-Media-Read-Contract.md)
+
+## Multilingual and STEM amendment — Approved 2026-09-03
+
+Role vocabulary revision mới gồm `heading`, `paragraph`, `list`, `table`,
+`image`, `chart`, `diagram`, `geometry`, `formula`, `caption`, `note`, `header`,
+`footer`, `other`; `figure` chỉ giữ cho revision cũ. Đây là phân loại quan sát.
+
+Hai cột nullable `detected_locale VARCHAR(20)` và `script VARCHAR(20)` chứa
+signal provider. Không chắc chắn lưu NULL; không được dùng để đổi language
+profile. Formula region phải có bbox/crop để đối chiếu và có tối đa một child
+`media_extracted_formulas`, thừa kế toàn bộ revision identity từ region.
 
 ## Purpose
 

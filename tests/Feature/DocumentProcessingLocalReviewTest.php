@@ -96,6 +96,36 @@ class DocumentProcessingLocalReviewTest extends TestCase
         $this->assertDatabaseHas('media_extracted_texts', ['media_file_id' => $media->id, 'extraction_method' => 'ocr']);
     }
 
+    public function test_document_three_locale_profile_is_canonical_persisted_and_read_in_isolation(): void
+    {
+        $media = $this->upload(null, 'Tiếng Việt. English. 한국어.');
+        app(MediaService::class)->attachUsage($media->id, 'course_activity', $this->activityId, 'document', [
+            'processing_locale' => 'vi',
+            'processing_locales' => ['vi', 'ko', 'en'],
+        ]);
+
+        $job = $this->ocrJob($media);
+        $this->assertSame('layout=preserve;locales=en,ko,vi', $job->output_profile);
+        $this->assertSame(['en', 'ko', 'vi'], DB::table('media_processing_job_locales')
+            ->where('processing_job_id', $job->id)->orderBy('ordinal')->pluck('locale')->all());
+
+        $units = app(MediaReadService::class)->read(
+            $this->admin->id, 'course_activity', $this->activityId, 'document', 'extracted_text',
+            null, null, null, 'test', [], null, false, ['ko', 'vi', 'en']
+        );
+        $this->assertSame(['en', 'ko', 'vi'], $units[0]['language_profile']);
+        $this->assertSame($job->id, DB::table('media_extracted_texts')->where('media_file_id', $media->id)->value('processing_job_id'));
+
+        app(MediaProcessingOrchestrator::class)->materializeForCourseActivity(
+            $this->customerId, $media->id, ['vi', 'en'], $this->admin->id
+        );
+        $replacement = $this->ocrJob($media);
+        $this->assertNotSame($job->id, $replacement->id);
+        $this->assertNotSame($job->processing_version, $replacement->processing_version);
+        $this->assertDatabaseHas('media_extracted_texts', ['processing_job_id' => $job->id, 'status' => 'archived']);
+        $this->assertDatabaseHas('media_extracted_texts', ['processing_job_id' => $replacement->id, 'status' => 'ready']);
+    }
+
     #[DataProvider('badPdfs')]
     public function test_real_invalid_pdf_fails_without_output(string $fixture, string $error): void
     {
@@ -193,6 +223,31 @@ class DocumentProcessingLocalReviewTest extends TestCase
         $this->assertReadError('processing');
     }
 
+    public function test_read_reports_job_state_for_every_member_of_a_multi_locale_profile(): void
+    {
+        // `locales=en,vi` duoc sap xep tang dan, nen `vi` khong nam dau chuoi va
+        // `vi` la tien to cua `vi-VN`. Tra job state bang cach doan chuoi profile
+        // vua truot thanh vien khong dung dau, vua khop nham locale khac.
+        $media = $this->upload();
+        Queue::fake();
+        app(MediaService::class)->attachUsage($media->id, 'course_activity', $this->activityId, 'document', [
+            'processing_locale' => 'vi', 'processing_locales' => ['vi', 'en'],
+        ]);
+        $job = $this->ocrJob($media);
+        $this->assertSame('layout=preserve;locales=en,vi', $job->output_profile);
+
+        foreach (['vi', 'en'] as $locale) {
+            $this->assertReadError('pending', $locale);
+        }
+        DB::table('media_processing_jobs')->where('id', $job->id)->update(['status' => 'processing', 'started_at' => now()]);
+        foreach (['vi', 'en'] as $locale) {
+            $this->assertReadError('processing', $locale);
+        }
+
+        // Locale ngoai profile khong duoc muon trang thai cua job nay.
+        $this->assertReadError('locale_unavailable', 'ko');
+    }
+
     public function test_read_excludes_output_linked_to_a_failed_job(): void
     {
         $media = $this->upload();
@@ -249,7 +304,7 @@ class DocumentProcessingLocalReviewTest extends TestCase
         $this->assertSame('en', $this->read('en')[0]['locale']);
         config(['media.processing.versions.ocr' => 'local-document-review-v2']);
         $this->attach($media);
-        $this->assertSame('local-document-review-v2+document-v2', $this->read()[0]['processing_version']);
+        $this->assertStringStartsWith('local-document-review-v2+document-v2+lp-', $this->read()[0]['processing_version']);
         $archived = app(MediaReadService::class)->read($this->admin->id, 'course_activity', $this->activityId, 'document', 'extracted_text', 'vi', $old->processing_version, $old->source_fingerprint);
         $this->assertSame('archived', $archived[0]['status']);
         $this->assertSame('en', $this->read('en')[0]['locale']);
@@ -424,7 +479,7 @@ class DocumentProcessingLocalReviewTest extends TestCase
         $this->assertTrue($cells->contains(fn ($cell) => (int) $cell->column_span > 1), 'Merged heading must survive.');
         $units = app(MediaReadService::class)->read($this->admin->id, 'course_activity', $this->activityId, 'document', 'region', 'vi');
         $this->assertNotEmpty($units);
-        $this->assertDatabaseHas('media_extracted_regions', ['processing_job_id' => $job->id, 'page' => 2, 'role' => 'figure']);
+        $this->assertDatabaseHas('media_extracted_regions', ['processing_job_id' => $job->id, 'page' => 2, 'role' => 'image']);
         $canonical = implode(' ', array_column($this->read(), 'text'));
         foreach (['Q1 10', 'Q2 20', 'INPUT', 'OUTPUT'] as $label) {
             $this->assertStringContainsString($label, $canonical);
@@ -649,6 +704,34 @@ class DocumentProcessingLocalReviewTest extends TestCase
         $this->assertSame('structured_extraction_too_large', $new->error_code);
         $this->assertSame('ready', $this->ocrJob($media)->status);
         $this->assertSame('canonical text', $this->read()[0]['text']);
+    }
+
+    public function test_low_confidence_formula_keeps_region_and_is_read_as_failed_evidence(): void
+    {
+        config(['media.processing.providers.structured_extraction' => 'fake']);
+        $media = $this->upload(null, 'Formula source text');
+        $this->attach($media);
+        app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
+            $this->customerId, $media->id, 'structured_extraction',
+            ['locales' => ['vi'], 'structure' => 'layout'], $this->admin->id
+        );
+
+        $job = DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+            ->where('job_type', 'structured_extraction')->firstOrFail();
+        $this->assertSame('ready', $job->status, (string) $job->error_code);
+        $this->assertDatabaseHas('media_extracted_regions', ['processing_job_id' => $job->id, 'role' => 'formula', 'status' => 'ready']);
+        $this->assertDatabaseHas('media_extracted_formulas', [
+            'processing_job_id' => $job->id, 'normalization_status' => 'failed',
+            'normalized_format' => null, 'normalized_value' => null,
+        ]);
+        $units = app(MediaReadService::class)->read(
+            $this->admin->id, 'course_activity', $this->activityId, 'document', 'formula',
+            null, null, null, 'test', [], null, false, ['vi']
+        );
+        $this->assertSame('x^2 + H2O', $units[0]['text']);
+        $this->assertSame('failed', $units[0]['structure']['normalization_status']);
+        $this->assertNotNull($units[0]['structure']['bbox']);
+        $this->assertNotNull($units[0]['structure']['crop']);
     }
 
     public function test_d3_missing_and_stale_canonical_never_publish_structure(): void

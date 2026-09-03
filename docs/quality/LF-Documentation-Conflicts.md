@@ -1,12 +1,12 @@
 # LearnForge Documentation Conflict Register
 
-Version: 1.30
+Version: 1.31
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-31
+Last Updated: 2026-09-03
 
 Document Path: quality/LF-Documentation-Conflicts.md
 
@@ -246,6 +246,7 @@ khác `RESOLVED`; cột Status của bảng dưới vẫn là nguồn sự thậ
 
 | ID | Title | Classification | Status | Impact | Domain | Owner | Target Review |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| DOC-CONFLICT-0033 | Amendment ngôn ngữ/formula không được phản ánh vào bảng canonical của Media Read Contract | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Architecture Owner | Not set |
 | DOC-CONFLICT-0032 | Reattach sau cancelled chưa có chain/generation contract | GAP | RESOLVED | HIGH | Media | Architecture Owner | Not set |
 | DOC-CONFLICT-0029 | Spreadsheet local-provider contract chưa đồng bộ resolution 0017/0018 | CONFLICT | RESOLVED | BLOCKER | Media | Domain Owner (Media) | Not set |
 | DOC-CONFLICT-0030 | Document output CHECKs chưa khớp table docs | IMPLEMENTATION_DRIFT | RESOLVED | HIGH | Media | Database Owner | Not set |
@@ -269,6 +270,44 @@ khác `RESOLVED`; cột Status của bảng dưới vẫn là nguồn sự thậ
 | DOC-CONFLICT-0019 | `job_type`/`output_type` không có giá trị nào chứa được một revision structured | GAP | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-08-27 |
 | DOC-CONFLICT-0020 | Bốn CHECK trong doc `media_processing_jobs` không tồn tại trong schema vật lý | IMPLEMENTATION_DRIFT | RESOLVED | MEDIUM | Media | Database Owner | Đóng 2026-08-27 |
 | DOC-CONFLICT-0021 | Media Read owner context không xác định Media File khi owner có nhiều active usage | GAP | RESOLVED | HIGH | Media × Course × AI | Đóng 2026-08-27 |
+
+---
+
+## DOC-CONFLICT-0033
+
+```text
+Conflict ID: DOC-CONFLICT-0033
+Title: Amendment ngôn ngữ/formula không được phản ánh vào bảng canonical của Media Read Contract
+Classification: DOCUMENT_CONTRADICTION
+Status: RESOLVED
+Impact: MEDIUM
+Detected At: 2026-09-03
+Detected By: Independent review of the Document language-profile and formula-evidence documentation update
+Owner: Architecture Owner
+Affected Domain: Media
+Affected Concern: Closed vocabularies of content_type and error code in the Media Read Contract
+Sources In Conflict:
+Source A: docs/platform/LF-Media-Read-Contract.md#document-language-profile-reads-and-formula-evidence
+Source B: docs/platform/LF-Media-Read-Contract.md#5-readiness-va-citation; docs/platform/LF-Media-Read-Contract.md#6-ma-loi
+Additional Sources: app/Services/MediaReadService.php::read
+Contradictory Requirements:
+- Source A requires: content_type `formula` is readable, and `ambiguous_profile` / `language_profile_unavailable` are returnable error codes.
+- Source B requires: the content_type table and the error-code table are closed and named sets; § 6 states the set is "Đóng, có tên".
+Why They Cannot Both Be True: A set declared closed cannot omit values the same document declares readable and returnable. A consumer implementing § 5 and § 6 rejects live values the runtime already emits.
+Runtime/Business Impact: Đã có ở runtime. MediaReadService phục vụ content_type `formula` và phát hai mã lỗi profile, trong khi bảng canonical không liệt kê chúng.
+Affected Implementation: app/Services/MediaReadService.php::read
+Temporary Safety Rule: Không mở rộng vocabulary bằng prose amendment; giá trị chỉ hợp lệ khi có trong bảng canonical.
+Required Decision: Bổ sung các giá trị vào đúng bảng canonical, không thu hẹp runtime.
+Resolution Authority: Architecture Owner
+Resolution Plan: Thêm dòng `formula` vào bảng content_type § 5 và hai mã lỗi vào bảng § 6, giữ nguyên amendment 2026-09-03.
+Target Review Date: Not set
+Resolved At: 2026-09-03
+Resolution: Bảng § 5 và § 6 đã được bổ sung khớp amendment và runtime. Không thay đổi authorization, tenant, locale boundary hay ngữ nghĩa mã lỗi đang có.
+Superseded/Updated Documents: docs/platform/LF-Media-Read-Contract.md § 5, § 6
+Verification Evidence: docs:lint và schema:drift --docs-only PASS sau khi sửa; MediaReadService phát đúng các giá trị đã liệt kê.
+Related ADR/Review/Issue/PR: ADR-0019 Amendment v1.7; DOC-CONFLICT-0018 (cùng hình dạng, đã đóng 2026-08-27)
+Notes: Phát hiện khi đối chiếu tài liệu với code, không phải khi chạy test — bảng canonical là thứ consumer implement theo.
+```
 
 ---
 

@@ -19,6 +19,7 @@ class StructuredExtractionPersistenceService
     {
         $regions = array_values($result['regions'] ?? []);
         $tables = array_values($result['tables'] ?? []);
+        $regions = array_map(fn (array $region): array => $this->normalizeFormulaEvidence($region), $regions);
         $canonicalTextRows = $this->canonicalTextRows($customerId, $media, $job, $locale);
         $this->validate($regions, $tables, $canonicalTextRows);
 
@@ -41,6 +42,8 @@ class StructuredExtractionPersistenceService
                 'bbox_width' => $region['bbox']['width'] ?? null,
                 'bbox_height' => $region['bbox']['height'] ?? null,
                 'text' => $region['text'] ?? null,
+                'detected_locale' => $region['detected_locale'] ?? null,
+                'script' => $region['script'] ?? null,
                 'char_count' => isset($region['text']) ? mb_strlen((string) $region['text']) : null,
                 'confidence_score' => $region['confidence_score'] ?? null,
                 'extraction_method' => $region['extraction_method'] ?? 'embedded_text',
@@ -54,6 +57,27 @@ class StructuredExtractionPersistenceService
                 'source_fingerprint' => $job->source_fingerprint,
                 'status' => 'ready',
                 'metadata' => isset($region['metadata']) ? json_encode($region['metadata']) : null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
+        foreach ($regions as $index => $region) {
+            if (($region['role'] ?? null) !== 'formula') {
+                continue;
+            }
+            $formula = $region['formula'] ?? [];
+            DB::table('media_extracted_formulas')->insert([
+                'customer_id' => $customerId,
+                'media_file_id' => $media->id,
+                'processing_job_id' => $job->id,
+                'region_id' => $regionIds[$index],
+                'raw_text' => $formula['raw_text'] ?? $region['text'] ?? null,
+                'normalized_format' => $formula['normalized_format'] ?? null,
+                'normalized_value' => $formula['normalized_value'] ?? null,
+                'normalization_status' => $formula['normalization_status'] ?? 'unavailable',
+                'confidence_score' => $formula['confidence_score'] ?? null,
+                'metadata' => isset($formula['metadata']) ? json_encode($formula['metadata']) : null,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
@@ -161,7 +185,38 @@ class StructuredExtractionPersistenceService
 
     private function canonicalTextRows(int $customerId, object $media, object $job, string $locale): Collection
     {
-        return app(DocumentCanonicalRevision::class)->forStructure($customerId, $media, $job, $locale);
+        return app(DocumentCanonicalRevision::class)->forStructure(
+            $customerId, $media, $job,
+            app(DocumentLanguageProfile::class)->fromProfile((string) $job->output_profile)
+        );
+    }
+
+    /** A bad/low-confidence normalization degrades only the formula child. */
+    private function normalizeFormulaEvidence(array $region): array
+    {
+        if (($region['role'] ?? null) !== 'formula' || ! is_array($region['formula'] ?? null)) {
+            return $region;
+        }
+        $formula = $region['formula'];
+        if (($formula['normalization_status'] ?? 'unavailable') !== 'ready') {
+            $formula['normalized_value'] = null;
+        } else {
+            $confidence = $formula['confidence_score'] ?? null;
+            $valid = in_array($formula['normalized_format'] ?? null, ['latex', 'mathml'], true)
+                && is_string($formula['normalized_value'] ?? null)
+                && trim((string) $formula['normalized_value']) !== ''
+                && is_numeric($confidence)
+                && (float) $confidence >= (float) config('media.processing.document.formula_normalization_min_confidence', 80)
+                && (float) $confidence <= 100;
+            if (! $valid) {
+                $formula['normalization_status'] = 'failed';
+                $formula['normalized_format'] = null;
+                $formula['normalized_value'] = null;
+            }
+        }
+        $region['formula'] = $formula;
+
+        return $region;
     }
 
     /** @param array<int, array<string, mixed>> $regions @param array<int, array<string, mixed>> $tables */
@@ -188,6 +243,15 @@ class StructuredExtractionPersistenceService
             if (($region['locator_value'] ?? null) !== $page.'#'.($region['ordinal'] ?? null)) {
                 throw new RuntimeException('structured_extraction_invalid');
             }
+            $roles = ['paragraph', 'heading', 'list', 'table', 'figure', 'image', 'chart', 'diagram', 'geometry', 'formula', 'caption', 'note', 'header', 'footer', 'other'];
+            if (! in_array($region['role'] ?? null, $roles, true)) {
+                throw new RuntimeException('structured_extraction_invalid');
+            }
+            foreach (['detected_locale', 'script'] as $signal) {
+                if (isset($region[$signal]) && (! is_string($region[$signal]) || trim($region[$signal]) === '')) {
+                    throw new RuntimeException('structured_extraction_invalid');
+                }
+            }
             $crop = $region['crop'] ?? null;
             if ($crop !== null) {
                 $complete = isset($crop['storage_key'], $crop['mime_type'])
@@ -198,6 +262,24 @@ class StructuredExtractionPersistenceService
                     throw new RuntimeException('structured_extraction_invalid');
                 }
                 $cropBytes += (int) $crop['bytes'];
+            }
+            if (($region['role'] ?? null) === 'formula') {
+                $formula = $region['formula'] ?? null;
+                if (! is_array($formula) || ! is_array($region['bbox'] ?? null) || $crop === null) {
+                    throw new RuntimeException('structured_extraction_invalid');
+                }
+                $status = $formula['normalization_status'] ?? 'unavailable';
+                $format = $formula['normalized_format'] ?? null;
+                $value = $formula['normalized_value'] ?? null;
+                $confidence = $formula['confidence_score'] ?? null;
+                $threshold = (float) config('media.processing.document.formula_normalization_min_confidence', 80);
+                if (! in_array($status, ['unavailable', 'ready', 'failed'], true)
+                    || ($status === 'ready' && (! in_array($format, ['latex', 'mathml'], true)
+                        || ! is_string($value) || trim($value) === '' || ! is_numeric($confidence)
+                        || (float) $confidence < $threshold || (float) $confidence > 100))
+                    || ($status !== 'ready' && $value !== null)) {
+                    throw new RuntimeException('formula_normalization_invalid');
+                }
             }
             // Owner quyet dinh 2026-08-28 (DOC-CONFLICT-0022): region `figure`
             // DUOC mang text quan sat duoc trong bbox cua chinh no. Guard cu cam

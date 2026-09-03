@@ -75,7 +75,7 @@ class MediaReadDerivedCommandTest extends TestCase
         $this->assertSame('allowed', $payload['decision']);
         $unit = $payload['units'][0];
         $this->assertSame(
-            ['media_file_id', 'source_fingerprint', 'processing_version', 'content_type', 'locale', 'locator', 'text', 'delivery_url', 'confidence', 'status', 'structure'],
+            ['media_file_id', 'source_fingerprint', 'processing_version', 'content_type', 'locale', 'language_profile', 'locator', 'text', 'delivery_url', 'confidence', 'status', 'structure'],
             array_keys($unit)
         );
         $this->assertSame('transcript', $unit['content_type']);

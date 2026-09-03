@@ -1,12 +1,12 @@
 # Table: media_extracted_tables
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-31
+Last Updated: 2026-09-03
 
 Document Path: database/media/media_extracted_tables.md
 
@@ -19,6 +19,13 @@ Related ADR:
 Related Specification:
 [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md),
 [LF-Media-Read-Contract](../../platform/LF-Media-Read-Contract.md)
+
+## Language-profile amendment — Approved 2026-09-03
+
+Table thuộc đúng structured processing job và kế thừa language profile từ job.
+Không gộp table giữa hai job/profile dù locale legacy, source fingerprint và
+provider version trùng nhau. Composite region FK tiếp tục chặn trỏ chéo
+Media/revision.
 
 ## Purpose
 

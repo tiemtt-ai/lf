@@ -13,6 +13,11 @@ return [
     'ffprobe_binary' => env('MEDIA_FFPROBE_BINARY', 'ffprobe'),
     'ffprobe_timeout_seconds' => (int) env('MEDIA_FFPROBE_TIMEOUT_SECONDS', 15),
     'processing' => [
+        'document' => [
+            'locales' => ['vi', 'ko', 'en'],
+            'max_locales' => 3,
+            'formula_normalization_min_confidence' => 80.0,
+        ],
         'fake' => [
             'virus_infected' => (bool) env('MEDIA_FAKE_VIRUS_INFECTED', false),
         ],
@@ -135,7 +140,7 @@ return [
             // Tap vung du dieu kien cat crop. Consumer tu tinh duoc vi tu nay tu
             // `role` + `bbox` da co san trong unit; xem Spec B § 5.3. Mo them role
             // phai do lai tran dung luong.
-            'crop_roles' => ['figure'],
+            'crop_roles' => ['figure', 'image', 'chart', 'diagram', 'geometry', 'formula'],
             'crop_ocr_enabled' => (bool) env('MEDIA_STRUCTURED_CROP_OCR_ENABLED', true),
             // Text ngan hon nguong nay chua du de coi la noi dung figure co y
             // nghia. OCR chi thay the khi ket qua dai hon text hien co.

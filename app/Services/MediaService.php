@@ -358,13 +358,16 @@ class MediaService
             && in_array($usage['usage_type'], ['document', 'audio', 'video'], true)
             && array_key_exists('processing_locale', $usage['metadata'])) {
             $locale = $usage['metadata']['processing_locale'] ?? null;
+            $documentLocales = $usage['usage_type'] === 'document'
+                ? ($usage['metadata']['processing_locales'] ?? $locale)
+                : $locale;
             $structured = (bool) ($usage['metadata']['structured_extraction'] ?? false);
             $speechToText = (bool) ($usage['metadata']['speech_to_text'] ?? true);
             DB::afterCommit(fn () => app(MediaProcessingOrchestrator::class)
                 ->materializeForCourseActivity(
                     $customerId,
                     $mediaFileId,
-                    is_string($locale) ? $locale : null,
+                    is_array($documentLocales) || is_string($documentLocales) ? $documentLocales : null,
                     $createdBy,
                     $structured,
                     $speechToText,

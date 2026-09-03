@@ -1,6 +1,6 @@
 # ADR-0019 — Media Structured Extraction Boundary
 
-Version: 1.6
+Version: 1.7
 
 Status: Approved
 
@@ -8,7 +8,7 @@ Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-31
+Last Updated: 2026-09-03
 
 Proposal Date: 2026-08-25
 
@@ -30,6 +30,32 @@ Related Specification:
 * [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md)
 * [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md)
 * [media_extracted_texts](../database/media/media_extracted_texts.md)
+
+---
+
+## Amendment v1.7 — Document multilingual and STEM evidence — Approved 2026-09-03
+
+Owner mở Document Processing cho một **tập 1–3 locale không có thứ tự do người
+dùng khai báo**. Hệ thống canonicalize bằng cách chuẩn hóa BCP 47, từ chối
+duplicate và sắp xếp theo byte trước khi tạo profile. Hai input chứa cùng tập
+locale tạo cùng `output_profile_hash`; thay tập locale tạo revision khác.
+Auto-detection chỉ là signal nullable trên output, không được đổi profile.
+
+Vocabulary region được mở thành `heading`, `paragraph`, `list`, `table`,
+`image`, `chart`, `diagram`, `geometry`, `formula`, `caption`, `note`, cùng
+`header`, `footer`, `other`. Các role graphic chỉ phân loại hình dạng quan sát
+được. Chúng không chứa quan hệ, kết luận, lời giải hay diễn giải; phần đó tiếp
+tục thuộc ADR-0020. `figure` được giữ để đọc revision cũ nhưng provider mới
+không sinh `figure` khi xác định được role hẹp hơn.
+
+Formula là evidence child của region `role = formula`. Nó có raw text/OCR,
+normalized `latex|mathml` khi provider cung cấp, confidence và trạng thái riêng.
+Normalization fail hoặc confidence thấp không làm rollback canonical page text
+hay region/crop hợp lệ. Formula kế thừa source, page, locator, job, profile và
+revision từ region cha; không được tồn tại độc lập hoặc trỏ chéo revision.
+
+Canonical page text vẫn là fallback theo trang và không mang bbox giả. Hình học,
+reading order và crop thuộc region. Table/cell giữ mô hình đã duyệt.
 
 ---
 

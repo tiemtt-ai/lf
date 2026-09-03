@@ -1,12 +1,12 @@
 # Table: media_table_cells
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-31
+Last Updated: 2026-09-03
 
 Document Path: database/media/media_table_cells.md
 
@@ -19,6 +19,12 @@ Related ADR:
 Related Specification:
 [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md),
 [LF-Media-Read-Contract](../../platform/LF-Media-Read-Contract.md)
+
+## Language-profile amendment — Approved 2026-09-03
+
+Cell kế thừa language profile, source và revision từ table cha. Không nhân bản
+locale/profile trên từng cell. Raw công thức trong cell vẫn là text quan sát;
+normalized formula không được nhét vào metadata cell.
 
 ## Purpose
 

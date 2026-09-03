@@ -37,6 +37,13 @@ class FakeMediaProcessingProvider implements MediaProcessingProvider
                         'role' => 'heading', 'text' => 'Fake heading', 'extraction_method' => 'embedded_text'],
                     ['locator_value' => '1#2', 'page' => 1, 'ordinal' => 2, 'reading_order' => 2,
                         'role' => 'paragraph', 'text' => 'Fake paragraph', 'extraction_method' => 'embedded_text'],
+                    ['locator_value' => '1#3', 'page' => 1, 'ordinal' => 3, 'reading_order' => 3,
+                        'role' => 'formula', 'text' => 'x^2 + H2O', 'extraction_method' => 'embedded_text',
+                        'bbox' => ['x' => .1, 'y' => .2, 'width' => .4, 'height' => .1],
+                        'crop' => ['storage_key' => 'fake/formula-'.$job->id.'.png', 'mime_type' => 'image/png', 'width' => 400, 'height' => 100, 'bytes' => 512],
+                        'formula' => ['raw_text' => 'x^2 + H2O', 'normalized_format' => 'latex',
+                            'normalized_value' => 'x^2 + H_2O', 'normalization_status' => 'ready',
+                            'confidence_score' => 20]],
                 ]],
             default => throw new \RuntimeException('Unsupported fake capability.'),
         };

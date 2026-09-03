@@ -55,7 +55,9 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
 
             $output = $this->runCommand([
                 $python, $script, '--source', $source,
-                '--locale', (string) $this->profileValue((string) $job->output_profile, 'locale'),
+                '--locales', app(DocumentLanguageProfile::class)->serialize(
+                    app(DocumentLanguageProfile::class)->fromProfile((string) $job->output_profile)
+                ),
                 '--artifacts', $artifacts, '--max-pages', (string) $maxPages,
                 '--output', $resultPath,
             ], (int) config('media.processing.docling.timeout_seconds', 3300));
@@ -138,8 +140,9 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
      */
     private function fillFigureText(string $source, array $regions): array
     {
-        $figures = array_filter($regions, static fn (array $region): bool => ($region['role'] ?? null) === 'figure'
-            && is_array($region['bbox'] ?? null));
+        $figures = array_filter($regions, static fn (array $region): bool => in_array(
+            $region['role'] ?? null, ['figure', 'image', 'chart', 'diagram', 'geometry'], true
+        ) && is_array($region['bbox'] ?? null));
         if ($figures === []) {
             return $regions;
         }
@@ -223,7 +226,9 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
         $dpi = (int) config('media.processing.structured_extraction.crop_dpi', 200);
         $maxBytes = (int) config('media.processing.structured_extraction.max_crop_bytes_per_document', 67108864);
         $binary = (string) config('media.processing.local_document.pdftoppm_binary', 'pdftoppm');
-        $locale = (string) $this->profileValue((string) $job->output_profile, 'locale');
+        $locale = app(DocumentLanguageProfile::class)->serialize(
+            app(DocumentLanguageProfile::class)->fromProfile((string) $job->output_profile)
+        );
         $disk = (string) $mediaFile->storage_disk;
         $scale = $dpi / 72.0;
         $directory = $this->temporaryDirectory();
@@ -338,8 +343,9 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
 
         $binary = (string) config('media.processing.local_document.tesseract_binary', 'tesseract');
         $languages = (array) config('media.processing.structured_extraction.crop_ocr_languages', []);
-        $language = $languages[$locale] ?? $languages[explode('-', $locale)[0]] ?? null;
-        if ($language === null) {
+        $language = collect(explode(',', $locale))->map(fn (string $item) => $languages[$item] ?? $languages[explode('-', $item)[0]] ?? null)
+            ->filter()->unique()->implode('+');
+        if ($language === '') {
             return $region;
         }
 

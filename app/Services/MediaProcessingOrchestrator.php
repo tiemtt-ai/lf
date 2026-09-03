@@ -27,7 +27,7 @@ class MediaProcessingOrchestrator
      * @param  bool  $structuredExtraction  Opt-in cua tac gia tren form upload. Docling khong thay
      *                                      the OCR — no them lop cau truc ben tren cung text.
      */
-    public function materializeForCourseActivity(int $customerId, int $mediaFileId, ?string $locale, ?int $actorId, bool $structuredExtraction = false, bool $speechToText = true, bool $reattach = false): void
+    public function materializeForCourseActivity(int $customerId, int $mediaFileId, string|array|null $locale, ?int $actorId, bool $structuredExtraction = false, bool $speechToText = true, bool $reattach = false): void
     {
         DB::transaction(function () use ($customerId, $mediaFileId, $locale, $actorId, $structuredExtraction, $speechToText, $reattach): void {
             $media = DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaFileId)->lockForUpdate()->first();
@@ -39,16 +39,22 @@ class MediaProcessingOrchestrator
             $this->assertAudioUsage($customerId, $media, $speechToText);
 
             try {
-                $canonicalLocale = $this->canonicalLocaleFor($media, $locale, $speechToText);
-            } catch (InvalidArgumentException) {
+                $documentLocales = $media->file_type === 'document'
+                    ? app(DocumentLanguageProfile::class)->canonical(is_array($locale) ? $locale : (string) $locale)
+                    : null;
+                $canonicalLocale = $documentLocales[0] ?? $this->canonicalLocaleFor($media, is_string($locale) ? $locale : null, $speechToText);
+            } catch (InvalidArgumentException $exception) {
+                $profileError = $locale !== null && in_array($exception->getMessage(), [
+                    'document_language_profile_invalid', 'document_language_profile_unsupported',
+                ], true) ? $exception->getMessage() : 'required_profile_configuration_missing';
                 DB::table('media_files')->where('id', $mediaFileId)->where('customer_id', $customerId)->update([
-                    'status' => 'failed', 'processing_error_code' => 'required_profile_configuration_missing', 'updated_at' => now(),
+                    'status' => 'failed', 'processing_error_code' => $profileError, 'updated_at' => now(),
                 ]);
 
                 return;
             }
 
-            if ($media->processing_locale !== null && $canonicalLocale !== null && $media->processing_locale !== $canonicalLocale) {
+            if ($media->file_type !== 'document' && $media->processing_locale !== null && $canonicalLocale !== null && $media->processing_locale !== $canonicalLocale) {
                 DB::table('media_files')->where('id', $mediaFileId)->where('customer_id', $customerId)->update([
                     'status' => 'failed', 'processing_error_code' => 'required_profile_configuration_missing', 'updated_at' => now(),
                 ]);
@@ -62,7 +68,7 @@ class MediaProcessingOrchestrator
                 'updated_at' => now(),
             ]);
 
-            foreach ($this->initialMaterializationProfiles($media->file_type, $canonicalLocale, $speechToText) as [$jobType, $profile]) {
+            foreach ($this->initialMaterializationProfiles($media->file_type, $canonicalLocale, $speechToText, $documentLocales) as [$jobType, $profile]) {
                 $this->createInitialJob($customerId, $media, $jobType, $profile, $actorId, $reattach, $structuredExtraction);
             }
 
@@ -71,7 +77,7 @@ class MediaProcessingOrchestrator
             // van upload duoc binh thuong.
             if ($structuredExtraction && $media->file_type === 'document') {
                 $this->createInitialJob($customerId, $media, 'structured_extraction',
-                    $this->profiles->canonical(['locale' => (string) $canonicalLocale, 'structure' => $this->structureFor($media)]),
+                    $this->profiles->canonical(['locales' => app(DocumentLanguageProfile::class)->serialize($documentLocales ?? [$canonicalLocale]), 'structure' => $this->structureFor($media)]),
                     $actorId, $reattach);
             }
         });
@@ -177,6 +183,13 @@ class MediaProcessingOrchestrator
                 'output_profile' => $failed->output_profile, 'output_profile_hash' => $failed->output_profile_hash,
                 'provider' => $failed->provider, 'created_by' => $actorId, 'created_at' => now(), 'updated_at' => now(),
             ]);
+            if (in_array($failed->job_type, ['ocr', 'structured_extraction'], true)) {
+                app(DocumentLanguageProfile::class)->persistForJob(
+                    $customerId,
+                    (int) $id,
+                    app(DocumentLanguageProfile::class)->fromProfile((string) $failed->output_profile)
+                );
+            }
             $jitter = random_int(80, 120) / 100;
             $delay = (int) round(60 * (2 ** ($attempt - 2)) * $jitter);
             DB::afterCommit(fn () => ProcessMediaProcessingJob::dispatch($customerId, (int) $id)->delay(now()->addSeconds($delay)));
@@ -189,12 +202,12 @@ class MediaProcessingOrchestrator
     public function materializeOnDemandProfile(int $customerId, int $mediaFileId, string $jobType, array $parameters, ?int $actorId = null): void
     {
         $allowed = [
-            'ocr' => ['layout', 'locale'],
+            'ocr' => isset($parameters['locales']) ? ['layout', 'locales'] : ['layout', 'locale'],
             'speech_to_text' => ['diarization', 'locale'],
             'caption' => ['format', 'locale'],
             'thumbnail' => ['size'],
             'transcode' => ['preset'],
-            'structured_extraction' => ['locale', 'structure'],
+            'structured_extraction' => isset($parameters['locales']) ? ['locales', 'structure'] : ['locale', 'structure'],
         ];
         $parameterKeys = array_keys($parameters);
         sort($parameterKeys);
@@ -205,6 +218,9 @@ class MediaProcessingOrchestrator
         }
         if (isset($parameters['locale'])) {
             $parameters['locale'] = $this->profiles->canonicalLocale($parameters['locale']);
+        }
+        if (isset($parameters['locales'])) {
+            $parameters['locales'] = app(DocumentLanguageProfile::class)->serialize($parameters['locales']);
         }
         if (($jobType === 'ocr' && ($parameters['layout'] ?? null) !== 'preserve')
             || ($jobType === 'structured_extraction' && ! in_array($parameters['structure'] ?? null, ['layout', 'cells'], true))) {
@@ -217,8 +233,8 @@ class MediaProcessingOrchestrator
                 throw new InvalidArgumentException('Media File not found.');
             }
             if ($jobType === 'structured_extraction') {
-                $locale = $this->profiles->parse($profile)['locale'];
-                if (app(DocumentCanonicalRevision::class)->current($customerId, (int) $media->id, $this->sourceFingerprint($media), $locale) === null) {
+                $locales = app(DocumentLanguageProfile::class)->fromProfile($profile);
+                if (app(DocumentCanonicalRevision::class)->current($customerId, (int) $media->id, $this->sourceFingerprint($media), $locales) === null) {
                     throw new InvalidArgumentException('Canonical OCR revision is not ready.');
                 }
                 $extension = strtolower((string) ($media->extension ?? pathinfo($media->storage_key, PATHINFO_EXTENSION)));
@@ -237,21 +253,24 @@ class MediaProcessingOrchestrator
      *
      * @return array<int, array{job_type: string, output_profile: string, provider: string, processing_version: string, existing_job_id: int|null}>
      */
-    public function planForCourseActivity(int $customerId, int $mediaFileId, ?string $locale): array
+    public function planForCourseActivity(int $customerId, int $mediaFileId, string|array|null $locale): array
     {
         $media = DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaFileId)->first();
         if (! $media) {
             throw new InvalidArgumentException('Media File not found.');
         }
 
-        $canonicalLocale = $this->canonicalLocaleFor($media, $locale);
-        if ($media->processing_locale !== null && $canonicalLocale !== null && $media->processing_locale !== $canonicalLocale) {
+        $documentLocales = $media->file_type === 'document'
+            ? app(DocumentLanguageProfile::class)->canonical(is_array($locale) ? $locale : (string) $locale)
+            : null;
+        $canonicalLocale = $documentLocales[0] ?? $this->canonicalLocaleFor($media, is_string($locale) ? $locale : null);
+        if ($media->file_type !== 'document' && $media->processing_locale !== null && $canonicalLocale !== null && $media->processing_locale !== $canonicalLocale) {
             throw new InvalidArgumentException('Requested locale conflicts with the recorded processing locale.');
         }
 
         $fingerprint = $this->sourceFingerprint($media);
         $plan = [];
-        foreach ($this->initialMaterializationProfiles($media->file_type, $canonicalLocale) as [$jobType, $profile]) {
+        foreach ($this->initialMaterializationProfiles($media->file_type, $canonicalLocale, true, $documentLocales) as [$jobType, $profile]) {
             if (in_array($jobType, ['ocr', 'structured_extraction'], true)) {
                 $this->assertDocumentUsage($customerId, $media);
             }
@@ -298,11 +317,14 @@ class MediaProcessingOrchestrator
         return count($versions) === 1 ? (string) $versions[0] : null;
     }
 
-    private function initialMaterializationProfiles(string $fileType, ?string $locale, bool $speechToText = true): array
+    private function initialMaterializationProfiles(string $fileType, ?string $locale, bool $speechToText = true, ?array $documentLocales = null): array
     {
         $jobs = [['virus_scan', '']];
         if ($fileType === 'document') {
-            $jobs[] = ['ocr', $this->profiles->canonical(['layout' => 'preserve', 'locale' => (string) $locale])];
+            $jobs[] = ['ocr', $this->profiles->canonical([
+                'layout' => 'preserve',
+                'locales' => app(DocumentLanguageProfile::class)->serialize($documentLocales ?? [$locale]),
+            ])];
         }
         $videoSttEligible = (bool) config('media.processing.speech_to_text.video_enabled', false)
             && app(VideoSttQualification::class)->isQualified();
@@ -328,8 +350,8 @@ class MediaProcessingOrchestrator
         }
         $metadata = $jobType === 'ocr' && $requestStructure ? ['structured_requested' => true] : [];
         if ($jobType === 'structured_extraction') {
-            $locale = $this->profiles->parse($profile)['locale'];
-            $input = app(DocumentCanonicalRevision::class)->current($customerId, (int) $media->id, $this->sourceFingerprint($media), $locale);
+            $locales = app(DocumentLanguageProfile::class)->fromProfile($profile);
+            $input = app(DocumentCanonicalRevision::class)->current($customerId, (int) $media->id, $this->sourceFingerprint($media), $locales);
             if ($input === null) {
                 return; // Initial opt-in is recorded on OCR and active usage, then dispatched after ready.
             }
@@ -376,6 +398,9 @@ class MediaProcessingOrchestrator
                     throw $exception;
                 }
             }
+        }
+        if (in_array($jobType, ['ocr', 'structured_extraction'], true)) {
+            app(DocumentLanguageProfile::class)->persistForJob($customerId, (int) $id, app(DocumentLanguageProfile::class)->fromProfile($profile));
         }
         if ($jobType === 'ocr' && $requestStructure) {
             $pending = DB::table('media_processing_jobs')->where('customer_id', $customerId)->where('id', $id)->where('status', 'pending')->first();
@@ -476,8 +501,21 @@ class MediaProcessingOrchestrator
             }
         }
 
-        if ($jobType === 'structured_extraction' && $media !== null && isset($parameters['locale'])) {
-            $input = app(DocumentCanonicalRevision::class)->current((int) $media->customer_id, (int) $media->id, $this->sourceFingerprint($media), $parameters['locale']);
+        if (in_array($jobType, ['ocr', 'structured_extraction'], true) && ($media->file_type ?? null) === 'document') {
+            $languageProfile = app(DocumentLanguageProfile::class)->serialize(
+                isset($parameters['locales']) ? explode(',', (string) $parameters['locales']) : [(string) ($parameters['locale'] ?? '')]
+            );
+            $version .= '+lp-'.substr(hash('sha256', $languageProfile), 0, 12);
+            if (strlen($version) > 100) {
+                $version = 'document-'.hash('sha256', $version);
+            }
+        }
+
+        if ($jobType === 'structured_extraction' && $media !== null && (isset($parameters['locale']) || isset($parameters['locales']))) {
+            $languageProfile = isset($parameters['locales'])
+                ? app(DocumentLanguageProfile::class)->canonical(explode(',', (string) $parameters['locales']))
+                : [(string) $parameters['locale']];
+            $input = app(DocumentCanonicalRevision::class)->current((int) $media->customer_id, (int) $media->id, $this->sourceFingerprint($media), $languageProfile);
             if ($input !== null) {
                 $version = 'structure-v2-'.hash('sha256', json_encode([$version, $this->structureFor($media), (int) $input->id, $input->processing_version], JSON_THROW_ON_ERROR));
             }

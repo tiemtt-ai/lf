@@ -8,6 +8,7 @@ use App\Exceptions\DocumentUsageException;
 use App\Services\CaptionAssetStorage;
 use App\Services\DoclingStructuredExtractionProvider;
 use App\Services\DocumentCanonicalRevision;
+use App\Services\DocumentLanguageProfile;
 use App\Services\DocumentProcessingEligibility;
 use App\Services\DocumentTextUnits;
 use App\Services\FakeMediaProcessingProvider;
@@ -99,7 +100,10 @@ class ProcessMediaProcessingJob implements ShouldQueue
 
         try {
             if ($job->job_type === 'structured_extraction') {
-                app(DocumentCanonicalRevision::class)->forStructure($this->customerId, $media, $job, (string) $this->profileValue($job->output_profile, 'locale'));
+                app(DocumentCanonicalRevision::class)->forStructure(
+                    $this->customerId, $media, $job,
+                    app(DocumentLanguageProfile::class)->fromProfile((string) $job->output_profile)
+                );
             }
             $result = $this->provider((string) $job->provider)->process($media, $job);
             try {
@@ -141,6 +145,8 @@ class ProcessMediaProcessingJob implements ShouldQueue
                     'caption_invalid', 'caption_too_large', 'caption_write_failed', 'transcript_unavailable',
                     'ambiguous_source',
                     'unsupported_output_profile',
+                    'document_language_profile_invalid', 'document_language_profile_unsupported',
+                    'formula_normalization_invalid',
                 ];
                 $errorCode = $e instanceof RuntimeException && in_array($e->getMessage(), $knownErrorCodes, true)
                     ? $e->getMessage()
@@ -341,12 +347,17 @@ class ProcessMediaProcessingJob implements ShouldQueue
         $outputType = null;
         $outputId = null;
         $now = now();
-        $locale = $this->profileValue($job->output_profile, 'locale');
+        $locale = $media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
+            ? app(DocumentLanguageProfile::class)->fromProfile((string) $job->output_profile)[0]
+            : $this->profileValue($job->output_profile, 'locale');
         if ($job->job_type === 'virus_scan') {
             if (! ($result['clean'] ?? false)) {
                 throw new RuntimeException('infected_source');
             }
-            if ($media->file_type !== 'document' || $currentMedia->processing_error_code !== 'required_profile_configuration_missing') {
+            if ($media->file_type !== 'document' || ! in_array($currentMedia->processing_error_code, [
+                'required_profile_configuration_missing', 'document_language_profile_invalid',
+                'document_language_profile_unsupported',
+            ], true)) {
                 DB::table('media_files')->where('customer_id', $this->customerId)->where('id', $media->id)->update(['status' => 'ready', 'processing_error_code' => null, 'updated_at' => $now]);
             }
         } elseif ($job->job_type === 'ocr') {

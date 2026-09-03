@@ -1,0 +1,14 @@
+TÀI LIỆU KIỂM THỬ - DOCUMENT EVIDENCE - 문서 증거 테스트
+
+Tiếng Việt: Định luật bảo toàn năng lượng.
+English: Conservation of energy.
+한국어: 에너지 보존 법칙.
+
+Toán / Math: (a + b) / c; sqrt(x); x^2; matrix [[1, 2], [3, 4]].
+Hóa / Chemistry: H2SO4 + 2NaOH -> Na2SO4 + 2H2O.
+Lý / Physics: E = mc^2; v = 12 m/s; F = 5 N.
+
+Hình học / Geometry (observable labels only): triangle ABC; angle BAC = 60 degrees.
+Sơ đồ / Diagram (observable labels only): INPUT -> PROCESS -> OUTPUT.
+Biểu đồ / Chart caption: Figure 1. Values Q1=10, Q2=20.
+Ảnh / Image caption: Figure 2. Laboratory apparatus.

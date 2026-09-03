@@ -19,12 +19,16 @@ ROLE_MAP = {
     "paragraph": "paragraph",
     "list_item": "list",
     "table": "table",
-    "picture": "figure",
+    "picture": "image",
+    "image": "image",
+    "chart": "chart",
+    "diagram": "diagram",
+    "geometry": "geometry",
     "caption": "caption",
     "page_header": "header",
     "page_footer": "footer",
     "footnote": "other",
-    "formula": "other",
+    "formula": "formula",
 }
 
 
@@ -88,7 +92,7 @@ def table_cells(item: object, document: object) -> tuple[int, int, list[dict[str
     return rows, columns, cells
 
 
-def convert(source: pathlib.Path, locale: str, artifacts: pathlib.Path, max_pages: int) -> dict[str, object]:
+def convert(source: pathlib.Path, locales: str, artifacts: pathlib.Path, max_pages: int) -> dict[str, object]:
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
     os.environ["DOCLING_SERVE_ENABLE_REMOTE_SERVICES"] = "false"
@@ -100,9 +104,10 @@ def convert(source: pathlib.Path, locale: str, artifacts: pathlib.Path, max_page
     except Exception as exc:
         fail("provider_unavailable", str(exc))
 
-    languages = {"vi": ["vie", "eng"], "ko": ["kor", "eng"], "en": ["eng"]}
-    if locale not in languages:
-        fail("unsupported_source", f"unsupported locale: {locale}")
+    supported = {"vi", "ko", "en"}
+    requested = locales.split(",")
+    if not requested or any(locale not in supported for locale in requested):
+        fail("document_language_profile_unsupported", "unsupported document language profile")
     if not artifacts.is_dir():
         fail("provider_unavailable", "Docling artifacts directory is missing")
 
@@ -150,11 +155,20 @@ def convert(source: pathlib.Path, locale: str, artifacts: pathlib.Path, max_page
             "ordinal": ordinal,
             "reading_order": len(regions) + 1,
             "role": role,
-            "text": None if role == "figure" else (str(text).strip() if text else None),
+            "text": None if role in {"image", "chart", "diagram", "geometry"} else (str(text).strip() if text else None),
             "bbox": bbox_for(prov, document),
             "extraction_method": "ocr" if "ocr" in str(getattr(prov, "charspan", "")).lower() else "embedded_text",
             "metadata": {"docling_label": label},
         }
+        if role == "formula":
+            raw = str(text).strip() if text else None
+            region["formula"] = {
+                "raw_text": raw,
+                "normalized_format": None,
+                "normalized_value": None,
+                "normalization_status": "unavailable",
+                "confidence_score": None,
+            }
         region_index = len(regions)
         regions.append(region)
         if role == "table":
@@ -178,14 +192,14 @@ def main() -> None:
     global RESULT_PATH
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", required=True)
-    parser.add_argument("--locale", required=True)
+    parser.add_argument("--locales", required=True)
     parser.add_argument("--artifacts", required=True)
     parser.add_argument("--max-pages", type=int, default=100)
     parser.add_argument("--output")
     parser.add_argument("--summary", action="store_true")
     args = parser.parse_args()
     RESULT_PATH = pathlib.Path(args.output) if args.output else None
-    result = convert(pathlib.Path(args.source), args.locale, pathlib.Path(args.artifacts), args.max_pages)
+    result = convert(pathlib.Path(args.source), args.locales, pathlib.Path(args.artifacts), args.max_pages)
     if args.summary:
         roles: dict[str, int] = {}
         pages: dict[str, int] = {}

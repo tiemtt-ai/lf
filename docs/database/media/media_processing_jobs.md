@@ -1,12 +1,12 @@
 # Table: media_processing_jobs
 
-Version: 2.11
+Version: 2.12
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-31
+Last Updated: 2026-09-03
 
 Document Path: database/media/media_processing_jobs.md
 
@@ -18,6 +18,19 @@ Related ADR:
 
 Related Specification:
 [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md)
+
+---
+
+## Document language profile amendment — Approved 2026-09-03
+
+Document job mới dùng `locales=<canonical-csv>` trong `output_profile`; profile
+hash và processing version đổi khi tập locale đổi. Thành viên profile nằm trong
+`media_processing_job_locales`, là owned child có ordinal 1..3 và unique locale
+trong từng job. Job legacy không có child row tiếp tục được đọc từ
+`locale=<value>` như profile một locale.
+
+Không lưu profile này trên Course. `media_files.processing_locale` chỉ giữ
+tương thích cho revision một locale cũ, không phải authority đa ngôn ngữ.
 
 ---
 

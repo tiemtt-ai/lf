@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-09-01",
+  "generated_or_updated_at": "2026-09-03",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 248,
+  "document_count": 250,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -5683,6 +5683,48 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "database/media/media_extracted_formulas.md",
+      "title": "Table: media_extracted_formulas",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [
+        "media_extracted_formulas"
+      ],
+      "topics": [
+        "media",
+        "document",
+        "formula",
+        "evidence",
+        "provenance"
+      ],
+      "keywords": {
+        "vi": [
+          "công thức trích xuất",
+          "bằng chứng công thức",
+          "nguồn dẫn chứng"
+        ],
+        "en": [
+          "extracted formula",
+          "formula evidence",
+          "provenance"
+        ]
+      },
+      "identifiers": [
+        "media_extracted_formulas"
+      ],
+      "related_documents": [
+        "database/media/README.md",
+        "database/media/media_extracted_regions.md",
+        "adr/ADR-0019-Media-Structured-Extraction-Boundary.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "database/media/media_extracted_regions.md",
       "title": "Table: media_extracted_regions",
       "area": "database",
@@ -5905,6 +5947,47 @@
       ],
       "related_documents": [
         "database/media/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/media/media_processing_job_locales.md",
+      "title": "Table: media_processing_job_locales",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [
+        "media_processing_job_locales"
+      ],
+      "topics": [
+        "media",
+        "document",
+        "language profile",
+        "processing job"
+      ],
+      "keywords": {
+        "vi": [
+          "hồ sơ ngôn ngữ",
+          "locale tài liệu",
+          "tác vụ xử lý"
+        ],
+        "en": [
+          "language profile",
+          "document locale",
+          "processing job"
+        ]
+      },
+      "identifiers": [
+        "media_processing_job_locales"
+      ],
+      "related_documents": [
+        "database/media/README.md",
+        "database/media/media_processing_jobs.md",
+        "adr/ADR-0019-Media-Structured-Extraction-Boundary.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

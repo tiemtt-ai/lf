@@ -19509,6 +19509,207 @@
       "views": []
     },
     {
+      "name": "media_extracted_formulas",
+      "documentation": "database/media/media_extracted_formulas.md",
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "media_file_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "processing_job_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "region_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "raw_text",
+          "type": "longtext",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "normalized_format",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "normalized_value",
+          "type": "longtext",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "normalization_status",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'unavailable'",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "confidence_score",
+          "type": "decimal",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "customer_id",
+            "region_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "media_file_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "processing_job_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "region_id",
+            "customer_id",
+            "media_file_id",
+            "processing_job_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "region_id",
+            "customer_id",
+            "media_file_id",
+            "processing_job_id"
+          ],
+          "foreign_table": "media_extracted_regions",
+          "foreign_columns": [
+            "id",
+            "customer_id",
+            "media_file_id",
+            "processing_job_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "cascade"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "json_valid(`metadata`)"
+        },
+        {
+          "expression": "`normalized_format` is null or `normalized_format` in ('latex','mathml')"
+        },
+        {
+          "expression": "`normalization_status` in ('unavailable','ready','failed')"
+        },
+        {
+          "expression": "`confidence_score` is null or `confidence_score` >= 0 and `confidence_score` <= 100"
+        },
+        {
+          "expression": "`normalization_status` = 'ready' and `normalized_format` is not null and `normalized_value` is not null and `confidence_score` is not null or `normalization_status` <> 'ready' and `normalized_value` is null"
+        }
+      ],
+      "triggers": [],
+      "views": []
+    },
+    {
       "name": "media_extracted_regions",
       "documentation": "database/media/media_extracted_regions.md",
       "implementation_status": "implemented",
@@ -19651,6 +19852,24 @@
         {
           "name": "text",
           "type": "longtext",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "detected_locale",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "script",
+          "type": "varchar",
           "nullable": true,
           "default": "NULL",
           "unsigned": false,
@@ -19907,6 +20126,16 @@
           ],
           "unique": true,
           "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id",
+            "media_file_id",
+            "processing_job_id"
+          ],
+          "unique": true,
+          "type": "btree"
         }
       ],
       "foreign_keys": [
@@ -19948,7 +20177,7 @@
           "expression": "`locator_type` = 'region'"
         },
         {
-          "expression": "`role` in ('paragraph','heading','list','table','figure','caption','header','footer','other')"
+          "expression": "`role` in ('paragraph','heading','list','table','figure','image','chart','diagram','geometry','formula','caption','note','header','footer','other')"
         },
         {
           "expression": "`extraction_method` in ('ocr','embedded_text')"
@@ -21315,6 +21544,129 @@
       "checks": [
         {
           "expression": "json_valid(`metadata`)"
+        }
+      ],
+      "triggers": [],
+      "views": []
+    },
+    {
+      "name": "media_processing_job_locales",
+      "documentation": "database/media/media_processing_job_locales.md",
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "processing_job_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "ordinal",
+          "type": "tinyint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "locale",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "customer_id",
+            "processing_job_id",
+            "ordinal"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "processing_job_id",
+            "locale"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "processing_job_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "processing_job_id",
+            "customer_id"
+          ],
+          "foreign_table": "media_processing_jobs",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "cascade"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "`ordinal` between 1 and 3"
         }
       ],
       "triggers": [],

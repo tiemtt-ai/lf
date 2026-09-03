@@ -33,7 +33,7 @@ class LocalDocumentProcessingProvider implements MediaProcessingProvider
         // Pending jobs recorded before D2/D4 must not publish new semantics under
         // their old version. Standalone provider fixtures have no persisted identity.
         if ($job->job_type === 'ocr' && isset($job->id)
-            && ! str_ends_with((string) $job->processing_version, '+document-v2')
+            && ! str_contains((string) $job->processing_version, '+document-v2')
             && ! str_starts_with((string) $job->processing_version, 'document-v2-')) {
             throw new RuntimeException('unsupported_output_profile');
         }
@@ -430,6 +430,9 @@ class LocalDocumentProcessingProvider implements MediaProcessingProvider
     {
         foreach (explode(';', (string) $job->output_profile) as $pair) {
             [$key, $value] = array_pad(explode('=', $pair, 2), 2, null);
+            if ($key === 'locales' && is_string($value) && $value !== '') {
+                return $value;
+            }
             if ($key === 'locale' && is_string($value) && $value !== '') {
                 return $value;
             }
@@ -439,10 +442,15 @@ class LocalDocumentProcessingProvider implements MediaProcessingProvider
 
     private function tesseractLocale(string $locale): string
     {
-        return match (strtolower(explode('-', $locale)[0])) {
-            'vi' => 'vie+eng', 'ko' => 'kor+eng', 'en' => 'eng',
-            default => throw new RuntimeException('unsupported_source'),
-        };
+        $mapped = [];
+        foreach (explode(',', $locale) as $item) {
+            $mapped[] = match (strtolower(explode('-', $item)[0])) {
+                'vi' => 'vie', 'ko' => 'kor', 'en' => 'eng',
+                default => throw new RuntimeException('document_language_profile_unsupported'),
+            };
+        }
+
+        return implode('+', array_values(array_unique($mapped)));
     }
 
     private function temporaryDirectory(): string
