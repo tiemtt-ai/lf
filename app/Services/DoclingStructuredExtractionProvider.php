@@ -93,6 +93,7 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
             $result['usage'] = ['units' => $completedPages, 'unit_type' => 'page'];
             $result['regions'] = $this->fillFigureText($source, $result['regions'] ?? []);
             $result['regions'] = $this->renderCrops($mediaFile, $job, $source, $result['regions']);
+            $result['regions'] = $this->enrichRegionSignals($result['regions'], (string) $job->output_profile);
 
             $this->remainingSeconds();
 
@@ -391,6 +392,50 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
         ));
 
         return mb_strlen(trim((string) ($region['text'] ?? ''))) < $minimum;
+    }
+
+    /**
+     * Normalize observed text and attach only language signals supported by the
+     * characters in that region. The requested profile is a candidate set, not
+     * proof that every block uses that language.
+     *
+     * @param  array<int, array<string, mixed>>  $regions
+     * @return array<int, array<string, mixed>>
+     */
+    private function enrichRegionSignals(array $regions, string $profile): array
+    {
+        $locales = app(DocumentLanguageProfile::class)->fromProfile($profile);
+        foreach ($regions as &$region) {
+            if (isset($region['text'])) {
+                $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', (string) $region['text']);
+                $region['text'] = ($text = trim((string) $text)) !== '' ? $text : null;
+            }
+            $text = (string) ($region['text'] ?? '');
+            if ($text === '') {
+                continue;
+            }
+            if (preg_match('/[\x{AC00}-\x{D7AF}]/u', $text)) {
+                $region['script'] = 'Hang';
+                $region['detected_locale'] = in_array('ko', $locales, true) ? 'ko' : null;
+            } elseif (preg_match('/[\x{3040}-\x{30FF}]/u', $text)) {
+                $region['script'] = 'Jpan';
+                $region['detected_locale'] = in_array('ja', $locales, true) ? 'ja' : null;
+            } elseif (preg_match('/[\x{4E00}-\x{9FFF}]/u', $text)) {
+                $region['script'] = 'Hani';
+                $region['detected_locale'] = collect($locales)->first(fn (string $locale): bool => str_starts_with($locale, 'zh'));
+            } elseif (preg_match('/\p{Latin}/u', $text)) {
+                $region['script'] = 'Latn';
+                if (in_array('vi', $locales, true) && preg_match('/[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/iu', $text)) {
+                    $region['detected_locale'] = 'vi';
+                } elseif ($locales === ['en']) {
+                    $region['detected_locale'] = 'en';
+                }
+            }
+            $region['char_count'] = $region['text'] === null ? null : mb_strlen($region['text']);
+        }
+        unset($region);
+
+        return $regions;
     }
 
     /**

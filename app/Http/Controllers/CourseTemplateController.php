@@ -838,7 +838,8 @@ class CourseTemplateController extends Controller
                 $structuredUsage = $structuredUsages->get($activity->id);
                 if ($structuredUsage !== null) {
                     $structuredJob = $structuredJobs->get($structuredUsage->media_file_id);
-                    $activity->structured_extraction_status = $structuredJob?->status ?? 'absent';
+                    $activity->structured_extraction_status = $structuredJob?->status
+                        ?? (now()->subMinutes(2)->lte($structuredUsage->created_at) ? 'initializing' : 'absent');
                     $activity->structured_extraction_error_code = $structuredJob?->error_code;
                 }
                 $speechUsage = $speechUsages->get($activity->id);

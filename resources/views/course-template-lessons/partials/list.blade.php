@@ -168,6 +168,7 @@
                                                         'provider_timeout' => 'lf.LF_course_template_activity_structured_failed_timeout_help',
                                                         default => 'lf.LF_course_template_activity_structured_failed_help',
                                                     },
+                                                    'initializing' => 'lf.LF_course_template_activity_structured_initializing_help',
                                                     'processing' => 'lf.LF_course_template_activity_structured_processing_help',
                                                     'absent' => 'lf.LF_course_template_activity_structured_absent_help',
                                                     default => 'lf.LF_course_template_activity_structured_pending_help',
@@ -179,8 +180,8 @@
                                                     'badge',
                                                     'badge-success' => $structuredStatus === 'ready',
                                                     'badge-danger' => $structuredStatus === 'failed',
-                                                    'badge-info' => in_array($structuredStatus, ['pending', 'processing'], true),
-                                                    'badge-secondary' => $structuredStatus === 'absent',
+                                                    'badge-info' => in_array($structuredStatus, ['initializing', 'pending', 'processing'], true),
+                                                    'badge-neutral' => $structuredStatus === 'absent',
                                                 ])>
                                                     {{ __('lf.LF_course_template_activity_structured_'.$structuredStatus) }}
                                                 </span>

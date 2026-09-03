@@ -688,6 +688,27 @@ class MediaProcessingSubstrateTest extends TestCase
         ], $overrides));
     }
 
+    public function test_docling_provider_cleans_control_characters_and_records_observed_language_signals(): void
+    {
+        $this->doclingConfig(['media.processing.structured_extraction.crop_enabled' => false]);
+        $regions = [[
+            'page' => 1, 'ordinal' => 1, 'reading_order' => 1, 'locator_value' => '1#1',
+            'role' => 'paragraph', 'bbox' => ['x' => 0.1, 'y' => 0.1, 'width' => 0.4, 'height' => 0.3],
+            'text' => "Công thức xác suất\f", 'confidence_score' => 97.25,
+            'extraction_method' => 'embedded_text',
+        ]];
+
+        $result = $this->doclingProcess(
+            $this->doclingRunner(sys_get_temp_dir().'/unused.json', $regions),
+            'docling-signals.pdf',
+        );
+
+        $this->assertSame('Công thức xác suất', $result['regions'][0]['text']);
+        $this->assertSame('vi', $result['regions'][0]['detected_locale']);
+        $this->assertSame('Latn', $result['regions'][0]['script']);
+        $this->assertSame(97.25, $result['regions'][0]['confidence_score']);
+    }
+
     public function test_docling_provider_renders_region_crop_and_keys_it_by_full_revision_identity(): void
     {
         $this->doclingConfig();
@@ -2444,6 +2465,33 @@ class MediaProcessingSubstrateTest extends TestCase
             'customer_id' => $this->customerId, 'template_id' => $templateId,
             'template_lesson_id' => $lessonId, 'title' => 'Document legacy',
             'activity_type' => 'document', 'sort_order' => 1,
+            'created_by' => $this->admin->id, 'created_at' => now()->subMinutes(10), 'updated_at' => now()->subMinutes(10),
+        ]);
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'owner_type' => 'course_activity', 'owner_id' => $activityId,
+            'usage_type' => 'document', 'status' => 'active',
+            'metadata' => json_encode(['structured_extraction' => true]),
+            'created_by' => $this->admin->id, 'created_at' => now()->subMinutes(10), 'updated_at' => now()->subMinutes(10),
+        ]);
+
+        $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure")
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_structured_absent'))
+            ->assertSeeText(__('lf.LF_course_template_activity_structured_absent_help'))
+            ->assertDontSeeText(__('lf.LF_course_template_activity_structured_pending_help'));
+    }
+
+    public function test_recent_docling_request_without_a_job_is_shown_as_initializing(): void
+    {
+        [$templateId, $lessonId] = $this->courseFixture();
+        $media = $this->uploadDocument();
+        DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+            ->where('job_type', 'structured_extraction')->delete();
+        $activityId = DB::table('core_course_template_activities')->insertGetId([
+            'customer_id' => $this->customerId, 'template_id' => $templateId,
+            'template_lesson_id' => $lessonId, 'title' => 'Document initializing',
+            'activity_type' => 'document', 'sort_order' => 1,
             'created_by' => $this->admin->id, 'created_at' => now(), 'updated_at' => now(),
         ]);
         DB::table('media_file_usages')->insert([
@@ -2456,9 +2504,9 @@ class MediaProcessingSubstrateTest extends TestCase
 
         $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure")
             ->assertOk()
-            ->assertSeeText(__('lf.LF_course_template_activity_structured_absent'))
-            ->assertSeeText(__('lf.LF_course_template_activity_structured_absent_help'))
-            ->assertDontSeeText(__('lf.LF_course_template_activity_structured_pending_help'));
+            ->assertSeeText(__('lf.LF_course_template_activity_structured_initializing'))
+            ->assertSeeText(__('lf.LF_course_template_activity_structured_initializing_help'))
+            ->assertDontSeeText(__('lf.LF_course_template_activity_structured_absent_help'));
     }
 
     private function activityUrl(int $templateId, int $lessonId): string

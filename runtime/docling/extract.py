@@ -7,7 +7,9 @@ import argparse
 import json
 import os
 import pathlib
+import re
 import sys
+import unicodedata
 
 RESULT_PATH: pathlib.Path | None = None
 COMPLETED_PAGES = 0
@@ -30,6 +32,64 @@ ROLE_MAP = {
     "footnote": "other",
     "formula": "formula",
 }
+
+CONTROL_CHARACTERS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+VIETNAMESE_MARKERS = set("ăâđêôơưĂÂĐÊÔƠƯ")
+MATH_OPERATORS = set("=<>±√∑Σ∫∆Δ∩∪∈∉⊂⊆∞≈≠≤≥×÷²³⁰¹⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉")
+
+
+def clean_text(value: object) -> str | None:
+    if value is None:
+        return None
+    text = CONTROL_CHARACTERS.sub("", str(value)).strip()
+    return text or None
+
+
+def confidence_for(item: object, prov: object) -> float | None:
+    """Return only confidence explicitly exposed by Docling; never invent one."""
+    for owner in (item, prov):
+        for attribute in ("confidence", "confidence_score", "score"):
+            value = getattr(owner, attribute, None)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                score = float(value)
+                if 0 <= score <= 1:
+                    score *= 100
+                if 0 <= score <= 100:
+                    return round(score, 2)
+    return None
+
+
+def language_signals(text: str | None, requested: list[str]) -> tuple[str | None, str | None]:
+    if not text:
+        return None, None
+    letters = [char for char in text if char.isalpha()]
+    if not letters:
+        return None, None
+    if any("\uac00" <= char <= "\ud7af" for char in letters):
+        return ("ko" if "ko" in requested else None), "Hang"
+    if any("\u4e00" <= char <= "\u9fff" for char in letters):
+        return next((locale for locale in requested if locale.startswith(("zh", "ja"))), None), "Hani"
+    if any("\u3040" <= char <= "\u30ff" for char in letters):
+        return ("ja" if "ja" in requested else None), "Jpan"
+    if all("LATIN" in unicodedata.name(char, "") for char in letters):
+        normalized = unicodedata.normalize("NFD", text)
+        has_vietnamese_tone = any(char in VIETNAMESE_MARKERS for char in text) or any(
+            char in "\u0300\u0301\u0303\u0309\u0323" for char in normalized
+        )
+        if has_vietnamese_tone and "vi" in requested:
+            return "vi", "Latn"
+        return ("en" if requested == ["en"] else None), "Latn"
+    return None, None
+
+
+def looks_like_formula(text: str | None) -> bool:
+    """Promote only formula-dominant blocks; prose containing math stays prose."""
+    if not text:
+        return False
+    operator_count = sum(char in MATH_OPERATORS for char in text)
+    equation_count = text.count("=")
+    words = re.findall(r"[^\W\d_]+", text, flags=re.UNICODE)
+    return equation_count >= 2 or (operator_count >= 3 and len(words) <= 12)
 
 
 def emit(payload: dict[str, object]) -> None:
@@ -148,20 +208,26 @@ def convert(source: pathlib.Path, locales: str, artifacts: pathlib.Path, max_pag
         ordinal = page_ordinals[page]
         label = str(getattr(getattr(item, "label", None), "value", getattr(item, "label", "other")))
         role = ROLE_MAP.get(label, "other")
-        text = getattr(item, "text", None)
+        text = clean_text(getattr(item, "text", None))
+        if role in {"paragraph", "other"} and looks_like_formula(text):
+            role = "formula"
+        detected_locale, script = language_signals(text, requested)
         region = {
             "locator_value": f"{page}#{ordinal}",
             "page": page,
             "ordinal": ordinal,
             "reading_order": len(regions) + 1,
             "role": role,
-            "text": None if role in {"image", "chart", "diagram", "geometry"} else (str(text).strip() if text else None),
+            "text": None if role in {"image", "chart", "diagram", "geometry"} else text,
             "bbox": bbox_for(prov, document),
+            "detected_locale": detected_locale,
+            "script": script,
+            "confidence_score": confidence_for(item, prov),
             "extraction_method": "ocr" if "ocr" in str(getattr(prov, "charspan", "")).lower() else "embedded_text",
             "metadata": {"docling_label": label},
         }
         if role == "formula":
-            raw = str(text).strip() if text else None
+            raw = text
             region["formula"] = {
                 "raw_text": raw,
                 "normalized_format": None,
