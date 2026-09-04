@@ -137,5 +137,3 @@ Media → Track để cung cấp Event hành vi truy cập đã được phê du
 - Nhật ký truy cập là bằng chứng kiểm tra, không phải trạng thái phân quyền.
 - Hoạt động phân phối và lưu trữ luôn được cô lập theo tenant.
 - Media không bao giờ quyết định kết quả nghiệp vụ của miền nghiệp vụ tiêu thụ.
-| [**media_region_languages**](media_region_languages.md) | Mọi chữ viết quan sát được trong một region; vùng song ngữ giữ đủ bằng chứng |
-| [**media_formula_normalizations**](media_formula_normalizations.md) | Output LaTeX/MathML bất biến của job normalization dựng trên formula evidence |

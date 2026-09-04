@@ -1,6 +1,6 @@
 # Table: media_extracted_formulas
 
-Version: 1.2
+Version: 1.1
 
 Document Status: Approved
 
@@ -14,21 +14,8 @@ Related ADR: [ADR-0019](../../adr/ADR-0019-Media-Structured-Extraction-Boundary.
 
 ## Purpose
 
-Lưu evidence công thức quan sát được. Row này không khẳng định công thức đúng
-và không chứa lời giải.
-
-## Compatibility boundary after formula-normalization jobs
-
-`raw_text` và quan hệ region tiếp tục là authority của evidence nguồn. Các cột
-`normalized_format`, `normalized_value`, `normalization_status` và
-`confidence_score` là legacy normalization snapshot: giữ nguyên để đọc revision
-đã xuất bản, nhưng producer mới luôn ghi status `unavailable` và ba giá trị còn
-lại NULL. Normalization mới chỉ ghi vào `media_formula_normalizations`.
-
-Consumer ưu tiên output hiện hành ở bảng mới; chỉ fallback snapshot cũ khi chưa
-có output mới và snapshot tự mang status `ready`. Migration
-`2026_09_04_000200` được giữ để dựng lại/đọc legacy `ready + NULL confidence`;
-nó không cấp quyền cho producer mới ghi normalization vào bảng evidence.
+Lưu evidence công thức quan sát được và normalization tùy chọn. Row này không
+khẳng định công thức đúng và không chứa lời giải.
 
 ## Ownership and provenance
 
@@ -66,6 +53,9 @@ CHECK ((normalization_status = 'ready' AND normalized_format IS NOT NULL
     OR (normalization_status <> 'ready' AND normalized_value IS NULL));
 ```
 
-Persistence phải xác nhận region cha có `role=formula`, bbox và crop. Producer
-structured mới chỉ ghi raw evidence ở trạng thái `unavailable`; lỗi của job
+Persistence phải xác nhận region cha có `role=formula`, bbox và crop. Normalized
+Nếu provider phát confidence, điểm dưới ngưỡng cấu hình được lưu `failed`, không
+`ready`. CodeFormulaV2 không phát confidence: `ready` với NULL có nghĩa "không
+đo", không phải điểm thấp; application không được tự tạo điểm. Provider chưa
+có normalization được lưu `unavailable`. Lỗi
 normalization không rollback page text hoặc region evidence.

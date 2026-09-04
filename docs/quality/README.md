@@ -57,9 +57,6 @@ criteria hay không.
 * [LF-Media-Structured-Extraction-Architecture-Review.md](LF-Media-Structured-Extraction-Architecture-Review.md)
   — owner-context, revision, citation, signed-delivery and append-only audit
   self-assessment packet; independent architecture review pending.
-* [LF-Formula-Normalization-Architecture-Review.md](LF-Formula-Normalization-Architecture-Review.md)
-  — approved architecture gate for conditional accelerator-only CodeFormulaV2
-  post-processing and immutable normalization output.
 * [LF-Version-Activity-Media-Snapshot-Architecture-Review.md](LF-Version-Activity-Media-Snapshot-Architecture-Review.md)
   — approved Version Activity media snapshot architecture review.
 * [LF-Course-Product-Architecture-Review.md](LF-Course-Product-Architecture-Review.md)

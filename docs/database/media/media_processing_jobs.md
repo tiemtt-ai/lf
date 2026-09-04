@@ -371,15 +371,3 @@ và một unique key trong JSON không ngăn được lần gọi thứ hai.
 Bảng này cố ý **không** có cột "trạng thái hiện tại của file". Binary
 deliverability đọc từ `media_files.status`; readiness của output dẫn xuất đọc từ
 row output và retry scope tương ứng, không suy ra từ một job mới nhất toàn cục.
-Version: 2.13
- Related Specification:
- [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md)
-
-## Formula normalization amendment — Approved 2026-09-04
-
-Vocabulary `job_type` nhận `formula_normalization`; `output_type` nhận
-`formula_normalization`. Job này thuộc document nhưng dựng trên một structured
-source revision được ghi trong metadata/profile và được kiểm lại khi persist.
-Nó không nằm trong initial upload set: chỉ được tạo sau structured success khi
-revision hiện hành có qualifying formula evidence. Provider/worker thiếu
-accelerator capability phải fail closed và không được load model.
