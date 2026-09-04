@@ -258,9 +258,9 @@ class StructuredExtractionPersistenceService
             $valid = in_array($formula['normalized_format'] ?? null, ['latex', 'mathml'], true)
                 && is_string($formula['normalized_value'] ?? null)
                 && trim((string) $formula['normalized_value']) !== ''
-                && is_numeric($confidence)
-                && (float) $confidence >= (float) config('media.processing.document.formula_normalization_min_confidence', 80)
-                && (float) $confidence <= 100;
+                && ($confidence === null || (is_numeric($confidence)
+                    && (float) $confidence >= (float) config('media.processing.document.formula_normalization_min_confidence', 80)
+                    && (float) $confidence <= 100));
             if (! $valid) {
                 $formula['normalization_status'] = 'failed';
                 $formula['normalized_format'] = null;

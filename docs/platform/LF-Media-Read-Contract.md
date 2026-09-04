@@ -66,7 +66,10 @@ Page text, region, table và formula trả về phải thuộc cùng processing 
 profile hash, source fingerprint và revision.
 
 `content_type = formula` trả raw evidence, region locator/page/bbox/crop,
-normalization status, format, value và confidence. `unavailable`/`failed` là dữ
+normalization status, format, value và confidence. `ready` có thể trả
+`confidence = null` khi provider (CodeFormulaV2) không phát điểm; NULL nghĩa là
+"không đo", không phải confidence thấp và không được thay bằng điểm giả.
+`unavailable`/`failed` là dữ
 liệu có tên. Page text và region vẫn đọc được khi normalization thất bại. Media
 Read không diễn giải hoặc xác nhận công thức đúng.
 

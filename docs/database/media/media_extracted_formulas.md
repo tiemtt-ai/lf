@@ -1,12 +1,12 @@
 # Table: media_extracted_formulas
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-03
+Last Updated: 2026-09-04
 
 Document Path: database/media/media_extracted_formulas.md
 
@@ -49,11 +49,13 @@ CHECK (normalized_format IS NULL OR normalized_format IN ('latex','mathml'));
 CHECK (normalization_status IN ('unavailable','ready','failed'));
 CHECK (confidence_score IS NULL OR confidence_score BETWEEN 0 AND 100);
 CHECK ((normalization_status = 'ready' AND normalized_format IS NOT NULL
-        AND normalized_value IS NOT NULL AND confidence_score IS NOT NULL)
+        AND normalized_value IS NOT NULL)
     OR (normalization_status <> 'ready' AND normalized_value IS NULL));
 ```
 
 Persistence phải xác nhận region cha có `role=formula`, bbox và crop. Normalized
-confidence dưới ngưỡng cấu hình được lưu `failed`, không `ready`. Provider chưa
+Nếu provider phát confidence, điểm dưới ngưỡng cấu hình được lưu `failed`, không
+`ready`. CodeFormulaV2 không phát confidence: `ready` với NULL có nghĩa "không
+đo", không phải điểm thấp; application không được tự tạo điểm. Provider chưa
 có normalization được lưu `unavailable`. Lỗi
 normalization không rollback page text hoặc region evidence.

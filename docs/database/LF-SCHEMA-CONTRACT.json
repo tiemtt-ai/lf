@@ -19703,7 +19703,7 @@
           "expression": "`confidence_score` is null or `confidence_score` >= 0 and `confidence_score` <= 100"
         },
         {
-          "expression": "`normalization_status` = 'ready' and `normalized_format` is not null and `normalized_value` is not null and `confidence_score` is not null or `normalization_status` <> 'ready' and `normalized_value` is null"
+          "expression": "`normalization_status` = 'ready' and `normalized_format` is not null and `normalized_value` is not null or `normalization_status` <> 'ready' and `normalized_value` is null"
         }
       ],
       "triggers": [],

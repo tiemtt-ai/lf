@@ -45,7 +45,7 @@ def clean_text(value: object) -> str | None:
     return text or None
 
 
-def poppler_region_text(source: pathlib.Path, regions: list[dict[str, object]], binary: str = "pdftotext") -> None:
+def poppler_region_text(source: pathlib.Path, regions: list[dict[str, object]], tables: list[dict[str, object]], binary: str = "pdftotext") -> None:
     """Replace Docling's fragmented PDF text with Poppler text in the same bbox.
 
     Some embedded Vietnamese fonts are decoded by Docling as ``nhi ệ t`` while
@@ -90,27 +90,40 @@ def poppler_region_text(source: pathlib.Path, regions: list[dict[str, object]], 
         pages[page_number] = lines
 
     excluded_roles = {"image", "chart", "diagram", "geometry", "table"}
-    for region in regions:
-        bbox = region.get("bbox")
-        if not isinstance(bbox, dict) or region.get("role") in excluded_roles:
-            continue
-        lines = pages.get(int(region.get("page", 0) or 0), [])
+    def text_in_bbox(page_number: int, bbox: dict[str, float]) -> str | None:
         left = float(bbox["x"])
         top = float(bbox["y"])
         right = left + float(bbox["width"])
         bottom = top + float(bbox["height"])
         recovered: list[str] = []
-        for line in lines:
+        for line in pages.get(page_number, []):
             selected = [text for x, y, text in line if left <= x <= right and top <= y <= bottom]
             if selected:
                 recovered.append(" ".join(selected))
-        text = clean_text("\n".join(recovered))
+        return clean_text("\n".join(recovered))
+
+    for region in regions:
+        bbox = region.get("bbox")
+        if not isinstance(bbox, dict) or region.get("role") in excluded_roles:
+            continue
+        text = text_in_bbox(int(region.get("page", 0) or 0), bbox)
         if text is None:
             continue
         region["text"] = text
         region["metadata"]["text_source"] = "poppler_bbox"
         if region.get("role") == "formula" and isinstance(region.get("formula"), dict):
             region["formula"]["raw_text"] = text
+
+    for table in tables:
+        page_number = int(str(table.get("locator_value", "0")).split("#", 1)[0])
+        for cell in table.get("cells", []):
+            bbox = cell.pop("_bbox", None)
+            if not isinstance(bbox, dict):
+                continue
+            text = text_in_bbox(page_number, bbox)
+            if text is not None:
+                cell["text"] = text
+                cell["metadata"] = {"text_source": "poppler_bbox"}
 
 
 def confidence_for(item: object, prov: object) -> float | None:
@@ -190,14 +203,29 @@ def table_cells(item: object, document: object) -> tuple[int, int, list[dict[str
     columns = int(getattr(data, "num_cols", 0) or 0)
     cells: list[dict[str, object]] = []
     for cell in getattr(data, "table_cells", []) or []:
-        cells.append({
+        entry = {
             "row": int(cell.start_row_offset_idx) + 1,
             "column": int(cell.start_col_offset_idx) + 1,
             "row_span": int(cell.row_span),
             "column_span": int(cell.col_span),
             "is_header": bool(cell.column_header or cell.row_header),
             "text": str(cell.text or ""),
-        })
+        }
+        page_no = int(getattr((getattr(item, "prov", None) or [None])[0], "page_no", 0) or 0)
+        page = getattr(document, "pages", {}).get(page_no)
+        size = getattr(page, "size", None)
+        bbox = getattr(cell, "bbox", None)
+        width = float(getattr(size, "width", 0) or 0)
+        height = float(getattr(size, "height", 0) or 0)
+        if bbox is not None and width > 0 and height > 0:
+            try:
+                bbox = bbox.to_top_left_origin(page_height=height)
+            except Exception:
+                pass
+            entry["_bbox"] = {"x": float(bbox.l) / width, "y": float(bbox.t) / height,
+                              "width": (float(bbox.r) - float(bbox.l)) / width,
+                              "height": (float(bbox.b) - float(bbox.t)) / height}
+        cells.append(entry)
     return rows, columns, cells
 
 
@@ -316,7 +344,7 @@ def convert(source: pathlib.Path, locales: str, artifacts: pathlib.Path, max_pag
                     "extraction_method": "embedded_text",
                     "cells": cells,
                 })
-    poppler_region_text(source, regions, pdftotext)
+    poppler_region_text(source, regions, tables, pdftotext)
     return {"status": "ready", "regions": regions, "tables": tables, "page_count": len(document.pages)}
 
 
