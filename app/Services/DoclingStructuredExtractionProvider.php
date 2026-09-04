@@ -94,6 +94,7 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
             $result['usage'] = ['units' => $completedPages, 'unit_type' => 'page'];
             $result['regions'] = $this->fillFigureText($source, $result['regions'] ?? []);
             $result['regions'] = $this->renderCrops($mediaFile, $job, $source, $result['regions']);
+            $result['regions'] = $this->discardRepeatedImageNoise($result['regions']);
             $result['regions'] = $this->enrichRegionSignals($result['regions'], (string) $job->output_profile);
 
             $this->remainingSeconds();
@@ -393,6 +394,44 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
         ));
 
         return mb_strlen(trim((string) ($region['text'] ?? ''))) < $minimum;
+    }
+
+    /** Remove short watermark-like strings repeated across at least five image regions. */
+    private function discardRepeatedImageNoise(array $regions): array
+    {
+        $keys = [];
+        foreach ($regions as $region) {
+            if (($region['role'] ?? null) !== 'image') {
+                continue;
+            }
+            $key = $this->repeatedImageTextKey($region['text'] ?? null);
+            if ($key !== '' && mb_strlen($key) <= 80) {
+                $keys[$key] = ($keys[$key] ?? 0) + 1;
+            }
+        }
+        foreach ($regions as &$region) {
+            if (($region['role'] ?? null) !== 'image') {
+                continue;
+            }
+            $key = $this->repeatedImageTextKey($region['text'] ?? null);
+            $alias = (string) preg_replace('/^[\pL\pN]\s+/u', '', $key);
+            if (($keys[$key] ?? 0) < 5 && ($alias === $key || ($keys[$alias] ?? 0) < 5)) {
+                continue;
+            }
+            $region['text'] = null;
+            $region['metadata'] = ($region['metadata'] ?? []) + ['text_discarded' => 'repeated_image_noise'];
+        }
+        unset($region);
+
+        return $regions;
+    }
+
+    private function repeatedImageTextKey(mixed $text): string
+    {
+        $key = mb_strtolower((string) $text);
+        $key = (string) preg_replace('/[^\pL\pN]+/u', ' ', $key);
+
+        return trim((string) preg_replace('/\s+/u', ' ', $key));
     }
 
     /**

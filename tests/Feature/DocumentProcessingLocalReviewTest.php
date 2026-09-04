@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Exceptions\MediaReadException;
 use App\Jobs\ProcessMediaProcessingJob;
 use App\Models\User;
+use App\Services\DoclingStructuredExtractionProvider;
 use App\Services\DocumentProcessRunner;
 use App\Services\LocalDocumentProcessingProvider;
 use App\Services\MediaProcessingOrchestrator;
@@ -814,6 +815,32 @@ class DocumentProcessingLocalReviewTest extends TestCase
         $this->assertFalse($method->invoke($service, $region));
         $region['formula']['raw_text'] = 'Q = mc∆t';
         $this->assertTrue($method->invoke($service, $region));
+    }
+
+    public function test_repeated_short_image_text_is_discarded_without_touching_other_regions(): void
+    {
+        $method = new \ReflectionMethod(DoclingStructuredExtractionProvider::class, 'discardRepeatedImageNoise');
+        $service = app(DoclingStructuredExtractionProvider::class);
+        $regions = [
+            ['role' => 'image', 'text' => '.., VŨ TUẤN ANH', 'metadata' => ['source' => 'pdf']],
+            ['role' => 'image', 'text' => ', VŨ TUẤN ANH'],
+            ['role' => 'image', 'text' => '., Vũ Tuấn Anh'],
+            ['role' => 'image', 'text' => 'VŨ TUẤN ANH'],
+            ['role' => 'image', 'text' => 'VŨ-TUẤN-ANH'],
+            ['role' => 'image', 'text' => 'V, VŨ TUẤN ANH'],
+            ['role' => 'image', 'text' => 'Nhãn có ích'],
+            ['role' => 'paragraph', 'text' => 'VŨ TUẤN ANH'],
+        ];
+
+        $filtered = $method->invoke($service, $regions);
+
+        foreach (array_slice($filtered, 0, 6) as $region) {
+            $this->assertNull($region['text']);
+            $this->assertSame('repeated_image_noise', $region['metadata']['text_discarded']);
+        }
+        $this->assertSame('pdf', $filtered[0]['metadata']['source']);
+        $this->assertSame('Nhãn có ích', $filtered[6]['text']);
+        $this->assertSame('VŨ TUẤN ANH', $filtered[7]['text']);
     }
 
     /**
