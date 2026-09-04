@@ -17,6 +17,15 @@ return [
             'locales' => ['vi', 'ko', 'en'],
             'max_locales' => 3,
             'formula_normalization_min_confidence' => 80.0,
+            // Formula evidence is atomic math, not an exercise paragraph which
+            // happens to contain '=' or a superscript.
+            'formula_evidence_max_characters' => 180,
+            'formula_evidence_max_words' => 24,
+            // ADR-0019 v1.8: evidence formula doi it nhat mot ky tu trong tap nay.
+            // `+` va `-` co chu dich khong nam trong day: chung xuat hien day dac
+            // trong mau bien doi ngu phap tieng Han (`무 + -아요/어요`) va la nguon
+            // false positive da do duoc, khong phai dau hieu cua cong thuc.
+            'formula_operators' => '=<>±√∑Σ∫∆Δ∩∪∈∉⊂⊆∞≈≠≤≥×÷²³⁰¹⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉',
         ],
         'fake' => [
             'virus_infected' => (bool) env('MEDIA_FAKE_VIRUS_INFECTED', false),

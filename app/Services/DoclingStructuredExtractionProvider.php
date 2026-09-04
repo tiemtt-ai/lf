@@ -59,6 +59,7 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
                     app(DocumentLanguageProfile::class)->fromProfile((string) $job->output_profile)
                 ),
                 '--artifacts', $artifacts, '--max-pages', (string) $maxPages,
+                '--pdftotext', (string) config('media.processing.local_document.pdftotext_binary', 'pdftotext'),
                 '--output', $resultPath,
             ], (int) config('media.processing.docling.timeout_seconds', 3300));
             $envelope = json_decode($output, true);
@@ -411,31 +412,72 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
                 $region['text'] = ($text = trim((string) $text)) !== '' ? $text : null;
             }
             $text = (string) ($region['text'] ?? '');
-            if ($text === '') {
-                continue;
-            }
-            if (preg_match('/[\x{AC00}-\x{D7AF}]/u', $text)) {
-                $region['script'] = 'Hang';
-                $region['detected_locale'] = in_array('ko', $locales, true) ? 'ko' : null;
-            } elseif (preg_match('/[\x{3040}-\x{30FF}]/u', $text)) {
-                $region['script'] = 'Jpan';
-                $region['detected_locale'] = in_array('ja', $locales, true) ? 'ja' : null;
-            } elseif (preg_match('/[\x{4E00}-\x{9FFF}]/u', $text)) {
-                $region['script'] = 'Hani';
-                $region['detected_locale'] = collect($locales)->first(fn (string $locale): bool => str_starts_with($locale, 'zh'));
-            } elseif (preg_match('/\p{Latin}/u', $text)) {
-                $region['script'] = 'Latn';
-                if (in_array('vi', $locales, true) && preg_match('/[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/iu', $text)) {
-                    $region['detected_locale'] = 'vi';
-                } elseif ($locales === ['en']) {
-                    $region['detected_locale'] = 'en';
-                }
-            }
+            $region['languages'] = $text === '' ? [] : $this->observedLanguages($text, $locales);
+            $region['detected_locale'] = $region['languages'][0]['locale'] ?? null;
+            $region['script'] = $region['languages'][0]['script'] ?? null;
             $region['char_count'] = $region['text'] === null ? null : mb_strlen($region['text']);
         }
         unset($region);
 
         return $regions;
+    }
+
+    /**
+     * Dem ky tu theo tung chu viet quan sat duoc, khong dung if/elseif chon mot
+     * cai thang. ADR-0019 v1.8: vung song ngu giu du bang chung, va gia tri
+     * dominant chi la row dau tien sau khi xep theo so ky tu.
+     *
+     * Pham vi Hangul gom ca Jamo doc lap. Mot cau tieng Viet trich dan `ㅂ`,
+     * `ㄷ`, `ㄹ` la bang chung cua hai chu viet; regex chi bat syllable se doc
+     * no thanh tieng Viet thuan va lam mat han phan tieng Han.
+     *
+     * `char_count` la phep dem, KHONG phai confidence. Provider khong tra diem
+     * tin cay cho language signal va Media khong duoc tu tao ra mot diem so.
+     *
+     * @param  array<int, string>  $locales
+     * @return array<int, array<string, mixed>>
+     */
+    private function observedLanguages(string $text, array $locales): array
+    {
+        $patterns = [
+            'Hang' => '/[\x{1100}-\x{11FF}\x{3130}-\x{318F}\x{A960}-\x{A97F}\x{AC00}-\x{D7A3}\x{D7B0}-\x{D7FF}]/u',
+            'Jpan' => '/[\x{3040}-\x{30FF}]/u',
+            'Hani' => '/[\x{4E00}-\x{9FFF}]/u',
+            'Latn' => '/\p{Latin}/u',
+        ];
+
+        $observed = [];
+        foreach ($patterns as $script => $pattern) {
+            $count = preg_match_all($pattern, $text);
+            if ($count > 0) {
+                $observed[] = ['script' => $script, 'locale' => $this->localeForScript($script, $text, $locales), 'char_count' => $count];
+            }
+        }
+
+        usort($observed, static fn (array $a, array $b): int => $b['char_count'] <=> $a['char_count'] ?: strcmp($a['script'], $b['script']));
+
+        return $observed;
+    }
+
+    /**
+     * Locale chi duoc gan khi profile cua job co no. Chu viet quan sat duoc
+     * nhung khong co locale tuong ung van la bang chung co ten: script co gia
+     * tri, locale NULL. Khong suy nguoc profile tu quan sat.
+     *
+     * @param  array<int, string>  $locales
+     */
+    private function localeForScript(string $script, string $text, array $locales): ?string
+    {
+        return match ($script) {
+            'Hang' => in_array('ko', $locales, true) ? 'ko' : null,
+            'Jpan' => in_array('ja', $locales, true) ? 'ja' : null,
+            'Hani' => collect($locales)->first(fn (string $locale): bool => str_starts_with($locale, 'zh')),
+            'Latn' => in_array('vi', $locales, true)
+                && preg_match('/[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/iu', $text)
+                    ? 'vi'
+                    : ($locales === ['en'] ? 'en' : null),
+            default => null,
+        };
     }
 
     /**

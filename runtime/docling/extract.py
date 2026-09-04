@@ -8,8 +8,9 @@ import json
 import os
 import pathlib
 import re
+import subprocess
 import sys
-import unicodedata
+import xml.etree.ElementTree as ET
 
 RESULT_PATH: pathlib.Path | None = None
 COMPLETED_PAGES = 0
@@ -34,7 +35,6 @@ ROLE_MAP = {
 }
 
 CONTROL_CHARACTERS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
-VIETNAMESE_MARKERS = set("ăâđêôơưĂÂĐÊÔƠƯ")
 MATH_OPERATORS = set("=<>±√∑Σ∫∆Δ∩∪∈∉⊂⊆∞≈≠≤≥×÷²³⁰¹⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉")
 
 
@@ -43,6 +43,74 @@ def clean_text(value: object) -> str | None:
         return None
     text = CONTROL_CHARACTERS.sub("", str(value)).strip()
     return text or None
+
+
+def poppler_region_text(source: pathlib.Path, regions: list[dict[str, object]], binary: str = "pdftotext") -> None:
+    """Replace Docling's fragmented PDF text with Poppler text in the same bbox.
+
+    Some embedded Vietnamese fonts are decoded by Docling as ``nhi ệ t`` while
+    Poppler reads the same glyphs as ``nhiệt``.  Geometry remains owned by
+    Docling; this function changes text only when words whose centres fall in
+    that exact region can be recovered.  Failure is optional because layout
+    extraction must still work on deployments without Poppler.
+    """
+    try:
+        result = subprocess.run(
+            [binary, "-bbox-layout", str(source), "-"],
+            check=True,
+            capture_output=True,
+            timeout=300,
+        )
+        root = ET.fromstring(result.stdout)
+    except (OSError, subprocess.SubprocessError, ET.ParseError):
+        return
+
+    pages: dict[int, list[list[tuple[float, float, str]]]] = {}
+    page_number = 0
+    for page in (node for node in root.iter() if node.tag.endswith("page")):
+        page_number += 1
+        width = float(page.attrib.get("width", 0) or 0)
+        height = float(page.attrib.get("height", 0) or 0)
+        if width <= 0 or height <= 0:
+            continue
+        lines: list[list[tuple[float, float, str]]] = []
+        for line in (node for node in page.iter() if node.tag.endswith("line")):
+            words: list[tuple[float, float, str]] = []
+            for word in (node for node in line if node.tag.endswith("word")):
+                text = clean_text(word.text)
+                if text is None:
+                    continue
+                x_min = float(word.attrib.get("xMin", 0) or 0)
+                x_max = float(word.attrib.get("xMax", 0) or 0)
+                y_min = float(word.attrib.get("yMin", 0) or 0)
+                y_max = float(word.attrib.get("yMax", 0) or 0)
+                words.append((((x_min + x_max) / 2) / width, ((y_min + y_max) / 2) / height, text))
+            if words:
+                lines.append(words)
+        pages[page_number] = lines
+
+    excluded_roles = {"image", "chart", "diagram", "geometry", "table"}
+    for region in regions:
+        bbox = region.get("bbox")
+        if not isinstance(bbox, dict) or region.get("role") in excluded_roles:
+            continue
+        lines = pages.get(int(region.get("page", 0) or 0), [])
+        left = float(bbox["x"])
+        top = float(bbox["y"])
+        right = left + float(bbox["width"])
+        bottom = top + float(bbox["height"])
+        recovered: list[str] = []
+        for line in lines:
+            selected = [text for x, y, text in line if left <= x <= right and top <= y <= bottom]
+            if selected:
+                recovered.append(" ".join(selected))
+        text = clean_text("\n".join(recovered))
+        if text is None:
+            continue
+        region["text"] = text
+        region["metadata"]["text_source"] = "poppler_bbox"
+        if region.get("role") == "formula" and isinstance(region.get("formula"), dict):
+            region["formula"]["raw_text"] = text
 
 
 def confidence_for(item: object, prov: object) -> float | None:
@@ -59,29 +127,10 @@ def confidence_for(item: object, prov: object) -> float | None:
     return None
 
 
-def language_signals(text: str | None, requested: list[str]) -> tuple[str | None, str | None]:
-    if not text:
-        return None, None
-    letters = [char for char in text if char.isalpha()]
-    if not letters:
-        return None, None
-    if any("\uac00" <= char <= "\ud7af" for char in letters):
-        return ("ko" if "ko" in requested else None), "Hang"
-    if any("\u4e00" <= char <= "\u9fff" for char in letters):
-        return next((locale for locale in requested if locale.startswith(("zh", "ja"))), None), "Hani"
-    if any("\u3040" <= char <= "\u30ff" for char in letters):
-        return ("ja" if "ja" in requested else None), "Jpan"
-    if all("LATIN" in unicodedata.name(char, "") for char in letters):
-        normalized = unicodedata.normalize("NFD", text)
-        has_vietnamese_tone = any(char in VIETNAMESE_MARKERS for char in text) or any(
-            char in "\u0300\u0301\u0303\u0309\u0323" for char in normalized
-        )
-        if has_vietnamese_tone and "vi" in requested:
-            return "vi", "Latn"
-        return ("en" if requested == ["en"] else None), "Latn"
-    return None, None
-
-
+# Language evidence lives in the PHP provider (`enrichRegionSignals`), which is
+# the only place that resolves an observed script against the job profile. This
+# script used to compute it too and was always overwritten, so two rules drifted
+# apart for the same field. Layout extraction stays here; language does not.
 def looks_like_formula(text: str | None) -> bool:
     """Promote only formula-dominant blocks; prose containing math stays prose."""
     if not text:
@@ -152,7 +201,16 @@ def table_cells(item: object, document: object) -> tuple[int, int, list[dict[str
     return rows, columns, cells
 
 
-def convert(source: pathlib.Path, locales: str, artifacts: pathlib.Path, max_pages: int) -> dict[str, object]:
+def table_has_header(cells: list[dict[str, object]]) -> bool:
+    """Observed, never assumed: a header exists only when a cell reports one.
+
+    `has_header` is documented as a shape observation, so it must agree with the
+    per-cell `is_header` flags that travel in the same payload.
+    """
+    return any(bool(cell["is_header"]) for cell in cells)
+
+
+def convert(source: pathlib.Path, locales: str, artifacts: pathlib.Path, max_pages: int, pdftotext: str = "pdftotext") -> dict[str, object]:
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
     os.environ["DOCLING_SERVE_ENABLE_REMOTE_SERVICES"] = "false"
@@ -209,9 +267,18 @@ def convert(source: pathlib.Path, locales: str, artifacts: pathlib.Path, max_pag
         label = str(getattr(getattr(item, "label", None), "value", getattr(item, "label", "other")))
         role = ROLE_MAP.get(label, "other")
         text = clean_text(getattr(item, "text", None))
+        bbox = bbox_for(prov, document)
         if role in {"paragraph", "other"} and looks_like_formula(text):
             role = "formula"
-        detected_locale, script = language_signals(text, requested)
+        metadata: dict[str, object] = {"docling_label": label}
+        # Formula evidence is a child of a region that carries bbox and crop
+        # (media_extracted_formulas.md). A block whose geometry Docling cannot
+        # report can never satisfy that, and persistence rejects the whole
+        # revision when it sees one. Keep the block as ordinary text instead and
+        # record why, so one unmeasurable equation cannot cost the document.
+        if role == "formula" and bbox is None:
+            role = "paragraph" if text else "other"
+            metadata["formula_demoted"] = "missing_bbox"
         region = {
             "locator_value": f"{page}#{ordinal}",
             "page": page,
@@ -219,12 +286,10 @@ def convert(source: pathlib.Path, locales: str, artifacts: pathlib.Path, max_pag
             "reading_order": len(regions) + 1,
             "role": role,
             "text": None if role in {"image", "chart", "diagram", "geometry"} else text,
-            "bbox": bbox_for(prov, document),
-            "detected_locale": detected_locale,
-            "script": script,
+            "bbox": bbox,
             "confidence_score": confidence_for(item, prov),
             "extraction_method": "ocr" if "ocr" in str(getattr(prov, "charspan", "")).lower() else "embedded_text",
-            "metadata": {"docling_label": label},
+            "metadata": metadata,
         }
         if role == "formula":
             raw = text
@@ -247,10 +312,11 @@ def convert(source: pathlib.Path, locales: str, artifacts: pathlib.Path, max_pag
                     "sequence": len(tables) + 1,
                     "row_count": rows,
                     "column_count": columns,
-                    "has_header": True,
+                    "has_header": table_has_header(cells),
                     "extraction_method": "embedded_text",
                     "cells": cells,
                 })
+    poppler_region_text(source, regions, pdftotext)
     return {"status": "ready", "regions": regions, "tables": tables, "page_count": len(document.pages)}
 
 
@@ -261,11 +327,12 @@ def main() -> None:
     parser.add_argument("--locales", required=True)
     parser.add_argument("--artifacts", required=True)
     parser.add_argument("--max-pages", type=int, default=100)
+    parser.add_argument("--pdftotext", default="pdftotext")
     parser.add_argument("--output")
     parser.add_argument("--summary", action="store_true")
     args = parser.parse_args()
     RESULT_PATH = pathlib.Path(args.output) if args.output else None
-    result = convert(pathlib.Path(args.source), args.locales, pathlib.Path(args.artifacts), args.max_pages)
+    result = convert(pathlib.Path(args.source), args.locales, pathlib.Path(args.artifacts), args.max_pages, args.pdftotext)
     if args.summary:
         roles: dict[str, int] = {}
         pages: dict[str, int] = {}

@@ -652,6 +652,28 @@ class MediaProcessingSubstrateTest extends TestCase
         };
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function doclingFormulaRegions(): array
+    {
+        $evidence = static fn (?string $raw): array => [
+            'raw_text' => $raw, 'normalized_format' => null, 'normalized_value' => null,
+            'normalization_status' => 'unavailable', 'confidence_score' => null,
+        ];
+
+        return [
+            ['page' => 1, 'ordinal' => 1, 'reading_order' => 1, 'locator_value' => '1#1',
+                'role' => 'formula', 'bbox' => ['x' => 0.1, 'y' => 0.1, 'width' => 0.4, 'height' => 0.3],
+                'text' => 'x^2 + y^2 = z^2', 'extraction_method' => 'embedded_text',
+                'metadata' => ['docling_label' => 'formula'], 'formula' => $evidence('x^2 + y^2 = z^2')],
+            ['page' => 1, 'ordinal' => 2, 'reading_order' => 2, 'locator_value' => '1#2',
+                'role' => 'formula', 'bbox' => ['x' => 0.1, 'y' => 0.5, 'width' => 0.4, 'height' => 0.2],
+                'text' => null, 'extraction_method' => 'embedded_text',
+                'metadata' => ['docling_label' => 'formula'], 'formula' => $evidence(null)],
+        ];
+    }
+
     private function doclingFigureRegion(): array
     {
         return [[
@@ -661,14 +683,14 @@ class MediaProcessingSubstrateTest extends TestCase
         ]];
     }
 
-    private function doclingProcess(DocumentProcessRunner $runner, string $key, string $locale = 'vi'): array
+    private function doclingProcess(DocumentProcessRunner $runner, string $key, string $locale = 'vi', ?string $profile = null): array
     {
         Storage::disk('media_local')->put($key, 'pdf');
 
         return (new DoclingStructuredExtractionProvider($runner))->process(
             (object) ['id' => 7, 'customer_id' => 3, 'file_type' => 'document', 'extension' => 'pdf',
                 'storage_disk' => 'media_local', 'storage_key' => $key],
-            (object) ['job_type' => 'structured_extraction', 'output_profile' => 'locale='.$locale.';structure=layout',
+            (object) ['job_type' => 'structured_extraction', 'output_profile' => $profile ?? 'locale='.$locale.';structure=layout',
                 'source_fingerprint' => str_repeat('a', 64), 'processing_version' => 'docling-test-v1'],
         );
     }
@@ -707,6 +729,57 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertSame('vi', $result['regions'][0]['detected_locale']);
         $this->assertSame('Latn', $result['regions'][0]['script']);
         $this->assertSame(97.25, $result['regions'][0]['confidence_score']);
+    }
+
+    /**
+     * ADR-0019 v1.8. Do tren tai lieu that: 263 region chua dong thoi Hangul va
+     * tieng Viet, tat ca bi ghi la `ko` va phan tieng Viet bien mat. Chuoi
+     * if/elseif cu chi giu duoc chu viet khop truoc.
+     */
+    public function test_docling_provider_records_every_observed_script_in_a_bilingual_region(): void
+    {
+        $this->doclingConfig(['media.processing.structured_extraction.crop_enabled' => false]);
+        $regions = [[
+            'page' => 1, 'ordinal' => 1, 'reading_order' => 1, 'locator_value' => '1#1',
+            'role' => 'paragraph', 'text' => '비상한국어 - Tiếng Hàn ứng dụng học nhanh',
+            'extraction_method' => 'embedded_text',
+        ]];
+        $result = $this->doclingProcess(
+            $this->doclingRunner(sys_get_temp_dir().'/unused.json', $regions),
+            'docling-bilingual.pdf', 'vi', 'locales=ko,vi;structure=layout',
+        );
+
+        $languages = $result['regions'][0]['languages'];
+        $this->assertSame(['Latn', 'Hang'], array_column($languages, 'script'));
+        $this->assertSame(['vi', 'ko'], array_column($languages, 'locale'));
+        $this->assertSame(5, $languages[1]['char_count']);
+        $this->assertSame('Latn', $result['regions'][0]['script']);
+        $this->assertSame('vi', $result['regions'][0]['detected_locale']);
+    }
+
+    /**
+     * Jamo doc lap (`ㅂ`, `ㄹ`) nam ngoai dai syllable U+AC00-U+D7A3. Regex cu
+     * chi bat syllable nen 5 region kieu nay trong tai lieu that duoc doc thanh
+     * tieng Viet thuan va mat han bang chung tieng Han.
+     */
+    public function test_docling_provider_reads_standalone_hangul_jamo_as_korean_evidence(): void
+    {
+        $this->doclingConfig(['media.processing.structured_extraction.crop_enabled' => false]);
+        $regions = [[
+            'page' => 1, 'ordinal' => 1, 'reading_order' => 1, 'locator_value' => '1#1',
+            'role' => 'paragraph', 'text' => 'Ôn tập về bất quy tắc của ㅂ và giản lược ㄹ',
+            'extraction_method' => 'embedded_text',
+        ]];
+        $result = $this->doclingProcess(
+            $this->doclingRunner(sys_get_temp_dir().'/unused.json', $regions),
+            'docling-jamo.pdf', 'vi', 'locales=ko,vi;structure=layout',
+        );
+
+        $languages = collect($result['regions'][0]['languages'])->keyBy('script');
+        $this->assertTrue($languages->has('Hang'), 'Jamo doc lap phai duoc ghi nhan la bang chung tieng Han.');
+        $this->assertSame(2, $languages['Hang']['char_count']);
+        $this->assertSame('ko', $languages['Hang']['locale']);
+        $this->assertSame('Latn', $result['regions'][0]['script']);
     }
 
     public function test_docling_provider_renders_region_crop_and_keys_it_by_full_revision_identity(): void
@@ -1356,7 +1429,9 @@ class MediaProcessingSubstrateTest extends TestCase
             'pages_with_regions' => 1,
             'pages_text_without_structure' => [],
         ], json_decode($structuredJob->metadata, true)['structure_coverage']);
-        $this->assertSame(3, DB::table('media_extracted_regions')->where('media_file_id', $media->id)->count());
+        // heading, paragraph, formula co toan tu, formula khong co toan tu:
+        // vung thu tu van duoc giu du no khong sinh evidence child.
+        $this->assertSame(4, DB::table('media_extracted_regions')->where('media_file_id', $media->id)->count());
 
         $authorizer = Mockery::mock(CourseMediaOwnerContextAuthorizer::class);
         $authorizer->shouldReceive('authorized')->andReturnTrue();
@@ -1560,6 +1635,32 @@ class MediaProcessingSubstrateTest extends TestCase
             'media_file_id' => $usage->media_file_id,
             'job_type' => 'structured_extraction',
             'output_profile' => 'locale=vi;structure=layout',
+        ]);
+    }
+
+    public function test_http_multilingual_document_preserves_full_profile_when_enqueuing_structured_job(): void
+    {
+        config([
+            'media.processing.providers.structured_extraction' => 'fake',
+            'media.processing.versions.structured_extraction' => 'fake-structured-multilingual-v1',
+        ]);
+        [$templateId, $lessonId] = $this->courseFixture();
+
+        $this->actingAs($this->admin)->post(
+            $this->activityUrl($templateId, $lessonId),
+            $this->documentActivityPayload([
+                'processing_locale' => null,
+                'processing_locales' => ['vi', 'ko'],
+                'structured_extraction' => '1',
+            ]),
+        )->assertRedirect()->assertSessionHasNoErrors();
+
+        $usage = DB::table('media_file_usages')->where('owner_type', 'course_activity')->latest('id')->firstOrFail();
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $usage->media_file_id,
+            'job_type' => 'structured_extraction',
+            'output_profile' => 'locales=ko,vi;structure=layout',
+            'status' => 'ready',
         ]);
     }
 

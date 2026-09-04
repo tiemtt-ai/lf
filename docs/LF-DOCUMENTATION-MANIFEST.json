@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-09-03",
+  "generated_or_updated_at": "2026-09-04",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 250,
+  "document_count": 251,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -6027,6 +6027,47 @@
       ],
       "related_documents": [
         "database/media/README.md",
+        "adr/ADR-0019-Media-Structured-Extraction-Boundary.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/media/media_region_languages.md",
+      "title": "Table: media_region_languages",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [
+        "media_region_languages"
+      ],
+      "topics": [
+        "media",
+        "document",
+        "language evidence",
+        "region"
+      ],
+      "keywords": {
+        "vi": [
+          "bằng chứng ngôn ngữ",
+          "vùng song ngữ",
+          "chữ viết quan sát được"
+        ],
+        "en": [
+          "language evidence",
+          "bilingual region",
+          "observed script"
+        ]
+      },
+      "identifiers": [
+        "media_region_languages"
+      ],
+      "related_documents": [
+        "database/media/README.md",
+        "database/media/media_extracted_regions.md",
         "adr/ADR-0019-Media-Structured-Extraction-Boundary.md"
       ],
       "superseded_by": null,

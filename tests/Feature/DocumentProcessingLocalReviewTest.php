@@ -5,11 +5,13 @@ namespace Tests\Feature;
 use App\Exceptions\MediaReadException;
 use App\Jobs\ProcessMediaProcessingJob;
 use App\Models\User;
+use App\Services\DocumentProcessRunner;
 use App\Services\LocalDocumentProcessingProvider;
 use App\Services\MediaProcessingOrchestrator;
 use App\Services\MediaReadService;
 use App\Services\MediaService;
 use App\Services\RegionCropStorage;
+use App\Services\StructuredExtractionPersistenceService;
 use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -477,6 +479,12 @@ class DocumentProcessingLocalReviewTest extends TestCase
             $this->assertStringContainsString($value, $text);
         }
         $this->assertTrue($cells->contains(fn ($cell) => (int) $cell->column_span > 1), 'Merged heading must survive.');
+        foreach ($tables as $table) {
+            $observed = $cells->contains(fn ($cell) => (int) $cell->extracted_table_id === (int) $table->id
+                && (int) $cell->is_header === 1);
+            $this->assertSame($observed, (bool) $table->has_header,
+                'has_header phai khop voi cell tieu de that cua chinh bang do.');
+        }
         $units = app(MediaReadService::class)->read($this->admin->id, 'course_activity', $this->activityId, 'document', 'region', 'vi');
         $this->assertNotEmpty($units);
         $this->assertDatabaseHas('media_extracted_regions', ['processing_job_id' => $job->id, 'page' => 2, 'role' => 'image']);
@@ -484,6 +492,34 @@ class DocumentProcessingLocalReviewTest extends TestCase
         foreach (['Q1 10', 'Q2 20', 'INPUT', 'OUTPUT'] as $label) {
             $this->assertStringContainsString($label, $canonical);
         }
+    }
+
+    /**
+     * `media_extracted_tables.md` dinh nghia `has_header` la quan sat ve hinh
+     * dang, nen no phai suy ra tu chinh cell cua bang do. extract.py truoc day
+     * hardcode `True`, khien mot bang khong co cell tieu de nao van tu khai la
+     * co — mau thuan voi `is_header` di cung trong cung payload.
+     */
+    public function test_docling_table_header_is_derived_from_observed_cells(): void
+    {
+        $python = (string) config('media.processing.docling.python_binary');
+        if (! is_executable($python)) {
+            $this->markTestSkipped('Optional offline Docling runtime is not installed.');
+        }
+
+        $code = 'import json,sys; sys.path.insert(0, sys.argv[1]); import extract; '
+            ."print(json.dumps({'mixed': extract.table_has_header([{'is_header': False}, {'is_header': True}]), "
+            ."'none': extract.table_has_header([{'is_header': False}, {'is_header': False}]), "
+            ."'empty': extract.table_has_header([])}))";
+
+        $observed = json_decode(
+            app(DocumentProcessRunner::class)->run([$python, '-c', $code, base_path('runtime/docling')], 30),
+            true, 512, JSON_THROW_ON_ERROR,
+        );
+
+        $this->assertTrue($observed['mixed']);
+        $this->assertFalse($observed['none'], 'Bang khong co cell tieu de khong duoc tu khai has_header.');
+        $this->assertFalse($observed['empty']);
     }
 
     public function test_detach_before_claim_cancels_without_provider_work(): void
@@ -728,10 +764,96 @@ class DocumentProcessingLocalReviewTest extends TestCase
             $this->admin->id, 'course_activity', $this->activityId, 'document', 'formula',
             null, null, null, 'test', [], null, false, ['vi']
         );
-        $this->assertSame('x^2 + H2O', $units[0]['text']);
+        $this->assertSame('x^2 + H2O = 0', $units[0]['text']);
         $this->assertSame('failed', $units[0]['structure']['normalization_status']);
         $this->assertNotNull($units[0]['structure']['bbox']);
         $this->assertNotNull($units[0]['structure']['crop']);
+    }
+
+    /**
+     * ADR-0019 v1.8. Do tren tai lieu that (`tieng-han-so-cap-2-100.pdf`): ca 5
+     * row formula deu do Docling gan label `formula`, va ca 5 deu la mau bien
+     * doi ngu phap tieng Han hoac nhieu OCR. Region van phai giu role va van
+     * doc duoc; chi evidence child bi tu choi, va viec tu choi khong duoc lam
+     * hong revision.
+     */
+    public function test_formula_without_an_observed_operator_keeps_the_region_and_the_revision(): void
+    {
+        config(['media.processing.providers.structured_extraction' => 'fake']);
+        $media = $this->upload(null, 'Formula source text');
+        $this->attach($media);
+        app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
+            $this->customerId, $media->id, 'structured_extraction',
+            ['locales' => ['vi'], 'structure' => 'layout'], $this->admin->id
+        );
+
+        $job = DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+            ->where('job_type', 'structured_extraction')->firstOrFail();
+        $this->assertSame('ready', $job->status, (string) $job->error_code);
+
+        $regions = DB::table('media_extracted_regions')->where('processing_job_id', $job->id)
+            ->where('role', 'formula')->orderBy('reading_order')->get();
+        $this->assertCount(2, $regions, 'Ca hai formula region phai duoc giu.');
+        $this->assertSame('가고 있다 가다', $regions[1]->text);
+
+        $formulas = DB::table('media_extracted_formulas')->where('processing_job_id', $job->id)->get();
+        $this->assertCount(1, $formulas, 'Chi formula co toan tu quan sat duoc moi sinh evidence child.');
+        $this->assertSame($regions[0]->id, (int) $formulas[0]->region_id);
+    }
+
+    public function test_formula_evidence_rejects_long_prose_with_an_operator(): void
+    {
+        $method = new \ReflectionMethod(StructuredExtractionPersistenceService::class, 'formulaEvidenceQualifies');
+        $service = app(StructuredExtractionPersistenceService::class);
+        $region = [
+            'bbox' => ['x' => 0.1, 'y' => 0.1, 'width' => 0.5, 'height' => 0.2],
+            'crop' => ['storage_key' => 'formula.png'],
+            'formula' => ['raw_text' => 'Q = '.implode(' ', array_fill(0, 25, 'đoạn văn'))],
+        ];
+
+        $this->assertFalse($method->invoke($service, $region));
+        $region['formula']['raw_text'] = 'Q = mc∆t';
+        $this->assertTrue($method->invoke($service, $region));
+    }
+
+    /**
+     * Bang chung ngon ngu phai di xuong toi bang con, khong dung lai o hai cot
+     * dominant tren region.
+     */
+    public function test_region_language_evidence_is_persisted_and_read_back(): void
+    {
+        config(['media.processing.providers.structured_extraction' => 'fake']);
+        $media = $this->upload(null, 'Formula source text');
+        $this->attach($media);
+        app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
+            $this->customerId, $media->id, 'structured_extraction',
+            ['locales' => ['vi'], 'structure' => 'layout'], $this->admin->id
+        );
+
+        $region = DB::table('media_extracted_regions')->where('media_file_id', $media->id)
+            ->where('role', 'paragraph')->firstOrFail();
+        $this->assertDatabaseHas('media_region_languages', [
+            'region_id' => $region->id, 'ordinal' => 1, 'script' => 'Latn', 'locale' => 'vi', 'char_count' => 13,
+        ]);
+        $this->assertSame('Latn', $region->script);
+        $this->assertSame('vi', $region->detected_locale);
+
+        // Mot lan doc region tra ve toan bo vung cua revision — 1.949 vung tren
+        // tai lieu that. Bang con phai duoc nap mot lan, khong phai mot query
+        // moi vung.
+        $languageQueries = 0;
+        DB::listen(function ($query) use (&$languageQueries): void {
+            if (str_contains($query->sql, 'media_region_languages')) {
+                $languageQueries++;
+            }
+        });
+        $units = app(MediaReadService::class)->read(
+            $this->admin->id, 'course_activity', $this->activityId, 'document', 'region',
+            null, null, null, 'test', [], null, false, ['vi']
+        );
+        $this->assertSame(1, $languageQueries, 'Bang con phai duoc nap bang dung mot query cho ca revision.');
+        $paragraph = collect($units)->firstWhere(fn (array $unit): bool => $unit['structure']['role'] === 'paragraph');
+        $this->assertSame([['script' => 'Latn', 'locale' => 'vi', 'char_count' => 13]], $paragraph['structure']['languages']);
     }
 
     public function test_d3_missing_and_stale_canonical_never_publish_structure(): void

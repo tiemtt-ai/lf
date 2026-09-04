@@ -1,6 +1,6 @@
 # ADR-0019 — Media Structured Extraction Boundary
 
-Version: 1.7
+Version: 1.8
 
 Status: Approved
 
@@ -8,7 +8,7 @@ Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-03
+Last Updated: 2026-09-04
 
 Proposal Date: 2026-08-25
 
@@ -30,6 +30,58 @@ Related Specification:
 * [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md)
 * [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md)
 * [media_extracted_texts](../database/media/media_extracted_texts.md)
+
+---
+
+## Amendment v1.8 — Region language evidence and formula evidence threshold — Approved 2026-09-04
+
+Nguồn: independent review ngày 2026-09-04 trên một tài liệu thật (sách dạy tiếng
+Hàn 100 trang, profile `ko,vi`). Hai phát hiện có evidence, hai quyết định.
+
+**Region language evidence trở thành đa trị.** v1.7 cho region đúng một
+`detected_locale` và một `script`. Đo trên tài liệu thật: 263 region chứa đồng
+thời Hangul và tiếng Việt, tất cả bị ghi là `ko` và phần tiếng Việt biến mất
+khỏi evidence. Từ v1.8, mọi script quan sát được trong region đều được ghi vào
+`media_region_languages`, một row một script, xếp theo số ký tự giảm dần. Hai
+cột cũ trên region giữ nguyên ngữ nghĩa và bằng row `ordinal = 1`, nên consumer
+hiện tại không phải đổi.
+
+`char_count` trên row là phép đếm ký tự quan sát được. Nó **không** phải
+confidence và không được dùng để suy ra confidence. Provider không trả điểm tin
+cậy cho language signal, và Media không tự tạo ra một điểm số.
+
+Phạm vi nhận diện Hangul gồm cả Jamo độc lập — U+1100–U+11FF, U+3130–U+318F,
+U+A960–U+A97F, U+D7B0–U+D7FF — chứ không chỉ syllable U+AC00–U+D7A3. Một câu
+tiếng Việt trích dẫn `ㅂ`, `ㄷ`, `ㄹ` là bằng chứng của hai chữ viết, không phải
+của một.
+
+**Formula evidence cần ít nhất một toán tử quan sát được.** Provider trả label
+`formula` không đủ để tạo row `media_extracted_formulas`. Đo trên cùng tài liệu:
+cả 5 row formula đều do Docling gán label, và cả 5 đều là mẫu biến đổi ngữ pháp
+tiếng Hàn hoặc nhiễu OCR, không phải công thức. Từ v1.8, row formula chỉ được
+tạo khi `raw_text` chứa ít nhất một ký tự toán học quan sát được. Đây là phép
+đếm ký tự, không phải phán đoán nội dung: Media không kết luận công thức đúng
+hay sai, và ranh giới với ADR-0020 không đổi.
+
+Region **giữ** `role = formula` theo quan sát của provider. Chỉ evidence child
+bị từ chối. Vùng vẫn đọc được qua `content_type = region` cùng page, locator,
+bbox và crop, nên không mất dấu vết quan sát nào.
+
+Kết quả đo được của ngưỡng này, ghi lại để không ai hiểu nhầm là nó dọn sạch:
+trên `tieng-han-so-cap-2-100.pdf` nó loại **4 trong 5** row, và trên
+`de_cuong_toan_lop_10.pdf` (toán tiếng Việt) nó giữ **12/12**. Row còn sót là
+`+ -아/어 보다 = 가 보다 …` — một mẫu ngữ pháp có chứa `=`, nên nó vượt ngưỡng theo
+đúng định nghĩa. Đây là **residual đã biết**, không phải implementation lệch
+quyết định: siết thêm đòi hỏi một rule dựa trên nội dung hoặc ngôn ngữ, tức một
+quyết định Owner mới, và phải cân với rủi ro false negative cho tài liệu toán
+viết bằng tiếng Hàn — rủi ro chưa đo được vì corpus hiện tại không có tài liệu
+loại đó.
+
+Language evidence **không backfill** cho revision cũ. Quan hệ "hai cột dominant
+bằng row `ordinal = 1`" chỉ áp dụng cho revision sinh ra từ v1.8; revision trước
+đó giữ hai cột dominant và có `languages` rỗng. Suy ngược `char_count` từ hai cột
+đó là phỏng đoán, và ghi phỏng đoán vào chỗ contract gọi là bằng chứng thì tệ
+hơn là để trống — cùng nguyên tắc đã áp dụng cho `media_processing_job_locales`.
 
 ---
 

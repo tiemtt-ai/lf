@@ -63,7 +63,22 @@ class StructuredExtractionPersistenceService
         }
 
         foreach ($regions as $index => $region) {
-            if (($region['role'] ?? null) !== 'formula') {
+            foreach (array_values($region['languages'] ?? []) as $ordinal => $language) {
+                DB::table('media_region_languages')->insert([
+                    'customer_id' => $customerId,
+                    'region_id' => $regionIds[$index],
+                    'ordinal' => $ordinal + 1,
+                    'script' => (string) $language['script'],
+                    'locale' => $language['locale'] ?? null,
+                    'char_count' => (int) $language['char_count'],
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            }
+        }
+
+        foreach ($regions as $index => $region) {
+            if (($region['role'] ?? null) !== 'formula' || ! $this->formulaEvidenceQualifies($region)) {
                 continue;
             }
             $formula = $region['formula'] ?? [];
@@ -191,6 +206,44 @@ class StructuredExtractionPersistenceService
         );
     }
 
+    /**
+     * ADR-0019 v1.8. Label `formula` cua provider khong du de tao evidence row.
+     * Do tren tai lieu that: ca 5 row formula deu do Docling gan label, va ca 5
+     * deu la mau bien doi ngu phap tieng Han hoac nhieu OCR — khong phai cong
+     * thuc. Doi it nhat mot toan tu quan sat duoc trong text.
+     *
+     * Day la phep dem ky tu, khong phai phan doan noi dung: Media khong ket luan
+     * cong thuc dung hay sai. Region VAN giu `role = formula` va van doc duoc
+     * cung page/locator/bbox/crop — chi evidence child bi tu choi.
+     *
+     * bbox va crop van la dieu kien bat buoc cua child (media_extracted_formulas).
+     * Thieu chung thi khong tao row, khong phai hong ca revision.
+     *
+     * @param  array<string, mixed>  $region
+     */
+    private function formulaEvidenceQualifies(array $region): bool
+    {
+        if (! is_array($region['formula'] ?? null) || ! is_array($region['bbox'] ?? null) || ($region['crop'] ?? null) === null) {
+            return false;
+        }
+
+        $operators = (string) config('media.processing.document.formula_operators', '');
+        $text = trim((string) ($region['formula']['raw_text'] ?? $region['text'] ?? ''));
+        if ($text === ''
+            || mb_strlen($text) > (int) config('media.processing.document.formula_evidence_max_characters', 180)
+            || preg_match_all('/[^\W\d_]+/u', $text) > (int) config('media.processing.document.formula_evidence_max_words', 24)) {
+            return false;
+        }
+
+        foreach (preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $character) {
+            if (mb_strpos($operators, $character) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** A bad/low-confidence normalization degrades only the formula child. */
     private function normalizeFormulaEvidence(array $region): array
     {
@@ -252,6 +305,24 @@ class StructuredExtractionPersistenceService
                     throw new RuntimeException('structured_extraction_invalid');
                 }
             }
+            $languages = array_values($region['languages'] ?? []);
+            $scripts = array_column($languages, 'script');
+            if (count($languages) > 5 || count(array_unique($scripts)) !== count($scripts)) {
+                throw new RuntimeException('structured_extraction_invalid');
+            }
+            foreach ($languages as $language) {
+                if (! is_string($language['script'] ?? null) || trim($language['script']) === ''
+                    || (int) ($language['char_count'] ?? 0) < 1
+                    || (isset($language['locale']) && ! is_string($language['locale']))) {
+                    throw new RuntimeException('structured_extraction_invalid');
+                }
+            }
+            // Cot dominant tren region phai bang dung phan tu dau cua `languages`,
+            // neu khong consumer doc hai duong se thay hai cau tra loi khac nhau.
+            if (($region['script'] ?? null) !== ($languages[0]['script'] ?? null)
+                || ($region['detected_locale'] ?? null) !== ($languages[0]['locale'] ?? null)) {
+                throw new RuntimeException('structured_extraction_invalid');
+            }
             $crop = $region['crop'] ?? null;
             if ($crop !== null) {
                 $complete = isset($crop['storage_key'], $crop['mime_type'])
@@ -263,11 +334,8 @@ class StructuredExtractionPersistenceService
                 }
                 $cropBytes += (int) $crop['bytes'];
             }
-            if (($region['role'] ?? null) === 'formula') {
-                $formula = $region['formula'] ?? null;
-                if (! is_array($formula) || ! is_array($region['bbox'] ?? null) || $crop === null) {
-                    throw new RuntimeException('structured_extraction_invalid');
-                }
+            if (($region['role'] ?? null) === 'formula' && is_array($region['formula'] ?? null)) {
+                $formula = $region['formula'];
                 $status = $formula['normalization_status'] ?? 'unavailable';
                 $format = $formula['normalized_format'] ?? null;
                 $value = $formula['normalized_value'] ?? null;

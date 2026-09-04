@@ -1,12 +1,12 @@
 # Table: media_extracted_regions
 
-Version: 1.17
+Version: 1.18
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-03
+Last Updated: 2026-09-04
 
 Document Path: database/media/media_extracted_regions.md
 
@@ -28,8 +28,21 @@ Role vocabulary revision mới gồm `heading`, `paragraph`, `list`, `table`,
 
 Hai cột nullable `detected_locale VARCHAR(20)` và `script VARCHAR(20)` chứa
 signal provider. Không chắc chắn lưu NULL; không được dùng để đổi language
-profile. Formula region phải có bbox/crop để đối chiếu và có tối đa một child
-`media_extracted_formulas`, thừa kế toàn bộ revision identity từ region.
+profile. Từ ADR-0019 v1.8 hai cột này là **giá trị dominant**: với revision sinh
+ra từ v1.8 trở đi, chúng bằng đúng row `ordinal = 1` của
+[media_region_languages](media_region_languages.md), nơi lưu mọi chữ viết quan
+sát được trong vùng. Vùng song ngữ giữ đủ bằng chứng ở bảng con; hai cột ở đây
+không đổi ngữ nghĩa với consumer cũ.
+
+Revision có trước v1.8 **không** có row nào ở bảng con và không được backfill —
+xem [media_region_languages](media_region_languages.md) § Revision có trước
+v1.8. Với chúng, hai cột này là bằng chứng ngôn ngữ duy nhất, và quan hệ
+"dominant bằng row `ordinal = 1`" không áp dụng.
+
+Formula region phải có bbox/crop để đối chiếu và có tối đa một child
+`media_extracted_formulas`, thừa kế toàn bộ revision identity từ region. Child
+chỉ được tạo khi `raw_text` chứa ít nhất một toán tử quan sát được (ADR-0019
+v1.8); region không đạt ngưỡng vẫn giữ `role = formula` và vẫn đọc được.
 
 ## Purpose
 

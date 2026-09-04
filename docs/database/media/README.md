@@ -64,6 +64,7 @@ mình.
 | **media_captions** | Tài sản phụ đề có thông tin thời gian |
 | [**media_extracted_texts**](media_extracted_texts.md) | Text trích xuất từ document theo trang hoặc sheet, phục vụ trích dẫn |
 | [**media_extracted_regions**](media_extracted_regions.md) | Vùng quan sát được trên trang: role, hình học, thứ tự đọc |
+| [**media_region_languages**](media_region_languages.md) | Mọi chữ viết quan sát được trong một region; vùng song ngữ giữ đủ bằng chứng |
 | [**media_extracted_tables**](media_extracted_tables.md) | Bảng trích xuất từ document hoặc worksheet |
 | [**media_table_cells**](media_table_cells.md) | Từng ô của một bảng đã trích xuất |
 | [**media_extracted_formulas**](media_extracted_formulas.md) | Evidence công thức gắn với formula region và crop nguồn |

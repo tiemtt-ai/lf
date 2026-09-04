@@ -258,14 +258,31 @@ class MediaReadService
             }
 
             $jobProfiles = [];
-            $units = $rows->map(function ($row) use ($media, $contentType, $asset, $customerId, $includeCrop, &$jobProfiles): array {
+            // Mot lan doc region tra ve toan bo vung cua revision — do tren tai
+            // lieu that la 1.949 vung. Query bang con theo tung vung se thanh
+            // 1.949 round trip cho mot lan doc, nen nap mot lan roi group.
+            $regionLanguages = $contentType !== 'region' ? [] : DB::table('media_region_languages')
+                ->where('customer_id', $customerId)->whereIn('region_id', $rows->pluck('id')->all())
+                ->orderBy('region_id')->orderBy('ordinal')->get()
+                ->groupBy('region_id')
+                ->map(fn ($group): array => $group->map(fn ($language): array => [
+                    'script' => $language->script,
+                    'locale' => $language->locale,
+                    'char_count' => (int) $language->char_count,
+                ])->all())->all();
+            $units = $rows->map(function ($row) use ($media, $contentType, $asset, $customerId, $includeCrop, $regionLanguages, &$jobProfiles): array {
                 $structure = null;
                 $text = $asset ? null : ($row->text ?? null);
                 if ($contentType === 'region') {
                     $structure = [
                         'role' => $row->role,
+                        // Hai truong nay la gia tri dominant, giu nguyen y nghia cu.
+                        // `languages` moi la bang chung day du: mot vung song ngu
+                        // co nhieu hon mot phan tu, va ep no ve mot locale se lam
+                        // mat han phan con lai. ADR-0019 v1.8.
                         'detected_locale' => $row->detected_locale ?? 'undetermined',
                         'script' => $row->script ?? 'undetermined',
+                        'languages' => $regionLanguages[$row->id] ?? [],
                         'reading_order' => (int) $row->reading_order,
                         'bbox' => $row->bbox_x === null ? null : [
                             'x' => (float) $row->bbox_x, 'y' => (float) $row->bbox_y,

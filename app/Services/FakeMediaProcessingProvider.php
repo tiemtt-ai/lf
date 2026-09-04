@@ -36,14 +36,23 @@ class FakeMediaProcessingProvider implements MediaProcessingProvider
                     ['locator_value' => '1#1', 'page' => 1, 'ordinal' => 1, 'reading_order' => 1,
                         'role' => 'heading', 'text' => 'Fake heading', 'extraction_method' => 'embedded_text'],
                     ['locator_value' => '1#2', 'page' => 1, 'ordinal' => 2, 'reading_order' => 2,
-                        'role' => 'paragraph', 'text' => 'Fake paragraph', 'extraction_method' => 'embedded_text'],
+                        'role' => 'paragraph', 'text' => 'Fake paragraph', 'extraction_method' => 'embedded_text',
+                        'detected_locale' => 'vi', 'script' => 'Latn',
+                        'languages' => [['script' => 'Latn', 'locale' => 'vi', 'char_count' => 13]]],
                     ['locator_value' => '1#3', 'page' => 1, 'ordinal' => 3, 'reading_order' => 3,
-                        'role' => 'formula', 'text' => 'x^2 + H2O', 'extraction_method' => 'embedded_text',
+                        'role' => 'formula', 'text' => 'x^2 + H2O = 0', 'extraction_method' => 'embedded_text',
                         'bbox' => ['x' => .1, 'y' => .2, 'width' => .4, 'height' => .1],
                         'crop' => ['storage_key' => 'fake/formula-'.$job->id.'.png', 'mime_type' => 'image/png', 'width' => 400, 'height' => 100, 'bytes' => 512],
-                        'formula' => ['raw_text' => 'x^2 + H2O', 'normalized_format' => 'latex',
+                        'formula' => ['raw_text' => 'x^2 + H2O = 0', 'normalized_format' => 'latex',
                             'normalized_value' => 'x^2 + H_2O', 'normalization_status' => 'ready',
                             'confidence_score' => 20]],
+                    // ADR-0019 v1.8: label `formula` khong kem toan tu quan sat
+                    // duoc thi khong sinh evidence child, va cung khong duoc lam
+                    // hong ca revision.
+                    ['locator_value' => '1#4', 'page' => 1, 'ordinal' => 4, 'reading_order' => 4,
+                        'role' => 'formula', 'text' => '가고 있다 가다', 'extraction_method' => 'embedded_text',
+                        'bbox' => ['x' => .1, 'y' => .4, 'width' => .4, 'height' => .1],
+                        'formula' => ['raw_text' => '가고 있다 가다', 'normalization_status' => 'unavailable']],
                 ]],
             default => throw new \RuntimeException('Unsupported fake capability.'),
         };

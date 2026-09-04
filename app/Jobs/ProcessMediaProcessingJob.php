@@ -470,10 +470,14 @@ class ProcessMediaProcessingJob implements ShouldQueue
             }
             if ($requested && $usages->isNotEmpty()) {
                 $extension = strtolower((string) ($media->extension ?? pathinfo($media->storage_key, PATHINFO_EXTENSION)));
-                DB::afterCommit(function () use ($media, $locale, $extension): void {
+                $languageProfile = app(DocumentLanguageProfile::class)->fromProfile((string) $job->output_profile);
+                DB::afterCommit(function () use ($media, $languageProfile, $extension): void {
                     try {
+                        $parameters = count($languageProfile) === 1
+                            ? ['locale' => $languageProfile[0]]
+                            : ['locales' => $languageProfile];
                         app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile($this->customerId, (int) $media->id, 'structured_extraction',
-                            ['locale' => (string) $locale, 'structure' => in_array($extension, ['xls', 'xlsx'], true) ? 'cells' : 'layout']);
+                            $parameters + ['structure' => in_array($extension, ['xls', 'xlsx'], true) ? 'cells' : 'layout']);
                     } catch (\InvalidArgumentException) {
                         // Detach or canonical supersession between commits: OCR remains ready.
                     }

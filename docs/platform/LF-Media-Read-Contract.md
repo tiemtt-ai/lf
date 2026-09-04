@@ -1,12 +1,12 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.16
+Version: 1.17
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-03
+Last Updated: 2026-09-04
 
 Document Path: platform/LF-Media-Read-Contract.md
 
@@ -20,6 +20,40 @@ Related ADR:
 
 Related Specification:
 [LF-Media-Processing-Contract](LF-Media-Processing-Contract.md)
+
+---
+
+## Region language evidence and formula threshold — Approved 2026-09-04
+
+Region trả thêm `languages`: danh sách mọi chữ viết quan sát được trong vùng đó,
+xếp theo số ký tự giảm dần.
+
+```text
+languages: [ { script, locale, char_count }, ... ]
+```
+
+`script` là ISO 15924 quan sát được. `locale` là locale trong profile ứng với
+script đó, hoặc `null` khi profile không có locale nào tương ứng — `null` ở đây
+là `undetermined`, không phải thiếu dữ liệu. `char_count` là phép đếm ký tự,
+**không** phải confidence; consumer không được quy đổi nó thành điểm tin cậy.
+
+`detected_locale` và `script` ở cấp region giữ nguyên ngữ nghĩa cũ. Với revision
+sinh ra từ v1.8 trở đi, chúng bằng đúng phần tử đầu của `languages`. Consumer
+đang đọc hai trường đó không phải đổi. Vùng song ngữ có nhiều hơn một phần tử;
+vùng không nhận được chữ viết nào trả `languages` rỗng cùng
+`detected_locale = undetermined`.
+
+**Revision có trước v1.8 trả `languages` rỗng** dù `detected_locale` có giá trị.
+Đây không phải mâu thuẫn và cũng không phải thiếu dữ liệu: bằng chứng đa trị
+không tồn tại cho những revision đó và không được backfill bằng phỏng đoán.
+Consumer cần bằng chứng đầy đủ phải đọc một revision từ v1.8 trở đi; consumer
+đọc revision cũ dùng hai cột dominant như trước. Phân biệt bằng
+`processing_version` đi kèm mọi unit.
+
+`content_type = formula` chỉ trả row khi evidence chứa ít nhất một toán tử quan
+sát được trong `raw_text`. Vùng mà provider gán `role = formula` nhưng không đạt
+ngưỡng đó **vẫn đọc được** qua `content_type = region` với đầy đủ page, locator,
+bbox và crop — nó không biến mất, chỉ không được trả như formula evidence.
 
 ---
 
