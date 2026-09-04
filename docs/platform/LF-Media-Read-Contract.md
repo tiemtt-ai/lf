@@ -73,6 +73,14 @@ normalization status, format, value và confidence. `ready` có thể trả
 liệu có tên. Page text và region vẫn đọc được khi normalization thất bại. Media
 Read không diễn giải hoặc xác nhận công thức đúng.
 
+Normalization mới được đọc từ `media_formula_normalizations`, không bằng cách
+mutate formula evidence. Với mỗi formula của structured revision đã chọn,
+service lấy output thuộc normalization job `ready` có `processing_job_id` lớn
+nhất và cùng tenant/media/formula/source job. Retry cũ vẫn bất biến nhưng không
+là mặc định. Explicit structured `processing_version` chỉ ghép output dựng từ
+đúng source job đó. Nếu chưa có output mới, service chỉ fallback snapshot legacy
+trên `media_extracted_formulas` khi snapshot mang status `ready`.
+
 Region trả `detected_locale` và `script` khi có signal đủ tin cậy; NULL được
 biểu diễn là `undetermined`. Mã lỗi bổ sung: `ambiguous_profile`,
 `language_profile_unavailable`.

@@ -21550,6 +21550,18 @@
       "views": []
     },
     {
+      "name": "media_formula_normalizations",
+      "documentation": "database/media/media_formula_normalizations.md",
+      "implementation_status": "not_implemented",
+      "columns": [],
+      "primary_key": [],
+      "indexes": [],
+      "foreign_keys": [],
+      "checks": [],
+      "triggers": [],
+      "views": []
+    },
+    {
       "name": "media_processing_job_locales",
       "documentation": "database/media/media_processing_job_locales.md",
       "implementation_status": "implemented",

@@ -538,3 +538,15 @@ Architecture Team
 * Developer
 * Reviewer
 * AI Agent
+Owner duyệt CodeFormulaV2 làm provider normalization offline. Model sinh LaTeX
+không được tự tạo điểm.
+
+Formula normalization chạy bằng job hậu xử lý riêng `formula_normalization`,
+không chạy inline trong `structured_extraction`. Job chỉ được materialize khi
+structured revision hiện hành có formula evidence đủ bbox/crop; không có formula
+thì không tạo job và không load model. Output bất biến nằm trong
+`media_formula_normalizations`, tham chiếu source structured job và formula row.
+Persist phải từ chối callback muộn/stale. Worker chỉ claim khi có accelerator
+capability được cấu hình; CPU Intel không được phép claim. Queue, retry và
+deadline tách riêng, còn batch/deadline production phải dựa trên benchmark ở
+hardware đích. Owner duyệt các invariant này ngày 2026-09-04.
