@@ -816,21 +816,6 @@ class DocumentProcessingLocalReviewTest extends TestCase
         $this->assertTrue($method->invoke($service, $region));
     }
 
-    public function test_unscored_ready_formula_keeps_provider_latex_without_inventing_confidence(): void
-    {
-        $method = new \ReflectionMethod(StructuredExtractionPersistenceService::class, 'normalizeFormulaEvidence');
-        $region = ['role' => 'formula', 'formula' => [
-            'raw_text' => 'Q = mc∆t', 'normalized_format' => 'latex',
-            'normalized_value' => 'Q = mc\\Delta t', 'normalization_status' => 'ready',
-            'confidence_score' => null,
-        ]];
-
-        $normalized = $method->invoke(app(StructuredExtractionPersistenceService::class), $region);
-        $this->assertSame('ready', $normalized['formula']['normalization_status']);
-        $this->assertSame('Q = mc\\Delta t', $normalized['formula']['normalized_value']);
-        $this->assertNull($normalized['formula']['confidence_score']);
-    }
-
     /**
      * Bang chung ngon ngu phai di xuong toi bang con, khong dung lai o hai cot
      * dominant tren region.

@@ -33,17 +33,6 @@ Related Specification:
 
 ---
 
-## Amendment v1.9 — Unscored formula normalization — Approved 2026-09-04
-
-Owner duyệt CodeFormulaV2 làm provider normalization offline. Model sinh LaTeX
-nhưng không phát confidence/probability; không được bịa một điểm số. Vì vậy
-`normalization_status = ready` yêu cầu format và value, còn
-`confidence_score = NULL` có nghĩa rõ ràng là provider không cung cấp điểm.
-Nếu provider có điểm thì ngưỡng cấu hình vẫn áp dụng; điểm dưới ngưỡng là
-`failed`. Raw evidence, bbox và crop không thay đổi.
-
----
-
 ## Amendment v1.8 — Region language evidence and formula evidence threshold — Approved 2026-09-04
 
 Nguồn: independent review ngày 2026-09-04 trên một tài liệu thật (sách dạy tiếng
