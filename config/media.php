@@ -160,6 +160,10 @@ return [
             // Nguong hieu chuan tren 23 vung OCR co text cua mot tai lieu that:
             // rac tu 20% tro len, noi dung that duoi 10%. Khong phai con so doan.
             'text_symbol_ratio_max' => (float) env('MEDIA_STRUCTURED_TEXT_SYMBOL_RATIO_MAX', 0.2),
+            // Text da quan sat co du chu thi dau cau/ngay thang khong tu no
+            // bien thanh noise. Chi nhanh gan co `low` dung nguong nay; OCR
+            // candidate van fail-closed theo symbol ratio rieng.
+            'text_quality_min_letters' => (int) env('MEDIA_STRUCTURED_TEXT_QUALITY_MIN_LETTERS', 10),
             'crop_ocr_languages' => [
                 'vi' => 'vie', 'en' => 'eng', 'ko' => 'kor', 'ja' => 'jpn',
                 'zh' => 'chi_sim', 'fr' => 'fra', 'de' => 'deu', 'es' => 'spa',

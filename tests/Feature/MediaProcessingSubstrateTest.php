@@ -866,6 +866,19 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertSame('low', $result['regions'][0]['metadata']['text_quality']);
     }
 
+    public function test_legitimate_date_text_is_not_flagged_low_only_because_it_has_punctuation(): void
+    {
+        $this->doclingConfig(['media.processing.structured_extraction.crop_enabled' => false]);
+        $text = '• Thời gian dự án : 2025.12.18 ~ 2028.12.17 (3 năm)';
+        $result = $this->doclingProcess(
+            $this->doclingRunner(sys_get_temp_dir().'/unused.json', $this->doclingTextRegion($text)),
+            'docling-date-negative-control.pdf',
+        );
+
+        $this->assertSame($text, $result['regions'][0]['text']);
+        $this->assertArrayNotHasKey('text_quality', $result['regions'][0]['metadata'] ?? []);
+    }
+
     /**
      * @return array<int, array<string, mixed>>
      */
@@ -1709,6 +1722,13 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertNotSame($baseline, $thresholdChanged);
         $this->assertNotSame($baseline, $packsChanged);
         $this->assertLessThanOrEqual(100, strlen($baseline));
+
+        config([
+            'media.processing.structured_extraction.crop_ocr_languages.vi' => 'vie',
+            'media.processing.structured_extraction.text_quality_min_letters' => 12,
+        ]);
+        $letterControlChanged = $orchestrator->versionFor('structured_extraction', $media, $parameters);
+        $this->assertNotSame($baseline, $letterControlChanged);
     }
 
     public function test_document_upload_with_the_structured_checkbox_adds_the_structured_job(): void

@@ -1,6 +1,6 @@
 # Media Structured Extraction Architecture Review
 
-Version: 3.1
+Version: 3.2
 
 Document Status: Review
 
@@ -14,7 +14,7 @@ Document Path: quality/LF-Media-Structured-Extraction-Architecture-Review.md
 
 ---
 
-# Docling 8 Latin/OCR-quality amendment — PASSED 2026-09-05
+# Docling 8/9 Latin/OCR-quality amendment — PASSED 2026-09-05
 
 Evidence độc lập sửa lại attribution: `docling 8` là Media 45/job 118/profile
 `ko,vi`; job 104/profile `vi`, nơi có 304/1531 `Latn/NULL`, là Media 41 và không
@@ -45,6 +45,13 @@ qua structured crop mapping và được ghi là rủi ro môi trường độc 
 
 **Scoped verdict: PASS WITH DOCUMENTED RISK.** Không migration. Không ảnh hưởng closure
 Audio/Video Phase 1; production/AI retrieval vẫn chịu gate riêng.
+
+Docling 9 verification bổ sung một false-positive: locator `13#31` là câu hợp
+lệ chứa khoảng ngày nhưng bị `low` chỉ vì nhiều dấu. ADR-0019 v1.13 tách hai
+nhánh: OCR candidate vẫn fail-closed theo symbol ratio; text đã quan sát chỉ bị
+gắn `low` khi đồng thời có dưới 10 chữ cái. Regression giữ cả mẫu rác
+`Visanơ @®` và câu ngày tháng thật làm negative control; ngưỡng chữ tham gia
+structured processing identity. **Vá scoped này: PASS sau targeted regression.**
 
 ---
 

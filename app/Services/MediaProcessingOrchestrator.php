@@ -524,8 +524,9 @@ class MediaProcessingOrchestrator
                     ? [
                         'latin_locale' => 'profile-candidates-v1',
                         'text_quality' => [
-                            'algorithm' => 'non-whitespace-symbol-ratio-v1',
+                            'algorithm' => 'observed-symbol-ratio-with-letter-control-v2',
                             'max' => (float) config('media.processing.structured_extraction.text_symbol_ratio_max', 0.2),
+                            'min_letters' => (int) config('media.processing.structured_extraction.text_quality_min_letters', 10),
                         ],
                         'crop_ocr_languages' => (array) config('media.processing.structured_extraction.crop_ocr_languages', []),
                     ]

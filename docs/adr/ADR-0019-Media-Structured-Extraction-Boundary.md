@@ -1,6 +1,6 @@
 # ADR-0019 — Media Structured Extraction Boundary
 
-Version: 1.12
+Version: 1.13
 
 Status: Approved
 
@@ -78,9 +78,10 @@ Threshold phải là config revisioned; thay threshold hoặc cách chuẩn hóa
 * Với OCR candidate: nếu `symbol_ratio >= threshold`, không nhận candidate;
   crop vẫn giữ, text quan sát trước OCR và `extraction_method` vẫn giữ. Chỉ còn
   `text = NULL` khi trước OCR thật sự không có text.
-* Với text đã quan sát từ provider/text layer: không xóa hoặc sửa text. Nếu vượt
-  threshold, ghi `metadata.text_quality = low`; nếu không có cờ thì chất lượng
-  đọc ra là `normal`.
+* Với text đã quan sát từ provider/text layer: không xóa hoặc sửa text. Chỉ ghi
+  `metadata.text_quality = low` khi vừa vượt threshold vừa có dưới 10 chữ cái;
+  nếu không có cờ thì chất lượng đọc ra là `normal`. Negative control này ngăn
+  câu hợp lệ có ngày tháng/dấu câu bị hạ cấp (Docling 9, locator `13#31`).
 * `low` không phải `failed`, confidence hay quyết định retrieval. Media vẫn trả
   text/crop/locator/languages; consumer quyết định có dùng nó hay không.
 
@@ -98,7 +99,8 @@ Quyết định này dựa trên A/B sáu crop thật của Docling 8. `kor+eng+
 lợi ích ròng so với `kor+vie`; một mẫu xấu đi rõ (`AI 117` thành `Al TTT`) và
 hai chuỗi logo trước đó bị gate loại lại trở nên ít ký hiệu hơn rồi lọt qua.
 Symbol ratio đo nhiễu ký hiệu, không chứng minh chuỗi sạch ký hiệu có nghĩa.
-Mapping vẫn thuộc revision identity để thay đổi sau này luôn sinh revision mới.
+Mapping, threshold và ngưỡng chữ tối thiểu vẫn thuộc revision identity để thay
+đổi sau này luôn sinh revision mới.
 
 Không migration và không backfill revision cũ. Acceptance bắt buộc chứng minh
 old/new `processing_version` khác nhau, revision cũ chuyển `archived`, và Media

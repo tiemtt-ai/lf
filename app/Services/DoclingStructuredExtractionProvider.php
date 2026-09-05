@@ -470,7 +470,7 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
             // Text tu text layer cung co the la rac. Danh dau de consumer loc
             // duoc; van giu nguyen text va crop vi day la bang chung quan sat
             // duoc, khong phai thu de xoa.
-            if ($text !== '' && $this->symbolRatio($text) >= (float) config('media.processing.structured_extraction.text_symbol_ratio_max', 0.2)) {
+            if ($text !== '' && $this->isLowQualityObservedText($text)) {
                 $region['metadata'] = ($region['metadata'] ?? []) + ['text_quality' => 'low'];
             }
         }
@@ -531,6 +531,18 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
         $length = mb_strlen($dense);
 
         return $length === 0 ? 0.0 : preg_match_all('/[^\p{L}\p{N}]/u', $dense) / $length;
+    }
+
+    /**
+     * Text layer/provider la bang chung da quan sat nen chi GAN CO, khong xoa.
+     * Symbol ratio mot minh danh dau sai cau hop le co ngay thang va dau cau
+     * (Docling 9, 13#31). Du so chu la negative control de tranh false-positive
+     * do; no khong noi long gate tu choi OCR candidate.
+     */
+    private function isLowQualityObservedText(string $text): bool
+    {
+        return $this->symbolRatio($text) >= (float) config('media.processing.structured_extraction.text_symbol_ratio_max', 0.2)
+            && preg_match_all('/\p{L}/u', $text) < (int) config('media.processing.structured_extraction.text_quality_min_letters', 10);
     }
 
     /**
