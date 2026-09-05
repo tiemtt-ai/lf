@@ -1,6 +1,6 @@
 # Media Structured Extraction Architecture Review
 
-Version: 3.0
+Version: 3.1
 
 Document Status: Review
 
@@ -14,7 +14,7 @@ Document Path: quality/LF-Media-Structured-Extraction-Architecture-Review.md
 
 ---
 
-# Docling 8 Latin/OCR-quality amendment — REVIEW REQUIRED 2026-09-05
+# Docling 8 Latin/OCR-quality amendment — PASSED 2026-09-05
 
 Evidence độc lập sửa lại attribution: `docling 8` là Media 45/job 118/profile
 `ko,vi`; job 104/profile `vi`, nơi có 304/1531 `Latn/NULL`, là Media 41 và không
@@ -24,15 +24,26 @@ phải Docling 8. Job 118 có 201 regions, 62 image regions, 30 OCR image region
 Candidate implementation đã xuất hiện trước approval. Review không hợp thức hóa
 ngược thay đổi đó. Trước khi PASS phải đóng đủ:
 
-1. Owner approve ADR-0019 v1.11 và hai contract amendment.
-2. Runtime Tesseract khớp `vie+eng`/`kor+eng`, flatten/deduplicate pack; hiện
-   config chỉ khai `vie`/`kor`.
+1. Owner approval đã ghi tại ADR-0019 v1.12 và Processing Contract v2.35.
+2. Runtime Tesseract dùng đúng pack của profile: `vi → vie`, `ko → kor`,
+   `en → eng`; profile đa ngôn ngữ flatten/deduplicate các pack đã chọn.
 3. Bump structured processing version và chứng minh old/new revision tách biệt.
 4. Test Media Read `text_quality`, OCR reject giữ prior text/crop, cùng negative
    controls cho nội dung hợp lệ nhiều ký hiệu.
 5. Chạy full Document regression; mutation bỏ quality gate phải làm test đỏ.
 
-**Scoped verdict: CHANGES REQUIRED.** Không migration. Không ảnh hưởng closure
+Owner đã bác việc tự thêm `eng` sau A/B sáu crop thật của Docling 8: không có
+lợi ích ròng và có candidate logo ít ký hiệu hơn lọt qua quality gate. Đây là
+resolution của DOC-CONFLICT-0034; không phải giới hạn profile một ngôn ngữ.
+
+Verification sau implementation: Media Processing Substrate đạt 110 passed,
+2 skipped, 485 assertions; docs lint, schema drift docs-only (93 migrations),
+Pint và diff check đều PASS. Full suite đạt 1002 passed, 3 skipped nhưng còn 4
+failure tái lập trong LibreOffice conversion của `doc`, `pptx`, `ppt`, `xls`;
+`docx` và `xlsx` PASS. Nhóm này thuộc local-document Office conversion, không đi
+qua structured crop mapping và được ghi là rủi ro môi trường độc lập.
+
+**Scoped verdict: PASS WITH DOCUMENTED RISK.** Không migration. Không ảnh hưởng closure
 Audio/Video Phase 1; production/AI retrieval vẫn chịu gate riêng.
 
 ---

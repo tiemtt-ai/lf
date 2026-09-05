@@ -1,6 +1,6 @@
 # ADR-0019 — Media Structured Extraction Boundary
 
-Version: 1.11
+Version: 1.12
 
 Status: Approved
 
@@ -89,11 +89,16 @@ từ chối không được tạo `Hang/ko` hoặc signal khác từ chính chu�
 
 ### Tesseract language pack
 
-Thiết kế hiện hành `vi → vie+eng`, `ko → kor+eng`, `en → eng` được giữ. Khi
-profile có nhiều locale, implementation phải flatten, deduplicate và
-canonicalize language pack; ví dụ `ko,vi` tạo `kor+eng+vie`, không lặp `eng`.
-Config hiện tại `vi → vie`, `ko → kor` chưa khớp contract và là implementation
-gate của amendment này.
+Structured crop OCR chỉ dùng pack của locale được chọn: `vi → vie`, `ko → kor`,
+`en → eng`. Khi profile có nhiều locale, implementation phải flatten,
+deduplicate và canonicalize language pack; ví dụ `ko,vi` tạo `kor+vie`, còn
+`en,ko,vi` tạo `eng+kor+vie`. Không tự chèn `eng` vào profile không có `en`.
+
+Quyết định này dựa trên A/B sáu crop thật của Docling 8. `kor+eng+vie` không có
+lợi ích ròng so với `kor+vie`; một mẫu xấu đi rõ (`AI 117` thành `Al TTT`) và
+hai chuỗi logo trước đó bị gate loại lại trở nên ít ký hiệu hơn rồi lọt qua.
+Symbol ratio đo nhiễu ký hiệu, không chứng minh chuỗi sạch ký hiệu có nghĩa.
+Mapping vẫn thuộc revision identity để thay đổi sau này luôn sinh revision mới.
 
 Không migration và không backfill revision cũ. Acceptance bắt buộc chứng minh
 old/new `processing_version` khác nhau, revision cũ chuyển `archived`, và Media

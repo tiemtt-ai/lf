@@ -907,7 +907,7 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertSame('doanh thu 2026', $region['text']);
         $this->assertSame('ocr', $region['extraction_method']);
         $this->assertSame('tesseract', $region['metadata']['ocr_engine']);
-        $this->assertSame('vie+eng', $region['metadata']['ocr_language']);
+        $this->assertSame('vie', $region['metadata']['ocr_language']);
     }
 
     public function test_multilingual_crop_ocr_flattens_and_deduplicates_canonical_language_packs(): void
@@ -918,7 +918,7 @@ class MediaProcessingSubstrateTest extends TestCase
             'docling-ocr-ko-vi.pdf', 'vi', 'locales=ko,vi;structure=layout',
         );
 
-        $this->assertSame('kor+eng+vie', $result['regions'][0]['metadata']['ocr_language']);
+        $this->assertSame('kor+vie', $result['regions'][0]['metadata']['ocr_language']);
     }
 
     public function test_docling_provider_keeps_embedded_text_and_skips_ocr_when_text_layer_has_content(): void
@@ -949,7 +949,7 @@ class MediaProcessingSubstrateTest extends TestCase
         $region = $result['regions'][0];
         $this->assertSame('한국어 학습 자료', $region['text']);
         $this->assertSame('ocr', $region['extraction_method']);
-        $this->assertSame('kor+eng', $region['metadata']['ocr_language']);
+        $this->assertSame('kor', $region['metadata']['ocr_language']);
     }
 
     public function test_docling_provider_keeps_short_figure_text_when_crop_ocr_is_not_better(): void
@@ -1702,7 +1702,7 @@ class MediaProcessingSubstrateTest extends TestCase
 
         config([
             'media.processing.structured_extraction.text_symbol_ratio_max' => 0.2,
-            'media.processing.structured_extraction.crop_ocr_languages.vi' => 'vie',
+            'media.processing.structured_extraction.crop_ocr_languages.vi' => 'vie+eng',
         ]);
         $packsChanged = $orchestrator->versionFor('structured_extraction', $media, $parameters);
 

@@ -1,6 +1,6 @@
 # LearnForge Documentation Conflict Register
 
-Version: 1.32
+Version: 1.33
 
 Document Status: Approved
 
@@ -234,7 +234,7 @@ trung lập.
 
 # Active Conflict Register
 
-Active items: 7. DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25;
+Active items: 6. DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25;
 DOC-CONFLICT-0018 và DOC-CONFLICT-0019 đóng 2026-08-27 bằng đợt amendment tài
 liệu của miền Media. DOC-CONFLICT-0020 và DOC-CONFLICT-0021 được Owner đóng
 2026-08-27; hiệu lực runtime/schema vẫn chịu Gate M/Gate R. DOC-CONFLICT-0022,
@@ -246,7 +246,7 @@ khác `RESOLVED`; cột Status của bảng dưới vẫn là nguồn sự thậ
 
 | ID | Title | Classification | Status | Impact | Domain | Owner | Target Review |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| DOC-CONFLICT-0034 | Tesseract language-pack config bỏ `eng` mà Processing Contract bắt buộc cho `vi`/`ko` | IMPLEMENTATION_DRIFT | UNDER_REVIEW | HIGH | Media | Architecture Owner | Trước khi đóng ADR-0019 v1.11 |
+| DOC-CONFLICT-0034 | Tesseract language-pack config bỏ `eng` mà Processing Contract bắt buộc cho `vi`/`ko` | IMPLEMENTATION_DRIFT | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-09-05 bằng A/B Docling 8 và ADR-0019 v1.12 |
 | DOC-CONFLICT-0033 | Amendment ngôn ngữ/formula không được phản ánh vào bảng canonical của Media Read Contract | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Architecture Owner | Not set |
 | DOC-CONFLICT-0032 | Reattach sau cancelled chưa có chain/generation contract | GAP | RESOLVED | HIGH | Media | Architecture Owner | Not set |
 | DOC-CONFLICT-0029 | Spreadsheet local-provider contract chưa đồng bộ resolution 0017/0018 | CONFLICT | RESOLVED | BLOCKER | Media | Domain Owner (Media) | Not set |
@@ -280,7 +280,7 @@ khác `RESOLVED`; cột Status của bảng dưới vẫn là nguồn sự thậ
 Conflict ID: DOC-CONFLICT-0034
 Title: Tesseract language-pack config bỏ `eng` mà Processing Contract bắt buộc cho `vi`/`ko`
 Classification: IMPLEMENTATION_DRIFT
-Status: UNDER_REVIEW
+Status: RESOLVED
 Impact: HIGH
 Detected At: 2026-09-05
 Detected By: Independent Docling 8 review against job 118 runtime evidence
@@ -297,17 +297,17 @@ Contradictory Requirements:
 Why They Cannot Both Be True: The same profile cannot both include and omit `eng` at runtime.
 Runtime/Business Impact: Docling 8 contains English image text but job 118 records `ocr_language=kor+vie`; OCR garbage is persisted in 30 OCR image regions and English controls are not processed with the contracted pack.
 Affected Implementation: config/media.php; DoclingStructuredExtractionProvider::ocrCrop
-Temporary Safety Rule: Do not mark ADR-0019 v1.11 implementation PASS or reuse the current processing_version for corrected OCR semantics.
-Required Decision: Keep the approved pack mapping and align runtime, or amend the contract with measured evidence. The proposed design keeps the contract mapping and requires flatten/deduplicate canonical packs.
+Temporary Safety Rule: Lifted by the 2026-09-05 Owner decision; any mapping change remains part of structured processing_version identity.
+Required Decision: Keep the approved pack mapping and align runtime, or amend the contract with measured evidence.
 Resolution Authority: Architecture Owner
-Resolution Plan: Approve ADR-0019 v1.11; implement canonical flattened pack; bump structured processing version; test actual command arguments and old/new revision separation.
-Target Review Date: Before closing ADR-0019 v1.11
-Resolved At: Not resolved
-Resolution: Pending
-Superseded/Updated Documents: ADR-0019 v1.11 proposed; Processing Contract v2.34 proposed
-Verification Evidence: job 118 / Media 45 metadata `ocr_language=kor+vie`; config/media.php mapping; contract mapping at § Phase 1 local document provider
-Related ADR/Review/Issue/PR: ADR-0019 v1.11; LF-Media-Structured-Extraction-Architecture-Review v3.0
-Notes: This is implementation drift, not evidence that every Latin region should be labeled English.
+Resolution Plan: Scope the Phase 1 local-document mapping separately from structured crop OCR; structured crop uses only selected profile packs and retains flatten/deduplicate plus revision identity.
+Target Review Date: Closed
+Resolved At: 2026-09-05
+Resolution: Architecture Owner approved `vi → vie`, `ko → kor`, `en → eng` for structured crop OCR. A profile `ko,vi` remains multilingual as `kor+vie`; `eng` is included only when `en` is selected.
+Superseded/Updated Documents: ADR-0019 v1.12; Processing Contract v2.35; LF-Media-Structured-Extraction-Architecture-Review v3.1
+Verification Evidence: A/B six real Docling 8 crops found no net benefit from `kor+eng+vie`; one recognition worsened and two logo candidates became symbol-clean enough to bypass the 0.20 gate.
+Related ADR/Review/Issue/PR: ADR-0019 v1.12; LF-Media-Structured-Extraction-Architecture-Review v3.1
+Notes: The local-document OCR contract remains separately scoped. This resolution governs structured crop OCR and does not limit multilingual profiles.
 ```
 
 ---

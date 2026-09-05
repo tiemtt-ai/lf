@@ -1,6 +1,6 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.34
+Version: 2.35
 
 Document Status: Approved
 
@@ -20,9 +20,9 @@ Related ADR:
 
 ---
 
-## Document Latin/OCR-quality amendment — Proposed 2026-09-05
+## Document Latin/OCR-quality amendment — Approved 2026-09-05
 
-Áp dụng có điều kiện theo ADR-0019 v1.11 sau Owner approval:
+Áp dụng theo ADR-0019 v1.12 và Owner approval ngày 2026-09-05:
 
 * `Latn` resolve locale từ các candidate Latin-family trong profile: 0 candidate
   trả NULL; 1 candidate dùng candidate đó; nhiều candidate chỉ chọn `vi` khi có
@@ -33,8 +33,9 @@ Related ADR:
   `metadata.text_quality = low`;
 * Media Read biểu diễn cờ vắng mặt là `text_quality = normal` và cờ hiện diện là
   `low`; đây là evidence, không phải ranking;
-* Tesseract pack giữ contract `vi → vie+eng`, `ko → kor+eng`, `en → eng`; profile
-  nhiều locale phải flatten/deduplicate pack theo thứ tự canonical;
+* structured crop Tesseract map `vi → vie`, `ko → kor`, `en → eng`; profile
+  nhiều locale flatten/deduplicate đúng các locale được chọn, không tự thêm
+  `eng` khi profile không có `en`;
 * threshold, normalization rule và Tesseract language pack là output-affecting
   config. Thay chúng bắt buộc bump structured `processing_version`; không chạy
   semantics mới dưới identity cũ và không backfill revision lịch sử.
