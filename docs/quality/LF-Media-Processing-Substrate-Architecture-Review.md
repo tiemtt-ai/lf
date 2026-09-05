@@ -1,6 +1,6 @@
 # Media Processing Substrate Architecture Review
 
-Version: 1.17
+Version: 1.18
 
 Document Status: Approved
 
@@ -11,6 +11,26 @@ Last Updated: 2026-09-01
 Review Date: 2026-08-23
 
 Document Path: quality/LF-Media-Processing-Substrate-Architecture-Review.md
+
+---
+
+# Multilingual Audio/Video STT — DATABASE DESIGN PASSED 2026-09-05
+
+Proposal giữ một timeline/revision, dùng profile 1–3 locale và evidence theo
+segment; nó không nhân bản toàn file theo từng locale. Hướng này tương thích với
+revision/citation boundary nhưng chưa Ready For Code vì ba blocker:
+
+1. Chưa có Database Doc cho child segment-language evidence và FK lifecycle.
+2. Chưa có qualification corpus/code-switch thresholds cho runtime thật.
+3. `media_transcripts.locale`, caption selector, Media Read và upload UI hiện
+   đều là contract một locale; migration/backward compatibility chưa review.
+
+Owner đã duyệt ADR D7. Child evidence dùng composite tenant FK tới transcript,
+không backfill; `mul` chỉ là revision selector, không giả làm segment evidence.
+Profile tái sử dụng owned-child job locales và một STT timeline duy nhất.
+
+**Verdict: PASS / READY FOR MIGRATION.** UI chỉ mở sau khi persistence, Media
+Read và provider validation cùng xanh.
 
 ---
 

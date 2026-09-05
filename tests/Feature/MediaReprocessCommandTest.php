@@ -140,6 +140,18 @@ class MediaReprocessCommandTest extends TestCase
         $this->assertDatabaseMissing('media_processing_jobs', ['supersedes_job_id' => $job->id]);
     }
 
+    public function test_transcript_invalid_can_retry_because_model_timing_is_nondeterministic(): void
+    {
+        $job = $this->failedSpeechToTextJob();
+        DB::table('media_processing_jobs')->where('id', $job->id)->update(['error_code' => 'transcript_invalid']);
+
+        $this->artisan('media:reprocess', [
+            '--customer' => $this->customerId,
+            '--job' => $job->id,
+            '--dry-run' => true,
+        ])->expectsOutputToContain('would be enqueued')->assertSuccessful();
+    }
+
     public function test_targets_of_another_tenant_are_invisible(): void
     {
         $media = $this->uploadVideo();

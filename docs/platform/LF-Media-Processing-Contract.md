@@ -1,6 +1,6 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.36
+Version: 2.37
 
 Document Status: Approved
 
@@ -17,6 +17,43 @@ Related ADR:
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 * [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 * [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved v1.5
+
+---
+
+## Audio/Video multilingual STT amendment — Approved for implementation 2026-09-05
+
+Sau Owner approval và provider qualification, Audio/Video upload có thể nhận
+`processing_locales[]` gồm 1–3 giá trị trong `vi`, `ko`, `en` khi actor bật STT.
+Một locale giữ profile legacy `diarization=off;locale=<locale>`; từ hai locale
+trở lên dùng `diarization=off;locales=<canonical-csv>` và persist các row profile
+trong `media_processing_job_locales`.
+
+Profile nhiều locale chạy **một** STT job không ép locale duy nhất. Provider phải
+trả timeline duy nhất và evidence locale theo từng segment; không được chạy N
+transcript toàn file rồi chọn/ghép hậu kỳ. Output transcript/caption dùng selector
+`locale=mul`; Media Read chọn revision bằng `language_profile`, còn evidence
+segment cho biết locale thực tế. Evidence không chắc chắn để rỗng, không đoán từ
+profile.
+
+UI dùng checkbox chỉ khi STT được bật, yêu cầu ít nhất 1 và tối đa 3 lựa chọn.
+Video caption vẫn deferred sau transcript `ready`, tạo một VTT `mul` giữ nguyên
+ngôn ngữ nguồn. Không dịch, không tách track theo ngôn ngữ và không thay đổi
+deliverability của Media File.
+
+Implementation and activation gates:
+
+1. Database Docs cho segment-language evidence và selector `mul` được approve.
+2. Faster Whisper/runtime qualification trên corpus audio/video thật là gate
+   mở production, không còn là gate viết code theo Owner instruction 2026-09-05;
+   threshold accuracy, omission, timestamp và resource cost vẫn phải được Owner
+   freeze trước production activation.
+3. Media Read `language_profile` và citation timespan có regression/mutation test.
+4. UI, validation, retry, detach/reattach, caption stale cascade và tenant scope
+   có full regression. Revision cũ không backfill.
+
+Runtime và UI local/test được triển khai sau database/review gate. Production
+tiếp tục fail-closed cho tới khi qualification gate đạt; revision một locale
+Phase 1 vẫn đọc nguyên trạng và không backfill.
 
 ---
 
@@ -1040,10 +1077,9 @@ tính phí đều để lại đúng một row, kể cả lần thất bại, n�
   nhất đều scope theo `(customer_id, media_file_id, job_type,
   source_fingerprint, processing_version, output_profile_hash)`.
 * Chỉ retry khi `error_code` thuộc nhóm tạm thời (`provider_timeout`,
-  `provider_unavailable`, `rate_limited`). Lỗi vĩnh viễn
+  `provider_unavailable`, `rate_limited`, `transcript_invalid`). Lỗi vĩnh viễn
   (`unsupported_source`, `corrupt_source`, `quota_exceeded`,
-  `structured_extraction_too_large`, `audio_limit_exceeded`,
-  `transcript_invalid`) không retry. Một revision vượt trần tài
+  `structured_extraction_too_large`, `audio_limit_exceeded`) không retry. Một revision vượt trần tài
   nguyên sẽ vượt lại y hệt ở lần thử sau: input không đổi, giới hạn không đổi,
   nên retry chỉ tiêu attempt và thời gian worker mà không đổi kết quả.
 * Retry của một output profile không tiêu hao attempt, không chặn enqueue và
@@ -1461,8 +1497,10 @@ chốt.
 
 ### Mã lỗi mới của STT
 
-`audio_limit_exceeded` và `transcript_invalid` là **lỗi vĩnh viễn**, không retry:
-input không đổi thì trần và luật segment cũng không đổi.
+`audio_limit_exceeded` là lỗi vĩnh viễn: input không đổi thì trần không đổi.
+`transcript_invalid` được retry tối đa theo chain vì model có thể sinh biên
+timespan không ổn định. Media 48/job 126 đã fail lần đầu nhưng cùng runtime và
+source sinh 35 segment hợp lệ khi chạy lại; row lỗi cũ vẫn giữ nguyên làm audit.
 
 Cả hai phải được đăng ký vào danh sách mã lỗi ổn định của job runner. Mã không
 đăng ký sẽ rơi về `processing_failed`, và khi đó operator không phân biệt được

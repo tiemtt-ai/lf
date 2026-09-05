@@ -14,7 +14,7 @@ class MediaReprocess extends Command
      * Terminal error codes never reach a retry chain: LF-Media-Processing-Contract
      * limits retry to the transient group.
      */
-    private const RETRYABLE_ERROR_CODES = ['provider_timeout', 'provider_unavailable', 'rate_limited'];
+    private const RETRYABLE_ERROR_CODES = ['provider_timeout', 'provider_unavailable', 'rate_limited', 'transcript_invalid'];
 
     private const MAX_ATTEMPTS = 3;
 

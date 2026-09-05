@@ -62,19 +62,39 @@ class FakeMediaProcessingProvider implements MediaProcessingProvider
     private function readyTranscriptRevision(object $mediaFile, object $job): ?string
     {
         $locale = null;
+        $locales = null;
         foreach (array_filter(explode(';', (string) $job->output_profile)) as $pair) {
             [$key, $value] = array_pad(explode('=', $pair, 2), 2, '');
             if ($key === 'locale') {
                 $locale = $value;
+            } elseif ($key === 'locales') {
+                $locales = $value;
             }
         }
 
-        return $locale === null ? null : DB::table('media_transcripts')
+        $query = $locale === null ? null : DB::table('media_transcripts')
             ->where('customer_id', $mediaFile->customer_id)
             ->where('media_file_id', $mediaFile->id)
             ->where('locale', $locale)
             ->where('source_fingerprint', $job->source_fingerprint)
-            ->where('status', 'ready')
-            ->value('processing_version');
+            ->where('status', 'ready');
+        if ($query === null) {
+            return null;
+        }
+        if ($locales !== null) {
+            $profile = app(SpeechLanguageProfile::class)->canonical($locales);
+            $jobIds = DB::table('media_processing_jobs')->where('customer_id', $mediaFile->customer_id)
+                ->where('media_file_id', $mediaFile->id)->where('job_type', 'speech_to_text')
+                ->get(['id', 'output_profile'])->filter(function (object $candidate) use ($profile): bool {
+                    try {
+                        return app(SpeechLanguageProfile::class)->fromProfile((string) $candidate->output_profile) === $profile;
+                    } catch (\InvalidArgumentException) {
+                        return false;
+                    }
+                })->pluck('id')->all();
+            $query->whereIn('processing_job_id', $jobIds);
+        }
+
+        return $query->value('processing_version');
     }
 }

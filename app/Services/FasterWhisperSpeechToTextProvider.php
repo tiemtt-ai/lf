@@ -59,11 +59,14 @@ class FasterWhisperSpeechToTextProvider implements MediaProcessingProvider
             throw new RuntimeException($limitError);
         }
 
-        $locale = $this->profileValue((string) $job->output_profile, 'locale');
-        $diarization = $this->profileValue((string) $job->output_profile, 'diarization');
-        if (! in_array($locale, (array) config('media.processing.speech_to_text.locales', []), true)) {
-            throw new RuntimeException('locale_unavailable');
+        try {
+            $locales = app(SpeechLanguageProfile::class)->fromProfile((string) $job->output_profile);
+        } catch (\InvalidArgumentException $exception) {
+            throw new RuntimeException($exception->getMessage() === 'speech_language_profile_unsupported'
+                ? 'locale_unavailable'
+                : $exception->getMessage());
         }
+        $diarization = $this->profileValue((string) $job->output_profile, 'diarization');
         if ($diarization !== (string) config('media.processing.speech_to_text.diarization', 'off')) {
             throw new RuntimeException('unsupported_output_profile');
         }
@@ -93,10 +96,13 @@ class FasterWhisperSpeechToTextProvider implements MediaProcessingProvider
             // day (MIME, tran, locale) khong ton chi phi va giu NULL.
             $this->recordBillableSeconds($mediaFile, $job);
 
+            $languageArguments = count($locales) === 1
+                ? ['--locale', $locales[0]]
+                : ['--locales', app(SpeechLanguageProfile::class)->serialize($locales)];
             $envelope = json_decode($this->runner->run([
                 $python, $script,
                 '--source', $source,
-                '--locale', (string) $locale,
+                ...$languageArguments,
                 '--model', $model,
                 '--output', $output,
                 '--compute-type', (string) config('media.processing.speech_to_text.compute_type', 'int8'),

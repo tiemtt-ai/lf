@@ -22271,6 +22271,149 @@
       "views": []
     },
     {
+      "name": "media_spoken_languages",
+      "documentation": "database/media/media_transcript_languages.md",
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "transcript_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "ordinal",
+          "type": "tinyint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "locale",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "char_count",
+          "type": "int",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "customer_id",
+            "transcript_id",
+            "ordinal"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "transcript_id",
+            "locale"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "locale"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "transcript_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "transcript_id",
+            "customer_id"
+          ],
+          "foreign_table": "media_transcripts",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "cascade"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "`ordinal` between 1 and 3"
+        },
+        {
+          "expression": "`char_count` >= 1"
+        }
+      ],
+      "triggers": [],
+      "views": []
+    },
+    {
       "name": "media_table_cells",
       "documentation": "database/media/media_table_cells.md",
       "implementation_status": "implemented",

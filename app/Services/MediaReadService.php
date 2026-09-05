@@ -78,9 +78,13 @@ class MediaReadService
                 throw new MediaReadException('unsupported_source');
             }
             try {
-                if ($documentContent && $languageProfile !== null) {
-                    $selectedLanguageProfile = app(DocumentLanguageProfile::class)->canonical($languageProfile);
-                    $selectedLocale = $selectedLanguageProfile[0];
+                if ($languageProfile !== null && ($documentContent || in_array($contentType, ['transcript', 'caption_asset'], true))) {
+                    $selectedLanguageProfile = $documentContent
+                        ? app(DocumentLanguageProfile::class)->canonical($languageProfile)
+                        : app(SpeechLanguageProfile::class)->canonical($languageProfile);
+                    $selectedLocale = ! $documentContent && count($selectedLanguageProfile) > 1
+                        ? 'mul'
+                        : $selectedLanguageProfile[0];
                     $auditContext['language_profile'] = $selectedLanguageProfile;
                 } else {
                     $selectedLocale = $locale !== null ? $this->profiles->canonicalLocale($locale) : $media->processing_locale;
@@ -143,6 +147,16 @@ class MediaReadService
                         $contentType === 'extracted_text' ? 'ocr' : 'structured_extraction'
                     ));
                 }
+            } elseif ($selectedLanguageProfile !== null && $contentType === 'transcript') {
+                $query->whereIn('processing_job_id', $this->jobIdsForProfile(
+                    $customerId, (int) $media->id, $selectedLanguageProfile, 'speech_to_text', false
+                ));
+            } elseif ($selectedLanguageProfile !== null && $contentType === 'caption_asset') {
+                $versions = DB::table('media_processing_jobs')
+                    ->whereIn('id', $this->jobIdsForProfile(
+                        $customerId, (int) $media->id, $selectedLanguageProfile, 'speech_to_text', false
+                    ))->pluck('processing_version')->all();
+                $query->whereIn('transcript_processing_version', $versions);
             }
             if ($contentType !== 'variant') {
                 $query->where('locale', $selectedLocale);
@@ -199,11 +213,16 @@ class MediaReadService
             $rows = $query->orderBy('id')->get();
             if ($rows->isEmpty()) {
                 if ($derivedJobType !== null) {
-                    $jobState = DB::table('media_processing_jobs')->where('customer_id', $customerId)
+                    $jobStateQuery = DB::table('media_processing_jobs')->where('customer_id', $customerId)
                         ->where('media_file_id', $media->id)
                         ->where('job_type', $derivedJobType)
-                        ->when($processingVersion !== null, fn ($q) => $q->where('processing_version', $processingVersion))
-                        ->where(function ($q) use ($selectedLocale): void {
+                        ->when($processingVersion !== null, fn ($q) => $q->where('processing_version', $processingVersion));
+                    if ($selectedLanguageProfile !== null && $derivedJobType === 'speech_to_text') {
+                        $jobStateQuery->whereIn('id', $this->jobIdsForProfile(
+                            $customerId, (int) $media->id, $selectedLanguageProfile, 'speech_to_text', false
+                        ));
+                    } else {
+                        $jobStateQuery->where(function ($q) use ($selectedLocale): void {
                             // Profile da chuan hoa co bang con; doan locale bang chuoi
                             // truot khi locale khong dung dau CSV (`locales=en,vi`) va
                             // khop nham tien to (`vi` vs `vi-VN`).
@@ -223,7 +242,9 @@ class MediaReadService
                                     ->where(fn ($profile) => $profile
                                         ->where('output_profile', 'like', '%;locale='.$selectedLocale)
                                         ->orWhere('output_profile', 'like', 'locale='.$selectedLocale.';%')));
-                        })->orderByDesc('id')->value('status');
+                        });
+                    }
+                    $jobState = $jobStateQuery->orderByDesc('id')->value('status');
                     if (in_array($jobState, ['pending', 'processing', 'failed'], true)) {
                         throw new MediaReadException($jobState);
                     }
@@ -249,6 +270,9 @@ class MediaReadService
                     : DB::table($table)->where('customer_id', $customerId)->where('media_file_id', $media->id)
                         ->when($contentType !== 'variant', fn ($q) => $q->where('locale', $selectedLocale));
                 $state = $stateQuery->orderByDesc('created_at')->value('status');
+                if ($selectedLanguageProfile !== null && in_array($contentType, ['transcript', 'caption_asset'], true)) {
+                    throw new MediaReadException('language_profile_unavailable');
+                }
                 throw new MediaReadException($processingVersion !== null
                     ? 'revision_unavailable'
                     : ($state === null ? 'locale_unavailable' : (in_array($state, ['pending', 'processing', 'failed', 'archived'], true) ? $state : 'missing')));
@@ -270,7 +294,15 @@ class MediaReadService
                     'locale' => $language->locale,
                     'char_count' => (int) $language->char_count,
                 ])->all())->all();
-            $units = $rows->map(function ($row) use ($media, $contentType, $asset, $customerId, $includeCrop, $regionLanguages, &$jobProfiles): array {
+            $transcriptLanguages = $contentType !== 'transcript' ? [] : DB::table('media_spoken_languages')
+                ->where('customer_id', $customerId)->whereIn('transcript_id', $rows->pluck('id')->all())
+                ->orderBy('transcript_id')->orderBy('ordinal')->get()
+                ->groupBy('transcript_id')
+                ->map(fn ($group): array => $group->map(fn ($language): array => [
+                    'locale' => $language->locale,
+                    'char_count' => (int) $language->char_count,
+                ])->all())->all();
+            $units = $rows->map(function ($row) use ($media, $contentType, $asset, $customerId, $includeCrop, $regionLanguages, $transcriptLanguages, &$jobProfiles): array {
                 $structure = null;
                 $text = $asset ? null : ($row->text ?? null);
                 if ($contentType === 'region') {
@@ -351,6 +383,8 @@ class MediaReadService
                         'quality_status' => $row->quality_status,
                         'cells' => $cells,
                     ];
+                } elseif ($contentType === 'transcript') {
+                    $structure = ['languages' => $transcriptLanguages[$row->id] ?? []];
                 }
 
                 return [
@@ -516,11 +550,19 @@ class MediaReadService
     /** @param array<int, string> $profile @return array<int, int> */
     private function documentJobIdsForProfile(int $customerId, int $mediaId, array $profile, string $jobType): array
     {
+        return $this->jobIdsForProfile($customerId, $mediaId, $profile, $jobType, true);
+    }
+
+    /** @param array<int, string> $profile @return array<int, int> */
+    private function jobIdsForProfile(int $customerId, int $mediaId, array $profile, string $jobType, bool $document): array
+    {
         return DB::table('media_processing_jobs')->where('customer_id', $customerId)
             ->where('media_file_id', $mediaId)->where('job_type', $jobType)->get(['id', 'output_profile'])
-            ->filter(function (object $job) use ($profile): bool {
+            ->filter(function (object $job) use ($profile, $document): bool {
                 try {
-                    return app(DocumentLanguageProfile::class)->fromProfile((string) $job->output_profile) === $profile;
+                    $profiles = $document ? app(DocumentLanguageProfile::class) : app(SpeechLanguageProfile::class);
+
+                    return $profiles->fromProfile((string) $job->output_profile) === $profile;
                 } catch (\InvalidArgumentException) {
                     return false;
                 }
@@ -530,12 +572,26 @@ class MediaReadService
     /** @return array<int, string>|null */
     private function languageProfileForJob(int $jobId): ?array
     {
-        $profile = DB::table('media_processing_jobs')->where('id', $jobId)->value('output_profile');
-        if (! is_string($profile)) {
+        $job = DB::table('media_processing_jobs')->where('id', $jobId)->first(['job_type', 'output_profile']);
+        if ($job === null || ! is_string($job->output_profile)) {
             return null;
         }
         try {
-            return app(DocumentLanguageProfile::class)->fromProfile($profile);
+            if ($job->job_type === 'caption') {
+                $caption = DB::table('media_captions')->where('processing_job_id', $jobId)
+                    ->first(['customer_id', 'media_file_id', 'transcript_processing_version']);
+                $source = $caption === null ? null : DB::table('media_processing_jobs')
+                    ->where('customer_id', $caption->customer_id)->where('media_file_id', $caption->media_file_id)
+                    ->where('job_type', 'speech_to_text')
+                    ->where('processing_version', $caption->transcript_processing_version)
+                    ->orderByDesc('id')->value('output_profile');
+
+                return is_string($source) ? app(SpeechLanguageProfile::class)->fromProfile($source) : null;
+            }
+
+            return $job->job_type === 'speech_to_text'
+                ? app(SpeechLanguageProfile::class)->fromProfile($job->output_profile)
+                : app(DocumentLanguageProfile::class)->fromProfile($job->output_profile);
         } catch (\InvalidArgumentException) {
             return null;
         }
@@ -580,7 +636,7 @@ class MediaReadService
                     'content_type' => $contentType,
                     'locale' => $locale, 'processing_version' => $processingVersion,
                     'source_fingerprint' => $sourceFingerprint, 'decision' => $decision, 'error_code' => $errorCode,
-                ] + array_intersect_key($context, ['include_crop' => true, 'page' => true])),
+                ] + array_intersect_key($context, ['include_crop' => true, 'page' => true, 'language_profile' => true])),
             ]);
         } catch (Throwable $exception) {
             Log::warning('Media derived-read audit insert failed.', [

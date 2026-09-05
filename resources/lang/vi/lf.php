@@ -21,7 +21,7 @@ return [
     'LF_media_processing_audio_limits' => 'Phiên âm tối đa :minutes phút và :gib GiB. Vượt một trong hai giới hạn: không phiên âm phần đầu, từ chối toàn bộ tác vụ; audio vẫn nghe được nếu đạt kiểm tra an toàn. Định dạng upload được chưa chắc phiên âm được: hệ thống nhận diện MIME từ nội dung tệp, và AAC (`.aac`, `.m4a`) hiện không thuộc allowlist STT. Hãy chuyển sang MP3, WAV hoặc OGG rồi tải lại. Xử lý chạy nền và có thể mất nhiều phút, tùy độ dài audio và tài nguyên máy; làm mới trang để xem trạng thái.',
     'LF_media_processing_document_limits' => 'Docling chỉ dành cho PDF, tối đa :pages trang. Không tick vẫn chạy trích text/OCR và vẫn chịu giới hạn PDF :ocr_pages trang khi upload. Có tick chạy thêm cấu trúc, với trần :regions vùng/trang và :total vùng/tài liệu; bố cục quá phức tạp, runtime thiếu hoặc quá thời gian có thể làm bước này thất bại. OCR có trạng thái riêng; Docling thất bại không có nghĩa OCR đã thành công.',
     'LF_media_processing_unsupported' => 'Định dạng của tệp không được bộ xử lý này hỗ trợ. Đổi tên phần mở rộng không chuyển đổi định dạng; hãy xuất sang định dạng được hỗ trợ rồi tải lại.',
-    'LF_media_processing_invalid' => 'Không đọc được nguồn hoặc kết quả xử lý không hợp lệ. Kiểm tra tệp có mở/phát được và có nội dung phù hợp; thử xuất lại tệp.',
+    'LF_media_processing_invalid' => 'Kết quả phiên âm chưa vượt qua kiểm tra mốc thời gian hoặc định dạng. Tệp gốc vẫn dùng được; hãy thử phiên âm lại.',
     'LF_media_processing_extraction' => 'Không thể tách audio từ video hoặc audio tách ra vượt giới hạn xử lý. Chưa thể tạo transcript/phụ đề; hãy kiểm tra track âm thanh hoặc chia nhỏ video.',
     'LF_common_brand_name' => 'LearnForge',
     'LF_common_language_vi' => 'Tiếng Việt',

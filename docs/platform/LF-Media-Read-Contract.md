@@ -1,6 +1,6 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.20
+Version: 1.21
 
 Document Status: Approved
 
@@ -20,6 +20,25 @@ Related ADR:
 
 Related Specification:
 [LF-Media-Processing-Contract](LF-Media-Processing-Contract.md)
+
+---
+
+## Audio/Video multilingual transcript read — Implemented 2026-09-05
+
+Revision STT một locale tiếp tục được chọn bằng `locale`. Revision có profile từ
+hai locale trở lên được chọn bằng canonical `language_profile` và trả
+`locale=mul`; service không fallback sang transcript một locale và không trộn
+segment từ các revision/job khác nhau.
+
+Mỗi timespan unit của revision `mul` trả thêm `languages` là evidence quan sát
+được trên chính segment. Danh sách có thể rỗng khi undetermined và có thể chứa
+nhiều phần tử khi một segment code-switch; requested profile không tự sinh
+evidence. Citation tiếp tục khóa `source_fingerprint`, `processing_version` và
+timespan. Caption `mul` phải trỏ đúng transcript processing version nguồn.
+
+Runtime chọn chính xác revision bằng profile canonical, trả evidence timespan
+và fail-closed bằng `language_profile_unavailable`; không tự chọn locale đầu
+tiên. Production activation vẫn chịu qualification gate tại Processing Contract.
 
 ---
 

@@ -42,21 +42,28 @@ class MediaProcessingOrchestrator
                 $documentLocales = $media->file_type === 'document'
                     ? app(DocumentLanguageProfile::class)->canonical(is_array($locale) ? $locale : (string) $locale)
                     : null;
-                $canonicalLocale = $documentLocales[0] ?? $this->canonicalLocaleFor($media, is_string($locale) ? $locale : null, $speechToText);
+                $speechLocales = null;
+                if (in_array($media->file_type, ['audio', 'video'], true) && $speechToText) {
+                    try {
+                        $speechLocales = app(SpeechLanguageProfile::class)->canonical(is_array($locale) ? $locale : (string) $locale);
+                    } catch (InvalidArgumentException $exception) {
+                        // Legacy single-locale calls historically materialize a job and
+                        // let the provider expose `locale_unavailable`. Preserve that
+                        // observable state; array profiles use the stricter D7 contract.
+                        if (is_array($locale) || $exception->getMessage() !== 'speech_language_profile_unsupported') {
+                            throw $exception;
+                        }
+                        $speechLocales = [$this->profiles->canonicalLocale((string) $locale)];
+                    }
+                }
+                $canonicalLocale = $documentLocales[0] ?? $speechLocales[0] ?? null;
             } catch (InvalidArgumentException $exception) {
                 $profileError = $locale !== null && in_array($exception->getMessage(), [
                     'document_language_profile_invalid', 'document_language_profile_unsupported',
+                    'speech_language_profile_invalid', 'speech_language_profile_unsupported',
                 ], true) ? $exception->getMessage() : 'required_profile_configuration_missing';
                 DB::table('media_files')->where('id', $mediaFileId)->where('customer_id', $customerId)->update([
                     'status' => 'failed', 'processing_error_code' => $profileError, 'updated_at' => now(),
-                ]);
-
-                return;
-            }
-
-            if ($media->file_type !== 'document' && $media->processing_locale !== null && $canonicalLocale !== null && $media->processing_locale !== $canonicalLocale) {
-                DB::table('media_files')->where('id', $mediaFileId)->where('customer_id', $customerId)->update([
-                    'status' => 'failed', 'processing_error_code' => 'required_profile_configuration_missing', 'updated_at' => now(),
                 ]);
 
                 return;
@@ -68,7 +75,7 @@ class MediaProcessingOrchestrator
                 'updated_at' => now(),
             ]);
 
-            foreach ($this->initialMaterializationProfiles($media->file_type, $canonicalLocale, $speechToText, $documentLocales) as [$jobType, $profile]) {
+            foreach ($this->initialMaterializationProfiles($media->file_type, $canonicalLocale, $speechToText, $documentLocales, $speechLocales) as [$jobType, $profile]) {
                 $this->createInitialJob($customerId, $media, $jobType, $profile, $actorId, $reattach, $structuredExtraction);
             }
 
@@ -88,7 +95,7 @@ class MediaProcessingOrchestrator
      * Day khong phai retry: Media da co bat ky STT job nao phai di theo state
      * machine/retry chain hien co, va locale da ghi khong duoc sua tai day.
      */
-    public function initializeLegacySpeechToText(int $customerId, int $activityId, string $locale, ?int $actorId): void
+    public function initializeLegacySpeechToText(int $customerId, int $activityId, string|array $locale, ?int $actorId): void
     {
         DB::transaction(function () use ($customerId, $activityId, $locale, $actorId): void {
             $usage = DB::table('media_file_usages')
@@ -121,11 +128,13 @@ class MediaProcessingOrchestrator
                 throw new InvalidArgumentException('A transcription job already exists.');
             }
 
-            $canonicalLocale = $this->profiles->canonicalLocale($locale);
+            $locales = app(SpeechLanguageProfile::class)->canonical($locale);
+            $canonicalLocale = $locales[0];
             $usageMetadata = json_decode((string) ($usage->metadata ?? ''), true);
             $usageMetadata = is_array($usageMetadata) ? $usageMetadata : [];
             $usageMetadata['speech_to_text'] = true;
             $usageMetadata['processing_locale'] = $canonicalLocale;
+            $usageMetadata['processing_locales'] = $locales;
             DB::table('media_file_usages')->where('customer_id', $customerId)->where('id', $usage->id)->update([
                 'metadata' => json_encode($usageMetadata, JSON_THROW_ON_ERROR),
                 'updated_at' => now(),
@@ -141,7 +150,9 @@ class MediaProcessingOrchestrator
                 $customerId,
                 $media,
                 'speech_to_text',
-                $this->profiles->canonical(['diarization' => 'off', 'locale' => $canonicalLocale]),
+                $this->profiles->canonical(['diarization' => 'off'] + (count($locales) === 1
+                    ? ['locale' => $canonicalLocale]
+                    : ['locales' => app(SpeechLanguageProfile::class)->serialize($locales)])),
                 $actorId,
             );
         });
@@ -152,7 +163,7 @@ class MediaProcessingOrchestrator
         return DB::transaction(function () use ($customerId, $failedJobId, $actorId): object {
             $failed = DB::table('media_processing_jobs')->where('customer_id', $customerId)->where('id', $failedJobId)->lockForUpdate()->first();
             if (! $failed || $failed->status !== 'failed'
-                || ! in_array($failed->error_code, ['provider_timeout', 'provider_unavailable', 'rate_limited'], true)
+                || ! in_array($failed->error_code, ['provider_timeout', 'provider_unavailable', 'rate_limited', 'transcript_invalid'], true)
                 || (int) $failed->attempt >= 3) {
                 throw new InvalidArgumentException('Job is not retry eligible.');
             }
@@ -183,11 +194,14 @@ class MediaProcessingOrchestrator
                 'output_profile' => $failed->output_profile, 'output_profile_hash' => $failed->output_profile_hash,
                 'provider' => $failed->provider, 'created_by' => $actorId, 'created_at' => now(), 'updated_at' => now(),
             ]);
-            if (in_array($failed->job_type, ['ocr', 'structured_extraction'], true)) {
-                app(DocumentLanguageProfile::class)->persistForJob(
+            if (in_array($failed->job_type, ['ocr', 'structured_extraction', 'speech_to_text'], true)) {
+                $languageProfile = $failed->job_type === 'speech_to_text'
+                    ? app(SpeechLanguageProfile::class)
+                    : app(DocumentLanguageProfile::class);
+                $languageProfile->persistForJob(
                     $customerId,
                     (int) $id,
-                    app(DocumentLanguageProfile::class)->fromProfile((string) $failed->output_profile)
+                    $languageProfile->fromProfile((string) $failed->output_profile)
                 );
             }
             $jitter = random_int(80, 120) / 100;
@@ -203,8 +217,8 @@ class MediaProcessingOrchestrator
     {
         $allowed = [
             'ocr' => isset($parameters['locales']) ? ['layout', 'locales'] : ['layout', 'locale'],
-            'speech_to_text' => ['diarization', 'locale'],
-            'caption' => ['format', 'locale'],
+            'speech_to_text' => isset($parameters['locales']) ? ['diarization', 'locales'] : ['diarization', 'locale'],
+            'caption' => isset($parameters['locales']) ? ['format', 'locale', 'locales'] : ['format', 'locale'],
             'thumbnail' => ['size'],
             'transcode' => ['preset'],
             'structured_extraction' => isset($parameters['locales']) ? ['locales', 'structure'] : ['locale', 'structure'],
@@ -220,7 +234,9 @@ class MediaProcessingOrchestrator
             $parameters['locale'] = $this->profiles->canonicalLocale($parameters['locale']);
         }
         if (isset($parameters['locales'])) {
-            $parameters['locales'] = app(DocumentLanguageProfile::class)->serialize($parameters['locales']);
+            $parameters['locales'] = in_array($jobType, ['speech_to_text', 'caption'], true)
+                ? app(SpeechLanguageProfile::class)->serialize($parameters['locales'])
+                : app(DocumentLanguageProfile::class)->serialize($parameters['locales']);
         }
         if (($jobType === 'ocr' && ($parameters['layout'] ?? null) !== 'preserve')
             || ($jobType === 'structured_extraction' && ! in_array($parameters['structure'] ?? null, ['layout', 'cells'], true))) {
@@ -263,14 +279,14 @@ class MediaProcessingOrchestrator
         $documentLocales = $media->file_type === 'document'
             ? app(DocumentLanguageProfile::class)->canonical(is_array($locale) ? $locale : (string) $locale)
             : null;
-        $canonicalLocale = $documentLocales[0] ?? $this->canonicalLocaleFor($media, is_string($locale) ? $locale : null);
-        if ($media->file_type !== 'document' && $media->processing_locale !== null && $canonicalLocale !== null && $media->processing_locale !== $canonicalLocale) {
-            throw new InvalidArgumentException('Requested locale conflicts with the recorded processing locale.');
-        }
+        $speechLocales = in_array($media->file_type, ['audio', 'video'], true)
+            ? app(SpeechLanguageProfile::class)->canonical(is_array($locale) ? $locale : (string) $locale)
+            : null;
+        $canonicalLocale = $documentLocales[0] ?? $speechLocales[0] ?? null;
 
         $fingerprint = $this->sourceFingerprint($media);
         $plan = [];
-        foreach ($this->initialMaterializationProfiles($media->file_type, $canonicalLocale, true, $documentLocales) as [$jobType, $profile]) {
+        foreach ($this->initialMaterializationProfiles($media->file_type, $canonicalLocale, true, $documentLocales, $speechLocales) as [$jobType, $profile]) {
             if (in_array($jobType, ['ocr', 'structured_extraction'], true)) {
                 $this->assertDocumentUsage($customerId, $media);
             }
@@ -303,13 +319,26 @@ class MediaProcessingOrchestrator
      * `requiredProfiles()` vi the noi sai pham vi cua chinh no.
      */
     /** Transcript revision `ready` hien hanh cua mot Media/locale, neu co dung mot. */
-    private function currentTranscriptRevision(object $media, string $locale): ?string
+    private function currentTranscriptRevision(object $media, string $locale, ?array $profile = null): ?string
     {
-        $versions = DB::table('media_transcripts')
+        $query = DB::table('media_transcripts')
             ->where('customer_id', $media->customer_id)
             ->where('media_file_id', $media->id)
             ->where('locale', $locale)
-            ->where('status', 'ready')
+            ->where('status', 'ready');
+        if ($profile !== null) {
+            $jobIds = DB::table('media_processing_jobs')->where('customer_id', $media->customer_id)
+                ->where('media_file_id', $media->id)->where('job_type', 'speech_to_text')
+                ->get(['id', 'output_profile'])->filter(function (object $job) use ($profile): bool {
+                    try {
+                        return app(SpeechLanguageProfile::class)->fromProfile((string) $job->output_profile) === $profile;
+                    } catch (InvalidArgumentException) {
+                        return false;
+                    }
+                })->pluck('id')->all();
+            $query->whereIn('processing_job_id', $jobIds);
+        }
+        $versions = $query
             ->distinct()
             ->pluck('processing_version')
             ->all();
@@ -317,7 +346,7 @@ class MediaProcessingOrchestrator
         return count($versions) === 1 ? (string) $versions[0] : null;
     }
 
-    private function initialMaterializationProfiles(string $fileType, ?string $locale, bool $speechToText = true, ?array $documentLocales = null): array
+    private function initialMaterializationProfiles(string $fileType, ?string $locale, bool $speechToText = true, ?array $documentLocales = null, ?array $speechLocales = null): array
     {
         $jobs = [['virus_scan', '']];
         if ($fileType === 'document') {
@@ -329,7 +358,11 @@ class MediaProcessingOrchestrator
         $videoSttEligible = (bool) config('media.processing.speech_to_text.video_enabled', false)
             && app(VideoSttQualification::class)->isQualified();
         if (($fileType === 'video' && $speechToText && $videoSttEligible) || ($fileType === 'audio' && $speechToText)) {
-            $jobs[] = ['speech_to_text', $this->profiles->canonical(['diarization' => 'off', 'locale' => (string) $locale])];
+            $speechLocales ??= [(string) $locale];
+            $language = count($speechLocales) === 1
+                ? ['locale' => $speechLocales[0]]
+                : ['locales' => app(SpeechLanguageProfile::class)->serialize($speechLocales)];
+            $jobs[] = ['speech_to_text', $this->profiles->canonical(['diarization' => 'off'] + $language)];
         }
         // Caption KHONG thuoc initial required set. Amendment 2.19 / conflict
         // 0025 chot rang caption chi duoc materialize sau khi STT da commit mot
@@ -399,8 +432,17 @@ class MediaProcessingOrchestrator
                 }
             }
         }
-        if (in_array($jobType, ['ocr', 'structured_extraction'], true)) {
-            app(DocumentLanguageProfile::class)->persistForJob($customerId, (int) $id, app(DocumentLanguageProfile::class)->fromProfile($profile));
+        if (in_array($jobType, ['ocr', 'structured_extraction', 'speech_to_text'], true)) {
+            $languageProfile = $jobType === 'speech_to_text'
+                ? app(SpeechLanguageProfile::class)
+                : app(DocumentLanguageProfile::class);
+            try {
+                $languageProfile->persistForJob($customerId, (int) $id, $languageProfile->fromProfile($profile));
+            } catch (InvalidArgumentException $exception) {
+                if ($jobType !== 'speech_to_text' || $exception->getMessage() !== 'speech_language_profile_unsupported') {
+                    throw $exception;
+                }
+            }
         }
         if ($jobType === 'ocr' && $requestStructure) {
             $pending = DB::table('media_processing_jobs')->where('customer_id', $customerId)->where('id', $id)->where('status', 'pending')->first();
@@ -511,6 +553,16 @@ class MediaProcessingOrchestrator
             }
         }
 
+        if ($jobType === 'speech_to_text' && isset($parameters['locales'])) {
+            $languageProfile = app(SpeechLanguageProfile::class)->serialize(
+                explode(',', (string) $parameters['locales'])
+            );
+            $version .= '+lp-'.substr(hash('sha256', $languageProfile), 0, 12);
+            if (strlen($version) > 100) {
+                $version = 'speech-'.hash('sha256', $version);
+            }
+        }
+
         if ($jobType === 'structured_extraction' && $media !== null && (isset($parameters['locale']) || isset($parameters['locales']))) {
             $languageProfile = isset($parameters['locales'])
                 ? app(DocumentLanguageProfile::class)->canonical(explode(',', (string) $parameters['locales']))
@@ -548,7 +600,10 @@ class MediaProcessingOrchestrator
         // hai bi dedupe. STT chay lai se khong bao gio sinh caption moi, trong khi
         // caption cu da bi stale cascade archive. Video mat phu de vinh vien.
         if ($jobType === 'caption' && $media !== null && isset($parameters['locale'])) {
-            $source = $this->currentTranscriptRevision($media, (string) $parameters['locale']);
+            $speechProfile = isset($parameters['locales'])
+                ? app(SpeechLanguageProfile::class)->canonical(explode(',', (string) $parameters['locales']))
+                : null;
+            $source = $this->currentTranscriptRevision($media, (string) $parameters['locale'], $speechProfile);
             if ($source !== null) {
                 $version .= '+from-'.substr(hash('sha256', $source), 0, 8);
             }

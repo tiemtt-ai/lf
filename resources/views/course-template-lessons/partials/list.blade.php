@@ -231,18 +231,17 @@
                                                           action="{{ route($activityRoutePrefix.'.initialize-transcription', $activityParameters) }}"
                                                           class="course-template-activity-stt-initialize-form">
                                                         @csrf
-                                                        <label class="sr-only" for="stt-locale-{{ $activity->id }}">
+                                                        <fieldset class="admin-checkbox-list">
+                                                        <legend class="sr-only" id="stt-locale-{{ $activity->id }}">
                                                             {{ __('lf.LF_course_template_activity_stt_initialize_locale') }}
-                                                        </label>
-                                                        <select id="stt-locale-{{ $activity->id }}"
-                                                                name="processing_locale"
-                                                                class="lf-form-control"
-                                                                required>
-                                                            <option value="">{{ __('lf.LF_course_template_activity_stt_initialize_choose') }}</option>
-                                                            <option value="vi">{{ __('lf.LF_common_language_vi') }} (vi)</option>
-                                                            <option value="ko">{{ __('lf.LF_common_language_ko') }} (ko)</option>
-                                                            <option value="en">{{ __('lf.LF_common_language_en') }} (en)</option>
-                                                        </select>
+                                                        </legend>
+                                                        @foreach (['vi', 'ko', 'en'] as $localeCode)
+                                                            <label class="admin-checkbox-option">
+                                                                <input type="checkbox" name="processing_locales[]" value="{{ $localeCode }}">
+                                                                <span>{{ __('lf.LF_common_language_'.$localeCode) }} ({{ $localeCode }})</span>
+                                                            </label>
+                                                        @endforeach
+                                                        </fieldset>
                                                         <button type="submit" class="admin-text-action">
                                                             {{ __('lf.LF_course_template_activity_stt_initialize') }}
                                                         </button>

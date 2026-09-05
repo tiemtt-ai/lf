@@ -61,6 +61,7 @@ mình.
 | [**media_processing_job_locales**](media_processing_job_locales.md) | Tập locale chuẩn hóa 1-3 phần tử của một Document job/revision |
 | **media_variants** | Các biến thể hiển thị của tài sản dẫn xuất |
 | **media_transcripts** | Nội dung bản ghi lời thoại dẫn xuất |
+| [**media_transcript_languages**](media_transcript_languages.md) | Language evidence theo từng timespan transcript |
 | **media_captions** | Tài sản phụ đề có thông tin thời gian |
 | [**media_extracted_texts**](media_extracted_texts.md) | Text trích xuất từ document theo trang hoặc sheet, phục vụ trích dẫn |
 | [**media_extracted_regions**](media_extracted_regions.md) | Vùng quan sát được trên trang: role, hình học, thứ tự đọc |

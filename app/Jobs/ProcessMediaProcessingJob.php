@@ -16,6 +16,7 @@ use App\Services\FasterWhisperSpeechToTextProvider;
 use App\Services\LocalDocumentProcessingProvider;
 use App\Services\MediaProcessingOrchestrator;
 use App\Services\RegionCropStorage;
+use App\Services\SpeechLanguageProfile;
 use App\Services\SpeechToTextProcessingEligibility;
 use App\Services\StructuredExtractionPersistenceService;
 use App\Services\TranscriptVttCaptionProvider;
@@ -147,6 +148,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                     'unsupported_output_profile',
                     'document_language_profile_invalid', 'document_language_profile_unsupported',
                     'formula_normalization_invalid',
+                    'speech_language_profile_invalid', 'speech_language_profile_unsupported',
                 ];
                 $errorCode = $e instanceof RuntimeException && in_array($e->getMessage(), $knownErrorCodes, true)
                     ? $e->getMessage()
@@ -347,9 +349,13 @@ class ProcessMediaProcessingJob implements ShouldQueue
         $outputType = null;
         $outputId = null;
         $now = now();
+        $speechLocales = $job->job_type === 'speech_to_text'
+            ? app(SpeechLanguageProfile::class)->fromProfile((string) $job->output_profile)
+            : null;
         $locale = $media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
             ? app(DocumentLanguageProfile::class)->fromProfile((string) $job->output_profile)[0]
-            : $this->profileValue($job->output_profile, 'locale');
+            : ($speechLocales === null ? $this->profileValue($job->output_profile, 'locale')
+                : (count($speechLocales) === 1 ? $speechLocales[0] : 'mul'));
         if ($job->job_type === 'virus_scan') {
             if (! ($result['clean'] ?? false)) {
                 throw new RuntimeException('infected_source');
@@ -383,7 +389,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 && $media->duration_seconds !== null
                     ? (int) $media->duration_seconds * 1000
                     : null;
-            $units = $this->validatedTranscriptUnits($result['units'] ?? [], $sourceDurationMs);
+            $units = $this->validatedTranscriptUnits($result['units'] ?? [], $sourceDurationMs, $speechLocales ?? []);
             foreach ($units as $unit) {
                 $outputId = DB::table('media_transcripts')->insertGetId([
                     'customer_id' => $this->customerId, 'media_file_id' => $media->id, 'locale' => $locale,
@@ -394,10 +400,21 @@ class ProcessMediaProcessingJob implements ShouldQueue
                     'metadata' => isset($unit['metadata']) ? json_encode($unit['metadata'], JSON_THROW_ON_ERROR) : null,
                     'created_at' => $now, 'updated_at' => $now,
                 ]);
+                foreach ($unit['languages'] as $index => $language) {
+                    DB::table('media_spoken_languages')->insert([
+                        'customer_id' => $this->customerId,
+                        'transcript_id' => $outputId,
+                        'ordinal' => $index + 1,
+                        'locale' => $language['locale'],
+                        'char_count' => $language['char_count'],
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ]);
+                }
             }
-            $this->archiveSupersededRevisions('media_transcripts', $media, $job, ['locale' => $locale], $now);
+            $this->archiveSupersededTranscriptProfile($media, $job, $now);
             $this->archiveCaptionsBuiltOnSupersededTranscript($media, $job, $locale, $now);
-            $this->materializeCaptionAfterTranscript($media, $locale);
+            $this->materializeCaptionAfterTranscript($media, $locale, $speechLocales ?? [$locale]);
             $outputType = 'transcript';
         } elseif ($job->job_type === 'caption') {
             $captionType = $this->profileValue($job->output_profile, 'format');
@@ -427,7 +444,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 'transcript_processing_version' => $transcriptRevision,
                 'source_fingerprint' => $job->source_fingerprint, 'created_at' => $now, 'updated_at' => $now,
             ]);
-            $this->archiveSupersededRevisions('media_captions', $media, $job, ['locale' => $locale, 'caption_type' => $captionType], $now);
+            $this->archiveSupersededCaptionProfile($media, $job, $captionType, $transcriptRevision, $now);
             $outputType = 'caption';
         } elseif ($job->job_type === 'structured_extraction') {
             $output = app(StructuredExtractionPersistenceService::class)
@@ -509,6 +526,53 @@ class ProcessMediaProcessingJob implements ShouldQueue
             ->update(['status' => 'archived', 'updated_at' => $now]);
     }
 
+    private function archiveSupersededTranscriptProfile(object $media, object $job, mixed $now): void
+    {
+        $profile = app(SpeechLanguageProfile::class)->fromProfile((string) $job->output_profile);
+        $jobIds = DB::table('media_processing_jobs')->where('customer_id', $this->customerId)
+            ->where('media_file_id', $media->id)->where('job_type', 'speech_to_text')
+            ->get(['id', 'output_profile'])->filter(function (object $candidate) use ($profile): bool {
+                try {
+                    return app(SpeechLanguageProfile::class)->fromProfile((string) $candidate->output_profile) === $profile;
+                } catch (\InvalidArgumentException) {
+                    return false;
+                }
+            })->pluck('id')->all();
+
+        DB::table('media_transcripts')->where('customer_id', $this->customerId)
+            ->where('media_file_id', $media->id)->whereIn('processing_job_id', $jobIds)
+            ->where('status', 'ready')->where('processing_job_id', '<>', $job->id)
+            ->where(fn ($query) => $query->where('processing_version', '<>', $job->processing_version)
+                ->orWhere('source_fingerprint', '<>', $job->source_fingerprint))
+            ->update(['status' => 'archived', 'updated_at' => $now]);
+    }
+
+    private function archiveSupersededCaptionProfile(object $media, object $job, ?string $captionType, string $transcriptRevision, mixed $now): void
+    {
+        $sourceJob = DB::table('media_processing_jobs')->where('customer_id', $this->customerId)
+            ->where('media_file_id', $media->id)->where('job_type', 'speech_to_text')
+            ->where('processing_version', $transcriptRevision)->orderByDesc('id')->first();
+        if ($sourceJob === null) {
+            throw new RuntimeException('transcript_unavailable');
+        }
+        $profile = app(SpeechLanguageProfile::class)->fromProfile((string) $sourceJob->output_profile);
+        $versions = DB::table('media_processing_jobs')->where('customer_id', $this->customerId)
+            ->where('media_file_id', $media->id)->where('job_type', 'speech_to_text')
+            ->get(['processing_version', 'output_profile'])->filter(function (object $candidate) use ($profile): bool {
+                try {
+                    return app(SpeechLanguageProfile::class)->fromProfile((string) $candidate->output_profile) === $profile;
+                } catch (\InvalidArgumentException) {
+                    return false;
+                }
+            })->pluck('processing_version')->unique()->all();
+
+        DB::table('media_captions')->where('customer_id', $this->customerId)
+            ->where('media_file_id', $media->id)->where('caption_type', $captionType)
+            ->whereIn('transcript_processing_version', $versions)->where('status', 'ready')
+            ->where('processing_job_id', '<>', $job->id)
+            ->update(['status' => 'archived', 'updated_at' => $now]);
+    }
+
     /**
      * Caption duoc dung TU transcript (Owner 2026-08-29, DOC-CONFLICT-0024), nen
      * mot transcript revision moi lam moi caption dung tu ban cu tro thanh stale.
@@ -526,12 +590,23 @@ class ProcessMediaProcessingJob implements ShouldQueue
      */
     private function archiveCaptionsBuiltOnSupersededTranscript(object $media, object $job, ?string $locale, mixed $now): void
     {
+        $profile = app(SpeechLanguageProfile::class)->fromProfile((string) $job->output_profile);
+        $versions = DB::table('media_processing_jobs')->where('customer_id', $this->customerId)
+            ->where('media_file_id', $media->id)->where('job_type', 'speech_to_text')
+            ->get(['processing_version', 'output_profile'])->filter(function (object $candidate) use ($profile): bool {
+                try {
+                    return app(SpeechLanguageProfile::class)->fromProfile((string) $candidate->output_profile) === $profile;
+                } catch (\InvalidArgumentException) {
+                    return false;
+                }
+            })->pluck('processing_version')->unique()->all();
         DB::table('media_captions')
             ->where('customer_id', $this->customerId)
             ->where('media_file_id', $media->id)
             ->where('locale', $locale)
             ->where('status', 'ready')
             ->whereNotNull('transcript_processing_version')
+            ->whereIn('transcript_processing_version', $versions)
             ->where(fn ($query) => $query
                 ->where('transcript_processing_version', '<>', $job->processing_version)
                 ->orWhere('source_fingerprint', '<>', $job->source_fingerprint))
@@ -549,7 +624,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
      * Idempotent qua idempotency key: STT chay lai duoi mot revision moi se sinh
      * mot caption chain moi, con chay lai cung revision thi khong tao trung.
      */
-    private function materializeCaptionAfterTranscript(object $media, ?string $locale): void
+    private function materializeCaptionAfterTranscript(object $media, ?string $locale, array $languageProfile): void
     {
         if ($media->file_type !== 'video' || $locale === null) {
             return;
@@ -558,7 +633,8 @@ class ProcessMediaProcessingJob implements ShouldQueue
         try {
             app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
                 $this->customerId, (int) $media->id, 'caption',
-                ['format' => (string) config('media.processing.caption.format', 'vtt'), 'locale' => $locale],
+                ['format' => (string) config('media.processing.caption.format', 'vtt'), 'locale' => $locale]
+                    + (count($languageProfile) > 1 ? ['locales' => $languageProfile] : []),
             );
         } catch (Throwable $exception) {
             // Khong lam hong transcript vua ghi: transcript la output doc lap va
@@ -585,7 +661,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function validatedTranscriptUnits(mixed $units, ?int $sourceDurationMs): array
+    private function validatedTranscriptUnits(mixed $units, ?int $sourceDurationMs, array $requestedLocales): array
     {
         if (! is_array($units) || $units === [] || ($sourceDurationMs !== null && $sourceDurationMs <= 0)) {
             throw new RuntimeException('no_extractable_text');
@@ -614,6 +690,21 @@ class ProcessMediaProcessingJob implements ShouldQueue
             if ($confidence !== null) {
                 $unit['confidence_score'] = round((float) $confidence, 2);
             }
+            $languages = $unit['languages'] ?? [];
+            if (! is_array($languages) || count($languages) > 3) {
+                throw new RuntimeException('transcript_invalid');
+            }
+            $seen = [];
+            foreach ($languages as $language) {
+                if (! is_array($language) || ! is_string($language['locale'] ?? null)
+                    || ! in_array($language['locale'], $requestedLocales, true)
+                    || in_array($language['locale'], $seen, true)
+                    || ! is_int($language['char_count'] ?? null) || $language['char_count'] < 1) {
+                    throw new RuntimeException('transcript_invalid');
+                }
+                $seen[] = $language['locale'];
+            }
+            $unit['languages'] = $languages;
             $validated[] = $unit;
         }
 

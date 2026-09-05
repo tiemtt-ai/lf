@@ -64,6 +64,7 @@ return [
             // canonicalLocale() chi validate cu phap BCP 47. Khong co allowlist
             // thi `fr` di lot toi provider.
             'locales' => ['vi', 'ko', 'en'],
+            'max_locales' => 3,
             'diarization' => 'off',
             // Video co profile hieu nang khac han audio: do tren video that cho
             // RTF 0,48, audio bai giang 0,19-0,28. 7.200s x 0,48 = 3.432s, vuot

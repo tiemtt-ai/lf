@@ -38,7 +38,13 @@ class TranscriptVttCaptionProvider implements MediaProcessingProvider
             throw new RuntimeException('missing_canonical_locale');
         }
 
-        $revision = $this->transcriptRevision($mediaFile, $job, $locale);
+        $profile = $this->profileValue((string) $job->output_profile, 'locales');
+        $revision = $this->transcriptRevision(
+            $mediaFile,
+            $job,
+            $locale,
+            $profile === null ? null : app(SpeechLanguageProfile::class)->canonical($profile)
+        );
         $segments = DB::table('media_transcripts')
             ->where('customer_id', $mediaFile->customer_id)
             ->where('media_file_id', $mediaFile->id)
@@ -68,14 +74,27 @@ class TranscriptVttCaptionProvider implements MediaProcessingProvider
      * khong ghi row. Doan sai revision se sinh phu de cua mot ban phien am khac
      * voi ban AI dang doc, va citation van hop le nen sai khong lo ra.
      */
-    private function transcriptRevision(object $mediaFile, object $job, string $locale): string
+    private function transcriptRevision(object $mediaFile, object $job, string $locale, ?array $profile): string
     {
-        $versions = DB::table('media_transcripts')
+        $query = DB::table('media_transcripts')
             ->where('customer_id', $mediaFile->customer_id)
             ->where('media_file_id', $mediaFile->id)
             ->where('locale', $locale)
             ->where('source_fingerprint', $job->source_fingerprint)
-            ->where('status', 'ready')
+            ->where('status', 'ready');
+        if ($profile !== null) {
+            $jobIds = DB::table('media_processing_jobs')->where('customer_id', $mediaFile->customer_id)
+                ->where('media_file_id', $mediaFile->id)->where('job_type', 'speech_to_text')
+                ->get(['id', 'output_profile'])->filter(function (object $candidate) use ($profile): bool {
+                    try {
+                        return app(SpeechLanguageProfile::class)->fromProfile((string) $candidate->output_profile) === $profile;
+                    } catch (\InvalidArgumentException) {
+                        return false;
+                    }
+                })->pluck('id')->all();
+            $query->whereIn('processing_job_id', $jobIds);
+        }
+        $versions = $query
             ->distinct()
             ->pluck('processing_version')
             ->all();

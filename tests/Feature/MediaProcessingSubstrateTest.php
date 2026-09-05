@@ -179,6 +179,48 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertSame('1000-2000', $result['units'][1]['locator_value']);
     }
 
+    public function test_faster_whisper_multilingual_profile_runs_one_auto_detect_timeline(): void
+    {
+        Storage::disk('media_local')->put('mixed.mp3', 'audio bytes');
+        config([
+            'media.processing.speech_to_text.python_binary' => base_path('artisan'),
+            'media.processing.speech_to_text.script' => base_path('runtime/stt/transcribe.py'),
+            'media.processing.speech_to_text.model_path' => base_path('runtime'),
+        ]);
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldReceive('run')->once()->withArgs(function (array $command): bool {
+            $this->assertNotContains('--locale', $command);
+            $index = array_search('--locales', $command, true);
+            $this->assertNotFalse($index);
+            $this->assertSame('ko,vi', $command[$index + 1]);
+            $outputIndex = array_search('--output', $command, true);
+            file_put_contents($command[$outputIndex + 1], json_encode([
+                'status' => 'ready',
+                'units' => [[
+                    'locator_type' => 'timespan', 'locator_value' => '0-1000', 'text' => '안녕하세요, xin chào',
+                    'languages' => [
+                        ['locale' => 'ko', 'char_count' => 5],
+                        ['locale' => 'vi', 'char_count' => 7],
+                    ],
+                ]],
+            ], JSON_THROW_ON_ERROR));
+
+            return true;
+        })->andReturn('{"status":"ready","units":1}');
+
+        $result = (new FasterWhisperSpeechToTextProvider($runner))->process(
+            (object) [
+                'file_type' => 'audio', 'mime_type' => 'audio/mpeg', 'extension' => 'mp3',
+                'file_size_bytes' => 11, 'duration_seconds' => 2,
+                'storage_disk' => 'media_local', 'storage_key' => 'mixed.mp3',
+            ],
+            (object) ['job_type' => 'speech_to_text', 'output_profile' => 'diarization=off;locales=ko,vi'],
+        );
+
+        $this->assertSame('ko', $result['units'][0]['languages'][0]['locale']);
+        $this->assertSame('vi', $result['units'][0]['languages'][1]['locale']);
+    }
+
     public function test_faster_whisper_provider_fails_before_model_when_audio_exceeds_duration_limit(): void
     {
         $runner = Mockery::mock(DocumentProcessRunner::class);
@@ -1922,7 +1964,7 @@ class MediaProcessingSubstrateTest extends TestCase
         ]);
     }
 
-    public function test_http_audio_upload_enqueues_transcript_and_shows_success_status(): void
+    public function test_http_audio_upload_accepts_multiple_languages_and_enqueues_one_timeline(): void
     {
         config([
             'media.processing.providers.speech_to_text' => 'fake',
@@ -1940,7 +1982,8 @@ class MediaProcessingSubstrateTest extends TestCase
                 'activity_type' => 'audio',
                 'activity_document_file' => null,
                 'activity_audio_file' => UploadedFile::fake()->create('lesson.mp3', 24, 'audio/mpeg'),
-                'processing_locale' => 'ko',
+                'processing_locale' => null,
+                'processing_locales' => ['vi', 'ko'],
                 'speech_to_text' => '1',
             ]))
             ->assertOk()
@@ -1953,11 +1996,16 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertDatabaseHas('media_processing_jobs', [
             'media_file_id' => $usage->media_file_id, 'job_type' => 'speech_to_text',
             'provider' => 'fake', 'status' => 'ready',
+            'output_profile' => 'diarization=off;locales=ko,vi',
         ]);
         $this->assertDatabaseHas('media_transcripts', [
-            'media_file_id' => $usage->media_file_id, 'locale' => 'ko',
+            'media_file_id' => $usage->media_file_id, 'locale' => 'mul',
             'locator_type' => 'timespan', 'status' => 'ready',
         ]);
+        $job = DB::table('media_processing_jobs')->where('media_file_id', $usage->media_file_id)
+            ->where('job_type', 'speech_to_text')->firstOrFail();
+        $this->assertSame(['ko', 'vi'], DB::table('media_processing_job_locales')
+            ->where('processing_job_id', $job->id)->orderBy('ordinal')->pluck('locale')->all());
     }
 
     public function test_http_audio_transcription_failure_is_visible_but_audio_remains_ready(): void
@@ -2152,7 +2200,7 @@ class MediaProcessingSubstrateTest extends TestCase
         ]);
     }
 
-    public function test_qualified_video_opt_in_enqueues_stt_and_deferred_caption(): void
+    public function test_qualified_video_multilingual_opt_in_enqueues_one_stt_and_deferred_mul_caption(): void
     {
         config([
             'media.processing.video_qualification.required' => false,
@@ -2169,7 +2217,8 @@ class MediaProcessingSubstrateTest extends TestCase
             'activity_type' => 'video',
             'activity_document_file' => null,
             'activity_video_file' => UploadedFile::fake()->create('qualified.mp4', 32, 'video/mp4'),
-            'processing_locale' => 'ko',
+            'processing_locale' => null,
+            'processing_locales' => ['vi', 'ko'],
             'video_speech_to_text' => '1',
         ]))
             ->assertOk()
@@ -2182,11 +2231,15 @@ class MediaProcessingSubstrateTest extends TestCase
             'media_file_id' => $usage->media_file_id,
             'job_type' => 'speech_to_text',
             'status' => 'ready',
+            'output_profile' => 'diarization=off;locales=ko,vi',
         ]);
         $this->assertDatabaseHas('media_processing_jobs', [
             'media_file_id' => $usage->media_file_id,
             'job_type' => 'caption',
+            'output_profile' => 'format=vtt;locale=mul;locales=ko,vi',
         ]);
+        $this->assertDatabaseHas('media_transcripts', ['media_file_id' => $usage->media_file_id, 'locale' => 'mul']);
+        $this->assertDatabaseHas('media_captions', ['media_file_id' => $usage->media_file_id, 'locale' => 'mul']);
     }
 
     public function test_video_without_opt_in_needs_no_locale_and_creates_no_stt_job(): void

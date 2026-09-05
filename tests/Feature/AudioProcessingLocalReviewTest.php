@@ -252,7 +252,10 @@ class AudioProcessingLocalReviewTest extends TestCase
         config(['media.processing.providers.speech_to_text' => 'fake']);
         $media = $this->uploadAudio();
         $provider = Mockery::mock(FakeMediaProcessingProvider::class);
-        $provider->shouldReceive('process')->once()->andReturn(['units' => $units]);
+        $provider->shouldReceive('process')->twice()->andReturn(
+            ['units' => $units],
+            ['units' => [['locator_type' => 'timespan', 'locator_value' => '0-1000', 'text' => 'retry hop le']]],
+        );
         $this->app->instance(FakeMediaProcessingProvider::class, $provider);
         $this->attach($media, 'vi');
 
@@ -260,9 +263,13 @@ class AudioProcessingLocalReviewTest extends TestCase
         $this->assertSame('failed', $job->status);
         $this->assertSame('transcript_invalid', $job->error_code);
         $this->assertSame(0, DB::table('media_transcripts')->where('media_file_id', $media->id)->count());
-        // Loi vinh vien: khong duoc retry.
-        $this->expectException(\InvalidArgumentException::class);
-        app(MediaProcessingOrchestrator::class)->retry($this->customerId, (int) $job->id, $this->admin->id);
+        // Model timing co the nondeterministic; attempt moi duoc phep thanh cong
+        // ma khong sua row failed hoac persist output cua attempt sai.
+        $retry = app(MediaProcessingOrchestrator::class)->retry($this->customerId, (int) $job->id, $this->admin->id);
+        $this->assertSame(2, (int) $retry->attempt);
+        $this->assertSame('failed', $this->refreshJob((int) $job->id)->status);
+        $this->assertSame('ready', $this->refreshJob((int) $retry->id)->status);
+        $this->assertSame(1, DB::table('media_transcripts')->where('processing_job_id', $retry->id)->count());
     }
 
     /** @return array<string, array{array<int, array<string, string>>}> */
@@ -302,6 +309,58 @@ class AudioProcessingLocalReviewTest extends TestCase
         $this->assertSame('ready', $this->sttJob($media)->status);
         $this->assertSame(['0-1000', '1000-2000', '2000-15000'],
             array_column(array_column($this->read('vi'), 'locator'), 'value'));
+    }
+
+    public function test_multilingual_profile_persists_segment_evidence_and_reads_one_timeline(): void
+    {
+        config(['media.processing.providers.speech_to_text' => 'fake']);
+        $media = $this->uploadAudio();
+        $provider = Mockery::mock(FakeMediaProcessingProvider::class);
+        $provider->shouldReceive('process')->once()->andReturn(['units' => [
+            ['locator_type' => 'timespan', 'locator_value' => '0-1000', 'text' => 'Xin chào',
+                'languages' => [['locale' => 'vi', 'char_count' => 7]]],
+            ['locator_type' => 'timespan', 'locator_value' => '1000-2000', 'text' => '안녕하세요',
+                'languages' => [['locale' => 'ko', 'char_count' => 5]]],
+            ['locator_type' => 'timespan', 'locator_value' => '2000-3000', 'text' => 'LF',
+                'languages' => []],
+        ]]);
+        $this->app->instance(FakeMediaProcessingProvider::class, $provider);
+
+        $this->attach($media, ['vi', 'ko']);
+        $job = $this->sttJob($media);
+        $this->assertSame('ready', $job->status, (string) $job->error_code);
+        $this->assertSame('diarization=off;locales=ko,vi', $job->output_profile);
+        $this->assertStringContainsString('+lp-', $job->processing_version);
+        $this->assertSame(['ko', 'vi'], DB::table('media_processing_job_locales')
+            ->where('processing_job_id', $job->id)->orderBy('ordinal')->pluck('locale')->all());
+
+        $rows = DB::table('media_transcripts')->where('processing_job_id', $job->id)->orderBy('id')->get();
+        $this->assertSame(['mul', 'mul', 'mul'], $rows->pluck('locale')->all());
+        $this->assertSame(['vi', 'ko'], DB::table('media_spoken_languages')
+            ->whereIn('transcript_id', $rows->pluck('id'))->orderBy('transcript_id')->pluck('locale')->all());
+
+        $units = app(MediaReadService::class)->read(
+            $this->admin->id, 'course_activity', $this->activityId,
+            'audio', 'transcript', languageProfile: ['ko', 'vi']
+        );
+        $this->assertCount(3, $units);
+        $this->assertSame(['ko', 'vi'], $units[0]['language_profile']);
+        $this->assertSame([['locale' => 'vi', 'char_count' => 7]], $units[0]['structure']['languages']);
+        $this->assertSame([['locale' => 'ko', 'char_count' => 5]], $units[1]['structure']['languages']);
+        $this->assertSame([], $units[2]['structure']['languages']);
+        $audit = DB::table('media_access_logs')->where('media_file_id', $media->id)
+            ->where('action', 'read_derived')->orderByDesc('id')->firstOrFail();
+        $this->assertSame(['ko', 'vi'], json_decode((string) $audit->metadata, true)['language_profile']);
+
+        try {
+            app(MediaReadService::class)->read(
+                $this->admin->id, 'course_activity', $this->activityId,
+                'audio', 'transcript', languageProfile: ['en', 'vi']
+            );
+            $this->fail('A different language profile must not fall back to this revision.');
+        } catch (MediaReadException $exception) {
+            $this->assertSame('language_profile_unavailable', $exception->errorCode);
+        }
     }
 
     /** Revision moi archive ban cu; mac dinh chi tra ban hien hanh. */
@@ -641,11 +700,17 @@ class AudioProcessingLocalReviewTest extends TestCase
             .pack('vvVVvv', 1, 1, 16000, 32000, 2, 16).'data'.pack('V', strlen($data)).$data;
     }
 
-    private function attach(object $media, string $locale): void
+    private function attach(object $media, string|array $locale): void
     {
-        app(MediaService::class)->attachUsage($media->id, 'course_activity', $this->activityId, 'audio', [
-            'processing_locale' => $locale, 'speech_to_text' => true,
-        ]);
+        $locales = is_array($locale) ? $locale : [$locale];
+        $metadata = [
+            'processing_locale' => collect($locales)->sort()->first(),
+            'speech_to_text' => true,
+        ];
+        if (is_array($locale)) {
+            $metadata['processing_locales'] = $locales;
+        }
+        app(MediaService::class)->attachUsage($media->id, 'course_activity', $this->activityId, 'audio', $metadata);
     }
 
     private function sttJob(object $media): object

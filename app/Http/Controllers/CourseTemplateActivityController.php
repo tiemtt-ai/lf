@@ -75,17 +75,22 @@ class CourseTemplateActivityController extends Controller
         abort_unless($activity->activity_type === 'audio', 404);
 
         $validated = $request->validate([
-            'processing_locale' => ['required', Rule::in(['vi', 'ko', 'en'])],
+            'processing_locale' => ['nullable', 'string', Rule::in((array) config('media.processing.speech_to_text.locales', []))],
+            'processing_locales' => [Rule::requiredIf(fn () => ! $request->filled('processing_locale')), 'nullable', 'array', 'min:1', 'max:3'],
+            'processing_locales.*' => ['string', 'distinct:strict', Rule::in((array) config('media.processing.speech_to_text.locales', []))],
         ]);
+        $locales = $validated['processing_locales'] ?? [$validated['processing_locale']];
         try {
             $this->processingOrchestrator->initializeLegacySpeechToText(
                 $customerId,
                 $activityId,
-                $validated['processing_locale'],
+                $locales,
                 (int) $request->user()->id,
             );
         } catch (InvalidArgumentException $exception) {
-            return back()->withErrors(['processing_locale' => __('lf.LF_course_template_activity_stt_initialize_ineligible')]);
+            $message = __('lf.LF_course_template_activity_stt_initialize_ineligible');
+
+            return back()->withErrors(['processing_locales' => $message, 'processing_locale' => $message]);
         }
 
         return redirect()->to(
@@ -991,17 +996,20 @@ class CourseTemplateActivityController extends Controller
                 },
             ],
             'processing_locale' => [
-                Rule::requiredIf(fn () => (request()->hasFile('activity_video_file') && request()->boolean('video_speech_to_text'))
-                    || (request()->hasFile('activity_audio_file') && request()->boolean('speech_to_text'))),
                 'nullable',
                 'string',
                 Rule::in(['vi', 'ko', 'en']),
             ],
             'processing_locales' => [
-                Rule::requiredIf(fn () => request()->hasFile('activity_document_file') && ! request()->filled('processing_locale')),
+                Rule::requiredIf(fn () => ! request()->filled('processing_locale') && (request()->hasFile('activity_document_file')
+                    || (request()->hasFile('activity_video_file') && request()->boolean('video_speech_to_text'))
+                    || (request()->hasFile('activity_audio_file') && request()->boolean('speech_to_text')))),
                 'nullable', 'array', 'min:1', 'max:3',
             ],
-            'processing_locales.*' => ['string', 'distinct:strict', Rule::in((array) config('media.processing.document.locales', []))],
+            'processing_locales.*' => ['string', 'distinct:strict', Rule::in(array_values(array_unique(array_merge(
+                (array) config('media.processing.document.locales', []),
+                (array) config('media.processing.speech_to_text.locales', [])
+            ))))],
             // Opt-in cho Docling structured extraction. Chi co y nghia voi document;
             // khong tick thi luong upload giu nguyen hanh vi cu.
             'structured_extraction' => ['nullable', 'boolean'],
@@ -1231,12 +1239,10 @@ class CourseTemplateActivityController extends Controller
                 $activityId,
                 $usageType,
                 [
-                    'processing_locale' => $fileType === 'document'
-                        ? (collect($request->input('processing_locales', []))->sort()->first() ?? $request->input('processing_locale'))
-                        : $request->input('processing_locale'),
-                    'processing_locales' => $fileType === 'document'
-                        ? ($request->input('processing_locales') ?: array_filter([(string) $request->input('processing_locale')]))
-                        : null,
+                    'processing_locale' => collect($request->input('processing_locales', []))->sort()->first()
+                        ?? $request->input('processing_locale'),
+                    'processing_locales' => $request->input('processing_locales')
+                        ?: array_filter([(string) $request->input('processing_locale')]),
                     'structured_extraction' => $fileType === 'document'
                         && strtolower((string) $request->file($field)?->getClientOriginalExtension()) === 'pdf'
                         && $request->boolean('structured_extraction'),

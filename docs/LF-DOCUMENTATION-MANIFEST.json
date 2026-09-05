@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 251,
+  "document_count": 252,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -6115,6 +6115,47 @@
         "platform/LF-Media-Processing-Contract.md",
         "platform/LF-Media-Read-Contract.md",
         "database/media/media_extracted_texts.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/media/media_transcript_languages.md",
+      "title": "Table: media_spoken_languages",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [
+        "media_spoken_languages"
+      ],
+      "topics": [
+        "media",
+        "transcript",
+        "multilingual language evidence"
+      ],
+      "keywords": {
+        "vi": [
+          "bằng chứng ngôn ngữ transcript",
+          "phiên âm đa ngôn ngữ",
+          "mốc thời gian"
+        ],
+        "en": [
+          "transcript language evidence",
+          "multilingual transcription",
+          "timespan"
+        ]
+      },
+      "identifiers": [
+        "media_spoken_languages"
+      ],
+      "related_documents": [
+        "database/media/media_transcripts.md",
+        "platform/LF-Media-Processing-Contract.md",
+        "platform/LF-Media-Read-Contract.md",
+        "adr/ADR-0004-Media-Foundation.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

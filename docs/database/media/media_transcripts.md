@@ -1,6 +1,6 @@
 # Table: media_transcripts
 
-Version: 1.9
+Version: 1.10
 
 Document Status: Approved
 
@@ -27,6 +27,18 @@ media_processing_jobs 1 → N media_transcripts
 ```
 
 ## Business Rules
+
+### Multilingual STT extension — Approved 2026-09-05
+
+Revision có profile 2–3 locale dự kiến dùng `media_transcripts.locale = 'mul'`
+như output selector, không coi `mul` là evidence của từng segment. Mỗi row
+timespan cần child language-evidence tenant/revision-scoped tương tự region
+language evidence; một segment có thể có 0..N locale được quan sát.
+
+Child schema canonical là
+[media_transcript_languages](media_transcript_languages.md). Revision một locale
+và mọi row lịch sử giữ nguyên; không backfill evidence bằng profile hoặc bằng
+text suy đoán.
 
 * Transcript và Media File phải cùng tenant.
 * Transcript text phải nằm trong `text`, không nhét vào metadata.

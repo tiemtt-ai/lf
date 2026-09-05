@@ -4,6 +4,33 @@ Media Foundation
 
 ---
 
+## D7 — Multilingual Audio/Video STT — Approved 2026-09-05
+
+Audio và Video có thể nhận một language profile gồm 1–3 locale trong allowlist
+`vi`, `ko`, `en`, nhưng chỉ sau khi provider vượt qualification trên corpus
+code-switch thật. Profile nhiều locale tạo **một** STT revision cho toàn timeline;
+không chạy toàn file một lần cho mỗi locale và không ghép các transcript cạnh
+tranh.
+
+Canonical job profile dùng `diarization=off;locales=<csv>` và tái sử dụng
+`media_processing_job_locales`. Provider không ép một `--locale` duy nhất; mỗi
+segment phải trả language evidence quan sát được. Requested profile là tập
+candidate, không phải bằng chứng rằng mọi segment dùng mọi locale.
+
+Để giữ backward compatibility, revision một locale tiếp tục dùng locale đó.
+Revision nhiều locale dùng output selector `mul`; locale thực tế theo segment
+phải nằm trong evidence child, có thể rỗng/undetermined khi không đủ bằng chứng.
+Caption dựng từ revision này là một track timeline `mul`, giữ nguyên text nguồn;
+dịch caption vẫn ngoài phạm vi.
+
+Không được mở checkbox trước khi Database Docs, Architecture Review và
+qualification evidence được Owner duyệt. Thiết kế database tối thiểu phải
+bảo đảm tenant/revision FK, evidence theo segment, canonical profile 1–3 locale,
+và không backfill revision lịch sử bằng suy đoán. Architecture Owner duyệt D7
+và triển khai tuần tự ngày 2026-09-05.
+
+---
+
 ## D6 — Approved 2026-08-31
 
 * D6: job dispatch_generation unsigned >=1 default1; unique profile/attempt thêm generation. Explicit authorized reattach sau cancelled tạo successor generation+1, giữ attempt/correlation, supersedes_job_id trỏ cancelled. Failed retry tăng attempt nhưng giữ generation, trần3 xuyên generation. Redelivery/on-demand không mở generation. Gen1 giữ key cũ; gen>1 SHA256 full tuple gồm customer_id và generation. Terminal rows không hồi sinh; output identity không đổi vì cancellation chưa có output.

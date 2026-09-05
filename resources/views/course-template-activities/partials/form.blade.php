@@ -11,7 +11,7 @@
         'processing_locale',
         $currentActivityMedia['media']->processing_locale ?? ''
     );
-    $selectedDocumentLocales = (array) old('processing_locales', $selectedProcessingLocale !== '' ? [$selectedProcessingLocale] : []);
+    $selectedProcessingLocales = (array) old('processing_locales', $selectedProcessingLocale !== '' ? [$selectedProcessingLocale] : []);
     $selectedSpeechToText = (bool) old('speech_to_text', true);
     $selectedVideoSpeechToText = (bool) old('video_speech_to_text', false);
     $videoSttQualification ??= [
@@ -349,47 +349,22 @@
         </div>
     </div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field"
-         x-show="['video', 'audio'].includes(activityType)"
-         x-cloak>
+         x-show="['document', 'audio', 'video'].includes(activityType)" x-cloak>
         <div class="course-activity-locale-heading">
-            <x-form-label for="processing_locale" value="Ngôn ngữ nội dung" />
-            <span class="course-activity-required-badge"
-                  x-show="processingLocaleRequired"
-                  x-cloak>Bắt buộc cho tệp mới</span>
+            <x-form-label value="Ngôn ngữ nội dung (chọn 1–3)" />
+            <span class="course-activity-required-badge" x-show="processingLocaleRequired" x-cloak>Bắt buộc cho tệp mới</span>
         </div>
-        <select id="processing_locale"
-                name="processing_locale"
-                class="lf-form-control"
-                :required="processingLocaleRequired && activityType !== 'document'">
-            <option value="" @selected($selectedProcessingLocale === '')>Chọn ngôn ngữ</option>
-            <option value="vi" @selected($selectedProcessingLocale === 'vi')>Tiếng Việt (vi)</option>
-            <option value="ko" @selected($selectedProcessingLocale === 'ko')>Tiếng Hàn (ko)</option>
-            <option value="en" @selected($selectedProcessingLocale === 'en')>Tiếng Anh (en)</option>
-        </select>
-        <p class="lf-form-help lf-secondary-text" x-show="activityType === 'document'">
-            Dùng để chọn đúng bộ nhận dạng OCR. Hệ thống không tự suy luận ngôn ngữ.
-        </p>
-        <p class="lf-form-help lf-secondary-text" x-show="activityType === 'audio'">
-            Bắt buộc khi bật tự động phiên âm; dùng để chọn đúng model ngôn ngữ.
-            Hệ thống không tự nhận diện ngôn ngữ.
-        </p>
-        <p class="lf-form-help lf-secondary-text" x-show="activityType === 'video'">
-            Dùng cho transcript và phụ đề của video. Hệ thống không tự nhận diện ngôn ngữ.
-        </p>
-    </div>
-    <div class="lf-form-group admin-form-conditional course-template-activity-source-field"
-         x-show="activityType === 'document'" x-cloak>
-        <x-form-label value="Ngôn ngữ chữ trong tài liệu (chọn 1–3)" />
         <div class="admin-checkbox-list">
             @foreach (['vi' => 'Tiếng Việt (vi)', 'ko' => 'Tiếng Hàn (ko)', 'en' => 'Tiếng Anh (en)'] as $localeCode => $localeLabel)
                 <label class="admin-checkbox-option">
                     <input type="checkbox" name="processing_locales[]" value="{{ $localeCode }}"
-                           @checked(in_array($localeCode, $selectedDocumentLocales, true))>
+                           @checked(in_array($localeCode, $selectedProcessingLocales, true))>
                     <span>{{ $localeLabel }}</span>
                 </label>
             @endforeach
         </div>
-        <p class="lf-form-help lf-secondary-text">Hệ thống chuẩn hóa tập ngôn ngữ; thứ tự chọn không ảnh hưởng revision.</p>
+        <p class="lf-form-help lf-secondary-text" x-show="activityType === 'document'">Dùng cho OCR và Docling; thứ tự chọn không ảnh hưởng revision.</p>
+        <p class="lf-form-help lf-secondary-text" x-show="['audio', 'video'].includes(activityType)">Một timeline phiên âm giữ nguyên phần chuyển đổi giữa các ngôn ngữ; hệ thống không dịch nội dung.</p>
     </div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field"
          x-show="activityType === 'document' && documentIsPdf"
