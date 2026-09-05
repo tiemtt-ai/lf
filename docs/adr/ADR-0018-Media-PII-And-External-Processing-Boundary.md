@@ -1,6 +1,6 @@
 # ADR-0018 — Media PII And External Processing Boundary
 
-Version: 1.0
+Version: 1.1
 
 Status: Approved
 
@@ -8,7 +8,7 @@ Document Status: Approved
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-08-25
+Last Updated: 2026-09-05
 
 Proposal Date: 2026-08-25
 
@@ -23,6 +23,20 @@ Related ADRs:
 * [ADR-0004 — Media Foundation](ADR-0004-Media-Foundation.md)
 * [ADR-0006 — AI Foundation](ADR-0006-AI-Foundation.md)
 * [ADR-0017 — AI-Assisted Learning Authoring](ADR-0017-AI-Assisted-Learning-Authoring.md)
+
+---
+
+## Amendment v1.1 — AI vector deletion synchronization — Approved 2026-09-05
+
+Qdrant self-hosted trong LF-managed boundary được phép giữ vector nhưng không raw
+chunk text/PII payload. Relational state chuyển `deletion_pending` trước remote
+delete; retrieval chỉ nhận `ready` và phải post-validate tenant, authorization,
+source/chunk status cùng Media revision. Hard purge relational source/chunk chờ
+mọi vector được xác nhận `deleted`. Failure giữ pending và retry/reconcile,
+không báo xóa thành công giả.
+
+Quyết định này đóng cơ chế synchronization, không tự đặt retention duration và
+không approve Qdrant Cloud hay external embedding provider.
 
 ---
 

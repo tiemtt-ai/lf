@@ -2,6 +2,17 @@
 
 Document Path: database/ai/ai_knowledge_sources.md
 
+## Media retrieval amendment — Approved 2026-09-05
+
+Media Knowledge Source mở `content_type` thành toàn bộ read units có text phục
+vụ retrieval: `extracted_text`, `transcript`, `region`, `table`, `formula`.
+`caption_asset` và `variant` là file delivery không có text trực tiếp nên không
+được đăng ký làm textual knowledge source; consumer muốn dùng phải qua một
+processing/read contract tạo text riêng.
+
+Một registration vẫn neo đúng owner context + revision, không theo Media File.
+Ranking policy của ADR-0006 v1.0.1 không thay đổi identity hoặc authorization.
+
 ## Amendment — Approved 2026-08-25
 
 Nguồn: [LF-AI-Foundation-Media-Consumer-Database-Architecture-Review](../../quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md)
@@ -85,8 +96,8 @@ CHECK (source_type IN ('course_activity','course_version_activity',
                        'course_version','assessment_snapshot','track_summary',
                        'liveclass_transcript','other'));
 CHECK (content_type IS NULL
-       OR content_type IN ('extracted_text','transcript','caption_asset',
-                           'variant'));
+       OR content_type IN ('extracted_text','transcript','region','table',
+                           'formula'));
 CHECK (content_type IS NULL
        OR (source_fingerprint IS NOT NULL AND processing_version IS NOT NULL));
 ```

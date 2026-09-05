@@ -1,16 +1,58 @@
 # AI Foundation Media-Consumer Database Architecture Review
 
-Version: 1.0
+Version: 1.2
 
 Document Status: Review
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-08-25
+Last Updated: 2026-09-05
 
 Review Date: 2026-08-25
 
 Document Path: quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md
+
+---
+
+# Retrieval-policy amendment review — 2026-09-05
+
+Owner-approved ADR-0006 v1.0.1 assigns ranking exclusively to AI and leaves
+Media evidence/order immutable. The policy is implementable from existing Media
+Read fields and needs no Media schema or migration. It explicitly preserves
+Jamo paragraph evidence, formula-region fallback, table `undetermined`, image
+crop and per-unit citations.
+
+**Scoped verdict: PASS for contract boundary.** Overall database verdict below
+remains `CHANGES REQUIRED`; this amendment does not authorize AI migrations,
+embedding population or production retrieval before F-1–F-7 are resolved.
+
+Database-doc follow-up records that F-1–F-5 already have Owner-approved
+amendments dated 2026-08-25. The 2026-09-05 amendment additionally aligns
+`ai_knowledge_sources.content_type` with `region|table|formula`, aligns chunk
+locator vocabulary with `region|sheet`, requires one Media unit per chunk, and
+adds immutable snapshots `source_role`, `source_quality_status`,
+`language_evidence`. This closes the schema-shape gap introduced by the newer
+Media Read contract without weakening tenant or citation identity.
+
+Migration remains unauthorized for two independent reasons: this document is
+still not an independent rerun, and F-6/F-7 still require an approved retention
+deletion mechanism plus a vector-store/adapter decision. Lexical-only fallback
+or a specific vector product must not be invented inside a migration.
+
+---
+
+# F-6/F-7 closure — Owner decision 2026-09-05
+
+F-6 closed by the relational-first `deletion_pending` state machine, exact UUID
++ tenant-filter remote delete, acknowledgment, retry/reconciliation and parent
+purge barrier. F-7 closed by Qdrant self-hosted >=1.11 inside the LF-managed
+boundary; MariaDB 11.4 remains relational only. Point payload excludes raw text,
+PII and signed URLs; every vector hit is post-validated against relational and
+Media authorization/revision state.
+
+These decisions close the two architecture questions. **Migration remains NO**
+until an independent reviewer reruns the full revised database packet and gives
+a PASS; Owner approval cannot substitute for that separate gate.
 
 ---
 
@@ -19,9 +61,9 @@ Document Path: quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Rev
 | Field | Value |
 | --- | --- |
 | Domain | AI × Media |
-| Parent ADR | [ADR-0006 — AI Foundation](../adr/ADR-0006-AI-Foundation.md) v1.0 — Approved, Frozen |
+| Parent ADR | [ADR-0006 — AI Foundation](../adr/ADR-0006-AI-Foundation.md) v1.0.1 — Approved, Frozen |
 | Constraining ADR | [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved |
-| Consumer Contract | [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md) v1.4 |
+| Consumer Contract | [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md) v1.19 |
 | Producer Contract | [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md) |
 | Review Scope | 4 tables on the Media→AI consumer path: `ai_knowledge_sources`, `ai_knowledge_chunks`, `ai_embeddings`, `ai_model_runs` |
 | Out Of Scope | `ai_assistant_sessions`, `ai_conversations`, `ai_messages`, `ai_prompt_templates`, `ai_feedback`, `ai_insights`, `ai_recommendations` |
@@ -38,7 +80,7 @@ produce an Approved verdict.
 
 Amendment boundary: [ADR-0006 Amendment Version 1.1](../adr/ADR-0006-AI-Foundation.md)
 is **Proposed — pending Architecture Owner approval**. Everything below reviews
-Version 1.0 only. The Learning Mastery Profile provenance rule marked
+the Version 1.0 database shape only; v1.0.1 adds no table or column. The Learning Mastery Profile provenance rule marked
 *"Proposed, chưa có hiệu lực"* in `ai_model_runs.md`, `ai_insights.md` and
 `ai_recommendations.md` must not be encoded by any migration produced from this
 review.
@@ -53,21 +95,23 @@ review.
       Assessment, Media, Track or LiveClass ownership.
 - [x] Chunks and embeddings are declared derived and rebuildable; neither is a
       Source Of Truth.
-- [ ] **Media→AI stale propagation has no documented mechanism.** See F-4.
+- [x] **Media→AI stale propagation assigned to AI.** Closed by approved
+      `ai_knowledge_sources` amendment: Media exposes revision state; AI marks
+      source/chunk/embedding stale and rebuilds.
 
 # B — Tenant Isolation
 
 - [x] Every reviewed table carries `customer_id NOT NULL`.
 - [x] Every documented unique key and index is `customer_id`-leading.
-- [ ] **No table declares `UNIQUE (id, customer_id)`, and every documented
-      relationship is single-column.** See F-2.
+- [x] `UNIQUE (id, customer_id)` and composite child FKs are documented by the
+      approved 2026-08-25 amendments. F-2 closed.
 
 # C — Read Contract Conformance
 
-- [ ] **`ai_knowledge_sources` cannot store the two values the Read Contract
-      requires per registered unit.** See F-1.
-- [ ] **`ai_knowledge_chunks.source_locator` re-encodes the locator in a third,
-      incompatible shape.** See F-3.
+- [x] `ai_knowledge_sources` stores fingerprint/version and current textual
+      content types. F-1 closed.
+- [x] Chunk locator uses Media vocabulary and one unit per Media chunk. F-3
+      closed; the 2026-09-05 amendment adds `region|sheet`.
 - [x] AI is consumer-only: no reviewed table grants a write path into `media_*`.
 
 # D — Lifecycle And Revision
@@ -76,18 +120,18 @@ review.
 - [x] Media revision archiving now exists in runtime
       (`ProcessMediaProcessingJob::archiveSupersededRevisions`), so a detection
       point for staleness is available.
-- [ ] Nothing sets `ai_knowledge_sources.status = 'stale'`. See F-4.
+- [x] Contract assigns stale detection/rebuild to AI. Runtime remains pending
+      AI Foundation implementation; this is no longer a schema ambiguity.
 
 # E — Retention, Deletion And PII
 
 - [x] No reviewed table stores a provider credential or BYOK secret.
-- [ ] **`ai_embeddings` deletion synchronization is an open Foundation question**
-      while ADR-0018 requires retention/deletion coverage across the provenance
-      chain including AI-derived chunk/embedding. See F-6.
+- [x] Qdrant deletion synchronization is frozen by ADR-0006 v1.0.2 and
+      ADR-0018 v1.1. F-6 closed; implementation evidence remains future work.
 
 # F — Findings
 
-## F-1 — BLOCKER — `ai_knowledge_sources` cannot express a derived content unit
+## F-1 — CLOSED 2026-08-25 — `ai_knowledge_sources` derived content identity
 
 LF-Media-Read-Contract § 7:
 
@@ -111,7 +155,7 @@ Required before migration: amend `ai_knowledge_sources.md` to carry the unit
 identity — at minimum `source_fingerprint` and `processing_version`, and a
 `source_type` vocabulary aligned with the four Read Contract content types.
 
-## F-2 — BLOCKER — No tenant composite identity or composite foreign key
+## F-2 — CLOSED 2026-08-25 — Tenant composite identity and foreign keys
 
 The two most recent Foundation migrations
 (`2026_08_24_000000_create_media_processing_substrate`,
@@ -131,7 +175,7 @@ Required before migration: an explicit decision recorded in the four table
 docs — adopt the composite pattern, or document why AI Foundation departs from
 it.
 
-## F-3 — HIGH — Locator contract divergence in `ai_knowledge_chunks`
+## F-3 — CLOSED 2026-09-05 — Chunk locator contract
 
 LF-Media-Processing-Contract § 4 freezes one locator shape for every output:
 
@@ -149,7 +193,7 @@ Required before migration: constrain `source_locator` to the frozen locator
 contract, or state in the doc why a chunk-level locator is a distinct vocabulary
 and how it maps back.
 
-## F-4 — HIGH — Stale propagation has no trigger
+## F-4 — CLOSED 2026-08-25 — Stale propagation ownership
 
 The Read Contract assigns the split correctly — *"Media báo trạng thái, AI quyết
 định"* — but no document says how AI observes the state change. Nothing sets
@@ -161,7 +205,7 @@ the prior revision flips to `archived`. A registered source holding the old
 written down as a contract obligation on one side before either side implements
 a poll or a signal.
 
-## F-5 — MEDIUM — `ai_model_runs` subset has unresolvable foreign keys
+## F-5 — CLOSED 2026-08-25 — Deferred `ai_model_runs` foreign keys
 
 `assistant_session_id` and `prompt_template_id` reference two tables outside
 this subset and not implemented. A subset migration must either leave them
@@ -172,27 +216,19 @@ Recommendation: implement `ai_model_runs` with the columns documented but add
 the two foreign keys in the migration that creates their targets, and record
 that deferral in the table doc so it is not read as an omission.
 
-## F-6 — MEDIUM — `ai_embeddings` collides with the ADR-0018 production gate
+## F-6 — CLOSED 2026-09-05 — Embedding deletion synchronization
 
-`ai_embeddings.md` Design Notes: *"Vector-store selection, data residency and
-deletion synchronization remain open Foundation questions."* ADR-0018 requires
-retention/deletion to cover the provenance chain **including** AI-derived
-chunk/embedding, and names the missing implementation as the reason
-production/real-tenant rollout stays gated (Read Contract risk B1).
+Resolved by ADR-0006 v1.0.2, ADR-0018 v1.1 and the `ai_embeddings` amendment:
+MariaDB status moves to `deletion_pending` before remote work; retrieval accepts
+only `ready`; exact UUID + tenant-filter deletion must be acknowledged before
+`deleted`; failure retries/reconciles and blocks parent hard purge.
 
-Creating the table is not blocked by this. Populating it in a real tenant is.
+## F-7 — CLOSED 2026-09-05 — Vector adapter selection
 
-## F-7 — MEDIUM — Vector store implies a platform the stack does not run
-
-`ai_embeddings.md` sample data uses `vector_store=pgvector`, a PostgreSQL
-extension; LF runs MySQL/MariaDB. `vector_index` is described as a "tenant-safe
-logical index" with tenant-scoped retrieval over a possibly shared index, which
-is an adapter contract that does not exist.
-
-The table stores only references, so the schema itself is platform-neutral and
-implementable. Actually embedding anything requires a vector-store decision of
-the same class as a Tech Stack amendment. This must not be discovered after the
-migration ships.
+Resolved by ADR-0006 v1.0.2 and LF-Tech-Stack v1.3: Qdrant self-hosted >=1.11
+inside the LF-managed boundary, shared collections partitioned by indexed
+`customer_id`, and mandatory tenant filter on every operation. MariaDB 11.4
+remains relational only; Qdrant Cloud and external stores remain unapproved.
 
 ---
 
@@ -212,18 +248,14 @@ Migration authorized
 NO
 ```
 
-Two blockers (F-1, F-2) are schema-shaping and must be closed **in the database
-documents** before any migration is written, per the Database Rule in
-`AGENTS.md`. F-3 and F-4 are contract obligations that decide column shape and
-should be closed in the same pass. F-5 through F-7 are recorded constraints that
-do not block table creation.
+F-1–F-7 are closed in approved ADR/database/tech contracts. Migration remains
+unauthorized because this packet still requires an independent architecture
+rerun before Freeze under `AGENTS.md`.
 
 # H — Owner Actions
 
-Status 2026-08-25: drafts for actions 1–5 are written into the four table docs as
-`## Amendment — Proposed 2026-08-25` sections. They are **proposals pending Owner
-approval**; no migration may be written from them until that approval and an
-independent review exist.
+Status 2026-09-05: actions 1–5 and F-6/F-7 are Owner-approved. Action 6—the
+independent rerun—remains open; no migration is authorized.
 
 1. Amend `ai_knowledge_sources.md`: add `source_fingerprint` and
    `processing_version`; align `source_type` with the four Read Contract content

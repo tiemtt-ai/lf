@@ -1,14 +1,59 @@
 # LF-AI.md
 
-Version: 1.1
+Version: 1.3
 
 Document Status: Frozen
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-08-25
+Last Updated: 2026-09-05
 
 Document Path: platform/LF-AI.md
+
+---
+
+## Vector adapter and purge contract — Approved 2026-09-05
+
+Vector adapter là Qdrant self-hosted >=1.11 trong LF-managed boundary. Shared
+collection partition bằng indexed tenant payload; mọi operation filter
+`customer_id`. Vector hit chỉ là candidate và phải post-validate row `ready`,
+active source/chunk, Media authorization và revision trước khi dùng.
+
+Purge chuyển relational row sang `deletion_pending` trước, xóa exact UUID với
+tenant filter, rồi mới ghi `deleted`. Failure retry/reconcile và chặn hard purge
+parent. Point payload không chứa raw text/PII/signed URL. Chi tiết state machine
+ở ADR-0006 v1.0.2 và `ai_embeddings`.
+
+---
+
+## Media evidence retrieval policy — Approved 2026-09-05
+
+AI retrieval nhận authorized units từ Media Read của **một revision**, không
+đọc trực tiếp bảng Media và không thay source order. Candidate phải có lexical
+hoặc semantic relevance trước khi cộng modifier.
+
+Thứ tự modifier bắt buộc:
+
+* boost region có `languages[].locale` khớp query locale;
+* ưu tiên `heading|paragraph|list|table|caption` hơn `image` khi relevance tương
+  đương;
+* image text dài không quá 4 ký tự, hoặc cùng normalized text lặp ở ít nhất 3
+  trang, là low-signal: giữ evidence/crop nhưng hạ rank;
+* với query `vi`, bỏ riêng locale boost của `Hang/ko` có `char_count <= 3` khi
+  chính image region đó cũng có `Latn/vi`; không sửa/xóa language row;
+* sau một locale match, context expansion được lấy region ngôn ngữ khác cùng
+  page hoặc `reading_order distance <= 2`;
+* `locale = null` giữ nghĩa undetermined và không bị coi là defect.
+
+Kết quả retrieval phải mang nguyên `media_file_id`, `source_fingerprint`,
+`processing_version`, locator và reading order của từng unit. Context expansion
+không được nối hai region thành một citation giả. Formula evidence bị từ chối
+vẫn có thể tham gia như region thường; `quality_status = undetermined` của table
+không phải penalty chất lượng.
+
+Các threshold trên được chốt từ regression `docling 3/6` (Jamo thật ở paragraph
+không bị hạ) và `docling 7` (image `"3"`, Hangul OCR ngắn). Runtime vẫn
+`Not Implemented` cho tới khi các gate AI Foundation hiện hành được đóng.
 
 ---
 
@@ -198,7 +243,8 @@ Approved source examples:
 
 * Course published Version/Version Activity.
 * Assessment authoring or immutable snapshot theo use case được phép.
-* Media File/Transcript.
+* Authorized Media Read unit: `extracted_text`, `transcript`, `region`, `table`
+  hoặc `formula`, neo owner context và revision; không đăng ký theo Media File.
 * Track Summary/AI-ready Feature.
 * LiveClass transcript or operational evidence reference.
 

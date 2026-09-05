@@ -2,6 +2,20 @@
 
 Document Path: database/ai/ai_knowledge_chunks.md
 
+## Media retrieval amendment — Approved 2026-09-05
+
+Mỗi chunk của Media source chứa **đúng một Media Read unit**. Vì vậy
+`locator_start = locator_end`; context expansion dùng nhiều chunk, mỗi chunk giữ
+citation riêng, không nối nhiều region thành một locator giả. Locator vocabulary
+mở đúng Media Read: `page`, `timespan`, `sheet`, `region`.
+
+Chunk snapshot ba signal rerank quan sát được: `source_role`,
+`source_quality_status` và `language_evidence`. Chúng được copy từ unit của đúng
+`source_fingerprint`/`processing_version`, không phải AI classification.
+`language_evidence` giữ array `{script, locale, char_count}`; NULL cho content
+type không có evidence đa trị. Crop URL không được snapshot vì là signed delivery
+tạm thời; khi cần kiểm chứng, consumer đọc lại Media bằng locator/revision.
+
 ## Amendment — Approved 2026-08-25
 
 Nguồn: [LF-AI-Foundation-Media-Consumer-Database-Architecture-Review](../../quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md)
@@ -27,9 +41,9 @@ Derived text chunks phục vụ tenant-scoped retrieval/RAG.
 * Chunk giữ locator theo **đúng** hợp đồng locator chung tại
   [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md)
   § 4: `locator_type` là `page` hoặc `timespan`, giá trị luôn là text.
-* Một chunk có thể trải nhiều unit, nên locator là một khoảng:
-  `locator_start`..`locator_end`. Chunk gói đúng một unit thì hai giá trị bằng
-  nhau. Không có hình dạng locator thứ ba.
+* Chunk ngoài Media có thể trải nhiều unit và dùng khoảng
+  `locator_start`..`locator_end`. Chunk Media bắt buộc một unit nên hai giá trị
+  bằng nhau.
 * Content/metadata tuân tenant privacy and retention.
 
 ## Fields
@@ -45,9 +59,12 @@ Derived text chunks phục vụ tenant-scoped retrieval/RAG.
 | content_hash | VARCHAR(128) NOT NULL | Chunk content fingerprint. |
 | token_count | INT UNSIGNED NULL | Estimated tokens. |
 | locale | VARCHAR(20) NULL | Chunk locale. |
-| locator_type | VARCHAR(20) NOT NULL | `page` hoặc `timespan`, theo unit nguồn. |
+| locator_type | VARCHAR(20) NOT NULL | `page`, `timespan`, `sheet` hoặc `region`, theo unit nguồn. |
 | locator_start | VARCHAR(50) NOT NULL | Locator của unit đầu trong chunk. |
 | locator_end | VARCHAR(50) NOT NULL | Locator của unit cuối trong chunk. |
+| source_role | VARCHAR(20) NULL | Region role quan sát được; NULL ngoài region/formula. |
+| source_quality_status | VARCHAR(20) NULL | Table `complete|incomplete|undetermined`; NULL ngoài table. |
+| language_evidence | JSON NULL | Snapshot ordered `{script,locale,char_count}` từ Media unit. |
 | status | VARCHAR(50) NOT NULL DEFAULT 'active' | Derived chunk lifecycle. |
 | metadata | JSON NULL | Chunking strategy/version. |
 | created_at | TIMESTAMP NULL | Created time. |
@@ -67,8 +84,10 @@ FOREIGN KEY (knowledge_source_id, customer_id)
     REFERENCES ai_knowledge_sources (id, customer_id) RESTRICT;
 
 CHECK (status IN ('active','stale','archived','failed'));
-CHECK (locator_type IN ('page','timespan'));
+CHECK (locator_type IN ('page','timespan','sheet','region'));
 CHECK (sequence_no >= 1);
+CHECK (source_quality_status IS NULL
+       OR source_quality_status IN ('complete','incomplete','undetermined'));
 ```
 
 Locator tách thành ba cột thay vì một JSON là để **join ngược được** về
@@ -76,9 +95,14 @@ Locator tách thành ba cột thay vì một JSON là để **join ngược đư
 được nguồn thì không phải citation, và JSON tự do thì mỗi lần chunk lại sinh một
 hình dạng khác.
 
+Readiness invariant xuyên parent: chunk của Media source phải có
+`locator_start = locator_end`; `source_role` chỉ có với `region|formula`;
+`source_quality_status` chỉ có với `table`; `language_evidence` phải bằng unit
+đã đọc. Vi phạm fail toàn ingestion revision, không publish chunk một phần.
+
 ## Sample Data
 
-`id=10, customer_id=1, knowledge_source_id=1, chunk_uuid=0191-chunk-0010, sequence_no=1, content=안녕하세요..., content_hash=sha256:def456, token_count=320, locale=ko, locator_type=timespan, locator_start=0-45000, locator_end=0-45000, status=active`
+`id=10, customer_id=1, knowledge_source_id=1, chunk_uuid=0191-chunk-0010, sequence_no=1, content=Ôn tập về bất quy tắc của ㅂ..., content_hash=sha256:def456, token_count=18, locale=vi, locator_type=region, locator_start=15#1, locator_end=15#1, source_role=paragraph, source_quality_status=NULL, language_evidence=[{script:Latn,locale:vi,char_count:41},{script:Hang,locale:ko,char_count:3}], status=active`
 
 ## Design Notes
 

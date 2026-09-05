@@ -1,12 +1,12 @@
 # LF-Tech-Stack.md
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-27
+Last Updated: 2026-09-05
 
 Document Path: tech/LF-Tech-Stack.md
 
@@ -638,17 +638,17 @@ Other Providers
 
 # Vector Search
 
-Future:
+Approved target for AI Foundation:
 
 ```text
-pgvector
-
-OpenSearch
-
-Pinecone
-
-Qdrant
+Qdrant self-hosted >= 1.11
 ```
+
+MariaDB 11.4 remains the relational Source Of Truth and is not used as a vector
+store. Qdrant runs inside the LF-managed data boundary. Shared collections use
+an indexed `customer_id` tenant payload (`is_tenant=true`); every operation also
+filters tenant explicitly. Managed/cloud Qdrant and other stores remain
+unapproved until a separate architecture/privacy decision.
 
 ---
 

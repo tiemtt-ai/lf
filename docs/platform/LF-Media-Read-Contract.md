@@ -1,6 +1,6 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.18
+Version: 1.19
 
 Document Status: Approved
 
@@ -20,6 +20,21 @@ Related ADR:
 
 Related Specification:
 [LF-Media-Processing-Contract](LF-Media-Processing-Contract.md)
+
+---
+
+## AI retrieval boundary — Approved 2026-09-05
+
+Media Read luôn trả region theo `reading_order` và không nhận query text, không
+tính relevance/rank, không xóa image text ngắn và không sửa language evidence để
+phục vụ tìm kiếm. Consumer AI dùng các field đã có (`role`, `languages`, page,
+`reading_order`, text, crop và revision identity) theo
+[LF-AI](LF-AI.md) § Media evidence retrieval policy.
+
+Đặc biệt, `Hang/ko` ít ký tự trong image có thể là OCR noise nhưng vẫn là quan
+sát cần giữ. Quyết định không boost nó thuộc AI request cụ thể; Media không được
+hạ `locale`, đổi `role`, archive region hay bỏ crop. Điều này bảo toàn citation
+và khiến revision `docling 3/6/7` tiếp tục đọc byte-for-byte cùng thứ tự.
 
 ---
 
@@ -469,6 +484,10 @@ tắc và mã lỗi đầy đủ ở § 4.1. Không nêu thì mặc định là 
 
 `ai_knowledge_sources` đăng ký theo derived content unit, không theo Media File,
 và lưu `source_fingerprint` cùng `processing_version` của unit đã đọc.
+Textual registrations được phép là `extracted_text`, `transcript`, `region`,
+`table`, `formula`; `caption_asset` và `variant` chỉ là delivery asset nên không
+được chunk trực tiếp. Mỗi Media chunk giữ đúng một unit và locator của unit đó;
+AI context expansion dùng nhiều chunk có citation riêng.
 
 Khi Media sinh revision mới, chunk và embedding dựng từ bản cũ trở thành
 **stale** và phải rebuild. Media **không** tự động rebuild và không xoá gì của

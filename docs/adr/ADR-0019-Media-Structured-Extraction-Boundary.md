@@ -1,6 +1,6 @@
 # ADR-0019 — Media Structured Extraction Boundary
 
-Version: 1.9
+Version: 1.10
 
 Status: Approved
 
@@ -30,6 +30,20 @@ Related Specification:
 * [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md)
 * [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md)
 * [media_extracted_texts](../database/media/media_extracted_texts.md)
+
+---
+
+## Amendment v1.10 — Retrieval remains a consumer policy — Approved 2026-09-05
+
+Evidence từ `docling 7` cho thấy image OCR có thể giữ text Việt hữu ích đồng
+thời sinh vài ký tự Hangul nhiễu. Media không đủ context query để quyết định ký
+tự nào hữu ích, nên không xóa text, không sửa `languages`, không gán confidence
+giả và không đổi `reading_order`. Image/crop/locator vẫn được persist nguyên.
+
+Role/language-aware ranking, low-signal image penalty và cross-language context
+expansion thuộc AI theo ADR-0006 v1.0.1. Ranh giới này tránh làm sai Jamo thật
+trong paragraph của `docling 3/6` và giữ Media output deterministic cho mọi
+consumer không phải retrieval.
 
 ---
 

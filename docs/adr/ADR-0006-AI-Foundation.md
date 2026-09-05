@@ -12,7 +12,7 @@ Frozen
 
 ## Version
 
-1.0
+1.0.2
 
 ---
 
@@ -24,7 +24,7 @@ Not Implemented
 
 ## Last Updated
 
-2026-08-22
+2026-09-05
 
 ---
 
@@ -48,11 +48,89 @@ Document Path: adr/ADR-0006-AI-Foundation.md
 
 ---
 
+## Amendment Record — Version 1.0.2 (Approved 2026-09-05)
+
+Architecture Owner chọn **Qdrant self-hosted, minimum 1.11**, trong LF-managed
+data boundary, làm vector adapter. MariaDB Community 11.4 tiếp tục là relational
+Source Of Truth và không lưu vector: native vector GA cần MariaDB 11.7+, còn
+Enterprise 11.4 chỉ là Technical Preview. Qdrant Cloud/managed bên thứ ba không
+được suy ra từ quyết định này và vẫn cần ADR-0018 external-processing approval.
+
+Một collection dùng chung theo embedding model/version; mọi point bắt buộc payload
+`customer_id` và tenant keyword index `is_tenant=true`. Mọi query, update và delete
+bắt buộc filter `customer_id`; point id là UUID từ `ai_embeddings.vector_key`.
+Kết quả Qdrant chỉ là candidate: trước khi phục vụ, AI phải kiểm lại relational
+embedding `ready`, source/chunk active, Media owner authorization và current
+revision. Thiếu bất kỳ điều kiện nào thì loại candidate fail-closed.
+
+Deletion là state machine có retry:
+
+1. transaction MariaDB chuyển embedding sang `deletion_pending`; retrieval chỉ
+   nhận `ready`, nên point bị loại ngay cả khi Qdrant chưa phản hồi;
+2. worker xóa exact point bằng UUID **và** tenant filter, chờ acknowledgment;
+3. thành công ghi `deleted_at`, status `deleted`; thất bại tăng attempt và giữ
+   `last_error_code` để retry;
+4. chunk/source relational content chỉ được hard-delete sau khi mọi embedding
+   con đã `deleted`; Qdrant unavailable làm purge pending, không được giả success;
+5. reconciliation định kỳ phát hiện point/row lệch và đưa lại vào state machine.
+
+Point payload không chứa raw chunk text, PII hay signed URL; chỉ chứa identity,
+tenant, model/revision và routing status tối thiểu. Backup/restore, network,
+encryption và residency của Qdrant phải cùng boundary với dữ liệu LF tương ứng.
+
+Owner Approval:
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-09-05
+Decision: APPROVED
+```
+
+---
+
+## Amendment Record — Version 1.0.1 (Approved 2026-09-05)
+
+Architecture Owner phê duyệt contract xếp hạng Media evidence cho AI retrieval.
+Media vẫn là Owner của evidence quan sát được và trả unit nguyên bản theo
+`reading_order`; AI không được yêu cầu Media xóa, đổi locale, đổi role hoặc sắp
+xếp lại source để phục vụ retrieval.
+
+AI tạo candidate từ đúng một authorized Media revision rồi mới áp dụng ranking:
+
+1. relevance theo query là điều kiện vào candidate; modifier bên dưới không được
+   nâng unit không liên quan thành kết quả;
+2. query locale khớp một phần tử `region.structure.languages` được boost;
+3. `heading`, `paragraph`, `list`, `table`, `caption` có prior cao hơn image OCR;
+4. image text ≤ 4 ký tự hoặc chuỗi chuẩn hóa lặp trên ít nhất 3 trang chỉ là
+   low-signal candidate, không bị xóa và crop/citation vẫn giữ;
+5. với query tiếng Việt, một signal `Hang/ko` ≤ 3 ký tự trong image song ngữ
+   không được nhận locale boost riêng; đây là chống OCR-noise ở ranking, không
+   phủ nhận language evidence;
+6. khi một region khớp query locale, AI được mở rộng context sang region ngôn
+   ngữ khác trên cùng trang hoặc cách tối đa 2 vị trí `reading_order`, nhưng mọi
+   unit vẫn giữ locator riêng và không được ghép thành source giả;
+7. `locale = null` là undetermined, không phải lỗi và không được tự đổi thành
+   `vi` hoặc `en`.
+
+Mọi rank/chunk/embedding là derived, rebuildable và thuộc AI. Việc triển khai
+vẫn bị chặn bởi AI Foundation Media-consumer database review và vector-store /
+retention gates hiện hành; approval này chốt hành vi, không cho phép migration.
+
+Owner Approval:
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-09-05
+Decision: APPROVED
+```
+
+---
+
 ## Amendment Record — Version 1.1 (Proposed)
 
 Amendment Status: **Proposed — pending Architecture Owner approval.** This
-record does not change the Version 1.0 Foundation Freeze below. Until an
-Owner Approval decision is recorded, AI Foundation remains Version 1.0 and
+record does not change the Version 1.0.1 Foundation Freeze below. Until an
+Owner Approval decision is recorded, AI Foundation remains Version 1.0.1 and
 Learning is not an authorized Knowledge Source.
 
 This proposed amendment would extend the Consumer Domain Boundary to
