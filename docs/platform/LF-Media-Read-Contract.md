@@ -1,6 +1,6 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.19
+Version: 1.20
 
 Document Status: Approved
 
@@ -20,6 +20,31 @@ Related ADR:
 
 Related Specification:
 [LF-Media-Processing-Contract](LF-Media-Processing-Contract.md)
+
+---
+
+## Region text quality — Proposed 2026-09-05
+
+Theo ADR-0019 v1.11, unit `region` bổ sung:
+
+```text
+text_quality: normal | low
+```
+
+`low` nghĩa là text quan sát được vượt ngưỡng nhiễu hình thức của chính
+revision; không nghĩa là processing failure hoặc nội dung chắc chắn sai. Unit
+vẫn trả nguyên text, crop, locator, role, languages, source fingerprint và
+processing version. Metadata không có cờ được serialize thành `normal` để caller
+không phải đọc raw JSON.
+
+OCR candidate bị quality gate từ chối không xuất hiện trong unit. Nếu region có
+text trước OCR thì text đó vẫn được trả; nếu không thì `text = null`, crop vẫn là
+evidence kiểm chứng. Media Read không tự loại `low`, không rank và không sửa
+language evidence. Revision trước amendment giữ nguyên byte; consumer phân biệt
+bằng `processing_version`.
+
+**Status: Proposed — không có hiệu lực trước Owner approval và independent
+contract review.**
 
 ---
 

@@ -1,6 +1,6 @@
 # ADR-0019 — Media Structured Extraction Boundary
 
-Version: 1.10
+Version: 1.11
 
 Status: Approved
 
@@ -30,6 +30,74 @@ Related Specification:
 * [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md)
 * [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md)
 * [media_extracted_texts](../database/media/media_extracted_texts.md)
+
+---
+
+## Amendment v1.11 — Latin profile resolution and observed-text quality — Proposed 2026-09-05
+
+**Status: Proposed — pending Architecture Owner approval.** Candidate runtime
+đã tồn tại trong working tree nhưng không được đọc thành approval ngược; chỉ sau
+approval, contract review và version bump mới được phát hành một revision theo
+semantics này.
+
+### Locale của chữ viết Latin
+
+Language profile là tập candidate đã được actor khai, không phải kết quả
+language classification. Với script `Latn`, Media chỉ resolve trong các locale
+Latin-family có mặt trong profile:
+
+* không có candidate Latin → `locale = NULL`;
+* đúng một candidate Latin → dùng candidate đó;
+* từ hai candidate Latin trở lên → tiếng Việt chỉ được chọn khi có dấu hiệu chữ
+  Việt quan sát được; nếu không phân biệt được thì `locale = NULL`.
+
+Trong Phase 1, `vi` và `en` là Latin-family; `ko` là Hangul-family. Vì vậy
+`locales=en,ko` cho text `AI Powered EdTech Platform` resolve `en`, còn
+`locales=en,ko,vi` giữ `NULL` nếu text không có bằng chứng phân biệt. Đây là
+profile resolution bảo thủ, không phải confidence và không được suy rộng thành
+phát hiện ngôn ngữ tự động.
+
+Evidence `304/1531 Latn locale NULL` thuộc job 104, Media 41, profile chỉ `vi`;
+nó không thuộc `docling 8`. `docling 8` là job 118, Media 45, profile `ko,vi`.
+Hai corpus không được trộn trong acceptance evidence.
+
+### Chất lượng text quan sát được
+
+Media được phép đo một chỉ số hình thức, không diễn giải ngữ nghĩa:
+
+```text
+symbol_ratio = count(non-letter-and-non-number characters)
+               / count(non-whitespace characters)
+```
+
+Threshold candidate là `0.20`, hiệu chuẩn trên 23 image region có OCR text của
+job 118: các mẫu nhiễu đo được từ 20% trở lên, các control hợp lệ dưới 10%.
+Threshold phải là config revisioned; thay threshold hoặc cách chuẩn hóa là thay
+đổi output semantics và bắt buộc sinh `processing_version` mới.
+
+* Với OCR candidate: nếu `symbol_ratio >= threshold`, không nhận candidate;
+  crop vẫn giữ, text quan sát trước OCR và `extraction_method` vẫn giữ. Chỉ còn
+  `text = NULL` khi trước OCR thật sự không có text.
+* Với text đã quan sát từ provider/text layer: không xóa hoặc sửa text. Nếu vượt
+  threshold, ghi `metadata.text_quality = low`; nếu không có cờ thì chất lượng
+  đọc ra là `normal`.
+* `low` không phải `failed`, confidence hay quyết định retrieval. Media vẫn trả
+  text/crop/locator/languages; consumer quyết định có dùng nó hay không.
+
+Language evidence chỉ được tính sau khi OCR candidate đã qua gate. Candidate bị
+từ chối không được tạo `Hang/ko` hoặc signal khác từ chính chuỗi bị từ chối.
+
+### Tesseract language pack
+
+Thiết kế hiện hành `vi → vie+eng`, `ko → kor+eng`, `en → eng` được giữ. Khi
+profile có nhiều locale, implementation phải flatten, deduplicate và
+canonicalize language pack; ví dụ `ko,vi` tạo `kor+eng+vie`, không lặp `eng`.
+Config hiện tại `vi → vie`, `ko → kor` chưa khớp contract và là implementation
+gate của amendment này.
+
+Không migration và không backfill revision cũ. Acceptance bắt buộc chứng minh
+old/new `processing_version` khác nhau, revision cũ chuyển `archived`, và Media
+Read trả `text_quality` cùng revision identity.
 
 ---
 

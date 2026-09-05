@@ -1,6 +1,6 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.33
+Version: 2.34
 
 Document Status: Approved
 
@@ -17,6 +17,33 @@ Related ADR:
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 * [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 * [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved v1.5
+
+---
+
+## Document Latin/OCR-quality amendment — Proposed 2026-09-05
+
+Áp dụng có điều kiện theo ADR-0019 v1.11 sau Owner approval:
+
+* `Latn` resolve locale từ các candidate Latin-family trong profile: 0 candidate
+  trả NULL; 1 candidate dùng candidate đó; nhiều candidate chỉ chọn `vi` khi có
+  dấu hiệu chữ Việt, còn lại trả NULL;
+* OCR candidate có `symbol_ratio >= 0.20` bị từ chối trước language enrichment;
+  crop và text trước OCR vẫn giữ;
+* text provider/text-layer vượt ngưỡng không bị xóa, chỉ ghi
+  `metadata.text_quality = low`;
+* Media Read biểu diễn cờ vắng mặt là `text_quality = normal` và cờ hiện diện là
+  `low`; đây là evidence, không phải ranking;
+* Tesseract pack giữ contract `vi → vie+eng`, `ko → kor+eng`, `en → eng`; profile
+  nhiều locale phải flatten/deduplicate pack theo thứ tự canonical;
+* threshold, normalization rule và Tesseract language pack là output-affecting
+  config. Thay chúng bắt buộc bump structured `processing_version`; không chạy
+  semantics mới dưới identity cũ và không backfill revision lịch sử.
+
+Không có schema migration: `metadata` hiện có chứa cờ revision-bound. Gate trước
+implementation closure gồm unit test locale 0/1/nhiều candidate, OCR accept và
+reject control, Media Read serialization, Tesseract pack canonicalization,
+revision supersession, full Document regression và mutation test trên chính
+candidate bị từ chối.
 
 ---
 

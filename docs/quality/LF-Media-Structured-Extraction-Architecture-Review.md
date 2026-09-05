@@ -1,6 +1,6 @@
 # Media Structured Extraction Architecture Review
 
-Version: 2.9
+Version: 3.0
 
 Document Status: Review
 
@@ -8,9 +8,32 @@ Implementation Status: Partial
 
 Last Updated: 2026-09-05
 
-Review Date: 2026-08-25 (Round 1), 2026-08-26 (Round 2), 2026-08-27 (Round 3), 2026-09-05 (Table-quality amendment)
+Review Date: 2026-08-25 (Round 1), 2026-08-26 (Round 2), 2026-08-27 (Round 3), 2026-09-05 (Table-quality and Docling 8 amendments)
 
 Document Path: quality/LF-Media-Structured-Extraction-Architecture-Review.md
+
+---
+
+# Docling 8 Latin/OCR-quality amendment — REVIEW REQUIRED 2026-09-05
+
+Evidence độc lập sửa lại attribution: `docling 8` là Media 45/job 118/profile
+`ko,vi`; job 104/profile `vi`, nơi có 304/1531 `Latn/NULL`, là Media 41 và không
+phải Docling 8. Job 118 có 201 regions, 62 image regions, 30 OCR image regions,
+15 `Latn/NULL` và 48 dominant locale NULL.
+
+Candidate implementation đã xuất hiện trước approval. Review không hợp thức hóa
+ngược thay đổi đó. Trước khi PASS phải đóng đủ:
+
+1. Owner approve ADR-0019 v1.11 và hai contract amendment.
+2. Runtime Tesseract khớp `vie+eng`/`kor+eng`, flatten/deduplicate pack; hiện
+   config chỉ khai `vie`/`kor`.
+3. Bump structured processing version và chứng minh old/new revision tách biệt.
+4. Test Media Read `text_quality`, OCR reject giữ prior text/crop, cùng negative
+   controls cho nội dung hợp lệ nhiều ký hiệu.
+5. Chạy full Document regression; mutation bỏ quality gate phải làm test đỏ.
+
+**Scoped verdict: CHANGES REQUIRED.** Không migration. Không ảnh hưởng closure
+Audio/Video Phase 1; production/AI retrieval vẫn chịu gate riêng.
 
 ---
 

@@ -1,12 +1,12 @@
 # Table: media_extracted_regions
 
-Version: 1.18
+Version: 1.19
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-04
+Last Updated: 2026-09-05
 
 Document Path: database/media/media_extracted_regions.md
 
@@ -19,6 +19,24 @@ Related ADR:
 Related Specification:
 [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md),
 [LF-Media-Read-Contract](../../platform/LF-Media-Read-Contract.md)
+
+## Text-quality metadata amendment — Proposed 2026-09-05
+
+Không thêm cột. Revision theo ADR-0019 v1.11 được phép ghi đúng một key canonical
+trong JSON hiện có:
+
+```json
+{"text_quality":"low"}
+```
+
+Key chỉ có giá trị `low`; vắng mặt nghĩa là `normal` tại read model. Nó thuộc
+revision, bất biến, không được tính lại lúc đọc và không backfill. `low` không
+đổi `status`, không xóa text/crop, không phải confidence và không cấp hoặc thu
+hồi quyền đọc. OCR candidate bị từ chối trước persistence không được ghi vào
+`text`; text/crop đã có trước OCR vẫn giữ nguyên.
+
+Amendment dùng cột `metadata` đã có nên không cần migration. Nó chỉ có hiệu lực
+sau ADR/contract approval và một structured `processing_version` mới.
 
 ## Multilingual and STEM amendment — Approved 2026-09-03
 

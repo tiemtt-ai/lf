@@ -1,16 +1,27 @@
 # Table: media_region_languages
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-04
+Last Updated: 2026-09-05
 
 Document Path: database/media/media_region_languages.md
 
 Related ADR: [ADR-0019](../../adr/ADR-0019-Media-Structured-Extraction-Boundary.md)
+
+## Latin candidate resolution — Proposed 2026-09-05
+
+Với revision theo ADR-0019 v1.11, `Latn.locale` được resolve chỉ trong các locale
+Latin-family thuộc profile: không candidate → NULL; đúng một candidate → locale
+đó; nhiều candidate → chỉ chọn `vi` khi có dấu hiệu chữ Việt, nếu không giữ
+NULL. Đây không phải classifier hoặc confidence.
+
+Language rows được tạo sau OCR-quality gate. Chuỗi OCR candidate đã bị từ chối
+không được tạo row hay thay đổi dominant signal. Không backfill revision cũ;
+thay rule bắt buộc structured `processing_version` mới.
 
 ## Purpose
 

@@ -12,6 +12,16 @@ Document Path: platform/LF-AI.md
 
 ---
 
+## Media region text-quality candidate policy — Proposed 2026-09-05
+
+Sau khi ADR-0019 v1.11 và ADR-0006 amendment tương ứng được duyệt, AI ingestion
+snapshot `text_quality` của region theo đúng Media revision. Retrieval chỉ dùng
+`low` để hạ rank sau relevance; không loại evidence, sửa locale/languages hoặc
+coi `normal` là bảo đảm OCR đúng. Revision không có signal giữ NULL và không bị
+suy ngược. Runtime AI vẫn `Not Implemented`.
+
+---
+
 ## Vector adapter and purge contract — Approved 2026-09-05
 
 Vector adapter là Qdrant self-hosted >=1.11 trong LF-managed boundary. Shared

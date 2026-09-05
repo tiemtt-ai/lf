@@ -282,6 +282,12 @@ class MediaReadService
                         // mat han phan con lai. ADR-0019 v1.8.
                         'detected_locale' => $row->detected_locale ?? 'undetermined',
                         'script' => $row->script ?? 'undetermined',
+                        // `low` nghia la text quan sat duoc nhung nhieu ky tu rac.
+                        // Vung van tra ve day du kem crop; consumer quyet dinh co
+                        // dua vao retrieval mac dinh hay khong.
+                        'text_quality' => (json_decode((string) ($row->metadata ?? ''), true)['text_quality'] ?? null) === 'low'
+                            ? 'low'
+                            : 'normal',
                         'languages' => $regionLanguages[$row->id] ?? [],
                         'reading_order' => (int) $row->reading_order,
                         'bbox' => $row->bbox_x === null ? null : [

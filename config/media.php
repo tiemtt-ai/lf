@@ -154,11 +154,14 @@ return [
             // Text ngan hon nguong nay chua du de coi la noi dung figure co y
             // nghia. OCR chi thay the khi ket qua dai hon text hien co.
             'crop_ocr_min_text_characters' => (int) env('MEDIA_STRUCTURED_CROP_OCR_MIN_TEXT_CHARACTERS', 2),
-            // Locale canonical -> ma ngon ngu Tesseract. Locale khong co trong
-            // bang thi KHONG doan sang 'eng': OCR sai ngon ngu tra ra chuoi rac
-            // nhung trong nhu text that, va consumer khong phan biet duoc.
+            // Locale canonical -> Tesseract packs. `eng` la fallback da freeze
+            // cho vi/ko vi tai lieu hoc thuong chen ten, nhan va cum tieng Anh.
+            // Provider flatten + deduplicate pack khi profile co nhieu locale.
+            // Nguong hieu chuan tren 23 vung OCR co text cua mot tai lieu that:
+            // rac tu 20% tro len, noi dung that duoi 10%. Khong phai con so doan.
+            'text_symbol_ratio_max' => (float) env('MEDIA_STRUCTURED_TEXT_SYMBOL_RATIO_MAX', 0.2),
             'crop_ocr_languages' => [
-                'vi' => 'vie', 'en' => 'eng', 'ko' => 'kor', 'ja' => 'jpn',
+                'vi' => 'vie+eng', 'en' => 'eng', 'ko' => 'kor+eng', 'ja' => 'jpn',
                 'zh' => 'chi_sim', 'fr' => 'fra', 'de' => 'deu', 'es' => 'spa',
             ],
             'max_crop_bytes_per_document' => (int) env('MEDIA_STRUCTURED_MAX_CROP_BYTES_PER_DOCUMENT', 67108864),

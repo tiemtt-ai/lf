@@ -26,6 +26,15 @@ crop and per-unit citations.
 remains `CHANGES REQUIRED`; this amendment does not authorize AI migrations,
 embedding population or production retrieval before F-1–F-7 are resolved.
 
+### Pending Docling 8 text-quality follow-up — 2026-09-05
+
+ADR-0019 v1.11 proposes a new Media Read signal `region.text_quality`. Candidate
+AI design snapshots it as nullable `ai_knowledge_chunks.source_text_quality` and
+uses `low` only as a post-relevance rank modifier. This follow-up is **not yet
+reviewed or approved** and does not change the overall `CHANGES REQUIRED` /
+Migration `NO` verdict. Independent rerun must include the new field, CHECK,
+revision-copy invariant and NULL semantics before Freeze.
+
 Database-doc follow-up records that F-1–F-5 already have Owner-approved
 amendments dated 2026-08-25. The 2026-09-05 amendment additionally aligns
 `ai_knowledge_sources.content_type` with `region|table|formula`, aligns chunk

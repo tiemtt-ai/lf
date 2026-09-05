@@ -48,6 +48,20 @@ Document Path: adr/ADR-0006-AI-Foundation.md
 
 ---
 
+## Proposed Amendment Candidate — Media `text_quality` consumption — 2026-09-05
+
+**Pending Architecture Owner approval; Version 1.0.2 remains effective.** Nếu
+ADR-0019 v1.11 được duyệt, AI snapshot `region.text_quality` của đúng Media
+revision vào `ai_knowledge_chunks.source_text_quality`.
+
+`low` chỉ là ranking modifier sau relevance, không tự loại candidate, không sửa
+text/language evidence và không nối citation. `normal` không phải chứng nhận nội
+dung đúng; nó chỉ nói threshold hình thức không đánh cờ. Khi cần kiểm chứng, AI
+đọc lại crop bằng cùng locator/fingerprint/version. Revision cũ không có signal
+giữ `source_text_quality = NULL`, không được backfill thành `normal`.
+
+---
+
 ## Amendment Record — Version 1.0.2 (Approved 2026-09-05)
 
 Architecture Owner chọn **Qdrant self-hosted, minimum 1.11**, trong LF-managed

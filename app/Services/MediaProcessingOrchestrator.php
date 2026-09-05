@@ -517,7 +517,27 @@ class MediaProcessingOrchestrator
                 : [(string) $parameters['locale']];
             $input = app(DocumentCanonicalRevision::class)->current((int) $media->customer_id, (int) $media->id, $this->sourceFingerprint($media), $languageProfile);
             if ($input !== null) {
-                $version = 'structure-v2-'.hash('sha256', json_encode([$version, $this->structureFor($media), (int) $input->id, $input->processing_version], JSON_THROW_ON_ERROR));
+                // OCR text-quality va language packs doi output, nen phai nam
+                // trong revision identity. Neu chi doi config ma giu version cu,
+                // job se bi dedupe va revision moi khong bao gio duoc sinh ra.
+                $documentSemantics = $this->providerFor('structured_extraction') === 'docling_local'
+                    ? [
+                        'latin_locale' => 'profile-candidates-v1',
+                        'text_quality' => [
+                            'algorithm' => 'non-whitespace-symbol-ratio-v1',
+                            'max' => (float) config('media.processing.structured_extraction.text_symbol_ratio_max', 0.2),
+                        ],
+                        'crop_ocr_languages' => (array) config('media.processing.structured_extraction.crop_ocr_languages', []),
+                    ]
+                    : null;
+                $identity = [
+                    $version, $this->structureFor($media), (int) $input->id,
+                    $input->processing_version,
+                ];
+                if ($documentSemantics !== null) {
+                    $identity[] = $documentSemantics;
+                }
+                $version = 'structure-v2-'.hash('sha256', json_encode($identity, JSON_THROW_ON_ERROR));
             }
         }
 

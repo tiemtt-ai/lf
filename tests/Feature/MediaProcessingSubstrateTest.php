@@ -782,6 +782,101 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertSame('Latn', $result['regions'][0]['script']);
     }
 
+    /**
+     * Do tren tai lieu that: de cuong toan tieng Viet, profile chi `vi`, co
+     * 304/1531 vung (20%) mat locale vi chung la phuong an trac nghiem va cong
+     * thuc khong mang dau. Profile mot ngon ngu thi khong co gi mo ho de phai
+     * chung minh — `Hang` cung khong bi doi bang chung nhu vay.
+     */
+    public function test_latin_region_takes_the_only_latin_locale_in_the_profile(): void
+    {
+        $this->doclingConfig(['media.processing.structured_extraction.crop_enabled' => false]);
+        $result = $this->doclingProcess(
+            $this->doclingRunner(sys_get_temp_dir().'/unused.json', $this->doclingTextRegion('A. 55 0 .')),
+            'docling-latin-single.pdf', 'vi', 'locales=vi;structure=layout',
+        );
+
+        $this->assertSame('vi', $result['regions'][0]['detected_locale']);
+        $this->assertSame([['script' => 'Latn', 'locale' => 'vi', 'char_count' => 1]], $result['regions'][0]['languages']);
+    }
+
+    /**
+     * `en` truoc day chi duoc gan khi profile bang DUNG `['en']`, nen mot profile
+     * nhieu ngon ngu co `en` khong bao gio sinh ra bang chung tieng Anh.
+     */
+    public function test_english_is_assigned_when_it_is_the_only_latin_locale_and_withheld_when_ambiguous(): void
+    {
+        $this->doclingConfig(['media.processing.structured_extraction.crop_enabled' => false]);
+        $regions = $this->doclingTextRegion('AI Powered EdTech Platform');
+
+        $assigned = $this->doclingProcess(
+            $this->doclingRunner(sys_get_temp_dir().'/unused.json', $regions),
+            'docling-en-ko.pdf', 'vi', 'locales=en,ko;structure=layout',
+        );
+        $this->assertSame('en', $assigned['regions'][0]['detected_locale']);
+
+        // Hai ngon ngu Latin cung luc, khong dau de phan biet: tra NULL chu khong doan.
+        $ambiguous = $this->doclingProcess(
+            $this->doclingRunner(sys_get_temp_dir().'/unused.json', $regions),
+            'docling-en-ko-vi.pdf', 'vi', 'locales=en,ko,vi;structure=layout',
+        );
+        $this->assertNull($ambiguous['regions'][0]['detected_locale']);
+        $this->assertSame('Latn', $ambiguous['regions'][0]['script']);
+    }
+
+    /**
+     * Tesseract tren logo tra ve chuoi rac dai hon text hien co, va truoc day
+     * chuoi do duoc nhan lam text cua vung roi di thang vao read model.
+     */
+    public function test_garbage_crop_ocr_is_refused_while_the_crop_is_kept(): void
+    {
+        $this->doclingConfig();
+        $result = $this->doclingProcess(
+            $this->doclingRunner(sys_get_temp_dir().'/unused.json', $this->doclingFigureRegion(), '', 'LIÌ í>} 11 |'),
+            'docling-ocr-garbage.pdf',
+        );
+
+        $this->assertNull($result['regions'][0]['text'], 'Chuoi rac khong duoc tro thanh text cua vung.');
+        $this->assertArrayHasKey('crop', $result['regions'][0], 'Crop van phai duoc giu lai lam bang chung.');
+        $this->assertSame('embedded_text', $result['regions'][0]['extraction_method']);
+    }
+
+    public function test_rejected_crop_ocr_preserves_short_observed_text(): void
+    {
+        $this->doclingConfig();
+        $result = $this->doclingProcess(
+            $this->doclingRunner(sys_get_temp_dir().'/unused.json', $this->doclingFigureRegion(), 'A', 'LIÌ í>} 11 |'),
+            'docling-ocr-garbage-with-prior-text.pdf',
+        );
+
+        $this->assertSame('A', $result['regions'][0]['text']);
+        $this->assertSame('embedded_text', $result['regions'][0]['extraction_method']);
+        $this->assertArrayHasKey('crop', $result['regions'][0]);
+    }
+
+    public function test_low_quality_text_from_the_text_layer_is_flagged_not_discarded(): void
+    {
+        $this->doclingConfig(['media.processing.structured_extraction.crop_enabled' => false]);
+        $result = $this->doclingProcess(
+            $this->doclingRunner(sys_get_temp_dir().'/unused.json', $this->doclingTextRegion('Visanơ @®')),
+            'docling-low-quality.pdf',
+        );
+
+        $this->assertSame('Visanơ @®', $result['regions'][0]['text']);
+        $this->assertSame('low', $result['regions'][0]['metadata']['text_quality']);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function doclingTextRegion(string $text): array
+    {
+        return [[
+            'page' => 1, 'ordinal' => 1, 'reading_order' => 1, 'locator_value' => '1#1',
+            'role' => 'paragraph', 'text' => $text, 'extraction_method' => 'embedded_text',
+        ]];
+    }
+
     public function test_docling_provider_renders_region_crop_and_keys_it_by_full_revision_identity(): void
     {
         $this->doclingConfig();
@@ -812,7 +907,18 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertSame('doanh thu 2026', $region['text']);
         $this->assertSame('ocr', $region['extraction_method']);
         $this->assertSame('tesseract', $region['metadata']['ocr_engine']);
-        $this->assertSame('vie', $region['metadata']['ocr_language']);
+        $this->assertSame('vie+eng', $region['metadata']['ocr_language']);
+    }
+
+    public function test_multilingual_crop_ocr_flattens_and_deduplicates_canonical_language_packs(): void
+    {
+        $this->doclingConfig();
+        $result = $this->doclingProcess(
+            $this->doclingRunner(sys_get_temp_dir().'/unused.json', $this->doclingFigureRegion(), '', '한국어 EdTech'),
+            'docling-ocr-ko-vi.pdf', 'vi', 'locales=ko,vi;structure=layout',
+        );
+
+        $this->assertSame('kor+eng+vie', $result['regions'][0]['metadata']['ocr_language']);
     }
 
     public function test_docling_provider_keeps_embedded_text_and_skips_ocr_when_text_layer_has_content(): void
@@ -843,7 +949,7 @@ class MediaProcessingSubstrateTest extends TestCase
         $region = $result['regions'][0];
         $this->assertSame('한국어 학습 자료', $region['text']);
         $this->assertSame('ocr', $region['extraction_method']);
-        $this->assertSame('kor', $region['metadata']['ocr_language']);
+        $this->assertSame('kor+eng', $region['metadata']['ocr_language']);
     }
 
     public function test_docling_provider_keeps_short_figure_text_when_crop_ocr_is_not_better(): void
@@ -1442,6 +1548,16 @@ class MediaProcessingSubstrateTest extends TestCase
         );
         $this->assertSame('heading', $units[0]['structure']['role']);
         $this->assertSame(1, $units[0]['structure']['reading_order']);
+        $this->assertSame('normal', $units[0]['structure']['text_quality']);
+
+        DB::table('media_extracted_regions')->where('media_file_id', $media->id)
+            ->orderBy('id')->limit(1)->update([
+                'metadata' => json_encode(['text_quality' => 'low'], JSON_THROW_ON_ERROR),
+            ]);
+        $units = app(MediaReadService::class)->read(
+            $this->admin->id, 'course_activity', 120, 'document', 'region', 'vi'
+        );
+        $this->assertSame('low', $units[0]['structure']['text_quality']);
 
         // Revision fake nay khong sinh crop. `null` khong mo ho: crop la
         // tat-ca-hoac-khong-co trong mot revision.
@@ -1564,6 +1680,35 @@ class MediaProcessingSubstrateTest extends TestCase
             'media_file_id' => $media->id, 'job_type' => 'structured_extraction',
         ]);
         $this->assertDatabaseHas('media_files', ['id' => $media->id, 'status' => 'ready']);
+    }
+
+    public function test_docling_processing_version_changes_with_text_quality_and_ocr_language_semantics(): void
+    {
+        $media = $this->uploadDocument();
+        app(MediaProcessingOrchestrator::class)
+            ->materializeForCourseActivity($this->customerId, $media->id, 'vi', $this->admin->id);
+
+        config([
+            'media.processing.providers.structured_extraction' => 'docling_local',
+            'media.processing.versions.structured_extraction' => 'docling-local-v1',
+            'media.processing.structured_extraction.text_symbol_ratio_max' => 0.2,
+        ]);
+        $orchestrator = app(MediaProcessingOrchestrator::class);
+        $parameters = ['locale' => 'vi', 'structure' => 'layout'];
+        $baseline = $orchestrator->versionFor('structured_extraction', $media, $parameters);
+
+        config(['media.processing.structured_extraction.text_symbol_ratio_max' => 0.25]);
+        $thresholdChanged = $orchestrator->versionFor('structured_extraction', $media, $parameters);
+
+        config([
+            'media.processing.structured_extraction.text_symbol_ratio_max' => 0.2,
+            'media.processing.structured_extraction.crop_ocr_languages.vi' => 'vie',
+        ]);
+        $packsChanged = $orchestrator->versionFor('structured_extraction', $media, $parameters);
+
+        $this->assertNotSame($baseline, $thresholdChanged);
+        $this->assertNotSame($baseline, $packsChanged);
+        $this->assertLessThanOrEqual(100, strlen($baseline));
     }
 
     public function test_document_upload_with_the_structured_checkbox_adds_the_structured_job(): void

@@ -1,12 +1,12 @@
 # LearnForge Documentation Conflict Register
 
-Version: 1.31
+Version: 1.32
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-09-03
+Last Updated: 2026-09-05
 
 Document Path: quality/LF-Documentation-Conflicts.md
 
@@ -234,7 +234,7 @@ trung lập.
 
 # Active Conflict Register
 
-Active items: 6. DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25;
+Active items: 7. DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25;
 DOC-CONFLICT-0018 và DOC-CONFLICT-0019 đóng 2026-08-27 bằng đợt amendment tài
 liệu của miền Media. DOC-CONFLICT-0020 và DOC-CONFLICT-0021 được Owner đóng
 2026-08-27; hiệu lực runtime/schema vẫn chịu Gate M/Gate R. DOC-CONFLICT-0022,
@@ -246,6 +246,7 @@ khác `RESOLVED`; cột Status của bảng dưới vẫn là nguồn sự thậ
 
 | ID | Title | Classification | Status | Impact | Domain | Owner | Target Review |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| DOC-CONFLICT-0034 | Tesseract language-pack config bỏ `eng` mà Processing Contract bắt buộc cho `vi`/`ko` | IMPLEMENTATION_DRIFT | UNDER_REVIEW | HIGH | Media | Architecture Owner | Trước khi đóng ADR-0019 v1.11 |
 | DOC-CONFLICT-0033 | Amendment ngôn ngữ/formula không được phản ánh vào bảng canonical của Media Read Contract | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Architecture Owner | Not set |
 | DOC-CONFLICT-0032 | Reattach sau cancelled chưa có chain/generation contract | GAP | RESOLVED | HIGH | Media | Architecture Owner | Not set |
 | DOC-CONFLICT-0029 | Spreadsheet local-provider contract chưa đồng bộ resolution 0017/0018 | CONFLICT | RESOLVED | BLOCKER | Media | Domain Owner (Media) | Not set |
@@ -270,6 +271,44 @@ khác `RESOLVED`; cột Status của bảng dưới vẫn là nguồn sự thậ
 | DOC-CONFLICT-0019 | `job_type`/`output_type` không có giá trị nào chứa được một revision structured | GAP | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-08-27 |
 | DOC-CONFLICT-0020 | Bốn CHECK trong doc `media_processing_jobs` không tồn tại trong schema vật lý | IMPLEMENTATION_DRIFT | RESOLVED | MEDIUM | Media | Database Owner | Đóng 2026-08-27 |
 | DOC-CONFLICT-0021 | Media Read owner context không xác định Media File khi owner có nhiều active usage | GAP | RESOLVED | HIGH | Media × Course × AI | Đóng 2026-08-27 |
+
+---
+
+## DOC-CONFLICT-0034
+
+```text
+Conflict ID: DOC-CONFLICT-0034
+Title: Tesseract language-pack config bỏ `eng` mà Processing Contract bắt buộc cho `vi`/`ko`
+Classification: IMPLEMENTATION_DRIFT
+Status: UNDER_REVIEW
+Impact: HIGH
+Detected At: 2026-09-05
+Detected By: Independent Docling 8 review against job 118 runtime evidence
+Owner: Architecture Owner
+Affected Domain: Media
+Affected Concern: OCR language pack for multilingual image regions
+Sources In Conflict:
+Source A: docs/platform/LF-Media-Processing-Contract.md § Phase 1 local document provider — `vi → vie+eng`, `ko → kor+eng`, `en → eng`
+Source B: config/media.php media.processing.structured_extraction.crop_ocr_languages — `vi → vie`, `ko → kor`, `en → eng`
+Additional Sources: app/Services/DoclingStructuredExtractionProvider.php::ocrCrop; media_extracted_regions metadata from job 118
+Contradictory Requirements:
+- Source A requires English fallback in both Vietnamese and Korean Tesseract packs.
+- Source B runs job profile `ko,vi` as `kor+vie`, with no `eng` pack.
+Why They Cannot Both Be True: The same profile cannot both include and omit `eng` at runtime.
+Runtime/Business Impact: Docling 8 contains English image text but job 118 records `ocr_language=kor+vie`; OCR garbage is persisted in 30 OCR image regions and English controls are not processed with the contracted pack.
+Affected Implementation: config/media.php; DoclingStructuredExtractionProvider::ocrCrop
+Temporary Safety Rule: Do not mark ADR-0019 v1.11 implementation PASS or reuse the current processing_version for corrected OCR semantics.
+Required Decision: Keep the approved pack mapping and align runtime, or amend the contract with measured evidence. The proposed design keeps the contract mapping and requires flatten/deduplicate canonical packs.
+Resolution Authority: Architecture Owner
+Resolution Plan: Approve ADR-0019 v1.11; implement canonical flattened pack; bump structured processing version; test actual command arguments and old/new revision separation.
+Target Review Date: Before closing ADR-0019 v1.11
+Resolved At: Not resolved
+Resolution: Pending
+Superseded/Updated Documents: ADR-0019 v1.11 proposed; Processing Contract v2.34 proposed
+Verification Evidence: job 118 / Media 45 metadata `ocr_language=kor+vie`; config/media.php mapping; contract mapping at § Phase 1 local document provider
+Related ADR/Review/Issue/PR: ADR-0019 v1.11; LF-Media-Structured-Extraction-Architecture-Review v3.0
+Notes: This is implementation drift, not evidence that every Latin region should be labeled English.
+```
 
 ---
 

@@ -2,6 +2,22 @@
 
 Document Path: database/ai/ai_knowledge_chunks.md
 
+## Region text-quality snapshot — Proposed 2026-09-05
+
+Candidate schema bổ sung `source_text_quality VARCHAR(20) NULL`, snapshot trực
+tiếp từ Media Read unit của đúng `source_fingerprint`/`processing_version`.
+Allowed values là `normal|low`; NULL dành cho non-region hoặc revision cũ không
+có signal. AI không được tính lại từ chunk text và không backfill NULL thành
+`normal`.
+
+```sql
+CHECK (source_text_quality IS NULL
+       OR source_text_quality IN ('normal','low'));
+```
+
+Đây là thay đổi database design cho AI Foundation chưa triển khai; không phải
+Media migration và chưa authorize AI migration trước independent review.
+
 ## Media retrieval amendment — Approved 2026-09-05
 
 Mỗi chunk của Media source chứa **đúng một Media Read unit**. Vì vậy

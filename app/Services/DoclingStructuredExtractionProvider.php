@@ -346,8 +346,12 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
 
         $binary = (string) config('media.processing.local_document.tesseract_binary', 'tesseract');
         $languages = (array) config('media.processing.structured_extraction.crop_ocr_languages', []);
-        $language = collect(explode(',', $locale))->map(fn (string $item) => $languages[$item] ?? $languages[explode('-', $item)[0]] ?? null)
-            ->filter()->unique()->implode('+');
+        $language = collect(explode(',', $locale))
+            ->flatMap(function (string $item) use ($languages): array {
+                $pack = $languages[$item] ?? $languages[explode('-', $item)[0]] ?? null;
+
+                return is_string($pack) ? array_values(array_filter(explode('+', $pack))) : [];
+            })->unique()->implode('+');
         if ($language === '') {
             return $region;
         }
@@ -368,6 +372,14 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
 
         $existingText = trim((string) ($region['text'] ?? ''));
         if (mb_strlen($text) <= mb_strlen($existingText)) {
+            return $region;
+        }
+
+        // Dai hon khong co nghia la doc duoc. Tesseract tren logo hoac hinh khong
+        // co chu tra ve chuoi rac (`LIÌ í>} 11 |`, `#|?| #14 24(RDD)`), va truoc
+        // day chuoi do duoc nhan lam text cua vung roi di thang vao read model.
+        // Giu crop va de `text` NULL trung thuc hon: "co anh, khong doc duoc chu".
+        if ($this->symbolRatio($text) >= (float) config('media.processing.structured_extraction.text_symbol_ratio_max', 0.2)) {
             return $region;
         }
 
@@ -455,10 +467,70 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
             $region['detected_locale'] = $region['languages'][0]['locale'] ?? null;
             $region['script'] = $region['languages'][0]['script'] ?? null;
             $region['char_count'] = $region['text'] === null ? null : mb_strlen($region['text']);
+            // Text tu text layer cung co the la rac. Danh dau de consumer loc
+            // duoc; van giu nguyen text va crop vi day la bang chung quan sat
+            // duoc, khong phai thu de xoa.
+            if ($text !== '' && $this->symbolRatio($text) >= (float) config('media.processing.structured_extraction.text_symbol_ratio_max', 0.2)) {
+                $region['metadata'] = ($region['metadata'] ?? []) + ['text_quality' => 'low'];
+            }
         }
         unset($region);
 
         return $regions;
+    }
+
+    /**
+     * Latin khong tu chung minh duoc no thuoc ngon ngu nao, nen locale duoc giai
+     * theo PROFILE da khai — cung cach `Hang` giai ve `ko`.
+     *
+     * Nhanh cu doi bang chung dau tieng Viet trong khi `Hang` thi khong doi gi.
+     * Bat doi xung do do duoc tren tai lieu that: mot de cuong toan tieng Viet
+     * profile chi `vi` co 304/1531 vung (20%) mat locale, toan la phuong an trac
+     * nghiem va cong thuc — `A. 55 0 .`, `C. 390 g.` — khong co dau nao de chung
+     * minh, du profile chi khai dung mot ngon ngu va khong he mo ho.
+     *
+     * Chi khi profile co TU HAI ngon ngu Latin tro len moi can bang chung phan
+     * biet; khong phan biet duoc thi tra NULL chu khong doan.
+     *
+     * @param  array<int, string>  $locales
+     */
+    private function latinLocale(string $text, array $locales): ?string
+    {
+        $latin = array_values(array_filter(
+            $locales,
+            static fn (string $locale): bool => ! in_array($locale, ['ko', 'ja'], true)
+                && ! str_starts_with($locale, 'zh'),
+        ));
+
+        if ($latin === []) {
+            return null;
+        }
+        if (count($latin) === 1) {
+            return $latin[0];
+        }
+        if (in_array('vi', $latin, true)
+            && preg_match('/[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/iu', $text)) {
+            return 'vi';
+        }
+
+        return null;
+    }
+
+    /**
+     * Ty le ky tu khong phai chu/so tren tong ky tu khong phai khoang trang.
+     *
+     * Do tren 23 vung OCR co text cua mot tai lieu that: rac tap trung tu 20%
+     * tro len (`LIÌ í>} 11 |` 33%, `AI 특허: #|?| #14 24(RDD)` 33%, `\15000 @`
+     * 29%), con noi dung that nam duoi (`특허증 CERTIICATE OF PATENT` 8%,
+     * `AI Powered EdTech Platform` 4%, `KAIST` 0%). Khong chuoi hop le nao
+     * vuot 20% trong phep do do.
+     */
+    private function symbolRatio(string $text): float
+    {
+        $dense = (string) preg_replace('/\s+/u', '', $text);
+        $length = mb_strlen($dense);
+
+        return $length === 0 ? 0.0 : preg_match_all('/[^\p{L}\p{N}]/u', $dense) / $length;
     }
 
     /**
@@ -511,10 +583,7 @@ class DoclingStructuredExtractionProvider implements MediaProcessingProvider
             'Hang' => in_array('ko', $locales, true) ? 'ko' : null,
             'Jpan' => in_array('ja', $locales, true) ? 'ja' : null,
             'Hani' => collect($locales)->first(fn (string $locale): bool => str_starts_with($locale, 'zh')),
-            'Latn' => in_array('vi', $locales, true)
-                && preg_match('/[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/iu', $text)
-                    ? 'vi'
-                    : ($locales === ['en'] ? 'en' : null),
+            'Latn' => $this->latinLocale($text, $locales),
             default => null,
         };
     }
