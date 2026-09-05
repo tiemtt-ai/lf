@@ -1,12 +1,12 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.17
+Version: 1.18
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-04
+Last Updated: 2026-09-05
 
 Document Path: platform/LF-Media-Read-Contract.md
 
@@ -285,6 +285,13 @@ mảng rỗng.
 | `formula` | `media_extracted_formulas` + `media_extracted_regions` | `region` — locator/page/bbox/crop kế thừa từ formula region cha |
 | `caption_asset` | `media_captions` | `null` — file VTT/SRT/ASS, trả `delivery_url` |
 | `variant` | `media_variants` | `null` — asset thay thế, trả `delivery_url` |
+
+### Table quality evidence
+
+`table.structure` trả `quality_status`. Mỗi cell trả thêm `bbox`, hoặc `null`
+nếu revision/nguồn không có hình học. `undetermined` nghĩa là chưa đo và không
+cho phép consumer tự diễn giải thành lỗi, `incomplete`, hay điểm chất lượng thấp.
+Giá trị đã persist thuộc revision; read service không tính lại từ cell.
 
 ## 5.1. Trang có text nhưng không có cấu trúc
 

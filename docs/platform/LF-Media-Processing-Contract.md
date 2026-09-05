@@ -1,12 +1,12 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.31
+Version: 2.32
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-03
+Last Updated: 2026-09-05
 
 Document Path: platform/LF-Media-Processing-Contract.md
 
@@ -1582,6 +1582,15 @@ cấp trang và cấp region vẫn **được tính theo dung lượng thực pe
 | `max_regions_per_page` | `100` | Trần theo từng trang |
 | `max_regions_per_document` | `5000` | Trần toàn tài liệu |
 | `max_table_cells_per_document` | `200000` | Đếm **row cell thực persist**; merged cell chỉ tính một row |
+
+Table payload PDF mang bbox chuẩn hóa trên từng cell khi provider quan sát được
+và `quality_status = complete|incomplete|undetermined` đã tính trước khi persist.
+Một vị trí thiếu cell là `incomplete` chỉ khi có text-layer trong bbox suy từ
+band hàng/cột; band thiếu làm trạng thái `undetermined`. Spreadsheet không có
+hình học trang nên luôn `undetermined`. Persistence không tính lại evidence này.
+Nếu khoảng giữa tâm hai band cột lớn hơn gấp đôi biên neo ngoài lớn hơn của
+region bảng, topology được coi là chưa đo vì provider có thể đã làm sụp cột
+trống khỏi `column_count`; trạng thái cũng là `undetermined`.
 
 Hai trần region phải freeze **đồng thời**. Chỉ có trần tổng thì một trang vẫn sinh
 được 5.000 region; chỉ có trần trang thì 100 trang có thể sinh tới 10.000 region

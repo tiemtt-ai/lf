@@ -475,6 +475,10 @@ class DocumentProcessingLocalReviewTest extends TestCase
         $tables = DB::table('media_extracted_tables')->where('processing_job_id', $job->id)->get();
         $this->assertNotEmpty($tables);
         $cells = DB::table('media_table_cells')->whereIn('extracted_table_id', $tables->pluck('id'))->get();
+        foreach ($tables as $table) {
+            $this->assertContains($table->quality_status, ['complete', 'incomplete', 'undetermined']);
+        }
+        $this->assertFalse($cells->contains(fn ($cell) => $cell->bbox_x === null), 'Docling PDF cells must retain observed bbox evidence.');
         $text = $cells->pluck('text')->implode(' ');
         foreach (['ALPHA', 'BETA', '10', '20', '30', '40'] as $value) {
             $this->assertStringContainsString($value, $text);
@@ -521,6 +525,47 @@ class DocumentProcessingLocalReviewTest extends TestCase
         $this->assertTrue($observed['mixed']);
         $this->assertFalse($observed['none'], 'Bang khong co cell tieu de khong duoc tu khai has_header.');
         $this->assertFalse($observed['empty']);
+    }
+
+    public function test_docling_table_quality_distinguishes_blank_ink_and_unmeasurable_slots(): void
+    {
+        $python = (string) config('media.processing.docling.python_binary');
+        if (! is_executable($python)) {
+            $this->markTestSkipped('Optional offline Docling runtime is not installed.');
+        }
+
+        $code = <<<'PY'
+import json,sys
+sys.path.insert(0, sys.argv[1])
+import extract
+cells=[
+ {'row':1,'column':1,'row_span':1,'column_span':1,'bbox':{'x':.1,'y':.1,'width':.2,'height':.2}},
+ {'row':1,'column':2,'row_span':1,'column_span':1,'bbox':{'x':.3,'y':.1,'width':.2,'height':.2}},
+ {'row':2,'column':1,'row_span':1,'column_span':1,'bbox':{'x':.1,'y':.3,'width':.2,'height':.2}},
+]
+result={
+ 'blank':extract.table_quality_status(2,2,cells,lambda bbox:None),
+ 'ink':extract.table_quality_status(2,2,cells,lambda bbox:'missing text'),
+ 'unmeasurable':extract.table_quality_status(2,3,cells,lambda bbox:None),
+ 'precedence':extract.table_quality_status(2,3,cells,lambda bbox:'missing text'),
+ 'collapsed_column':extract.table_quality_status(2,2,[
+     {'row':1,'column':1,'bbox':{'x':.15,'y':.1,'width':.1,'height':.2}},
+     {'row':1,'column':2,'bbox':{'x':.75,'y':.1,'width':.1,'height':.2}},
+     {'row':2,'column':1,'bbox':{'x':.15,'y':.3,'width':.1,'height':.2}},
+ ],lambda bbox:None,{'x':.05,'y':.05,'width':.9,'height':.5}),
+}
+print(json.dumps(result))
+PY;
+        $observed = json_decode(
+            app(DocumentProcessRunner::class)->run([$python, '-c', $code, base_path('runtime/docling')], 30),
+            true, 512, JSON_THROW_ON_ERROR,
+        );
+
+        $this->assertSame('complete', $observed['blank']);
+        $this->assertSame('incomplete', $observed['ink']);
+        $this->assertSame('undetermined', $observed['unmeasurable']);
+        $this->assertSame('incomplete', $observed['precedence']);
+        $this->assertSame('undetermined', $observed['collapsed_column']);
     }
 
     public function test_detach_before_claim_cancels_without_provider_work(): void
@@ -715,8 +760,15 @@ class DocumentProcessingLocalReviewTest extends TestCase
         $this->assertSame('ready', $job->status, (string) $job->error_code);
         $this->assertSame('sheet', $job->billable_unit_type);
         $this->assertGreaterThanOrEqual(1, (float) $job->billable_units);
-        $this->assertDatabaseHas('media_extracted_tables', ['processing_job_id' => $job->id, 'locator_type' => 'sheet', 'extraction_method' => 'spreadsheet_cells']);
-        $this->assertDatabaseHas('media_table_cells', ['text' => 'DOCUMENT_ACCEPTANCE_ALPHA']);
+        $this->assertDatabaseHas('media_extracted_tables', ['processing_job_id' => $job->id, 'locator_type' => 'sheet',
+            'extraction_method' => 'spreadsheet_cells', 'quality_status' => 'undetermined']);
+        $this->assertDatabaseHas('media_table_cells', ['text' => 'DOCUMENT_ACCEPTANCE_ALPHA', 'bbox_x' => null]);
+        $units = app(MediaReadService::class)->read(
+            $this->admin->id, 'course_activity', $this->activityId, 'document', 'table',
+            'vi', null, null, 'test', [], null, false, ['vi']
+        );
+        $this->assertSame('undetermined', $units[0]['structure']['quality_status']);
+        $this->assertNull($units[0]['structure']['cells'][0]['bbox']);
     }
 
     public function test_d3_aggregate_failure_preserves_ocr_and_old_structure_archives_on_new_ocr(): void
@@ -814,6 +866,31 @@ class DocumentProcessingLocalReviewTest extends TestCase
 
         $this->assertFalse($method->invoke($service, $region));
         $region['formula']['raw_text'] = 'Q = mc∆t';
+        $this->assertTrue($method->invoke($service, $region));
+    }
+
+    public function test_formula_evidence_rejects_korean_grammar_transformations_without_rejecting_korean_math(): void
+    {
+        $method = new \ReflectionMethod(StructuredExtractionPersistenceService::class, 'formulaEvidenceQualifies');
+        $service = app(StructuredExtractionPersistenceService::class);
+        $region = [
+            'bbox' => ['x' => 0.1, 'y' => 0.1, 'width' => 0.5, 'height' => 0.2],
+            'crop' => ['storage_key' => 'formula.png'],
+            'formula' => [],
+        ];
+
+        foreach ([
+            "유라\n회사원\n+\n입니다\n=\n유라입니다\n회사원입니다",
+            "낫다\n짓다\n나아요\n+\n-아요 /어요 =\n붓다\n지어요\n부어요",
+            "가다\n먹다\n가 보다\n+\n공부하다\n-아/어 보다 =\n먹어 보다\n공부해 보다",
+            "가다\n좋다\n가는데요\n+\n공부하다\n- 는데요 /\n-(으)ㄴ데요\n=\n좋은데요",
+            "가다\n먹다\n가고 있다\n+\n공부하다\n-고 있다\n=\n먹고 있다",
+        ] as $grammar) {
+            $region['formula']['raw_text'] = $grammar;
+            $this->assertFalse($method->invoke($service, $region), $grammar);
+        }
+
+        $region['formula']['raw_text'] = '삼각형의 넓이 A = 1/2 × b × h';
         $this->assertTrue($method->invoke($service, $region));
     }
 

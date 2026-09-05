@@ -114,6 +114,7 @@ class StructuredExtractionPersistenceService
                 'row_count' => (int) $table['row_count'],
                 'column_count' => (int) $table['column_count'],
                 'has_header' => (bool) ($table['has_header'] ?? false),
+                'quality_status' => (string) ($table['quality_status'] ?? 'undetermined'),
                 'confidence_score' => $table['confidence_score'] ?? null,
                 'extraction_method' => (string) $table['extraction_method'],
                 'provider' => $job->provider,
@@ -135,6 +136,10 @@ class StructuredExtractionPersistenceService
                     'row_span' => (int) ($cell['row_span'] ?? 1),
                     'column_span' => (int) ($cell['column_span'] ?? 1),
                     'is_header' => (bool) ($cell['is_header'] ?? false),
+                    'bbox_x' => $cell['bbox']['x'] ?? null,
+                    'bbox_y' => $cell['bbox']['y'] ?? null,
+                    'bbox_width' => $cell['bbox']['width'] ?? null,
+                    'bbox_height' => $cell['bbox']['height'] ?? null,
                     'text' => $cell['text'] ?? null,
                     'char_count' => isset($cell['text']) ? mb_strlen((string) $cell['text']) : null,
                     'confidence_score' => $cell['confidence_score'] ?? null,
@@ -231,7 +236,8 @@ class StructuredExtractionPersistenceService
         $text = trim((string) ($region['formula']['raw_text'] ?? $region['text'] ?? ''));
         if ($text === ''
             || mb_strlen($text) > (int) config('media.processing.document.formula_evidence_max_characters', 180)
-            || preg_match_all('/[^\W\d_]+/u', $text) > (int) config('media.processing.document.formula_evidence_max_words', 24)) {
+            || preg_match_all('/[^\W\d_]+/u', $text) > (int) config('media.processing.document.formula_evidence_max_words', 24)
+            || $this->looksLikeKoreanGrammarTransformation($text)) {
             return false;
         }
 
@@ -242,6 +248,29 @@ class StructuredExtractionPersistenceService
         }
 
         return false;
+    }
+
+    /**
+     * Reject the observed Korean teaching pattern "stem + ending = conjugation".
+     * A Korean-labelled block is not rejected merely for containing Hangul: digits,
+     * Latin/Greek variables, or strong mathematical symbols keep real bilingual
+     * mathematics eligible for formula evidence.
+     */
+    private function looksLikeKoreanGrammarTransformation(string $text): bool
+    {
+        if (! preg_match('/[\x{1100}-\x{11FF}\x{3130}-\x{318F}\x{AC00}-\x{D7A3}]/u', $text)
+            || ! str_contains($text, '+')
+            || ! str_contains($text, '=')) {
+            return false;
+        }
+
+        $hasMathOperand = preg_match('/[0-9A-Za-z\x{0370}-\x{03FF}]/u', $text) === 1;
+        $hasStrongMathSymbol = preg_match('/[<>±√∑Σ∫∆Δ∩∪∈∉⊂⊆∞≈≠≤≥×÷²³⁰¹⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉]/u', $text) === 1;
+        if ($hasMathOperand || $hasStrongMathSymbol) {
+            return false;
+        }
+
+        return preg_match('/(?:아\/어|아요|어요|습니다|입니다|는데요|ㄴ데요|고\s*있다|아\s*보다|어\s*보다|으\)?ㄴ|는\s*데요)/u', $text) === 1;
     }
 
     /** A bad/low-confidence normalization degrades only the formula child. */
@@ -369,7 +398,10 @@ class StructuredExtractionPersistenceService
         }
         foreach ($tables as $table) {
             $cells = array_values($table['cells'] ?? []);
-            if ($cells === [] || (int) ($table['row_count'] ?? 0) < 1 || (int) ($table['column_count'] ?? 0) < 1) {
+            $qualityStatus = $table['quality_status'] ?? 'undetermined';
+            if ($cells === [] || (int) ($table['row_count'] ?? 0) < 1 || (int) ($table['column_count'] ?? 0) < 1
+                || ! in_array($qualityStatus, ['complete', 'incomplete', 'undetermined'], true)
+                || (($table['locator_type'] ?? null) === 'sheet' && $qualityStatus !== 'undetermined')) {
                 throw new RuntimeException('structured_extraction_invalid');
             }
             $cellCount += count($cells);
@@ -384,6 +416,17 @@ class StructuredExtractionPersistenceService
                 if ($row < 1 || $column < 1 || $rowSpan < 1 || $columnSpan < 1 || $row + $rowSpan - 1 > (int) $table['row_count']
                     || $column + $columnSpan - 1 > (int) $table['column_count']) {
                     throw new RuntimeException('structured_extraction_invalid');
+                }
+                $bbox = $cell['bbox'] ?? null;
+                if ($bbox !== null) {
+                    $complete = is_array($bbox) && isset($bbox['x'], $bbox['y'], $bbox['width'], $bbox['height']);
+                    if (! $complete || (float) $bbox['x'] < 0 || (float) $bbox['y'] < 0
+                        || (float) $bbox['width'] <= 0 || (float) $bbox['height'] <= 0
+                        || (float) $bbox['x'] + (float) $bbox['width'] > 1.000001
+                        || (float) $bbox['y'] + (float) $bbox['height'] > 1.000001
+                        || ($table['locator_type'] ?? null) === 'sheet') {
+                        throw new RuntimeException('structured_extraction_invalid');
+                    }
                 }
                 $structuredChars += mb_strlen((string) ($cell['text'] ?? ''));
             }

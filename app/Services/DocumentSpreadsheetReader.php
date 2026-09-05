@@ -66,6 +66,7 @@ class DocumentSpreadsheetReader
                     $tables[] = ['locator_type' => 'sheet', 'locator_value' => (string) ($index + 1),
                         'sequence' => count($tables) + 1, 'row_count' => $rows, 'column_count' => $columns,
                         'title' => $sheet->getAttribute('name'), 'has_header' => false,
+                        'quality_status' => 'undetermined',
                         'extraction_method' => 'spreadsheet_cells', 'cells' => array_values($cells)];
                 }
                 $completed($index + 1);

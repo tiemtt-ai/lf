@@ -1,12 +1,12 @@
 # Table: media_extracted_tables
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-03
+Last Updated: 2026-09-05
 
 Document Path: database/media/media_extracted_tables.md
 
@@ -19,6 +19,16 @@ Related ADR:
 Related Specification:
 [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md),
 [LF-Media-Read-Contract](../../platform/LF-Media-Read-Contract.md)
+
+## Table-quality amendment — Approved 2026-09-05
+
+`quality_status` là evidence bất biến của revision, tính khi persist. Với PDF,
+`incomplete` chỉ khi text layer có chữ trong một vị trí lưới thiếu cell nhưng đo
+được; thiếu band hàng/cột là `undetermined`. Spreadsheet và row lịch sử luôn
+`undetermined`. Thứ tự: `incomplete` > `undetermined` > `complete`.
+Khoảng nội bộ giữa tâm hai band cột lớn hơn gấp đôi biên neo ngoài lớn hơn cũng
+là `undetermined`, vì nó là dấu hiệu provider có thể đã làm sụp một cột in trống
+khỏi lưới khai báo; không được nâng trường hợp đó thành `complete`.
 
 ## Language-profile amendment — Approved 2026-09-03
 
@@ -82,6 +92,7 @@ Excel, và không cần hai đường đọc cho cùng một hình dạng dữ l
 | row_count | INT UNSIGNED NOT NULL | Số hàng của lưới, ≥ 1. |
 | column_count | INT UNSIGNED NOT NULL | Số cột của lưới, ≥ 1. |
 | has_header | TINYINT(1) NOT NULL DEFAULT 0 | Quan sát về hàng tiêu đề. |
+| quality_status | VARCHAR(20) NOT NULL DEFAULT 'undetermined' | `complete`, `incomplete`, hoặc `undetermined`; chưa đo không phải lỗi. |
 | confidence_score | DECIMAL(5,2) NULL | Confidence 0–100 khi extractor báo cáo. |
 | extraction_method | VARCHAR(50) NOT NULL | `ocr`, `embedded_text` hoặc `spreadsheet_cells`. |
 | provider | VARCHAR(100) NULL | Extractor; NULL khi đọc trực tiếp cấu trúc nguồn. |
@@ -120,6 +131,7 @@ CHECK (row_count >= 1);
 CHECK (column_count >= 1);
 CHECK (sequence >= 1);
 CHECK (has_header IN (0,1));
+CHECK (quality_status IN ('complete','incomplete','undetermined'));
 CHECK (confidence_score IS NULL
        OR (confidence_score >= 0 AND confidence_score <= 100));
 CHECK ((locator_type = 'region' AND region_id IS NOT NULL)

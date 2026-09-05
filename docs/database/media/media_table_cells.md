@@ -1,12 +1,12 @@
 # Table: media_table_cells
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-03
+Last Updated: 2026-09-05
 
 Document Path: database/media/media_table_cells.md
 
@@ -19,6 +19,12 @@ Related ADR:
 Related Specification:
 [LF-Media-Processing-Contract](../../platform/LF-Media-Processing-Contract.md),
 [LF-Media-Read-Contract](../../platform/LF-Media-Read-Contract.md)
+
+## Table-quality amendment — Approved 2026-09-05
+
+Cell PDF giữ bbox chuẩn hóa quan sát được để phép đo table quality có thể tái
+kiểm chứng. Bbox là tất-cả-hoặc-không-có; spreadsheet không có bbox trang và để
+bốn cột NULL. Không được tạo bbox giả lúc đọc.
 
 ## Language-profile amendment — Approved 2026-09-03
 
@@ -69,6 +75,10 @@ neo trích dẫn từ bảng cha. Một cell được trích dẫn bằng locato
 | row_span | INT UNSIGNED NOT NULL DEFAULT 1 | Số hàng ô này chiếm. |
 | column_span | INT UNSIGNED NOT NULL DEFAULT 1 | Số cột ô này chiếm. |
 | is_header | TINYINT(1) NOT NULL DEFAULT 0 | Ô thuộc hàng/cột tiêu đề. |
+| bbox_x | DECIMAL(9,6) NULL | Tọa độ trái chuẩn hóa 0–1 trên trang. |
+| bbox_y | DECIMAL(9,6) NULL | Tọa độ trên chuẩn hóa 0–1 trên trang. |
+| bbox_width | DECIMAL(9,6) NULL | Chiều rộng chuẩn hóa, > 0. |
+| bbox_height | DECIMAL(9,6) NULL | Chiều cao chuẩn hóa, > 0. |
 | text | LONGTEXT NULL | Nội dung đọc được của ô. |
 | char_count | INT UNSIGNED NULL | Độ dài text. |
 | confidence_score | DECIMAL(5,2) NULL | Confidence 0–100 khi extractor báo cáo. |
@@ -96,6 +106,12 @@ CHECK (column_index >= 1);
 CHECK (row_span >= 1);
 CHECK (column_span >= 1);
 CHECK (is_header IN (0,1));
+CHECK ((bbox_x IS NULL AND bbox_y IS NULL AND bbox_width IS NULL AND bbox_height IS NULL)
+       OR (bbox_x IS NOT NULL AND bbox_y IS NOT NULL
+           AND bbox_width IS NOT NULL AND bbox_height IS NOT NULL
+           AND bbox_x >= 0 AND bbox_y >= 0
+           AND bbox_width > 0 AND bbox_height > 0
+           AND bbox_x + bbox_width <= 1 AND bbox_y + bbox_height <= 1));
 CHECK (confidence_score IS NULL
        OR (confidence_score >= 0 AND confidence_score <= 100));
 ```

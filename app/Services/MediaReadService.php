@@ -333,11 +333,16 @@ class MediaReadService
                             'row' => (int) $cell->row_index, 'column' => (int) $cell->column_index,
                             'row_span' => (int) $cell->row_span, 'column_span' => (int) $cell->column_span,
                             'is_header' => (bool) $cell->is_header, 'text' => $cell->text,
+                            'bbox' => $cell->bbox_x === null ? null : [
+                                'x' => (float) $cell->bbox_x, 'y' => (float) $cell->bbox_y,
+                                'width' => (float) $cell->bbox_width, 'height' => (float) $cell->bbox_height,
+                            ],
                         ])->all();
                     $structure = [
                         'row_count' => (int) $row->row_count,
                         'column_count' => (int) $row->column_count,
                         'has_header' => (bool) $row->has_header,
+                        'quality_status' => $row->quality_status,
                         'cells' => $cells,
                     ];
                 }

@@ -1,16 +1,37 @@
 # Media Structured Extraction Architecture Review
 
-Version: 2.8
+Version: 2.9
 
 Document Status: Review
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-31
+Last Updated: 2026-09-05
 
-Review Date: 2026-08-25 (Round 1), 2026-08-26 (Round 2), 2026-08-27 (Round 3)
+Review Date: 2026-08-25 (Round 1), 2026-08-26 (Round 2), 2026-08-27 (Round 3), 2026-09-05 (Table-quality amendment)
 
 Document Path: quality/LF-Media-Structured-Extraction-Architecture-Review.md
+
+---
+
+# Table-quality amendment review — PASSED 2026-09-05
+
+Architecture Owner đã duyệt ADR-0019 v1.9 và Database Docs v1.4 trước migration.
+Review xác nhận: evidence tính lúc persist và revision-bound; bbox cell có CHECK
+tất-cả-hoặc-không-có; spreadsheet/revision cũ giữ `undetermined`; phép đo dùng
+text layer trong bbox của vị trí thiếu cell; thiếu band không được rơi về
+`complete`; precedence là `incomplete > undetermined > complete`. Không thêm AI
+interpretation, không đổi tenant/revision ownership, và read contract chỉ phát
+evidence đã lưu. **Verdict: PASS / Foundation Ready cho amendment này.**
+
+Formula guard cùng round được giới hạn vào pattern Hangul `+`/`=` có ending ngữ
+pháp và không có operand/symbol toán mạnh; nó không xóa region quan sát được.
+Regression dùng cả năm false-positive thật và một control toán tiếng Hàn.
+
+Rerun `doling 5` phát hiện bảng `15#8` bị nâng sai thành `complete`: Docling khai
+`7×2` trong khi khoảng giữa hai neo cột chiếm 67% bbox bảng. Review bổ sung guard
+topology bảo thủ nêu trong ADR v1.9; ca này phải là `undetermined`, còn ba bảng
+sparse trang 15 và bảng trang 61 chỉ bị cấm rơi vào `incomplete` khi không có mực.
 
 ---
 

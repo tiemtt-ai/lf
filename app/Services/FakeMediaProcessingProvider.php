@@ -26,6 +26,7 @@ class FakeMediaProcessingProvider implements MediaProcessingProvider
                 ? ['tables' => [[
                     'locator_type' => 'sheet', 'locator_value' => '1', 'sequence' => 1,
                     'row_count' => 2, 'column_count' => 2, 'has_header' => true,
+                    'quality_status' => 'undetermined',
                     'extraction_method' => 'spreadsheet_cells',
                     'cells' => [
                         ['row' => 1, 'column' => 1, 'is_header' => true, 'text' => 'Header'],

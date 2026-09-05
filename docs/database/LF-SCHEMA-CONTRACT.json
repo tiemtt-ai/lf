@@ -20336,6 +20336,15 @@
           "generated": null
         },
         {
+          "name": "quality_status",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'undetermined'",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
           "name": "confidence_score",
           "type": "decimal",
           "nullable": true,
@@ -20603,6 +20612,9 @@
         },
         {
           "expression": "`has_header` in (0,1)"
+        },
+        {
+          "expression": "`quality_status` in ('complete','incomplete','undetermined')"
         }
       ],
       "triggers": [],
@@ -22336,6 +22348,42 @@
           "generated": null
         },
         {
+          "name": "bbox_x",
+          "type": "decimal",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "bbox_y",
+          "type": "decimal",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "bbox_width",
+          "type": "decimal",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "bbox_height",
+          "type": "decimal",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
           "name": "text",
           "type": "longtext",
           "nullable": true,
@@ -22475,6 +22523,9 @@
         },
         {
           "expression": "`is_header` in (0,1)"
+        },
+        {
+          "expression": "`bbox_x` is null and `bbox_y` is null and `bbox_width` is null and `bbox_height` is null or `bbox_x` is not null and `bbox_y` is not null and `bbox_width` is not null and `bbox_height` is not null and `bbox_x` >= 0 and `bbox_y` >= 0 and `bbox_width` > 0 and `bbox_height` > 0 and `bbox_x` + `bbox_width` <= 1 and `bbox_y` + `bbox_height` <= 1"
         }
       ],
       "triggers": [],

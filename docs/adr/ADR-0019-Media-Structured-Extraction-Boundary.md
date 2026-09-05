@@ -1,6 +1,6 @@
 # ADR-0019 — Media Structured Extraction Boundary
 
-Version: 1.8
+Version: 1.9
 
 Status: Approved
 
@@ -8,7 +8,7 @@ Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-04
+Last Updated: 2026-09-05
 
 Proposal Date: 2026-08-25
 
@@ -30,6 +30,40 @@ Related Specification:
 * [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md)
 * [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md)
 * [media_extracted_texts](../database/media/media_extracted_texts.md)
+
+---
+
+## Amendment v1.9 — Table completeness and Korean grammar guard — Approved 2026-09-05
+
+Chất lượng bảng được ghi lúc persist và thuộc revision bất biến. Mỗi table có
+`quality_status = complete|incomplete|undetermined`; revision lịch sử và bảng
+spreadsheet không có hình học mang `undetermined`, nghĩa là **chưa đo**, không
+phải khuyết tật và không được consumer dùng để hạ cấp revision.
+
+Với bảng PDF, cell giữ bbox chuẩn hóa. Một vị trí lưới không có cell chỉ là
+`incomplete` khi suy được cả dải hàng lẫn dải cột từ cell quan sát được và text
+layer PDF có chữ trong bbox giao của hai dải. Không có chữ là ô trống hợp lệ.
+Nếu thiếu neo cho cả hàng hoặc cột thì vị trí đó không đo được. Thứ tự kết luận:
+`incomplete` thắng `undetermined`, `undetermined` thắng `complete`. Đây là phép
+quan sát hình học và mực trên trang; Media không suy diễn ý nghĩa của ô trống.
+
+Cell gộp được tính là chiếm toàn bộ span. Bbox của cell span không được chia để
+tự tạo band: chỉ cell có span 1 theo trục tương ứng mới neo band của trục đó.
+Quy tắc bảo thủ này có thể cho `undetermined`, nhưng không được tạo một kết luận
+`complete` từ hình học suy đoán.
+
+Nếu provider làm sụp một cột in trống ra khỏi `column_count`, mọi slot còn lại
+vẫn có thể trông đo được. Region bbox khi đó chỉ cho biên ngoài, không chứng minh
+số cột. Một khoảng giữa hai tâm band cột lớn hơn gấp đôi biên neo ngoài lớn hơn
+được coi là topology không đo được và cho `undetermined`; nó không phải bằng
+chứng `incomplete`. Rule hình học này được chốt từ ca thật trang 15, bảng `15#8`.
+
+Formula evidence loại riêng mẫu dạy biến đổi ngữ pháp Hàn có hình dạng
+`stem + ending = conjugation`. Guard chỉ áp dụng khi có Hangul, có cả `+` và `=`,
+có ending ngữ pháp quan sát được, đồng thời không có chữ số, biến Latin/Greek hay
+ký hiệu toán mạnh. Vì vậy label sai trong tài liệu ngôn ngữ không đi vào luồng
+toán, còn công thức song ngữ như `삼각형의 넓이 A = 1/2 × b × h` vẫn đủ điều kiện.
+Region gốc vẫn được giữ; chỉ formula evidence child bị từ chối.
 
 ---
 

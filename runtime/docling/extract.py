@@ -8,6 +8,7 @@ import json
 import os
 import pathlib
 import re
+import statistics
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -118,13 +119,82 @@ def poppler_region_text(source: pathlib.Path, regions: list[dict[str, object]], 
     for table in tables:
         page_number = int(str(table.get("locator_value", "0")).split("#", 1)[0])
         for cell in table.get("cells", []):
-            bbox = cell.pop("_bbox", None)
+            bbox = cell.get("bbox")
             if not isinstance(bbox, dict):
                 continue
             text = text_in_bbox(page_number, bbox)
             if text is not None:
                 cell["text"] = text
                 cell["metadata"] = {"text_source": "poppler_bbox"}
+
+        region_index = table.get("region_index")
+        table_bbox = regions[int(region_index)].get("bbox") if isinstance(region_index, int) and 0 <= region_index < len(regions) else None
+        table["quality_status"] = table_quality_status(
+            int(table.get("row_count", 0)), int(table.get("column_count", 0)),
+            table.get("cells", []), lambda bbox: text_in_bbox(page_number, bbox), table_bbox,
+        )
+
+
+def table_quality_status(rows: int, columns: int, cells: list[dict[str, object]], text_in_bbox,
+                         table_bbox: dict[str, float] | None = None) -> str:
+    """Measure missing grid positions conservatively from observed geometry/ink."""
+    occupied: set[tuple[int, int]] = set()
+    row_bands: dict[int, list[tuple[float, float]]] = {}
+    column_bands: dict[int, list[tuple[float, float]]] = {}
+    for cell in cells:
+        row = int(cell.get("row", 0))
+        column = int(cell.get("column", 0))
+        row_span = int(cell.get("row_span", 1))
+        column_span = int(cell.get("column_span", 1))
+        for row_offset in range(row_span):
+            for column_offset in range(column_span):
+                occupied.add((row + row_offset, column + column_offset))
+        bbox = cell.get("bbox")
+        if not isinstance(bbox, dict):
+            continue
+        if row_span == 1:
+            row_bands.setdefault(row, []).append((float(bbox["y"]), float(bbox["y"]) + float(bbox["height"])))
+        if column_span == 1:
+            column_bands.setdefault(column, []).append((float(bbox["x"]), float(bbox["x"]) + float(bbox["width"])))
+
+    def band(observations: list[tuple[float, float]] | None) -> tuple[float, float] | None:
+        if not observations:
+            return None
+        return statistics.median(item[0] for item in observations), statistics.median(item[1] for item in observations)
+
+    unmeasurable = False
+    for row in range(1, rows + 1):
+        for column in range(1, columns + 1):
+            if (row, column) in occupied:
+                continue
+            row_band = band(row_bands.get(row))
+            column_band = band(column_bands.get(column))
+            if row_band is None or column_band is None:
+                unmeasurable = True
+                continue
+            bbox = {"x": column_band[0], "y": row_band[0],
+                    "width": column_band[1] - column_band[0], "height": row_band[1] - row_band[0]}
+            if bbox["width"] <= 0 or bbox["height"] <= 0:
+                unmeasurable = True
+                continue
+            if text_in_bbox(bbox) is not None:
+                return "incomplete"
+
+    # Docling may collapse an entirely blank printed column out of its declared
+    # grid. In that case every declared slot can look measurable even though the
+    # observed column topology has a large unanchored interior band. The table
+    # bbox supplies only the outer boundary, so this is deliberately
+    # `undetermined`, never evidence of a missing cell.
+    column_centers = sorted(statistics.median((left + right) / 2 for left, right in values)
+                            for values in column_bands.values())
+    if len(occupied) < rows * columns and isinstance(table_bbox, dict) and len(column_centers) >= 2:
+        table_left = float(table_bbox["x"])
+        table_right = table_left + float(table_bbox["width"])
+        outer_margin = max(column_centers[0] - table_left, table_right - column_centers[-1])
+        interior_gap = max(right - left for left, right in zip(column_centers, column_centers[1:]))
+        if outer_margin > 0 and interior_gap > 2 * outer_margin:
+            unmeasurable = True
+    return "undetermined" if unmeasurable else "complete"
 
 
 def confidence_for(item: object, prov: object) -> float | None:
@@ -223,7 +293,7 @@ def table_cells(item: object, document: object) -> tuple[int, int, list[dict[str
                 bbox = bbox.to_top_left_origin(page_height=height)
             except Exception:
                 pass
-            entry["_bbox"] = {"x": float(bbox.l) / width, "y": float(bbox.t) / height,
+            entry["bbox"] = {"x": float(bbox.l) / width, "y": float(bbox.t) / height,
                               "width": (float(bbox.r) - float(bbox.l)) / width,
                               "height": (float(bbox.b) - float(bbox.t)) / height}
         cells.append(entry)
