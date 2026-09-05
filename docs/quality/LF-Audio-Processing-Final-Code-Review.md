@@ -1,12 +1,12 @@
 # Audio Processing — Final Code Review
 
-Version: 2.1
+Version: 2.2
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-01
+Last Updated: 2026-09-05
 
 Document Path: quality/LF-Audio-Processing-Final-Code-Review.md
 
@@ -15,6 +15,12 @@ Document Path: quality/LF-Audio-Processing-Final-Code-Review.md
 ## 1. Verdict
 
 **PASS_LOCAL_AUDIO_PROCESSING**
+
+Re-validation độc lập ngày 2026-09-05 tại HEAD
+`c51b5e8fb0bbdb4cb6c62566e632ae5bdf410723`: Audio và Video final suites chạy
+chung ngoài sandbox đạt **28 tests, 357 assertions, 0 failed**. Audio Phase 1 vì
+thế được ghi `IMPLEMENTATION: CLOSED`, `LOCAL_RUNTIME: PASS`; production vẫn
+`NOT_APPROVED` theo các deferred gate bên dưới.
 
 Đường Audio local từ Course Activity usage đến `speech_to_text`,
 `media_transcripts` theo timespan và Media Read đã được đối chiếu contract ↔ code

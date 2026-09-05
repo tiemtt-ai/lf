@@ -1,6 +1,6 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.32
+Version: 2.33
 
 Document Status: Approved
 
@@ -17,6 +17,21 @@ Related ADR:
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 * [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 * [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved v1.5
+
+---
+
+## Phase 1 Audio/Video implementation closure — 2026-09-05
+
+Audio transcript, Video transcript, Video caption VTT và đường Media Read tương
+ứng được đóng ở mức **implementation + local runtime**. Independent re-validation
+trên source HEAD `c51b5e8fb0bbdb4cb6c62566e632ae5bdf410723` chạy FFmpeg/Faster Whisper thật
+và đạt 28 tests, 357 assertions, 0 failed.
+
+Closure này không thay đổi contract và không mở production. Video STT tiếp tục
+mặc định tắt; production vẫn cần qualification evidence, soak/sizing trên đúng
+hardware, timeout/queue/worker parity, monitoring, retention/purge, PII và
+external-processing approval. AI Knowledge tiếp tục là consumer riêng, chịu
+Architecture Review, Freeze và migration gate riêng.
 
 ---
 

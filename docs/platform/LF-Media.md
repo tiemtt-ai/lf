@@ -1,12 +1,12 @@
 # LF-Media.md
 
-Version: 1.9
+Version: 1.10
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-31
+Last Updated: 2026-09-05
 
 Document Path: platform/LF-Media.md
 
@@ -15,6 +15,35 @@ Document Path: platform/LF-Media.md
 # LF Media Architecture
 
 Media là Platform Domain dùng chung cho toàn bộ LearnForge.
+
+## Capability closure — Phase 1 Audio/Video derived content
+
+**Closed for implementation and local runtime, 2026-09-05.** Phạm vi đóng gồm:
+
+* Audio → transcript theo `timespan`;
+* Video → transcript theo `timespan`;
+* Video → caption VTT dựng từ transcript revision `ready`;
+* Media Read cho transcript và caption asset theo tenant, owner context, usage
+  slot, locale và revision, kèm access audit.
+
+Independent re-validation tại HEAD `c51b5e8fb0bbdb4cb6c62566e632ae5bdf410723`
+chạy FFmpeg và Faster Whisper thật: **28 tests, 357 assertions, 0 failed**.
+`docs:lint`, `schema:drift --docs-only` (93 migrations), `schema:drift --fresh`,
+Pint và `git diff --check` đều PASS. Lượt `--fresh` hiện hành chạy trên MariaDB
+10.4.21; bằng chứng 11.4.12 vẫn là evidence lịch sử trong hai final review và
+phải được independent rerun trước một migration/production gate mới.
+
+Closure này được ghi chính xác là:
+
+```text
+PHASE_1_AUDIO_VIDEO_IMPLEMENTATION: CLOSED
+LOCAL_RUNTIME: PASS
+PRODUCTION_ACTIVATION: NOT_APPROVED
+```
+
+Nó không mở Video STT feature gate, không phê duyệt production provider,
+retention/PII/external processing, và không authorize migration hoặc
+implementation của AI Knowledge.
 
 ## Capability closure — Course Activity document upload
 

@@ -1,12 +1,12 @@
 # Video Transcript And Caption — Final Code Review
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-01
+Last Updated: 2026-09-05
 
 Document Path: quality/LF-Video-Transcript-Caption-Final-Code-Review.md
 
@@ -15,6 +15,12 @@ Document Path: quality/LF-Video-Transcript-Caption-Final-Code-Review.md
 ## 1. Verdict
 
 **PASS_LOCAL_VIDEO_TRANSCRIPT_AND_CAPTION**
+
+Re-validation độc lập ngày 2026-09-05 tại HEAD
+`c51b5e8fb0bbdb4cb6c62566e632ae5bdf410723`: Audio và Video final suites chạy
+chung ngoài sandbox đạt **28 tests, 357 assertions, 0 failed**. Video transcript
+và caption Phase 1 vì thế được ghi `IMPLEMENTATION: CLOSED`, `LOCAL_RUNTIME:
+PASS`; production vẫn `NOT_APPROVED` và feature gate vẫn mặc định tắt.
 
 Capability `Video → speech_to_text → media_transcripts theo timespan → caption
 asset VTT → Media Read` đã được đối chiếu contract ↔ database ↔ code ↔ test, sửa
