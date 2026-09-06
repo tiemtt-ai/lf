@@ -9,7 +9,7 @@
             'information' => __('lf.LF_course_template_tab_information'),
             'structure' => __('lf.LF_course_template_tab_structure'),
             'teachers' => __('lf.LF_course_template_tab_teachers'),
-            ...($learningMappingState ? ['learning' => 'Chuẩn đầu ra & năng lực'] : []),
+            ...($learningMappingState ? ['learning' => __('lf.LF_learning_frameworks')] : []),
             'publish' => __('lf.LF_course_template_tab_publish'),
             'history' => __('lf.LF_course_template_tab_history'),
         ];

@@ -4,7 +4,7 @@
         ->merge(collect($activitiesByLesson)->flatten()->map(fn ($activity) => (object) ['type' => 'course_template_activity', 'id' => $activity->id, 'label' => 'Hoạt động: '.$activity->title]));
 @endphp
 <div class="admin-card admin-form-card admin-form-surface">
-    <h2 class="admin-form-section-title">Chuẩn đầu ra & năng lực</h2>
+    <h2 class="admin-form-section-title">{{ __('lf.LF_learning_frameworks') }}</h2>
     <p class="admin-form-help">Chọn một phiên bản chuẩn đã xuất bản. Mapping chỉ là ý định trên bản nháp; khi xuất bản Template, hệ thống sẽ neo Mapping vào Lesson/Activity snapshot tương ứng.</p>
     <form class="admin-form-standard" method="POST" action="{{ route($routePrefix.'.learning-framework.select', $template->id) }}">
         @csrf @method('PUT')
