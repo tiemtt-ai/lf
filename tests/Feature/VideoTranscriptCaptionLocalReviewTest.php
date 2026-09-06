@@ -326,7 +326,8 @@ class VideoTranscriptCaptionLocalReviewTest extends TestCase
     /** Video tong hop: nen mau + giong noi tong hop. Khong PII, khong commit. */
     private function synthesizeFixture(): string
     {
-        $target = sys_get_temp_dir().'/lf-video-review-fixture.mp4';
+        $processToken = (string) getmypid();
+        $target = sys_get_temp_dir().'/lf-video-review-fixture-'.$processToken.'.mp4';
         if (is_file($target) && filesize($target) > 0) {
             return $target;
         }
@@ -336,7 +337,7 @@ class VideoTranscriptCaptionLocalReviewTest extends TestCase
         if ($say === null) {
             $this->markTestSkipped('Set LF_REAL_VIDEO_FIXTURE, or install `say` to synthesize one.');
         }
-        $aiff = sys_get_temp_dir().'/lf-video-review-fixture.aiff';
+        $aiff = sys_get_temp_dir().'/lf-video-review-fixture-'.$processToken.'.aiff';
         (new Process([$say, '-o', $aiff,
             'Welcome to this lesson on learning design. [[slnc 700]] '
             .'In this module we study how learners build durable knowledge. [[slnc 700]] '
@@ -357,7 +358,7 @@ class VideoTranscriptCaptionLocalReviewTest extends TestCase
      */
     private function corruptVideoFixture(): string
     {
-        $target = sys_get_temp_dir().'/lf-video-review-corrupt.mp4';
+        $target = sys_get_temp_dir().'/lf-video-review-corrupt-'.getmypid().'.mp4';
         if (! is_file($target) || filesize($target) === 0) {
             file_put_contents($target, substr((string) file_get_contents($this->synthesizeFixture()), 0, 2048));
         }

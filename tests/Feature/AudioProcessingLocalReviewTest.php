@@ -645,7 +645,8 @@ class AudioProcessingLocalReviewTest extends TestCase
      */
     private function synthesizeFixture(): string
     {
-        $target = sys_get_temp_dir().'/lf-audio-review-fixture.wav';
+        $processToken = (string) getmypid();
+        $target = sys_get_temp_dir().'/lf-audio-review-fixture-'.$processToken.'.wav';
         if (is_file($target) && filesize($target) > 0) {
             return $target;
         }
@@ -655,7 +656,7 @@ class AudioProcessingLocalReviewTest extends TestCase
         if ($say === null || $ffmpeg === null) {
             $this->markTestSkipped('Set LF_REAL_AUDIO_FIXTURE, or install `say` and `ffmpeg` to synthesize one.');
         }
-        $aiff = sys_get_temp_dir().'/lf-audio-review-fixture.aiff';
+        $aiff = sys_get_temp_dir().'/lf-audio-review-fixture-'.$processToken.'.aiff';
         $script = 'Welcome to this lesson on learning design. [[slnc 800]] '
             .'In this module we study how learners build durable knowledge. [[slnc 800]] '
             .'The first principle is spaced repetition over many days. [[slnc 800]] '

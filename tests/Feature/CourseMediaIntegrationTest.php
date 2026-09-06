@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Tests\TestCase;
 
 class CourseMediaIntegrationTest extends TestCase
@@ -2336,6 +2337,58 @@ class CourseMediaIntegrationTest extends TestCase
         $this->assertDatabaseHas('media_file_usages', ['id' => $usage->id, 'status' => 'detached']);
         $this->assertDatabaseHas('media_files', ['id' => $media->id, 'status' => 'deleted']);
         Storage::disk('media_local')->assertMissing($media->storage_key);
+    }
+
+    /**
+     * `attachUsage()` va conditional delete dung chung row lock tren
+     * `media_files`, nen mot attach chay song song hoac chay sau chi co hai ket
+     * cuc: thang truoc va giu lai asset, hoac thay tombstone.
+     *
+     * Khong co chot nay, mot Media da `deleted` — nguon lan derived content deu
+     * da bi purge — van gan lai duoc vao Activity moi, va consumer se thay mot
+     * usage `active` tro vao file khong con ton tai.
+     */
+    public function test_a_tombstoned_media_cannot_be_attached_again(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Tombstoned Media', 'tombstoned-media', $admin->id);
+        $lessonId = $this->createLesson($customerId, $templateId, 'Lesson', 'lesson');
+        $collection = "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities";
+
+        $this->actingAs($admin)->post($collection, $this->validActivityData([
+            'title' => 'Doomed video',
+            'activity_type' => 'video',
+            'activity_video_file' => UploadedFile::fake()->create('doomed.mp4', 32, 'video/mp4'),
+        ]))->assertRedirect();
+        $doomedId = (int) DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)->where('title', 'Doomed video')->value('id');
+        $mediaId = (int) DB::table('media_file_usages')->where('owner_type', 'course_activity')
+            ->where('owner_id', $doomedId)->where('status', 'active')->value('media_file_id');
+
+        $this->actingAs($admin)->delete("{$collection}/{$doomedId}")->assertRedirect();
+        $this->assertDatabaseHas('media_files', ['id' => $mediaId, 'status' => 'deleted']);
+
+        $this->actingAs($admin)->post($collection, $this->validActivityData([
+            'title' => 'Survivor video',
+            'activity_type' => 'video',
+            'activity_video_file' => UploadedFile::fake()->create('survivor.mp4', 32, 'video/mp4'),
+        ]))->assertRedirect();
+        $survivorId = (int) DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)->where('title', 'Survivor video')->value('id');
+
+        TenantContext::set((object) ['id' => $customerId]);
+        try {
+            app(MediaService::class)->attachUsage($mediaId, 'course_activity', $survivorId, 'video');
+            $this->fail('A tombstoned Media must not be attachable again.');
+        } catch (NotFoundHttpException) {
+            // Guard giu dung: khong resurrect duoc Media da purge.
+        }
+
+        $this->assertDatabaseMissing('media_file_usages', [
+            'media_file_id' => $mediaId, 'owner_id' => $survivorId, 'status' => 'active',
+        ]);
+        $this->assertDatabaseHas('media_files', ['id' => $mediaId, 'status' => 'deleted']);
     }
 
     public function test_activity_media_preview_fails_closed_for_wrong_relationship_and_teacher_scope(): void
