@@ -1,12 +1,12 @@
 # Media Processing Substrate Architecture Review
 
-Version: 1.18
+Version: 1.19
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-01
+Last Updated: 2026-09-06
 
 Review Date: 2026-08-23
 
@@ -505,6 +505,51 @@ busy delivery để lại envelope delay, worker bị `SIGKILL` bỏ job lại `
 (vì `failed()` không được gọi), recovery đưa về `provider_timeout` **giữ nguyên
 `billable_units`**, envelope của job terminal không hồi sinh nó, và job còn lại
 chạy hết ra transcript timespan hợp lệ.
+
+---
+
+## Course Activity edit/delete cleanup review — Owner decision 2026-09-06
+
+Audit level: **HIGH** vì thay đổi file ownership và destructive cleanup.
+
+Independent review xác nhận edit metadata/usage transaction, tenant scope,
+shared-media preservation và late-callback guards đúng; đồng thời phát hiện hai
+khoảng trống: Activity delete chỉ detach nên exclusive Media không được purge,
+và object upload mới có thể sống sót khi outer Activity transaction rollback.
+
+Owner duyệt remediation sau:
+
+1. mọi Activity delete/type-change/replacement/removal dùng canonical
+   `MediaService::detachUsage()`;
+2. sau commit, conditional delete chỉ chạy khi Media không còn **bất kỳ** usage
+   `active` nào; attach/delete serialize bằng Media row lock;
+3. exclusive Media đi qua `deleteMedia()` để tombstone, purge database content,
+   source/crop/caption/variant; shared Media giữ nguyên;
+4. upload trong outer transaction đăng ký rollback cleanup cho object mới;
+5. test phải phủ exclusive/shared, pending/late processing, storage rollback và
+   tenant/authorization regression.
+
+Không migration và không backfill. Processing/audit provenance không chứa nội
+dung vẫn được giữ. Production activation gates của Media không thay đổi.
+
+Implementation verification cùng ngày:
+
+* Activity delete exclusive tombstone Media và xóa source sau commit; shared
+  Media vẫn `ready` khi còn consumer active;
+* replacement purge Media cũ khi exclusive;
+* create/update rollback không còn để object upload mới trên storage;
+* attach khóa Media và từ chối tombstone, conditional delete kiểm tra mọi usage
+  `active` dưới cùng Media row lock;
+* targeted Activity/Media/Processing: **182 passed, 2 skipped, 1.274
+  assertions**; `docs:lint`, `schema:drift --docs-only` (94 migrations), Pint,
+  frontend build và `git diff --check` PASS.
+
+Full suite: **1.004 passed, 3 skipped, 10 failed, 9.819 assertions**. Mười
+failure lặp đúng baseline trước implementation, thuộc real-provider fixtures:
+3 Audio STT, 4 Office conversion và 3 Video STT/caption dưới local runtime
+configuration hiện tại; không failure nào thuộc Activity CRUD, Media lifecycle
+hoặc test mới. Vì vậy scoped remediation là **PASS**; trạng thái full repository
+không được diễn giải là toàn bộ xanh.
 
 ---
 

@@ -2304,6 +2304,38 @@ class CourseMediaIntegrationTest extends TestCase
             'customer_id' => $customerId, 'media_file_id' => $mediaId,
             'owner_type' => 'course_activity', 'owner_id' => $retainedActivityId, 'status' => 'active',
         ]);
+        $this->assertDatabaseHas('media_files', [
+            'id' => $mediaId, 'customer_id' => $customerId, 'status' => 'ready',
+        ]);
+    }
+
+    public function test_deleting_an_activity_purges_its_exclusive_media_source_after_commit(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Exclusive Activity Media', 'exclusive-activity-media', $admin->id);
+        $lessonId = $this->createLesson($customerId, $templateId, 'Lesson', 'lesson');
+        $collection = "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities";
+
+        $this->actingAs($admin)->post($collection, $this->validActivityData([
+            'title' => 'Exclusive video',
+            'activity_type' => 'video',
+            'activity_video_file' => UploadedFile::fake()->create('exclusive.mp4', 32, 'video/mp4'),
+        ]))->assertRedirect();
+
+        $activityId = (int) DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)->where('title', 'Exclusive video')->value('id');
+        $usage = DB::table('media_file_usages')->where('owner_type', 'course_activity')
+            ->where('owner_id', $activityId)->where('status', 'active')->first();
+        $media = DB::table('media_files')->where('id', $usage->media_file_id)->first();
+        Storage::disk('media_local')->assertExists($media->storage_key);
+
+        $this->actingAs($admin)->delete("{$collection}/{$activityId}")->assertRedirect();
+
+        $this->assertDatabaseMissing('core_course_template_activities', ['id' => $activityId]);
+        $this->assertDatabaseHas('media_file_usages', ['id' => $usage->id, 'status' => 'detached']);
+        $this->assertDatabaseHas('media_files', ['id' => $media->id, 'status' => 'deleted']);
+        Storage::disk('media_local')->assertMissing($media->storage_key);
     }
 
     public function test_activity_media_preview_fails_closed_for_wrong_relationship_and_teacher_scope(): void
@@ -2370,6 +2402,9 @@ class CourseMediaIntegrationTest extends TestCase
         ]))->assertRedirect();
         $activityId = (int) DB::table('core_course_template_activities')->where('title', 'Replace Video')->value('id');
         $editUrl = "{$collection}/{$activityId}/edit";
+        $originalUsage = DB::table('media_file_usages')->where('owner_type', 'course_activity')
+            ->where('owner_id', $activityId)->where('usage_type', 'video')->where('status', 'active')->first();
+        $originalMedia = DB::table('media_files')->where('id', $originalUsage->media_file_id)->first();
 
         $this->actingAs($admin)->put("{$collection}/{$activityId}", $this->validActivityData([
             'title' => 'Replace Video', 'activity_type' => 'video',
@@ -2378,6 +2413,8 @@ class CourseMediaIntegrationTest extends TestCase
         $replacementMediaId = (int) DB::table('media_file_usages')
             ->where('owner_type', 'course_activity')->where('owner_id', $activityId)
             ->where('usage_type', 'video')->where('status', 'active')->value('media_file_id');
+        $this->assertDatabaseHas('media_files', ['id' => $originalMedia->id, 'status' => 'deleted']);
+        Storage::disk('media_local')->assertMissing($originalMedia->storage_key);
         $response = $this->actingAs($admin)->get($editUrl)
             ->assertOk()
             ->assertDontSeeText('after.mp4')->assertDontSeeText('before.mp4');
@@ -2445,6 +2482,7 @@ class CourseMediaIntegrationTest extends TestCase
             'customer_id' => $customerId,
             'original_name' => 'rollback.mp4',
         ]);
+        $this->assertSame([], Storage::disk('media_local')->allFiles());
     }
 
     public function test_activity_update_rolls_back_fields_and_existing_usage_when_replacement_fails(): void
@@ -2463,6 +2501,7 @@ class CourseMediaIntegrationTest extends TestCase
         )->assertRedirect();
         $activityId = (int) DB::table('core_course_template_activities')->where('title', 'Original Activity')->value('id');
         $originalUsage = DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->first();
+        $filesBeforeReplacement = Storage::disk('media_local')->allFiles();
 
         $mediaService = \Mockery::mock(MediaService::class)->makePartial();
         $mediaService->shouldReceive('attachUsage')->once()->andThrow(new \RuntimeException('Injected replacement failure.'));
@@ -2486,6 +2525,7 @@ class CourseMediaIntegrationTest extends TestCase
         $this->assertDatabaseHas('core_course_template_activities', ['id' => $activityId, 'title' => 'Original Activity']);
         $this->assertDatabaseHas('media_file_usages', ['id' => $originalUsage->id, 'media_file_id' => $originalUsage->media_file_id, 'status' => 'active']);
         $this->assertDatabaseMissing('media_files', ['customer_id' => $customerId, 'original_name' => 'replacement.mp4']);
+        $this->assertSame($filesBeforeReplacement, Storage::disk('media_local')->allFiles());
     }
 
     public function test_teacher_cannot_access_product_media_upload_or_lifecycle_routes(): void

@@ -1,6 +1,6 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.40
+Version: 2.41
 
 Document Status: Approved
 
@@ -90,6 +90,16 @@ không phải cam kết CER/WER hay độ chính xác tuyệt đối từng thu�
 Production activation vẫn `NOT_APPROVED` và tiếp tục chịu qualification,
 soak/sizing, timeout/queue parity, monitoring, retention/purge, PII và external
 processing gates.
+
+Course Activity destructive cleanup amendment, Owner approved 2026-09-06:
+Activity delete/type-change/replacement/removal phải đi qua canonical detach
+lifecycle. Sau Activity commit, Media vừa mất usage được xóa nếu không còn bất
+kỳ usage `active` nào; nếu còn consumer thì giữ nguyên. Conditional delete phải
+serialize với attach bằng Media row lock, purge content-bearing database output
+cùng tombstone, rồi purge storage với retry sweeper khi cần. Object upload mới
+phải có rollback cleanup nếu outer Activity transaction thất bại. Không xóa
+processing/audit provenance không chứa nội dung và không tác động published
+Course Version usage.
 
 ---
 

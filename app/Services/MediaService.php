@@ -146,6 +146,25 @@ class MediaService
             throw $exception;
         }
 
+        // The source object is written before the Media row. When uploadMedia()
+        // participates in an outer owner-Domain transaction, a later failure
+        // can roll the row back after this method has already returned. Register
+        // the compensating storage delete on that transaction record so a
+        // failed Activity create/update cannot leave an untraceable object.
+        if (DB::transactionLevel() > 0) {
+            DB::afterRollBack(function () use ($storageDisk, $storageKey): void {
+                try {
+                    Storage::disk($storageDisk)->delete($storageKey);
+                } catch (Throwable $exception) {
+                    Log::error('Rolled-back Media upload storage cleanup failed.', [
+                        'storage_disk' => $storageDisk,
+                        'storage_key' => $storageKey,
+                        'exception' => $exception::class,
+                    ]);
+                }
+            });
+        }
+
         DB::afterCommit(fn () => app(MediaProcessingOrchestrator::class)
             ->materializeVirusScanOnUpload($customerId, (int) $mediaFileId, $uploadedBy));
 
@@ -311,7 +330,9 @@ class MediaService
             $createdBy,
             &$reattach
         ): object {
-            DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaFileId)->lockForUpdate()->first();
+            $lockedMedia = DB::table('media_files')->where('customer_id', $customerId)
+                ->where('id', $mediaFileId)->lockForUpdate()->first();
+            abort_if($lockedMedia === null || $lockedMedia->status === 'deleted', 404);
             $existing = DB::table('media_file_usages')
                 ->where('customer_id', $customerId)
                 ->where('media_file_id', $mediaFileId)
@@ -509,21 +530,44 @@ class MediaService
 
     public function deleteMedia(int $mediaFileId): object
     {
+        return $this->deleteMediaInternal($mediaFileId, true);
+    }
+
+    /**
+     * Delete only when the Media has no active consumer. The Media row lock is
+     * shared with attachUsage(), so a concurrent attach either wins and keeps
+     * the asset, or observes the tombstone and cannot resurrect deleted media.
+     */
+    public function deleteMediaIfUnused(int $mediaFileId): ?object
+    {
+        return $this->deleteMediaInternal($mediaFileId, false);
+    }
+
+    private function deleteMediaInternal(int $mediaFileId, bool $failWhenInUse): ?object
+    {
         $customerId = $this->customerId();
-        $mediaFile = DB::transaction(function () use ($customerId, $mediaFileId): object {
+        $mediaFile = DB::transaction(function () use ($customerId, $mediaFileId, $failWhenInUse): ?object {
             $mediaFile = DB::table('media_files')
                 ->where('customer_id', $customerId)
                 ->where('id', $mediaFileId)
                 ->lockForUpdate()
                 ->first();
 
-            abort_if($mediaFile === null, 404);
+            if ($mediaFile === null) {
+                abort_if($failWhenInUse, 404);
+
+                return null;
+            }
 
             if (DB::table('media_file_usages')
                 ->where('customer_id', $customerId)
                 ->where('media_file_id', $mediaFileId)
                 ->where('status', 'active')
                 ->exists()) {
+                if (! $failWhenInUse) {
+                    return null;
+                }
+
                 throw ValidationException::withMessages([
                     'media_file_id' => __('lf.LF_media_file_delete_blocked_in_use'),
                 ]);
@@ -551,6 +595,10 @@ class MediaService
 
             return $mediaFile;
         });
+
+        if ($mediaFile === null) {
+            return null;
+        }
 
         // Object storage va DB khong co transaction chung, nen thu tu quyet dinh
         // huong hong. Danh dau `deleted` TRUOC roi moi cham storage:

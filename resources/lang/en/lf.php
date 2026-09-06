@@ -2399,7 +2399,7 @@ return [
     'LF_course_template_activity_common_invalid_prerequisite' => 'The prerequisite activity cannot be this activity or create a dependency cycle.',
     'LF_common_button_back' => 'Back',
     'LF_course_template_activity_common_delete_blocked' => 'This activity cannot be deleted because it is in use. Change its status to Inactive if you no longer want it displayed.',
-    'LF_course_template_activity_common_delete_confirm' => 'Are you sure you want to delete this activity?',
+    'LF_course_template_activity_common_delete_confirm' => 'Are you sure you want to delete this activity? Media used only by this activity will be permanently deleted; shared media will only be detached.',
     'LF_course_template_activity_common_delete_yes' => 'Yes, delete',
     'LF_course_template_activity_common_delete_no' => 'No',
     'LF_course_template_activity_group_basic' => 'Activity Information',

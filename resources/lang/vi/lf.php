@@ -2399,7 +2399,7 @@ return [
     'LF_course_template_activity_common_invalid_prerequisite' => 'Activity điều kiện không được là chính Activity này hoặc tạo vòng lặp phụ thuộc.',
     'LF_common_button_back' => 'Quay lại',
     'LF_course_template_activity_common_delete_blocked' => 'Không thể xóa Activity vì đang được sử dụng. Vui lòng chuyển trạng thái sang Ngừng sử dụng nếu không muốn hiển thị.',
-    'LF_course_template_activity_common_delete_confirm' => 'Bạn có chắc chắn muốn xóa Activity này không?',
+    'LF_course_template_activity_common_delete_confirm' => 'Bạn có chắc chắn muốn xóa Activity này không? Media chỉ thuộc Activity này sẽ bị xóa vĩnh viễn; Media còn được nơi khác sử dụng chỉ bị gỡ khỏi Activity.',
     'LF_course_template_activity_common_delete_yes' => 'Có, xóa',
     'LF_course_template_activity_common_delete_no' => 'Không',
     'LF_course_template_activity_group_basic' => 'Thông tin Activity',

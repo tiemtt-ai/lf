@@ -1,6 +1,6 @@
 # LF-Media.md
 
-Version: 1.11
+Version: 1.12
 
 Document Status: Approved
 
@@ -36,6 +36,30 @@ AI Knowledge, glossary/course-context, embeddings, recommendation và teacher
 approval thuộc Phase 2, không được suy diễn là đã triển khai từ closure này.
 Production vẫn fail-closed cho tới khi các gate qualification, vận hành, PII,
 retention và external processing được duyệt độc lập.
+
+## Course Activity destructive cleanup amendment — Approved 2026-09-06
+
+Khi Course Activity được xóa, đổi sang loại không còn dùng Media hiện tại, thay
+file hoặc actor chọn bỏ file hiện tại, owner Domain phải detach usage qua
+`MediaService`; không được cập nhật thẳng mapping rồi bỏ qua lifecycle hook.
+
+Sau khi transaction Activity commit, mỗi Media vừa detach được xử lý theo hai
+nhánh dưới lock của chính Media:
+
+* còn ít nhất một usage `active` bất kỳ: giữ nguyên Media, source và derived
+  content vì vẫn có consumer;
+* không còn usage `active`: tombstone Media rồi purge source, crop,
+  caption/variant asset và mọi content-bearing derived row. Processing/audit
+  row không chứa nội dung được giữ làm provenance.
+
+Purge storage không nằm trong transaction database. Database phải tombstone và
+purge content trước; storage failure được ghi log và sweeper retry, không để một
+Media `ready` trỏ tới source đã mất. Upload object được tạo bên trong một outer
+database transaction phải đăng ký rollback cleanup: nếu transaction Activity
+rollback sau khi object đã ghi, object mới cũng phải bị xóa.
+
+UI delete phải diễn đạt đúng hai nhánh: file chỉ thuộc Activity này sẽ bị xóa
+vĩnh viễn; file còn được nơi khác sử dụng chỉ bị gỡ khỏi Activity.
 
 ## Capability closure — Phase 1 Audio/Video derived content
 
@@ -79,8 +103,8 @@ Evidence hiện hành:
   `owner_type = course_activity`, `usage_type = document`;
 * submit thành công quay lại trang hợp lệ; tài liệu vừa gắn vẫn xuất hiện khi
   mở lại activity;
-* replace tạo Media File mới vì binary immutable; remove chỉ detach usage,
-  không xoá nhầm file còn consumer khác;
+* replace tạo Media File mới vì binary immutable; remove detach usage và chỉ
+  purge Media cũ khi không còn consumer active nào;
 * delivery/preview là tenant-scoped và chỉ phục vụ file `ready`;
 * locale processing do actor chọn rõ ràng, không suy luận từ browser/model;
 * upload tài liệu kích hoạt substrate sau commit; output OCR là derived output
@@ -402,7 +426,8 @@ Remove trên form:
 
 * Ẩn Current media tile ngay để phản hồi thao tác.
 * Chỉ detach usage/domain reference khi form được submit thành công.
-* Không xóa vật lý Media File.
+* Sau commit, xóa vật lý Media File nếu và chỉ nếu không còn usage active nào;
+  Media dùng chung không bị xóa.
 * Nếu Remove và valid replacement cùng được gửi, replacement thắng.
 
 ## 3. Upload / Replace

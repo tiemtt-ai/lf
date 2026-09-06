@@ -13,10 +13,12 @@ use App\Support\UploadLimit;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use InvalidArgumentException;
+use Throwable;
 
 class CourseTemplateActivityController extends Controller
 {
@@ -659,22 +661,20 @@ class CourseTemplateActivityController extends Controller
 
         DB::transaction(function () use ($customerId, $templateId, $lessonId, $activityId): void {
             $this->lockTemplate($customerId, $templateId);
-            $usageIds = DB::table('media_file_usages')
+            $usages = DB::table('media_file_usages')
                 ->where('customer_id', $customerId)
                 ->where('owner_type', 'course_activity')
                 ->where('owner_id', $activityId)
                 ->where('status', 'active')
-                ->lockForUpdate()
-                ->pluck('id');
+                ->get(['media_file_id', 'usage_type']);
 
-            if ($usageIds->isNotEmpty()) {
-                DB::table('media_file_usages')
-                    ->where('customer_id', $customerId)
-                    ->whereIn('id', $usageIds)
-                    ->update([
-                        'status' => 'detached',
-                        'updated_at' => now(),
-                    ]);
+            foreach ($usages as $usage) {
+                $this->mediaService->detachUsage(
+                    (int) $usage->media_file_id,
+                    'course_activity',
+                    $activityId,
+                    (string) $usage->usage_type
+                );
             }
 
             DB::table('core_course_template_activities')
@@ -684,6 +684,9 @@ class CourseTemplateActivityController extends Controller
                 ->where('id', $activityId)
                 ->delete();
             $this->recalculateLessonDuration($customerId, $templateId, $lessonId);
+            $this->deleteUnusedMediaAfterCommit(
+                $usages->pluck('media_file_id')->map(fn ($id): int => (int) $id)->all()
+            );
         });
 
         return redirect()
@@ -1328,7 +1331,7 @@ class CourseTemplateActivityController extends Controller
             && ! $replacingActiveMedia;
         $detachingActiveMedia = $replacingActiveMedia || $removingActiveMedia;
 
-        DB::table('media_file_usages')
+        $detachedMediaIds = DB::table('media_file_usages')
             ->where('customer_id', $this->customerId())
             ->where('owner_type', 'course_activity')
             ->where('owner_id', $activityId)
@@ -1336,12 +1339,19 @@ class CourseTemplateActivityController extends Controller
             ->when($activeUsage && ! $detachingActiveMedia, fn ($query) => $query->where('usage_type', '!=', $activeUsage))
             ->when(! $activeUsage || $detachingActiveMedia, fn ($query) => $query->whereIn('usage_type', ['video', 'audio', 'document']))
             ->get()
-            ->each(fn (object $usage) => $this->mediaService->detachUsage(
-                (int) $usage->media_file_id,
-                'course_activity',
-                $activityId,
-                $usage->usage_type
-            ));
+            ->map(function (object $usage) use ($activityId): int {
+                $this->mediaService->detachUsage(
+                    (int) $usage->media_file_id,
+                    'course_activity',
+                    $activityId,
+                    $usage->usage_type
+                );
+
+                return (int) $usage->media_file_id;
+            })
+            ->all();
+
+        $this->deleteUnusedMediaAfterCommit($detachedMediaIds);
 
         if ($removingActiveMedia && in_array($activityType, self::AUTO_MEDIA_DURATION_TYPES, true)) {
             DB::table('core_course_template_activities')
@@ -1352,6 +1362,35 @@ class CourseTemplateActivityController extends Controller
                     'updated_at' => now(),
                 ]);
         }
+    }
+
+    /**
+     * Owner rows commit first; destructive storage cleanup follows. A Media
+     * that gained or retained another active usage is preserved atomically by
+     * MediaService's row-locked conditional delete.
+     *
+     * @param  array<int, int>  $mediaFileIds
+     */
+    private function deleteUnusedMediaAfterCommit(array $mediaFileIds): void
+    {
+        $mediaFileIds = array_values(array_unique($mediaFileIds));
+        if ($mediaFileIds === []) {
+            return;
+        }
+
+        DB::afterCommit(function () use ($mediaFileIds): void {
+            foreach ($mediaFileIds as $mediaFileId) {
+                try {
+                    $this->mediaService->deleteMediaIfUnused($mediaFileId);
+                } catch (Throwable $exception) {
+                    Log::error('Course Activity detached Media cleanup failed.', [
+                        'media_file_id' => $mediaFileId,
+                        'exception' => $exception::class,
+                        'retry_with' => 'Media library delete or media:purge-deleted-storage',
+                    ]);
+                }
+            }
+        });
     }
 
     private function ownerMedia(string $ownerType, int $ownerId): object
