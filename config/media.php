@@ -84,6 +84,10 @@ return [
             'model_path' => env('MEDIA_STT_MODEL_PATH', base_path('runtime/stt/models/small')),
             'compute_type' => env('MEDIA_STT_COMPUTE_TYPE', 'int8'),
             'threads' => (int) env('MEDIA_STT_THREADS', 0),
+            // Output-affecting runtime behavior. A profile with 2-3 locales
+            // asks faster-whisper to detect language again per decoding
+            // window; a single-locale profile remains explicitly pinned.
+            'multilingual_detection' => 'per-decoding-window-v1',
             'max_output_bytes' => (int) env('MEDIA_STT_MAX_OUTPUT_BYTES', 16777216),
         ],
         // Tach audio tu video truoc khi dua vao STT.

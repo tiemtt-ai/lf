@@ -1,12 +1,12 @@
 # LF-Media.md
 
-Version: 1.10
+Version: 1.11
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-05
+Last Updated: 2026-09-06
 
 Document Path: platform/LF-Media.md
 
@@ -15,6 +15,27 @@ Document Path: platform/LF-Media.md
 # LF Media Architecture
 
 Media là Platform Domain dùng chung cho toàn bộ LearnForge.
+
+## Phase 1 Media Processing closure — Owner decision 2026-09-06
+
+```text
+PHASE_1_MEDIA_PROCESSING: CLOSED
+DOCUMENT_IMPLEMENTATION: CLOSED
+AUDIO_VIDEO_IMPLEMENTATION: CLOSED
+LOCAL_RUNTIME: PASS
+PRODUCTION_ACTIVATION: NOT_APPROVED
+```
+
+Audio/Video local giữ Faster Whisper `large-v3-turbo`; không chuyển sang
+`large-v3`. Model identity là output-affecting và phải nằm trong
+`processing_version`. Phép đóng xác nhận upload, derived output, provenance,
+multilingual profile 1–3 locale và Media Read hoạt động trong local runtime; nó
+không cam kết transcript chính xác tuyệt đối ở cấp thuật ngữ.
+
+AI Knowledge, glossary/course-context, embeddings, recommendation và teacher
+approval thuộc Phase 2, không được suy diễn là đã triển khai từ closure này.
+Production vẫn fail-closed cho tới khi các gate qualification, vận hành, PII,
+retention và external processing được duyệt độc lập.
 
 ## Capability closure — Phase 1 Audio/Video derived content
 

@@ -558,6 +558,17 @@ class MediaProcessingOrchestrator
                 explode(',', (string) $parameters['locales'])
             );
             $version .= '+lp-'.substr(hash('sha256', $languageProfile), 0, 12);
+            // A multi-locale transcript depends on how the engine performs
+            // language detection. Keep that behavior in revision identity so
+            // the former whole-recording auto-detect result cannot be reused
+            // after per-window detection is enabled.
+            if ($this->providerFor('speech_to_text') === 'faster_whisper_local') {
+                $detection = (string) config(
+                    'media.processing.speech_to_text.multilingual_detection',
+                    'unconfigured'
+                );
+                $version .= '+mld-'.substr(hash('sha256', $detection), 0, 8);
+            }
             if (strlen($version) > 100) {
                 $version = 'speech-'.hash('sha256', $version);
             }

@@ -58,8 +58,18 @@ def main():
 
     model = WhisperModel(str(model_path), device="cpu", compute_type=args.compute_type,
                          cpu_threads=args.threads)
-    generated, _ = model.transcribe(str(source), language=args.locale,
-                                    vad_filter=False, beam_size=5)
+    # A multi-locale profile must not collapse to Whisper's one-language
+    # detection for the whole recording.  faster-whisper's multilingual mode
+    # re-detects the language for each decoding window while still producing
+    # one ordered timeline.  This is deliberately different from running the
+    # complete source once per locale and merging competing transcripts.
+    generated, _ = model.transcribe(
+        str(source),
+        language=args.locale,
+        multilingual=len(candidates) > 1,
+        vad_filter=False,
+        beam_size=5,
+    )
     units = []
     for segment in generated:
         text = segment.text.strip()

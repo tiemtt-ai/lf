@@ -1,12 +1,12 @@
 # Audio Processing — Final Code Review
 
-Version: 2.2
+Version: 2.3
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-05
+Last Updated: 2026-09-06
 
 Document Path: quality/LF-Audio-Processing-Final-Code-Review.md
 
@@ -15,6 +15,11 @@ Document Path: quality/LF-Audio-Processing-Final-Code-Review.md
 ## 1. Verdict
 
 **PASS_LOCAL_AUDIO_PROCESSING**
+
+Owner addendum 2026-09-06: giữ local model `large-v3-turbo` và đóng Audio trong
+Phase 1 Media Processing. Multilingual transcript là evidence có provenance,
+không phải cam kết độ chính xác tuyệt đối từng thuật ngữ; production activation
+vẫn không được mở bởi quyết định này.
 
 Re-validation độc lập ngày 2026-09-05 tại HEAD
 `c51b5e8fb0bbdb4cb6c62566e632ae5bdf410723`: Audio và Video final suites chạy

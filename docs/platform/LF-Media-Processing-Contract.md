@@ -1,12 +1,12 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.37
+Version: 2.40
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-05
+Last Updated: 2026-09-06
 
 Document Path: platform/LF-Media-Processing-Contract.md
 
@@ -54,6 +54,42 @@ Implementation and activation gates:
 Runtime và UI local/test được triển khai sau database/review gate. Production
 tiếp tục fail-closed cho tới khi qualification gate đạt; revision một locale
 Phase 1 vẫn đọc nguyên trạng và không backfill.
+
+Runtime correction 2026-09-05: profile nhiều locale phải gọi Faster Whisper
+với chế độ phát hiện lại ngôn ngữ trên từng decoding window. Strategy này là
+output-affecting config và phải tham gia `processing_version`; revision cũ dùng
+auto-detect một ngôn ngữ cho toàn nguồn không được tái sử dụng. Profile một
+locale vẫn ép đúng locale đã chọn. Kiểm chứng trên `video 4` cũng xác nhận giới
+hạn còn lại của model `small`: các từ Hàn rất ngắn nằm trong câu tiếng Việt có
+thể vẫn bị phiên âm Latin. Vì vậy correction này không tự đóng qualification
+gate và không phải production approval; code-switch accuracy vẫn phải đạt
+corpus/threshold đã được Owner freeze trước khi mở production.
+
+Local candidate re-validation 2026-09-06: `large-v3-turbo` CTranslate2 artifact
+revision `0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf`, `model.bin` SHA-256 prefix
+`e76620f8`, được định danh trong configured STT version. Trên cùng cửa sổ 100
+giây của `video 4`, model `small` trả 0 Hangul/0 segment `ko`; Turbo trả 81 ký
+tự Hangul, 20 segment có `ko` và 15 segment có đồng thời evidence `vi` + `ko`.
+Thời gian local giảm từ khoảng 135 giây xuống khoảng 78 giây. Đây là candidate
+A/B evidence, chưa phải corpus qualification hay production approval. Không
+thể cross-check lại binary của `video 5` vì storage object đã vắng mặt trong
+khi record/usage còn `ready`/`active`; trạng thái đó phải được xử lý như finding
+storage-integrity riêng, không được tính là model PASS hoặc FAIL.
+
+Owner closure 2026-09-06: local Audio/Video STT giữ model
+`large-v3-turbo` với artifact identity/SHA-256 nằm trong
+`processing_version`; không chuyển sang `large-v3`. A/B trên cùng đoạn
+`video 6` 05:30–06:30 cho thấy `large-v3` chậm hơn và không nhận đúng bốn loại
+thuật ngữ Hàn đã đối chiếu trực quan. Hotwords cải thiện ba trong bốn loại nhưng
+chưa đủ ổn định để hard-code vào Media pipeline. Glossary/course-context và
+teacher correction thuộc AI Knowledge/authoring ở Phase sau.
+
+Quyết định này đóng **Phase 1 Media Processing** ở mức implementation + local
+runtime, gồm Document, Audio và Video. Transcript là evidence quan sát được,
+không phải cam kết CER/WER hay độ chính xác tuyệt đối từng thuật ngữ.
+Production activation vẫn `NOT_APPROVED` và tiếp tục chịu qualification,
+soak/sizing, timeout/queue parity, monitoring, retention/purge, PII và external
+processing gates.
 
 ---
 

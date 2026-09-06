@@ -1,12 +1,12 @@
 # Video Transcript And Caption — Final Code Review
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-05
+Last Updated: 2026-09-06
 
 Document Path: quality/LF-Video-Transcript-Caption-Final-Code-Review.md
 
@@ -15,6 +15,11 @@ Document Path: quality/LF-Video-Transcript-Caption-Final-Code-Review.md
 ## 1. Verdict
 
 **PASS_LOCAL_VIDEO_TRANSCRIPT_AND_CAPTION**
+
+Owner addendum 2026-09-06: giữ local model `large-v3-turbo` và đóng Video trong
+Phase 1 Media Processing. A/B thuật ngữ trên cùng source không hỗ trợ chuyển sang
+`large-v3`; hotwords chưa được hard-code. Closure không biến transcript thành
+ground truth và không mở production activation.
 
 Re-validation độc lập ngày 2026-09-05 tại HEAD
 `c51b5e8fb0bbdb4cb6c62566e632ae5bdf410723`: Audio và Video final suites chạy

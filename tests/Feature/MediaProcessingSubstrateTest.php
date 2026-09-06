@@ -221,6 +221,31 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertSame('vi', $result['units'][0]['languages'][1]['locale']);
     }
 
+    public function test_multilingual_detection_strategy_participates_in_revision_identity(): void
+    {
+        config([
+            'media.processing.providers.speech_to_text' => 'faster_whisper_local',
+            'media.processing.versions.speech_to_text' => 'stt-v1',
+            'media.processing.speech_to_text.multilingual_detection' => 'per-decoding-window-v1',
+        ]);
+
+        $orchestrator = app(MediaProcessingOrchestrator::class);
+        $media = (object) ['file_type' => 'audio'];
+        $parameters = ['locales' => 'ko,vi'];
+        $before = $orchestrator->versionFor('speech_to_text', $media, $parameters);
+
+        config(['media.processing.speech_to_text.multilingual_detection' => 'per-decoding-window-v2']);
+
+        $this->assertNotSame(
+            $before,
+            $orchestrator->versionFor('speech_to_text', $media, $parameters)
+        );
+        $this->assertSame(
+            'stt-v1',
+            $orchestrator->versionFor('speech_to_text', $media, ['locale' => 'vi'])
+        );
+    }
+
     public function test_faster_whisper_provider_fails_before_model_when_audio_exceeds_duration_limit(): void
     {
         $runner = Mockery::mock(DocumentProcessRunner::class);
