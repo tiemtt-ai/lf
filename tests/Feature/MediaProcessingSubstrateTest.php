@@ -2284,6 +2284,7 @@ class MediaProcessingSubstrateTest extends TestCase
         ]))
             ->assertOk()
             ->assertSeeText(__('lf.LF_course_template_activity_stt_disabled'))
+            ->assertSeeText(__('lf.LF_course_template_activity_video_stt_disabled_help'))
             ->assertSessionHasNoErrors();
 
         $usage = DB::table('media_file_usages')->where('usage_type', 'video')->latest('id')->firstOrFail();
@@ -2297,7 +2298,7 @@ class MediaProcessingSubstrateTest extends TestCase
         ]);
     }
 
-    public function test_unchecked_deduplicated_audio_still_shows_an_existing_transcript(): void
+    public function test_unchecked_deduplicated_audio_reports_disabled_even_when_media_has_an_existing_transcript(): void
     {
         config([
             'media.processing.providers.speech_to_text' => 'fake',
@@ -2327,8 +2328,9 @@ class MediaProcessingSubstrateTest extends TestCase
 
         $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure")
             ->assertOk()
-            ->assertSeeText(__('lf.LF_course_template_activity_stt_ready'))
-            ->assertDontSeeText(__('lf.LF_course_template_activity_stt_disabled'));
+            ->assertSeeText(__('lf.LF_course_template_activity_stt_disabled'))
+            ->assertSee('badge-disabled', false)
+            ->assertDontSeeText(__('lf.LF_course_template_activity_stt_ready'));
     }
 
     public function test_http_non_pdf_document_forging_the_checkbox_creates_no_structured_job(): void

@@ -211,7 +211,9 @@
                                                     'processing' => 'lf.LF_course_template_activity_stt_processing_help',
                                                     'unqualified' => 'lf.LF_course_template_activity_stt_unqualified_help',
                                                     'absent' => 'lf.LF_course_template_activity_stt_absent_help',
-                                                    'disabled' => 'lf.LF_course_template_activity_stt_disabled_help',
+                                                    'disabled' => $activity->activity_type === 'video'
+                                                        ? 'lf.LF_course_template_activity_video_stt_disabled_help'
+                                                        : 'lf.LF_course_template_activity_stt_disabled_help',
                                                     default => 'lf.LF_course_template_activity_stt_pending_help',
                                                 };
                                             @endphp
@@ -222,6 +224,7 @@
                                                     'badge-danger' => $speechStatus === 'failed',
                                                     'badge-info' => in_array($speechStatus, ['pending', 'processing'], true),
                                                     'badge-secondary' => in_array($speechStatus, ['absent', 'disabled', 'unqualified'], true),
+                                                    'badge-disabled' => $speechStatus === 'disabled',
                                                 ])>
                                                     {{ __('lf.LF_course_template_activity_stt_'.$speechStatus) }}
                                                 </span>

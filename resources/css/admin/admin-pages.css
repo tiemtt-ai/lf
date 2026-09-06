@@ -2567,6 +2567,12 @@
     border-bottom: 1px solid #eef2f7;
 }
 
+.course-template-activity-item > .admin-table-actions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
 .course-template-activity-identity {
     display: flex;
     min-width: 0;
@@ -2616,6 +2622,12 @@
 
 .course-template-activity-structured-status .badge {
     flex: 0 0 auto;
+}
+
+.course-template-activity-structured-status .badge-disabled {
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    background: #f8fafc;
 }
 
 .course-template-activity-empty {
@@ -4547,7 +4559,7 @@
     }
 
     .course-template-activity-item .admin-table-actions {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
     }
 }
 .bulk-enrollment-review-header {

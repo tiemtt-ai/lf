@@ -1555,6 +1555,7 @@ return [
     'LF_course_template_activity_stt_unqualified_help' => 'Transcription was requested, but this deployment has no matching PASS qualification evidence. The video remains playable and no STT/caption job was created.',
     'LF_course_template_activity_stt_absent_help' => 'This media was never queued for transcription — usually because it was uploaded before a processing language was required. Select a language to create its first job.',
     'LF_course_template_activity_stt_disabled_help' => 'The audio was uploaded without automatic transcription. It remains playable but has no transcript for use as an AI content source.',
+    'LF_course_template_activity_video_stt_disabled_help' => 'The video was uploaded without automatic transcription and captions. It remains playable but has no transcript for use as an AI content source.',
     'LF_course_template_activity_stt_initialize' => 'Initialize transcription',
     'LF_course_template_activity_stt_initialize_locale' => 'Transcription language',
     'LF_course_template_activity_stt_initialize_choose' => 'Choose a language',

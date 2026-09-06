@@ -856,11 +856,13 @@ class CourseTemplateController extends Controller
                     // khong bao gio toi. Cung loai loi ma `structure_unavailable`
                     // sinh ra de chan — su vang mat khong duoc doc thanh mot
                     // trang thai da biet.
-                    $activity->speech_to_text_status = $speechJob?->status
-                        ?? ($speechToTextRequested && ! $speechToTextEligible
-                            ? 'unqualified'
-                            : ($speechToTextRequested ? 'absent' : 'disabled'));
-                    $activity->speech_to_text_error_code = $speechJob?->error_code;
+                    $activity->speech_to_text_status = ! $speechToTextRequested
+                        ? 'disabled'
+                        : ($speechJob?->status
+                            ?? (! $speechToTextEligible ? 'unqualified' : 'absent'));
+                    $activity->speech_to_text_error_code = $speechToTextRequested
+                        ? $speechJob?->error_code
+                        : null;
                 }
 
                 if (in_array($activity->activity_type, ['embedded_video', 'live_class'], true)) {

@@ -1555,6 +1555,7 @@ return [
     'LF_course_template_activity_stt_unqualified_help' => 'Bạn đã yêu cầu phiên âm nhưng deployment chưa có bằng chứng qualification PASS khớp cấu hình hiện tại. Video vẫn xem được và không có tác vụ STT/caption nào được tạo.',
     'LF_course_template_activity_stt_absent_help' => 'Media này chưa từng được xếp hàng phiên âm — thường vì được tải lên trước khi hệ thống bắt buộc chọn ngôn ngữ. Chọn ngôn ngữ để khởi tạo tác vụ lần đầu.',
     'LF_course_template_activity_stt_disabled_help' => 'Audio được tải lên mà không bật tự động phiên âm. File vẫn nghe được nhưng chưa có transcript để dùng làm nguồn nội dung cho AI.',
+    'LF_course_template_activity_video_stt_disabled_help' => 'Video được tải lên mà không bật tự động phiên âm và tạo phụ đề. File vẫn xem được nhưng chưa có transcript để dùng làm nguồn nội dung cho AI.',
     'LF_course_template_activity_stt_initialize' => 'Khởi tạo phiên âm',
     'LF_course_template_activity_stt_initialize_locale' => 'Ngôn ngữ phiên âm',
     'LF_course_template_activity_stt_initialize_choose' => 'Chọn ngôn ngữ',
