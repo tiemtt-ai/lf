@@ -29,6 +29,7 @@ class CourseActivityMediaPresenter
             ->select([
                 'usages.id as usage_id',
                 'usages.status as usage_status',
+                'usages.metadata as usage_metadata',
                 'media.id',
                 'media.customer_id',
                 'media.file_type',
@@ -37,6 +38,7 @@ class CourseActivityMediaPresenter
                 'media.display_name',
                 'media.extension',
                 'media.status',
+                'media.processing_locale',
             ])
             ->get();
 

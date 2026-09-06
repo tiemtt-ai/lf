@@ -7,13 +7,25 @@
     $selectedUnlockRule = old('unlock_rule', $formActivity?->unlock_rule ?? 'none');
     $selectedPrerequisiteId = old('unlock_after_activity_id', $formActivity?->unlock_after_activity_id);
     $selectedLearningPhases = old('learning_phases');
+    $currentUsageMetadata = json_decode(
+        (string) ($currentActivityMedia['media']->usage_metadata ?? ''),
+        true
+    ) ?: [];
     $selectedProcessingLocale = old(
         'processing_locale',
         $currentActivityMedia['media']->processing_locale ?? ''
     );
-    $selectedProcessingLocales = (array) old('processing_locales', $selectedProcessingLocale !== '' ? [$selectedProcessingLocale] : []);
-    $selectedSpeechToText = (bool) old('speech_to_text', true);
-    $selectedVideoSpeechToText = (bool) old('video_speech_to_text', false);
+    $storedProcessingLocales = $currentUsageMetadata['processing_locales']
+        ?? ($selectedProcessingLocale !== '' ? [$selectedProcessingLocale] : []);
+    $selectedProcessingLocales = (array) old('processing_locales', $storedProcessingLocales);
+    $storedSpeechToText = array_key_exists('speech_to_text_requested', $currentUsageMetadata)
+        ? (bool) $currentUsageMetadata['speech_to_text_requested']
+        : (bool) ($currentUsageMetadata['speech_to_text'] ?? true);
+    $selectedSpeechToText = (bool) old('speech_to_text', $storedSpeechToText);
+    $selectedVideoSpeechToText = (bool) old(
+        'video_speech_to_text',
+        (bool) ($currentUsageMetadata['speech_to_text_requested'] ?? false)
+    );
     $videoSttQualification ??= [
         'qualified' => false,
         'code' => 'evidence_missing',
@@ -167,6 +179,11 @@
                  && this.mediaDurationState !== 'invalid_type'
                  && this.videoSpeechToTextEnabled;
          },
+         languageProfileEnabled() {
+             return this.activityType === 'document'
+                 || (this.activityType === 'audio' && this.speechToTextEnabled)
+                 || (this.activityType === 'video' && this.videoSpeechToTextEnabled);
+         },
          formattedMediaDuration() {
              if (! this.mediaDurationSeconds) return '—';
              const hours = Math.floor(this.mediaDurationSeconds / 3600);
@@ -254,6 +271,7 @@
         </p>
         <div class="admin-checkbox-list">
             <label class="admin-checkbox-option admin-form-option-panel admin-form-option-panel--compact">
+                <input type="hidden" name="video_speech_to_text" value="0">
                 <input id="video_speech_to_text"
                        type="checkbox"
                        name="video_speech_to_text"
@@ -302,6 +320,7 @@
         </p>
         <div class="admin-checkbox-list">
             <label class="admin-checkbox-option admin-form-option-panel admin-form-option-panel--compact">
+                <input type="hidden" name="speech_to_text" value="0">
                 <input id="speech_to_text"
                        type="checkbox"
                        name="speech_to_text"
@@ -349,7 +368,7 @@
         </div>
     </div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field"
-         x-show="['document', 'audio', 'video'].includes(activityType)" x-cloak>
+         x-show="languageProfileEnabled()" x-cloak>
         <div class="course-activity-locale-heading">
             <x-form-label value="Ngôn ngữ nội dung (chọn 1–3)" />
             <span class="course-activity-required-badge" x-show="processingLocaleRequired" x-cloak>Bắt buộc cho tệp mới</span>
@@ -358,13 +377,14 @@
             @foreach (['vi' => 'Tiếng Việt (vi)', 'ko' => 'Tiếng Hàn (ko)', 'en' => 'Tiếng Anh (en)'] as $localeCode => $localeLabel)
                 <label class="admin-checkbox-option">
                     <input type="checkbox" name="processing_locales[]" value="{{ $localeCode }}"
+                           :disabled="!languageProfileEnabled()"
                            @checked(in_array($localeCode, $selectedProcessingLocales, true))>
                     <span>{{ $localeLabel }}</span>
                 </label>
             @endforeach
         </div>
         <p class="lf-form-help lf-secondary-text" x-show="activityType === 'document'">Dùng cho OCR và Docling; thứ tự chọn không ảnh hưởng revision.</p>
-        <p class="lf-form-help lf-secondary-text" x-show="['audio', 'video'].includes(activityType)">Một timeline phiên âm giữ nguyên phần chuyển đổi giữa các ngôn ngữ; hệ thống không dịch nội dung.</p>
+        <p class="lf-form-help lf-secondary-text" x-show="['audio', 'video'].includes(activityType)">Chỉ dùng khi bật phiên âm. Một timeline giữ nguyên phần chuyển đổi giữa các ngôn ngữ; hệ thống không dịch nội dung.</p>
     </div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field"
          x-show="activityType === 'document' && documentIsPdf"
