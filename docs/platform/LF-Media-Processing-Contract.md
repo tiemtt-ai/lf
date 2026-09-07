@@ -1,12 +1,12 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.41
+Version: 2.42
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-06
+Last Updated: 2026-09-07
 
 Document Path: platform/LF-Media-Processing-Contract.md
 
@@ -17,6 +17,26 @@ Related ADR:
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 * [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 * [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved v1.5
+
+---
+
+## Audio/Video terminal-silence VAD correction — Approved for implementation 2026-09-07
+
+Faster Whisper phải bật Silero VAD trước decoding cho Audio và Video STT. Đây
+là lọc vùng không có tiếng nói ở đầu vào model, không phải cắt hoặc clamp
+timespan sau khi model đã sinh output. Validator persist vẫn fail toàn revision
+với `transcript_invalid` nếu bất kỳ segment nào vượt
+`media_files.duration_seconds * 1000`; không nới invariant citation.
+
+Evidence kích hoạt correction: Media 57 (`audio_3.mp3`) dài thực tế 196,806
+giây có 20,233 giây im lặng cuối file. Cấu hình cũ `vad_filter=false` sinh hai
+segment 192.000–198.000 và 198.000–202.000, khiến cả ba attempt fail và loại 18
+segment hợp lệ trước đó. VAD là behavior ảnh hưởng output nên strategy phải
+tham gia `processing_version` cho cả profile một và nhiều locale. Đổi strategy
+phải mở revision mới; không sửa hoặc backfill transcript lịch sử.
+
+Benchmark local phải chạy cùng VAD strategy với runtime. Production vẫn chịu
+qualification/soak gate hiện hành; correction này không tự mở production.
 
 ---
 

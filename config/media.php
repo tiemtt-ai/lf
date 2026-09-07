@@ -88,6 +88,10 @@ return [
             // asks faster-whisper to detect language again per decoding
             // window; a single-locale profile remains explicitly pinned.
             'multilingual_detection' => 'per-decoding-window-v1',
+            // Output-affecting silence handling. Silero VAD removes non-speech
+            // before decoding; the persist validator still rejects any segment
+            // outside the source duration and never clamps citations.
+            'vad_strategy' => 'silero-vad-default-v1',
             'max_output_bytes' => (int) env('MEDIA_STT_MAX_OUTPUT_BYTES', 16777216),
         ],
         // Tach audio tu video truoc khi dua vao STT.

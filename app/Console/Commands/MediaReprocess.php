@@ -164,7 +164,9 @@ class MediaReprocess extends Command
         // khong co gi doi.
         $media = DB::table('media_files')->where('customer_id', $customerId)
             ->where('id', $job->media_file_id)->first();
-        $parameters = $job->job_type === 'structured_extraction' ? app(MediaOutputProfile::class)->parse($job->output_profile) : [];
+        $parameters = in_array($job->job_type, ['structured_extraction', 'speech_to_text'], true)
+            ? app(MediaOutputProfile::class)->parse($job->output_profile)
+            : [];
         $version = $orchestrator->versionFor((string) $job->job_type, $media, $parameters);
         $provider = $orchestrator->providerFor((string) $job->job_type, $media);
         if ($job->provider !== $provider || $job->processing_version !== $version) {

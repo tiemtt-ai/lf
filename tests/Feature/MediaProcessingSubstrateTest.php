@@ -153,6 +153,9 @@ class MediaProcessingSubstrateTest extends TestCase
         $runner = Mockery::mock(DocumentProcessRunner::class);
         $runner->shouldReceive('run')->once()->withArgs(function (array $command, int $timeout): bool {
             $this->assertContains('ko', $command);
+            $vadIndex = array_search('--vad-filter', $command, true);
+            $this->assertNotFalse($vadIndex);
+            $this->assertSame('on', $command[$vadIndex + 1]);
             $this->assertSame(3300, $timeout);
             $outputIndex = array_search('--output', $command, true);
             file_put_contents($command[$outputIndex + 1], json_encode([
@@ -233,6 +236,7 @@ class MediaProcessingSubstrateTest extends TestCase
         $media = (object) ['file_type' => 'audio'];
         $parameters = ['locales' => 'ko,vi'];
         $before = $orchestrator->versionFor('speech_to_text', $media, $parameters);
+        $singleBefore = $orchestrator->versionFor('speech_to_text', $media, ['locale' => 'vi']);
 
         config(['media.processing.speech_to_text.multilingual_detection' => 'per-decoding-window-v2']);
 
@@ -241,8 +245,33 @@ class MediaProcessingSubstrateTest extends TestCase
             $orchestrator->versionFor('speech_to_text', $media, $parameters)
         );
         $this->assertSame(
-            'stt-v1',
+            $singleBefore,
             $orchestrator->versionFor('speech_to_text', $media, ['locale' => 'vi'])
+        );
+    }
+
+    public function test_vad_strategy_participates_in_single_and_multilingual_stt_revision_identity(): void
+    {
+        config([
+            'media.processing.providers.speech_to_text' => 'faster_whisper_local',
+            'media.processing.versions.speech_to_text' => 'stt-v1',
+            'media.processing.speech_to_text.vad_strategy' => 'silero-vad-default-v1',
+        ]);
+
+        $orchestrator = app(MediaProcessingOrchestrator::class);
+        $media = (object) ['file_type' => 'audio'];
+        $singleBefore = $orchestrator->versionFor('speech_to_text', $media, ['locale' => 'vi']);
+        $multiBefore = $orchestrator->versionFor('speech_to_text', $media, ['locales' => 'ko,vi']);
+
+        config(['media.processing.speech_to_text.vad_strategy' => 'silero-vad-default-v2']);
+
+        $this->assertNotSame(
+            $singleBefore,
+            $orchestrator->versionFor('speech_to_text', $media, ['locale' => 'vi'])
+        );
+        $this->assertNotSame(
+            $multiBefore,
+            $orchestrator->versionFor('speech_to_text', $media, ['locales' => 'ko,vi'])
         );
     }
 
@@ -564,11 +593,11 @@ class MediaProcessingSubstrateTest extends TestCase
         config(['media.processing.versions.speech_to_text' => 'stt-v1']);
         $orchestrator = app(MediaProcessingOrchestrator::class);
 
-        // Them profile cho ca audio se doi identity cua MOI transcript audio dang
-        // chay, archive toan bo va bat chay lai. Amendment Record 2.19 § 1.
-        $this->assertSame('stt-v1', $orchestrator->versionFor('speech_to_text', (object) ['file_type' => 'audio']));
-        $this->assertSame('stt-v1', $orchestrator->versionFor('speech_to_text', null));
-        $this->assertStringStartsWith('stt-v1+ffmpeg-',
+        // VAD la identity dung chung cua Audio/Video. Rieng extraction profile
+        // ffmpeg van chi duoc phep tham gia nhanh Video.
+        $audioVersion = $orchestrator->versionFor('speech_to_text', (object) ['file_type' => 'audio']);
+        $this->assertSame($audioVersion, $orchestrator->versionFor('speech_to_text', null));
+        $this->assertStringStartsWith($audioVersion.'+ffmpeg-',
             $orchestrator->versionFor('speech_to_text', (object) ['file_type' => 'video']));
     }
 

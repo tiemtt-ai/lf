@@ -42,6 +42,7 @@ def main():
     parser.add_argument("--output", required=True)
     parser.add_argument("--compute-type", default="int8")
     parser.add_argument("--threads", type=int, default=0)
+    parser.add_argument("--vad-filter", choices=["on", "off"], default="on")
     args = parser.parse_args()
 
     source = Path(args.source)
@@ -67,7 +68,7 @@ def main():
         str(source),
         language=args.locale,
         multilingual=len(candidates) > 1,
-        vad_filter=False,
+        vad_filter=args.vad_filter == "on",
         beam_size=5,
     )
     units = []

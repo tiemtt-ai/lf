@@ -174,8 +174,8 @@
                                                     default => 'lf.LF_course_template_activity_structured_pending_help',
                                                 };
                                             @endphp
-                                            <span class="course-template-activity-structured-status"
-                                                  role="status">
+                                            <div class="course-template-activity-structured-status"
+                                                 role="status">
                                                 <span @class([
                                                     'badge',
                                                     'badge-success' => $structuredStatus === 'ready',
@@ -188,7 +188,7 @@
                                                 <span class="lf-secondary-text">
                                                     {{ __($structuredMessageKey) }}
                                                 </span>
-                                            </span>
+                                            </div>
                                         @endif
                                         @if (($activity->speech_to_text_status ?? null) !== null)
                                             @php

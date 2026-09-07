@@ -574,6 +574,17 @@ class MediaProcessingOrchestrator
             }
         }
 
+        if ($jobType === 'speech_to_text') {
+            $vadStrategy = (string) config(
+                'media.processing.speech_to_text.vad_strategy',
+                'unconfigured'
+            );
+            $version .= '+vad-'.substr(hash('sha256', $vadStrategy), 0, 8);
+            if (strlen($version) > 100) {
+                $version = 'speech-'.hash('sha256', $version);
+            }
+        }
+
         if ($jobType === 'structured_extraction' && $media !== null && (isset($parameters['locale']) || isset($parameters['locales']))) {
             $languageProfile = isset($parameters['locales'])
                 ? app(DocumentLanguageProfile::class)->canonical(explode(',', (string) $parameters['locales']))

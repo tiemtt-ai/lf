@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\MediaOutputProfile;
 use App\Services\MediaProcessingOrchestrator;
 use App\Services\MediaService;
 use App\Services\VideoSpeechToTextProfile;
@@ -152,6 +153,35 @@ class MediaReprocessCommandTest extends TestCase
         ])->expectsOutputToContain('would be enqueued')->assertSuccessful();
     }
 
+    public function test_multilingual_transcript_retry_uses_its_recorded_profile_to_compare_version(): void
+    {
+        $job = $this->failedSpeechToTextJob();
+        $media = DB::table('media_files')->where('id', $job->media_file_id)->firstOrFail();
+        $profile = app(MediaOutputProfile::class)->canonical([
+            'diarization' => 'off',
+            'locales' => 'ko,vi',
+        ]);
+        config([
+            'media.processing.providers.speech_to_text' => 'faster_whisper_local',
+            'media.processing.versions.speech_to_text' => 'faster-whisper-test',
+        ]);
+        $parameters = app(MediaOutputProfile::class)->parse($profile);
+        $version = app(MediaProcessingOrchestrator::class)->versionFor('speech_to_text', $media, $parameters);
+        DB::table('media_processing_jobs')->where('id', $job->id)->update([
+            'provider' => 'faster_whisper_local',
+            'processing_version' => $version,
+            'output_profile' => $profile,
+            'output_profile_hash' => app(MediaOutputProfile::class)->hash($profile),
+            'error_code' => 'transcript_invalid',
+        ]);
+
+        $this->artisan('media:reprocess', [
+            '--customer' => $this->customerId,
+            '--job' => $job->id,
+            '--dry-run' => true,
+        ])->expectsOutputToContain('would be enqueued')->assertSuccessful();
+    }
+
     public function test_targets_of_another_tenant_are_invisible(): void
     {
         $media = $this->uploadVideo();
@@ -204,7 +234,9 @@ class MediaReprocessCommandTest extends TestCase
      */
     private function videoVersion(string $base): string
     {
-        return $base.'+'.app(VideoSpeechToTextProfile::class)->label();
+        return $base
+            .'+vad-'.substr(hash('sha256', (string) config('media.processing.speech_to_text.vad_strategy')), 0, 8)
+            .'+'.app(VideoSpeechToTextProfile::class)->label();
     }
 
     private function uploadVideo(): object

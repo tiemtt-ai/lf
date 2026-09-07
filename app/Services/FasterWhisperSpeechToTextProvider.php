@@ -107,6 +107,7 @@ class FasterWhisperSpeechToTextProvider implements MediaProcessingProvider
                 '--output', $output,
                 '--compute-type', (string) config('media.processing.speech_to_text.compute_type', 'int8'),
                 '--threads', (string) config('media.processing.speech_to_text.threads', 0),
+                '--vad-filter', 'on',
             ], (int) config('media.processing.speech_to_text.timeout_seconds', 3300)), true);
             if (($envelope['status'] ?? null) !== 'ready') {
                 throw new RuntimeException((string) ($envelope['error_code'] ?? 'provider_command_failed'));

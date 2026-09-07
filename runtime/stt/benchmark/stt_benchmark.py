@@ -88,6 +88,7 @@ def main():
     parser.add_argument("--output-root", default=str(Path(__file__).parent / "results"))
     parser.add_argument("--compute-type", default="int8")
     parser.add_argument("--threads", type=int, default=0)
+    parser.add_argument("--vad-filter", choices=["on", "off"], default="on")
     args = parser.parse_args()
 
     manifest_path = Path(args.manifest).resolve()
@@ -118,7 +119,7 @@ def main():
         duration = duration_seconds(audio)
         started = time.perf_counter()
         generated, info = model.transcribe(str(audio), language=LOCALES[fixture["locale"]],
-                                           vad_filter=False, beam_size=5)
+                                           vad_filter=args.vad_filter == "on", beam_size=5)
         segments = []
         previous_end = None
         overlap = adjacent = zero_length = 0
