@@ -80,6 +80,7 @@
          audioFileSelected: false,
          speechToTextEnabled: @js($selectedSpeechToText),
          videoSpeechToTextEnabled: @js($selectedVideoSpeechToText),
+         videoSttQualified: @js((bool) $videoSttQualification['qualified']),
          completionRule: @js($selectedCompletionRule),
          unlockRule: @js($selectedUnlockRule),
          learningPhases: @js(array_values((array) $selectedLearningPhases)),
@@ -271,13 +272,15 @@
         </p>
         <div class="admin-checkbox-list">
             <label class="admin-checkbox-option admin-form-option-panel admin-form-option-panel--compact">
-                <input type="hidden" name="video_speech_to_text" value="0">
+                <input type="hidden" name="video_speech_to_text" value="0"
+                       :disabled="activityType !== 'video'">
                 <input id="video_speech_to_text"
                        type="checkbox"
                        name="video_speech_to_text"
                        value="1"
                        x-model="videoSpeechToTextEnabled"
                        x-on:change="videoSpeechToTextChanged()"
+                       :disabled="activityType !== 'video' || !videoSttQualified"
                        @disabled(! $videoSttQualification['qualified'])
                        @checked($selectedVideoSpeechToText && $videoSttQualification['qualified'])>
                 <span>{{ __('lf.LF_course_template_activity_video_stt_option') }}</span>
@@ -320,13 +323,15 @@
         </p>
         <div class="admin-checkbox-list">
             <label class="admin-checkbox-option admin-form-option-panel admin-form-option-panel--compact">
-                <input type="hidden" name="speech_to_text" value="0">
+                <input type="hidden" name="speech_to_text" value="0"
+                       :disabled="activityType !== 'audio'">
                 <input id="speech_to_text"
                        type="checkbox"
                        name="speech_to_text"
                        value="1"
                        x-model="speechToTextEnabled"
                        x-on:change="speechToTextChanged()"
+                       :disabled="activityType !== 'audio'"
                        @checked($selectedSpeechToText)>
                 <span>Tự động phiên âm nội dung audio</span>
             </label>

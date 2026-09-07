@@ -1249,9 +1249,11 @@ class CourseTemplateActivityController extends Controller
                     'structured_extraction' => $fileType === 'document'
                         && strtolower((string) $request->file($field)?->getClientOriginalExtension()) === 'pdf'
                         && $request->boolean('structured_extraction'),
-                    'speech_to_text_requested' => $fileType === 'video'
-                        ? $request->boolean('video_speech_to_text')
-                        : $request->boolean('speech_to_text'),
+                    'speech_to_text_requested' => match ($fileType) {
+                        'audio' => $request->boolean('speech_to_text'),
+                        'video' => $request->boolean('video_speech_to_text'),
+                        default => false,
+                    },
                     'speech_to_text' => match ($fileType) {
                         'audio' => $request->boolean('speech_to_text'),
                         'video' => $request->boolean('video_speech_to_text')

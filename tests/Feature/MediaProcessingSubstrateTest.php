@@ -2117,6 +2117,8 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/create")
             ->assertOk()
             ->assertSee('name="video_speech_to_text"', false)
+            ->assertSee(':disabled="activityType !== \'video\' || !videoSttQualified"', false)
+            ->assertSee(':disabled="activityType !== \'audio\'"', false)
             ->assertSee('x-show="languageProfileEnabled()"', false)
             ->assertSee(':disabled="!languageProfileEnabled()"', false)
             ->assertSee('disabled', false)
@@ -2341,11 +2343,16 @@ class MediaProcessingSubstrateTest extends TestCase
             ->post($this->activityUrl($templateId, $lessonId), $this->documentActivityPayload([
                 'activity_document_file' => UploadedFile::fake()->createWithContent('bai-hoc.txt', 'noi dung trang'),
                 'structured_extraction' => '1',
+                'speech_to_text' => '1',
+                'video_speech_to_text' => '1',
             ]))
             ->assertSessionHasNoErrors();
 
         $usage = DB::table('media_file_usages')->where('owner_type', 'course_activity')->latest('id')->firstOrFail();
-        $this->assertFalse((bool) (json_decode($usage->metadata, true)['structured_extraction'] ?? false));
+        $metadata = json_decode($usage->metadata, true);
+        $this->assertFalse((bool) ($metadata['structured_extraction'] ?? false));
+        $this->assertFalse((bool) ($metadata['speech_to_text_requested'] ?? true));
+        $this->assertFalse((bool) ($metadata['speech_to_text'] ?? true));
         $this->assertDatabaseMissing('media_processing_jobs', [
             'media_file_id' => $usage->media_file_id, 'job_type' => 'structured_extraction',
         ]);
