@@ -125,7 +125,7 @@ return new class extends Migration
             // actually unique for non-Media sources and undetermined locales.
             $table->string('identity_content_type', 50)->storedAs("COALESCE(content_type, '')");
             $table->string('identity_locale', 20)->storedAs("COALESCE(locale, '')");
-            $table->string('identity_fingerprint', 128)->storedAs("COALESCE(source_fingerprint, content_hash, '')");
+            $table->string('identity_fingerprint', 128)->storedAs("COALESCE(RTRIM(source_fingerprint), content_hash, '')");
             $table->string('identity_version', 100)->storedAs("COALESCE(processing_version, source_version, '')");
             $table->string('status', 50)->default('pending');
             $table->timestamp('last_synced_at', 6)->nullable();

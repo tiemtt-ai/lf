@@ -1,6 +1,6 @@
 # AI Foundation Media-Consumer Database Architecture Review
 
-Version: 1.7
+Version: 1.8
 
 Document Status: Review
 
@@ -20,6 +20,101 @@ Packet author: cùng agent đã ký Round 3. **Đây là xung đột vai trò đ
 người ký gate cũng là người soạn DDL, nên bản migration này cần một code review
 độc lập trước khi apply lên database thật. Ghi lại ở đây để không ai coi Round 3
 là chữ ký cho chính bản DDL bên dưới.
+
+## Step 1 CI Gate — `integration-mysql` on MariaDB 11.4 — 2026-09-08
+
+Job không trigger được từ phiên làm việc này, nên nó được tái lập nguyên vẹn:
+instance MariaDB **11.4.12** riêng trên port 3307 với datadir tạm, database
+`lf_ci_integration`, user `lf_ci`, đúng biến môi trường của job, và đúng 14 file
+theo đúng thứ tự.
+
+### Kết quả
+
+```text
+14/14 file PASS — 156 passed (583 assertions) — exit code 0
+```
+
+### Hai lỗi bị gate này bắt được
+
+**1. Migration không chạy trên MariaDB 11.4.**
+
+```text
+ERROR 1901: Function or expression 'coalesce(`source_fingerprint`,`content_hash`,'')'
+cannot be used in the GENERATED ALWAYS AS clause of `identity_fingerprint`
+```
+
+`source_fingerprint` là `CHAR(64)`; giá trị CHAR phụ thuộc `sql_mode`
+`PAD_CHAR_TO_FULL_LENGTH` nên 11.4 coi biểu thức là không tất định. **10.4 chấp
+nhận, 11.4 từ chối** — nên lỗi vô hình trên máy dev và chỉ đỏ ở CI. Probe trên cả
+hai server:
+
+| Biểu thức | 11.4 | 10.4 |
+| --- | --- | --- |
+| `COALESCE(a, b, '')`, `a CHAR(64)` | FAIL | OK |
+| `COALESCE(CAST(a AS CHAR(128)), b, '')` | FAIL | OK |
+| `COALESCE(RTRIM(a), b, '')` | **OK** | **OK** |
+| đổi `a` sang `VARCHAR(64)` | OK | OK |
+
+Chọn `RTRIM` thay vì đổi kiểu cột: giữ `CHAR(64)` đồng bộ với các bảng
+fingerprint của Media, và `RTRIM` là no-op trên SHA-256 hex. Có regression test
+đọc `information_schema` xác nhận biểu thức thật chứa `rtrim` và fingerprint vẫn
+đủ 64 ký tự.
+
+**2. Job đã đỏ trên `main` từ 2026-09-06, trước packet AI hai ngày.**
+
+`CourseTemplateLearningMappingHttpMariaDbTest` assert `Chuẩn đầu ra &amp; năng
+lực`. Commit `84c6b4c` (2026-09-06) đổi label thành `Đầu ra & năng lực`, sửa đồng
+bộ `resources/lang/vi/lf.php`, `edit.blade.php`,
+`learning-mappings.blade.php` và CSS — một đổi tên có chủ đích. Assertion không
+được cập nhật theo. Chuỗi `Chuẩn đầu ra` không còn tồn tại ở đâu trong
+`resources/` hay `app/`.
+
+Assertion đã được chỉnh về label đang chạy. Audit Level `LOW`: sửa test cho khớp
+một label đã ship, không đổi hành vi. Packet AI không đụng `app/` hay
+`resources/` (`git diff --stat HEAD -- app resources` rỗng).
+
+### Đính chính so với ghi chép trước
+
+Ghi chép trước của review artifact nói job migrate lại cho từng file và đề xuất
+tăng `timeout-minutes`. **Sai.** General log của MariaDB cho thấy `create table
+migrations` chỉ xuất hiện một lần cho ba file, và hai dòng khớp là `Prepare` +
+`Execute` của cùng một câu lệnh trên cùng connection id. Job chạy **một** tiến
+trình PHPUnit và **một** `migrate:fresh`. Không cần đổi testsuite hay timeout vì
+lý do đó. Các lần "reset" quan sát trước đó là do một tiến trình phpunit mồ côi
+chạy song song sau khi `pkill -f "artisan test"` không khớp tiến trình con.
+
+Đồng thời, mọi bằng chứng gắn nhãn "MariaDB 11.4" ở các mục trước của tài liệu
+này thực ra chạy trên **MariaDB 10.4.21** (XAMPP, port 3306); chỉ client là
+11.4.12. Contract đã được harvest lại từ 11.4 thật; khác biệt duy nhất so với bản
+harvest 10.4 đúng là biểu thức `RTRIM`, không có chênh lệch render nào khác giữa
+hai version.
+
+### Gate
+
+| Lệnh | Kết quả |
+| --- | --- |
+| `integration-mysql` tái lập (MariaDB 11.4.12) | **156 passed, 583 assertions, 14/14 file PASS** |
+| `AiFoundationKnowledgePacketMariaDbTest` (11.4) | 20 passed, 29 assertions |
+| `php artisan docs:lint` | passed |
+| `php artisan schema:drift --docs-only` | passed — 96 migration |
+| `./vendor/bin/pint --test` (file đã đổi) | passed |
+| `php artisan test` (sqlite) | 1014 passed, 3 skipped, 7 failed — giống baseline |
+| `git diff --check` | clean |
+
+### Cảnh báo trạng thái database thật
+
+`learnforge_db` **đã có bốn bảng AI**, apply lúc 2026-09-08 14:45:54, batch 27 —
+không do lượt này thực hiện và trước khi ba P1 cùng lỗi 11.4 được vá.
+`schema:drift --connection=mysql` cho 8 finding, gồm 1 BLOCKER và 1 HIGH: thiếu
+cột `generation`, thiếu khóa ngoại kép `media_file_id`, thiếu unique key
+registration identity mới, thiếu CHECK cặp `content_type × usage_type`, thiếu
+`CHECK (generation >= 1)`, và `identity_fingerprint` vẫn ở biểu thức cũ không
+chạy được trên 11.4.
+
+Cả bốn bảng có **0 row**, batch 27 chỉ chứa đúng migration này, nên khắc phục là
+lossless. Việc này cần lệnh của Owner, không phải hành động của reviewer/author.
+
+---
 
 ## Step 1 Remediation — Round 1 code review — 2026-09-08
 

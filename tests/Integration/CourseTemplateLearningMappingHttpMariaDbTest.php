@@ -312,7 +312,10 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
             ->get($f['host']."/admin/course-templates/{$f['template_id']}/edit")
             ->assertOk()->getContent();
 
-        $this->assertStringContainsString('Chuẩn đầu ra &amp; năng lực', $html);
+        // Label renamed by 84c6b4c (2026-09-06) across lf.php, edit.blade.php
+        // and learning-mappings.blade.php; the assertion was never updated,
+        // which is what has kept the integration-mysql job red since then.
+        $this->assertStringContainsString('Đầu ra &amp; năng lực', $html);
         $this->assertStringContainsString('name="framework_version_id"', $html);
         $this->assertStringContainsString('Definition render', $html, 'The mapped Node label must render from the Learning read service.');
         $this->assertStringContainsString('name="learning_node_id"', $html, 'The Node picker appears once a Version is selected.');

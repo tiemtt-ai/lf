@@ -41,6 +41,29 @@ class AiFoundationKnowledgePacketMariaDbTest extends TestCase
         $this->source($customerId, $userId, $mediaId, 'src-identity-2');
     }
 
+    public function test_fingerprint_identity_uses_the_mariadb_11_safe_rtrim_expression(): void
+    {
+        $expression = DB::table('information_schema.COLUMNS')
+            ->where('TABLE_SCHEMA', DB::getDatabaseName())
+            ->where('TABLE_NAME', 'ai_knowledge_sources')
+            ->where('COLUMN_NAME', 'identity_fingerprint')
+            ->value('GENERATION_EXPRESSION');
+
+        $this->assertIsString($expression);
+        $this->assertStringContainsString('rtrim', strtolower($expression));
+
+        [$customerId, $userId, $mediaId] = $this->tenant('fingerprint-expression');
+        $fingerprint = str_repeat('a', 64);
+        $sourceId = $this->source($customerId, $userId, $mediaId, 'src-fingerprint-expression', [
+            'source_fingerprint' => $fingerprint,
+        ]);
+
+        $this->assertSame(
+            $fingerprint,
+            DB::table('ai_knowledge_sources')->where('id', $sourceId)->value('identity_fingerprint')
+        );
+    }
+
     public function test_a_different_source_fingerprint_is_a_new_registration_not_an_overwrite(): void
     {
         [$customerId, $userId, $mediaId] = $this->tenant('revision');

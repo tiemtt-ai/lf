@@ -969,7 +969,7 @@
           "auto_increment": false,
           "generated": {
             "type": "stored",
-            "expression": "coalesce(`source_fingerprint`,`content_hash`,'')"
+            "expression": "coalesce(rtrim(`source_fingerprint`),`content_hash`,'')"
           }
         },
         {

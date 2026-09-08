@@ -99,7 +99,7 @@ Course, Assessment, Media, Track hoặc LiveClass.
 | content_hash | VARCHAR(128) NULL | Fingerprint cho source ngoài Media. |
 | source_fingerprint | CHAR(64) NULL | `source_fingerprint` của unit đã đọc. |
 | processing_version | VARCHAR(100) NULL | `processing_version` của unit đã đọc. |
-| identity_fingerprint | VARCHAR(128) AS (COALESCE(source_fingerprint,content_hash,'')) STORED | NULL-safe source revision identity. |
+| identity_fingerprint | VARCHAR(128) AS (COALESCE(RTRIM(source_fingerprint),content_hash,'')) STORED | NULL-safe source revision identity. |
 | identity_version | VARCHAR(100) AS (COALESCE(processing_version,source_version,'')) STORED | NULL-safe version identity. |
 | status | VARCHAR(50) NOT NULL DEFAULT 'pending' | AI ingestion lifecycle. |
 | last_synced_at | TIMESTAMP NULL | Last successful source sync. |
@@ -156,6 +156,13 @@ CHECK (status <> 'deleted' OR deleted_at IS NOT NULL);
 `UNIQUE (id, customer_id)` là điều kiện để Chunk tham chiếu ngược bằng khóa ngoại
 kép; không có nó thì một Chunk của tenant A trỏ được sang Source của tenant B và
 database không chặn được.
+
+`identity_fingerprint` bọc `RTRIM()` quanh `source_fingerprint`. Đây không phải
+làm đẹp: `source_fingerprint` là `CHAR(64)`, mà giá trị CHAR phụ thuộc
+`sql_mode` `PAD_CHAR_TO_FULL_LENGTH`, nên MariaDB 11.4 từ chối nó trong
+`GENERATED ALWAYS AS` bằng lỗi 1901. MariaDB 10.4 chấp nhận, nên khác biệt
+chỉ lộ ra trên server của CI. `RTRIM` làm biểu thức tất định và là no-op
+trên một SHA-256 hex digest. Nguồn: gate CI `integration-mysql`, 2026-09-08.
 
 Unique key gồm usage, fingerprint, version và `generation`; generated sentinels
 tránh UNIQUE với NULL trên MariaDB. Thiếu `generation` thì một tombstone khóa
