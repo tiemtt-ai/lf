@@ -89,60 +89,6 @@ DOC-CONFLICT-0002
 
 ID đã cấp không được tái sử dụng, kể cả record đã resolved hoặc invalidated.
 
----
-
-## DOC-CONFLICT-0035
-
-```text
-Conflict ID: DOC-CONFLICT-0035
-Title: AI Foundation Media-consumer packet thiếu identity, lifecycle, provider gate và Vision schema
-Classification: GAP
-Status: RESOLVED
-Impact: HIGH
-Detected At: 2026-09-08
-Detected By: AI Action 6 Round 2 independent review
-Owner: Architecture Owner
-Affected Domain: AI × Media
-Affected Concern: Knowledge ingestion, provider execution, deletion và visual evidence provenance
-Sources In Conflict: ADR-0006; ADR-0018; ADR-0019; ADR-0020; LF-AI; LF-Media-Read-Contract; bốn AI table docs
-Why They Cannot Both Be True: Approved invariants không thể triển khai an toàn từ packet cũ vì identity thiếu revision dimensions, delete barrier không hoàn chỉnh, provider gate không vật chất hóa và Vision table chưa tồn tại.
-Runtime/Business Impact: Nếu migrate packet cũ, source có thể va chạm revision, chunk không mở rộng đúng reading order, embedding không audit được provider run và xoá parent bị FK RESTRICT chặn.
-Required Decision: Architecture Owner chốt identity NULL-safe đầy đủ; media_file_id chỉ làm provenance; tombstone lifecycle; fail-closed provider gate; Model Run FK; text_quality; bảng Vision riêng.
-Resolution Authority: Architecture Owner
-Resolved At: 2026-09-08
-Resolution: Owner duyệt toàn bộ quyết định trên; ADR, domain contract và database docs đã đồng bộ. Migration vẫn bị chặn cho tới independent re-review PASS.
-Superseded/Updated Documents: ADR-0006 v1.0.3; ADR-0019; LF-AI v1.4; LF-Media-Read-Contract v1.23; ai_knowledge_sources; ai_knowledge_chunks; ai_embeddings; ai_model_runs; ai_assistant_sessions; ai_prompt_templates; ai_vision_interpretations
-Verification Evidence: AI Action 6 review v1.4 Round 2 Remediation; docs:lint; schema:drift --docs-only; MediaReadDerivedCommandTest
-Related ADR/Review/Issue/PR: ADR-0006; ADR-0018; ADR-0019; ADR-0020; LF-AI-Foundation-Media-Consumer-Database-Architecture-Review Round 2
-Notes: Không authorize migration. Schema contract vật lý được populate ở Gate Migration sau re-review.
-```
-
----
-
-## DOC-CONFLICT-0036
-
-```text
-Conflict ID: DOC-CONFLICT-0036
-Title: Tiêu đề superseded Gate 2 vẫn phát biểu verdict cũ ở hiện tại
-Classification: STALE
-Status: RESOLVED
-Impact: MEDIUM
-Detected At: 2026-09-08
-Detected By: Learning Gate 2 independent review
-Owner: Learning Domain Owner
-Affected Domain: Learning
-Affected Concern: Gate 2 closure wording
-Why They Cannot Both Be True: Canonical evidence ghi Gate 2 closed 2026-08-23 nhưng subsection lịch sử mở bằng câu không giới hạn thời gian rằng Gate 2 chưa đóng.
-Runtime/Business Impact: Không ảnh hưởng runtime; có thể làm reviewer đọc sai trạng thái gate.
-Required Decision: Giữ lịch sử nhưng đánh dấu rõ snapshot trước closure.
-Resolution Authority: Learning Domain Owner
-Resolved At: 2026-09-08
-Resolution: Wording đổi sang quá khứ, thêm cảnh báo subsection chỉ là historical snapshot và dẫn về Owner closure 2026-08-23.
-Superseded/Updated Documents: LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md
-Verification Evidence: LF-Learning-Gate-2-Independent-Review.md; docs:lint
-Related ADR/Review/Issue/PR: Learning Gate 2 Independent Review 2026-09-08
-Notes: Không thay đổi policy hoặc runtime.
-```
 
 | Status | Meaning |
 | --- | --- |
@@ -302,6 +248,8 @@ khác `RESOLVED`; cột Status của bảng dưới vẫn là nguồn sự thậ
 
 | ID | Title | Classification | Status | Impact | Domain | Owner | Target Review |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| DOC-CONFLICT-0035 | AI Foundation Media-consumer packet thiếu identity, lifecycle, provider gate và Vision schema | GAP | RESOLVED | HIGH | AI × Media | Architecture Owner | Đóng 2026-09-08 bằng remediation Round 2 và independent re-review Round 3 |
+| DOC-CONFLICT-0036 | Tiêu đề superseded Gate 2 vẫn phát biểu verdict cũ ở hiện tại | STALE | RESOLVED | MEDIUM | Learning | Learning Domain Owner | Đóng 2026-09-08 |
 | DOC-CONFLICT-0034 | Tesseract language-pack config bỏ `eng` mà Processing Contract bắt buộc cho `vi`/`ko` | IMPLEMENTATION_DRIFT | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-09-05 bằng A/B Docling 8 và ADR-0019 v1.12 |
 | DOC-CONFLICT-0033 | Amendment ngôn ngữ/formula không được phản ánh vào bảng canonical của Media Read Contract | DOCUMENT_CONTRADICTION | RESOLVED | MEDIUM | Media | Architecture Owner | Not set |
 | DOC-CONFLICT-0032 | Reattach sau cancelled chưa có chain/generation contract | GAP | RESOLVED | HIGH | Media | Architecture Owner | Not set |
@@ -781,6 +729,62 @@ Notes: Media cố ý không tạo hard foreign key tới owner domain, và đi�
 ---
 
 # Resolved Conflict Register
+
+---
+
+## DOC-CONFLICT-0035
+
+```text
+Conflict ID: DOC-CONFLICT-0035
+Title: AI Foundation Media-consumer packet thiếu identity, lifecycle, provider gate và Vision schema
+Classification: GAP
+Status: RESOLVED
+Impact: HIGH
+Detected At: 2026-09-08
+Detected By: AI Action 6 Round 2 independent review
+Owner: Architecture Owner
+Affected Domain: AI × Media
+Affected Concern: Knowledge ingestion, provider execution, deletion và visual evidence provenance
+Sources In Conflict: ADR-0006; ADR-0018; ADR-0019; ADR-0020; LF-AI; LF-Media-Read-Contract; bốn AI table docs
+Why They Cannot Both Be True: Approved invariants không thể triển khai an toàn từ packet cũ vì identity thiếu revision dimensions, delete barrier không hoàn chỉnh, provider gate không vật chất hóa và Vision table chưa tồn tại.
+Runtime/Business Impact: Nếu migrate packet cũ, source có thể va chạm revision, chunk không mở rộng đúng reading order, embedding không audit được provider run và xoá parent bị FK RESTRICT chặn.
+Required Decision: Architecture Owner chốt identity NULL-safe đầy đủ; media_file_id chỉ làm provenance; tombstone lifecycle; fail-closed provider gate; Model Run FK; text_quality; bảng Vision riêng.
+Resolution Authority: Architecture Owner
+Resolved At: 2026-09-08
+Resolution: Owner duyệt toàn bộ quyết định trên; ADR, domain contract và database docs đã đồng bộ. Migration vẫn bị chặn cho tới independent re-review PASS.
+Superseded/Updated Documents: ADR-0006 v1.0.3; ADR-0019; LF-AI v1.4; LF-Media-Read-Contract v1.23; ai_knowledge_sources; ai_knowledge_chunks; ai_embeddings; ai_model_runs; ai_assistant_sessions; ai_prompt_templates; ai_vision_interpretations
+Verification Evidence: AI Action 6 review v1.4 Round 2 Remediation; docs:lint; schema:drift --docs-only; MediaReadDerivedCommandTest
+Related ADR/Review/Issue/PR: ADR-0006; ADR-0018; ADR-0019; ADR-0020; LF-AI-Foundation-Media-Consumer-Database-Architecture-Review Round 2
+Notes: Không authorize migration. Schema contract vật lý được populate ở Gate Migration sau re-review.
+```
+
+---
+
+## DOC-CONFLICT-0036
+
+```text
+Conflict ID: DOC-CONFLICT-0036
+Title: Tiêu đề superseded Gate 2 vẫn phát biểu verdict cũ ở hiện tại
+Classification: STALE
+Status: RESOLVED
+Impact: MEDIUM
+Detected At: 2026-09-08
+Detected By: Learning Gate 2 independent review
+Owner: Learning Domain Owner
+Affected Domain: Learning
+Affected Concern: Gate 2 closure wording
+Sources In Conflict: LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md subsection lịch sử; Owner closure evidence 2026-08-23
+Why They Cannot Both Be True: Canonical evidence ghi Gate 2 closed 2026-08-23 nhưng subsection lịch sử mở bằng câu không giới hạn thời gian rằng Gate 2 chưa đóng.
+Runtime/Business Impact: Không ảnh hưởng runtime; có thể làm reviewer đọc sai trạng thái gate.
+Required Decision: Giữ lịch sử nhưng đánh dấu rõ snapshot trước closure.
+Resolution Authority: Learning Domain Owner
+Resolved At: 2026-09-08
+Resolution: Wording đổi sang quá khứ, thêm cảnh báo subsection chỉ là historical snapshot và dẫn về Owner closure 2026-08-23.
+Superseded/Updated Documents: LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md
+Verification Evidence: LF-Learning-Gate-2-Independent-Review.md; docs:lint
+Related ADR/Review/Issue/PR: Learning Gate 2 Independent Review 2026-09-08
+Notes: Không thay đổi policy hoặc runtime.
+```
 
 Resolved confirmed items: 9.
 

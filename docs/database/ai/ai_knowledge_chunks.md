@@ -69,6 +69,11 @@ Derived text chunks phục vụ tenant-scoped retrieval/RAG.
 * Chunk ngoài Media có thể trải nhiều unit và dùng khoảng
   `locator_start`..`locator_end`. Chunk Media bắt buộc một unit nên hai giá trị
   bằng nhau.
+* Media unit có text rỗng (`char_count = 0` — trạng thái hợp lệ theo Read
+  Contract § D2–D4, ví dụ trang trắng trong PDF hỗn hợp) **không** sinh
+  chunk. `sequence_no` liên tục trên các unit có text, nên độ phủ locator
+  của một source cố ý không phủ unit rỗng. `CHECK (char_end > char_start)`
+  vì thế không bao giờ bị một unit rỗng làm hỏng cả ingestion revision.
 * Content/metadata tuân tenant privacy and retention.
 
 ## Fields

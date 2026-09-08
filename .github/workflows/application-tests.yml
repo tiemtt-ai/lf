@@ -147,4 +147,5 @@ jobs:
             tests/Integration/MediaStructuredExtractionMariaDbTest.php \
             tests/Integration/MediaRegionLanguageMariaDbTest.php \
             tests/Integration/MediaCaptionProvenanceMariaDbTest.php \
-            tests/Integration/MediaProcessingJobKeyWidthMariaDbTest.php
+            tests/Integration/MediaProcessingJobKeyWidthMariaDbTest.php \
+            tests/Integration/AiFoundationKnowledgePacketMariaDbTest.php

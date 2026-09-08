@@ -28,6 +28,11 @@ finding F-1 và F-2. **Approved by Owner 2026-08-25.** Thay đổi: đăng ký t
 `content_type`/`source_fingerprint`/`processing_version`, bỏ `media_file_id`, và
 thêm tenant composite identity.
 
+**Superseded ở phần `media_file_id`:** ADR-0006 Amendment v1.0.3 (Approved
+2026-09-08) đưa `media_file_id` trở lại làm provenance có khóa ngoại
+tenant-aware. Nó vẫn không phải đường authorization — đó mới là điều amendment
+2026-08-25 muốn chặn. Xem § Business Rules và § Indexes hiện hành.
+
 ## Purpose
 
 Đăng ký nguồn tri thức được AI phép sử dụng; không sao chép ownership của
@@ -59,6 +64,17 @@ Course, Assessment, Media, Track hoặc LiveClass.
   quyết định rebuild; Media không tự rebuild và không xoá gì của AI.
 * Allowed `status`: `pending`, `active`, `stale`, `archived`, `failed`,
   `deletion_pending`, `deleted`.
+* `usage_type` phải khớp đúng cặp `(content_type, usage_type)` của Read
+  Contract § 3. Một registration `formula` + `audio` là nguồn không đọc lại
+  được, nên database từ chối thay vì để nó thành lỗi runtime.
+* `media_file_id` có khóa ngoại kép tới `media_files (id, customer_id)`.
+  Nó vẫn **không** cấp quyền — mọi lần đọc đi qua owner context — nhưng một
+  citation trỏ tới file của tenant khác hoặc file không tồn tại thì không
+  phải citation.
+* `generation` là chu kỳ đăng ký. Row `deleted` là tombstone terminal và giữ
+  identity của nó vĩnh viễn; khi owner gắn lại đúng Media revision cũ, AI
+  đăng ký `generation` kế tiếp thay vì hồi sinh row cũ. Bản cũ giữ nguyên để
+  một Proposal đã trích dẫn nó vẫn truy lại được.
 * Source stale kích hoạt rebuild policy cho chunks/embeddings.
 * Metadata không chứa credential hoặc canonical source business state.
 
@@ -71,8 +87,9 @@ Course, Assessment, Media, Track hoặc LiveClass.
 | source_uuid | CHAR(36) NOT NULL | Stable AI source identity. |
 | source_type | VARCHAR(100) NOT NULL | Generic owner type. |
 | source_id | BIGINT UNSIGNED NOT NULL | Generic owner record ID. |
-| media_file_id | BIGINT UNSIGNED NULL | Media provenance; không cấp quyền. |
+| media_file_id | BIGINT UNSIGNED NULL | Media provenance có FK tenant-aware; không cấp quyền. |
 | usage_type | VARCHAR(50) NOT NULL DEFAULT '' | Media usage; sentinel rỗng ngoài Media. |
+| generation | INT UNSIGNED NOT NULL DEFAULT 1 | Chu kỳ đăng ký của cùng revision; tăng sau tombstone. |
 | content_type | VARCHAR(50) NULL | Derived content unit type; NULL với source ngoài Media. |
 | title | VARCHAR(255) NOT NULL | Display/audit title. |
 | locale | VARCHAR(20) NULL | Source locale. |
@@ -100,14 +117,18 @@ UNIQUE (customer_id, source_uuid);
 UNIQUE (id, customer_id);
 UNIQUE (customer_id, source_type, source_id, usage_type,
         identity_content_type, identity_locale, identity_fingerprint,
-        identity_version);
+        identity_version, generation);
 INDEX  (customer_id, source_type, source_id);
 INDEX  (customer_id, status);
 INDEX  (customer_id, last_synced_at);
 INDEX  (customer_id, source_fingerprint);
 
+INDEX  (customer_id, media_file_id);
+
 FOREIGN KEY (created_by, customer_id)
     REFERENCES users (id, customer_id) RESTRICT;
+FOREIGN KEY (media_file_id, customer_id)
+    REFERENCES media_files (id, customer_id) RESTRICT;
 
 CHECK (status IN ('pending','active','stale','archived','failed',
                   'deletion_pending','deleted'));
@@ -122,7 +143,12 @@ CHECK (content_type IS NULL
 CHECK ((content_type IS NULL AND media_file_id IS NULL AND usage_type = '')
        OR (content_type IS NOT NULL AND media_file_id IS NOT NULL
            AND source_type IN ('course_activity','course_version_activity')));
-CHECK (content_type IS NULL OR usage_type IN ('document','audio','video'));
+CHECK (content_type IS NULL OR (
+    (content_type IN ('extracted_text','region','table','formula')
+     AND usage_type = 'document')
+ OR (content_type = 'transcript' AND usage_type IN ('audio','video'))
+ OR (content_type = 'video_frame_text' AND usage_type = 'video')));
+CHECK (generation >= 1);
 CHECK (status <> 'deletion_pending' OR deletion_requested_at IS NOT NULL);
 CHECK (status <> 'deleted' OR deleted_at IS NOT NULL);
 ```
@@ -131,8 +157,9 @@ CHECK (status <> 'deleted' OR deleted_at IS NOT NULL);
 kép; không có nó thì một Chunk của tenant A trỏ được sang Source của tenant B và
 database không chặn được.
 
-Unique key gồm usage, fingerprint và version; generated sentinels tránh UNIQUE
-với NULL trên MariaDB. Một revision mới của cùng owner/content
+Unique key gồm usage, fingerprint, version và `generation`; generated sentinels
+tránh UNIQUE với NULL trên MariaDB. Thiếu `generation` thì một tombstone khóa
+vĩnh viễn khả năng đăng ký lại cùng revision sau khi Media được gắn lại. Một revision mới của cùng owner/content
 type/locale là **một registration mới**, không ghi đè bản cũ. Bản cũ chuyển
 `stale` rồi `archived`, giữ nguyên để một Proposal đã trích dẫn nó vẫn truy lại
 được.

@@ -1,6 +1,6 @@
 # AI Foundation Media-Consumer Database Architecture Review
 
-Version: 1.5
+Version: 1.7
 
 Document Status: Review
 
@@ -11,6 +11,179 @@ Last Updated: 2026-09-08
 Review Date: 2026-08-25 (Round 1 — author self-assessment), 2026-09-08 (Round 2 — independent review), 2026-09-08 (Round 3 — independent re-review, PASS)
 
 Document Path: quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md
+
+---
+
+# Step 1 — Migration Packet Evidence — 2026-09-08
+
+Packet author: cùng agent đã ký Round 3. **Đây là xung đột vai trò đã biết** —
+người ký gate cũng là người soạn DDL, nên bản migration này cần một code review
+độc lập trước khi apply lên database thật. Ghi lại ở đây để không ai coi Round 3
+là chữ ký cho chính bản DDL bên dưới.
+
+## Step 1 Remediation — Round 1 code review — 2026-09-08
+
+Independent code review của migration packet trả verdict **FAIL / Migration NO**
+với 3 P1 và 3 P2. Tất cả đã được vá. Reviewer đó **không** sửa file và không
+apply; bản vá dưới đây do packet author thực hiện và cần chính reviewer đó
+re-review.
+
+### P1 — đã đóng
+
+| ID | Finding | Vá | Bằng chứng |
+| --- | --- | --- | --- |
+| P1-1 | `media_file_id` không có tenant-aware FK; test còn dùng id 7001 không tồn tại | Thêm `FOREIGN KEY (media_file_id, customer_id) → media_files (id, customer_id) RESTRICT` cùng `INDEX (customer_id, media_file_id)`. Fixture test nay tạo `media_files` thật | 3 test mới: file không tồn tại, file của tenant khác, và Media không hard-delete được khi còn registration trích dẫn |
+| P1-2 | CHECK chỉ kiểm hai vocabulary rời, chấp nhận `formula + audio`, `video_frame_text + document`, `region + video` | `chk_aks_usage_type` thay bằng `chk_aks_usage_pair` enforce đúng từng cặp của Read Contract § 3 | 2 test mới: 5 cặp không đọc được đều bị từ chối; 7 cặp hợp lệ đều được nhận |
+| P1-3 | Tombstone terminal khóa vĩnh viễn registration identity | Thêm `generation INT UNSIGNED NOT NULL DEFAULT 1` vào unique key và `CHECK (generation >= 1)` | 1 regression test: delete → reattach → cùng generation vẫn collide, `generation = 2` đăng ký được, row cũ giữ nguyên `deleted` |
+
+Owner chốt cả ba hướng ngày 2026-09-08:
+
+* `formula → document` được thêm vào bảng mapping § 3 của
+  [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md) (v1.23 → v1.24).
+  Đây là giá trị khả dĩ duy nhất: formula evidence dựng từ region cha, mà region
+  chỉ tồn tại trên document. Amendment này đóng khoảng trống giữa § 3 và § 5/§ 7,
+  không mở content type hay đường đọc mới.
+* `generation` thay vì hồi sinh row tombstone. Hồi sinh sẽ phá tuyên bố
+  `deleted` terminal mà Owner vừa duyệt, xoá tombstone audit, và tái dùng một
+  `source_uuid` mà một Proposal có thể đã trích dẫn cho nội dung cũ.
+* Unit Media rỗng không sinh chunk; `CHECK (char_end > char_start)` giữ nguyên.
+
+### P2 — đã đóng
+
+| ID | Finding | Vá |
+| --- | --- | --- |
+| P2-1 | `char_end > char_start` từ chối unit text rỗng, policy chưa nói | `ai_knowledge_chunks.md` § Business Rules ghi rõ unit rỗng không sinh chunk, `sequence_no` liên tục trên unit có text, độ phủ locator cố ý không phủ unit rỗng |
+| P2-2 | ADR-0006 vẫn ghi "11 tables" khi Foundation có 12 | ADR-0006 v1.0.3 → v1.0.4, Editorial Correction: 12 tables / 6 nhóm, thêm nhóm `Vision` vào danh sách nhóm, và sửa chính mệnh đề Foundation Freeze |
+| P2-3 | `DOC-CONFLICT-0035/0036` không có trong bảng active register | Hai record được chuyển khỏi § Status Lifecycle (chúng đang cắt đôi section đó) xuống § Resolved Conflict Register, thêm hai dòng vào bảng register, và `0036` được bổ sung field `Sources In Conflict` còn thiếu |
+
+### Tài liệu bị sửa kèm
+
+Ba trong số các bản vá đụng tài liệu **đã được Owner duyệt**, nên được ghi rõ ở
+đây thay vì lặng lẽ đi kèm migration:
+
+* `LF-Media-Read-Contract` v1.24 — amendment do Media sở hữu, Owner chốt.
+* `ADR-0006` v1.0.4 — editorial, không đổi bảng/boundary/ownership nào.
+* `ai_knowledge_sources.md` — `generation`, FK `media_file_id`, CHECK cặp, và
+  một dòng supersession cho amendment 2026-08-25 (dòng "bỏ `media_file_id`" nay
+  đã bị v1.0.3 thay thế).
+
+### Verification sau vá
+
+| Lệnh | Kết quả |
+| --- | --- |
+| `php artisan test tests/Integration/AiFoundationKnowledgePacketMariaDbTest.php` (MariaDB 11.4) | **19 passed, 26 assertions** (trước vá: 13) |
+| `php artisan schema:drift --fresh` (MariaDB 11.4) | passed — 96 migration, 52 finding đều `INFO`, **0 finding non-INFO** trên bốn bảng packet |
+| `php artisan schema:drift --docs-only` | passed — 96 migration |
+| `php artisan docs:lint` | passed |
+| `./vendor/bin/pint --test` (hai file packet) | passed |
+| `php artisan test` (suite mặc định, sqlite) | 1014 passed, 3 skipped, 7 failed — **giống hệt baseline**, cùng ba class môi trường `MediaRevisionLifecycleTest`, `VideoTranscriptCaptionLocalReviewTest`, `AudioProcessingLocalReviewTest` |
+| `git diff --check` | clean |
+
+Schema contract được **harvest lại** từ schema mới trên database MariaDB tạm sau
+khi vá, không chỉnh tay. So sánh cấu trúc với `HEAD` xác nhận không bảng nào
+ngoài bốn bảng packet bị đổi.
+
+### Vẫn chưa apply
+
+Migration chưa chạy lên `learnforge_db`. Cần re-review của reviewer độc lập rồi
+mới tới lệnh apply của Owner.
+
+---
+
+## Phạm vi đã tạo
+
+| Artifact | Đường dẫn |
+| --- | --- |
+| Migration bốn bảng | `database/migrations/2026_09_08_000100_create_ai_foundation_knowledge_tables.php` |
+| Physical integration test | `tests/Integration/AiFoundationKnowledgePacketMariaDbTest.php` |
+| Đăng ký CI | `.github/workflows/application-tests.yml` job `integration-mysql` |
+| Schema contract | `docs/database/LF-SCHEMA-CONTRACT.json` — bốn entry chuyển `implemented` và được populate |
+| Doc alignment | `docs/database/ai/ai_model_runs.md` — CHECK `chk_amr_prompt_scope` theo N-3 |
+
+`ai_vision_interpretations` **không** nằm trong packet này; nó chỉ phụ thuộc
+`ai_model_runs` và đi ở packet riêng.
+
+## Hai điều kiện bắt buộc của Round 3
+
+| # | Điều kiện | Trạng thái |
+| --- | --- | --- |
+| N-3 | Sửa CHECK `prompt_scope_customer_id` trước khi viết DDL | **DONE** — DDL dùng dạng `prompt_scope_customer_id IS NOT NULL AND … IN (0, customer_id)`; `ai_model_runs.md` đã sửa cùng lý do; có test phủ cả ba nhánh |
+| R2-25 | Populate contract cùng migration | **DONE** — bốn entry được sinh từ chính output của `MySqlSchemaInspector` trên database MariaDB tạm, không viết tay |
+
+Contract được **harvest từ schema thật**, không soạn thủ công: migration chạy
+lên một database MariaDB 11.4 tạm, `MySqlSchemaInspector::inspect()` đọc lại,
+và output đó là nội dung ghi vào contract. Vì vậy `schema:drift --fresh` so
+contract với schema dựng mới cho 0 finding trên cả bốn bảng.
+
+## Quyết định thiết kế trong DDL
+
+* Thứ tự tạo bảng bị ép bởi `ai_embeddings.model_run_id NOT NULL`:
+  `ai_model_runs` → `ai_knowledge_sources` → `ai_knowledge_chunks` →
+  `ai_embeddings`. `down()` drop theo thứ tự ngược.
+* Bốn sentinel `identity_*` là generated column `STORED`, đúng như doc, vì
+  MariaDB không cho NULL va nhau trong UNIQUE index.
+* Mọi cột TIMESTAMP đều nullable. Đây là cách tránh cái bẫy đã ghi ở
+  `2026_08_09_050000_remove_implicit_timestamp_on_update_from_occurrence_columns`:
+  TIMESTAMP NOT NULL không default đầu bảng bị MariaDB tự gắn
+  `DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`.
+* CHECK được thêm bằng `ALTER TABLE` sau `Schema::create`, có guard bỏ qua khi
+  driver là sqlite — theo đúng khuôn mẫu của Media substrate.
+* `down()` đếm row cả bốn bảng và `throw RuntimeException` khi còn bất kỳ row
+  nào, kèm tên bảng và số lượng.
+
+Không đụng gì tới bảng `media_*`, không thêm trigger, không có runtime AI.
+
+## Verification
+
+| Lệnh | Kết quả |
+| --- | --- |
+| `php artisan test tests/Integration/AiFoundationKnowledgePacketMariaDbTest.php` (MariaDB 11.4) | 13 passed lúc soạn; **19 passed, 26 assertions** sau Step 1 Remediation |
+| `php artisan schema:drift --fresh` (MariaDB 11.4) | **passed** — 96 migration, 52 finding đều `INFO`, 0 finding cho bốn bảng packet |
+| `php artisan schema:drift --docs-only` | passed — 96 migration |
+| `php artisan docs:lint` | passed |
+| `./vendor/bin/pint --test` (hai file mới) | passed |
+| `php artisan test` (suite mặc định, sqlite) | 1014 passed, 3 skipped, **7 failed** |
+| `git diff --check` | clean |
+
+Bảy failure của suite mặc định là nợ môi trường có sẵn, không phải regression.
+Chúng nằm trong `MediaRevisionLifecycleTest`, `VideoTranscriptCaptionLocalReviewTest`
+và `AudioProcessingLocalReviewTest` (thiếu binary ffmpeg/STT local — ví dụ
+assertion `+ffmpeg-` trong `processing_version`). Bằng chứng: chạy đúng ba file
+đó **có** và **không có** file migration cho kết quả pass/fail giống hệt nhau, và
+toàn bộ output suite không nhắc tới `ai_knowledge*`, `ai_embeddings` hay
+`ai_model_runs` lần nào.
+
+## Điều gì đã được chứng minh vật lý
+
+13 test chạy trên MariaDB thật, không phải sqlite (sqlite bỏ qua CHECK nên không
+chứng minh được gì ở đây):
+
+* NULL-safe identity chặn đăng ký trùng cùng một revision khi `locale` là NULL;
+* `source_fingerprint` khác là một registration mới, không ghi đè;
+* transcript slot `audio` và `video` là hai registration tách biệt (R2-01);
+* Media source thiếu `media_file_id`, hoặc ở owner context ngoài Read Contract
+  § 3, bị từ chối;
+* chunk của tenant B không trỏ được sang source của tenant A;
+* `sequence_no` không tái sử dụng được; các part của một unit cùng tồn tại nhưng
+  `part_index` không lặp;
+* `content` chỉ erase được khi row đã là tombstone `deleted`;
+* `processing` bị từ chối ở `ai_embeddings.status`; `ready` không có
+  `embedded_at` bị từ chối;
+* embedding đã `deleted` **vẫn** chặn hard-delete chunk và source (delete
+  barrier);
+* run `blocked` không có `error_code` bị từ chối; prompt reference không khai
+  scope, hoặc khai scope của tenant khác, bị từ chối (N-3);
+* `down()` từ chối rollback khi còn row và giữ nguyên bảng.
+
+## Chưa làm — cần quyết định của Owner
+
+Migration **chưa được apply** lên `learnforge_db`. Nó mới chỉ chạy trên database
+MariaDB tạm rồi bị drop. Apply là thao tác đổi trạng thái database thật và
+`down()` cố ý fail-closed, nên cần Owner ra lệnh riêng.
+
+Sau khi apply, phải cập nhật `Implementation Status` của bốn table doc từ
+`Not Implemented` sang trạng thái đúng — hiện vẫn để nguyên vì chưa có database
+thật nào chứa bốn bảng này.
 
 ---
 

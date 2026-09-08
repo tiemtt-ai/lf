@@ -1,12 +1,12 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.23
+Version: 1.24
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-07
+Last Updated: 2026-09-08
 
 Document Path: platform/LF-Media-Read-Contract.md
 
@@ -17,6 +17,24 @@ Related ADR:
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 * [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 * [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved
+
+---
+
+## Formula usage slot — Approved 2026-09-08
+
+`formula` được bổ sung vào bảng mapping `usage_type` của § 3 với giá trị
+`document`. Đây là giá trị khả dĩ duy nhất: formula evidence dựng từ
+`media_extracted_formulas` cùng region cha, và region chỉ tồn tại trên document —
+audio và video không sinh formula.
+
+Amendment này chỉ đóng một khoảng trống đã có: § 5 và § 7 đều đã nhận `formula`
+từ 2026-09-03 và 2026-09-05, còn bảng § 3 — vốn tự tuyên bố là mapping đóng —
+thì chưa có dòng nào cho nó. Hệ quả là một Media source `formula` đăng ký được
+theo § 7 nhưng không có `usage_type` hợp lệ nào để đọc lại theo § 3.
+
+Không mở content type mới, không mở đường đọc mới và không đổi authorization.
+Nguồn: independent code review của AI Foundation migration packet, finding P1-2,
+2026-09-08.
 
 ---
 
@@ -270,6 +288,7 @@ Phase 1 đóng như sau:
 | `transcript` | `audio` hoặc `video` |
 | `caption_asset` | `video` |
 | `variant` | `video` |
+| `formula` | `document` |
 | `video_frame_text` | `video` |
 
 Service chỉ xét active usage khớp chính xác `(customer_id, owner_type, owner_id,

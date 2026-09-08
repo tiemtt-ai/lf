@@ -99,8 +99,18 @@ CHECK (total_tokens >= input_tokens);
 CHECK (status <> 'completed' OR completed_at IS NOT NULL);
 CHECK (status <> 'failed' OR error_code IS NOT NULL);
 CHECK (status <> 'blocked' OR error_code IS NOT NULL);
-CHECK (prompt_template_id IS NULL OR prompt_scope_customer_id IN (0, customer_id));
+CHECK (prompt_template_id IS NULL
+       OR (prompt_scope_customer_id IS NOT NULL
+           AND prompt_scope_customer_id IN (0, customer_id)));
 ```
+
+Dạng trước của `chk_amr_prompt_scope` chỉ viết
+`prompt_scope_customer_id IN (0, customer_id)`. Với `prompt_scope_customer_id`
+là NULL thì biểu thức đó cho UNKNOWN nên CHECK **pass**, và khóa ngoại kép có
+một cột NULL cũng không được enforce. Một run vì thế tham chiếu được một
+prompt template mà không khai scope nào — đúng lỗ hổng mà cặp khóa này tồn tại
+để bịt. Bắt buộc NOT NULL trong chính CHECK là điều kiện để khóa ngoại hoãn có
+hiệu lực. Nguồn: independent review Round 3 finding N-3, 2026-09-08.
 
 `assistant_session_id` và `prompt_template_id` **chưa có khóa ngoại**:
 `ai_assistant_sessions` và `ai_prompt_templates` nằm ngoài subset Media→AI và

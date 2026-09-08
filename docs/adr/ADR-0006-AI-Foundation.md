@@ -12,7 +12,7 @@ Frozen
 
 ## Version
 
-1.0.3
+1.0.4
 
 ---
 
@@ -45,6 +45,19 @@ Document Path: adr/ADR-0006-AI-Foundation.md
 * [ADR-0005 — Track Foundation](ADR-0005-Track-Foundation.md)
 * [ADR-0016 — Learning Foundation](ADR-0016-Learning-Foundation.md)
 * [ADR-0018 — Media PII And External Processing Boundary](ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved; constraining privacy/external-processing boundary
+
+---
+
+## Editorial Correction — Version 1.0.4 (2026-09-08)
+
+Amendment v1.0.3 added the `Vision` group and `ai_vision_interpretations` to
+`## Foundation Tables`, but two sentences elsewhere still counted eleven tables
+and five groups — including the `## Foundation Freeze` clause, which is the
+governance rule itself. This correction aligns the counts with the table list
+approved in v1.0.3. It is editorial: no table, boundary, ownership or Source Of
+Truth changes, and it grants nothing that v1.0.3 did not already grant.
+
+Raised as finding N-4 by the independent review, 2026-09-08.
 
 ---
 
@@ -243,13 +256,15 @@ Consumer Domain
 AI tiêu thụ approved context/evidence/read models và tạo AI-owned outputs.
 Human hoặc Owner Domain vẫn quyết định business action.
 
-AI Foundation Version 1.0 gồm 11 tables thuộc 5 nhóm:
+AI Foundation gồm 12 tables thuộc 6 nhóm (Vision được thêm bởi Amendment
+Version 1.0.3 theo thẩm quyền của ADR-0020):
 
 * Knowledge.
 * Conversation.
 * Intelligence.
 * Operations.
 * Governance.
+* Vision.
 
 ---
 
@@ -609,7 +624,7 @@ This ADR references canonical definitions and does not redefine them.
 
 AI Foundation Version 1.0 is Approved and Frozen by this ADR.
 
-Changes to Domain Boundary, ownership, Source Of Truth or the 11-table
+Changes to Domain Boundary, ownership, Source Of Truth or the 12-table
 Foundation require:
 
 * Approved ADR Amendment; or
