@@ -63,6 +63,7 @@ mình.
 | **media_transcripts** | Nội dung bản ghi lời thoại dẫn xuất |
 | [**media_transcript_languages**](media_transcript_languages.md) | Language evidence theo từng timespan transcript |
 | **media_captions** | Tài sản phụ đề có thông tin thời gian |
+| [**media_video_frame_texts**](media_video_frame_texts.md) | OCR chữ quan sát được trên khung hình video theo timespan và bbox |
 | [**media_extracted_texts**](media_extracted_texts.md) | Text trích xuất từ document theo trang hoặc sheet, phục vụ trích dẫn |
 | [**media_extracted_regions**](media_extracted_regions.md) | Vùng quan sát được trên trang: role, hình học, thứ tự đọc |
 | [**media_region_languages**](media_region_languages.md) | Mọi chữ viết quan sát được trong một region; vùng song ngữ giữ đủ bằng chứng |

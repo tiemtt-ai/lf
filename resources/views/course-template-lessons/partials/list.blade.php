@@ -193,7 +193,27 @@
                                         @if (($activity->speech_to_text_status ?? null) !== null)
                                             @php
                                                 $speechStatus = $activity->speech_to_text_status;
-                                                $speechMessageKey = match ($speechStatus) {
+                                                $videoProcessing = $activity->activity_type === 'video';
+                                                $speechLabelKey = $videoProcessing
+                                                    ? 'lf.LF_course_template_activity_video_processing_'.$speechStatus
+                                                    : 'lf.LF_course_template_activity_stt_'.$speechStatus;
+                                                $speechMessageKey = $videoProcessing
+                                                    ? match ($speechStatus) {
+                                                        'failed' => match ($activity->speech_to_text_error_code) {
+                                                            'unsupported_source' => 'lf.LF_media_processing_unsupported',
+                                                            'corrupt_source', 'source_unavailable', 'transcript_invalid' => 'lf.LF_media_processing_invalid',
+                                                            'audio_extraction_failed', 'audio_extraction_limit_exceeded' => 'lf.LF_media_processing_extraction',
+                                                            'video_stt_disabled' => 'lf.LF_course_template_activity_video_stt_qualification_feature_disabled',
+                                                            'video_stt_unqualified', 'extraction_profile_mismatch' => 'lf.LF_course_template_activity_stt_unqualified_help',
+                                                            'video_limit_exceeded' => 'lf.LF_course_template_activity_video_stt_failed_limit_help',
+                                                            'provider_timeout' => 'lf.LF_course_template_activity_stt_failed_timeout_help',
+                                                            default => 'lf.LF_course_template_activity_video_processing_failed_help',
+                                                        },
+                                                        'unqualified' => 'lf.LF_course_template_activity_stt_unqualified_help',
+                                                        'disabled' => 'lf.LF_course_template_activity_video_stt_disabled_help',
+                                                        default => 'lf.LF_course_template_activity_video_processing_'.$speechStatus.'_help',
+                                                    }
+                                                    : match ($speechStatus) {
                                                     'ready' => 'lf.LF_course_template_activity_stt_ready_help',
                                                     'failed' => match ($activity->speech_to_text_error_code) {
                                                         'unsupported_source' => 'lf.LF_media_processing_unsupported',
@@ -226,7 +246,7 @@
                                                     'badge-secondary' => in_array($speechStatus, ['absent', 'disabled', 'unqualified'], true),
                                                     'badge-disabled' => $speechStatus === 'disabled',
                                                 ])>
-                                                    {{ __('lf.LF_course_template_activity_stt_'.$speechStatus) }}
+                                                    {{ __($speechLabelKey) }}
                                                 </span>
                                                 <span class="lf-secondary-text">{{ __($speechMessageKey, ['minutes' => config('media.processing.speech_to_text.'.($activity->activity_type === 'video' ? 'max_video_duration_seconds' : 'max_duration_seconds')) / 60, 'gib' => config('media.processing.speech_to_text.'.($activity->activity_type === 'video' ? 'max_video_source_bytes' : 'max_bytes')) / 1073741824]) }}</span>
                                                 @if (in_array($speechStatus, ['absent', 'disabled'], true) && $activity->activity_type === 'audio')

@@ -14,6 +14,7 @@ use App\Services\DocumentTextUnits;
 use App\Services\FakeMediaProcessingProvider;
 use App\Services\FasterWhisperSpeechToTextProvider;
 use App\Services\LocalDocumentProcessingProvider;
+use App\Services\LocalVideoFrameOcrProvider;
 use App\Services\MediaProcessingOrchestrator;
 use App\Services\RegionCropStorage;
 use App\Services\SpeechLanguageProfile;
@@ -61,7 +62,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 || ($media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
                     && ! app(DocumentProcessingEligibility::class)->hasActiveUsage($this->customerId, (int) $media->id))
                 || (in_array($media->file_type, ['audio', 'video'], true)
-                    && ($job->job_type === 'speech_to_text' || ($media->file_type === 'video' && $job->job_type === 'caption'))
+                    && (in_array($job->job_type, ['speech_to_text', 'frame_ocr'], true) || ($media->file_type === 'video' && $job->job_type === 'caption'))
                     && ! app(SpeechToTextProcessingEligibility::class)
                         ->hasActiveUsage($this->customerId, (int) $media->id, $media->file_type))) {
                 DB::table('media_processing_jobs')->where('id', $job->id)->where('customer_id', $this->customerId)->update([
@@ -79,7 +80,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 // drain its durable pending row instead of recursing here.
                 if (($media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
                     || (in_array($media->file_type, ['audio', 'video'], true)
-                        && in_array($job->job_type, ['speech_to_text', 'caption'], true)))
+                        && in_array($job->job_type, ['speech_to_text', 'caption', 'frame_ocr'], true)))
                     && config('queue.connections.'.($this->connection ?? config('queue.default')).'.driver') !== 'sync') {
                     $connection = $this->connection ?? $this->job?->getConnectionName();
                     $queue = $this->queue ?? $this->job?->getQueue();
@@ -119,7 +120,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 throw $persistFailure;
             }
         } catch (Throwable $e) {
-            if (in_array($job->job_type, ['ocr', 'structured_extraction', 'speech_to_text'], true)) {
+            if (in_array($job->job_type, ['ocr', 'structured_extraction', 'speech_to_text', 'frame_ocr'], true)) {
                 // Operator diagnostics contain only identifiers and exception
                 // categories, never message, stack, source text or stderr.
                 $diagnostic = $e;
@@ -149,6 +150,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                     'document_language_profile_invalid', 'document_language_profile_unsupported',
                     'formula_normalization_invalid',
                     'speech_language_profile_invalid', 'speech_language_profile_unsupported',
+                    'frame_ocr_disabled', 'frame_ocr_unqualified', 'frame_ocr_invalid', 'frame_ocr_limit_exceeded',
                 ];
                 $errorCode = $e instanceof RuntimeException && in_array($e->getMessage(), $knownErrorCodes, true)
                     ? $e->getMessage()
@@ -177,7 +179,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
         } finally {
             if (($media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
                 || (in_array($media->file_type, ['audio', 'video'], true)
-                    && in_array($job->job_type, ['speech_to_text', 'caption'], true)))
+                    && in_array($job->job_type, ['speech_to_text', 'caption', 'frame_ocr'], true)))
                 && config('queue.connections.'.($this->connection ?? config('queue.default')).'.driver') === 'sync') {
                 $pending = DB::table('media_processing_jobs')->where('customer_id', $this->customerId)
                     ->where('media_file_id', $media->id)->where('job_type', $job->job_type)
@@ -315,6 +317,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
             'docling_local' => app(DoclingStructuredExtractionProvider::class),
             'transcript_vtt' => app(TranscriptVttCaptionProvider::class),
             'faster_whisper_local' => app(FasterWhisperSpeechToTextProvider::class),
+            'local_video_frame_ocr' => app(LocalVideoFrameOcrProvider::class),
             default => throw new RuntimeException('provider_unavailable'),
         };
     }
@@ -324,7 +327,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
     {
         if (in_array($job->job_type, ['ocr', 'structured_extraction'], true)
             || (in_array($media->file_type, ['audio', 'video'], true)
-                && in_array($job->job_type, ['speech_to_text', 'caption'], true))) {
+                && in_array($job->job_type, ['speech_to_text', 'caption', 'frame_ocr'], true))) {
             $currentJob = DB::table('media_processing_jobs')->where('customer_id', $this->customerId)
                 ->where('id', $job->id)->lockForUpdate()->first();
             if ($currentJob === null || $currentJob->status !== 'processing') {
@@ -340,7 +343,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
             throw new RuntimeException('source_unavailable');
         }
         if (in_array($media->file_type, ['audio', 'video'], true)
-            && ($job->job_type === 'speech_to_text' || ($media->file_type === 'video' && $job->job_type === 'caption'))
+            && (in_array($job->job_type, ['speech_to_text', 'frame_ocr'], true) || ($media->file_type === 'video' && $job->job_type === 'caption'))
             && ! app(SpeechToTextProcessingEligibility::class)
                 ->hasActiveUsage($this->customerId, (int) $media->id, $media->file_type)) {
             throw new RuntimeException('source_unavailable');
@@ -349,7 +352,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
         $outputType = null;
         $outputId = null;
         $now = now();
-        $speechLocales = $job->job_type === 'speech_to_text'
+        $speechLocales = in_array($job->job_type, ['speech_to_text', 'frame_ocr'], true)
             ? app(SpeechLanguageProfile::class)->fromProfile((string) $job->output_profile)
             : null;
         $locale = $media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
@@ -416,6 +419,31 @@ class ProcessMediaProcessingJob implements ShouldQueue
             $this->archiveCaptionsBuiltOnSupersededTranscript($media, $job, $locale, $now);
             $this->materializeCaptionAfterTranscript($media, $locale, $speechLocales ?? [$locale]);
             $outputType = 'transcript';
+        } elseif ($job->job_type === 'frame_ocr') {
+            $units = $this->validatedFrameOcrUnits($result['units'] ?? [], (int) $media->duration_seconds * 1000);
+            if ($units === []) {
+                throw new RuntimeException('no_extractable_text');
+            }
+            foreach ($units as $unit) {
+                $outputId = DB::table('media_video_frame_texts')->insertGetId([
+                    'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+                    'processing_job_id' => $job->id, 'locale' => $locale,
+                    'detected_locale' => $unit['detected_locale'], 'script' => $unit['script'],
+                    'locator_type' => 'timespan', 'locator_value' => $unit['locator_value'],
+                    'reading_order' => $unit['reading_order'],
+                    'bbox_x' => $unit['bbox']['x'], 'bbox_y' => $unit['bbox']['y'],
+                    'bbox_width' => $unit['bbox']['width'], 'bbox_height' => $unit['bbox']['height'],
+                    'frame_width' => $unit['frame_width'], 'frame_height' => $unit['frame_height'],
+                    'text' => $unit['text'], 'confidence_score' => $unit['confidence_score'],
+                    'provider' => $job->provider, 'processing_version' => $job->processing_version,
+                    'source_fingerprint' => $job->source_fingerprint, 'status' => 'ready',
+                    'created_at' => $now, 'updated_at' => $now,
+                ]);
+            }
+            DB::table('media_video_frame_texts')->where('customer_id', $this->customerId)
+                ->where('media_file_id', $media->id)->where('locale', $locale)->where('status', 'ready')
+                ->where('processing_job_id', '<>', $job->id)->update(['status' => 'archived', 'updated_at' => $now]);
+            $outputType = 'video_frame_text';
         } elseif ($job->job_type === 'caption') {
             $captionType = $this->profileValue($job->output_profile, 'format');
             // media_captions.md § "CHECK khong chung minh transcript revision ton tai":
@@ -458,9 +486,9 @@ class ProcessMediaProcessingJob implements ShouldQueue
             'status' => 'ready', 'output_type' => $outputType, 'output_id' => $outputId,
             'completed_at' => $now, 'updated_at' => $now,
         ];
-        if (in_array($job->job_type, ['ocr', 'structured_extraction'], true) && isset($result['usage'])) {
+        if ((in_array($job->job_type, ['ocr', 'structured_extraction'], true) || $job->job_type === 'frame_ocr') && isset($result['usage'])) {
             $usage = $result['usage'];
-            if (! is_array($usage) || ! in_array($usage['unit_type'] ?? null, ['page', 'sheet'], true)
+            if (! is_array($usage) || ! in_array($usage['unit_type'] ?? null, ['page', 'sheet', 'frame'], true)
                 || ! is_int($usage['units'] ?? null) || $usage['units'] < 0) {
                 throw new RuntimeException('processing_failed');
             }
@@ -661,6 +689,45 @@ class ProcessMediaProcessingJob implements ShouldQueue
     /**
      * @return array<int, array<string, mixed>>
      */
+    private function validatedFrameOcrUnits(mixed $units, int $sourceDurationMs): array
+    {
+        if (! is_array($units)) {
+            throw new RuntimeException('frame_ocr_invalid');
+        }
+        $validated = [];
+        foreach ($units as $unit) {
+            if (! is_array($unit) || ($unit['locator_type'] ?? null) !== 'timespan'
+                || ! preg_match('/^(0|[1-9][0-9]*)-(0|[1-9][0-9]*)$/', (string) ($unit['locator_value'] ?? ''), $match)
+                || (int) $match[2] <= (int) $match[1] || (int) $match[2] > $sourceDurationMs
+                || ! is_int($unit['reading_order'] ?? null) || $unit['reading_order'] < 1
+                || trim((string) ($unit['text'] ?? '')) === ''
+                || ! is_array($unit['bbox'] ?? null)
+                || ! is_int($unit['frame_width'] ?? null) || $unit['frame_width'] < 1
+                || ! is_int($unit['frame_height'] ?? null) || $unit['frame_height'] < 1) {
+                throw new RuntimeException('frame_ocr_invalid');
+            }
+            $bbox = $unit['bbox'];
+            foreach (['x', 'y', 'width', 'height'] as $key) {
+                if (! is_numeric($bbox[$key] ?? null)) {
+                    throw new RuntimeException('frame_ocr_invalid');
+                }
+            }
+            if ((float) $bbox['x'] < 0 || (float) $bbox['y'] < 0
+                || (float) $bbox['width'] <= 0 || (float) $bbox['height'] <= 0
+                || (float) $bbox['x'] + (float) $bbox['width'] > 1.000001
+                || (float) $bbox['y'] + (float) $bbox['height'] > 1.000001) {
+                throw new RuntimeException('frame_ocr_invalid');
+            }
+            $confidence = $unit['confidence_score'] ?? null;
+            if ($confidence !== null && (! is_numeric($confidence) || $confidence < 0 || $confidence > 100)) {
+                throw new RuntimeException('frame_ocr_invalid');
+            }
+            $validated[] = $unit + ['detected_locale' => null, 'script' => null, 'confidence_score' => null];
+        }
+
+        return $validated;
+    }
+
     private function validatedTranscriptUnits(mixed $units, ?int $sourceDurationMs, array $requestedLocales): array
     {
         if (! is_array($units) || $units === [] || ($sourceDurationMs !== null && $sourceDurationMs <= 0)) {

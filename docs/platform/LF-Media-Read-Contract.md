@@ -1,12 +1,12 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.21
+Version: 1.22
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-05
+Last Updated: 2026-09-07
 
 Document Path: platform/LF-Media-Read-Contract.md
 
@@ -17,6 +17,17 @@ Related ADR:
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 * [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 * [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved
+
+---
+
+## Video frame OCR read — Approved 2026-09-07
+
+`content_type=video_frame_text`, `usage_type=video` trả OCR chữ trên màn hình
+theo thứ tự timespan và `reading_order`. Unit giữ text gốc cùng
+`{detected_locale, script, reading_order, bbox, frame_width, frame_height}`.
+Media Read chọn đúng revision/profile như transcript nhưng không trộn hai nguồn.
+AI tự join theo timeline; lời nói lấy từ transcript, chữ hiển thị lấy từ frame
+OCR. Khi mâu thuẫn phải giữ cả hai provenance và không sửa ngầm.
 
 Related Specification:
 [LF-Media-Processing-Contract](LF-Media-Processing-Contract.md)
@@ -204,7 +215,7 @@ Service trả **derived content unit**, không trả file:
 unit := {
   media_file_id, source_fingerprint, processing_version,
   content_type,           // extracted_text | transcript | caption_asset
-                          // | variant | region | table
+                          // | variant | region | table | video_frame_text
   locale,
   locator: { type, value },   // page | timespan | sheet | region | null
   text,                   // null với caption_asset và variant
@@ -258,6 +269,7 @@ Phase 1 đóng như sau:
 | `transcript` | `audio` hoặc `video` |
 | `caption_asset` | `video` |
 | `variant` | `video` |
+| `video_frame_text` | `video` |
 
 Service chỉ xét active usage khớp chính xác `(customer_id, owner_type, owner_id,
 usage_type)`. Không có row thì trả `detached` hoặc `missing`. Nếu có nhiều hơn

@@ -1,12 +1,12 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.42
+Version: 2.45
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-07
+Last Updated: 2026-09-08
 
 Document Path: platform/LF-Media-Processing-Contract.md
 
@@ -17,6 +17,57 @@ Related ADR:
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 * [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 * [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved v1.5
+
+---
+
+## Video aggregate authoring status — Approved 2026-09-08
+
+Admin authoring UI hiển thị một trạng thái `Xử lý video`, không trình bày trạng
+thái STT như trạng thái toàn chuỗi. Với video đã opt-in, trạng thái chỉ là
+`ready` khi transcript, caption deferred và Frame OCR đã được materialize đều
+`ready`; Frame OCR không được yêu cầu ở deployment hiện hành thì không nằm
+trong required set. Bất kỳ job required nào `failed` làm trạng thái tổng
+`failed`; nếu không, `processing` thắng `pending`, và caption chưa được tạo sau
+STT ready vẫn là `pending`. Audio tiếp tục hiển thị trạng thái `Phiên âm` riêng.
+
+---
+
+## Video frame OCR — Approved and Frozen 2026-09-07
+
+Khi video opt-in tự động xử lý, substrate materialize `frame_ocr` độc lập với
+`speech_to_text`. Provider trích frame theo sampling profile, chạy OCR với đúng
+pack của language profile và trả text unit quan sát được:
+
+```text
+video source → sampled frames → local OCR → media_video_frame_texts
+```
+
+Mỗi unit có `locator_type=timespan`, `<start_ms>-<end_ms>`, bbox chuẩn hóa theo
+frame, text, `script`, `detected_locale` nullable, confidence nullable và
+revision identity. Unit rỗng không persist. Job dùng
+`output_type=video_frame_text`, billable unit `frame` và fail độc lập: video vẫn
+phát, transcript/caption giữ trạng thái riêng.
+
+`processing_version` định danh FFmpeg inventory/argument set, sampling interval,
+rendered scale, Tesseract inventory, OCR pack và normalization. Runtime controls
+như timeout/workspace không đổi output nên không tham gia identity. Feature mặc
+định tắt ở production; local/test có thể bật để nghiệm thu correctness.
+
+Bbox được làm tròn theo precision `DECIMAL(9,6)` trước persist; cạnh phải/dưới
+phải được co vào phần còn lại sau khi làm tròn vị trí. Không được validate float
+với tolerance rồi để database từ chối toàn revision do tổng làm tròn 1.000001.
+
+Line dưới `min_confidence` không persist. Line cùng normalized text và bbox gần
+nhau trên các sampled frame liền kề được gộp bằng cách kéo dài timespan; text
+không được sửa. Ngưỡng confidence và thuật toán gộp thuộc revision identity.
+
+Quality amendment 2026-09-08: confidence không phải tín hiệu đủ để loại artifact
+ký hiệu nét rõ. Line không có bất kỳ chữ hoặc số Unicode nào không persist;
+line một ký tự vẫn được giữ nếu ký tự đó là chữ hoặc số. Bbox co về width hoặc
+height bằng 0 sau khi làm tròn `DECIMAL(9,6)` bị bỏ riêng thay vì làm fail toàn
+revision. Cả hai quy tắc là output-affecting semantics và phải tham gia
+`processing_version`. Migration rollback phải từ chối khi còn frame evidence;
+operator phải xóa revision sở hữu qua canonical Media lifecycle trước.
 
 ---
 

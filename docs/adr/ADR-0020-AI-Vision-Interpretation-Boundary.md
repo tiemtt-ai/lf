@@ -1,14 +1,14 @@
 # ADR-0020 — AI Vision Interpretation Boundary
 
-Version: 1.0
+Version: 1.1
 
 Status: Approved
 
 Document Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Partial
 
-Last Updated: 2026-08-25
+Last Updated: 2026-09-07
 
 Proposal Date: 2026-08-25
 
@@ -124,6 +124,14 @@ học liệu ra ngoài boundary chỉ vì OCR local đã được phép.
 | Schema của nội dung diễn giải (prompt, output shape) | Phụ thuộc provider; chốt trước khi biết provider là đoán |
 | Vision tương tác thời gian thực trong hội thoại | Thuộc "Multimodal conversation" của ADR-0006 Future Extensions |
 | Diễn giải video theo khung hình | Cần vocabulary locator riêng; `timespan` hiện chỉ neo transcript |
+
+### Clarification v1.1 — Frame OCR không phải Vision interpretation
+
+Owner phê duyệt ngày 2026-09-07: OCR ký tự quan sát được trên khung hình video
+thuộc Media Phần 1 và được neo bằng `timespan` + bbox. Nó không mô tả hình ảnh,
+không suy luận ý nghĩa và không ghi đè transcript. “Diễn giải video theo khung
+hình” trong bảng trên vẫn ngoài phạm vi: kết luận sơ đồ nói gì, hành động trong
+cảnh là gì hoặc chữ đó có ý nghĩa học tập nào vẫn thuộc AI domain.
 
 ---
 

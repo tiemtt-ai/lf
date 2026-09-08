@@ -368,7 +368,7 @@
             </div>
             <p>
                 Tệp phải đồng thời không vượt quá 1 GB và, nếu là PDF, không vượt quá 100 trang.
-                Giới hạn 100 trang áp dụng cả khi không bật phân tích cấu trúc Docling.
+                Giới hạn 100 trang áp dụng cả khi không bật phân tích cấu trúc tài liệu.
             </p>
         </div>
     </div>
@@ -388,7 +388,7 @@
                 </label>
             @endforeach
         </div>
-        <p class="lf-form-help lf-secondary-text" x-show="activityType === 'document'">Dùng cho OCR và Docling; thứ tự chọn không ảnh hưởng revision.</p>
+        <p class="lf-form-help lf-secondary-text" x-show="activityType === 'document'">Dùng cho OCR và phân tích cấu trúc; thứ tự chọn không ảnh hưởng revision.</p>
         <p class="lf-form-help lf-secondary-text" x-show="['audio', 'video'].includes(activityType)">Chỉ dùng khi bật phiên âm. Một timeline giữ nguyên phần chuyển đổi giữa các ngôn ngữ; hệ thống không dịch nội dung.</p>
     </div>
     <div class="lf-form-group admin-form-conditional course-template-activity-source-field"

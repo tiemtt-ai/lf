@@ -17,6 +17,7 @@ use App\Support\TenantContext;
 use App\Support\UploadLimit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
@@ -823,9 +824,17 @@ class CourseTemplateController extends Controller
             ->get()
             ->unique('media_file_id')
             ->keyBy('media_file_id');
+        $videoJobs = DB::table('media_processing_jobs')
+            ->where('customer_id', $customerId)
+            ->whereIn('job_type', ['speech_to_text', 'frame_ocr', 'caption'])
+            ->whereIn('media_file_id', $speechUsages->where('usage_type', 'video')->pluck('media_file_id'))
+            ->orderByDesc('id')
+            ->get()
+            ->unique(static fn (object $job): string => $job->media_file_id.':'.$job->job_type)
+            ->groupBy('media_file_id');
 
         return $activities
-            ->map(function (object $activity) use ($structuredUsages, $structuredJobs, $speechUsages, $speechJobs): object {
+            ->map(function (object $activity) use ($structuredUsages, $structuredJobs, $speechUsages, $speechJobs, $videoJobs): object {
                 $activity->view_kind = 'readonly';
                 $activity->view_url = null;
                 $activity->view_mime_type = null;
@@ -856,13 +865,16 @@ class CourseTemplateController extends Controller
                     // khong bao gio toi. Cung loai loi ma `structure_unavailable`
                     // sinh ra de chan — su vang mat khong duoc doc thanh mot
                     // trang thai da biet.
-                    $activity->speech_to_text_status = ! $speechToTextRequested
-                        ? 'disabled'
-                        : ($speechJob?->status
-                            ?? (! $speechToTextEligible ? 'unqualified' : 'absent'));
-                    $activity->speech_to_text_error_code = $speechToTextRequested
-                        ? $speechJob?->error_code
-                        : null;
+                    if (! $speechToTextRequested) {
+                        $activity->speech_to_text_status = 'disabled';
+                    } elseif ($activity->activity_type === 'video' && $speechToTextEligible) {
+                        [$activity->speech_to_text_status, $activity->speech_to_text_error_code]
+                            = $this->aggregateVideoProcessingStatus($videoJobs->get($speechUsage->media_file_id, collect()));
+                    } else {
+                        $activity->speech_to_text_status = $speechJob?->status
+                            ?? (! $speechToTextEligible ? 'unqualified' : 'absent');
+                        $activity->speech_to_text_error_code = $speechJob?->error_code;
+                    }
                 }
 
                 if (in_array($activity->activity_type, ['embedded_video', 'live_class'], true)) {
@@ -906,6 +918,35 @@ class CourseTemplateController extends Controller
                 return $activity;
             })
             ->groupBy('template_lesson_id');
+    }
+
+    /** @return array{string, ?string} */
+    private function aggregateVideoProcessingStatus(Collection $jobs): array
+    {
+        $byType = $jobs->keyBy('job_type');
+        $speech = $byType->get('speech_to_text');
+        if ($speech === null) {
+            return ['absent', null];
+        }
+        foreach (['speech_to_text', 'frame_ocr', 'caption'] as $type) {
+            $job = $byType->get($type);
+            if ($job?->status === 'failed') {
+                return ['failed', $job->error_code];
+            }
+        }
+        if ($jobs->contains(fn (object $job): bool => $job->status === 'processing')) {
+            return ['processing', null];
+        }
+        if ($jobs->contains(fn (object $job): bool => $job->status === 'pending')) {
+            return ['pending', null];
+        }
+        if ($speech->status === 'ready'
+            && $byType->get('caption')?->status === 'ready'
+            && ($byType->get('frame_ocr') === null || $byType->get('frame_ocr')->status === 'ready')) {
+            return ['ready', null];
+        }
+
+        return ['pending', null];
     }
 
     private function safeExternalUrl(?string $url): ?string

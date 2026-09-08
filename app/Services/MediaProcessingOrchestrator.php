@@ -168,7 +168,7 @@ class MediaProcessingOrchestrator
                 throw new InvalidArgumentException('Job is not retry eligible.');
             }
             if (in_array($failed->job_type, ['ocr', 'structured_extraction'], true)
-                || $failed->job_type === 'speech_to_text') {
+                || in_array($failed->job_type, ['speech_to_text', 'frame_ocr'], true)) {
                 $media = DB::table('media_files')->where('customer_id', $customerId)->where('id', $failed->media_file_id)->lockForUpdate()->first();
                 if (! $media) {
                     throw new InvalidArgumentException('Media File not found.');
@@ -194,8 +194,8 @@ class MediaProcessingOrchestrator
                 'output_profile' => $failed->output_profile, 'output_profile_hash' => $failed->output_profile_hash,
                 'provider' => $failed->provider, 'created_by' => $actorId, 'created_at' => now(), 'updated_at' => now(),
             ]);
-            if (in_array($failed->job_type, ['ocr', 'structured_extraction', 'speech_to_text'], true)) {
-                $languageProfile = $failed->job_type === 'speech_to_text'
+            if (in_array($failed->job_type, ['ocr', 'structured_extraction', 'speech_to_text', 'frame_ocr'], true)) {
+                $languageProfile = in_array($failed->job_type, ['speech_to_text', 'frame_ocr'], true)
                     ? app(SpeechLanguageProfile::class)
                     : app(DocumentLanguageProfile::class);
                 $languageProfile->persistForJob(
@@ -222,6 +222,7 @@ class MediaProcessingOrchestrator
             'thumbnail' => ['size'],
             'transcode' => ['preset'],
             'structured_extraction' => isset($parameters['locales']) ? ['locales', 'structure'] : ['locale', 'structure'],
+            'frame_ocr' => isset($parameters['locales']) ? ['locales'] : ['locale'],
         ];
         $parameterKeys = array_keys($parameters);
         sort($parameterKeys);
@@ -234,7 +235,7 @@ class MediaProcessingOrchestrator
             $parameters['locale'] = $this->profiles->canonicalLocale($parameters['locale']);
         }
         if (isset($parameters['locales'])) {
-            $parameters['locales'] = in_array($jobType, ['speech_to_text', 'caption'], true)
+            $parameters['locales'] = in_array($jobType, ['speech_to_text', 'caption', 'frame_ocr'], true)
                 ? app(SpeechLanguageProfile::class)->serialize($parameters['locales'])
                 : app(DocumentLanguageProfile::class)->serialize($parameters['locales']);
         }
@@ -363,6 +364,9 @@ class MediaProcessingOrchestrator
                 ? ['locale' => $speechLocales[0]]
                 : ['locales' => app(SpeechLanguageProfile::class)->serialize($speechLocales)];
             $jobs[] = ['speech_to_text', $this->profiles->canonical(['diarization' => 'off'] + $language)];
+            if ($fileType === 'video' && (bool) config('media.processing.frame_ocr.enabled', false)) {
+                $jobs[] = ['frame_ocr', $this->profiles->canonical($language)];
+            }
         }
         // Caption KHONG thuoc initial required set. Amendment 2.19 / conflict
         // 0025 chot rang caption chi duoc materialize sau khi STT da commit mot
@@ -378,7 +382,7 @@ class MediaProcessingOrchestrator
         if (in_array($jobType, ['ocr', 'structured_extraction'], true)) {
             $this->assertDocumentUsage($customerId, $media);
         }
-        if ($jobType === 'speech_to_text') {
+        if (in_array($jobType, ['speech_to_text', 'frame_ocr'], true)) {
             $this->assertAudioUsage($customerId, $media, true);
         }
         $metadata = $jobType === 'ocr' && $requestStructure ? ['structured_requested' => true] : [];
@@ -403,7 +407,7 @@ class MediaProcessingOrchestrator
             ->orderByDesc('dispatch_generation')->orderByDesc('attempt')->first();
         $successor = $reattach
             && (($media->file_type === 'document' && in_array($jobType, ['ocr', 'structured_extraction'], true))
-                || (in_array($media->file_type, ['audio', 'video'], true) && $jobType === 'speech_to_text'))
+                || (in_array($media->file_type, ['audio', 'video'], true) && in_array($jobType, ['speech_to_text', 'frame_ocr'], true)))
             && $latest?->status === 'cancelled' && $latest->started_at === null
             && $latest->error_code === null;
         $generation = $successor ? (int) $latest->dispatch_generation + 1 : 1;
@@ -432,8 +436,8 @@ class MediaProcessingOrchestrator
                 }
             }
         }
-        if (in_array($jobType, ['ocr', 'structured_extraction', 'speech_to_text'], true)) {
-            $languageProfile = $jobType === 'speech_to_text'
+        if (in_array($jobType, ['ocr', 'structured_extraction', 'speech_to_text', 'frame_ocr'], true)) {
+            $languageProfile = in_array($jobType, ['speech_to_text', 'frame_ocr'], true)
                 ? app(SpeechLanguageProfile::class)
                 : app(DocumentLanguageProfile::class);
             try {
@@ -583,6 +587,24 @@ class MediaProcessingOrchestrator
             if (strlen($version) > 100) {
                 $version = 'speech-'.hash('sha256', $version);
             }
+        }
+
+        if ($jobType === 'frame_ocr') {
+            $locales = app(SpeechLanguageProfile::class)->serialize(
+                isset($parameters['locales']) ? explode(',', (string) $parameters['locales']) : [(string) ($parameters['locale'] ?? '')]
+            );
+            $semantics = [
+                'locales' => $locales,
+                'ffmpeg' => config('media.processing.frame_ocr.ffmpeg_version'),
+                'interval' => config('media.processing.frame_ocr.interval_seconds'),
+                'scale' => config('media.processing.frame_ocr.scale'),
+                'tesseract' => config('media.processing.frame_ocr.tesseract_version'),
+                'packs' => config('media.processing.frame_ocr.languages'),
+                'normalization' => config('media.processing.frame_ocr.normalization'),
+                'min_confidence' => config('media.processing.frame_ocr.min_confidence'),
+                'require_alphanumeric' => config('media.processing.frame_ocr.require_alphanumeric'),
+            ];
+            $version = 'frame-ocr-'.hash('sha256', json_encode([$version, $semantics], JSON_THROW_ON_ERROR));
         }
 
         if ($jobType === 'structured_extraction' && $media !== null && (isset($parameters['locale']) || isset($parameters['locales']))) {

@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-09-04",
+  "generated_or_updated_at": "2026-09-07",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 252,
+  "document_count": 253,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -1113,7 +1113,7 @@
       "area": "adr",
       "document_type": "adr",
       "document_status": "Approved",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Partial",
       "metadata_complete": true,
       "authority": "architecture_decision",
       "canonical_for": [],
@@ -6234,6 +6234,31 @@
       ],
       "related_documents": [
         "database/media/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/media/media_video_frame_texts.md",
+      "title": "media_video_frame_texts",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": ["media_video_frame_texts"],
+      "topics": ["media", "video", "frame ocr"],
+      "keywords": {
+        "vi": ["ocr khung hình video", "chữ trên màn hình", "mốc thời gian"],
+        "en": ["video frame ocr", "on-screen text", "timespan"]
+      },
+      "identifiers": ["media_video_frame_texts"],
+      "related_documents": [
+        "database/media/README.md",
+        "platform/LF-Media-Processing-Contract.md",
+        "platform/LF-Media-Read-Contract.md",
+        "adr/ADR-0019-Media-Structured-Extraction-Boundary.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

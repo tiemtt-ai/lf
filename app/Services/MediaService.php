@@ -438,9 +438,11 @@ class MediaService
                     ->where('media_file_id', $mediaFileId)->where('owner_type', 'course_activity')
                     ->where('usage_type', $usage['usage_type'])->where('status', 'active')->exists();
                 if (! $hasActive) {
-                    $jobTypes = in_array($usage['usage_type'], ['audio', 'video'], true)
-                        ? ['speech_to_text', 'caption']
-                        : ['ocr', 'structured_extraction'];
+                    $jobTypes = match ($usage['usage_type']) {
+                        'audio' => ['speech_to_text'],
+                        'video' => ['speech_to_text', 'caption', 'frame_ocr'],
+                        default => ['ocr', 'structured_extraction'],
+                    };
                     DB::table('media_processing_jobs')->where('customer_id', $customerId)
                         ->where('media_file_id', $mediaFileId)->whereIn('job_type', $jobTypes)
                         ->where('status', 'pending')->update([
@@ -712,7 +714,7 @@ class MediaService
             ->whereIn('extracted_table_id', $tableIds)
             ->delete();
 
-        foreach (['media_extracted_tables', 'media_extracted_regions', 'media_extracted_texts', 'media_transcripts'] as $table) {
+        foreach (['media_extracted_tables', 'media_extracted_regions', 'media_extracted_texts', 'media_transcripts', 'media_video_frame_texts'] as $table) {
             DB::table($table)
                 ->where('customer_id', $customerId)
                 ->where('media_file_id', $mediaFileId)

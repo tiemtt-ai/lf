@@ -22082,7 +22082,7 @@
           "expression": "json_valid(`metadata`)"
         },
         {
-          "expression": "`job_type` in ('transcode','thumbnail','ocr','speech_to_text','caption','virus_scan','compress','structured_extraction')"
+          "expression": "`job_type` in ('transcode','thumbnail','ocr','speech_to_text','caption','virus_scan','compress','structured_extraction','frame_ocr')"
         },
         {
           "expression": "`status` in ('pending','processing','ready','failed','cancelled')"
@@ -22100,7 +22100,7 @@
           "expression": "`status` <> 'failed' or `completed_at` is not null and `error_code` is not null"
         },
         {
-          "expression": "`output_type` is null or `output_type` in ('transcript','caption','extracted_text','variant','extracted_region','extracted_table')"
+          "expression": "`output_type` is null or `output_type` in ('transcript','caption','extracted_text','variant','extracted_region','extracted_table','video_frame_text')"
         },
         {
           "expression": "`job_type` <> 'virus_scan' or `output_type` is null and `output_id` is null"
@@ -23211,6 +23211,63 @@
       ],
       "triggers": [],
       "views": []
+    },
+    {
+      "name": "media_video_frame_texts",
+      "documentation": "database/media/media_video_frame_texts.md",
+      "implementation_status": "implemented",
+      "columns": [
+        {"name":"id","type":"bigint","nullable":false,"default":null,"unsigned":true,"auto_increment":true,"generated":null},
+        {"name":"customer_id","type":"bigint","nullable":false,"default":null,"unsigned":true,"auto_increment":false,"generated":null},
+        {"name":"media_file_id","type":"bigint","nullable":false,"default":null,"unsigned":true,"auto_increment":false,"generated":null},
+        {"name":"processing_job_id","type":"bigint","nullable":false,"default":null,"unsigned":true,"auto_increment":false,"generated":null},
+        {"name":"locale","type":"varchar","nullable":false,"default":null,"unsigned":false,"auto_increment":false,"generated":null},
+        {"name":"detected_locale","type":"varchar","nullable":true,"default":"NULL","unsigned":false,"auto_increment":false,"generated":null},
+        {"name":"script","type":"char","nullable":true,"default":"NULL","unsigned":false,"auto_increment":false,"generated":null},
+        {"name":"locator_type","type":"varchar","nullable":false,"default":"'timespan'","unsigned":false,"auto_increment":false,"generated":null},
+        {"name":"locator_value","type":"varchar","nullable":false,"default":null,"unsigned":false,"auto_increment":false,"generated":null},
+        {"name":"reading_order","type":"int","nullable":false,"default":null,"unsigned":true,"auto_increment":false,"generated":null},
+        {"name":"bbox_x","type":"decimal","nullable":false,"default":null,"unsigned":false,"auto_increment":false,"generated":null},
+        {"name":"bbox_y","type":"decimal","nullable":false,"default":null,"unsigned":false,"auto_increment":false,"generated":null},
+        {"name":"bbox_width","type":"decimal","nullable":false,"default":null,"unsigned":false,"auto_increment":false,"generated":null},
+        {"name":"bbox_height","type":"decimal","nullable":false,"default":null,"unsigned":false,"auto_increment":false,"generated":null},
+        {"name":"frame_width","type":"int","nullable":false,"default":null,"unsigned":true,"auto_increment":false,"generated":null},
+        {"name":"frame_height","type":"int","nullable":false,"default":null,"unsigned":true,"auto_increment":false,"generated":null},
+        {"name":"text","type":"longtext","nullable":false,"default":null,"unsigned":false,"auto_increment":false,"generated":null},
+        {"name":"confidence_score","type":"decimal","nullable":true,"default":"NULL","unsigned":false,"auto_increment":false,"generated":null},
+        {"name":"provider","type":"varchar","nullable":true,"default":"NULL","unsigned":false,"auto_increment":false,"generated":null},
+        {"name":"processing_version","type":"varchar","nullable":false,"default":null,"unsigned":false,"auto_increment":false,"generated":null},
+        {"name":"source_fingerprint","type":"char","nullable":false,"default":null,"unsigned":false,"auto_increment":false,"generated":null},
+        {"name":"status","type":"varchar","nullable":false,"default":"'ready'","unsigned":false,"auto_increment":false,"generated":null},
+        {"name":"metadata","type":"json","nullable":true,"default":"NULL","unsigned":false,"auto_increment":false,"generated":null},
+        {"name":"created_at","type":"timestamp","nullable":true,"default":"NULL","unsigned":false,"auto_increment":false,"generated":null},
+        {"name":"updated_at","type":"timestamp","nullable":true,"default":"NULL","unsigned":false,"auto_increment":false,"generated":null}
+      ],
+      "primary_key":["id"],
+      "indexes":[
+        {"columns":["customer_id","media_file_id","status"],"unique":false,"type":"btree"},
+        {"columns":["customer_id","processing_job_id"],"unique":false,"type":"btree"},
+        {"columns":["customer_id","source_fingerprint"],"unique":false,"type":"btree"},
+        {"columns":["customer_id","media_file_id","locator_value","reading_order","processing_version"],"unique":true,"type":"btree"},
+        {"columns":["id","customer_id"],"unique":true,"type":"btree"},
+        {"columns":["media_file_id","customer_id"],"unique":false,"type":"btree"},
+        {"columns":["processing_job_id","customer_id"],"unique":false,"type":"btree"}
+      ],
+      "foreign_keys":[
+        {"columns":["media_file_id","customer_id"],"foreign_table":"media_files","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"},
+        {"columns":["processing_job_id","customer_id"],"foreign_table":"media_processing_jobs","foreign_columns":["id","customer_id"],"on_update":"restrict","on_delete":"restrict"}
+      ],
+      "checks":[
+        {"expression":"json_valid(`metadata`)"},
+        {"expression":"`status` in ('ready','archived')"},
+        {"expression":"`locator_type` = 'timespan'"},
+        {"expression":"`confidence_score` is null or `confidence_score` between 0 and 100"},
+        {"expression":"`bbox_x` >= 0 and `bbox_y` >= 0 and `bbox_width` > 0 and `bbox_height` > 0 and `bbox_x` + `bbox_width` <= 1 and `bbox_y` + `bbox_height` <= 1"},
+        {"expression":"`frame_width` > 0 and `frame_height` > 0"},
+        {"expression":"char_length(trim(`text`)) > 0"}
+      ],
+      "triggers":[],
+      "views":[]
     },
     {
       "name": "saas_audit_logs",

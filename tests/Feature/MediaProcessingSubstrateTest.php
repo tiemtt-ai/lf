@@ -14,6 +14,7 @@ use App\Services\DocumentProcessRunner;
 use App\Services\FakeMediaProcessingProvider;
 use App\Services\FasterWhisperSpeechToTextProvider;
 use App\Services\LocalDocumentProcessingProvider;
+use App\Services\LocalVideoFrameOcrProvider;
 use App\Services\MediaMetadataProbe;
 use App\Services\MediaProcessingOrchestrator;
 use App\Services\MediaReadService;
@@ -86,6 +87,137 @@ class MediaProcessingSubstrateTest extends TestCase
             'media_file_id' => $media->id, 'job_type' => 'caption',
             'output_profile' => 'format=vtt;locale=vi',
         ]);
+    }
+
+    public function test_video_frame_ocr_is_independent_revisioned_evidence_and_media_read_returns_it(): void
+    {
+        config([
+            'media.processing.frame_ocr.enabled' => true,
+            'media.processing.providers.frame_ocr' => 'fake',
+            'media.processing.versions.frame_ocr' => 'fake-frame-ocr-v1',
+        ]);
+        $media = $this->uploadVideo();
+        app(MediaProcessingOrchestrator::class)->materializeForCourseActivity(
+            $this->customerId, $media->id, ['vi', 'ko'], $this->admin->id
+        );
+
+        $job = DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+            ->where('job_type', 'frame_ocr')->firstOrFail();
+        $this->assertSame('ready', $job->status);
+        $this->assertSame('video_frame_text', $job->output_type);
+        $this->assertSame('frame', $job->billable_unit_type);
+        $this->assertSame(1.0, (float) $job->billable_units);
+        $this->assertDatabaseHas('media_video_frame_texts', [
+            'media_file_id' => $media->id, 'processing_job_id' => $job->id,
+            'locale' => 'mul', 'detected_locale' => 'ko', 'script' => 'Hang',
+            'locator_value' => '0-2000', 'text' => '부지런하다', 'status' => 'ready',
+        ]);
+
+        $authorizer = Mockery::mock(CourseMediaOwnerContextAuthorizer::class);
+        $authorizer->shouldReceive('authorized')->andReturnTrue();
+        $this->app->instance(CourseMediaOwnerContextAuthorizer::class, $authorizer);
+        $units = app(MediaReadService::class)->read(
+            $this->admin->id, 'course_activity', 999999, 'video', 'video_frame_text',
+            null, null, null, 'ai', [], null, false, ['vi', 'ko']
+        );
+
+        $this->assertSame('부지런하다', $units[0]['text']);
+        $this->assertSame(['ko', 'vi'], $units[0]['language_profile']);
+        $this->assertSame('0-2000', $units[0]['locator']['value']);
+        $this->assertSame('ko', $units[0]['structure']['detected_locale']);
+        $this->assertSame(['x' => 0.1, 'y' => 0.2, 'width' => 0.4, 'height' => 0.1], $units[0]['structure']['bbox']);
+
+        $migration = require database_path('migrations/2026_09_07_000100_add_video_frame_ocr_evidence.php');
+        try {
+            $migration->down();
+            $this->fail('Frame OCR evidence must make migration rollback fail closed.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('Rollback refused', $exception->getMessage());
+            $this->assertTrue(DB::getSchemaBuilder()->hasTable('media_video_frame_texts'));
+        }
+
+        DB::table('media_file_usages')->where('media_file_id', $media->id)->update(['status' => 'archived']);
+        app(MediaService::class)->deleteMedia($media->id);
+        $this->assertSame(0, DB::table('media_video_frame_texts')->where('media_file_id', $media->id)->count());
+        $this->assertDatabaseHas('media_processing_jobs', ['id' => $job->id, 'status' => 'ready']);
+    }
+
+    public function test_real_frame_ocr_parser_filters_low_confidence_and_symbol_only_noise(): void
+    {
+        config([
+            'media.processing.frame_ocr.min_confidence' => 50,
+            'media.processing.frame_ocr.require_alphanumeric' => true,
+        ]);
+        $provider = new LocalVideoFrameOcrProvider(Mockery::mock(DocumentProcessRunner::class));
+        $method = new \ReflectionMethod($provider, 'parseTsv');
+        $tsv = implode("\n", [
+            "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext",
+            "5\t1\t1\t1\t1\t1\t100\t200\t400\t100\t92\t부지런해요",
+            "5\t1\t1\t1\t2\t1\t100\t350\t100\t50\t95\t———",
+            "5\t1\t1\t1\t3\t1\t100\t450\t100\t50\t10\tViệt",
+            // Positive pixel geometry that collapses to zero at DECIMAL(9,6).
+            "5\t1\t1\t1\t4\t1\t9999999\t100\t1\t50\t90\tA",
+        ]);
+
+        /** @var array<int, array<string, mixed>> $units */
+        $units = $method->invoke($provider, $tsv, 2000, 4000, 10000000, 1000, ['vi', 'ko']);
+
+        $this->assertCount(1, $units);
+        $this->assertSame('부지런해요', $units[0]['text']);
+        $this->assertSame('Hang', $units[0]['script']);
+        $this->assertSame('ko', $units[0]['detected_locale']);
+        $this->assertSame(92.0, $units[0]['confidence_score']);
+        $this->assertGreaterThan(0, $units[0]['bbox']['width']);
+        $this->assertLessThanOrEqual(1, $units[0]['bbox']['x'] + $units[0]['bbox']['width']);
+    }
+
+    public function test_frame_ocr_is_never_materialized_for_audio_or_document(): void
+    {
+        config([
+            'media.processing.frame_ocr.enabled' => true,
+            'media.processing.providers.frame_ocr' => 'fake',
+        ]);
+        $document = $this->uploadDocument();
+        app(MediaProcessingOrchestrator::class)->materializeForCourseActivity(
+            $this->customerId, $document->id, 'vi', $this->admin->id
+        );
+        $audio = app(MediaService::class)->upload(
+            UploadedFile::fake()->create('frame-ocr-negative.mp3', 25, 'audio/mpeg'),
+            [
+                'file_type' => 'audio', 'module' => 'course', 'entity_type' => 'activities',
+                'entity_id' => 121, 'purpose' => 'audio',
+            ],
+            $this->admin->id,
+        );
+        DB::table('media_files')->where('id', $audio->id)->update(['duration_seconds' => 3]);
+        $audio->duration_seconds = 3;
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $audio->id,
+            'owner_type' => 'course_activity', 'owner_id' => 121, 'usage_type' => 'audio',
+            'status' => 'active', 'metadata' => json_encode(['speech_to_text' => true, 'processing_locale' => 'vi']),
+            'created_by' => $this->admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        app(MediaProcessingOrchestrator::class)->materializeForCourseActivity(
+            $this->customerId, $audio->id, 'vi', $this->admin->id
+        );
+
+        $this->assertDatabaseMissing('media_processing_jobs', [
+            'media_file_id' => $document->id, 'job_type' => 'frame_ocr',
+        ]);
+        $this->assertDatabaseMissing('media_processing_jobs', [
+            'media_file_id' => $audio->id, 'job_type' => 'frame_ocr',
+        ]);
+    }
+
+    public function test_frame_ocr_quality_policy_changes_revision_identity(): void
+    {
+        $media = $this->uploadVideo();
+        config(['media.processing.frame_ocr.require_alphanumeric' => true]);
+        $filtered = app(MediaProcessingOrchestrator::class)->versionFor('frame_ocr', $media, ['locale' => 'vi']);
+        config(['media.processing.frame_ocr.require_alphanumeric' => false]);
+        $unfiltered = app(MediaProcessingOrchestrator::class)->versionFor('frame_ocr', $media, ['locale' => 'vi']);
+
+        $this->assertNotSame($filtered, $unfiltered);
     }
 
     /**
@@ -2237,7 +2369,7 @@ class MediaProcessingSubstrateTest extends TestCase
         ]))
             ->assertOk()
             ->assertSeeText(__('lf.LF_course_template_activity_video_stt_qualification_evidence_missing'))
-            ->assertSeeText(__('lf.LF_course_template_activity_stt_unqualified'))
+            ->assertSeeText(__('lf.LF_course_template_activity_video_processing_unqualified'))
             ->assertSessionHasNoErrors();
 
         $usage = DB::table('media_file_usages')->where('usage_type', 'video')->latest('id')->firstOrFail();
@@ -2265,6 +2397,7 @@ class MediaProcessingSubstrateTest extends TestCase
             'media.processing.video_qualification.required' => false,
             'media.processing.providers.speech_to_text' => 'fake',
             'media.processing.versions.speech_to_text' => 'fake-video-http-v1',
+            'media.processing.providers.frame_ocr' => 'fake',
         ]);
         $probe = Mockery::mock(MediaMetadataProbe::class);
         $probe->shouldReceive('durationSeconds')->once()->andReturn(3);
@@ -2282,7 +2415,8 @@ class MediaProcessingSubstrateTest extends TestCase
         ]))
             ->assertOk()
             ->assertSeeText(__('lf.LF_course_template_activity_video_stt_queued_notice'))
-            ->assertSeeText(__('lf.LF_course_template_activity_stt_ready'))
+            ->assertSeeText(__('lf.LF_course_template_activity_video_processing_ready'))
+            ->assertDontSeeText(__('lf.LF_course_template_activity_stt_ready'))
             ->assertSessionHasNoErrors();
 
         $usage = DB::table('media_file_usages')->where('usage_type', 'video')->latest('id')->firstOrFail();
@@ -2299,6 +2433,28 @@ class MediaProcessingSubstrateTest extends TestCase
         ]);
         $this->assertDatabaseHas('media_transcripts', ['media_file_id' => $usage->media_file_id, 'locale' => 'mul']);
         $this->assertDatabaseHas('media_captions', ['media_file_id' => $usage->media_file_id, 'locale' => 'mul']);
+
+        DB::table('media_processing_jobs')->where('media_file_id', $usage->media_file_id)
+            ->where('job_type', 'frame_ocr')->update(['status' => 'processing']);
+        DB::table('media_processing_jobs')->where('media_file_id', $usage->media_file_id)
+            ->where('job_type', 'caption')->update(['status' => 'pending']);
+        $statusUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure";
+        $this->get($statusUrl)
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_video_processing_processing'))
+            ->assertDontSeeText(__('lf.LF_course_template_activity_video_processing_ready'));
+
+        DB::table('media_processing_jobs')->where('media_file_id', $usage->media_file_id)
+            ->where('job_type', 'frame_ocr')->update(['status' => 'ready']);
+        $this->get($statusUrl)
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_video_processing_pending'));
+
+        DB::table('media_processing_jobs')->where('media_file_id', $usage->media_file_id)
+            ->where('job_type', 'caption')->update(['status' => 'ready']);
+        $this->get($statusUrl)
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_video_processing_ready'));
     }
 
     public function test_video_without_opt_in_needs_no_locale_and_creates_no_stt_job(): void
@@ -2314,7 +2470,7 @@ class MediaProcessingSubstrateTest extends TestCase
             'video_speech_to_text' => null,
         ]))
             ->assertOk()
-            ->assertSeeText(__('lf.LF_course_template_activity_stt_disabled'))
+            ->assertSeeText(__('lf.LF_course_template_activity_video_processing_disabled'))
             ->assertSeeText(__('lf.LF_course_template_activity_video_stt_disabled_help'))
             ->assertSessionHasNoErrors();
 

@@ -13,6 +13,19 @@ class FakeMediaProcessingProvider implements MediaProcessingProvider
             'virus_scan' => ['clean' => ! config('media.processing.fake.virus_infected', false)],
             'ocr' => ['units' => [['locator_type' => 'page', 'locator_value' => '1', 'sequence' => 1, 'text' => 'Fake extracted text', 'extraction_method' => 'ocr']]],
             'speech_to_text' => ['units' => [['locator_type' => 'timespan', 'locator_value' => '0-1000', 'text' => 'Fake transcript']]],
+            'frame_ocr' => ['units' => [[
+                'locator_type' => 'timespan', 'locator_value' => '0-2000', 'reading_order' => 1,
+                'text' => '부지런하다', 'script' => 'Hang', 'detected_locale' => 'ko',
+                'confidence_score' => 96.5,
+                'bbox' => ['x' => .1, 'y' => .2, 'width' => .4, 'height' => .1],
+                'frame_width' => 1280, 'frame_height' => 720,
+            ], [
+                'locator_type' => 'timespan', 'locator_value' => '2000-3000', 'reading_order' => 1,
+                'text' => '능력이 있다', 'script' => 'Hang', 'detected_locale' => 'ko',
+                'confidence_score' => 91.0,
+                'bbox' => ['x' => .1, 'y' => .4, 'width' => .4, 'height' => .1],
+                'frame_width' => 1280, 'frame_height' => 720,
+            ]], 'usage' => ['unit_type' => 'frame', 'units' => 1]],
             // Caption do job sinh ra PHAI khai transcript revision da dung:
             // `chk_mc_provenance` cuong che dieu do o database that, va
             // media_captions.md dat bat bien ton-tai-revision o tang persist.

@@ -134,6 +134,23 @@ return [
             'required' => (bool) env('MEDIA_VIDEO_STT_QUALIFICATION_REQUIRED', env('APP_ENV') === 'production'),
             'evidence_path' => env('MEDIA_VIDEO_STT_QUALIFICATION_EVIDENCE', ''),
         ],
+        'frame_ocr' => [
+            'enabled' => (bool) env('MEDIA_VIDEO_FRAME_OCR_ENABLED', env('APP_ENV') !== 'production'),
+            'mime_types' => ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska'],
+            'ffmpeg_binary' => env('MEDIA_FFMPEG_BINARY', '/usr/local/bin/ffmpeg'),
+            'ffmpeg_version' => env('MEDIA_FFMPEG_VERSION', ''),
+            'tesseract_binary' => env('MEDIA_TESSERACT_BINARY', '/usr/local/bin/tesseract'),
+            'tesseract_version' => env('MEDIA_TESSERACT_VERSION', ''),
+            'interval_seconds' => (int) env('MEDIA_VIDEO_FRAME_OCR_INTERVAL_SECONDS', 2),
+            'scale' => env('MEDIA_VIDEO_FRAME_OCR_SCALE', '1280:-2'),
+            'normalization' => 'tsv-lines-bbox-safe-v3',
+            'min_confidence' => (float) env('MEDIA_VIDEO_FRAME_OCR_MIN_CONFIDENCE', 50),
+            'require_alphanumeric' => true,
+            'max_frames' => (int) env('MEDIA_VIDEO_FRAME_OCR_MAX_FRAMES', 3000),
+            'timeout_seconds' => (int) env('MEDIA_VIDEO_FRAME_OCR_TIMEOUT_SECONDS', 1800),
+            'ocr_timeout_seconds' => (int) env('MEDIA_VIDEO_FRAME_OCR_PER_FRAME_TIMEOUT_SECONDS', 120),
+            'languages' => ['vi' => 'vie', 'ko' => 'kor', 'en' => 'eng'],
+        ],
         // Caption Phase 1: VTT dung tu transcript, khong chay model.
         // LF-Media-Processing-Contract Amendment Record 2.21 § 6.
         'caption' => [
@@ -197,6 +214,7 @@ return [
             'thumbnail' => env('MEDIA_THUMBNAIL_PROVIDER', 'unconfigured'),
             'transcode' => env('MEDIA_TRANSCODE_PROVIDER', 'unconfigured'),
             'structured_extraction' => env('MEDIA_STRUCTURED_EXTRACTION_PROVIDER', 'unconfigured'),
+            'frame_ocr' => env('MEDIA_VIDEO_FRAME_OCR_PROVIDER', 'local_video_frame_ocr'),
         ],
         'versions' => [
             'virus_scan' => env('MEDIA_VIRUS_SCAN_VERSION', 'unconfigured-v1'),
@@ -206,6 +224,7 @@ return [
             'thumbnail' => env('MEDIA_THUMBNAIL_VERSION', 'unconfigured-v1'),
             'transcode' => env('MEDIA_TRANSCODE_VERSION', 'unconfigured-v1'),
             'structured_extraction' => env('MEDIA_STRUCTURED_EXTRACTION_VERSION', 'unconfigured-v1'),
+            'frame_ocr' => env('MEDIA_VIDEO_FRAME_OCR_VERSION', 'local-video-frame-ocr-v1'),
         ],
     ],
     'file_types' => [

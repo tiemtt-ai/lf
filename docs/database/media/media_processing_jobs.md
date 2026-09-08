@@ -57,10 +57,10 @@ và [Processing Contract v2.1](../../platform/LF-Media-Processing-Contract.md):
 
 ```sql
 CHECK (job_type IN ('transcode','thumbnail','ocr','speech_to_text',
-                    'caption','virus_scan','compress','structured_extraction'));
+                    'caption','virus_scan','compress','structured_extraction','frame_ocr'));
 ```
 
-`output_type` nhận thêm `extracted_region` và `extracted_table`. `output_id`
+`output_type` nhận thêm `extracted_region`, `extracted_table` và `video_frame_text`. `output_id`
 của một job `structured_extraction` trỏ tới **điểm vào** của revision — region
 có `reading_order = 1`, hoặc table có `sequence = 1` khi nguồn là spreadsheet.
 `chk_mpj_ready` không đổi hình dạng: job `ready` vẫn phải có `output_id`.
@@ -197,7 +197,7 @@ thì job `failed` với `error_code = infected_source`, và Media File chuyển
 | output_profile | VARCHAR(191) NOT NULL | Tham số quyết định output: locale, định dạng, cấu hình extractor. |
 | output_profile_hash | CHAR(64) NOT NULL | SHA-256 của `output_profile` đã chuẩn hoá. |
 | provider | VARCHAR(100) NOT NULL | Worker/provider abstraction. |
-| output_type | VARCHAR(50) NULL | `transcript`, `caption`, `extracted_text`, `variant`, `extracted_region`, `extracted_table`. |
+| output_type | VARCHAR(50) NULL | `transcript`, `caption`, `extracted_text`, `variant`, `extracted_region`, `extracted_table`, `video_frame_text`. |
 | output_id | BIGINT UNSIGNED NULL | Id của row output tương ứng. |
 | billable_units | DECIMAL(18,6) NULL | Lượng đã tiêu thụ (giây, trang, ký tự). |
 | billable_unit_type | VARCHAR(50) NULL | Đơn vị của `billable_units`. |
@@ -235,14 +235,14 @@ FOREIGN KEY (created_by, customer_id)
 
 CHECK (job_type IN ('transcode','thumbnail','ocr','speech_to_text',
                     'caption','virus_scan','compress',
-                    'structured_extraction'));   -- v2.5, migration 2026_08_26_000200
+                    'structured_extraction','frame_ocr'));
 CHECK (status IN ('pending','processing','ready','failed','cancelled'));
 CHECK (attempt >= 1);
 CHECK (dispatch_generation >= 1);
 -- v2.6: CHECK vật lý trong migration job identity 2026_08_26_000200.
 CHECK (output_type IS NULL OR output_type IN
        ('transcript','caption','extracted_text','variant',
-        'extracted_region','extracted_table'));
+        'extracted_region','extracted_table','video_frame_text'));
 CHECK ((output_type IS NULL AND output_id IS NULL)
     OR (output_type IS NOT NULL AND output_id IS NOT NULL));
 CHECK (status <> 'ready' OR completed_at IS NOT NULL);

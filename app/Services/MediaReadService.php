@@ -78,7 +78,7 @@ class MediaReadService
                 throw new MediaReadException('unsupported_source');
             }
             try {
-                if ($languageProfile !== null && ($documentContent || in_array($contentType, ['transcript', 'caption_asset'], true))) {
+                if ($languageProfile !== null && ($documentContent || in_array($contentType, ['transcript', 'caption_asset', 'video_frame_text'], true))) {
                     $selectedLanguageProfile = $documentContent
                         ? app(DocumentLanguageProfile::class)->canonical($languageProfile)
                         : app(SpeechLanguageProfile::class)->canonical($languageProfile);
@@ -104,6 +104,7 @@ class MediaReadService
                 'region' => ['media_extracted_regions', false],
                 'table' => ['media_extracted_tables', false],
                 'formula' => ['media_extracted_formulas', false],
+                'video_frame_text' => ['media_video_frame_texts', false],
                 default => throw new MediaReadException('unsupported_source'),
             };
             // Spec B § 6: vang mat phai co TEN. Khi chua co row output nao, trang
@@ -116,6 +117,7 @@ class MediaReadService
                 'region', 'table', 'formula' => 'structured_extraction',
                 'transcript' => 'speech_to_text',
                 'caption_asset' => 'caption',
+                'video_frame_text' => 'frame_ocr',
                 default => null,
             };
 
@@ -157,6 +159,10 @@ class MediaReadService
                         $customerId, (int) $media->id, $selectedLanguageProfile, 'speech_to_text', false
                     ))->pluck('processing_version')->all();
                 $query->whereIn('transcript_processing_version', $versions);
+            } elseif ($selectedLanguageProfile !== null && $contentType === 'video_frame_text') {
+                $query->whereIn('processing_job_id', $this->jobIdsForProfile(
+                    $customerId, (int) $media->id, $selectedLanguageProfile, 'frame_ocr', false
+                ));
             }
             if ($contentType !== 'variant') {
                 $query->where('locale', $selectedLocale);
@@ -209,6 +215,8 @@ class MediaReadService
                 $query->orderBy('sequence');
             } elseif ($contentType === 'formula') {
                 $query->orderBy('reading_order');
+            } elseif ($contentType === 'video_frame_text') {
+                $query->orderBy('locator_value')->orderBy('reading_order');
             }
             $rows = $query->orderBy('id')->get();
             if ($rows->isEmpty()) {
@@ -217,9 +225,9 @@ class MediaReadService
                         ->where('media_file_id', $media->id)
                         ->where('job_type', $derivedJobType)
                         ->when($processingVersion !== null, fn ($q) => $q->where('processing_version', $processingVersion));
-                    if ($selectedLanguageProfile !== null && $derivedJobType === 'speech_to_text') {
+                    if ($selectedLanguageProfile !== null && in_array($derivedJobType, ['speech_to_text', 'frame_ocr'], true)) {
                         $jobStateQuery->whereIn('id', $this->jobIdsForProfile(
-                            $customerId, (int) $media->id, $selectedLanguageProfile, 'speech_to_text', false
+                            $customerId, (int) $media->id, $selectedLanguageProfile, $derivedJobType, false
                         ));
                     } else {
                         $jobStateQuery->where(function ($q) use ($selectedLocale): void {
@@ -385,6 +393,18 @@ class MediaReadService
                     ];
                 } elseif ($contentType === 'transcript') {
                     $structure = ['languages' => $transcriptLanguages[$row->id] ?? []];
+                } elseif ($contentType === 'video_frame_text') {
+                    $structure = [
+                        'detected_locale' => $row->detected_locale ?? 'undetermined',
+                        'script' => $row->script ?? 'undetermined',
+                        'reading_order' => (int) $row->reading_order,
+                        'bbox' => [
+                            'x' => (float) $row->bbox_x, 'y' => (float) $row->bbox_y,
+                            'width' => (float) $row->bbox_width, 'height' => (float) $row->bbox_height,
+                        ],
+                        'frame_width' => (int) $row->frame_width,
+                        'frame_height' => (int) $row->frame_height,
+                    ];
                 }
 
                 return [
@@ -589,7 +609,7 @@ class MediaReadService
                 return is_string($source) ? app(SpeechLanguageProfile::class)->fromProfile($source) : null;
             }
 
-            return $job->job_type === 'speech_to_text'
+            return in_array($job->job_type, ['speech_to_text', 'frame_ocr'], true)
                 ? app(SpeechLanguageProfile::class)->fromProfile($job->output_profile)
                 : app(DocumentLanguageProfile::class)->fromProfile($job->output_profile);
         } catch (\InvalidArgumentException) {
@@ -612,7 +632,7 @@ class MediaReadService
         $allowed = match ($contentType) {
             'extracted_text', 'region', 'table', 'formula' => ['document'],
             'transcript' => ['audio', 'video'],
-            'caption_asset', 'variant' => ['video'],
+            'caption_asset', 'variant', 'video_frame_text' => ['video'],
             default => throw new MediaReadException('unsupported_source'),
         };
 

@@ -1,12 +1,12 @@
 # LF-INDEX.md
 
-Version: 2.25
+Version: 2.27
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-09-05
+Last Updated: 2026-09-08
 
 Document Path: LF-INDEX.md
 
@@ -661,6 +661,7 @@ Read:
 * platform/LF-Media.md
 * platform/LF-Media-Processing-Contract.md
 * platform/LF-Media-Read-Contract.md
+* database/media/media_video_frame_texts.md
 * tech/LF-Tech-AWS.md
 
 ---

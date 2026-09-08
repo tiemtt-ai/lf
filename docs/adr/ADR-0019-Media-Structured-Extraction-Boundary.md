@@ -1,6 +1,6 @@
 # ADR-0019 — Media Structured Extraction Boundary
 
-Version: 1.13
+Version: 1.15
 
 Status: Approved
 
@@ -8,7 +8,7 @@ Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-05
+Last Updated: 2026-09-08
 
 Proposal Date: 2026-08-25
 
@@ -30,6 +30,50 @@ Related Specification:
 * [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md)
 * [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md)
 * [media_extracted_texts](../database/media/media_extracted_texts.md)
+
+---
+
+## Amendment v1.15 — Frame OCR quality and rollback safety — Approved 2026-09-08
+
+Independent runtime review trên revision `video 1` xác nhận confidence không
+phân biệt được glyph nội dung với artifact ký hiệu nét rõ: 599/2.654 evidence
+chỉ gồm ký hiệu. Trước persist, Frame OCR phải loại dòng không có bất kỳ chữ
+hoặc số Unicode nào. Không đặt độ dài tối thiểu vì một chữ Hàn hoặc một chữ số
+vẫn có thể là evidence hợp lệ. Quy tắc này và threshold confidence thuộc
+`processing_version`; revision lịch sử không bị sửa hoặc backfill.
+
+Bbox có kích thước pixel dương nhưng co về 0 sau khi chuẩn hóa theo
+`DECIMAL(9,6)` phải bị bỏ riêng, không được làm hỏng toàn revision. Rollback
+migration phải fail-closed khi còn `media_video_frame_texts`, vì row ready hoặc
+archived đều là citation-bearing historical evidence.
+
+Amendment state: **Approved and Frozen**.
+
+---
+
+## Amendment v1.14 — Video frame OCR evidence — Approved 2026-09-07
+
+Architecture Owner phê duyệt mở rộng Phần 1 để đọc chữ xuất hiện trong khung
+hình video. Đây là OCR quan sát, không phải diễn giải hình ảnh theo ADR-0020.
+
+* Video frame OCR là job độc lập `frame_ocr`; thất bại không làm hỏng source,
+  transcript hoặc caption.
+* Output lưu trong `media_video_frame_texts`, neo bằng timespan, bbox, text gốc,
+  locale/script quan sát được, confidence, `source_fingerprint`,
+  `processing_version` và `processing_job_id`.
+* Sampling interval, rendered scale, OCR pack và normalization là
+  output-affecting config và phải tham gia `processing_version`.
+* Profile dùng đúng tập 1–3 locale đã chọn cho video; mapping Tesseract là
+  `vi→vie`, `ko→kor`, `en→eng`, flatten/deduplicate, không tự thêm locale.
+* Media không sửa transcript dựa trên frame OCR và không suy ngược chữ viết từ
+  âm thanh. Consumer hợp nhất hai nguồn theo timeline và giữ provenance riêng.
+* Revision mới archive revision frame OCR cũ; xóa Media purge toàn bộ row frame
+  OCR. Revision lịch sử không backfill.
+* Frame OCR chỉ chạy khi tác giả yêu cầu tự động xử lý video và feature gate
+  được bật. Production activation vẫn cần qualification riêng.
+
+Amendment state: **Approved and Frozen**. Implementation được kiểm chứng riêng; trạng
+thái tài liệu không tự suy ra runtime đã hoàn tất.
 
 ---
 
