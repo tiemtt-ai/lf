@@ -140,6 +140,18 @@
       "views": []
     },
     {
+      "name": "ai_vision_interpretations",
+      "documentation": "database/ai/ai_vision_interpretations.md",
+      "implementation_status": "not_implemented",
+      "columns": [],
+      "primary_key": [],
+      "indexes": [],
+      "foreign_keys": [],
+      "checks": [],
+      "triggers": [],
+      "views": []
+    },
+    {
       "name": "core_assessment_answer_files",
       "documentation": "database/assessment/core_assessment_answer_files.md",
       "implementation_status": "not_implemented",

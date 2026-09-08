@@ -1,6 +1,6 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.22
+Version: 1.23
 
 Document Status: Approved
 
@@ -53,7 +53,7 @@ tiên. Production activation vẫn chịu qualification gate tại Processing Co
 
 ---
 
-## Region text quality — Proposed 2026-09-05
+## Region text quality — Approved 2026-09-08
 
 Theo ADR-0019 v1.11, unit `region` bổ sung:
 
@@ -73,8 +73,8 @@ evidence kiểm chứng. Media Read không tự loại `low`, không rank và kh
 language evidence. Revision trước amendment giữ nguyên byte; consumer phân biệt
 bằng `processing_version`.
 
-**Status: Proposed — không có hiệu lực trước Owner approval và independent
-contract review.**
+**Status: Approved.** Revision cũ không có signal giữ `NULL`; consumer không
+được suy diễn `NULL` thành `normal`.
 
 ---
 
@@ -215,7 +215,8 @@ Service trả **derived content unit**, không trả file:
 unit := {
   media_file_id, source_fingerprint, processing_version,
   content_type,           // extracted_text | transcript | caption_asset
-                          // | variant | region | table | video_frame_text
+                          // | variant | region | table | formula
+                          // | video_frame_text
   locale,
   locator: { type, value },   // page | timespan | sheet | region | null
   text,                   // null với caption_asset và variant
@@ -541,7 +542,7 @@ tắc và mã lỗi đầy đủ ở § 4.1. Không nêu thì mặc định là 
 `ai_knowledge_sources` đăng ký theo derived content unit, không theo Media File,
 và lưu `source_fingerprint` cùng `processing_version` của unit đã đọc.
 Textual registrations được phép là `extracted_text`, `transcript`, `region`,
-`table`, `formula`; `caption_asset` và `variant` chỉ là delivery asset nên không
+`table`, `formula`, `video_frame_text`; `caption_asset` và `variant` chỉ là delivery asset nên không
 được chunk trực tiếp. Mỗi Media chunk giữ đúng một unit và locator của unit đó;
 AI context expansion dùng nhiều chunk có citation riêng.
 

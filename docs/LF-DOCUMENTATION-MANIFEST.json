@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-09-07",
+  "generated_or_updated_at": "2026-09-08",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 253,
+  "document_count": 255,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -1804,9 +1804,9 @@
       "title": "Table: ai_embeddings",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -1921,9 +1921,9 @@
       "title": "Table: ai_knowledge_chunks",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -1960,9 +1960,9 @@
       "title": "Table: ai_knowledge_sources",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -2038,9 +2038,9 @@
       "title": "Table: ai_model_runs",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -2148,6 +2148,48 @@
       ],
       "related_documents": [
         "database/ai/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/ai/ai_vision_interpretations.md",
+      "title": "Table: ai_vision_interpretations",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Approved",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [
+        "ai_vision_interpretations"
+      ],
+      "topics": [
+        "ai",
+        "vision",
+        "media",
+        "provenance"
+      ],
+      "keywords": {
+        "vi": [
+          "diễn giải thị giác AI",
+          "nguồn gốc Media",
+          "vùng hình ảnh"
+        ],
+        "en": [
+          "AI vision interpretation",
+          "Media provenance",
+          "image region"
+        ]
+      },
+      "identifiers": [
+        "ai_vision_interpretations",
+        "ADR-0020"
+      ],
+      "related_documents": [
+        "adr/ADR-0020-AI-Vision-Interpretation-Boundary.md",
+        "database/ai/README.md",
+        "platform/LF-AI.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -6247,13 +6289,29 @@
       "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
-      "canonical_for": ["media_video_frame_texts"],
-      "topics": ["media", "video", "frame ocr"],
+      "canonical_for": [
+        "media_video_frame_texts"
+      ],
+      "topics": [
+        "media",
+        "video",
+        "frame ocr"
+      ],
       "keywords": {
-        "vi": ["ocr khung hình video", "chữ trên màn hình", "mốc thời gian"],
-        "en": ["video frame ocr", "on-screen text", "timespan"]
+        "vi": [
+          "ocr khung hình video",
+          "chữ trên màn hình",
+          "mốc thời gian"
+        ],
+        "en": [
+          "video frame ocr",
+          "on-screen text",
+          "timespan"
+        ]
       },
-      "identifiers": ["media_video_frame_texts"],
+      "identifiers": [
+        "media_video_frame_texts"
+      ],
       "related_documents": [
         "database/media/README.md",
         "platform/LF-Media-Processing-Contract.md",
@@ -9432,6 +9490,49 @@
         "core/LF-Core-Learning.md",
         "core/LF-Core-LiveClass.md",
         "quality/LF-Learning-Foundation-Database-Architecture-Review.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Learning-Gate-2-Independent-Review.md",
+      "title": "Learning Gate 2 Independent Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [
+        "learning_gate_2_independent_review"
+      ],
+      "topics": [
+        "learning",
+        "framework-authoring",
+        "independent-review",
+        "gate-2"
+      ],
+      "keywords": {
+        "vi": [
+          "review độc lập Learning Gate 2",
+          "tác giả khung năng lực",
+          "xuất bản phiên bản Framework"
+        ],
+        "en": [
+          "Learning Gate 2 independent review",
+          "Learning Framework authoring",
+          "Framework Version publication"
+        ]
+      },
+      "identifiers": [
+        "LF-Learning-Gate-2-Independent-Review"
+      ],
+      "related_documents": [
+        "adr/ADR-0016-Learning-Foundation.md",
+        "adr/ADR-0017-AI-Assisted-Learning-Authoring.md",
+        "core/LF-Core-Learning.md",
+        "quality/LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md",
+        "quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

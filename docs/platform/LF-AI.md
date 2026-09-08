@@ -1,21 +1,50 @@
 # LF-AI.md
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Frozen
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-09-05
+Last Updated: 2026-09-08
 
 Document Path: platform/LF-AI.md
 
 ---
 
-## Media region text-quality candidate policy — Proposed 2026-09-05
+## Provider execution gate — Approved 2026-09-08
 
-Sau khi ADR-0019 v1.11 và ADR-0006 amendment tương ứng được duyệt, AI ingestion
-snapshot `text_quality` của region theo đúng Media revision. Retrieval chỉ dùng
+Mọi model/provider adapter dùng chung một gate trước network call. Input bắt
+buộc gồm tenant, provider, purpose, data classes, model, execution region,
+retention class và correlation id. Gate theo thứ tự:
+
+1. provider/model/purpose có trong allow-list cấu hình đã review;
+2. tenant setting `ai.external_processing.<provider>.<purpose>` xác nhận đúng
+   data classes, region và retention; provider LF-managed không được suy thành
+   external approval;
+3. Commercial entitlement cho purpose còn hiệu lực;
+4. Usage reservation nguyên tử xác nhận quota còn đủ;
+5. safety/data-class policy cho phép payload.
+
+Thiếu bất kỳ điều kiện nào thì không gọi provider và vẫn ghi một
+`ai_model_runs.status=blocked` với mã lần lượt `AI_APPROVAL_REQUIRED`,
+`AI_QUOTA_EXCEEDED` hoặc `AI_SAFETY_BLOCKED`. Credential chỉ được resolve bên
+trong adapter sau khi gate đạt, không đi vào command, log, metadata hoặc Run.
+Tạo schema không kích hoạt provider. Runtime provider chỉ được mở sau test
+fail-closed, tenant isolation, quota concurrency và audit provenance.
+
+## Knowledge deletion barrier — Approved 2026-09-08
+
+Source, Chunk và Embedding đều bị loại khỏi retrieval ngay khi vào
+`deletion_pending`. Embedding xóa remote point trước và giữ tombstone sau
+acknowledgment. Chunk chỉ erase raw content sau mọi embedding con `deleted`;
+Source chỉ `deleted` sau mọi chunk con `deleted`. Parent không hard-delete nên
+FK RESTRICT và audit cùng đúng. Retry/reconciliation tiếp tục từ tombstone;
+`deleted` terminal.
+
+## Media region text-quality policy — Approved 2026-09-08
+
+AI ingestion snapshot `text_quality` của region theo đúng Media revision. Retrieval chỉ dùng
 `low` để hạ rank sau relevance; không loại evidence, sửa locale/languages hoặc
 coi `normal` là bảo đảm OCR đúng. Revision không có signal giữ NULL và không bị
 suy ngược. Runtime AI vẫn `Not Implemented`.
@@ -498,6 +527,7 @@ ai_insights
 ai_model_runs
 ai_feedback
 ai_prompt_templates
+ai_vision_interpretations
 ```
 
 Table documentation:

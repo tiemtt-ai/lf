@@ -76,6 +76,12 @@ chuyên sâu, nguồn gốc thực thi, phản hồi và quản trị prompt mà
 |------|------|
 | **ai_feedback** | Phản hồi của người dùng và người đánh giá về đầu ra AI |
 
+## 6. Diễn giải thị giác
+
+| Bảng | Mô tả |
+|------|------|
+| **ai_vision_interpretations** | Diễn giải AI có provenance của vùng hình ảnh Media; không phải OCR evidence |
+
 ---
 
 ## Sơ đồ quan hệ Miền nghiệp vụ

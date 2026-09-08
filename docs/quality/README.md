@@ -1,12 +1,12 @@
 # LearnForge Quality
 
-Version: 1.15
+Version: 1.16
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-08-31
+Last Updated: 2026-09-08
 
 Document Path: quality/README.md
 
@@ -110,6 +110,9 @@ criteria hay không.
   — Gate 1 independent runtime/migration code review; PASS after four passes.
   The external Framework authoring surface passed Gate 2 on 2026-08-23 through
   recorded MariaDB HTTP/service evidence and Owner attestation.
+* [LF-Learning-Gate-2-Independent-Review.md](LF-Learning-Gate-2-Independent-Review.md)
+  — independent 0b re-validation of the Learning Framework authoring boundary;
+  Gate 2 PASS with one documented wording risk.
 * [LF-Schema-Drift-Trigger-Identity-Regression-Audit.md](LF-Schema-Drift-Trigger-Identity-Regression-Audit.md)
   — HIGH Existing-Feature Change audit for opt-in trigger identity enforcement
   in the shared schema-drift quality gate.

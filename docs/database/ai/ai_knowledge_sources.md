@@ -1,5 +1,13 @@
 # Table: ai_knowledge_sources
 
+Version: 1.0
+
+Document Status: Approved
+
+Implementation Status: Not Implemented
+
+Last Updated: 2026-09-08
+
 Document Path: database/ai/ai_knowledge_sources.md
 
 ## Media retrieval amendment — Approved 2026-09-05
@@ -27,7 +35,7 @@ Course, Assessment, Media, Track hoặc LiveClass.
 
 ## Relationships
 
-`Knowledge Source 1 → N Knowledge Chunks`; optional Media File reference.
+`Knowledge Source 1 → N Knowledge Chunks`; optional Media provenance.
 `source_type + source_id` là generic reference tới Owner Domain.
 
 ## Business Rules
@@ -38,8 +46,8 @@ Course, Assessment, Media, Track hoặc LiveClass.
   `liveclass_transcript`, `other`.
 * Với source do Media phục vụ, `source_type` là **owner context** của
   [LF-Media-Read-Contract](../../platform/LF-Media-Read-Contract.md) § 3, không
-  phải một Media File. AI không cầm `media_file_id`: cùng một file có thể phục vụ
-  hai Activity với hai mức quyền khác nhau, nên quyền gắn với owner.
+  phải một Media File. AI lưu `media_file_id` chỉ làm provenance; authorization
+  luôn dùng owner context qua Media Read.
 * Media source phải ghi `content_type`, `locale`, `source_fingerprint` và
   `processing_version` **của đúng unit đã đọc**. Đây là hợp đồng ở Read Contract
   § 7 và là dữ liệu duy nhất cho phép phát hiện stale mà không phải đoán.
@@ -49,7 +57,8 @@ Course, Assessment, Media, Track hoặc LiveClass.
 * Source thành `stale` khi Media có revision `ready` mới hơn cho cùng
   `(source_type, source_id, content_type, locale)`. Media báo trạng thái, AI
   quyết định rebuild; Media không tự rebuild và không xoá gì của AI.
-* Allowed `status`: `pending`, `active`, `stale`, `archived`, `failed`.
+* Allowed `status`: `pending`, `active`, `stale`, `archived`, `failed`,
+  `deletion_pending`, `deleted`.
 * Source stale kích hoạt rebuild policy cho chunks/embeddings.
 * Metadata không chứa credential hoặc canonical source business state.
 
@@ -62,15 +71,23 @@ Course, Assessment, Media, Track hoặc LiveClass.
 | source_uuid | CHAR(36) NOT NULL | Stable AI source identity. |
 | source_type | VARCHAR(100) NOT NULL | Generic owner type. |
 | source_id | BIGINT UNSIGNED NOT NULL | Generic owner record ID. |
+| media_file_id | BIGINT UNSIGNED NULL | Media provenance; không cấp quyền. |
+| usage_type | VARCHAR(50) NOT NULL DEFAULT '' | Media usage; sentinel rỗng ngoài Media. |
 | content_type | VARCHAR(50) NULL | Derived content unit type; NULL với source ngoài Media. |
 | title | VARCHAR(255) NOT NULL | Display/audit title. |
 | locale | VARCHAR(20) NULL | Source locale. |
+| identity_content_type | VARCHAR(50) AS (COALESCE(content_type,'')) STORED | NULL-safe identity. |
+| identity_locale | VARCHAR(20) AS (COALESCE(locale,'')) STORED | NULL-safe identity. |
 | source_version | VARCHAR(100) NULL | Owner-provided immutable/version marker. |
 | content_hash | VARCHAR(128) NULL | Fingerprint cho source ngoài Media. |
 | source_fingerprint | CHAR(64) NULL | `source_fingerprint` của unit đã đọc. |
 | processing_version | VARCHAR(100) NULL | `processing_version` của unit đã đọc. |
+| identity_fingerprint | VARCHAR(128) AS (COALESCE(source_fingerprint,content_hash,'')) STORED | NULL-safe source revision identity. |
+| identity_version | VARCHAR(100) AS (COALESCE(processing_version,source_version,'')) STORED | NULL-safe version identity. |
 | status | VARCHAR(50) NOT NULL DEFAULT 'pending' | AI ingestion lifecycle. |
 | last_synced_at | TIMESTAMP NULL | Last successful source sync. |
+| deletion_requested_at | TIMESTAMP NULL | Tombstone requested. |
+| deleted_at | TIMESTAMP NULL | Tombstone completed. |
 | created_by | BIGINT UNSIGNED NULL | Registering User/system actor. |
 | metadata | JSON NULL | Extraction/authorization context. |
 | created_at | TIMESTAMP NULL | Created time. |
@@ -81,8 +98,9 @@ Course, Assessment, Media, Track hoặc LiveClass.
 ```sql
 UNIQUE (customer_id, source_uuid);
 UNIQUE (id, customer_id);
-UNIQUE (customer_id, source_type, source_id, content_type, locale,
-        processing_version);
+UNIQUE (customer_id, source_type, source_id, usage_type,
+        identity_content_type, identity_locale, identity_fingerprint,
+        identity_version);
 INDEX  (customer_id, source_type, source_id);
 INDEX  (customer_id, status);
 INDEX  (customer_id, last_synced_at);
@@ -91,22 +109,30 @@ INDEX  (customer_id, source_fingerprint);
 FOREIGN KEY (created_by, customer_id)
     REFERENCES users (id, customer_id) RESTRICT;
 
-CHECK (status IN ('pending','active','stale','archived','failed'));
+CHECK (status IN ('pending','active','stale','archived','failed',
+                  'deletion_pending','deleted'));
 CHECK (source_type IN ('course_activity','course_version_activity',
                        'course_version','assessment_snapshot','track_summary',
                        'liveclass_transcript','other'));
 CHECK (content_type IS NULL
        OR content_type IN ('extracted_text','transcript','region','table',
-                           'formula'));
+                           'formula','video_frame_text'));
 CHECK (content_type IS NULL
        OR (source_fingerprint IS NOT NULL AND processing_version IS NOT NULL));
+CHECK ((content_type IS NULL AND media_file_id IS NULL AND usage_type = '')
+       OR (content_type IS NOT NULL AND media_file_id IS NOT NULL
+           AND source_type IN ('course_activity','course_version_activity')));
+CHECK (content_type IS NULL OR usage_type IN ('document','audio','video'));
+CHECK (status <> 'deletion_pending' OR deletion_requested_at IS NOT NULL);
+CHECK (status <> 'deleted' OR deleted_at IS NOT NULL);
 ```
 
 `UNIQUE (id, customer_id)` là điều kiện để Chunk tham chiếu ngược bằng khóa ngoại
 kép; không có nó thì một Chunk của tenant A trỏ được sang Source của tenant B và
 database không chặn được.
 
-Unique key gồm `processing_version`: một revision mới của cùng owner/content
+Unique key gồm usage, fingerprint và version; generated sentinels tránh UNIQUE
+với NULL trên MariaDB. Một revision mới của cùng owner/content
 type/locale là **một registration mới**, không ghi đè bản cũ. Bản cũ chuyển
 `stale` rồi `archived`, giữ nguyên để một Proposal đã trích dẫn nó vẫn truy lại
 được.
@@ -127,3 +153,6 @@ Deletion/retention follows both Owner Domain and AI derived-data policy.
 Đăng ký **không** thay thế authorization: một registration `active` không cấp
 quyền đọc. Mọi lần đọc vẫn đi qua Media Read Service với `actor_id` tường minh và
 vẫn bị owner-context authorization chặn.
+
+`deleted` là tombstone terminal, không hard-delete. Source chỉ hoàn tất sau khi
+mọi Chunk con đã `deleted`. Rollback migration fail-closed khi bảng còn row.

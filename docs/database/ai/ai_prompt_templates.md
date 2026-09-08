@@ -29,6 +29,7 @@ by Assistant Sessions and Model Runs; optional self replacement link.
 | --- | --- | --- |
 | id | BIGINT UNSIGNED PK AUTO_INCREMENT | Khóa chính. |
 | customer_id | BIGINT UNSIGNED NULL | Tenant owner; NULL for global prompt. |
+| scope_customer_id | BIGINT UNSIGNED AS (COALESCE(customer_id,0)) STORED | Normalized FK/index scope. |
 | code | VARCHAR(100) NOT NULL | Stable prompt family code. |
 | version | INT UNSIGNED NOT NULL | Immutable published version. |
 | name | VARCHAR(255) NOT NULL | Display name. |
@@ -53,7 +54,8 @@ by Assistant Sessions and Model Runs; optional self replacement link.
 ## Indexes
 
 ```sql
-UNIQUE (COALESCE(customer_id, 0), code, version);
+UNIQUE (scope_customer_id, code, version);
+UNIQUE (id, scope_customer_id);
 INDEX (customer_id, code, status);
 INDEX (customer_id, assistant_role, purpose);
 INDEX (customer_id, replaced_by_prompt_template_id);
@@ -65,6 +67,10 @@ INDEX (status, published_at);
 `id=900, customer_id=NULL, code=tutor_explain_concept, version=1, name=Tutor Explain Concept, assistant_role=tutor, purpose=explain_concept, system_prompt=Explain using authorized context and cite sources..., status=published, is_system=true, published_at=2026-06-28T00:00:00Z`
 
 ## Design Notes
+
+`scope_customer_id=0` is reserved for global prompts and is not a tenant.
+Tenant consumers may reference only scope `0` or their own `customer_id`; this
+is guarded by the owner service in addition to the composite FK target.
 
 Approval roles, tenant overrides, rollback and prompt evaluation gates remain
 open. Reserved scope `0` is an index normalization concept, not a tenant.

@@ -12,7 +12,7 @@ Frozen
 
 ## Version
 
-1.0.2
+1.0.3
 
 ---
 
@@ -24,7 +24,7 @@ Not Implemented
 
 ## Last Updated
 
-2026-09-05
+2026-09-08
 
 ---
 
@@ -48,17 +48,43 @@ Document Path: adr/ADR-0006-AI-Foundation.md
 
 ---
 
-## Proposed Amendment Candidate — Media `text_quality` consumption — 2026-09-05
+## Amendment Record — Version 1.0.3 (Approved 2026-09-08)
 
-**Pending Architecture Owner approval; Version 1.0.2 remains effective.** Nếu
-ADR-0019 v1.11 được duyệt, AI snapshot `region.text_quality` của đúng Media
-revision vào `ai_knowledge_chunks.source_text_quality`.
+Architecture Owner approved Media `text_quality` consumption. AI snapshots
+`region.text_quality` of the exact Media revision into
+`ai_knowledge_chunks.source_text_quality`.
 
 `low` chỉ là ranking modifier sau relevance, không tự loại candidate, không sửa
 text/language evidence và không nối citation. `normal` không phải chứng nhận nội
 dung đúng; nó chỉ nói threshold hình thức không đánh cờ. Khi cần kiểm chứng, AI
 đọc lại crop bằng cùng locator/fingerprint/version. Revision cũ không có signal
 giữ `source_text_quality = NULL`, không được backfill thành `normal`.
+
+The same amendment resolves the Action 6 identity and retention decisions:
+
+* Media-backed Knowledge Source stores owner context, `usage_type`,
+  `media_file_id`, content type, locale, fingerprint and processing version.
+  `media_file_id` is provenance only; authorization always re-enters Media Read
+  through owner context and never trusts the stored file id.
+* Frame OCR text is an eligible textual unit and retains frame/bbox provenance.
+* Knowledge Source and Chunk use tombstone lifecycles. After remote vectors are
+  acknowledged deleted, sensitive chunk text is erased but minimal relational
+  provenance remains; RESTRICT foreign keys therefore remain valid and parent
+  audit rows are not hard-deleted.
+* Every embedding references the Model Run that produced it.
+* Every provider execution, including embedding and vision, must pass the
+  fail-closed provider/external-processing/quota gate before invocation and
+  records a Model Run even when blocked.
+* Vision Interpretation is a separate AI-owned derived table and never modifies
+  Media evidence.
+
+Owner Approval:
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-09-08
+Decision: APPROVED
+```
 
 ---
 
@@ -546,6 +572,11 @@ Operations:
 Governance:
 
 * `ai_prompt_templates`.
+
+Vision:
+
+* `ai_vision_interpretations` — AI-derived interpretation with exact Media and
+  Model Run provenance; never Media evidence.
 
 Canonical table documentation:
 [docs/database/ai](../database/ai/).

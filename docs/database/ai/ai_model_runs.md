@@ -1,5 +1,13 @@
 # Table: ai_model_runs
 
+Version: 1.0
+
+Document Status: Approved
+
+Implementation Status: Not Implemented
+
+Last Updated: 2026-09-08
+
 Document Path: database/ai/ai_model_runs.md
 
 ## Amendment — Approved 2026-08-25
@@ -28,6 +36,8 @@ generate Messages, Recommendations or Insights.
 * No API key, BYOK secret or raw credential.
 * Sensitive payload storage is optional and governed by retention/privacy.
 * Failed/blocked runs retained for audit according to policy.
+* `blocked` requires `AI_APPROVAL_REQUIRED`, `AI_QUOTA_EXCEEDED` or
+  `AI_SAFETY_BLOCKED`; new codes require contract review.
 * **Proposed, chưa có hiệu lực** (xem ADR-0006 Amendment Version 1.1 — cần
   Owner Approval và Learning Phase 4): khi Model Run dùng Learning Mastery
   Profile làm input, `metadata` phải ghi nhận Profile identity
@@ -46,6 +56,7 @@ generate Messages, Recommendations or Insights.
 | user_id | BIGINT UNSIGNED NULL | Initiating User. |
 | assistant_session_id | BIGINT UNSIGNED NULL | Optional Assistant Session. |
 | prompt_template_id | BIGINT UNSIGNED NULL | Prompt Template reference. |
+| prompt_scope_customer_id | BIGINT UNSIGNED NULL | `0` global, otherwise tenant scope. |
 | prompt_version | INT UNSIGNED NULL | Published prompt version snapshot. |
 | prompt_hash | VARCHAR(128) NOT NULL | Effective prompt fingerprint. |
 | purpose | VARCHAR(100) NOT NULL | Run purpose. |
@@ -87,11 +98,16 @@ CHECK (status IN ('queued','running','completed','failed','blocked',
 CHECK (total_tokens >= input_tokens);
 CHECK (status <> 'completed' OR completed_at IS NOT NULL);
 CHECK (status <> 'failed' OR error_code IS NOT NULL);
+CHECK (status <> 'blocked' OR error_code IS NOT NULL);
+CHECK (prompt_template_id IS NULL OR prompt_scope_customer_id IN (0, customer_id));
 ```
 
 `assistant_session_id` và `prompt_template_id` **chưa có khóa ngoại**:
 `ai_assistant_sessions` và `ai_prompt_templates` nằm ngoài subset Media→AI và
-chưa được implement. Hai khóa đó được thêm trong chính migration tạo ra bảng đích,
+chưa được implement. Session target phải thêm `UNIQUE (id, customer_id)`.
+Prompt target dùng generated `scope_customer_id = COALESCE(customer_id,0)` và
+`UNIQUE (id, scope_customer_id)`; run tham chiếu cặp
+`(prompt_template_id,prompt_scope_customer_id)`. Hai khóa được thêm trong migration bảng đích,
 không phải bỏ quên. Cột vẫn nullable và vẫn được index để không phải sửa shape
 sau này.
 
@@ -100,6 +116,10 @@ sau này.
 `id=500, customer_id=1, run_uuid=0191-run-0500, user_id=100, assistant_session_id=200, prompt_template_id=900, prompt_version=1, prompt_hash=sha256:prompt1, purpose=tutor_answer, provider=openai, model=gpt-5, status=completed, input_tokens=950, output_tokens=180, total_tokens=1130, estimated_cost=0.012500, currency=USD, latency_ms=1800`
 
 ## Design Notes
+
+Every attempt, kể cả bị chặn trước network call, tạo một Run. Provider execution
+fail-closed cho tới khi provider/purpose/data-class/external-processing/quota
+gate đạt. Rollback migration fail-closed khi còn row.
 
 Usage Domain may consume approved measurements. Provider pricing snapshot,
 payload retention and retry-attempt modeling remain open.

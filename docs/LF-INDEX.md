@@ -1,6 +1,6 @@
 # LF-INDEX.md
 
-Version: 2.27
+Version: 2.29
 
 Document Status: Approved
 
@@ -387,7 +387,7 @@ docs/quality/
 | [quality/LF-Course-Template-Learning-Mapping-Intent-Architecture-Review.md](quality/LF-Course-Template-Learning-Mapping-Intent-Architecture-Review.md) | Course Template Learning Mapping Intent contract review; PASS with Owner approval pending |
 | [quality/LF-Media-Processing-Substrate-Architecture-Review.md](quality/LF-Media-Processing-Substrate-Architecture-Review.md) | Media Processing substrate review; PII/external-processing amendment v1.15 Approved with documented implementation risks |
 | [quality/LF-A0-Docling-Closure-Evidence.md](quality/LF-A0-Docling-Closure-Evidence.md) | Only surviving copy of the A0 run behind the closure decision; exploratory evidence, not a verdict |
-| [quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md](quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md) | AI Foundation Media-consumer subset A–H packet; CHANGES REQUIRED, migration not authorized |
+| [quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md](quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md) | AI Foundation Media-consumer Round 2 remediation packet; independent re-review pending, migration not yet authorized; includes [Vision Interpretation table contract](database/ai/ai_vision_interpretations.md) |
 | [quality/LF-Audio-Processing-Final-Code-Review.md](quality/LF-Audio-Processing-Final-Code-Review.md) | Audio Phase 1 implementation closed; local Faster Whisper E2E PASS; production not approved |
 | [quality/LF-Video-Transcript-Caption-Final-Code-Review.md](quality/LF-Video-Transcript-Caption-Final-Code-Review.md) | Video transcript/caption Phase 1 implementation closed; local FFmpeg/Faster Whisper/VTT E2E PASS; production not approved |
 | [quality/LF-Document-Processing-Final-Code-Review.md](quality/LF-Document-Processing-Final-Code-Review.md) | Document local code review, real OCR/Docling E2E; CHANGES_REQUIRED, không phải production approval |
@@ -411,6 +411,7 @@ docs/quality/
 | [quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md](quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md) | Phase 4E Owner-approved direction; database review must cover four released Course parent-key prerequisites before any migration authorization |
 | [quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md](quality/LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md) | Migration source, contract update and isolated MariaDB rehearsal PASS; real database deployment and Teacher Judgment source remain gated |
 | [quality/LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md](quality/LF-Learning-Foundation-Phase-4E-Runtime-Independent-Code-Review.md) | Gate 1 independent runtime/migration code review — **PASS** after four passes; Framework authoring Gate 2 closed 2026-08-23 by recorded MariaDB HTTP/service evidence and Owner attestation |
+| [quality/LF-Learning-Gate-2-Independent-Review.md](quality/LF-Learning-Gate-2-Independent-Review.md) | Independent 0b re-validation — Learning Framework authoring Gate 2 **PASS**; one MEDIUM superseded-wording risk remains for Step 1 docs synchronization |
 | [quality/LF-Schema-Drift-Trigger-Identity-Regression-Audit.md](quality/LF-Schema-Drift-Trigger-Identity-Regression-Audit.md) | PASS HIGH regression audit for opt-in trigger identity enforcement in schema drift |
 
 ---

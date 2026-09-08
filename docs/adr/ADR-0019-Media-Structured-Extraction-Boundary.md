@@ -77,12 +77,11 @@ thái tài liệu không tự suy ra runtime đã hoàn tất.
 
 ---
 
-## Amendment v1.11 — Latin profile resolution and observed-text quality — Proposed 2026-09-05
+## Amendment v1.11 — Latin profile resolution and observed-text quality — Approved 2026-09-08
 
-**Status: Proposed — pending Architecture Owner approval.** Candidate runtime
-đã tồn tại trong working tree nhưng không được đọc thành approval ngược; chỉ sau
-approval, contract review và version bump mới được phát hành một revision theo
-semantics này.
+**Status: Approved by the Architecture Owner.** Runtime verification and the
+revision bump remain implementation evidence, not a substitute for this policy
+decision.
 
 ### Locale của chữ viết Latin
 

@@ -1,5 +1,13 @@
 # Table: ai_embeddings
 
+Version: 1.0
+
+Document Status: Approved
+
+Implementation Status: Not Implemented
+
+Last Updated: 2026-09-08
+
 Document Path: database/ai/ai_embeddings.md
 
 ## Vector-store and deletion amendment — Approved 2026-09-05
@@ -40,6 +48,9 @@ store reference.
 * Allowed `status`: `pending`, `ready`, `failed`, `stale`, `deletion_pending`, `deleted`.
 * Dimensions phải khớp model contract.
 * Retrieval luôn tenant-scoped dù vector store dùng shared index.
+* Canonical transitions: `pending → ready|failed`; `ready|failed → stale`;
+  `pending|ready|failed|stale → deletion_pending → deleted`. `deleted` terminal.
+  Application service enforces transitions under row lock.
 
 ## Fields
 
@@ -48,6 +59,7 @@ store reference.
 | id | BIGINT UNSIGNED PK AUTO_INCREMENT | Khóa chính. |
 | customer_id | BIGINT UNSIGNED NOT NULL | Tenant sở hữu. |
 | knowledge_chunk_id | BIGINT UNSIGNED NOT NULL | Embedded chunk. |
+| model_run_id | BIGINT UNSIGNED NOT NULL | Provider execution provenance. |
 | provider | VARCHAR(50) NOT NULL | Embedding provider. |
 | model | VARCHAR(100) NOT NULL | Embedding model. |
 | dimensions | INT UNSIGNED NOT NULL | Vector dimensions. |
@@ -77,6 +89,8 @@ INDEX  (customer_id, status);
 
 FOREIGN KEY (knowledge_chunk_id, customer_id)
     REFERENCES ai_knowledge_chunks (id, customer_id) RESTRICT;
+FOREIGN KEY (model_run_id, customer_id)
+    REFERENCES ai_model_runs (id, customer_id) RESTRICT;
 
 CHECK (status IN ('pending','ready','failed','stale','deletion_pending','deleted'));
 CHECK (dimensions >= 1);
@@ -84,6 +98,7 @@ CHECK (vector_store = 'qdrant');
 CHECK (deletion_attempts >= 0);
 CHECK (status <> 'deletion_pending' OR deletion_requested_at IS NOT NULL);
 CHECK (status <> 'deleted' OR deleted_at IS NOT NULL);
+CHECK (status <> 'ready' OR embedded_at IS NOT NULL);
 ```
 
 ## Sample Data
@@ -91,6 +106,9 @@ CHECK (status <> 'deleted' OR deleted_at IS NOT NULL);
 `id=20, customer_id=1, knowledge_chunk_id=10, provider=approved-provider, model=approved-model, dimensions=1536, vector_store=qdrant, vector_index=lf_text_approved_model_v1, vector_key=01910000-0000-7000-8000-000000000020, embedding_hash=sha256:789abc, status=ready`
 
 ## Design Notes
+
+Deleted rows remain minimal audit tombstones and are not hard-deleted during
+parent cleanup. Rollback migration fails closed while any row exists.
 
 Qdrant là derived index, không phải Source Of Truth. MariaDB state quyết định
 candidate có còn eligible; vector result không tự cấp quyền. Reconciliation là

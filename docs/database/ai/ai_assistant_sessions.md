@@ -50,6 +50,7 @@ learning context; `Assistant Session 1 → N Model Runs`.
 
 ```sql
 UNIQUE (customer_id, session_uuid);
+UNIQUE (id, customer_id);
 INDEX (customer_id, user_id, started_at);
 INDEX (customer_id, conversation_id);
 INDEX (customer_id, assistant_role, status);
@@ -61,6 +62,9 @@ INDEX (customer_id, enrollment_id);
 `id=200, customer_id=1, session_uuid=0191-session-0200, conversation_id=100, user_id=100, prompt_template_id=900, assistant_role=tutor, enrollment_id=501, template_version_id=30, context_snapshot={"version_activity_id":9001}, status=active, started_at=2026-06-28T02:00:00Z`
 
 ## Design Notes
+
+The composite identity is the deferred target for `ai_model_runs`; it prevents
+a tenant Run from referencing another tenant's session.
 
 Session timeout, context refresh and tool permissions remain owner-review
 questions.

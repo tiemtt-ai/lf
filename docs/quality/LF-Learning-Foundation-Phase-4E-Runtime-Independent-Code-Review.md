@@ -888,7 +888,11 @@ Excluded: production deployment gate; Course Mapping/AI implementation gates.
 
 ### Gate 2 Remaining Items (superseded)
 
-**Gate 2 is not closed.** The remaining condition is an independent review.
+> Historical snapshot before the Owner closure recorded above. The statements
+> in this superseded subsection are not the current Gate 2 verdict.
+
+**At that historical point, Gate 2 was not closed.** The remaining condition
+was an independent review.
 
 **No independent reviewer has read the surface.** The Gate 2 review recorded
 above was performed by a reviewer who then remediated the findings, and who had
@@ -906,8 +910,9 @@ The previously open Owner decisions are closed:
      `LF_FRAMEWORK_AUTHORING_VERSION_EMPTY`; the UI disables publish until a
      Node exists.
 
-The only remaining Gate 2 condition is an independent review by a reviewer who
-authored neither the surface nor its remediation.
+At that historical point, the only remaining Gate 2 condition was an independent
+review by a reviewer who authored neither the surface nor its remediation. That
+condition was superseded by the Owner closure recorded on 2026-08-23.
 
 ---
 
