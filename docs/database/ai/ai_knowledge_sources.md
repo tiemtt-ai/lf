@@ -1,14 +1,33 @@
 # Table: ai_knowledge_sources
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Implemented
 
 Last Updated: 2026-09-08
 
 Document Path: database/ai/ai_knowledge_sources.md
+
+## Deterministic ingestion runtime — Implemented 2026-09-08
+
+`AiKnowledgeIngestionService` đăng ký Media source bằng đúng logical identity
+`(customer_id, source_type, source_id, usage_type, content_type, locale,
+source_fingerprint, processing_version, generation)`. Ordered language profile
+được snapshot trong `metadata.language_profile`; nếu cùng database identity
+nhưng profile khác, ingestion fail-closed bằng `revision_identity_conflict`
+thay vì trộn provenance.
+
+Retry cùng revision đang `pending|active|failed` dùng lại source. Revision mới
+tạo source mới rồi, trong cùng transaction, chuyển source/chunk/embedding cũ
+sang `stale`. Source đã `stale|archived|deleted` không được hồi sinh; nếu cùng
+revision quay lại thì tạo `generation` kế tiếp. Ingestion chỉ gọi Media Read và
+ghi relational source/chunk; không tạo Model Run, embedding hay vector point.
+
+Deletion là tombstone hai pha: `requestSourceDeletion()` chuyển embedding,
+chunk và source sang `deletion_pending`; `finalizeSourceDeletion()` chỉ erase
+chunk content và ghi `deleted` sau khi mọi embedding con đã `deleted`.
 
 ## Media retrieval amendment — Approved 2026-09-05
 

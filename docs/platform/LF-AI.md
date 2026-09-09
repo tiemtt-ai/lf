@@ -1,6 +1,6 @@
 # LF-AI.md
 
-Version: 1.4
+Version: 1.5
 
 Document Status: Frozen
 
@@ -11,6 +11,20 @@ Last Updated: 2026-09-08
 Document Path: platform/LF-AI.md
 
 ---
+
+## Deterministic Media ingestion — Implemented 2026-09-08
+
+Media ingestion đi duy nhất qua `MediaReadService`, snapshot exact revision và
+provenance vào Knowledge Source/Chunk, rồi publish toàn revision trong một
+transaction. Mỗi unit giữ citation riêng; oversized unit dùng deterministic
+Unicode chunker `media-unit-unicode-v1` (4000 code points, zero overlap).
+
+Retry cùng revision idempotent; revision mới làm source/chunk/embedding cũ
+`stale`. Delete request chuyển toàn chain sang `deletion_pending`; source/chunk
+chỉ thành tombstone `deleted` sau khi mọi embedding đã xác nhận `deleted`.
+Runtime này không gọi provider, không tạo `ai_model_runs`, không tạo embedding
+và không ghi Qdrant. Provider/model-run, embedding và retrieval vẫn là các bước
+riêng chưa triển khai.
 
 ## Provider execution gate — Approved 2026-09-08
 

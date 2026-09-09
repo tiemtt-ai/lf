@@ -1,14 +1,31 @@
 # Table: ai_knowledge_chunks
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Implemented
 
 Last Updated: 2026-09-08
 
 Document Path: database/ai/ai_knowledge_chunks.md
+
+## Deterministic chunker runtime — Implemented 2026-09-08
+
+Canonical runtime version là `media-unit-unicode-v1`, giới hạn `4000` Unicode
+code points. Mỗi Media Read unit có text sinh một chunk; unit rỗng không sinh
+chunk. Unit quá giới hạn được cắt tại boundary cuối cùng theo thứ tự ưu tiên:
+đoạn (`\n\n`), dấu kết câu (`.?!。？！`), whitespace, rồi exact Unicode boundary.
+Parts không overlap và giữ `[char_start,char_end)` liên tục.
+Với unit `table` không có top-level text, runtime serialize `structure.cells`
+theo `row`, rồi `column`: cột nối bằng TAB và hàng nối bằng LF. Đây là text
+deterministic để chunk/embed sau này; cell order và table locator vẫn được giữ
+trong provenance, không suy từ layout hình ảnh.
+
+`chunk_uuid` là identity xác định từ source UUID, locator, part index, boundary
+và chunker version. Retry cùng input giữ nguyên UUID/hash/boundary. Nếu cùng
+Media revision và locator trả content/boundary khác, runtime fail-closed bằng
+`non_deterministic_rebuild`; không update đè snapshot lịch sử.
 
 ## Region text-quality snapshot — Approved 2026-09-08
 
@@ -23,8 +40,8 @@ CHECK (source_text_quality IS NULL
        OR source_text_quality IN ('normal','low'));
 ```
 
-Đây là thay đổi database design cho AI Foundation chưa triển khai; không phải
-Media migration và chưa authorize AI migration trước independent review.
+Thiết kế này đã được triển khai trong AI Foundation migration và ingestion
+runtime; không backfill hay sửa Media evidence lịch sử.
 
 ## Media retrieval amendment — Approved 2026-09-05
 
