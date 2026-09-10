@@ -55,6 +55,22 @@ for the independent Architecture Review PASS required before migration.
 * `reserved → executing|released|expired`; `executing → settling|reconciled_released`;
   `settling → committed|committed_over_limit|reconciled_released`; terminal states
   are `committed|committed_over_limit|released|expired|reconciled_released`.
+* Each transition names the actor allowed to perform it, because a transition
+  that is legal but unowned is a row nobody can move:
+
+  | Transition | Actor |
+  | --- | --- |
+  | `reserved → executing` | producer, before the provider call |
+  | `reserved → released` | producer, only pre-boundary |
+  | `reserved → expired` | generic expiry sweeper |
+  | `executing → settling` | producer after a usable response, **or** provider-aware reconciliation on positive evidence that the provider did consume |
+  | `settling → committed\|committed_over_limit` | producer, **or** provider-aware reconciliation |
+  | `executing\|settling → reconciled_released` | provider-aware reconciliation only, on positive evidence that the provider consumed nothing |
+
+  Reconciliation owning both outcomes is the point. A producer that dies between
+  the provider response and `markSettling()` leaves real, billable consumption
+  with no owner; if reconciliation could only release, that measurement would be
+  lost from `saas_usage_events` — the Source Of Truth — with no signal.
 * `reconciled_released` is the only exit for a hold that already crossed the
   provider boundary and that provider-aware reconciliation proved consumed
   nothing. It is deliberately a distinct status from `released`: an auditor must
@@ -64,11 +80,30 @@ for the independent Architecture Review PASS required before migration.
   tenant's quota forever.
 * `(customer_id, source_type, source_uuid, feature_key, period_key, unit)` is the
   idempotency identity. A retry returns the existing reservation.
-* Reserve locks the entitlement and matching active ledger rows in one database
-  transaction; read-then-call is forbidden.
-* Available quantity is entitlement limit minus `reserved + committed` ledger
-  quantity in the same period. The ledger is enforcement state, not analytical
-  Usage measurement.
+* Reserve locks the entitlement and every *active* ledger row in one database
+  transaction; read-then-call is forbidden. **Active** means any row still
+  holding capacity: `reserved`, `executing`, `settling`.
+* Available quantity is computed by exactly this predicate, scoped to
+  `(customer_id, feature_key, period_key, unit)`:
+
+  ```text
+  held      = SUM(reserved_quantity)  WHERE status IN ('reserved','executing','settling')
+  consumed  = SUM(committed_quantity) WHERE status IN ('committed','committed_over_limit')
+  available = entitlement_limit - held - consumed
+  ```
+
+  Every status appears on exactly one side or is terminal-without-cost
+  (`released`, `expired`, `reconciled_released`). Enumerating them explicitly is
+  not pedantry: an earlier revision said "minus `reserved + committed`" while the
+  ledger had only those two statuses, and adding `executing`, `settling` and
+  `committed_over_limit` silently dropped three of them out of enforcement — a
+  hold in flight stopped counting, so two concurrent requests could each be told
+  the full limit was free. The ledger is enforcement state, not analytical Usage
+  measurement.
+* `committed_over_limit` counts toward `consumed` like any other settlement.
+  Excluding it would hand a tenant that already breached the limit a fresh full
+  allowance on the next reservation, which is the opposite of what the status
+  exists to signal.
 * Default lease TTL is 15 minutes. Renewal is capped at the earlier of two hours
   after creation and `period_end_at`. Only `reserved` may auto-expire.
   `executing|settling` require provider-aware reconciliation and are never
@@ -174,7 +209,8 @@ CHECK ((status = 'reserved' AND committed_quantity IS NULL AND
        (status = 'reconciled_released' AND committed_quantity IS NULL AND
         usage_event_id IS NULL AND execution_started_at IS NOT NULL AND
         reconciled_at IS NOT NULL AND settled_at IS NOT NULL));
-CHECK (reconciled_at IS NULL OR status = 'reconciled_released');
+CHECK (reconciled_at IS NULL OR
+       status IN ('committed','committed_over_limit','reconciled_released'));
 ```
 
 # Transaction Contract
@@ -189,11 +225,18 @@ Counter later; quota enforcement never depends on projection freshness.
 The expiry sweeper selects only `status='reserved' AND lease_expires_at <= now`.
 It must never infer that `executing` or `settling` is unused from elapsed time.
 
-A separate provider-aware reconciliation path owns `executing` and `settling`.
-It may only reach `reconciled_released` on positive evidence that the provider
-consumed nothing — never on elapsed time alone — and records `reconciled_at`.
-Where evidence is unavailable the row stays held: over-holding a tenant's quota
-is recoverable by a human, refunding usage that happened is not.
+A separate provider-aware reconciliation path owns `executing` and `settling`,
+and it has two outcomes, never one:
+
+* evidence that the provider consumed **nothing** → `reconciled_released`;
+* evidence that the provider **did** consume → drive the row forward to
+  `settling` then `committed` or `committed_over_limit`, appending the Usage
+  Event exactly as a producer settlement would, and recording the true quantity.
+
+Both outcomes require positive evidence and record `reconciled_at`; neither may
+be inferred from elapsed time. Where evidence is unavailable the row stays held:
+over-holding a tenant's quota is recoverable by a human, and so is a late
+settlement — silently refunding usage that happened is not.
 
 # Rollback
 

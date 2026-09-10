@@ -58,11 +58,20 @@ interface UsageQuotaReserver
      * Provider-aware reconciliation for holds stuck in `executing`/`settling`.
      *
      * Only this path may terminate a hold that crossed the provider boundary,
-     * and only on positive evidence that nothing was consumed — never on
-     * elapsed time. Holds it cannot prove stay held: over-holding quota is
-     * recoverable by a human, refunding usage that happened is not.
+     * and it has **two** outcomes, never one:
      *
-     * @return int Holds terminated as `reconciled_released`.
+     *  - evidence the provider consumed nothing  → `reconciled_released`;
+     *  - evidence the provider did consume       → settle it forward to
+     *    `committed` / `committed_over_limit`, appending the Usage Event with
+     *    the true quantity exactly as a producer settlement would.
+     *
+     * Both require positive evidence; neither may be inferred from elapsed
+     * time. Holds it cannot prove stay held. A release-only reconciliation
+     * would strand real consumption whose producer died before settling it,
+     * and that measurement would never reach Usage — the Source Of Truth —
+     * with nothing to signal the loss.
+     *
+     * @return array{released:int,settled:int} Holds terminated by each outcome.
      */
-    public function reconcileUnsettled(int $customerId): int;
+    public function reconcileUnsettled(int $customerId): array;
 }

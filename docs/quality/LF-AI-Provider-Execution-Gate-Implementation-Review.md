@@ -1,6 +1,6 @@
 # AI Provider Execution Gate — Implementation Review
 
-Version: 1.7
+Version: 1.8
 
 Document Status: Review
 
@@ -298,6 +298,35 @@ Giữ `Frozen` trên một tài liệu vừa đổi schema sẽ khiến người
 
 ---
 
+# Review độc lập packet SaaS — vòng 2 — 2026-09-10
+
+Reviewer độc lập (không viết dòng nào của packet) trả `CHANGES REQUIRED`: 1 P0,
+4 P1, 7 P2. **Ba trong bốn P1 là hồi quy do lượt sửa trước gây ra** — thêm status
+và mở đường reconciliation mà không lan quy tắc đi kèm.
+
+| # | Finding | Xử lý |
+| --- | --- | --- |
+| P0-1 | Bản vá E2 bỏ sót `saas_entitlements.effective_from TIMESTAMP NOT NULL` — cột TIMESTAMP đầu bảng, bị MariaDB tự gắn `DEFAULT` + `ON UPDATE`. Mọi `UPDATE` (kể cả lần đóng entitlement) ghi đè điểm bắt đầu hiệu lực, phá index resolve và làm reservation trông như cấp trước khi entitlement có hiệu lực | `effective_from`/`effective_to` → `DATETIME(6)`, kèm business rule giải thích và dẫn migration tiền lệ. Đổi kiểu cũng bỏ trần 2038 và khớp precision với `period_start_at` |
+| P1-1 | Công thức capacity vẫn là câu thời 2-status: `limit − (reserved + committed)`. `executing`, `settling`, `committed_over_limit` rơi khỏi enforcement → hai request đồng thời cùng được báo còn nguyên limit; và tenant vượt trần lại có full allowance mỗi lần | Thay bằng predicate tường minh liệt kê **hết** status: `held` (reserved/executing/settling) + `consumed` (committed/committed_over_limit), scope `(customer_id, feature_key, period_key, unit)`. Định nghĩa "active" = tập `held` |
+| P1-2 | `executing` không có đường tới `committed`. Producer chết sau khi provider trả kết quả → reconciliation có bằng chứng *đã tiêu thụ* nhưng `reconciled_released` đòi bằng chứng *bằng 0*, và không actor nào được ủy quyền lái `executing → settling`. Usage thật mất vĩnh viễn khỏi Source Of Truth | Reconciliation có **hai** outcome; thêm bảng "transition ↔ actor" nói rõ ai được làm gì. `reconcileUnsettled()` đổi kiểu trả về `array{released:int,settled:int}` |
+| P2-1 | `CHECK (reconciled_at IS NULL OR status = 'reconciled_released')` khóa chặt hơn mức chính doc cho phép ở nhánh commit | Nới sang `IN ('committed','committed_over_limit','reconciled_released')` |
+
+Bài học ghi lại để lần sau không lặp: thêm một status vào một máy trạng thái
+không phải là thay đổi cục bộ. Mỗi status mới phải được đối chiếu với **mọi** quy
+tắc đếm, mọi bảng phân quyền actor, và mọi CHECK nhắc tên status — nếu không thì
+chính status vừa thêm sẽ rơi khỏi enforcement.
+
+Reviewer xác nhận đúng: khối CHECK coherence **đóng kín** (kiểm đủ 8 status trên 6
+nhánh, rời nhau đôi một); `UNIQUE (customer_id, reservation_uuid, event_kind)` vẫn
+chặn double-settlement mà không chặn reversal; tenant isolation qua FK đúng;
+trigger immutability không xung đột commit flow.
+
+**Chưa vá, còn mở:** P1-3 (`usage_type` NOT NULL không có nguồn ở reservation),
+P1-4 (một-entitlement-effective chưa enforce vật lý, và atomicity của `reserve()`
+dựa vào nó), cùng P2-2…P2-7. Hai P1 đó đổi shape bảng nên cần Owner quyết.
+
+---
+
 # Giới hạn còn lại của ràng buộc adapter
 
 Gate pin được *provider* và *model* mà adapter khai báo, nhưng không thể chứng
@@ -323,9 +352,9 @@ Owner Decision riêng nếu job thật trên GitHub chạm timeout.
 
 | Lệnh | Kết quả |
 | --- | --- |
-| `php artisan test tests/Feature/AiProviderExecutionGateTest.php` (SQLite) | 32 passed, 164 assertions |
+| `php artisan test tests/Feature/AiProviderExecutionGateTest.php` (SQLite) | 34 passed, 172 assertions |
 | Job `integration-mysql` tái lập trên **MariaDB 11.4.12** | **16/16 file PASS — 200 passed, 815 assertions**, 1016s |
-| `php artisan test` (SQLite, toàn bộ) | 1057 passed, 4 skipped, 7 failed — đúng baseline môi trường |
+| `php artisan test` (SQLite, toàn bộ) | 1059 passed, 4 skipped, 7 failed — đúng baseline môi trường |
 | `php artisan test tests/Feature/AiKnowledgeIngestionServiceTest.php` | 11 passed, 1 skipped — Bước 3 không đổi |
 | `php artisan docs:lint` | PASS |
 | `php artisan schema:drift --docs-only` | PASS — 96 migrations |

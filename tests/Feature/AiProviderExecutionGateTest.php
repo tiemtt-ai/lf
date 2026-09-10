@@ -424,7 +424,7 @@ class AiProviderExecutionGateTest extends TestCase
         // design left it in `settling` with no legal exit, because the schema
         // capped committed_quantity at the reservation.
         $this->assertSame('AI_QUOTA_RESERVATION_EXCEEDED', DB::table('ai_model_runs')->where('customer_id', $customerId)->value('error_code'));
-        $this->assertSame(0, $this->quota->reconcileUnsettled($customerId), 'A settled overage is not reconciliation work.');
+        $this->assertSame(['released' => 0, 'settled' => 0], $this->quota->reconcileUnsettled($customerId), 'A settled overage is not reconciliation work.');
     }
 
     public function test_a_reservation_abandoned_by_a_crash_is_reclaimed_by_reconciliation(): void
@@ -645,16 +645,16 @@ class AiProviderExecutionGateTest extends TestCase
         // Elapsed time alone must never terminate it, however long it sits.
         $this->quota->expire($reservationId);
         $this->assertSame(0, $this->quota->reconcileExpired($customerId));
-        $this->assertSame(0, $this->quota->reconcileUnsettled($customerId), 'No evidence yet means the hold stays held.');
+        $this->assertSame(['released' => 0, 'settled' => 0], $this->quota->reconcileUnsettled($customerId), 'No evidence yet means the hold stays held.');
         $this->assertLessThan($before, $this->quota->balance());
 
         // Only positive evidence that nothing was consumed releases it, and it
         // lands in a status an auditor can tell apart from a plain release.
         $this->quota->proveNothingConsumed($reservationId);
-        $this->assertSame(1, $this->quota->reconcileUnsettled($customerId));
+        $this->assertSame(['released' => 1, 'settled' => 0], $this->quota->reconcileUnsettled($customerId));
         $this->assertSame('reconciled_released', $this->quota->reservations[$reservationId]['status']);
         $this->assertSame($before, $this->quota->balance());
-        $this->assertSame(0, $this->quota->reconcileUnsettled($customerId), 'Reconciliation must not double-refund.');
+        $this->assertSame(['released' => 0, 'settled' => 0], $this->quota->reconcileUnsettled($customerId), 'Reconciliation must not double-refund.');
     }
 
     public function test_the_gate_never_attempts_a_release_past_the_provider_boundary(): void
@@ -710,6 +710,57 @@ class AiProviderExecutionGateTest extends TestCase
         $reservationId = array_key_first($this->quota->reservations);
         $this->assertSame('reserved', $this->quota->reservations[$reservationId]['status'], 'The shared hold must survive intact for the winner.');
         $this->assertSame('running', DB::table('ai_model_runs')->where('customer_id', $customerId)->value('status'));
+    }
+
+    public function test_reconciliation_settles_consumption_whose_producer_died_before_settling(): void
+    {
+        $customerId = $this->tenant('reconcile-settle');
+        $this->approveTenant($customerId);
+        $this->entitlements->grant($customerId, 'ai_knowledge_embedding');
+        $adapter = new SpyProviderAdapter(new RuntimeException('killed mid-flight'));
+
+        try {
+            $this->gate()->execute($this->request(), fn () => $adapter);
+        } catch (AiProviderGateException) {
+            // The producer died after crossing the boundary.
+        }
+
+        $reservationId = array_key_first($this->quota->reservations);
+        $this->assertSame('executing', $this->quota->reservations[$reservationId]['status']);
+
+        // Reconciliation later proves the provider *did* consume 1.0. A
+        // release-only path would hand the quota back and the measurement would
+        // never reach Usage — the Source Of Truth — with nothing to signal it.
+        $this->quota->proveConsumed($reservationId, 1.0);
+        $outcome = $this->quota->reconcileUnsettled($customerId);
+
+        $this->assertSame(['released' => 0, 'settled' => 1], $outcome);
+        $this->assertSame('committed', $this->quota->reservations[$reservationId]['status']);
+        $this->assertSame(1.0, $this->quota->reservations[$reservationId]['committed_quantity']);
+        $this->assertSame(0, $this->quota->releaseCalls, 'Consumed usage must never be refunded.');
+    }
+
+    public function test_reconciliation_settles_an_overage_it_discovers_after_the_fact(): void
+    {
+        $customerId = $this->tenant('reconcile-overage');
+        $this->approveTenant($customerId);
+        $this->entitlements->grant($customerId, 'ai_knowledge_embedding');
+        $adapter = new SpyProviderAdapter(new RuntimeException('killed mid-flight'));
+
+        try {
+            $this->gate()->execute($this->request(['quotaQuantity' => 1.0]), fn () => $adapter);
+        } catch (AiProviderGateException) {
+            // expected
+        }
+
+        $reservationId = array_key_first($this->quota->reservations);
+        // The provider consumed more than the hold. Recording the true amount
+        // matters more than making it fit.
+        $this->quota->proveConsumed($reservationId, 2.5);
+
+        $this->assertSame(['released' => 0, 'settled' => 1], $this->quota->reconcileUnsettled($customerId));
+        $this->assertSame('committed_over_limit', $this->quota->reservations[$reservationId]['status']);
+        $this->assertSame(2.5, $this->quota->reservations[$reservationId]['committed_quantity']);
     }
 
     // ---- fixtures -------------------------------------------------------

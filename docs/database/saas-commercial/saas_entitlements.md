@@ -52,6 +52,20 @@ Commercial source that produced the effective right.
 * At one instant, only one effective Entitlement may exist for each
   `customer_id + feature_key`.
 * `effective_from` must precede `effective_to` when an end exists.
+* Cả hai mốc là `DATETIME(6)`, **không** phải `TIMESTAMP`. `effective_from` là cột
+  TIMESTAMP NOT NULL đầu tiên của bảng, nên trên MariaDB chạy
+  `explicit_defaults_for_timestamp = OFF` nó sẽ bị tự gắn `DEFAULT
+  CURRENT_TIMESTAMP` **và** `ON UPDATE CURRENT_TIMESTAMP`. Hệ quả: mọi `UPDATE`
+  lên hàng — kể cả lần đóng entitlement bằng `status='expired'` — âm thầm ghi đè
+  điểm bắt đầu hiệu lực, phá cửa sổ thời gian mà `INDEX (customer_id,
+  feature_key, effective_from, effective_to)` dùng để resolve, và khiến một
+  reservation đã cấp trông như được cấp trước khi entitlement có hiệu lực. Lỗi
+  này đã xảy ra thật trong repo: xem
+  `2026_08_09_050000_remove_implicit_timestamp_on_update_from_occurrence_columns`.
+  `DATETIME(6)` không có hành vi ngầm đó và cũng bỏ luôn trần 2038 của
+  `TIMESTAMP`, vốn chặn entitlement dài hạn; nó đồng thời khớp precision với
+  `saas_usage_reservations.period_start_at`, nơi hai giá trị được so sánh ở đúng
+  biên period.
 * Generic source reference must resolve to an approved Commercial source in
   the same Customer context, except global Plan Feature. Manual override is not
   an approved Foundation source.
@@ -76,8 +90,8 @@ Commercial source that produced the effective right.
 | quota_timezone | VARCHAR(64) NULL | IANA timezone used for period boundaries. |
 | source_type | VARCHAR(50) NOT NULL | Commercial source classification. |
 | source_id | BIGINT UNSIGNED NOT NULL | Source record ID. |
-| effective_from | TIMESTAMP NOT NULL | Effective-window start. |
-| effective_to | TIMESTAMP NULL | Effective-window end. |
+| effective_from | DATETIME(6) NOT NULL | Effective-window start. |
+| effective_to | DATETIME(6) NULL | Effective-window end. |
 | status | VARCHAR(50) NOT NULL DEFAULT 'active' | Entitlement lifecycle. |
 | metadata | JSON NULL | Resolution provenance without foreign state. |
 | created_at | TIMESTAMP NULL | Created time. |

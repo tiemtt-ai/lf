@@ -163,26 +163,52 @@ final class FakeUsageQuotaReserver implements UsageQuotaReserver
      * the boundary only when a test states positively that nothing was
      * consumed — never from elapsed time.
      */
-    public function reconcileUnsettled(int $customerId): int
+    public function reconcileUnsettled(int $customerId): array
     {
-        $reclaimed = 0;
+        $outcome = ['released' => 0, 'settled' => 0];
+
         foreach ($this->reservations as $id => $reservation) {
             if ($reservation['customer_id'] !== $customerId
-                || ! in_array($reservation['status'], ['executing', 'settling'], true)
-                || ($reservation['provider_consumed_nothing'] ?? false) !== true) {
+                || ! in_array($reservation['status'], ['executing', 'settling'], true)) {
                 continue;
             }
-            $this->reservations[$id]['status'] = 'reconciled_released';
-            $this->balance += $reservation['quantity'];
-            $reclaimed++;
+
+            // Evidence the provider consumed nothing: hand the hold back.
+            if (($reservation['provider_consumed_nothing'] ?? false) === true) {
+                $this->reservations[$id]['status'] = 'reconciled_released';
+                $this->balance += $reservation['quantity'];
+                $outcome['released']++;
+
+                continue;
+            }
+
+            // Evidence the provider did consume: settle it forward with the
+            // true quantity. Releasing here would lose a real measurement whose
+            // producer died before it could settle.
+            $consumed = $reservation['provider_consumed_quantity'] ?? null;
+            if ($consumed !== null) {
+                $this->reservations[$id]['committed_quantity'] = $consumed;
+                $this->reservations[$id]['status'] = $consumed > $reservation['quantity']
+                    ? 'committed_over_limit'
+                    : 'committed';
+                $outcome['settled']++;
+            }
+
+            // No evidence either way: the hold stays held.
         }
 
-        return $reclaimed;
+        return $outcome;
     }
 
     /** A test asserting positive evidence that the provider consumed nothing. */
     public function proveNothingConsumed(string $reservationId): void
     {
         $this->reservations[$reservationId]['provider_consumed_nothing'] = true;
+    }
+
+    /** A test asserting positive evidence of how much the provider consumed. */
+    public function proveConsumed(string $reservationId, float $quantity): void
+    {
+        $this->reservations[$reservationId]['provider_consumed_quantity'] = $quantity;
     }
 }

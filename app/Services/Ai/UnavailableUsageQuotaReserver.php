@@ -47,8 +47,8 @@ final class UnavailableUsageQuotaReserver implements UsageQuotaReserver
         return 0;
     }
 
-    public function reconcileUnsettled(int $customerId): int
+    public function reconcileUnsettled(int $customerId): array
     {
-        return 0;
+        return ['released' => 0, 'settled' => 0];
     }
 }
