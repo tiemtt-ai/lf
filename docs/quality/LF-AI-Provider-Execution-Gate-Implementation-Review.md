@@ -1,6 +1,6 @@
 # AI Provider Execution Gate — Implementation Review
 
-Version: 1.6
+Version: 1.7
 
 Document Status: Review
 
@@ -230,9 +230,10 @@ TTL mặc định 15 phút, hard renewal cap là min(`created_at + 2 hours`,
 `period_end_at`). `saas_usage_events` có immutable `event_uuid`, append-only
 reversal và projector watermark; Counter không tham gia authorization.
 
-**Gate hiện tại:** Database Docs vẫn `Review / Not Implemented`; chưa Frozen,
-chưa tạo migration. Vocabulary đã được duyệt; independent re-review PASS là
-điều kiện còn lại để mở Migration.
+**Gate hiện tại:** Architecture Owner đã chuyển bốn Database Docs sang
+`Frozen / Not Implemented` ngày 2026-09-10; chưa tạo migration. Vocabulary đã
+được duyệt; independent Architecture Review PASS vẫn là điều kiện còn lại để
+mở Migration theo guardrail, và không được suy ra từ quyết định Freeze.
 
 ---
 
@@ -270,6 +271,30 @@ Test mới: overage ghi đủ 2.0 trên hold 1.0, status `committed_over_limit`,
 việc tồn đọng. Race claim mô phỏng bằng cách chèn một caller thắng vào giữa
 reservation của caller thua, rồi khẳng định `releaseCalls === 0` và hold vẫn
 nguyên `reserved`.
+
+---
+
+# Review độc lập packet SaaS — 2026-09-10
+
+Reviewer abstain trên `saas_usage_reservations` vì chính reviewer đã viết
+`reconciled_released`, `committed_over_limit` và contract `release()` ở các lượt
+trước. Ba bảng còn lại được review; bốn finding đã vá, cùng bởi reviewer đó —
+nên các sửa đổi dưới đây **cần một người khác xác nhận**.
+
+| # | Bảng | Finding | Xử lý |
+| --- | --- | --- | --- |
+| E1 | `saas_usage_events` | `UNIQUE (customer_id, reservation_uuid)` khiến metric có reservation không bao giờ reversal được: reversal mang cùng uuid thì đụng khoá, không mang thì vi phạm luật "must carry". Đúng những metric tính tiền là những metric không sửa được | Khoá thành `(customer_id, reservation_uuid, event_kind)`: một settlement và tối đa một correction của nó, cả hai giữ nguyên provenance |
+| E2 | `saas_usage_events` | `occurred_at TIMESTAMP NOT NULL` không default, là cột TIMESTAMP đầu bảng. Server chạy `explicit_defaults_for_timestamp = 0` nên MariaDB tự gắn `DEFAULT CURRENT_TIMESTAMP` **và** `ON UPDATE CURRENT_TIMESTAMP` — đúng lỗi đã hỏng `enrolled_at`/`joined_at`/`completed_at` và phải sửa bằng migration `2026_08_09_050000` | `occurred_at` thành `DATETIME(6)`; `created_at` khai default tường minh, không on-update |
+| E3 | `saas_usage_events` | Append-only chỉ là lời văn, trong khi `media_access_logs` — dữ liệu ít hệ trọng hơn — đã được chặn vật lý và có test | Thêm BEFORE UPDATE/DELETE trigger `LF_USAGE_EVENT_IMMUTABLE` theo đúng khuôn mẫu đó |
+| C1 | `saas_usage_counters` | `updated_at TIMESTAMP NOT NULL` dính cùng bẫy; on-update ở đây là *muốn có*, nhưng ngầm thì contract không ghi được và `schema:drift` sẽ báo lệch mãi | Khai tường minh cả default lẫn on-update |
+
+`N1` (partial-unique cho entitlement effective) được nêu như gợi ý và **chưa**
+vá; nó thu hẹp chứ không đóng hết cửa sổ thời gian, nên thuộc quyết định của chủ
+doc.
+
+Hai doc bị sửa nội dung được trả về `Document Status: Review`, cùng manifest.
+Giữ `Frozen` trên một tài liệu vừa đổi schema sẽ khiến người đọc sau tin rằng
+điều kiện "Database Docs approved" của AGENTS.md § Database Rule đã đạt.
 
 ---
 

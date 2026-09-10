@@ -6,9 +6,21 @@ Document Status: Review
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-09-09
+Last Updated: 2026-09-10
 
 Document Path: database/saas-usage/saas_usage_counters.md
+
+## Owner Freeze — 2026-09-10
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-09-10
+Decision: APPROVED AND FROZEN
+Scope: saas_usage_counters projection and watermark schema in this version
+```
+
+Implementation remains `Not Implemented`. Freeze does not itself authorize or
+apply a migration without the required Architecture Review PASS.
 
 ## Purpose
 
@@ -31,6 +43,11 @@ Counter belongs to one Customer and is derived exclusively from
 * `period_key` must follow the approved timezone/format contract.
 * `usage_quantity` must be recalculated when an included late/correction event
   arrives.
+* `updated_at` declares its default and on-update clause explicitly. The
+  on-update behaviour is wanted here — this is a projection — but MariaDB would
+  attach it implicitly to the first bare `TIMESTAMP NOT NULL` column anyway, and
+  an implicit clause is one the schema contract cannot record, so `schema:drift`
+  would report the difference forever.
 * `last_usage_event_id` is the projection watermark. It is not used for quota
   authorization; Commercial reservation enforcement must remain correct while
   this projection is stale.
@@ -47,7 +64,7 @@ Counter belongs to one Customer and is derived exclusively from
 | usage_quantity | DECIMAL(20,6) NOT NULL DEFAULT 0 | Accumulated consumed quantity. |
 | last_usage_event_id | BIGINT UNSIGNED NULL | Highest Usage Event included in this projection. |
 | unit | VARCHAR(50) NOT NULL | Unit matching source metric contract. |
-| updated_at | TIMESTAMP NOT NULL | Last projection update/rebuild time. |
+| updated_at | TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) | Last projection update/rebuild time. |
 
 ## Indexes
 

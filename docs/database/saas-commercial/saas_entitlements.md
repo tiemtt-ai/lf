@@ -2,13 +2,25 @@
 
 Version: 1.1
 
-Document Status: Review
+Document Status: Frozen
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-09-09
+Last Updated: 2026-09-10
 
 Document Path: database/saas-commercial/saas_entitlements.md
+
+## Owner Freeze — 2026-09-10
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-09-10
+Decision: APPROVED AND FROZEN
+Scope: saas_entitlements metered-entitlement schema in this version
+```
+
+Implementation remains `Not Implemented`. Freeze does not itself authorize or
+apply a migration without the required Architecture Review PASS.
 
 ## Purpose
 

@@ -2,11 +2,11 @@
 
 Version: 1.0
 
-Document Status: Review
+Document Status: Frozen
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-09-09
+Last Updated: 2026-09-10
 
 Document Path: database/saas-commercial/saas_usage_reservations.md
 
@@ -25,6 +25,19 @@ Approved by LearnForge Architecture Owner on 2026-09-09: Commercial owns the
 reservation ledger; Tenant Settings, Entitlements and Usage must be implemented
 before the first provider is activated. This document freezes the physical
 candidate for independent architecture review; it does not activate a provider.
+
+## Owner Freeze — 2026-09-10
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-09-10
+Decision: APPROVED AND FROZEN
+Scope: saas_usage_reservations physical schema and lifecycle in this version
+```
+
+Freeze locks the documented schema candidate. `Implementation Status` remains
+`Not Implemented`; this decision neither creates a migration nor substitutes
+for the independent Architecture Review PASS required before migration.
 
 # Business Rules
 
