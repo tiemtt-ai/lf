@@ -53,8 +53,13 @@ Commercial source that produced the effective right.
   `customer_id + feature_key`.
 * `UNIQUE (customer_id, active_slot)` enforces the common half of that rule
   physically: at most one `active` row with an open end (`effective_to IS NULL`)
-  per feature. Rows that are closed or inactive fall into the per-`id` branch of
-  the generated column and never collide.
+  per feature. Closed or inactive rows generate `NULL`, and MariaDB does not
+  collide NULLs in a unique index, so any number of them coexist.
+* The generated column must **not** reference `id`. An earlier revision used
+  `CONCAT(feature_key,':',id)` for the inactive branch; MariaDB rejects it at DDL
+  time with `ERROR 1901: Function or expression 'AUTO_INCREMENT' cannot be used
+  in the GENERATED ALWAYS AS clause`. Verified on MariaDB 11.4.12, 2026-09-10.
+  The `NULL` branch needs no surrogate and is simpler.
 * It does **not** cover overlapping closed windows — MariaDB has no EXCLUDE
   constraint — so resolution must still close or revoke the previous row inside
   the same transaction. The guard removes the failure mode that matters most:
@@ -108,7 +113,7 @@ Commercial source that produced the effective right.
 | effective_from | DATETIME(6) NOT NULL | Effective-window start. |
 | effective_to | DATETIME(6) NULL | Effective-window end. |
 | status | VARCHAR(50) NOT NULL DEFAULT 'active' | Entitlement lifecycle. |
-| active_slot | VARCHAR(150) AS (CASE WHEN status='active' AND effective_to IS NULL THEN CONCAT(feature_key,':current') ELSE CONCAT(feature_key,':',id) END) STORED | Physical guard for one open-ended active Entitlement per feature. |
+| active_slot | VARCHAR(100) AS (CASE WHEN status='active' AND effective_to IS NULL THEN feature_key ELSE NULL END) STORED | Physical guard for one open-ended active Entitlement per feature; NULL for every closed or inactive row. |
 | metadata | JSON NULL | Resolution provenance without foreign state. |
 | created_at | TIMESTAMP NULL | Created time. |
 | updated_at | TIMESTAMP NULL | Lifecycle/resolution update time. |

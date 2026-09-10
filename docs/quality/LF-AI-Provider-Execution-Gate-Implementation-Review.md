@@ -1,6 +1,6 @@
 # AI Provider Execution Gate — Implementation Review
 
-Version: 1.9
+Version: 1.10
 
 Document Status: Review
 
@@ -340,7 +340,32 @@ nơi nó trả lời "attempt này reserve cho metric nào", không phải "đư
 
 `saas_entitlements` thêm generated column `active_slot` cùng
 `UNIQUE (customer_id, active_slot)`: tối đa một hàng `active` có `effective_to IS
-NULL` trên mỗi feature. Hàng đã đóng rơi vào nhánh per-`id` nên không đụng nhau.
+NULL` trên mỗi feature. Hàng đã đóng sinh `NULL`, và MariaDB không cho NULL đụng
+nhau trong unique index, nên số lượng bao nhiêu cũng được.
+
+**Sửa sau review 2026-09-10:** bản đầu dùng `CONCAT(feature_key,':',id)` cho
+nhánh inactive. Reviewer chỉ ra MariaDB hạn chế generated column phụ thuộc
+`AUTO_INCREMENT`. Kiểm chứng trên MariaDB 11.4.12:
+
+```text
+ERROR 1901 (HY000): Function or expression 'AUTO_INCREMENT' cannot be used
+in the GENERATED ALWAYS AS clause of `id`
+```
+
+DDL đó sẽ chết ngay lúc migration, và suite xanh không hề phát hiện được vì
+packet chưa migrate — không có test nào chạy DDL này. Biểu thức thay thế dùng
+`NULL` cho nhánh inactive, không cần surrogate.
+
+Hành vi đã được chứng minh trên 11.4.12, không phải suy luận:
+
+| Kịch bản | Kết quả |
+| --- | --- |
+| 3 hàng đã đóng cùng `(tenant, feature)` | cho phép, `active_slot` đều NULL |
+| 1 hàng `active` open-ended | cho phép |
+| feature khác cùng tenant | cho phép |
+| cùng feature khác tenant | cho phép |
+| hàng `active` open-ended **thứ hai** cùng tenant+feature | **chặn** — `ERROR 1062 Duplicate entry '1-ai_tutor'` |
+| đóng hàng cũ rồi mở hàng mới trong cùng transaction | cho phép |
 
 Nó **không** thay thế transaction check, và doc nói rõ điều đó: `reserve()` vẫn
 phải resolve đúng **một** entitlement effective và fail-closed khi ra 0 hoặc >1.
