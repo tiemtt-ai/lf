@@ -68,7 +68,18 @@ was rejected because `saas_usage_counters` is a derived projection that forbids 
 source Domain from writing it, and an `ai_*` table was rejected because it would
 let AI grant itself spending authority against ADR-0006.
 
-The reservation port stays fail-closed until that table exists. Owner also
+Gate step 2–4 now bind to real readers — `DatabaseTenantSettings`,
+`DatabaseCommercialEntitlements`, `DatabaseUsageQuotaReserver` — rather than to
+null objects. Each checks its table and returns the fail-closed answer while the
+SaaS packet is unmigrated, so the gate keeps producing an auditable `blocked`
+run instead of an unhandled QueryException. Behaviour today is unchanged: every
+request is still refused at step 2.
+
+Their SQL paths carry **no physical verification yet**. The tables are
+`Review / Not Implemented`, so no test can exercise a reserve, a settlement or a
+concurrent hold; only the absent-table fallback is covered. Treat the store as
+unproven until migration lands and two-connection concurrency is demonstrated
+against it. Owner also
 decided that `saas_customer_settings`, `saas_entitlements` and
 `saas_usage_counters` must all be migrated before the first provider is
 activated: opening a provider without entitlement and quota is calling it with no

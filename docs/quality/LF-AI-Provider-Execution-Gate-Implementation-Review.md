@@ -1,6 +1,6 @@
 # AI Provider Execution Gate — Implementation Review
 
-Version: 1.12
+Version: 1.13
 
 Document Status: Review
 
@@ -544,6 +544,38 @@ Có thể là chủ ý (bảo toàn audit), nhưng nên phát biểu thay vì đ
 
 ---
 
+# Bind implementation thật cho ba cổng — 2026-09-10
+
+| Cổng | Trước | Sau |
+| --- | --- | --- |
+| `TenantSettingSource` | `UnavailableTenantSettings` | `DatabaseTenantSettings` — đọc `saas_customer_settings` group `ai`, chỉ nhận `value_type='json'` |
+| `CommercialEntitlements` | `UnavailableCommercialEntitlements` | `DatabaseCommercialEntitlements` — một truy vấn `effectiveQuery()` dùng chung với store, để hai bên không có hai định nghĩa "effective" |
+| `UsageQuotaReserver` | `UnavailableUsageQuotaReserver` | `DatabaseUsageQuotaReserver` — reserve/commit/release/expire theo contract |
+
+Mỗi implementation kiểm `Schema::hasTable()` và trả về câu trả lời fail-closed
+khi bảng chưa có. Không có bước đó, bind thẳng sẽ biến mọi lời gọi gate thành
+`QueryException` — tức đổi một refusal có kiểm toán lấy một lỗi không ai bắt.
+Hành vi hôm nay không đổi: mọi request vẫn bị chặn ở bước 2.
+
+Một lỗi bị PHP bắt lúc bind: `reserve()` tôi viết thiếu tham số `usageType` và tự
+suy nó từ `unit` — đúng điều P1-3 cấm. Sửa để `usage_type` đến từ request.
+
+## Giới hạn phải nói rõ
+
+Toàn bộ đường SQL của ba lớp này **chưa được kiểm chứng lần nào**. Bốn bảng ở
+`Review / Not Implemented` nên không test nào chạy được một `reserve()` thật, một
+settlement thật, hay hai hold đồng thời. Hai test mới chỉ phủ nhánh
+bảng-chưa-tồn-tại.
+
+`reconcileUnsettled()` cố ý trả `['released' => 0, 'settled' => 0]`: kết thúc một
+hold đã qua biên provider cần bằng chứng từ provider mà lớp này không tự lấy
+được, và đoán sai thì hoặc hoàn tiền cho usage có thật, hoặc tính tiền cho usage
+không có.
+
+Nếu vòng review độc lập sắp tới đổi schema, code này phải viết lại theo.
+
+---
+
 # Giới hạn còn lại của ràng buộc adapter
 
 Gate pin được *provider* và *model* mà adapter khai báo, nhưng không thể chứng
@@ -569,7 +601,7 @@ Owner Decision riêng nếu job thật trên GitHub chạm timeout.
 
 | Lệnh | Kết quả |
 | --- | --- |
-| `php artisan test tests/Feature/AiProviderExecutionGateTest.php` (SQLite) | 35 passed, 175 assertions |
+| `php artisan test tests/Feature/AiProviderExecutionGateTest.php` (SQLite) | 37 passed, 185 assertions |
 | Job `integration-mysql` tái lập trên **MariaDB 11.4.12** | **16/16 file PASS — 203 passed, 826 assertions**, 1009s |
 | `php artisan test` (SQLite, toàn bộ) | 1059 passed, 4 skipped, 7 failed — đúng baseline môi trường |
 | `php artisan test tests/Feature/AiKnowledgeIngestionServiceTest.php` | 11 passed, 1 skipped — Bước 3 không đổi |

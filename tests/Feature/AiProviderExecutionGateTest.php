@@ -8,6 +8,9 @@ use App\Contracts\Ai\TenantSettingSource;
 use App\Contracts\Ai\UsageQuotaReserver;
 use App\Exceptions\AiProviderGateException;
 use App\Services\Ai\AiModelRunRecorder;
+use App\Services\Ai\DatabaseCommercialEntitlements;
+use App\Services\Ai\DatabaseTenantSettings;
+use App\Services\Ai\DatabaseUsageQuotaReserver;
 use App\Services\Ai\SettingBackedExternalProcessingApprovals;
 use App\Services\Ai\UnavailableCommercialEntitlements;
 use App\Services\Ai\UnavailableTenantSettings;
@@ -784,6 +787,42 @@ class AiProviderExecutionGateTest extends TestCase
         $metadata = json_decode(DB::table('ai_model_runs')->where('customer_id', $customerId)->value('metadata'), true);
         $this->assertSame('input_token', $metadata['quota']['usage_type']);
         $this->assertSame('token', $metadata['quota']['unit']);
+    }
+
+    public function test_the_shipped_database_bindings_block_cleanly_while_the_saas_tables_are_absent(): void
+    {
+        // The real bindings, not the fakes. `saas_customer_settings`,
+        // `saas_entitlements` and `saas_usage_reservations` are documented but
+        // not migrated, so every read must degrade to the fail-closed answer.
+        // The failure mode this guards against is a QueryException escaping the
+        // gate: an unhandled error instead of an auditable `blocked` run.
+        $this->app->bind(TenantSettingSource::class, DatabaseTenantSettings::class);
+        $this->app->bind(CommercialEntitlements::class, DatabaseCommercialEntitlements::class);
+        $this->app->bind(UsageQuotaReserver::class, DatabaseUsageQuotaReserver::class);
+
+        $customerId = $this->tenant('db-bindings-absent');
+        $adapter = new SpyProviderAdapter;
+
+        $decision = $this->gate()->execute($this->request(), fn () => $adapter);
+
+        $this->assertFalse($decision->allowed);
+        $this->assertSame('AI_APPROVAL_REQUIRED', $decision->errorCode);
+        $this->assertSame('tenant_approval', $decision->blockedStep);
+        $this->assertSame(0, $adapter->calls);
+        $this->assertFalse($adapter->credentialResolved);
+
+        $run = DB::table('ai_model_runs')->where('customer_id', $customerId)->first();
+        $this->assertSame('blocked', $run->status);
+        $this->assertSame('AI_APPROVAL_REQUIRED', $run->error_code);
+    }
+
+    public function test_the_reservation_store_reserves_nothing_while_its_table_is_absent(): void
+    {
+        $reserver = $this->app->make(DatabaseUsageQuotaReserver::class);
+
+        $this->assertNull($reserver->reserve(1, 1, 'run-uuid', 'ai_knowledge_embedding', 'token', 1.0, 'token'));
+        $this->assertSame(0, $reserver->reconcileExpired(1));
+        $this->assertSame(['released' => 0, 'settled' => 0], $reserver->reconcileUnsettled(1));
     }
 
     // ---- fixtures -------------------------------------------------------
