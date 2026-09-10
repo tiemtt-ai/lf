@@ -129,6 +129,8 @@ INDEX (source_type, source_id);
 INDEX (effective_to);
 UNIQUE (id, customer_id);
 UNIQUE (customer_id, active_slot);
+
+FOREIGN KEY (customer_id) REFERENCES saas_customers(id) RESTRICT;
 CHECK ((entitlement_type IN ('integer','decimal','unlimited') AND
         quota_unit IS NOT NULL AND quota_period_type IS NOT NULL AND
         quota_timezone IS NOT NULL) OR

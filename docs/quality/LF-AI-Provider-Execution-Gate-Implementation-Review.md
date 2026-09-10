@@ -1,6 +1,6 @@
 # AI Provider Execution Gate — Implementation Review
 
-Version: 1.10
+Version: 1.12
 
 Document Status: Review
 
@@ -372,10 +372,62 @@ phải resolve đúng **một** entitlement effective và fail-closed khi ra 0 h
 Index thu hẹp cửa sổ, không đóng nó — overlap giữa hai khoảng đã đóng cần range
 exclusion mà MariaDB không có.
 
+## P2-2…P2-7 — đã vá 2026-09-10
+
+| # | Xử lý |
+| --- | --- |
+| P2-2 | `INDEX (customer_id, usage_event_id)` → `UNIQUE`. Một Usage Event thuộc đúng một hold; NULL lặp được nên hold chưa commit không ảnh hưởng |
+| P2-3 | Hai CHECK biến quy tắc renewal thành ràng buộc vật lý: `lease_expires_at <= max_lease_expires_at` và `max_lease_expires_at <= period_end_at` |
+| P2-4 | Xem mục riêng bên dưới — bản vá đầu tiên **chưa đóng**, đã sửa lại 2026-09-10 |
+| P2-5 | Trình tự purge ba bước (reversal → reservation → measurement), tuyên bố reservation đã settle và event của nó là **một đơn vị retention**, và control vận hành cho cửa sổ trigger bị drop |
+| P2-6 | Cả bốn bảng khai `FOREIGN KEY (customer_id) REFERENCES saas_customers(id) RESTRICT`; quyết định phạm vi packet ghi ở cả hai `README.md` kèm lý do |
+| P2-7 | `LF-INDEX` dòng SaaS Usage mirror cách diễn đạt của dòng Commercial |
+| O-1 | Ghi vào `saas_usage_events` vì sao `reservation_uuid` **không** có FK: `usage_event_id` đã trỏ chiều ngược, hai FK cứng hai chiều tạo phụ thuộc vòng không thoả được lúc INSERT |
+
+O-2 đã xử lý cùng P0-1. O-3 và O-4 là ghi chú diễn giải, chưa vá.
+
+## P2-4 — vòng hai, 2026-09-10
+
+Bản vá đầu của tôi bỏ `period_key` khỏi **lookup** nhưng giữ nó trong **khóa
+UNIQUE**, và biện minh bằng câu: *"cùng một attempt có thể hợp lệ sinh hold ở hai
+period khác nhau sau khi hold trước đã terminal."*
+
+Reviewer chỉ ra chính câu đó mở lại lỗ: **`committed` là terminal.** Một retry
+sang ngày mới thấy hold cũ đã `committed`, không tái dùng, sinh
+`reservation_uuid` mới cho usage đã settlement — và khóa
+`(customer_id, reservation_uuid, event_kind)` bên Usage Event không thấy gì vì
+hai uuid khác nhau. Đúng lỗ double-billing mà P2-4 sinh ra để bịt.
+
+Sửa lại theo hai hướng cùng lúc:
+
+1. **Phân loại theo trạng thái, không theo "terminal".**
+
+   | Trạng thái hold đang có | `reserve()` |
+   | --- | --- |
+   | `committed`, `committed_over_limit` | trả settlement cũ, **không** tạo hold mới |
+   | `reserved`, `executing`, `settling` | tái dùng |
+   | `released`, `expired`, `reconciled_released` | lần thực thi mới là attempt mới, phải mang `source_uuid` mới |
+
+2. **Bỏ `period_key` khỏi khóa UNIQUE.** Giờ hold thứ hai của cùng
+   attempt/metric đụng khóa bất kể clock đã sang period nào — lỗi thành bất khả
+   thi vật lý thay vì một quy tắc ai đó phải nhớ.
+
+Cộng thêm điểm reviewer nêu và tôi đã bỏ sót: lookup phải nằm **trong cùng
+transaction và cùng lock** với bước resolve entitlement. Lookup-then-insert là
+read-then-write; hai caller đồng thời cùng không thấy hold và cùng insert.
+Transaction Contract nay ghi ba bước theo thứ tự, và nói rõ khóa entitlement
+`FOR UPDATE` là thứ serialize chúng, còn unique key là lớp chặn cuối.
+
+**Bài học lặp lại lần thứ hai:** cả P1-1 và P2-4 đều hỏng vì một quy tắc viết
+bằng cách gom nhóm status (`reserved + committed`, `non-terminal`) thay vì liệt
+kê từng status. Với máy trạng thái tám giá trị, mọi quy tắc nhắc tới status phải
+liệt kê đủ, hoặc nó sẽ sai ngay lần thêm status kế tiếp.
+
 ## Findings còn mở của packet SaaS — nội dung đầy đủ
 
 Ghi nguyên nội dung thay vì chỉ nhắc tên, để lần review sau không phải dựng lại
-lập luận từ đầu. Nguồn: reviewer độc lập, 2026-09-10.
+lập luận từ đầu. Nguồn: reviewer độc lập, 2026-09-10. **Toàn bộ P2-2…P2-7 đã vá**
+— giữ nguyên phần mô tả bên dưới làm hồ sơ vì sao mỗi ràng buộc tồn tại.
 
 ### P2-2 — `usage_event_id` không UNIQUE
 

@@ -85,6 +85,8 @@ UNIQUE (customer_id, feature_key, period_type, period_key, unit);
 INDEX (customer_id, period_type, period_key);
 INDEX (customer_id, feature_key);
 INDEX (updated_at);
+
+FOREIGN KEY (customer_id) REFERENCES saas_customers(id) RESTRICT;
 ```
 
 ## Sample Data

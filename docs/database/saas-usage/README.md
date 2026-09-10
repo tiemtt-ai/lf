@@ -99,3 +99,19 @@ Usage → Track chỉ thông qua ánh xạ phép đo rõ ràng
 - Event Usage không thay thế Event Track hoặc bản ghi của miền
   nghiệp vụ nguồn.
 - Mọi phép đo Usage đều được cô lập theo tenant.
+
+## Tenant foreign key — quyết định của packet, 2026-09-10
+
+Cả bốn bảng của packet Commercial/Usage khai
+`FOREIGN KEY (customer_id) REFERENCES saas_customers(id) RESTRICT`.
+
+Một phần lớn table doc khác trong repo bỏ qua ràng buộc này, nên đây là quyết
+định phạm vi packet chứ không phải chuẩn toàn hệ thống. Lý do chọn khai: đây là
+đường tính tiền — Entitlement, Reservation, Usage Event và Counter. Một hàng
+`customer_id` mồ côi ở đây là tiền tính cho một tenant không tồn tại, và
+Architecture Review Checklist Section B hỏi thẳng "business data có tenant
+ownership chain hợp lệ không"; một khóa ngoại khai báo là bằng chứng rẻ nhất trả
+lời câu đó.
+
+`RESTRICT` là chủ ý: xóa một Customer còn dữ liệu tính tiền phải bị chặn, không
+phải cascade.

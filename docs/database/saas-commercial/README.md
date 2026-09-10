@@ -110,3 +110,19 @@ Commercial → AI, Course, Assessment, LiveClass và Media để kiểm tra tín
 - Miền nghiệp vụ tiêu thụ chỉ đọc, không ghi trạng thái Commercial.
 - Usage và Billing duy trì các Nguồn dữ liệu chuẩn độc lập.
 - Bản ghi Commercial có phạm vi tenant luôn được cô lập theo Customer.
+
+## Tenant foreign key — quyết định của packet, 2026-09-10
+
+Cả bốn bảng của packet Commercial/Usage khai
+`FOREIGN KEY (customer_id) REFERENCES saas_customers(id) RESTRICT`.
+
+Một phần lớn table doc khác trong repo bỏ qua ràng buộc này, nên đây là quyết
+định phạm vi packet chứ không phải chuẩn toàn hệ thống. Lý do chọn khai: đây là
+đường tính tiền — Entitlement, Reservation, Usage Event và Counter. Một hàng
+`customer_id` mồ côi ở đây là tiền tính cho một tenant không tồn tại, và
+Architecture Review Checklist Section B hỏi thẳng "business data có tenant
+ownership chain hợp lệ không"; một khóa ngoại khai báo là bằng chứng rẻ nhất trả
+lời câu đó.
+
+`RESTRICT` là chủ ý: xóa một Customer còn dữ liệu tính tiền phải bị chặn, không
+phải cascade.

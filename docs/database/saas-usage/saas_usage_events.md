@@ -60,6 +60,23 @@ ownership.
   là mất bằng chứng không dựng lại được.
 * Any legally required retention/privacy purge needs separate Governance
   approval and is outside normal Foundation lifecycle.
+* Bỏ trigger **không đủ** để purge. Hai khóa ngoại RESTRICT vẫn chặn: hàng
+  `saas_usage_reservations.usage_event_id` trỏ vào measurement đã settle, và hàng
+  reversal trỏ vào measurement gốc qua self-FK. Trình tự bắt buộc, theo thứ tự:
+
+  1. xóa reversal của measurement;
+  2. xóa hoặc gỡ tham chiếu hàng reservation đã settle trỏ vào nó;
+  3. xóa measurement.
+
+  Reservation đã settle và Usage Event của nó là **một đơn vị retention**: giữ
+  hold mà xóa measurement để lại một hold trỏ vào hư không. Quyết định retention
+  của Governance vì thế phải bao cả `saas_usage_reservations`, không riêng bảng
+  này.
+* Cửa sổ trigger bị drop là khoảng thời gian một Source Of Truth mất hoàn toàn
+  bảo vệ append-only. Purge phải chạy trong một cửa sổ bảo trì có ghi nhận, khôi
+  phục trigger trong cùng transaction/script, và xác minh trigger đã trở lại
+  trước khi mở lại ghi. Một lần purge bỏ dở là một bảng vĩnh viễn mất bảo vệ mà
+  không ai biết.
 * Usage Event is Source Of Truth for Usage measurement.
 * `feature_key`, `usage_type` and `unit` are stable lowercase `snake_case`.
 * `quantity` follows the approved metric/unit contract.
@@ -80,6 +97,12 @@ ownership.
   accepted only from Commercial settlement and must carry `reservation_uuid`.
   Direct append for that metric is rejected. Non-metered measurements keep it
   NULL.
+* `reservation_uuid` cố ý **không** có khóa ngoại tới `saas_usage_reservations`,
+  dù bảng đó có `UNIQUE (customer_id, reservation_uuid)` nên về cú pháp là khai
+  được. Lý do: `saas_usage_reservations.usage_event_id` đã trỏ ngược lại bảng
+  này, và hai khóa ngoại cứng hai chiều tạo phụ thuộc vòng không thoả được tại
+  thời điểm INSERT — hàng nào cũng cần hàng kia tồn tại trước. Đây là quyết định,
+  không phải thiếu sót; đừng "sửa" nó.
 * A reversal of a reserved measurement **keeps the same `reservation_uuid`**, so
   a correction stays traceable to the hold that produced it. Uniqueness is
   therefore per `(customer_id, reservation_uuid, event_kind)`: one settlement and
@@ -123,6 +146,7 @@ INDEX (customer_id, source_type, source_id);
 INDEX (customer_id, correlation_id);
 INDEX (occurred_at);
 INDEX (reverses_event_id, customer_id);
+FOREIGN KEY (customer_id) REFERENCES saas_customers(id) RESTRICT;
 FOREIGN KEY (reverses_event_id, customer_id)
   REFERENCES saas_usage_events(id, customer_id) RESTRICT;
 CHECK (event_kind IN ('measurement','reversal'));
