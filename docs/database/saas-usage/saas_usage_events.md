@@ -1,5 +1,13 @@
 # Table: saas_usage_events
 
+Version: 1.1
+
+Document Status: Review
+
+Implementation Status: Not Implemented
+
+Last Updated: 2026-09-09
+
 Document Path: database/saas-usage/saas_usage_events.md
 
 ## Purpose
@@ -29,6 +37,15 @@ ownership.
 * Usage Event does not replace Track Event, AI Model Run, Media Processing
   state or Audit.
 * Metadata cannot contain canonical source state or credentials.
+* `event_uuid` is the immutable idempotency identity. Retry returns the existing
+  event only when its complete immutable snapshot matches.
+* Corrections are append-only reversals: one `reversal` references exactly one
+  earlier `measurement` in the same tenant, and a measurement is reversed at
+  most once. Quantity is always positive; projector subtracts reversal rows.
+* Metric taxonomy declares `reservation_required`. When true, Usage append is
+  accepted only from Commercial settlement and must carry `reservation_uuid`.
+  Direct append for that metric is rejected. Non-metered measurements keep it
+  NULL.
 
 ## Fields
 
@@ -36,6 +53,10 @@ ownership.
 | --- | --- | --- |
 | id | BIGINT UNSIGNED PK AUTO_INCREMENT | Khóa chính của Usage Event. |
 | customer_id | BIGINT UNSIGNED NOT NULL | Tenant owner. |
+| event_uuid | CHAR(36) NOT NULL | Stable idempotency identity. |
+| event_kind | VARCHAR(30) NOT NULL DEFAULT `measurement` | `measurement` or `reversal`. |
+| reverses_event_id | BIGINT UNSIGNED NULL | Original measurement being reversed. |
+| reservation_uuid | CHAR(36) NULL | Commercial reservation provenance for reserved metrics. |
 | feature_key | VARCHAR(100) NOT NULL | Commercial/platform feature identifier. |
 | usage_type | VARCHAR(100) NOT NULL | Stable measurement type. |
 | quantity | DECIMAL(20,6) NOT NULL | Measured quantity under the metric contract. |
@@ -51,12 +72,23 @@ ownership.
 
 ```sql
 PRIMARY KEY (id);
+UNIQUE (id, customer_id);
+UNIQUE (customer_id, event_uuid);
+UNIQUE (customer_id, reverses_event_id);
+UNIQUE (customer_id, reservation_uuid);
 INDEX (customer_id);
 INDEX (customer_id, feature_key, occurred_at);
 INDEX (customer_id, usage_type, occurred_at);
 INDEX (customer_id, source_type, source_id);
 INDEX (customer_id, correlation_id);
 INDEX (occurred_at);
+INDEX (reverses_event_id, customer_id);
+FOREIGN KEY (reverses_event_id, customer_id)
+  REFERENCES saas_usage_events(id, customer_id) RESTRICT;
+CHECK (event_kind IN ('measurement','reversal'));
+CHECK (quantity > 0);
+CHECK ((event_kind = 'measurement' AND reverses_event_id IS NULL) OR
+       (event_kind = 'reversal' AND reverses_event_id IS NOT NULL));
 ```
 
 ## Sample Data
@@ -65,10 +97,9 @@ INDEX (occurred_at);
 
 ## Design Notes
 
-The Foundation field set does not yet include a dedicated immutable event UUID
-or idempotency key. Duplicate-ingestion and correction/reversal policy must be
-approved before migration. Do not infer uniqueness from `correlation_id` or
-generic source reference.
+The 2026-09-09 Owner decision closes duplicate-ingestion and correction policy:
+`event_uuid` is canonical idempotency; reversal is append-only and unique per
+original event. Do not infer identity from `correlation_id`.
 
 Measurement Contract: Usage does not define metrics. The relevant Domain Owner
 must approve the `feature_key + usage_type + unit` taxonomy before Usage records

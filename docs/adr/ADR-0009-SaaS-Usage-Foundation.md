@@ -12,7 +12,7 @@ Frozen
 
 ## Version
 
-1.0
+1.1
 
 ---
 
@@ -92,6 +92,16 @@ Counter
 
 Summary
 ```
+
+## Amendment 1.1 — Idempotency, reversal and projection watermark
+
+Approved by Architecture Owner on 2026-09-09, pending independent physical
+schema review. Usage Event has stable `event_uuid`; correction is one append-only
+reversal per original measurement, never mutation. Counter records
+`last_usage_event_id` as projection watermark. Commercial quota enforcement does
+not depend on Counter freshness and never updates Counter directly. A metric
+taxonomy marked `reservation_required` may only be appended by Commercial
+settlement and carries the reservation UUID; direct append is rejected.
 
 ---
 

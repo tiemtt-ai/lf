@@ -1,5 +1,13 @@
 # Table: saas_usage_counters
 
+Version: 1.1
+
+Document Status: Review
+
+Implementation Status: Not Implemented
+
+Last Updated: 2026-09-09
+
 Document Path: database/saas-usage/saas_usage_counters.md
 
 ## Purpose
@@ -23,6 +31,9 @@ Counter belongs to one Customer and is derived exclusively from
 * `period_key` must follow the approved timezone/format contract.
 * `usage_quantity` must be recalculated when an included late/correction event
   arrives.
+* `last_usage_event_id` is the projection watermark. It is not used for quota
+  authorization; Commercial reservation enforcement must remain correct while
+  this projection is stale.
 
 ## Fields
 
@@ -34,6 +45,7 @@ Counter belongs to one Customer and is derived exclusively from
 | period_type | VARCHAR(50) NOT NULL | Daily, monthly, yearly or lifetime period. |
 | period_key | VARCHAR(50) NOT NULL | Canonical period identifier. |
 | usage_quantity | DECIMAL(20,6) NOT NULL DEFAULT 0 | Accumulated consumed quantity. |
+| last_usage_event_id | BIGINT UNSIGNED NULL | Highest Usage Event included in this projection. |
 | unit | VARCHAR(50) NOT NULL | Unit matching source metric contract. |
 | updated_at | TIMESTAMP NOT NULL | Last projection update/rebuild time. |
 

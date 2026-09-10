@@ -149,4 +149,5 @@ jobs:
             tests/Integration/MediaCaptionProvenanceMariaDbTest.php \
             tests/Integration/MediaProcessingJobKeyWidthMariaDbTest.php \
             tests/Feature/AiKnowledgeIngestionServiceTest.php \
+            tests/Feature/AiProviderExecutionGateTest.php \
             tests/Integration/AiFoundationKnowledgePacketMariaDbTest.php

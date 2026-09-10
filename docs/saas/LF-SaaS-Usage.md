@@ -1,12 +1,12 @@
 # LF-SaaS-Usage.md
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Frozen
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-09-09
 
 Document Path: saas/LF-SaaS-Usage.md
 
@@ -137,6 +137,8 @@ Usage Event:
 * Có event time (`occurred_at`) và ingestion time (`created_at`).
 * Có source reference để truy vết.
 * Không chứa Invoice, Payment hoặc Entitlement.
+* Có `event_uuid` idempotent; correction là append-only reversal, không update
+  measurement cũ.
 
 Late event vẫn được append với original `occurred_at`; projection policy quyết
 định Counter/Summary nào cần rebuild.
@@ -167,6 +169,8 @@ Counter:
 * Không phải Source Of Truth.
 * Không được Business Domain cập nhật trực tiếp.
 * Không chứa allowed Entitlement value.
+* Có watermark `last_usage_event_id`; không được dùng làm authority quota khi
+  projection đang trễ.
 
 Counter update là projection operation của Usage Domain.
 

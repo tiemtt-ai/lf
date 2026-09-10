@@ -1,5 +1,13 @@
 # Table: saas_entitlements
 
+Version: 1.1
+
+Document Status: Review
+
+Implementation Status: Not Implemented
+
+Last Updated: 2026-09-09
+
 Document Path: database/saas-commercial/saas_entitlements.md
 
 ## Purpose
@@ -30,6 +38,9 @@ Commercial source that produced the effective right.
 * Usage and Billing may read Entitlement but cannot update it.
 * AI, Course and other consumer Domains cannot update this table.
 * Entitlement never stores current Usage, Invoice or Payment state.
+* A metered entitlement uses `integer`, `decimal` or `unlimited` and snapshots
+  its unit, period type and IANA timezone. Boolean/string entitlements have no
+  quota fields.
 
 ## Fields
 
@@ -40,6 +51,9 @@ Commercial source that produced the effective right.
 | feature_key | VARCHAR(100) NOT NULL | Effective feature identifier. |
 | entitlement_type | VARCHAR(50) NOT NULL | Value interpretation. |
 | entitlement_value | TEXT NULL | Serialized effective value by type. |
+| quota_unit | VARCHAR(50) NULL | Approved metric unit for metered entitlement. |
+| quota_period_type | VARCHAR(50) NULL | `daily`, `monthly`, `yearly`, `lifetime`. |
+| quota_timezone | VARCHAR(64) NULL | IANA timezone used for period boundaries. |
 | source_type | VARCHAR(50) NOT NULL | Commercial source classification. |
 | source_id | BIGINT UNSIGNED NOT NULL | Source record ID. |
 | effective_from | TIMESTAMP NOT NULL | Effective-window start. |
@@ -58,6 +72,12 @@ INDEX (customer_id, feature_key, status);
 INDEX (customer_id, feature_key, effective_from, effective_to);
 INDEX (source_type, source_id);
 INDEX (effective_to);
+UNIQUE (id, customer_id);
+CHECK ((entitlement_type IN ('integer','decimal','unlimited') AND
+        quota_unit IS NOT NULL AND quota_period_type IS NOT NULL AND
+        quota_timezone IS NOT NULL) OR
+       (entitlement_type IN ('boolean','string') AND quota_unit IS NULL AND
+        quota_period_type IS NULL AND quota_timezone IS NULL));
 ```
 
 ## Sample Data

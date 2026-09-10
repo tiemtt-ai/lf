@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-09-08",
+  "generated_or_updated_at": "2026-09-09",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 255,
+  "document_count": 257,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -6582,9 +6582,9 @@
       "title": "Table: saas_entitlements",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -6766,6 +6766,49 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "database/saas-commercial/saas_usage_reservations.md",
+      "title": "Table: saas_usage_reservations",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "commercial",
+        "quota",
+        "reservation",
+        "tenant isolation"
+      ],
+      "keywords": {
+        "vi": [
+          "giữ hạn mức",
+          "đặt trước usage",
+          "sổ cái thương mại",
+          "hết hạn reservation"
+        ],
+        "en": [
+          "quota reservation",
+          "commercial ledger",
+          "usage hold",
+          "reservation expiry"
+        ]
+      },
+      "identifiers": [
+        "saas_usage_reservations"
+      ],
+      "related_documents": [
+        "adr/ADR-0008-SaaS-Commercial-Foundation.md",
+        "database/saas-commercial/saas_entitlements.md",
+        "database/saas-usage/saas_usage_events.md",
+        "database/saas-usage/saas_usage_counters.md",
+        "platform/LF-AI.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "database/saas-usage/README.md",
       "title": "MIỀN NGHIỆP VỤ SAAS USAGE",
       "area": "database",
@@ -6802,9 +6845,9 @@
       "title": "Table: saas_usage_counters",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -6841,9 +6884,9 @@
       "title": "Table: saas_usage_events",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -8403,6 +8446,56 @@
         "platform/LF-Media-Read-Contract.md",
         "database/ai/ai_knowledge_sources.md",
         "quality/LF-Media-Read-Contract-Architecture-Review.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Provider-Execution-Gate-Implementation-Review.md",
+      "title": "AI Provider Execution Gate — Implementation Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "governance",
+        "provider",
+        "quota",
+        "tenant isolation",
+        "audit"
+      ],
+      "keywords": {
+        "vi": [
+          "cổng thực thi provider",
+          "phê duyệt xử lý bên ngoài",
+          "hạn mức sử dụng",
+          "fail-closed",
+          "nhật ký model run"
+        ],
+        "en": [
+          "provider execution gate",
+          "external processing approval",
+          "usage quota",
+          "fail closed",
+          "model run audit"
+        ]
+      },
+      "identifiers": [
+        "ai_model_runs",
+        "AI_APPROVAL_REQUIRED",
+        "AI_QUOTA_EXCEEDED",
+        "AI_SAFETY_BLOCKED"
+      ],
+      "related_documents": [
+        "adr/ADR-0006-AI-Foundation.md",
+        "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
+        "adr/ADR-0009-SaaS-Usage-Foundation.md",
+        "platform/LF-AI.md",
+        "database/ai/ai_model_runs.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

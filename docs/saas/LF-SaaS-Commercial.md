@@ -1,12 +1,12 @@
 # LF-SaaS-Commercial.md
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Frozen
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-09-09
 
 Document Path: saas/LF-SaaS-Commercial.md
 
@@ -48,6 +48,7 @@ Commercial sở hữu:
 * Subscription lifecycle.
 * Subscription Item.
 * Effective Entitlement của Customer.
+* Reservation ledger giữ hạn mức tạm thời trước metered operation.
 
 Commercial không sở hữu:
 
@@ -212,6 +213,14 @@ item.
 # Entitlement Architecture
 
 `saas_entitlements` là Source Of Truth của effective Customer right.
+
+## Usage Reservation — Owner Decision 2026-09-09
+
+Commercial sở hữu `saas_usage_reservations`: ledger enforcement có lease TTL 15
+phút, idempotent theo producer attempt và period. `committed` chỉ là settlement
+đối với hạn mức; Usage Event vẫn là Source Of Truth cho “Used”. Commit
+reservation và append Usage Event diễn ra trong cùng transaction; Counter được
+project sau và không nằm trên đường authorization.
 
 ```text
 Plan Feature

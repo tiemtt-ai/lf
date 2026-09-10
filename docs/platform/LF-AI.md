@@ -26,7 +26,7 @@ Runtime này không gọi provider, không tạo `ai_model_runs`, không tạo e
 và không ghi Qdrant. Provider/model-run, embedding và retrieval vẫn là các bước
 riêng chưa triển khai.
 
-## Provider execution gate — Approved 2026-09-08
+## Provider execution gate — Approved 2026-09-08, runtime Implemented 2026-09-09
 
 Mọi model/provider adapter dùng chung một gate trước network call. Input bắt
 buộc gồm tenant, provider, purpose, data classes, model, execution region,
@@ -46,6 +46,48 @@ Thiếu bất kỳ điều kiện nào thì không gọi provider và vẫn ghi 
 trong adapter sau khi gate đạt, không đi vào command, log, metadata hoặc Run.
 Tạo schema không kích hoạt provider. Runtime provider chỉ được mở sau test
 fail-closed, tenant isolation, quota concurrency và audit provenance.
+
+### Runtime state — 2026-09-09
+
+`AiProviderExecutionGate` implements the five steps in the order above and is
+the only supported path to a provider adapter. Every attempt, allowed or
+blocked, writes exactly one `ai_model_runs` row keyed by a deterministic
+`run_uuid`, so a retried intent reuses its audit row instead of multiplying it.
+
+Steps 2, 3 and 4 read authorities that do not exist yet — `saas_customer_settings`,
+`saas_entitlements` and `saas_usage_counters` are all `not_implemented`. Each is
+bound to a fail-closed default, so the gate currently refuses every request with
+`AI_APPROVAL_REQUIRED` at step 2. That is the intended state: no provider is
+activated, and "cannot check" never resolves to "checked and fine".
+
+Step 4's owning domain was decided on 2026-09-09: **Commercial owns the usage
+reservation ledger**, with a TTL that reclaims reservations their owner never
+committed or released. Commercial already owns "how much may be used"
+(`saas_entitlements`); a reservation is that same question held briefly. Usage
+was rejected because `saas_usage_counters` is a derived projection that forbids a
+source Domain from writing it, and an `ai_*` table was rejected because it would
+let AI grant itself spending authority against ADR-0006.
+
+The reservation port stays fail-closed until that table exists. Owner also
+decided that `saas_customer_settings`, `saas_entitlements` and
+`saas_usage_counters` must all be migrated before the first provider is
+activated: opening a provider without entitlement and quota is calling it with no
+cost ceiling. Both decisions are recorded in
+[LF-AI-Provider-Execution-Gate-Implementation-Review](../quality/LF-AI-Provider-Execution-Gate-Implementation-Review.md).
+
+Config `config/ai.php` carries the step-1 allow-list and ships **empty**:
+publishing the config activates no provider, exactly as shipping the AI
+Foundation migration activated none.
+
+Adapter được dựng lazily chỉ sau khi gate đạt và phải tự khai provider/model để
+gate đối chiếu với allow-list. Lỗi dựng adapter hoặc provider call được thay bằng
+stable code, không chain exception gốc. Nếu provider đã trả kết quả nhưng quota
+caller đánh dấu reservation `executing` ngay trước provider boundary và
+`settling` ngay sau kết quả dùng được. Commit lỗi giữ hold cho Commercial
+provider-aware reconciliation; generic expiry chỉ xử lý hold còn `reserved`,
+không release usage có thể đã phát sinh. Vocabulary lỗi Bước 4 được phê duyệt
+bằng hai khối Owner Approval tách biệt trong `ai_model_runs.md`; khối thứ hai
+không mở rộng hồi tố phạm vi khối thứ nhất.
 
 ## Knowledge deletion barrier — Approved 2026-09-08
 

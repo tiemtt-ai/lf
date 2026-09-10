@@ -2,6 +2,14 @@
 
 namespace App\Providers;
 
+use App\Contracts\Ai\CommercialEntitlements;
+use App\Contracts\Ai\ExternalProcessingApprovals;
+use App\Contracts\Ai\TenantSettingSource;
+use App\Contracts\Ai\UsageQuotaReserver;
+use App\Services\Ai\SettingBackedExternalProcessingApprovals;
+use App\Services\Ai\UnavailableCommercialEntitlements;
+use App\Services\Ai\UnavailableTenantSettings;
+use App\Services\Ai\UnavailableUsageQuotaReserver;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -18,7 +26,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // AI provider execution gate — LF-AI § "Provider execution gate".
         //
+        // Every dependency the gate cannot answer for itself is bound to a
+        // fail-closed default, because the stores that would answer them
+        // (`saas_customer_settings`, `saas_entitlements`, `saas_usage_counters`)
+        // are all still `not_implemented`. Binding a permissive stub here would
+        // turn "we cannot check" into "checked and fine", which is the exact
+        // failure mode ADR-0018 requires us to avoid.
+        $this->app->bind(TenantSettingSource::class, UnavailableTenantSettings::class);
+        $this->app->bind(ExternalProcessingApprovals::class, SettingBackedExternalProcessingApprovals::class);
+        $this->app->bind(CommercialEntitlements::class, UnavailableCommercialEntitlements::class);
+        $this->app->bind(UsageQuotaReserver::class, UnavailableUsageQuotaReserver::class);
     }
 
     /**

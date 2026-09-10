@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-08
+Last Updated: 2026-09-09
 
 Document Path: database/ai/ai_model_runs.md
 
@@ -16,6 +16,59 @@ Nguồn: [LF-AI-Foundation-Media-Consumer-Database-Architecture-Review](../../qu
 finding F-2 và F-5. **Approved by Owner 2026-08-25.** Thay đổi: thêm tenant composite
 identity và ghi rõ hai khóa ngoại được hoãn. Amendment này **không** đụng tới
 ADR-0006 Amendment v1.1 vẫn đang Proposed ở phần Business Rules bên dưới.
+
+## Amendment — Approved 2026-09-09
+
+Architecture Owner phê duyệt mã lỗi provider sau:
+
+* `AI_PROVIDER_CALL_FAILED`: adapter/provider không trả kết quả sử dụng được,
+  kể cả lỗi khởi tạo adapter sau khi gate đã cho phép;
+`CHECK (status <> 'failed' OR error_code IS NOT NULL)` bắt buộc mọi run thất bại
+phải có mã, nhưng contract trước đó chỉ định nghĩa vocabulary cho `blocked`, nên
+đường thất bại của provider không có mã hợp lệ nào để ghi.
+
+Cùng amendment này ghi rõ tập provenance bất biến của một run, sau khi
+implementation Bước 4 cho thấy một lần ghi thứ hai vào cùng `run_uuid` có thể
+ghi đè provider/model/purpose.
+
+Nguồn: [LF-AI-Provider-Execution-Gate-Implementation-Review](../../quality/LF-AI-Provider-Execution-Gate-Implementation-Review.md)
+finding #1 và #2. Amendment bổ sung bảng chuyển trạng thái hợp lệ và
+quy tắc tenant-scope cho mọi write, sau các finding của lượt review thứ hai.
+
+Owner Approval:
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-09-09
+Decision: APPROVED
+Scope: AI_PROVIDER_CALL_FAILED only
+```
+
+Owner Approval (vocabulary còn lại):
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-09-09
+Decision: APPROVED
+Scope: AI_QUOTA_COMMIT_FAILED, AI_QUOTA_RESERVATION_EXCEEDED, AI_ADAPTER_MISMATCH,
+       AI_RUN_ALREADY_EXECUTED, AI_RUN_PROVENANCE_CONFLICT, AI_RUN_TRANSITION_CONFLICT
+```
+
+Amendment này do implementer soạn. Hai khối trên **ghi lại hai quyết định riêng**
+do Architecture Owner đưa ra trực tiếp, không phải implementer tự cấp chữ ký;
+khối thứ hai không được đọc như mở rộng hồi tố phạm vi khối thứ nhất. Phần
+provenance bất biến, bảng transition và quy tắc tenant-scope là hệ quả kỹ thuật
+của các finding đã nêu; mọi mã lỗi mới khác vẫn cần review riêng.
+
+## Approved error vocabulary
+
+Các mã sau được phê duyệt bằng khối Owner Approval thứ hai phía trên:
+
+* `AI_QUOTA_COMMIT_FAILED`: provider đã chạy nhưng settlement chưa hoàn tất;
+* `AI_QUOTA_RESERVATION_EXCEEDED`: usage thực vượt hard reservation ceiling;
+* `AI_ADAPTER_MISMATCH`: adapter lệch provider/model đã duyệt;
+* `AI_RUN_ALREADY_EXECUTED`, `AI_RUN_PROVENANCE_CONFLICT`,
+  `AI_RUN_TRANSITION_CONFLICT`: conflict idempotency/audit nội bộ.
 
 ## Purpose
 
@@ -38,6 +91,21 @@ generate Messages, Recommendations or Insights.
 * Failed/blocked runs retained for audit according to policy.
 * `blocked` requires `AI_APPROVAL_REQUIRED`, `AI_QUOTA_EXCEEDED` or
   `AI_SAFETY_BLOCKED`; new codes require contract review.
+* `failed` dùng vocabulary Approved/Proposed nêu trên. Exception gốc không được
+  chain/throw ra ngoài vì có thể
+  chứa credential hoặc payload. `AI_QUOTA_COMMIT_FAILED` không release
+  reservation: provider đã chạy, Commercial reconciliation quyết định settlement.
+* Chuyển trạng thái hợp lệ: `queued → queued|running|blocked|cancelled`;
+  `running → running|completed|failed|cancelled`; `blocked → blocked|queued`
+  (cùng một attempt được thử lại sau khi có approval). `completed`, `failed` và
+  `cancelled` là terminal — một run đã kết thúc là bằng chứng rằng provider đã
+  được gọi, nên tua nó về `queued` sẽ cho một lần gọi thứ hai núp dưới audit row
+  của lần đầu.
+* Provider, model, purpose, prompt template id/**scope**/version/hash and
+  `correlation_id` are immutable once a run exists. A later write to the same
+  `(customer_id, run_uuid)` may advance status, timing, measurements and
+  metadata only; a write that disagrees on provenance is a conflict, not an
+  update. Mọi write đều tenant-scoped theo `customer_id`, không theo `id` đơn lẻ.
 * **Proposed, chưa có hiệu lực** (xem ADR-0006 Amendment Version 1.1 — cần
   Owner Approval và Learning Phase 4): khi Model Run dùng Learning Mastery
   Profile làm input, `metadata` phải ghi nhận Profile identity
@@ -58,7 +126,7 @@ generate Messages, Recommendations or Insights.
 | prompt_template_id | BIGINT UNSIGNED NULL | Prompt Template reference. |
 | prompt_scope_customer_id | BIGINT UNSIGNED NULL | `0` global, otherwise tenant scope. |
 | prompt_version | INT UNSIGNED NULL | Published prompt version snapshot. |
-| prompt_hash | VARCHAR(128) NOT NULL | Effective prompt fingerprint. |
+| prompt_hash | VARCHAR(128) NOT NULL | Effective prompt fingerprint; canonical request envelope khi attempt bị chặn trước lúc dựng prompt (Owner 2026-09-09), phân biệt qua `metadata.prompt_hash_basis`. |
 | purpose | VARCHAR(100) NOT NULL | Run purpose. |
 | provider | VARCHAR(50) NOT NULL | Provider name. |
 | model | VARCHAR(100) NOT NULL | Provider model. |

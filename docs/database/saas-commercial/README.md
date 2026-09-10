@@ -54,6 +54,7 @@ miền nghiệp vụ riêng.
 | Bảng | Mô tả |
 |------|------|
 | **saas_entitlements** | Entitlement tính năng hiệu lực của Customer |
+| **saas_usage_reservations** | Hold/settlement hạn mức nguyên tử thuộc Commercial; không thay Usage Event |
 
 ---
 

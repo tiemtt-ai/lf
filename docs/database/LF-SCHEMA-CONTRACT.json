@@ -25558,6 +25558,18 @@
       "views": []
     },
     {
+      "name": "saas_usage_reservations",
+      "documentation": "database/saas-commercial/saas_usage_reservations.md",
+      "implementation_status": "not_implemented",
+      "columns": [],
+      "primary_key": [],
+      "indexes": [],
+      "foreign_keys": [],
+      "checks": [],
+      "triggers": [],
+      "views": []
+    },
+    {
       "name": "saas_usage_summaries",
       "documentation": "database/saas-usage/saas_usage_summaries.md",
       "implementation_status": "not_implemented",

@@ -12,7 +12,7 @@ Frozen
 
 ## Version
 
-1.0
+1.1
 
 ---
 
@@ -81,7 +81,28 @@ Usage → Used.
 Billing → Pay.
 ```
 
-SaaS Commercial Foundation Version 1.0 gồm 5 tables.
+SaaS Commercial Foundation Version 1.1 gồm 6 tables.
+
+## Amendment 1.1 — Usage reservation authority
+
+Approved by Architecture Owner on 2026-09-09, pending independent physical
+schema review. Commercial owns the short-lived reservation ledger because it
+owns the allowed limit. Usage continues to own immutable measurement; AI and
+other consumers never write Commercial state directly.
+
+```text
+Effective Entitlement
+  ↓ atomic hold
+saas_usage_reservations
+  ↓ committed settlement
+saas_usage_events (Usage-owned measurement)
+```
+
+Reservation defaults to a 15-minute lease with a two-hour hard renewal cap and
+is idempotent per producer attempt and period. The caller marks `executing`
+before crossing the provider boundary and `settling` after a response; only a
+never-started `reserved` row may auto-expire. Usage that may have reached a
+provider is therefore never refunded merely because settlement must retry.
 
 ---
 
@@ -94,6 +115,7 @@ Commercial sở hữu:
 * Subscription lifecycle.
 * Subscription Item.
 * Effective Customer Entitlement.
+* Usage reservation/settlement against an effective Entitlement.
 
 Commercial không sở hữu:
 
