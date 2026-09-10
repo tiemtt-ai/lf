@@ -16,6 +16,12 @@ use App\Support\Ai\QuotaReservationHandle;
  * make retry idempotency physical instead of creating two holds for one
  * logical attempt.
  *
+ * `usageType` is the metric this hold will settle as. Commercial snapshots it
+ * and copies it verbatim into the Usage Event, whose `usage_type` is NOT NULL;
+ * without it the settlement step would have to invent the value. It identifies
+ * the metric — it does **not** partition the budget, which stays per feature and
+ * unit.
+ *
  * `reserve()` returns null when the quota is exhausted — it must not throw for
  * that ordinary outcome, so the gate can record AI_QUOTA_EXCEEDED.
  *
@@ -30,6 +36,7 @@ interface UsageQuotaReserver
         int $modelRunId,
         string $runUuid,
         string $featureKey,
+        string $usageType,
         float $quantity,
         string $unit,
     ): ?QuotaReservationHandle;

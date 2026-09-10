@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 257,
+  "document_count": 258,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -9332,6 +9332,51 @@
         "LF-Enrollment-Lifecycle-Architecture-Review"
       ],
       "related_documents": [],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Implicit-Timestamp-OnUpdate-Audit.md",
+      "title": "Implicit TIMESTAMP On-Update Audit",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "database",
+        "schema",
+        "timestamp",
+        "audit",
+        "drift"
+      ],
+      "keywords": {
+        "vi": [
+          "cột thời gian ngầm",
+          "on update tự gắn",
+          "phân kỳ schema",
+          "kiểm kê cột timestamp"
+        ],
+        "en": [
+          "implicit timestamp default",
+          "on update current_timestamp",
+          "schema divergence",
+          "timestamp column audit"
+        ]
+      },
+      "identifiers": [
+        "explicit_defaults_for_timestamp",
+        "DATETIME(6)",
+        "TIMESTAMP"
+      ],
+      "related_documents": [
+        "database/LF-Schema-Drift.md",
+        "database/saas-commercial/saas_entitlements.md",
+        "database/saas-usage/saas_usage_events.md",
+        "database/saas-usage/saas_usage_counters.md"
+      ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
     },

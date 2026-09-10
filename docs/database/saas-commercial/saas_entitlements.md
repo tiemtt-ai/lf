@@ -51,6 +51,16 @@ Commercial source that produced the effective right.
 * Allowed `status`: `active`, `inactive`, `expired`, `revoked`.
 * At one instant, only one effective Entitlement may exist for each
   `customer_id + feature_key`.
+* `UNIQUE (customer_id, active_slot)` enforces the common half of that rule
+  physically: at most one `active` row with an open end (`effective_to IS NULL`)
+  per feature. Rows that are closed or inactive fall into the per-`id` branch of
+  the generated column and never collide.
+* It does **not** cover overlapping closed windows — MariaDB has no EXCLUDE
+  constraint — so resolution must still close or revoke the previous row inside
+  the same transaction. The guard removes the failure mode that matters most:
+  two resolution jobs racing and both leaving an open-ended `active` row, which
+  would give `saas_usage_reservations` two different rows to lock and therefore
+  no serialization point at all.
 * `effective_from` must precede `effective_to` when an end exists.
 * Cả hai mốc là `DATETIME(6)`, **không** phải `TIMESTAMP`. `effective_from` sẽ
   là cột TIMESTAMP NOT NULL đầu tiên của bảng; MariaDB tự gắn `DEFAULT
@@ -98,6 +108,7 @@ Commercial source that produced the effective right.
 | effective_from | DATETIME(6) NOT NULL | Effective-window start. |
 | effective_to | DATETIME(6) NULL | Effective-window end. |
 | status | VARCHAR(50) NOT NULL DEFAULT 'active' | Entitlement lifecycle. |
+| active_slot | VARCHAR(150) AS (CASE WHEN status='active' AND effective_to IS NULL THEN CONCAT(feature_key,':current') ELSE CONCAT(feature_key,':',id) END) STORED | Physical guard for one open-ended active Entitlement per feature. |
 | metadata | JSON NULL | Resolution provenance without foreign state. |
 | created_at | TIMESTAMP NULL | Created time. |
 | updated_at | TIMESTAMP NULL | Lifecycle/resolution update time. |
@@ -112,6 +123,7 @@ INDEX (customer_id, feature_key, effective_from, effective_to);
 INDEX (source_type, source_id);
 INDEX (effective_to);
 UNIQUE (id, customer_id);
+UNIQUE (customer_id, active_slot);
 CHECK ((entitlement_type IN ('integer','decimal','unlimited') AND
         quota_unit IS NOT NULL AND quota_period_type IS NOT NULL AND
         quota_timezone IS NOT NULL) OR
@@ -125,7 +137,10 @@ CHECK ((entitlement_type IN ('integer','decimal','unlimited') AND
 
 ## Design Notes
 
-Temporal uniqueness cannot be expressed by a basic unique index. Entitlement
-resolution must close/revoke the previous effective row transactionally before
-activating a replacement. Cache is derived and must not become another Source
+Temporal uniqueness cannot be expressed **in full** by a unique index: overlapping
+closed windows need range exclusion, which MariaDB lacks. The open-ended case is
+expressible and is enforced by `UNIQUE (customer_id, active_slot)`. Entitlement
+resolution must still close or revoke the previous effective row transactionally
+before activating a replacement — the index narrows the window, it does not
+replace the transaction. Cache is derived and must not become another Source
 Of Truth.

@@ -78,8 +78,19 @@ for the independent Architecture Review PASS required before migration.
   investigation, and only the latter required evidence about the provider.
   Without it an `executing` row has no legal terminal state at all and holds the
   tenant's quota forever.
-* `(customer_id, source_type, source_uuid, feature_key, period_key, unit)` is the
-  idempotency identity. A retry returns the existing reservation.
+* `(customer_id, source_type, source_uuid, feature_key, usage_type, period_key,
+  unit)` is the idempotency identity. A retry returns the existing reservation.
+* `usage_type` is snapshot at reserve time and copied **verbatim** into the Usage
+  Event at commit. `saas_usage_events.usage_type` is `NOT NULL` and its taxonomy
+  is `feature_key + usage_type + unit`; without this column the settlement step
+  would have to invent the value, and two call sites settling identical holds
+  could file them under different metrics. One hold settles exactly one metric.
+* `usage_type` is deliberately **not** part of the capacity predicate. An
+  Entitlement's limit is granted per `feature_key` in one `quota_unit`, so
+  budgets aggregate across metrics inside that feature: scoping capacity by
+  `usage_type` would give `input_token` and `output_token` a full allowance each
+  and silently double the limit — the same failure as P1-1. It is in the
+  idempotency key only, where it identifies *which* metric an attempt reserves.
 * Reserve locks the entitlement and every *active* ledger row in one database
   transaction; read-then-call is forbidden. **Active** means any row still
   holding capacity: `reserved`, `executing`, `settling`.
@@ -113,7 +124,8 @@ for the independent Architecture Review PASS required before migration.
   hold after a pre-call crash, but it can never refund usage that may have
   reached a provider.
 * Commit is atomic with append of one idempotent `saas_usage_events` measurement
-  and stores its `usage_event_id`. It never updates Usage Counter directly.
+  carrying this row's `feature_key`, `usage_type` and `unit` unchanged, and
+  stores its `usage_event_id`. It never updates Usage Counter directly.
 * Provider success followed by settlement failure leaves `settling`; retry or
   provider-aware reconciliation commits it. It must not release usage that
   already happened.
@@ -144,6 +156,7 @@ for the independent Architecture Review PASS required before migration.
 | source_id | BIGINT UNSIGNED NOT NULL | Producer row id for audit. |
 | source_uuid | CHAR(36) NOT NULL | Stable producer attempt identity. |
 | feature_key | VARCHAR(100) NOT NULL | Entitled feature. |
+| usage_type | VARCHAR(100) NOT NULL | Metric this hold settles as; copied verbatim into the Usage Event. |
 | period_type | VARCHAR(50) NOT NULL | `daily`, `monthly`, `yearly`, `lifetime`. |
 | period_key | VARCHAR(50) NOT NULL | Canonical period identity. |
 | period_start_at | DATETIME(6) NOT NULL | UTC inclusive boundary snapshot. |
@@ -169,7 +182,7 @@ for the independent Architecture Review PASS required before migration.
 ```sql
 UNIQUE (id, customer_id);
 UNIQUE (customer_id, reservation_uuid);
-UNIQUE (customer_id, source_type, source_uuid, feature_key, period_key, unit);
+UNIQUE (customer_id, source_type, source_uuid, feature_key, usage_type, period_key, unit);
 INDEX  (customer_id, feature_key, period_key, unit, status);
 INDEX  (customer_id, status, lease_expires_at);
 INDEX  (customer_id, usage_event_id);
@@ -215,8 +228,17 @@ CHECK (reconciled_at IS NULL OR
 
 # Transaction Contract
 
-Reserve locks the effective entitlement, resolves its period snapshot, and
-counts ledger rows for the same tenant/feature/period/unit. Insert and capacity
+Reserve resolves the effective Entitlement for `(customer_id, feature_key)` and
+locks it `FOR UPDATE`. It must resolve to **exactly one** row: zero means no
+entitlement, more than one means Commercial state is inconsistent, and both
+fail closed with no hold created. `saas_entitlements.UNIQUE (customer_id,
+active_slot)` makes the "more than one open-ended active row" case unreachable,
+but the transaction still performs the check — the index narrows the window,
+it does not replace the check, and a hold granted against an ambiguous
+entitlement has no serialization point.
+
+Having locked that one row, reserve snapshots its period and counts ledger rows
+for the same tenant/feature/period/unit. Insert and capacity
 decision occur in that transaction. Commit locks the reservation, appends the
 Usage Event with a deterministic event UUID derived from `reservation_uuid`, and
 marks the reservation committed in the same transaction. Projectors update

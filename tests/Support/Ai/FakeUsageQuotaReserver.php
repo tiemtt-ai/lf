@@ -56,6 +56,7 @@ final class FakeUsageQuotaReserver implements UsageQuotaReserver
         int $modelRunId,
         string $runUuid,
         string $featureKey,
+        string $usageType,
         float $quantity,
         string $unit,
     ): ?QuotaReservationHandle {
@@ -80,6 +81,7 @@ final class FakeUsageQuotaReserver implements UsageQuotaReserver
             'quantity' => $quantity,
             'expires_at' => new DateTimeImmutable('+5 minutes'),
             'status' => 'reserved',
+            'usage_type' => $usageType,
         ];
 
         return new QuotaReservationHandle(
@@ -88,6 +90,7 @@ final class FakeUsageQuotaReserver implements UsageQuotaReserver
             $modelRunId,
             $runUuid,
             $featureKey,
+            $usageType,
             $quantity,
             $unit,
             $this->reservations[$id]['expires_at'],

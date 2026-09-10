@@ -19,6 +19,7 @@ final readonly class QuotaReservationHandle
         public int $modelRunId,
         public string $runUuid,
         public string $featureKey,
+        public string $usageType,
         public float $quantity,
         public string $unit,
         public DateTimeImmutable $expiresAt,

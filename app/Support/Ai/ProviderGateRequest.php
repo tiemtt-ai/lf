@@ -32,6 +32,7 @@ final readonly class ProviderGateRequest
         public ?string $runUuid = null,
         public float $quotaQuantity = 1.0,
         public string $quotaUnit = 'call',
+        public string $usageType = 'provider_call',
     ) {}
 
     /** @return array<int,string> */
@@ -87,7 +88,7 @@ final readonly class ProviderGateRequest
             'execution_region' => $this->executionRegion,
             'retention_class' => $this->retentionClass,
             'prompt_hash_basis' => $this->promptHashBasis(),
-            'quota' => ['quantity' => $this->quotaQuantity, 'unit' => $this->quotaUnit],
+            'quota' => ['quantity' => $this->quotaQuantity, 'unit' => $this->quotaUnit, 'usage_type' => $this->usageType],
         ];
     }
 }

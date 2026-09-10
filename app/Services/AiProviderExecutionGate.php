@@ -89,6 +89,7 @@ class AiProviderExecutionGate
             $modelRunId,
             $this->runs->runUuid($request),
             $this->featureKey($request),
+            $request->usageType,
             $request->quotaQuantity,
             $request->quotaUnit,
         );

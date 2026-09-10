@@ -28,6 +28,7 @@ final class UnavailableUsageQuotaReserver implements UsageQuotaReserver
         int $modelRunId,
         string $runUuid,
         string $featureKey,
+        string $usageType,
         float $quantity,
         string $unit,
     ): ?QuotaReservationHandle {

@@ -763,6 +763,29 @@ class AiProviderExecutionGateTest extends TestCase
         $this->assertSame(2.5, $this->quota->reservations[$reservationId]['committed_quantity']);
     }
 
+    public function test_the_hold_snapshots_the_metric_it_will_settle_as(): void
+    {
+        $customerId = $this->tenant('usage-type');
+        $this->approveTenant($customerId);
+        $this->entitlements->grant($customerId, 'ai_knowledge_embedding');
+
+        $this->gate()->execute(
+            $this->request(['usageType' => 'input_token', 'quotaUnit' => 'token', 'quotaQuantity' => 3.0]),
+            fn () => new SpyProviderAdapter,
+        );
+
+        // `saas_usage_events.usage_type` is NOT NULL, so settlement needs the
+        // metric from the hold rather than inventing one at commit time.
+        $reservation = $this->quota->reservations[array_key_first($this->quota->reservations)];
+        $this->assertSame('input_token', $reservation['usage_type']);
+
+        // It is provenance, not a budget partition: the run records it without
+        // it becoming part of what the tenant is allowed to spend.
+        $metadata = json_decode(DB::table('ai_model_runs')->where('customer_id', $customerId)->value('metadata'), true);
+        $this->assertSame('input_token', $metadata['quota']['usage_type']);
+        $this->assertSame('token', $metadata['quota']['unit']);
+    }
+
     // ---- fixtures -------------------------------------------------------
 
     private function gate(): AiProviderExecutionGate
@@ -805,6 +828,9 @@ class AiProviderExecutionGateTest extends TestCase
             executionRegion: $overrides['executionRegion'] ?? 'lf_managed',
             retentionClass: $overrides['retentionClass'] ?? 'transient',
             correlationId: $overrides['correlationId'] ?? '11111111-1111-4111-8111-111111111111',
+            quotaQuantity: $overrides['quotaQuantity'] ?? 1.0,
+            quotaUnit: $overrides['quotaUnit'] ?? 'call',
+            usageType: $overrides['usageType'] ?? 'provider_call',
             promptTemplateId: $overrides['promptTemplateId'] ?? null,
             promptScopeCustomerId: $overrides['promptScopeCustomerId'] ?? null,
             promptVersion: $overrides['promptVersion'] ?? null,

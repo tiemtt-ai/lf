@@ -1,6 +1,6 @@
 # AI Provider Execution Gate — Implementation Review
 
-Version: 1.8
+Version: 1.9
 
 Document Status: Review
 
@@ -321,9 +321,149 @@ nhánh, rời nhau đôi một); `UNIQUE (customer_id, reservation_uuid, event_k
 chặn double-settlement mà không chặn reversal; tenant isolation qua FK đúng;
 trigger immutability không xung đột commit flow.
 
-**Chưa vá, còn mở:** P1-3 (`usage_type` NOT NULL không có nguồn ở reservation),
-P1-4 (một-entitlement-effective chưa enforce vật lý, và atomicity của `reserve()`
-dựa vào nó), cùng P2-2…P2-7. Hai P1 đó đổi shape bảng nên cần Owner quyết.
+**P1-3 và P1-4 đã vá 2026-09-10** (xem mục dưới). P2-2…P2-7 còn mở, nội dung đầy
+đủ được lưu ngay sau đây.
+
+## P1-3 — `usage_type` cho settlement
+
+Reservation nay mang `usage_type VARCHAR(100) NOT NULL`, nằm trong idempotency
+identity, và được copy **verbatim** vào Usage Event lúc commit.
+
+Một điểm tôi **không** làm theo acceptance criteria của reviewer: họ đề nghị đưa
+`usage_type` vào cả predicate capacity. Làm thế sẽ chia nhỏ ngân sách — entitlement
+cấp limit theo `feature_key` trong một `quota_unit`, nên `input_token` và
+`output_token` mỗi loại sẽ được nguyên allowance và limit bị nhân đôi. Đó đúng là
+lỗi P1-1 lặp lại dưới dạng khác. `usage_type` vì vậy chỉ nằm trong khóa idempotency,
+nơi nó trả lời "attempt này reserve cho metric nào", không phải "được tiêu bao nhiêu".
+
+## P1-4 — Guard vật lý cho entitlement effective
+
+`saas_entitlements` thêm generated column `active_slot` cùng
+`UNIQUE (customer_id, active_slot)`: tối đa một hàng `active` có `effective_to IS
+NULL` trên mỗi feature. Hàng đã đóng rơi vào nhánh per-`id` nên không đụng nhau.
+
+Nó **không** thay thế transaction check, và doc nói rõ điều đó: `reserve()` vẫn
+phải resolve đúng **một** entitlement effective và fail-closed khi ra 0 hoặc >1.
+Index thu hẹp cửa sổ, không đóng nó — overlap giữa hai khoảng đã đóng cần range
+exclusion mà MariaDB không có.
+
+## Findings còn mở của packet SaaS — nội dung đầy đủ
+
+Ghi nguyên nội dung thay vì chỉ nhắc tên, để lần review sau không phải dựng lại
+lập luận từ đầu. Nguồn: reviewer độc lập, 2026-09-10.
+
+### P2-2 — `usage_event_id` không UNIQUE
+
+`saas_usage_reservations.md` khai `INDEX (customer_id, usage_event_id)` — index
+thường. Hai hàng reservation vì thế cùng trỏ được vào một `usage_event_id`.
+
+**Kịch bản:** một settler bị retry lệch update reservation B bằng event id mà
+reservation A đã claim. Cùng một measurement được ghi công cho hai hold; cả
+accounting lẫn audit đều sai, và không cơ chế nào phát hiện — UNIQUE bên
+`saas_usage_events` khóa theo `reservation_uuid` (chiều ngược lại), còn FK chỉ
+kiểm tồn tại chứ không kiểm độc quyền.
+
+**Acceptance criteria:** đổi thành `UNIQUE (customer_id, usage_event_id)`.
+MariaDB cho NULL lặp trong unique index nên hàng chưa commit không bị ảnh hưởng;
+bỏ `INDEX (customer_id, usage_event_id)` đã thừa.
+
+### P2-3 — Bất biến của lease không được enforce
+
+Doc nói "Renewal is capped at the earlier of two hours after creation and
+`period_end_at`", và có cột `max_lease_expires_at`. Nhưng không CHECK nào liên hệ
+`lease_expires_at`, `max_lease_expires_at` và `period_end_at`.
+
+**Kịch bản:** một bug renewal đẩy `lease_expires_at` vượt cap hoặc quá
+`period_end_at`. Hold chiếm capacity của một period đã đóng, và sweeper — vốn chỉ
+quét `lease_expires_at <= now` — không thu hồi kịp trong period đó.
+
+**Acceptance criteria:** `CHECK (lease_expires_at <= max_lease_expires_at)` và
+`CHECK (period_end_at IS NULL OR max_lease_expires_at <= period_end_at)`.
+
+### P2-4 — Khóa idempotency chứa `period_key` nên retry vượt biên period tạo hold thứ hai
+
+**Kịch bản:** period `daily`. Attempt lúc 23:59:58 tạo hold với
+`period_key=2026-09-10` rồi crash trước `markExecuting`. Job retry lúc 00:00:03
+với **cùng `source_uuid`**; `reserve()` suy ra `period_key=2026-09-11` → tuple
+UNIQUE khác → tạo **hold thứ hai** thay vì trả về hold cũ.
+
+Hai hold có hai `reservation_uuid` khác nhau nên `UNIQUE (customer_id,
+reservation_uuid, event_kind)` bên events không nhìn thấy, và cả hai settle
+được → hai measurement cho một producer attempt → **double-billing**.
+`saas_usage_events` cũng không có UNIQUE nào trên
+`(customer_id, source_type, source_uuid)` để chặn ở tầng dưới.
+
+**Acceptance criteria:** quy định chuẩn tắc rằng `reserve()` phải tra trước theo
+`(customer_id, source_type, source_uuid, feature_key, usage_type, unit)` và tái
+dùng hold non-terminal đang tồn tại **bất kể `period_key`**; giải thích vì sao
+`period_key` vẫn nằm trong tuple UNIQUE. Ghi chú: `period_type` có trong khóa
+UNIQUE của `saas_usage_counters` nhưng không có trong tuple này — nhất quán hóa
+hoặc giải thích.
+
+### P2-5 — Đường purge retention bị FK RESTRICT chặn, không chỉ bị trigger chặn
+
+`saas_usage_events.md` nói purge được duyệt sẽ "drops the triggers deliberately
+and restores them". Nhưng còn hai FK RESTRICT: `saas_usage_reservations`
+`(usage_event_id, customer_id)` và self-FK `(reverses_event_id, customer_id)`.
+
+Bỏ trigger là **chưa đủ**: DELETE một measurement đã settle bị chặn bởi hàng
+reservation trỏ vào nó; DELETE một measurement đã có reversal bị chặn bởi hàng
+reversal. Đường purge như mô tả không chạy được về mặt vật lý.
+
+**Acceptance criteria:** ghi thứ tự purge (reversal → reservation → measurement),
+hoặc quy định reservation đã settle và event của nó được purge như một đơn vị và
+`saas_usage_reservations` nằm trong cùng quyết định retention được Governance
+duyệt. Đồng thời nêu control vận hành cho cửa sổ trigger bị drop — khoảng thời
+gian một bảng Source Of Truth mất hoàn toàn bảo vệ append-only.
+
+### P2-6 — FK `customer_id` chỉ có ở một trong bốn bảng
+
+`saas_usage_reservations` khai `FOREIGN KEY (customer_id) REFERENCES
+saas_customers(id) RESTRICT`. `saas_entitlements`, `saas_usage_events` và
+`saas_usage_counters` không khai FK nào trên `customer_id` (counters không có
+khối FK nào cả). Trong cùng một packet, đây là bất nhất; với Source Of Truth tính
+tiền, nó cho phép ghi `customer_id` mồ côi.
+
+Reviewer đã kiểm repo-wide: phần lớn table doc khác cũng bỏ qua, nên đây là vấn
+đề nhất quán nội bộ packet chứ không phải vi phạm guardrail. Nhưng Checklist
+Section B ("Business data có `customer_id` hoặc tenant ownership chain hợp lệ?")
+thì một FK khai báo là bằng chứng rẻ nhất.
+
+**Acceptance criteria:** quyết một lần cho cả packet và ghi quyết định đó ở
+`database/saas-commercial/README.md` và `database/saas-usage/README.md`; nếu chọn
+bỏ, nêu lý do.
+
+### P2-7 — `LF-INDEX.md:832` chưa phản ánh trạng thái Review của events/counters
+
+Dòng 831 (Commercial) đã ghi đúng trạng thái Review và việc freeze bị rút. Dòng
+832 (Usage) vẫn ghi "Chưa có review chuyên biệt", trong khi hai doc đó đã bị một
+lượt review sửa schema (E1/E2/E3/C1) và đang ở `Review`. Người routing qua
+LF-INDEX không nhận được tín hiệu nào.
+
+**Acceptance criteria:** mirror cách diễn đạt của dòng 831 sang dòng 832.
+
+### Observations
+
+**O-1 — `saas_usage_events.reservation_uuid` không có FK, và điều đó ĐÚNG.**
+`saas_usage_reservations` có `UNIQUE (customer_id, reservation_uuid)` nên FK
+ngược khả thi về cú pháp, nhưng `saas_usage_reservations.usage_event_id` đã trỏ
+chiều kia rồi — hai FK cứng hai chiều tạo phụ thuộc vòng không thoả được tại thời
+điểm INSERT. **Nên ghi hẳn lý do này vào doc**, kẻo reviewer sau lại "sửa" thành
+lỗi.
+
+**O-2 — Trộn precision và trần 2038.** Đã xử lý cho `saas_entitlements` bằng
+`DATETIME(6)`. Nguyên tắc chung: mốc thời gian nghiệp vụ dùng `DATETIME(6)`, cột
+audit `created_at`/`updated_at` dùng `TIMESTAMP(6)` có default tường minh.
+
+**O-3 — `saas_usage_counters` thiếu `created_at`** trong khi ba bảng anh em đều
+có. Không phải lỗi — đây là projection, `updated_at` là đủ — nhưng nên nói rõ là
+cố ý.
+
+**O-4 — `entitlement_id` RESTRICT khiến entitlement không bao giờ xóa được.**
+Hàng `committed` tồn tại vĩnh viễn nên FK RESTRICT khóa hàng entitlement mãi mãi.
+Có thể là chủ ý (bảo toàn audit), nhưng nên phát biểu thay vì để suy ra.
+
+
 
 ---
 
@@ -352,8 +492,8 @@ Owner Decision riêng nếu job thật trên GitHub chạm timeout.
 
 | Lệnh | Kết quả |
 | --- | --- |
-| `php artisan test tests/Feature/AiProviderExecutionGateTest.php` (SQLite) | 34 passed, 172 assertions |
-| Job `integration-mysql` tái lập trên **MariaDB 11.4.12** | **16/16 file PASS — 202 passed, 823 assertions**, 1010s |
+| `php artisan test tests/Feature/AiProviderExecutionGateTest.php` (SQLite) | 35 passed, 175 assertions |
+| Job `integration-mysql` tái lập trên **MariaDB 11.4.12** | **16/16 file PASS — 203 passed, 826 assertions**, 1009s |
 | `php artisan test` (SQLite, toàn bộ) | 1059 passed, 4 skipped, 7 failed — đúng baseline môi trường |
 | `php artisan test tests/Feature/AiKnowledgeIngestionServiceTest.php` | 11 passed, 1 skipped — Bước 3 không đổi |
 | `php artisan docs:lint` | PASS |
