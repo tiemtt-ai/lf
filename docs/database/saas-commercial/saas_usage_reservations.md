@@ -2,7 +2,7 @@
 
 Version: 1.0
 
-Document Status: Frozen
+Document Status: Review
 
 Implementation Status: Not Implemented
 
@@ -26,7 +26,7 @@ reservation ledger; Tenant Settings, Entitlements and Usage must be implemented
 before the first provider is activated. This document freezes the physical
 candidate for independent architecture review; it does not activate a provider.
 
-## Owner Freeze — 2026-09-10
+## Owner Freeze — 2026-09-10 — held pending independent review
 
 ```text
 Role: LearnForge Architecture Owner
@@ -34,6 +34,14 @@ Date: 2026-09-10
 Decision: APPROVED AND FROZEN
 Scope: saas_usage_reservations physical schema and lifecycle in this version
 ```
+
+**Held pending independent review — 2026-09-10.** Khối trên giữ nguyên làm lịch
+sử quyết định của Owner. Nhưng `docs/README.md` xếp vòng đời `Draft → Review →
+Approved → Frozen`, và AGENTS.md xếp `Review → Freeze → Migration`: chữ ký này
+được ghi **trước** khi có Architecture Review độc lập PASS, nên nhãn `Frozen` sẽ
+khiến người đọc sau tin rằng điều kiện "Database Docs approved" của AGENTS.md §
+Database Rule đã đạt. Tài liệu vì thế trở lại `Review` cho tới khi có PASS thật,
+rồi Owner phê duyệt lại.
 
 Freeze locks the documented schema candidate. `Implementation Status` remains
 `Not Implemented`; this decision neither creates a migration nor substitutes

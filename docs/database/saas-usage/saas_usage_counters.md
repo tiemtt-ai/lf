@@ -10,7 +10,7 @@ Last Updated: 2026-09-10
 
 Document Path: database/saas-usage/saas_usage_counters.md
 
-## Owner Freeze — 2026-09-10
+## Owner Freeze — 2026-09-10 — superseded by schema amendment
 
 ```text
 Role: LearnForge Architecture Owner
@@ -18,6 +18,12 @@ Date: 2026-09-10
 Decision: APPROVED AND FROZEN
 Scope: saas_usage_counters projection and watermark schema in this version
 ```
+
+**Superseded 2026-09-10.** Khối trên giữ nguyên làm lịch sử: Owner đã quyết đúng
+như vậy trên **bản tại thời điểm đó**. Bản hiện tại đã đổi schema sau finding C1
+(khai tường minh default và on-update của `updated_at`) của lượt review độc lập,
+nên nó **không** nằm trong phạm vi chữ ký trên. Tài liệu trở lại `Review`; cần
+một reviewer độc lập PASS rồi Owner phê duyệt lại bản sửa trước khi Frozen.
 
 Implementation remains `Not Implemented`. Freeze does not itself authorize or
 apply a migration without the required Architecture Review PASS.

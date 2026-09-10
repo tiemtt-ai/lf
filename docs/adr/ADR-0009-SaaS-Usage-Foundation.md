@@ -95,8 +95,12 @@ Summary
 
 ## Amendment 1.1 — Idempotency, reversal and projection watermark
 
-Approved by Architecture Owner on 2026-09-09 and explicitly Frozen on
-2026-09-10. Usage Event has stable `event_uuid`; correction is one append-only
+Approved by Architecture Owner on 2026-09-09. The schema freeze recorded on
+2026-09-10 was **withdrawn the same day**: it preceded the independent
+Architecture Review PASS, and that review then amended the schema (reversal
+idempotency key, `DATETIME(6)` occurrence time, append-only triggers, explicit
+counter on-update). The decision below stands; the freeze does not.
+Usage Event has stable `event_uuid`; correction is one append-only
 reversal per original measurement, never mutation. Counter records
 `last_usage_event_id` as projection watermark. Commercial quota enforcement does
 not depend on Counter freshness and never updates Counter directly. A metric

@@ -85,8 +85,11 @@ SaaS Commercial Foundation Version 1.1 gồm 6 tables.
 
 ## Amendment 1.1 — Usage reservation authority
 
-Approved by Architecture Owner on 2026-09-09 and explicitly Frozen on
-2026-09-10. Commercial owns the short-lived reservation ledger because it
+Approved by Architecture Owner on 2026-09-09. The schema freeze recorded on
+2026-09-10 was **withdrawn the same day**: it preceded the independent
+Architecture Review PASS that the migration workflow requires, and the table
+docs are back at `Review`. The decision below stands; only the freeze does
+not. Commercial owns the short-lived reservation ledger because it
 owns the allowed limit. Usage continues to own immutable measurement; AI and
 other consumers never write Commercial state directly.
 
