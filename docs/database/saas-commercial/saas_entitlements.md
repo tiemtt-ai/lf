@@ -52,20 +52,25 @@ Commercial source that produced the effective right.
 * At one instant, only one effective Entitlement may exist for each
   `customer_id + feature_key`.
 * `effective_from` must precede `effective_to` when an end exists.
-* Cả hai mốc là `DATETIME(6)`, **không** phải `TIMESTAMP`. `effective_from` là cột
-  TIMESTAMP NOT NULL đầu tiên của bảng, nên trên MariaDB chạy
-  `explicit_defaults_for_timestamp = OFF` nó sẽ bị tự gắn `DEFAULT
-  CURRENT_TIMESTAMP` **và** `ON UPDATE CURRENT_TIMESTAMP`. Hệ quả: mọi `UPDATE`
-  lên hàng — kể cả lần đóng entitlement bằng `status='expired'` — âm thầm ghi đè
-  điểm bắt đầu hiệu lực, phá cửa sổ thời gian mà `INDEX (customer_id,
-  feature_key, effective_from, effective_to)` dùng để resolve, và khiến một
-  reservation đã cấp trông như được cấp trước khi entitlement có hiệu lực. Lỗi
-  này đã xảy ra thật trong repo: xem
+* Cả hai mốc là `DATETIME(6)`, **không** phải `TIMESTAMP`. `effective_from` sẽ
+  là cột TIMESTAMP NOT NULL đầu tiên của bảng; MariaDB tự gắn `DEFAULT
+  CURRENT_TIMESTAMP` **và** `ON UPDATE CURRENT_TIMESTAMP` cho cột như vậy —
+  nhưng chỉ khi `explicit_defaults_for_timestamp` tắt. Đo ngày 2026-09-10:
+  server deployment (MariaDB 10.4.21) đặt `explicit_defaults_for_timestamp =
+  0`, còn một bản MariaDB 11.4.12 cài mặc định đặt `= 1`. Nghĩa là **cùng một
+  migration sinh ra hai schema khác nhau** tùy nơi chạy, và `schema:drift
+  --fresh` xanh trên chính server nó vừa dựng nên không nhìn thấy khác biệt đó.
+  Khai kiểu/default tường minh làm schema độc lập với biến cấu hình này.
+* Nếu bẫy đó kích hoạt, mọi `UPDATE` lên hàng — kể cả lần đóng entitlement bằng
+  `status='expired'` — âm thầm ghi đè điểm bắt đầu hiệu lực, phá cửa sổ thời gian
+  mà `INDEX (customer_id, feature_key, effective_from, effective_to)` dùng để
+  resolve, và khiến một reservation đã cấp trông như được cấp trước khi
+  entitlement có hiệu lực. Nó đã xảy ra thật trong repo trên các cột occurrence
+  khác: xem
   `2026_08_09_050000_remove_implicit_timestamp_on_update_from_occurrence_columns`.
-  `DATETIME(6)` không có hành vi ngầm đó và cũng bỏ luôn trần 2038 của
-  `TIMESTAMP`, vốn chặn entitlement dài hạn; nó đồng thời khớp precision với
-  `saas_usage_reservations.period_start_at`, nơi hai giá trị được so sánh ở đúng
-  biên period.
+* `DATETIME(6)` còn bỏ trần 2038 của `TIMESTAMP`, vốn chặn entitlement dài hạn, và
+  khớp precision với `saas_usage_reservations.period_start_at`, nơi hai giá trị
+  được so sánh ở đúng biên period.
 * Generic source reference must resolve to an approved Commercial source in
   the same Customer context, except global Plan Feature. Manual override is not
   an approved Foundation source.

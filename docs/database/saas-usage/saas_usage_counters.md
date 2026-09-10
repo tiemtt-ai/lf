@@ -49,11 +49,16 @@ Counter belongs to one Customer and is derived exclusively from
 * `period_key` must follow the approved timezone/format contract.
 * `usage_quantity` must be recalculated when an included late/correction event
   arrives.
-* `updated_at` declares its default and on-update clause explicitly. The
-  on-update behaviour is wanted here — this is a projection — but MariaDB would
-  attach it implicitly to the first bare `TIMESTAMP NOT NULL` column anyway, and
-  an implicit clause is one the schema contract cannot record, so `schema:drift`
-  would report the difference forever.
+* `updated_at` khai default và on-update tường minh. Hành vi on-update ở đây là
+  **muốn có** — đây là projection. Vấn đề không phải hành vi mà là nguồn của
+  nó: MariaDB chỉ gắn ngầm khi `explicit_defaults_for_timestamp` tắt, nên nếu
+  để trần thì cột này **có** on-update ở nơi này và **không có** ở nơi khác. Đo
+  ngày 2026-09-10: server deployment (MariaDB 10.4.21) đặt
+  `explicit_defaults_for_timestamp = 0`, còn một bản MariaDB 11.4.12 cài mặc
+  định đặt `= 1`. Nghĩa là **cùng một migration sinh ra hai schema khác nhau**
+  tùy nơi chạy, và `schema:drift --fresh` xanh trên chính server nó vừa dựng
+  nên không nhìn thấy khác biệt đó. Khai kiểu/default tường minh làm schema độc
+  lập với biến cấu hình này.
 * `last_usage_event_id` is the projection watermark. It is not used for quota
   authorization; Commercial reservation enforcement must remain correct while
   this projection is stale.

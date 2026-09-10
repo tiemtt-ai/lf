@@ -353,7 +353,7 @@ Owner Decision riêng nếu job thật trên GitHub chạm timeout.
 | Lệnh | Kết quả |
 | --- | --- |
 | `php artisan test tests/Feature/AiProviderExecutionGateTest.php` (SQLite) | 34 passed, 172 assertions |
-| Job `integration-mysql` tái lập trên **MariaDB 11.4.12** | **16/16 file PASS — 200 passed, 815 assertions**, 1016s |
+| Job `integration-mysql` tái lập trên **MariaDB 11.4.12** | **16/16 file PASS — 202 passed, 823 assertions**, 1010s |
 | `php artisan test` (SQLite, toàn bộ) | 1059 passed, 4 skipped, 7 failed — đúng baseline môi trường |
 | `php artisan test tests/Feature/AiKnowledgeIngestionServiceTest.php` | 11 passed, 1 skipped — Bước 3 không đổi |
 | `php artisan docs:lint` | PASS |

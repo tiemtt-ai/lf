@@ -45,12 +45,19 @@ ownership.
 * Event is append-only, enforced by BEFORE UPDATE and BEFORE DELETE triggers
   raising `LF_USAGE_EVENT_IMMUTABLE`. A retention purge approved under the rule
   below drops the triggers deliberately and restores them.
-* `occurred_at` is `DATETIME(6)` and `created_at` declares its default
-  explicitly. A bare `TIMESTAMP NOT NULL` would be the first such column here,
-  and MariaDB running with `explicit_defaults_for_timestamp = OFF` silently
-  attaches `DEFAULT CURRENT_TIMESTAMP` **and** `ON UPDATE CURRENT_TIMESTAMP` to
-  it. That already corrupted historical occurrence columns in this codebase; see
+* `occurred_at` là `DATETIME(6)` và `created_at` khai default tường minh. Một
+  `TIMESTAMP NOT NULL` trần sẽ là cột đầu tiên như vậy ở đây, và MariaDB tự gắn
+  `DEFAULT CURRENT_TIMESTAMP` **cùng** `ON UPDATE CURRENT_TIMESTAMP` cho nó —
+  chỉ khi `explicit_defaults_for_timestamp` tắt. Đo ngày 2026-09-10: server
+  deployment (MariaDB 10.4.21) đặt `explicit_defaults_for_timestamp = 0`, còn
+  một bản MariaDB 11.4.12 cài mặc định đặt `= 1`. Nghĩa là **cùng một migration
+  sinh ra hai schema khác nhau** tùy nơi chạy, và `schema:drift --fresh` xanh
+  trên chính server nó vừa dựng nên không nhìn thấy khác biệt đó. Khai
+  kiểu/default tường minh làm schema độc lập với biến cấu hình này.
+* Bẫy đó đã làm hỏng các cột occurrence khác trong chính codebase này; xem
   `2026_08_09_050000_remove_implicit_timestamp_on_update_from_occurrence_columns`.
+  Với một bảng append-only là Source Of Truth tính tiền, `occurred_at` bị ghi đè
+  là mất bằng chứng không dựng lại được.
 * Any legally required retention/privacy purge needs separate Governance
   approval and is outside normal Foundation lifecycle.
 * Usage Event is Source Of Truth for Usage measurement.
