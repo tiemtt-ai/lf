@@ -40,13 +40,17 @@ final class QdrantVectorStore implements VectorStore
 
     public function upsert(VectorPoint $point): void
     {
-        $this->request('put', "/collections/{$point->collection}/points?wait=true", [
+        $response = $this->request('put', "/collections/{$point->collection}/points?wait=true", [
             'points' => [[
                 'id' => $point->vectorKey,
                 'vector' => $point->vector,
                 'payload' => $point->payload(),
             ]],
         ]);
+
+        if (($response['result']['status'] ?? null) !== 'completed') {
+            throw new RuntimeException('LF_VECTOR_STORE_WRITE_UNCONFIRMED');
+        }
     }
 
     public function delete(int $customerId, string $collection, string $vectorKey): bool
@@ -69,7 +73,10 @@ final class QdrantVectorStore implements VectorStore
             'filter' => $this->tenantFilter($customerId, $vectorKey),
         ]);
 
-        return ($response['result']['points'] ?? []) !== [];
+        $points = $response['result']['points'] ?? null;
+        $this->validateHits($points);
+
+        return $points !== [];
     }
 
     public function search(int $customerId, string $collection, array $vector, int $limit): array
@@ -81,10 +88,28 @@ final class QdrantVectorStore implements VectorStore
             'filter' => ['must' => [['key' => 'customer_id', 'match' => ['value' => $customerId]]]],
         ]);
 
+        $hits = $response['result'] ?? null;
+        $this->validateHits($hits);
+
         return array_values(array_map(
             static fn (array $hit): string => (string) $hit['id'],
-            $response['result'] ?? []
+            $hits
         ));
+    }
+
+    private function validateHits(mixed $hits): void
+    {
+        if (! is_array($hits) || ! array_is_list($hits)) {
+            throw new RuntimeException('LF_VECTOR_STORE_INVALID_RESPONSE');
+        }
+
+        foreach ($hits as $hit) {
+            if (! is_array($hit) || ! isset($hit['id'])
+                || (! is_string($hit['id']) && ! is_int($hit['id']))
+                || (string) $hit['id'] === '') {
+                throw new RuntimeException('LF_VECTOR_STORE_INVALID_RESPONSE');
+            }
+        }
     }
 
     /** @return array<string,mixed> */
@@ -112,12 +137,17 @@ final class QdrantVectorStore implements VectorStore
             ->acceptJson()
             ->{$method}($base.$path, $body);
 
-        if ($response->failed()) {
+        if (! $response->successful()) {
             // Only the status travels. A store error body routinely echoes the
             // request it rejected, and that request carried tenant vectors.
             throw new RuntimeException('LF_VECTOR_STORE_REQUEST_FAILED_'.$response->status());
         }
 
-        return (array) $response->json();
+        $body = $response->json();
+        if (! is_array($body) || ($body['status'] ?? null) !== 'ok') {
+            throw new RuntimeException('LF_VECTOR_STORE_INVALID_RESPONSE');
+        }
+
+        return $body;
     }
 }
