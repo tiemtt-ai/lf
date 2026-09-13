@@ -22,6 +22,41 @@ class AiKnowledgeIngestionServiceTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_prepare_command_persists_chunks_without_a_model_and_restores_context(): void
+    {
+        [$customerId, $userId, $mediaId] = $this->tenant('prepare-command');
+        $service = $this->serviceReturning([$this->unit($mediaId, '3#1', 'Tiếng Việt và 한국어')], 2);
+        $this->app->instance(AiKnowledgeIngestionService::class, $service);
+        $previous = (object) ['id' => 987654];
+        TenantContext::set($previous);
+        $options = [
+            '--customer' => $customerId, '--actor' => $userId,
+            '--owner-type' => 'course_activity', '--owner-id' => 99,
+            '--usage-type' => 'document', '--content-type' => 'region',
+            '--title' => 'Kiến thức chuẩn bị', '--locale' => 'vi',
+        ];
+        $this->artisan('ai:knowledge-prepare', $options)->assertSuccessful();
+        $this->artisan('ai:knowledge-prepare', $options)->assertSuccessful();
+        $this->assertSame($previous, TenantContext::customer());
+        $this->assertDatabaseCount('ai_knowledge_sources', 1);
+        $this->assertDatabaseCount('ai_knowledge_chunks', 1);
+        $this->assertDatabaseCount('ai_embeddings', 0);
+        $this->assertDatabaseCount('ai_model_runs', 0);
+    }
+
+    public function test_prepare_command_rejects_an_actor_from_another_tenant(): void
+    {
+        [$customerId] = $this->tenant('prepare-owner');
+        [, $otherActor] = $this->tenant('prepare-other');
+        $this->artisan('ai:knowledge-prepare', [
+            '--customer' => $customerId, '--actor' => $otherActor,
+            '--owner-type' => 'course_activity', '--owner-id' => 99,
+            '--usage-type' => 'audio', '--content-type' => 'transcript',
+            '--title' => 'Must refuse',
+        ])->assertFailed();
+        $this->assertDatabaseCount('ai_knowledge_sources', 0);
+    }
+
     public function test_it_ingests_media_units_with_exact_provenance_and_is_idempotent(): void
     {
         [$customerId, $userId, $mediaId] = $this->tenant('base');

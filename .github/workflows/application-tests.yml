@@ -150,4 +150,6 @@ jobs:
             tests/Integration/MediaProcessingJobKeyWidthMariaDbTest.php \
             tests/Feature/AiKnowledgeIngestionServiceTest.php \
             tests/Feature/AiProviderExecutionGateTest.php \
-            tests/Integration/AiFoundationKnowledgePacketMariaDbTest.php
+            tests/Integration/AiFoundationKnowledgePacketMariaDbTest.php \
+            tests/Feature/DatabaseUsageQuotaReserverTest.php \
+            tests/Integration/SaasUsageQuotaPacketMariaDbTest.php

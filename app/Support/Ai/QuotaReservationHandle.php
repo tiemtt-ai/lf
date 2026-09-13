@@ -23,5 +23,8 @@ final readonly class QuotaReservationHandle
         public float $quantity,
         public string $unit,
         public DateTimeImmutable $expiresAt,
+        public string $status = 'reserved',
+        public ?float $committedQuantity = null,
+        public ?int $usageEventId = null,
     ) {}
 }

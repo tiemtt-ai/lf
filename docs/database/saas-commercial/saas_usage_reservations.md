@@ -2,13 +2,32 @@
 
 Version: 1.0
 
-Document Status: Review
+Document Status: Frozen
 
-Implementation Status: Not Implemented
+Implementation Status: Implemented
 
-Last Updated: 2026-09-10
+Last Updated: 2026-09-12
 
 Document Path: database/saas-commercial/saas_usage_reservations.md
+
+Implementation evidence: migration
+`2026_09_12_000100_create_saas_usage_quota_packet.php`, verified on an isolated
+MariaDB 11.4.12 database. Schema contract harvested from that database; this is
+not a claim that the migration was applied to `learnforge_db`. No provider was
+activated and no historical Media evidence was modified.
+
+**Owner approval — 2026-09-12:** Owner yêu cầu thực hiện migration và hoàn tất
+store theo thiết kế hiện tại sau khi bỏ điều kiện review độc lập. Bản thiết kế
+này Approved/Frozen theo quyết định đó; không ghi nhận review PASS giả.
+Các ghi chú giữ Review/chờ PASS bên dưới là lịch sử đã được thay thế.
+
+> **Owner waiver — 2026-09-12 (Bước 4):** Review có thực hiện hay không do
+> Owner quyết định. Yêu cầu review/PASS độc lập bắt buộc trước khi Frozen,
+> migration hoặc đóng Bước 4 đã được Owner bỏ; các khối yêu cầu đó bên dưới
+> chỉ còn là lịch sử. Đây không phải review PASS, không tự chứng nhận
+> implementation và không thay đổi schema. Phê duyệt thiết kế và kiểm chứng
+> kỹ thuật vẫn cần được ghi đúng. Xem
+> [quyết định hiện hành](../../quality/LF-SaaS-Commercial-Usage-Packet-Reviewer-Brief.md#owner-confirmation--2026-09-12).
 
 ---
 
@@ -245,7 +264,8 @@ CHECK (committed_quantity IS NULL OR committed_quantity >= 0);
 CHECK (status <> 'committed' OR committed_quantity <= reserved_quantity);
 CHECK (status <> 'committed_over_limit' OR committed_quantity > reserved_quantity);
 CHECK ((period_type = 'lifetime' AND period_end_at IS NULL) OR
-       (period_type <> 'lifetime' AND period_end_at > period_start_at));
+       (period_type <> 'lifetime' AND period_end_at IS NOT NULL AND
+        period_end_at > period_start_at));
 CHECK ((status = 'reserved' AND committed_quantity IS NULL AND
         usage_event_id IS NULL AND execution_started_at IS NULL AND
         provider_completed_at IS NULL AND settled_at IS NULL) OR
@@ -317,6 +337,41 @@ over-holding a tenant's quota is recoverable by a human, and so is a late
 settlement — silently refunding usage that happened is not.
 
 # Rollback
+
+## Implementation clarifications — 2026-09-12
+
+The finite-period CHECK explicitly requires a non-NULL end; SQL UNKNOWN must
+not bypass the documented finite-period invariant. This does not add a period
+type or change the approved lifecycle.
+
+`QuotaReservationHandle` returns the persisted status, actual quantity and
+Usage Event id for a settled replay. Replay does not create capacity or allow
+another provider execution. A changed producer id or reserved quantity on the
+same attempt is rejected. Duplicate commit with the same six-decimal actual
+quantity is a no-op; a different actual quantity is a conflict, not an UPDATE.
+
+Commercial's store accepts an injected `UsageReconciliationEvidenceReader`.
+Its receipt binds tenant, reservation, producer UUID, metric and unit, with the
+actual quantity, occurrence time and SHA-256 receipt digest. Receipt resolution
+runs outside the transaction; settlement re-locks the row and rechecks its
+state. Only the safe digest is retained in metadata. A missing reader or an
+unknown receipt means keep the hold; this is not a requirement to activate an
+AI provider. Tests supply receipts without external calls. Future production
+readers must validate provider provenance; no public arbitrary-receipt endpoint
+is supplied.
+
+A usable producer result with actual quantity zero is positive no-consumption
+evidence: `commit(handle, 0)` takes the reconciliation outcome
+`reconciled_released` and writes no zero-valued Usage Event (Usage requires
+positive quantity). Repeating that result is a no-op. A positive result follows
+the existing committed/over-limit path. Negative, nonfinite, overflowing and
+sub-precision positive quantities are rejected, never rounded down to a refund.
+
+Lease renewal is available through the store's `renew()` method for unexpired
+held rows only, capped by the original maximum. Expired reservations cannot
+cross the provider boundary even if the expiry sweeper has not run yet.
+
+## Packet rollback
 
 Migration `down()` must fail before DDL if any reservation row exists. No
 backfill and no provider activation are part of the migration packet.

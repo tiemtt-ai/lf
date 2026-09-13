@@ -51,6 +51,8 @@ criteria hay không.
 * [LF-A0-Docling-Closure-Evidence.md](LF-A0-Docling-Closure-Evidence.md)
 * [LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md](LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md)
 * [LF-AI-Provider-Execution-Gate-Implementation-Review.md](LF-AI-Provider-Execution-Gate-Implementation-Review.md)
+* [LF-AI-Embedding-Qdrant-Implementation-Review.md](LF-AI-Embedding-Qdrant-Implementation-Review.md)
+* [LF-SaaS-Commercial-Usage-Packet-Reviewer-Brief.md](LF-SaaS-Commercial-Usage-Packet-Reviewer-Brief.md)
 * [LF-Implicit-Timestamp-OnUpdate-Audit.md](LF-Implicit-Timestamp-OnUpdate-Audit.md)
 * [LF-Audio-Processing-Final-Code-Review.md](LF-Audio-Processing-Final-Code-Review.md) — review Audio local, real offline Faster Whisper E2E và `PASS_LOCAL_AUDIO_PROCESSING`.
 * [LF-Video-Transcript-Caption-Final-Code-Review.md](LF-Video-Transcript-Caption-Final-Code-Review.md) — review Video Transcript + Caption local, real FFmpeg/Faster Whisper/VTT E2E.

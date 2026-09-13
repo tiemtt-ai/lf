@@ -3,13 +3,18 @@
 namespace App\Providers;
 
 use App\Contracts\Ai\CommercialEntitlements;
+use App\Contracts\Ai\EmbeddingProvider;
 use App\Contracts\Ai\ExternalProcessingApprovals;
 use App\Contracts\Ai\TenantSettingSource;
 use App\Contracts\Ai\UsageQuotaReserver;
+use App\Contracts\Ai\VectorStore;
 use App\Services\Ai\DatabaseCommercialEntitlements;
 use App\Services\Ai\DatabaseTenantSettings;
 use App\Services\Ai\DatabaseUsageQuotaReserver;
+use App\Services\Ai\QdrantVectorStore;
 use App\Services\Ai\SettingBackedExternalProcessingApprovals;
+use App\Services\Ai\UnavailableEmbeddingProvider;
+use App\Services\Ai\UnavailableVectorStore;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -38,6 +43,23 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ExternalProcessingApprovals::class, SettingBackedExternalProcessingApprovals::class);
         $this->app->bind(CommercialEntitlements::class, DatabaseCommercialEntitlements::class);
         $this->app->bind(UsageQuotaReserver::class, DatabaseUsageQuotaReserver::class);
+
+        // Embedding + vector store — ADR-0006 v1.0.2.
+        //
+        // No embedding provider is bound to a real vendor. Activating one is a
+        // separate decision under ADR-0018, and shipping a default here would
+        // make that decision by omission. The bound provider throws, so an
+        // unapproved deployment cannot produce vectors rather than producing
+        // wrong ones.
+        $this->app->bind(EmbeddingProvider::class, UnavailableEmbeddingProvider::class);
+
+        // The store is different: Qdrant is self-hosted inside the LF boundary,
+        // so the adapter itself is safe to bind. It is the *configuration* that
+        // gates it — `ai.vector_store.host` ships empty, and an unconfigured
+        // deployment falls back to the store that refuses every operation.
+        $this->app->bind(VectorStore::class, static fn (): VectorStore => config('ai.vector_store.host')
+            ? new QdrantVectorStore
+            : new UnavailableVectorStore);
     }
 
     /**

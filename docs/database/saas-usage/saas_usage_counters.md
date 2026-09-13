@@ -2,13 +2,32 @@
 
 Version: 1.1
 
-Document Status: Review
+Document Status: Frozen
 
-Implementation Status: Not Implemented
+Implementation Status: Implemented
 
-Last Updated: 2026-09-10
+Last Updated: 2026-09-12
 
 Document Path: database/saas-usage/saas_usage_counters.md
+
+Implementation evidence: migration
+`2026_09_12_000100_create_saas_usage_quota_packet.php`, verified on an isolated
+MariaDB 11.4.12 database. Schema contract harvested from that database; this is
+not a claim that the migration was applied to `learnforge_db`. No provider was
+activated and no historical Media evidence was modified.
+
+**Owner approval — 2026-09-12:** Owner yêu cầu thực hiện migration và hoàn tất
+store theo thiết kế hiện tại sau khi bỏ điều kiện review độc lập. Bản thiết kế
+này Approved/Frozen theo quyết định đó; không ghi nhận review PASS giả.
+Các ghi chú giữ Review/chờ PASS bên dưới là lịch sử đã được thay thế.
+
+> **Owner waiver — 2026-09-12 (Bước 4):** Review có thực hiện hay không do
+> Owner quyết định. Yêu cầu review/PASS độc lập bắt buộc trước khi Frozen,
+> migration hoặc đóng Bước 4 đã được Owner bỏ; các khối yêu cầu đó bên dưới
+> chỉ còn là lịch sử. Đây không phải review PASS, không tự chứng nhận
+> implementation và không thay đổi schema. Phê duyệt thiết kế và kiểm chứng
+> kỹ thuật vẫn cần được ghi đúng. Xem
+> [quyết định hiện hành](../../quality/LF-SaaS-Commercial-Usage-Packet-Reviewer-Brief.md#owner-confirmation--2026-09-12).
 
 ## Owner Freeze — 2026-09-10 — superseded by schema amendment
 

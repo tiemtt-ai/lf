@@ -24,6 +24,8 @@ use App\Support\Ai\QuotaReservationHandle;
  *
  * `reserve()` returns null when the quota is exhausted — it must not throw for
  * that ordinary outcome, so the gate can record AI_QUOTA_EXCEEDED.
+ * A settled replay returns its receipt (status/actual/event id), never a fresh
+ * hold. This does not permit re-execution. Invalid quantity/provenance throws.
  *
  * The caller must mark the provider boundary explicitly. Only a never-started
  * `reserved` hold may expire automatically; `executing` and `settling` require
@@ -45,6 +47,7 @@ interface UsageQuotaReserver
 
     public function markSettling(QuotaReservationHandle $handle): void;
 
+    /** Same-actual retry is idempotent; zero proven consumption creates no Usage Event. */
     public function commit(QuotaReservationHandle $handle, float $actualQuantity): void;
 
     /**

@@ -1,14 +1,36 @@
 # Table: ai_embeddings
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-08
+Last Updated: 2026-09-10
 
 Document Path: database/ai/ai_embeddings.md
+
+## Retry amendment — Approved by Owner 2026-09-10
+
+Thêm `failed → pending` vào canonical transitions.
+
+Lý do: `uk_aem_chunk_model` `(customer_id, knowledge_chunk_id, provider, model,
+embedding_hash)` ghim định danh của một embedding, và một tombstone `deleted`
+ghim nó y hệt. Nếu `failed` là ngõ cụt thì một lỗi provider thoáng qua sẽ khiến
+chunk đó **không bao giờ** được index lại — không bằng row cũ, cũng không bằng
+row mới. Đó là lỗ hổng vĩnh viễn sinh ra từ một lỗi tạm thời.
+
+Việc tái dùng row không làm mất bằng chứng: mỗi lần thử là một row riêng, bất
+biến trong `ai_model_runs` (`status`, `error_code`, `completed_at`), và
+`ai_embeddings.model_run_id` trỏ vào lần thử hiện hành. Row embedding vì thế là
+bản ghi **trạng thái hiện tại**, không phải sổ lịch sử attempt — sổ đó là
+`ai_model_runs`.
+
+Phạm vi hẹp có chủ ý: chỉ `failed → pending`. `stale → pending` **không** được
+thêm; một định danh đã bị supersede không được quay lại vòng đời truy hồi bằng
+đường này. Nguồn:
+[LF-AI-Embedding-Qdrant-Implementation-Review](../../quality/LF-AI-Embedding-Qdrant-Implementation-Review.md)
+OD-1.
 
 ## Vector-store and deletion amendment — Approved 2026-09-05
 
@@ -48,9 +70,14 @@ store reference.
 * Allowed `status`: `pending`, `ready`, `failed`, `stale`, `deletion_pending`, `deleted`.
 * Dimensions phải khớp model contract.
 * Retrieval luôn tenant-scoped dù vector store dùng shared index.
-* Canonical transitions: `pending → ready|failed`; `ready|failed → stale`;
+* Canonical transitions: `pending → ready|failed`; `failed → pending` (retry,
+  Amendment 2026-09-10); `ready|failed → stale`;
   `pending|ready|failed|stale → deletion_pending → deleted`. `deleted` terminal.
   Application service enforces transitions under row lock.
+* Retry chỉ hợp lệ khi `ai_model_runs` row đang giữ `pending` đó đã kết thúc
+  (`failed` hoặc `cancelled`). Một `pending` thuộc run `queued`/`running` là
+  đang có chủ; thuộc run `completed` là việc của reconciliation, không phải của
+  một lần gọi provider thứ hai.
 
 ## Fields
 

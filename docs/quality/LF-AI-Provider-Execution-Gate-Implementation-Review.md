@@ -1,20 +1,32 @@
 # AI Provider Execution Gate — Implementation Review
 
-Version: 1.13
+Version: 1.15
 
 Document Status: Review
 
-Implementation Status: Partial
+Implementation Status: Implemented
 
-Last Updated: 2026-09-09
+Last Updated: 2026-09-12
 
 Review Date: 2026-09-09
 
 Document Path: quality/LF-AI-Provider-Execution-Gate-Implementation-Review.md
 
+**Current implementation — 2026-09-12:** Step 4 backend is implemented,
+including the Owner-approved SaaS migration packet, real reservation store and
+reconciliation. See the closure evidence below. Earlier Partial, unmigrated,
+inert-reconciliation and mandatory-review statements are historical, not the
+current blocker list. No independent PASS is claimed. Deployment to the local
+application database and provider activation are separate from this evidence.
+
 ---
 
 # Scope
+
+Scope extended by Owner on 2026-09-12: includes the four-table SaaS quota
+migration and real-store implementation/verification. The original scope and
+implementation snapshots below are retained as history; current closure is
+defined in the final section, not by the original "no new migration" boundary.
 
 Bước 4 của lộ trình Phần 2 — Governance + Model Run. Triển khai gate dùng chung
 đứng trước mọi network call tới model/provider, theo
@@ -618,6 +630,220 @@ migration mới. Delete barrier và lifecycle của Source/Chunk/Embedding khôn
 chạm tới.
 
 ---
+
+## Store follow-up — 2026-09-10 (implementation evidence, not independent approval)
+
+Owner clarified that live provider activation and a frontend AI consumer are
+**not** Step 4 closure requirements. They remain separate deployment decisions.
+Real database constraints, settlement/reconciliation and two-connection quota
+tests remain implementation requirements; none requires a live model call.
+
+Classification: Existing-Feature Change. Initial/Final Audit Level: HIGH
+(quota persistence). Audit Level Escalation: None. Source of truth: Commercial
+reservation contract; AI remains its consumer. No schema, lifecycle vocabulary,
+Media evidence, provider configuration or tenant ownership changes in this fix.
+
+Fixed `DatabaseUsageQuotaReserver` receipt mapping to include persisted
+`usage_type`; previously a successful insert reached a constructor TypeError.
+Initial leases now obey the period/maximum cap. Reservation timestamps,
+expiry comparisons and effective-entitlement reads consistently use UTC;
+receipts interpret the persisted expiry as UTC, not PHP's local timezone.
+
+New file: `tests/Feature/DatabaseUsageQuotaReserverTest.php`. Its isolated
+SQLite fixture exercises the actual query paths, not the fake reserver. It
+does not represent the full SaaS schema and provides no MariaDB CHECK/FK or
+concurrency evidence. No application database was migrated or modified.
+
+Traceability: receipt/retry mapping, end-of-period cap, capacity shared across
+metrics with tenant isolation, and expiry that leaves executing holds intact
+each have a regression test. Before fixing the receipt, three tests raised
+TypeError; after fixing only the receipt, the period-cap test still failed.
+After both fixes: store + gate **41 passed / 203 assertions**. Targeted Pint,
+docs lint, docs-only schema drift (96 migrations) and diff whitespace pass.
+Frontend build passes. Full suite: **1095 passed, 4 skipped, 16 failed**
+(10259 assertions, 151.58s). Failures are in Audio/Document local review,
+MediaRevisionLifecycle and VideoTranscriptCaptionLocalReview; no paired
+baseline run was performed in this follow-up, so these are **not** certified
+as baseline failures. Full-suite regression clearance remains unverified.
+
+Unverified/remaining: whole-packet independent PASS and Freeze are still absent;
+no migration is authorized by this implementation note. The real
+`reconcileUnsettled()` remains inert; settled-attempt replay still returns null.
+Those paths and MariaDB two-connection tests must be completed before Step 4
+is marked Done. Provider activation must not be used to explain these gaps.
+Final Verdict: BLOCKED for full Step 4 closure, not for lack of live AI.
+
+## Paired baseline run — ghi nhận 2026-09-12 (implementer-produced)
+
+Mục "Store follow-up" ở trên kết luận *"no paired baseline run was performed…
+Full-suite regression clearance remains unverified"* dựa trên một lượt chạy cho
+**16 failed**. Sau đó một lượt đối chiếu cặp **đã được thực hiện** trên cùng cây
+làm việc dùng để soạn [Reviewer Brief](LF-SaaS-Commercial-Usage-Packet-Reviewer-Brief.md),
+và cho kết quả khác:
+
+| Lượt | Kết quả |
+| --- | --- |
+| Toàn suite, cây hiện tại (SQLite) | **7 failed, 4 skipped, 1104 passed** (10397 assertions) |
+| Đúng 7 test đó, chạy lại trên `a9da018` trong `git worktree` riêng | đỏ y hệt |
+
+Bảy lỗi trùng khớp từng cái theo tên với baseline: `MediaRevisionLifecycleTest`
+(5), `VideoTranscriptCaptionLocalReviewTest` (1),
+`AudioProcessingLocalReviewTest` (1) — đều phụ thuộc ffmpeg/whisper thật và
+không chạm packet này.
+
+**Ba giới hạn phải đọc kèm, không được tách rời:**
+
+1. **Do implementer chạy.** Không mang trọng lượng độc lập. Reviewer phải tự
+   chạy lại chứ đừng thừa nhận bảng trên.
+2. **Chênh lệch 16 vs 7 chưa được giải thích.** Con số 16 **giữ nguyên** trong
+   hồ sơ như một dữ kiện; mục này không xoá nó và không tuyên bố nó sai. Hai
+   lượt chạy bất đồng, và bản thân sự bất đồng đó là thứ reviewer cần biết. Một
+   giả thuyết chưa kiểm chứng: tiến trình `phpunit` mồ côi — `pkill -f "artisan
+   test"` không khớp tiến trình con, kiểm bằng `pgrep -fl phpunit`.
+3. **SQLite.** Không chứng minh được gì về CHECK constraint hay FK; không thay
+   thế cho lượt kiểm trên MariaDB 11.4.
+
+Hệ quả với kết luận trước: câu "Full-suite regression clearance remains
+unverified" nay **quá nghiêm so với bằng chứng đang có** — đã có một lượt đối
+chiếu cặp cho thấy không hồi quy — nhưng vẫn **chưa đạt mức certified**, vì
+chưa ai ngoài implementer tái lập và vì chênh lệch ở điểm 2 còn bỏ ngỏ.
+
+## Closure sequence confirmed — 2026-09-12
+
+Owner đã xác nhận hướng hoàn tất Bước 4; trình tự và trạng thái từng việc được
+ghi tại [Reviewer Brief](LF-SaaS-Commercial-Usage-Packet-Reviewer-Brief.md#owner-confirmation--2026-09-12).
+Owner đã bỏ điều kiện review/PASS độc lập bắt buộc cho packet Bước 4.
+Review có thực hiện hay không do Owner quyết định, theo waiver ghi trong brief;
+không ghi giả thành PASS và không mở rộng approval lịch sử. Trình tự hiện hành:
+phê duyệt đúng bản và Frozen → migration test MariaDB 11.4 → hoàn thiện store
+và kiểm concurrency hai connection. Commit dùng để truy vết theo quyền Owner.
+
+Các phát biểu trước trong artifact yêu cầu independent PASS trước khi Frozen,
+migration hoặc đóng Bước 4 là lịch sử và đã được quyết định này thay thế.
+Thiếu review không còn là blocker; thiếu implementation hoặc bằng chứng kỹ
+thuật vẫn phải được báo đúng. Quyết định không áp dụng sang bước/packet khác.
+
+Không yêu cầu gọi AI thật, frontend chat hoặc provider activation để đóng
+Bước 4. `Implementation Status: Partial` phản ánh phần triển khai/kiểm chứng
+còn thiếu, không phản ánh việc provider chưa bật. Lượt cập nhật này chỉ sửa
+tài liệu, không chạy thêm test runtime, không migration và không đổi provider.
+
+## Step 4 backend closure evidence — 2026-09-12
+
+Classification: Existing-Feature Change. Initial/Final Audit Level: HIGH
+(Commercial quota, cross-domain measurement, schema, transactions). No audit
+level escalation. Owner approved implementation and waived mandatory review;
+this section is implementer evidence, not an independent signature.
+
+Scope completed:
+
+- Migration `2026_09_12_000100_create_saas_usage_quota_packet.php` creates
+  Entitlement, Reservation, Usage Event and Counter in dependency order. Tenant
+  foreign keys, attempt identity, active-slot uniqueness, status/lease CHECKs
+  and immutable Usage triggers are present. Rollback preflights all four tables
+  before any DDL. No historical Media rows are changed.
+- Contract was harvested with `MySqlSchemaInspector` from actual MariaDB
+  **11.4.12** (`SELECT VERSION()`). All **97 migrations** ran from empty schema
+  on the isolated instance. Read-only schema drift against that schema passes.
+- Store returns existing settlement receipts across period/entitlement expiry;
+  same-actual commit retry is idempotent, conflicting retries are rejected.
+  Capacity locks and counts reserved/executing/settling plus both consumed
+  states, across metrics within the feature/unit budget. Counter freshness is
+  irrelevant to authorization.
+- Reconciliation now consumes an injectable, attempt-bound receipt reader.
+  Unknown evidence holds quota; zero evidence releases through the explicit
+  reconciliation terminal state; positive evidence settles the true quantity,
+  including over-limit usage. Digest-only provenance is retained. No external
+  reader, credential or provider is needed to test either outcome.
+- Leases and receipts use UTC with tenant-local period boundaries. Initial
+  leases and renewal respect the original cap; an expired lease cannot cross
+  the provider boundary. Append failure leaves the unsettled hold intact.
+
+Verification:
+
+| Evidence | Result |
+| --- | --- |
+| Entire 18-file MariaDB job test selection | 240 tests, 922 assertions, PASS |
+| Schema under `explicit_defaults_for_timestamp=0` and `=1` | Four-table shapes identical; empty rollback succeeds under both |
+| Two-connection store test | Child hits real lock wait error 1205 while parent holds entitlement; after commit, retry cannot reserve another 60 against a 100 limit with 60 held |
+| SQLite store + gate, including real-store/spy-adapter flow | 51 passed, 235 assertions |
+| Final MariaDB store + gate + physical packet, including additional end-to-end test | 71 passed, 268 assertions |
+| Full SQLite suite during implementation | 1103 passed, 4 skipped, 16 failed; Media/runtime classes, no quota test failure |
+| Paired Media/runtime baseline comparison | Baseline `a9da018` and current tree: identical 16 failing test names, 84 passed, 490 assertions; no new or removed failures |
+| Frontend build, targeted Pint, docs lint, docs-only drift, whitespace | PASS |
+
+MariaDB test selection ran with the already migrated test database and the
+framework's migrated flag set, avoiding a redundant initial rebuild. Tests
+that rebuild internally still did so. This is local verification, **not** a
+claim that GitHub Actions was triggered. The full test selection took 14m21s
+locally; the existing CI timeout remains unchanged. The new end-to-end real
+store test is additional to that selection's 240-count snapshot.
+
+The paired comparison runs the four affected Media/runtime classes against an
+archived `a9da018` and the current tree. The archive pins Composer application,
+test and database namespaces plus `APP_BASE_PATH` to itself; only installed
+dependencies/runtime assets are shared. Both use separate SQLite in-memory
+databases. JUnit comparison confirms exact failure-name equality, rather than
+inferring baseline status from equal totals. This does not make the full suite
+green.
+
+Unverified/outside scope: production application of migration, external
+provider adapters/receipts, tenant-settings provisioning, counter projector,
+retention purge tooling, and Step 5 code already present in the working tree.
+No production database change or live-provider activation is implied by
+`Implemented`. Media runtime full-suite failures are tracked separately from
+the green quota/MariaDB checks; do not relabel the whole application suite PASS.
+
+## AGENTS.md Database Rule — trạng thái tại thời điểm tạo migration (2026-09-12)
+
+Ghi tách riêng vì đây là điều dễ bị đọc nhầm nhất trong toàn hồ sơ: migration
+được tạo dưới **miễn trừ của Owner**, không phải sau khi mọi điều kiện đã đạt.
+
+`AGENTS.md` § Database Rule: *"Không tạo migration trước khi: Database Docs
+approved / ADR approved nếu thay đổi là Foundation / Architecture Review
+passed."*
+
+| Điều kiện | Trạng thái | Bằng chứng |
+| --- | --- | --- |
+| Database Docs approved | **Đạt** | Bốn hồ sơ `Document Status: Frozen` |
+| ADR approved (Foundation) | **Đạt** | `ADR-0009-SaaS-Usage-Foundation.md` Status `Frozen` |
+| Architecture Review passed | **ĐƯỢC MIỄN TRỪ** | Không có artifact review độc lập nào tồn tại; `docs/quality/LF-SaaS-Commercial-Usage-Packet-Architecture-Review.md` chưa được tạo |
+
+Miễn trừ do **Owner** đưa ra ngày 2026-09-12, phạm vi giới hạn ở packet bốn bảng
+SaaS và Bước 4; không sửa quy trình toàn repository. Chi tiết và nguyên văn yêu
+cầu ở [Reviewer Brief § Owner confirmation](LF-SaaS-Commercial-Usage-Packet-Reviewer-Brief.md#owner-confirmation--2026-09-12).
+
+Chỉ Owner mới có thẩm quyền miễn trừ này. Implementer không miễn trừ được
+`AGENTS.md`, và không có quyết định nào của implementer nằm sau miễn trừ.
+Brief Q1–Q11 vẫn dùng được nguyên trạng nếu điều kiện thứ ba được khôi phục.
+
+## Hai lượt đo full-suite bất đồng — chưa giải thích được
+
+Hồ sơ này chứa hai con số full-suite khác nhau trên cùng cây làm việc. Giữ cả
+hai thay vì chọn một, vì bản thân sự bất đồng là dữ kiện.
+
+| Lượt | Kết quả | Ai chạy |
+| --- | --- | --- |
+| Trong lúc triển khai (§ closure evidence) | 1103 passed, 4 skipped, **16 failed** | implementer |
+| Đo lại sau khi packet hoàn tất | 1114 passed, 4 skipped, **7 failed** | implementer |
+
+Bảy lỗi ở lượt sau nằm trong `MediaRevisionLifecycleTest` (5),
+`VideoTranscriptCaptionLocalReviewTest` (1), `AudioProcessingLocalReviewTest`
+(1) — là tập con của 16 lỗi lượt trước, vốn còn gồm cả Document local review.
+
+**Chênh lệch 9 test chưa xác định được nguyên nhân.** Giả thuyết chưa kiểm
+chứng: phụ thuộc nhị phân ngoài (ffmpeg/whisper) có mặt hay không ở từng lượt,
+hoặc tiến trình `phpunit` mồ côi (`pkill -f "artisan test"` không khớp tiến
+trình con; kiểm bằng `pgrep -fl phpunit`).
+
+Điều này **không** làm thay đổi kết luận về hồi quy, và cần nói rõ tại sao:
+lượt đối chiếu cặp ở § closure evidence so khớp **tên test** qua JUnit giữa
+baseline lưu trữ `a9da018` và cây hiện tại, chứ không suy ra từ tổng số bằng
+nhau. Đó là phương pháp mạnh hơn, và nó cho kết quả trùng khớp chính xác. Lượt
+đo 7 lỗi cũng độc lập dẫn tới cùng kết luận. Hai lượt đồng ý về **không hồi
+quy**; chỉ bất đồng về số tuyệt đối.
+
+Cả hai đều do implementer chạy. Không lượt nào mang trọng lượng độc lập.
 
 ## Owner
 

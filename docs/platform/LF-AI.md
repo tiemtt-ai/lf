@@ -23,8 +23,44 @@ Retry cùng revision idempotent; revision mới làm source/chunk/embedding cũ
 `stale`. Delete request chuyển toàn chain sang `deletion_pending`; source/chunk
 chỉ thành tombstone `deleted` sau khi mọi embedding đã xác nhận `deleted`.
 Runtime này không gọi provider, không tạo `ai_model_runs`, không tạo embedding
-và không ghi Qdrant. Provider/model-run, embedding và retrieval vẫn là các bước
-riêng chưa triển khai.
+và không ghi Qdrant — ingestion dừng ở Knowledge Source/Chunk.
+
+Provider/model-run, embedding và retrieval là các bước **riêng**. Trạng thái của
+chúng khác nhau, nên không gộp làm một:
+
+* **Provider execution gate + model run** — runtime Implemented 2026-09-09, xem
+  mục dưới. Hồ sơ Bước 4 vẫn `Partial`; chi tiết và phần còn thiếu ở
+  [LF-AI-Provider-Execution-Gate-Implementation-Review](../quality/LF-AI-Provider-Execution-Gate-Implementation-Review.md).
+* **Embedding + retrieval** — runtime **đã tồn tại** (`AiEmbeddingService`,
+  `AiKnowledgeRetrievalService`, `QdrantVectorStore`) và có test xanh, nhưng
+  **chưa được review độc lập và chưa đóng**. Xem
+  [LF-AI-Embedding-Qdrant-Implementation-Review](../quality/LF-AI-Embedding-Qdrant-Implementation-Review.md).
+  Đừng đọc "chưa đóng" thành "chưa có code": hai điều đó dẫn tới kết luận rất
+  khác nhau khi review.
+* **Provider activation** — quyết định riêng theo ADR-0018, độc lập với mọi mục
+  trên. Không provider nào được bind; mặc định fail-closed.
+
+### Chuẩn bị kiến thức bằng console
+
+`ai:knowledge-prepare` gọi ingestion service ở trên, yêu cầu tenant, actor và
+owner context tường minh. Media Read vẫn quyết định quyền đọc. Lệnh chỉ đăng ký
+Knowledge Source và chia chunks; không gọi model, tạo embedding hay truy cập
+Qdrant. Tenant context được khôi phục khi lệnh kết thúc, kể cả khi có lỗi.
+
+Ví dụ (thay các ID bằng dữ liệu được phép sử dụng):
+
+```sh
+php artisan ai:knowledge-prepare --customer=1 --actor=2 \
+  --owner-type=course_activity --owner-id=99 \
+  --usage-type=document --content-type=region --title="Bài học" \
+  --language-profile=vi,ko
+```
+
+Audio dùng `audio/transcript`; video dùng `video/transcript` hoặc
+`video/video_frame_text`, mỗi loại nội dung đăng ký một nguồn riêng. Kết quả JSON
+gồm source ID/UUID, generation, chunk count và cờ reuse. Chạy lại cùng revision
+tái dùng nguồn/chunks theo contract ingestion. Embedding được thực hiện ở bước
+riêng khi model và vector store đã cấu hình, phê duyệt và sẵn sàng.
 
 ## Provider execution gate — Approved 2026-09-08, runtime Implemented 2026-09-09
 
@@ -47,18 +83,19 @@ trong adapter sau khi gate đạt, không đi vào command, log, metadata hoặc
 Tạo schema không kích hoạt provider. Runtime provider chỉ được mở sau test
 fail-closed, tenant isolation, quota concurrency và audit provenance.
 
-### Runtime state — 2026-09-09
+### Runtime state — 2026-09-12
 
 `AiProviderExecutionGate` implements the five steps in the order above and is
 the only supported path to a provider adapter. Every attempt, allowed or
 blocked, writes exactly one `ai_model_runs` row keyed by a deterministic
 `run_uuid`, so a retried intent reuses its audit row instead of multiplying it.
 
-Steps 2, 3 and 4 read authorities that do not exist yet — `saas_customer_settings`,
-`saas_entitlements` and `saas_usage_counters` are all `not_implemented`. Each is
-bound to a fail-closed default, so the gate currently refuses every request with
-`AI_APPROVAL_REQUIRED` at step 2. That is the intended state: no provider is
-activated, and "cannot check" never resolves to "checked and fine".
+The SaaS quota packet now has a migration and real-store tests:
+`saas_entitlements`, `saas_usage_reservations`, `saas_usage_events` and
+`saas_usage_counters`. Step 4 authorizes against the reservation ledger, never
+the counter projection. `saas_customer_settings` remains outside this packet.
+The allow-list remains empty: the shipped gate denies at step 1; when a test
+allow-lists a provider but no tenant setting exists, it denies at step 2.
 
 Step 4's owning domain was decided on 2026-09-09: **Commercial owns the usage
 reservation ledger**, with a TTL that reclaims reservations their owner never
@@ -70,16 +107,15 @@ let AI grant itself spending authority against ADR-0006.
 
 Gate step 2–4 now bind to real readers — `DatabaseTenantSettings`,
 `DatabaseCommercialEntitlements`, `DatabaseUsageQuotaReserver` — rather than to
-null objects. Each checks its table and returns the fail-closed answer while the
-SaaS packet is unmigrated, so the gate keeps producing an auditable `blocked`
-run instead of an unhandled QueryException. Behaviour today is unchanged: every
-request is still refused at step 2.
+null objects. Missing tables still fail closed. Creating the schema grants no
+entitlement or external-processing approval and does not activate a provider.
 
-Their SQL paths carry **no physical verification yet**. The tables are
-`Review / Not Implemented`, so no test can exercise a reserve, a settlement or a
-concurrent hold; only the absent-table fallback is covered. Treat the store as
-unproven until migration lands and two-connection concurrency is demonstrated
-against it. Owner also
+Their SQL paths are verified on isolated MariaDB 11.4.12, including settlement,
+positive/zero/unknown reconciliation receipts, tenant-aware constraints and a
+second process blocked by the real entitlement lock. A missing receipt reader
+keeps unknown consumption held; tests inject a trusted receipt reader without
+calling any external provider. Completion of Step 4 does not require a live
+model, chat frontend or production activation. Owner also
 decided that `saas_customer_settings`, `saas_entitlements` and
 `saas_usage_counters` must all be migrated before the first provider is
 activated: opening a provider without entitlement and quota is calling it with no

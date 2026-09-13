@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 258,
+  "document_count": 260,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -6582,8 +6582,8 @@
       "title": "Table: saas_entitlements",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Review",
-      "implementation_status": "Not Implemented",
+      "document_status": "Frozen",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
@@ -6770,8 +6770,8 @@
       "title": "Table: saas_usage_reservations",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Review",
-      "implementation_status": "Not Implemented",
+      "document_status": "Frozen",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
@@ -6845,8 +6845,8 @@
       "title": "Table: saas_usage_counters",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Review",
-      "implementation_status": "Not Implemented",
+      "document_status": "Frozen",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
@@ -6884,8 +6884,8 @@
       "title": "Table: saas_usage_events",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Review",
-      "implementation_status": "Not Implemented",
+      "document_status": "Frozen",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
@@ -8399,6 +8399,57 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "quality/LF-AI-Embedding-Qdrant-Implementation-Review.md",
+      "title": "AI Embedding + Qdrant — Implementation Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "embedding",
+        "vector store",
+        "retrieval",
+        "tenant isolation",
+        "deletion"
+      ],
+      "keywords": {
+        "vi": [
+          "nhúng vector",
+          "kho vector",
+          "truy hồi",
+          "xoá điểm vector",
+          "hậu kiểm truy hồi"
+        ],
+        "en": [
+          "embedding",
+          "vector store",
+          "qdrant",
+          "retrieval post-validation",
+          "point deletion"
+        ]
+      },
+      "identifiers": [
+        "ai_embeddings",
+        "ai_knowledge_chunks",
+        "vector_key",
+        "embedding_hash",
+        "qdrant"
+      ],
+      "related_documents": [
+        "adr/ADR-0006-AI-Foundation.md",
+        "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
+        "platform/LF-AI.md",
+        "database/ai/ai_embeddings.md",
+        "quality/LF-AI-Provider-Execution-Gate-Implementation-Review.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md",
       "title": "AI Foundation Media-Consumer Database Architecture Review",
       "area": "quality",
@@ -8456,7 +8507,7 @@
       "area": "quality",
       "document_type": "architecture_review",
       "document_status": "Review",
-      "implementation_status": "Partial",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "quality",
       "canonical_for": [],
@@ -10005,6 +10056,58 @@
       ],
       "related_documents": [
         "LF-Development-Standards.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-SaaS-Commercial-Usage-Packet-Reviewer-Brief.md",
+      "title": "SaaS Commercial + Usage Packet — Reviewer Brief",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "saas",
+        "commercial",
+        "usage",
+        "quota",
+        "review",
+        "governance"
+      ],
+      "keywords": {
+        "vi": [
+          "đặt chỗ hạn mức",
+          "quyền lợi thương mại",
+          "sự kiện sử dụng",
+          "review độc lập",
+          "mở chặn migration"
+        ],
+        "en": [
+          "usage reservation",
+          "commercial entitlement",
+          "usage event",
+          "independent review",
+          "migration unblock"
+        ]
+      },
+      "identifiers": [
+        "saas_entitlements",
+        "saas_usage_reservations",
+        "saas_usage_events",
+        "saas_usage_counters"
+      ],
+      "related_documents": [
+        "adr/ADR-0009-SaaS-Usage-Foundation.md",
+        "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
+        "database/saas-commercial/saas_entitlements.md",
+        "database/saas-commercial/saas_usage_reservations.md",
+        "database/saas-usage/saas_usage_events.md",
+        "database/saas-usage/saas_usage_counters.md",
+        "quality/LF-AI-Provider-Execution-Gate-Implementation-Review.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

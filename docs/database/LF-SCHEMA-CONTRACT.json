@@ -25428,12 +25428,248 @@
     {
       "name": "saas_entitlements",
       "documentation": "database/saas-commercial/saas_entitlements.md",
-      "implementation_status": "not_implemented",
-      "columns": [],
-      "primary_key": [],
-      "indexes": [],
-      "foreign_keys": [],
-      "checks": [],
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "feature_key",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "entitlement_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "entitlement_value",
+          "type": "text",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "quota_unit",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "quota_period_type",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "quota_timezone",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "effective_from",
+          "type": "datetime",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "effective_to",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'active'",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "active_slot",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": {
+            "type": "stored",
+            "expression": "case when `status` = 'active' and `effective_to` is null then `feature_key` else NULL end"
+          }
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "effective_to"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "feature_key",
+            "status"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "source_type",
+            "source_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "feature_key",
+            "effective_from",
+            "effective_to"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "active_slot"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "json_valid(`metadata`)"
+        },
+        {
+          "expression": "`entitlement_type` in ('integer','decimal','unlimited') and `quota_unit` is not null and `quota_period_type` is not null and `quota_timezone` is not null or `entitlement_type` in ('boolean','string') and `quota_unit` is null and `quota_period_type` is null and `quota_timezone` is null"
+        }
+      ],
       "triggers": [],
       "views": []
     },
@@ -25536,11 +25772,143 @@
     {
       "name": "saas_usage_counters",
       "documentation": "database/saas-usage/saas_usage_counters.md",
-      "implementation_status": "not_implemented",
-      "columns": [],
-      "primary_key": [],
-      "indexes": [],
-      "foreign_keys": [],
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "feature_key",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "period_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "period_key",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "usage_quantity",
+          "type": "decimal",
+          "nullable": false,
+          "default": "0.000000",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "last_usage_event_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "unit",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": false,
+          "default": "current_timestamp(6)",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "customer_id",
+            "feature_key"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "period_type",
+            "period_key"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "updated_at"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "feature_key",
+            "period_type",
+            "period_key",
+            "unit"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
       "checks": [],
       "triggers": [],
       "views": []
@@ -25548,24 +25916,713 @@
     {
       "name": "saas_usage_events",
       "documentation": "database/saas-usage/saas_usage_events.md",
-      "implementation_status": "not_implemented",
-      "columns": [],
-      "primary_key": [],
-      "indexes": [],
-      "foreign_keys": [],
-      "checks": [],
-      "triggers": [],
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "event_uuid",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "event_kind",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'measurement'",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "reverses_event_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "reservation_uuid",
+          "type": "char",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "feature_key",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "usage_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "quantity",
+          "type": "decimal",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "unit",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "occurred_at",
+          "type": "datetime",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "correlation_id",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "default": "current_timestamp(6)",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "customer_id",
+            "correlation_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "feature_key",
+            "occurred_at"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "usage_type",
+            "occurred_at"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "reverses_event_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "source_type",
+            "source_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "occurred_at"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "reservation_uuid",
+            "event_kind"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "reverses_event_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "event_uuid"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "reverses_event_id",
+            "customer_id"
+          ],
+          "foreign_table": "saas_usage_events",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "json_valid(`metadata`)"
+        },
+        {
+          "expression": "`event_kind` in ('measurement','reversal')"
+        },
+        {
+          "expression": "`quantity` > 0"
+        },
+        {
+          "expression": "`event_kind` = 'measurement' and `reverses_event_id` is null or `event_kind` = 'reversal' and `reverses_event_id` is not null"
+        }
+      ],
+      "triggers": [
+        {
+          "name": "trg_saas_usage_events_bu_immutable",
+          "timing": "before",
+          "event": "update",
+          "statement": "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_USAGE_EVENT_IMMUTABLE'"
+        },
+        {
+          "name": "trg_saas_usage_events_bd_immutable",
+          "timing": "before",
+          "event": "delete",
+          "statement": "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_USAGE_EVENT_IMMUTABLE'"
+        }
+      ],
       "views": []
     },
     {
       "name": "saas_usage_reservations",
       "documentation": "database/saas-commercial/saas_usage_reservations.md",
-      "implementation_status": "not_implemented",
-      "columns": [],
-      "primary_key": [],
-      "indexes": [],
-      "foreign_keys": [],
-      "checks": [],
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "reservation_uuid",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "entitlement_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_uuid",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "feature_key",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "usage_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "period_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "period_key",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "period_start_at",
+          "type": "datetime",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "period_end_at",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "timezone_snapshot",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "unit",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "reserved_quantity",
+          "type": "decimal",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "committed_quantity",
+          "type": "decimal",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'reserved'",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "usage_event_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "lease_expires_at",
+          "type": "datetime",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "execution_started_at",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "provider_completed_at",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "max_lease_expires_at",
+          "type": "datetime",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "reconciled_at",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "settled_at",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "customer_id",
+            "feature_key",
+            "period_key",
+            "unit",
+            "status"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "entitlement_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "usage_event_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "status",
+            "lease_expires_at"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "source_type",
+            "source_uuid",
+            "feature_key",
+            "usage_type",
+            "unit"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "usage_event_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "reservation_uuid"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "entitlement_id",
+            "customer_id"
+          ],
+          "foreign_table": "saas_entitlements",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "usage_event_id",
+            "customer_id"
+          ],
+          "foreign_table": "saas_usage_events",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "json_valid(`metadata`)"
+        },
+        {
+          "expression": "`status` in ('reserved','executing','settling','committed','committed_over_limit','released','expired','reconciled_released')"
+        },
+        {
+          "expression": "`reserved_quantity` > 0"
+        },
+        {
+          "expression": "`lease_expires_at` <= `max_lease_expires_at`"
+        },
+        {
+          "expression": "`period_end_at` is null or `max_lease_expires_at` <= `period_end_at`"
+        },
+        {
+          "expression": "`committed_quantity` is null or `committed_quantity` >= 0"
+        },
+        {
+          "expression": "`status` <> 'committed' or `committed_quantity` <= `reserved_quantity`"
+        },
+        {
+          "expression": "`status` <> 'committed_over_limit' or `committed_quantity` > `reserved_quantity`"
+        },
+        {
+          "expression": "`period_type` = 'lifetime' and `period_end_at` is null or `period_type` <> 'lifetime' and `period_end_at` is not null and `period_end_at` > `period_start_at`"
+        },
+        {
+          "expression": "`reconciled_at` is null or `status` in ('committed','committed_over_limit','reconciled_released')"
+        },
+        {
+          "expression": "`status` = 'reserved' and `committed_quantity` is null and `usage_event_id` is null and `execution_started_at` is null and `provider_completed_at` is null and `settled_at` is null or `status` = 'executing' and `execution_started_at` is not null and `provider_completed_at` is null and `committed_quantity` is null and `usage_event_id` is null and `settled_at` is null or `status` = 'settling' and `execution_started_at` is not null and `provider_completed_at` is not null and `committed_quantity` is null and `usage_event_id` is null and `settled_at` is null or `status` in ('committed','committed_over_limit') and `execution_started_at` is not null and `provider_completed_at` is not null and `committed_quantity` is not null and `usage_event_id` is not null and `settled_at` is not null or `status` in ('released','expired') and `committed_quantity` is null and `usage_event_id` is null and `execution_started_at` is null and `provider_completed_at` is null and `settled_at` is not null or `status` = 'reconciled_released' and `committed_quantity` is null and `usage_event_id` is null and `execution_started_at` is not null and `reconciled_at` is not null and `settled_at` is not null"
+        }
+      ],
       "triggers": [],
       "views": []
     },

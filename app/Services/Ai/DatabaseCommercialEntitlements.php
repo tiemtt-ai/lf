@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\Schema;
  * Subscription or Billing state, and the table forbids consumer Domains from
  * updating it.
  *
- * The table is still `Review / Not Implemented`; an absent table reads as "not
- * entitled", which is the same answer the fail-closed default gives.
+ * An absent table still reads as "not entitled" on installations that have
+ * not applied the packet. Schema deployment does not grant an entitlement.
  */
 final class DatabaseCommercialEntitlements implements CommercialEntitlements
 {
@@ -37,7 +37,7 @@ final class DatabaseCommercialEntitlements implements CommercialEntitlements
      */
     public static function effectiveQuery(int $customerId, string $featureKey): Builder
     {
-        $now = now();
+        $now = now()->utc();
 
         return DB::table('saas_entitlements')
             ->where('customer_id', $customerId)

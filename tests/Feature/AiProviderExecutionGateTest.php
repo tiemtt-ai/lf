@@ -20,6 +20,7 @@ use App\Support\Ai\ProviderGateRequest;
 use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Support\Ai\FakeCommercialEntitlements;
@@ -818,6 +819,8 @@ class AiProviderExecutionGateTest extends TestCase
 
     public function test_the_reservation_store_reserves_nothing_while_its_table_is_absent(): void
     {
+        Schema::shouldReceive('hasTable')
+            ->with('saas_usage_reservations')->andReturnFalse();
         $reserver = $this->app->make(DatabaseUsageQuotaReserver::class);
 
         $this->assertNull($reserver->reserve(1, 1, 'run-uuid', 'ai_knowledge_embedding', 'token', 1.0, 'token'));
@@ -826,6 +829,38 @@ class AiProviderExecutionGateTest extends TestCase
     }
 
     // ---- fixtures -------------------------------------------------------
+
+    public function test_real_quota_store_settles_the_gate_without_a_live_provider(): void
+    {
+        $customerId = $this->tenant('real-store');
+        $this->approveTenant($customerId);
+        DB::table('saas_entitlements')->insert([
+            'customer_id' => $customerId, 'feature_key' => 'ai_knowledge_embedding',
+            'entitlement_type' => 'integer', 'entitlement_value' => '10',
+            'quota_unit' => 'call', 'quota_period_type' => 'daily', 'quota_timezone' => 'Asia/Ho_Chi_Minh',
+            'source_type' => 'plan_feature', 'source_id' => 1,
+            'effective_from' => now()->utc()->subDay(), 'status' => 'active',
+        ]);
+        $this->app->instance(CommercialEntitlements::class, new DatabaseCommercialEntitlements);
+        $this->app->instance(UsageQuotaReserver::class, new DatabaseUsageQuotaReserver);
+        $adapter = new SpyProviderAdapter;
+        $request = $this->request();
+        $decision = $this->gate()->execute($request, fn () => $adapter);
+        $this->assertTrue($decision->allowed);
+        $hold = DB::table('saas_usage_reservations')->where('customer_id', $customerId)->first();
+        $this->assertSame('committed', $hold->status);
+        $this->assertSame('completed', DB::table('ai_model_runs')->where('id', $hold->source_id)->value('status'));
+        $this->assertEquals(1, DB::table('saas_usage_events')->where('id', $hold->usage_event_id)->value('quantity'));
+        try {
+            $this->gate()->execute($request, fn () => $adapter);
+            $this->fail('A settled attempt must not call the provider again');
+        } catch (AiProviderGateException $e) {
+            // A terminal run is rejected before reserve/claim, per recorder lifecycle.
+            $this->assertSame('AI_RUN_TRANSITION_CONFLICT', $e->errorCode);
+        }
+        $this->assertSame(1, $adapter->calls);
+        $this->assertSame(1, DB::table('saas_usage_events')->where('customer_id', $customerId)->count());
+    }
 
     private function gate(): AiProviderExecutionGate
     {
