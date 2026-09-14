@@ -152,6 +152,33 @@ return [
     ],
 
     /*
+     * Vision Interpretation — ADR-0020, database/ai/ai_vision_interpretations.md v1.1.
+     *
+     * `provider` and `model` ship empty: an unconfigured deployment interprets
+     * nothing and never reaches Media Read or the gate. Naming a provider here
+     * approves nothing — the allow-list, the tenant's
+     * `ai.external_processing.<provider>.vision_interpretation` setting and the
+     * safety step still decide.
+     *
+     * `data_classes` declares `media_image` only because no PII signal exists in
+     * this repository yet. An image can contain PII the declaration cannot see,
+     * which is why provider activation stays gated under ADR-0018 until that is
+     * resolved; see LF-AI-Vision-Interpretation-Implementation-Review.
+     *
+     * `max_interpretation_chars` bounds what the adapter accepts. Output over the
+     * bound is refused inside the adapter, so the gate records the call failed
+     * and no row is written.
+     */
+    'vision' => [
+        'provider' => env('AI_VISION_PROVIDER'),
+        'model' => env('AI_VISION_MODEL'),
+        'data_classes' => ['media_image'],
+        'execution_region' => env('AI_VISION_REGION', 'lf_managed'),
+        'retention_class' => env('AI_VISION_RETENTION', 'none'),
+        'max_interpretation_chars' => (int) env('AI_VISION_MAX_CHARS', 20000),
+    ],
+
+    /*
      * Usage feature key each purpose consumes. Step 4 reserves against this
      * key. It maps onto `saas_usage_counters.feature_key`; see the OWNER
      * DECISION recorded in the Step 4 review artifact — no domain currently

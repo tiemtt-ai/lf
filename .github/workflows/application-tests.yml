@@ -184,4 +184,6 @@ jobs:
             tests/Integration/SaasUsageQuotaPacketMariaDbTest.php \
             tests/Feature/AiEmbeddingServiceTest.php \
             tests/Feature/AiKnowledgeRetrievalServiceTest.php \
-            tests/Feature/QdrantVectorStoreTest.php
+            tests/Feature/QdrantVectorStoreTest.php \
+            tests/Feature/AiVisionInterpretationsSchemaTest.php \
+            tests/Feature/AiVisionInterpretationServiceTest.php

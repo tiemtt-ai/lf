@@ -1,12 +1,12 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.45
+Version: 2.46
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-08
+Last Updated: 2026-09-14
 
 Document Path: platform/LF-Media-Processing-Contract.md
 
@@ -1672,6 +1672,35 @@ không được persist output mới sau khi Media thành `deleted`.
 Approval này đóng quyết định của DOC-CONFLICT-0023. Nó không cấp quyền gọi
 provider ngoài; external processing vẫn cần approval provider/purpose riêng theo
 ADR-0018.
+
+**Amendment v2.46 — thông báo xoá cho Domain tiêu thụ (Owner approved,
+2026-09-14).** Nội dung dẫn xuất mà Domain khác giữ (ví dụ diễn
+giải AI theo ADR-0020 D5) Media không được xoá hộ, vì Media không ghi bảng ngoài
+Media. Sau khi transaction tombstone đã commit **và** `purgeMediaStorage()` đã chạy,
+Media phát event `App\Events\MediaFileDeleted` chỉ mang `customerId` và
+`mediaFileId`. Quy tắc:
+
+* Event là thông báo, không phải bằng chứng xoá. Domain tiêu thụ phải tái kiểm
+  tombstone qua `MediaService::deletedMediaFileIds()` — truy vấn thuộc Media, theo
+  tenant hiện hành — thay vì đọc thẳng `media_files`.
+* Media không biết ai nghe và không chờ ai: listener phải queued và chỉ được đưa
+  vào queue sau khi transaction **ngoài cùng** commit; lỗi phía tiêu thụ không được
+  làm Media dừng việc xoá của chính nó. *Làm rõ triển khai 2026-09-14 (sau review,
+  không đổi quy tắc):* với listener queued của Laravel phải dùng
+  `ShouldQueueAfterCommit` hoặc `$afterCommit = true`; `ShouldHandleEventsAfterCommit`
+  không có tác dụng với listener queued.
+* Event có thể bị lỡ; Domain tiêu thụ tự có đường đối soát dựa trên
+  `deletedMediaFileIds()`.
+
+Event không ghi dữ liệu nào ngoài Media nên không vi phạm § Ranh giới tác dụng phụ.
+
+**Phạm vi Owner Approval — 2026-09-14:** xoá nội dung Vision khi Media bị xoá,
+giữ provenance/hash và usage thực tế; duyệt Media phát sự kiện xoá theo amendment
+v2.46. Trong thời gian chờ dọn phải chặn đọc nội dung đã mất nguồn. Không có cửa
+sổ retention riêng trước khi dọn Vision; queue vẫn có độ trễ, nên không được
+diễn đạt thành xoá đồng thời tuyệt đối. Approval này là quyết định thiết kế,
+không phải chứng nhận implementation/test đã đạt, không kích hoạt provider và
+không mở rộng sang đường xoá Knowledge Source/chunk/embedding.
 
 ## Caption dựng từ transcript — Owner quyết định 2026-08-29
 

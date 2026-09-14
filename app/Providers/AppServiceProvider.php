@@ -8,6 +8,7 @@ use App\Contracts\Ai\ExternalProcessingApprovals;
 use App\Contracts\Ai\TenantSettingSource;
 use App\Contracts\Ai\UsageQuotaReserver;
 use App\Contracts\Ai\VectorStore;
+use App\Contracts\Ai\VisionInterpretationProvider;
 use App\Services\Ai\DatabaseCommercialEntitlements;
 use App\Services\Ai\DatabaseTenantSettings;
 use App\Services\Ai\DatabaseUsageQuotaReserver;
@@ -15,6 +16,7 @@ use App\Services\Ai\QdrantVectorStore;
 use App\Services\Ai\SettingBackedExternalProcessingApprovals;
 use App\Services\Ai\UnavailableEmbeddingProvider;
 use App\Services\Ai\UnavailableVectorStore;
+use App\Services\Ai\UnavailableVisionInterpretationProvider;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -52,6 +54,12 @@ class AppServiceProvider extends ServiceProvider
         // unapproved deployment cannot produce vectors rather than producing
         // wrong ones.
         $this->app->bind(EmbeddingProvider::class, UnavailableEmbeddingProvider::class);
+
+        // Vision Interpretation — ADR-0020. No vision provider is approved
+        // (ADR-0018, ADR-0020 D6). The bound provider supports no model, so the
+        // gate refuses it before any call and no interpretation can be produced
+        // by a deployment that merely published the config.
+        $this->app->bind(VisionInterpretationProvider::class, UnavailableVisionInterpretationProvider::class);
 
         // The store is different: Qdrant is self-hosted inside the LF boundary,
         // so the adapter itself is safe to bind. It is the *configuration* that

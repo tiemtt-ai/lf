@@ -54,6 +54,7 @@ criteria hay không.
 * [LF-AI-Embedding-Qdrant-Implementation-Review.md](LF-AI-Embedding-Qdrant-Implementation-Review.md)
 * [LF-AI-Embedding-Qdrant-Architecture-Review.md](LF-AI-Embedding-Qdrant-Architecture-Review.md) — review snapshot `b5da390`; không suy rộng verdict sang bản vá sau snapshot.
 * [LF-AI-Embedding-Qdrant-Reviewer-Brief.md](LF-AI-Embedding-Qdrant-Reviewer-Brief.md)
+* [LF-AI-Vision-Interpretation-Implementation-Review.md](LF-AI-Vision-Interpretation-Implementation-Review.md)
 * [LF-SaaS-Commercial-Usage-Packet-Reviewer-Brief.md](LF-SaaS-Commercial-Usage-Packet-Reviewer-Brief.md)
 * [LF-Implicit-Timestamp-OnUpdate-Audit.md](LF-Implicit-Timestamp-OnUpdate-Audit.md)
 * [LF-Audio-Processing-Final-Code-Review.md](LF-Audio-Processing-Final-Code-Review.md) — review Audio local, real offline Faster Whisper E2E và `PASS_LOCAL_AUDIO_PROCESSING`.

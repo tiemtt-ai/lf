@@ -1,6 +1,6 @@
 # LF-AI.md
 
-Version: 1.6
+Version: 1.7
 
 Document Status: Frozen
 
@@ -100,6 +100,22 @@ chúng khác nhau, nên không gộp làm một:
   store bên dưới yêu cầu, **không** bằng `exists()` với cùng filter tenant) và
   AR-P3-3 (provider cấu hình sai tạo run và hold mỗi lượt). **Phải xử lý trước khi thêm Knowledge Source không gắn Media:** AR-P3-7.
   Chi tiết ở [LF-AI-Embedding-Qdrant-Implementation-Review § Step 5 closure](../quality/LF-AI-Embedding-Qdrant-Implementation-Review.md).
+* **Vision Interpretation (Bước 6)** — migration `ai_vision_interpretations` tạo ngày
+  2026-09-14 dưới Owner waiver cho điều kiện `Architecture Review passed` (miễn trừ,
+  không phải PASS), kiểm trên MariaDB 11.4.12 và 10.4.21; chưa apply lên
+  `learnforge_db`. Phạm vi v1.1 chỉ region tài liệu; diễn giải video theo khung hình
+  vẫn ngoài phạm vi (ADR-0020 D7). **Service backend đã có**
+  (`AiVisionInterpretationService`): gọi qua gate, lấy ảnh qua Media Read, một row
+  `ready` mỗi slot, retrieval tái kiểm và audit, xoá theo Media File. **Không provider
+  nào được kích hoạt**; chưa có tín hiệu PII cho ảnh nên kích hoạt vẫn bị gate theo
+  ADR-0018. Xoá Media File đã nối tới đường xoá này qua event `MediaFileDeleted` và lệnh
+  đối soát `ai:vision-reconcile-media-deletion` (thiết kế Owner duyệt 2026-09-14:
+  xoá nội dung Vision, giữ provenance/hash và usage thực tế; bắt buộc chặn đọc
+  nội dung đã mất nguồn trong thời gian chờ dọn). **Owner chốt nghiệm thu backend Bước 6
+  ngày 2026-09-14** — không phải review PASS; không gồm AI thật, provider hay frontend chat;
+  chưa kiểm Redis worker/scheduler thật. Knowledge Source/embedding **chưa** nối xoá Media
+  (O-6). Xem
+  [LF-AI-Vision-Interpretation-Implementation-Review](../quality/LF-AI-Vision-Interpretation-Implementation-Review.md).
 * **Provider activation** — quyết định riêng theo ADR-0018, độc lập với mọi mục
   trên. Allow-list provider mặc định rỗng; chưa cho phép gọi provider thật.
 

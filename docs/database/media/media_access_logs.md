@@ -1,14 +1,35 @@
 # Table: media_access_logs
 
-Version: 1.4
+Version: 1.5
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-13
+Last Updated: 2026-09-14
 
 Document Path: database/media/media_access_logs.md
+
+## Vision interpretation retrieval — Owner approved 2026-09-14
+
+Nguồn: [ai_vision_interpretations.md](../ai/ai_vision_interpretations.md) v1.1 § Retrieval
+(Owner approved 2026-09-14), yêu cầu audit truy hồi diễn giải Vision qua service thuộc Media
+"theo cùng cơ chế" với Retrieval audit amendment bên dưới. Không đổi schema.
+
+Truy hồi một AI Vision Interpretation dựng từ region Media là sự kiện truy cập nội dung dẫn
+xuất từ Media. Service thuộc Media ghi `read_derived`, consumer `ai`, với
+`operation = vision_interpretation_retrieval`, retrieval UUID, owner type/id,
+`interpretation_uuid`, usage/content type, `processing_version`, `source_fingerprint`, locator
+và `page`, cùng quyết định allowed/denied. Cho mỗi row được trả về và mỗi row bị từ chối.
+
+Cùng bảo đảm như knowledge retrieval: tham chiếu actor và Media được resolve trong tenant hiện
+tại; lỗi ghi audit **không** bị nuốt và truy hồi dừng trước khi trả nội dung; mã từ chối giữ
+nguyên mã của Media Read (`detached`, `missing`, `ambiguous_source`, `revision_mismatch`…).
+**Không** có nội dung diễn giải, bytes ảnh hay signed URL nào vào metadata audit.
+
+Lần đọc crop để tạo diễn giải là một lần đọc Media Read bình thường (`includeCrop`) và được
+Media Read audit như mọi lần đọc derived khác; mục này chỉ bổ sung cho lần **truy hồi** diễn
+giải đã lưu.
 
 ## Retrieval audit amendment — Owner approved 2026-09-13
 

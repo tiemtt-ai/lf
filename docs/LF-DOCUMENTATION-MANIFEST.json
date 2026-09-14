@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 262,
+  "document_count": 263,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -2158,7 +2158,7 @@
       "area": "database",
       "document_type": "table_schema",
       "document_status": "Approved",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [
@@ -8408,13 +8408,36 @@
       "metadata_complete": true,
       "authority": "quality",
       "canonical_for": [],
-      "topics": ["ai", "embedding", "retrieval", "review"],
+      "topics": [
+        "ai",
+        "embedding",
+        "retrieval",
+        "review"
+      ],
       "keywords": {
-        "vi": ["review độc lập", "snapshot Bước 5", "hàng rào xoá", "kiểm chứng truy hồi"],
-        "en": ["independent review", "snapshot evidence", "delete barrier", "retrieval validation"]
+        "vi": [
+          "review độc lập",
+          "snapshot Bước 5",
+          "hàng rào xoá",
+          "kiểm chứng truy hồi"
+        ],
+        "en": [
+          "independent review",
+          "snapshot evidence",
+          "delete barrier",
+          "retrieval validation"
+        ]
       },
-      "identifiers": ["ai_embeddings", "generation", "Qdrant", "b5da390"],
-      "related_documents": ["quality/LF-AI-Embedding-Qdrant-Reviewer-Brief.md", "database/ai/ai_embeddings.md"],
+      "identifiers": [
+        "ai_embeddings",
+        "generation",
+        "Qdrant",
+        "b5da390"
+      ],
+      "related_documents": [
+        "quality/LF-AI-Embedding-Qdrant-Reviewer-Brief.md",
+        "database/ai/ai_embeddings.md"
+      ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
     },
@@ -8620,6 +8643,55 @@
         "adr/ADR-0009-SaaS-Usage-Foundation.md",
         "platform/LF-AI.md",
         "database/ai/ai_model_runs.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Vision-Interpretation-Implementation-Review.md",
+      "title": "AI Vision Interpretation — Implementation Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "vision",
+        "migration",
+        "tenant isolation",
+        "governance"
+      ],
+      "keywords": {
+        "vi": [
+          "diễn giải hình ảnh",
+          "migration",
+          "miễn trừ review",
+          "kiểm chứng MariaDB",
+          "vùng tài liệu"
+        ],
+        "en": [
+          "vision interpretation",
+          "migration gate",
+          "review waiver",
+          "MariaDB verification",
+          "document region"
+        ]
+      },
+      "identifiers": [
+        "ai_vision_interpretations",
+        "active_slot",
+        "chk_avi_bbox",
+        "ADR-0020"
+      ],
+      "related_documents": [
+        "adr/ADR-0020-AI-Vision-Interpretation-Boundary.md",
+        "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
+        "database/ai/ai_vision_interpretations.md",
+        "platform/LF-AI.md",
+        "quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

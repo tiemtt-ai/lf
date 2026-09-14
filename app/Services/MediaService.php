@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\MediaFileDeleted;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
 use DateTimeInterface;
@@ -530,6 +531,31 @@ class MediaService
             ->exists();
     }
 
+    /**
+     * Which of these Media Files of the current tenant carry the `deleted`
+     * tombstone. Lets consumers outside Media reconcile deletion without
+     * reading `media_files` themselves.
+     *
+     * @param  array<int,int>  $mediaFileIds
+     * @return array<int,int>
+     */
+    public function deletedMediaFileIds(array $mediaFileIds): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $mediaFileIds)));
+        if ($ids === []) {
+            return [];
+        }
+
+        return DB::table('media_files')
+            ->where('customer_id', $this->customerId())
+            ->whereIn('id', $ids)
+            ->where('status', 'deleted')
+            ->orderBy('id')
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+    }
+
     public function deleteMedia(int $mediaFileId): object
     {
         return $this->deleteMediaInternal($mediaFileId, true);
@@ -614,6 +640,11 @@ class MediaService
         // Thu tu nguoc lai — xoa storage truoc — se de lai Media `ready` mat
         // crop hoac mat source khi buoc sau hong, tuc mat du lieu that.
         $this->purgeMediaStorage($mediaFile);
+
+        // Consumers outside Media erase their own derived content. Dispatched
+        // after storage purge, which never throws, so a consumer cannot stop
+        // Media from finishing its own deletion.
+        MediaFileDeleted::dispatch($customerId, (int) $mediaFile->id);
 
         return DB::table('media_files')
             ->where('customer_id', $customerId)
