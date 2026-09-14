@@ -1,14 +1,41 @@
 # Table: media_access_logs
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-31
+Last Updated: 2026-09-13
 
 Document Path: database/media/media_access_logs.md
+
+## Retrieval audit amendment — Owner approved 2026-09-13
+
+Step 5 re-reading AI chunks derived from Media is an access event. AI calls a
+Media-owned audit service; it does not write the audit table directly. Each
+returned chunk, and each otherwise eligible candidate denied by owner-context,
+active usage or current-revision validation, appends `read_derived`, consumer `ai`, with retrieval UUID,
+chunk/source identifiers, locator, revision and allowed/denied decision.
+Audit insert failure aborts retrieval before returning content. Audit is not
+atomic across one retrieval: `allowed` rows already appended for earlier hits
+under the same retrieval UUID remain when a later append fails, although no
+content is returned. Evidence may therefore overstate disclosure for that
+retrieval UUID but never understate it; an `allowed` row records authorization
+to disclose, not confirmed delivery. No raw text,
+query, vectors, credentials or signed URL enters audit metadata. Foreign-tenant
+index hits are excluded before auditing; empty/unconfigured searches access no
+Media content and create no Media access event. Actor and Media references are
+resolved in the current tenant. Existing processing/read consumers keep their observable behaviour. One guard
+sits in the Media Read selector shared by `read()` and retrieval revalidation:
+a Media File with `status = deleted` resolves as `missing`. At code level it
+applies to every consumer, but canonical flows cannot reach it — `MediaService`
+refuses to delete a Media File while any usage is `active` — so it defends
+against non-canonical writes rather than changing canonical behaviour.
+Denials preserve the Media Read error code (including `detached`, `missing`,
+`ambiguous_source` and `revision_mismatch`), rather than relabeling every
+failure `unauthorized`. An identity-only internal Media check is not a separate
+content delivery; the final retrieval decision is audited by this service.
 
 ## Purpose
 

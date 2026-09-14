@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-09-09",
+  "generated_or_updated_at": "2026-09-13",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 260,
+  "document_count": 262,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -8399,12 +8399,32 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "quality/LF-AI-Embedding-Qdrant-Architecture-Review.md",
+      "title": "AI Embedding + Qdrant — Architecture Review (Bước 5)",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": ["ai", "embedding", "retrieval", "review"],
+      "keywords": {
+        "vi": ["review độc lập", "snapshot Bước 5", "hàng rào xoá", "kiểm chứng truy hồi"],
+        "en": ["independent review", "snapshot evidence", "delete barrier", "retrieval validation"]
+      },
+      "identifiers": ["ai_embeddings", "generation", "Qdrant", "b5da390"],
+      "related_documents": ["quality/LF-AI-Embedding-Qdrant-Reviewer-Brief.md", "database/ai/ai_embeddings.md"],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "quality/LF-AI-Embedding-Qdrant-Implementation-Review.md",
       "title": "AI Embedding + Qdrant — Implementation Review",
       "area": "quality",
       "document_type": "architecture_review",
       "document_status": "Review",
-      "implementation_status": "Partial",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "quality",
       "canonical_for": [],
@@ -8445,6 +8465,59 @@
         "platform/LF-AI.md",
         "database/ai/ai_embeddings.md",
         "quality/LF-AI-Provider-Execution-Gate-Implementation-Review.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Embedding-Qdrant-Reviewer-Brief.md",
+      "title": "AI Embedding + Qdrant — Reviewer Brief",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "embedding",
+        "vector store",
+        "retrieval",
+        "review",
+        "governance"
+      ],
+      "keywords": {
+        "vi": [
+          "review độc lập",
+          "kho vector",
+          "hậu kiểm truy hồi",
+          "thế hệ embedding",
+          "audit truy hồi"
+        ],
+        "en": [
+          "independent review",
+          "vector store",
+          "retrieval post-validation",
+          "embedding generation",
+          "retrieval audit"
+        ]
+      },
+      "identifiers": [
+        "ai_embeddings",
+        "media_access_logs",
+        "vector_key",
+        "embedding_hash",
+        "generation",
+        "qdrant"
+      ],
+      "related_documents": [
+        "adr/ADR-0006-AI-Foundation.md",
+        "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
+        "database/ai/ai_embeddings.md",
+        "database/media/media_access_logs.md",
+        "platform/LF-AI.md",
+        "quality/LF-AI-Embedding-Qdrant-Implementation-Review.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

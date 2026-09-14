@@ -1,12 +1,12 @@
 # Table: ai_model_runs
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-09
+Last Updated: 2026-09-13
 
 Document Path: database/ai/ai_model_runs.md
 
@@ -72,6 +72,28 @@ Các mã sau được phê duyệt bằng khối Owner Approval thứ hai phía 
 
 ## Purpose
 
+### Controlled embedding recovery — Owner decision 2026-09-13
+
+Owner explicitly selected recovery after confirmation that the old worker has
+stopped. For `purpose=knowledge_embedding` only, an active tenant administrator
+may operationally close a `running` run as `cancelled` through the controlled
+recovery service/CLI. Both the worker and outstanding vector-store write
+requests must be quiesced before confirmation; elapsed time or point presence
+alone is not evidence. CLI access is trusted operations access, not a public
+user endpoint. The actor is an audited, validated tenant administrator.
+
+`cancelled` here means the interrupted attempt is administratively closed,
+not that the provider consumed zero usage. No new status/error code is added.
+Commercial holds, usage and cost measurements remain unchanged and require
+their own evidence-based reconciliation. Metadata retains existing provenance
+and adds `controlled_recovery` with actor, timestamp, evidence reference and
+the two explicit confirmations. A repeated recovery preserves this first audit.
+
+The tenant/run row is locked and the run transition plus embedding cleanup
+requests are atomic. Completed/failed/blocked/queued or unknown runs cannot be
+relabelled by this path. The operation does not call a provider, read credentials,
+or claim provider success. See `ai_embeddings.md` for the purge/retry barrier.
+
 Audit/provenance record for every AI provider/model execution.
 
 ## Relationships
@@ -98,9 +120,9 @@ generate Messages, Recommendations or Insights.
 * Chuyển trạng thái hợp lệ: `queued → queued|running|blocked|cancelled`;
   `running → running|completed|failed|cancelled`; `blocked → blocked|queued`
   (cùng một attempt được thử lại sau khi có approval). `completed`, `failed` và
-  `cancelled` là terminal — một run đã kết thúc là bằng chứng rằng provider đã
-  được gọi, nên tua nó về `queued` sẽ cho một lần gọi thứ hai núp dưới audit row
-  của lần đầu.
+  `cancelled` là terminal — không tua một attempt đã đóng về `queued`; lần thử
+  mới phải có audit row mới. Terminal status tự nó không chứng minh provider đã
+  hoặc chưa tiêu thụ usage, đặc biệt với controlled recovery.
 * Provider, model, purpose, prompt template id/**scope**/version/hash and
   `correlation_id` are immutable once a run exists. A later write to the same
   `(customer_id, run_uuid)` may advance status, timing, measurements and

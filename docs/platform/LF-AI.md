@@ -1,16 +1,70 @@
 # LF-AI.md
 
-Version: 1.5
+Version: 1.6
 
 Document Status: Frozen
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-09-08
+Last Updated: 2026-09-14
 
 Document Path: platform/LF-AI.md
 
 ---
+
+## Controlled embedding recovery — Owner selected 2026-09-13
+
+### Pre-execution refusal and bounded maintenance fairness — 2026-09-13
+
+An embedding caller passes its first gate decision into execution. Revalidation
+still follows all five steps. The gate locks that tenant's exact queued run
+while revalidating; a refusal releases its pre-execution reservation in the same
+transaction as the blocked audit. A run already claimed is refused without
+releasing its shared hold. Commercial remains the quota authority; executing
+or settling holds are never refunded by this path. No provider activation is
+required to test this behavior.
+
+Deletion maintenance orders eligible rows by deletion attempts, then id, so a
+persistent point-specific failure does not monopolize the bounded batch.
+Completed-run reconciliation orders pending rows by oldest updated_at, then id;
+an indeterminate lookup refreshes updated_at and remains pending, never absent.
+Timestamp ties can persist within one database clock tick; fairness resumes
+when time advances. Neither ordering relaxes the writer barrier, increases the
+batch limit, nor changes lifecycle/schema. Continuous arrival of new work and
+SQL sorting cost still require operational capacity planning.
+
+This is operations recovery, not automatic crash detection or AI activation.
+Before recovering an interrupted `running` embedding run:
+
+1. Stop/disable all workers capable of resuming that run. Verify they have
+   exited; a timeout or reboot alone is not sufficient confirmation.
+2. Confirm outstanding writes for the run have drained at the vector store.
+   A dead client can leave an HTTP request still being processed remotely.
+   If this cannot be established, do not confirm recovery or open the barrier.
+3. Record the non-sensitive incident reference and run UUID. Use the explicit
+   tenant and active customer-admin actor for audit attribution:
+
+```bash
+php artisan ai:embedding-recover --customer=<tenant-id> --actor=<admin-id> \
+  --run-uuid=<exact-run-uuid> --evidence=<incident-reference> \
+  --confirm-writer-stopped --confirm-store-quiesced
+```
+
+The command marks only that tenant/run `cancelled` and requests cleanup of its
+embeddings in one transaction. It does not run purge, call a model, or claim
+that provider usage was zero. Existing run provenance and Commercial holds
+remain unchanged. Confirmations are trusted operator attestations; the CLI
+does not inspect OS processes or remotely prove request completion.
+
+4. Run the existing tenant-scoped `AiEmbeddingService::purgeDeletionPending()`
+   maintenance path. Unacknowledged deletes remain pending and block retry.
+5. After acknowledged deletion, `embedPending()` may create a new generation
+   through the normal approval/quota gate. It never revives the old run/key.
+   With providers disabled it remains fail-closed; enabling AI is separate.
+
+Already complete runs cannot be recovered by this command. Repeating the same
+recovery preserves the original audit. Unknown Commercial usage still requires
+independent settlement evidence, even after the embedding run is cancelled.
 
 ## Deterministic Media ingestion — Implemented 2026-09-08
 
@@ -19,8 +73,10 @@ provenance vào Knowledge Source/Chunk, rồi publish toàn revision trong một
 transaction. Mỗi unit giữ citation riêng; oversized unit dùng deterministic
 Unicode chunker `media-unit-unicode-v1` (4000 code points, zero overlap).
 
-Retry cùng revision idempotent; revision mới làm source/chunk/embedding cũ
-`stale`. Delete request chuyển toàn chain sang `deletion_pending`; source/chunk
+Retry cùng revision idempotent; revision mới làm source/chunk cũ và embedding
+`ready|failed` thành `stale`. Embedding cũ còn `pending` chuyển sang
+`deletion_pending` và chờ writer dừng, không chuyển `pending → stale`.
+Delete request chuyển toàn chain sang `deletion_pending`; source/chunk
 chỉ thành tombstone `deleted` sau khi mọi embedding đã xác nhận `deleted`.
 Runtime này không gọi provider, không tạo `ai_model_runs`, không tạo embedding
 và không ghi Qdrant — ingestion dừng ở Knowledge Source/Chunk.
@@ -29,16 +85,42 @@ Provider/model-run, embedding và retrieval là các bước **riêng**. Trạng
 chúng khác nhau, nên không gộp làm một:
 
 * **Provider execution gate + model run** — runtime Implemented 2026-09-09, xem
-  mục dưới. Hồ sơ Bước 4 vẫn `Partial`; chi tiết và phần còn thiếu ở
+  mục dưới. Bước 4 backend/migration/test đã đóng ngày 2026-09-12 dưới Owner
+  waiver; việc apply database thật và provider activation là riêng. Bằng chứng ở
   [LF-AI-Provider-Execution-Gate-Implementation-Review](../quality/LF-AI-Provider-Execution-Gate-Implementation-Review.md).
-* **Embedding + retrieval** — runtime **đã tồn tại** (`AiEmbeddingService`,
-  `AiKnowledgeRetrievalService`, `QdrantVectorStore`) và có test xanh, nhưng
-  **chưa được review độc lập và chưa đóng**. Xem
-  [LF-AI-Embedding-Qdrant-Implementation-Review](../quality/LF-AI-Embedding-Qdrant-Implementation-Review.md).
-  Đừng đọc "chưa đóng" thành "chưa có code": hai điều đó dẫn tới kết luận rất
-  khác nhau khi review.
+* **Embedding + retrieval** — runtime Implemented (`AiEmbeddingService`,
+  `AiKnowledgeRetrievalService`, `QdrantVectorStore`). **Bước 5 backend đóng ngày
+  2026-09-14 dưới Owner waiver** cho điều kiện `Architecture Review passed` —
+  miễn trừ, **không phải** review PASS. Lượt review độc lập duy nhất ghi FAIL
+  trên snapshot `b5da390` rồi bị ngắt; các finding của nó đã được vá hoặc hoãn
+  có điều kiện. Không yêu cầu AI thật hoặc frontend. Chưa apply migration lên
+  `learnforge_db`.
+  **Phải xử lý trước khi kích hoạt provider:** AR-P3-2 (ack xoá của Qdrant không
+  chứng minh point đã mất) và AR-P3-3 (provider cấu hình sai tạo run và hold mỗi
+  lượt). **Phải xử lý trước khi thêm Knowledge Source không gắn Media:** AR-P3-7.
+  Chi tiết ở [LF-AI-Embedding-Qdrant-Implementation-Review § Step 5 closure](../quality/LF-AI-Embedding-Qdrant-Implementation-Review.md).
 * **Provider activation** — quyết định riêng theo ADR-0018, độc lập với mọi mục
-  trên. Không provider nào được bind; mặc định fail-closed.
+  trên. Allow-list provider mặc định rỗng; chưa cho phép gọi provider thật.
+
+### Mục tiêu dữ liệu và điều kiện hoàn tất — Owner xác nhận 2026-09-13
+
+Mục tiêu là dữ liệu thu thập từ Phần 1 được tổ chức, quản lý và truy hồi đúng
+để AI thật có thể sử dụng sau này. **AI-ready không có nghĩa là AI đã sử dụng
+dữ liệu**, và không bảo đảm mọi nội dung OCR/phiên âm đều chính xác tuyệt đối.
+
+Mỗi bước backend được nghiệm thu trong phạm vi của bước đó: code, schema và
+tài liệu khớp thiết kế đã duyệt; có bằng chứng kiểm thử cho tenant, quyền đọc,
+revision/provenance, retrieval và lifecycle tương ứng; lỗi chặn trong phạm vi
+đã được xử lý. Không thêm việc bật provider, gọi model thật, có người dùng chat
+hoặc triển khai frontend làm điều kiện đóng các bước chuẩn bị dữ liệu/backend.
+
+Tích hợp model, activation theo ADR-0018 và frontend/chat là giai đoạn riêng.
+Test bằng dữ liệu tổng hợp, provider giả và hạ tầng test cô lập được dùng để
+kiểm chứng backend. Kiểm tra adapter trên MariaDB/Qdrant thật trong môi trường
+test không đồng nghĩa với gọi AI thật hay mở quyền xử lý dữ liệu tenant.
+
+Xác nhận này chỉ làm rõ phạm vi nghiệm thu, không tự cấp review PASS, miễn trừ
+quy trình migration, quyền apply database thật hoặc phê duyệt provider.
 
 ### Chuẩn bị kiến thức bằng console
 
@@ -156,10 +238,33 @@ suy ngược. Runtime AI vẫn `Not Implemented`.
 
 ## Vector adapter and purge contract — Approved 2026-09-05
 
+Step 5 amendments approved by Owner 2026-09-13: generation-based embedding
+re-registration preserves stale/deleted rows and uses distinct vector keys;
+Media-derived retrieval appends access evidence through a Media-owned audit
+service before returning content. Audit storage failure is fail-closed.
+See `ai_embeddings` and `media_access_logs` table amendments for exact scope.
+
 Vector adapter là Qdrant self-hosted >=1.11 trong LF-managed boundary. Shared
 collection partition bằng indexed tenant payload; mọi operation filter
 `customer_id`. Vector hit chỉ là candidate và phải post-validate row `ready`,
 active source/chunk, Media authorization và revision trước khi dùng.
+
+Retrieval revalidation uses Media Read's current-revision selector, including
+the exact active usage slot, tenant/actor, locale and stored language profile.
+It compares the resolved Media ID and both revision identity fields with the
+AI snapshot; owner-role permission alone is insufficient. It never pins the
+old processing version to make a stale search result readable. The internal
+identity-only read does not disclose text or sign assets; the retrieval audit
+records the final allowed/denied decision before content is returned.
+
+Qdrant wire format serializes `customer_id` as a decimal string consistently
+in payload and filters, because the approved keyword tenant index indexes
+strings. Relational IDs remain numeric. Operator provisions a collection of
+the pinned model's exact dimension/distance and a `customer_id` payload index
+with `field_schema = {type: keyword, is_tenant: true}` before indexing.
+No runtime method silently creates collections or enables external providers.
+Legacy experimental numeric-payload points require a controlled derived-index
+rebuild before activation; no historical Media evidence is rewritten.
 
 Purge chuyển relational row sang `deletion_pending` trước, xóa exact UUID với
 tenant filter, rồi mới ghi `deleted`. Failure retry/reconcile và chặn hard purge

@@ -44,7 +44,9 @@ final class QdrantVectorStore implements VectorStore
             'points' => [[
                 'id' => $point->vectorKey,
                 'vector' => $point->vector,
-                'payload' => $point->payload(),
+                // Qdrant keyword tenant indexes index strings, not integers.
+                // Keep relational IDs numeric; normalize only the wire value.
+                'payload' => array_replace($point->payload(), ['customer_id' => (string) $point->customerId]),
             ]],
         ]);
 
@@ -85,7 +87,7 @@ final class QdrantVectorStore implements VectorStore
             'vector' => $vector,
             'limit' => $limit,
             'with_payload' => false,
-            'filter' => ['must' => [['key' => 'customer_id', 'match' => ['value' => $customerId]]]],
+            'filter' => ['must' => [['key' => 'customer_id', 'match' => ['value' => (string) $customerId]]]],
         ]);
 
         $hits = $response['result'] ?? null;
@@ -117,7 +119,7 @@ final class QdrantVectorStore implements VectorStore
     {
         return ['must' => [
             ['has_id' => [$vectorKey]],
-            ['key' => 'customer_id', 'match' => ['value' => $customerId]],
+            ['key' => 'customer_id', 'match' => ['value' => (string) $customerId]],
         ]];
     }
 

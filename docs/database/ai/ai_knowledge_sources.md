@@ -20,8 +20,10 @@ nhưng profile khác, ingestion fail-closed bằng `revision_identity_conflict`
 thay vì trộn provenance.
 
 Retry cùng revision đang `pending|active|failed` dùng lại source. Revision mới
-tạo source mới rồi, trong cùng transaction, chuyển source/chunk/embedding cũ
-sang `stale`. Source đã `stale|archived|deleted` không được hồi sinh; nếu cùng
+tạo source mới rồi, trong cùng transaction, chuyển source/chunk cũ và embedding
+`ready|failed` sang `stale`. Embedding cũ còn `pending` chuyển
+`deletion_pending`, chờ writer dừng trước khi purge; không thêm `pending → stale`
+vào lifecycle embedding. Source đã `stale|archived|deleted` không được hồi sinh; nếu cùng
 revision quay lại thì tạo `generation` kế tiếp. Ingestion chỉ gọi Media Read và
 ghi relational source/chunk; không tạo Model Run, embedding hay vector point.
 

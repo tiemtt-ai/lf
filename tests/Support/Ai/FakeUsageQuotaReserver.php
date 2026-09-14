@@ -68,6 +68,25 @@ final class FakeUsageQuotaReserver implements UsageQuotaReserver
             $callback();
         }
 
+        // Idempotent on the attempt identity, exactly as DatabaseUsageQuotaReserver
+        // is, and checked BEFORE capacity like the real store. The gate authorizes
+        // twice per execution; a fake that minted a second hold on the second call
+        // double-charged the balance and left one hold `reserved` forever, so no
+        // test using it could notice a leaked or wrongly released hold.
+        $existingId = $this->attemptReservation($customerId, $runUuid, $featureKey, $usageType, $unit);
+        if ($existingId !== null) {
+            $existing = $this->reservations[$existingId];
+            if ($existing['model_run_id'] !== $modelRunId
+                || $this->decimal($existing['quantity']) !== $this->decimal($quantity)) {
+                throw new RuntimeException('LF_USAGE_RESERVATION_CONFLICT');
+            }
+            if (in_array($existing['status'], ['released', 'expired', 'reconciled_released'], true)) {
+                return null;   // a new execution needs a new attempt identity
+            }
+
+            return $this->handleFor($existingId);   // held or settled: the same hold
+        }
+
         if ($this->balance < $quantity) {
             return null;
         }
@@ -78,23 +97,53 @@ final class FakeUsageQuotaReserver implements UsageQuotaReserver
             'customer_id' => $customerId,
             'model_run_id' => $modelRunId,
             'run_uuid' => $runUuid,
+            'feature_key' => $featureKey,
+            'unit' => $unit,
             'quantity' => $quantity,
             'expires_at' => new DateTimeImmutable('+5 minutes'),
             'status' => 'reserved',
             'usage_type' => $usageType,
         ];
 
+        return $this->handleFor($id);
+    }
+
+    /** Holds keyed by attempt identity, as the store's lookup is. */
+    public function attemptReservation(int $customerId, string $runUuid, string $featureKey, string $usageType, string $unit): ?string
+    {
+        foreach ($this->reservations as $id => $reservation) {
+            if ($reservation['customer_id'] === $customerId
+                && $reservation['run_uuid'] === $runUuid
+                && ($reservation['feature_key'] ?? null) === $featureKey
+                && $reservation['usage_type'] === $usageType
+                && ($reservation['unit'] ?? null) === $unit) {
+                return $id;
+            }
+        }
+
+        return null;
+    }
+
+    private function handleFor(string $id): QuotaReservationHandle
+    {
+        $reservation = $this->reservations[$id];
+
         return new QuotaReservationHandle(
             $id,
-            $customerId,
-            $modelRunId,
-            $runUuid,
-            $featureKey,
-            $usageType,
-            $quantity,
-            $unit,
-            $this->reservations[$id]['expires_at'],
+            $reservation['customer_id'],
+            $reservation['model_run_id'],
+            $reservation['run_uuid'],
+            $reservation['feature_key'],
+            $reservation['usage_type'],
+            $reservation['quantity'],
+            $reservation['unit'],
+            $reservation['expires_at'],
         );
+    }
+
+    private function decimal(float $value): string
+    {
+        return number_format($value, 6, '.', '');
     }
 
     public function markExecuting(QuotaReservationHandle $handle): void

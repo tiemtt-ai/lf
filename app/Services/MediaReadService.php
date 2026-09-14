@@ -33,6 +33,37 @@ class MediaReadService
         bool $includeCrop = false,
         string|array|null $languageProfile = null,
     ): array {
+        return $this->readResolved($actorId, $ownerType, $ownerId, $usageType,
+            $contentType, $locale, $processingVersion, $sourceFingerprint,
+            $consumer, $auditContext, $page, $includeCrop, $languageProfile);
+    }
+
+    /**
+     * Internal consumer revalidation, not a delivery endpoint. The caller must
+     * audit its final decision. Uses exactly the same selector as read(), but
+     * never pins an old revision, loads text, builds structures or signs URLs.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function currentRevision(
+        int $actorId, string $ownerType, int $ownerId, string $usageType,
+        string $contentType, ?string $locale, string|array|null $languageProfile = null,
+    ): array {
+        if (! in_array($contentType, ['extracted_text', 'region', 'table', 'formula', 'transcript', 'video_frame_text'], true)) {
+            throw new MediaReadException('unsupported_source');
+        }
+
+        return $this->readResolved($actorId, $ownerType, $ownerId, $usageType,
+            $contentType, $locale, null, null, 'ai', [], null, false, $languageProfile, true);
+    }
+
+    private function readResolved(
+        int $actorId, string $ownerType, int $ownerId, string $usageType,
+        string $contentType, ?string $locale, ?string $processingVersion,
+        ?string $sourceFingerprint, string $consumer, array $auditContext,
+        ?int $page, bool $includeCrop, string|array|null $languageProfile,
+        bool $revisionOnly = false,
+    ): array {
         $customerId = TenantContext::customerId() ?? throw new MediaReadException('unauthorized');
         $media = null;
         $selectedLocale = $locale;
@@ -71,6 +102,9 @@ class MediaReadService
             $usage = $activeUsages->first();
             $media = DB::table('media_files')->where('customer_id', $customerId)->where('id', $usage->media_file_id)->first();
             if (! $media) {
+                throw new MediaReadException('missing');
+            }
+            if ($media->status === 'deleted') {
                 throw new MediaReadException('missing');
             }
             $documentContent = in_array($contentType, ['extracted_text', 'region', 'table', 'formula'], true);
@@ -184,7 +218,8 @@ class MediaReadService
             $selectedOutputFingerprint = (clone $query)->orderByDesc('processing_job_id')->orderByDesc('id')
                 ->value('source_fingerprint');
             if ($documentContent) {
-                $revision = (clone $query)->orderByDesc('processing_job_id')->orderByDesc('id')->first();
+                $revision = (clone $query)->orderByDesc('processing_job_id')->orderByDesc('id')
+                    ->first(['source_fingerprint', 'processing_version', 'processing_job_id']);
                 if ($revision !== null) {
                     $query->where('source_fingerprint', $revision->source_fingerprint)
                         ->where('processing_version', $revision->processing_version)
@@ -218,7 +253,9 @@ class MediaReadService
             } elseif ($contentType === 'video_frame_text') {
                 $query->orderBy('locator_value')->orderBy('reading_order');
             }
-            $rows = $query->orderBy('id')->get();
+            $rows = $revisionOnly
+                ? (clone $query)->reorder()->select(['source_fingerprint', 'processing_version', 'locale'])->distinct()->get()
+                : $query->orderBy('id')->get();
             if ($rows->isEmpty()) {
                 if ($derivedJobType !== null) {
                     $jobStateQuery = DB::table('media_processing_jobs')->where('customer_id', $customerId)
@@ -287,6 +324,15 @@ class MediaReadService
             }
             if ($sourceFingerprint !== null && $rows->contains(fn ($row) => $row->source_fingerprint !== $sourceFingerprint)) {
                 throw new MediaReadException('revision_mismatch');
+            }
+
+            if ($revisionOnly) {
+                return $rows->map(fn ($row): array => [
+                    'media_file_id' => (int) $media->id,
+                    'source_fingerprint' => $row->source_fingerprint,
+                    'processing_version' => $row->processing_version,
+                    'locale' => $row->locale,
+                ])->unique()->values()->all();
             }
 
             $jobProfiles = [];
@@ -430,6 +476,9 @@ class MediaReadService
 
             return $units;
         } catch (MediaReadException $exception) {
+            if ($revisionOnly) {
+                throw $exception;
+            }
             // Spec B § 8: mot lan doc BI TU CHOI cung phai duoc audit khi owner
             // van resolve duoc toi Media File. `detached` va `missing-voi-usage-cu`
             // duoc nem TRUOC khi $media duoc gan, nen khong co buoc nay thi mot

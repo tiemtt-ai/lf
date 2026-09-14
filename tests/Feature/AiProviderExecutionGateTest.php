@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
+use Symfony\Component\Process\Process;
 use Tests\Support\Ai\FakeCommercialEntitlements;
 use Tests\Support\Ai\FakeTenantSettings;
 use Tests\Support\Ai\FakeUsageQuotaReserver;
@@ -81,6 +82,42 @@ class AiProviderExecutionGateTest extends TestCase
         $this->assertSame('AI_APPROVAL_REQUIRED', $decision->errorCode);
         $this->assertSame('tenant_approval', $decision->blockedStep);
         $this->assertSame('blocked', DB::table('ai_model_runs')->where('customer_id', $customerId)->value('status'));
+    }
+
+    public function test_pre_authorized_loser_cannot_release_a_running_attempt(): void
+    {
+        $customer = $this->tenant('preauthorized-loser');
+        $this->approveTenant($customer);
+        $this->entitlements->grant($customer, 'ai_knowledge_embedding');
+        $request = $this->request();
+        $prior = $this->gate()->authorize($request)->execution;
+        DB::table('ai_model_runs')->where('id', $prior->modelRunId)->update(['status' => 'running']);
+        $before = $this->quota->balance();
+        try {
+            $this->gate()->execute($request, fn () => new SpyProviderAdapter, $prior);
+            $this->fail('A claimed attempt must be refused.');
+        } catch (AiProviderGateException $exception) {
+            $this->assertSame('AI_RUN_ALREADY_EXECUTED', $exception->errorCode);
+        }
+        $this->assertSame(0, $this->quota->releaseCalls);
+        $this->assertSame($before, $this->quota->balance());
+    }
+
+    public function test_pre_authorized_cleanup_rejects_a_different_request(): void
+    {
+        $customer = $this->tenant('preauthorized-identity');
+        $this->approveTenant($customer);
+        $this->entitlements->grant($customer, 'ai_knowledge_embedding');
+        $request = $this->request();
+        $prior = $this->gate()->authorize($request)->execution;
+        try {
+            $this->gate()->execute($this->request(['quotaQuantity' => 2.0]), fn () => new SpyProviderAdapter, $prior);
+            $this->fail('A different request must not control the hold.');
+        } catch (AiProviderGateException $exception) {
+            $this->assertSame('AI_RUN_PROVENANCE_CONFLICT', $exception->errorCode);
+        }
+        $this->assertSame(0, $this->quota->releaseCalls);
+        $this->assertSame('queued', DB::table('ai_model_runs')->where('id', $prior->modelRunId)->value('status'));
     }
 
     public function test_missing_allow_list_blocks_before_any_provider_call(): void
@@ -865,6 +902,118 @@ class AiProviderExecutionGateTest extends TestCase
     private function gate(): AiProviderExecutionGate
     {
         return $this->app->make(AiProviderExecutionGate::class);
+    }
+
+    public function test_mariadb_revalidation_refund_and_execution_claim_serialize_on_the_run(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('Two real MariaDB connections required.');
+        }
+        $this->assertStringStartsWith('lf_', DB::connection()->getDatabaseName());
+        foreach (['running', 'blocked'] as $winner) {
+            $customer = $this->tenant('gate-lock-'.$winner.'-'.uniqid());
+            $this->approveTenant($customer);
+            DB::table('saas_entitlements')->insert([
+                'customer_id' => $customer, 'feature_key' => 'ai_knowledge_embedding',
+                'entitlement_type' => 'integer', 'entitlement_value' => '10',
+                'quota_unit' => 'call', 'quota_period_type' => 'daily', 'quota_timezone' => 'UTC',
+                'source_type' => 'plan_feature', 'source_id' => 1,
+                'effective_from' => now()->utc()->subDay(), 'status' => 'active',
+            ]);
+            $this->app->instance(CommercialEntitlements::class, new DatabaseCommercialEntitlements);
+            $store = new DatabaseUsageQuotaReserver;
+            $this->app->instance(UsageQuotaReserver::class, $store);
+            $request = $this->request();
+            $gate = $this->gate();
+            $prior = $gate->authorize($request)->execution;
+            $this->assertNotNull($prior);
+            $reservation = get_object_vars($prior->reservation);
+            $reservation['expiresAt'] = $prior->reservation->expiresAt->format(DATE_ATOM);
+            $child = function (string $mode) use ($customer, $request, $prior, $reservation): array {
+                $process = new Process([PHP_BINARY, base_path('tests/Support/Ai/gate_revalidation_worker.php')], base_path(), ['APP_ENV' => 'testing']);
+                $process->setInput(json_encode(['connection' => DB::connection()->getConfig(),
+                    'customer' => $customer, 'run' => $prior->modelRunId, 'uuid' => $prior->runUuid,
+                    'request' => get_object_vars($request), 'reservation' => $reservation, 'mode' => $mode], JSON_THROW_ON_ERROR));
+                $process->setTimeout(20)->mustRun();
+                $reply = json_decode($process->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+                $this->assertNotSame((int) DB::selectOne('SELECT CONNECTION_ID() AS id')->id, $reply['connection']);
+
+                return $reply['result'];
+            };
+            $this->assertSame(1, DB::transactionLevel());
+            DB::commit();
+            $providers = config('ai.providers');
+            try {
+                DB::beginTransaction();
+                DB::table('ai_model_runs')->where('customer_id', $customer)->where('id', $prior->modelRunId)->lockForUpdate()->first();
+                $this->assertSame(['driver_error' => 1205], $child('revalidate'));
+                $this->assertSame('reserved', DB::table('saas_usage_reservations')->where('customer_id', $customer)->value('status'));
+                if ($winner === 'running') {
+                    $this->assertTrue((new AiModelRunRecorder)->claimForExecution($customer, $prior->modelRunId));
+                    $store->markExecuting($prior->reservation);
+                    DB::commit();
+                    $this->assertSame(['error' => 'AI_RUN_ALREADY_EXECUTED'], $child('revalidate'));
+                    $this->assertSame('executing', DB::table('saas_usage_reservations')->where('customer_id', $customer)->value('status'));
+                } else {
+                    config()->set('ai.providers', []);
+                    $this->assertFalse($gate->execute($request, fn () => new SpyProviderAdapter, $prior)->allowed);
+                    $this->assertSame(['driver_error' => 1205], $child('claim'));
+                    DB::commit();
+                    $this->assertSame(['claimed' => false], $child('claim'));
+                    $this->assertSame('released', DB::table('saas_usage_reservations')->where('customer_id', $customer)->value('status'));
+                }
+                $this->assertSame(0, DB::table('saas_usage_events')->where('customer_id', $customer)->count());
+            } finally {
+                config()->set('ai.providers', $providers);
+                while (DB::transactionLevel() > 0) {
+                    DB::rollBack();
+                }
+                // Synthetic fixtures only; no provider was called or Usage Event written.
+                DB::table('saas_usage_reservations')->where('customer_id', $customer)->delete();
+                DB::table('ai_model_runs')->where('customer_id', $customer)->delete();
+                DB::table('saas_entitlements')->where('customer_id', $customer)->delete();
+                DB::table('saas_customers')->where('id', $customer)->delete();
+                DB::beginTransaction();
+            }
+        }
+    }
+
+    public function test_second_authorization_refusal_releases_the_real_ledger_hold(): void
+    {
+        foreach (['allow_list', 'tenant_approval', 'entitlement'] as $cause) {
+            $customer = $this->tenant('real-refusal-'.$cause);
+            $this->approveTenant($customer);
+            $entitlement = DB::table('saas_entitlements')->insertGetId([
+                'customer_id' => $customer, 'feature_key' => 'ai_knowledge_embedding',
+                'entitlement_type' => 'integer', 'entitlement_value' => '10',
+                'quota_unit' => 'call', 'quota_period_type' => 'daily', 'quota_timezone' => 'Asia/Ho_Chi_Minh',
+                'source_type' => 'plan_feature', 'source_id' => 1,
+                'effective_from' => now()->utc()->subDay(), 'status' => 'active',
+            ]);
+            $this->app->instance(CommercialEntitlements::class, new DatabaseCommercialEntitlements);
+            $this->app->instance(UsageQuotaReserver::class, new DatabaseUsageQuotaReserver);
+            $request = $this->request();
+            $gate = $this->gate();
+            $prior = $gate->authorize($request)->execution;
+            $this->assertNotNull($prior);
+            $providers = config('ai.providers');
+            if ($cause === 'allow_list') {
+                config()->set('ai.providers', []);
+            } elseif ($cause === 'tenant_approval') {
+                $this->settings->revoke($customer, 'ai.external_processing.approved-provider.knowledge_embedding');
+            } else {
+                DB::table('saas_entitlements')->where('id', $entitlement)->update(['effective_to' => now()->utc()->subSecond()]);
+            }
+            $adapter = new SpyProviderAdapter;
+            $decision = $gate->execute($request, fn () => $adapter, $prior);
+            config()->set('ai.providers', $providers);
+            $this->assertFalse($decision->allowed);
+            $this->assertSame($cause, $decision->blockedStep);
+            $this->assertSame(0, $adapter->calls);
+            $this->assertSame(['released'], DB::table('saas_usage_reservations')->where('customer_id', $customer)->pluck('status')->all());
+            $this->assertSame('blocked', DB::table('ai_model_runs')->where('id', $prior->modelRunId)->value('status'));
+            $this->assertSame(0, DB::table('saas_usage_events')->where('customer_id', $customer)->count());
+        }
     }
 
     private function tenant(string $slug): int

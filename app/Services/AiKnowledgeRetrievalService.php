@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Contracts\Ai\VectorStore;
 use App\Exceptions\AiEmbeddingException;
+use App\Exceptions\MediaReadException;
 use App\Support\TenantContext;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Turns vector hits into citable chunks — or into nothing.
@@ -24,7 +26,8 @@ final class AiKnowledgeRetrievalService
 {
     public function __construct(
         private readonly VectorStore $store,
-        private readonly CourseMediaOwnerContextAuthorizer $authorizer,
+        private readonly MediaReadService $mediaReader,
+        private readonly MediaDerivedRetrievalAudit $audit = new MediaDerivedRetrievalAudit,
     ) {}
 
     /**
@@ -35,6 +38,11 @@ final class AiKnowledgeRetrievalService
     {
         $customerId = TenantContext::customerId()
             ?? throw new AiEmbeddingException('unauthorized');
+
+        if ($limit < 1) {
+            return [];
+        }
+        $retrievalUuid = (string) Str::uuid();
 
         $model = (string) config('ai.embedding.model', '');
         $provider = (string) config('ai.embedding.provider', '');
@@ -92,7 +100,7 @@ final class AiKnowledgeRetrievalService
                 'c.chunk_uuid', 'c.content', 'c.content_hash', 'c.locator_type',
                 'c.locator_start', 'c.locator_end', 'c.part_index', 'c.knowledge_source_id',
                 's.source_uuid', 's.source_type', 's.source_id', 's.usage_type',
-                's.content_type', 's.media_file_id', 's.title',
+                's.content_type', 's.media_file_id', 's.title', 's.locale', 's.metadata',
                 's.identity_fingerprint', 's.identity_version',
             ]);
 
@@ -117,32 +125,39 @@ final class AiKnowledgeRetrievalService
                 continue;
             }
 
-            $ownerKey = $row->source_type.':'.$row->source_id;
+            // Cache only within this retrieval and per complete source identity,
+            // not owner: one activity can have several slots and revisions.
+            $ownerKey = (int) $row->knowledge_source_id;
 
             if (! array_key_exists($ownerKey, $authorization)) {
-                // Media authorization is re-entered per source, not inherited
-                // from ingestion. `media_file_id` on the source is citation
-                // provenance and grants nothing (ADR-0006 v1.0.3): the actor
-                // asking now may not be the actor who ingested then.
-                //
-                // A source with no Media binding has no authorization path
-                // defined for it here, so it is refused rather than assumed
-                // readable.
-                $authorization[$ownerKey] = $row->content_type !== null
-                    && $this->authorizer->authorized(
-                        $customerId,
-                        (string) $row->source_type,
-                        (int) $row->source_id,
-                        $actorId,
+                try {
+                    $profile = json_decode((string) $row->metadata, true)['language_profile'] ?? null;
+                    $revisions = $this->mediaReader->currentRevision(
+                        $actorId, (string) $row->source_type, (int) $row->source_id,
+                        (string) $row->usage_type, (string) $row->content_type,
+                        $row->locale, $profile,
                     );
+                    $revision = count($revisions) === 1 ? $revisions[0] : null;
+                    $authorization[$ownerKey] = $revision !== null
+                        && $revision['media_file_id'] === (int) $row->media_file_id
+                        && $revision['locale'] === $row->locale
+                        && hash_equals((string) $row->identity_fingerprint, $revision['source_fingerprint'])
+                        && hash_equals((string) $row->identity_version, $revision['processing_version'])
+                            ? null : 'revision_mismatch';
+                } catch (MediaReadException $exception) {
+                    $authorization[$ownerKey] = $exception->errorCode;
+                }
             }
 
-            if ($authorization[$ownerKey] !== true) {
+            if ($authorization[$ownerKey] !== null) {
+                $this->audit->append($actorId, $row, 'denied', $retrievalUuid, $authorization[$ownerKey]);
+
                 continue;
             }
 
             $results[] = [
                 'rank' => $rank[$row->vector_key] ?? PHP_INT_MAX,
+                '_audit_unit' => $row,
                 'knowledge_chunk_id' => (int) $row->knowledge_chunk_id,
                 'chunk_uuid' => (string) $row->chunk_uuid,
                 'knowledge_source_id' => (int) $row->knowledge_source_id,
@@ -165,10 +180,11 @@ final class AiKnowledgeRetrievalService
         // preserve that order, so it is restored rather than approximated.
         usort($results, static fn (array $a, array $b): int => $a['rank'] <=> $b['rank']);
 
-        return array_slice(array_map(static function (array $hit): array {
-            unset($hit['rank']);
+        return array_map(function (array $hit) use ($actorId, $retrievalUuid): array {
+            $this->audit->append($actorId, $hit['_audit_unit'], 'allowed', $retrievalUuid);
+            unset($hit['rank'], $hit['_audit_unit']);
 
             return $hit;
-        }, $results), 0, $limit);
+        }, array_slice($results, 0, $limit));
     }
 }

@@ -3,13 +3,16 @@
 namespace Tests\Feature;
 
 use App\Exceptions\AiKnowledgeIngestionException;
+use App\Services\AiEmbeddingService;
 use App\Services\AiKnowledgeIngestionService;
 use App\Services\MediaReadService;
 use App\Support\TenantContext;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Mockery;
+use Tests\Support\Ai\FakeVectorStore;
 use Tests\TestCase;
 
 class AiKnowledgeIngestionServiceTest extends TestCase
@@ -140,6 +143,36 @@ class AiKnowledgeIngestionServiceTest extends TestCase
         $this->assertSame(2, DB::table('ai_knowledge_sources')->where('customer_id', $customerId)->count());
     }
 
+    public function test_new_revision_queues_pending_embeddings_for_delete_without_staling_live_work(): void
+    {
+        [$customer, $actor, $media] = $this->tenant('pending-revision');
+        $reader = Mockery::mock(MediaReadService::class);
+        $reader->shouldReceive('read')->once()->andReturn([$this->unit($media, '1', 'Old')]);
+        $reader->shouldReceive('read')->once()->andReturn([
+            $this->unit($media, '1', 'New', ['source_fingerprint' => str_repeat('b', 64), 'processing_version' => 'v2']),
+        ]);
+        $service = new AiKnowledgeIngestionService($reader);
+        $old = $service->ingestMedia($actor, 'course_activity', 8, 'document', 'region', 'vi', 'Revision');
+        $chunk = (int) DB::table('ai_knowledge_chunks')->where('knowledge_source_id', $old['source_id'])->value('id');
+        $run = $this->modelRun($customer);
+        DB::table('ai_model_runs')->where('id', $run)->update(['status' => 'running', 'completed_at' => null]);
+        $embedding = $this->embedding($customer, $chunk, $run);
+        DB::table('ai_embeddings')->where('id', $embedding)->update(['status' => 'pending', 'embedded_at' => null]);
+        $service->ingestMedia($actor, 'course_activity', 8, 'document', 'region', 'vi', 'Revision');
+        $row = DB::table('ai_embeddings')->where('id', $embedding)->first();
+        $this->assertSame('deletion_pending', $row->status);
+        $this->assertNotNull($row->deletion_requested_at);
+        $this->assertSame($run, (int) $row->model_run_id);
+        $this->assertSame('running', DB::table('ai_model_runs')->where('id', $run)->value('status'));
+        $store = new FakeVectorStore;
+        $worker = $this->app->makeWith(AiEmbeddingService::class, ['store' => $store]);
+        $this->assertSame(1, $worker->purgeDeletionPending()['held_by_writer_barrier']);
+        $this->assertSame(0, $store->deleteCalls);
+        DB::table('ai_model_runs')->where('id', $run)->update(['status' => 'completed', 'completed_at' => now()]);
+        $this->assertSame(1, $worker->purgeDeletionPending()['deleted']);
+        $this->assertSame('deleted', DB::table('ai_embeddings')->where('id', $embedding)->value('status'));
+    }
+
     public function test_mixed_revision_payload_fails_atomically(): void
     {
         [$customerId, $userId, $mediaId] = $this->tenant('mixed');
@@ -177,6 +210,37 @@ class AiKnowledgeIngestionServiceTest extends TestCase
         } catch (AiKnowledgeIngestionException $exception) {
             $this->assertSame('source_not_found', $exception->errorCode);
         }
+    }
+
+    public function test_repeated_deletion_request_keeps_the_original_request_time(): void
+    {
+        [$customer, $actor, $media] = $this->tenant('repeat-delete');
+        $service = $this->serviceReturning([$this->unit($media, '1', 'Once')]);
+        $source = $service->ingestMedia($actor, 'course_activity', 12, 'document', 'region', 'vi', 'Repeat');
+        $chunk = (int) DB::table('ai_knowledge_chunks')->where('knowledge_source_id', $source['source_id'])->value('id');
+        $embedding = $this->embedding($customer, $chunk, $this->modelRun($customer));
+
+        $this->travelTo(now()->startOfSecond()->setDate(2026, 9, 1));
+        $service->requestSourceDeletion($source['source_id']);
+        $firstRequest = now()->toDateTimeString();
+
+        // A second request a week later — a retry click, or an operator
+        // re-running a stuck purge. `deletion_requested_at` marks when the
+        // deletion window opened; re-stamping it made a row stuck for a week
+        // look freshly requested (review AR-P3-6).
+        $this->travel(7)->days();
+        $service->requestSourceDeletion($source['source_id']);
+
+        foreach ([
+            'ai_knowledge_sources' => $source['source_id'],
+            'ai_knowledge_chunks' => $chunk,
+            'ai_embeddings' => $embedding,
+        ] as $table => $id) {
+            $row = DB::table($table)->where('id', $id)->first();
+            $this->assertSame('deletion_pending', $row->status, $table);
+            $this->assertSame($firstRequest, Carbon::parse($row->deletion_requested_at)->toDateTimeString(), $table);
+        }
+        $this->travelBack();
     }
 
     public function test_delete_barrier_requires_all_embeddings_to_be_deleted_before_tombstoning(): void

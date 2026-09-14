@@ -13,6 +13,7 @@ use App\Support\Ai\ProviderGateDecision;
 use App\Support\Ai\ProviderGateRequest;
 use App\Support\TenantContext;
 use Closure;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
@@ -128,9 +129,38 @@ class AiProviderExecutionGate
      * expiry is safe only before execution starts; once marked executing,
      * provider-aware reconciliation must decide whether usage occurred.
      */
-    public function execute(ProviderGateRequest $request, Closure $adapterFactory): ProviderGateDecision
+    public function execute(ProviderGateRequest $request, Closure $adapterFactory, ?AllowedExecution $prior = null): ProviderGateDecision
     {
-        $decision = $this->authorize($request);
+        $decision = $prior === null ? $this->authorize($request) : DB::transaction(function () use ($request, $prior): ProviderGateDecision {
+            // Bind cleanup to this exact pre-authorized request and tenant.
+            // Holding the run lock serializes refusal/refund against the
+            // queued -> running claim; a losing caller must never refund.
+            if ($prior->customerId !== TenantContext::customerId()
+                || $prior->request !== $request
+                || $prior->runUuid !== $this->runs->runUuid($request)
+                || ($prior->reservation !== null && (
+                    $prior->reservation->customerId !== $prior->customerId
+                    || $prior->reservation->modelRunId !== $prior->modelRunId
+                    || $prior->reservation->runUuid !== $prior->runUuid
+                ))) {
+                throw new AiProviderGateException('AI_RUN_PROVENANCE_CONFLICT');
+            }
+            $run = DB::table('ai_model_runs')->where('customer_id', $prior->customerId)
+                ->where('id', $prior->modelRunId)->where('run_uuid', $prior->runUuid)
+                ->lockForUpdate()->first(['status']);
+            if ($run === null || $run->status !== 'queued') {
+                throw new AiProviderGateException('AI_RUN_ALREADY_EXECUTED');
+            }
+
+            $checked = $this->authorize($request);
+            if (! $checked->allowed && $prior->reservation !== null) {
+                // Commercial release is idempotent for an already released
+                // hold and refuses anything past the provider boundary.
+                $this->quota->release($prior->reservation);
+            }
+
+            return $checked;
+        }, 3);
         if (! $decision->allowed) {
             return $decision;
         }

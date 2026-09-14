@@ -8,16 +8,24 @@ use App\Contracts\Ai\ExternalProcessingApprovals;
 use App\Contracts\Ai\TenantSettingSource;
 use App\Contracts\Ai\UsageQuotaReserver;
 use App\Contracts\Ai\VectorStore;
+use App\Exceptions\AiEmbeddingException;
 use App\Exceptions\AiKnowledgeIngestionException;
 use App\Providers\AppServiceProvider;
+use App\Services\Ai\ControlledEmbeddingRecovery;
+use App\Services\Ai\QdrantVectorStore;
 use App\Services\Ai\SettingBackedExternalProcessingApprovals;
 use App\Services\Ai\UnavailableEmbeddingProvider;
 use App\Services\AiEmbeddingService;
 use App\Services\AiKnowledgeIngestionService;
 use App\Services\MediaReadService;
 use App\Support\TenantContext;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Mockery;
 use Tests\Support\Ai\FakeCommercialEntitlements;
 use Tests\Support\Ai\FakeEmbeddingProvider;
@@ -75,6 +83,139 @@ class AiEmbeddingServiceTest extends TestCase
         $this->app->instance(UsageQuotaReserver::class, $this->quota);
         $this->app->instance(VectorStore::class, $this->store);
         $this->app->instance(EmbeddingProvider::class, $this->provider);
+    }
+
+    public function test_controlled_recovery_preserves_quota_and_history_until_purge_then_uses_new_generation(): void
+    {
+        [$customer, $actor, , , $chunks] = $this->fixture('controlled-recovery');
+        $this->approve($customer);
+        $run = $this->modelRun($customer, 'running');
+        $uuid = DB::table('ai_model_runs')->where('id', $run)->value('run_uuid');
+        DB::table('ai_model_runs')->where('id', $run)->update(['metadata' => json_encode(['original' => 'keep'])]);
+        $ids = array_map(fn ($chunk) => $this->pendingEmbedding($customer, $chunk, $run), $chunks);
+        $hold = $this->quota->reserve($customer, $run, $uuid, 'ai_knowledge_embedding', 'provider_call', 3, 'call');
+        $this->quota->markExecuting($hold);
+        $beforeQuota = $this->quota->reservations;
+        $beforeRows = DB::table('ai_embeddings')->whereIn('id', $ids)->get()->keyBy('id');
+        $recovery = new ControlledEmbeddingRecovery;
+        $result = $recovery->recover($actor, $uuid, 'INC-123', true, true);
+        $this->assertSame(3, $result['deletion_requested']);
+        $this->assertSame($beforeQuota, $this->quota->reservations);
+        $this->assertSame(0, $this->quota->releaseCalls);
+        $this->assertSame([], $this->provider->calls);
+        $this->assertSame(0, $this->store->deleteCalls);
+        $saved = DB::table('ai_model_runs')->where('id', $run)->first();
+        $audit = json_decode($saved->metadata, true);
+        $this->assertSame('cancelled', $saved->status);
+        $this->assertSame('keep', $audit['original']);
+        $this->assertSame($actor, $audit['controlled_recovery']['actor_id']);
+        $this->assertSame('INC-123', $audit['controlled_recovery']['evidence_reference']);
+        $this->assertSame(0, $this->service()->embedPending()['embedded']);
+        $this->assertTrue($recovery->recover($actor, $uuid, 'INC-456', true, true)['already_recovered']);
+        $this->assertSame($saved->metadata, DB::table('ai_model_runs')->where('id', $run)->value('metadata'));
+        $this->store->acknowledgeDeletes = false;
+        $this->assertSame(3, $this->service()->purgeDeletionPending()['retained']);
+        $this->assertSame(0, $this->service()->embedPending()['embedded']);
+        $this->store->acknowledgeDeletes = true;
+        $this->assertSame(3, $this->service()->purgeDeletionPending()['deleted']);
+        $this->assertSame(3, $this->service()->embedPending()['embedded']);
+        foreach ($ids as $id) {
+            $old = DB::table('ai_embeddings')->where('id', $id)->first();
+            $this->assertSame('deleted', $old->status);
+            $this->assertSame($run, (int) $old->model_run_id);
+            $this->assertSame($beforeRows[$id]->vector_key, $old->vector_key);
+            $new = DB::table('ai_embeddings')->where('knowledge_chunk_id', $old->knowledge_chunk_id)->where('generation', 2)->first();
+            $this->assertSame('ready', $new->status);
+            $this->assertNotSame($old->vector_key, $new->vector_key);
+        }
+        $this->assertSame($beforeQuota[$hold->reservationId], $this->quota->reservations[$hold->reservationId]);
+    }
+
+    public function test_controlled_recovery_rolls_back_run_and_embeddings_on_write_failure(): void
+    {
+        [$customer, $actor, , , $chunks] = $this->fixture('recovery-rollback');
+        $run = $this->modelRun($customer, 'running');
+        $uuid = DB::table('ai_model_runs')->where('id', $run)->value('run_uuid');
+        $embedding = $this->pendingEmbedding($customer, $chunks[0], $run);
+        $armed = true;
+        DB::listen(function (QueryExecuted $query) use (&$armed): void {
+            if ($armed && str_starts_with(strtolower($query->sql), 'update')
+                && str_contains($query->sql, 'ai_embeddings')) {
+                $armed = false;
+                throw new \RuntimeException('simulated recovery storage failure');
+            }
+        });
+        try {
+            (new ControlledEmbeddingRecovery)->recover($actor, $uuid, 'INC-rollback', true, true);
+            $this->fail('The injected write failure must roll back recovery.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('simulated recovery storage failure', $e->getMessage());
+        }
+        $this->assertFalse($armed);
+        $saved = DB::table('ai_model_runs')->where('id', $run)->first();
+        $this->assertSame('running', $saved->status);
+        $this->assertNull($saved->completed_at);
+        $this->assertArrayNotHasKey('controlled_recovery', json_decode($saved->metadata ?? '{}', true));
+        $row = DB::table('ai_embeddings')->where('id', $embedding)->first();
+        $this->assertSame('pending', $row->status);
+        $this->assertNull($row->deletion_requested_at);
+    }
+
+    public function test_controlled_recovery_refuses_missing_confirmations_wrong_actor_and_nonrunning_states(): void
+    {
+        [$customer, $actor] = $this->fixture('recovery-negative');
+        $recovery = new ControlledEmbeddingRecovery;
+        $run = $this->modelRun($customer, 'running');
+        $uuid = DB::table('ai_model_runs')->where('id', $run)->value('run_uuid');
+        foreach ([[false, true], [true, false]] as [$stopped, $drained]) {
+            try {
+                $recovery->recover($actor, $uuid, 'INC-123', $stopped, $drained);
+                $this->fail('Both confirmations are mandatory.');
+            } catch (AiEmbeddingException $e) {
+                $this->assertSame('LF_RECOVERY_CONFIRMATION_REQUIRED', $e->errorCode);
+            }
+        }
+        DB::table('users')->where('id', $actor)->update(['role' => 'teacher']);
+        try {
+            $recovery->recover($actor, $uuid, 'INC-123', true, true);
+            $this->fail('Teacher must not recover runs.');
+        } catch (AiEmbeddingException $e) {
+            $this->assertSame('unauthorized', $e->errorCode);
+        }
+        DB::table('users')->where('id', $actor)->update(['role' => 'customer_admin']);
+        foreach (['queued', 'completed', 'failed', 'blocked', 'cancelled'] as $status) {
+            $other = $this->modelRun($customer, $status);
+            try {
+                $recovery->recover($actor, DB::table('ai_model_runs')->where('id', $other)->value('run_uuid'), 'INC-123', true, true);
+                $this->fail('Nonrunning state cannot be recovered.');
+            } catch (AiEmbeddingException $e) {
+                $this->assertSame('AI_RUN_TRANSITION_CONFLICT', $e->errorCode);
+            }
+        }
+        [$otherCustomer, $otherActor] = $this->fixture('recovery-other');
+        try {
+            $recovery->recover($otherActor, $uuid, 'INC-123', true, true);
+            $this->fail('Run from another tenant must not resolve.');
+        } catch (AiEmbeddingException $e) {
+            $this->assertSame('LF_RECOVERY_RUN_NOT_FOUND', $e->errorCode);
+        }
+        $this->assertSame('running', DB::table('ai_model_runs')->where('id', $run)->value('status'));
+    }
+
+    public function test_controlled_recovery_command_requires_confirmation_and_restores_tenant_context(): void
+    {
+        [$customer, $actor] = $this->fixture('recovery-cli');
+        $run = $this->modelRun($customer, 'running');
+        $previous = (object) ['id' => 999999];
+        TenantContext::set($previous);
+        $options = ['--customer' => $customer, '--actor' => $actor,
+            '--run-uuid' => DB::table('ai_model_runs')->where('id', $run)->value('run_uuid'), '--evidence' => 'INC-123'];
+        $this->artisan('ai:embedding-recover', $options)->assertFailed();
+        $this->assertSame($previous, TenantContext::customer());
+        $this->assertSame('running', DB::table('ai_model_runs')->where('id', $run)->value('status'));
+        $this->artisan('ai:embedding-recover', $options + ['--confirm-writer-stopped' => true, '--confirm-store-quiesced' => true])->assertSuccessful();
+        $this->assertSame($previous, TenantContext::customer());
+        $this->assertSame('cancelled', DB::table('ai_model_runs')->where('id', $run)->value('status'));
     }
 
     public function test_unconfigured_worker_writes_nothing_and_calls_nothing(): void
@@ -204,6 +345,17 @@ class AiEmbeddingServiceTest extends TestCase
         $this->assertSame(count($chunkIds), DB::table('ai_embeddings')->where('customer_id', $customerId)->count());
     }
 
+    public function test_completed_prefix_does_not_starve_later_batches(): void
+    {
+        [$customerId] = $this->fixture('pagination');
+        $this->approve($customerId);
+        config(['ai.embedding.chunk_batch' => 1]);
+        $this->assertSame(1, $this->service()->embedPending()['embedded']);
+        $this->assertSame(1, $this->service()->embedPending()['embedded']);
+        $this->assertSame(1, $this->service()->embedPending()['embedded']);
+        $this->assertSame(0, $this->service()->embedPending()['embedded']);
+    }
+
     public function test_dimension_mismatch_never_reaches_the_index(): void
     {
         [$customerId] = $this->fixture('width');
@@ -216,6 +368,21 @@ class AiEmbeddingServiceTest extends TestCase
         $this->assertSame([], $this->store->points);
         $this->assertSame(3, DB::table('ai_embeddings')->where('customer_id', $customerId)
             ->where('status', 'failed')->count());
+    }
+
+    public function test_non_numeric_and_non_finite_vectors_never_reach_the_store(): void
+    {
+        foreach (['not-a-number', INF, NAN] as $index => $value) {
+            [$customerId] = $this->fixture('invalid-vector-'.$index);
+            $this->approve($customerId);
+            $provider = Mockery::mock(EmbeddingProvider::class);
+            $provider->shouldReceive('provider')->andReturn('approved-provider');
+            $provider->shouldReceive('supportsModel')->andReturn(true);
+            $provider->shouldReceive('embed')->andReturn([[0.1, 0.2, 0.3], [$value, 0.2, 0.3], [0.1, 0.2, 0.3]]);
+            $this->app->instance(EmbeddingProvider::class, $provider);
+            $this->assertSame('AI_PROVIDER_CALL_FAILED', $this->service()->embedPending()['error_code']);
+            $this->assertSame([], $this->store->points);
+        }
     }
 
     public function test_misaligned_provider_response_is_refused(): void
@@ -302,24 +469,77 @@ class AiEmbeddingServiceTest extends TestCase
             ->where('status', 'ready')->count());
     }
 
-    public function test_a_superseded_identity_is_reported_as_blocked_not_retried(): void
+    public function test_superseded_identity_gets_new_generation_without_rewriting_history(): void
     {
         [$customerId, , , , $chunkIds] = $this->fixture('blocked-identity');
         $this->approve($customerId);
         $this->service()->embedPending();
-        // `stale` has no documented path back to `pending`, and the amendment
-        // deliberately did not add one — so an active chunk whose identity
-        // landed there stays out of the index.
+        $old = DB::table('ai_embeddings')->where('customer_id', $customerId)
+            ->where('knowledge_chunk_id', $chunkIds[0])->first();
         $this->service()->markStale([$chunkIds[0]]);
 
         $outcome = $this->service()->embedPending();
 
-        $this->assertSame(1, $outcome['stranded']);
-        $this->assertSame(0, $outcome['embedded']);
+        $this->assertSame(0, $outcome['stranded']);
+        $this->assertSame(1, $outcome['embedded']);
         $this->assertSame('stale', DB::table('ai_embeddings')->where('customer_id', $customerId)
             ->where('knowledge_chunk_id', $chunkIds[0])->value('status'));
-        // And it costs nothing to rediscover: the pass gives up before the gate.
-        $this->assertSame(1, DB::table('ai_model_runs')->where('customer_id', $customerId)->count());
+        $new = DB::table('ai_embeddings')->where('customer_id', $customerId)
+            ->where('knowledge_chunk_id', $chunkIds[0])->orderByDesc('generation')->first();
+        $this->assertSame(2, (int) $new->generation);
+        $this->assertNotSame($old->vector_key, $new->vector_key);
+        $this->assertSame($old->model_run_id, DB::table('ai_embeddings')->where('id', $old->id)->value('model_run_id'));
+        $this->assertSame(0, $this->service()->embedPending()['embedded']);
+    }
+
+    public function test_deleted_generation_and_its_vector_key_are_never_reused(): void
+    {
+        [$customerId, , , , $chunkIds] = $this->fixture('deleted-generation');
+        $this->approve($customerId);
+        $this->service()->embedPending();
+        $old = DB::table('ai_embeddings')->where('knowledge_chunk_id', $chunkIds[0])->first();
+        $this->service()->requestDeletion([$chunkIds[0]]);
+        $this->assertSame(0, $this->service()->embedPending()['embedded']);
+        $this->service()->purgeDeletionPending();
+        $this->assertSame(1, $this->service()->embedPending()['embedded']);
+        $new = DB::table('ai_embeddings')->where('knowledge_chunk_id', $chunkIds[0])->orderByDesc('generation')->first();
+        $this->assertSame('deleted', DB::table('ai_embeddings')->where('id', $old->id)->value('status'));
+        $this->assertNotSame($old->vector_key, $new->vector_key);
+        $this->assertSame(2, (int) $new->generation);
+        $migration = require database_path('migrations/2026_09_13_000100_add_ai_embedding_generation.php');
+        try {
+            $migration->down();
+            $this->fail('Rollback must preserve generation history.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('LF_EMBEDDING_GENERATION_ROLLBACK_REFUSED', $e->getMessage());
+        }
+        $this->assertTrue(Schema::hasColumn('ai_embeddings', 'generation'));
+    }
+
+    public function test_generation_constraints_are_physically_enforced_on_mariadb(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('Physical CHECK requires MariaDB.');
+        }
+        [$customerId] = $this->fixture('physical-generation');
+        $this->approve($customerId);
+        $this->service()->embedPending();
+        $row = (array) DB::table('ai_embeddings')->where('customer_id', $customerId)->first();
+        unset($row['id']);
+        $row['vector_key'] = (string) Str::uuid();
+        foreach ([0, 1] as $generation) {
+            $row['generation'] = $generation;
+            $error = null;
+            try {
+                DB::table('ai_embeddings')->insert($row);
+            } catch (QueryException $e) {
+                $error = $e->errorInfo[1];
+            }
+            $this->assertSame($generation === 0 ? 4025 : 1062, $error);
+        }
+        $row['generation'] = 2;
+        DB::table('ai_embeddings')->insert($row);
+        $this->assertSame(4, DB::table('ai_embeddings')->where('customer_id', $customerId)->count());
     }
 
     public function test_pending_rows_under_a_live_run_are_not_claimed_again(): void
@@ -403,6 +623,296 @@ class AiEmbeddingServiceTest extends TestCase
         $this->assertCount(count($chunkIds), $this->store->points);
     }
 
+    public function test_a_refusal_on_the_second_authorization_fails_claimed_rows_for_retry(): void
+    {
+        [$customerId] = $this->fixture('second-authorize-refused');
+        $this->approve($customerId);
+        // The gate authorizes twice: once so the worker can bind rows to a run,
+        // again inside execute(). Withdraw approval between the two — from
+        // inside the first reservation, after its approval check has passed.
+        $this->quota->onReserve(fn () => $this->settings->revoke(
+            $customerId, 'ai.external_processing.approved-provider.knowledge_embedding',
+        ));
+
+        $outcome = $this->service()->embedPending();
+
+        // Previously: error_code null, three rows stuck `pending` under a
+        // blocked run, and no later pass could ever reclaim them.
+        $this->assertSame(100.0, $this->quota->balance());
+        $this->assertSame(1, $this->quota->releaseCalls);
+        $this->assertSame('AI_APPROVAL_REQUIRED', $outcome['error_code']);
+        $this->assertSame('tenant_approval', $outcome['blocked_at']);
+        $this->assertSame(0, $outcome['embedded']);
+        $this->assertSame(3, $outcome['failed']);
+        $this->assertSame([], $this->provider->calls);
+        $this->assertSame([], $this->store->points);
+        $this->assertSame(3, DB::table('ai_embeddings')->where('customer_id', $customerId)
+            ->where('status', 'failed')->where('last_error_code', 'AI_APPROVAL_REQUIRED')->count());
+        $this->assertSame(0, DB::table('ai_embeddings')->where('customer_id', $customerId)
+            ->where('status', 'pending')->count());
+        $this->assertSame(['blocked'], DB::table('ai_model_runs')->where('customer_id', $customerId)
+            ->distinct()->pluck('status')->all());
+
+        // Once the cause clears, the canonical `failed → pending` retry takes over.
+        $this->approve($customerId);
+        $retry = $this->service()->embedPending();
+
+        $this->assertNull($retry['error_code']);
+        $this->assertSame(3, $retry['embedded']);
+        $this->assertCount(1, $this->provider->calls);
+        $this->assertSame(3, DB::table('ai_embeddings')->where('customer_id', $customerId)
+            ->where('status', 'ready')->count());
+    }
+
+    public function test_one_embedding_pass_holds_and_settles_exactly_one_reservation(): void
+    {
+        [$customerId, , , , $chunkIds] = $this->fixture('single-hold');
+        $this->approve($customerId);
+
+        $this->service()->embedPending();
+
+        // The gate authorizes twice per execution. With an idempotent reserver
+        // that must still be ONE hold, settled once at the true quantity — the
+        // property the non-idempotent fake could not express (review AR-P3-5).
+        $runUuid = (string) DB::table('ai_model_runs')->where('customer_id', $customerId)->value('run_uuid');
+        $this->assertCount(1, $this->quota->reservations);
+        $this->assertNotNull($this->quota->attemptReservation(
+            $customerId, $runUuid, 'ai_knowledge_embedding', 'provider_call', 'call',
+        ));
+        $this->assertSame('committed', array_values($this->quota->reservations)[0]['status']);
+        $this->assertSame(100.0 - count($chunkIds), $this->quota->balance());
+    }
+
+    public function test_a_second_authorization_refusal_releases_the_single_hold(): void
+    {
+        [$customerId] = $this->fixture('refusal-releases-hold');
+        $this->approve($customerId);
+        $this->quota->onReserve(fn () => $this->settings->revoke(
+            $customerId, 'ai.external_processing.approved-provider.knowledge_embedding',
+        ));
+
+        $outcome = $this->service()->embedPending();
+
+        // Nothing crossed the provider boundary, so the tenant is not charged:
+        // the one hold is handed back, not left `reserved` until lease expiry.
+        $this->assertSame('AI_APPROVAL_REQUIRED', $outcome['error_code']);
+        $this->assertCount(1, $this->quota->reservations);
+        $this->assertSame('released', array_values($this->quota->reservations)[0]['status']);
+        $this->assertSame(100.0, $this->quota->balance());
+        $this->assertSame([], $this->provider->calls);
+    }
+
+    public function test_an_adapter_whose_provider_does_not_support_the_approved_model_is_never_called(): void
+    {
+        [$customerId] = $this->fixture('adapter-model-pin');
+        // Allow-listed, so the gate reaches the adapter check rather than
+        // refusing earlier; but the provider itself cannot serve this model.
+        config()->set('ai.providers.approved-provider.models', ['approved-model', 'unlisted-by-provider']);
+        config()->set('ai.embedding.model', 'unlisted-by-provider');
+        $this->approve($customerId);
+
+        $outcome = $this->service()->embedPending();
+
+        // EmbeddingProviderAdapter::supportsModel() must delegate. A constant
+        // `true` there let every embedding test stay green (review AR-P3-4a).
+        $this->assertSame('AI_ADAPTER_MISMATCH', $outcome['error_code']);
+        $this->assertSame([], $this->provider->calls);
+        $this->assertSame([], $this->store->points);
+    }
+
+    public function test_an_adapter_for_a_different_provider_is_never_called(): void
+    {
+        [$customerId] = $this->fixture('adapter-provider-pin');
+        $this->approve($customerId);
+        $impostor = new FakeEmbeddingProvider(name: 'other-provider');
+        $this->app->instance(EmbeddingProvider::class, $impostor);
+
+        $outcome = $this->service()->embedPending();
+
+        // EmbeddingProviderAdapter::provider() must report the provider it
+        // wraps. Returning the approved name instead would let a different
+        // vendor pass an approval granted to another one (review AR-P3-4a).
+        $this->assertSame('AI_ADAPTER_MISMATCH', $outcome['error_code']);
+        $this->assertSame([], $impostor->calls);
+        $this->assertSame([], $this->store->points);
+    }
+
+    public function test_pending_rows_under_a_blocked_run_are_reclaimed(): void
+    {
+        [$customerId, , , , $chunkIds] = $this->fixture('blocked-run-reclaim');
+        $this->approve($customerId);
+        // The crash window: a process died after the second authorization
+        // refused but before it could move its rows to `failed`. A blocked run
+        // never ran (the recorder has no `running → blocked`), so no provider
+        // saw these rows and they are free to reclaim.
+        $blockedRun = $this->modelRun($customerId, 'blocked');
+        $this->pendingEmbedding($customerId, $chunkIds[0], $blockedRun);
+
+        $outcome = $this->service()->embedPending();
+
+        $this->assertNull($outcome['error_code']);
+        $this->assertSame(count($chunkIds), $this->provider->calls[0]['count']);
+        $row = DB::table('ai_embeddings')->where('customer_id', $customerId)
+            ->where('knowledge_chunk_id', $chunkIds[0])->first();
+        $this->assertSame('ready', $row->status);
+        $this->assertNotSame($blockedRun, (int) $row->model_run_id);
+    }
+
+    public function test_purge_is_not_starved_by_rows_behind_a_live_writer(): void
+    {
+        [$customerId, , , , $chunkIds] = $this->fixture('purge-starvation');
+        $this->approve($customerId);
+        $this->service()->embedPending();
+        // The lowest id — the row a naive `ORDER BY id LIMIT n` reaches first —
+        // belongs to a writer that is still running.
+        $firstId = (int) DB::table('ai_embeddings')->where('customer_id', $customerId)->min('id');
+        DB::table('ai_embeddings')->where('id', $firstId)
+            ->update(['model_run_id' => $this->modelRun($customerId, 'running')]);
+        $this->service()->requestDeletion($chunkIds);
+
+        $first = $this->service()->purgeDeletionPending(1);
+        $second = $this->service()->purgeDeletionPending(1);
+
+        // Previously both passes returned deleted 0 / retained 1 and never
+        // called the store: the live row filled the only slot every time.
+        $this->assertSame(['deleted' => 1, 'retained' => 0, 'held_by_writer_barrier' => 1], $first);
+        $this->assertSame(['deleted' => 1, 'retained' => 0, 'held_by_writer_barrier' => 1], $second);
+        $this->assertSame(2, $this->store->deleteCalls);
+        // The barrier itself is untouched: the live writer's row and point stay.
+        $this->assertSame('deletion_pending', DB::table('ai_embeddings')->where('id', $firstId)->value('status'));
+        $this->assertSame(0, (int) DB::table('ai_embeddings')->where('id', $firstId)->value('deletion_attempts'));
+        $this->assertCount(1, $this->store->points);
+    }
+
+    public function test_persistent_point_delete_error_does_not_starve_later_points(): void
+    {
+        [$customer, , , , $chunks] = $this->fixture('delete-point-outage');
+        $this->approve($customer);
+        $this->service()->embedPending();
+        $first = DB::table('ai_embeddings')->where('customer_id', $customer)->orderBy('id')->first();
+        $this->store->failingKeys = [$first->vector_key];
+        $this->service()->requestDeletion($chunks);
+
+        $this->assertSame(1, $this->service()->purgeDeletionPending(1)['retained']);
+        $this->assertSame(1, $this->service()->purgeDeletionPending(1)['deleted']);
+        $this->assertSame(1, $this->service()->purgeDeletionPending(1)['deleted']);
+        $this->assertSame('deletion_pending', DB::table('ai_embeddings')->where('id', $first->id)->value('status'));
+        $this->assertSame(1, $this->service()->purgeDeletionPending(1)['retained']);
+    }
+
+    public function test_persistent_point_lookup_error_does_not_starve_later_points(): void
+    {
+        [$customer] = $this->fixture('lookup-point-outage');
+        $this->approve($customer);
+        $this->service()->embedPending();
+        DB::table('ai_embeddings')->where('customer_id', $customer)
+            ->update(['status' => 'pending', 'updated_at' => now()->subMinute()]);
+        $first = DB::table('ai_embeddings')->where('customer_id', $customer)->orderBy('id')->first();
+        $this->store->failingKeys = [$first->vector_key];
+
+        $this->assertSame(1, $this->service()->reconcilePending(1)['undetermined']);
+        $this->assertSame(1, $this->service()->reconcilePending(1)['ready']);
+        $this->assertSame(1, $this->service()->reconcilePending(1)['ready']);
+        $this->assertSame('pending', DB::table('ai_embeddings')->where('id', $first->id)->value('status'));
+        $this->assertSame(1, $this->service()->reconcilePending(1)['undetermined']);
+    }
+
+    public function test_real_qdrant_maintenance_passes_a_broken_collection_and_recovers_it(): void
+    {
+        $url = getenv('LF_QDRANT_TEST_URL');
+        if (! $url) {
+            $this->markTestSkipped('Dedicated local Qdrant endpoint required.');
+        }
+        $parts = parse_url($url);
+        $this->assertSame('http', $parts['scheme']);
+        $this->assertContains($parts['host'], ['127.0.0.1', 'localhost']);
+        config(['ai.vector_store.host' => 'http://'.$parts['host'],
+            'ai.vector_store.port' => $parts['port'] ?? 6333,
+            'ai.vector_store.collection_prefix' => 'lf_maintenance_'.str_replace('-', '', (string) Str::uuid())]);
+        $real = new QdrantVectorStore;
+        $this->app->instance(VectorStore::class, $real);
+        $collection = $real->collectionFor('approved-model');
+        $base = rtrim($url, '/').'/collections/'.$collection;
+        Http::put($base, ['vectors' => ['size' => 3, 'distance' => 'Cosine']])->throw();
+        try {
+            Http::put($base.'/index?wait=true', ['field_name' => 'customer_id',
+                'field_schema' => ['type' => 'keyword', 'is_tenant' => true]])->throw();
+            [$customer, , , , $chunks] = $this->fixture('real-maintenance');
+            $this->approve($customer);
+            $this->assertSame(3, $this->service()->embedPending()['embedded']);
+            $rows = DB::table('ai_embeddings')->where('customer_id', $customer)->orderBy('id')->get();
+            $first = $rows->first();
+            $this->assertTrue($real->exists($customer, $collection, $first->vector_key));
+            DB::table('ai_embeddings')->where('customer_id', $customer)
+                ->update(['status' => 'pending', 'updated_at' => now()->subMinute()]);
+            // Real Qdrant 404 for one damaged locator, not an HTTP mock.
+            DB::table('ai_embeddings')->where('id', $first->id)->update(['vector_index' => $collection.'_missing']);
+            $this->assertSame(1, $this->service()->reconcilePending(1)['undetermined']);
+            $this->assertSame(1, $this->service()->reconcilePending(1)['ready']);
+            $this->assertSame(1, $this->service()->reconcilePending(1)['ready']);
+            $this->assertSame('pending', DB::table('ai_embeddings')->where('id', $first->id)->value('status'));
+            DB::table('ai_embeddings')->where('id', $first->id)->update(['vector_index' => $collection]);
+            $this->assertSame(1, $this->service()->reconcilePending(1)['ready']);
+
+            $this->service()->requestDeletion($chunks);
+            DB::table('ai_embeddings')->where('id', $first->id)->update(['vector_index' => $collection.'_missing']);
+            $this->assertSame(1, $this->service()->purgeDeletionPending(1)['retained']);
+            $this->assertSame(1, $this->service()->purgeDeletionPending(1)['deleted']);
+            $this->assertSame(1, $this->service()->purgeDeletionPending(1)['deleted']);
+            $this->assertTrue($real->exists($customer, $collection, $first->vector_key));
+            foreach ($rows->skip(1) as $row) {
+                $this->assertFalse($real->exists($customer, $collection, $row->vector_key));
+            }
+            DB::table('ai_embeddings')->where('id', $first->id)->update(['vector_index' => $collection]);
+            $this->assertSame(1, $this->service()->purgeDeletionPending(1)['deleted']);
+            $this->assertFalse($real->exists($customer, $collection, $first->vector_key));
+        } finally {
+            Http::delete($base)->throw();
+        }
+    }
+
+    public function test_run_status_policy_covers_exactly_the_schema_vocabulary(): void
+    {
+        $contract = json_decode((string) file_get_contents(base_path('docs/database/LF-SCHEMA-CONTRACT.json')), true);
+        $table = collect($contract['tables'])->firstWhere('name', 'ai_model_runs');
+        $expression = collect($table['checks'])->pluck('expression')
+            ->first(static fn (string $e): bool => str_starts_with($e, '`status` in ('));
+        $this->assertNotNull($expression, 'chk_amr_status not found in LF-SCHEMA-CONTRACT.json');
+        preg_match_all("/'([a-z_]+)'/", $expression, $matches);
+
+        $policy = (new \ReflectionClassConstant(AiEmbeddingService::class, 'RUN_STATUS_POLICY'))->getValue();
+
+        // A status added to the schema must be classified on purpose, not fall
+        // through to "unknown" by omission — that omission is how `blocked`
+        // was stranded.
+        $this->assertEqualsCanonicalizing($matches[1], array_keys($policy));
+
+        $this->assertSame(['writer_stopped' => false, 'reclaimable' => false], $policy['queued']);
+        $this->assertSame(['writer_stopped' => false, 'reclaimable' => false], $policy['running']);
+        $this->assertSame(['writer_stopped' => true, 'reclaimable' => false], $policy['completed']);
+        $this->assertSame(['writer_stopped' => true, 'reclaimable' => true], $policy['failed']);
+        $this->assertSame(['writer_stopped' => true, 'reclaimable' => true], $policy['cancelled']);
+        $this->assertSame(['writer_stopped' => true, 'reclaimable' => true], $policy['blocked']);
+    }
+
+    public function test_purge_waits_until_a_live_writer_cannot_recreate_the_old_point(): void
+    {
+        [$customerId, , , , $chunkIds] = $this->fixture('purge-live-writer');
+        $this->approve($customerId);
+        $this->service()->embedPending();
+        DB::table('ai_model_runs')->where('customer_id', $customerId)->update(['status' => 'running']);
+        $this->service()->requestDeletion($chunkIds);
+        // Held by the barrier, not refused by the store: the two are reported
+        // apart so an outage cannot be mistaken for a writer still running.
+        $this->assertSame(
+            ['deleted' => 0, 'retained' => 0, 'held_by_writer_barrier' => 3],
+            $this->service()->purgeDeletionPending(),
+        );
+        $this->assertSame(0, $this->store->deleteCalls);
+        DB::table('ai_model_runs')->where('customer_id', $customerId)->update(['status' => 'completed']);
+        $this->assertSame(3, $this->service()->purgeDeletionPending()['deleted']);
+    }
+
     public function test_purge_tombstones_only_what_the_store_acknowledged(): void
     {
         [$customerId, , , , $chunkIds] = $this->fixture('purge');
@@ -413,7 +923,7 @@ class AiEmbeddingServiceTest extends TestCase
 
         $first = $this->service()->purgeDeletionPending();
 
-        $this->assertSame(['deleted' => 0, 'retained' => count($chunkIds)], $first);
+        $this->assertSame(['deleted' => 0, 'retained' => count($chunkIds), 'held_by_writer_barrier' => 0], $first);
         $this->assertSame(count($chunkIds), DB::table('ai_embeddings')->where('customer_id', $customerId)
             ->where('status', 'deletion_pending')->where('deletion_attempts', 1)->count());
         $this->assertSame(0, DB::table('ai_embeddings')->where('customer_id', $customerId)
@@ -466,6 +976,32 @@ class AiEmbeddingServiceTest extends TestCase
         $this->assertSame(count($chunkIds), DB::table('ai_embeddings')->where('customer_id', $customerId)
             ->where('status', 'deleted')->count());
         $this->assertSame([], $this->store->points);
+    }
+
+    public function test_reconciliation_cannot_resurrect_a_concurrent_deletion(): void
+    {
+        [$customerId, , , , $chunkIds] = $this->fixture('reconcile-delete');
+        $this->approve($customerId);
+        $this->service()->embedPending();
+        DB::table('ai_embeddings')->where('customer_id', $customerId)->update(['status' => 'pending']);
+        $this->store->beforeExists = fn () => $this->service()->requestDeletion($chunkIds);
+        $this->assertSame(0, $this->service()->reconcilePending()['ready']);
+        $this->assertSame(count($chunkIds), DB::table('ai_embeddings')->where('customer_id', $customerId)
+            ->where('status', 'deletion_pending')->count());
+    }
+
+    public function test_reconciliation_cannot_finish_a_different_attempt(): void
+    {
+        [$customerId] = $this->fixture('reconcile-attempt');
+        $this->approve($customerId);
+        $this->service()->embedPending();
+        DB::table('ai_embeddings')->where('customer_id', $customerId)->update(['status' => 'pending']);
+        $newRun = $this->modelRun($customerId, 'running');
+        $this->store->beforeExists = fn () => DB::table('ai_embeddings')->where('customer_id', $customerId)
+            ->update(['model_run_id' => $newRun]);
+        $this->assertSame(0, $this->service()->reconcilePending()['ready']);
+        $this->assertSame(3, DB::table('ai_embeddings')->where('customer_id', $customerId)
+            ->where('status', 'pending')->where('model_run_id', $newRun)->count());
     }
 
     public function test_reconcile_promotes_a_pending_row_whose_point_did_land(): void
@@ -546,7 +1082,7 @@ class AiEmbeddingServiceTest extends TestCase
         // The chunk ids are real and belong to a real source — they are just
         // another tenant's. Nothing about them is reachable from here.
         $this->assertSame(0, $marked);
-        $this->assertSame(['deleted' => 0, 'retained' => 0], $outcome);
+        $this->assertSame(['deleted' => 0, 'retained' => 0, 'held_by_writer_barrier' => 0], $outcome);
         $this->assertNotEmpty($indexed);
         $this->assertSame($indexed, $this->store->points);
         $this->assertSame(0, DB::table('ai_embeddings')->where('customer_id', $otherId)
@@ -570,6 +1106,53 @@ class AiEmbeddingServiceTest extends TestCase
     }
 
     /** @return array{0:int,1:int,2:int,3:int,4:array<int,int>} */
+    public function test_mysql_all_ready_pass_uses_one_candidate_query_without_identity_batch_queries(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('SQL SHA2 prefilter is a MariaDB/MySQL optimization.');
+        }
+        [$customerId] = $this->fixture('query-budget', 8);
+        $this->approve($customerId);
+        $this->service()->embedPending();
+        config()->set('ai.embedding.chunk_batch', 1);
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        try {
+            $result = $this->service()->embedPending();
+            $queries = array_column(DB::getQueryLog(), 'query');
+        } finally {
+            DB::disableQueryLog();
+            DB::flushQueryLog();
+        }
+        $this->assertSame(0, $result['embedded']);
+        $this->assertCount(1, array_filter($queries, fn ($sql) => str_contains($sql, 'from `ai_knowledge_chunks` as `c`')));
+        $this->assertCount(0, array_filter($queries, fn ($sql) => str_contains($sql, 'from `ai_embeddings` where')));
+    }
+
+    public function test_candidate_prefilter_does_not_hide_a_changed_source_fingerprint(): void
+    {
+        [$customerId, , , $sourceId, $chunks] = $this->fixture('changed-fingerprint');
+        $this->approve($customerId);
+        $this->service()->embedPending();
+        DB::table('ai_knowledge_sources')->where('id', $sourceId)->update(['source_fingerprint' => str_repeat('e', 64)]);
+        $this->assertSame(count($chunks), $this->service()->embedPending()['embedded']);
+    }
+
+    public function test_latest_replaceable_generation_is_not_hidden_by_an_older_ready_generation(): void
+    {
+        [$customerId, , , , $chunks] = $this->fixture('latest-generation');
+        $this->approve($customerId);
+        $this->service()->embedPending();
+        $old = (array) DB::table('ai_embeddings')->where('knowledge_chunk_id', $chunks[0])->first();
+        unset($old['id']);
+        $old['generation'] = 2;
+        $old['status'] = 'stale';
+        $old['vector_key'] = (string) Str::uuid();
+        DB::table('ai_embeddings')->insert($old);
+        $this->assertSame(1, $this->service()->embedPending()['embedded']);
+        $this->assertSame(3, (int) DB::table('ai_embeddings')->where('knowledge_chunk_id', $chunks[0])->max('generation'));
+    }
+
     private function fixture(string $slug, int $chunks = 3): array
     {
         $customerId = DB::table('saas_customers')->insertGetId([
@@ -616,10 +1199,20 @@ class AiEmbeddingServiceTest extends TestCase
 
     private function modelRun(int $customerId, string $status, $updatedAt = null): int
     {
+        // Mirrors AiModelRunRecorder so the row satisfies chk_amr_completed,
+        // chk_amr_failed and chk_amr_blocked on MariaDB, not only on SQLite.
+        $finished = in_array($status, ['completed', 'failed', 'blocked', 'cancelled'], true);
+
         return (int) DB::table('ai_model_runs')->insertGetId([
             'customer_id' => $customerId, 'run_uuid' => $this->uuid('run-'.$customerId.'-'.$status.'-'.uniqid()),
             'prompt_hash' => 'sha256:fixture', 'purpose' => 'knowledge_embedding',
             'provider' => 'approved-provider', 'model' => 'approved-model', 'status' => $status,
+            'error_code' => match ($status) {
+                'failed' => 'AI_PROVIDER_CALL_FAILED',
+                'blocked' => 'AI_APPROVAL_REQUIRED',
+                default => null,
+            },
+            'completed_at' => $finished ? now() : null,
             'created_at' => now(), 'updated_at' => $updatedAt ?? now(),
         ]);
     }

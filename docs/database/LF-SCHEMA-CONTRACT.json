@@ -215,6 +215,15 @@
           "unsigned": false,
           "auto_increment": false,
           "generated": null
+        },
+        {
+          "name": "generation",
+          "type": "int",
+          "nullable": false,
+          "default": "1",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
         }
       ],
       "primary_key": [
@@ -268,7 +277,8 @@
             "knowledge_chunk_id",
             "provider",
             "model",
-            "embedding_hash"
+            "embedding_hash",
+            "generation"
           ],
           "unique": true,
           "type": "btree"
@@ -344,6 +354,9 @@
         },
         {
           "expression": "`status` <> 'ready' or `embedded_at` is not null"
+        },
+        {
+          "expression": "`generation` >= 1"
         }
       ],
       "triggers": [],

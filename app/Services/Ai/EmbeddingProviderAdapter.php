@@ -76,12 +76,21 @@ final class EmbeddingProviderAdapter implements AiProviderAdapter
             throw new RuntimeException('LF_EMBEDDING_RESPONSE_MISALIGNED');
         }
 
-        foreach ($this->items as $index => $item) {
-            $vector = $vectors[$index];
-
-            if (count($vector) !== $this->expectedDimensions) {
+        // Validate the whole response before the first write. floatval() would
+        // silently turn malformed provider text into a plausible zero vector.
+        foreach ($vectors as $vector) {
+            if (! is_array($vector) || ! array_is_list($vector) || count($vector) !== $this->expectedDimensions) {
                 throw new RuntimeException('LF_EMBEDDING_DIMENSION_MISMATCH');
             }
+            foreach ($vector as $value) {
+                if ((! is_int($value) && ! is_float($value)) || ! is_finite((float) $value)) {
+                    throw new RuntimeException('LF_EMBEDDING_INVALID_VECTOR');
+                }
+            }
+        }
+
+        foreach ($this->items as $index => $item) {
+            $vector = $vectors[$index];
 
             $this->store->upsert(new VectorPoint(
                 $item->collection,

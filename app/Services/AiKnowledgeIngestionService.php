@@ -9,6 +9,18 @@ use Illuminate\Support\Facades\DB;
 
 class AiKnowledgeIngestionService
 {
+    /**
+     * Statuses that may enter `deletion_pending`, per the canonical lifecycles:
+     * `ai_knowledge_sources`/`ai_knowledge_chunks`
+     * `pending|active|failed|stale|archived → deletion_pending`, and
+     * `ai_embeddings` `pending|ready|failed|stale → deletion_pending`.
+     * The embedding list matches AiEmbeddingService::requestDeletion(), so both
+     * entry points to the same state keep the original request time.
+     */
+    private const KNOWLEDGE_DELETABLE_STATUSES = ['pending', 'active', 'failed', 'stale', 'archived'];
+
+    private const EMBEDDING_DELETABLE_STATUSES = ['pending', 'ready', 'failed', 'stale'];
+
     public const CHUNKER_VERSION = 'media-unit-unicode-v1';
 
     public const MAX_CHARS = 4000;
@@ -154,9 +166,19 @@ class AiKnowledgeIngestionService
                 $oldChunkIds = DB::table('ai_knowledge_chunks')->where('customer_id', $customerId)
                     ->whereIn('knowledge_source_id', $oldIds)->pluck('id');
                 if ($oldChunkIds->isNotEmpty()) {
+                    // A pending writer may still upsert. Request cleanup using
+                    // the canonical transition; purge waits for its run to stop.
+                    // Both worker completion paths condition on pending and
+                    // therefore cannot undo this request.
                     DB::table('ai_embeddings')->where('customer_id', $customerId)
                         ->whereIn('knowledge_chunk_id', $oldChunkIds)
-                        ->whereIn('status', ['pending', 'ready', 'failed'])
+                        ->where('status', 'pending')
+                        ->update(['status' => 'deletion_pending', 'deletion_requested_at' => $now, 'updated_at' => $now]);
+                    // Pending first: completion that won the race is caught
+                    // here; completion that lost cannot undo deletion_pending.
+                    DB::table('ai_embeddings')->where('customer_id', $customerId)
+                        ->whereIn('knowledge_chunk_id', $oldChunkIds)
+                        ->whereIn('status', ['ready', 'failed'])
                         ->update(['status' => 'stale', 'updated_at' => $now]);
                 }
                 DB::table('ai_knowledge_chunks')->where('customer_id', $customerId)
@@ -196,18 +218,28 @@ class AiKnowledgeIngestionService
                 return;
             }
 
+            // Each level moves only from the statuses its canonical lifecycle
+            // allows into `deletion_pending`, named rather than "everything but
+            // deleted". The old `<> 'deleted'` also matched rows already
+            // `deletion_pending`, so a repeated request re-stamped
+            // `deletion_requested_at` and made a stuck deletion look new.
+            // A repeat still sweeps children that are not yet on the deletion
+            // path; it just leaves the ones that are exactly as they were.
             $now = now();
             $chunkIds = DB::table('ai_knowledge_chunks')->where('customer_id', $customerId)
                 ->where('knowledge_source_id', $sourceId)->pluck('id');
             if ($chunkIds->isNotEmpty()) {
                 DB::table('ai_embeddings')->where('customer_id', $customerId)
-                    ->whereIn('knowledge_chunk_id', $chunkIds)->where('status', '<>', 'deleted')
+                    ->whereIn('knowledge_chunk_id', $chunkIds)
+                    ->whereIn('status', self::EMBEDDING_DELETABLE_STATUSES)
                     ->update(['status' => 'deletion_pending', 'deletion_requested_at' => $now, 'updated_at' => $now]);
             }
             DB::table('ai_knowledge_chunks')->where('customer_id', $customerId)
-                ->where('knowledge_source_id', $sourceId)->where('status', '<>', 'deleted')
+                ->where('knowledge_source_id', $sourceId)
+                ->whereIn('status', self::KNOWLEDGE_DELETABLE_STATUSES)
                 ->update(['status' => 'deletion_pending', 'deletion_requested_at' => $now, 'updated_at' => $now]);
             DB::table('ai_knowledge_sources')->where('customer_id', $customerId)->where('id', $sourceId)
+                ->whereIn('status', self::KNOWLEDGE_DELETABLE_STATUSES)
                 ->update(['status' => 'deletion_pending', 'deletion_requested_at' => $now, 'updated_at' => $now]);
         }, 3);
     }

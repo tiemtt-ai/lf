@@ -24,6 +24,11 @@ final class FakeVectorStore implements VectorStore
 
     public ?RuntimeException $failure = null;
 
+    /** @var list<string> Point-specific outages; other points remain usable. */
+    public array $failingKeys = [];
+
+    public ?\Closure $beforeExists = null;
+
     /** Fail the upsert at this 1-based position, to model a partial batch. */
     public ?int $failUpsertAt = null;
 
@@ -60,6 +65,10 @@ final class FakeVectorStore implements VectorStore
     {
         $this->deleteCalls++;
 
+        if (in_array($vectorKey, $this->failingKeys, true)) {
+            throw new RuntimeException('LF_VECTOR_STORE_REQUEST_FAILED_503');
+        }
+
         if ($this->failure !== null) {
             throw $this->failure;
         }
@@ -74,6 +83,12 @@ final class FakeVectorStore implements VectorStore
 
     public function exists(int $customerId, string $collection, string $vectorKey): bool
     {
+        if (in_array($vectorKey, $this->failingKeys, true)) {
+            throw new RuntimeException('LF_VECTOR_STORE_REQUEST_FAILED_503');
+        }
+        if ($this->beforeExists !== null) {
+            ($this->beforeExists)();
+        }
         if ($this->failure !== null) {
             throw $this->failure;
         }

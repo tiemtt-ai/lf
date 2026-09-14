@@ -36,12 +36,41 @@ final class QdrantVectorStoreTest extends TestCase
         }
     }
 
+    public function test_a_non_success_response_body_is_never_echoed(): void
+    {
+        // A store error body routinely echoes the request it rejected — here a
+        // vector and a tenant identifier. Only the status may travel into the
+        // exception, and nothing may be chained that would carry the body into
+        // logs or stack traces (review AR-P3-4b).
+        $sentinel = 'tenant-11-vector-0.123456-SENTINEL';
+        $statuses = [400, 404, 500, 503];
+        // One sequence registered once: repeated Http::fake() calls stack stubs,
+        // so the first `*` stub would keep answering every iteration.
+        $sequence = Http::sequence();
+        foreach ($statuses as $status) {
+            $sequence->push(['status' => ['error' => $sentinel]], $status);
+        }
+        Http::fake(['*' => $sequence]);
+        foreach ($statuses as $status) {
+            $error = null;
+            try {
+                (new QdrantVectorStore)->exists(11, 'lf_text_approved_model', '11111111-1111-4111-8111-111111111111');
+            } catch (RuntimeException $e) {
+                $error = $e;
+            }
+            $this->assertNotNull($error, "HTTP {$status} must not read as a result.");
+            $this->assertSame("LF_VECTOR_STORE_REQUEST_FAILED_{$status}", $error->getMessage());
+            $this->assertStringNotContainsString($sentinel, $error->getMessage());
+            $this->assertNull($error->getPrevious());
+        }
+    }
+
     public function test_upsert_accepts_completed_and_sends_no_raw_text(): void
     {
         Http::fake(['*' => Http::response(['status' => 'ok', 'result' => ['status' => 'completed']])]);
         (new QdrantVectorStore)->upsert($this->point());
         Http::assertSent(fn ($request) => $request->method() === 'PUT'
-            && $request['points'][0]['payload']['customer_id'] === 11
+            && $request['points'][0]['payload']['customer_id'] === '11'
             && ! array_key_exists('text', $request['points'][0]['payload']));
     }
 
@@ -58,7 +87,7 @@ final class QdrantVectorStoreTest extends TestCase
         $this->assertFalse((new QdrantVectorStore)->exists(11, 'test', $this->point()->vectorKey));
         Http::assertSent(fn ($request) => $request['filter']['must'] === [
             ['has_id' => [$this->point()->vectorKey]],
-            ['key' => 'customer_id', 'match' => ['value' => 11]],
+            ['key' => 'customer_id', 'match' => ['value' => '11']],
         ]);
     }
 
@@ -74,7 +103,7 @@ final class QdrantVectorStoreTest extends TestCase
         Http::fake(['*' => Http::response(['status' => 'ok', 'result' => [['id' => 'first'], ['id' => 'second']]])]);
         $this->assertSame(['first', 'second'], (new QdrantVectorStore)->search(11, 'test', [0.2, 0.4], 2));
         Http::assertSent(fn ($request) => $request['filter']['must'] === [
-            ['key' => 'customer_id', 'match' => ['value' => 11]],
+            ['key' => 'customer_id', 'match' => ['value' => '11']],
         ]);
     }
 
@@ -87,7 +116,7 @@ final class QdrantVectorStoreTest extends TestCase
         $this->assertTrue((new QdrantVectorStore)->delete(11, 'test', $this->point()->vectorKey));
         Http::assertSent(fn ($request) => $request['filter']['must'] === [
             ['has_id' => [$this->point()->vectorKey]],
-            ['key' => 'customer_id', 'match' => ['value' => 11]],
+            ['key' => 'customer_id', 'match' => ['value' => '11']],
         ]);
     }
 

@@ -16,6 +16,12 @@ final class FakeTenantSettings implements TenantSettingSource
         $this->settings[$customerId][$settingKey] = $value;
     }
 
+    /** Withdraw an approval, e.g. between the gate's two authorization checks. */
+    public function revoke(int $customerId, string $settingKey): void
+    {
+        unset($this->settings[$customerId][$settingKey]);
+    }
+
     public function get(int $customerId, string $settingKey): ?array
     {
         return $this->settings[$customerId][$settingKey] ?? null;

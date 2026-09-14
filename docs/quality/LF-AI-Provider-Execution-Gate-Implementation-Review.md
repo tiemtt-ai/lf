@@ -1,12 +1,12 @@
 # AI Provider Execution Gate — Implementation Review
 
-Version: 1.15
+Version: 1.16
 
 Document Status: Review
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-12
+Last Updated: 2026-09-14
 
 Review Date: 2026-09-09
 
@@ -684,7 +684,7 @@ và cho kết quả khác:
 | Lượt | Kết quả |
 | --- | --- |
 | Toàn suite, cây hiện tại (SQLite) | **7 failed, 4 skipped, 1104 passed** (10397 assertions) |
-| Đúng 7 test đó, chạy lại trên `a9da018` trong `git worktree` riêng | đỏ y hệt |
+| Đúng 7 test đó, chạy lại trên `a9da018` trong `git worktree` riêng | ~~đỏ y hệt~~ **VÔ HIỆU về phương pháp** (đính chính 2026-09-14): worktree symlink `vendor`, Composer tính `$baseDir` từ đường dẫn thật nên code `App\`/`Tests\` được nạp từ repo chính — không phải baseline `a9da018`. Kết luận "7 lỗi có sẵn" nay dựa trên baseline reviewer độc lập dựng lại với `vendor` cục bộ (introduced `[]`, resolved `[]`), xem LF-AI-Embedding-Qdrant-Architecture-Review § 6 |
 
 Bảy lỗi trùng khớp từng cái theo tên với baseline: `MediaRevisionLifecycleTest`
 (5), `VideoTranscriptCaptionLocalReviewTest` (1),

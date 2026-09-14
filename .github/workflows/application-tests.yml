@@ -17,6 +17,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  integration-qdrant:
+    name: Vector Store Contract (Qdrant 1.11)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      qdrant:
+        image: qdrant/qdrant:v1.11.5
+        env:
+          QDRANT__TELEMETRY_DISABLED: 'true'
+        ports:
+          - 6333:6333
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: ctype, curl, dom, fileinfo, mbstring, openssl, pdo_sqlite, tokenizer, xml
+          coverage: none
+          tools: composer:v2
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: curl --retry 20 --retry-connrefused --retry-delay 1 --fail http://127.0.0.1:6333/
+      - name: Exercise real tenant index with synthetic vectors only
+        env:
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          LF_QDRANT_TEST_URL: http://127.0.0.1:6333
+        run: |
+          php artisan test tests/Integration/QdrantVectorStoreIntegrationTest.php
+          php artisan test tests/Feature/AiEmbeddingServiceTest.php --filter=test_real_qdrant_maintenance_passes_a_broken_collection_and_recovers_it
+
   test:
     name: Laravel Application Tests
     runs-on: ubuntu-latest
@@ -152,4 +181,7 @@ jobs:
             tests/Feature/AiProviderExecutionGateTest.php \
             tests/Integration/AiFoundationKnowledgePacketMariaDbTest.php \
             tests/Feature/DatabaseUsageQuotaReserverTest.php \
-            tests/Integration/SaasUsageQuotaPacketMariaDbTest.php
+            tests/Integration/SaasUsageQuotaPacketMariaDbTest.php \
+            tests/Feature/AiEmbeddingServiceTest.php \
+            tests/Feature/AiKnowledgeRetrievalServiceTest.php \
+            tests/Feature/QdrantVectorStoreTest.php

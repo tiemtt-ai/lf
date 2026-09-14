@@ -1,12 +1,12 @@
 # SaaS Commercial + Usage Packet — Reviewer Brief
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Review
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-12
+Last Updated: 2026-09-14
 
 Document Path: quality/LF-SaaS-Commercial-Usage-Packet-Reviewer-Brief.md
 
@@ -313,7 +313,7 @@ kiểm chứng độc lập. Đây là thứ cần kiểm lại, không phải t
 | --- | --- | --- |
 | `DatabaseUsageQuotaReserverTest` + `AiProviderExecutionGateTest` | 41 passed, 203 assertions | implementer, tái lập 2026-09-11 |
 | Toàn bộ suite (SQLite) | 7 failed, 4 skipped, 1104 passed | implementer, 2026-09-11 |
-| 7 lỗi đó chạy lại trên `a9da018` (worktree riêng) | đỏ y hệt → không phải hồi quy | implementer |
+| 7 lỗi đó chạy lại trên `a9da018` (worktree riêng) | ~~đỏ y hệt → không phải hồi quy~~ **VÔ HIỆU về phương pháp** (đính chính 2026-09-14): worktree symlink `vendor`, Composer tính `$baseDir` từ đường dẫn thật nên code `App\`/`Tests\` được nạp từ repo chính — không phải baseline `a9da018`. Kết luận "7 lỗi có sẵn" nay dựa trên baseline reviewer độc lập dựng lại với `vendor` cục bộ (introduced `[]`, resolved `[]`), xem LF-AI-Embedding-Qdrant-Architecture-Review § 6 | implementer |
 | `docs:lint` | passed | implementer |
 
 Bảy lỗi có sẵn nằm ở `MediaRevisionLifecycleTest` (5),
