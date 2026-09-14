@@ -96,8 +96,9 @@ chúng khác nhau, nên không gộp làm một:
   có điều kiện. Không yêu cầu AI thật hoặc frontend. Chưa apply migration lên
   `learnforge_db`.
   **Phải xử lý trước khi kích hoạt provider:** AR-P3-2 (ack xoá của Qdrant không
-  chứng minh point đã mất) và AR-P3-3 (provider cấu hình sai tạo run và hold mỗi
-  lượt). **Phải xử lý trước khi thêm Knowledge Source không gắn Media:** AR-P3-7.
+  chứng minh point đã mất — xử lý bằng rebuild index đúng schema như mục vector
+  store bên dưới yêu cầu, **không** bằng `exists()` với cùng filter tenant) và
+  AR-P3-3 (provider cấu hình sai tạo run và hold mỗi lượt). **Phải xử lý trước khi thêm Knowledge Source không gắn Media:** AR-P3-7.
   Chi tiết ở [LF-AI-Embedding-Qdrant-Implementation-Review § Step 5 closure](../quality/LF-AI-Embedding-Qdrant-Implementation-Review.md).
 * **Provider activation** — quyết định riêng theo ADR-0018, độc lập với mọi mục
   trên. Allow-list provider mặc định rỗng; chưa cho phép gọi provider thật.

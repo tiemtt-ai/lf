@@ -1048,7 +1048,7 @@ Hai mục "P3-1/P3-2" ở phía trên tài liệu này là finding **của imple
 | AR-P3-2 | Ack xoá của Qdrant là ack request, không chứng minh point đã mất | **Hoãn có điều kiện** | Xem § Hoãn |
 | AR-P3-3 | Provider cấu hình sai tạo run + hold mỗi lượt | **Hoãn có điều kiện** | Xem § Hoãn |
 | AR-P3-4 | Ba lỗ hổng test | **Đã vá** | Bốn test mới, 4/4 đột biến bị bắt |
-| AR-P3-5 | `FakeUsageQuotaReserver` không idempotent | **Đã vá** | Fake mô phỏng store thật; test rào chắn |
+| AR-P3-5 | `FakeUsageQuotaReserver` không idempotent | **Đã vá** (hai lượt) | Lượt 1: idempotent theo attempt. Lượt 2: đồng bộ settle/chuyển trạng thái/capacity, kiểm bằng test hợp đồng chạy trên cả fake lẫn store — xem § Follow-up 2026-09-14. Chỉ khớp store **trong phạm vi test hợp đồng** |
 | AR-P3-6 | `requestSourceDeletion` ghi đè `deletion_requested_at` | **Đã vá** | Test đỏ trước, xanh sau |
 | AR-P3-7 | Hit từ source không phải Media làm hỏng cả lượt retrieval | **Hoãn có điều kiện** | Xem § Hoãn |
 | AR-P3-8 | `LF-AI.md` ghi "Bước 5 backend hoàn tất" khi điều kiện review chưa đạt | **Đã vá** tài liệu | `LF-AI.md` mục trạng thái |
@@ -1071,6 +1071,10 @@ thật, ném `LF_USAGE_RESERVATION_CONFLICT` khi sai run hoặc sai quantity, tr
 hold đã đóng mà chưa dùng. Tái lập trước vá: cùng attempt → 2 handle, balance 10 → 4;
 sau vá: cùng handle, 1 reservation, còn 7. 140 test dùng fake vẫn xanh — không test nào
 đang dựa vào việc trừ gấp đôi.
+
+*(Đính chính 2026-09-14: bản vá lượt này chỉ sửa nhánh tạo hold. Handle trả lại vẫn luôn
+`reserved`, `commit(0)` vẫn thành `committed`, và các chuyển trạng thái không được kiểm. Tuyên
+bố "như store thật" vì vậy quá rộng — xem § Follow-up 2026-09-14.)*
 
 Test rào chắn: `test_one_embedding_pass_holds_and_settles_exactly_one_reservation`
 **đỏ khi gỡ riêng khối idempotent**. Test đi kèm
@@ -1118,7 +1122,7 @@ ràng buộc phải xử lý trước khi nó có thể xảy ra.
 
 | Finding | Vì sao chưa xảy ra được | Phải xử lý trước khi |
 | --- | --- | --- |
-| AR-P3-2 — Qdrant ack xoá cả khi không khớp point nào; point có payload `customer_id` sai kiểu sẽ không bị xoá mà row vẫn thành `deleted` | Chưa provider nào được bind; không có index production | **Kích hoạt provider** hoặc dựng index production: thêm xác minh tồn tại sau khi xoá, hoặc dựng lại index để không còn point sai payload |
+| AR-P3-2 — Qdrant ack xoá cả khi không khớp point nào; point có payload `customer_id` sai kiểu sẽ không bị xoá mà row vẫn thành `deleted` | Chưa provider nào được bind; không có index production | **Kích hoạt provider** hoặc dựng index production: **rebuild index đúng schema** (payload index `customer_id` `keyword`, `is_tenant = true`), như `LF-AI.md` đã yêu cầu cho point payload số; hoặc một cơ chế kiểm riêng phát hiện được payload sai kiểu mà vẫn bảo vệ tenant. **Gọi `exists()` sau khi xoá KHÔNG đủ** — xem § Follow-up 2026-09-14 |
 | AR-P3-3 — `supportsModel = false` khiến mỗi lượt tạo run mới, reserve rồi release hold, trả `AI_ADAPTER_MISMATCH` | `UnavailableEmbeddingProvider` được bind; allow-list rỗng | **Kích hoạt provider**: kiểm `supportsModel` trước gate hoặc có backoff |
 | AR-P3-7 — Source không gắn Media khiến `currentRevision` ném `unsupported_source`, audit từ chối ném theo, hỏng cả lượt | Chỉ `AiKnowledgeIngestionService` tạo source, và luôn gắn Media | **Thêm bất kỳ loại Knowledge Source nào không gắn Media**: từ chối riêng từng hit đó thay vì làm hỏng cả lượt |
 
@@ -1165,3 +1169,93 @@ trừ được một giả thuyết: 59/59 test `DocumentProcessingLocalReviewTe
   `learnforge_db`, hay phê duyệt provider theo ADR-0018.
 * Còn mở, có điều kiện kích hoạt: AR-P3-2, AR-P3-3 (trước khi kích hoạt provider),
   AR-P3-7 (trước khi có source không gắn Media).
+
+## Follow-up — 2026-09-14 (hợp đồng fake quota, hướng dẫn AR-P3-2)
+
+Nguồn: lượt review của Owner sau khi bàn giao đóng Bước 5. Không phải chữ ký độc lập.
+Trạng thái đóng Bước 5 **giữ nguyên**: đóng backend dưới miễn trừ Owner, không phải review
+PASS. Hai cập nhật dưới đây thuộc test và tài liệu.
+
+### 1. Fake quota vẫn lệch store — đã đồng bộ bằng test hợp đồng
+
+Owner tái lập được hai lệch lạc còn sót sau lượt vá AR-P3-5 đầu tiên: handle của một attempt
+đã `committed` vẫn trả `status = reserved`, `committedQuantity = null`; và `commit(0)` trong
+fake thành `committed`, trong khi store thật chuyển sang `reconciled_released` và lần reserve
+lại phải trả `null`.
+
+Đối chiếu toàn bộ phương thức cho thấy lệch lạc rộng hơn:
+
+| Thao tác | Store thật | Fake trước khi đồng bộ |
+| --- | --- | --- |
+| Handle trả lại | `status`, `committedQuantity`, `usageEventId` thật | Luôn `reserved`, `null`, `null` |
+| `markExecuting` | Chỉ từ `reserved` **và** lease còn hạn | Gán vô điều kiện |
+| `markSettling` | Chỉ từ `executing` | Gán vô điều kiện |
+| `commit` khi chưa `settling` | `LF_RESERVATION_NOT_SETTLING` | Vẫn commit |
+| `commit(0)` | `reconciled_released`, không usage event, trả toàn bộ capacity | `committed` |
+| `commit` lặp lại | Cùng số lượng → no-op; khác → `LF_USAGE_SETTLEMENT_CONFLICT` | Ghi đè |
+| Capacity sau settle | Tiêu `committed_quantity`, không phải `reserved_quantity` | Không điều chỉnh |
+| `release` sau ranh giới | `LF_RESERVATION_PAST_PROVIDER_BOUNDARY` | Ném, nhưng thông điệp khác |
+| Kiểm quantity | `LF_USAGE_INVALID_QUANTITY` | Không kiểm |
+| Lease | 15 phút, đồng hồ Carbon (theo `travelTo`) | 5 phút, đồng hồ thật |
+
+**Cách vá.** Thay vì chỉ vá hai nhánh được báo, thêm `tests/Feature/UsageQuotaReserverContractTest.php`:
+**14 kịch bản, mỗi kịch bản chạy trên cả fake lẫn `DatabaseUsageQuotaReserver`**. Lệch lạc về
+sau sẽ đỏ ngay ở đây, thay vì chờ ai đó tình cờ tái lập.
+
+**Bằng chứng đỏ trước.** Chạy test hợp đồng trên fake **trước** khi đồng bộ: bản `database`
+đạt **14/14** — tức test mô tả đúng store; bản `fake` trượt **11/14**. Ba kịch bản fake đã đạt
+là một hold cho mỗi attempt và xung đột attempt (vá ở lượt đầu), cùng release trước ranh giới.
+Sau khi đồng bộ: **28/28**.
+
+**Kiểm ngược đúng hai lệch lạc Owner báo**, mỗi lệch lạc một đột biến riêng trên fake, file được
+khôi phục nguyên từng byte:
+
+| Đột biến đưa lệch lạc trở lại | Bản `fake` | Bản `database` |
+| --- | --- | --- |
+| Handle luôn `reserved`, `committedQuantity` null | Đỏ | Xanh |
+| `commit(0)` thành `committed` | Đỏ | Xanh |
+
+**Phạm vi của tuyên bố.** Fake chỉ được khẳng định khớp store **trong những gì test hợp đồng
+kiểm**: idempotency theo attempt, thứ tự `reserved → executing → settling`, settle kể cả số 0
+và vượt hạn mức, settle lặp lại, tính capacity, và các mã từ chối. Fake **không** mô hình hoá
+biên kỳ, trần gia hạn lease, việc chọn entitlement hay bộ đọc bằng chứng provider — những
+phần đó chỉ kiểm được với `DatabaseUsageQuotaReserverTest`. Docblock của fake ghi đúng phạm vi
+này.
+
+Toàn bộ API công khai mà test gate và embedding dùng được giữ nguyên. **146 test dùng fake vẫn
+xanh**, tức không test nào đang dựa vào hành vi lỏng lẻo cũ. Pint chỉ xoá một import thừa.
+
+### 2. Hướng dẫn xử lý AR-P3-2 — `exists()` không phải giải pháp
+
+Hướng dẫn trước ghi "thêm xác minh tồn tại sau khi xoá" như một phương án. **Sai.**
+`QdrantVectorStore::delete()` và `exists()` dùng chung `tenantFilter()`, với
+`match.value = (string) $customerId`. Một point cũ có payload `customer_id` dạng **số** không
+khớp filter đó ở **cả hai** lời gọi: `delete()` xác nhận một no-op, rồi `exists()` báo không
+còn — tức `exists()` còn *xác nhận* một lần xoá không hề xảy ra, và row thành `deleted` trong
+khi vector vẫn nằm trong index.
+
+Hướng dẫn nay, thống nhất với mục vector store của `LF-AI.md` (đã yêu cầu "controlled
+derived-index rebuild before activation" cho point payload số):
+
+* **Bắt buộc trước khi kích hoạt provider hoặc dựng index production:** rebuild index dẫn xuất
+  từ nguồn quan hệ vào collection có payload index `customer_id` `keyword`, `is_tenant = true`,
+  để không còn point sai kiểu; **hoặc**
+* một **cơ chế kiểm riêng** phát hiện được payload sai kiểu mà **không** dựa vào filter tenant
+  có kiểu — ví dụ vận hành liệt kê theo đúng point id rồi kiểm kiểu và giá trị tenant trong
+  code — và chỉ xoá khi tenant đã lưu khớp tenant yêu cầu, **không bao giờ** nới lệnh xoá sang
+  một filter không có kiểu hoặc không có tenant.
+* **Không** coi `exists()` hiện tại là giải pháp đầy đủ, dù ở dạng nào.
+
+AR-P3-2 vẫn **hoãn có điều kiện**; lượt này chỉ sửa hướng dẫn, không đổi code.
+
+### Kiểm chứng lượt follow-up
+
+| Hạng mục | Kết quả | Ai chạy |
+| --- | --- | --- |
+| Test hợp đồng trên fake **trước** đồng bộ | `database` 14/14 đạt; `fake` 3/14 đạt, 11/14 đỏ | implementer |
+| Test hợp đồng sau đồng bộ (SQLite) | 28/28, 56 assertions | implementer |
+| Mọi test dùng fake (gate, embedding, retrieval, hợp đồng), SQLite | 146 passed, 4 skipped, 660 assertions | implementer |
+| Hai đột biến đưa lệch lạc được báo trở lại | `fake` đỏ, `database` xanh, cả hai lần | implementer |
+| Test hợp đồng + quota store + gate + embedding + retrieval, MariaDB **server 11.4.12** cô lập (đã xác nhận `@@socket`, `skip_networking = 1`) | **162 passed, 1 skipped, 732 assertions**; test hợp đồng **28/28** trên ràng buộc thật; skip là test cần Qdrant thật | implementer |
+| Toàn suite SQLite, so tên qua JUnit với lượt đóng Bước 5 | **7 failed, 8 skipped, 1196 passed**, 10817 assertions; số ca 1183 → 1211 (+28 = test hợp đồng); xuất hiện mới `[]`, hết đỏ `[]` | implementer |
+| Pint (fake, test hợp đồng), `docs:lint`, `schema:drift --docs-only`, `git diff --check` | PASS | implementer |

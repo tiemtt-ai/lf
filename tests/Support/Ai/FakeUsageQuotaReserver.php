@@ -4,24 +4,38 @@ namespace Tests\Support\Ai;
 
 use App\Contracts\Ai\UsageQuotaReserver;
 use App\Support\Ai\QuotaReservationHandle;
+use Carbon\CarbonImmutable;
 use Closure;
-use DateTimeImmutable;
 use RuntimeException;
 
 /**
  * In-memory reserver used to exercise the gate's quota lifecycle.
  *
- * It models the one property that matters: a reservation is taken from the
- * balance the moment it is granted, not when it is committed. Anything that
- * "checks then calls" would therefore be able to oversubscribe here, and the
- * tests would catch it.
+ * It follows the behavioural contract of DatabaseUsageQuotaReserver for what
+ * UsageQuotaReserverContractTest asserts: attempt idempotency, the
+ * `reserved → executing → settling` order, settlement (including zero and
+ * over-limit measurements), settlement replay, capacity accounting and the
+ * refusal codes. That test runs every scenario against both implementations,
+ * so a divergence fails there rather than being discovered by hand.
+ *
+ * It deliberately does NOT model what only the store needs a database for:
+ * period boundaries, lease renewal caps, entitlement resolution and the
+ * provider-evidence reader. Capacity is a single balance; tests that depend on
+ * those properties belong with DatabaseUsageQuotaReserverTest.
  *
  * `onReserve` lets a test re-enter the gate from inside a reservation, which is
  * how a concurrent second request is simulated without threads.
  */
 final class FakeUsageQuotaReserver implements UsageQuotaReserver
 {
-    /** @var array<string,array{customer_id:int,model_run_id:int,run_uuid:string,quantity:float,expires_at:DateTimeImmutable,status:string}> */
+    /** Same lease as the store, on the same (travellable) clock. */
+    private const LEASE_MINUTES = 15;
+
+    private const SETTLED = ['committed', 'committed_over_limit'];
+
+    private const CLOSED_UNUSED = ['released', 'expired', 'reconciled_released'];
+
+    /** @var array<string,array<string,mixed>> */
     public array $reservations = [];
 
     public int $reserveCalls = 0;
@@ -33,6 +47,8 @@ final class FakeUsageQuotaReserver implements UsageQuotaReserver
     private ?Closure $onReserve = null;
 
     private ?RuntimeException $commitFailure = null;
+
+    private int $nextUsageEventId = 1;
 
     public function __construct(private float $balance = 10.0) {}
 
@@ -61,6 +77,7 @@ final class FakeUsageQuotaReserver implements UsageQuotaReserver
         string $unit,
     ): ?QuotaReservationHandle {
         $this->reserveCalls++;
+        $this->assertQuantity($quantity, false);
 
         if ($this->onReserve !== null) {
             $callback = $this->onReserve;
@@ -68,11 +85,9 @@ final class FakeUsageQuotaReserver implements UsageQuotaReserver
             $callback();
         }
 
-        // Idempotent on the attempt identity, exactly as DatabaseUsageQuotaReserver
-        // is, and checked BEFORE capacity like the real store. The gate authorizes
-        // twice per execution; a fake that minted a second hold on the second call
-        // double-charged the balance and left one hold `reserved` forever, so no
-        // test using it could notice a leaked or wrongly released hold.
+        // Idempotent on the attempt identity and checked BEFORE capacity, as the
+        // store is. The gate authorizes twice per execution; minting a second
+        // hold here double-charged the balance and left one hold `reserved`.
         $existingId = $this->attemptReservation($customerId, $runUuid, $featureKey, $usageType, $unit);
         if ($existingId !== null) {
             $existing = $this->reservations[$existingId];
@@ -80,11 +95,12 @@ final class FakeUsageQuotaReserver implements UsageQuotaReserver
                 || $this->decimal($existing['quantity']) !== $this->decimal($quantity)) {
                 throw new RuntimeException('LF_USAGE_RESERVATION_CONFLICT');
             }
-            if (in_array($existing['status'], ['released', 'expired', 'reconciled_released'], true)) {
+            if (in_array($existing['status'], self::CLOSED_UNUSED, true)) {
                 return null;   // a new execution needs a new attempt identity
             }
 
-            return $this->handleFor($existingId);   // held or settled: the same hold
+            // Held or settled: the same reservation, reporting its real state.
+            return $this->handleFor($existingId);
         }
 
         if ($this->balance < $quantity) {
@@ -100,9 +116,12 @@ final class FakeUsageQuotaReserver implements UsageQuotaReserver
             'feature_key' => $featureKey,
             'unit' => $unit,
             'quantity' => $quantity,
-            'expires_at' => new DateTimeImmutable('+5 minutes'),
+            'expires_at' => CarbonImmutable::now()->addMinutes(self::LEASE_MINUTES)->toDateTimeImmutable(),
             'status' => 'reserved',
             'usage_type' => $usageType,
+            'committed_quantity' => null,
+            'usage_event_id' => null,
+            'provider_completed' => false,
         ];
 
         return $this->handleFor($id);
@@ -124,36 +143,28 @@ final class FakeUsageQuotaReserver implements UsageQuotaReserver
         return null;
     }
 
-    private function handleFor(string $id): QuotaReservationHandle
-    {
-        $reservation = $this->reservations[$id];
-
-        return new QuotaReservationHandle(
-            $id,
-            $reservation['customer_id'],
-            $reservation['model_run_id'],
-            $reservation['run_uuid'],
-            $reservation['feature_key'],
-            $reservation['usage_type'],
-            $reservation['quantity'],
-            $reservation['unit'],
-            $reservation['expires_at'],
-        );
-    }
-
-    private function decimal(float $value): string
-    {
-        return number_format($value, 6, '.', '');
-    }
-
     public function markExecuting(QuotaReservationHandle $handle): void
     {
+        $reservation = $this->reservations[$handle->reservationId] ?? null;
+
+        // Only a live `reserved` hold may cross the provider boundary; an expired
+        // lease must not, or expiry reconciliation could refund a call in flight.
+        if ($reservation === null || $reservation['status'] !== 'reserved'
+            || $reservation['expires_at'] <= CarbonImmutable::now()->toDateTimeImmutable()) {
+            throw new RuntimeException('LF_RESERVATION_UNEXPECTED_STATUS');
+        }
+
         $this->reservations[$handle->reservationId]['status'] = 'executing';
     }
 
     public function markSettling(QuotaReservationHandle $handle): void
     {
+        if (($this->reservations[$handle->reservationId]['status'] ?? null) !== 'executing') {
+            throw new RuntimeException('LF_RESERVATION_UNEXPECTED_STATUS');
+        }
+
         $this->reservations[$handle->reservationId]['status'] = 'settling';
+        $this->reservations[$handle->reservationId]['provider_completed'] = true;
     }
 
     public function commit(QuotaReservationHandle $handle, float $actualQuantity): void
@@ -163,26 +174,59 @@ final class FakeUsageQuotaReserver implements UsageQuotaReserver
             throw $this->commitFailure;
         }
 
-        // Mirrors the Commercial contract: the true quantity is always
-        // recorded, and overshooting the hold changes the terminal status
-        // rather than the number.
-        $this->reservations[$handle->reservationId]['committed_quantity'] = $actualQuantity;
-        $this->reservations[$handle->reservationId]['status'] = $actualQuantity > $handle->quantity
+        $this->assertQuantity($actualQuantity, true);
+        $actualQuantity = (float) $this->decimal($actualQuantity);
+        $id = $handle->reservationId;
+        $reservation = $this->reservations[$id] ?? null;
+
+        // Replays of an already-recorded settlement are no-ops; a different
+        // quantity for a settled attempt is a conflict, never an overwrite.
+        if ($reservation !== null && $reservation['status'] === 'reconciled_released'
+            && $actualQuantity === 0.0 && $reservation['provider_completed'] === true) {
+            return;
+        }
+        if ($reservation !== null && in_array($reservation['status'], self::SETTLED, true)) {
+            if ($this->decimal((float) $reservation['committed_quantity']) !== $this->decimal($actualQuantity)) {
+                throw new RuntimeException('LF_USAGE_SETTLEMENT_CONFLICT');
+            }
+
+            return;
+        }
+        if ($reservation === null || $reservation['status'] !== 'settling') {
+            throw new RuntimeException('LF_RESERVATION_NOT_SETTLING');
+        }
+
+        if ($actualQuantity === 0.0) {
+            // Positive evidence nothing was consumed: closed unused, no usage
+            // event, and the whole hold returns to capacity.
+            $this->reservations[$id]['status'] = 'reconciled_released';
+            $this->balance += $reservation['quantity'];
+
+            return;
+        }
+
+        // The true quantity is recorded even when it overshoots the hold;
+        // capacity is consumed by what was measured, not by what was held.
+        $this->reservations[$id]['committed_quantity'] = $actualQuantity;
+        $this->reservations[$id]['usage_event_id'] = $this->nextUsageEventId++;
+        $this->reservations[$id]['status'] = $actualQuantity > $reservation['quantity']
             ? 'committed_over_limit'
             : 'committed';
+        $this->balance += $reservation['quantity'] - $actualQuantity;
     }
 
     public function release(QuotaReservationHandle $handle): void
     {
-        // Mirrors the Commercial contract: a hold past the provider boundary is
-        // refused outright, so a gate that released one would fail loudly here
-        // instead of silently undercounting usage.
-        if (in_array($this->reservations[$handle->reservationId]['status'] ?? 'reserved', ['executing', 'settling'], true)) {
-            throw new RuntimeException('release() on a hold that crossed the provider boundary');
+        $status = $this->reservations[$handle->reservationId]['status'] ?? null;
+
+        // A hold past the provider boundary is refused outright, so a gate that
+        // released one fails loudly instead of silently undercounting usage.
+        if (in_array($status, ['executing', 'settling'], true)) {
+            throw new RuntimeException('LF_RESERVATION_PAST_PROVIDER_BOUNDARY');
         }
 
         $this->releaseCalls++;
-        if (($this->reservations[$handle->reservationId]['status'] ?? 'committed') === 'reserved') {
+        if ($status === 'reserved') {
             $this->reservations[$handle->reservationId]['status'] = 'released';
             $this->balance += $handle->quantity;
         }
@@ -191,12 +235,12 @@ final class FakeUsageQuotaReserver implements UsageQuotaReserver
     /** Simulates the process dying before commit or release. */
     public function expire(string $reservationId): void
     {
-        $this->reservations[$reservationId]['expires_at'] = new DateTimeImmutable('-1 minute');
+        $this->reservations[$reservationId]['expires_at'] = CarbonImmutable::now()->subMinute()->toDateTimeImmutable();
     }
 
     public function reconcileExpired(int $customerId): int
     {
-        $now = new DateTimeImmutable;
+        $now = CarbonImmutable::now()->toDateTimeImmutable();
         $reclaimed = 0;
         foreach ($this->reservations as $id => $reservation) {
             if ($reservation['status'] !== 'reserved' || $reservation['customer_id'] !== $customerId || $reservation['expires_at'] > $now) {
@@ -212,8 +256,8 @@ final class FakeUsageQuotaReserver implements UsageQuotaReserver
 
     /**
      * Stands in for provider-aware reconciliation. It terminates a hold past
-     * the boundary only when a test states positively that nothing was
-     * consumed — never from elapsed time.
+     * the boundary only when a test states positively what was consumed —
+     * never from elapsed time.
      */
     public function reconcileUnsettled(int $customerId): array
     {
@@ -240,9 +284,11 @@ final class FakeUsageQuotaReserver implements UsageQuotaReserver
             $consumed = $reservation['provider_consumed_quantity'] ?? null;
             if ($consumed !== null) {
                 $this->reservations[$id]['committed_quantity'] = $consumed;
+                $this->reservations[$id]['usage_event_id'] = $this->nextUsageEventId++;
                 $this->reservations[$id]['status'] = $consumed > $reservation['quantity']
                     ? 'committed_over_limit'
                     : 'committed';
+                $this->balance += $reservation['quantity'] - $consumed;
                 $outcome['settled']++;
             }
 
@@ -262,5 +308,39 @@ final class FakeUsageQuotaReserver implements UsageQuotaReserver
     public function proveConsumed(string $reservationId, float $quantity): void
     {
         $this->reservations[$reservationId]['provider_consumed_quantity'] = $quantity;
+    }
+
+    private function handleFor(string $id): QuotaReservationHandle
+    {
+        $reservation = $this->reservations[$id];
+
+        return new QuotaReservationHandle(
+            $id,
+            $reservation['customer_id'],
+            $reservation['model_run_id'],
+            $reservation['run_uuid'],
+            $reservation['feature_key'],
+            $reservation['usage_type'],
+            $reservation['quantity'],
+            $reservation['unit'],
+            $reservation['expires_at'],
+            $reservation['status'],
+            $reservation['committed_quantity'] ?? null,
+            $reservation['usage_event_id'] ?? null,
+        );
+    }
+
+    /** Same acceptance rule as the store's quantity() guard. */
+    private function assertQuantity(float $quantity, bool $allowZero): void
+    {
+        if (! is_finite($quantity) || $quantity < 0 || (! $allowZero && $quantity === 0.0)
+            || round($quantity, 6) >= 100000000000000 || ($quantity > 0 && round($quantity, 6) === 0.0)) {
+            throw new RuntimeException('LF_USAGE_INVALID_QUANTITY');
+        }
+    }
+
+    private function decimal(float $value): string
+    {
+        return number_format($value, 6, '.', '');
     }
 }
