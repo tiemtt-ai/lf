@@ -179,6 +179,24 @@ return [
     ],
 
     /*
+     * Authoring Proposal — Step 7, platform/LF-AI-Authoring-Proposal-Contract.md.
+     *
+     * `provider` and `model` ship empty: an unconfigured deployment reads no
+     * source, writes no generation request and never reaches the gate. Naming a
+     * provider approves nothing; the allow-list, the tenant's
+     * `ai.external_processing.<provider>.authoring_proposal` setting and the
+     * safety step still decide. Human review, successors and reconfirmation
+     * never call a provider and do not depend on this block.
+     */
+    'authoring' => [
+        'provider' => env('AI_AUTHORING_PROVIDER'),
+        'model' => env('AI_AUTHORING_MODEL'),
+        'data_classes' => ['derived_text'],
+        'execution_region' => env('AI_AUTHORING_REGION', 'lf_managed'),
+        'retention_class' => env('AI_AUTHORING_RETENTION', 'none'),
+    ],
+
+    /*
      * Usage feature key each purpose consumes. Step 4 reserves against this
      * key. It maps onto `saas_usage_counters.feature_key`; see the OWNER
      * DECISION recorded in the Step 4 review artifact — no domain currently

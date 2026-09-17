@@ -255,6 +255,7 @@ docs/platform/
 | [platform/LF-Media-Read-Contract.md](platform/LF-Media-Read-Contract.md) | Hợp đồng đọc output dẫn xuất cho AI consumer: owner context, locale, readiness, citation, mã lỗi |
 | [platform/LF-Track.md](platform/LF-Track.md) | Learning analytics |
 | [platform/LF-AI.md](platform/LF-AI.md) | AI intelligence |
+| [platform/LF-AI-Authoring-Proposal-Contract.md](platform/LF-AI-Authoring-Proposal-Contract.md) | Bước 7 v0.8 Frozen / Partial: schema, service và HTTP v1 đã triển khai, kiểm local với provider giả; backend + HTTP Owner nghiệm thu 2026-09-17 (miễn trừ review độc lập); UI chưa có, chưa apply database thật; audit/retry/source scope và phân quyền endpoint 2026-09-16 |
 
 ---
 
@@ -389,6 +390,7 @@ docs/quality/
 | [quality/LF-A0-Docling-Closure-Evidence.md](quality/LF-A0-Docling-Closure-Evidence.md) | Only surviving copy of the A0 run behind the closure decision; exploratory evidence, not a verdict |
 | [quality/LF-Implicit-Timestamp-OnUpdate-Audit.md](quality/LF-Implicit-Timestamp-OnUpdate-Audit.md) | Backlog 15 cột `TIMESTAMP NOT NULL` không default trong database docs; bẫy implicit `ON UPDATE` phụ thuộc `explicit_defaults_for_timestamp` nên schema phân kỳ giữa CI và deployment |
 | [quality/LF-AI-Provider-Execution-Gate-Implementation-Review.md](quality/LF-AI-Provider-Execution-Gate-Implementation-Review.md) | Bước 4 Governance/Model Run: gate năm bước, fail-closed khi thiếu authority; ba mục Owner Decision về usage reservation, SaaS authority chưa migrate và `prompt_hash` của attempt bị chặn |
+| [quality/LF-AI-Authoring-Proposal-Implementation-Review.md](quality/LF-AI-Authoring-Proposal-Implementation-Review.md) | Bước 7: hồ sơ triển khai schema/backend/HTTP, quyết định đã duyệt, đóng finding và giới hạn kiểm chứng; Owner nghiệm thu backend + HTTP 2026-09-17, miễn trừ review độc lập (không phải PASS); UI riêng |
 | [quality/LF-AI-Embedding-Qdrant-Implementation-Review.md](quality/LF-AI-Embedding-Qdrant-Implementation-Review.md) | Bước 5 backend Implemented: generation giữ lịch sử, audit truy hồi và delete barrier; MariaDB 11.4 + Qdrant 1.11.5 local đã kiểm chứng; deployment và provider activation riêng |
 | [quality/LF-AI-Embedding-Qdrant-Architecture-Review.md](quality/LF-AI-Embedding-Qdrant-Architecture-Review.md) | Review độc lập snapshot `b5da390`: findings và bằng chứng tại snapshot; không phải verdict cho các bản vá P1/P2 sau đó |
 | [quality/LF-AI-Embedding-Qdrant-Reviewer-Brief.md](quality/LF-AI-Embedding-Qdrant-Reviewer-Brief.md) | Brief giao reviewer độc lập kiểm Bước 5 Embedding/Qdrant: điều kiện `Architecture Review passed` cho migration `generation` chưa đạt và chưa được miễn trừ, 13 câu hỏi bắt buộc, lệnh kiểm trên MariaDB 11.4 và Qdrant thật dùng một lần |

@@ -10,9 +10,29 @@ Frozen
 
 ---
 
+### Step 7 table inventory amendment — Frozen, 2026-09-15
+
+The [Authoring Proposal contract](../platform/LF-AI-Authoring-Proposal-Contract.md)
+adds six AI-owned table designs: ai_authoring_generation_requests, ai_authoring_proposals,
+ai_authoring_proposal_revisions, ai_authoring_proposal_sources,
+ai_authoring_proposal_reviews and ai_authoring_proposal_applications.
+Owner froze the earlier five-table packet, then approved all six remediation
+directions after CHANGES REQUIRED. That Freeze is historical and does not cover
+this changed shape. Candidate Foundation design inventory
+is now eighteen tables; the twelve-table listings below describe the earlier
+baseline and are extended by this amendment. AI owns suggestions,
+human-decision audit and owner-service receipts, not canonical Learning state.
+Owner froze the six-table v0.8 shape on 2026-09-15. Its migration now exists
+under the separate scoped Owner waiver in the Authoring Proposal Contract,
+with temporary MariaDB 11.4.12/10.4.21 reconstruction. Backend authoring remains
+Not Implemented; no independent reviewer PASS or live apply is claimed.
+The earlier Review state is superseded; baseline Foundation remains Frozen.
+
+---
+
 ## Version
 
-1.0.4
+1.0.5
 
 ---
 
@@ -24,7 +44,7 @@ Not Implemented
 
 ## Last Updated
 
-2026-09-08
+2026-09-14
 
 ---
 

@@ -12,6 +12,23 @@ Document Path: platform/LF-AI.md
 
 ---
 
+## Step 7 Authoring Proposal — Frozen / Partial
+
+See [Authoring Proposal contract](LF-AI-Authoring-Proposal-Contract.md) v0.8 and
+its six table docs. Owner approved and froze this revised shape on 2026-09-15;
+the earlier five-table Freeze remains historical.
+Backend/API review is independent of frontend delivery and real-provider
+activation. The six-table migration and Course Intent references now exist,
+verified on temporary MariaDB 11.4.12/10.4.21 under the scoped Owner waiver.
+Backend authoring services (generation through publication lineage, successors,
+rebase, erasure) are implemented with MariaDB 11.4.12 evidence and a fake
+provider. HTTP v1, bulk review and bounded keyset/source-scope listing are now
+implemented and locally tested; frontend UI is not. No provider is activated, and no
+independent review PASS, live database apply or Step 7 completion is claimed.
+The [consolidated implementation evidence](../quality/LF-AI-Authoring-Proposal-Implementation-Review.md)
+records decision history, finding remediation, backend/HTTP acceptance readiness
+and remaining verification limits; it replaces the working-directory reports.
+
 ## Controlled embedding recovery — Owner selected 2026-09-13
 
 ### Pre-execution refusal and bounded maintenance fairness — 2026-09-13

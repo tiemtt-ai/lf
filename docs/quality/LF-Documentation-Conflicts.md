@@ -1,12 +1,12 @@
 # LearnForge Documentation Conflict Register
 
-Version: 1.34
+Version: 1.35
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-09-08
+Last Updated: 2026-09-14
 
 Document Path: quality/LF-Documentation-Conflicts.md
 
@@ -248,6 +248,7 @@ khác `RESOLVED`; cột Status của bảng dưới vẫn là nguồn sự thậ
 
 | ID | Title | Classification | Status | Impact | Domain | Owner | Target Review |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| DOC-CONFLICT-0037 | Step 7 backend scope và ADR-0017 gate UI trước migration chưa tách | DOCUMENT_CONTRADICTION | RESOLVED | HIGH | AI × Course × Learning | Architecture Owner | Đóng ở mức policy 2026-09-14; packet vẫn Review |
 | DOC-CONFLICT-0035 | AI Foundation Media-consumer packet thiếu identity, lifecycle, provider gate và Vision schema | GAP | RESOLVED | HIGH | AI × Media | Architecture Owner | Đóng 2026-09-08 bằng remediation Round 2 và independent re-review Round 3 |
 | DOC-CONFLICT-0036 | Tiêu đề superseded Gate 2 vẫn phát biểu verdict cũ ở hiện tại | STALE | RESOLVED | MEDIUM | Learning | Learning Domain Owner | Đóng 2026-09-08 |
 | DOC-CONFLICT-0034 | Tesseract language-pack config bỏ `eng` mà Processing Contract bắt buộc cho `vi`/`ko` | IMPLEMENTATION_DRIFT | RESOLVED | HIGH | Media | Architecture Owner | Đóng 2026-09-05 bằng A/B Docling 8 và ADR-0019 v1.12 |
@@ -729,6 +730,36 @@ Notes: Media cố ý không tạo hard foreign key tới owner domain, và đi�
 ---
 
 # Resolved Conflict Register
+
+---
+
+## DOC-CONFLICT-0037
+
+```text
+Conflict ID: DOC-CONFLICT-0037
+Title: Step 7 backend scope và ADR-0017 gate UI trước migration chưa tách
+Classification: DOCUMENT_CONTRADICTION
+Status: RESOLVED
+Impact: HIGH
+Detected At: 2026-09-14
+Detected By: User-supplied Step 7 design review, P1-6; source rechecked by implementer
+Owner: Architecture Owner
+Affected Domain: AI × Course × Learning
+Affected Concern: Backend implementation prerequisites versus frontend delivery
+Sources In Conflict:
+Source A: ADR-0017 v1.0 Implementation Gate requires Review UI before any migration or code.
+Source B: LF-AI-Authoring-Proposal-Contract v0.6 scopes frontend outside backend closure but does not amend that prerequisite.
+Why They Cannot Both Be True: Backend-only delivery cannot begin under the old unconditional UI prerequisite while treating UI as a later deliverable.
+Runtime/Business Impact: Migration gate ambiguity; no runtime change performed.
+Required Decision: Explicitly separate backend API/service review surface from frontend UI delivery.
+Resolution Authority: Architecture Owner
+Resolved At: 2026-09-14
+Resolution: Owner approved all six remediation directions. ADR-0017 v1.1 now separates backend prerequisites, implementation verification and frontend UI delivery. Architecture Review remains required or separately waived; no Step 7 waiver exists.
+Superseded/Updated Documents: ADR-0017 Implementation Gate; LF-AI-Authoring-Proposal-Contract v0.7; Course Intent amendment
+Verification Evidence: Source comparison, docs:lint and schema:drift --docs-only; no physical DDL evidence.
+Related ADR/Review/Issue/PR: User-supplied Step 7 CHANGES REQUIRED P1-6
+Notes: Resolution closes this scope contradiction, not the revised packet's review gate. P1-1..P1-5 remediation shape remains Review / Not Implemented.
+```
 
 ---
 

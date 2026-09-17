@@ -2,9 +2,8 @@
 
 Document Path: database/ai/README.md
 
-> ⚠️ **Chưa triển khai**: Đây là spec kiến trúc đã duyệt (ADR-0006, Frozen)
-> nhưng hiện chưa có migration/model thực tế trong codebase — xem
-> `database/migrations/` để biết trạng thái triển khai thật.
+> Trạng thái triển khai theo từng bảng và schema contract; không suy ra toàn miền
+> từ trạng thái ADR. Packet Authoring Bước 7 đã có migration, chưa có service.
 
 Miền nghiệp vụ AI chuyển đổi ngữ cảnh học tập, hành vi và bằng chứng đã được
 phê duyệt thành các chức năng trợ giúp và hỗ trợ ra quyết định có thể kiểm
@@ -85,6 +84,24 @@ chuyên sâu, nguồn gốc thực thi, phản hồi và quản trị prompt mà
 ---
 
 ## Sơ đồ quan hệ Miền nghiệp vụ
+
+### Packet Bước 7 — Frozen / schema Implemented, backend Not Implemented
+
+Owner duyệt sáu hướng sửa ngày 2026-09-14; bản Frozen năm bảng trước đó là lịch sử.
+Owner chốt Frozen packet sáu bảng v0.8 ngày 2026-09-15 theo
+[contract Bước 7](../../platform/LF-AI-Authoring-Proposal-Contract.md) và amendment
+ADR-0006. Owner sau đó cho triển khai migration dưới miễn trừ riêng ghi tại
+contract. Sáu bảng và tham chiếu Course Intent đã dựng trên database tạm
+MariaDB 11.4.12/10.4.21; chưa apply learnforge_db, chưa có service hay review PASS:
+
+- [ai_authoring_generation_requests](ai_authoring_generation_requests.md) — định danh yêu cầu trước provider, lưu cả kết quả rỗng.
+- [ai_authoring_proposals](ai_authoring_proposals.md) — proposal và trạng thái duyệt.
+- [ai_authoring_proposal_revisions](ai_authoring_proposal_revisions.md) — bản AI gốc và bản người duyệt chỉnh sửa.
+- [ai_authoring_proposal_sources](ai_authoring_proposal_sources.md) — nguồn và revision Media.
+- [ai_authoring_proposal_reviews](ai_authoring_proposal_reviews.md) — quyết định theo đúng bản nội dung.
+- [ai_authoring_proposal_applications](ai_authoring_proposal_applications.md) — biên nhận áp dụng qua owner service.
+
+Sơ đồ Foundation bên dưới giữ nguyên phạm vi đã được duyệt.
 
 ```mermaid
 erDiagram

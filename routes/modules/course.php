@@ -19,6 +19,8 @@ use App\Http\Controllers\CourseTemplateVersionMediaPreviewController;
 use App\Http\Controllers\LiveClassScheduleController;
 use Illuminate\Support\Facades\Route;
 
+require __DIR__.'/ai-authoring.php';
+
 Route::get('/course-categories', [CourseCategoryController::class, 'index'])
     ->name('course-categories.index');
 

@@ -1,12 +1,12 @@
 # Table: core_learning_node_mappings
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Frozen
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-22
+Last Updated: 2026-09-15
 
 Document Path: database/learning/core_learning_node_mappings.md
 
@@ -88,6 +88,30 @@ single null-to-non-null invalidation transition and a `BEFORE DELETE` trigger
 rejects deletion. Archived source objects remain resolvable.
 Missing sources fail closed for new writes and are reported as lineage failure;
 existing Learning history is retained.
+
+## Step 7 provenance extension — Frozen / Not Implemented
+
+### Owner design closure — 2026-09-15
+
+Owner decision: "chốt tài liệu, ko cần reivew quá nhiều". The current Step 7
+contract v0.8, six AI table designs and their Course/Learning/ADR design
+extensions are approved and Frozen. No additional design-review round is
+scheduled by this closure. Earlier Review/pending-Freeze statements below are
+historical and superseded for design status only. Implementation remains Not
+Implemented. This records Owner approval, NOT reviewer PASS, physical DDL
+verification, migration execution or live database/provider authorization.
+
+
+
+The revised [Step 7 contract](../../platform/LF-AI-Authoring-Proposal-Contract.md)
+adds content-free AI lineage to source_snapshot for new AI-origin promotions:
+proposal/revision IDs, payload hash, and effective target/context confirmation
+IDs/hashes. Course receives verified lineage from AI.assertPublishableIntents;
+Learning validates and stores it in the same canonical promotion transaction.
+Manual snapshot payload and existing published Mappings remain unchanged.
+No raw proposal text, excerpts or prompt are copied. Later deletion/replacement
+of a mutable Course Intent cannot sever this immutable audit path. This JSON
+contract extension does not add a source FK or permit AI to write Learning.
 
 ## Sample Data
 

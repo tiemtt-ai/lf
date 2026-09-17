@@ -180,6 +180,14 @@ jobs:
             tests/Feature/AiKnowledgeIngestionServiceTest.php \
             tests/Feature/AiProviderExecutionGateTest.php \
             tests/Integration/AiFoundationKnowledgePacketMariaDbTest.php \
+            tests/Integration/AiAuthoringProposalPacketMariaDbTest.php \
+            tests/Integration/AiAuthoringProposalServiceMariaDbTest.php \
+            tests/Integration/AiAuthoringApplicationServiceMariaDbTest.php \
+            tests/Integration/AiAuthoringPublicationMariaDbTest.php \
+            tests/Integration/AiAuthoringSuccessorMariaDbTest.php \
+            tests/Integration/AiAuthoringRebaseMariaDbTest.php \
+            tests/Integration/AiAuthoringErasureMariaDbTest.php \
+            tests/Integration/AiAuthoringHttpMariaDbTest.php \
             tests/Feature/DatabaseUsageQuotaReserverTest.php \
             tests/Integration/SaasUsageQuotaPacketMariaDbTest.php \
             tests/Feature/AiEmbeddingServiceTest.php \

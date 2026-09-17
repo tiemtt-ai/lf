@@ -1,12 +1,12 @@
 # Table: core_learning_framework_versions
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Frozen
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-22
+Last Updated: 2026-09-15
 
 Document Path: database/learning/core_learning_framework_versions.md
 
@@ -87,6 +87,42 @@ the approved physical immutability mechanism.
 
 Current basis is resolved from Course/Product/Enrollment context or an
 approved tenant policy. It is never inferred from the latest timestamp.
+
+## Step 7 inherited-draft extension — Frozen / Not Implemented
+
+### Owner design closure — 2026-09-15
+
+Owner decision: "chốt tài liệu, ko cần reivew quá nhiều". The current Step 7
+contract v0.8, six AI table designs and their Course/Learning/ADR design
+extensions are approved and Frozen. No additional design-review round is
+scheduled by this closure. Earlier Review/pending-Freeze statements below are
+historical and superseded for design status only. Implementation remains Not
+Implemented. This records Owner approval, NOT reviewer PASS, physical DDL
+verification, migration execution or live database/provider authorization.
+
+
+
+Owner approved the inherited-draft direction on 2026-09-14, after the Step 7
+design review. Existing schema/runtime above remains implemented; this new owner
+command is not. See [Step 7 contract](../../platform/LF-AI-Authoring-Proposal-Contract.md).
+
+The command is explicit and admin-only, initiated by an accepted Step 7 proposal.
+It copies an exact published Version's active Nodes with stable Definition IDs
+into a new draft, including remapped same-Version semantic relations. No old
+Node/Version is modified and no transition/carry-forward or Mapping is created.
+Retired Nodes and Nodes with inactive Definitions are excluded with incident
+relations in a previewed, admin-acknowledged exclusion plan. Missing endpoints
+are integrity errors and still block copy. Never reactivate a Definition or
+silently lose a dependency; admin accepts exclusions or cancels. No eligible
+Node remaining returns proposal_inheritance_empty. Node snapshot content and scale come from the base snapshot, not
+mutable current Definition/Framework defaults. Graph and new Version commit in
+one transaction with the AI inherit_draft review receipt; UUID replay uses that
+receipt and never creates another Version. Empty createDraftVersion is unchanged.
+
+No new physical Version columns are proposed. Source/result identity and command
+hash live in the immutable AI decision; Learning alone performs the graph write.
+Backend tests must prove duplicate requests, rollback of partial copies, correct
+Definition identity and independent old/new Node IDs, with no historical mutation.
 
 ## Sample Data
 

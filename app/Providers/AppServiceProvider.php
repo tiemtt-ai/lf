@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Contracts\Ai\AuthoringProposalProvider;
 use App\Contracts\Ai\CommercialEntitlements;
 use App\Contracts\Ai\EmbeddingProvider;
 use App\Contracts\Ai\ExternalProcessingApprovals;
@@ -14,6 +15,7 @@ use App\Services\Ai\DatabaseTenantSettings;
 use App\Services\Ai\DatabaseUsageQuotaReserver;
 use App\Services\Ai\QdrantVectorStore;
 use App\Services\Ai\SettingBackedExternalProcessingApprovals;
+use App\Services\Ai\UnavailableAuthoringProposalProvider;
 use App\Services\Ai\UnavailableEmbeddingProvider;
 use App\Services\Ai\UnavailableVectorStore;
 use App\Services\Ai\UnavailableVisionInterpretationProvider;
@@ -60,6 +62,11 @@ class AppServiceProvider extends ServiceProvider
         // gate refuses it before any call and no interpretation can be produced
         // by a deployment that merely published the config.
         $this->app->bind(VisionInterpretationProvider::class, UnavailableVisionInterpretationProvider::class);
+
+        // Authoring Proposal — Step 7. Same rule: no authoring provider is
+        // approved, so the bound provider supports no model and the gate refuses
+        // generation before any call. Human review paths need no provider.
+        $this->app->bind(AuthoringProposalProvider::class, UnavailableAuthoringProposalProvider::class);
 
         // The store is different: Qdrant is self-hosted inside the LF boundary,
         // so the adapter itself is safe to bind. It is the *configuration* that

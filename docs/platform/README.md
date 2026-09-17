@@ -42,6 +42,7 @@ tự thực thi business decision của consumer.
 | Media | [LF-Media-Read-Contract](LF-Media-Read-Contract.md) | Review — hợp đồng đọc output dẫn xuất cho AI consumer |
 | Track (Learning Intelligence Domain) | [LF-Track](LF-Track.md) | Foundation Approved |
 | AI (Learning Intelligence & Decision Support) | [LF-AI](LF-AI.md) | Foundation Approved and Frozen |
+| AI Authoring Proposal | [Contract Bước 7](LF-AI-Authoring-Proposal-Contract.md) | v0.8 Frozen / Partial; schema, service và HTTP v1 đã triển khai, kiểm local với provider giả; Owner nghiệm thu backend + HTTP 2026-09-17 (miễn trừ review độc lập); UI chưa có |
 
 Media foundation decision:
 [ADR-0004](../adr/ADR-0004-Media-Foundation.md).

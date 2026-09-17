@@ -14,3 +14,6 @@ Schedule::command('media:recover-audio-processing')->everyMinute()->withoutOverl
 
 // Backstop for the MediaFileDeleted listener (ADR-0020 D5); local database only.
 Schedule::command('ai:vision-reconcile-media-deletion')->everyFifteenMinutes()->withoutOverlapping(15);
+
+// Backstop for Step 7 Authoring Proposal erasure; local database only.
+Schedule::command('ai:authoring-reconcile-erasure')->everyFifteenMinutes()->withoutOverlapping(15);

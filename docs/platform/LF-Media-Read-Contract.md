@@ -575,6 +575,13 @@ AI vẫn là consumer. Không có đường nào từ AI ghi ngược vào proce
 
 # 8. Audit
 
+Authoring proposal content reads and restricted successor previews follow the
+Owner-approved 2026-09-16 Authoring amendment in
+[media_access_logs](../database/media/media_access_logs.md). The AI consumer
+calls the Media-owned audit service for the final disclosure decision; an
+identity-only currentRevision check does not replace that audit. No source
+selection, authorization or archived-revision policy changes are implied.
+
 Mỗi lần đọc thành công hoặc bị từ chối ghi một dòng `media_access_logs` với
 `action = 'read_derived'`, `source_type` là consumer đã gọi, và metadata chứa
 `decision = allowed|denied` cùng error code ổn định. Khi owner không resolve

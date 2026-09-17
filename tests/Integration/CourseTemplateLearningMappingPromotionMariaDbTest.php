@@ -236,17 +236,17 @@ class CourseTemplateLearningMappingPromotionMariaDbTest extends TestCase
     // ------------------------------------------------- Physical constraints
 
     /**
-     * Phase 1 is manual-only and the boundary is physical, not a service check.
-     * `ai_proposal` stays a reserved value until Proposal persistence and its
-     * review workflow exist, so the database must refuse it even when the write
-     * bypasses every application guard.
+     * Step 7 opens ai_proposal only with exact reviewed-revision provenance.
+     * The old unproven write must still fail physically; a valid provenance
+     * chain is covered by AiAuthoringProposalPacketMariaDbTest. Authorization
+     * and acceptance semantics remain the responsibility of owner services.
      */
-    public function test_the_database_refuses_an_ai_proposal_origin(): void
+    public function test_the_database_refuses_an_ai_proposal_origin_without_review_provenance(): void
     {
         $f = $this->fixture('origin-check');
         $this->mapLesson($f);
 
-        $this->assertInsertRejectedBy('chk_cct_lmi_origin', $this->rawIntent($f, [
+        $this->assertInsertRejectedBy('chk_cct_lmi_ai_provenance', $this->rawIntent($f, [
             'mapping_role' => 'assesses',
             'origin' => 'ai_proposal',
         ]));

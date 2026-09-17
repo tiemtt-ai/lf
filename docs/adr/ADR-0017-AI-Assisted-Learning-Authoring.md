@@ -1,12 +1,12 @@
 # ADR-0017 — AI-Assisted Learning Authoring
 
-Version: 1.0
+Version: 1.1
 
 Status: Approved
 
 Implementation Status: Not Implemented
 
-Last Updated: 2026-08-22
+Last Updated: 2026-09-14
 
 Approval Date: 2026-08-16
 
@@ -275,14 +275,53 @@ already published Courses and Frameworks; rollout, cost and evaluation.
 
 # Implementation Gate
 
-Before any migration or code:
+Backend design prerequisites before migration or code (scope amended by Owner
+2026-09-14; not a review waiver):
 
 1. Proposal persistence and API contract documented and reviewed.
 2. Course publish and Learning promotion transaction and idempotency design.
 3. Tenant, role and authorization matrix, including Node approval authority.
 4. Prompt and model provenance, stale and reprocessing policy.
-5. Review UI covering bulk accept, edit, reject and manual fallback.
-6. HIGH regression audit, tests and migration verification.
+5. Backend review surface: API/service contracts covering bulk accept, edit,
+   reject and human/manual fallback. Frontend review UI remains required for
+   frontend delivery, not for starting or closing backend work.
+6. HIGH regression plan before implementation; physical migration and runtime
+   evidence before backend closure. Do not demand tests of unwritten code.
+
+Item 1 and AGENTS.md Architecture Review passed remain required before migration,
+unless the Owner explicitly grants a Step 7 waiver. On 2026-09-15 the Owner
+authorized the v0.8 migration packet under the scoped waiver recorded in the
+AI Authoring Proposal Contract; this is not an independent review PASS.
+Real provider activation, AI quality evaluation and frontend chat are separate
+delivery gates, not backend completion conditions.
+
+## Step 7 remediation direction approval — 2026-09-14
+
+### Owner design closure — 2026-09-15
+
+Owner decision: "chốt tài liệu, ko cần reivew quá nhiều". The current Step 7
+contract v0.8, six AI table designs and their Course/Learning/ADR design
+extensions are approved and Frozen. No additional design-review round is
+scheduled by this closure. Earlier Review/pending-Freeze statements below are
+historical and superseded for design status only. Implementation remains Not
+Implemented. This records Owner approval, NOT reviewer PASS, physical DDL
+verification, migration execution or live database/provider authorization.
+
+
+
+Owner approved the six directions in contract v0.7 after CHANGES REQUIRED.
+This gate-scope amendment is approved; the revised persistence design remains
+Review / Not Implemented, not Frozen or independently passed.
+
+Learning may create an explicitly inherited draft of a published Version;
+Course may explicitly rebase working selection/Intents after the target is
+published, with human confirmation and atomic preservation of all Intents.
+No existing published snapshot, Mapping or Enrollment is rebound. Ordinary
+select behavior is unchanged. Human successors and accepted-context confirmation
+can preserve AI lineage without another provider call. Prompt contracts may
+be versioned in code with explicit template hash/version, without requiring the
+ai_prompt_templates table. Durable generation requests precede provider calls;
+cancellation is audited. These refine A7/A8; they never permit direct AI writes.
 
 Learning Foundation is deployed on the development database with runtime
 services and no external surface; its own external-surface and production gates

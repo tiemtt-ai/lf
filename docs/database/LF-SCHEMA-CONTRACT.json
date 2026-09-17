@@ -20,6 +20,2206 @@
       "views": []
     },
     {
+      "name": "ai_authoring_generation_requests",
+      "documentation": "database/ai/ai_authoring_generation_requests.md",
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "request_uuid",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "command_hash",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "mode",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "actor_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "template_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "activity_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "run_uuid",
+          "type": "char",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "model_run_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "prompt_contract_id",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "prompt_version",
+          "type": "int",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "prompt_hash",
+          "type": "char",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "item_count",
+          "type": "int",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "error_code",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "completed_at",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "actor_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "model_run_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "status",
+            "id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "request_uuid"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "run_uuid"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "actor_id",
+            "customer_id"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "model_run_id",
+            "customer_id"
+          ],
+          "foreign_table": "ai_model_runs",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "`mode` in ('generated','human_successor')"
+        },
+        {
+          "expression": "`status` in ('pending','running','completed','failed')"
+        },
+        {
+          "expression": "`mode` = 'generated' and `run_uuid` is not null and `prompt_contract_id` is not null and `prompt_version` is not null and `prompt_version` >= 1 and `prompt_hash` is not null or `mode` = 'human_successor' and `run_uuid` is null and `model_run_id` is null and `prompt_contract_id` is null and `prompt_version` is null and `prompt_hash` is null"
+        },
+        {
+          "expression": "`status` = 'completed' and `item_count` is not null and `item_count` <= 100 or `status` <> 'completed' and `item_count` is null"
+        },
+        {
+          "expression": "`mode` <> 'human_successor' or `status` <> 'completed' or `item_count` = 1"
+        },
+        {
+          "expression": "`mode` <> 'generated' or `status` <> 'completed' or `model_run_id` is not null"
+        },
+        {
+          "expression": "`status` = 'failed' and `error_code` is not null or `status` <> 'failed' and `error_code` is null"
+        },
+        {
+          "expression": "`status` in ('completed','failed') and `completed_at` is not null or `status` in ('pending','running') and `completed_at` is null"
+        }
+      ],
+      "triggers": [
+        {
+          "name": "trg_agr_insert",
+          "timing": "before",
+          "event": "insert",
+          "statement": "BEGIN IF NEW.status <> 'pending' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_REQUEST_INITIAL'; END IF; END"
+        },
+        {
+          "name": "trg_agr_update",
+          "timing": "before",
+          "event": "update",
+          "statement": "BEGIN IF NOT ((BINARY OLD.`id` <=> BINARY NEW.`id`) AND (BINARY OLD.`customer_id` <=> BINARY NEW.`customer_id`) AND (BINARY OLD.`request_uuid` <=> BINARY NEW.`request_uuid`) AND (BINARY OLD.`command_hash` <=> BINARY NEW.`command_hash`) AND (BINARY OLD.`mode` <=> BINARY NEW.`mode`) AND (BINARY OLD.`actor_id` <=> BINARY NEW.`actor_id`) AND (BINARY OLD.`template_id` <=> BINARY NEW.`template_id`) AND (BINARY OLD.`activity_id` <=> BINARY NEW.`activity_id`) AND (BINARY OLD.`run_uuid` <=> BINARY NEW.`run_uuid`) AND (BINARY OLD.`prompt_contract_id` <=> BINARY NEW.`prompt_contract_id`) AND (BINARY OLD.`prompt_version` <=> BINARY NEW.`prompt_version`) AND (BINARY OLD.`prompt_hash` <=> BINARY NEW.`prompt_hash`) AND (BINARY OLD.`created_at` <=> BINARY NEW.`created_at`)) OR (OLD.model_run_id IS NOT NULL AND NOT (OLD.model_run_id <=> NEW.model_run_id)) OR (OLD.status IN ('completed','failed') AND NOT ((BINARY OLD.`id` <=> BINARY NEW.`id`) AND (BINARY OLD.`customer_id` <=> BINARY NEW.`customer_id`) AND (BINARY OLD.`request_uuid` <=> BINARY NEW.`request_uuid`) AND (BINARY OLD.`command_hash` <=> BINARY NEW.`command_hash`) AND (BINARY OLD.`mode` <=> BINARY NEW.`mode`) AND (BINARY OLD.`actor_id` <=> BINARY NEW.`actor_id`) AND (BINARY OLD.`template_id` <=> BINARY NEW.`template_id`) AND (BINARY OLD.`activity_id` <=> BINARY NEW.`activity_id`) AND (BINARY OLD.`run_uuid` <=> BINARY NEW.`run_uuid`) AND (BINARY OLD.`model_run_id` <=> BINARY NEW.`model_run_id`) AND (BINARY OLD.`prompt_contract_id` <=> BINARY NEW.`prompt_contract_id`) AND (BINARY OLD.`prompt_version` <=> BINARY NEW.`prompt_version`) AND (BINARY OLD.`prompt_hash` <=> BINARY NEW.`prompt_hash`) AND (BINARY OLD.`status` <=> BINARY NEW.`status`) AND (BINARY OLD.`item_count` <=> BINARY NEW.`item_count`) AND (BINARY OLD.`error_code` <=> BINARY NEW.`error_code`) AND (BINARY OLD.`created_at` <=> BINARY NEW.`created_at`) AND (BINARY OLD.`updated_at` <=> BINARY NEW.`updated_at`) AND (BINARY OLD.`completed_at` <=> BINARY NEW.`completed_at`))) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_REQUEST_IMMUTABLE'; END IF; IF NEW.status <> OLD.status AND NOT ((OLD.status = 'pending' AND NEW.status IN ('running','failed')) OR (OLD.status = 'running' AND NEW.status IN ('completed','failed'))) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_REQUEST_TRANSITION'; END IF; IF NEW.status = 'completed' AND OLD.status <> 'completed' THEN IF NEW.item_count <> (SELECT COUNT(*) FROM ai_authoring_proposals WHERE customer_id = NEW.customer_id AND generation_request_uuid = NEW.request_uuid) OR EXISTS (SELECT 1 FROM ai_authoring_proposals WHERE customer_id = NEW.customer_id AND generation_request_uuid = NEW.request_uuid AND (sources_sealed_at IS NULL OR BINARY creation_mode <> BINARY NEW.mode)) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_REQUEST_INCOMPLETE'; END IF; END IF; END"
+        },
+        {
+          "name": "trg_ap_0_delete",
+          "timing": "before",
+          "event": "delete",
+          "statement": "BEGIN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_HISTORY_IMMUTABLE'; END"
+        }
+      ],
+      "views": [],
+      "trigger_identity_required": true
+    },
+    {
+      "name": "ai_authoring_proposal_applications",
+      "documentation": "database/ai/ai_authoring_proposal_applications.md",
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "proposal_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "revision_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "application_uuid",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "target_hash",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "command_hash",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "expected_basis_hash",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "result_basis_hash",
+          "type": "char",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "target_review_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "operation",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "framework_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "framework_version_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "node_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "intent_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "approved_by",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "error_code",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "applied_at",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "cancelled_at",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "cancellation_kind",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "cancelled_by",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "cancel_reason_code",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "approved_by",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "cancelled_by",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "node_id",
+            "customer_id",
+            "framework_id",
+            "framework_version_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "target_review_id",
+            "customer_id",
+            "proposal_id",
+            "revision_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "revision_id",
+            "customer_id",
+            "proposal_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "framework_version_id",
+            "customer_id",
+            "framework_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "status",
+            "id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "revision_id",
+            "operation"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "application_uuid"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "approved_by",
+            "customer_id"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "cancelled_by",
+            "customer_id"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "node_id",
+            "customer_id",
+            "framework_id",
+            "framework_version_id"
+          ],
+          "foreign_table": "core_learning_nodes",
+          "foreign_columns": [
+            "id",
+            "customer_id",
+            "framework_id",
+            "framework_version_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "target_review_id",
+            "customer_id",
+            "proposal_id",
+            "revision_id"
+          ],
+          "foreign_table": "ai_authoring_proposal_reviews",
+          "foreign_columns": [
+            "id",
+            "customer_id",
+            "proposal_id",
+            "revision_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "revision_id",
+            "customer_id",
+            "proposal_id"
+          ],
+          "foreign_table": "ai_authoring_proposal_revisions",
+          "foreign_columns": [
+            "id",
+            "customer_id",
+            "proposal_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "framework_version_id",
+            "customer_id",
+            "framework_id"
+          ],
+          "foreign_table": "core_learning_framework_versions",
+          "foreign_columns": [
+            "id",
+            "customer_id",
+            "framework_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "`status` = 'cancelled' and `cancelled_at` is not null and `cancel_reason_code` is not null and (`cancellation_kind` = 'human' and `cancelled_by` is not null or `cancellation_kind` = 'system' and `cancelled_by` is null) and `cancellation_kind` is not null or `status` <> 'cancelled' and `cancelled_at` is null and `cancel_reason_code` is null and `cancellation_kind` is null and `cancelled_by` is null"
+        },
+        {
+          "expression": "`operation` in ('create_node','apply_intent')"
+        },
+        {
+          "expression": "`status` in ('awaiting_publication','ready_to_apply','applied','failed','cancelled')"
+        },
+        {
+          "expression": "`operation` <> 'create_node' or `status` <> 'awaiting_publication'"
+        },
+        {
+          "expression": "`operation` <> 'create_node' or `target_review_id` is null"
+        },
+        {
+          "expression": "`operation` <> 'apply_intent' or `status` not in ('ready_to_apply','applied') or `target_review_id` is not null"
+        },
+        {
+          "expression": "`operation` = 'create_node' and `status` = 'applied' and `result_basis_hash` is not null or (`operation` <> 'create_node' or `status` <> 'applied') and `result_basis_hash` is null"
+        },
+        {
+          "expression": "`status` = 'failed' and `error_code` is not null or `status` <> 'failed' and `error_code` is null"
+        },
+        {
+          "expression": "`status` = 'applied' and `applied_at` is not null and `approved_by` is not null or `status` <> 'applied' and `applied_at` is null"
+        },
+        {
+          "expression": "`status` = 'applied' and `operation` = 'create_node' and `node_id` is not null and `intent_id` is null or `status` = 'applied' and `operation` = 'apply_intent' and `node_id` is not null and `intent_id` is not null or `status` <> 'applied' and `intent_id` is null"
+        },
+        {
+          "expression": "`operation` <> 'create_node' or `status` = 'applied' or `node_id` is null"
+        }
+      ],
+      "triggers": [
+        {
+          "name": "trg_apa_update",
+          "timing": "before",
+          "event": "update",
+          "statement": "BEGIN IF NOT ((BINARY OLD.`id` <=> BINARY NEW.`id`) AND (BINARY OLD.`customer_id` <=> BINARY NEW.`customer_id`) AND (BINARY OLD.`proposal_id` <=> BINARY NEW.`proposal_id`) AND (BINARY OLD.`revision_id` <=> BINARY NEW.`revision_id`) AND (BINARY OLD.`application_uuid` <=> BINARY NEW.`application_uuid`) AND (BINARY OLD.`target_hash` <=> BINARY NEW.`target_hash`) AND (BINARY OLD.`command_hash` <=> BINARY NEW.`command_hash`) AND (BINARY OLD.`expected_basis_hash` <=> BINARY NEW.`expected_basis_hash`) AND (BINARY OLD.`operation` <=> BINARY NEW.`operation`) AND (BINARY OLD.`framework_id` <=> BINARY NEW.`framework_id`) AND (BINARY OLD.`framework_version_id` <=> BINARY NEW.`framework_version_id`) AND (BINARY OLD.`approved_by` <=> BINARY NEW.`approved_by`) AND (BINARY OLD.`created_at` <=> BINARY NEW.`created_at`)) OR (OLD.status IN ('applied','cancelled') AND NOT ((BINARY OLD.`id` <=> BINARY NEW.`id`) AND (BINARY OLD.`customer_id` <=> BINARY NEW.`customer_id`) AND (BINARY OLD.`proposal_id` <=> BINARY NEW.`proposal_id`) AND (BINARY OLD.`revision_id` <=> BINARY NEW.`revision_id`) AND (BINARY OLD.`application_uuid` <=> BINARY NEW.`application_uuid`) AND (BINARY OLD.`target_hash` <=> BINARY NEW.`target_hash`) AND (BINARY OLD.`command_hash` <=> BINARY NEW.`command_hash`) AND (BINARY OLD.`expected_basis_hash` <=> BINARY NEW.`expected_basis_hash`) AND (BINARY OLD.`result_basis_hash` <=> BINARY NEW.`result_basis_hash`) AND (BINARY OLD.`target_review_id` <=> BINARY NEW.`target_review_id`) AND (BINARY OLD.`operation` <=> BINARY NEW.`operation`) AND (BINARY OLD.`status` <=> BINARY NEW.`status`) AND (BINARY OLD.`framework_id` <=> BINARY NEW.`framework_id`) AND (BINARY OLD.`framework_version_id` <=> BINARY NEW.`framework_version_id`) AND (BINARY OLD.`node_id` <=> BINARY NEW.`node_id`) AND (BINARY OLD.`intent_id` <=> BINARY NEW.`intent_id`) AND (BINARY OLD.`approved_by` <=> BINARY NEW.`approved_by`) AND (BINARY OLD.`error_code` <=> BINARY NEW.`error_code`) AND (BINARY OLD.`created_at` <=> BINARY NEW.`created_at`) AND (BINARY OLD.`updated_at` <=> BINARY NEW.`updated_at`) AND (BINARY OLD.`applied_at` <=> BINARY NEW.`applied_at`) AND (BINARY OLD.`cancelled_at` <=> BINARY NEW.`cancelled_at`) AND (BINARY OLD.`cancellation_kind` <=> BINARY NEW.`cancellation_kind`) AND (BINARY OLD.`cancelled_by` <=> BINARY NEW.`cancelled_by`) AND (BINARY OLD.`cancel_reason_code` <=> BINARY NEW.`cancel_reason_code`))) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_APPLICATION_IMMUTABLE'; END IF; IF NEW.status <> OLD.status AND NOT ( (OLD.status = 'awaiting_publication' AND NEW.status IN ('ready_to_apply','cancelled')) OR (OLD.status = 'ready_to_apply' AND NEW.status IN ('applied','failed','cancelled')) OR (OLD.status = 'failed' AND NEW.status IN ('ready_to_apply','cancelled')) ) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_APPLICATION_TRANSITION'; END IF; END"
+        },
+        {
+          "name": "trg_ap_5_delete",
+          "timing": "before",
+          "event": "delete",
+          "statement": "BEGIN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_HISTORY_IMMUTABLE'; END"
+        }
+      ],
+      "views": [],
+      "trigger_identity_required": true
+    },
+    {
+      "name": "ai_authoring_proposal_reviews",
+      "documentation": "database/ai/ai_authoring_proposal_reviews.md",
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "proposal_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "revision_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "actor_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "request_uuid",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "command_hash",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "action",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "target_snapshot",
+          "type": "json",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "target_hash",
+          "type": "char",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "context_snapshot",
+          "type": "json",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "context_hash",
+          "type": "char",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "application_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "result_version_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "result_framework_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "reason_code",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "from_status",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "to_status",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "erased_at",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "actor_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "revision_id",
+            "customer_id",
+            "proposal_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "result_version_id",
+            "customer_id",
+            "result_framework_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "proposal_id",
+            "id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "request_uuid"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id",
+            "proposal_id",
+            "revision_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "actor_id",
+            "customer_id"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "revision_id",
+            "customer_id",
+            "proposal_id"
+          ],
+          "foreign_table": "ai_authoring_proposal_revisions",
+          "foreign_columns": [
+            "id",
+            "customer_id",
+            "proposal_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "result_version_id",
+            "customer_id",
+            "result_framework_id"
+          ],
+          "foreign_table": "core_learning_framework_versions",
+          "foreign_columns": [
+            "id",
+            "customer_id",
+            "framework_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "json_valid(`target_snapshot`)"
+        },
+        {
+          "expression": "json_valid(`context_snapshot`)"
+        },
+        {
+          "expression": "`action` in ('edit','accept','reject','approve_node','confirm_target','reconfirm_target','reject_target','rebase_target','inherit_draft','rebase_selection','reconfirm_context','cancel_application','apply_intent','retry_application')"
+        },
+        {
+          "expression": "`erased_at` is null or `reason` is null and `target_snapshot` is null and `context_snapshot` is null"
+        },
+        {
+          "expression": "`action` in ('confirm_target','reconfirm_target','reject_target','rebase_target','inherit_draft','rebase_selection') and `target_hash` is not null and (`erased_at` is null and `target_snapshot` is not null or `erased_at` is not null and `target_snapshot` is null) or `action` not in ('confirm_target','reconfirm_target','reject_target','rebase_target','inherit_draft','rebase_selection') and `target_hash` is null and `target_snapshot` is null"
+        },
+        {
+          "expression": "`action` = 'edit' and `from_status` = 'pending_review' and `to_status` = 'pending_review' or `action` = 'accept' and `from_status` = 'pending_review' and `to_status` = 'accepted' or `action` = 'reject' and `from_status` = 'pending_review' and `to_status` = 'rejected' or `action` = 'approve_node' and `from_status` = 'accepted' and `to_status` = 'accepted' or `action` = 'cancel_application' and `from_status` = 'stale' and `to_status` = 'stale' or `action` in ('confirm_target','reconfirm_target','reject_target','rebase_target','inherit_draft','rebase_selection','reconfirm_context','cancel_application','apply_intent','retry_application') and `from_status` = 'accepted' and `to_status` = 'accepted'"
+        },
+        {
+          "expression": "`action` in ('reconfirm_context','rebase_target') and `context_hash` is not null and (`erased_at` is null and `context_snapshot` is not null or `erased_at` is not null and `context_snapshot` is null) or `action` not in ('reconfirm_context','rebase_target') and `context_hash` is null and `context_snapshot` is null"
+        },
+        {
+          "expression": "`action` in ('cancel_application','apply_intent','retry_application') and `application_id` is not null or `action` not in ('cancel_application','apply_intent','retry_application') and `application_id` is null"
+        },
+        {
+          "expression": "`action` = 'cancel_application' and `reason_code` is not null or `action` <> 'cancel_application' and `reason_code` is null"
+        },
+        {
+          "expression": "`action` in ('inherit_draft','rebase_selection') and `result_version_id` is not null and `result_framework_id` is not null or `action` not in ('inherit_draft','rebase_selection') and `result_version_id` is null and `result_framework_id` is null"
+        }
+      ],
+      "triggers": [
+        {
+          "name": "trg_apv_insert",
+          "timing": "before",
+          "event": "insert",
+          "statement": "BEGIN DECLARE parent_status VARCHAR(32) DEFAULT NULL; DECLARE parent_mode VARCHAR(32) DEFAULT NULL; DECLARE parent_seal DATETIME(6) DEFAULT NULL; SELECT status, creation_mode, sources_sealed_at INTO parent_status, parent_mode, parent_seal FROM ai_authoring_proposals WHERE id = NEW.proposal_id AND customer_id = NEW.customer_id FOR UPDATE; IF parent_status IS NULL OR NEW.erased_at IS NOT NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_PARENT_INVALID'; END IF; IF parent_status IN ('deletion_pending','deleted') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_REVIEW_CLOSED'; END IF; END"
+        },
+        {
+          "name": "trg_apv_update",
+          "timing": "before",
+          "event": "update",
+          "statement": "BEGIN DECLARE parent_status VARCHAR(32) DEFAULT NULL; IF NOT ((BINARY OLD.`id` <=> BINARY NEW.`id`) AND (BINARY OLD.`customer_id` <=> BINARY NEW.`customer_id`) AND (BINARY OLD.`proposal_id` <=> BINARY NEW.`proposal_id`) AND (BINARY OLD.`revision_id` <=> BINARY NEW.`revision_id`) AND (BINARY OLD.`actor_id` <=> BINARY NEW.`actor_id`) AND (BINARY OLD.`request_uuid` <=> BINARY NEW.`request_uuid`) AND (BINARY OLD.`command_hash` <=> BINARY NEW.`command_hash`) AND (BINARY OLD.`action` <=> BINARY NEW.`action`) AND (BINARY OLD.`target_snapshot` <=> BINARY NEW.`target_snapshot`) AND (BINARY OLD.`target_hash` <=> BINARY NEW.`target_hash`) AND (BINARY OLD.`context_snapshot` <=> BINARY NEW.`context_snapshot`) AND (BINARY OLD.`context_hash` <=> BINARY NEW.`context_hash`) AND (BINARY OLD.`application_id` <=> BINARY NEW.`application_id`) AND (BINARY OLD.`result_version_id` <=> BINARY NEW.`result_version_id`) AND (BINARY OLD.`result_framework_id` <=> BINARY NEW.`result_framework_id`) AND (BINARY OLD.`reason_code` <=> BINARY NEW.`reason_code`) AND (BINARY OLD.`from_status` <=> BINARY NEW.`from_status`) AND (BINARY OLD.`to_status` <=> BINARY NEW.`to_status`) AND (BINARY OLD.`reason` <=> BINARY NEW.`reason`) AND (BINARY OLD.`created_at` <=> BINARY NEW.`created_at`) AND (BINARY OLD.`erased_at` <=> BINARY NEW.`erased_at`)) THEN SELECT status INTO parent_status FROM ai_authoring_proposals WHERE id = OLD.proposal_id AND customer_id = OLD.customer_id FOR UPDATE; IF NOT ((BINARY OLD.`id` <=> BINARY NEW.`id`) AND (BINARY OLD.`customer_id` <=> BINARY NEW.`customer_id`) AND (BINARY OLD.`proposal_id` <=> BINARY NEW.`proposal_id`) AND (BINARY OLD.`revision_id` <=> BINARY NEW.`revision_id`) AND (BINARY OLD.`actor_id` <=> BINARY NEW.`actor_id`) AND (BINARY OLD.`request_uuid` <=> BINARY NEW.`request_uuid`) AND (BINARY OLD.`command_hash` <=> BINARY NEW.`command_hash`) AND (BINARY OLD.`action` <=> BINARY NEW.`action`) AND (BINARY OLD.`target_hash` <=> BINARY NEW.`target_hash`) AND (BINARY OLD.`context_hash` <=> BINARY NEW.`context_hash`) AND (BINARY OLD.`application_id` <=> BINARY NEW.`application_id`) AND (BINARY OLD.`result_version_id` <=> BINARY NEW.`result_version_id`) AND (BINARY OLD.`result_framework_id` <=> BINARY NEW.`result_framework_id`) AND (BINARY OLD.`reason_code` <=> BINARY NEW.`reason_code`) AND (BINARY OLD.`from_status` <=> BINARY NEW.`from_status`) AND (BINARY OLD.`to_status` <=> BINARY NEW.`to_status`) AND (BINARY OLD.`created_at` <=> BINARY NEW.`created_at`)) OR parent_status IS NULL OR parent_status <> 'deletion_pending' OR OLD.erased_at IS NOT NULL OR NEW.erased_at IS NULL OR NOT (NEW.`reason` IS NULL AND NEW.`target_snapshot` IS NULL AND NEW.`context_snapshot` IS NULL) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_HISTORY_IMMUTABLE'; END IF; END IF; END"
+        },
+        {
+          "name": "trg_ap_4_delete",
+          "timing": "before",
+          "event": "delete",
+          "statement": "BEGIN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_HISTORY_IMMUTABLE'; END"
+        }
+      ],
+      "views": [],
+      "trigger_identity_required": true
+    },
+    {
+      "name": "ai_authoring_proposal_revisions",
+      "documentation": "database/ai/ai_authoring_proposal_revisions.md",
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "proposal_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "revision_no",
+          "type": "int",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "origin",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "payload_schema_version",
+          "type": "int",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "payload",
+          "type": "json",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "payload_hash",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_by",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "erased_at",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "created_by",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "proposal_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id",
+            "proposal_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "proposal_id",
+            "revision_no"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "created_by",
+            "customer_id"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "proposal_id",
+            "customer_id"
+          ],
+          "foreign_table": "ai_authoring_proposals",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "json_valid(`payload`)"
+        },
+        {
+          "expression": "`revision_no` >= 1 and `payload_schema_version` >= 1"
+        },
+        {
+          "expression": "`origin` in ('generated','human_successor','human')"
+        },
+        {
+          "expression": "`payload` is not null and `erased_at` is null or `payload` is null and `erased_at` is not null"
+        },
+        {
+          "expression": "`origin` in ('generated','human_successor') and `revision_no` = 1 or `origin` = 'human' and `revision_no` > 1"
+        }
+      ],
+      "triggers": [
+        {
+          "name": "trg_apr_insert",
+          "timing": "before",
+          "event": "insert",
+          "statement": "BEGIN DECLARE parent_status VARCHAR(32) DEFAULT NULL; DECLARE parent_mode VARCHAR(32) DEFAULT NULL; DECLARE parent_seal DATETIME(6) DEFAULT NULL; SELECT status, creation_mode, sources_sealed_at INTO parent_status, parent_mode, parent_seal FROM ai_authoring_proposals WHERE id = NEW.proposal_id AND customer_id = NEW.customer_id FOR UPDATE; IF parent_status IS NULL OR NEW.erased_at IS NOT NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_PARENT_INVALID'; END IF; IF parent_status <> 'pending_review' OR (NEW.revision_no = 1 AND BINARY NEW.origin <> BINARY parent_mode) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_REVISION_CLOSED'; END IF; END"
+        },
+        {
+          "name": "trg_apr_update",
+          "timing": "before",
+          "event": "update",
+          "statement": "BEGIN DECLARE parent_status VARCHAR(32) DEFAULT NULL; IF NOT ((BINARY OLD.`id` <=> BINARY NEW.`id`) AND (BINARY OLD.`customer_id` <=> BINARY NEW.`customer_id`) AND (BINARY OLD.`proposal_id` <=> BINARY NEW.`proposal_id`) AND (BINARY OLD.`revision_no` <=> BINARY NEW.`revision_no`) AND (BINARY OLD.`origin` <=> BINARY NEW.`origin`) AND (BINARY OLD.`payload_schema_version` <=> BINARY NEW.`payload_schema_version`) AND (BINARY OLD.`payload` <=> BINARY NEW.`payload`) AND (BINARY OLD.`payload_hash` <=> BINARY NEW.`payload_hash`) AND (BINARY OLD.`created_by` <=> BINARY NEW.`created_by`) AND (BINARY OLD.`created_at` <=> BINARY NEW.`created_at`) AND (BINARY OLD.`erased_at` <=> BINARY NEW.`erased_at`)) THEN SELECT status INTO parent_status FROM ai_authoring_proposals WHERE id = OLD.proposal_id AND customer_id = OLD.customer_id FOR UPDATE; IF NOT ((BINARY OLD.`id` <=> BINARY NEW.`id`) AND (BINARY OLD.`customer_id` <=> BINARY NEW.`customer_id`) AND (BINARY OLD.`proposal_id` <=> BINARY NEW.`proposal_id`) AND (BINARY OLD.`revision_no` <=> BINARY NEW.`revision_no`) AND (BINARY OLD.`origin` <=> BINARY NEW.`origin`) AND (BINARY OLD.`payload_schema_version` <=> BINARY NEW.`payload_schema_version`) AND (BINARY OLD.`payload_hash` <=> BINARY NEW.`payload_hash`) AND (BINARY OLD.`created_by` <=> BINARY NEW.`created_by`) AND (BINARY OLD.`created_at` <=> BINARY NEW.`created_at`)) OR parent_status IS NULL OR parent_status <> 'deletion_pending' OR OLD.erased_at IS NOT NULL OR NEW.erased_at IS NULL OR NOT (NEW.`payload` IS NULL) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_HISTORY_IMMUTABLE'; END IF; END IF; END"
+        },
+        {
+          "name": "trg_ap_2_delete",
+          "timing": "before",
+          "event": "delete",
+          "statement": "BEGIN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_HISTORY_IMMUTABLE'; END"
+        }
+      ],
+      "views": [],
+      "trigger_identity_required": true
+    },
+    {
+      "name": "ai_authoring_proposal_sources",
+      "documentation": "database/ai/ai_authoring_proposal_sources.md",
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "proposal_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "media_file_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_ordinal",
+          "type": "int",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "usage_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "content_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "locale",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_fingerprint",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "processing_version",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "locator",
+          "type": "json",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "anchor_hash",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "excerpt",
+          "type": "text",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "erased_at",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "media_file_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "proposal_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "media_file_id",
+            "proposal_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "proposal_id",
+            "anchor_hash"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "proposal_id",
+            "source_ordinal"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "media_file_id",
+            "customer_id"
+          ],
+          "foreign_table": "media_files",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "proposal_id",
+            "customer_id"
+          ],
+          "foreign_table": "ai_authoring_proposals",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "json_valid(`locator`)"
+        },
+        {
+          "expression": "`source_ordinal` >= 1"
+        },
+        {
+          "expression": "`erased_at` is null or `excerpt` is null"
+        },
+        {
+          "expression": "`usage_type` = 'document' and `content_type` in ('extracted_text','region','table','formula') or `usage_type` in ('audio','video') and `content_type` = 'transcript' or `usage_type` = 'video' and `content_type` = 'video_frame_text'"
+        }
+      ],
+      "triggers": [
+        {
+          "name": "trg_aps_insert",
+          "timing": "before",
+          "event": "insert",
+          "statement": "BEGIN DECLARE parent_status VARCHAR(32) DEFAULT NULL; DECLARE parent_mode VARCHAR(32) DEFAULT NULL; DECLARE parent_seal DATETIME(6) DEFAULT NULL; SELECT status, creation_mode, sources_sealed_at INTO parent_status, parent_mode, parent_seal FROM ai_authoring_proposals WHERE id = NEW.proposal_id AND customer_id = NEW.customer_id FOR UPDATE; IF parent_status IS NULL OR NEW.erased_at IS NOT NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_PARENT_INVALID'; END IF; IF parent_status <> 'pending_review' OR parent_seal IS NOT NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_SOURCES_SEALED'; END IF; END"
+        },
+        {
+          "name": "trg_aps_update",
+          "timing": "before",
+          "event": "update",
+          "statement": "BEGIN DECLARE parent_status VARCHAR(32) DEFAULT NULL; IF NOT ((BINARY OLD.`id` <=> BINARY NEW.`id`) AND (BINARY OLD.`customer_id` <=> BINARY NEW.`customer_id`) AND (BINARY OLD.`proposal_id` <=> BINARY NEW.`proposal_id`) AND (BINARY OLD.`media_file_id` <=> BINARY NEW.`media_file_id`) AND (BINARY OLD.`source_ordinal` <=> BINARY NEW.`source_ordinal`) AND (BINARY OLD.`usage_type` <=> BINARY NEW.`usage_type`) AND (BINARY OLD.`content_type` <=> BINARY NEW.`content_type`) AND (BINARY OLD.`locale` <=> BINARY NEW.`locale`) AND (BINARY OLD.`source_fingerprint` <=> BINARY NEW.`source_fingerprint`) AND (BINARY OLD.`processing_version` <=> BINARY NEW.`processing_version`) AND (BINARY OLD.`locator` <=> BINARY NEW.`locator`) AND (BINARY OLD.`anchor_hash` <=> BINARY NEW.`anchor_hash`) AND (BINARY OLD.`excerpt` <=> BINARY NEW.`excerpt`) AND (BINARY OLD.`created_at` <=> BINARY NEW.`created_at`) AND (BINARY OLD.`erased_at` <=> BINARY NEW.`erased_at`)) THEN SELECT status INTO parent_status FROM ai_authoring_proposals WHERE id = OLD.proposal_id AND customer_id = OLD.customer_id FOR UPDATE; IF NOT ((BINARY OLD.`id` <=> BINARY NEW.`id`) AND (BINARY OLD.`customer_id` <=> BINARY NEW.`customer_id`) AND (BINARY OLD.`proposal_id` <=> BINARY NEW.`proposal_id`) AND (BINARY OLD.`media_file_id` <=> BINARY NEW.`media_file_id`) AND (BINARY OLD.`source_ordinal` <=> BINARY NEW.`source_ordinal`) AND (BINARY OLD.`usage_type` <=> BINARY NEW.`usage_type`) AND (BINARY OLD.`content_type` <=> BINARY NEW.`content_type`) AND (BINARY OLD.`locale` <=> BINARY NEW.`locale`) AND (BINARY OLD.`source_fingerprint` <=> BINARY NEW.`source_fingerprint`) AND (BINARY OLD.`processing_version` <=> BINARY NEW.`processing_version`) AND (BINARY OLD.`locator` <=> BINARY NEW.`locator`) AND (BINARY OLD.`anchor_hash` <=> BINARY NEW.`anchor_hash`) AND (BINARY OLD.`created_at` <=> BINARY NEW.`created_at`)) OR parent_status IS NULL OR parent_status <> 'deletion_pending' OR OLD.erased_at IS NOT NULL OR NEW.erased_at IS NULL OR NOT (NEW.`excerpt` IS NULL) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_HISTORY_IMMUTABLE'; END IF; END IF; END"
+        },
+        {
+          "name": "trg_ap_3_delete",
+          "timing": "before",
+          "event": "delete",
+          "statement": "BEGIN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_HISTORY_IMMUTABLE'; END"
+        }
+      ],
+      "views": [],
+      "trigger_identity_required": true
+    },
+    {
+      "name": "ai_authoring_proposals",
+      "documentation": "database/ai/ai_authoring_proposals.md",
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "proposal_uuid",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "generation_request_uuid",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "item_ordinal",
+          "type": "int",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "template_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "activity_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "model_run_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "creation_mode",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "framework_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "framework_version_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "basis_hash",
+          "type": "char",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "kind",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "context_schema_version",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "context_hash",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "course_context_hash",
+          "type": "char",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "sources_sealed_at",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_count",
+          "type": "int",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "source_set_hash",
+          "type": "char",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "supersedes_proposal_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "successor_reason",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "inherited_decision_draft",
+          "type": "tinyint",
+          "nullable": false,
+          "default": "0",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "predecessor_revision_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "lock_version",
+          "type": "int",
+          "nullable": false,
+          "default": "1",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_by",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "datetime",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "datetime",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "deletion_requested_at",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "deleted_at",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "created_by",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "supersedes_proposal_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "predecessor_revision_id",
+            "customer_id",
+            "supersedes_proposal_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "model_run_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "framework_version_id",
+            "customer_id",
+            "framework_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "template_id",
+            "status",
+            "id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "generation_request_uuid",
+            "item_ordinal"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "proposal_uuid"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "created_by",
+            "customer_id"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "supersedes_proposal_id",
+            "customer_id"
+          ],
+          "foreign_table": "ai_authoring_proposals",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "predecessor_revision_id",
+            "customer_id",
+            "supersedes_proposal_id"
+          ],
+          "foreign_table": "ai_authoring_proposal_revisions",
+          "foreign_columns": [
+            "id",
+            "customer_id",
+            "proposal_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "generation_request_uuid"
+          ],
+          "foreign_table": "ai_authoring_generation_requests",
+          "foreign_columns": [
+            "customer_id",
+            "request_uuid"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "model_run_id",
+            "customer_id"
+          ],
+          "foreign_table": "ai_model_runs",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "framework_version_id",
+            "customer_id",
+            "framework_id"
+          ],
+          "foreign_table": "core_learning_framework_versions",
+          "foreign_columns": [
+            "id",
+            "customer_id",
+            "framework_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "`inherited_decision_draft` in (0,1)"
+        },
+        {
+          "expression": "`creation_mode` = 'generated' and `successor_reason` is null and `inherited_decision_draft` = 0 or `creation_mode` = 'human_successor' and `successor_reason` is not null and `successor_reason` in ('source_revision_changed','context_changed','target_changed','intent_removed','human_correction')"
+        },
+        {
+          "expression": "`successor_reason` = 'source_revision_changed' and `inherited_decision_draft` = 1 or (`successor_reason` is null or `successor_reason` <> 'source_revision_changed') and `inherited_decision_draft` = 0"
+        },
+        {
+          "expression": "`creation_mode` in ('generated','human_successor')"
+        },
+        {
+          "expression": "`creation_mode` = 'human_successor' and `supersedes_proposal_id` is not null and `predecessor_revision_id` is not null or `creation_mode` = 'generated' and `predecessor_revision_id` is null"
+        },
+        {
+          "expression": "`item_ordinal` between 1 and 100"
+        },
+        {
+          "expression": "`lock_version` >= 1"
+        },
+        {
+          "expression": "`sources_sealed_at` is null and `source_count` is null and `source_set_hash` is null or `sources_sealed_at` is not null and `source_count` is not null and `source_count` > 0 and `source_set_hash` is not null"
+        },
+        {
+          "expression": "`status` = 'pending_review' or `sources_sealed_at` is not null"
+        },
+        {
+          "expression": "`kind` in ('summary','concept','learning_objective','competency','node_mapping')"
+        },
+        {
+          "expression": "`status` in ('pending_review','accepted','rejected','stale','deletion_pending','deleted')"
+        },
+        {
+          "expression": "`framework_id` is null and `framework_version_id` is null or `framework_id` is not null and `framework_version_id` is not null"
+        },
+        {
+          "expression": "`framework_id` is null and `basis_hash` is null or `framework_id` is not null and `basis_hash` is not null"
+        },
+        {
+          "expression": "`kind` not in ('competency','node_mapping') or `framework_id` is not null and `framework_version_id` is not null"
+        },
+        {
+          "expression": "`status` in ('deletion_pending','deleted') and `deletion_requested_at` is not null or `status` not in ('deletion_pending','deleted') and `deletion_requested_at` is null"
+        },
+        {
+          "expression": "`status` = 'deleted' and `deleted_at` is not null or `status` <> 'deleted' and `deleted_at` is null"
+        }
+      ],
+      "triggers": [
+        {
+          "name": "trg_ap_insert",
+          "timing": "before",
+          "event": "insert",
+          "statement": "BEGIN DECLARE request_status VARCHAR(32) DEFAULT NULL; DECLARE request_mode VARCHAR(32) DEFAULT NULL; SELECT status, mode INTO request_status, request_mode FROM ai_authoring_generation_requests WHERE customer_id = NEW.customer_id AND request_uuid = NEW.generation_request_uuid FOR UPDATE; IF NEW.status <> 'pending_review' OR NEW.sources_sealed_at IS NOT NULL OR request_status IS NULL OR request_status <> 'running' OR BINARY request_mode <> BINARY NEW.creation_mode THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_CONSTRUCTION_INVALID'; END IF; IF NEW.creation_mode = 'human_successor' AND NOT EXISTS ( SELECT 1 FROM ai_authoring_proposal_reviews r JOIN ai_authoring_proposals p ON p.id = r.proposal_id AND p.customer_id = r.customer_id WHERE r.customer_id = NEW.customer_id AND r.proposal_id = NEW.supersedes_proposal_id AND r.revision_id = NEW.predecessor_revision_id AND r.action = 'accept' AND (NEW.id = 0 OR p.id < NEW.id) ) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_PREDECESSOR_INVALID'; END IF; END"
+        },
+        {
+          "name": "trg_ap_update",
+          "timing": "before",
+          "event": "update",
+          "statement": "BEGIN IF NOT ((BINARY OLD.`id` <=> BINARY NEW.`id`) AND (BINARY OLD.`customer_id` <=> BINARY NEW.`customer_id`) AND (BINARY OLD.`proposal_uuid` <=> BINARY NEW.`proposal_uuid`) AND (BINARY OLD.`generation_request_uuid` <=> BINARY NEW.`generation_request_uuid`) AND (BINARY OLD.`item_ordinal` <=> BINARY NEW.`item_ordinal`) AND (BINARY OLD.`template_id` <=> BINARY NEW.`template_id`) AND (BINARY OLD.`activity_id` <=> BINARY NEW.`activity_id`) AND (BINARY OLD.`model_run_id` <=> BINARY NEW.`model_run_id`) AND (BINARY OLD.`creation_mode` <=> BINARY NEW.`creation_mode`) AND (BINARY OLD.`framework_id` <=> BINARY NEW.`framework_id`) AND (BINARY OLD.`framework_version_id` <=> BINARY NEW.`framework_version_id`) AND (BINARY OLD.`basis_hash` <=> BINARY NEW.`basis_hash`) AND (BINARY OLD.`kind` <=> BINARY NEW.`kind`) AND (BINARY OLD.`context_schema_version` <=> BINARY NEW.`context_schema_version`) AND (BINARY OLD.`context_hash` <=> BINARY NEW.`context_hash`) AND (BINARY OLD.`course_context_hash` <=> BINARY NEW.`course_context_hash`) AND (BINARY OLD.`supersedes_proposal_id` <=> BINARY NEW.`supersedes_proposal_id`) AND (BINARY OLD.`successor_reason` <=> BINARY NEW.`successor_reason`) AND (BINARY OLD.`inherited_decision_draft` <=> BINARY NEW.`inherited_decision_draft`) AND (BINARY OLD.`predecessor_revision_id` <=> BINARY NEW.`predecessor_revision_id`) AND (BINARY OLD.`created_by` <=> BINARY NEW.`created_by`) AND (BINARY OLD.`created_at` <=> BINARY NEW.`created_at`)) OR (OLD.sources_sealed_at IS NOT NULL AND NOT ((BINARY OLD.sources_sealed_at <=> BINARY NEW.sources_sealed_at) AND (BINARY OLD.source_count <=> BINARY NEW.source_count) AND (BINARY OLD.source_set_hash <=> BINARY NEW.source_set_hash))) OR (OLD.status = 'deleted' AND NOT ((BINARY OLD.`id` <=> BINARY NEW.`id`) AND (BINARY OLD.`customer_id` <=> BINARY NEW.`customer_id`) AND (BINARY OLD.`proposal_uuid` <=> BINARY NEW.`proposal_uuid`) AND (BINARY OLD.`generation_request_uuid` <=> BINARY NEW.`generation_request_uuid`) AND (BINARY OLD.`item_ordinal` <=> BINARY NEW.`item_ordinal`) AND (BINARY OLD.`template_id` <=> BINARY NEW.`template_id`) AND (BINARY OLD.`activity_id` <=> BINARY NEW.`activity_id`) AND (BINARY OLD.`model_run_id` <=> BINARY NEW.`model_run_id`) AND (BINARY OLD.`creation_mode` <=> BINARY NEW.`creation_mode`) AND (BINARY OLD.`framework_id` <=> BINARY NEW.`framework_id`) AND (BINARY OLD.`framework_version_id` <=> BINARY NEW.`framework_version_id`) AND (BINARY OLD.`basis_hash` <=> BINARY NEW.`basis_hash`) AND (BINARY OLD.`kind` <=> BINARY NEW.`kind`) AND (BINARY OLD.`context_schema_version` <=> BINARY NEW.`context_schema_version`) AND (BINARY OLD.`context_hash` <=> BINARY NEW.`context_hash`) AND (BINARY OLD.`course_context_hash` <=> BINARY NEW.`course_context_hash`) AND (BINARY OLD.`sources_sealed_at` <=> BINARY NEW.`sources_sealed_at`) AND (BINARY OLD.`source_count` <=> BINARY NEW.`source_count`) AND (BINARY OLD.`source_set_hash` <=> BINARY NEW.`source_set_hash`) AND (BINARY OLD.`supersedes_proposal_id` <=> BINARY NEW.`supersedes_proposal_id`) AND (BINARY OLD.`successor_reason` <=> BINARY NEW.`successor_reason`) AND (BINARY OLD.`inherited_decision_draft` <=> BINARY NEW.`inherited_decision_draft`) AND (BINARY OLD.`predecessor_revision_id` <=> BINARY NEW.`predecessor_revision_id`) AND (BINARY OLD.`status` <=> BINARY NEW.`status`) AND (BINARY OLD.`lock_version` <=> BINARY NEW.`lock_version`) AND (BINARY OLD.`created_by` <=> BINARY NEW.`created_by`) AND (BINARY OLD.`created_at` <=> BINARY NEW.`created_at`) AND (BINARY OLD.`updated_at` <=> BINARY NEW.`updated_at`) AND (BINARY OLD.`deletion_requested_at` <=> BINARY NEW.`deletion_requested_at`) AND (BINARY OLD.`deleted_at` <=> BINARY NEW.`deleted_at`))) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_IDENTITY_IMMUTABLE'; END IF; IF NEW.status <> OLD.status AND NOT ( (OLD.status = 'pending_review' AND NEW.status IN ('accepted','rejected','stale','deletion_pending')) OR (OLD.status = 'accepted' AND NEW.status IN ('stale','deletion_pending')) OR (OLD.status IN ('rejected','stale') AND NEW.status = 'deletion_pending') OR (OLD.status = 'deletion_pending' AND NEW.status = 'deleted') ) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_STATUS_TRANSITION'; END IF; IF OLD.sources_sealed_at IS NULL AND NEW.sources_sealed_at IS NOT NULL AND NEW.source_count <> (SELECT COUNT(*) FROM ai_authoring_proposal_sources WHERE proposal_id = OLD.id AND customer_id = OLD.customer_id) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_SOURCE_COUNT'; END IF; IF NEW.status = 'deleted' AND ( EXISTS (SELECT 1 FROM ai_authoring_proposal_revisions WHERE proposal_id = OLD.id AND customer_id = OLD.customer_id AND (payload IS NOT NULL OR erased_at IS NULL)) OR EXISTS (SELECT 1 FROM ai_authoring_proposal_sources WHERE proposal_id = OLD.id AND customer_id = OLD.customer_id AND (excerpt IS NOT NULL OR erased_at IS NULL)) OR EXISTS (SELECT 1 FROM ai_authoring_proposal_reviews WHERE proposal_id = OLD.id AND customer_id = OLD.customer_id AND (reason IS NOT NULL OR target_snapshot IS NOT NULL OR context_snapshot IS NOT NULL OR erased_at IS NULL)) ) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_ERASURE_INCOMPLETE'; END IF; END"
+        },
+        {
+          "name": "trg_ap_1_delete",
+          "timing": "before",
+          "event": "delete",
+          "statement": "BEGIN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'LF_PROPOSAL_HISTORY_IMMUTABLE'; END"
+        }
+      ],
+      "views": [],
+      "trigger_identity_required": true
+    },
+    {
       "name": "ai_conversations",
       "documentation": "database/ai/ai_conversations.md",
       "implementation_status": "not_implemented",
@@ -11474,12 +13674,77 @@
           "unsigned": false,
           "auto_increment": false,
           "generated": null
+        },
+        {
+          "name": "ai_proposal_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "ai_proposal_revision_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "ai_target_review_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "ai_context_review_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
         }
       ],
       "primary_key": [
         "id"
       ],
       "indexes": [
+        {
+          "columns": [
+            "ai_context_review_id",
+            "customer_id",
+            "ai_proposal_id",
+            "ai_proposal_revision_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "ai_proposal_revision_id",
+            "customer_id",
+            "ai_proposal_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "ai_target_review_id",
+            "customer_id",
+            "ai_proposal_id",
+            "ai_proposal_revision_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
         {
           "columns": [
             "created_by",
@@ -11547,6 +13812,55 @@
         }
       ],
       "foreign_keys": [
+        {
+          "columns": [
+            "ai_context_review_id",
+            "customer_id",
+            "ai_proposal_id",
+            "ai_proposal_revision_id"
+          ],
+          "foreign_table": "ai_authoring_proposal_reviews",
+          "foreign_columns": [
+            "id",
+            "customer_id",
+            "proposal_id",
+            "revision_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "ai_proposal_revision_id",
+            "customer_id",
+            "ai_proposal_id"
+          ],
+          "foreign_table": "ai_authoring_proposal_revisions",
+          "foreign_columns": [
+            "id",
+            "customer_id",
+            "proposal_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "ai_target_review_id",
+            "customer_id",
+            "ai_proposal_id",
+            "ai_proposal_revision_id"
+          ],
+          "foreign_table": "ai_authoring_proposal_reviews",
+          "foreign_columns": [
+            "id",
+            "customer_id",
+            "proposal_id",
+            "revision_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
         {
           "columns": [
             "created_by",
@@ -11619,7 +13933,10 @@
           "expression": "`weight` is null or `weight` >= 0 and `weight` <= 1"
         },
         {
-          "expression": "`origin` = 'manual'"
+          "expression": "`origin` in ('manual','ai_proposal')"
+        },
+        {
+          "expression": "`origin` = 'manual' and `ai_proposal_id` is null and `ai_proposal_revision_id` is null and `ai_target_review_id` is null and `ai_context_review_id` is null or `origin` = 'ai_proposal' and `ai_proposal_id` is not null and `ai_proposal_revision_id` is not null and `ai_target_review_id` is not null"
         }
       ],
       "triggers": [],

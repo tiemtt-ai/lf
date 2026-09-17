@@ -26,7 +26,11 @@ use Illuminate\Validation\ValidationException;
  */
 final class LearningMappingPromotionService
 {
-    public function promote(int $customerId, int $templateId, int $courseVersionId, array $lessonMap, array $activityMap, int $actorId, $now, string $callPathToken): void
+    /**
+     * @param  array<int,array<string,mixed>>  $aiLineage  Step 7 content-free lineage keyed by Intent id,
+     *                                                     verified by the AI owner port for every ai_proposal Intent
+     */
+    public function promote(int $customerId, int $templateId, int $courseVersionId, array $lessonMap, array $activityMap, int $actorId, $now, string $callPathToken, array $aiLineage = []): void
     {
         $expected = hash_hmac('sha256', implode(':', [$customerId, $templateId, $courseVersionId, $actorId]), (string) config('app.key'));
         if (! hash_equals($expected, $callPathToken)) {
@@ -56,12 +60,19 @@ final class LearningMappingPromotionService
             if ($sourceLabel === null) {
                 throw ValidationException::withMessages(['publish' => 'A Learning Mapping source no longer exists.']);
             }
-            $snapshot = json_encode([
+            $snapshot = [
                 'label' => $sourceLabel,
                 'source_type' => $sourceType,
                 'course_version_id' => $courseVersionId,
                 'source_version_identity' => (string) $courseVersionId,
-            ], JSON_THROW_ON_ERROR);
+            ];
+            if (($intent->origin ?? 'manual') === 'ai_proposal') {
+                // Immutable Mapping -> Proposal audit path; survives Intent deletion.
+                $snapshot['ai_lineage'] = $this->validatedLineage($aiLineage[(int) $intent->id] ?? null);
+            } elseif (array_key_exists((int) $intent->id, $aiLineage)) {
+                throw ValidationException::withMessages(['publish' => 'AI lineage was supplied for a manual Learning Mapping Intent.']);
+            }
+            $snapshot = json_encode($snapshot, JSON_THROW_ON_ERROR);
             $mapping = [
                 'customer_id' => $customerId, 'learning_node_id' => $intent->learning_node_id, 'source_type' => $sourceType,
                 'source_id' => $sourceId, 'source_discriminator' => (string) $courseVersionId, 'mapping_role' => $intent->mapping_role,
@@ -83,6 +94,29 @@ final class LearningMappingPromotionService
                 }
             }
         }
+    }
+
+    /**
+     * Learning validates the shape it persists: identifiers and hashes only,
+     * never proposal text, excerpts or prompts.
+     *
+     * @return array<string,mixed>
+     */
+    private function validatedLineage(mixed $lineage): array
+    {
+        $keys = ['proposal_id', 'proposal_uuid', 'revision_id', 'payload_hash', 'target_review_id', 'target_hash', 'context_review_id', 'context_hash'];
+        $valid = is_array($lineage) && array_keys($lineage) === $keys
+            && is_int($lineage['proposal_id']) && is_int($lineage['revision_id']) && is_int($lineage['target_review_id'])
+            && ($lineage['context_review_id'] === null || is_int($lineage['context_review_id']))
+            && is_string($lineage['proposal_uuid']) && preg_match('/\A[0-9a-f-]{36}\z/', $lineage['proposal_uuid']) === 1;
+        foreach (['payload_hash', 'target_hash', 'context_hash'] as $hash) {
+            $valid = $valid && is_string($lineage[$hash]) && preg_match('/\A[0-9a-f]{64}\z/', $lineage[$hash]) === 1;
+        }
+        if (! $valid) {
+            throw ValidationException::withMessages(['publish' => 'An AI-origin Learning Mapping Intent has no verified lineage.']);
+        }
+
+        return $lineage;
     }
 
     private function isDuplicateMapping(QueryException $exception): bool

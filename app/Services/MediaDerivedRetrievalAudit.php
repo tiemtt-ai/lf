@@ -9,6 +9,31 @@ use RuntimeException;
 /** Media-owned append-only access evidence; never stores text or query vectors. */
 final class MediaDerivedRetrievalAudit
 {
+    /** Media owns audit storage. Caller supplies only identity, never proposal content. */
+    public function appendAuthoring(int $actorId, object $proposal, ?object $revision, object $source, string $decision, string $retrievalUuid, string $operation, ?string $errorCode = null): void
+    {
+        if (! in_array($operation, ['authoring_proposal_retrieval', 'authoring_successor_preview'], true)
+            || (int) $proposal->customer_id !== TenantContext::customerId()
+            || (int) $source->customer_id !== (int) $proposal->customer_id) {
+            throw new RuntimeException('LF_AUTHORING_AUDIT_CONTEXT_INVALID');
+        }
+        [$customerId, $mediaId, $userId] = $this->resolve($actorId, (int) $source->media_file_id, $decision);
+        DB::table('media_access_logs')->insert([
+            'customer_id' => $customerId, 'media_file_id' => $mediaId, 'user_id' => $userId,
+            'action' => 'read_derived', 'source_type' => 'ai', 'source_id' => null,
+            'accessed_at' => now(), 'metadata' => json_encode([
+                'operation' => $operation, 'retrieval_uuid' => $retrievalUuid,
+                'proposal_uuid' => $proposal->proposal_uuid, 'revision_id' => $revision?->id,
+                'owner_type' => 'course_activity', 'owner_id' => (int) $proposal->activity_id,
+                'usage_type' => $source->usage_type, 'content_type' => $source->content_type,
+                'processing_version' => $source->processing_version,
+                'source_fingerprint' => $source->source_fingerprint,
+                'locator' => json_decode((string) $source->locator, true),
+                'decision' => $decision, 'error_code' => $decision === 'denied' ? ($errorCode ?? 'unauthorized') : null,
+            ], JSON_THROW_ON_ERROR),
+        ]);
+    }
+
     /**
      * Retrieval of an AI Vision Interpretation built from a Media region is an
      * access event on Media-derived content (ai_vision_interpretations.md v1.1,

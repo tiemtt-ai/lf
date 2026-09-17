@@ -6,9 +6,24 @@ Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-14
+Last Updated: 2026-09-16
 
 Document Path: database/media/media_access_logs.md
+
+## Authoring proposal retrieval — Owner approved 2026-09-16
+
+Authoring content reads and restricted successor previews use the Media-owned
+audit service, action read_derived, consumer ai, operation
+authoring_proposal_retrieval or authoring_successor_preview. Record correlation
+UUID, proposal/revision identifiers, owner, source anchor/revision and the final
+allowed/denied decision for each resolvable source. Denials preserve Media error
+codes where available. No payload, rationale, excerpt or signed URL is logged.
+Insertion failure aborts before returning content. Foreign-tenant targets are
+not resolved or logged. An unavailable in-tenant Media FK denies disclosure and
+does not create a fake FK; this remains an explicitly unauditable Media target.
+As with Knowledge retrieval, allowed records prove authorization to disclose,
+not delivery; earlier records may remain if a later append fails. No schema
+change or change to existing Knowledge/Vision callers is authorized here.
 
 ## Vision interpretation retrieval — Owner approved 2026-09-14
 

@@ -1,12 +1,12 @@
 # Table: core_course_template_learning_mapping_intents
 
-Version: 1.0
+Version: 1.2
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-23
+Last Updated: 2026-09-15
 
 Approval Date: 2026-08-23
 
@@ -90,7 +90,98 @@ exact selection. Canonical Mapping is immutable after promotion and is
 corrected by the approved invalidation lifecycle in
 `core_learning_node_mappings`.
 
-## Authorization
+## Step 7 integration amendment — Frozen / Not Implemented, 2026-09-15
+
+Schema update 2026-09-15: origin CHECK, four nullable AI references and their
+composite FKs are implemented by the Step 7 packet, verified on temporary
+MariaDB 11.4.12/10.4.21. The manual path remains unchanged. Owner-service
+commands, publish revalidation and provenance promotion described below are
+still Not Implemented. No live database apply is claimed.
+
+### Owner design closure — 2026-09-15
+
+Owner decision: "chốt tài liệu, ko cần reivew quá nhiều". The current Step 7
+contract v0.8, six AI table designs and their Course/Learning/ADR design
+extensions are approved and Frozen. No additional design-review round is
+scheduled by this closure. Earlier Review/pending-Freeze statements below are
+historical and superseded for design status only. Implementation remains Not
+Implemented. This records Owner approval, NOT reviewer PASS, physical DDL
+verification, migration execution or live database/provider authorization.
+
+
+
+Owner froze the earlier amendment. That signature is historical and superseded
+for this changed shape by the approved P1 remediation directions. Header status
+Implemented describes the existing manual path only; this amendment is Review /
+Not Implemented, awaiting new review/Freeze. Extension:
+origin vocabulary manual/ai_proposal, with nullable BIGINT UNSIGNED
+ai_proposal_id and ai_proposal_revision_id. CHECK requires both NULL for manual
+and both NOT NULL for ai_proposal. Composite FK
+(ai_proposal_revision_id, customer_id, ai_proposal_id) references
+ai_authoring_proposal_revisions(id, customer_id, proposal_id), RESTRICT.
+Proposal acceptance and current authorization are application checks, not FK
+semantics. Parent IDs supplied by a request are never proof of acceptance.
+
+Add nullable BIGINT UNSIGNED ai_target_review_id and ai_context_review_id.
+Both are NULL for manual. ai_target_review_id is required for ai_proposal;
+ai_context_review_id may be NULL to use proposal.course_context_hash.
+Each references (id, customer_id, proposal_id, revision_id) on
+ai_authoring_proposal_reviews via (review_id, customer_id, ai_proposal_id,
+ai_proposal_revision_id), RESTRICT. AI's port checks action, exact target and
+context; FK only proves membership. Target reviews may be confirm_target,
+reconfirm_target, rebase_target or reject_target; reject_target explicitly blocks
+future publish until resolved, without changing an old Mapping. Context reviews
+are reconfirm_context/rebase_target.
+
+Only the Course owner service may create an AI-origin intent after verifying
+the exact accepted revision through the AI contract. Assigned teachers may use
+this narrowly scoped reviewed-proposal path; manual authoring and publication
+rights are not automatically widened. Existing Node/Framework published-only
+checks remain. Ordinary select keeps its selection lock; the explicit atomic
+rebase command below is the sole exception. No draft Node is inserted here.
+
+Publish revalidates AI-origin intents within the existing snapshot/promotion
+transaction. Stale/rejected/deleted proposals or changed edited payload fail
+publication; do not drop the intent silently. Accepted Course-context drift can
+be resolved by reconfirm_context, not a provider call. Source revision drift
+requires a human/generated successor with newly authorized sources. A prompt
+code update alone does not invalidate accepted human decisions.
+Promotion uses only the new
+published Course Version identities. Existing published Versions are not
+backfilled. Matching a manual intent's unique key must not relabel it as AI:
+return an explicit existing-intent conflict for human resolution.
+
+AI application.intent_id remains a historical receipt so deleting a mutable
+Intent is not blocked by AI audit. Retry of an applied receipt cannot recreate
+an intentionally removed intent; a new explicit authorized command is required.
+The successor command is available without AI; new human approval is required.
+This revised design is not implementation or a migration-review waiver.
+
+#### Explicit inherited-Version rebase
+
+Admin previews/approves a complete old/new Intent plan, matched by stable Node
+Definition within the same Framework. Target Version must be published; changed
+semantics require human confirmation and no old Intent may silently disappear.
+Course locks Template, AI locks affected proposals/receipts in stable order and
+Learning locks exact Versions then Framework. Under the same transaction Course
+removes old mutable Intents, changes selection and recreates explicitly mapped
+Intents with new IDs. This order satisfies the immediate selection FK. Any
+failure restores old IDs/selection. No FK is disabled and no snapshot is backfilled.
+
+AI-origin replacements retain accepted revision and store the newly appended
+rebase_target decision in ai_target_review_id/ai_context_review_id. Original
+applied receipt intent_id remains history; it is not rewritten. Different
+Definition or payload requires human successor instead. For future Course
+publish, AI.assertPublishableIntents validates the replacement's exact IDs and
+returns lineage; Course does not read ai_* directly.
+
+Promotion includes content-free AI provenance in immutable source_snapshot:
+proposal ID, revision ID, payload hash, target/context confirmation IDs and
+effective hashes. Learning validates and writes the snapshot; deleting mutable
+Intent later cannot remove Mapping -> Proposal lineage. No source excerpt or
+accepted payload is copied into this retained metadata.
+
+## Existing implemented authorization
 
 `customer_admin` is the Phase 1 Course author and may confirm `manual` Intent
 directly. AI Proposal/review authorization is deferred with Proposal persistence.
@@ -98,3 +189,21 @@ Manual Intent does not become stale when its working source changes; AI Intent
 staleness is deferred with Proposal fingerprint persistence. The Template surface
 must list orphaned Intents and let the author remove them before publish, because
 an orphan intentionally fails the publish transaction closed.
+
+## P2 confirmation/rebase refinement — Frozen / Not Implemented, 2026-09-15
+
+Course.updateProposalConfirmations receives current actor, Intent ID, expected
+pointer IDs, proposed AI review IDs and request UUID. It validates source/tenant/
+Template/revision through AI's port and updates only the relevant pointer under
+Template -> proposal -> application/Intent locks. AI decision append and Course
+update commit together. Missing Intent conflicts; it is never silently recreated.
+Applied receipt pointers are frozen history; ONLY Intent pointers govern future
+publish. The request UUID is persisted on the appended AI review, and replay
+returns that outcome after rechecking authorization, without a second update.
+
+Rebase preview includes old/new Course context and target content/hashes.
+Every old Intent requires map, remove_explicit with reason, or cancel_rebase
+(aborts the entire command). No silent loss. AI map to a different Definition
+requires human successor; manual map requires explicit eligible target selection.
+Only mapped rows are recreated. Removed rows remain represented in the full
+rebase_selection review plan. No old published state changes.

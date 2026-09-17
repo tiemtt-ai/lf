@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\AiAuthoringProposalException;
 use App\Support\SequentialCodeGenerator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,7 @@ class CourseTemplatePublishingService
         private readonly MediaService $mediaService,
         private readonly CourseTemplatePublishReadinessService $readinessService,
         private readonly LearningMappingPromotionService $learningMappingPromotion,
+        private readonly AiAuthoringPublicationService $aiPublication,
     ) {}
 
     public function publish(
@@ -142,7 +144,8 @@ class CourseTemplatePublishingService
             if (Schema::hasTable('core_course_template_learning_mapping_intents')) {
                 $this->learningMappingPromotion->promote(
                     $customerId, $templateId, $versionId, $lessonMap, $activityMap, $publishedBy, $now,
-                    $this->mappingPromotionSignature($customerId, $templateId, $versionId, $publishedBy)
+                    $this->mappingPromotionSignature($customerId, $templateId, $versionId, $publishedBy),
+                    $this->aiLineage($customerId, $templateId, $publishedBy),
                 );
             }
 
@@ -474,6 +477,32 @@ class CourseTemplatePublishingService
                 $field => __(
                     'lf.LF_course_template_publish_invalid_structure'
                 ),
+            ]);
+        }
+    }
+
+    /**
+     * Step 7: every AI-origin Intent is revalidated by the AI owner port inside
+     * this transaction (Template already locked). A refusal fails the whole
+     * publish closed; the Intent is never silently dropped. Course hands over
+     * its own rows and never reads `ai_*` tables.
+     *
+     * @return array<int,array<string,mixed>> content-free lineage keyed by Intent id
+     */
+    private function aiLineage(int $customerId, int $templateId, int $publishedBy): array
+    {
+        $intents = DB::table('core_course_template_learning_mapping_intents')
+            ->where('customer_id', $customerId)->where('template_id', $templateId)
+            ->where('origin', 'ai_proposal')->orderBy('id')->get()->all();
+        if ($intents === []) {
+            return [];
+        }
+
+        try {
+            return $this->aiPublication->assertPublishableIntents($publishedBy, $templateId, $intents);
+        } catch (AiAuthoringProposalException $exception) {
+            throw ValidationException::withMessages([
+                'publish' => 'An AI-reviewed Learning Mapping is no longer publishable ('.$exception->errorCode.').',
             ]);
         }
     }

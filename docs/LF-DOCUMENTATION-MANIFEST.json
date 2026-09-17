@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-09-13",
+  "generated_or_updated_at": "2026-09-16",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 263,
+  "document_count": 271,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -1756,6 +1756,203 @@
       ],
       "related_documents": [
         "database/ai/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/ai/ai_authoring_generation_requests.md",
+      "title": "Table: ai_authoring_generation_requests",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Frozen",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": ["ai-authoring-proposal", "idempotency"],
+      "keywords": {
+        "vi": ["yêu cầu tạo đề xuất", "chống gọi AI trùng", "kết quả rỗng"],
+        "en": ["generation request", "idempotency", "zero-item outcome"]
+      },
+      "identifiers": ["ai_authoring_generation_requests", "request_uuid", "command_hash"],
+      "related_documents": ["platform/LF-AI-Authoring-Proposal-Contract.md"],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/ai/ai_authoring_proposal_applications.md",
+      "title": "Table: ai_authoring_proposal_applications",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Frozen",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "ai-authoring-proposal"
+      ],
+      "keywords": {
+        "vi": [
+          "đề xuất AI",
+          "giáo viên duyệt",
+          "áp dụng đề xuất"
+        ],
+        "en": [
+          "AI authoring proposal",
+          "human approval",
+          "ai_authoring_proposal_applications"
+        ]
+      },
+      "identifiers": [
+        "ai_authoring_proposal_applications",
+        "ADR-0017"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Proposal-Contract.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/ai/ai_authoring_proposal_reviews.md",
+      "title": "Table: ai_authoring_proposal_reviews",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Frozen",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "ai-authoring-proposal"
+      ],
+      "keywords": {
+        "vi": [
+          "đề xuất AI",
+          "giáo viên duyệt",
+          "lịch sử duyệt"
+        ],
+        "en": [
+          "AI authoring proposal",
+          "human approval",
+          "ai_authoring_proposal_reviews"
+        ]
+      },
+      "identifiers": [
+        "ai_authoring_proposal_reviews",
+        "ADR-0017"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Proposal-Contract.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/ai/ai_authoring_proposal_revisions.md",
+      "title": "Table: ai_authoring_proposal_revisions",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Frozen",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "ai-authoring-proposal"
+      ],
+      "keywords": {
+        "vi": [
+          "đề xuất AI",
+          "giáo viên duyệt",
+          "phiên bản chỉnh sửa"
+        ],
+        "en": [
+          "AI authoring proposal",
+          "human approval",
+          "ai_authoring_proposal_revisions"
+        ]
+      },
+      "identifiers": [
+        "ai_authoring_proposal_revisions",
+        "ADR-0017"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Proposal-Contract.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/ai/ai_authoring_proposal_sources.md",
+      "title": "Table: ai_authoring_proposal_sources",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Frozen",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "ai-authoring-proposal"
+      ],
+      "keywords": {
+        "vi": [
+          "đề xuất AI",
+          "giáo viên duyệt",
+          "nguồn trích dẫn"
+        ],
+        "en": [
+          "AI authoring proposal",
+          "human approval",
+          "ai_authoring_proposal_sources"
+        ]
+      },
+      "identifiers": [
+        "ai_authoring_proposal_sources",
+        "ADR-0017"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Proposal-Contract.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/ai/ai_authoring_proposals.md",
+      "title": "Table: ai_authoring_proposals",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Frozen",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "ai-authoring-proposal"
+      ],
+      "keywords": {
+        "vi": [
+          "đề xuất AI",
+          "giáo viên duyệt",
+          "thiết kế Bước 7"
+        ],
+        "en": [
+          "AI authoring proposal",
+          "human approval",
+          "ai_authoring_proposals"
+        ]
+      },
+      "identifiers": [
+        "ai_authoring_proposals",
+        "inherited_decision_draft",
+        "successor_reason",
+        "ADR-0017"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Proposal-Contract.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -8022,6 +8219,41 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "platform/LF-AI-Authoring-Proposal-Contract.md",
+      "title": "AI Authoring Proposal Contract",
+      "area": "platform",
+      "document_type": "domain_policy",
+      "document_status": "Frozen",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "domain",
+      "canonical_for": [],
+      "topics": [
+        "ai-authoring-proposal"
+      ],
+      "keywords": {
+        "vi": [
+          "đề xuất AI",
+          "giáo viên duyệt",
+          "thiết kế Bước 7"
+        ],
+        "en": [
+          "AI authoring proposal",
+          "human approval",
+          "LF-AI-Authoring-Proposal-Contract"
+        ]
+      },
+      "identifiers": [
+        "LF-AI-Authoring-Proposal-Contract",
+        "ADR-0017"
+      ],
+      "related_documents": [
+        "adr/ADR-0017-AI-Assisted-Learning-Authoring.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "platform/LF-AI.md",
       "title": "LF-AI.md",
       "area": "platform",
@@ -8394,6 +8626,30 @@
       "related_documents": [
         "platform/LF-Media-Processing-Contract.md",
         "quality/LF-Media-Processing-Substrate-Architecture-Review.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Authoring-Proposal-Implementation-Review.md",
+      "title": "AI Authoring Proposal — Implementation Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": ["ai", "authoring", "proposal", "implementation", "verification"],
+      "keywords": {
+        "vi": ["Bước 7", "đề xuất AI", "giáo viên duyệt", "nghiệm thu backend"],
+        "en": ["authoring proposal", "implementation evidence", "HTTP authorization"]
+      },
+      "identifiers": ["ai_authoring_proposals", "AiAuthoringProposalService"],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Proposal-Contract.md",
+        "platform/LF-AI.md",
+        "database/ai/README.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
