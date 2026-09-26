@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Events\MediaRevisionReady;
 use App\Exceptions\MediaReadException;
 use App\Jobs\ProcessMediaProcessingJob;
 use App\Models\User;
@@ -14,6 +15,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
@@ -364,6 +366,40 @@ class AudioProcessingLocalReviewTest extends TestCase
     }
 
     /** Revision moi archive ban cu; mac dinh chi tra ban hien hanh. */
+    /**
+     * Knowledge Sync Contract A2: a committed `ready` revision announces itself
+     * so consumers need not wait for their reconciliation; a failed run
+     * announces nothing.
+     */
+    public function test_a_committed_ready_revision_announces_itself_and_a_failed_run_does_not(): void
+    {
+        Event::fake([MediaRevisionReady::class]);
+        config(['media.processing.providers.speech_to_text' => 'fake']);
+        $media = $this->uploadAudio();
+        $provider = Mockery::mock(FakeMediaProcessingProvider::class);
+        $provider->shouldReceive('process')->once()->andThrow(new \RuntimeException('provider_failed'));
+        $provider->shouldReceive('process')->once()->andReturn(
+            ['units' => [['locator_type' => 'timespan', 'locator_value' => '0-1000', 'text' => 'xin chao']]],
+        );
+        $this->app->instance(FakeMediaProcessingProvider::class, $provider);
+
+        $this->attach($media, 'vi');
+
+        $this->assertNotSame('ready', $this->sttJob($media)->status);
+        Event::assertNotDispatched(MediaRevisionReady::class);
+
+        config(['media.processing.versions.speech_to_text' => 'faster-whisper-small-local-review-v2']);
+        app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
+            $this->customerId, (int) $media->id, 'speech_to_text', ['locale' => 'vi', 'diarization' => 'off'], $this->admin->id
+        );
+
+        $this->assertSame('ready', $this->sttJob($media)->status);
+        // Only the readable revision announces itself; the virus scan that also
+        // committed `ready` for this file does not.
+        Event::assertDispatchedTimes(MediaRevisionReady::class, 1);
+        Event::assertDispatched(MediaRevisionReady::class, fn (MediaRevisionReady $event): bool => $event->customerId === $this->customerId && $event->mediaFileId === (int) $media->id);
+    }
+
     public function test_a_new_processing_version_archives_the_previous_audio_revision(): void
     {
         config(['media.processing.providers.speech_to_text' => 'fake']);
@@ -391,18 +427,20 @@ class AudioProcessingLocalReviewTest extends TestCase
         $current = $this->read('vi');
         $this->assertCount(1, $current);
         $this->assertSame('ban moi', $current[0]['text']);
-        $this->assertSame('faster-whisper-small-local-review-v2', $current[0]['processing_version']);
+        // VAD strategy participates in STT identity (VAD correction 2026-09-07).
+        $vad = '+vad-'.substr(hash('sha256', (string) config('media.processing.speech_to_text.vad_strategy')), 0, 8);
+        $this->assertSame('faster-whisper-small-local-review-v2'.$vad, $current[0]['processing_version']);
 
         // Ban archived van doc duoc khi neu dich danh processing_version.
         $archived = app(MediaReadService::class)->read($this->admin->id, 'course_activity', $this->activityId,
-            'audio', 'transcript', 'vi', 'faster-whisper-small-local-review-v1');
+            'audio', 'transcript', 'vi', 'faster-whisper-small-local-review-v1'.$vad);
         $this->assertSame('ban cu', $archived[0]['text']);
         $this->assertSame('archived', $archived[0]['status']);
 
         // Fingerprint lech thi la loi, khong phai bo qua selector.
         try {
             app(MediaReadService::class)->read($this->admin->id, 'course_activity', $this->activityId,
-                'audio', 'transcript', 'vi', 'faster-whisper-small-local-review-v1', str_repeat('0', 64));
+                'audio', 'transcript', 'vi', 'faster-whisper-small-local-review-v1'.$vad, str_repeat('0', 64));
             $this->fail('Stale fingerprint phai bi tu choi.');
         } catch (MediaReadException $error) {
             $this->assertSame('revision_mismatch', $error->errorCode);

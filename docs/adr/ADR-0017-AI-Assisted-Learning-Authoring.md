@@ -4,9 +4,9 @@ Version: 1.1
 
 Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Partial
 
-Last Updated: 2026-09-14
+Last Updated: 2026-09-26
 
 Approval Date: 2026-08-16
 
@@ -24,6 +24,17 @@ Related ADRs:
 * [ADR-0016 — Learning Foundation](ADR-0016-Learning-Foundation.md)
 
 ---
+
+# Implementation status note — 2026-09-26
+
+Ghi chú trạng thái, không đổi quyết định. `# Context` dưới đây mô tả thời điểm
+phê duyệt 2026-08-16 và là lịch sử: Media processing runtime (OCR, structured
+extraction, transcript, frame OCR) đã có; Learning Framework authoring có route,
+controller và UI thủ công, Gate 2 independent PASS
+([review](../quality/LF-Learning-Gate-2-Independent-Review.md)). Luồng đề xuất
+của ADR này có schema, service và HTTP v1 theo
+[contract Bước 7](../platform/LF-AI-Authoring-Proposal-Contract.md); UI đề xuất
+và provider thật chưa có. `Partial` mô tả phạm vi ADR, không phải Freeze.
 
 # Context
 

@@ -21,6 +21,9 @@ class AiKnowledgeIngestionService
 
     private const EMBEDDING_DELETABLE_STATUSES = ['pending', 'ready', 'failed', 'stale'];
 
+    /** A3: `pending|active|failed|stale → archived`; `archived` never returns. */
+    private const ARCHIVABLE_STATUSES = ['pending', 'active', 'failed', 'stale'];
+
     public const CHUNKER_VERSION = 'media-unit-unicode-v1';
 
     public const MAX_CHARS = 4000;
@@ -59,6 +62,82 @@ class AiKnowledgeIngestionService
             languageProfile: $languageProfile,
         );
 
+        return $this->register($customerId, $actorId, $ownerType, $ownerId, $usageType,
+            $contentType, $title, $languageProfile, $units);
+    }
+
+    /**
+     * Knowledge Sync Contract: the same registration, fed by the Media-owned
+     * system principal. `created_by` stays NULL because no person asked.
+     *
+     * @return array{source_id:int,source_uuid:string,generation:int,chunk_count:int,reused:bool}
+     */
+    public function ingestForSync(
+        string $ownerType,
+        int $ownerId,
+        string $usageType,
+        string $contentType,
+        ?string $locale,
+        string $title,
+        ?array $languageProfile = null,
+    ): array {
+        $customerId = TenantContext::customerId()
+            ?? throw new AiKnowledgeIngestionException('unauthorized');
+
+        $units = $this->mediaRead->readForKnowledgeSync(
+            $ownerType, $ownerId, $usageType, $contentType, $locale, $languageProfile,
+        );
+
+        return $this->register($customerId, null, $ownerType, $ownerId, $usageType,
+            $contentType, $title, $languageProfile, $units);
+    }
+
+    /**
+     * Owner no longer eligible (Knowledge Sync Contract A3): the source leaves
+     * retrieval but keeps content and provenance for citations. Embeddings
+     * follow the rebuild rule — never `pending → stale`.
+     */
+    public function archiveSource(int $sourceId): bool
+    {
+        $customerId = TenantContext::customerId()
+            ?? throw new AiKnowledgeIngestionException('unauthorized');
+
+        return DB::transaction(function () use ($customerId, $sourceId): bool {
+            $source = DB::table('ai_knowledge_sources')->where('customer_id', $customerId)
+                ->where('id', $sourceId)->lockForUpdate()->first();
+            if ($source === null || ! in_array($source->status, self::ARCHIVABLE_STATUSES, true)) {
+                return false;
+            }
+
+            $now = now();
+            $chunkIds = DB::table('ai_knowledge_chunks')->where('customer_id', $customerId)
+                ->where('knowledge_source_id', $sourceId)->pluck('id');
+            if ($chunkIds->isNotEmpty()) {
+                DB::table('ai_embeddings')->where('customer_id', $customerId)
+                    ->whereIn('knowledge_chunk_id', $chunkIds)->where('status', 'pending')
+                    ->update(['status' => 'deletion_pending', 'deletion_requested_at' => $now, 'updated_at' => $now]);
+                DB::table('ai_embeddings')->where('customer_id', $customerId)
+                    ->whereIn('knowledge_chunk_id', $chunkIds)->whereIn('status', ['ready', 'failed'])
+                    ->update(['status' => 'stale', 'updated_at' => $now]);
+            }
+            DB::table('ai_knowledge_chunks')->where('customer_id', $customerId)
+                ->where('knowledge_source_id', $sourceId)->whereIn('status', self::ARCHIVABLE_STATUSES)
+                ->update(['status' => 'archived', 'updated_at' => $now]);
+            DB::table('ai_knowledge_sources')->where('customer_id', $customerId)->where('id', $sourceId)
+                ->update(['status' => 'archived', 'updated_at' => $now]);
+
+            return true;
+        }, 3);
+    }
+
+    /**
+     * @param  array<int,array<string,mixed>>  $units
+     * @return array{source_id:int,source_uuid:string,generation:int,chunk_count:int,reused:bool}
+     */
+    private function register(
+        int $customerId, ?int $actorId, string $ownerType, int $ownerId, string $usageType,
+        string $contentType, string $title, string|array|null $languageProfile, array $units,
+    ): array {
         if ($units === []) {
             throw new AiKnowledgeIngestionException('empty_revision');
         }

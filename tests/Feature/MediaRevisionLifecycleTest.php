@@ -521,14 +521,20 @@ class MediaRevisionLifecycleTest extends TestCase
     }
 
     /**
-     * Moi fixture trong file nay la video, va `processing_version` cua video STT
-     * gom ca canonical ffmpeg extraction profile (Amendment Record 2.19 § 1).
-     * Test dung chinh ham dung version cua runtime thay vi go tay chuoi ghep —
-     * neu cach ghep doi, test doi theo chu khong im lang bo qua.
+     * Video STT identity: base version, then the VAD strategy (Media Processing
+     * Contract, VAD correction 2026-09-07), then the canonical ffmpeg extraction
+     * profile (Amendment Record 2.19 § 1). The components are spelled out on
+     * purpose: these tests pin the approved composition, so a builder change
+     * that drops one must fail here instead of being followed silently.
      */
     private function videoVersion(string $base): string
     {
-        return $base.'+'.app(VideoSpeechToTextProfile::class)->label();
+        return $base.self::vadSuffix().'+'.app(VideoSpeechToTextProfile::class)->label();
+    }
+
+    private static function vadSuffix(): string
+    {
+        return '+vad-'.substr(hash('sha256', (string) config('media.processing.speech_to_text.vad_strategy')), 0, 8);
     }
 
     private function transcriptStatus(int $mediaFileId, string $version, string $locale = 'vi'): ?string

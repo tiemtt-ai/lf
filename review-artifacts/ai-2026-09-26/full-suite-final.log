@@ -1,0 +1,1732 @@
+
+   PASS  Tests\Unit\DocumentCellOverlapTest
+  ✓ huge merged area does not expand and touching edges are valid
+  ✓ sweep matches exhaustive rectangle oracle                            0.02s  
+
+   PASS  Tests\Unit\DocumentLanguageProfileTest
+  ✓ one two and three locale profiles are canonical unordered sets       0.20s  
+  ✓ duplicate more than three invalid and unsupported profiles fail clo… 0.03s  
+
+   PASS  Tests\Unit\LiveClassSchedulePreviewDstTest
+  ✓ local wall clock time is preserved across the spring forward bounda… 0.06s  
+  ✓ local wall clock time is preserved across the autumn back boundary   0.04s  
+  ✓ a slot inside the skipped hour still yields one occurrence           0.04s  
+  ✓ derived status uses the schedule timezone not the server timezone    0.03s  
+
+   PASS  Tests\Unit\LiveClassSessionOriginClassificationTest
+  ✓ origin backed session matching its snapshot is on schedule           0.07s  
+  ✓ origin backed session with a moved interval is rescheduled           0.03s  
+  ✓ classification compares normalized instants not wall clock           0.02s  
+  ✓ manual session created after the cutover is off schedule             0.03s  
+  ✓ legacy session created before the cutover is source unknown          0.02s  
+  ✓ the cutover instant itself counts as manual                          0.03s  
+
+   PASS  Tests\Unit\LiveClassSessionPolicyTest
+  ✓ can edit locks a session that already started in its own timezone    0.09s  
+  ✓ can edit keeps a session editable until its real start instant       0.02s  
+  ✓ can record attendance follows the real start instant                 0.03s  
+  ✓ can create recording follows the real end instant                    0.02s  
+  ✓ default timezone behaviour is unchanged                              0.02s  
+  ✓ a started session is not editable even without actual start          0.02s  
+
+   PASS  Tests\Unit\MediaMetadataProbeTest
+  ✓ it reads audio duration and ignores non timed media                  0.31s  
+  ✓ it returns null when ffprobe cannot read the file                    0.03s  
+
+   PASS  Tests\Unit\MySqlSchemaInspectorTest
+  ✓ it inspects only the selected database schema                        0.03s  
+
+   PASS  Tests\Unit\SchemaDriftAnalyzerTest
+  ✓ matching schema passes                                               0.01s  
+  ✓ semantic drift is detected with data set "missing table"
+  ✓ semantic drift is detected with data set "unexpected table"
+  ✓ semantic drift is detected with data set "missing column"
+  ✓ semantic drift is detected with data set "type mismatch"
+  ✓ semantic drift is detected with data set "nullable mismatch"
+  ✓ semantic drift is detected with data set "default mismatch"
+  ✓ semantic drift is detected with data set "missing unique index"
+  ✓ semantic drift is detected with data set "foreign key action mismatch"
+  ✓ semantic drift is detected with data set "missing trigger"
+  ✓ planned table absence is info only
+  ✓ trigger name drift is detected when the contract requires identity
+  ✓ trigger identity requirement must be boolean
+  ✓ migration ledger reports pending and missing source
+  ✓ migration inventory detects raw create table statements
+  ✓ duplicate contract entry fails validation
+  ✓ invalid documentation path fails validation
+
+   PASS  Tests\Unit\SpeechLanguageProfileTest
+  ✓ profiles are canonical unordered sets of up to three locales         0.04s  
+  ✓ duplicate invalid oversized and unsupported profiles fail closed     0.03s  
+
+   PASS  Tests\Unit\TranscriptVttSerializerTest
+  ✓ one segment becomes exactly one cue in order                         0.04s  
+  ✓ the file starts with webvtt and has no bom                           0.02s  
+  ✓ timestamps are built from integer milliseconds                       0.02s  
+  ✓ an hour count above ninety nine is not truncated                     0.02s  
+  ✓ touching cues are valid and overlap is refused                       0.02s  
+  ✓ an arrow token in the text fails the whole revision                  0.02s  
+  ✓ a control character fails the whole revision                         0.02s  
+  ✓ a blank line inside the text fails the whole revision                0.03s  
+  ✓ windows and mac line endings are normalised not rejected             0.02s  
+  ✓ the cue budget is enforced                                           0.02s  
+  ✓ the byte budget is enforced                                          0.02s  
+  ✓ the same input always produces the same bytes                        0.02s  
+  ✓ an empty transcript produces no caption                              0.02s  
+
+   PASS  Tests\Unit\TrustedVideoUrlServiceTest
+  ✓ normalizes supported urls with data set #0                           0.13s  
+  ✓ normalizes supported urls with data set #1
+  ✓ normalizes supported urls with data set #2
+  ✓ normalizes supported urls with data set #3
+  ✓ rejects unsafe urls with data set #0
+  ✓ rejects unsafe urls with data set #1
+  ✓ rejects unsafe urls with data set #2
+  ✓ rejects unsafe urls with data set #3
+  ✓ rejects unsafe urls with data set #4
+  ✓ rejects unsafe urls with data set #5
+  ✓ rejects unsafe urls with data set #6
+  ✓ rejects unsafe urls with data set #7
+  ✓ generates trusted embed url
+
+   PASS  Tests\Feature\AdminProfileTest
+  ✓ admin profile uses password modal and can change own password        1.85s  
+  ✓ admin password change rejects wrong current password mismatch and r… 0.07s  
+  ✓ admin can update only own my account profile                         0.05s  
+  ✓ admin organization updates only tenant information                   0.03s  
+  ✓ admin organization uses the shared adaptive form contract            0.04s  
+  ✓ admin organization keeps field errors adjacent and accessible        0.04s  
+
+   WARN  Tests\Feature\AiEmbeddingServiceTest
+  ✓ controlled recovery preserves quota and history until purge then us… 0.06s  
+  ✓ controlled recovery rolls back run and embeddings on write failure   0.03s  
+  ✓ controlled recovery refuses missing confirmations wrong actor and n… 0.04s  
+  ✓ controlled recovery command requires confirmation and restores tena… 0.03s  
+  ✓ unconfigured worker writes nothing and calls nothing                 0.03s  
+  ✓ shipped bindings refuse without any test double                      0.03s  
+  ✓ unconfigured store stops before the provider is asked                0.03s  
+  ✓ gate refusal leaves no embedding row and no side effect              0.03s  
+  ✓ successful pass marks rows ready and indexes every chunk             0.03s  
+  ✓ point payload carries identity only                                  0.03s  
+  ✓ second pass is idempotent                                            0.03s  
+  ✓ completed prefix does not starve later batches                       0.04s  
+  ✓ dimension mismatch never reaches the index                           0.04s  
+  ✓ non numeric and non finite vectors never reach the store             0.05s  
+  ✓ misaligned provider response is refused                              0.03s  
+  ✓ partial store failure queues the points that landed for purge        0.03s  
+  ✓ failed rows are retried by a later pass                              0.04s  
+  ✓ a retry keeps the failed attempt as evidence                         0.04s  
+  ✓ superseded identity gets new generation without rewriting history    0.05s  
+  ✓ deleted generation and its vector key are never reused               0.04s  
+  - generation constraints are physically enforced on mariadb → Physica… 0.03s  
+  ✓ pending rows under a live run are not claimed again                  0.04s  
+  ✓ abandoned queued runs are cancelled and their rows freed             0.03s  
+  ✓ running runs are never reaped                                        0.03s  
+  ✓ only documented statuses are ever written                            0.04s  
+  ✓ stale marks supersede without claiming the point is gone             0.03s  
+  ✓ a refusal on the second authorization fails claimed rows for retry   0.05s  
+  ✓ one embedding pass holds and settles exactly one reservation         0.03s  
+  ✓ a second authorization refusal releases the single hold              0.03s  
+  ✓ an adapter whose provider does not support the approved model is ne… 0.03s  
+  ✓ an adapter for a different provider is never called                  0.03s  
+  ✓ pending rows under a blocked run are reclaimed                       0.03s  
+  ✓ purge is not starved by rows behind a live writer                    0.04s  
+  ✓ persistent point delete error does not starve later points           0.04s  
+  ✓ persistent point lookup error does not starve later points           0.05s  
+  - real qdrant maintenance passes a broken collection and recovers it…  0.02s  
+  ✓ run status policy covers exactly the schema vocabulary               0.03s  
+  ✓ purge waits until a live writer cannot recreate the old point        0.03s  
+  ✓ purge tombstones only what the store acknowledged                    0.04s  
+  ✓ store error during purge keeps the row retryable                     0.04s  
+  ✓ purge is what releases the source delete barrier                     0.04s  
+  ✓ reconciliation cannot resurrect a concurrent deletion                0.03s  
+  ✓ reconciliation cannot finish a different attempt                     0.04s  
+  ✓ reconcile promotes a pending row whose point did land                0.03s  
+  ✓ reconcile fails a pending row whose point is absent                  0.04s  
+  ✓ reconcile treats an unreachable store as unknown not absent          0.03s  
+  ✓ reconcile ignores rows whose run has not finished                    0.03s  
+  ✓ another tenant cannot be embedded or purged                          0.04s  
+  - mysql all ready pass uses one candidate query without identity batc… 0.02s  
+  ✓ candidate prefilter does not hide a changed source fingerprint       0.04s  
+  ✓ latest replaceable generation is not hidden by an older ready gener… 0.04s  
+
+   WARN  Tests\Feature\AiKnowledgeIngestionServiceTest
+  ✓ prepare command persists chunks without a model and restores contex… 0.07s  
+  ✓ prepare command rejects an actor from another tenant                 0.03s  
+  ✓ it ingests media units with exact provenance and is idempotent       0.03s  
+  ✓ oversized unit is split deterministically without overlap            0.03s  
+  ✓ new revision creates a new source and stales the old revision        0.04s  
+  ✓ new revision queues pending embeddings for delete without staling l… 0.03s  
+  ✓ mixed revision payload fails atomically                              0.03s  
+  ✓ tenants with identical content receive isolated sources and chunks   0.03s  
+  ✓ repeated deletion request keeps the original request time            0.03s  
+  ✓ delete barrier requires all embeddings to be deleted before tombsto… 0.03s  
+  ✓ ingestion creates no model run embedding or vector side effect       0.02s  
+  ✓ deleted registration is not revived and reingest uses next generati… 0.03s  
+  ✓ same revision with changed content fails instead of mutating snapsh… 0.03s  
+  ✓ same revision rebuild rejects sequence drift                         0.03s  
+  ✓ table cell text is serialized by row and column into one unit chunk  0.02s  
+  - delete barrier uses a real for update lock on mariadb → FOR UPDATE…  0.02s  
+
+   PASS  Tests\Feature\AiKnowledgeRetrievalServiceTest
+  ✓ archived source is dropped even when chunks are active               0.05s  
+  ✓ active chunk with deletion request is not returned                   0.04s  
+  ✓ each media revision guard independently refuses a candidate with da… 0.04s  
+  ✓ each media revision guard independently refuses a candidate with da… 0.04s  
+  ✓ each media revision guard independently refuses a candidate with da… 0.04s  
+  ✓ each media revision guard independently refuses a candidate with da… 0.04s  
+  ✓ authorized hits are returned in store rank order                     0.04s  
+  ✓ unauthorized actor gets nothing even though the index matched        0.04s  
+  ✓ audit failure prevents returning retrieved content                   0.04s  
+  ✓ archived chunk is dropped                                            0.04s  
+  ✓ stale and deletion pending embeddings are dropped                    0.05s  
+  ✓ a revision that moved on is dropped even if nothing marked it stale  0.04s  
+  ✓ a source pending deletion is dropped                                 0.04s  
+  ✓ hits belonging to another tenant are dropped                         0.04s  
+  ✓ limit is applied after filtering not before                          0.04s  
+  ✓ allowed access is audited only for hits actually returned            0.04s  
+  ✓ a query vector of the wrong width never reaches the store            0.04s  
+  ✓ unconfigured store returns nothing                                   0.04s  
+  ✓ detached usage denies old chunks and audits detached                 0.04s  
+  ✓ replaced file denies old chunks even with the same fingerprint and…  0.05s  
+  ✓ ambiguous active slot is denied instead of picking the indexed file  0.03s  
+  ✓ tombstoned media cannot be read even if usage and output are left a… 0.04s  
+  ✓ new ready media revision denies internally consistent old ai snapsh… 0.03s  
+  ✓ a new failed job does not supersede the current ready revision       0.03s  
+  ✓ cache does not authorize another usage slot on the same owner        0.03s  
+  ✓ real authorizer rechecks actor status and teacher assignment         0.11s  
+  ✓ multilingual revision is selected with the stored profile with data… 0.06s  
+  ✓ multilingual revision is selected with the stored profile with data… 0.06s  
+  ✓ multilingual revision is selected with the stored profile with data… 0.04s  
+
+   WARN  Tests\Feature\AiProviderExecutionGateTest
+  ✓ fail closed defaults block when no saas authority is bound           0.04s  
+  ✓ pre authorized loser cannot release a running attempt                0.03s  
+  ✓ pre authorized cleanup rejects a different request                   0.02s  
+  ✓ missing allow list blocks before any provider call                   0.02s  
+  ✓ tenant approval must match exactly with data set "not approved"      0.04s  
+  ✓ tenant approval must match exactly with data set "data class not ap… 0.02s  
+  ✓ tenant approval must match exactly with data set "region not approv… 0.02s  
+  ✓ tenant approval must match exactly with data set "retention not app… 0.02s  
+  ✓ tenant approval must match exactly with data set "no setting at all… 0.03s  
+  ✓ missing entitlement blocks with quota exceeded                       0.02s  
+  ✓ exhausted quota blocks with quota exceeded                           0.02s  
+  ✓ safety policy blocks and hands the reservation back                  0.03s  
+  ✓ a fully approved request reaches the adapter and only then resolves… 0.04s  
+  ✓ every attempt creates exactly one run with safe provenance           0.03s  
+  ✓ no secret or payload reaches the run record                          0.03s  
+  ✓ one tenant cannot use another tenants approval entitlement or run    0.02s  
+  ✓ concurrent reservations cannot oversubscribe the quota               0.02s  
+  ✓ provider failure keeps the executing reservation and records a stab… 0.02s  
+  ✓ adapter factory failure is sanitized and releases the reservation    0.03s  
+  ✓ quota commit failure keeps the reservation for reconciliation        0.03s  
+  ✓ usage above the reserved ceiling is not truncated or refunded        0.02s  
+  ✓ a reservation abandoned by a crash is reclaimed by reconciliation    0.03s  
+  ✓ a reused run uuid cannot rewrite the provenance of an existing run   0.02s  
+  ✓ a second execute cannot hide behind the first calls run record       0.02s  
+  ✓ two callers racing on one queued run yield a single provider call    0.02s  
+  ✓ an adapter for a different provider is refused before it is called   0.02s  
+  ✓ an adapter serving a model that was never approved is refused        0.02s  
+  ✓ the adapter is not even constructed until every gate step passed     0.02s  
+  ✓ an audit row exists before any quota is reserved                     0.02s  
+  ✓ prompt scope is part of the immutable run identity                   0.04s  
+  ✓ a run belonging to another tenant is never transitioned              0.03s  
+  ✓ a hold past the provider boundary has a terminal state via reconcil… 0.03s  
+  ✓ the gate never attempts a release past the provider boundary         0.03s  
+  ✓ a caller that loses the claim race never touches the shared reserva… 0.03s  
+  ✓ reconciliation settles consumption whose producer died before settl… 0.03s  
+  ✓ reconciliation settles an overage it discovers after the fact        0.03s  
+  ✓ the hold snapshots the metric it will settle as                      0.02s  
+  ✓ the shipped database bindings block cleanly while the saas tables a… 0.02s  
+  ✓ the reservation store reserves nothing while its table is absent     0.04s  
+  ✓ real quota store settles the gate without a live provider            0.03s  
+  - mariadb revalidation refund and execution claim serialize on the ru… 0.03s  
+  ✓ second authorization refusal releases the real ledger hold           0.04s  
+
+   PASS  Tests\Feature\AiVisionInterpretationServiceTest
+  ✓ an unconfigured deployment neither reads media nor mints a run       0.11s  
+  ✓ the shipped provider is refused before any call                      0.07s  
+  ✓ a gate refusal writes nothing and calls no provider                  0.07s  
+  ✓ a region is interpreted with its anchor copied from media read       0.07s  
+  ✓ no media table is written and the signed url is never persisted      0.18s  
+  ✓ unusable output fails the run and writes no row with data set "empt… 0.05s  
+  ✓ unusable output fails the run and writes no row with data set "too…  0.04s  
+  ✓ unusable output fails the run and writes no row with data set "echo… 0.06s  
+  ✓ a different provider is refused as adapter mismatch                  0.07s  
+  ✓ a refusal on the second authorization writes nothing                 0.06s  
+  ✓ an unknown region locator never reaches the gate                     0.05s  
+  ✓ a region without a crop never reaches the gate                       0.05s  
+  ✓ a media read refusal is returned by name                             0.05s  
+  ✓ an existing ready interpretation is reused and refresh supersedes i… 0.06s  
+  ✓ a competing ready row written during the call is superseded          0.06s  
+  ✓ interpreting the current revision stales an older revision           0.16s  
+  ✓ retrieval returns citations and audits without text                  0.09s  
+  ✓ retrieval denies a detached usage by name                            0.06s  
+  ✓ retrieval denies a row whose revision moved on                       0.06s  
+  ✓ retrieval discloses nothing when audit cannot be written             0.05s  
+  ✓ another tenant cannot see or delete interpretations                  0.05s  
+  ✓ a deletion request is idempotent and keeps the original time         0.06s  
+  ✓ finalizing deletion erases text keeps provenance and hides it        0.06s  
+  ✓ deleting the media file erases its interpretations and no other      0.08s  
+  ✓ a media deletion blocked by an active usage keeps interpretations    0.06s  
+  ✓ the queued listener job is marked after commit                       0.05s  
+  ✓ the listener waits for the outermost commit                          0.17s  
+  ✓ a rolled back media deletion enqueues nothing                        0.08s  
+  ✓ a deletion event is not proof of deletion                            0.07s  
+  ✓ the listener stays in the event tenant and restores the context      0.07s  
+  ✓ a media deleted during the provider call leaves no interpretation    0.07s  
+  ✓ reconciliation erases interpretations a missed event left behind     0.07s  
+  ✓ reconciliation is not starved by media files that still exist        0.08s  
+  ✓ media announces deletion without knowing about ai                    0.05s  
+
+   WARN  Tests\Feature\AiVisionInterpretationsSchemaTest
+  ✓ a valid document region interpretation is stored                     0.05s  
+  ✓ only one ready row may hold a unit slot                              0.03s  
+  ✓ non ready rows do not occupy the slot                                0.03s  
+  ✓ superseding moves the old row to stale then inserts                  0.03s  
+  ✓ distinct slots with separator characters never collide               0.03s  
+  ✓ the same slot in another tenant is independent                       0.03s  
+  - check constraints refuse invalid rows with data set "video usage (…  0.03s  
+  - check constraints refuse invalid rows with data set "frame text con… 0.03s  
+  - check constraints refuse invalid rows with data set "page locator (… 0.04s  
+  - check constraints refuse invalid rows with data set "page zero" → C… 0.03s  
+  - check constraints refuse invalid rows with data set "failed status…  0.03s  
+  - check constraints refuse invalid rows with data set "unknown owner…  0.03s  
+  - check constraints refuse invalid rows with data set "partial bbox"…  0.02s  
+  - check constraints refuse invalid rows with data set "bbox outside t… 0.03s  
+  - check constraints refuse invalid rows with data set "ready without…  0.03s  
+  - check constraints refuse invalid rows with data set "deleted still…  0.03s  
+  - check constraints refuse invalid rows with data set "deleted withou… 0.04s  
+  - check constraints refuse invalid rows with data set "deletion pendi… 0.03s  
+  ✓ bbox may be absent when the source region has none                   0.03s  
+  ✓ a deleted tombstone erases text but keeps provenance                 0.03s  
+  - a row cannot cite another tenants media file → CHECK constraints an… 0.03s  
+  - a row cannot reference another tenants model run → CHECK constraint… 0.03s  
+  ✓ rollback refuses while rows exist before any ddl                     0.03s  
+
+   FAIL  Tests\Feature\AudioProcessingLocalReviewTest
+  ⨯ real audio activity usage after commit dispatch and authorized read  7.85s  
+  ⨯ real duplicate dispatch creates one job and one transcript revision  5.78s  
+  ⨯ real failure after the engine ran still records the billable second… 5.57s  
+  ✓ preflight rejection fails without transcript or cost with data set…  0.16s  
+  ✓ preflight rejection fails without transcript or cost with data set…  0.17s  
+  ✓ preflight rejection fails without transcript or cost with data set…  0.17s  
+  ✓ preflight rejection fails without transcript or cost with data set…  0.17s  
+  ✓ locale outside the phase one allowlist never produces a transcript   0.18s  
+  ✓ missing locale fails closed without a speech job                     0.15s  
+  ✓ invalid audio timing fails the whole revision with data set "do dai… 0.16s  
+  ✓ invalid audio timing fails the whole revision with data set "chong…  0.17s  
+  ✓ invalid audio timing fails the whole revision with data set "giam d… 0.17s  
+  ✓ invalid audio timing fails the whole revision with data set "locato… 0.18s  
+  ✓ invalid audio timing fails the whole revision with data set "text r… 0.17s  
+  ✓ invalid audio timing fails the whole revision with data set "vuot t… 0.18s  
+  ✓ abutting segments are valid and read in temporal order               0.15s  
+  ✓ multilingual profile persists segment evidence and reads one timeli… 0.17s  
+  ⨯ a new processing version archives the previous audio revision        0.16s  
+  ✓ another tenant cannot read the audio transcript                      0.18s  
+  ✓ unready detached and deleted reads return stable errors              0.18s  
+  ✓ retry after provider failure keeps history and requires active usag… 0.16s  
+  ✓ a second envelope never claims while another stt job is processing   0.16s  
+  ✓ recovery touches only expired audio jobs and is registered on the s… 0.18s  
+
+   PASS  Tests\Feature\AuthFlowTest
+  ✓ login and dashboard redirect each role to its experience             0.07s  
+  ✓ unknown role is rejected after authentication                        0.03s  
+  ✓ admin dashboard shows current tenant and admin information           0.04s  
+  ✓ password reset views and token flow work for current tenant          0.07s  
+  ✓ email verification view and signed link work for current tenant      0.05s  
+
+   PASS  Tests\Feature\BackendLayoutNavigationTest
+  ✓ admin dashboard exposes localized status and quick actions           0.04s  
+  ✓ admin and teacher backend layouts render sidebar toggle and breadcr… 0.05s  
+  ✓ sidebar first level items render icons                               0.04s  
+  ✓ learning framework create uses the standard admin form contract      0.05s  
+  ✓ course products uses the package icon when active and inactive       0.05s  
+  ✓ enrollment navigation precedes class navigation                      0.04s  
+  ✓ account navigation moves from sidebar to user dropdown by role       0.05s  
+  ✓ collapsed sidebar css uses icon only mode and hides submenus         0.02s  
+  ✓ backend sidebar uses shared sticky layout css                        0.02s  
+  ✓ backend grouped forms adapt to collapsed sidebar                     0.03s  
+  ✓ backend index tables use standard status and actions                 0.02s  
+  ✓ backend text actions use the shared primary color class              0.03s  
+  ✓ backend pagination summary uses lf translations                      0.02s  
+  ✓ admin tables use the canonical sticky action menu contract           0.02s  
+  ✓ backend confirmations use the shared localized dialog                0.03s  
+  ✓ backend adaptive form markup prioritizes left column                 0.02s  
+  ✓ course template authoring uses full available content width          0.02s  
+  ✓ account pages render without left sidebar account group              0.05s  
+  ✓ backend create and edit pages do not expose auto collapse marker     0.05s  
+  ✓ backend index pages do not expose auto expand marker                 0.04s  
+  ✓ sidebar state script uses saved state and defaults expanded          0.02s  
+  ✓ backend navigation clicks preserve sidebar state                     0.02s  
+  ✓ sidebar group script toggles and persists submenus                   0.02s  
+  ✓ public and student layouts do not render backend sidebar toggle      0.04s  
+
+   PASS  Tests\Feature\CertificateFoundationTest
+  ✓ certificate foundation tables exist with customer id                 0.04s  
+  ✓ certificate version fields use version id not template version id    0.02s  
+  ✓ certificate tables do not add forbidden completion or media binary…  0.03s  
+  ✓ certificate template code is unique per tenant only                  0.02s  
+  ✓ certificate mapping references product and version and rejects inva… 0.03s  
+  ✓ duplicate certificate template product version mapping is rejected   0.03s  
+  ✓ issued certificate references enrollment and snapshots certificate…  0.03s  
+  ✓ re enrollment can have separate issued certificates                  0.04s  
+  ✓ one certificate per completion is enforced                           0.03s  
+  ✓ issued certificate does not mutate course completion                 0.03s  
+  ✓ verification and download logs are append only audit rows            0.03s  
+  ✓ certificate foundation has no manual crud routes or eloquent models  0.02s  
+  ✓ no out of scope certificate behaviors or domains are added           0.02s  
+
+   PASS  Tests\Feature\CourseActivityProgressRuntimeTest
+  ✓ activity progress schema uses version id not template version id     0.03s  
+  ✓ version activity access enforces prerequisite in exact enrollment c… 0.04s  
+  ✓ version activity access fails closed for unsupported rule and wrong… 0.03s  
+  ✓ runtime activity progress can be created from lesson progress conte… 0.03s  
+  ✓ one activity progress per enrollment cycle and version activity but… 0.03s  
+  ✓ activity progress requires valid runtime references                  0.03s  
+  ✓ no manual activity progress crud routes exist                        0.02s  
+  ✓ course activity progress module has no eloquent models               0.02s  
+  ✓ activity progress does not create out of scope runtime tables        0.02s  
+  ✓ inactive or archived template does not change existing learning bin… 0.04s  
+
+   PASS  Tests\Feature\CourseCategoryManagementTest
+  ✓ admin and teacher can view their tenant category list                0.07s  
+  ✓ category index paginates ten records with a continuous sequence col… 0.07s  
+  ✓ category index uses standard empty states for default and filtered…  0.05s  
+  ✓ admin can create a category with documented fields                   0.03s  
+  ✓ category forms do not render manual seo controls                     0.07s  
+  ✓ create order is server assigned and ignores forged input             0.04s  
+  ✓ category update without manual seo inputs preserves existing seo da… 0.03s  
+  ✓ teacher can create a child category                                  0.04s  
+  ✓ customer admin can upload category thumbnail                         0.05s  
+  ✓ customer admin can upload category banner                            0.06s  
+  ✓ category thumbnail upload reuses existing media file                 0.06s  
+  ✓ category banner upload reuses existing media file                    0.05s  
+  ✓ teacher can upload images for authorized category                    0.06s  
+  ✓ unauthorized teacher receives 403 for category image upload          0.13s  
+  ✓ category validation rejects invalid data                             0.03s  
+  ✓ queries and parent selection are tenant isolated                     0.05s  
+  ✓ slug is unique within a tenant but reusable by another tenant        0.03s  
+  ✓ category can be updated and deactivated without crossing tenants     0.03s  
+  ✓ category hierarchy cannot be made circular                           0.03s  
+  ✓ guest and student cannot access category management                  0.04s  
+
+   PASS  Tests\Feature\CourseCohortManagementTest
+  ✓ admin course cohort routes exist and teacher routes do not           0.05s  
+  ✓ customer admin can create cohort                                     0.05s  
+  ✓ customer admin can update cohort                                     0.04s  
+  ✓ cohort forms show real notes and hide metadata json                  0.07s  
+  ✓ cohort update preserves internal metadata                            0.04s  
+  ✓ customer admin can archive cohort without hard delete                0.03s  
+  ✓ tenant isolation on list detail update and archive                   0.07s  
+  ✓ cohort list shows newest records first                               0.05s  
+  ✓ cohort index uses compact filters responsive rows and business empt… 0.06s  
+  ✓ teacher and student cannot access admin cohort routes                0.06s  
+  ✓ cross tenant teacher product and version are rejected                0.05s  
+  ✓ cohort code sequence is tenant scoped and ignores manual input       0.07s  
+  ✓ cohort code input is not rendered on create or edit forms            0.05s  
+  ✓ edit class matches approved readonly layout and field contract       0.06s  
+  ✓ non teacher and unpublished version are rejected                     0.03s  
+  ✓ course cohort module has no eloquent models                          0.02s  
+  ✓ product item resolution capacity dates and managed version contract  0.05s  
+  ✓ lifecycle binding freeze legacy teacher and contextual ui contract   0.07s  
+  ✓ canonical lifecycle transitions and replays fail closed              0.06s  
+  ✓ activation revalidates locked product item and version without migr… 0.09s  
+  ✓ completion and archive preserve enrollment membership and downstrea… 0.04s  
+  ✓ draft archive fails closed when legacy membership usage exists       0.04s  
+  ✓ lifecycle authorization tenant scope method contract and ui matrix   0.74s  
+  ✓ create class uses approved business form and dom order               0.04s  
+  ✓ create ignores forged code and status and validation does not consu… 0.04s  
+  ✓ cohort operational tabs manage session evidence                      0.33s  
+  ✓ runtime session operations fail closed for ineligible states         0.83s  
+  ✓ session types enforce locked version activity binding and operation… 0.92s  
+  ✓ create and draft detail use canonical accessibility aware tabs       0.12s  
+  ✓ draft allows setup but rejects runtime operations                    0.56s  
+  ✓ activation revalidates memberships and keeps draft on failure        0.04s  
+  ✓ schedule schema routes and navigation are separate from sessions     0.05s  
+  ✓ admin can create schedule with slots exclusion and canonical previe… 0.07s  
+  ✓ schedule preview includes both date boundaries and multiple slots p… 0.03s  
+  ✓ schedule create and edit forms render with canonical preview contro… 0.07s  
+  ✓ schedule validation rejects invalid ranges slots and exclusions      0.11s  
+  ✓ new cohort requires a complete valid inclusive operating period      0.04s  
+  ✓ legacy cohort without operating period remains readable but schedul… 0.08s  
+  ✓ schedule range is an inclusive subrange of cohort operating period…  0.09s  
+  ✓ cohort operating period cannot shrink past existing schedules and n… 0.07s  
+  ✓ schedule update replaces children atomically without touching sessi… 0.06s  
+  ✓ schedule create and update change only schedule domain data          0.06s  
+  ✓ schedule authorization lifecycle and tenant scope fail closed        0.07s  
+  ✓ completed schedule is readonly and has no delete ui or endpoint      0.07s  
+  ✓ sessions tab of a legacy cohort offers no scheduling window          0.07s  
+  ✓ sessions tab does not scale its query count with schedule count      0.18s  
+  ✓ session lifecycle transitions follow the canonical map               0.20s  
+  ✓ cancelling a session records the reason and releases its time range  0.05s  
+  ✓ session lifecycle requires an active cohort and admin role           0.33s  
+  ✓ cancelled sessions no longer block cohort activation                 0.04s  
+  ✓ attendance and recording are locked at the server while unfinished   0.07s  
+  ✓ removing a cohort teacher is blocked by upcoming sessions but not b… 0.07s  
+  ✓ session overlap is evaluated across different session timezones      0.06s  
+
+   PASS  Tests\Feature\CourseCohortStudentManagementTest
+  ✓ admin course cohort student routes exist and teacher routes do not   0.05s  
+  ✓ legacy cohort students edit tab redirects to the canonical roster f… 0.05s  
+  ✓ student workspace translations exist in vietnamese and english       0.04s  
+  ✓ customer admin can create cohort membership                          0.03s  
+  ✓ customer admin can update and transfer cohort membership             0.03s  
+  ✓ cohort student update preserves internal metadata                    0.03s  
+  ✓ cohort student forms show note and hide metadata json                0.06s  
+  ✓ customer admin can archive membership without hard delete            0.04s  
+  ✓ membership detail has cancel and returns to class students tab       0.05s  
+  ✓ membership edit uses standard layout and only exposes effective fie… 0.31s  
+  ✓ tenant isolation on list detail update and archive                   0.06s  
+  ✓ teacher and student cannot access admin membership routes            0.06s  
+  ✓ cross tenant cohort and enrollment are rejected                      0.05s  
+  ✓ duplicate membership archived cohort and product mismatch are rejec… 0.06s  
+  ✓ enrollment search is tenant product version and membership scoped    0.06s  
+  ✓ enrollment search paginates results                                  0.07s  
+  ✓ add derives managed fields and rejects forged authority              0.04s  
+  ✓ no eloquent model was added for cohort students                      0.02s  
+  ✓ edit class student tab can add and remove students atomically        0.13s  
+  ✓ removed student can be selected again and reactivates the same memb… 0.06s  
+  ✓ student tab search includes current members when class is full       0.04s  
+  ✓ edit keeps inactive current student visible and does not recreate u… 0.06s  
+  ✓ completed class student workspace is readonly and direct manage is…  0.05s  
+  ✓ show class students tab links directly to setup operations           0.07s  
+  ✓ student sync rejects an enrollment from another tenant               0.05s  
+  ✓ membership requires active enrollment active cohort and capacity     0.06s  
+  ✓ direct add rejects an inactive student account                       0.04s  
+  ✓ batch enrollment ids are inserted atomically                         0.05s  
+  ✓ transfer applies the same eligibility rules as direct add            0.05s  
+  ✓ reactivated memberships are not counted twice against capacity       0.05s  
+  ✓ capacity still blocks a batch that does not fit                      0.06s  
+
+   PASS  Tests\Feature\CourseCompletionRuntimeTest
+  ✓ completion schema uses version id and has no certificate state fiel… 0.05s  
+  ✓ runtime completion can be created from course progress context       0.03s  
+  ✓ one completion per enrollment cycle but re enrollment is allowed     0.03s  
+  ✓ completion requires valid enrollment reference                       0.03s  
+  ✓ completion requires valid course progress reference                  0.03s  
+  ✓ no manual completion crud routes exist                               0.04s  
+  ✓ course completion module has no eloquent models                      0.02s  
+  ✓ completion does not store certificate state or create out of scope…  0.02s  
+
+   PASS  Tests\Feature\CourseEnrollmentManagementTest
+  ✓ admin course enrollment routes exist and teacher routes do not       0.03s  
+  ✓ bulk submission schema is durable and does not change enrollment id… 0.02s  
+  ✓ customer admin can create enrollment with resolved version           0.04s  
+  ✓ enrollment forms show real notes and hide metadata json              0.05s  
+  ✓ enrollment update preserves internal metadata                        0.05s  
+  ✓ enrollment detail uses grouped readonly form contract                0.04s  
+  ✓ edit shows computed windows readonly and preserves them when notes…  0.05s  
+  ✓ admin cannot submit version id manually                              0.03s  
+  ✓ product without active product item fails                            0.04s  
+  ✓ inactive and archived products do not accept new enrollments         0.06s  
+  ✓ unpublished resolved version fails                                   0.04s  
+  ✓ cross tenant student product and non student are rejected            0.05s  
+  ✓ existing enrollment keeps old version after product changes          0.05s  
+  ✓ version id cannot be updated after creation                          0.04s  
+  ✓ teacher student and guest cannot access admin enrollment management  0.07s  
+  ✓ tenant isolation on list detail and update                           0.06s  
+  ✓ non terminal cycle blocks duplicate and terminal cycle allows re en… 0.05s  
+  ✓ create form uses business order and server owned metadata            0.04s  
+  ✓ bulk preflight is tenant scoped for both selection sets              0.05s  
+  ✓ bulk enrollment requires an enrollment date in preflight and commit  0.05s  
+  ✓ admin lifecycle transition matrix is explicit and preserves binding  0.05s  
+  ✓ lifecycle fails closed and keeps cohort membership                   0.26s  
+  ✓ edit rejects forged status and show uses localized action matrix     0.07s  
+  ✓ index uses the approved class list table contract                    0.06s  
+  ✓ index paginates ten and orders newest enrollments first              0.10s  
+  ✓ enrollment index filters and bulk selection markup use canonical co… 0.12s  
+  ✓ bulk lifecycle applies only canonical atomic transitions and preser… 0.05s  
+  ✓ bulk lifecycle rejects stale cross tenant terminal and forged reque… 0.08s  
+  ✓ bulk lifecycle normalizes duplicates and competing replay fails wit… 0.05s  
+  ✓ search endpoints are tenant scoped and products include version sum… 0.06s  
+  ✓ product search classifies every selected student and stably sorts t… 0.06s  
+  ✓ admin create derives authority and validates time windows            0.05s  
+  ✓ multiple active product items are not eligible for enrollment        0.04s  
+  ✓ product item and version template mismatch is rejected by single an… 0.04s  
+  ✓ enrollment ui explains preview and locked historical version         0.07s  
+  ✓ registration boundaries are inclusive and projected windows are fro… 0.06s  
+  ✓ registration configuration fails closed and runtime windows are hal… 0.04s  
+  ✓ offering aware policy rejects invalid self paced and allows live wi… 0.09s  
+  ✓ all creation sources use the same live duration policy               0.05s  
+  ✓ selected enrollment date snapshots durations and edit reprojects fr… 0.08s  
+  ✓ legacy enrollment cannot change enrollment date and product search…  0.05s  
+  ✓ course enrollment module has no eloquent models                      0.02s  
+  ✓ bulk enrollment creates the full cartesian product and freezes vers… 0.12s  
+  ✓ bulk result paginates ten rows and places sequence before enrollmen… 0.05s  
+  ✓ bulk submission is atomic when eligibility changes after preflight   0.07s  
+  ✓ bulk preflight uses the shared registration window policy            0.04s  
+  ✓ reenrollment requires exact confirmation and completed token replay… 0.05s  
+  ✓ bulk configuration pair limit payload binding and automatic time po… 0.06s  
+
+   PASS  Tests\Feature\CourseLearningPathFoundationTest
+  ✓ learning path tables exist with documented fields                    0.08s  
+  ✓ learning path code is unique per tenant only                         0.02s  
+  ✓ items reference learning path product and prerequisite product       0.02s  
+  ✓ items are ordered within learning path                               0.03s  
+  ✓ same product cannot be duplicated in same path but can appear in di… 0.02s  
+  ✓ invalid product reference is rejected                                0.02s  
+  ✓ no manual learning path crud routes exist                            0.02s  
+  ✓ learning path module has no eloquent models                          0.02s  
+  ✓ learning path tables do not store runtime or out of scope state      0.03s  
+
+   PASS  Tests\Feature\CourseLessonPrerequisiteMigrationTest
+  ✓ up backfills legacy working and version prerequisites                0.11s  
+  ✓ down losslessly restores single all prerequisites                    0.07s  
+  ✓ down refuses non lossless rules before changing schema or data       0.03s  
+  ✓ down refuses all previous rule without changing schema               0.02s  
+  ✓ down refuses multiple all prerequisites without losing edges         0.02s  
+  ✓ working prerequisite unique constraint rejects duplicate edge        0.04s  
+  ✓ version prerequisite unique constraint rejects duplicate edge        0.03s  
+
+   PASS  Tests\Feature\CourseLessonProgressRuntimeTest
+  ✓ lesson progress schema uses version id not template version id       0.03s  
+  ✓ version lesson access enforces manual prerequisite in exact enrollm… 0.03s  
+  ✓ none date and inactive enrollment access fail closed correctly       0.03s  
+  ✓ multiple lesson prerequisites support all and any matching           0.03s  
+  ✓ runtime lesson progress can be created from course progress context  0.03s  
+  ✓ one lesson progress per enrollment cycle and version lesson but re…  0.06s  
+  ✓ lesson progress requires valid runtime references                    0.04s  
+  ✓ no manual lesson progress crud routes exist                          0.02s  
+  ✓ course lesson progress module has no eloquent models                 0.03s  
+  ✓ lesson progress does not create out of scope runtime tables          0.02s  
+
+   PASS  Tests\Feature\CourseMediaIntegrationTest
+  ✓ course template create rolls back when media synchronization throws  0.06s  
+  ✓ course template update rolls back fields and usages when later medi… 0.07s  
+  ✓ admin can upload and view course product cover image                 0.08s  
+  ✓ admin can upload course template introduction image                  0.09s  
+  ✓ admin can upload course template intro video                         0.09s  
+  ✓ admin can open course template page after cover media rename         0.09s  
+  ✓ admin can update course template from image to intro video           0.07s  
+  ✓ admin can update course template from intro video to image           0.07s  
+  ✓ admin can remove course template cover image usage without deleting… 0.09s  
+  ✓ admin can remove course template intro video usage without deleting… 0.19s  
+  ✓ admin can remove course template document independently without del… 0.07s  
+  ✓ admin can remove embedded youtube video without changing other intr… 0.12s  
+  ✓ admin can remove embedded vimeo video and preserve it when removal…  0.07s  
+  ✓ valid video replacement wins over removal and invalid replacement p… 0.06s  
+  ✓ course template removal labels are field specific in vietnamese and… 0.13s  
+  ✓ course template accepts image and uploaded video together            0.07s  
+  ✓ template media fields use the shared authoring layout for admin and… 0.24s  
+  ✓ course template rejects cross tenant preview media id                0.04s  
+  ✓ browser style course template intro video update does not 500        0.13s  
+  ✓ admin can update course template intro video while staying video     0.07s  
+  ✓ cohort rejects deferred document and attachment media                0.04s  
+  ✓ course template preview allows admin and assigned teacher for exact… 0.09s  
+  ✓ course template preview rejects unassigned teacher cross tenant and… 0.09s  
+  ✓ course template preview rejects wrong purpose detached archived and… 0.06s  
+  ✓ course template preview rejects non ready media and slot type misma… 0.07s  
+  ✓ version detail displays template media snapshots independently from… 0.23s  
+  ✓ version detail uses historical embed and safely handles invalid med… 0.16s  
+  ✓ cross tenant media is not visible on course owner forms              0.08s  
+  ✓ cross tenant owner attach is blocked by course owner lookup          0.04s  
+  ✓ teacher can upload template cover for own and assigned template      0.07s  
+  ✓ teacher cannot upload template cover for unassigned same tenant tem… 0.06s  
+  ✓ teacher can upload activity media for assigned template              0.13s  
+  ✓ uploaded activity media sets automatic duration and preserves it wi… 0.10s  
+  ✓ video estimate can be overridden and unknown probe stays unknown     0.06s  
+  ✓ activity edit displays exact current video audio and document separ… 0.26s  
+  ✓ activity edit empty and invalid relationships never fabricate a pre… 0.19s  
+  ✓ activity detail remains readable when attached document is not read… 0.16s  
+  ✓ deleting an activity detaches only its active media usages           0.04s  
+  ✓ deleting an activity purges its exclusive media source after commit  0.08s  
+  ✓ a tombstoned media cannot be attached again                          0.08s  
+  ✓ activity media preview fails closed for wrong relationship and teac… 0.10s  
+  ✓ activity media replacement failure and type change preserve expecte… 0.16s  
+  ✓ activity create rolls back when media usage attachment fails         0.06s  
+  ✓ activity update rolls back fields and existing usage when replaceme… 0.07s  
+  ✓ teacher cannot access product media upload or lifecycle routes       0.05s  
+
+   PASS  Tests\Feature\CoursePersonalEngagementFoundationTest
+  ✓ personal engagement tables exist with documented identity fields     0.08s  
+  ✓ favorites do not require enrollment and are unique per student prod… 0.03s  
+  ✓ notes bookmarks and reviews are created from enrollment context      0.03s  
+  ✓ notes bookmarks and reviews require valid enrollment reference       0.03s  
+  ✓ re enrollment supports separate notes bookmarks and reviews          0.03s  
+  ✓ review uses user id not student id and has no assessment ownership   0.02s  
+  ✓ no manual engagement crud routes exist                               0.03s  
+  ✓ personal engagement module has no eloquent models                    0.02s  
+  ✓ personal engagement does not add out of scope runtime domains        0.05s  
+
+   PASS  Tests\Feature\CourseProductCategoryAttachedMediaUiTest
+  ✓ attached media actions align with thumbnail                          0.11s  
+  ✓ remove current image still detaches usage without deleting media fi… 0.17s  
+
+   PASS  Tests\Feature\CourseProductManagementTest
+  ✓ admin course product routes exist and teacher routes do not          0.03s  
+  ✓ admin can list only their tenant products                            0.04s  
+  ✓ product index uses standard empty states for default and filtered l… 0.06s  
+  ✓ admin can create a product with documented fields                    0.04s  
+  ✓ admin can edit update and archive product without hard delete        0.06s  
+  ✓ product queries and mutations are tenant isolated                    0.04s  
+  ✓ product code sequence is tenant scoped and ignores manual input      0.06s  
+  ✓ product code is hidden on create and readonly on edit                0.10s  
+  ✓ product v2 custom media ui restores source and uses template media…  0.06s  
+  ✓ product v2 custom media lifecycle and authorized preview             0.26s  
+  ✓ product forms do not render manual seo controls                      0.08s  
+  ✓ product update without manual seo inputs preserves existing seo dat… 0.06s  
+  ✓ product slug is generated and unique per tenant                      0.05s  
+  ✓ invalid status is rejected                                           0.04s  
+  ✓ all documented statuses are accepted                                 0.06s  
+  ✓ teacher student and guest cannot access product crud                 0.08s  
+  ✓ admin can attach published version to product                        0.04s  
+  ✓ product can atomically replace the active version from same templat… 0.03s  
+  ✓ product cannot attach version from a different template              0.03s  
+  ✓ replacing an inactive link reuses the phase one template item        0.03s  
+  ✓ same template active version rule is tenant isolated                 0.04s  
+  ✓ admin can list product items inside product management               0.13s  
+  ✓ version tab filters versions by product template without category o… 0.10s  
+  ✓ version select distinguishes latest published version from product…  0.14s  
+  ✓ admin cannot remove single course product item                       0.03s  
+  ✓ active single course product cannot remove its final version         0.04s  
+  ✓ existing invalid active product is not silently moved to draft       0.04s  
+  ✓ selecting the version already in use is a safe no op                 0.05s  
+  ✓ draft or unpublished version is rejected                             0.03s  
+  ✓ product item attach is tenant isolated                               0.04s  
+  ✓ teacher student and guest cannot access product item routes          0.05s  
+  ✓ product management does not expose standalone product relation rout… 0.07s  
+  ✓ admin can attach valid product relation                              0.03s  
+  ✓ admin can list product relations inside product management           0.06s  
+  ✓ admin can remove product relation link only                          0.03s  
+  ✓ duplicate product relation is rejected                               0.04s  
+  ✓ self relation is rejected                                            0.03s  
+  ✓ forged relation metadata is ignored and related type is canonical    0.03s  
+  ✓ product relation attach is tenant isolated                           0.03s  
+  ✓ teacher student and guest cannot access product relation routes      0.06s  
+  ✓ create and overview do not expose or process related product ids     0.09s  
+  ✓ related tab searches name and code and excludes existing or archive… 0.06s  
+  ✓ related links are directional counted and receive next source order  0.07s  
+  ✓ archived product relations are read only and keep historical target… 0.06s  
+  ✓ course product module has no eloquent models                         0.04s  
+  ✓ product v2 draft binds template and server assigns package type      0.05s  
+  ✓ create and edit share the ordered semantic product form sections     0.08s  
+  ✓ edit overview groups course content and identity in natural order    0.06s  
+  ✓ create product information uses category template version dom flow   0.08s  
+  ✓ shared admin form css contract is opt in and responsive              0.02s  
+  ✓ pricing and promotion controls have persistent labels and calculate… 0.10s  
+  ✓ product registration and promotion windows enforce the canonical po… 0.12s  
+  ✓ registration window precedes promotion and exposes client constrain… 0.04s  
+  ✓ self paced duration labels include the localized day unit            0.06s  
+  ✓ create product keeps template enabled and persists selected publish… 0.08s  
+  ✓ product template can change before a version is linked               0.05s  
+  ✓ unused draft product can atomically change template and linked vers… 0.08s  
+  ✓ active unused product must target draft before changing template     0.05s  
+  ✓ enrollment usage blocks template change in every product status      0.09s  
+  ✓ overview uses distinct compact template policy notices and slug met… 0.15s  
+  ✓ used active product can be deactivated but cannot return to draft    0.05s  
+  ✓ inactive archive and archived restore use dedicated actions          0.06s  
+  ✓ edit footer uses persisted status for dedicated archive and restore… 0.14s  
+  ✓ active product cannot be archived directly                           0.05s  
+  ✓ product v2 activation requires current published version and valida… 0.05s  
+  ✓ product v2 template summary exposes current published version count… 0.05s  
+  ✓ product v2 active edit uses bound version instead of newer current…  0.08s  
+  ✓ product version summary query count does not grow with template cou… 0.03s  
+  ✓ product v2 mismatched bound version is not exposed or replaced       0.09s  
+  ✓ product v2 draft uses bound version or current candidate explicitly  0.09s  
+  ✓ product v2 missing version and inheritance presentation is compact   0.05s  
+  ✓ create only lists active templates with published versions           0.05s  
+  ✓ create revalidates template and version eligibility after form rend… 0.06s  
+  ✓ edit preserves historical inactive and archived template binding bu… 0.13s  
+
+   PASS  Tests\Feature\CourseProgressRuntimeTest
+  ✓ course progress schema uses version id not template version id       0.07s  
+  ✓ runtime progress can be created from enrollment context              0.03s  
+  ✓ progress requires valid enrollment reference                         0.03s  
+  ✓ one course progress per enrollment but re enrollment is allowed      0.05s  
+  ✓ no manual course progress crud routes exist                          0.02s  
+  ✓ course progress module has no eloquent models                        0.02s  
+  ✓ course progress does not create out of scope runtime tables          0.02s  
+
+   PASS  Tests\Feature\CourseTemplateActivityManagementTest
+  ✓ admin and teacher can view activities inside their lessons           0.13s  
+  ✓ structure tab renders the complete course outline                    0.08s  
+  ✓ external activity view action opens external url in new tab          0.06s  
+  ✓ activity title has no link specific styles                           0.02s  
+  ✓ admin can create update and delete an activity                       0.05s  
+  ✓ admin and teacher can create activities for direct lessons           0.10s  
+  ✓ activity order is automatic and scoped by lesson                     0.04s  
+  ✓ flat and sectioned activity routes enforce lesson location           0.04s  
+  ✓ teacher can create update and delete an activity                     0.05s  
+  ✓ activity type and dependent field validation are enforced            0.08s  
+  ✓ final activity content fields are stored                             0.04s  
+  ✓ live class accepts attendance or manual completion rules             0.04s  
+  ✓ learning availability supports anytime or multiple session phases    0.05s  
+  ✓ learning availability checkboxes render on activity form and detail  0.09s  
+  ✓ template section lesson and activity access are tenant isolated      0.05s  
+  ✓ unlock prerequisite must belong to same template and tenant          0.04s  
+  ✓ unlock prerequisite cannot be self or create a cycle                 0.04s  
+  ✓ delete is blocked when activity is an unlock prerequisite            0.05s  
+  ✓ activities are displayed in documented sort order                    0.15s  
+  ✓ delete confirmation and required indicators are rendered             0.10s  
+  ✓ template edit shows the correct add activity action for each lesson  0.07s  
+  ✓ create and edit forms show the documented activity type selector     0.11s  
+  ✓ guest and student cannot access activity management                  0.03s  
+  ✓ course template activity module has no eloquent models               0.04s  
+  ✓ activity upload validation uses filtered request input               0.03s  
+
+   PASS  Tests\Feature\CourseTemplateLessonManagementTest
+  ✓ admin and teacher can view lessons inside their template sections    0.14s  
+  ✓ admin can create a lesson with documented fields                     0.04s  
+  ✓ admin and teacher can create direct lessons without sections         0.16s  
+  ✓ lesson order is automatic and scoped by location                     0.11s  
+  ✓ section that disallows lessons hides action and rejects attachment   0.07s  
+  ✓ flat and sectioned lesson routes enforce lesson location             0.04s  
+  ✓ teacher can create a lesson for an own tenant section                0.04s  
+  ✓ validation and conditional unlock fields are enforced                0.06s  
+  ✓ lesson role allowlist is required and all values are accepted        0.06s  
+  ✓ estimated lesson count does not limit authoring                      0.04s  
+  ✓ template section and lesson access are tenant isolated               0.05s  
+  ✓ prerequisite must belong to the same template and tenant             0.06s  
+  ✓ unlock prerequisite cannot be self or create a cycle                 0.04s  
+  ✓ create rejects a prerequisite that would follow the new lesson in d… 0.04s  
+  ✓ update rejects moving a lesson before its selected prerequisite in…  0.05s  
+  ✓ http authoring persists selected all any and all previous rules ide… 0.06s  
+  ✓ selected prerequisite request tampering is rejected by tenant lane…  0.07s  
+  ✓ prerequisite validation renders error and preserves old selected in… 0.05s  
+  ✓ wildcard prerequisite error is rendered adjacent to the accessible…  0.05s  
+  ✓ delete is blocked when another lesson uses the prerequisite          0.03s  
+  ✓ delete is blocked when the activities table has a reference          0.04s  
+  ✓ delete confirmation and required indicators are rendered             0.12s  
+  ✓ create and edit forms expose only documented editable fields         0.07s  
+  ✓ guest and student cannot access lesson management                    0.03s  
+  ✓ course template lesson module has no eloquent models                 0.02s  
+  ✓ lesson upload validation uses filtered request input                 0.02s  
+
+   PASS  Tests\Feature\CourseTemplateManagementTest
+  ✓ admin and teacher can view only their tenant templates               0.09s  
+  ✓ template index paginates ten records with a continuous sequence col… 0.07s  
+  ✓ template index uses standard empty states for default and filtered…  0.05s  
+  ✓ template edit uses the five authoring tabs                           0.42s  
+  ✓ create and edit labels follow the validation required rules          0.16s  
+  ✓ create select defaults and edit saved values are preserved           0.10s  
+  ✓ template order defaults updates and category moves are scoped        0.08s  
+  ✓ template order validation and list show newest records first         0.06s  
+  ✓ create form does not expose template order                           0.07s  
+  ✓ create and edit use contextual primary action labels                 0.12s  
+  ✓ only four canonical template statuses are accepted                   0.06s  
+  ✓ admin can create template with only required fields                  0.12s  
+  ✓ admin can create an independent draft template                       0.17s  
+  ✓ preview media is optional for course template                        0.04s  
+  ✓ template update without manual seo inputs preserves existing seo da… 0.05s  
+  ✓ teacher can create an independent draft template                     0.05s  
+  ✓ validation and tenant scoped category selection are enforced         0.06s  
+  ✓ templates do not require slug or title uniqueness                    0.07s  
+  ✓ update and delete are tenant isolated                                0.06s  
+  ✓ unreferenced draft template can be deleted                           0.03s  
+  ✓ guest and student cannot access template management                  0.03s  
+  ✓ course template module has no eloquent models                        0.02s  
+  ✓ edit renders real trusted youtube thumbnail                          0.07s  
+
+   WARN  Tests\Feature\CourseTemplatePublishConcurrencyTest
+  - template lock serializes same template but not another template → S… 0.04s  
+
+   PASS  Tests\Feature\CourseTemplatePublishingTest
+  ✓ course template lifecycle routes are registered for admin only       0.03s  
+  ✓ version content tab labels and empty states are localized            0.03s  
+  ✓ only active working template status can publish                      0.19s  
+  ✓ template status publish blocker is localized                         0.03s  
+  ✓ publish rechecks locked status after readiness render and ignores f… 0.11s  
+  ✓ admin archives only inactive template without changing published ve… 0.14s  
+  ✓ version content reuses authoring visual classes without parallel ta… 0.03s  
+  ✓ admin publish creates a complete immutable snapshot                  0.05s  
+  ✓ each publish increments version and moves current marker             0.15s  
+  ✓ history is paginated by ten without redundant sequence column        0.29s  
+  ✓ publish integrity rejects invalid graph and preserves atomic state   0.08s  
+  ✓ uploaded activity media types create immutable version usages        0.05s  
+  ✓ version detail media authorization denies invalid usage and media s… 0.14s  
+  ✓ publish media errors identify activity and template fields safely    0.03s  
+  ✓ publish tab uses structured readiness for ready and blocked drafts   0.10s  
+  ✓ direct publish post cannot bypass readiness and correction is recal… 0.10s  
+  ✓ readiness reports empty content and template media video state with… 0.09s  
+  ✓ readiness keeps every activity media relationship failure as a bloc… 0.04s  
+  ✓ activity media cardinality counts only active usages and detects fo… 0.03s  
+  ✓ readiness reports each invalid template media slot from the shared…  0.03s  
+  ✓ lesson without activity is blocked in readiness and direct publish   0.04s  
+  ✓ publish rejects untrusted activity sources and non runtime unlock r… 0.03s  
+  ✓ publish loader detects cross tenant children and blocks quiz until…  0.07s  
+  ✓ publish and duplicate preserve documented duplicate content order v… 0.07s  
+  ✓ template version code sequence is tenant scoped                      0.06s  
+  ✓ non admin users cannot publish                                       0.04s  
+  ✓ publish is tenant isolated                                           0.04s  
+  ✓ admin can view readonly version detail with snapshot content         0.15s  
+  ✓ non admin users cannot view version detail                           0.06s  
+  ✓ version detail is tenant isolated                                    0.04s  
+  ✓ missing version detail returns not found                             0.06s  
+  ✓ admin can duplicate version to the single existing draft             0.11s  
+  ✓ all previous can publish duplicate and republish without restoring…  0.09s  
+  ✓ non admin users cannot duplicate version to draft                    0.05s  
+  ✓ duplicate version to draft is tenant isolated                        0.05s  
+  ✓ duplicate validation failure keeps current draft intact              0.13s  
+  ✓ duplicate rejects invalid snapshot order and rolls back              0.06s  
+  ✓ duplicate rejects semantically invalid prerequisite snapshots witho… 0.12s  
+  ✓ publish information category is tenant scoped active and locked      0.06s  
+  ✓ publish information text difficulty and estimates fail closed witho… 0.06s  
+  ✓ estimated lesson count mismatch is rendered as a non blocking warni… 0.15s  
+  ✓ publish revalidates canonical trusted embed state                    0.05s  
+  ✓ publish revalidates intro media content and exact slot cardinality   0.09s  
+  ✓ intro version usage failure rolls back the complete publish transac… 0.05s  
+
+   PASS  Tests\Feature\CourseTemplateSectionManagementTest
+  ✓ admin and teacher can view sections on the template edit page        0.20s  
+  ✓ admin can create a section with the final business fields            0.05s  
+  ✓ admin can create nested sections without depth limit                 0.11s  
+  ✓ each section renders an independent accessible collapse branch       0.09s  
+  ✓ section collapse script restores only valid scoped state             0.02s  
+  ✓ section order is automatic per sibling scope and duplicates remain…  0.12s  
+  ✓ admin and teacher render compact section tree rows without metadata  0.14s  
+  ✓ lesson block follows allows lessons without hiding children          0.07s  
+  ✓ teacher can create a section for an own tenant template              0.03s  
+  ✓ section validation allows automatic display order                    0.03s  
+  ✓ template and section access are tenant isolated                      0.04s  
+  ✓ parent section must belong to the same template and hierarchy canno… 0.15s  
+  ✓ delete is blocked when a child section exists                        0.04s  
+  ✓ delete is blocked when the lessons table has a reference             0.08s  
+  ✓ delete confirmation and required indicators are rendered             0.31s  
+  ✓ guest and student cannot access section management                   0.04s  
+  ✓ course template section module has no eloquent models                0.03s  
+
+   PASS  Tests\Feature\CourseTemplateTeacherManagementTest
+  ✓ admin and teacher can view assignments on template edit              0.15s  
+  ✓ admin can assign and update an own tenant teacher                    0.04s  
+  ✓ teacher can assign teacher inside own tenant                         0.04s  
+  ✓ assignment order is automatic and scoped to template                 0.04s  
+  ✓ assignment validation rejects invalid users and values               0.04s  
+  ✓ same teacher cannot be assigned twice to a template                  0.06s  
+  ✓ assignment access and mutations are tenant isolated                  0.05s  
+  ✓ remove deactivates assignment without deleting it                    0.03s  
+  ✓ assignment forms render documented fields and indicators             0.06s  
+  ✓ teacher tab uses a compact responsive empty state                    0.08s  
+  ✓ guest and student cannot access teacher assignments                  0.03s  
+  ✓ course template teacher module has no eloquent models                0.02s  
+
+   PASS  Tests\Feature\CourseTenantCompositeKeyMigrationTest
+  ✓ fresh schema has all four named composite unique indexes             0.03s  
+  ✓ migration is idempotent and down removes canonical exact indexes     0.05s  
+  ✓ exact alternate index is adopted without duplicate or rollback dele… 0.04s  
+  ✓ conflicting canonical index fails closed                             0.03s  
+  ✓ interrupted forward run can be retried and rolled back               0.06s  
+  ✓ wrong order unique key fails closed before any index is created      0.03s  
+  ✓ rollback conflict on later table fails before any drop               0.04s  
+  ✓ child composite foreign key blocks rollback before any drop          0.03s  
+  ✓ missing tenant table fails closed                                    0.03s  
+  ✓ orphan tenant fails before any index is created                      0.03s  
+  ✓ composite foreign key rejects cross tenant parent reference          0.03s  
+
+   PASS  Tests\Feature\DatabaseUsageQuotaReserverTest
+  ✓ reserve returns the persisted usage type and reuses the hold         0.05s  
+  ✓ initial lease does not exceed the period end                         0.03s  
+  ✓ capacity is shared across usage types but not tenants                0.03s  
+  ✓ expiry uses utc and never reclaims an executing hold                 0.03s  
+  ✓ settlement replay is idempotent across period and entitlement expir… 0.04s  
+  ✓ reconciliation handles positive zero and unknown receipts            0.04s  
+  ✓ zero response terminates without invalid zero usage event            0.03s  
+  ✓ release refuses a hold past the boundary                             0.04s  
+  ✓ expired lease cannot cross provider boundary                         0.17s  
+  ✓ non utc period ends at local midnight                                0.12s  
+  ✓ renewal preserves original cap and refuses expired lease             0.05s  
+  ✓ wrong receipt cannot release another attempt                         0.04s  
+  ✓ usage insert failure cannot mark the hold committed                  0.04s  
+
+   PASS  Tests\Feature\DocsLintCommandTest
+  ✓ valid metadata passes                                                0.04s  
+  ✓ invalid metadata fails with data set "missing document path"         0.03s  
+  ✓ invalid metadata fails with data set "wrong document path"           0.05s  
+  ✓ invalid metadata fails with data set "month-only date"               0.03s  
+  ✓ invalid metadata fails with data set "invalid document status"       0.03s  
+  ✓ invalid metadata fails with data set "invalid implementation status… 0.03s  
+  ✓ frozen policy may be not implemented                                 0.03s  
+  ✓ approved policy may be partial                                       0.03s  
+  ✓ legacy file outside allowlist fails                                  0.03s  
+  ✓ conflict register active count must match table statuses             0.06s  
+  ✓ adr with contradictory status fails                                  0.03s  
+
+   PASS  Tests\Feature\DocsManifestLintCommandTest
+  ✓ valid manifest passes                                                0.04s  
+  ✓ missing markdown record fails                                        0.17s  
+  ✓ duplicate path fails                                                 0.06s  
+  ✓ nonexistent path fails                                               0.05s  
+  ✓ missing locale keywords fails                                        0.06s  
+  ✓ duplicate keyword in locale fails                                    0.03s  
+  ✓ invalid related path fails                                           0.03s  
+  ✓ count mismatch fails                                                 0.03s  
+  ✓ unsorted records fail                                                0.03s  
+
+   FAIL  Tests\Feature\DocumentProcessingLocalReviewTest
+  ✓ real mixed pdf activity usage queue provider and authorized read     0.95s  
+  ✓ real scan pdf produces ocr text                                      1.04s  
+  ✓ document three locale profile is canonical persisted and read in is… 0.07s  
+  ✓ real invalid pdf fails without output with data set #0               0.09s  
+  ✓ real invalid pdf fails without output with data set #1               0.08s  
+  ✓ real invalid pdf fails without output with data set #2               1.00s  
+  ✓ unsupported extension fails without output                           0.04s  
+  ✓ invalid provider output is atomic and never ready with data set "em… 0.04s  
+  ✓ invalid provider output is atomic and never ready with data set "bl… 0.08s  
+  ✓ invalid provider output is atomic and never ready with data set "in… 0.05s  
+  ✓ invalid provider output is atomic and never ready with data set "du… 0.05s  
+  ✓ invalid provider output is atomic and never ready with data set "to… 0.05s  
+  ✓ provider exception metadata does not persist source or credentials   0.08s  
+  ✓ late provider result cannot resurrect a terminal job                 0.06s  
+  ✓ read reports pending and processing job without output               0.08s  
+  ✓ read reports job state for every member of a multi locale profile    0.09s  
+  ✓ read excludes output linked to a failed job                          0.06s  
+  ✓ read rejects cross tenant actor and invalid locale                   0.05s  
+  ✓ structure coverage rejects invalid locale and audits denial          0.05s  
+  ✓ duplicate dispatch locale and version revisions preserve history     0.08s  
+  ✓ changed source is a new media and fingerprint                        0.07s  
+  ✓ real optional docling preserves independent ocr and readable regio… 20.98s  
+  ✓ retry after unavailable provider uses new row and real txt provider  0.07s  
+  ✓ late clean scan does not clear missing document locale               0.04s  
+  ✓ worker failure metadata is sanitized                                 0.04s  
+  ✓ legacy rows are sorted and never mixed across source fingerprints    0.04s  
+  ✓ read excludes a row linked to the wrong job type                     0.05s  
+  ✓ real office format upload extract and authorized read with data set… 0.05s  
+  ⨯ real office format upload extract and authorized read with data set… 1.96s  
+  ⨯ real office format upload extract and authorized read with data set… 1.21s  
+  ⨯ real office format upload extract and authorized read with data set… 1.27s  
+  ✓ real office format upload extract and authorized read with data set… 0.06s  
+  ⨯ real office format upload extract and authorized read with data set… 1.23s  
+  ✓ real docling table merged cells chart and diagram fixture           17.78s  
+  ✓ docling table header is derived from observed cells                  0.13s  
+  ✓ docling table quality distinguishes blank ink and unmeasurable slot… 0.12s  
+  ✓ detach before claim cancels without provider work                    0.06s  
+  ✓ one remaining active usage keeps pending document eligible           0.04s  
+  ✓ direct document materialization requires active usage                0.04s  
+  ✓ unsupported document profile values do not create an attempt         0.04s  
+  ✓ busy async claim redelivers same attempt instead of losing work      0.04s  
+  ✓ recovery fails expired processing and preserves fresh and terminal…  0.04s  
+  ✓ recovery redelivers old pending but respects retry delay             0.04s  
+  ✓ late crop writer and cleanup cannot touch successor attempt          0.07s  
+  ✓ d4 real mixed blank page preserves locators                          1.25s  
+  ✓ d6 reattach creates generation without consuming provider attempt    0.04s  
+  ✓ d2 native spreadsheet structure and d5 sheet measurement             0.05s  
+  ✓ d3 aggregate failure preserves ocr and old structure archives on ne… 0.06s  
+  ✓ low confidence formula keeps region and is read as failed evidence   0.05s  
+  ✓ formula without an observed operator keeps the region and the revis… 0.04s  
+  ✓ formula evidence rejects long prose with an operator                 0.05s  
+  ✓ formula evidence rejects korean grammar transformations without rej… 0.03s  
+  ✓ repeated short image text is discarded without touching other regio… 0.02s  
+  ✓ region language evidence is persisted and read back                  0.04s  
+  ✓ d3 missing and stale canonical never publish structure               0.05s  
+  ✓ d6 retry budget survives cancelled retry and reattach                0.04s  
+  ✓ d2 old spreadsheet page citation remains readable after sheet revis… 0.05s  
+  ✓ d2 structured spreadsheet retry cli uses recorded canonical identit… 0.08s  
+  ✓ d2 old pending version cannot publish new sheet semantics            0.04s  
+
+   PASS  Tests\Feature\LearningRuntimeFoundationTest
+  ✓ runtime requires tenant context and denies all external access       0.05s  
+  ✓ external principals have no learning read or write path with data s… 0.02s  
+  ✓ external principals have no learning read or write path with data s… 0.02s  
+  ✓ external principals have no learning read or write path with data s… 0.04s  
+  ✓ external principals have no learning read or write path with data s… 0.02s  
+  ✓ external principals have no learning read or write path with data s… 0.02s  
+  ✓ initial evidence source gate fails closed with data set "track tabl… 0.02s  
+  ✓ initial evidence source gate fails closed with data set "behavioral… 0.02s  
+  ✓ initial evidence source gate fails closed with data set "unknown so… 0.02s  
+  ✓ teacher judgment is the only initially open source                   0.02s  
+  ✓ projector is tenant scoped idempotent and uses deterministic orderi… 0.03s  
+  ✓ ordering normalizes timezone bearing values to app zone              0.04s  
+  ✓ projector cannot read a calculation from another tenant              0.02s  
+  ✓ projection rejects reusing one calculation for another profile       0.02s  
+
+   PASS  Tests\Feature\LocalDocumentMixedPdfTest
+  ✓ pages without a text layer are ocred instead of dropped              0.03s  
+  ✓ a fully text layered document never calls the ocr binaries           0.02s  
+  ✓ a document without any text layer is fully ocred                     0.02s  
+  ✓ command failures distinguish input output and unknown errors         0.03s  
+
+   PASS  Tests\Feature\LocalDocumentSpreadsheetTest
+  ✓ cells are read directly without a libreoffice rendering              0.06s  
+  ✓ a workbook without cell text fails without pdf fallback              0.03s  
+  ✓ the sheet count is capped by the same page limit                     0.03s  
+  ✓ an oversized sheet part fails before it is copied                    0.03s  
+  ✓ the sheet name reaches the extracted text row as provenance          0.04s  
+  ✓ native cells keep merged span and reject bad reference without expa… 0.03s  
+  ✓ native cell padding obeys aggregate character budget                 0.03s  
+  ✓ native xml rejects doctype in utf16 without expanding entities       0.05s  
+
+   PASS  Tests\Feature\LocaleSwitcherTest
+  ✓ default locale is vietnamese                                         0.03s  
+  ✓ main public homepage defaults to vietnamese without session locale   0.03s  
+  ✓ locale can switch to english and back to vietnamese                  0.04s  
+  ✓ invalid locale is not accepted                                       0.03s  
+  ✓ main public site can switch to english and back to vietnamese        0.07s  
+  ✓ switcher is available in admin and teacher topbars                   0.05s  
+  ✓ switching locale preserves auth and does not bypass protected route… 0.04s  
+
+   PASS  Tests\Feature\MediaCategoryManagementTest
+  ✓ media categories table matches sprint one scope                      0.04s  
+  ✓ admin can view only their tenant media categories                    0.07s  
+  ✓ admin can create media category with documented fields               0.05s  
+  ✓ admin can create child category with same tenant parent              0.03s  
+  ✓ validation rejects invalid media category data                       0.03s  
+  ✓ parent selection and record access are tenant isolated               0.05s  
+  ✓ slug is unique per tenant                                            0.07s  
+  ✓ media category can be updated and archived without hard delete       0.04s  
+  ✓ category with children cannot be archived                            0.03s  
+  ✓ category hierarchy cannot be made circular                           0.03s  
+  ✓ guest student and teacher cannot access media category admin         0.04s  
+
+   PASS  Tests\Feature\MediaFileFoundationTest
+  ✓ media files table matches sprint two a scope                         0.07s  
+  ✓ media file usages table matches sprint two b scope                   0.03s  
+  ✓ media disks keep local and s3 configuration separate                 0.03s  
+  ✓ upload media creates tenant aware private storage record             0.03s  
+  ✓ upload validation is tenant scoped for category and uploader         0.03s  
+  ✓ upload rejects mismatched file type mime and extension               0.03s  
+  ✓ duplicate upload reuses existing media file in same tenant           0.05s  
+  ✓ duplicate upload is tenant scoped                                    0.07s  
+  ✓ signed url generation rechecks tenant and ready status               0.04s  
+  ✓ signed delivery route is tenant scoped and private                   0.05s  
+  ✓ tenant can attach media file usage                                   0.04s  
+  ✓ attach usage is idempotent and reactivates existing usage            0.05s  
+  ✓ tenant cannot attach another tenants media file                      0.05s  
+  ✓ detach usage marks usage as detached without deleting                0.07s  
+  ✓ removing one usage keeps media file when other usages exist          0.12s  
+  ✓ is in use returns true only for active usage                         0.11s  
+  ✓ delete media is blocked when active usage exists                     0.04s  
+  ✓ owner media can be listed by owner and usage type                    0.05s  
+
+   PASS  Tests\Feature\MediaLibraryManagementTest
+  ✓ media library displays category uploads                              0.12s  
+  ✓ media library uses standard empty state                              0.08s  
+  ✓ media library tabs filter file types                                 0.31s  
+  ✓ video media can be previewed through signed private url              0.17s  
+  ✓ image preview still uses signed private media route                  0.06s  
+  ✓ bulk delete returns to the list filters the user was viewing         0.04s  
+  ✓ single delete keeps the current filters instead of dropping them     0.04s  
+  ✓ media library filters by owner and keyword                           0.34s  
+  ✓ existing category uploads remain functional after media library enh… 0.04s  
+  ✓ media library permissions remain admin only                          0.03s  
+  ✓ deleting media removes region crops together with the source         0.04s  
+  ✓ media stays readable when storage purge fails and sweeper finishes…  0.05s  
+  ✓ crop purge reports failure when objects survive the delete call      0.05s  
+  ✓ media storage purge reports failure when only the crop side fails    0.03s  
+  ✓ sweeper cleans crops of a failed revision on a media that is still…  0.04s  
+  ✓ sweeper keeps crops that a region row still references               0.04s  
+  ✓ sweeper does not starve residue behind clean tombstones              0.07s  
+  ✓ sweeper keeps scanning after one media fails its storage check       0.04s  
+  ✓ admin button purges orphan storage only for the current tenant       0.06s  
+  ✓ media index explains that nothing is deleted automatically           0.04s  
+  ✓ sweeper never touches a media with a structured job in flight        0.04s  
+  ✓ broken disks do not consume the residue budget                       0.05s  
+  ✓ scan skips media whose structured job is in flight                   0.03s  
+  ✓ purge refuses when a job starts between scan and delete              0.04s  
+  ✓ purge recomputes references and keeps a crop claimed after the scan  0.07s  
+  ✓ purge reports the number of objects actually deleted after recheck   0.04s  
+  ✓ cannot delete used media file                                        0.05s  
+  ✓ media library filters by usage status                                0.07s  
+  ✓ can bulk delete unused media files                                   0.05s  
+  ✓ bulk delete is atomic when selection contains used media             0.04s  
+  ✓ bulk delete rejects media from another tenant without partial delet… 0.07s  
+  ✓ can delete unused media file                                         0.15s  
+  ✓ delete unused media with missing storage object does not crash       0.14s  
+  ✓ cannot delete media from another tenant                              0.04s  
+
+   WARN  Tests\Feature\MediaProcessingSubstrateTest
+  ✓ required profiles are deterministic and binary ready is independent  0.30s  
+  ✓ video frame ocr is independent revisioned evidence and media read r… 0.16s  
+  ✓ real frame ocr parser filters low confidence and symbol only noise   0.03s  
+  ✓ frame ocr is never materialized for audio or document                0.16s  
+  ✓ frame ocr quality policy changes revision identity                   0.13s  
+  ✓ no caption job exists when the video stt gate is off                 0.14s  
+  ✓ local document provider persists real embedded text                  0.04s  
+  ✓ faster whisper provider returns timestamped units with explicit loc… 0.06s  
+  ✓ faster whisper multilingual profile runs one auto detect timeline    0.03s  
+  ✓ multilingual detection strategy participates in revision identity    0.03s  
+  ✓ vad strategy participates in single and multilingual stt revision i… 0.03s  
+  ✓ faster whisper provider fails before model when audio exceeds durat… 0.03s  
+  ✓ a caption write that silently stores nothing is refused              0.03s  
+  ✓ video stt is off by default and creates no job                       0.03s  
+  ✓ production video stt requires current unexpired qualification evide… 0.05s  
+  ✓ the provider refuses video even when a job already exists            0.03s  
+  ✓ the provider refuses a queued video when qualification is no longer… 0.02s  
+  ✓ video revision identity comes from inventory not from probing        0.03s  
+  ✓ the worker refuses when the real binary does not match inventory     0.03s  
+  ✓ an undeclared ffmpeg version fails closed                            0.02s  
+  ✓ sample format participates in the command and the identity           0.03s  
+  ✓ video threads participate in identity without changing audio identi… 0.05s  
+  ✓ video over ninety minutes is refused before the model runs           0.03s  
+  ✓ audio keeps its own two hour ceiling                                 0.03s  
+  ✓ video over one gibibyte is refused with the video error code         0.03s  
+  ✓ a video mime outside the allowlist is unsupported                    0.03s  
+  ✓ changing an extraction parameter changes the video processing versi… 0.03s  
+  ✓ the extraction profile never touches audio identity                  0.03s  
+  ✓ invalid transcript rolls back every segment and names the error      0.15s  
+  ✓ local document provider rejects pdf over page limit before extracti… 0.05s  
+  ✓ docling provider rejects pdf over page limit before model process    0.03s  
+  ✓ docling deadline is shared and cannot be swallowed as optional ocr…  0.03s  
+  ✓ docling figure text timeout fails instead of returning partial read… 0.03s  
+  ✓ docling provider cleans control characters and records observed lan… 0.03s  
+  ✓ docling provider records every observed script in a bilingual regio… 0.03s  
+  ✓ docling provider reads standalone hangul jamo as korean evidence     0.03s  
+  ✓ latin region takes the only latin locale in the profile              0.05s  
+  ✓ english is assigned when it is the only latin locale and withheld w… 0.03s  
+  ✓ garbage crop ocr is refused while the crop is kept                   0.03s  
+  ✓ rejected crop ocr preserves short observed text                      0.03s  
+  ✓ low quality text from the text layer is flagged not discarded        0.03s  
+  ✓ legitimate date text is not flagged low only because it has punctua… 0.03s  
+  ✓ docling provider renders region crop and keys it by full revision i… 0.03s  
+  ✓ docling provider reads figure text by ocr only when text layer is e… 0.05s  
+  ✓ multilingual crop ocr flattens and deduplicates canonical language…  0.03s  
+  ✓ docling provider keeps embedded text and skips ocr when text layer…  0.03s  
+  ✓ docling provider replaces one character figure noise with longer cr… 0.03s  
+  ✓ docling provider keeps short figure text when crop ocr is not bette… 0.03s  
+  ✓ docling provider fails closed for an unsupported language profile    0.03s  
+  ✓ worker kill purges crops of the job it abandons                      0.03s  
+  ✓ docling provider crops only eligible regions and leaves the rest nu… 0.03s  
+  ✓ docling provider fails whole revision when crop budget is exceeded   0.06s  
+  ✓ failed persistence leaves no orphan crop in storage                  0.05s  
+  ✓ docling provider preserves stable domain error from json protocol    0.03s  
+  ✓ docling provider rejects oversized result before json decode         0.03s  
+  ✓ local document provider rejects docx expansion before copy           0.03s  
+  ✓ worker timeout failure releases processing job for retry             0.15s  
+  ✓ infected upload fails closed and clean upload is ready               0.31s  
+  ✓ unconfigured virus provider fails file instead of leaving processin… 0.21s  
+  ✓ missing checksum fails closed before creating an output identity     0.16s  
+  ✓ transcript retries three times while caption profiles stay independ… 0.33s  
+  ✓ a failed caption chain retries independently up to three attempts    0.29s  
+  ✓ database blocks duplicate same profile and attempt                   0.27s  
+  ✓ read service uses exact revision and appends immutable audit         0.27s  
+  ✓ current revision uses job identity not segment timestamp             0.27s  
+  ✓ after commit callback is not dispatched on rollback                  0.18s  
+  ✓ read errors and explicit archived revision are fail closed           0.25s  
+  ✓ owner authorization denial precedes media lookup                     0.13s  
+  ✓ structured extraction persists atomic regions and media read return… 0.05s  
+  ✓ structured limit failure rolls back every table for the revision     0.04s  
+  ✓ structured extraction uses the owner approved production resource d… 0.02s  
+  ✓ media read fails closed when exact usage slot is ambiguous           0.23s  
+  ✓ document upload without the structured checkbox runs no structured…  0.06s  
+  ✓ docling processing version changes with text quality and ocr langua… 0.04s  
+  ✓ document upload with the structured checkbox adds the structured jo… 0.04s  
+  ✓ a failed structured job does not take the document out of ready      0.04s  
+  ✓ http document upload with checkbox persists flag and enqueues struc… 0.13s  
+  ✓ http multilingual document preserves full profile when enqueuing st… 0.09s  
+  ✓ http structured failure shows a non blocking admin warning           0.10s  
+  ✓ http document upload without checkbox enqueues no structured job     0.07s  
+  ✓ http document upload redirect renders while media is still processi… 0.12s  
+  ✓ http audio upload forging the checkbox creates no structured job     0.15s  
+  ✓ http audio upload accepts multiple languages and enqueues one timel… 0.07s  
+  ✓ http audio transcription failure is visible but audio remains ready  0.21s  
+  ✓ http audio upload without transcription needs no locale and creates… 0.21s  
+  ✓ audio form defaults transcription on and explains both choices       0.05s  
+  ✓ video form shows opt in and named qualification status               0.05s  
+  ✓ video ui translations exist in both languages and never render raw…  0.05s  
+  ✓ video limit failure displays specific warning without claiming part… 0.32s  
+  ✓ unqualified video request uploads but creates no stt or caption job  0.20s  
+  ✓ qualified video multilingual opt in enqueues one stt and deferred m… 0.18s  
+  ✓ video without opt in needs no locale and creates no stt job          0.17s  
+  ✓ unchecked deduplicated audio reports disabled even when media has a… 0.07s  
+  ✓ http non pdf document forging the checkbox creates no structured jo… 0.04s  
+  ✓ http document upload requires a supported processing locale          0.06s  
+  ✓ http document upload rejects a locale not supported in phase one     0.09s  
+  ✓ http pdf over page limit returns a friendly error before persistenc… 0.03s  
+  ✓ activity with audio but no speech job is not shown as queued         0.06s  
+  ✓ admin can initialize first transcription job for legacy audio once   0.04s  
+  ✓ audio detach cancels pending stt and reattach creates a new generat… 0.03s  
+  ✓ audio callback after detach cannot persist transcript or resurrect…  0.06s  
+  ✓ video detach cancels pending stt and caption and reattach creates a… 0.14s  
+  ✓ video callback after detach cannot persist transcript or caption     0.13s  
+  ✓ video transcript timespan cannot exceed source duration              0.13s  
+  ✓ video caption callback after detach cannot publish asset             0.14s  
+  ✓ audio transcript confidence is validated persisted and returned in…  0.04s  
+  ✓ audio invalid confidence fails entire revision                       0.04s  
+  - real local audio provider persists timespans and media read returns… 0.05s  
+  - real local video pipeline persists transcript caption and media rea… 0.03s  
+  ✓ audio recovery redelivers only expired pending and fails only expir… 0.04s  
+  ✓ speech to text recovery also handles expired video jobs              0.14s  
+  ✓ requested docling without a job is not shown as queued               0.09s  
+  ✓ recent docling request without a job is shown as initializing        0.07s  
+  ✓ structured job records pages that have text but no structure         0.03s  
+  ✓ structured character budget includes canonical text from a differen… 0.03s  
+  ✓ d4 live coverage does not count blank canonical pages                0.03s  
+  ✓ read returns structure unavailable for a page with text but no regi… 0.03s  
+  ✓ structure coverage is computed live from output tables               0.03s  
+  ✓ denied structure coverage read is audited when media can be resolve… 0.06s  
+  ✓ deleting media purges derived content and storage assets             0.04s  
+
+   PASS  Tests\Feature\MediaReadDerivedCommandTest
+  ✓ it reads the current revision and audits the consumer                0.21s  
+  ✓ json output carries the full contract unit                           0.18s  
+  ✓ an archived revision is readable only when named                     0.16s  
+  ✓ a mismatched fingerprint is a named error and a denied audit row     0.16s  
+  ✓ the real authorizer denies an owner the actor has no course context… 0.19s  
+  ✓ unsupported content type and missing actor are rejected              0.03s  
+
+   PASS  Tests\Feature\MediaReprocessCommandTest
+  ✓ media target opens a fresh chain when the configured version moves   0.30s  
+  ✓ dry run reports the plan without writing                             0.27s  
+  ✓ existing chains are not duplicated                                   0.28s  
+  ✓ job target continues a chain whose provider still matches configura… 0.28s  
+  ✓ job target refuses to replay a chain recorded against a superseded…  0.27s  
+  ✓ permanent error codes are refused                                    0.26s  
+  ✓ transcript invalid can retry because model timing is nondeterminist… 0.27s  
+  ✓ multilingual transcript retry uses its recorded profile to compare…  0.24s  
+  ✓ targets of another tenant are invisible                              0.27s  
+  ✓ exactly one target is required                                       0.03s  
+
+   FAIL  Tests\Feature\MediaRevisionLifecycleTest
+  ⨯ a new processing version archives the previous ready revision        0.24s  
+  ⨯ a new transcript revision archives the caption built on the old one  0.30s  
+  ✓ a transcript rerun materializes a new caption chain                  0.29s  
+  ✓ the caption row records the transcript revision it was built from    0.28s  
+  ✓ caption fails closed when the transcript revision is ambiguous       0.28s  
+  ✓ caption job preserves ambiguous source error code                    0.26s  
+  ✓ an unready caption asset reports the job state not a missing locale  0.26s  
+  ⨯ a caption callback landing after a new transcript revision is rejec… 0.25s  
+  ✓ caption asset is purged when persistence rolls back                  0.29s  
+  ⨯ a version bump does not archive a coexisting locale                  0.27s  
+  ✓ caption formats of the same locale coexist                           0.25s  
+  ⨯ the archived revision stays readable by explicit version             0.25s  
+
+   PASS  Tests\Feature\MediaThumbnailComponentTest
+  ✓ audio thumbnail uses the headphones icon instead of circle fallback  0.03s  
+  ✓ hierarchy icon expresses parent and child structure                  0.02s  
+  ✓ youtube thumbnail is resolved server side and rendered as image      0.04s  
+  ✓ vimeo upload and pdf use honest fallback states without generated r… 0.02s  
+  ✓ image pending and office states are explicit                         0.02s  
+  ✓ compact css and modal markup are separate                            0.02s  
+
+   PASS  Tests\Feature\QdrantVectorStoreTest
+  ✓ upsert requires completed acknowledgment                             0.05s  
+  ✓ a non success response body is never echoed                          0.02s  
+  ✓ upsert accepts completed and sends no raw text                       0.02s  
+  ✓ missing scroll result is unknown not absent                          0.05s  
+  ✓ explicit empty scroll is absent and filters tenant and key           0.02s  
+  ✓ malformed search is not an empty success                             0.02s  
+  ✓ search preserves rank and tenant filter                              0.02s  
+  ✓ delete requires completed and filters tenant and key                 0.02s  
+
+   PASS  Tests\Feature\RoleProfileTest
+  ✓ teacher and student can only access their own profile area           0.06s  
+  ✓ profile update only changes the authenticated user and never the ro… 0.05s  
+  ✓ password can be changed with the correct current password            0.27s  
+  ✓ password change rejects wrong current password mismatch and reuse    0.04s  
+  ✓ teacher and student cannot access each others password route         0.03s  
+
+   PASS  Tests\Feature\SchemaDriftCommandTest
+  ✓ docs only contract passes                                            0.04s  
+  ✓ invalid mode combination fails                                       0.02s  
+  ✓ fresh mode rejects sqlite                                            0.06s  
+  ✓ json error output does not expose credentials                        0.04s  
+  ✓ production requires explicit read only opt in                        0.04s  
+
+   PASS  Tests\Feature\TeacherJudgmentMigrationContractTest
+  ✓ contract inventory matches the authorized table                      0.03s  
+  ✓ migration declares every named physical object                       0.02s  
+  ✓ correction and immutability codes are stable                         0.03s  
+  ✓ interrupted ddl fails closed and rollback preserves lineage          0.03s  
+
+   PASS  Tests\Feature\TenantAuthenticationSecurityTest
+  ✓ login only authenticates active user in current tenant               0.48s  
+  ✓ authenticated user cannot access another tenant                      0.03s  
+  ✓ admin user list does not expose another tenant                       0.04s  
+  ✓ broadcast auth uses the tenant authentication stack                  0.03s  
+  ✓ unused breeze auth routes are removed but logout remains available   0.07s  
+  ✓ logout is post only and ui does not render get logout links          0.26s  
+  ✓ factory users always belong to a tenant                              0.02s  
+  ✓ customer id is required and customer delete is restricted            0.02s  
+
+   PASS  Tests\Feature\TenantHostResolutionTest
+  ✓ root domain displays the root landing page                           0.03s  
+  ✓ valid tenant subdomain displays the tenant website                   0.06s  
+  ✓ invalid tenant subdomain returns not found and clears context        0.03s  
+  ✓ invalid tenant 404 navigation returns to root public site            0.03s  
+  ✓ invalid tenant subdomain does not display root pages                 0.03s  
+
+   PASS  Tests\Feature\TenantRegistrationSecurityTest
+  ✓ customer registration is root only and creates unverified admin      0.15s  
+  ✓ registration form generates readonly slug and has localized placeho… 0.02s  
+  ✓ backend derives and normalizes slug from organization name           0.09s  
+  ✓ registration rejects derived duplicate slug                          0.03s  
+  ✓ registration keeps non sensitive input after validation error        0.03s  
+  ✓ customer registration rejects unknown organization type              0.03s  
+  ✓ last active admin cannot be demoted or disabled and shared profile…  0.03s  
+
+   PASS  Tests\Feature\TenantWebsiteUiTest
+  ✓ guest sees the tenant storefront and public course actions           0.08s  
+  ✓ verified student sees public and personalized content on the same h… 0.03s  
+  ✓ student personalized routes are role protected                       0.07s  
+  ✓ course actions distinguish guest available enrolled and favorite st… 0.03s  
+
+   PASS  Tests\Feature\UploadLimitTest
+  ✓ php shorthand size parser handles k m and g values                   0.02s  
+  ✓ effective limit chooses the smallest valid limit                     0.02s  
+  ✓ human readable size formats common units                             0.04s  
+  ✓ upload hint component renders formats and effective size             0.02s  
+  ✓ upload hint component accepts max size override                      0.03s  
+
+   PASS  Tests\Feature\UsageQuotaReserverContractTest
+  ✓ the same attempt resolves to one hold with data set "fake"           0.03s  
+  ✓ the same attempt resolves to one hold with data set "database"       0.02s  
+  ✓ a settled attempt reports its settlement with data set "fake"        0.02s  
+  ✓ a settled attempt reports its settlement with data set "database"    0.03s  
+  ✓ an overshoot settles over limit at the true quantity with data set…  0.04s  
+  ✓ an overshoot settles over limit at the true quantity with data set…  0.03s  
+  ✓ a zero settlement closes the attempt unused with data set "fake"     0.02s  
+  ✓ a zero settlement closes the attempt unused with data set "database… 0.03s  
+  ✓ consumed capacity is the committed not the reserved quantity with d… 0.02s  
+  ✓ consumed capacity is the committed not the reserved quantity with d… 0.03s  
+  ✓ a zero settlement returns all capacity with data set "fake"          0.02s  
+  ✓ a zero settlement returns all capacity with data set "database"      0.03s  
+  ✓ settlement replay is idempotent but a different quantity conflicts…  0.04s  
+  ✓ settlement replay is idempotent but a different quantity conflicts…  0.03s  
+  ✓ commit is refused before settling with data set "fake"               0.02s  
+  ✓ commit is refused before settling with data set "database"           0.03s  
+  ✓ state moves only reserved then executing then settling with data se… 0.02s  
+  ✓ state moves only reserved then executing then settling with data se… 0.02s  
+  ✓ an expired lease cannot cross the provider boundary with data set "… 0.02s  
+  ✓ an expired lease cannot cross the provider boundary with data set "… 0.02s  
+  ✓ release before the boundary closes the attempt and returns capacity… 0.04s  
+  ✓ release before the boundary closes the attempt and returns capacity… 0.03s  
+  ✓ release after the boundary is refused with data set "fake"           0.02s  
+  ✓ release after the boundary is refused with data set "database"       0.02s  
+  ✓ a conflicting reuse of an attempt is refused with data set "fake"    0.02s  
+  ✓ a conflicting reuse of an attempt is refused with data set "databas… 0.02s  
+  ✓ invalid quantities are refused with data set "fake"                  0.02s  
+  ✓ invalid quantities are refused with data set "database"              0.02s  
+
+   PASS  Tests\Feature\UserAuditSecurityTest
+  ✓ password reset throttle is tenant email and ip aware                 1.31s  
+  ✓ admin update requires unique email and reverifies changed email      0.04s  
+  ✓ admin can reset passwords for other user roles without current pass… 0.06s  
+  ✓ admin must confirm current password when editing own account         0.28s  
+  ✓ admin user password reset requires confirmation                      0.26s  
+  ✓ admin user password modal is rendered and cross tenant target is re… 0.05s  
+  ✓ admin user create and edit use the shared adaptive form contract     0.10s  
+  ✓ admin user main form errors render next to accessible fields         0.04s  
+  ✓ create and status actions are audited and shared profile deletion i… 0.04s  
+  ✓ tenant test route is removed                                         0.03s  
+
+   PASS  Tests\Feature\UserTenantCompositeKeyMigrationTest
+  ✓ fresh schema has the named user tenant composite unique index        0.05s  
+  ✓ composite foreign key rejects a cross tenant user reference          0.03s  
+  ✓ migration is idempotent and down drops only its index                0.03s  
+  ✓ migration preflight rejects nullable customer ownership              0.02s  
+  ✓ migration preflight rejects orphan tenant ownership                  0.03s  
+
+   FAIL  Tests\Feature\VideoTranscriptCaptionLocalReviewTest
+  ⨯ real video pipeline from course usage to transcript caption and rea… 6.14s  
+  ⨯ a corrupt video fails extraction without output or workspace residu… 5.57s  
+  ✓ an ffmpeg inventory mismatch fails closed before extraction          0.50s  
+  ✓ a queued video job is refused when the gate is switched off          0.24s  
+  ✓ a long ffmpeg inventory string never overflows the version column    0.22s  
+  ⨯ another tenant cannot read video transcript or caption               5.89s  
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\AudioProcessingLocalReviewTest > real audio activit…   
+  no_extractable_text
+Failed asserting that two strings are identical.
+  -'ready'
+  +'failed'
+  
+
+  at tests/Feature/AudioProcessingLocalReviewTest.php:86
+     82▕         $media = $this->uploadAudio($this->requireRealFixture());
+     83▕         $this->attach($media, 'en');
+     84▕ 
+     85▕         $job = $this->sttJob($media);
+  ➜  86▕         $this->assertSame('ready', $job->status, (string) $job->error_code);
+     87▕         $this->assertNotNull($job->started_at);
+     88▕         $this->assertNotNull($job->completed_at);
+     89▕         $this->assertSame('transcript', $job->output_type);
+     90▕         $this->assertSame(1, (int) $job->attempt);
+
+  1   tests/Feature/AudioProcessingLocalReviewTest.php:86
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\AudioProcessingLocalReviewTest > real duplicate dis…   
+  Failed asserting that two strings are identical.
+  -'ready'
+  +'failed'
+  
+
+  at tests/Feature/AudioProcessingLocalReviewTest.php:161
+    157▕ 
+    158▕         $this->assertSame(1, DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+    159▕             ->where('job_type', 'speech_to_text')->count());
+    160▕         $this->assertSame($before, DB::table('media_transcripts')->where('media_file_id', $media->id)->count());
+  ➜ 161▕         $this->assertSame('ready', $this->sttJob($media)->status);
+    162▕     }
+    163▕ 
+    164▕     /**
+    165▕      * § 5: `billable_units` phai duoc ghi "ke ca khi failed sau khi provider da
+
+  1   tests/Feature/AudioProcessingLocalReviewTest.php:161
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\AudioProcessingLocalReviewTest > real failure after…   
+  Failed asserting that two strings are identical.
+  -'transcript_invalid'
+  +'no_extractable_text'
+  
+
+  at tests/Feature/AudioProcessingLocalReviewTest.php:178
+    174▕         $this->attach($media, 'en');
+    175▕ 
+    176▕         $job = $this->sttJob($media);
+    177▕         $this->assertSame('failed', $job->status);
+  ➜ 178▕         $this->assertSame('transcript_invalid', $job->error_code);
+    179▕         $this->assertSame('second', $job->billable_unit_type);
+    180▕         $this->assertGreaterThan(0.0, (float) $job->billable_units);
+    181▕         $this->assertSame(0, DB::table('media_transcripts')->where('media_file_id', $media->id)->count());
+    182▕     }
+
+  1   tests/Feature/AudioProcessingLocalReviewTest.php:178
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\AudioProcessingLocalReviewTest > a new processing v…   
+  Failed asserting that two strings are identical.
+  -'faster-whisper-small-local-review-v2'
+  +'faster-whisper-small-local-review-v2+vad-da92d866'
+  
+
+  at tests/Feature/AudioProcessingLocalReviewTest.php:394
+    390▕ 
+    391▕         $current = $this->read('vi');
+    392▕         $this->assertCount(1, $current);
+    393▕         $this->assertSame('ban moi', $current[0]['text']);
+  ➜ 394▕         $this->assertSame('faster-whisper-small-local-review-v2', $current[0]['processing_version']);
+    395▕ 
+    396▕         // Ban archived van doc duoc khi neu dich danh processing_version.
+    397▕         $archived = app(MediaReadService::class)->read($this->admin->id, 'course_activity', $this->activityId,
+    398▕             'audio', 'transcript', 'vi', 'faster-whisper-small-local-review-v1');
+
+  1   tests/Feature/AudioProcessingLocalReviewTest.php:394
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\DocumentProcessingLocalReviewTest > real office for…   
+  processing_failed
+Failed asserting that two strings are identical.
+  -'ready'
+  +'failed'
+  
+
+  at tests/Feature/DocumentProcessingLocalReviewTest.php:450
+    446▕         }
+    447▕         $media = $this->upload('office.'.$extension);
+    448▕         $this->attach($media);
+    449▕         $job = $this->ocrJob($media);
+  ➜ 450▕         $this->assertSame('ready', $job->status, (string) $job->error_code);
+    451▕         $this->assertStringContainsString('DOCUMENT_ACCEPTANCE_ALPHA', implode(' ', array_column($this->read(), 'text')));
+    452▕         $this->assertSame('page', $job->billable_unit_type);
+    453▕         $this->assertGreaterThanOrEqual(1, (float) $job->billable_units);
+    454▕     }
+
+  1   tests/Feature/DocumentProcessingLocalReviewTest.php:450
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\DocumentProcessingLocalReviewTest > real office for…   
+  processing_failed
+Failed asserting that two strings are identical.
+  -'ready'
+  +'failed'
+  
+
+  at tests/Feature/DocumentProcessingLocalReviewTest.php:450
+    446▕         }
+    447▕         $media = $this->upload('office.'.$extension);
+    448▕         $this->attach($media);
+    449▕         $job = $this->ocrJob($media);
+  ➜ 450▕         $this->assertSame('ready', $job->status, (string) $job->error_code);
+    451▕         $this->assertStringContainsString('DOCUMENT_ACCEPTANCE_ALPHA', implode(' ', array_column($this->read(), 'text')));
+    452▕         $this->assertSame('page', $job->billable_unit_type);
+    453▕         $this->assertGreaterThanOrEqual(1, (float) $job->billable_units);
+    454▕     }
+
+  1   tests/Feature/DocumentProcessingLocalReviewTest.php:450
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\DocumentProcessingLocalReviewTest > real office for…   
+  processing_failed
+Failed asserting that two strings are identical.
+  -'ready'
+  +'failed'
+  
+
+  at tests/Feature/DocumentProcessingLocalReviewTest.php:450
+    446▕         }
+    447▕         $media = $this->upload('office.'.$extension);
+    448▕         $this->attach($media);
+    449▕         $job = $this->ocrJob($media);
+  ➜ 450▕         $this->assertSame('ready', $job->status, (string) $job->error_code);
+    451▕         $this->assertStringContainsString('DOCUMENT_ACCEPTANCE_ALPHA', implode(' ', array_column($this->read(), 'text')));
+    452▕         $this->assertSame('page', $job->billable_unit_type);
+    453▕         $this->assertGreaterThanOrEqual(1, (float) $job->billable_units);
+    454▕     }
+
+  1   tests/Feature/DocumentProcessingLocalReviewTest.php:450
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\DocumentProcessingLocalReviewTest > real office for…   
+  processing_failed
+Failed asserting that two strings are identical.
+  -'ready'
+  +'failed'
+  
+
+  at tests/Feature/DocumentProcessingLocalReviewTest.php:450
+    446▕         }
+    447▕         $media = $this->upload('office.'.$extension);
+    448▕         $this->attach($media);
+    449▕         $job = $this->ocrJob($media);
+  ➜ 450▕         $this->assertSame('ready', $job->status, (string) $job->error_code);
+    451▕         $this->assertStringContainsString('DOCUMENT_ACCEPTANCE_ALPHA', implode(' ', array_column($this->read(), 'text')));
+    452▕         $this->assertSame('page', $job->billable_unit_type);
+    453▕         $this->assertGreaterThanOrEqual(1, (float) $job->billable_units);
+    454▕     }
+
+  1   tests/Feature/DocumentProcessingLocalReviewTest.php:450
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\MediaRevisionLifecycleTest > a new processing versi…   
+  Failed asserting that null is identical to 'ready'.
+
+  at tests/Feature/MediaRevisionLifecycleTest.php:58
+     54▕     public function test_a_new_processing_version_archives_the_previous_ready_revision(): void
+     55▕     {
+     56▕         $media = $this->uploadVideo();
+     57▕         $this->materialize($media->id);
+  ➜  58▕         $this->assertSame('ready', $this->transcriptStatus($media->id, 'fake-v1'));
+     59▕ 
+     60▕         config(['media.processing.versions.speech_to_text' => 'fake-v2']);
+     61▕         $this->materialize($media->id);
+     62▕
+
+  1   tests/Feature/MediaRevisionLifecycleTest.php:58
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\MediaRevisionLifecycleTest > a new…   QueryException   
+  SQLSTATE[23000]: Integrity constraint violation: 19 NOT NULL constraint failed: media_captions.source_fingerprint (Connection: sqlite, Database: :memory:, SQL: insert into "media_captions" ("customer_id", "media_file_id", "locale", "caption_type", "storage_key", "status", "processing_job_id", "processing_version", "transcript_processing_version", "source_fingerprint", "created_at", "updated_at") values (1, 1, vi, vtt, tenants/1/captions/v1.vtt, ready, 2, caption-v1, fake-v1+ffmpeg-7.1.1+pcm_s16le-ar16000-ac1+d61e370f+stt-2a28d603, ?, 2026-09-26 10:40:16, 2026-09-26 10:40:16))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+      [2m+9 vendor frames [22m
+  10  tests/Feature/MediaRevisionLifecycleTest.php:81
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\MediaRevisionLifecycleTest > a caption callback lan…   
+  Failed asserting that null is identical to 'ready'.
+
+  at tests/Feature/MediaRevisionLifecycleTest.php:337
+    333▕         ]);
+    334▕         $media = $this->uploadVideo();
+    335▕         $this->materialize($media->id);
+    336▕         $v1 = $this->videoVersion('fake-v1');
+  ➜ 337▕         $this->assertSame('ready', $this->transcriptStatus($media->id, 'fake-v1'));
+    338▕         $fingerprint = DB::table('media_transcripts')->where('media_file_id', $media->id)->value('source_fingerprint');
+    339▕         $captionsBefore = DB::table('media_captions')->where('media_file_id', $media->id)->count();
+    340▕ 
+    341▕         // Provider tra ve revision v1 dung nhu no da chon, nhung trong luc no chay
+
+  1   tests/Feature/MediaRevisionLifecycleTest.php:337
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\MediaRevisionLifecycleTest > a version bump does no…   
+  Failed asserting that null is identical to 'ready'.
+
+  at tests/Feature/MediaRevisionLifecycleTest.php:453
+    449▕         $this->materialize($media->id);
+    450▕         app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
+    451▕             $this->customerId, $media->id, 'speech_to_text', ['diarization' => 'off', 'locale' => 'ko'], $this->admin->id
+    452▕         );
+  ➜ 453▕         $this->assertSame('ready', $this->transcriptStatus($media->id, 'fake-v1', 'ko'));
+    454▕ 
+    455▕         config(['media.processing.versions.speech_to_text' => 'fake-v2']);
+    456▕         $this->materialize($media->id);
+    457▕
+
+  1   tests/Feature/MediaRevisionLifecycleTest.php:453
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\MediaRevisionLifecycleTest > the archived revision…    
+  Failed asserting that two strings are identical.
+  -'fake-v2+ffmpeg-7.1.1+pcm_s16le-ar16000-ac1+d61e370f+stt-2a28d603'
+  +'fake-v2+vad-da92d866+ffmpeg-7.1.1+pcm_s16le-ar16000-ac1+d61e370f+stt-2a28d603'
+  
+
+  at tests/Feature/MediaRevisionLifecycleTest.php:509
+    505▕         $this->app->instance(CourseMediaOwnerContextAuthorizer::class, $authorizer);
+    506▕         $service = app(MediaReadService::class);
+    507▕ 
+    508▕         $current = $service->read($this->admin->id, 'course_activity', 99, 'video', 'transcript', 'vi');
+  ➜ 509▕         $this->assertSame($this->videoVersion('fake-v2'), $current[0]['processing_version']);
+    510▕         $this->assertSame('ready', $current[0]['status']);
+    511▕ 
+    512▕         $archived = $service->read($this->admin->id, 'course_activity', 99, 'video', 'transcript', 'vi',
+    513▕             $superseded->processing_version, $superseded->source_fingerprint);
+
+  1   tests/Feature/MediaRevisionLifecycleTest.php:509
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\VideoTranscriptCaptionLocalReviewTest > real video…    
+  no_extractable_text
+Failed asserting that two strings are identical.
+  -'ready'
+  +'failed'
+  
+
+  at tests/Feature/VideoTranscriptCaptionLocalReviewTest.php:86
+     82▕         $media = $this->uploadVideo($this->requireRealFixture());
+     83▕         $this->attach($media, 'en');
+     84▕ 
+     85▕         $stt = $this->job($media, 'speech_to_text');
+  ➜  86▕         $this->assertSame('ready', $stt->status, (string) $stt->error_code);
+     87▕         $this->assertSame('transcript', $stt->output_type);
+     88▕         $this->assertSame(hash('sha256', $media->checksum.':video'), $stt->source_fingerprint,
+     89▕             'Fingerprint phai la van tay VIDEO GOC, khong phai audio tam.');
+     90▕         // Identity phai mang ca engine lan extraction profile (Amendment 2.19 § 1).
+
+  1   tests/Feature/VideoTranscriptCaptionLocalReviewTest.php:86
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\VideoTranscriptCaptionLocalReviewTest > a corrupt v…   
+  Failed asserting that two strings are identical.
+  -'audio_extraction_failed'
+  +'no_extractable_text'
+  
+
+  at tests/Feature/VideoTranscriptCaptionLocalReviewTest.php:169
+    165▕         $this->attach($media, 'en');
+    166▕ 
+    167▕         $stt = $this->job($media, 'speech_to_text');
+    168▕         $this->assertSame('failed', $stt->status);
+  ➜ 169▕         $this->assertSame('audio_extraction_failed', $stt->error_code);
+    170▕         $this->assertSame(0, DB::table('media_transcripts')->where('media_file_id', $media->id)->count());
+    171▕         // STT that bai thi caption KHONG duoc materialize — khong tao caption
+    172▕         // failure gia cho mot phu de khong bao gio co nguon.
+    173▕         $this->assertSame(0, DB::table('media_processing_jobs')->where('media_file_id', $media->id)
+
+  1   tests/Feature/VideoTranscriptCaptionLocalReviewTest.php:169
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\VideoTranscriptCaptionLoca…  RecordNotFoundException   
+  No record found for the given query.
+
+  at vendor/laravel/framework/src/Illuminate/Database/Concerns/BuildsQueries.php:384
+    380▕         if (! is_null($result = $this->first($columns))) {
+    381▕             return $result;
+    382▕         }
+    383▕ 
+  ➜ 384▕         throw new RecordNotFoundException($message ?: 'No record found for the given query.');
+    385▕     }
+    386▕ 
+    387▕     /**
+    388▕      * Execute the query and get the first result if it's the sole matching record.
+
+      [2m+1 vendor frames [22m
+  2   tests/Feature/VideoTranscriptCaptionLocalReviewTest.php:402
+  3   tests/Feature/VideoTranscriptCaptionLocalReviewTest.php:243
+
+
+  Tests:    16 failed, 22 skipped, 1230 passed (10842 assertions)
+  Duration: 171.08s
+

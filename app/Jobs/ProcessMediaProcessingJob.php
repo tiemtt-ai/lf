@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Contracts\MediaProcessingProvider;
+use App\Events\MediaRevisionReady;
 use App\Exceptions\DocumentCommandFailure;
 use App\Exceptions\DocumentUsageException;
 use App\Services\CaptionAssetStorage;
@@ -35,6 +36,9 @@ use Throwable;
 class ProcessMediaProcessingJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    /** Jobs whose `ready` output is a revision readable through Media Read (A2). */
+    private const READABLE_REVISION_JOB_TYPES = ['ocr', 'structured_extraction', 'speech_to_text', 'frame_ocr', 'caption'];
 
     public int $tries = 1;
 
@@ -118,6 +122,19 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 $this->purgeCaptionAsset($media, $result);
 
                 throw $persistFailure;
+            }
+            // The revision is committed. The event is only an accelerator for
+            // consumers with their own reconciliation, so a queue failure here
+            // must neither fail the job nor reach the crop/caption purge above.
+            try {
+                if (in_array($job->job_type, self::READABLE_REVISION_JOB_TYPES, true)) {
+                    MediaRevisionReady::dispatch($this->customerId, (int) $media->id);
+                }
+            } catch (Throwable $dispatchFailure) {
+                Log::warning('Media revision ready event dispatch failed.', [
+                    'customer_id' => $this->customerId, 'media_file_id' => (int) $media->id,
+                    'exception' => $dispatchFailure::class,
+                ]);
             }
         } catch (Throwable $e) {
             if (in_array($job->job_type, ['ocr', 'structured_extraction', 'speech_to_text', 'frame_ocr'], true)) {

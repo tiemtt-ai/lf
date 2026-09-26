@@ -1,12 +1,12 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.46
+Version: 2.48
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-14
+Last Updated: 2026-09-26
 
 Document Path: platform/LF-Media-Processing-Contract.md
 
@@ -68,6 +68,31 @@ height bằng 0 sau khi làm tròn `DECIMAL(9,6)` bị bỏ riêng thay vì làm
 revision. Cả hai quy tắc là output-affecting semantics và phải tham gia
 `processing_version`. Migration rollback phải từ chối khi còn frame evidence;
 operator phải xóa revision sở hữu qua canonical Media lifecycle trước.
+
+---
+
+## Processing-version length compaction — ghi nhận runtime 2026-09-26
+
+`processing_version` là `VARCHAR(100)`. Khi chuỗi identity ghép từ các thành phần
+bắt buộc vượt 100 ký tự, runtime (`MediaProcessingOrchestrator::versionFor`) thay
+nó bằng tiền tố cố định + SHA-256 hex của **chính chuỗi đầy đủ**:
+
+| Nhánh | Tiền tố |
+| --- | --- |
+| OCR document với provider `local_document`, ngay sau `+document-v2` | `document-v2-` |
+| OCR **và** structured extraction document, ngay sau `+lp-…` | `document-` |
+| Speech-to-text, sau multilingual detection hoặc VAD | `speech-` |
+| Video STT, sau extraction profile ffmpeg | `video-stt-` |
+
+Guard chạy **tại từng bước ghép**, theo thứ tự trên: chuỗi đã nén ở bước trước
+vẫn được nối thành phần kế tiếp rồi kiểm lại, nên một OCR document có thể mang
+tiền tố `document-` dù đã qua bước `document-v2-` (v2.48, sửa theo review độc lập
+2026-09-26 F5).
+
+Nén giữ nguyên tính phân biệt: đổi bất kỳ thành phần nào vẫn đổi identity và mở
+revision mới. Consumer không được suy thành phần từ chuỗi; test phải so với
+identity ghép tường minh cùng quy tắc nén, không tìm chuỗi con. Đây là ghi nhận
+hành vi đã có (DOC-CONFLICT-0039), không phải policy mới.
 
 ---
 

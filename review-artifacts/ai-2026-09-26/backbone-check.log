@@ -1,0 +1,125 @@
+
+   WARN  Tests\Feature\AiKnowledgeIngestionServiceTest
+  ✓ prepare command persists chunks without a model and restores contex… 1.31s  
+  ✓ prepare command rejects an actor from another tenant                 0.03s  
+  ✓ it ingests media units with exact provenance and is idempotent       0.02s  
+  ✓ oversized unit is split deterministically without overlap            0.02s  
+  ✓ new revision creates a new source and stales the old revision        0.02s  
+  ✓ new revision queues pending embeddings for delete without staling l… 0.03s  
+  ✓ mixed revision payload fails atomically                              0.02s  
+  ✓ tenants with identical content receive isolated sources and chunks   0.03s  
+  ✓ repeated deletion request keeps the original request time            0.03s  
+  ✓ delete barrier requires all embeddings to be deleted before tombsto… 0.03s  
+  ✓ ingestion creates no model run embedding or vector side effect       0.02s  
+  ✓ deleted registration is not revived and reingest uses next generati… 0.03s  
+  ✓ same revision with changed content fails instead of mutating snapsh… 0.02s  
+  ✓ same revision rebuild rejects sequence drift                         0.03s  
+  ✓ table cell text is serialized by row and column into one unit chunk  0.02s  
+  - delete barrier uses a real for update lock on mariadb → FOR UPDATE…  0.03s  
+
+   FAIL  Tests\Feature\MediaRevisionLifecycleTest
+  ⨯ a new processing version archives the previous ready revision        0.37s  
+  ⨯ a new transcript revision archives the caption built on the old one  0.29s  
+  ✓ a transcript rerun materializes a new caption chain                  0.30s  
+  ✓ the caption row records the transcript revision it was built from    0.26s  
+  ✓ caption fails closed when the transcript revision is ambiguous       0.26s  
+  ✓ caption job preserves ambiguous source error code                    0.25s  
+  ✓ an unready caption asset reports the job state not a missing locale  0.25s  
+  ⨯ a caption callback landing after a new transcript revision is rejec… 0.25s  
+  ✓ caption asset is purged when persistence rolls back                  0.25s  
+  ⨯ a version bump does not archive a coexisting locale                  0.30s  
+  ✓ caption formats of the same locale coexist                           0.27s  
+  ⨯ the archived revision stays readable by explicit version             0.26s  
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\MediaRevisionLifecycleTest > a new processing versi…   
+  Failed asserting that null is identical to 'ready'.
+
+  at tests/Feature/MediaRevisionLifecycleTest.php:58
+     54▕     public function test_a_new_processing_version_archives_the_previous_ready_revision(): void
+     55▕     {
+     56▕         $media = $this->uploadVideo();
+     57▕         $this->materialize($media->id);
+  ➜  58▕         $this->assertSame('ready', $this->transcriptStatus($media->id, 'fake-v1'));
+     59▕ 
+     60▕         config(['media.processing.versions.speech_to_text' => 'fake-v2']);
+     61▕         $this->materialize($media->id);
+     62▕
+
+  1   tests/Feature/MediaRevisionLifecycleTest.php:58
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\MediaRevisionLifecycleTest > a new…   QueryException   
+  SQLSTATE[23000]: Integrity constraint violation: 19 NOT NULL constraint failed: media_captions.source_fingerprint (Connection: sqlite, Database: :memory:, SQL: insert into "media_captions" ("customer_id", "media_file_id", "locale", "caption_type", "storage_key", "status", "processing_job_id", "processing_version", "transcript_processing_version", "source_fingerprint", "created_at", "updated_at") values (1, 1, vi, vtt, tenants/1/captions/v1.vtt, ready, 2, caption-v1, fake-v1+ffmpeg-7.1.1+pcm_s16le-ar16000-ac1+d61e370f+stt-2a28d603, ?, 2026-09-26 11:18:51, 2026-09-26 11:18:51))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+      [2m+9 vendor frames [22m
+  10  tests/Feature/MediaRevisionLifecycleTest.php:81
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\MediaRevisionLifecycleTest > a caption callback lan…   
+  Failed asserting that null is identical to 'ready'.
+
+  at tests/Feature/MediaRevisionLifecycleTest.php:337
+    333▕         ]);
+    334▕         $media = $this->uploadVideo();
+    335▕         $this->materialize($media->id);
+    336▕         $v1 = $this->videoVersion('fake-v1');
+  ➜ 337▕         $this->assertSame('ready', $this->transcriptStatus($media->id, 'fake-v1'));
+    338▕         $fingerprint = DB::table('media_transcripts')->where('media_file_id', $media->id)->value('source_fingerprint');
+    339▕         $captionsBefore = DB::table('media_captions')->where('media_file_id', $media->id)->count();
+    340▕ 
+    341▕         // Provider tra ve revision v1 dung nhu no da chon, nhung trong luc no chay
+
+  1   tests/Feature/MediaRevisionLifecycleTest.php:337
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\MediaRevisionLifecycleTest > a version bump does no…   
+  Failed asserting that null is identical to 'ready'.
+
+  at tests/Feature/MediaRevisionLifecycleTest.php:453
+    449▕         $this->materialize($media->id);
+    450▕         app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile(
+    451▕             $this->customerId, $media->id, 'speech_to_text', ['diarization' => 'off', 'locale' => 'ko'], $this->admin->id
+    452▕         );
+  ➜ 453▕         $this->assertSame('ready', $this->transcriptStatus($media->id, 'fake-v1', 'ko'));
+    454▕ 
+    455▕         config(['media.processing.versions.speech_to_text' => 'fake-v2']);
+    456▕         $this->materialize($media->id);
+    457▕
+
+  1   tests/Feature/MediaRevisionLifecycleTest.php:453
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\MediaRevisionLifecycleTest > the archived revision…    
+  Failed asserting that two strings are identical.
+  -'fake-v2+ffmpeg-7.1.1+pcm_s16le-ar16000-ac1+d61e370f+stt-2a28d603'
+  +'fake-v2+vad-da92d866+ffmpeg-7.1.1+pcm_s16le-ar16000-ac1+d61e370f+stt-2a28d603'
+  
+
+  at tests/Feature/MediaRevisionLifecycleTest.php:509
+    505▕         $this->app->instance(CourseMediaOwnerContextAuthorizer::class, $authorizer);
+    506▕         $service = app(MediaReadService::class);
+    507▕ 
+    508▕         $current = $service->read($this->admin->id, 'course_activity', 99, 'video', 'transcript', 'vi');
+  ➜ 509▕         $this->assertSame($this->videoVersion('fake-v2'), $current[0]['processing_version']);
+    510▕         $this->assertSame('ready', $current[0]['status']);
+    511▕ 
+    512▕         $archived = $service->read($this->admin->id, 'course_activity', 99, 'video', 'transcript', 'vi',
+    513▕             $superseded->processing_version, $superseded->source_fingerprint);
+
+  1   tests/Feature/MediaRevisionLifecycleTest.php:509
+
+
+  Tests:    5 failed, 1 skipped, 22 passed (122 assertions)
+  Duration: 5.06s
+

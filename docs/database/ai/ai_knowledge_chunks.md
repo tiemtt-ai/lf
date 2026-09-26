@@ -1,14 +1,26 @@
 # Table: ai_knowledge_chunks
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-08
+Last Updated: 2026-09-26
 
 Document Path: database/ai/ai_knowledge_chunks.md
+
+## Owner-ineligible archive — Approved 2026-09-26
+
+Amendment A3 của [Knowledge Sync Contract](../../platform/LF-AI-Knowledge-Sync-Contract.md),
+Owner duyệt D5. Khi owner không còn giữ Media (usage bị gỡ, Version `archived`,
+activity biến mất), source và chunk chuyển `pending|active|failed|stale →
+archived`; embedding của chunk đi theo quy tắc rebuild (`ready|failed → stale`,
+`pending → deletion_pending`, không có `pending → stale`). `archived` không bao
+giờ quay lại `active`; gắn lại usage tạo `generation` kế tiếp. Nội dung chunk
+`archived` được giữ cho provenance và chỉ bị erase qua đường xoá khi Media bị
+xoá. Không đổi schema: `archived` đã có trong CHECK và không có trigger
+transition. Runtime: `AiKnowledgeIngestionService::archiveSource()`.
 
 ## Deterministic chunker runtime — Implemented 2026-09-08
 

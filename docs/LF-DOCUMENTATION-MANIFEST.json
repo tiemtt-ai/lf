@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 271,
+  "document_count": 276,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -957,7 +957,7 @@
       "area": "adr",
       "document_type": "adr",
       "document_status": "Approved",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Partial",
       "metadata_complete": true,
       "authority": "architecture_decision",
       "canonical_for": [
@@ -8254,12 +8254,37 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "platform/LF-AI-Knowledge-Sync-Contract.md",
+      "title": "AI Knowledge Sync Contract",
+      "area": "platform",
+      "document_type": "domain_policy",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "domain",
+      "canonical_for": [],
+      "topics": ["ai-knowledge-sync"],
+      "keywords": {
+        "vi": ["đồng bộ Knowledge", "xương sống dữ liệu AI", "xoá Media", "corpus"],
+        "en": ["knowledge sync", "media deletion", "reconciliation", "LF-AI-Knowledge-Sync-Contract"]
+      },
+      "identifiers": ["LF-AI-Knowledge-Sync-Contract", "ai_knowledge_sources", "ai_knowledge_chunks", "AiKnowledgeSyncService"],
+      "related_documents": [
+        "platform/LF-AI.md",
+        "platform/LF-Media-Read-Contract.md",
+        "database/ai/ai_knowledge_sources.md",
+        "database/ai/ai_knowledge_chunks.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "platform/LF-AI.md",
       "title": "LF-AI.md",
       "area": "platform",
       "document_type": "domain_policy",
       "document_status": "Frozen",
-      "implementation_status": "Not Implemented",
+      "implementation_status": "Partial",
       "metadata_complete": true,
       "authority": "domain",
       "canonical_for": [],
@@ -8849,6 +8874,101 @@
         "platform/LF-Media-Read-Contract.md",
         "database/ai/ai_knowledge_sources.md",
         "quality/LF-Media-Read-Contract-Architecture-Review.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Knowledge-Backbone-Implementation-Record.md",
+      "title": "AI Knowledge Backbone — Implementation Record",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": ["ai", "knowledge", "media", "implementation", "verification"],
+      "keywords": {
+        "vi": ["xương sống Knowledge", "đồng bộ Media", "revision identity", "reading order"],
+        "en": ["knowledge backbone", "media sync", "implementation evidence", "reading order"]
+      },
+      "identifiers": ["AiKnowledgeSyncService", "MediaRevisionReady", "ai:knowledge-sync"],
+      "related_documents": [
+        "platform/LF-AI-Knowledge-Sync-Contract.md",
+        "platform/LF-Media-Read-Contract.md",
+        "platform/LF-AI.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Knowledge-Backbone-Independent-Review.md",
+      "title": "AI Knowledge Backbone — Independent Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": ["ai", "knowledge", "media", "review", "verification"],
+      "keywords": {
+        "vi": ["review độc lập", "xương sống Knowledge", "đói finalize", "lỗi candidate"],
+        "en": ["independent review", "knowledge backbone", "finalize starvation", "candidate errors"]
+      },
+      "identifiers": ["AiKnowledgeSyncService", "knowledgeOwnerHoldsMedia", "revisionsForKnowledgeSync"],
+      "related_documents": [
+        "quality/LF-AI-Knowledge-Backbone-Reviewer-Brief.md",
+        "quality/LF-AI-Knowledge-Backbone-Implementation-Record.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Knowledge-Backbone-Reviewer-Brief.md",
+      "title": "AI Knowledge Backbone — Reviewer Brief",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": ["ai", "knowledge", "media", "review", "governance"],
+      "keywords": {
+        "vi": ["review độc lập", "xương sống Knowledge", "đồng bộ Media", "system principal"],
+        "en": ["independent review", "knowledge backbone", "media sync", "reviewer brief"]
+      },
+      "identifiers": ["AiKnowledgeSyncService", "readForKnowledgeSync", "MediaRevisionReady"],
+      "related_documents": [
+        "platform/LF-AI-Knowledge-Sync-Contract.md",
+        "quality/LF-AI-Knowledge-Backbone-Implementation-Record.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Migrations-Pre-Apply-Reviewer-Brief.md",
+      "title": "AI Migrations Pre-Apply — Reviewer Brief",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": ["ai", "migration", "database", "review", "governance"],
+      "keywords": {
+        "vi": ["review độc lập migration", "trước khi apply", "MariaDB 10.4", "rehearsal dữ liệu thật"],
+        "en": ["independent migration review", "pre-apply", "MariaDB 10.4", "rehearsal"]
+      },
+      "identifiers": ["2026_09_08_000100", "2026_09_13_000100", "2026_09_14_000100", "2026_09_15_000100"],
+      "related_documents": [
+        "quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md",
+        "quality/LF-AI-Authoring-Proposal-Implementation-Review.md",
+        "quality/LF-AI-Vision-Interpretation-Implementation-Review.md",
+        "tech/LF-Tech-Runtime-Requirements.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

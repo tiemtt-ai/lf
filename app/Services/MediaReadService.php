@@ -57,8 +57,199 @@ class MediaReadService
             $contentType, $locale, null, null, 'ai', [], null, false, $languageProfile, true);
     }
 
+    /**
+     * Knowledge Sync Contract A1: the Media-owned system principal. Only the
+     * AI Knowledge sync may call these; no route, controller or command does.
+     * Eligibility is Media's decision, not the caller's: a Course Version
+     * Activity of a `published|deprecated` Version, one active usage, and a
+     * Media File that is not deleted. Content reads are audited with
+     * `user_id = NULL`; the metadata listings below read no content and are
+     * not audited.
+     */
+    public const KNOWLEDGE_SYNC_CONSUMER = 'ai_knowledge_sync';
+
+    private const KNOWLEDGE_SYNC_OWNER = 'course_version_activity';
+
+    private const KNOWLEDGE_SYNC_VERSION_STATUSES = ['published', 'deprecated'];
+
+    private const KNOWLEDGE_SYNC_USAGES = ['document', 'audio', 'video'];
+
+    /** Outcomes of a revision that moved on between listing and resolving. */
+    private const KNOWLEDGE_SYNC_SETTLING = ['pending', 'processing', 'failed', 'archived', 'detached', 'missing'];
+
+    /**
+     * Eligible owners after a usage id cursor, ascending, optionally for one
+     * Media File (the revision-ready accelerator).
+     *
+     * @return array<int, array{usage_id:int, owner_type:string, owner_id:int, usage_type:string, media_file_id:int}>
+     */
+    public function knowledgeSyncOwners(int $afterUsageId, int $limit, ?int $mediaFileId = null): array
+    {
+        $customerId = TenantContext::customerId() ?? throw new MediaReadException('unauthorized');
+
+        return DB::table('media_file_usages as usages')
+            ->join('media_files as media', fn ($join) => $join->on('media.id', '=', 'usages.media_file_id')
+                ->on('media.customer_id', '=', 'usages.customer_id'))
+            ->join('core_course_template_version_activities as activities', fn ($join) => $join
+                ->on('activities.id', '=', 'usages.owner_id')->on('activities.customer_id', '=', 'usages.customer_id'))
+            ->join('core_course_template_versions as versions', fn ($join) => $join
+                ->on('versions.id', '=', 'activities.template_version_id')->on('versions.customer_id', '=', 'activities.customer_id'))
+            ->where('usages.customer_id', $customerId)
+            ->where('usages.owner_type', self::KNOWLEDGE_SYNC_OWNER)
+            ->whereIn('usages.usage_type', self::KNOWLEDGE_SYNC_USAGES)
+            ->where('usages.status', 'active')
+            ->where('media.status', '<>', 'deleted')
+            ->whereIn('versions.status', self::KNOWLEDGE_SYNC_VERSION_STATUSES)
+            ->where('usages.id', '>', $afterUsageId)
+            ->when($mediaFileId !== null, fn ($q) => $q->where('usages.media_file_id', $mediaFileId))
+            ->orderBy('usages.id')->limit($limit)
+            ->get(['usages.id', 'usages.owner_type', 'usages.owner_id', 'usages.usage_type', 'usages.media_file_id'])
+            ->map(fn (object $row): array => [
+                'usage_id' => (int) $row->id, 'owner_type' => (string) $row->owner_type,
+                'owner_id' => (int) $row->owner_id, 'usage_type' => (string) $row->usage_type,
+                'media_file_id' => (int) $row->media_file_id,
+            ])->all();
+    }
+
+    /**
+     * Whether a registered Knowledge owner still holds this exact Media File:
+     * an active usage of that file and an owner that still exists in the
+     * tenant. Synced Version sources also need an eligible Version.
+     */
+    public function knowledgeOwnerHoldsMedia(string $ownerType, int $ownerId, string $usageType, int $mediaFileId): bool
+    {
+        $customerId = TenantContext::customerId() ?? throw new MediaReadException('unauthorized');
+        if (! in_array($ownerType, ['course_activity', self::KNOWLEDGE_SYNC_OWNER], true)) {
+            return false;
+        }
+        $held = DB::table('media_file_usages as usages')
+            ->join('media_files as media', fn ($join) => $join->on('media.id', '=', 'usages.media_file_id')
+                ->on('media.customer_id', '=', 'usages.customer_id'))
+            ->where('usages.customer_id', $customerId)->where('usages.owner_type', $ownerType)
+            ->where('usages.owner_id', $ownerId)->where('usages.usage_type', $usageType)
+            ->where('usages.status', 'active')->where('usages.media_file_id', $mediaFileId)
+            ->where('media.status', '<>', 'deleted')->exists();
+
+        if (! $held) {
+            return false;
+        }
+        if ($ownerType === self::KNOWLEDGE_SYNC_OWNER) {
+            return $this->knowledgeSyncEligible($customerId, $ownerType, $ownerId);
+        }
+
+        // A draft Activity can disappear while its generic usage row survives
+        // (draft content replaced by a Version duplicate). The usage alone
+        // therefore does not prove the owner still holds the file (A3).
+        return DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)->where('id', $ownerId)->exists();
+    }
+
+    /**
+     * Current `ready` revision identities of an eligible owner, per content type
+     * and language profile. Metadata only: no text, no URL, no audit.
+     *
+     * A candidate comes from `ready` rows, so failing to resolve it is either a
+     * race the next pass settles (the revision moved on: pending, processing,
+     * failed, archived, detached, missing) or a defect someone must see. The
+     * latter is returned as `candidate_errors` with its stable code instead of
+     * being dropped silently.
+     *
+     * @param  array<int, string>  $contentTypes
+     * @return array{revisions: array<int, array{content_type:string, locale:?string, language_profile:?array, media_file_id:int, source_fingerprint:string, processing_version:string}>, candidate_errors: array<int, array{content_type:string, locale:?string, error_code:string}>}
+     */
+    public function revisionsForKnowledgeSync(string $ownerType, int $ownerId, string $usageType, array $contentTypes): array
+    {
+        $customerId = TenantContext::customerId() ?? throw new MediaReadException('unauthorized');
+        if (! $this->knowledgeSyncEligible($customerId, $ownerType, $ownerId)) {
+            throw new MediaReadException('unauthorized');
+        }
+        $media = $this->activeMediaForOwner($customerId, $ownerType, $ownerId, $usageType);
+        if ($media->status === 'deleted') {
+            throw new MediaReadException('missing');
+        }
+
+        $revisions = [];
+        $errors = [];
+        foreach ($contentTypes as $contentType) {
+            $this->assertUsageTypeMatchesContentType($usageType, $contentType);
+            $table = match ($contentType) {
+                'region' => 'media_extracted_regions',
+                'table' => 'media_extracted_tables',
+                'transcript' => 'media_transcripts',
+                'video_frame_text' => 'media_video_frame_texts',
+                default => throw new MediaReadException('unsupported_source'),
+            };
+            $query = DB::table($table)->where('customer_id', $customerId)
+                ->where('media_file_id', $media->id)->where('status', 'ready');
+            if (in_array($contentType, ['region', 'table'], true)) {
+                $this->withReadyDocumentJob($query, $table, 'structured_extraction');
+            }
+            $candidates = [];
+            foreach ($query->distinct()->get([$table.'.processing_job_id', $table.'.locale']) as $row) {
+                $profile = $row->processing_job_id === null ? null : $this->languageProfileForJob((int) $row->processing_job_id);
+                $profile = is_array($profile) && count($profile) > 1 ? $profile : null;
+                $candidates[json_encode([$row->locale, $profile])] = [$row->locale, $profile];
+            }
+            foreach ($candidates as [$locale, $profile]) {
+                try {
+                    $current = $this->readResolved(null, $ownerType, $ownerId, $usageType, $contentType,
+                        $locale, null, null, self::KNOWLEDGE_SYNC_CONSUMER, [], null, false, $profile, true);
+                } catch (MediaReadException $exception) {
+                    if (! in_array($exception->errorCode, self::KNOWLEDGE_SYNC_SETTLING, true)) {
+                        $errors[] = ['content_type' => $contentType, 'locale' => $locale, 'error_code' => $exception->errorCode];
+                    }
+
+                    continue;
+                }
+                foreach ($current as $revision) {
+                    $revisions[] = [
+                        'content_type' => $contentType,
+                        'locale' => $revision['locale'],
+                        'language_profile' => $profile,
+                        'media_file_id' => $revision['media_file_id'],
+                        'source_fingerprint' => $revision['source_fingerprint'],
+                        'processing_version' => $revision['processing_version'],
+                    ];
+                }
+            }
+        }
+
+        return [
+            'revisions' => array_values(array_unique($revisions, SORT_REGULAR)),
+            'candidate_errors' => array_values(array_unique($errors, SORT_REGULAR)),
+        ];
+    }
+
+    /**
+     * Content of the current revision for the system principal. Same selector
+     * and validation as read(); never pins an old revision, signs a URL or
+     * returns crops.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function readForKnowledgeSync(
+        string $ownerType, int $ownerId, string $usageType, string $contentType,
+        ?string $locale, string|array|null $languageProfile = null,
+    ): array {
+        if (! in_array($contentType, ['region', 'table', 'transcript', 'video_frame_text'], true)) {
+            throw new MediaReadException('unsupported_source');
+        }
+
+        return $this->readResolved(null, $ownerType, $ownerId, $usageType, $contentType, $locale,
+            null, null, self::KNOWLEDGE_SYNC_CONSUMER, ['operation' => 'knowledge_sync'], null, false, $languageProfile);
+    }
+
+    private function knowledgeSyncEligible(int $customerId, string $ownerType, int $ownerId): bool
+    {
+        return $ownerType === self::KNOWLEDGE_SYNC_OWNER && DB::table('core_course_template_version_activities as activities')
+            ->join('core_course_template_versions as versions', fn ($join) => $join
+                ->on('versions.id', '=', 'activities.template_version_id')->on('versions.customer_id', '=', 'activities.customer_id'))
+            ->where('activities.customer_id', $customerId)->where('activities.id', $ownerId)
+            ->whereIn('versions.status', self::KNOWLEDGE_SYNC_VERSION_STATUSES)->exists();
+    }
+
     private function readResolved(
-        int $actorId, string $ownerType, int $ownerId, string $usageType,
+        ?int $actorId, string $ownerType, int $ownerId, string $usageType,
         string $contentType, ?string $locale, ?string $processingVersion,
         ?string $sourceFingerprint, string $consumer, array $auditContext,
         ?int $page, bool $includeCrop, string|array|null $languageProfile,
@@ -78,7 +269,11 @@ class MediaReadService
         $selectedLanguageProfile = null;
 
         try {
-            if (! $this->authorizer->authorized($customerId, $ownerType, $ownerId, $actorId)) {
+            $authorized = $actorId === null
+                ? $consumer === self::KNOWLEDGE_SYNC_CONSUMER && ! $includeCrop
+                    && $this->knowledgeSyncEligible($customerId, $ownerType, $ownerId)
+                : $this->authorizer->authorized($customerId, $ownerType, $ownerId, $actorId);
+            if (! $authorized) {
                 $media = $this->mediaForOwner($customerId, $ownerType, $ownerId, $usageType);
                 throw new MediaReadException('unauthorized');
             }
@@ -690,11 +885,12 @@ class MediaReadService
         }
     }
 
-    private function audit(int $customerId, object $media, int $actorId, string $consumer, string $ownerType,
+    private function audit(int $customerId, object $media, ?int $actorId, string $consumer, string $ownerType,
         int $ownerId, string $contentType, string $usageType, ?string $locale, ?string $processingVersion,
         ?string $sourceFingerprint, string $decision, ?string $errorCode, array $context): void
     {
-        $tenantActorId = DB::table('users')->where('customer_id', $customerId)->where('id', $actorId)->value('id');
+        $tenantActorId = $actorId === null ? null
+            : DB::table('users')->where('customer_id', $customerId)->where('id', $actorId)->value('id');
         try {
             DB::table('media_access_logs')->insert([
                 'customer_id' => $customerId, 'media_file_id' => $media->id, 'user_id' => $tenantActorId,

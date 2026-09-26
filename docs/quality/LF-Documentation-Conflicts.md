@@ -1,12 +1,12 @@
 # LearnForge Documentation Conflict Register
 
-Version: 1.35
+Version: 1.36
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-09-14
+Last Updated: 2026-09-26
 
 Document Path: quality/LF-Documentation-Conflicts.md
 
@@ -248,6 +248,8 @@ khác `RESOLVED`; cột Status của bảng dưới vẫn là nguồn sự thậ
 
 | ID | Title | Classification | Status | Impact | Domain | Owner | Target Review |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| DOC-CONFLICT-0039 | `processing_version` dài bị nén thành hash nhưng Processing Contract không ghi | GAP | RESOLVED | MEDIUM | Media × AI | Architecture Owner | Đóng 2026-09-26 bằng ghi nhận runtime vào contract |
+| DOC-CONFLICT-0038 | Trạng thái triển khai AI trong README/INDEX/ADR/LF-AI lỗi thời so với code | STALE | RESOLVED | MEDIUM | AI × Learning × Media | Architecture Owner | Đóng 2026-09-26 |
 | DOC-CONFLICT-0037 | Step 7 backend scope và ADR-0017 gate UI trước migration chưa tách | DOCUMENT_CONTRADICTION | RESOLVED | HIGH | AI × Course × Learning | Architecture Owner | Đóng ở mức policy 2026-09-14; packet vẫn Review |
 | DOC-CONFLICT-0035 | AI Foundation Media-consumer packet thiếu identity, lifecycle, provider gate và Vision schema | GAP | RESOLVED | HIGH | AI × Media | Architecture Owner | Đóng 2026-09-08 bằng remediation Round 2 và independent re-review Round 3 |
 | DOC-CONFLICT-0036 | Tiêu đề superseded Gate 2 vẫn phát biểu verdict cũ ở hiện tại | STALE | RESOLVED | MEDIUM | Learning | Learning Domain Owner | Đóng 2026-09-08 |
@@ -732,6 +734,58 @@ Notes: Media cố ý không tạo hard foreign key tới owner domain, và đi�
 # Resolved Conflict Register
 
 ---
+
+## DOC-CONFLICT-0039
+
+```text
+Conflict ID: DOC-CONFLICT-0039
+Title: processing_version dài bị nén thành hash nhưng Processing Contract không ghi
+Classification: GAP
+Status: RESOLVED
+Impact: MEDIUM
+Detected At: 2026-09-26
+Detected By: Knowledge backbone step 1 (revision identity verification)
+Owner: Architecture Owner
+Affected Domain: Media × AI
+Affected Concern: Revision identity mà Knowledge Source dùng làm khoá
+Sources In Conflict: MediaProcessingOrchestrator::versionFor(); LF-Media-Processing-Contract.md
+Why They Cannot Both Be True: Runtime thay identity dài hơn VARCHAR(100) bằng tiền tố + SHA-256 của chuỗi đầy đủ, contract chỉ nói các thành phần phải tham gia identity; test Video từng kiểm chuỗi con đã bị hash mất.
+Runtime/Business Impact: Không đổi runtime; consumer không suy được thành phần từ chuỗi đã nén.
+Required Decision: Ghi quy tắc runtime hiện có vào contract; không đổi thuật toán.
+Resolution Authority: Architecture Owner
+Resolved At: 2026-09-26
+Resolution: Thêm § Processing-version length compaction vào LF-Media-Processing-Contract v2.47; v2.48 bổ sung nhánh OCR sau language profile (`document-`) và thứ tự kiểm từng bước theo review độc lập 2026-09-26 F5; test Video so khớp identity ghép tường minh gồm quy tắc nén.
+Superseded/Updated Documents: LF-Media-Processing-Contract.md
+Verification Evidence: VideoTranscriptCaptionLocalReviewTest; LF-AI-Knowledge-Backbone-Implementation-Record.md
+Related ADR/Review/Issue/PR: AI-Packet-Reassessment-2026-09-26 (working directory)
+Notes: Ghi nhận hành vi đã có từ commit ac47b1b; không phải policy mới.
+```
+
+## DOC-CONFLICT-0038
+
+```text
+Conflict ID: DOC-CONFLICT-0038
+Title: Trạng thái triển khai AI trong README/INDEX/ADR/LF-AI lỗi thời so với code
+Classification: STALE
+Status: RESOLVED
+Impact: MEDIUM
+Detected At: 2026-09-26
+Detected By: AI packet reassessment 2026-09-26 (finding F3)
+Owner: Architecture Owner
+Affected Domain: AI × Learning × Media
+Affected Concern: Trạng thái triển khai AI Foundation, Vision, Authoring Bước 7
+Sources In Conflict: database/ai/README.md; LF-INDEX.md routing AI; ADR-0006 và ADR-0017 Implementation Status; LF-AI.md header và đoạn mở đầu; code/migration hiện hành
+Why They Cannot Both Be True: Các đoạn ghi chưa có migration/service/runtime trong khi migration, service và HTTP đã có và đã được kiểm.
+Runtime/Business Impact: Không ảnh hưởng runtime; reviewer và agent đọc sai phạm vi đã triển khai.
+Required Decision: Cập nhật trạng thái, giữ lịch sử; không coi đây là mở lại DOC-CONFLICT-0012 hay 0036.
+Resolution Authority: Architecture Owner
+Resolved At: 2026-09-26
+Resolution: README, INDEX, ADR-0006 (Partial), ADR-0017 (Partial + ghi chú Context là lịch sử), LF-AI (Partial, trạng thái retrieval policy) được cập nhật.
+Superseded/Updated Documents: database/ai/README.md; LF-INDEX.md; ADR-0006; ADR-0017; LF-AI.md
+Verification Evidence: docs:lint; LF-AI-Knowledge-Backbone-Implementation-Record.md
+Related ADR/Review/Issue/PR: AI-Packet-Reassessment-2026-09-26 (working directory)
+Notes: 0012 và 0036 đã đúng ở thời điểm đóng; đây là drift mới sau khi triển khai tiếp. Không đổi policy.
+```
 
 ## DOC-CONFLICT-0037
 

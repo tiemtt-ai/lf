@@ -181,7 +181,9 @@ ngoài bốn bảng packet bị đổi.
 ### Vẫn chưa apply
 
 Migration chưa chạy lên `learnforge_db`. Cần re-review của reviewer độc lập rồi
-mới tới lệnh apply của Owner.
+mới tới lệnh apply của Owner. Cập nhật 2026-09-26: Owner mở rộng yêu cầu thành
+một review độc lập cho cả bốn migration AI trước lần apply đầu tiên; xem
+[brief](LF-AI-Migrations-Pre-Apply-Reviewer-Brief.md). Re-review vẫn chưa thực hiện.
 
 ---
 

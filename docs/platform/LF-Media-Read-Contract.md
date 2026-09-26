@@ -1,12 +1,12 @@
 # LF-Media-Read-Contract.md
 
-Version: 1.24
+Version: 1.26
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-08
+Last Updated: 2026-09-26
 
 Document Path: platform/LF-Media-Read-Contract.md
 
@@ -19,6 +19,37 @@ Related ADR:
 * [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved
 
 ---
+
+## Knowledge sync system principal and revision-ready event — Approved 2026-09-26
+
+Owner duyệt D3/D4 của [Knowledge Sync Contract](LF-AI-Knowledge-Sync-Contract.md)
+ngày 2026-09-26. Hai amendment, không đổi đường đọc theo actor (`read()`,
+`currentRevision()`), không đổi mã lỗi.
+
+**A1 — system principal `ai_knowledge_sync`.** `MediaReadService` có bốn method
+nội bộ, chỉ `AiKnowledgeSyncService`/`AiKnowledgeIngestionService` gọi; không
+route, controller hay command công khai nào tham chiếu tới (có test quét
+`app/Http` và `routes`):
+
+| Method | Trả về | Audit |
+| --- | --- | --- |
+| `knowledgeSyncOwners(after, limit, ?mediaFileId)` | Usage active của `course_version_activity` thuộc Version `published|deprecated`, Media chưa `deleted`, usage `document|audio|video` | Không (không đọc nội dung) |
+| `knowledgeOwnerHoldsMedia(ownerType, ownerId, usage, mediaFileId)` | Owner còn giữ đúng Media đó không: usage active của đúng file **và owner còn tồn tại trong tenant**; Version source cần thêm Version đủ điều kiện (v1.26) | Không |
+| `revisionsForKnowledgeSync(ownerType, ownerId, usage, contentTypes)` | `revisions`: identity revision `ready` hiện hành theo content type/language profile; `candidate_errors`: candidate `ready` không resolve được, kèm mã ổn định, trừ mã đang ổn định lại `pending|processing|failed|archived|detached|missing` (v1.26) | Không |
+| `readForKnowledgeSync(ownerType, ownerId, usage, contentType, locale, profile)` | Nội dung revision hiện hành, cùng selector với `read()` | Có: `user_id = NULL`, `source_type = ai_knowledge_sync` |
+
+Ràng buộc: tenant chỉ lấy từ `TenantContext`; chỉ `course_version_activity` của
+Version `published|deprecated`, mọi owner khác trả `unauthorized`; không pin
+revision cũ, không crop, không signed URL; content type giới hạn ở `region`,
+`table`, `transcript`, `video_frame_text`. Eligibility là quyết định của Media;
+AI không đọc bảng Media hay Course.
+
+**A2 — `MediaRevisionReady(customerId, mediaFileId)`.** `ProcessMediaProcessingJob`
+phát sau khi transaction persist commit, chỉ cho job tạo revision đọc được
+(`ocr`, `structured_extraction`, `speech_to_text`, `frame_ocr`, `caption`); job
+thất bại và `virus_scan` không phát. Lỗi dispatch chỉ ghi log, không làm hỏng job
+và không chạm tới đường purge crop/caption. Consumer-agnostic như
+`MediaFileDeleted`; chỉ để tăng tốc, consumer phải tự đối soát.
 
 ## Formula usage slot — Approved 2026-09-08
 

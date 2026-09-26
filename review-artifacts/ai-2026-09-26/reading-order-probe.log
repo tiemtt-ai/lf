@@ -1,0 +1,25 @@
+
+   FAIL  ReadingOrderContractProbeTest
+  ⨯ review probe retrieval preserves reading order                       1.36s  
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  ReadingOrderContractProbeTest > review probe retrieval preserves…    
+  LF-AI.md requires reading order on every retrieval unit.
+Failed asserting that an array has the key 'reading_order'.
+
+  at /private/tmp/lf-ai-review-0926.CuoKrt/ReadingOrderContractProbeTest.php:20
+     16▕         $hits = $reader->retrieve($actor, [0.1, 0.2, 0.3]);
+     17▕         $this->assertNotEmpty($hits);
+     18▕         $hit = collect($hits)->firstWhere('knowledge_chunk_id', $chunks[0]);
+     19▕         $this->assertNotNull($hit);
+  ➜  20▕         $this->assertArrayHasKey('reading_order', $hit, 'LF-AI.md requires reading order on every retrieval unit.');
+     21▕         $this->assertSame(17, $hit['reading_order']);
+     22▕     }
+     23▕ }
+     24▕
+
+  1   /private/tmp/lf-ai-review-0926.CuoKrt/ReadingOrderContractProbeTest.php:20
+
+
+  Tests:    1 failed (3 assertions)
+  Duration: 1.46s
+

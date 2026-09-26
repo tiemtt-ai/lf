@@ -3,7 +3,11 @@
 Document Path: database/ai/README.md
 
 > Trạng thái triển khai theo từng bảng và schema contract; không suy ra toàn miền
-> từ trạng thái ADR. Packet Authoring Bước 7 đã có migration, chưa có service.
+> từ trạng thái ADR. Cập nhật 2026-09-26: bốn bảng AI Foundation, Vision
+> Interpretation và sáu bảng Authoring Bước 7 đã có migration và service backend;
+> Knowledge tự đồng bộ với Media theo
+> [Knowledge Sync Contract](../../platform/LF-AI-Knowledge-Sync-Contract.md).
+> Chưa apply `learnforge_db`; chưa kích hoạt provider thật.
 
 Miền nghiệp vụ AI chuyển đổi ngữ cảnh học tập, hành vi và bằng chứng đã được
 phê duyệt thành các chức năng trợ giúp và hỗ trợ ra quyết định có thể kiểm
@@ -85,14 +89,17 @@ chuyên sâu, nguồn gốc thực thi, phản hồi và quản trị prompt mà
 
 ## Sơ đồ quan hệ Miền nghiệp vụ
 
-### Packet Bước 7 — Frozen / schema Implemented, backend Not Implemented
+### Packet Bước 7 — Frozen / schema và backend + HTTP Implemented, UI chưa có
 
 Owner duyệt sáu hướng sửa ngày 2026-09-14; bản Frozen năm bảng trước đó là lịch sử.
 Owner chốt Frozen packet sáu bảng v0.8 ngày 2026-09-15 theo
 [contract Bước 7](../../platform/LF-AI-Authoring-Proposal-Contract.md) và amendment
 ADR-0006. Owner sau đó cho triển khai migration dưới miễn trừ riêng ghi tại
 contract. Sáu bảng và tham chiếu Course Intent đã dựng trên database tạm
-MariaDB 11.4.12/10.4.21; chưa apply learnforge_db, chưa có service hay review PASS:
+MariaDB 11.4.12/10.4.21; chưa apply learnforge_db. Service và 41 route HTTP đã
+triển khai; Owner nghiệm thu backend + HTTP ngày 2026-09-17 dưới miễn trừ review độc
+lập (không phải PASS), xem
+[hồ sơ triển khai](../../quality/LF-AI-Authoring-Proposal-Implementation-Review.md). UI chưa có:
 
 - [ai_authoring_generation_requests](ai_authoring_generation_requests.md) — định danh yêu cầu trước provider, lưu cả kết quả rỗng.
 - [ai_authoring_proposals](ai_authoring_proposals.md) — proposal và trạng thái duyệt.

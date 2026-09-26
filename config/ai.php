@@ -92,6 +92,19 @@ return [
      * `chunk_batch` bounds how many chunks one worker pass claims, so a large
      * rebuild cannot hold quota for an unbounded set at once.
      */
+    /*
+     * Media → Knowledge sync (Knowledge Sync Contract). No provider, model or
+     * vector write: it registers Source/Chunk through the Media-owned system
+     * principal and walks the existing deletion path. `owner_limit` bounds one
+     * pass per tenant; the cursor lets later passes cover large tenants.
+     */
+    'knowledge_sync' => [
+        'owner_limit' => (int) env('AI_KNOWLEDGE_SYNC_OWNER_LIMIT', 200),
+        'deletion_limit' => (int) env('AI_KNOWLEDGE_SYNC_DELETION_LIMIT', 500),
+        'backoff_minutes' => [60, 1440],
+        'stuck_deletion_hours' => 24,
+    ],
+
     'embedding' => [
         'provider' => env('AI_EMBEDDING_PROVIDER'),
         'model' => env('AI_EMBEDDING_MODEL'),

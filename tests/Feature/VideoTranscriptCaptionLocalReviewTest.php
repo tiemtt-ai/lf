@@ -9,6 +9,7 @@ use App\Services\MediaProcessingOrchestrator;
 use App\Services\MediaReadService;
 use App\Services\MediaService;
 use App\Services\VideoAudioWorkspace;
+use App\Services\VideoSpeechToTextProfile;
 use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -87,9 +88,14 @@ class VideoTranscriptCaptionLocalReviewTest extends TestCase
         $this->assertSame('transcript', $stt->output_type);
         $this->assertSame(hash('sha256', $media->checksum.':video'), $stt->source_fingerprint,
             'Fingerprint phai la van tay VIDEO GOC, khong phai audio tam.');
-        // Identity phai mang ca engine lan extraction profile (Amendment 2.19 § 1).
-        $this->assertStringContainsString('+ffmpeg-', $stt->processing_version);
-        $this->assertStringContainsString('+stt-', $stt->processing_version);
+        // Identity mang engine, VAD strategy (VAD correction 2026-09-07) va
+        // extraction profile (Amendment 2.19 § 1). Voi engine that, chuoi day du
+        // vuot VARCHAR(100) nen duoc nen thanh hash cua chinh chuoi do; so voi
+        // identity ghep tuong minh thay vi tim chuoi con da bi hash mat.
+        $full = config('media.processing.versions.speech_to_text')
+            .'+vad-'.substr(hash('sha256', (string) config('media.processing.speech_to_text.vad_strategy')), 0, 8)
+            .'+'.app(VideoSpeechToTextProfile::class)->label();
+        $this->assertSame(strlen($full) > 100 ? 'video-stt-'.hash('sha256', $full) : $full, $stt->processing_version);
 
         $rows = DB::table('media_transcripts')->where('processing_job_id', $stt->id)->orderBy('id')->get();
         $this->assertGreaterThanOrEqual(2, $rows->count());

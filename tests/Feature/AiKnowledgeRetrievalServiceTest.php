@@ -168,6 +168,28 @@ class AiKnowledgeRetrievalServiceTest extends TestCase
         $this->assertSame($userId, (int) $logs[0]->user_id);
     }
 
+    /**
+     * LF-AI § Media evidence retrieval policy: every retrieved unit carries its
+     * Media reading order. Both fields are ingestion snapshots of the same
+     * revision; NULL stays NULL (a transcript has no reading order) and is
+     * never filled in by retrieval.
+     */
+    public function test_hits_carry_the_media_reading_order_and_text_quality_snapshot(): void
+    {
+        [$customerId, $userId, $chunkIds] = $this->indexed('reading-order');
+        DB::table('ai_knowledge_chunks')->where('id', $chunkIds[0])
+            ->update(['reading_order' => 17, 'source_text_quality' => 'low']);
+        $this->store->searchResult = $this->keysFor($customerId);
+
+        $hits = collect($this->retrieval(true)->retrieve($userId, [0.1, 0.2, 0.3]))->keyBy('knowledge_chunk_id');
+
+        $this->assertSame(17, $hits[$chunkIds[0]]['reading_order']);
+        $this->assertSame('low', $hits[$chunkIds[0]]['source_text_quality']);
+        $this->assertArrayHasKey('reading_order', $hits[$chunkIds[1]]);
+        $this->assertNull($hits[$chunkIds[1]]['reading_order']);
+        $this->assertNull($hits[$chunkIds[1]]['source_text_quality']);
+    }
+
     public function test_unauthorized_actor_gets_nothing_even_though_the_index_matched(): void
     {
         [$customerId, $userId] = $this->indexed('unauthorized');

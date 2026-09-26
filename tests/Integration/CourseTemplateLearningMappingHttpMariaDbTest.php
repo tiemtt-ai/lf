@@ -189,6 +189,93 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
             ->where('template_id', $f['template_id'])->count());
     }
 
+    /**
+     * uk_cct_lmi_identity covers source + Node + role. Re-submitting the tab
+     * form with the same three values used to reach the insert and surface the
+     * raw 1062 as an unhandled 500 page.
+     */
+    public function test_mapping_the_same_node_and_role_twice_is_refused(): void
+    {
+        $f = $this->fixture('store-duplicate');
+        $this->select($f);
+        $this->storeLessonMapping($f, ['weight' => '0.5'])->assertSessionHasNoErrors();
+        $revision = (int) DB::table('core_course_templates')->where('id', $f['template_id'])->value('working_revision');
+        $firstId = (int) DB::table('core_course_template_learning_mapping_intents')
+            ->where('template_id', $f['template_id'])->value('id');
+
+        // A different weight is still the same identity: weight is not in the key.
+        $this->storeLessonMapping($f, ['weight' => '0.9'])
+            ->assertSessionHasErrors('learning_node_id')->assertRedirect();
+
+        $intents = DB::table('core_course_template_learning_mapping_intents')
+            ->where('template_id', $f['template_id'])->get();
+        $this->assertCount(1, $intents);
+        $this->assertSame('0.500000', $intents->first()->weight);
+        $this->assertSame($revision, (int) DB::table('core_course_templates')
+            ->where('id', $f['template_id'])->value('working_revision'));
+
+        // InnoDB never returns an AUTO_INCREMENT value a failed insert consumed,
+        // so a contiguous next id proves the duplicate was refused by the
+        // pre-check and never reached the insert at all.
+        $this->storeLessonMapping($f, ['mapping_role' => 'practices'])->assertSessionHasNoErrors();
+        $this->assertSame($firstId + 1, (int) DB::table('core_course_template_learning_mapping_intents')
+            ->where('template_id', $f['template_id'])->where('mapping_role', 'practices')->value('id'));
+    }
+
+    /**
+     * A different role against the same Lesson and Node is a distinct identity
+     * and must stay allowed; the duplicate guard is not a per-Node guard.
+     */
+    public function test_the_same_node_under_a_different_role_is_accepted(): void
+    {
+        $f = $this->fixture('store-duplicate-role');
+        $this->select($f);
+        $this->storeLessonMapping($f)->assertSessionHasNoErrors();
+
+        $this->storeLessonMapping($f, ['mapping_role' => 'practices'])->assertSessionHasNoErrors();
+
+        $this->assertSame(['practices', 'teaches'], DB::table('core_course_template_learning_mapping_intents')
+            ->where('template_id', $f['template_id'])->orderBy('mapping_role')->pluck('mapping_role')->all());
+    }
+
+    /**
+     * The pre-check cannot see a writer that commits between the check and the
+     * insert. The listener below injects exactly that row on this connection
+     * once the existence query has already answered "no", which is what a
+     * concurrent request would leave behind, and proves the catch around the
+     * insert turns 1062 into the same validation error instead of a 500.
+     */
+    public function test_a_duplicate_inserted_after_the_precheck_is_still_refused(): void
+    {
+        $f = $this->fixture('store-duplicate-race');
+        $this->select($f);
+        $injected = false;
+
+        DB::listen(function ($query) use ($f, &$injected): void {
+            if ($injected || ! str_contains($query->sql, 'core_course_template_learning_mapping_intents')
+                || ! str_starts_with($query->sql, 'select exists')) {
+                return;
+            }
+            $injected = true;
+            $now = now();
+            DB::table('core_course_template_learning_mapping_intents')->insert([
+                'customer_id' => $f['customer_id'], 'template_id' => $f['template_id'],
+                'source_type' => 'course_template_lesson', 'source_id' => $f['lesson_id'],
+                'framework_id' => $f['framework_id'], 'framework_version_id' => $f['version_id'],
+                'learning_node_id' => $f['node_id'], 'mapping_role' => 'teaches', 'weight' => null,
+                'origin' => 'manual', 'created_by' => $f['admin_id'], 'updated_by' => $f['admin_id'],
+                'created_at' => $now, 'updated_at' => $now,
+            ]);
+        });
+
+        $this->storeLessonMapping($f)->assertSessionHasErrors('learning_node_id');
+
+        $this->assertTrue($injected, 'The existence pre-check never ran, so the race was not simulated.');
+        // The service transaction rolled back, taking the injected row with it.
+        $this->assertSame(0, DB::table('core_course_template_learning_mapping_intents')
+            ->where('template_id', $f['template_id'])->count());
+    }
+
     public function test_mapping_before_a_version_is_selected_is_refused(): void
     {
         $f = $this->fixture('store-no-selection');

@@ -1,0 +1,209 @@
+
+   PASS  Tests\Integration\AiFoundationKnowledgePacketMariaDbTest
+  ✓ null safe identity blocks a duplicate registration of the same re… 289.20s  
+  ✓ fingerprint identity uses the mariadb 11 safe rtrim expression       0.03s  
+  ✓ a different source fingerprint is a new registration not an overwri… 0.03s  
+  ✓ transcript from audio and video slots are separate registrations     0.03s  
+  ✓ media source without media binding is rejected                       0.03s  
+  ✓ media source outside read contract owner context is rejected         0.03s  
+  ✓ a content type cannot be registered against the wrong usage slot     0.03s  
+  ✓ every readable content type and usage pair is accepted               0.03s  
+  ✓ the same revision can be registered again after its tombstone        0.03s  
+  ✓ media provenance cannot point at a file that does not exist          0.03s  
+  ✓ media provenance cannot point at another tenants file                0.03s  
+  ✓ media file cannot be hard deleted while a registration cites it      0.02s  
+  ✓ chunk cannot reference a source owned by another tenant              0.03s  
+  ✓ a second active chunk cannot reuse a sequence number                 0.03s  
+  ✓ split parts of one unit coexist but a part index cannot repeat       0.03s  
+  ✓ chunk content may only be erased once the row is a deleted tombston… 0.03s  
+  ✓ embedding status vocabulary and readiness evidence are enforced      0.03s  
+  ✓ a deleted embedding still blocks hard deleting its parents           0.04s  
+  ✓ blocked and prompt scope provenance are enforced on model runs       0.03s  
+  ✓ rollback is refused while any packet row survives                    0.03s  
+
+   PASS  Tests\Integration\AiAuthoringProposalPacketMariaDbTest
+  ✓ all six tables have tenant foreign keys and explicit datetime preci… 0.25s  
+  ✓ request identity and terminal zero outcome cannot be reused          0.04s  
+  ✓ request claim is conditional and completed count requires sealed it… 0.03s  
+  ✓ prompt null coherence and request run tenant are physical            0.03s  
+  ✓ seal requires exact nonzero sources and cannot be reset or extended  0.04s  
+  ✓ tenant revision parent and media constraints reject cross reference… 0.03s  
+  ✓ source usage pairs and anchor identity are enforced                  0.03s  
+  ✓ revision origin and immutable payload and hash                       0.04s  
+  ✓ parent state cannot reopen and identity is binary immutable          0.04s  
+  ✓ erasure requires deletion pending and retains all hashes and audits  0.04s  
+  ✓ deletes are physically blocked for all six tables                    0.05s  
+  ✓ review action context and cancellation null branches                 0.03s  
+  ✓ target and context snapshots erase without losing hashes             0.03s  
+  ✓ human successor requires exact historically accepted predecessor     0.03s  
+  ✓ application identity prevents new uuid from creating a second node   0.04s  
+  ✓ application cancellation is terminal and requires coherent actor     0.04s  
+  ✓ application confirmation must belong to same revision and freezes w… 0.04s  
+  ✓ course manual path is preserved and ai provenance is same parent     0.04s  
+  ✓ rollback preflight does not remove any constraint or table           0.05s  
+  ✓ failed construction rolls back request items revisions and source s… 0.03s  
+
+   PASS  Tests\Integration\AiAuthoringProposalServiceMariaDbTest
+  ✓ an unconfigured deployment reads no source and writes nothing        0.14s  
+  ✓ generation seals items with exact media anchors and prompt provenan… 0.13s  
+  ✓ an exact replay returns the same items without a second call         0.10s  
+  ✓ the same request uuid with other kinds conflicts without any call    0.11s  
+  ✓ a zero item answer completes and replays without calling again       0.10s  
+  ✓ an unusable answer fails the request and writes no proposal with da… 0.09s  
+  ✓ an unusable answer fails the request and writes no proposal with da… 0.09s  
+  ✓ an unusable answer fails the request and writes no proposal with da… 0.09s  
+  ✓ an unusable answer fails the request and writes no proposal with da… 0.09s  
+  ✓ an unusable answer fails the request and writes no proposal with da… 0.09s  
+  ✓ a reuse mapping outside the offered basis fails the whole answer     0.10s  
+  ✓ a gate refusal fails the request without a provider call             0.09s  
+  ✓ the basis must be the template selection and mapping needs one       0.07s  
+  ✓ an unassigned teacher and another tenant see nothing                 0.14s  
+  ✓ an assigned teacher reads payload citations without source text      0.12s  
+  ✓ an edit appends a human revision and an exact replay does not repea… 0.12s  
+  ✓ a stale expected revision or lock version conflicts                  0.12s  
+  ✓ an invalid edit is refused by field and writes nothing               0.14s  
+  ✓ accept records the exact revision and closes editing without publis… 0.14s  
+  ✓ reject is terminal for review                                        0.10s  
+  ✓ a revoked assignment blocks mutation                                 0.09s  
+  ✓ source revision drift stales pending work and hides its payload      0.12s  
+  ✓ a detached source denies content without marking stale               0.10s  
+  ✓ a course context change stales pending but not accepted work         0.13s  
+  ✓ a deployed prompt update stales generated pending work               0.10s  
+
+   PASS  Tests\Integration\AiAuthoringApplicationServiceMariaDbTest
+  ✓ an admin accepts and creates a new node in an explicit draft in one… 0.12s  
+  ✓ a teacher cannot create a node and nothing is written                0.12s  
+  ✓ node approval replays and never creates a second node                0.12s  
+  ✓ a failed owner write rolls back the decisions and the receipt        0.10s  
+  ✓ failed intent retry keeps receipt and approver records retry actor…  0.16s  
+  ✓ retry refuses revoked actor or source and preserves failed receipt   0.13s  
+  ✓ failed node retry requires admin and reuses the original receipt     0.15s  
+  ✓ node code collision with different content is not silently reused    0.11s  
+  ✓ retry owner conflict rolls back ready transition and retry audit     0.14s  
+  ✓ a confirmed reuse target becomes an ai intent with provenance and n… 0.16s  
+  ✓ a stale snapshot hash cannot be confirmed                            0.12s  
+  ✓ a new draft node waits for publication and a changed target needs r… 0.23s  
+  ✓ a manual intent with the same key is never relabelled                0.14s  
+  ✓ accepted context drift and a detached source block application       0.14s  
+  ✓ human cancellation is audited and applied work cannot be cancelled   0.14s  
+
+   PASS  Tests\Integration\AiAuthoringPublicationMariaDbTest
+  ✓ publish promotes an ai intent with content free lineage              0.20s  
+  ✓ source drift fails the publish closed and keeps the intent           0.17s  
+  ✓ context drift blocks publish until a human reconfirms it             0.20s  
+  ✓ a rejected target blocks publish until a fresh confirmation          0.22s  
+  ✓ lineage survives deletion of the mutable intent                      0.17s  
+  ✓ the course confirmation port refuses a lost update                   0.14s  
+  ✓ manual intents publish without lineage                               0.09s  
+
+   PASS  Tests\Integration\AiAuthoringSuccessorMariaDbTest
+  ✓ an ocr revision bump inherits only the decision fields without a pr… 0.16s  
+  ✓ old rationale never leaks into preview successor or ledger           0.16s  
+  ✓ a successor needs fresh references before it can be accepted         0.19s  
+  ✓ one changed fingerprint refuses the whole inheritance                0.14s  
+  ✓ detachment or lost authority refuses inheritance                     0.10s  
+  ✓ an already created node is reused never created again                0.19s  
+  ✓ a new node proposal without its created node cannot be inherited     0.14s  
+  ✓ other reasons need the actors own payload and replay exactly         0.25s  
+  ✓ successor scope is explicit and unknown duplicate or stale selectio… 0.16s  
+  ✓ proposal and successor disclosure are audited without payload and d… 0.12s  
+  ✓ successor scope seals only explicit selected anchors and changes co… 0.14s  
+  ✓ audit insert failure prevents both content read and successor previ… 0.10s  
+
+   PASS  Tests\Integration\AiAuthoringRebaseMariaDbTest
+  ✓ manual and ai intents on v1 move to an inherited v2 with a new node… 0.35s  
+  ✓ an incomplete plan or a changed preview restores every intent and t… 0.31s  
+  ✓ a changed inheritance plan hash copies nothing                       0.15s  
+
+   PASS  Tests\Integration\AiAuthoringErasureMariaDbTest
+  ✓ the authoring listener job is explicitly after commit                0.07s  
+  ✓ authoring erasure waits for the callers outermost commit             0.12s  
+  ✓ rolling back media deletion runs no authoring erasure job            0.10s  
+  ✓ deleting the source media erases content keeps decisions and cancel… 0.28s  
+  ✓ a missing working activity is reconciled and never blocks its delet… 0.10s  
+  ✓ a spurious deletion request erases nothing                           0.10s  
+  ✓ a pending request can be cancelled by an admin only before executio… 0.08s  
+  ✓ a running request with a completed run fails as output unavailable…  0.12s  
+
+   PASS  Tests\Integration\AiAuthoringHttpMariaDbTest
+  ✓ teacher generates reads edits and accepts without publishing         0.20s  
+  ✓ admin and all three active assignment roles are supported            0.10s  
+  ✓ guest student unverified inactive and wrong role are denied          0.10s  
+  ✓ unassigned teacher cannot read or mutate even an existing uuid       0.14s  
+  ✓ cross tenant and mismatched template paths do not disclose objects   0.17s  
+  ✓ idempotent generation and decision replay recheck assignment         0.16s  
+  ✓ listing requires the template of the authorized activity             0.12s  
+  ✓ bulk cannot decide a proposal from another activity in the same tem… 0.12s  
+  ✓ generation persistence failure never copies model payload into diag… 0.09s  
+  ✓ generation persistence failure never copies model payload into diag… 0.11s  
+  ✓ generation persistence failure never copies model payload into diag… 0.24s  
+  ✓ unknown fields strings as integers and stale guards are rejected     0.16s  
+  ✓ detach and tombstone hide payload and citations but keep metadata    0.14s  
+  ✓ failed audit never returns payload or exception text                 0.11s  
+  ✓ keyset cursor is bound to actor filters and parent                   0.18s  
+  ✓ bulk reports each outcome and never calls provider                   0.20s  
+  ✓ admin only routes are not registered for teacher                     0.13s  
+  ✓ status endpoint and unconfigured provider do not expose raw inputs   0.18s  
+  ✓ csrf is required when the test bypass is disabled                    0.10s  
+  ✓ mapping confirm apply and foreign receipt cancellation               0.27s  
+  ✓ failed receipt retry keeps approval and records retry actor          0.19s  
+  ✓ context reconfirmation and target rejection do not call provider     0.27s  
+  ✓ successor scope pages and selection are current and explicit         0.25s  
+  ✓ source revision successor strips old rationale and does not generat… 0.22s  
+  ✓ admin inherits draft approves node and previews rebase               0.24s  
+  ✓ unapplied receipt can be cancelled with actor and reason             0.24s  
+  ✓ every endpoint inherits auth tenant verified role and web csrf stac… 0.07s  
+  ✓ bounds and malformed envelopes are rejected before provider          0.18s  
+
+   PASS  Tests\Integration\CourseTemplateLearningMappingHttpMariaDbTest
+  ✓ selecting a published version from the tab form                      0.08s  
+  ✓ a framework id that contradicts the version is refused               0.08s  
+  ✓ a draft version cannot be selected                                   0.06s  
+  ✓ changing the version while mappings exist is refused                 0.09s  
+  ✓ adding a lesson mapping from the tab form                            0.06s  
+  ✓ a blank weight box is accepted as no weight                          0.07s  
+  ✓ adding an activity mapping from the tab form                         0.06s  
+  ✓ removing a mapping from the tab form                                 0.07s  
+  ✓ mapping the same node and role twice is refused                      0.23s  
+  ✓ the same node under a different role is accepted                     0.08s  
+  ✓ a duplicate inserted after the precheck is still refused             0.08s  
+  ✓ mapping before a version is selected is refused                      0.21s  
+  ✓ a node outside the selected version is refused                       0.08s  
+  ✓ a source from another template is refused                            0.06s  
+  ✓ invalid mapping input is refused with data set "unknown role"        0.07s  
+  ✓ invalid mapping input is refused with data set "weight above one"    0.07s  
+  ✓ invalid mapping input is refused with data set "negative weight"     0.06s  
+  ✓ invalid mapping input is refused with data set "unknown source type… 0.06s  
+  ✓ teacher and student are refused on every mapping route               0.09s  
+  ✓ another tenant admin cannot touch the template                       0.09s  
+  ✓ the edit page renders the tab with its selection and mappings        0.13s  
+  ✓ the tab hides the node picker until a version is selected            0.10s  
+
+   PASS  Tests\Feature\AiVisionInterpretationsSchemaTest
+  ✓ a valid document region interpretation is stored                     0.05s  
+  ✓ only one ready row may hold a unit slot                              0.03s  
+  ✓ non ready rows do not occupy the slot                                0.03s  
+  ✓ superseding moves the old row to stale then inserts                  0.04s  
+  ✓ distinct slots with separator characters never collide               0.03s  
+  ✓ the same slot in another tenant is independent                       0.03s  
+  ✓ check constraints refuse invalid rows with data set "video usage (…  0.03s  
+  ✓ check constraints refuse invalid rows with data set "frame text con… 0.03s  
+  ✓ check constraints refuse invalid rows with data set "page locator (… 0.03s  
+  ✓ check constraints refuse invalid rows with data set "page zero"      0.03s  
+  ✓ check constraints refuse invalid rows with data set "failed status…  0.03s  
+  ✓ check constraints refuse invalid rows with data set "unknown owner…  0.04s  
+  ✓ check constraints refuse invalid rows with data set "partial bbox"   0.03s  
+  ✓ check constraints refuse invalid rows with data set "bbox outside t… 0.03s  
+  ✓ check constraints refuse invalid rows with data set "ready without…  0.03s  
+  ✓ check constraints refuse invalid rows with data set "deleted still…  0.03s  
+  ✓ check constraints refuse invalid rows with data set "deleted withou… 0.03s  
+  ✓ check constraints refuse invalid rows with data set "deletion pendi… 0.03s  
+  ✓ bbox may be absent when the source region has none                   0.04s  
+  ✓ a deleted tombstone erases text but keeps provenance                 0.04s  
+  ✓ a row cannot cite another tenants media file                         0.03s  
+  ✓ a row cannot reference another tenants model run                     0.03s  
+  ✓ rollback refuses while rows exist before any ddl                     0.03s  
+
+  Tests:    183 passed (1247 assertions)
+  Duration: 307.84s
+

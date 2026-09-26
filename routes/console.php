@@ -17,3 +17,7 @@ Schedule::command('ai:vision-reconcile-media-deletion')->everyFifteenMinutes()->
 
 // Backstop for Step 7 Authoring Proposal erasure; local database only.
 Schedule::command('ai:authoring-reconcile-erasure')->everyFifteenMinutes()->withoutOverlapping(15);
+
+// Media → Knowledge sync (Knowledge Sync Contract): source of truth for create,
+// stale/archive and delete; the Media events only shorten the delay.
+Schedule::command('ai:knowledge-sync')->everyTenMinutes()->withoutOverlapping(30);

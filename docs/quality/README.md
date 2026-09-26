@@ -56,6 +56,10 @@ criteria hay không.
 * [LF-AI-Embedding-Qdrant-Reviewer-Brief.md](LF-AI-Embedding-Qdrant-Reviewer-Brief.md)
 * [LF-AI-Vision-Interpretation-Implementation-Review.md](LF-AI-Vision-Interpretation-Implementation-Review.md)
 * [LF-AI-Authoring-Proposal-Implementation-Review.md](LF-AI-Authoring-Proposal-Implementation-Review.md) — Bước 7: lịch sử quyết định, schema/backend/HTTP, bằng chứng và giới hạn; Owner nghiệm thu backend + HTTP 2026-09-17 theo miễn trừ review độc lập, không phải independent PASS.
+* [LF-AI-Knowledge-Backbone-Implementation-Record.md](LF-AI-Knowledge-Backbone-Implementation-Record.md) — xương sống Knowledge 2026-09-26: revision identity, đồng bộ Media → Knowledge, reading_order, đồng bộ tài liệu, remediation ba lượt review; review độc lập PASS WITH DOCUMENTED RISKS; **Owner chốt đóng Source/Chunk 2026-09-26**.
+* [LF-AI-Knowledge-Backbone-Independent-Review.md](LF-AI-Knowledge-Backbone-Independent-Review.md) — review độc lập xương sống 2026-09-26, ba lượt: lượt 1 CHANGES REQUIRED (F1–F5), lượt 2 CHANGES REQUIRED (F6), **lượt 3 PASS WITH DOCUMENTED RISKS** (F1–F6 CLOSED; F7 LOW coverage đã xử lý sau lượt 3, chưa re-review).
+* [LF-AI-Knowledge-Backbone-Reviewer-Brief.md](LF-AI-Knowledge-Backbone-Reviewer-Brief.md) — brief review độc lập xương sống Knowledge (bước 3 lộ trình): phạm vi, ràng buộc độc lập/an toàn, câu hỏi A–G, lệnh kiểm chứng, định dạng báo cáo.
+* [LF-AI-Migrations-Pre-Apply-Reviewer-Brief.md](LF-AI-Migrations-Pre-Apply-Reviewer-Brief.md) — brief review độc lập cả bốn migration AI trước lần apply đầu tiên lên `learnforge_db` (Owner chọn phương án a, 2026-09-26); engine đích 10.4.21 dưới floor 10.5; rehearsal trên dump do Owner giao.
 * [LF-SaaS-Commercial-Usage-Packet-Reviewer-Brief.md](LF-SaaS-Commercial-Usage-Packet-Reviewer-Brief.md)
 * [LF-Implicit-Timestamp-OnUpdate-Audit.md](LF-Implicit-Timestamp-OnUpdate-Audit.md)
 * [LF-Audio-Processing-Final-Code-Review.md](LF-Audio-Processing-Final-Code-Review.md) — review Audio local, real offline Faster Whisper E2E và `PASS_LOCAL_AUDIO_PROCESSING`.

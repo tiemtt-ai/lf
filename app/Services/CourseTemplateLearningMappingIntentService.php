@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -77,16 +78,37 @@ final class CourseTemplateLearningMappingIntentService
             if (! $node) {
                 throw ValidationException::withMessages(['learning_node_id' => 'The selected Node is not active in the selected Framework Version.']);
             }
+            $identity = [
+                'customer_id' => $customerId, 'template_id' => $templateId, 'source_type' => $data['source_type'],
+                'source_id' => $data['source_id'], 'learning_node_id' => $node->id, 'mapping_role' => $data['mapping_role'],
+            ];
+            if (DB::table('core_course_template_learning_mapping_intents')->where($identity)->exists()) {
+                throw $this->duplicateIdentity();
+            }
             $now = now();
-            DB::table('core_course_template_learning_mapping_intents')->insert([
-                'customer_id' => $customerId, 'template_id' => $templateId, 'source_type' => $data['source_type'], 'source_id' => $data['source_id'],
-                'framework_id' => $frameworkId, 'framework_version_id' => $versionId, 'learning_node_id' => $node->id,
-                'mapping_role' => $data['mapping_role'], 'weight' => $data['weight'] ?? null, 'origin' => 'manual',
-                'created_by' => $actorId, 'updated_by' => $actorId, 'created_at' => $now, 'updated_at' => $now,
-            ]);
+            try {
+                DB::table('core_course_template_learning_mapping_intents')->insert($identity + [
+                    'framework_id' => $frameworkId, 'framework_version_id' => $versionId,
+                    'weight' => $data['weight'] ?? null, 'origin' => 'manual',
+                    'created_by' => $actorId, 'updated_by' => $actorId, 'created_at' => $now, 'updated_at' => $now,
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                // The template row is locked above, so a concurrent writer normally
+                // waits. uk_cct_lmi_identity stays the last line of defence: never
+                // let it surface as an unhandled 500 on the mapping tab.
+                throw $this->duplicateIdentity();
+            }
             DB::table('core_course_templates')->where('customer_id', $customerId)->where('id', $templateId)
                 ->update(['working_revision' => (int) $template->working_revision + 1, 'updated_at' => $now]);
         });
+    }
+
+    /** uk_cct_lmi_identity ignores weight and framework columns; identity is source + Node + role. */
+    private function duplicateIdentity(): ValidationException
+    {
+        return ValidationException::withMessages([
+            'learning_node_id' => 'This Node is already mapped to the selected Lesson or Activity with that role.',
+        ]);
     }
 
     public function destroy(int $customerId, int $templateId, int $intentId): void

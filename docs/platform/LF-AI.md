@@ -4,7 +4,7 @@ Version: 1.7
 
 Document Status: Frozen
 
-Implementation Status: Not Implemented
+Implementation Status: Partial
 
 Last Updated: 2026-09-14
 
@@ -130,8 +130,11 @@ chúng khác nhau, nên không gộp làm một:
   xoá nội dung Vision, giữ provenance/hash và usage thực tế; bắt buộc chặn đọc
   nội dung đã mất nguồn trong thời gian chờ dọn). **Owner chốt nghiệm thu backend Bước 6
   ngày 2026-09-14** — không phải review PASS; không gồm AI thật, provider hay frontend chat;
-  chưa kiểm Redis worker/scheduler thật. Knowledge Source/embedding **chưa** nối xoá Media
-  (O-6). Xem
+  chưa kiểm Redis worker/scheduler thật. Knowledge Source/embedding nối xoá Media từ
+  2026-09-26 qua [Knowledge Sync Contract](LF-AI-Knowledge-Sync-Contract.md) (đóng O-6).
+  **Owner chốt đóng phần chuẩn bị Knowledge Source/Chunk ngày 2026-09-26** sau review
+  độc lập PASS WITH DOCUMENTED RISKS; chưa apply `learnforge_db`, chưa kích hoạt
+  embedding thật. Xem
   [LF-AI-Vision-Interpretation-Implementation-Review](../quality/LF-AI-Vision-Interpretation-Implementation-Review.md).
 * **Provider activation** — quyết định riêng theo ADR-0018, độc lập với mọi mục
   trên. Allow-list provider mặc định rỗng; chưa cho phép gọi provider thật.
@@ -266,7 +269,8 @@ FK RESTRICT và audit cùng đúng. Retry/reconciliation tiếp tục từ tombs
 AI ingestion snapshot `text_quality` của region theo đúng Media revision. Retrieval chỉ dùng
 `low` để hạ rank sau relevance; không loại evidence, sửa locale/languages hoặc
 coi `normal` là bảo đảm OCR đúng. Revision không có signal giữ NULL và không bị
-suy ngược. Runtime AI vẫn `Not Implemented`.
+suy ngược. Snapshot `source_text_quality` đã được lưu và trả trong retrieval
+(2026-09-26); việc hạ rank theo `low` chưa triển khai (xem § Media evidence retrieval policy).
 
 ---
 
@@ -333,8 +337,19 @@ vẫn có thể tham gia như region thường; `quality_status = undetermined` 
 không phải penalty chất lượng.
 
 Các threshold trên được chốt từ regression `docling 3/6` (Jamo thật ở paragraph
-không bị hạ) và `docling 7` (image `"3"`, Hangul OCR ngắn). Runtime vẫn
-`Not Implemented` cho tới khi các gate AI Foundation hiện hành được đóng.
+không bị hạ) và `docling 7` (image `"3"`, Hangul OCR ngắn).
+
+Trạng thái 2026-09-26: `AiKnowledgeRetrievalService` trả đủ provenance của từng
+unit — `media_file_id`, `source_fingerprint`, `processing_version`, locator,
+`reading_order` và `source_text_quality` — và tái kiểm quyền người đọc. **Các
+modifier xếp hạng (locale boost, ưu tiên role, low-signal, quy tắc Hangul) và
+context expansion chưa triển khai**; kết quả vẫn theo thứ tự của vector store.
+
+**Owner quyết định 2026-09-26: hoãn các modifier xếp hạng và context expansion
+tới consumer đầu tiên.** Policy trên vẫn Approved và không bị nới. Việc nối
+`AiKnowledgeRetrievalService` vào bất kỳ consumer sản phẩm nào (trợ giảng, đề
+xuất, API) phải triển khai đủ các modifier này trong cùng thay đổi, hoặc có quyết
+định Owner mới; không được đưa kết quả chưa xếp hạng ra người dùng.
 
 ---
 
@@ -342,10 +357,12 @@ không bị hạ) và `docling 7` (image `"3"`, Hangul OCR ngắn). Runtime vẫ
 
 AI là Learning Intelligence & Decision Support Domain của LearnForge.
 
-AI Foundation hiện là policy/database specification đã Frozen nhưng chưa có
-`ai_*` migration, model, service, provider runtime hay external Proposal/review
-surface. Các section bên dưới mô tả contract bắt buộc cho implementation tương
-lai, không phải capability đang vận hành.
+AI Foundation là policy/database specification đã Frozen. Cập nhật 2026-09-26:
+migration và service backend đã có cho Knowledge/Embedding/Model Run, Vision
+Interpretation và Authoring Bước 7 (xem § trạng thái ở đầu tài liệu); chưa apply
+`learnforge_db`, chưa kích hoạt provider thật, chưa có UI đề xuất hay trợ giảng.
+Các section bên dưới là contract bắt buộc; section nào chưa có runtime thì ghi rõ
+trạng thái tại chỗ.
 
 AI là Consumer Domain. AI đọc dữ liệu được phép từ các Owner Domain và tạo
 conversation, recommendation, insight hoặc authoring suggestion. AI không sở

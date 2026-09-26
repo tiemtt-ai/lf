@@ -31,6 +31,11 @@ final class AiKnowledgeRetrievalService
     ) {}
 
     /**
+     * Results keep the vector store's order. The ranking modifiers and context
+     * expansion of LF-AI § Media evidence retrieval policy are deferred by the
+     * Owner (2026-09-26) until the first product consumer: wiring this service
+     * into one must implement them in the same change, or carry a new decision.
+     *
      * @param  array<int,float>  $queryVector
      * @return array<int,array<string,mixed>> Citable chunks, best first.
      */
@@ -99,6 +104,7 @@ final class AiKnowledgeRetrievalService
                 'e.vector_key', 'e.embedding_hash', 'e.knowledge_chunk_id',
                 'c.chunk_uuid', 'c.content', 'c.content_hash', 'c.locator_type',
                 'c.locator_start', 'c.locator_end', 'c.part_index', 'c.knowledge_source_id',
+                'c.reading_order', 'c.source_text_quality',
                 's.source_uuid', 's.source_type', 's.source_id', 's.usage_type',
                 's.content_type', 's.media_file_id', 's.title', 's.locale', 's.metadata',
                 's.identity_fingerprint', 's.identity_version',
@@ -170,6 +176,13 @@ final class AiKnowledgeRetrievalService
                     'end' => (string) $row->locator_end,
                     'part_index' => (int) $row->part_index,
                 ],
+                // LF-AI § Media evidence retrieval policy: every unit keeps its
+                // Media reading order. Snapshotted at ingestion from the same
+                // revision; NULL where Media has no order (transcripts).
+                'reading_order' => $row->reading_order === null ? null : (int) $row->reading_order,
+                // Media's own `normal|low` signal, never recomputed here; NULL
+                // for non-region units or revisions without the signal.
+                'source_text_quality' => $row->source_text_quality,
                 'media_file_id' => $row->media_file_id === null ? null : (int) $row->media_file_id,
                 'source_fingerprint' => (string) $row->identity_fingerprint,
                 'processing_version' => (string) $row->identity_version,

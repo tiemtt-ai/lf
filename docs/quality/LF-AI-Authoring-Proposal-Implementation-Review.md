@@ -237,3 +237,7 @@ does not rerun or newly certify those runtime results.
   (miễn trừ, không phải PASS); existing schema waiver retains its exact scope.
 - No known open finding remains among P1-R1 and P2-R2–R4. Baseline Media test
   repairs are a separate follow-up, not silently included in this work.
+  Update 2026-09-26: the seven were stale test expectations predating the VAD
+  amendment and were repaired in the
+  [Knowledge backbone record](LF-AI-Knowledge-Backbone-Implementation-Record.md);
+  the default suite now has no failures.

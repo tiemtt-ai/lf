@@ -43,6 +43,7 @@ tự thực thi business decision của consumer.
 | Track (Learning Intelligence Domain) | [LF-Track](LF-Track.md) | Foundation Approved |
 | AI (Learning Intelligence & Decision Support) | [LF-AI](LF-AI.md) | Foundation Approved and Frozen |
 | AI Authoring Proposal | [Contract Bước 7](LF-AI-Authoring-Proposal-Contract.md) | v0.8 Frozen / Partial; schema, service và HTTP v1 đã triển khai, kiểm local với provider giả; Owner nghiệm thu backend + HTTP 2026-09-17 (miễn trừ review độc lập); UI chưa có |
+| AI Knowledge Sync | [LF-AI-Knowledge-Sync-Contract](LF-AI-Knowledge-Sync-Contract.md) | v1.2 Approved / Implemented — đồng bộ Media → Knowledge; review độc lập PASS WITH DOCUMENTED RISKS; Owner chốt đóng Source/Chunk 2026-09-26; chưa apply `learnforge_db` |
 
 Media foundation decision:
 [ADR-0004](../adr/ADR-0004-Media-Foundation.md).
