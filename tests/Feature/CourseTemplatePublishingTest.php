@@ -898,6 +898,123 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertDatabaseHas('media_file_usages', ['owner_type' => 'course_activity', 'owner_id' => $draftActivityId, 'status' => 'active']);
     }
 
+    /**
+     * Restoring a Version deletes the working Activities and recreates them
+     * with new ids. The replaced Activities' Media usages used to stay active
+     * with no owner, keeping files "in use" for good.
+     */
+    public function test_duplicate_to_draft_detaches_the_replaced_draft_activity_usages(): void
+    {
+        [$customerId, $admin, $templateId, $versionId] = $this->publishedTemplateForDuplication('Orphan Usage');
+        $oldActivityIds = DB::table('core_course_template_activities')->where('template_id', $templateId)->pluck('id')->all();
+        $oldMedia = DB::table('media_file_usages')->where('owner_type', 'course_activity')
+            ->whereIn('owner_id', $oldActivityIds)->where('status', 'active')->pluck('media_file_id')->all();
+        $this->assertNotEmpty($oldMedia);
+
+        $this->duplicateToDraft($admin, $templateId, $versionId);
+
+        $this->assertSame(0, DB::table('media_file_usages')->where('owner_type', 'course_activity')
+            ->whereIn('owner_id', $oldActivityIds)->where('status', 'active')->count(), 'Usages of deleted Activities must be detached.');
+        $orphans = DB::table('media_file_usages as u')
+            ->leftJoin('core_course_template_activities as a', fn ($join) => $join->on('a.id', '=', 'u.owner_id')->on('a.customer_id', '=', 'u.customer_id'))
+            ->where('u.customer_id', $customerId)->where('u.owner_type', 'course_activity')->where('u.status', 'active')
+            ->whereNull('a.id')->count();
+        $this->assertSame(0, $orphans);
+        $newActivityIds = DB::table('core_course_template_activities')->where('template_id', $templateId)->pluck('id')->all();
+        $this->assertSame($oldMedia, DB::table('media_file_usages')->where('owner_type', 'course_activity')
+            ->whereIn('owner_id', $newActivityIds)->where('status', 'active')->orderBy('id')->pluck('media_file_id')->all(),
+            'The restored Activities hold the same files through their own usages.');
+    }
+
+    /** Detaching after the restore keeps processing of a file the restored draft still uses. */
+    public function test_duplicate_to_draft_keeps_pending_processing_of_reused_activity_media(): void
+    {
+        [$customerId, $admin, $templateId, $versionId] = $this->publishedTemplateForDuplication('Pending Processing');
+        $activityId = (int) DB::table('core_course_template_activities')->where('template_id', $templateId)->value('id');
+        $mediaId = (int) DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->value('media_file_id');
+        $jobId = DB::table('media_processing_jobs')->insertGetId([
+            'customer_id' => $customerId, 'media_file_id' => $mediaId, 'job_type' => 'ocr', 'status' => 'pending',
+            'attempt' => 1, 'provider' => 'fake', 'idempotency_key' => 'orphan-usage-pending-'.$mediaId,
+            'correlation_id' => '33333333-3333-4333-8333-333333333333', 'source_fingerprint' => str_repeat('c', 64),
+            'processing_version' => 'fake-v1', 'output_profile' => 'locale=vi', 'output_profile_hash' => hash('sha256', 'locale=vi'),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->duplicateToDraft($admin, $templateId, $versionId);
+
+        $this->assertSame('pending', DB::table('media_processing_jobs')->where('id', $jobId)->value('status'));
+    }
+
+    /**
+     * An intro slot keeps exactly one active usage: the restored Version's
+     * file. The draft's replaced file is detached, which publish readiness
+     * requires (exact slot cardinality); an unchanged file is left alone.
+     */
+    public function test_duplicate_to_draft_leaves_one_active_usage_per_intro_slot(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Intro Slot Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Intro Slot Course');
+        $this->addValidContent($customerId, $templateId, $admin->id, 'Intro Slot');
+        $versionImage = $this->createIntroMedia($customerId, $admin->id, 'image', 'image/png', 'png');
+        $this->setIntroImage($customerId, $admin->id, $templateId, $versionImage);
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")
+            ->assertSessionDoesntHaveErrors();
+        $versionId = (int) DB::table('core_course_template_versions')->where('template_id', $templateId)->value('id');
+
+        // The draft moves on to another intro image, as editing the Template does.
+        $draftImage = $this->createIntroMedia($customerId, $admin->id, 'image', 'image/png', 'png');
+        DB::table('media_file_usages')->where('owner_type', 'course_template')->where('owner_id', $templateId)
+            ->where('usage_type', 'intro_image')->update(['status' => 'detached']);
+        $this->setIntroImage($customerId, $admin->id, $templateId, $draftImage);
+
+        $this->duplicateToDraft($admin, $templateId, $versionId);
+        $this->assertSame([$versionImage], $this->activeIntroImages($templateId));
+        $service = app(CourseTemplatePublishReadinessService::class);
+        $this->assertNotContains('template_intro_image', $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all());
+
+        // Restoring again with the same file keeps that usage active.
+        $this->duplicateToDraft($admin, $templateId, $versionId);
+        $this->assertSame([$versionImage], $this->activeIntroImages($templateId));
+    }
+
+    /** @return array{int, object, int, int} */
+    private function publishedTemplateForDuplication(string $prefix): array
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', $prefix.' Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, $prefix.' Course');
+        $this->addValidContent($customerId, $templateId, $admin->id, $prefix);
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")
+            ->assertSessionDoesntHaveErrors();
+
+        return [$customerId, $admin, $templateId, (int) DB::table('core_course_template_versions')->where('template_id', $templateId)->value('id')];
+    }
+
+    private function duplicateToDraft(object $admin, int $templateId, int $versionId): void
+    {
+        $this->actingAs($admin)
+            ->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/versions/{$versionId}/duplicate-to-draft")
+            ->assertSessionDoesntHaveErrors();
+    }
+
+    private function setIntroImage(int $customerId, int $adminId, int $templateId, int $mediaId): void
+    {
+        DB::table('core_course_templates')->where('id', $templateId)->update(['intro_image_media_file_id' => $mediaId]);
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $customerId, 'media_file_id' => $mediaId, 'owner_type' => 'course_template',
+            'owner_id' => $templateId, 'usage_type' => 'intro_image', 'status' => 'active', 'metadata' => null,
+            'created_by' => $adminId, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    /** @return array<int,int> */
+    private function activeIntroImages(int $templateId): array
+    {
+        return DB::table('media_file_usages')->where('owner_type', 'course_template')->where('owner_id', $templateId)
+            ->where('usage_type', 'intro_image')->where('status', 'active')->pluck('media_file_id')->map(fn ($id) => (int) $id)->all();
+    }
+
     public function test_publish_media_errors_identify_activity_and_template_fields_safely(): void
     {
         $customerId = $this->createTenant();

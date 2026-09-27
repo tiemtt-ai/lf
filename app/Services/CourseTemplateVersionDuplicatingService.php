@@ -73,6 +73,10 @@ class CourseTemplateVersionDuplicatingService
             $beforeCounts = $this->draftCounts($customerId, $templateId);
             $now = now();
 
+            // Captured before the draft rows go: once they are deleted nothing
+            // points at these usages any more, and they would stay active.
+            $staleUsages = $this->activeDraftMediaUsages($customerId, $templateId);
+
             $this->deleteDraftContent($customerId, $templateId);
 
             DB::table('core_course_templates')
@@ -117,10 +121,12 @@ class CourseTemplateVersionDuplicatingService
                     'updated_at' => $now,
                 ]);
 
+            $restoredIntro = [];
             foreach (['intro_image' => $version->intro_image_media_file_id_snapshot, 'intro_video' => $version->intro_video_media_file_id_snapshot, 'intro_document' => $version->intro_document_media_file_id_snapshot] as $usage => $mediaId) {
                 $mediaId = $this->referenceId($customerId, $mediaId, ['media_files']);
                 if ($mediaId) {
                     $this->mediaService->attachUsage((int) $mediaId, 'course_template', $templateId, $usage);
+                    $restoredIntro[$usage] = (int) $mediaId;
                 }
             }
 
@@ -145,6 +151,11 @@ class CourseTemplateVersionDuplicatingService
                 $lessonMap,
                 $now
             );
+            // Detach only after the restored draft holds its own usages: a
+            // detach that leaves a file with no active activity usage cancels
+            // its pending processing, which a file reused by the restored
+            // draft still needs.
+            $this->detachStaleDraftMediaUsages($staleUsages, $restoredIntro);
 
             DB::table('saas_audit_logs')->insert([
                 'customer_id' => $customerId,
@@ -570,6 +581,51 @@ class CourseTemplateVersionDuplicatingService
                 $seen[$currentId] = true;
                 $currentId = $parents[$currentId];
             }
+        }
+    }
+
+    /**
+     * Active Media usages owned by the draft that duplication replaces: every
+     * working Activity of the Template, and the Template intro slots.
+     */
+    private function activeDraftMediaUsages(int $customerId, int $templateId): Collection
+    {
+        $activityIds = DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->pluck('id');
+
+        return DB::table('media_file_usages')
+            ->where('customer_id', $customerId)
+            ->where('status', 'active')
+            ->where(fn ($query) => $query
+                ->where(fn ($q) => $q->where('owner_type', 'course_activity')->whereIn('owner_id', $activityIds))
+                ->orWhere(fn ($q) => $q->where('owner_type', 'course_template')->where('owner_id', $templateId)
+                    ->whereIn('usage_type', ['intro_image', 'intro_video', 'intro_document'])))
+            ->orderBy('id')
+            ->get(['media_file_id', 'owner_type', 'owner_id', 'usage_type']);
+    }
+
+    /**
+     * Through the Media owner API, as deleting an Activity does. Activity
+     * usages always go: their owners were deleted. An intro usage stays when
+     * the restored Version re-attached the same file to the same slot.
+     *
+     * @param  array<string,int>  $restoredIntro
+     */
+    private function detachStaleDraftMediaUsages(Collection $staleUsages, array $restoredIntro): void
+    {
+        foreach ($staleUsages as $usage) {
+            if ($usage->owner_type === 'course_template'
+                && ($restoredIntro[$usage->usage_type] ?? null) === (int) $usage->media_file_id) {
+                continue;
+            }
+            $this->mediaService->detachUsage(
+                (int) $usage->media_file_id,
+                (string) $usage->owner_type,
+                (int) $usage->owner_id,
+                (string) $usage->usage_type,
+            );
         }
     }
 
