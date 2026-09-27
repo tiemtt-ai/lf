@@ -1,12 +1,12 @@
 # AI Authoring Proposal — Implementation Review
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Review
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-17
+Last Updated: 2026-09-26
 
 Document Path: quality/LF-AI-Authoring-Proposal-Implementation-Review.md
 
@@ -41,6 +41,46 @@ This waiver covers this acceptance only. It does not extend the 2026-09-15
 schema waiver, does not approve any provider, and does not retroactively turn the
 self-review into an independent review. A future independent review may still
 be commissioned; any finding it raises reopens the affected scope.
+
+## Packet migration apply-safety hardening — 2026-09-26
+
+After the [independent pre-apply review](LF-AI-Migrations-Pre-Apply-Review.md)
+(all four AI migrations APPLY-READY WITH DOCUMENTED RISKS individually, whole apply
+BLOCKED), the Owner supported hardening M4. At the time this section was written the
+migration was believed unapplied; a direct check on 2026-09-27 found the pre-hardening
+source already applied to the local dev `learnforge_db` (batch 28) with an identical
+schema — see the [pre-apply brief § Trạng thái thật](LF-AI-Migrations-Pre-Apply-Reviewer-Brief.md).
+Changes to
+`2026_09_15_000100_create_ai_authoring_proposal_packet.php`:
+
+| Review item | Change | Limit |
+| --- | --- | --- |
+| R1 — origin CHECK window | Course `chk_cct_lmi_origin` is dropped and re-added, together with `chk_cct_lmi_ai_provenance`, in **one** `ALTER` in `up()`; `down()` restores the manual-only CHECK in one statement before dropping the AI columns | Verified on both engines that a failing combined ALTER (4025) leaves the old CHECK enforcing. Does not make M4 atomic as a whole: writers must still be stopped and a restorable backup taken |
+| H2 — late trigger failure | Before the first DDL: `LF_AUTHORING_PACKET_PARTIAL_STATE` if any packet table or Course AI column already exists; `App\Support\Database\TriggerCreationPreflight` checks, from `information_schema` metadata only, a direct global/schema `TRIGGER` grant for `CURRENT_USER()`, and `SUPER` when `log_bin=1` with `log_bin_trust_function_creators=0` | Fail-closed: grants held only through a role or at table level are not visible there and are refused. A pass proves the metadata, not that every later statement succeeds; the DEFINER account must still exist after deploy. No probe trigger is created on the target |
+
+Constraint names and clauses are unchanged; `schema:drift --connection=mysql`
+passed on fresh MariaDB 11.4.12 and 10.4.21 schemas.
+
+Implementer evidence (not independent): new `AiAuthoringPacketApplySafetyMariaDbTest`
+(partial state refused with no DDL; missing TRIGGER refused with schema unchanged;
+direct grant passes, role-only grant refused; origin swap is one statement in both
+directions) and `TriggerCreationPreflightTest` (decision matrix incl. binlog cases a
+test server cannot switch on). With the packet and Course promotion suites: 42 passed
+on 11.4.12 and 42 passed on 10.4.21, isolated instances, no `learnforge_db`.
+Three mutations on an isolated copy (MariaDB 10.4.21) were each caught by the new
+suite: preflight call removed, partial-state guard removed, origin swap split back
+into two statements; the file was restored to its SHA-256 and the suite passed again.
+M4 SHA-256 after hardening: `bf48be43d2c218d5fe205f240529b47361da108964fbcc28a9cbaf8a143c1994` (before:
+`c23c8d7660d36820902f0fa05e89b2d794ef265de960f722d2704be24de05c58`, the hash the
+pre-apply review signed).
+
+The pre-apply review re-ran the M4 part (round 2, 2026-09-27): **H2, R1 and L1
+CLOSED**, M4 APPLY-READY WITH DOCUMENTED RISKS on 10.4.21 and 11.4.12, no new
+finding. It added a runbook condition: triggers run as their DEFINER, so the account
+that applies M4 must persist and keep the privileges the trigger bodies use (revoking
+SELECT gave 1142, dropping the account gave 1449) — do not apply with a temporary
+account. This hardening does not touch B1 (actual `learnforge_db` state), H1 (engine
+floor) or the rehearsal gate; the whole apply remains BLOCKED.
 
 ## Authority and decision history
 

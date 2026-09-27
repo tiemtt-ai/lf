@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 276,
+  "document_count": 277,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -8944,6 +8944,29 @@
       "related_documents": [
         "platform/LF-AI-Knowledge-Sync-Contract.md",
         "quality/LF-AI-Knowledge-Backbone-Implementation-Record.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Migrations-Pre-Apply-Review.md",
+      "title": "AI Migrations — Independent Pre-Apply Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": ["ai", "migration", "database", "review", "governance"],
+      "keywords": {
+        "vi": ["review migration trước apply", "MariaDB 10.4", "quyền trigger", "DDL dở dang"],
+        "en": ["pre-apply migration review", "MariaDB 10.4", "trigger privilege", "partial DDL"]
+      },
+      "identifiers": ["2026_09_08_000100", "2026_09_13_000100", "2026_09_14_000100", "2026_09_15_000100"],
+      "related_documents": [
+        "quality/LF-AI-Migrations-Pre-Apply-Reviewer-Brief.md",
+        "quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

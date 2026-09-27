@@ -7,7 +7,7 @@ Document Path: database/ai/README.md
 > Interpretation và sáu bảng Authoring Bước 7 đã có migration và service backend;
 > Knowledge tự đồng bộ với Media theo
 > [Knowledge Sync Contract](../../platform/LF-AI-Knowledge-Sync-Contract.md).
-> Chưa apply `learnforge_db`; chưa kích hoạt provider thật.
+> Schema đã có trên `learnforge_db` dev local (xác minh 2026-09-27, drift sạch); chưa kích hoạt provider thật.
 
 Miền nghiệp vụ AI chuyển đổi ngữ cảnh học tập, hành vi và bằng chứng đã được
 phê duyệt thành các chức năng trợ giúp và hỗ trợ ra quyết định có thể kiểm
@@ -96,7 +96,7 @@ Owner chốt Frozen packet sáu bảng v0.8 ngày 2026-09-15 theo
 [contract Bước 7](../../platform/LF-AI-Authoring-Proposal-Contract.md) và amendment
 ADR-0006. Owner sau đó cho triển khai migration dưới miễn trừ riêng ghi tại
 contract. Sáu bảng và tham chiếu Course Intent đã dựng trên database tạm
-MariaDB 11.4.12/10.4.21; chưa apply learnforge_db. Service và 41 route HTTP đã
+MariaDB 11.4.12/10.4.21; schema có trên `learnforge_db` dev local (xác minh 2026-09-27, drift sạch). Service và 41 route HTTP đã
 triển khai; Owner nghiệm thu backend + HTTP ngày 2026-09-17 dưới miễn trừ review độc
 lập (không phải PASS), xem
 [hồ sơ triển khai](../../quality/LF-AI-Authoring-Proposal-Implementation-Review.md). UI chưa có:

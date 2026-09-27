@@ -180,8 +180,10 @@ dựa vào đường dispatch sau transaction và listener after-commit).
 * Chưa kiểm: Redis worker và scheduler thật; hai tiến trình sync song song thật
   (MariaDB test mô phỏng worker thắng giữa lượt); MariaDB 10.4; tải tenant lớn;
   apply `learnforge_db`; GitHub CI.
-* Trước apply `learnforge_db`: review độc lập cả bốn migration AI (Owner phương án
-  a, 2026-09-26), brief [LF-AI-Migrations-Pre-Apply-Reviewer-Brief](LF-AI-Migrations-Pre-Apply-Reviewer-Brief.md).
+* Migration: review độc lập bốn migration AI xong (từng file APPLY-READY WITH
+  DOCUMENTED RISKS); kiểm 2026-09-27 cho thấy cả bốn đã có trên `learnforge_db` dev local
+  với drift sạch — xem [brief § Trạng thái thật](LF-AI-Migrations-Pre-Apply-Reviewer-Brief.md).
+  Môi trường thật khác vẫn theo runbook và verdict BLOCKED của review.
 * Modifier xếp hạng retrieval: hoãn tới consumer đầu tiên (Owner 2026-09-26).
 * Review độc lập xương sống (bước 3 lộ trình): **PASS WITH DOCUMENTED RISKS** ở lượt 3
   ([báo cáo](LF-AI-Knowledge-Backbone-Independent-Review.md)); Owner chốt đóng

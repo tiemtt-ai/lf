@@ -181,9 +181,21 @@ ngoài bốn bảng packet bị đổi.
 ### Vẫn chưa apply
 
 Migration chưa chạy lên `learnforge_db`. Cần re-review của reviewer độc lập rồi
-mới tới lệnh apply của Owner. Cập nhật 2026-09-26: Owner mở rộng yêu cầu thành
+mới tới lệnh apply của Owner.
+
+**Đính chính 2026-09-26:** câu trên mâu thuẫn với § Step 1 CI Gate — Cảnh báo trạng
+thái database thật (bốn bảng đã có trên `learnforge_db`, batch 27, trước bản vá).
+Review độc lập trước apply ghi mâu thuẫn này là BLOCKER B1; trạng thái thật chưa được
+xác nhận lại, xem [review](LF-AI-Migrations-Pre-Apply-Review.md). Cập nhật 2026-09-26: Owner mở rộng yêu cầu thành
 một review độc lập cho cả bốn migration AI trước lần apply đầu tiên; xem
-[brief](LF-AI-Migrations-Pre-Apply-Reviewer-Brief.md). Re-review vẫn chưa thực hiện.
+[brief](LF-AI-Migrations-Pre-Apply-Reviewer-Brief.md). Review đó đã thực hiện ngày
+2026-09-26 ([báo cáo](LF-AI-Migrations-Pre-Apply-Review.md)): ba P1 và ba P2 cũ của
+Foundation đã đóng trong source hiện hành, từng migration APPLY-READY WITH DOCUMENTED
+RISKS trên 10.4.21 và 11.4.12, nhưng **toàn bộ lần apply vẫn BLOCKED** — trong đó B1
+chính là mâu thuẫn batch 27 ở trên. **Phân xử 2026-09-27:** Owner cho phép kiểm
+trực tiếp `learnforge_db` (dev local) sau backup; ledger và `schema:drift` cho thấy bốn
+bảng đã đúng bản vá, cả bốn migration AI đã chạy (batch 27/28), không còn gì pending —
+xem [brief § Trạng thái thật](LF-AI-Migrations-Pre-Apply-Reviewer-Brief.md).
 
 ---
 

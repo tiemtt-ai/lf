@@ -183,6 +183,7 @@ jobs:
             tests/Feature/AiProviderExecutionGateTest.php \
             tests/Integration/AiFoundationKnowledgePacketMariaDbTest.php \
             tests/Integration/AiAuthoringProposalPacketMariaDbTest.php \
+            tests/Integration/AiAuthoringPacketApplySafetyMariaDbTest.php \
             tests/Integration/AiAuthoringProposalServiceMariaDbTest.php \
             tests/Integration/AiAuthoringApplicationServiceMariaDbTest.php \
             tests/Integration/AiAuthoringPublicationMariaDbTest.php \

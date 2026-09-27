@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\Database\TriggerCreationPreflight;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,12 @@ return new class extends Migration
         if (! $this->supported()) {
             return;
         }
+        // MariaDB commits each DDL statement: a failure half way leaves objects
+        // that make a retry fail with 1050. Refuse before the first DDL when a
+        // previous attempt left any of them, or when triggers cannot be created
+        // (pre-apply review H2). Metadata only; no probe object is created.
+        $this->assertNoPartialPacket();
+        TriggerCreationPreflight::assertCanCreateTriggers(DB::connection());
 
         $this->requests();
         $this->proposals();
@@ -33,6 +40,23 @@ return new class extends Migration
         $this->intents();
         $this->historyTriggers();
         $this->aggregateTriggers();
+    }
+
+    private function assertNoPartialPacket(): void
+    {
+        $left = array_values(array_filter(
+            array_map(fn (string $suffix): string => self::PREFIX.$suffix, self::TABLES),
+            fn (string $table): bool => Schema::hasTable($table),
+        ));
+        foreach (['ai_proposal_id', 'ai_proposal_revision_id', 'ai_target_review_id', 'ai_context_review_id'] as $column) {
+            if (Schema::hasColumn(self::INTENTS, $column)) {
+                $left[] = self::INTENTS.'.'.$column;
+            }
+        }
+        if ($left !== []) {
+            throw new RuntimeException('LF_AUTHORING_PACKET_PARTIAL_STATE: '.implode(', ', $left)
+                .' already exist; inspect and restore from backup or apply a reviewed repair — do not re-run blindly');
+        }
     }
 
     private function supported(): bool
@@ -325,11 +349,13 @@ return new class extends Migration
                 $this->fk($t, ['ai_'.$type.'_review_id', 'customer_id', 'ai_proposal_id', 'ai_proposal_revision_id'], 'proposal_reviews', ['id', 'customer_id', 'proposal_id', 'revision_id'], 'cct_lmi_ai_'.$type);
             }
         });
-        DB::unprepared('ALTER TABLE '.self::INTENTS.' DROP CONSTRAINT chk_cct_lmi_origin');
-        $this->checks(self::INTENTS, 'cct_lmi', [
-            'origin' => "origin IN ('manual','ai_proposal')",
-            'ai_provenance' => "(origin = 'manual' AND ai_proposal_id IS NULL AND ai_proposal_revision_id IS NULL AND ai_target_review_id IS NULL AND ai_context_review_id IS NULL) OR (origin = 'ai_proposal' AND ai_proposal_id IS NOT NULL AND ai_proposal_revision_id IS NOT NULL AND ai_target_review_id IS NOT NULL)",
-        ]);
+        // One statement: dropping the old origin CHECK and adding its successor
+        // separately left a window in which a concurrent write could violate
+        // the new CHECK and fail the apply (pre-apply review R1). A single ALTER
+        // either replaces both or, on failure, leaves the old CHECK enforcing.
+        DB::unprepared('ALTER TABLE '.self::INTENTS.' DROP CONSTRAINT chk_cct_lmi_origin,'
+            ." ADD CONSTRAINT chk_cct_lmi_origin CHECK (origin IN ('manual','ai_proposal')),"
+            ." ADD CONSTRAINT chk_cct_lmi_ai_provenance CHECK ((origin = 'manual' AND ai_proposal_id IS NULL AND ai_proposal_revision_id IS NULL AND ai_target_review_id IS NULL AND ai_context_review_id IS NULL) OR (origin = 'ai_proposal' AND ai_proposal_id IS NOT NULL AND ai_proposal_revision_id IS NOT NULL AND ai_target_review_id IS NOT NULL))");
     }
 
     private function historyTriggers(): void
@@ -482,11 +508,13 @@ return new class extends Migration
                 $t->dropForeign('fk_cct_lmi_ai_'.$key);
             }
         });
-        DB::unprepared('ALTER TABLE '.self::INTENTS.' DROP CONSTRAINT chk_cct_lmi_ai_provenance, DROP CONSTRAINT chk_cct_lmi_origin');
+        // Same single-statement swap as up(): the manual-only CHECK is back before
+        // the AI columns go, with no moment where origin is unconstrained.
+        DB::unprepared('ALTER TABLE '.self::INTENTS.' DROP CONSTRAINT chk_cct_lmi_ai_provenance, DROP CONSTRAINT chk_cct_lmi_origin,'
+            ." ADD CONSTRAINT chk_cct_lmi_origin CHECK (origin = 'manual')");
         Schema::table(self::INTENTS, function (Blueprint $t): void {
             $t->dropColumn(['ai_proposal_id', 'ai_proposal_revision_id', 'ai_target_review_id', 'ai_context_review_id']);
         });
-        $this->checks(self::INTENTS, 'cct_lmi', ['origin' => "origin = 'manual'"]);
         Schema::table(self::PREFIX.'proposals', fn (Blueprint $t) => $t->dropForeign('fk_ap_predecessor'));
         foreach (array_reverse(self::TABLES) as $suffix) {
             Schema::drop(self::PREFIX.$suffix);

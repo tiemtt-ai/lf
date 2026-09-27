@@ -41,7 +41,7 @@ The earlier Review state is superseded; baseline Foundation remains Frozen.
 Partial — cập nhật 2026-09-26: migration và service backend cho Knowledge
 Source/Chunk (kèm đồng bộ Media), Embedding, Model Run, provider gate, Vision
 Interpretation và Authoring Bước 7 đã triển khai và kiểm trên database tạm.
-Chưa apply `learnforge_db`, chưa kích hoạt provider; Mastery amendment v1.1 vẫn
+Schema có trên `learnforge_db` dev local (xác minh 2026-09-27, drift sạch); chưa kích hoạt provider; Mastery amendment v1.1 vẫn
 Proposed.
 
 ---

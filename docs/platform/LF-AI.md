@@ -119,8 +119,8 @@ chúng khác nhau, nên không gộp làm một:
   Chi tiết ở [LF-AI-Embedding-Qdrant-Implementation-Review § Step 5 closure](../quality/LF-AI-Embedding-Qdrant-Implementation-Review.md).
 * **Vision Interpretation (Bước 6)** — migration `ai_vision_interpretations` tạo ngày
   2026-09-14 dưới Owner waiver cho điều kiện `Architecture Review passed` (miễn trừ,
-  không phải PASS), kiểm trên MariaDB 11.4.12 và 10.4.21; chưa apply lên
-  `learnforge_db`. Phạm vi v1.1 chỉ region tài liệu; diễn giải video theo khung hình
+  không phải PASS), kiểm trên MariaDB 11.4.12 và 10.4.21; schema
+  có trên `learnforge_db` dev local (xác minh 2026-09-27, drift sạch). Phạm vi v1.1 chỉ region tài liệu; diễn giải video theo khung hình
   vẫn ngoài phạm vi (ADR-0020 D7). **Service backend đã có**
   (`AiVisionInterpretationService`): gọi qua gate, lấy ảnh qua Media Read, một row
   `ready` mỗi slot, retrieval tái kiểm và audit, xoá theo Media File. **Không provider
@@ -133,7 +133,7 @@ chúng khác nhau, nên không gộp làm một:
   chưa kiểm Redis worker/scheduler thật. Knowledge Source/embedding nối xoá Media từ
   2026-09-26 qua [Knowledge Sync Contract](LF-AI-Knowledge-Sync-Contract.md) (đóng O-6).
   **Owner chốt đóng phần chuẩn bị Knowledge Source/Chunk ngày 2026-09-26** sau review
-  độc lập PASS WITH DOCUMENTED RISKS; chưa apply `learnforge_db`, chưa kích hoạt
+  độc lập PASS WITH DOCUMENTED RISKS; schema có trên `learnforge_db` dev local (xác minh 2026-09-27, drift sạch), chưa kích hoạt
   embedding thật. Xem
   [LF-AI-Vision-Interpretation-Implementation-Review](../quality/LF-AI-Vision-Interpretation-Implementation-Review.md).
 * **Provider activation** — quyết định riêng theo ADR-0018, độc lập với mọi mục
@@ -359,8 +359,8 @@ AI là Learning Intelligence & Decision Support Domain của LearnForge.
 
 AI Foundation là policy/database specification đã Frozen. Cập nhật 2026-09-26:
 migration và service backend đã có cho Knowledge/Embedding/Model Run, Vision
-Interpretation và Authoring Bước 7 (xem § trạng thái ở đầu tài liệu); chưa apply
-`learnforge_db`, chưa kích hoạt provider thật, chưa có UI đề xuất hay trợ giảng.
+Interpretation và Authoring Bước 7 (xem § trạng thái ở đầu tài liệu); schema
+có trên `learnforge_db` dev local (xác minh 2026-09-27, drift sạch), chưa kích hoạt provider thật, chưa có UI đề xuất hay trợ giảng.
 Các section bên dưới là contract bắt buộc; section nào chưa có runtime thì ghi rõ
 trạng thái tại chỗ.
 

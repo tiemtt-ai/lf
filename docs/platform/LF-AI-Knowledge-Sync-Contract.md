@@ -76,7 +76,7 @@ F7 (LOW, coverage của dataset lô trộn) đã xử lý sau lượt 3, chưa r
 **Owner chốt đóng phần chuẩn bị Source/Chunk ngày 2026-09-26** với các rủi ro đã ghi;
 chi tiết phạm vi đóng, rủi ro chấp nhận và phần còn riêng ở
 [Knowledge backbone record](../quality/LF-AI-Knowledge-Backbone-Implementation-Record.md)
-§ Owner chốt đóng Source/Chunk. Không bao gồm apply `learnforge_db`.
+§ Owner chốt đóng Source/Chunk. Schema đã có trên `learnforge_db` dev local (xác minh 2026-09-27, drift sạch).
 
 Chưa kiểm chứng: Redis worker và scheduler thật; hai tiến trình sync chạy song
 song thật (reviewer đã chạy một race hai tiến trình PHP; implementer chỉ mô phỏng);
