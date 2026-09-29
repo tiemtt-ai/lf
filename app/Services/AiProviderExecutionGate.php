@@ -309,24 +309,24 @@ class AiProviderExecutionGate
      */
     private function safetyVerdict(ProviderGateRequest $request): array
     {
-        $default = (array) config('ai.safety.default', []);
-        $policy = (array) config("ai.safety.purposes.{$request->purpose}", []) + $default;
+        $policy = $this->resolvedSafetyPolicy($request->purpose);
 
-        $refused = array_values(array_intersect(
-            $request->normalizedDataClasses(),
-            (array) ($policy['forbidden_data_classes'] ?? [])
-        ));
+        if ($policy === null) {
+            return ['allowed' => false, 'evidence' => [
+                'policy' => 'missing_or_invalid_safety_policy',
+                'purpose' => $request->purpose,
+            ]];
+        }
+
+        ['forbidden_data_classes' => $forbidden, 'max_retention_class' => $ceiling] = $policy;
+
+        $refused = array_values(array_intersect($request->normalizedDataClasses(), $forbidden));
         if ($refused !== []) {
             return ['allowed' => false, 'evidence' => [
                 'policy' => 'forbidden_data_classes',
                 'purpose' => $request->purpose,
                 'refused_data_classes' => $refused,
             ]];
-        }
-
-        $ceiling = $policy['max_retention_class'] ?? null;
-        if ($ceiling === null) {
-            return ['allowed' => true, 'evidence' => []];
         }
 
         $order = (array) config('ai.retention_classes', []);
@@ -343,6 +343,69 @@ class AiProviderExecutionGate
         }
 
         return ['allowed' => true, 'evidence' => []];
+    }
+
+    /**
+     * The effective safety policy for a purpose, or null when it cannot be
+     * trusted.
+     *
+     * A missing or malformed policy is not a permissive one (Part 2 closure
+     * review C2). Every layer is checked before the purpose override is laid
+     * over the default: an override that is not declared inherits the default,
+     * but one that is declared with the wrong shape blocks rather than being
+     * silently dropped, and so is an override keyed by a purpose that does not
+     * exist (a typo would otherwise leave the real purpose on the default).
+     * The effective policy needs both keys, the forbidden classes as a list of
+     * known data classes and the ceiling a known retention class. An
+     * explicitly empty forbidden list stays a deliberate, reviewable choice.
+     *
+     * @return array{forbidden_data_classes:list<string>,max_retention_class:string}|null
+     */
+    private function resolvedSafetyPolicy(string $purpose): ?array
+    {
+        $safety = config('ai.safety');
+        // The root is a layer too: a mistyped `purpose` or any stray key would
+        // otherwise be skipped and every purpose left on the default (closure
+        // review round 3, C2).
+        if (! is_array($safety)
+            || ! $this->onlyKeys($safety, ['default', 'purposes'])
+            || ! $this->isSafetyPolicyLayer($safety['default'] ?? null)) {
+            return null;
+        }
+
+        $purposes = array_key_exists('purposes', $safety) ? $safety['purposes'] : [];
+        if (! is_array($purposes)
+            || ! $this->onlyKeys($purposes, (array) config('ai.purposes', []))
+            || (array_key_exists($purpose, $purposes) && ! $this->isSafetyPolicyLayer($purposes[$purpose]))) {
+            return null;
+        }
+
+        $policy = ($purposes[$purpose] ?? []) + $safety['default'];
+        $forbidden = $policy['forbidden_data_classes'] ?? null;
+        $ceiling = $policy['max_retention_class'] ?? null;
+
+        if (! is_array($forbidden)
+            || ! array_is_list($forbidden)
+            || array_filter($forbidden, fn ($class): bool => ! is_string($class)
+                || ! in_array($class, (array) config('ai.data_classes', []), true)) !== []
+            || ! is_string($ceiling)
+            || ! in_array($ceiling, (array) config('ai.retention_classes', []), true)) {
+            return null;
+        }
+
+        return ['forbidden_data_classes' => $forbidden, 'max_retention_class' => $ceiling];
+    }
+
+    /** A policy layer is a map holding only the two policy keys; an empty map overrides nothing. */
+    private function isSafetyPolicyLayer(mixed $layer): bool
+    {
+        return is_array($layer) && $this->onlyKeys($layer, ['forbidden_data_classes', 'max_retention_class']);
+    }
+
+    /** @param array<array-key,mixed> $map */
+    private function onlyKeys(array $map, array $allowed): bool
+    {
+        return array_filter(array_keys($map), fn ($key): bool => ! in_array($key, $allowed, true)) === [];
     }
 
     private function featureKey(ProviderGateRequest $request): string

@@ -1,12 +1,12 @@
 # LearnForge Documentation Conflict Register
 
-Version: 1.36
+Version: 1.38
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-09-26
+Last Updated: 2026-09-29
 
 Document Path: quality/LF-Documentation-Conflicts.md
 
@@ -248,6 +248,7 @@ khác `RESOLVED`; cột Status của bảng dưới vẫn là nguồn sự thậ
 
 | ID | Title | Classification | Status | Impact | Domain | Owner | Target Review |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| DOC-CONFLICT-0040 | Vocabulary `source_role` của Knowledge hẹp hơn role Media đã duyệt | IMPLEMENTATION_DRIFT | RESOLVED | HIGH | Media × AI | Architecture Owner | Đóng 2026-09-29 sau apply dev và đối soát |
 | DOC-CONFLICT-0039 | `processing_version` dài bị nén thành hash nhưng Processing Contract không ghi | GAP | RESOLVED | MEDIUM | Media × AI | Architecture Owner | Đóng 2026-09-26 bằng ghi nhận runtime vào contract |
 | DOC-CONFLICT-0038 | Trạng thái triển khai AI trong README/INDEX/ADR/LF-AI lỗi thời so với code | STALE | RESOLVED | MEDIUM | AI × Learning × Media | Architecture Owner | Đóng 2026-09-26 |
 | DOC-CONFLICT-0037 | Step 7 backend scope và ADR-0017 gate UI trước migration chưa tách | DOCUMENT_CONTRADICTION | RESOLVED | HIGH | AI × Course × Learning | Architecture Owner | Đóng ở mức policy 2026-09-14; packet vẫn Review |
@@ -734,6 +735,40 @@ Notes: Media cố ý không tạo hard foreign key tới owner domain, và đi�
 # Resolved Conflict Register
 
 ---
+
+## DOC-CONFLICT-0040
+
+```text
+Conflict ID: DOC-CONFLICT-0040
+Title: Vocabulary source_role của Knowledge hẹp hơn role Media đã duyệt
+Classification: IMPLEMENTATION_DRIFT
+Status: RESOLVED
+Impact: HIGH
+Detected At: 2026-09-28
+Detected By: Knowledge frame sync fix (implementer verification, K3) trên scheduler dev local
+Owner: Architecture Owner
+Affected Domain: Media × AI
+Affected Concern: Snapshot role quan sát được từ Media region vào ai_knowledge_chunks
+Sources In Conflict:
+Source A: docs/database/media/media_extracted_regions.md#multilingual-and-stem-amendment--approved-2026-09-03
+Source B: docs/database/ai/ai_knowledge_chunks.md#indexes
+Additional Sources: database/migrations/2026_09_03_000100_add_document_language_profiles_and_formula_evidence.php; database/migrations/2026_09_08_000100_create_ai_foundation_knowledge_tables.php; docs/database/LF-SCHEMA-CONTRACT.json; docs/quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md (R2-21)
+Contradictory Requirements:
+- Source A requires: region revision mới dùng 15 role, gồm image, chart, diagram, geometry, formula, note; figure giữ cho revision cũ.
+- Source B requires: chk_akc_source_role chỉ nhận paragraph, heading, list, table, figure, caption, header, footer, other; runtime copy nguyên role của unit (không map).
+Why They Cannot Both Be True: Knowledge phải snapshot đúng role Media (Media retrieval amendment 2026-09-05), nhưng CHECK vật lý từ chối sáu role Media đã duyệt. R2-21 định nghĩa CHECK "khớp media_extracted_regions" theo vocabulary trước amendment 2026-09-03.
+Runtime/Business Impact: Mọi region revision có một trong sáu role bị rollback nguyên source; learnforge_db 2026-09-28 có 163 region có text mang role mới (image 162, formula 1) trên 2 Media, 0 chunk region. Không mất dữ liệu Media; Knowledge thiếu nguồn.
+Affected Implementation: AiKnowledgeIngestionService (copy role); chk_akc_source_role
+Temporary Safety Rule: STOP implementation for the affected concern. Do not guess. Không map role, không bỏ region, không sửa migration đã apply.
+Required Decision: Duyệt amendment căn vocabulary Knowledge theo Media và forward migration đổi CHECK.
+Resolution Authority: Architecture Owner
+Resolution Plan: Amendment Proposed trong ai_knowledge_chunks.md → Architecture Review độc lập lượt 1 (LF-AI-Knowledge-Source-Role-Alignment-Review.md: APPROVE WITH CHANGES; K3-R1 yêu cầu ADR) → ADR-0006 Amendment v1.0.6 Proposed và amendment bảng bổ sung K3-R3/R4/R5 → Architecture Review lượt 2 → Owner duyệt ADR và Database Docs → forward migration → kiểm MariaDB 11.4 theo acceptance criteria → migration review → apply dev sau backup → đối soát Media bị chặn. Conflict giữ UNDER_REVIEW tới khi có bằng chứng sau apply; duyệt proposal không đóng conflict.
+Target Review Date: Not set
+Resolved At: 2026-09-29
+Resolution: ADR-0006 Amendment v1.0.6 và Database Docs K3 được Owner duyệt 2026-09-28 sau Architecture Review độc lập (gate PASS lượt 2). Forward migration 2026_09_28_000100_widen_ai_knowledge_chunk_source_role.php qua migration review độc lập (REJECT lượt 3 vì K3-R8, APPROVE lượt 4). Apply lên learnforge_db dev local 2026-09-29 với Owner cho phép, sau backup đã restore thử: CHECK 15 role, physical drift sạch, 3186 chunk có sẵn không đổi. Lượt ai:knowledge-sync kế tiếp: ingested=3, failed=0; Media 55 có 3 source active (một cho mỗi Course Version Activity 29/35/36), mỗi source 164 chunk, 29 chunk image; đối chiếu 164/164 chunk với media_extracted_regions: role, reading_order, bbox, text khớp. Media 56 chỉ gắn activity nháp của template, không thuộc corpus sync cho tới khi publish.
+Superseded/Updated Documents: adr/ADR-0006-AI-Foundation.md; database/ai/ai_knowledge_chunks.md; database/LF-SCHEMA-CONTRACT.json
+Verification Evidence: KnowledgeSourceRoleVocabularyTest; KnowledgeSourceRoleCheckParserTest; AiKnowledgeSourceRoleMigrationMariaDbTest; LF-AI-Knowledge-Source-Role-Alignment-Review.md lượt 1–4; backup /Users/amin/LF-db-backups/learnforge_db-before-k3-20260929-083246.sql (SHA-256 400065f7…)
+```
 
 ## DOC-CONFLICT-0039
 

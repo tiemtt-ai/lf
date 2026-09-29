@@ -18,9 +18,11 @@ use App\Services\Ai\UnavailableUsageQuotaReserver;
 use App\Services\AiProviderExecutionGate;
 use App\Support\Ai\ProviderGateRequest;
 use App\Support\TenantContext;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Symfony\Component\Process\Process;
@@ -199,6 +201,184 @@ class AiProviderExecutionGateTest extends TestCase
         $this->assertSame('quota', $decision->blockedStep);
         $this->assertSame(0, $adapter->calls);
         $this->assertFalse($adapter->credentialResolved);
+    }
+
+    /**
+     * Part 2 closure review C2: a missing or malformed safety policy used to
+     * resolve to "no forbidden classes, no ceiling" and let the call through.
+     * It must block before the adapter exists and hand the reservation back.
+     */
+    #[DataProvider('invalidSafetyPolicies')]
+    public function test_a_missing_or_malformed_safety_policy_blocks_the_call(mixed $safety): void
+    {
+        $customerId = $this->tenant('safety-missing');
+        $this->approveTenant($customerId);
+        $this->entitlements->grant($customerId, 'ai_knowledge_embedding');
+        config()->set('ai.safety', $safety);
+        $adapter = new SpyProviderAdapter;
+        $factoryCalls = 0;
+        $before = $this->quota->balance();
+
+        $decision = $this->gate()->execute($this->request(), function () use ($adapter, &$factoryCalls) {
+            $factoryCalls++;
+
+            return $adapter;
+        });
+
+        $this->assertFalse($decision->allowed);
+        $this->assertSame('AI_SAFETY_BLOCKED', $decision->errorCode);
+        $this->assertSame('safety', $decision->blockedStep);
+        $this->assertSame(0, $factoryCalls, 'No adapter may be constructed.');
+        $this->assertSame(0, $adapter->calls);
+        $this->assertSame(1, $this->quota->releaseCalls);
+        $this->assertSame($before, $this->quota->balance());
+        $run = DB::table('ai_model_runs')->where('customer_id', $customerId)->sole();
+        $this->assertSame('blocked', $run->status);
+        $this->assertSame('missing_or_invalid_safety_policy', json_decode($run->safety_metadata, true)['policy']);
+    }
+
+    /** @return array<string,array{mixed}> */
+    public static function invalidSafetyPolicies(): array
+    {
+        return [
+            'whole safety block missing' => [null],
+            'no default and no purpose policy' => [['default' => null, 'purposes' => []]],
+            'retention ceiling missing' => [['default' => ['forbidden_data_classes' => ['personal_data']], 'purposes' => []]],
+            'forbidden list missing' => [['default' => ['max_retention_class' => 'transient'], 'purposes' => []]],
+            'forbidden list not a list of strings' => [['default' => ['forbidden_data_classes' => 'personal_data', 'max_retention_class' => 'transient'], 'purposes' => []]],
+            'unknown retention ceiling' => [['default' => ['forbidden_data_classes' => [], 'max_retention_class' => 'forever'], 'purposes' => []]],
+            // Closure review round 2: a declared but malformed override used to
+            // be dropped, leaving the purpose on a valid default.
+            'purpose override a scalar' => [self::validDefaultWith(['purposes' => ['knowledge_embedding' => 'invalid-policy']])],
+            'purpose override false' => [self::validDefaultWith(['purposes' => ['knowledge_embedding' => false]])],
+            'purpose override declared null' => [self::validDefaultWith(['purposes' => ['knowledge_embedding' => null]])],
+            'purpose override a list instead of a map' => [self::validDefaultWith(['purposes' => ['knowledge_embedding' => ['personal_data']]])],
+            'purpose override with an unknown key' => [self::validDefaultWith(['purposes' => ['knowledge_embedding' => ['forbidden_classes' => ['personal_data']]]])],
+            'purposes container a scalar' => [self::validDefaultWith(['purposes' => 'invalid-map'])],
+            'purposes keyed by an unknown purpose' => [self::validDefaultWith(['purposes' => ['knowledge_embeding' => ['max_retention_class' => 'none']]])],
+            'forbidden classes a map instead of a list' => [['default' => ['forbidden_data_classes' => ['first' => 'personal_data'], 'max_retention_class' => 'transient'], 'purposes' => []]],
+            'forbidden class outside the vocabulary' => [['default' => ['forbidden_data_classes' => ['personal-data'], 'max_retention_class' => 'transient'], 'purposes' => []]],
+            // Closure review round 3: the root is a layer as well.
+            'root key mistyped as purpose' => [self::validDefaultWith(['purpose' => ['knowledge_embedding' => ['forbidden_data_classes' => ['derived_text']]]])],
+            'root with an unexpected key' => [self::validDefaultWith(['unexpected' => true])],
+            'root with a numeric key' => [self::validDefaultWith([0 => ['forbidden_data_classes' => []]])],
+        ];
+    }
+
+    /**
+     * Closure review round 3, on the real Commercial ledger: a mistyped root key
+     * blocks exactly as the correctly spelled override does — hold released,
+     * no adapter, no usage event — instead of leaving the purpose on the default.
+     */
+    #[DataProvider('rootSpellings')]
+    public function test_a_mistyped_root_key_blocks_on_the_real_ledger_like_the_correct_override(string $key, string $evidence): void
+    {
+        $customerId = $this->tenant('root-'.$key);
+        $this->approveTenant($customerId);
+        DB::table('saas_entitlements')->insert([
+            'customer_id' => $customerId, 'feature_key' => 'ai_knowledge_embedding',
+            'entitlement_type' => 'integer', 'entitlement_value' => '10',
+            'quota_unit' => 'call', 'quota_period_type' => 'daily', 'quota_timezone' => 'Asia/Ho_Chi_Minh',
+            'source_type' => 'plan_feature', 'source_id' => 1,
+            'effective_from' => now()->utc()->subDay(), 'status' => 'active',
+        ]);
+        $this->app->instance(CommercialEntitlements::class, new DatabaseCommercialEntitlements);
+        $this->app->instance(UsageQuotaReserver::class, new DatabaseUsageQuotaReserver);
+        config()->set('ai.safety', self::validDefaultWith([$key => ['knowledge_embedding' => ['forbidden_data_classes' => ['derived_text']]]]));
+        $adapter = new SpyProviderAdapter;
+        $factoryCalls = 0;
+
+        $decision = $this->gate()->execute($this->request(), function () use ($adapter, &$factoryCalls) {
+            $factoryCalls++;
+
+            return $adapter;
+        });
+
+        $this->assertSame('AI_SAFETY_BLOCKED', $decision->errorCode);
+        $this->assertSame(0, $factoryCalls);
+        $this->assertSame(0, $adapter->calls);
+        $this->assertSame(['released'], DB::table('saas_usage_reservations')->where('customer_id', $customerId)->pluck('status')->all());
+        $this->assertSame(0, DB::table('saas_usage_events')->where('customer_id', $customerId)->count());
+        $run = DB::table('ai_model_runs')->where('customer_id', $customerId)->sole();
+        $this->assertSame('blocked', $run->status);
+        $this->assertSame($evidence, json_decode($run->safety_metadata, true)['policy']);
+    }
+
+    /** @return array<string,array{string,string}> */
+    public static function rootSpellings(): array
+    {
+        return [
+            'mistyped purpose' => ['purpose', 'missing_or_invalid_safety_policy'],
+            'correct purposes' => ['purposes', 'forbidden_data_classes'],
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    private static function validDefaultWith(array $safety): array
+    {
+        return $safety + ['default' => ['forbidden_data_classes' => ['personal_data'], 'max_retention_class' => 'transient']];
+    }
+
+    /** An override that is not declared inherits the default; a partial one inherits the keys it leaves out. */
+    #[DataProvider('validSafetyInheritance')]
+    public function test_a_valid_policy_without_or_with_a_partial_override_allows(array $safety): void
+    {
+        $customerId = $this->tenant('safety-inherit');
+        $this->approveTenant($customerId);
+        $this->entitlements->grant($customerId, 'ai_knowledge_embedding');
+        config()->set('ai.safety', $safety);
+        $adapter = new SpyProviderAdapter;
+
+        $this->assertTrue($this->gate()->execute($this->request(), fn () => $adapter)->allowed);
+        $this->assertSame(1, $adapter->calls);
+    }
+
+    /** @return array<string,array{array<string,mixed>}> */
+    public static function validSafetyInheritance(): array
+    {
+        return [
+            'purposes key absent' => [self::validDefaultWith([])],
+            'empty purposes map' => [self::validDefaultWith(['purposes' => []])],
+            'another purpose overridden' => [self::validDefaultWith(['purposes' => ['vision_interpretation' => ['max_retention_class' => 'none']]])],
+            'partial override of the ceiling' => [self::validDefaultWith(['purposes' => ['knowledge_embedding' => ['max_retention_class' => 'provider_default']]])],
+            'empty override' => [self::validDefaultWith(['purposes' => ['knowledge_embedding' => []]])],
+        ];
+    }
+
+    /** A partial override still inherits the default's forbidden classes. */
+    public function test_a_partial_override_keeps_the_default_forbidden_classes(): void
+    {
+        $customerId = $this->tenant('safety-partial');
+        $this->settings->approve($customerId, 'ai.external_processing.approved-provider.knowledge_embedding', [
+            'approved' => true,
+            'data_classes' => ['derived_text', 'personal_data'],
+            'execution_regions' => ['lf_managed'],
+            'retention_classes' => ['transient'],
+        ]);
+        config()->set('ai.providers.approved-provider.data_classes', ['derived_text', 'personal_data']);
+        $this->entitlements->grant($customerId, 'ai_knowledge_embedding');
+        config()->set('ai.safety', self::validDefaultWith(['purposes' => ['knowledge_embedding' => ['max_retention_class' => 'transient']]]));
+        $adapter = new SpyProviderAdapter;
+
+        $decision = $this->gate()->execute($this->request(['dataClasses' => ['personal_data']]), fn () => $adapter);
+
+        $this->assertSame('AI_SAFETY_BLOCKED', $decision->errorCode);
+        $this->assertSame(0, $adapter->calls);
+        $run = DB::table('ai_model_runs')->where('customer_id', $customerId)->sole();
+        $this->assertSame('forbidden_data_classes', json_decode($run->safety_metadata, true)['policy']);
+    }
+
+    /** An explicit, complete policy with an empty forbidden list is a reviewable choice, not a missing one. */
+    public function test_an_explicit_complete_policy_with_no_forbidden_classes_still_allows(): void
+    {
+        $customerId = $this->tenant('safety-explicit');
+        $this->approveTenant($customerId);
+        $this->entitlements->grant($customerId, 'ai_knowledge_embedding');
+        config()->set('ai.safety', ['default' => ['forbidden_data_classes' => [], 'max_retention_class' => 'transient'], 'purposes' => []]);
+        $adapter = new SpyProviderAdapter;
+
+        $this->assertTrue($this->gate()->execute($this->request(), fn () => $adapter)->allowed);
+        $this->assertSame(1, $adapter->calls);
     }
 
     public function test_safety_policy_blocks_and_hands_the_reservation_back(): void
@@ -976,6 +1156,99 @@ class AiProviderExecutionGateTest extends TestCase
                 DB::beginTransaction();
             }
         }
+    }
+
+    /**
+     * Part 2 closure review C1. A caller that has read a queued run must hold
+     * it until it has written: a second connection arriving in that window used
+     * to complete the run, after which the first caller's stale write reopened
+     * it and recorded the success as a failure. The second caller now waits on
+     * the row lock (short timeout here) and the first finishes alone.
+     */
+    public function test_a_concurrent_caller_cannot_overwrite_the_run_between_its_read_and_write(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('Two real MariaDB connections required.');
+        }
+        $this->assertStringStartsWith('lf_', DB::connection()->getDatabaseName());
+        $customer = $this->tenant('run-race-'.uniqid());
+        $this->approveTenant($customer);
+        $this->entitlements->grant($customer, 'ai_knowledge_embedding');
+        $request = $this->request(['correlationId' => (string) Str::uuid()]);
+        $gate = $this->gate();
+        $run = $gate->authorize($request)->modelRunId;
+        DB::commit();
+
+        $primary = DB::getDefaultConnection();
+        config(['database.connections.race_second' => DB::connection()->getConfig()]);
+        DB::connection('race_second')->statement('SET SESSION innodb_lock_wait_timeout = 1');
+        $adapter = new SpyProviderAdapter;
+        $second = null;
+        $armed = true;
+        try {
+            DB::listen(function ($query) use (&$armed, &$second, $gate, $request, $adapter, $primary): void {
+                if (! $armed || $query->connectionName !== $primary
+                    || ! str_starts_with($query->sql, 'select * from `ai_model_runs`')) {
+                    return;
+                }
+                $armed = false;
+                DB::setDefaultConnection('race_second');
+                try {
+                    $second = ['allowed' => $gate->execute($request, fn () => $adapter)->allowed];
+                } catch (\Throwable $e) {
+                    $second = ['exception' => $e::class, 'code' => $e instanceof QueryException ? ($e->errorInfo[1] ?? null) : null];
+                } finally {
+                    DB::setDefaultConnection($primary);
+                }
+            });
+
+            $first = $gate->execute($request, fn () => $adapter);
+
+            $this->assertFalse($armed, 'The race window was never reached.');
+            $this->assertSame(1205, $second['code'] ?? null, 'The second caller must wait on the locked run, not write into it.');
+            $this->assertTrue($first->allowed);
+            $this->assertSame(1, $adapter->calls);
+            $final = DB::table('ai_model_runs')->where('customer_id', $customer)->where('id', $run)->first();
+            $this->assertSame('completed', $final->status, 'A completed attempt must not be reopened or relabelled.');
+            $this->assertNull($final->error_code);
+        } finally {
+            DB::purge('race_second');
+            while (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+            // Synthetic fixture only; quota was the in-memory fake, so no Usage Event exists.
+            DB::table('ai_model_runs')->where('customer_id', $customer)->delete();
+            DB::table('saas_customers')->where('id', $customer)->delete();
+            DB::beginTransaction();
+        }
+    }
+
+    /** A caller arriving after the run completed is refused before any adapter exists; the success stands. */
+    public function test_a_completed_run_is_never_reopened_by_a_later_caller(): void
+    {
+        $customer = $this->tenant('run-completed');
+        $this->approveTenant($customer);
+        $this->entitlements->grant($customer, 'ai_knowledge_embedding');
+        $request = $this->request();
+        $adapter = new SpyProviderAdapter;
+        $this->assertTrue($this->gate()->execute($request, fn () => $adapter)->allowed);
+        $completed = (array) DB::table('ai_model_runs')->where('customer_id', $customer)->sole();
+        $factoryCalls = 0;
+
+        try {
+            $this->gate()->execute($request, function () use ($adapter, &$factoryCalls) {
+                $factoryCalls++;
+
+                return $adapter;
+            });
+            $this->fail('A completed run must not be executed again.');
+        } catch (AiProviderGateException $e) {
+            $this->assertContains($e->getMessage(), ['AI_RUN_TRANSITION_CONFLICT', 'AI_RUN_ALREADY_EXECUTED']);
+        }
+
+        $this->assertSame(0, $factoryCalls);
+        $this->assertSame(1, $adapter->calls);
+        $this->assertSame($completed, (array) DB::table('ai_model_runs')->where('customer_id', $customer)->sole());
     }
 
     public function test_second_authorization_refusal_releases_the_real_ledger_hold(): void

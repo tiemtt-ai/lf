@@ -1,12 +1,12 @@
 # AI Knowledge Sync Contract
 
-Version: 1.2
+Version: 1.5
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-26
+Last Updated: 2026-09-28
 
 Document Path: platform/LF-AI-Knowledge-Sync-Contract.md
 
@@ -220,8 +220,39 @@ bị hoãn; mất cache thì vòng quét bắt đầu lại từ đầu. Không 
 
 ## Lỗi và retry
 
-* Lỗi của một logical key không chặn key khác. Mã lỗi dùng lại
-  `AiKnowledgeIngestionException`/`MediaReadException` hiện có; không thêm mã mới.
+* Lỗi của một logical key không chặn key khác. Lỗi domain dùng mã hiện có của
+  `AiKnowledgeIngestionException`/`MediaReadException`.
+* `QueryException` trong ingest của một revision được phân loại theo SQLSTATE
+  (K3 review, K3-R2):
+  * **Lỗi dữ liệu của chính revision**: SQLSTATE lớp `22` (dữ liệu) hoặc `23`
+    (ràng buộc: CHECK, unique, NOT NULL), và mã driver `1366` (chuỗi không hợp lệ;
+    MariaDB 11.4.12 báo `22007`, MySQL và bản cũ báo `HY000`). Kiểm trên MariaDB
+    11.4.12 thật: CHECK `23000/4025`, trùng khoá `23000/1062`, quá dài `22001/1406`.
+    Được đếm vào `failed` và log với mã vận hành
+    `database_write_failed`; transaction ingestion rollback trước khi tiếp tục
+    revision/owner khác. Không đặt backoff, lượt đối soát nào cũng thử lại. Log chỉ
+    ghi một lần mỗi cửa sổ backoff của logical key (như `candidate_errors`), còn
+    `failed` vẫn đếm mỗi lượt. Khi revision đó ingest thành công thì cửa sổ log bị
+    xoá, nên lần lỗi sau là sự cố mới và được log (Owner duyệt R2, 2026-09-28).
+    Giới hạn log là **best-effort** (K3-R6): kiểm-rồi-ghi không atomic, hai worker
+    (scheduler và listener) cùng gặp một khoá có thể cùng log, và mất cache thì log
+    lại; không bao giờ ảnh hưởng snapshot hay retry.
+  * **Lỗi hệ thống**: mọi SQLSTATE khác, gồm thiếu quyền, mất kết nối, lock-wait
+    timeout, deadlock đã hết lượt retry của transaction. Lượt của tenant dừng: exception
+    thoát ra chỉ mang SQLSTATE và mã driver, không kèm exception gốc (message của
+    nó chứa SQL và bindings, listener có hàng đợi sẽ lưu vào `failed_jobs`).
+    Exception gốc cũng không được truyền làm đối số vào frame tạo exception mới,
+    vì khi `zend.exception_ignore_args` tắt thì trace giữ mọi đối số (K3-R7).
+    Command tính vào `tenant_errors` và trả exit khác 0; listener được retry theo
+    `tries`; lượt đối soát kế tiếp chạy lại.
+  * Trong `register()`, chỉ lỗi trùng khoá khi insert source mới được hiểu là
+    đăng ký cạnh tranh; lỗi database khác đi thẳng lên, không đổi thành
+    `registration_conflict`.
+* Không log SQL, bindings hoặc exception message ở mọi nhánh. Lỗi database ngoài
+  phạm vi ingest vẫn đi qua đường lỗi tenant của command.
+  `database_write_failed` là mã log vận hành, không phải mã lỗi exception hay
+  contract API; **Owner duyệt 2026-09-28** (quy tắc "không tự tạo error code mới"
+  không áp cho mã này, và không mở rộng sang mã khác).
 * Lỗi vĩnh viễn (`empty_revision`, `mixed_revision`, `invalid_revision`,
   `revision_identity_conflict`, `unsupported_source`) được ghi backoff trong
   cache theo `(tenant, logical key, fingerprint, version)`: 1 giờ, tăng tới 24

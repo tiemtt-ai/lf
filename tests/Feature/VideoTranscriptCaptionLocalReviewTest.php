@@ -167,6 +167,26 @@ class VideoTranscriptCaptionLocalReviewTest extends TestCase
     /** Video hong: FFmpeg fail co ten, khong transcript, khong caption, workspace sach. */
     public function test_a_corrupt_video_fails_extraction_without_output_or_workspace_residue(): void
     {
+        // Chi can FFmpeg that: file hong fail o buoc tach audio, truoc khi STT
+        // chay. Runtime STT la stub `/usr/bin/false` de may khong co Faster
+        // Whisper van kiem duoc; neu STT bi goi nham thi ma loi khac va test do.
+        if (! is_executable((string) config('media.processing.video_audio.ffmpeg_binary'))) {
+            $this->markTestSkipped('FFmpeg missing at the configured absolute path.');
+        }
+        $stubRuntime = sys_get_temp_dir().'/lf-stt-stub-'.getmypid();
+        @mkdir($stubRuntime.'/model', 0700, true);
+        touch($stubRuntime.'/transcribe.py');
+        $this->beforeApplicationDestroyed(function () use ($stubRuntime): void {
+            @unlink($stubRuntime.'/transcribe.py');
+            @rmdir($stubRuntime.'/model');
+            @rmdir($stubRuntime);
+        });
+        config([
+            'media.processing.speech_to_text.python_binary' => '/usr/bin/false',
+            'media.processing.speech_to_text.script' => $stubRuntime.'/transcribe.py',
+            'media.processing.speech_to_text.model_path' => $stubRuntime.'/model',
+        ]);
+
         $media = $this->uploadVideo(null);
         $this->attach($media, 'en');
 

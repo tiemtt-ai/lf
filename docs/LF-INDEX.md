@@ -292,7 +292,7 @@ docs/tech/
 | [tech/LF-Tech-CSS.md](tech/LF-Tech-CSS.md) | CSS architecture |
 | [tech/LF-Admin-Form-Design-Standard.md](tech/LF-Admin-Form-Design-Standard.md) | Canonical presentation standard cho LF Admin Create/Edit forms và List/Index pages; kích hoạt bởi “Áp dụng thiết kế tiêu chuẩn”, “Áp dụng chuẩn danh sách” và các trigger tương đương |
 | [tech/LF-Tech-AWS.md](tech/LF-Tech-AWS.md) | AWS infrastructure |
-| [tech/LF-Tech-Runtime-Requirements.md](tech/LF-Tech-Runtime-Requirements.md) | Yêu cầu cài đặt runtime, extension, binary, biến môi trường, CI và gate triển khai production |
+| [tech/LF-Tech-Runtime-Requirements.md](tech/LF-Tech-Runtime-Requirements.md) | Yêu cầu cài đặt runtime, extension, binary, biến môi trường, CI và gate triển khai production; vận hành queue/scheduler Media → AI Knowledge và điều kiện activation provider |
 
 ---
 
@@ -390,6 +390,10 @@ docs/quality/
 | [quality/LF-Media-Processing-Substrate-Architecture-Review.md](quality/LF-Media-Processing-Substrate-Architecture-Review.md) | Media Processing substrate review; PII/external-processing amendment v1.15 Approved with documented implementation risks |
 | [quality/LF-A0-Docling-Closure-Evidence.md](quality/LF-A0-Docling-Closure-Evidence.md) | Only surviving copy of the A0 run behind the closure decision; exploratory evidence, not a verdict |
 | [quality/LF-Implicit-Timestamp-OnUpdate-Audit.md](quality/LF-Implicit-Timestamp-OnUpdate-Audit.md) | Backlog 15 cột `TIMESTAMP NOT NULL` không default trong database docs; bẫy implicit `ON UPDATE` phụ thuộc `explicit_defaults_for_timestamp` nên schema phân kỳ giữa CI và deployment |
+| [quality/LF-AI-Knowledge-Source-Role-Alignment-Review.md](quality/LF-AI-Knowledge-Source-Role-Alignment-Review.md) | Architecture Review độc lập K3 (2026-09-28): lượt 1 APPROVE WITH CHANGES (K3-R1..R6); lượt 2 gate Architecture Review PASS, Owner duyệt ADR-0006 v1.0.6 và Database Docs; lượt 3 REJECT (K3-R8 parser), lượt 4 **APPROVE**; migration đã apply dev 2026-09-29, DOC-CONFLICT-0040 RESOLVED |
+| [quality/LF-AI-Knowledge-Source-Role-Alignment-Reviewer-Brief.md](quality/LF-AI-Knowledge-Source-Role-Alignment-Reviewer-Brief.md) | Brief K3: Architecture Review trước migration (lượt 1–2) và migration review (lượt 3): căn vocabulary `source_role` của `ai_knowledge_chunks` theo 15 role Media (DOC-CONFLICT-0040), kèm phạm vi phụ `part_index` frame và `database_write_failed` |
+| [quality/LF-AI-Part-2-Closure-Review.md](quality/LF-AI-Part-2-Closure-Review.md) | Final independent closure review Phần 2: lượt 1 **CHANGES REQUIRED** (C1–C4); lượt 2 C1/C3/C4 CLOSED, C2 PARTIALLY CLOSED; lượt 3 **BLOCKED** vì reviewer mất tư cách độc lập; §12 (reviewer K3) C2 còn lỗ ở root `ai.safety`; **§13 round 4: C2 CLOSED, toàn Phần 2 PASS WITH DOCUMENTED RISKS (2026-09-29) — Phần 2 đóng** |
+| [quality/LF-AI-Part-2-Closure-Reviewer-Brief.md](quality/LF-AI-Part-2-Closure-Reviewer-Brief.md) | Brief final independent closure review Phần 2 (bước 0–7): 10 điều kiện đóng của lộ trình, trọng tâm Bước 4–7 (trước đây qua Owner waiver), xoá Media xuyên suốt, mutation; có thể tách hai lane |
 | [quality/LF-AI-Provider-Execution-Gate-Implementation-Review.md](quality/LF-AI-Provider-Execution-Gate-Implementation-Review.md) | Bước 4 Governance/Model Run: gate năm bước, fail-closed khi thiếu authority; ba mục Owner Decision về usage reservation, SaaS authority chưa migrate và `prompt_hash` của attempt bị chặn |
 | [quality/LF-AI-Authoring-Proposal-Implementation-Review.md](quality/LF-AI-Authoring-Proposal-Implementation-Review.md) | Bước 7: hồ sơ triển khai schema/backend/HTTP, quyết định đã duyệt, đóng finding và giới hạn kiểm chứng; Owner nghiệm thu backend + HTTP 2026-09-17, miễn trừ review độc lập (không phải PASS); UI riêng |
 | [quality/LF-AI-Knowledge-Backbone-Implementation-Record.md](quality/LF-AI-Knowledge-Backbone-Implementation-Record.md) | Xương sống Knowledge 2026-09-26: 7 test Media lỗi thời được sửa theo amendment VAD, đồng bộ Media → Knowledge (đóng F1 của báo cáo đánh giá lại), reading_order, đồng bộ tài liệu, remediation ba lượt review độc lập (PASS WITH DOCUMENTED RISKS); **Owner chốt đóng Source/Chunk 2026-09-26** với rủi ro đã ghi; schema có trên `learnforge_db` dev local (xác minh 2026-09-27, drift sạch) |
@@ -721,6 +725,7 @@ Read:
 * tech/LF-Tech-Stack.md
 * tech/LF-Tech-Architecture.md
 * tech/LF-Tech-AWS.md
+* tech/LF-Tech-Runtime-Requirements.md — cài đặt và vận hành khi triển khai
 
 ---
 

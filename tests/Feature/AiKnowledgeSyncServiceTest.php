@@ -12,6 +12,8 @@ use App\Services\AiKnowledgeIngestionService;
 use App\Services\AiKnowledgeRetrievalService;
 use App\Services\MediaReadService;
 use App\Support\TenantContext;
+use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Events\CallQueuedListener;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Queue\Events\JobProcessing;
@@ -615,6 +617,215 @@ class AiKnowledgeSyncServiceTest extends TestCase
     }
 
     // --------------------------------------------------------- Retry/queue
+
+    public function test_a_database_write_failure_is_counted_without_blocking_the_next_owner(): void
+    {
+        $f = $this->tenant('database-failure');
+        $firstMedia = $this->audioOnVersion($f);
+        $healthyMedia = $this->audioOnVersion($f, title: 'Healthy owner');
+        $failOnce = true;
+        DB::connection()->beforeExecuting(function ($query, $bindings, $connection) use (&$failOnce): void {
+            if ($failOnce && str_starts_with(strtolower($query), 'insert into') && str_contains($query, 'ai_knowledge_chunks')) {
+                $failOnce = false;
+                throw new UniqueConstraintViolationException(
+                    $connection->getName(), $query, $bindings, self::uniqueViolationPdo(),
+                );
+            }
+        });
+        Log::spy();
+        $counts = $this->sync()->reconcileTenant();
+        $this->assertSame(1, $counts['failed']);
+        $this->assertSame(1, $counts['ingested']);
+        $this->assertSame(0, DB::table('ai_knowledge_sources')->where('media_file_id', $firstMedia)->count());
+        $this->assertSame(1, DB::table('ai_knowledge_sources')->where('media_file_id', $healthyMedia)->where('status', 'active')->count());
+        Log::shouldHaveReceived('warning')->once()->with('ai_knowledge_sync_ingest_failed', Mockery::on(
+            fn ($context) => $context['owner_id'] === $f['version_activity_id']
+                && $context['error_code'] === 'database_write_failed'
+                && ! str_contains(json_encode($context), 'private-source-content'),
+        ));
+    }
+
+    /**
+     * K3-R2: permission, connection, lock-wait and exhausted deadlock failures
+     * are the database, not the revision. They stop the tenant pass instead of
+     * being counted and skipped, and the exception that leaves carries neither
+     * SQL, bindings nor the driver message.
+     */
+    #[DataProvider('systemicDatabaseFailures')]
+    public function test_a_systemic_database_failure_stops_the_tenant_without_leaking_the_query(string $table, string $sqlState, int $driverCode): void
+    {
+        $f = $this->tenant('database-systemic');
+        $this->audioOnVersion($f);
+        $this->audioOnVersion($f, title: 'Second owner');
+        $attempts = $this->failInsertsInto($table, $sqlState, $driverCode);
+        // K3-R7: with argument collection on, every frame argument is kept in
+        // the trace a reporter may serialize. Off is PHP's production default,
+        // so the test forces the unsafe setting.
+        $ignoreArgs = ini_set('zend.exception_ignore_args', '0');
+
+        try {
+            $this->sync()->reconcileTenant();
+            $this->fail('A systemic database failure must stop the tenant pass.');
+        } catch (\RuntimeException $exception) {
+            $this->assertNotInstanceOf(QueryException::class, $exception);
+            $this->assertSame("Knowledge sync stopped on a database failure (SQLSTATE {$sqlState}, driver code {$driverCode}).", $exception->getMessage());
+            $this->assertNull($exception->getPrevious(), 'The query exception holds SQL and bindings.');
+            $this->assertStringNotContainsString('private-source-content', (string) $exception);
+            $this->assertStringNotContainsString('insert into', strtolower((string) $exception));
+            $this->assertArrayHasKey('args', $exception->getTrace()[0], 'Argument collection must be on for this check to mean anything.');
+            foreach ($exception->getTrace() as $frame) {
+                foreach ($frame['args'] ?? [] as $argument) {
+                    $this->assertNotInstanceOf(\Throwable::class, $argument, 'No exception object may ride in a trace argument.');
+                    if (is_string($argument)) {
+                        $this->assertStringNotContainsString('private-source-content', $argument);
+                        $this->assertStringNotContainsString('insert into', strtolower($argument));
+                    }
+                }
+            }
+        } finally {
+            ini_set('zend.exception_ignore_args', $ignoreArgs === false ? '1' : $ignoreArgs);
+        }
+        $this->assertSame(1, $attempts(), 'The second owner is not attempted after a systemic failure.');
+        $this->assertDatabaseCount('ai_knowledge_sources', 0);
+    }
+
+    /** @return array<string,array{string,string,int}> */
+    public static function systemicDatabaseFailures(): array
+    {
+        return [
+            'chunk write denied' => ['ai_knowledge_chunks', '42000', 1142],
+            'deadlock retries exhausted' => ['ai_knowledge_chunks', '40001', 1213],
+            'connection gone' => ['ai_knowledge_chunks', 'HY000', 2006],
+            'lock wait timeout' => ['ai_knowledge_chunks', 'HY000', 1205],
+            // register() used to turn any source insert failure into
+            // registration_conflict, hiding the database behind a domain code.
+            'source write denied' => ['ai_knowledge_sources', '42000', 1142],
+        ];
+    }
+
+    /** A failure of the revision's own data is counted and the pass goes on. */
+    #[DataProvider('revisionLocalDatabaseFailures')]
+    public function test_a_revision_local_database_failure_is_counted_and_the_pass_continues(string $sqlState, int $driverCode): void
+    {
+        $f = $this->tenant('database-local');
+        $this->audioOnVersion($f);
+        $this->audioOnVersion($f, title: 'Second owner');
+        $this->failInsertsInto('ai_knowledge_chunks', $sqlState, $driverCode, once: true);
+
+        $counts = $this->sync()->reconcileTenant();
+
+        $this->assertSame(1, $counts['failed']);
+        $this->assertSame(1, $counts['ingested']);
+    }
+
+    /** @return array<string,array{string,int}> */
+    public static function revisionLocalDatabaseFailures(): array
+    {
+        // SQLSTATE/driver pairs observed on MariaDB 11.4.12, except the last:
+        // MySQL and older servers report 1366 under HY000, which only the
+        // driver-code branch keeps revision-local.
+        return [
+            'CHECK violated (K3)' => ['23000', 4025],
+            'value too long' => ['22001', 1406],
+            'invalid string value (MariaDB 11.4)' => ['22007', 1366],
+            'invalid string value (HY000)' => ['HY000', 1366],
+        ];
+    }
+
+    /** The command reports a systemic failure as a tenant error and exits non-zero. */
+    public function test_the_command_fails_the_tenant_on_a_systemic_database_failure(): void
+    {
+        $f = $this->tenant('database-command');
+        $this->audioOnVersion($f);
+        $this->failInsertsInto('ai_knowledge_chunks', 'HY000', 2006);
+
+        $this->assertSame(1, Artisan::call('ai:knowledge-sync', ['--customer' => $f['customer_id']]));
+        $output = Artisan::output();
+        $this->assertStringContainsString('tenant_errors=1', $output);
+        $this->assertStringNotContainsString('private-source-content', $output);
+    }
+
+    /** What the driver reports for a duplicate key, with a message standing in for Media text. */
+    private static function uniqueViolationPdo(): \PDOException
+    {
+        $pdo = new \PDOException('private-source-content');
+        $pdo->errorInfo = ['23000', 1062, 'private-source-content'];
+
+        return $pdo;
+    }
+
+    /**
+     * Makes INSERTs into one table fail with the given SQLSTATE and driver code;
+     * the driver message stands in for Media text that must never surface.
+     *
+     * @return \Closure(): int the number of INSERTs attempted
+     */
+    private function failInsertsInto(string $table, string $sqlState, int $driverCode, bool $once = false): \Closure
+    {
+        $attempts = 0;
+        DB::connection()->beforeExecuting(function ($query, $bindings, $connection) use ($table, $sqlState, $driverCode, $once, &$attempts): void {
+            if (! str_starts_with(strtolower($query), 'insert into') || ! str_contains($query, $table.'"') && ! str_contains($query, $table.'`')) {
+                return;
+            }
+            $attempts++;
+            if ($once && $attempts > 1) {
+                return;
+            }
+            $pdo = new \PDOException('private-source-content');
+            $pdo->errorInfo = [$sqlState, $driverCode, 'private-source-content'];
+            throw $sqlState === '23000' && $driverCode === 1062
+                ? new UniqueConstraintViolationException($connection->getName(), $query, $bindings, $pdo)
+                : new QueryException($connection->getName(), $query, $bindings, $pdo);
+        });
+
+        return function () use (&$attempts): int {
+            return $attempts;
+        };
+    }
+
+    /**
+     * R2: a database failure that repeats is retried on every pass but logged
+     * once per window; after the revision syncs, a new failure logs again.
+     */
+    public function test_a_repeating_database_failure_is_retried_every_pass_and_logged_once_per_window(): void
+    {
+        $f = $this->tenant('database-repeat');
+        $media = $this->audioOnVersion($f);
+        $failing = true;
+        $attempts = 0;
+        DB::connection()->beforeExecuting(function ($query, $bindings, $connection) use (&$failing, &$attempts): void {
+            if (str_starts_with(strtolower($query), 'insert into') && str_contains($query, 'ai_knowledge_chunks')) {
+                $attempts++;
+                if ($failing) {
+                    throw new UniqueConstraintViolationException(
+                        $connection->getName(), $query, $bindings, self::uniqueViolationPdo(),
+                    );
+                }
+            }
+        });
+        Log::spy();
+
+        $first = $this->sync()->reconcileTenant();
+        $second = $this->sync()->reconcileTenant();
+
+        $this->assertSame(1, $first['failed']);
+        $this->assertSame(1, $second['failed']);
+        $this->assertSame(0, $second['backoff'], 'A database failure never stops the next attempt.');
+        $this->assertSame(2, $attempts);
+        Log::shouldHaveReceived('warning')->once();
+
+        $failing = false;
+        $this->assertSame(1, $this->sync()->reconcileTenant()['ingested']);
+        $this->assertSame(1, DB::table('ai_knowledge_sources')->where('media_file_id', $media)->where('status', 'active')->count());
+
+        // Recovery clears the window: a later failure of the same revision is
+        // a new incident, not hidden behind the old one.
+        $failing = true;
+        DB::table('ai_knowledge_chunks')->where('customer_id', $f['customer_id'])->delete();
+        DB::table('ai_knowledge_sources')->where('media_file_id', $media)->delete();
+        $this->sync()->reconcileTenant();
+        Log::shouldHaveReceived('warning')->twice();
+    }
 
     public function test_a_permanent_failure_backs_off_while_a_new_revision_is_tried_at_once(): void
     {

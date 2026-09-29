@@ -50,6 +50,10 @@ criteria hay không.
   risks and scoped implementation authorization.
 * [LF-A0-Docling-Closure-Evidence.md](LF-A0-Docling-Closure-Evidence.md)
 * [LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md](LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md)
+* [LF-AI-Knowledge-Source-Role-Alignment-Review.md](LF-AI-Knowledge-Source-Role-Alignment-Review.md) — Architecture Review độc lập K3, 2026-09-28: lượt 4 **APPROVE**; migration đã apply dev 2026-09-29, DOC-CONFLICT-0040 RESOLVED.
+* [LF-AI-Knowledge-Source-Role-Alignment-Reviewer-Brief.md](LF-AI-Knowledge-Source-Role-Alignment-Reviewer-Brief.md) — brief Architecture Review K3 (2026-09-28): vocabulary `source_role` Knowledge hẹp hơn role Media; review trước khi tạo forward migration.
+* [LF-AI-Part-2-Closure-Review.md](LF-AI-Part-2-Closure-Review.md) — final independent closure review Phần 2, 2026-09-27: lượt 1 **CHANGES REQUIRED** (C1–C4), lượt 2 C2 còn mở, lượt 3 **BLOCKED** (reviewer mất tư cách độc lập); round 4 (§13, 2026-09-29): **PASS WITH DOCUMENTED RISKS — Phần 2 đóng**.
+* [LF-AI-Part-2-Closure-Reviewer-Brief.md](LF-AI-Part-2-Closure-Reviewer-Brief.md) — brief final independent closure review Phần 2 (AI Knowledge, bước 0–7): 10 điều kiện đóng, trọng tâm Bước 4–7 chưa từng review độc lập, xoá Media xuyên suốt, mutation.
 * [LF-AI-Provider-Execution-Gate-Implementation-Review.md](LF-AI-Provider-Execution-Gate-Implementation-Review.md)
 * [LF-AI-Embedding-Qdrant-Implementation-Review.md](LF-AI-Embedding-Qdrant-Implementation-Review.md)
 * [LF-AI-Embedding-Qdrant-Architecture-Review.md](LF-AI-Embedding-Qdrant-Architecture-Review.md) — review snapshot `b5da390`; không suy rộng verdict sang bản vá sau snapshot.

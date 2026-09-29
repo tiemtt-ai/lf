@@ -1,12 +1,12 @@
 # AI Provider Execution Gate — Implementation Review
 
-Version: 1.16
+Version: 1.19
 
 Document Status: Review
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-14
+Last Updated: 2026-09-29
 
 Review Date: 2026-09-09
 
@@ -66,6 +66,95 @@ khác nhau.
 ---
 
 # OWNER DECISIONS — đã chốt 2026-09-09
+
+## Vá sau Part 2 closure review — 2026-09-27
+
+[Closure review](LF-AI-Part-2-Closure-Review.md) C1 và C2 thuộc Bước 4. Implementer vá,
+chưa có reviewer chạy lại.
+
+| Finding | Vá | Regression |
+| --- | --- | --- |
+| C1 MEDIUM — `record()`/`transition()` đọc-kiểm-ghi không khoá; caller cầm snapshot `queued` cũ ghi đè run đã `completed` thành `failed` | Đọc, kiểm transition và ghi trong một transaction với `lockForUpdate()` trên đúng tenant/run; không thêm mã lỗi | `test_a_concurrent_caller_cannot_overwrite_the_run_between_its_read_and_write` (MariaDB, hai connection thật, cùng điểm chen với probe của reviewer: caller thứ hai phải chờ khoá và hết giờ 1205, caller thứ nhất hoàn tất một mình, run giữ `completed`); `test_a_completed_run_is_never_reopened_by_a_later_caller` |
+| C2 MEDIUM — thiếu safety policy được hiểu là cho phép | `safetyVerdict()` đòi `forbidden_data_classes` là danh sách chuỗi và `max_retention_class` là retention class đã biết; thiếu hoặc sai hình dạng → `AI_SAFETY_BLOCKED` (evidence `missing_or_invalid_safety_policy`), trả lại reservation, không tạo adapter. Danh sách cấm rỗng nhưng khai báo đủ vẫn là lựa chọn tường minh | `test_a_missing_or_malformed_safety_policy_blocks_the_call` (6 ca), `test_an_explicit_complete_policy_with_no_forbidden_classes_still_allows` |
+
+Mutation trên bản sao riêng: đưa gate về HEAD → 6/7 test C2 đỏ; đưa recorder về HEAD →
+test hai connection đỏ đúng như probe reviewer (caller thứ nhất kết thúc
+`AI_PROVIDER_CALL_FAILED` sau khi run đã hoàn tất); khôi phục khớp SHA-256.
+
+Kiểm chứng của implementer: `php artisan test` 1299 passed, 23 skipped; toàn danh sách
+`integration-mysql` trên MariaDB 11.4 dùng một lần, schema dựng mới: 563 passed, 1
+skipped (`test_real_qdrant_maintenance_passes_a_broken_collection_and_recovers_it`, cần
+Qdrant thật), 0 failure/error theo JUnit.
+
+### Round 2 — C2 còn mở, vá 2026-09-28
+
+[Closure review §10.3](LF-AI-Part-2-Closure-Review.md): 5 cấu hình safety sai hình
+dạng vẫn được cho gọi adapter và commit quota, vì override sai kiểu bị đổi thành
+"không có override" rồi kế thừa default hợp lệ; danh sách cấm chỉ được kiểm kiểu phần
+tử, không kiểm có phải list.
+
+Vá: `resolvedSafetyPolicy()` kiểm **từng lớp trước khi gộp**. Override **không khai
+báo** thì kế thừa default; override **đã khai báo** (kể cả `null`) phải là map chỉ gồm
+`forbidden_data_classes` / `max_retention_class`. `purposes` phải là map với key là
+purpose đã biết (key gõ sai không còn âm thầm để purpose thật dùng default).
+`forbidden_data_classes` sau gộp phải là list các data class trong `ai.data_classes`.
+Sai ở bất kỳ lớp nào → `AI_SAFETY_BLOCKED`, evidence `missing_or_invalid_safety_policy`,
+reservation trả lại, không tạo adapter. Không thêm mã lỗi.
+
+Regression (`AiProviderExecutionGateTest`):
+
+* `test_a_missing_or_malformed_safety_policy_blocks_the_call`: thêm 9 dataset. Năm
+  hình dạng của reviewer (override scalar, `false`, list thay map, `purposes` scalar,
+  forbidden map thay list), cùng bốn biến thể cùng lớp: override khai báo `null`,
+  override có key lạ, `purposes` có key purpose lạ, data class ngoài vocabulary.
+* Đối chứng kế thừa hợp lệ `test_a_valid_policy_without_or_with_a_partial_override_allows`
+  (5 dataset: không có `purposes`, map rỗng, override purpose khác, override một phần,
+  override rỗng). Thêm `test_a_partial_override_keeps_the_default_forbidden_classes`.
+
+Mutation trên bản sao vật lý riêng (0 symlink, autoload trỏ bản sao), khôi phục khớp
+SHA-256 `aa9c5366…c372`:
+
+| Mutation | Bị bắt bởi |
+| --- | --- |
+| Đưa logic đọc policy về round 1 | 9/9 dataset mới đỏ; 6 dataset cũ xanh |
+| Bỏ `array_is_list($forbidden)` | dataset `forbidden classes a map instead of a list` |
+| Bỏ kiểm key của `purposes` | dataset `purposes keyed by an unknown purpose` |
+| Bỏ kiểm vocabulary data class | dataset `forbidden class outside the vocabulary` |
+| Lớp policy chỉ cần là array | dataset `purpose override a list instead of a map`, `purpose override with an unknown key` |
+
+Kiểm chứng: `php artisan test` 1314 passed, 23 skipped, 0 failure;
+`AiProviderExecutionGateTest` trên MariaDB 11.4 dùng một lần 66 passed (gồm hai test
+race); `docs:lint`, `schema:drift --docs-only`, Pint đều pass.
+
+### Round 3 — lớp gốc `ai.safety`, vá 2026-09-29
+
+[Closure review §12.3](LF-AI-Part-2-Closure-Review.md): `resolvedSafetyPolicy()` kiểm
+mọi lớp trừ chính lớp gốc. Một key gõ sai `purpose` (thay cho `purposes`), một key lạ
+hay key số ở lớp gốc bị bỏ qua, nên mọi purpose rơi về default. Reviewer tái hiện trên
+ledger thật: adapter được gọi, reservation committed, có usage event.
+
+Vá: lớp gốc chỉ nhận `default` và `purposes` (cùng helper `onlyKeys()` như các lớp khác).
+Sai thì `AI_SAFETY_BLOCKED`, evidence `missing_or_invalid_safety_policy`. Không thêm mã
+lỗi.
+
+Regression:
+
+* `test_a_missing_or_malformed_safety_policy_blocks_the_call`: thêm `root key mistyped
+  as purpose`, `root with an unexpected key`, `root with a numeric key`.
+* `test_a_mistyped_root_key_blocks_on_the_real_ledger_like_the_correct_override`: dùng
+  Commercial ledger thật (`DatabaseCommercialEntitlements`,
+  `DatabaseUsageQuotaReserver`). Cặp gõ sai/viết đúng: cả hai đều blocked, hold
+  `released`, factory 0, adapter 0, usage event 0. Evidence khác nhau:
+  `missing_or_invalid_safety_policy` cho bản gõ sai, `forbidden_data_classes` cho bản
+  viết đúng.
+
+Mutation trên bản sao riêng (0 symlink), khôi phục khớp SHA: bỏ kiểm key lớp gốc thì 3
+dataset mới và ca `mistyped purpose` đỏ; ca `correct purposes` vẫn xanh.
+
+Rà lại mọi lớp để tránh lỗ cùng loại: gốc (`default`, `purposes`); `default` và override
+(hai key policy); `purposes` (purpose đã biết); danh sách cấm (list, data class đã biết);
+ceiling (retention class đã biết). Vocabulary `ai.data_classes`/`ai.retention_classes`
+sai dạng thì thành rỗng hoặc bị ép kiểu, và vẫn fail-closed.
 
 ## OD-1 — DECIDED 2026-09-09 — Commercial sở hữu reservation ledger
 

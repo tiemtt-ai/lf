@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Mockery;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\Ai\FakeVectorStore;
 use Tests\TestCase;
 
@@ -188,6 +189,40 @@ class AiKnowledgeIngestionServiceTest extends TestCase
             $this->assertSame('mixed_revision', $exception->errorCode);
         }
         $this->assertSame(0, DB::table('ai_knowledge_sources')->where('customer_id', $customerId)->count());
+    }
+
+    /**
+     * Each identity component is guarded on its own. The version-only case
+     * above cannot tell whether the fingerprint is compared at all, because
+     * the version guard alone already rejects it (Part 2 closure review C4).
+     */
+    #[DataProvider('singleIdentityComponentMixtures')]
+    public function test_a_unit_differing_in_one_identity_component_is_rejected_atomically(array $override): void
+    {
+        [$customerId, $userId, $mediaId] = $this->tenant('mixed-'.array_key_first($override));
+        $service = $this->serviceReturning([
+            $this->unit($mediaId, '1', 'A'),
+            $this->unit($mediaId, '2', 'B', $override),
+        ]);
+
+        try {
+            $service->ingestMedia($userId, 'course_activity', 9, 'document', 'region', 'vi', 'Mixed');
+            $this->fail('A unit from another revision must be rejected.');
+        } catch (AiKnowledgeIngestionException $exception) {
+            $this->assertSame('mixed_revision', $exception->errorCode);
+        }
+        $this->assertSame(0, DB::table('ai_knowledge_sources')->where('customer_id', $customerId)->count());
+        $this->assertSame(0, DB::table('ai_knowledge_chunks')->where('customer_id', $customerId)->count());
+    }
+
+    /** @return array<string,array{array<string,string>}> */
+    public static function singleIdentityComponentMixtures(): array
+    {
+        return [
+            'fingerprint only' => [['source_fingerprint' => str_repeat('b', 64)]],
+            'processing version only' => [['processing_version' => 'docling-v2']],
+            'locale only' => [['locale' => 'ko']],
+        ];
     }
 
     public function test_tenants_with_identical_content_receive_isolated_sources_and_chunks(): void
@@ -396,6 +431,40 @@ class AiKnowledgeIngestionServiceTest extends TestCase
     }
 
     /** @param array<int,array<string,mixed>> $units */
+    public function test_frame_regions_sharing_a_timespan_keep_distinct_chunks_and_retry_identity(): void
+    {
+        $this->freezeTime();
+        [$customer, $actor, $media] = $this->tenant('frame-regions');
+        $units = [];
+        foreach ([str_repeat('한', 4001), 'Second region', 'Next frame'] as $i => $text) {
+            $units[] = $this->unit($media, $i === 2 ? '12000-14000' : '10000-12000', $text, [
+                'content_type' => 'video_frame_text',
+                'locator' => ['type' => 'timespan'],
+                'structure' => [
+                    'reading_order' => $i + 1,
+                    'bbox' => ['x' => 0.1 * ($i + 1), 'y' => 0.2, 'width' => 0.3, 'height' => 0.1],
+                    'frame_width' => 1920, 'frame_height' => 1080,
+                ],
+            ]);
+        }
+        $service = $this->serviceReturning($units, 2);
+        $first = $service->ingestMedia($actor, 'course_activity', 99, 'video', 'video_frame_text', 'vi', 'Frames');
+        $before = DB::table('ai_knowledge_chunks')->where('customer_id', $customer)->orderBy('sequence_no')->get();
+        $this->assertSame(4, $first['chunk_count']);
+        $this->assertSame([1, 2, 3, 1], $before->pluck('part_index')->map(fn ($n) => (int) $n)->all());
+        $this->assertSame([1, 1, 2, 3], $before->pluck('reading_order')->map(fn ($n) => (int) $n)->all());
+        $this->assertSame([0, 4000, 0, 0], $before->pluck('char_start')->map(fn ($n) => (int) $n)->all());
+        $this->assertSame($units[0]['text'], $before[0]->content.$before[1]->content);
+        $this->assertSame('Second region', $before[2]->content);
+        $this->assertSame(0.2, (float) $before[2]->bbox_x);
+        $this->assertSame('10000-12000', $before[2]->locator_start);
+        $this->assertSame('12000-14000', $before[3]->locator_start);
+        $this->assertSame(4, $before->pluck('chunk_uuid')->unique()->count());
+        $again = $service->ingestMedia($actor, 'course_activity', 99, 'video', 'video_frame_text', 'vi', 'Frames');
+        $this->assertSame($first['source_id'], $again['source_id']);
+        $this->assertSame($before->toJson(), DB::table('ai_knowledge_chunks')->where('customer_id', $customer)->orderBy('sequence_no')->get()->toJson());
+    }
+
     private function serviceReturning(array $units, int $calls = 1): AiKnowledgeIngestionService
     {
         $reader = Mockery::mock(MediaReadService::class);

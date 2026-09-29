@@ -1,16 +1,36 @@
 # LF-AI.md
 
-Version: 1.7
+Version: 1.8
 
 Document Status: Frozen
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-14
+Last Updated: 2026-09-29
 
 Document Path: platform/LF-AI.md
 
 ---
+
+## Phần 2 AI Knowledge — đóng 2026-09-29
+
+[Final independent closure review](../quality/LF-AI-Part-2-Closure-Review.md) §13:
+**PASS WITH DOCUMENTED RISKS** cho toàn Phần 2 (bước 0–7, backend). Mười điều kiện
+đóng của lộ trình Owner đều PASS hoặc PASS WITH DOCUMENTED RISKS. Các waiver cũ của
+Bước 4–7 vẫn là waiver; closure là lượt độc lập đầu tiên nhìn toàn bộ implementation.
+
+Rủi ro đã ghi, **không** được closure cấp phép:
+
+* provider/model thật và chất lượng model;
+* Qdrant live và physical deletion;
+* AR-P3-2/AR-P3-3 trước khi kích hoạt provider; AR-P3-7 trước Knowledge Source không
+  gắn Media;
+* UI/frontend (Phần 3);
+* production activation và scale, account deploy hạn chế quyền, crash/power-loss
+  durability.
+
+Số liệu apply K3 và đồng bộ trên `learnforge_db` dev là bằng chứng của implementer;
+reviewer không kết nối dev.
 
 ## Step 7 Authoring Proposal — Frozen / Partial
 
@@ -110,8 +130,8 @@ chúng khác nhau, nên không gộp làm một:
   2026-09-14 dưới Owner waiver** cho điều kiện `Architecture Review passed` —
   miễn trừ, **không phải** review PASS. Lượt review độc lập duy nhất ghi FAIL
   trên snapshot `b5da390` rồi bị ngắt; các finding của nó đã được vá hoặc hoãn
-  có điều kiện. Không yêu cầu AI thật hoặc frontend. Chưa apply migration lên
-  `learnforge_db`.
+  có điều kiện. Không yêu cầu AI thật hoặc frontend. Migration đã có trên
+  `learnforge_db` dev local (xác minh 2026-09-27).
   **Phải xử lý trước khi kích hoạt provider:** AR-P3-2 (ack xoá của Qdrant không
   chứng minh point đã mất — xử lý bằng rebuild index đúng schema như mục vector
   store bên dưới yêu cầu, **không** bằng `exists()` với cùng filter tenant) và

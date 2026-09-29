@@ -2988,7 +2988,7 @@
           "expression": "`part_index` >= 1 and `char_end` > `char_start`"
         },
         {
-          "expression": "`source_role` is null or `source_role` in ('paragraph','heading','list','table','figure','caption','header','footer','other')"
+          "expression": "`source_role` is null or `source_role` in ('paragraph','heading','list','table','figure','image','chart','diagram','geometry','formula','caption','note','header','footer','other')"
         },
         {
           "expression": "`source_quality_status` is null or `source_quality_status` in ('complete','incomplete','undetermined')"

@@ -6,9 +6,11 @@ use App\Exceptions\AiKnowledgeIngestionException;
 use App\Exceptions\MediaReadException;
 use App\Support\TenantContext;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -342,11 +344,39 @@ final class AiKnowledgeSyncService
                         $revision['language_profile'],
                     );
                     $counts['ingested']++;
+                    // A later failure after recovery is a new incident to see.
+                    Cache::forget($backoffKey.':database_write_failed');
+                    Cache::forget($backoffKey.':database_write_failed:attempts');
                 } catch (AiKnowledgeIngestionException|MediaReadException $exception) {
                     $counts['failed']++;
                     $this->logFailure($owner, $revision['content_type'], $exception->errorCode);
                     if (in_array($exception->errorCode, self::PERMANENT_ERRORS, true)) {
                         $this->backoff($backoffKey);
+                    }
+                } catch (QueryException $exception) {
+                    // Registration rolls back its transaction. Only a failure
+                    // this revision's own data causes may let the pass go on to
+                    // the next owner; anything else is the database, not the
+                    // revision, and stops the tenant (K3-R2).
+                    if (! $this->isRevisionLocal($exception)) {
+                        // Only scalars cross into the frame that builds the new
+                        // exception: a frame argument is kept in its trace
+                        // (K3-R7), a local variable of this frame is not.
+                        throw $this->systemicFailure(
+                            (string) ($exception->errorInfo[0] ?? ''), (int) ($exception->errorInfo[1] ?? 0),
+                        );
+                    }
+                    // Never log SQL or bindings: they can contain Media text.
+                    // Retried on every pass (no backoff), but a failure that
+                    // repeats — a CHECK the revision can never satisfy — is
+                    // logged once per window, as candidate errors are. The
+                    // window is best-effort: two workers racing on one key may
+                    // both log.
+                    $counts['failed']++;
+                    $logKey = $backoffKey.':database_write_failed';
+                    if (! Cache::has($logKey)) {
+                        $this->logFailure($owner, $revision['content_type'], 'database_write_failed');
+                        $this->backoff($logKey);
                     }
                 }
             }
@@ -413,6 +443,37 @@ final class AiKnowledgeSyncService
         $minutes = min((int) $cap, (int) $first * (2 ** ($attempts - 1)));
         Cache::put($key.':attempts', $attempts, now()->addMinutes((int) $cap * 2));
         Cache::put($key, true, now()->addMinutes($minutes));
+    }
+
+    /**
+     * A data or constraint error of this revision's own rows: SQLSTATE class 22
+     * (data) or 23 (integrity — CHECK, unique, NOT NULL), plus driver code
+     * 1366, an invalid string value: MariaDB 11.4 reports it as 22007, MySQL
+     * and older servers under the generic HY000. Permission, connection,
+     * lock-wait and exhausted deadlock retries are not.
+     */
+    private function isRevisionLocal(QueryException $exception): bool
+    {
+        $sqlState = (string) ($exception->errorInfo[0] ?? '');
+
+        return str_starts_with($sqlState, '22') || str_starts_with($sqlState, '23')
+            || (int) ($exception->errorInfo[1] ?? 0) === 1366;
+    }
+
+    /**
+     * The tenant-failure path carries only SQLSTATE and driver code. The query
+     * exception is neither chained nor passed in: its message holds SQL and
+     * bindings, which can be Media text; a queued listener persists the
+     * exception in `failed_jobs`, and with `zend.exception_ignore_args` off a
+     * reporter can serialize the arguments recorded in the trace.
+     */
+    private function systemicFailure(string $sqlState, int $driverCode): RuntimeException
+    {
+        return new RuntimeException(sprintf(
+            'Knowledge sync stopped on a database failure (SQLSTATE %s, driver code %s).',
+            preg_replace('/[^0-9A-Z]/', '', $sqlState) ?: 'unknown',
+            $driverCode,
+        ));
     }
 
     /** @param array<string,mixed> $owner */

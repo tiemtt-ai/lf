@@ -117,10 +117,17 @@ final class AiModelRunRecorder
             );
         }
 
-        $existing = DB::table('ai_model_runs')
-            ->where('customer_id', $customerId)->where('run_uuid', $runUuid)->first();
+        // Read, check and write under the row lock. Read-then-write let a caller
+        // holding a stale `queued` snapshot overwrite a run another connection
+        // had meanwhile completed, reopening a terminal attempt and relabelling
+        // a success as a failure (Part 2 closure review C1).
+        return DB::transaction(function () use ($customerId, $runUuid, $status, $row, $now): int {
+            $existing = DB::table('ai_model_runs')
+                ->where('customer_id', $customerId)->where('run_uuid', $runUuid)->lockForUpdate()->first();
 
-        if ($existing !== null) {
+            if ($existing === null) {
+                return (int) DB::table('ai_model_runs')->insertGetId($row + ['created_at' => $now]);
+            }
             // Provenance is immutable. `run_uuid` is normally derived from
             // exactly these fields, so a disagreement can only mean a caller
             // supplied its own uuid and then changed what the run was for.
@@ -135,12 +142,10 @@ final class AiModelRunRecorder
 
             $this->assertTransition((string) $existing->status, $status);
 
-            DB::table('ai_model_runs')->where('id', $existing->id)->update($row);
+            DB::table('ai_model_runs')->where('customer_id', $customerId)->where('id', $existing->id)->update($row);
 
             return (int) $existing->id;
-        }
-
-        return (int) DB::table('ai_model_runs')->insertGetId($row + ['created_at' => $now]);
+        }, 3);
     }
 
     /**
@@ -179,18 +184,22 @@ final class AiModelRunRecorder
             }
         }
 
-        $current = DB::table('ai_model_runs')
-            ->where('customer_id', $customerId)->where('id', $modelRunId)->value('status');
-        if ($current !== null) {
-            $this->assertTransition((string) $current, $status);
-        }
+        // Same locked read-check-write as record(): a transition checked
+        // against a stale status must not land on a row that moved on.
+        DB::transaction(function () use ($customerId, $modelRunId, $status, $row): void {
+            $current = DB::table('ai_model_runs')
+                ->where('customer_id', $customerId)->where('id', $modelRunId)->lockForUpdate()->value('status');
+            if ($current !== null) {
+                $this->assertTransition((string) $current, $status);
+            }
 
-        // Tenant-scoped like every other write in the codebase: an id alone is
-        // not an authorization to touch a row.
-        DB::table('ai_model_runs')
-            ->where('customer_id', $customerId)
-            ->where('id', $modelRunId)
-            ->update($row);
+            // Tenant-scoped like every other write in the codebase: an id alone is
+            // not an authorization to touch a row.
+            DB::table('ai_model_runs')
+                ->where('customer_id', $customerId)
+                ->where('id', $modelRunId)
+                ->update($row);
+        }, 3);
     }
 
     private function assertTransition(string $from, string $to): void

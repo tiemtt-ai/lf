@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 277,
+  "document_count": 281,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -8949,6 +8949,54 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "quality/LF-AI-Knowledge-Source-Role-Alignment-Review.md",
+      "title": "AI Knowledge Source Role Alignment (K3) — Independent Architecture Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": ["ai", "knowledge", "media", "database", "review"],
+      "keywords": {
+        "vi": ["review K3", "vocabulary source_role", "gate tạo migration", "phân loại lỗi database"],
+        "en": ["K3 review", "source role vocabulary", "migration gate", "database error classification"]
+      },
+      "identifiers": ["ai_knowledge_chunks", "chk_akc_source_role", "DOC-CONFLICT-0040", "K3-R1", "K3-R2"],
+      "related_documents": [
+        "database/ai/ai_knowledge_chunks.md",
+        "quality/LF-AI-Knowledge-Source-Role-Alignment-Reviewer-Brief.md",
+        "adr/ADR-0006-AI-Foundation.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Knowledge-Source-Role-Alignment-Reviewer-Brief.md",
+      "title": "AI Knowledge Source Role Alignment (K3) — Reviewer Brief",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": ["ai", "knowledge", "media", "database", "review"],
+      "keywords": {
+        "vi": ["vocabulary source_role", "căn role Media", "review trước migration", "K3"],
+        "en": ["source role vocabulary", "media role alignment", "pre-migration review", "K3"]
+      },
+      "identifiers": ["ai_knowledge_chunks", "chk_akc_source_role", "chk_mer_role", "DOC-CONFLICT-0040"],
+      "related_documents": [
+        "database/ai/ai_knowledge_chunks.md",
+        "database/media/media_extracted_regions.md",
+        "quality/LF-Documentation-Conflicts.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "quality/LF-AI-Migrations-Pre-Apply-Review.md",
       "title": "AI Migrations — Independent Pre-Apply Review",
       "area": "quality",
@@ -8992,6 +9040,58 @@
         "quality/LF-AI-Authoring-Proposal-Implementation-Review.md",
         "quality/LF-AI-Vision-Interpretation-Implementation-Review.md",
         "tech/LF-Tech-Runtime-Requirements.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Part-2-Closure-Review.md",
+      "title": "AI Part 2 — Final Independent Closure Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": ["ai", "knowledge", "review", "closure", "verification"],
+      "keywords": {
+        "vi": ["review đóng Phần 2", "race model run", "safety policy thiếu", "điều kiện đóng"],
+        "en": ["part 2 closure review", "model run race", "missing safety policy", "closure conditions"]
+      },
+      "identifiers": ["AiModelRunRecorder", "AiProviderExecutionGate", "safetyVerdict"],
+      "related_documents": [
+        "quality/LF-AI-Part-2-Closure-Reviewer-Brief.md",
+        "quality/LF-AI-Provider-Execution-Gate-Implementation-Review.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Part-2-Closure-Reviewer-Brief.md",
+      "title": "AI Part 2 (Knowledge) — Final Closure Reviewer Brief",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": ["ai", "knowledge", "review", "governance", "closure"],
+      "keywords": {
+        "vi": ["review đóng Phần 2", "review độc lập cuối", "điều kiện đóng", "AI Knowledge"],
+        "en": ["final closure review", "part 2 closure", "independent review", "AI knowledge"]
+      },
+      "identifiers": [
+        "AiProviderExecutionGate",
+        "AiEmbeddingService",
+        "AiVisionInterpretationService",
+        "AiAuthoringProposalService"
+      ],
+      "related_documents": [
+        "platform/LF-AI.md",
+        "quality/LF-AI-Knowledge-Backbone-Independent-Review.md",
+        "quality/LF-AI-Migrations-Pre-Apply-Review.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -11151,32 +11251,19 @@
       "metadata_complete": true,
       "authority": "engineering",
       "canonical_for": [],
-      "topics": [
-        "runtime",
-        "deployment"
-      ],
+      "topics": ["runtime", "deployment", "queue", "scheduler", "ai-knowledge"],
       "keywords": {
-        "vi": [
-          "yêu cầu runtime",
-          "cài đặt triển khai",
-          "biến môi trường",
-          "phụ thuộc binary"
-        ],
-        "en": [
-          "runtime requirements",
-          "deployment setup",
-          "environment variables",
-          "binary dependencies"
-        ]
+        "vi": ["yêu cầu runtime", "cài đặt triển khai", "biến môi trường", "phụ thuộc binary", "vận hành hàng đợi", "lịch đối soát tri thức", "kích hoạt provider"],
+        "en": ["runtime requirements", "deployment setup", "environment variables", "binary dependencies", "queue worker", "scheduler", "provider activation"]
       },
-      "identifiers": [
-        "LF-Tech-Runtime-Requirements"
-      ],
+      "identifiers": ["LF-Tech-Runtime-Requirements", "ai:knowledge-sync", "schedule:run", "schedule:work"],
       "related_documents": [
         "tech/LF-Tech-Stack.md",
         "tech/LF-Tech-AWS.md",
         "platform/LF-Media-Processing-Contract.md",
-        "adr/ADR-0019-Media-Structured-Extraction-Boundary.md"
+        "adr/ADR-0019-Media-Structured-Extraction-Boundary.md",
+        "platform/LF-AI-Knowledge-Sync-Contract.md",
+        "platform/LF-AI.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

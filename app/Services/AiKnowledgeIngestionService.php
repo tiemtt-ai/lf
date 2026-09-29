@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\AiKnowledgeIngestionException;
 use App\Support\TenantContext;
-use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 class AiKnowledgeIngestionService
@@ -203,10 +203,12 @@ class AiKnowledgeIngestionService
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
-                } catch (QueryException $exception) {
+                } catch (UniqueConstraintViolationException) {
                     // A concurrent retry can win after our gap read. Resolve
                     // only the exact deterministic UUID; never turn another
-                    // integrity error into a successful registration.
+                    // integrity error into a successful registration. Any
+                    // other database failure propagates unchanged, so the
+                    // caller can tell a broken database from a conflict.
                     $concurrent = DB::table('ai_knowledge_sources')
                         ->where('customer_id', $customerId)->where('source_uuid', $sourceUuid)->first();
                     if ($concurrent === null) {
@@ -392,18 +394,28 @@ class AiKnowledgeIngestionService
     {
         $chunks = [];
         $sequence = 1;
+        $frameParts = [];
         foreach ($units as $unit) {
             $text = $this->unitText($unit, $revision['content_type']);
             if ($text === '') {
                 continue;
             }
             foreach ($this->split($text) as $part) {
+                // One frame can contain several Media units sharing a timespan.
+                // Keep each unit's text/bbox/offsets, but allocate parts across
+                // that locator so uk_akc_locator_part remains unique. A single
+                // unit retains its existing part numbers and deterministic UUID.
+                $partIndex = $part['index'];
+                if ($revision['content_type'] === 'video_frame_text') {
+                    $locatorKey = $unit['locator']['type'].'|'.$unit['locator']['value'];
+                    $partIndex = $frameParts[$locatorKey] = ($frameParts[$locatorKey] ?? 0) + 1;
+                }
                 $structure = is_array($unit['structure'] ?? null) ? $unit['structure'] : [];
                 $bbox = is_array($structure['bbox'] ?? null) ? $structure['bbox'] : [];
                 $languages = $structure['languages'] ?? [];
                 $chunks[] = [
                     'sequence_no' => $sequence++,
-                    'part_index' => $part['index'],
+                    'part_index' => $partIndex,
                     'char_start' => $part['start'],
                     'char_end' => $part['end'],
                     'content' => $part['text'],

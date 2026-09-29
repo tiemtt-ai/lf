@@ -24,15 +24,17 @@ baseline and are extended by this amendment. AI owns suggestions,
 human-decision audit and owner-service receipts, not canonical Learning state.
 Owner froze the six-table v0.8 shape on 2026-09-15. Its migration now exists
 under the separate scoped Owner waiver in the Authoring Proposal Contract,
-with temporary MariaDB 11.4.12/10.4.21 reconstruction. Backend authoring remains
-Not Implemented; no independent reviewer PASS or live apply is claimed.
+with temporary MariaDB 11.4.12/10.4.21 reconstruction. At that date backend
+authoring was not implemented; it has since been implemented and Owner-accepted
+(2026-09-17, under a review waiver) — see § Implementation Status. No independent
+reviewer PASS is claimed by this amendment.
 The earlier Review state is superseded; baseline Foundation remains Frozen.
 
 ---
 
 ## Version
 
-1.0.5
+1.0.6
 
 ---
 
@@ -48,7 +50,7 @@ Proposed.
 
 ## Last Updated
 
-2026-09-26
+2026-09-28
 
 ---
 
@@ -69,6 +71,67 @@ Document Path: adr/ADR-0006-AI-Foundation.md
 * [ADR-0005 — Track Foundation](ADR-0005-Track-Foundation.md)
 * [ADR-0016 — Learning Foundation](ADR-0016-Learning-Foundation.md)
 * [ADR-0018 — Media PII And External Processing Boundary](ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved; constraining privacy/external-processing boundary
+* [ADR-0019 — Media Structured Extraction Boundary](ADR-0019-Media-Structured-Extraction-Boundary.md) — region role vocabulary (Amendment v1.7) that Knowledge snapshots
+
+---
+
+## Amendment Record — Version 1.0.6 (Approved 2026-09-28) — Media role snapshot alignment (K3)
+
+Amendment Status: **Approved by the Architecture Owner 2026-09-28**, after the
+independent K3 Architecture Review passed its gate in round 2. The approval
+covers exactly the packet that review saw; a change to its design needs a new
+review. A forward migration may now be written; it is not yet applied anywhere.
+
+**Why.** `ai_knowledge_chunks.source_role` is a snapshot of the Media region
+`role`, copied as observed (Amendment v1.0.1: rerank provenance comes from
+Media, not AI classification). [ADR-0019 Amendment v1.7](ADR-0019-Media-Structured-Extraction-Boundary.md#amendment-v17--document-multilingual-and-stem-evidence--approved-2026-09-03)
+(Approved 2026-09-03) widened the Media vocabulary to fifteen roles. The
+Foundation CHECK, designed 2026-09-08, kept the nine roles that preceded it, so
+every revision with a new role is refused as a whole and never reaches
+Knowledge. Verified conflict:
+[DOC-CONFLICT-0040](../quality/LF-Documentation-Conflicts.md#doc-conflict-0040);
+review: [K3 Architecture Review](../quality/LF-AI-Knowledge-Source-Role-Alignment-Review.md)
+finding K3-R1.
+
+**Decision proposed.** The allowed values of `source_role` follow the Media
+region role vocabulary approved by ADR-0019. Concretely, the CHECK becomes the
+fifteen values of `chk_mer_role`: `paragraph`, `heading`, `list`, `table`,
+`figure`, `image`, `chart`, `diagram`, `geometry`, `formula`, `caption`,
+`note`, `header`, `footer`, `other`. The column stays nullable, with the
+existing rule that only `region|formula` chunks carry a role.
+[ai_knowledge_chunks.md](../database/ai/ai_knowledge_chunks.md) §
+Media role vocabulary alignment (K3) holds the table-level design.
+
+This amendment changes **only** the permitted value set of one snapshot
+column. It does not change:
+
+* Domain Boundary, ownership or Source Of Truth: Media stays the authority for
+  roles and AI copies them verbatim; no mapping (`image → figure`) and no
+  dropped regions.
+* Identity: `source_role` is not an input of `chunk_uuid` or `content_hash`;
+  retry comparison keeps comparing it as a snapshot field.
+* Existing data: no backfill, no rebuild, no generation or chunker-version
+  change; `figure`, NULL and the nine earlier roles stay valid.
+* The table inventory of the Foundation.
+
+**Future Media roles.** A later ADR-0019 amendment that widens the Media
+vocabulary must amend this CHECK in the same change set. A regression test
+keeps the Knowledge set a superset of the Media set, so drift fails the build
+instead of refusing revisions at runtime.
+
+**Gates that remain after approval.** Approval authorizes a forward migration
+to be written; it does not approve applying it. The migration follows the plan
+in the table documentation, passes the verification list there on a disposable
+MariaDB 11.4 and a migration review, and is applied to any database only after
+backup and explicit authorization.
+
+### Owner Approval
+
+```text
+Role: LearnForge Architecture Owner
+Date: 2026-09-28
+Decision: APPROVED
+```
 
 ---
 

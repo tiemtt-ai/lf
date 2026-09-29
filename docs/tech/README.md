@@ -44,7 +44,8 @@ Domain docs.
 * [LF-Tech-Stack](LF-Tech-Stack.md).
 * [LF-Tech-AWS](LF-Tech-AWS.md).
 * [LF-Tech-Runtime-Requirements](LF-Tech-Runtime-Requirements.md) — yêu cầu
-  cài đặt runtime, binary, biến môi trường và gate triển khai.
+  cài đặt runtime, binary, biến môi trường, queue/scheduler Media → AI Knowledge
+  và gate triển khai/kích hoạt provider.
 * [LF-Tech-CSS](LF-Tech-CSS.md).
 * [LF Admin Form And List Design Standard](LF-Admin-Form-Design-Standard.md) —
   chuẩn presentation canonical cho LF Admin Create/Edit forms và List/Index

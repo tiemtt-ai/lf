@@ -75,6 +75,11 @@ return [
      * class listed here is refused with AI_SAFETY_BLOCKED before any network
      * call. `max_retention_class` bounds what a purpose may ever ask for, so a
      * tenant setting cannot widen retention beyond the purpose's own ceiling.
+     *
+     * `purposes` maps a known purpose to a partial override of `default`. A
+     * policy that is missing or malformed at any level — an unknown key, an
+     * override that is not a map, a class or ceiling outside the closed
+     * vocabularies — blocks the call rather than falling back to the default.
      */
     'safety' => [
         'default' => [
@@ -211,9 +216,9 @@ return [
 
     /*
      * Usage feature key each purpose consumes. Step 4 reserves against this
-     * key. It maps onto `saas_usage_counters.feature_key`; see the OWNER
-     * DECISION recorded in the Step 4 review artifact — no domain currently
-     * owns usage *reservation*, so the reserver is fail-closed until one does.
+     * key through the Commercial reservation ledger (Owner decision
+     * 2026-09-09: Commercial owns reservations; `DatabaseUsageQuotaReserver`
+     * over `saas_usage_reservations`, counters and immutable usage events).
      */
     'usage_feature_keys' => [
         'knowledge_embedding' => 'ai_knowledge_embedding',

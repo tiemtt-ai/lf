@@ -1,12 +1,12 @@
 # LF-Tech-Runtime-Requirements.md
 
-Version: 1.5
+Version: 1.7
 
 Document Status: Draft
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-31
+Last Updated: 2026-09-28
 
 Document Path: tech/LF-Tech-Runtime-Requirements.md
 
@@ -15,6 +15,8 @@ Related Specification:
 * [LF-Tech-Stack](LF-Tech-Stack.md)
 * [LF-Tech-AWS](LF-Tech-AWS.md)
 * [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md)
+* [LF-AI-Knowledge-Sync-Contract](../platform/LF-AI-Knowledge-Sync-Contract.md)
+* [LF-AI](../platform/LF-AI.md)
 
 ---
 
@@ -45,6 +47,16 @@ tương ứng với quyết định đã có.
 | Predis | `^3.4` — lock `v3.4.2` | `composer.lock` |
 | Node.js | `20` (baseline CI) | `.github/workflows/application-tests.yml` |
 | PHPUnit | `^11.5.50` — lock `11.5.55` | `composer.lock` |
+
+## 1.0. PHP ini bắt buộc cho production
+
+| Directive | Giá trị | Lý do |
+|---|---|---|
+| `zend.exception_ignore_args` | `On` (mặc định của `php.ini-production`) | Khi `Off`, mọi đối số hàm được ghi vào trace của exception; reporter hoặc debugger serialize trace có thể làm lộ SQL, bindings hay nội dung Media. Code không được dựa vào directive này (K3-R7: `AiKnowledgeSyncService` không truyền `QueryException` vào frame tạo exception mới), nhưng production vẫn phải bật như lớp phòng thủ thứ hai |
+
+Đây là yêu cầu triển khai, chưa được kiểm trên môi trường nào ngoài dev local
+(`php -r 'var_dump(ini_get("zend.exception_ignore_args"));'` trả chuỗi rỗng, tức
+`Off`, trên CLI dev). Kiểm lại trên image production trước rollout.
 
 ## 1.1. PHP extension
 
@@ -309,7 +321,10 @@ mới sẽ lập tức `failed/provider_unavailable` và delivery trả 404. Pro
 OCR/STT/caption chưa có chỉ chặn capability tương ứng; virus scan provider là điều
 kiện của toàn bộ đường upload.
 
-Các gate còn mở, phải đóng trước khi mở cho tenant thật:
+Các gate ghi nhận ở bản 2026-08-31 dưới đây là **lịch sử**, không phải kết luận
+hiện trạng của mọi module. Trước rollout, đối chiếu contract và review mới nhất;
+recovery job hiện đã có lịch tại §12.3. Không dùng bảng cũ để suy rằng scheduler
+không cần chạy hoặc mọi gate đã đóng:
 
 | # | Gate |
 |---|---|
@@ -651,6 +666,158 @@ Diễn giải ảnh/biểu đồ là AI theo
 [ADR-0020](../adr/ADR-0020-AI-Vision-Interpretation-Boundary.md): provider AI,
 `ai_model_runs`, quota. Không có binary nào cài lên worker Media giải quyết việc
 đó, và không được cài với lý do "để Media đọc biểu đồ".
+
+---
+
+# 12. Vận hành Media → AI Knowledge khi triển khai server
+
+Bổ sung 2026-09-28, đối chiếu `routes/console.php`, `composer.json`,
+`config/ai.php`, `AppServiceProvider` và
+[Knowledge Sync Contract](../platform/LF-AI-Knowledge-Sync-Contract.md).
+Đây là checklist vận hành; corpus, quyền đọc và lifecycle vẫn theo contract,
+không suy từ trạng thái tiến trình trên một máy local.
+
+## 12.1. Thành phần nào cần chạy khi chưa kích hoạt provider AI
+
+| Thành phần | Điểm kích hoạt / phụ thuộc vận hành |
+| --- | --- |
+| Media upload | Quét virus theo cấu hình production đã duyệt; upload đơn thuần không có nghĩa toàn bộ OCR/STT đã chạy |
+| Media dẫn xuất | Gắn usage vào Activity và đủ điều kiện profile/locale sẽ dispatch xử lý sau commit. Document: OCR và structured extraction nếu được chọn/hỗ trợ; audio: transcript; video: transcript/frame text theo gate, caption phụ thuộc transcript. Cần runtime/binary/model local tương ứng và queue worker |
+| Knowledge Source/Chunk | Không gọi model AI để ingest. Tự đồng bộ cho `course_version_activity` đủ điều kiện của Version `published` hoặc `deprecated`; không tự ingest working draft. Document phải có output `region`, hoặc `table` khi không có region theo D1; chỉ có OCR page text chưa bảo đảm có source tự động |
+| Knowledge cập nhật/xoá | `MediaRevisionReady` và `MediaFileDeleted` qua listener sau commit giúp xử lý sớm; `ai:knowledge-sync` là nguồn đối soát cho tạo, stale/archive và xoá. Event không thay được lịch quét |
+| Vision/Authoring xoá dữ liệu | Listener sau commit cộng lệnh đối soát định kỳ; vẫn cần vận hành khi tắt generation, vì dữ liệu cũ có thể còn tồn tại |
+| Embedding/Vision generation | Service đã có nhưng chưa có command/job/lịch tự động gọi đường tạo mới trong snapshot này. Các caller Vision reconcile và embedding purge là đường xoá, không phải generation |
+| Authoring proposal generation | Có backend/HTTP cho Activity nháp; không tự chạy sau upload. Đọc qua Media Read, không bắt buộc đi qua Knowledge; human review và generation có phụ thuộc khác nhau |
+
+**Không cần bật provider AI của Phần 2 để vận hành Source/Chunk.** Điều này
+không miễn yêu cầu runtime OCR/STT của Phần 1. Nếu Media chưa có revision đủ
+điều kiện, sync không thể tự tạo tri thức từ file gốc chưa xử lý.
+
+## 12.2. Queue worker và scheduler là hai thành phần riêng
+
+Redis lưu hàng đợi/cache không tự chạy job. Production cần process manager
+(Supervisor/systemd hoặc tương đương) quản lý `queue:work`: tự khởi động sau
+reboot, restart khi lỗi, thu log và chạy đúng OS user có quyền storage/temp.
+Worker phải nghe đúng connection/queue đã cấu hình; không mặc định mọi job
+đều đi cùng một queue nếu deployment có tách queue.
+
+Với worker xử lý Media, giữ timeout/retry-after tại §5.3 và §11.3.D; thời gian
+process manager chờ dừng phải đủ cho job đang chạy. Khi đổi code/config, rebuild
+config cache và restart worker có kiểm soát để process dài hạn nạp cấu hình mới.
+Không lấy trạng thái một terminal `queue:listen` làm bằng chứng production sẵn sàng.
+
+Local có thể dùng `composer run dev` (đã có `queue:listen`), đồng thời mở một
+terminal riêng trong project:
+
+```bash
+php artisan schedule:work
+```
+
+`composer run dev` hiện **không** khởi động scheduler. Ví dụ production dùng
+cron của OS user chạy ứng dụng, với đường dẫn PHP/project/log thực tế đã thay
+cho các đường dẫn minh hoạ dưới đây:
+
+```cron
+* * * * * cd /srv/learnforge/current && /usr/bin/php artisan schedule:run >> /var/log/learnforge/scheduler.log 2>&1
+```
+
+Log directory phải tồn tại và cho phép OS user đó ghi. Có thể dùng scheduler
+process được quản lý thay cron; chỉ chọn một cơ chế trên scheduler host, không
+chạy thêm `schedule:work` bên cạnh cron. Với nhiều application host, chỉ định
+một scheduler host; các lịch hiện chưa gọi `onOneServer()`. Dùng cache hỗ trợ
+lock và cấu hình nhất quán để `withoutOverlapping()` có hiệu lực; lock chống
+chồng lấn không thay thế việc xác định host chịu trách nhiệm chạy lịch.
+
+Kiểm tra lịch đã đăng ký, dưới đúng user/config của deployment:
+
+```bash
+php artisan schedule:list
+```
+
+Lệnh này chỉ chứng minh đăng ký lịch; phải kiểm log/lần chạy thực tế mới chứng
+minh cron hoặc scheduler process đang hoạt động.
+
+## 12.3. Lịch hiện có và độ trễ đối soát
+
+Nguồn: `routes/console.php`; khi thay lịch trong code phải cập nhật bảng này.
+
+| Command | Chu kỳ đăng ký | `withoutOverlapping` (phút hết hạn lock) | Vai trò |
+| --- | --- | --- | --- |
+| `media:recover-document-processing` | 1 phút | 2 | Khôi phục trạng thái job document bị treo |
+| `media:recover-audio-processing` | 1 phút | 2 | Khôi phục trạng thái job audio/video thuộc command |
+| `ai:knowledge-sync` | 10 phút | 30 | Tạo, stale/archive, xoá Source/Chunk; purge vector và finalize theo barrier |
+| `ai:vision-reconcile-media-deletion` | 15 phút | 15 | Đối soát xoá nội dung Vision khi Media đã xoá |
+| `ai:authoring-reconcile-erasure` | 15 phút | 15 | Đối soát erasure Authoring |
+
+Chu kỳ 10 phút **không phải cam kết mọi tenant tươi lại trong 10 phút**.
+`AI_KNOWLEDGE_SYNC_OWNER_LIMIT` mặc định 200, `AI_KNOWLEDGE_SYNC_DELETION_LIMIT`
+mặc định 500; cursor và backoff giới hạn công việc từng lượt. Tenant lớn có thể
+cần nhiều lượt để hết một vòng quét; backlog, lỗi và lock còn hiệu lực làm tăng
+độ trễ. Theo dõi thời gian hoàn tất vòng quét theo contract, không chỉ cron tick.
+
+Nếu scheduler không chạy, event có thể vẫn xử lý revision vừa ready, nhưng
+publish Version từ Media đã xử lý trước đó hoặc missed event có thể không được
+đối soát. Nếu worker không chạy, queued listener/job vẫn chờ dù scheduler hoạt động.
+
+Có thể xem kế hoạch một lượt cho tenant thử nghiệm trước khi chạy thật:
+
+```bash
+php artisan ai:knowledge-sync --customer=<tenant-id> --dry-run
+```
+
+Thay `<tenant-id>` bằng ID đã xác định. Dry-run không ghi DB, không đẩy cursor,
+không đặt backoff, không đọc nội dung Media và không ghi Media access log;
+nó không thay cho smoke có ghi dữ liệu trên tenant thử nghiệm.
+
+**Không thêm `media:purge-deleted-storage` vào lịch trên.** Dọn file storage vẫn
+chạy thủ công theo §11.3.G. Recovery trạng thái job, đối soát xoá nội dung AI và
+dọn file storage là ba tác vụ khác nhau. Nếu có embedding/vector cũ, phải giữ
+khả năng purge/ack vector; không bỏ barrier hoặc xoá content cưỡng bức khi Qdrant
+không truy cập được.
+
+## 12.4. Điều kiện riêng khi kích hoạt provider sau này
+
+Cài hạ tầng và deploy backend không tự kích hoạt AI. Theo
+[LF-AI](../platform/LF-AI.md) và các ADR liên quan, gói activation phải bao gồm:
+
+1. Adapter thật được duyệt và binding tương ứng. `AppServiceProvider` hiện bind
+   embedding, Vision và Authoring vào `Unavailable*`; chỉ điền env không thay binding.
+2. Provider/model/purpose allow-list, tenant approval, entitlement, quota và
+   safety policy hợp lệ; credential được cấp theo quy trình vận hành, không ghi vào tài liệu.
+3. Điểm gọi generation cho embedding và Vision (command/job/lịch hoặc consumer
+   được duyệt), với retry, giới hạn tải và tenant context. Không coi các command
+   đối soát xoá hiện có là worker tạo embedding/Vision.
+4. Với embedding/retrieval: Qdrant trong boundary đã duyệt, collection/dimension
+   đúng model, tenant isolation, kiểm retrieval và delete ack/barrier. Qdrant là
+   vector store, không tự tạo embedding và không thay cho embedding provider.
+5. Kiểm các điều kiện activation còn mở trong hồ sơ review hiện hành, đặc biệt
+   [Embedding/Qdrant review](../quality/LF-AI-Embedding-Qdrant-Implementation-Review.md)
+   và [Part 2 closure review](../quality/LF-AI-Part-2-Closure-Review.md).
+   Việc bổ sung runbook này không đóng finding hoặc cấp phép activation.
+
+## 12.5. Smoke và theo dõi sau deploy
+
+Trên tenant thử nghiệm có dữ liệu được phép, kiểm dưới cấu hình production:
+
+* Worker và scheduler tự lên sau restart/reboot; queue được tiêu thụ và lịch có
+  bằng chứng chạy thành công, không chỉ xuất hiện trong `schedule:list`.
+* Gắn Media vào Activity → job phù hợp hoàn tất; publish Version → sync tạo
+  Source/Chunk với đúng tenant, fingerprint, processing version và locale.
+* Publish một Version dùng Media đã ready từ trước → Knowledge xuất hiện qua
+  vòng đối soát, không cần upload lại để tạo event mới.
+* Revision thay đổi/gỡ usage → stale/archive theo contract; xoá Media → kiểm
+  riêng Knowledge, Vision và Authoring, kể cả retry/missed event. Vector cũ
+  chưa ack xoá thì barrier vẫn giữ nội dung cần giữ.
+* Provider chưa kích hoạt → Source/Chunk vẫn hoạt động, đường generation bị
+  chặn; không bật provider thật chỉ để kiểm worker/scheduler.
+
+Theo dõi tối thiểu: worker liveness, queue backlog/failed jobs, lần chạy thành
+công cuối của từng lịch, thời gian vòng quét, counters lỗi và backoff của sync,
+`tenant_errors`, `stuck_deletions`, trạng thái `deletion_pending` và lỗi purge
+vector. Không chỉ dựa vào exit code command: lỗi candidate có thể nằm trong
+counters/log dù command tiếp tục tenant khác. Nếu sửa lỗi vận hành rồi chạy
+lại, phải giữ tenant boundary và tính idempotent; không chỉnh tay trạng thái
+để bỏ qua barrier.
 
 ---
 

@@ -1,12 +1,12 @@
 # AI Knowledge Backbone — Implementation Record
 
-Version: 1.4
+Version: 1.5
 
 Document Status: Review
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-26
+Last Updated: 2026-09-28
 
 Document Path: quality/LF-AI-Knowledge-Backbone-Implementation-Record.md
 
@@ -174,6 +174,102 @@ Còn lại theo báo cáo, không phải finding: quét xoá chưa giới hạn 
 tenant rất lớn; mất cache kéo dài vòng quét; backoff có thể trì hoãn lỗi đã tự hết
 khi identity chưa đổi; event class không tự `ShouldDispatchAfterCommit` (đảm bảo
 dựa vào đường dispatch sau transaction và listener after-commit).
+
+## Review của implementer cho bản vá frame và `QueryException` — 2026-09-28
+
+Hai bản vá do thread reviewer closure viết
+([hồ sơ](../../review-artifacts/ai-2026-09-28/Knowledge-Frame-Sync-Fix.md)). Implementer
+Knowledge Sync review lại. Đây **không phải chữ ký độc lập**; phần độc lập thuộc
+Part 2 closure round 3.
+
+| Kiểm | Kết quả |
+| --- | --- |
+| Transaction | `register()` mở transaction ở cấp ngoài cùng; lượt sync không bọc thêm, nên khi `QueryException` bị bắt thì mọi thay đổi đã rollback sạch |
+| Thứ tự unit frame | Media Read sắp theo `locator_value`, `reading_order`, `id`, và `uk_mvft_revision_locator` cấm trùng `reading_order` trong một revision, nên số part ổn định giữa các lần đọc |
+| Consumer `part_index` | Retrieval và audit chỉ trả lại giá trị cùng `reading_order`/bbox; không chỗ nào suy vị trí trong unit từ `part_index` |
+| Tương thích | Locator chỉ một unit và content type khác giữ số part cũ; trước bản vá, locator nhiều unit không đăng ký được nên không có chunk cũ bị đổi |
+| Mutation trên bản sao riêng (0 symlink), khôi phục khớp SHA | M01 (đếm part theo từng unit) bị `test_frame_regions_sharing_a_timespan_keep_distinct_chunks_and_retry_identity` bắt; M02 (bỏ catch) bị `test_a_database_write_failure_is_counted_without_blocking_the_next_owner` bắt |
+
+Finding:
+
+* **R1 LOW, đã sửa.** `ai_knowledge_chunks.md` § Design Notes vẫn nói mọi part có
+  offset liên tục và cùng evidence. Nay ghi rõ quy tắc đó áp cho part trong một unit,
+  và `video_frame_text` đánh số tiếp qua các unit cùng timespan.
+* **R2 LOW, đã sửa, Owner duyệt 2026-09-28.** `database_write_failed` áp cho mọi
+  `QueryException`, kể cả lỗi đọc và mất kết nối. Trước đây lỗi xác định (như K3
+  CHECK) được thử lại và ghi log mỗi lượt 10 phút. Nay mỗi lượt vẫn thử lại và đếm
+  `failed`, nhưng log chỉ ghi một lần mỗi cửa sổ backoff (khoá riêng, không chặn
+  retry). Ingest thành công thì xoá cửa sổ. Regression:
+  `test_a_repeating_database_failure_is_retried_every_pass_and_logged_once_per_window`.
+  Ba mutation trên bản sao riêng đều bị test này bắt: log mọi lượt, dùng chung khoá
+  backoff (chặn retry), không xoá cửa sổ khi phục hồi.
+
+## Phân loại lỗi database sau K3 review — 2026-09-28
+
+[K3 review](LF-AI-Knowledge-Source-Role-Alignment-Review.md) REJECT việc bắt mọi
+`QueryException` (K3-R2, HIGH): probe độc lập cho thấy thiếu quyền, deadlock đã hết
+retry và mất kết nối đều bị đếm rồi đi tiếp owner khác. Review của implementer ở
+mục trên đã **bỏ sót** điều này: chỉ kiểm transaction và rollback, không thử lỗi hệ
+thống.
+
+Vá:
+
+* `AiKnowledgeSyncService::isRevisionLocal()`: chỉ SQLSTATE lớp `22`/`23` và mã
+  driver `1366` được đếm, log `database_write_failed` rồi đi tiếp. Lỗi khác dừng
+  lượt tenant bằng exception mang đúng SQLSTATE và mã driver. Exception gốc không
+  được gắn kèm, vì listener lưu chuỗi exception vào `failed_jobs`.
+* `AiKnowledgeIngestionService::register()`: chỉ bắt
+  `UniqueConstraintViolationException` khi insert source; lỗi khác không còn thành
+  `registration_conflict`.
+* K3-R6: ghi rõ giới hạn log là best-effort (contract v1.5, comment code).
+
+Regression (`AiKnowledgeSyncServiceTest`):
+
+* `test_a_systemic_database_failure_stops_the_tenant_without_leaking_the_query`, 5
+  dataset: ghi chunk bị từ chối quyền, deadlock, mất kết nối, lock-wait, ghi source bị
+  từ chối quyền.
+* `test_a_revision_local_database_failure_is_counted_and_the_pass_continues`, 4
+  dataset: CHECK `23000/4025`, quá dài `22001/1406`, chuỗi `22007/1366` (MariaDB
+  11.4) và `HY000/1366` (MySQL, bản cũ).
+* `test_the_command_fails_the_tenant_on_a_systemic_database_failure`.
+* Hai test cũ giờ giả lập lỗi unique với SQLSTATE thật `23000/1062`.
+
+Probe engine thật (MariaDB 11.4.12 dùng một lần, `--skip-networking`, đã xoá):
+CHECK `23000/4025`, trùng khoá `23000/1062`, quá dài `22001/1406`, chuỗi không hợp
+lệ `22007/1366`. Bản nháp đầu ghi 1366 báo dưới `HY000` là sai với 11.4; đã sửa
+comment và contract.
+
+Mutation trên bản sao riêng (0 symlink), khôi phục khớp SHA:
+
+| Mutation | Bị bắt |
+| --- | --- |
+| Mọi lỗi là cục bộ | 5 dataset hệ thống + test command |
+| Mọi lỗi là hệ thống (`return false`) | 3 dataset cục bộ + 2 test unique cũ. Lần đầu viết sai thành `false && … \|\| …`, chỉ tắt nhánh `22`; viết lại thì bị bắt đủ |
+| Gắn exception gốc vào exception thoát ra | 5 dataset hệ thống (`getPrevious()`) |
+| `register()` bắt mọi `QueryException` | dataset `source write denied` |
+| Bỏ nhánh 1366 | dataset `invalid string value` (dạng `HY000`; dạng `22007` vẫn là lớp `22`) |
+
+### K3-R7 — exception gốc trong trace (lượt 2 K3 review)
+
+Reviewer lượt 2 phát hiện `systemicFailure(QueryException $exception)` tạo exception
+mới ngay trong frame nhận object gốc. Khi `zend.exception_ignore_args=0` (mặc định
+trên CLI dev), trace giữ object đó, và object giữ SQL, bindings, message của driver.
+Chuỗi `(string) $exception` và chain `getPrevious()` vẫn sạch; `failed_jobs` lưu
+dạng chuỗi nên không có rò rỉ thực tế, nhưng cam kết "exception không chứa dữ liệu
+gốc" chưa đạt.
+
+Vá: khối catch lấy SQLSTATE và mã driver, chỉ truyền hai giá trị vô hướng vào
+`systemicFailure(string, int)`. Trace chỉ giữ đối số của frame, không giữ biến cục
+bộ, nên object gốc không còn trong trace. Thêm yêu cầu production
+`zend.exception_ignore_args=On` vào
+[LF-Tech-Runtime-Requirements](../tech/LF-Tech-Runtime-Requirements.md) § 1.0, làm
+lớp phòng thủ thứ hai; code không dựa vào nó.
+
+Regression: `test_a_systemic_database_failure_stops_the_tenant_without_leaking_the_query`
+bật `zend.exception_ignore_args=0`, xác nhận trace có ghi đối số, rồi kiểm mọi đối số
+của mọi frame: không có object `Throwable`, không chuỗi nào chứa SQL hay marker nội
+dung. Mutation trên bản sao riêng: truyền lại object exception làm đối số thừa thì
+cả 5 dataset đỏ; khôi phục khớp SHA.
 
 ## Giới hạn và việc còn lại
 
