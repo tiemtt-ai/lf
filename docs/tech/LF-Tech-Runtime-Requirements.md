@@ -1,6 +1,6 @@
 # LF-Tech-Runtime-Requirements.md
 
-Version: 1.7
+Version: 1.8
 
 Document Status: Draft
 
@@ -713,7 +713,10 @@ terminal riêng trong project:
 php artisan schedule:work
 ```
 
-`composer run dev` hiện **không** khởi động scheduler. Ví dụ production dùng
+`composer run dev` hiện **không** khởi động scheduler: trên dev local, lịch của §12.3
+(đồng bộ Knowledge, đối soát xoá, recovery job) chỉ chạy khi có người bật
+`schedule:work` hoặc chạy lệnh bằng tay, và dừng khi đóng terminal hay khởi động lại
+máy. Ví dụ production dùng
 cron của OS user chạy ứng dụng, với đường dẫn PHP/project/log thực tế đã thay
 cho các đường dẫn minh hoạ dưới đây:
 
@@ -786,7 +789,11 @@ Cài hạ tầng và deploy backend không tự kích hoạt AI. Theo
    safety policy hợp lệ; credential được cấp theo quy trình vận hành, không ghi vào tài liệu.
 3. Điểm gọi generation cho embedding và Vision (command/job/lịch hoặc consumer
    được duyệt), với retry, giới hạn tải và tenant context. Không coi các command
-   đối soát xoá hiện có là worker tạo embedding/Vision.
+   đối soát xoá hiện có là worker tạo embedding/Vision. Các quyết định cần chốt
+   (kích hoạt theo sự kiện hay theo lô, giới hạn mỗi lượt và mỗi tenant, hành vi khi
+   hết quota, Vision cho mọi ảnh hay theo yêu cầu) ở
+   [LF-AI](../platform/LF-AI.md) § Điều kiện trước activation. Điểm gọi mới phải
+   được thêm vào bảng §12.3 cùng thay đổi lịch.
 4. Với embedding/retrieval: Qdrant trong boundary đã duyệt, collection/dimension
    đúng model, tenant isolation, kiểm retrieval và delete ack/barrier. Qdrant là
    vector store, không tự tạo embedding và không thay cho embedding provider.
@@ -810,6 +817,10 @@ Trên tenant thử nghiệm có dữ liệu được phép, kiểm dưới cấu
   chưa ack xoá thì barrier vẫn giữ nội dung cần giữ.
 * Provider chưa kích hoạt → Source/Chunk vẫn hoạt động, đường generation bị
   chặn; không bật provider thật chỉ để kiểm worker/scheduler.
+* Sau khi có điểm gọi generation: kiểm bằng adapter giả rằng lịch hoặc job mới thật sự
+  chạy dưới cron và worker của deployment, và rằng gate chặn khi thiếu allow-list,
+  approval hay quota. Một điểm gọi chỉ tồn tại trong code mà chưa được lên lịch là
+  trạng thái hiện tại của embedding và Vision, không phải trạng thái hoàn tất.
 
 Theo dõi tối thiểu: worker liveness, queue backlog/failed jobs, lần chạy thành
 công cuối của từng lịch, thời gian vòng quét, counters lỗi và backoff của sync,

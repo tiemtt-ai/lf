@@ -1,6 +1,6 @@
 # LF-AI.md
 
-Version: 1.8
+Version: 1.9
 
 Document Status: Frozen
 
@@ -31,6 +31,35 @@ Rủi ro đã ghi, **không** được closure cấp phép:
 
 Số liệu apply K3 và đồng bộ trên `learnforge_db` dev là bằng chứng của implementer;
 reviewer không kết nối dev.
+
+### Điều kiện trước activation: ai gọi embedding và Vision
+
+Phần 2 dừng ở Source/Chunk. Luồng tự động hiện tại là Media xử lý xong →
+`MediaRevisionReady` → Knowledge Source/Chunk. **Không có command, job, listener hay
+lịch nào gọi đường tạo mới của embedding hoặc Vision** (`routes/console.php` chỉ lên
+lịch đồng bộ Knowledge và các lệnh đối soát xoá). Các caller embedding purge và Vision
+reconcile là đường xoá, không phải generation. Hiện điều này an toàn vì allow-list
+provider rỗng và binding là `Unavailable*`; nó thành lỗ hổng vận hành khi bật provider,
+vì điền env sẽ không tự sinh vector hay diễn giải.
+
+Trước activation, Owner phải chốt và review điểm gọi generation, không coi là chi tiết
+triển khai:
+
+* **Embedding:** kích hoạt khi Source thành `active` hay theo lô định kỳ; giới hạn số
+  chunk mỗi lượt (`chunk_batch`) và mỗi tenant; retry; hành vi khi hết quota; tenant
+  context.
+* **Vision:** chạy cho mọi ảnh hay chỉ khi giáo viên yêu cầu; chi phí trên mỗi trang;
+  giới hạn tải.
+* **Cả hai:** đi qua provider gate hiện có (allow-list, tenant approval, entitlement,
+  quota, safety), ghi Model Run kể cả khi bị chặn, và có test tenant/retry/quota.
+* **Vận hành:** production phải chạy scheduler (cron `schedule:run`) và queue worker
+  dưới process manager, có giám sát. Chi tiết ở
+  [LF-Tech-Runtime-Requirements](../tech/LF-Tech-Runtime-Requirements.md) §12.
+
+Trạng thái dev local 2026-09-28/29: `composer run dev` chạy `queue:listen` nhưng
+**không** khởi động scheduler; `ai:knowledge-sync` chỉ chạy khi có người bật
+`schedule:work` hoặc chạy lệnh tay. Đây không phải lỗi mà là trạng thái dev; nó không
+được mang sang production.
 
 ## Step 7 Authoring Proposal — Frozen / Partial
 
