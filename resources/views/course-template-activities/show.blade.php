@@ -95,6 +95,10 @@
             </section>
         @endif
 
+        @if ($aiAuthoring)
+            @include('course-template-activities.partials.ai-authoring')
+        @endif
+
         <div class="admin-form-actions">
             <a href="{{ route($templateRoutePrefix.'.edit', $template->id) }}?tab=structure#course-template-lesson-{{ $lesson->id }}-activities">
                 {{ __('lf.LF_common_button_back') }}

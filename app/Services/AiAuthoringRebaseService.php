@@ -31,6 +31,7 @@ final class AiAuthoringRebaseService
         private readonly CourseAuthoringRebaseService $rebase,
         private readonly LearningAuthoringInheritanceService $inheritance,
         private readonly LearningAuthoringTargetService $learning,
+        private readonly LearningAuthoringBasisService $basis,
     ) {}
 
     /** @return array<string,mixed> */
@@ -75,7 +76,27 @@ final class AiAuthoringRebaseService
             return $this->records->outcome($this->code($refused->errorCode));
         }
 
-        return $this->records->outcome(null, ['preview' => $preview, 'preview_hash' => CanonicalJson::hash($preview)]);
+        // Names for the admin, outside the hashed plan: what each Intent is attached to, the Node it uses now and
+        // the one it would use. Only what Learning shows to a person with AI authority (no criteria).
+        $display = ['intents' => array_map(fn (array $row): array => [
+            'intent_id' => $row['intent_id'],
+            'source_label' => $this->rebase->sourceLabel($row['source_type'], $row['source_id']),
+            'old_node' => $this->nodeDisplay($preview['framework_id'], $preview['from_version_id'], $row['old_node_id'], $row['definition_id']),
+            'proposed_node' => $row['proposed_node_id'] === null ? null
+                : $this->nodeDisplay($preview['framework_id'], $preview['to_version_id'], $row['proposed_node_id'], $row['definition_id']),
+        ], $preview['intents'])];
+
+        return $this->records->outcome(null, ['preview' => $preview, 'preview_hash' => CanonicalJson::hash($preview), 'display' => $display]);
+    }
+
+    /** @return array<string,mixed>|null */
+    private function nodeDisplay(int $frameworkId, int $versionId, int $nodeId, int $definitionId): ?array
+    {
+        try {
+            return $this->basis->nodeDisplay($frameworkId, $versionId, $nodeId, $definitionId);
+        } catch (LearningAuthoringBasisException) {
+            return null;
+        }
     }
 
     /**

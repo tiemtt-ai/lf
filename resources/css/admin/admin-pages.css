@@ -5472,3 +5472,274 @@
         padding: 32px 18px;
     }
 }
+
+/* AI proposal review section of the course template Activity page. */
+.ai-authoring {
+    /* The link from the Activity list lands here (#ai-authoring); keep the title clear of the fixed header. */
+    scroll-margin-top: 240px;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.ai-authoring__filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.ai-authoring__filters .admin-form-group {
+    min-width: 200px;
+    flex: 1 1 200px;
+    max-width: 320px;
+}
+
+.ai-authoring__detail {
+    margin-top: 24px;
+}
+
+.ai-authoring__detail-body {
+    padding: 16px 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.ai-authoring__detail-body section {
+    margin-top: 20px;
+}
+
+/* The text is data, never markup; only its line breaks are kept. */
+.ai-authoring__body {
+    margin: 8px 0 16px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.ai-authoring__detail dd {
+    overflow-wrap: anywhere;
+}
+
+.ai-authoring h4 {
+    margin: 0 0 12px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.ai-authoring h5 {
+    margin: 20px 0 8px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.ai-authoring dt {
+    margin-top: 8px;
+    color: var(--admin-text-muted, #6b7280);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.ai-authoring dd {
+    margin: 2px 0 0;
+}
+
+.ai-authoring__payload > h5 {
+    margin-top: 16px;
+    font-size: 17px;
+}
+
+.ai-authoring__command,
+.ai-authoring__actions {
+    margin-top: 16px;
+}
+
+.ai-authoring__actions .admin-form-actions {
+    margin-top: 12px;
+}
+
+.ai-authoring__error {
+    margin-top: 4px;
+    color: #b91c1c;
+}
+
+.ai-authoring__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.ai-authoring__count {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.ai-authoring__create {
+    margin-top: 12px;
+    padding: 16px 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.ai-authoring__create[hidden] {
+    display: none;
+}
+
+.ai-authoring__fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.ai-authoring__fieldset legend {
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.ai-authoring__check {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 8px;
+    margin-bottom: 6px;
+}
+
+.ai-authoring__check label {
+    margin: 0;
+}
+
+.ai-authoring__create-result {
+    margin-top: 12px;
+}
+
+.ai-authoring__bulk {
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.ai-authoring__bulk-result {
+    margin-bottom: 16px;
+}
+
+.ai-authoring tbody td input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.ai-authoring__application {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.ai-authoring__receipt {
+    margin-top: 8px;
+    margin-bottom: 12px;
+}
+
+/* The panels after acceptance sit apart from each other and from the content above. */
+.ai-authoring__context,
+.ai-authoring__successor,
+.ai-authoring__inherit,
+.ai-authoring__rebase {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+}
+
+/* A control that is hidden stays hidden whatever the form-control rules say. */
+.ai-authoring [hidden] {
+    display: none !important;
+}
+
+.ai-authoring__rebase ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.ai-authoring__rebase li {
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.ai-authoring__target {
+    margin-bottom: 12px;
+}
+
+.ai-authoring__node {
+    margin-top: 12px;
+    padding: 12px 16px;
+    border-left: 3px solid #93c5fd;
+    background: #f8fafc;
+}
+
+.ai-authoring__bulk-result li {
+    margin-bottom: 6px;
+}
+
+/* List standard §25.5: from 767px down, rows become cards labelled by data-label. */
+@media (max-width: 767px) {
+    .ai-authoring__toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ai-authoring__toolbar .btn {
+        width: 100%;
+    }
+
+    .ai-authoring .admin-table-wrap {
+        overflow: visible;
+        border: 0;
+        background: transparent;
+    }
+
+    .ai-authoring__table,
+    .ai-authoring__table tbody {
+        display: block;
+    }
+
+    .ai-authoring__table thead {
+        display: none;
+    }
+
+    .ai-authoring__table tbody {
+        display: grid;
+        gap: 10px;
+    }
+
+    .ai-authoring__table tr {
+        display: block;
+        overflow: hidden;
+        border: 1px solid var(--admin-border, #e5e7eb);
+        border-radius: 10px;
+        background: var(--admin-surface, #fff);
+    }
+
+    .ai-authoring__table td,
+    .ai-authoring__table.admin-table-has-actions > tbody > tr > td:last-child {
+        display: grid;
+        grid-template-columns: minmax(82px, .4fr) minmax(0, 1fr);
+        gap: 10px;
+        width: auto;
+        min-width: 0;
+        padding: 11px 13px;
+        position: static;
+        border-bottom: 1px solid var(--admin-border, #e5e7eb);
+        box-shadow: none;
+        text-align: left;
+    }
+
+    .ai-authoring__table td::before {
+        content: attr(data-label);
+        color: var(--admin-text-muted, #64748b);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.4;
+    }
+}

@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 281,
+  "document_count": 294,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -1770,13 +1770,30 @@
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
-      "topics": ["ai-authoring-proposal", "idempotency"],
+      "topics": [
+        "ai-authoring-proposal",
+        "idempotency"
+      ],
       "keywords": {
-        "vi": ["yêu cầu tạo đề xuất", "chống gọi AI trùng", "kết quả rỗng"],
-        "en": ["generation request", "idempotency", "zero-item outcome"]
+        "vi": [
+          "yêu cầu tạo đề xuất",
+          "chống gọi AI trùng",
+          "kết quả rỗng"
+        ],
+        "en": [
+          "generation request",
+          "idempotency",
+          "zero-item outcome"
+        ]
       },
-      "identifiers": ["ai_authoring_generation_requests", "request_uuid", "command_hash"],
-      "related_documents": ["platform/LF-AI-Authoring-Proposal-Contract.md"],
+      "identifiers": [
+        "ai_authoring_generation_requests",
+        "request_uuid",
+        "command_hash"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Proposal-Contract.md"
+      ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
     },
@@ -8219,6 +8236,100 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "platform/LF-AI-Authoring-P3B-Amendment.md",
+      "title": "AI Authoring P3-B — Amendment and Slice Plan",
+      "area": "platform",
+      "document_type": "domain_policy",
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "domain",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "authoring",
+        "ui",
+        "course template",
+        "learning"
+      ],
+      "keywords": {
+        "vi": [
+          "amendment P3-B",
+          "allowed_actions",
+          "hiển thị Node",
+          "danh sách ứng viên Node",
+          "kế hoạch lát cắt"
+        ],
+        "en": [
+          "p3-b amendment",
+          "allowed actions",
+          "node display",
+          "node candidates",
+          "slice plan"
+        ]
+      },
+      "identifiers": [
+        "allowed_actions",
+        "mapping_node",
+        "node-candidates",
+        "AiAuthoringController"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Review-UI-Design.md",
+        "platform/LF-AI-Authoring-Proposal-Contract.md",
+        "quality/LF-UI-Async-State-Engineering-Practice.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "platform/LF-AI-Authoring-P3C-Amendment.md",
+      "title": "AI Authoring P3-C — Amendment and Slice Plan",
+      "area": "platform",
+      "document_type": "domain_policy",
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "domain",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "authoring",
+        "ui",
+        "course template",
+        "learning"
+      ],
+      "keywords": {
+        "vi": [
+          "amendment P3-C",
+          "đề xuất kế thừa",
+          "bản nháp kế thừa",
+          "rebase",
+          "kế hoạch lát cắt"
+        ],
+        "en": [
+          "p3-c amendment",
+          "successor",
+          "inherited draft",
+          "rebase",
+          "slice plan"
+        ]
+      },
+      "identifiers": [
+        "allowed_actions",
+        "mapping_node",
+        "node-candidates",
+        "AiAuthoringController"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Review-UI-Design.md",
+        "platform/LF-AI-Authoring-Proposal-Contract.md",
+        "quality/LF-UI-Async-State-Engineering-Practice.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "platform/LF-AI-Authoring-Proposal-Contract.md",
       "title": "AI Authoring Proposal Contract",
       "area": "platform",
@@ -8254,6 +8365,51 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "platform/LF-AI-Authoring-Review-UI-Design.md",
+      "title": "AI Authoring Review UI — Design (Phần 3)",
+      "area": "platform",
+      "document_type": "domain_policy",
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "domain",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "authoring",
+        "ui",
+        "course template",
+        "review"
+      ],
+      "keywords": {
+        "vi": [
+          "giao diện duyệt đề xuất AI",
+          "hoạt động khoá học mẫu",
+          "Phần 3",
+          "giáo viên và admin"
+        ],
+        "en": [
+          "authoring proposal review UI",
+          "course template activity",
+          "part 3",
+          "teacher and admin"
+        ]
+      },
+      "identifiers": [
+        "AiAuthoringController",
+        "ai-authoring",
+        "allowed_actions",
+        "proposal_uuid"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Proposal-Contract.md",
+        "platform/LF-AI.md",
+        "tech/LF-Admin-Form-Design-Standard.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "platform/LF-AI-Knowledge-Sync-Contract.md",
       "title": "AI Knowledge Sync Contract",
       "area": "platform",
@@ -8263,12 +8419,29 @@
       "metadata_complete": true,
       "authority": "domain",
       "canonical_for": [],
-      "topics": ["ai-knowledge-sync"],
+      "topics": [
+        "ai-knowledge-sync"
+      ],
       "keywords": {
-        "vi": ["đồng bộ Knowledge", "xương sống dữ liệu AI", "xoá Media", "corpus"],
-        "en": ["knowledge sync", "media deletion", "reconciliation", "LF-AI-Knowledge-Sync-Contract"]
+        "vi": [
+          "đồng bộ Knowledge",
+          "xương sống dữ liệu AI",
+          "xoá Media",
+          "corpus"
+        ],
+        "en": [
+          "knowledge sync",
+          "media deletion",
+          "reconciliation",
+          "LF-AI-Knowledge-Sync-Contract"
+        ]
       },
-      "identifiers": ["LF-AI-Knowledge-Sync-Contract", "ai_knowledge_sources", "ai_knowledge_chunks", "AiKnowledgeSyncService"],
+      "identifiers": [
+        "LF-AI-Knowledge-Sync-Contract",
+        "ai_knowledge_sources",
+        "ai_knowledge_chunks",
+        "AiKnowledgeSyncService"
+      ],
       "related_documents": [
         "platform/LF-AI.md",
         "platform/LF-Media-Read-Contract.md",
@@ -8665,16 +8838,435 @@
       "metadata_complete": true,
       "authority": "quality",
       "canonical_for": [],
-      "topics": ["ai", "authoring", "proposal", "implementation", "verification"],
+      "topics": [
+        "ai",
+        "authoring",
+        "proposal",
+        "implementation",
+        "verification"
+      ],
       "keywords": {
-        "vi": ["Bước 7", "đề xuất AI", "giáo viên duyệt", "nghiệm thu backend"],
-        "en": ["authoring proposal", "implementation evidence", "HTTP authorization"]
+        "vi": [
+          "Bước 7",
+          "đề xuất AI",
+          "giáo viên duyệt",
+          "nghiệm thu backend"
+        ],
+        "en": [
+          "authoring proposal",
+          "implementation evidence",
+          "HTTP authorization"
+        ]
       },
-      "identifiers": ["ai_authoring_proposals", "AiAuthoringProposalService"],
+      "identifiers": [
+        "ai_authoring_proposals",
+        "AiAuthoringProposalService"
+      ],
       "related_documents": [
         "platform/LF-AI-Authoring-Proposal-Contract.md",
         "platform/LF-AI.md",
         "database/ai/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Authoring-Review-UI-Design-Review.md",
+      "title": "AI Authoring Review UI — Independent Design Review (Phần 3)",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "authoring",
+        "ui",
+        "review",
+        "course template"
+      ],
+      "keywords": {
+        "vi": [
+          "review độc lập thiết kế UI",
+          "duyệt đề xuất AI",
+          "vòng đời sau accept",
+          "cổng P3-A"
+        ],
+        "en": [
+          "independent ui design review",
+          "authoring proposal review",
+          "post-accept lifecycle",
+          "p3-a gate"
+        ]
+      },
+      "identifiers": [
+        "AiAuthoringController",
+        "allowed_actions",
+        "P3-UI-R1",
+        "P3-UI-R8"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Review-UI-Design.md",
+        "quality/LF-AI-Authoring-Review-UI-Design-Reviewer-Brief.md",
+        "platform/LF-AI-Authoring-Proposal-Contract.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Authoring-Review-UI-Design-Reviewer-Brief.md",
+      "title": "AI Authoring Review UI — Design Reviewer Brief",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "authoring",
+        "ui",
+        "review",
+        "course template"
+      ],
+      "keywords": {
+        "vi": [
+          "review thiết kế UI",
+          "duyệt đề xuất AI",
+          "Phần 3",
+          "hoạt động khoá học mẫu"
+        ],
+        "en": [
+          "ui design review",
+          "authoring proposal review",
+          "part 3",
+          "course template activity"
+        ]
+      },
+      "identifiers": [
+        "AiAuthoringController",
+        "allowed_actions",
+        "ai-authoring"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Review-UI-Design.md",
+        "platform/LF-AI-Authoring-Proposal-Contract.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Authoring-Review-UI-P3A-Review-Round2.md",
+      "title": "AI Authoring Review UI — Independent P3-A Implementation Review, Round 2",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "authoring",
+        "ui",
+        "review",
+        "course template"
+      ],
+      "keywords": {
+        "vi": [
+          "review độc lập implementation P3-A lượt 2",
+          "thu hồi quyền",
+          "bản nháp chưa gửi",
+          "đột biến"
+        ],
+        "en": [
+          "independent p3-a implementation review round 2",
+          "access revocation",
+          "unsent draft",
+          "mutation testing"
+        ]
+      },
+      "identifiers": [
+        "P3A-R2-N1",
+        "P3A-R2-N4",
+        "ai:authoring-demo-seed",
+        "AiAuthoringController"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Review-UI-Design.md",
+        "quality/LF-AI-Authoring-Review-UI-P3A-Review.md",
+        "quality/LF-AI-Authoring-Review-UI-P3A-Reviewer-Brief.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Authoring-Review-UI-P3A-Review-Round3.md",
+      "title": "AI Authoring Review UI — Independent P3-A Implementation Review, Round 3",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "authoring",
+        "ui",
+        "review",
+        "course template"
+      ],
+      "keywords": {
+        "vi": [
+          "review độc lập implementation P3-A lượt 3",
+          "bản nháp chưa gửi",
+          "phản hồi bulk đến muộn",
+          "đột biến"
+        ],
+        "en": [
+          "independent p3-a implementation review round 3",
+          "unsent draft",
+          "late bulk response",
+          "mutation testing"
+        ]
+      },
+      "identifiers": [
+        "P3A-R3-O1",
+        "P3A-R2-N4",
+        "AiAuthoringController"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Review-UI-Design.md",
+        "quality/LF-AI-Authoring-Review-UI-P3A-Review-Round2.md",
+        "quality/LF-AI-Authoring-Review-UI-P3A-Reviewer-Brief.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Authoring-Review-UI-P3A-Review-Round4.md",
+      "title": "AI Authoring Review UI — Independent P3-A Implementation Review, Round 4",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "authoring",
+        "ui",
+        "review",
+        "course template"
+      ],
+      "keywords": {
+        "vi": [
+          "review độc lập implementation P3-A lượt 4",
+          "bản nháp chưa gửi",
+          "thử lại danh sách",
+          "đột biến"
+        ],
+        "en": [
+          "independent p3-a implementation review round 4",
+          "unsent draft",
+          "list retry",
+          "mutation testing"
+        ]
+      },
+      "identifiers": [
+        "P3A-R4-Q1",
+        "P3A-R2-N4",
+        "AiAuthoringController"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Review-UI-Design.md",
+        "quality/LF-AI-Authoring-Review-UI-P3A-Review-Round3.md",
+        "quality/LF-AI-Authoring-Review-UI-P3A-Reviewer-Brief.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Authoring-Review-UI-P3A-Review-Round5.md",
+      "title": "AI Authoring Review UI — Independent P3-A Implementation Review, Round 5",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "authoring",
+        "ui",
+        "review",
+        "course template"
+      ],
+      "keywords": {
+        "vi": [
+          "review độc lập implementation P3-A lượt 5",
+          "ghi chú chưa gửi",
+          "trạng thái tạo yêu cầu",
+          "đột biến"
+        ],
+        "en": [
+          "independent p3-a implementation review round 5",
+          "unsent note",
+          "generation state",
+          "mutation testing"
+        ]
+      },
+      "identifiers": [
+        "P3A-R5-S1",
+        "P3A-R5-S2",
+        "P3A-R2-N4",
+        "AiAuthoringController"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Review-UI-Design.md",
+        "quality/LF-AI-Authoring-Review-UI-P3A-Review-Round4.md",
+        "quality/LF-AI-Authoring-Review-UI-P3A-Reviewer-Brief.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Authoring-Review-UI-P3A-Review-Round6.md",
+      "title": "AI Authoring Review UI — P3-A implementation review, lượt 6",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "authoring",
+        "ui",
+        "review",
+        "course template"
+      ],
+      "keywords": {
+        "vi": [
+          "review độc lập implementation P3-A lượt 6",
+          "APPROVE WITH CHANGES",
+          "lối vào từ danh sách Hoạt động",
+          "lựa chọn chưa gửi"
+        ],
+        "en": [
+          "independent p3-a implementation review round 6",
+          "approve with changes",
+          "activity list entry",
+          "unsent choices"
+        ]
+      },
+      "identifiers": [
+        "R6-F1",
+        "R6-F2",
+        "D11",
+        "AiAuthoringController"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Review-UI-Design.md",
+        "quality/LF-AI-Authoring-Review-UI-P3A-Review-Round5.md",
+        "quality/LF-AI-Authoring-Review-UI-P3A-Reviewer-Brief.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Authoring-Review-UI-P3A-Review.md",
+      "title": "AI Authoring Review UI — Independent P3-A Implementation Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "authoring",
+        "ui",
+        "review",
+        "course template"
+      ],
+      "keywords": {
+        "vi": [
+          "review độc lập implementation P3-A",
+          "duyệt đề xuất AI",
+          "thu hồi quyền",
+          "dữ liệu mẫu"
+        ],
+        "en": [
+          "independent p3-a implementation review",
+          "authoring proposal review ui",
+          "access revocation",
+          "demo seed"
+        ]
+      },
+      "identifiers": [
+        "P3A-R1",
+        "P3A-R11",
+        "ai:authoring-demo-seed",
+        "AiAuthoringController"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Review-UI-Design.md",
+        "quality/LF-AI-Authoring-Review-UI-P3A-Reviewer-Brief.md",
+        "quality/LF-AI-Authoring-Review-UI-Design-Review.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-AI-Authoring-Review-UI-P3A-Reviewer-Brief.md",
+      "title": "AI Authoring Review UI — P3-A Implementation Reviewer Brief",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "authoring",
+        "ui",
+        "review",
+        "course template"
+      ],
+      "keywords": {
+        "vi": [
+          "review implementation P3-A",
+          "duyệt đề xuất AI",
+          "hoạt động khoá học mẫu",
+          "dữ liệu mẫu"
+        ],
+        "en": [
+          "p3-a implementation review",
+          "authoring proposal review ui",
+          "course template activity",
+          "demo seed"
+        ]
+      },
+      "identifiers": [
+        "AiAuthoringController",
+        "ai-authoring",
+        "ai:authoring-demo-seed",
+        "authoringRole"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Review-UI-Design.md",
+        "quality/LF-AI-Authoring-Review-UI-Design-Review.md",
+        "platform/LF-AI-Authoring-Proposal-Contract.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -8888,12 +9480,32 @@
       "metadata_complete": true,
       "authority": "quality",
       "canonical_for": [],
-      "topics": ["ai", "knowledge", "media", "implementation", "verification"],
+      "topics": [
+        "ai",
+        "knowledge",
+        "media",
+        "implementation",
+        "verification"
+      ],
       "keywords": {
-        "vi": ["xương sống Knowledge", "đồng bộ Media", "revision identity", "reading order"],
-        "en": ["knowledge backbone", "media sync", "implementation evidence", "reading order"]
+        "vi": [
+          "xương sống Knowledge",
+          "đồng bộ Media",
+          "revision identity",
+          "reading order"
+        ],
+        "en": [
+          "knowledge backbone",
+          "media sync",
+          "implementation evidence",
+          "reading order"
+        ]
       },
-      "identifiers": ["AiKnowledgeSyncService", "MediaRevisionReady", "ai:knowledge-sync"],
+      "identifiers": [
+        "AiKnowledgeSyncService",
+        "MediaRevisionReady",
+        "ai:knowledge-sync"
+      ],
       "related_documents": [
         "platform/LF-AI-Knowledge-Sync-Contract.md",
         "platform/LF-Media-Read-Contract.md",
@@ -8912,12 +9524,32 @@
       "metadata_complete": true,
       "authority": "quality",
       "canonical_for": [],
-      "topics": ["ai", "knowledge", "media", "review", "verification"],
+      "topics": [
+        "ai",
+        "knowledge",
+        "media",
+        "review",
+        "verification"
+      ],
       "keywords": {
-        "vi": ["review độc lập", "xương sống Knowledge", "đói finalize", "lỗi candidate"],
-        "en": ["independent review", "knowledge backbone", "finalize starvation", "candidate errors"]
+        "vi": [
+          "review độc lập",
+          "xương sống Knowledge",
+          "đói finalize",
+          "lỗi candidate"
+        ],
+        "en": [
+          "independent review",
+          "knowledge backbone",
+          "finalize starvation",
+          "candidate errors"
+        ]
       },
-      "identifiers": ["AiKnowledgeSyncService", "knowledgeOwnerHoldsMedia", "revisionsForKnowledgeSync"],
+      "identifiers": [
+        "AiKnowledgeSyncService",
+        "knowledgeOwnerHoldsMedia",
+        "revisionsForKnowledgeSync"
+      ],
       "related_documents": [
         "quality/LF-AI-Knowledge-Backbone-Reviewer-Brief.md",
         "quality/LF-AI-Knowledge-Backbone-Implementation-Record.md"
@@ -8935,12 +9567,32 @@
       "metadata_complete": true,
       "authority": "quality",
       "canonical_for": [],
-      "topics": ["ai", "knowledge", "media", "review", "governance"],
+      "topics": [
+        "ai",
+        "knowledge",
+        "media",
+        "review",
+        "governance"
+      ],
       "keywords": {
-        "vi": ["review độc lập", "xương sống Knowledge", "đồng bộ Media", "system principal"],
-        "en": ["independent review", "knowledge backbone", "media sync", "reviewer brief"]
+        "vi": [
+          "review độc lập",
+          "xương sống Knowledge",
+          "đồng bộ Media",
+          "system principal"
+        ],
+        "en": [
+          "independent review",
+          "knowledge backbone",
+          "media sync",
+          "reviewer brief"
+        ]
       },
-      "identifiers": ["AiKnowledgeSyncService", "readForKnowledgeSync", "MediaRevisionReady"],
+      "identifiers": [
+        "AiKnowledgeSyncService",
+        "readForKnowledgeSync",
+        "MediaRevisionReady"
+      ],
       "related_documents": [
         "platform/LF-AI-Knowledge-Sync-Contract.md",
         "quality/LF-AI-Knowledge-Backbone-Implementation-Record.md"
@@ -8958,12 +9610,34 @@
       "metadata_complete": true,
       "authority": "quality",
       "canonical_for": [],
-      "topics": ["ai", "knowledge", "media", "database", "review"],
+      "topics": [
+        "ai",
+        "knowledge",
+        "media",
+        "database",
+        "review"
+      ],
       "keywords": {
-        "vi": ["review K3", "vocabulary source_role", "gate tạo migration", "phân loại lỗi database"],
-        "en": ["K3 review", "source role vocabulary", "migration gate", "database error classification"]
+        "vi": [
+          "review K3",
+          "vocabulary source_role",
+          "gate tạo migration",
+          "phân loại lỗi database"
+        ],
+        "en": [
+          "K3 review",
+          "source role vocabulary",
+          "migration gate",
+          "database error classification"
+        ]
       },
-      "identifiers": ["ai_knowledge_chunks", "chk_akc_source_role", "DOC-CONFLICT-0040", "K3-R1", "K3-R2"],
+      "identifiers": [
+        "ai_knowledge_chunks",
+        "chk_akc_source_role",
+        "DOC-CONFLICT-0040",
+        "K3-R1",
+        "K3-R2"
+      ],
       "related_documents": [
         "database/ai/ai_knowledge_chunks.md",
         "quality/LF-AI-Knowledge-Source-Role-Alignment-Reviewer-Brief.md",
@@ -8982,12 +9656,33 @@
       "metadata_complete": true,
       "authority": "quality",
       "canonical_for": [],
-      "topics": ["ai", "knowledge", "media", "database", "review"],
+      "topics": [
+        "ai",
+        "knowledge",
+        "media",
+        "database",
+        "review"
+      ],
       "keywords": {
-        "vi": ["vocabulary source_role", "căn role Media", "review trước migration", "K3"],
-        "en": ["source role vocabulary", "media role alignment", "pre-migration review", "K3"]
+        "vi": [
+          "vocabulary source_role",
+          "căn role Media",
+          "review trước migration",
+          "K3"
+        ],
+        "en": [
+          "source role vocabulary",
+          "media role alignment",
+          "pre-migration review",
+          "K3"
+        ]
       },
-      "identifiers": ["ai_knowledge_chunks", "chk_akc_source_role", "chk_mer_role", "DOC-CONFLICT-0040"],
+      "identifiers": [
+        "ai_knowledge_chunks",
+        "chk_akc_source_role",
+        "chk_mer_role",
+        "DOC-CONFLICT-0040"
+      ],
       "related_documents": [
         "database/ai/ai_knowledge_chunks.md",
         "database/media/media_extracted_regions.md",
@@ -9006,12 +9701,33 @@
       "metadata_complete": true,
       "authority": "quality",
       "canonical_for": [],
-      "topics": ["ai", "migration", "database", "review", "governance"],
+      "topics": [
+        "ai",
+        "migration",
+        "database",
+        "review",
+        "governance"
+      ],
       "keywords": {
-        "vi": ["review migration trước apply", "MariaDB 10.4", "quyền trigger", "DDL dở dang"],
-        "en": ["pre-apply migration review", "MariaDB 10.4", "trigger privilege", "partial DDL"]
+        "vi": [
+          "review migration trước apply",
+          "MariaDB 10.4",
+          "quyền trigger",
+          "DDL dở dang"
+        ],
+        "en": [
+          "pre-apply migration review",
+          "MariaDB 10.4",
+          "trigger privilege",
+          "partial DDL"
+        ]
       },
-      "identifiers": ["2026_09_08_000100", "2026_09_13_000100", "2026_09_14_000100", "2026_09_15_000100"],
+      "identifiers": [
+        "2026_09_08_000100",
+        "2026_09_13_000100",
+        "2026_09_14_000100",
+        "2026_09_15_000100"
+      ],
       "related_documents": [
         "quality/LF-AI-Migrations-Pre-Apply-Reviewer-Brief.md",
         "quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md"
@@ -9029,12 +9745,33 @@
       "metadata_complete": true,
       "authority": "quality",
       "canonical_for": [],
-      "topics": ["ai", "migration", "database", "review", "governance"],
+      "topics": [
+        "ai",
+        "migration",
+        "database",
+        "review",
+        "governance"
+      ],
       "keywords": {
-        "vi": ["review độc lập migration", "trước khi apply", "MariaDB 10.4", "rehearsal dữ liệu thật"],
-        "en": ["independent migration review", "pre-apply", "MariaDB 10.4", "rehearsal"]
+        "vi": [
+          "review độc lập migration",
+          "trước khi apply",
+          "MariaDB 10.4",
+          "rehearsal dữ liệu thật"
+        ],
+        "en": [
+          "independent migration review",
+          "pre-apply",
+          "MariaDB 10.4",
+          "rehearsal"
+        ]
       },
-      "identifiers": ["2026_09_08_000100", "2026_09_13_000100", "2026_09_14_000100", "2026_09_15_000100"],
+      "identifiers": [
+        "2026_09_08_000100",
+        "2026_09_13_000100",
+        "2026_09_14_000100",
+        "2026_09_15_000100"
+      ],
       "related_documents": [
         "quality/LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md",
         "quality/LF-AI-Authoring-Proposal-Implementation-Review.md",
@@ -9054,12 +9791,32 @@
       "metadata_complete": true,
       "authority": "quality",
       "canonical_for": [],
-      "topics": ["ai", "knowledge", "review", "closure", "verification"],
+      "topics": [
+        "ai",
+        "knowledge",
+        "review",
+        "closure",
+        "verification"
+      ],
       "keywords": {
-        "vi": ["review đóng Phần 2", "race model run", "safety policy thiếu", "điều kiện đóng"],
-        "en": ["part 2 closure review", "model run race", "missing safety policy", "closure conditions"]
+        "vi": [
+          "review đóng Phần 2",
+          "race model run",
+          "safety policy thiếu",
+          "điều kiện đóng"
+        ],
+        "en": [
+          "part 2 closure review",
+          "model run race",
+          "missing safety policy",
+          "closure conditions"
+        ]
       },
-      "identifiers": ["AiModelRunRecorder", "AiProviderExecutionGate", "safetyVerdict"],
+      "identifiers": [
+        "AiModelRunRecorder",
+        "AiProviderExecutionGate",
+        "safetyVerdict"
+      ],
       "related_documents": [
         "quality/LF-AI-Part-2-Closure-Reviewer-Brief.md",
         "quality/LF-AI-Provider-Execution-Gate-Implementation-Review.md"
@@ -9077,10 +9834,26 @@
       "metadata_complete": true,
       "authority": "quality",
       "canonical_for": [],
-      "topics": ["ai", "knowledge", "review", "governance", "closure"],
+      "topics": [
+        "ai",
+        "knowledge",
+        "review",
+        "governance",
+        "closure"
+      ],
       "keywords": {
-        "vi": ["review đóng Phần 2", "review độc lập cuối", "điều kiện đóng", "AI Knowledge"],
-        "en": ["final closure review", "part 2 closure", "independent review", "AI knowledge"]
+        "vi": [
+          "review đóng Phần 2",
+          "review độc lập cuối",
+          "điều kiện đóng",
+          "AI Knowledge"
+        ],
+        "en": [
+          "final closure review",
+          "part 2 closure",
+          "independent review",
+          "AI knowledge"
+        ]
       },
       "identifiers": [
         "AiProviderExecutionGate",
@@ -10794,6 +11567,53 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "quality/LF-UI-Async-State-Engineering-Practice.md",
+      "title": "LF UI Async-State Engineering Practice",
+      "area": "quality",
+      "document_type": "quality_standard",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "ui",
+        "frontend",
+        "async",
+        "testing",
+        "review"
+      ],
+      "keywords": {
+        "vi": [
+          "trạng thái bất đồng bộ",
+          "dữ liệu chưa gửi",
+          "test đối kháng",
+          "đột biến",
+          "review giao diện"
+        ],
+        "en": [
+          "async state",
+          "unsent input",
+          "adversarial tests",
+          "mutation testing",
+          "ui review"
+        ]
+      },
+      "identifiers": [
+        "hasDraft",
+        "hasUnsent",
+        "refreshOpen",
+        "epoch"
+      ],
+      "related_documents": [
+        "quality/LF-Regression-Audit.md",
+        "platform/LF-AI-Authoring-Review-UI-Design.md",
+        "quality/LF-AI-Authoring-Review-UI-P3A-Review-Round6.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md",
       "title": "Version Activity Media Snapshot Architecture Review",
       "area": "quality",
@@ -11251,12 +12071,39 @@
       "metadata_complete": true,
       "authority": "engineering",
       "canonical_for": [],
-      "topics": ["runtime", "deployment", "queue", "scheduler", "ai-knowledge"],
+      "topics": [
+        "runtime",
+        "deployment",
+        "queue",
+        "scheduler",
+        "ai-knowledge"
+      ],
       "keywords": {
-        "vi": ["yêu cầu runtime", "cài đặt triển khai", "biến môi trường", "phụ thuộc binary", "vận hành hàng đợi", "lịch đối soát tri thức", "kích hoạt provider"],
-        "en": ["runtime requirements", "deployment setup", "environment variables", "binary dependencies", "queue worker", "scheduler", "provider activation"]
+        "vi": [
+          "yêu cầu runtime",
+          "cài đặt triển khai",
+          "biến môi trường",
+          "phụ thuộc binary",
+          "vận hành hàng đợi",
+          "lịch đối soát tri thức",
+          "kích hoạt provider"
+        ],
+        "en": [
+          "runtime requirements",
+          "deployment setup",
+          "environment variables",
+          "binary dependencies",
+          "queue worker",
+          "scheduler",
+          "provider activation"
+        ]
       },
-      "identifiers": ["LF-Tech-Runtime-Requirements", "ai:knowledge-sync", "schedule:run", "schedule:work"],
+      "identifiers": [
+        "LF-Tech-Runtime-Requirements",
+        "ai:knowledge-sync",
+        "schedule:run",
+        "schedule:work"
+      ],
       "related_documents": [
         "tech/LF-Tech-Stack.md",
         "tech/LF-Tech-AWS.md",

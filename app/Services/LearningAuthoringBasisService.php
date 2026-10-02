@@ -31,6 +31,60 @@ final class LearningAuthoringBasisService
     /**
      * @return array{basis_schema_version:string,customer_id:int,framework_id:int,framework_version_id:int,content_hash:string,candidates:array<int,array<string,mixed>>}
      */
+    /** Longest description a reviewer is shown; the rest stays in Learning. */
+    public const DISPLAY_DESCRIPTION_MAX = 500;
+
+    /**
+     * What a reviewer needs to recognise one existing Node (P3-B, contract "Owner
+     * amendment — P3-B"): display text only, never criteria, relations or status
+     * history. Returns null unless the exact stored pair is an active Node of a
+     * published Version of an active Framework whose Definition is the one stored
+     * on the proposal, so a stale or tampered identifier shows nothing rather than
+     * a name that belongs to something else.
+     *
+     * Like proposalBasis it adds no Learning privilege of its own: the caller has
+     * already proved current AI authority over the Template.
+     *
+     * @return array{node_id:int,definition_id:int,code:string,label:string,node_type:string,description:?string,status:string}|null
+     */
+    public function nodeDisplay(int $frameworkId, int $versionId, int $nodeId, int $definitionId): ?array
+    {
+        $customerId = TenantContext::customerId() ?? throw new LearningAuthoringBasisException('basis_unavailable');
+
+        $node = DB::table('core_learning_nodes as nodes')
+            ->join('core_learning_node_definitions as definitions', function ($join): void {
+                $join->on('definitions.id', '=', 'nodes.node_definition_id')
+                    ->on('definitions.customer_id', '=', 'nodes.customer_id');
+            })
+            ->join('core_learning_framework_versions as versions', function ($join): void {
+                $join->on('versions.id', '=', 'nodes.framework_version_id')
+                    ->on('versions.customer_id', '=', 'nodes.customer_id');
+            })
+            ->join('core_learning_frameworks as frameworks', function ($join): void {
+                $join->on('frameworks.id', '=', 'nodes.framework_id')
+                    ->on('frameworks.customer_id', '=', 'nodes.customer_id');
+            })
+            ->where('nodes.customer_id', $customerId)->where('nodes.framework_id', $frameworkId)
+            ->where('nodes.framework_version_id', $versionId)->where('nodes.id', $nodeId)
+            ->where('nodes.node_definition_id', $definitionId)->where('nodes.status', 'active')
+            ->where('versions.status', 'published')->where('frameworks.status', 'active')
+            ->first(['nodes.id', 'nodes.node_definition_id', 'nodes.code_snapshot', 'nodes.name_snapshot',
+                'nodes.description_snapshot', 'definitions.node_type']);
+        if ($node === null) {
+            return null;
+        }
+
+        return [
+            'node_id' => (int) $node->id,
+            'definition_id' => (int) $node->node_definition_id,
+            'code' => (string) $node->code_snapshot,
+            'label' => (string) $node->name_snapshot,
+            'node_type' => (string) $node->node_type,
+            'description' => $node->description_snapshot === null ? null : mb_substr((string) $node->description_snapshot, 0, self::DISPLAY_DESCRIPTION_MAX),
+            'status' => 'active',
+        ];
+    }
+
     public function proposalBasis(int $frameworkId, int $versionId): array
     {
         $customerId = TenantContext::customerId() ?? throw new LearningAuthoringBasisException('basis_unavailable');

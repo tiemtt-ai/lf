@@ -86,6 +86,43 @@ final class CourseAuthoringRebaseService
     }
 
     /**
+     * The Intents of ONE Template that point at the given Nodes, with a readable name for what they are attached to.
+     * Other Templates that share the Framework are not looked at. At most 100.
+     *
+     * @param  array<int,int>  $nodeIds
+     * @return array<int,array{intent_id:int,node_id:int,source_label:string}>
+     */
+    public function intentsOnNodes(int $templateId, array $nodeIds): array
+    {
+        $customerId = TenantContext::customerId() ?? throw new CourseAuthoringContextException('not_found');
+        if ($nodeIds === []) {
+            return [];
+        }
+        $rows = [];
+        foreach (DB::table('core_course_template_learning_mapping_intents')->where('customer_id', $customerId)
+            ->where('template_id', $templateId)->whereIn('learning_node_id', $nodeIds)->orderBy('id')->limit(100)
+            ->get(['id', 'learning_node_id', 'source_type', 'source_id']) as $intent) {
+            $rows[] = ['intent_id' => (int) $intent->id, 'node_id' => (int) $intent->learning_node_id, 'source_label' => $this->sourceLabel($intent->source_type, (int) $intent->source_id)];
+        }
+
+        return $rows;
+    }
+
+    /** The title of the Lesson or Activity an Intent is attached to (at most 255 characters; empty if it is gone). */
+    public function sourceLabel(string $sourceType, int $sourceId): string
+    {
+        $customerId = TenantContext::customerId() ?? throw new CourseAuthoringContextException('not_found');
+        $table = match ($sourceType) {
+            'course_template_lesson' => 'core_course_template_lessons',
+            'course_template_activity' => 'core_course_template_activities',
+            default => null,
+        };
+        $title = $table === null ? null : DB::table($table)->where('customer_id', $customerId)->where('id', $sourceId)->value('title');
+
+        return mb_substr((string) ($title ?? ''), 0, 255);
+    }
+
+    /**
      * Runs inside the caller's transaction (Template lock taken here first).
      *
      * @param  array<int,array{disposition:string,node_id?:int,reason?:string,ai_review_id?:int}>  $dispositions  keyed by Intent id

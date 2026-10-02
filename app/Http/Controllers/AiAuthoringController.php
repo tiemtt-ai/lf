@@ -136,10 +136,10 @@ final class AiAuthoringController extends Controller
         $out = array_intersect_key($out, array_flip([
             'items', 'next_cursor', 'request_uuid', 'request_status', 'item_count', 'proposals', 'status_url',
             'proposal_uuid', 'kind', 'status', 'creation_mode', 'lock_version', 'revision_no', 'payload', 'content_denied',
-            'context_changed', 'citations', 'reviews', 'applications', 'allowed_actions', 'replayed',
+            'context_changed', 'citations', 'reviews', 'applications', 'allowed_actions', 'mapping_node', 'replayed',
             'application_uuid', 'application_status', 'node_id', 'reused_node', 'target_snapshot', 'target_hash',
             'version_status', 'node_status', 'context', 'course_context_hash', 'anchors', 'selection_limit', 'scope',
-            'inherited_decision_draft', 'successor_reason', 'preview', 'preview_hash', 'result_version_id', 'node_map', 'replacements',
+            'inherited_decision_draft', 'successor_reason', 'preview', 'display', 'preview_hash', 'result_version_id', 'node_map', 'replacements',
         ]));
 
         return response()->json(['data' => $out, 'error' => null], $status)->header('Cache-Control', 'no-store');

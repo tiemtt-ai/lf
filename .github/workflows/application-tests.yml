@@ -181,6 +181,7 @@ jobs:
             tests/Feature/AiKnowledgeSyncServiceTest.php \
             tests/Integration/AiKnowledgeSyncMariaDbTest.php \
             tests/Integration/AiKnowledgeSourceRoleMigrationMariaDbTest.php \
+            tests/Integration/AiAuthoringDemoSeedMariaDbTest.php \
             tests/Feature/AiProviderExecutionGateTest.php \
             tests/Integration/AiFoundationKnowledgePacketMariaDbTest.php \
             tests/Integration/AiAuthoringProposalPacketMariaDbTest.php \

@@ -1,12 +1,12 @@
 # AI Authoring Proposal Contract
 
-Version: 0.8
+Version: 0.9
 
 Document Status: Frozen
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-17
+Last Updated: 2026-10-01
 
 Document Path: platform/LF-AI-Authoring-Proposal-Contract.md
 
@@ -28,8 +28,66 @@ for parent-path checks, foreign-Activity bulk items and outermost-commit erasure
 Owner accepted backend + HTTP v1 on 2026-09-17 under a waiver of independent
 review ("miễn trừ review độc lập, chốt nghiệm thu Bước 7"); the waiver is not an
 independent PASS and is recorded in the same implementation report.
-Frontend UI is Not Implemented. Partial here describes the whole contract, not a new design
-amendment, independent PASS, provider activation or live apply.
+The Activity-page review UI (P3-A to P3-C) is now implemented and locally tested; see
+[LF-AI-Authoring-Review-UI-Design](LF-AI-Authoring-Review-UI-Design.md) and the "Owner instruction — UI status"
+block below. It has no independent review PASS for P3-B and P3-C. Partial here describes the whole contract,
+not a new design amendment, independent PASS, provider activation or live apply.
+
+### Owner amendment — P3-B, 2026-09-30
+
+Owner approved (D12, D13, D17 of [LF-AI-Authoring-P3B-Amendment](LF-AI-Authoring-P3B-Amendment.md)) two additive
+changes to the read contract, needed by the review UI after acceptance. They add response values only; no schema,
+no new endpoint, no new write, no change to authority of any command.
+
+- `allowed_actions` remains advisory, recomputed on every read for the current actor, never stored, never a capability
+  token. The closed vocabulary is extended. Proposal detail: `edit`, `accept`, `reject` (pending_review, unchanged);
+  `preview_target`, `confirm_target`, `reject_target`, `apply_intent`, `reconfirm_context`, `approve_node` (accepted
+  states, admin only for `approve_node`), computed from already-read state and never from an extra Learning read.
+  Each element of `applications` gains its own `allowed_actions`: `retry` (failed; `create_node` admin only) and
+  `cancel` (awaiting_publication, ready_to_apply or failed; never applied). The four existing application fields are
+  unchanged and no receipt snapshot is serialized. The proposal list keeps returning only the pending_review values.
+  Unknown values must be ignored by clients. A POST still rechecks everything.
+- Proposal detail of a visible `node_mapping` with `mode = reuse_existing` gains `mapping_node`, a sibling of `payload`
+  (never inside it): `node_id`, `definition_id`, `code`, `label`, `node_type`, `description` (at most 500 characters)
+  and `status`, or `null` when the exact stored Framework/Version/Node pair is not a published active Node whose
+  definition matches. No `criteria`. It is read through a narrow Learning owner read keyed by the proposal's own stored
+  Framework/Version pair; it opens display labels of the tenant's own selected Framework to actors with current AI
+  authority (admin, or teacher with an active primary/assistant/reviewer assignment) and grants no other Learning
+  access. It is disclosed only where `payload` is disclosed, under the same Media audit-before-disclosure rule.
+- Clarification (B6): in the proposal detail of an `accepted` proposal, `context_changed` is `true` exactly while the
+  Course context differs from the one last covered by a human `reconfirm_context` of the accepted revision (or, with
+  none, from the context at generation), the same rule that offers `reconfirm_context` in `allowed_actions`. Before, it
+  ignored reconfirmations and stayed `true` for good. Other statuses are unchanged. No schema, endpoint or write changes.
+- Not part of this amendment: a Node-candidate endpoint (deferred), successors, inherited drafts and rebase (P3-C).
+  The sentence above about no new HTTP endpoint stays in force.
+
+### Owner instruction — UI status, 2026-10-01
+
+Owner instructed the remaining documentation to be completed (option "B") once the P3-A, P3-B and P3-C slices were
+built. The statements that the review UI is not implemented are replaced by this one: the Activity-page review UI
+for teachers and admins exists for P3-A (list, read, edit, accept, reject, bulk, generation request), P3-B (existing
+Node, target, apply, receipts retry and cancel, new Node approval, context reconfirmation) and P3-C (successor for a
+changed source, inherited draft, rebase). Evidence is local: Node behavior tests, PHP tests, MariaDB 11.4 on a
+disposable instance and a real browser on a disposable database. P3-A has an independent review closed by Owner on
+2026-09-30; **P3-B and P3-C have no independent review: Owner chose not to send them (2026-10-01), which is a waiver, not a
+PASS.** Not delivered: choosing another Node (P3-B B5), the other four successor reasons, and the manual checks listed
+in the design document, section 13.17. No provider is activated.
+
+### Owner amendment — P3-C, 2026-10-01
+
+Owner approved (D18–D27 of [LF-AI-Authoring-P3C-Amendment](LF-AI-Authoring-P3C-Amendment.md)) additive read-contract changes needed by the
+review UI for successors, inherited drafts and rebase. Response values only; no schema, no new endpoint, no new write, no change to the
+authority of any command.
+
+- `allowed_actions` on a proposal detail gains `create_successor` (status `stale` with an earlier accepted revision; admin or assigned
+  teacher), `inherit_draft` and `rebase` (`accepted` `node_mapping` with a Framework; admin only). Advisory like every value; a POST rechecks.
+- Proposal detail gains `inherited_decision_draft` (boolean) and `successor_reason` (string or null), the stored columns, so the next reviewer
+  sees the flag and the reason required by "Restricted decision inheritance". Proposals generated by a model return `false` and `null`.
+- `inherited-draft-preview` and `rebase-preview` (admin only) gain a top-level `display` object outside the hashed plan: Node labels
+  (`code`, `label`, `node_type`; description at most 500 characters; no criteria), source titles of this Template's Intents, and the Intents
+  of this Template affected by excluded Nodes (other Templates are not listed). `plan_hash` and `preview_hash` are unchanged.
+- The UI supports successor reason `source_revision_changed` only; the other four reasons and choosing another Node in a rebase wait for the
+  Node-candidate list (P3-B D14).
 
 ### Owner final service decisions — 2026-09-16
 
@@ -180,7 +238,8 @@ This approval covers those policies, not the complete physical packet.
 
 Backend workflow may be verified with a fake provider. Real AI, provider
 activation and frontend chat are not closure prerequisites. The teacher review
-UI is not implemented by this contract and must not be reported as delivered.
+UI is not implemented by this contract itself; it is delivered by LF-AI-Authoring-Review-UI-Design and must be
+reported with the review status recorded there (no independent PASS for P3-B and P3-C).
 
 ## Domain allocation
 

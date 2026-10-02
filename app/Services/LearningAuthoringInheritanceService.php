@@ -35,6 +35,34 @@ final class LearningAuthoringInheritanceService
     }
 
     /**
+     * What an admin needs to judge the plan: the Nodes it leaves out, by code and name, and why. Read-only, of the
+     * tenant's own Framework and Version, at most 100; no description and no criteria.
+     *
+     * @param  array<int,int>  $excludedNodeIds
+     * @return array<int,array{node_id:int,code:string,label:string,node_type:string,reason:string}>
+     */
+    public function excludedDisplay(int $frameworkId, int $baseVersionId, array $excludedNodeIds): array
+    {
+        $customerId = TenantContext::customerId() ?? throw new LearningAuthoringBasisException('basis_unavailable');
+        if ($excludedNodeIds === []) {
+            return [];
+        }
+
+        return DB::table('core_learning_nodes as nodes')
+            ->join('core_learning_node_definitions as definitions', function ($join): void {
+                $join->on('definitions.id', '=', 'nodes.node_definition_id')->on('definitions.customer_id', '=', 'nodes.customer_id');
+            })
+            ->where('nodes.customer_id', $customerId)->where('nodes.framework_id', $frameworkId)
+            ->where('nodes.framework_version_id', $baseVersionId)->whereIn('nodes.id', array_slice($excludedNodeIds, 0, 100))
+            ->orderBy('nodes.id')
+            ->get(['nodes.id', 'nodes.code_snapshot', 'nodes.name_snapshot', 'nodes.status', 'definitions.node_type'])
+            ->map(fn (object $node): array => [
+                'node_id' => (int) $node->id, 'code' => (string) $node->code_snapshot, 'label' => (string) $node->name_snapshot,
+                'node_type' => (string) $node->node_type, 'reason' => $node->status === 'active' ? 'definition_inactive' : 'node_retired',
+            ])->all();
+    }
+
+    /**
      * @return array{result_version_id:int,node_map:array<int,int>,plan:array<string,mixed>}
      */
     public function createInheritedDraft(int $adminId, int $frameworkId, int $baseVersionId, string $versionCode, string $title, string $expectedSourceGraphHash, string $expectedPlanHash): array

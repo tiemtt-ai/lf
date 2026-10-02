@@ -7,6 +7,7 @@ use App\Exceptions\AiAuthoringProposalException;
 use App\Exceptions\AiProviderGateException;
 use App\Exceptions\CourseAuthoringContextException;
 use App\Exceptions\LearningAuthoringBasisException;
+use App\Services\Ai\AuthoringAllowedActions;
 use App\Services\Ai\AuthoringPayloadValidator;
 use App\Services\Ai\AuthoringProposalAdapter;
 use App\Services\Ai\AuthoringProposalRecords;
@@ -384,7 +385,7 @@ final class AiAuthoringProposalService
                 ->orderBy('r.id')->limit(100)
                 ->get(['r.action', 'r.actor_id', 'v.revision_no', 'r.from_status', 'r.to_status', 'r.created_at'])
                 ->map(fn (object $row): array => (array) $row + [])->all(),
-            'allowed_actions' => $visible && $proposal->status === 'pending_review' ? ['edit', 'accept', 'reject'] : [],
+            'allowed_actions' => AuthoringAllowedActions::pending($visible, $proposal->status),
         ]);
     }
 

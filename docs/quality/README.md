@@ -27,6 +27,7 @@ criteria hay không.
 * [LF-Regression-Audit.md](LF-Regression-Audit.md) — checklist bắt buộc cho mọi
   `Existing-Feature Change`; canonical Audit Level là `LOW`, `MEDIUM`, `HIGH`
   và độ sâu kiểm chứng theo mức cao nhất áp dụng.
+* [LF-UI-Async-State-Engineering-Practice.md](LF-UI-Async-State-Engineering-Practice.md) — nguyên tắc và danh sách kiểm cho giao diện có nhiều luồng bất đồng bộ dùng chung trạng thái (2026-09-30).
 * [LF-Documentation-Conflicts.md](LF-Documentation-Conflicts.md) — canonical
   register cho inconsistency đã xác minh; kiểm tra register và dừng affected
   concern khi hai official sources không thể đồng thời được thỏa mãn.
@@ -52,6 +53,15 @@ criteria hay không.
 * [LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md](LF-AI-Foundation-Media-Consumer-Database-Architecture-Review.md)
 * [LF-AI-Knowledge-Source-Role-Alignment-Review.md](LF-AI-Knowledge-Source-Role-Alignment-Review.md) — Architecture Review độc lập K3, 2026-09-28: lượt 4 **APPROVE**; migration đã apply dev 2026-09-29, DOC-CONFLICT-0040 RESOLVED.
 * [LF-AI-Knowledge-Source-Role-Alignment-Reviewer-Brief.md](LF-AI-Knowledge-Source-Role-Alignment-Reviewer-Brief.md) — brief Architecture Review K3 (2026-09-28): vocabulary `source_role` Knowledge hẹp hơn role Media; review trước khi tạo forward migration.
+* [LF-AI-Authoring-Review-UI-Design-Review.md](LF-AI-Authoring-Review-UI-Design-Review.md) — review độc lập thiết kế UI Phần 3, 2026-09-29: lượt 1–2 APPROVE WITH CHANGES, lượt 3 **APPROVE v0.4**; P3-A được phép bắt đầu sau khi Owner xác nhận (2026-09-29).
+* [LF-AI-Authoring-Review-UI-Design-Reviewer-Brief.md](LF-AI-Authoring-Review-UI-Design-Reviewer-Brief.md) — brief review độc lập thiết kế UI Phần 3 (2026-09-29).
+* [LF-AI-Authoring-Review-UI-P3A-Review.md](LF-AI-Authoring-Review-UI-P3A-Review.md) — review độc lập implementation P3-A: REJECT, 5 HIGH + 6 MEDIUM (2026-09-29).
+* [LF-AI-Authoring-Review-UI-P3A-Review-Round2.md](LF-AI-Authoring-Review-UI-P3A-Review-Round2.md) — review độc lập implementation P3-A lượt 2: REJECT, 2 HIGH + 2 MEDIUM mới (2026-09-29).
+* [LF-AI-Authoring-Review-UI-P3A-Review-Round3.md](LF-AI-Authoring-Review-UI-P3A-Review-Round3.md) — review độc lập implementation P3-A lượt 3: REJECT, 1 HIGH mới, N4 một phần (2026-09-30).
+* [LF-AI-Authoring-Review-UI-P3A-Review-Round4.md](LF-AI-Authoring-Review-UI-P3A-Review-Round4.md) — review độc lập implementation P3-A lượt 4: REJECT, 1 HIGH mới, N4 một phần (2026-09-30).
+* [LF-AI-Authoring-Review-UI-P3A-Review-Round5.md](LF-AI-Authoring-Review-UI-P3A-Review-Round5.md) — review độc lập implementation P3-A lượt 5: REJECT, 1 HIGH mới (S1), 2 MEDIUM (2026-09-30).
+* [LF-AI-Authoring-Review-UI-P3A-Review-Round6.md](LF-AI-Authoring-Review-UI-P3A-Review-Round6.md) — review độc lập implementation P3-A lượt 6: APPROVE WITH CHANGES (2026-09-30).
+* [LF-AI-Authoring-Review-UI-P3A-Reviewer-Brief.md](LF-AI-Authoring-Review-UI-P3A-Reviewer-Brief.md) — brief review độc lập implementation P3-A (2026-09-29).
 * [LF-AI-Part-2-Closure-Review.md](LF-AI-Part-2-Closure-Review.md) — final independent closure review Phần 2, 2026-09-27: lượt 1 **CHANGES REQUIRED** (C1–C4), lượt 2 C2 còn mở, lượt 3 **BLOCKED** (reviewer mất tư cách độc lập); round 4 (§13, 2026-09-29): **PASS WITH DOCUMENTED RISKS — Phần 2 đóng**.
 * [LF-AI-Part-2-Closure-Reviewer-Brief.md](LF-AI-Part-2-Closure-Reviewer-Brief.md) — brief final independent closure review Phần 2 (AI Knowledge, bước 0–7): 10 điều kiện đóng, trọng tâm Bước 4–7 chưa từng review độc lập, xoá Media xuyên suốt, mutation.
 * [LF-AI-Provider-Execution-Gate-Implementation-Review.md](LF-AI-Provider-Execution-Gate-Implementation-Review.md)

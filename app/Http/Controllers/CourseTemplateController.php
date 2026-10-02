@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\CourseAuthoringContextService;
 use App\Services\CourseTemplateLearningMappingIntentService;
 use App\Services\CourseTemplatePublishingService;
 use App\Services\CourseTemplatePublishReadinessService;
@@ -195,7 +196,14 @@ class CourseTemplateController extends Controller
                 ? $this->trustedVideoUrls->embedUrl($template->intro_video_embed_url)
                 : null;
 
+        // Whether to offer the "AI proposals" entry on each Activity row: the same
+        // authority every proposal command rechecks, not the right to open this page.
+        $aiAuthoringAvailable = $request->user() !== null
+            && app(CourseAuthoringContextService::class)->authoringRole((int) $request->user()->id, $id) !== null;
+
         return view('course-templates.edit', [
+            'aiAuthoringAvailable' => $aiAuthoringAvailable,
+            'aiMediaActivityTypes' => CourseAuthoringContextService::MEDIA_ACTIVITY_TYPES,
             'template' => $template,
             'versions' => $versions,
             'latestVersion' => $latestVersion,

@@ -6,7 +6,7 @@ Document Status: Frozen
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-29
+Last Updated: 2026-10-01
 
 Document Path: platform/LF-AI.md
 
@@ -72,7 +72,8 @@ verified on temporary MariaDB 11.4.12/10.4.21 under the scoped Owner waiver.
 Backend authoring services (generation through publication lineage, successors,
 rebase, erasure) are implemented with MariaDB 11.4.12 evidence and a fake
 provider. HTTP v1, bulk review and bounded keyset/source-scope listing are now
-implemented and locally tested; frontend UI is not. No provider is activated, and no
+implemented and locally tested; the Activity-page review UI (P3-A to P3-C) is implemented and locally tested without
+independent review for P3-B and P3-C. No provider is activated, and no
 independent review PASS, live database apply or Step 7 completion is claimed.
 The [consolidated implementation evidence](../quality/LF-AI-Authoring-Proposal-Implementation-Review.md)
 records decision history, finding remediation, backend/HTTP acceptance readiness
@@ -409,7 +410,7 @@ AI là Learning Intelligence & Decision Support Domain của LearnForge.
 AI Foundation là policy/database specification đã Frozen. Cập nhật 2026-09-26:
 migration và service backend đã có cho Knowledge/Embedding/Model Run, Vision
 Interpretation và Authoring Bước 7 (xem § trạng thái ở đầu tài liệu); schema
-có trên `learnforge_db` dev local (xác minh 2026-09-27, drift sạch), chưa kích hoạt provider thật, chưa có UI đề xuất hay trợ giảng.
+có trên `learnforge_db` dev local (xác minh 2026-09-27, drift sạch), chưa kích hoạt provider thật; giao diện duyệt đề xuất trên trang Hoạt động đã có (P3-A đến P3-C, P3-B và P3-C chưa qua review độc lập), chưa có trợ giảng.
 Các section bên dưới là contract bắt buộc; section nào chưa có runtime thì ghi rõ
 trạng thái tại chỗ.
 

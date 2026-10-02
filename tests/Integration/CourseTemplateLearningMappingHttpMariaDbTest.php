@@ -408,6 +408,113 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
         $this->assertStringContainsString('name="learning_node_id"', $html, 'The Node picker appears once a Version is selected.');
     }
 
+    // ------------------------------- Drafts an admin can create a new Node in (P3-B B4)
+
+    public function test_the_activity_page_offers_an_admin_only_the_drafts_of_the_selected_framework(): void
+    {
+        $f = $this->fixture('draft-choice');
+        $this->select($f);
+        TenantContext::set((object) ['id' => $f['customer_id']]);
+        $authoring = app(LearningFrameworkAuthoringService::class);
+        $draft = $authoring->createDraftVersion($f['admin_id'], [
+            'framework_id' => $f['framework_id'], 'version_code' => 'v2', 'title' => 'Second draft',
+        ]);
+        $other = $this->learningGraph($f['customer_id'], $f['admin_id'], 'draft-choice-other');
+        TenantContext::set((object) ['id' => $f['customer_id']]);
+        $foreign = $authoring->createDraftVersion($f['admin_id'], [
+            'framework_id' => $other['framework_id'], 'version_code' => 'v2', 'title' => 'Another framework draft',
+        ]);
+        TenantContext::set(null);
+
+        $config = $this->aiConfig($this->activityPage($f, 'admin'));
+
+        $this->assertSame([['id' => (int) $draft->id, 'label' => 'v2 — Second draft']], $config['draftVersions']);
+        $this->assertSame([['id' => $f['version_id'], 'label' => 'v1 — V1']], $config['publishedVersions'], 'only published versions of the selected Framework');
+        $offered = array_column($config['draftVersions'], 'id');
+        $this->assertNotContains($f['version_id'], $offered, 'The published version is never offered.');
+        $this->assertNotContains((int) $foreign->id, $offered, 'Another Framework\'s draft is never offered.');
+    }
+
+    public function test_a_teacher_is_offered_no_draft_and_a_template_without_a_framework_offers_none(): void
+    {
+        $f = $this->fixture('draft-teacher');
+        $this->select($f);
+        TenantContext::set((object) ['id' => $f['customer_id']]);
+        app(LearningFrameworkAuthoringService::class)->createDraftVersion($f['admin_id'], [
+            'framework_id' => $f['framework_id'], 'version_code' => 'v2', 'title' => 'Second draft',
+        ]);
+        TenantContext::set(null);
+        DB::table('core_course_template_teachers')->insert([
+            'customer_id' => $f['customer_id'], 'template_id' => $f['template_id'], 'teacher_id' => $f['teacher_id'],
+            'role' => 'primary', 'sort_order' => 0, 'status' => 'active', 'assigned_at' => now(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $teacher = $this->aiConfig($this->activityPage($f, 'teacher'));
+        $this->assertSame([], $teacher['draftVersions']);
+        $this->assertSame([], $teacher['publishedVersions'], 'a teacher is offered no version to copy');
+
+        $bare = $this->fixture('draft-none');
+        TenantContext::set((object) ['id' => $bare['customer_id']]);
+        app(LearningFrameworkAuthoringService::class)->createDraftVersion($bare['admin_id'], [
+            'framework_id' => $bare['framework_id'], 'version_code' => 'v2', 'title' => 'Unselected draft',
+        ]);
+        TenantContext::set(null);
+        $none = $this->aiConfig($this->activityPage($bare, 'admin'));
+        $this->assertSame([], $none['draftVersions'], 'No Framework is selected, so nothing is offered.');
+        $this->assertSame([], $none['publishedVersions']);
+    }
+
+    // ------------------------------------------- Back to the Activity page (D8)
+
+    public function test_an_activity_mapping_links_back_to_the_html_page_of_that_activity(): void
+    {
+        $f = $this->fixture('backlink-flat');
+        $this->select($f);
+        $this->storeMapping($f, ['source_type' => 'course_template_activity', 'source_id' => (string) $f['activity_id']])
+            ->assertSessionHasNoErrors();
+
+        $html = $this->editPage($f);
+
+        $page = "/admin/course-templates/{$f['template_id']}/lessons/{$f['lesson_id']}/activities/{$f['activity_id']}";
+        $this->assertStringContainsString('Mở hoạt động', $html);
+        $this->assertMatchesRegularExpression('#class="btn btn-secondary" href="[^"]*'.preg_quote($page, '#').'">Mở hoạt động#', $html);
+        $this->assertStringNotContainsString('/ai-authoring/', $html, 'The link is the Activity page, never an API address.');
+    }
+
+    public function test_an_activity_inside_a_section_links_through_its_section(): void
+    {
+        $f = $this->fixture('backlink-section');
+        $sectionId = DB::table('core_course_template_sections')->insertGetId([
+            'customer_id' => $f['customer_id'], 'template_id' => $f['template_id'], 'title' => 'Phần 1',
+            'display_order' => 1, 'allows_lessons' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('core_course_template_lessons')->where('id', $f['lesson_id'])->update(['template_section_id' => $sectionId]);
+        $this->select($f);
+        $this->storeMapping($f, ['source_type' => 'course_template_activity', 'source_id' => (string) $f['activity_id']])
+            ->assertSessionHasNoErrors();
+
+        $this->assertMatchesRegularExpression(
+            '#class="btn btn-secondary" href="[^"]*'.preg_quote("/admin/course-templates/{$f['template_id']}/sections/{$sectionId}/lessons/{$f['lesson_id']}/activities/{$f['activity_id']}", '#').'">Mở hoạt động#',
+            $this->editPage($f),
+        );
+    }
+
+    public function test_a_lesson_mapping_and_a_mapping_whose_activity_is_gone_have_no_link(): void
+    {
+        $f = $this->fixture('backlink-none');
+        $this->select($f);
+        $this->storeLessonMapping($f)->assertSessionHasNoErrors();
+        $this->storeMapping($f, ['source_type' => 'course_template_activity', 'source_id' => (string) $f['activity_id']])
+            ->assertSessionHasNoErrors();
+        // The Activity is no longer in the Course tree.
+        DB::table('core_course_template_learning_mapping_intents')
+            ->where('template_id', $f['template_id'])->where('source_type', 'course_template_activity')
+            ->update(['source_id' => 999999]);
+
+        $this->assertStringNotContainsString('Mở hoạt động', $this->editPage($f), 'Neither a Lesson nor a missing Activity has a page to go back to.');
+    }
+
     public function test_the_tab_hides_the_node_picker_until_a_version_is_selected(): void
     {
         $f = $this->fixture('render-empty');
@@ -421,6 +528,31 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
     }
 
     // -------------------------------------------------------------- Fixtures
+
+    /** @param array<string, mixed> $f */
+    private function editPage(array $f): string
+    {
+        return $this->admin($f)
+            ->get($f['host']."/admin/course-templates/{$f['template_id']}/edit")
+            ->assertOk()->getContent();
+    }
+
+    /** @param array<string, mixed> $f */
+    private function activityPage(array $f, string $role): string
+    {
+        $this->actingAs(User::findOrFail($f[$role.'_id']));
+
+        return $this->get($f['host']."/{$role}/course-templates/{$f['template_id']}/lessons/{$f['lesson_id']}/activities/{$f['activity_id']}")
+            ->assertOk()->getContent();
+    }
+
+    /** @return array<string, mixed> */
+    private function aiConfig(string $html): array
+    {
+        $this->assertSame(1, preg_match('/data-ai-authoring="([^"]*)"/', $html, $match), 'The AI section is on the page.');
+
+        return json_decode(html_entity_decode($match[1], ENT_QUOTES), true, flags: JSON_THROW_ON_ERROR);
+    }
 
     /** @param array<string, mixed> $f */
     private function admin(array $f): self

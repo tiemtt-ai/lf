@@ -27,6 +27,13 @@ final class CourseAuthoringContextService
     private const ASSIGNMENT_ROLES = ['primary', 'assistant', 'reviewer'];
 
     /**
+     * Activity types that carry uploaded Media. AI proposals are made from the
+     * text of that Media, so only these have anything to read; the others hold a
+     * link (embedded video, live class) or no content AI can see (quiz).
+     */
+    public const MEDIA_ACTIVITY_TYPES = ['video', 'audio', 'document'];
+
+    /**
      * @return array{template_id:int,lesson_id:int,activity_id:int,actor_role:string,selected_framework_id:?int,selected_framework_version_id:?int,dto:array<string,mixed>,course_context_hash:string}
      */
     public function proposalContext(int $actorId, int $activityId, bool $lockTemplate = false): array
@@ -88,6 +95,26 @@ final class CourseAuthoringContextService
             'dto' => $dto,
             'course_context_hash' => CanonicalJson::hash($dto),
         ];
+    }
+
+    /**
+     * Whether the actor may use AI authoring on a Template of the current
+     * tenant: `admin`, `teacher` or null. This is the same authority every
+     * proposal command rechecks, exposed so a page can decide whether to show
+     * the entry point. Being able to open the Template or Activity page is a
+     * wider authority and must not be used instead. It discloses nothing but
+     * the actor's own role.
+     */
+    public function authoringRole(int $actorId, int $templateId): ?string
+    {
+        $customerId = TenantContext::customerId();
+
+        return $customerId === null ? null : $this->actorRole($customerId, $templateId, $actorId);
+    }
+
+    public function hasMediaSource(string $activityType): bool
+    {
+        return in_array($activityType, self::MEDIA_ACTIVITY_TYPES, true);
     }
 
     /** Current authority of the actor over a Template, or null. */

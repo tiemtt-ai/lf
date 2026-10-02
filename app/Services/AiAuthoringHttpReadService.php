@@ -4,10 +4,13 @@ namespace App\Services;
 
 use App\Exceptions\AiAuthoringProposalException;
 use App\Exceptions\CourseAuthoringContextException;
+use App\Exceptions\LearningAuthoringBasisException;
+use App\Services\Ai\AuthoringAllowedActions;
 use App\Services\Ai\AuthoringProposalRecords;
 use App\Support\Ai\CanonicalJson;
 use App\Support\TenantContext;
 use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 
@@ -20,6 +23,8 @@ final class AiAuthoringHttpReadService
         private readonly AiAuthoringProposalService $proposals,
         private readonly AiAuthoringSuccessorService $successors,
         private readonly LearningAuthoringInheritanceService $inheritance,
+        private readonly LearningAuthoringBasisService $learning,
+        private readonly CourseAuthoringRebaseService $rebase,
     ) {}
 
     public function scope(int $actor, int $template, int $activity, ?string $uuid = null, ?string $application = null, ?string $auditOperation = null): array
@@ -75,7 +80,7 @@ final class AiAuthoringHttpReadService
             $items[] = ['proposal_uuid' => $proposal->proposal_uuid, 'kind' => $proposal->kind, 'status' => $proposal->status,
                 'lock_version' => (int) $proposal->lock_version, 'revision_no' => $revision === null ? null : (int) $revision->revision_no,
                 'content_denied' => $visible ? null : 'unavailable',
-                'allowed_actions' => $visible && $proposal->status === 'pending_review' ? ['edit', 'accept', 'reject'] : []];
+                'allowed_actions' => AuthoringAllowedActions::pending($visible, $proposal->status)];
         }
 
         return ['items' => $items, 'next_cursor' => $more ? $this->encode($binding, $rows[$limit - 1]->id) : null];
@@ -130,7 +135,19 @@ final class AiAuthoringHttpReadService
             throw new AiAuthoringProposalException('framework_selection_conflict');
         }
 
-        return ['preview' => $this->inheritance->preview((int) $proposal->framework_id, $baseVersion)];
+        $plan = $this->inheritance->preview((int) $proposal->framework_id, $baseVersion);
+        $lost = $this->inheritance->excludedDisplay((int) $proposal->framework_id, $baseVersion, $plan['excluded_node_ids']);
+        $labels = array_column($lost, 'label', 'node_id');
+        // Outside the plan, so the hashes the admin must send back are the same with or without it.
+        $display = [
+            'eligible_count' => count($plan['eligible_node_ids']),
+            'excluded_nodes' => $lost,
+            'affected_intents' => array_map(fn (array $intent): array => [
+                'intent_id' => $intent['intent_id'], 'source_label' => $intent['source_label'], 'node_label' => $labels[$intent['node_id']] ?? '',
+            ], $this->rebase->intentsOnNodes((int) $proposal->template_id, $plan['excluded_node_ids'])),
+        ];
+
+        return ['preview' => $plan, 'display' => $display];
     }
 
     public function detail(int $actor, object $proposal): array
@@ -140,12 +157,97 @@ final class AiAuthoringHttpReadService
             return $shown;
         }
         // Never serialize receipt target/context snapshots: they can retain old content.
-        $shown['applications'] = DB::table('ai_authoring_proposal_applications')
+        $receipts = DB::table('ai_authoring_proposal_applications')
             ->where('customer_id', TenantContext::customerId())->where('proposal_id', $proposal->id)
-            ->orderByDesc('id')->limit(100)->get(['application_uuid', 'operation', 'status', 'approved_by'])
-            ->map(fn ($row) => (array) $row)->all();
+            ->orderByDesc('id')->limit(100)->get(['application_uuid', 'operation', 'status', 'approved_by', 'revision_id']);
+        $this->addAllowedActions($actor, $proposal, $shown, $receipts);
+        // Whether this is a human successor with an inherited, still unapproved decision, and why (contract
+        // "Restricted decision inheritance", item 4): shown to the next reviewer.
+        $shown['inherited_decision_draft'] = (bool) $proposal->inherited_decision_draft;
+        $shown['successor_reason'] = $proposal->successor_reason;
+        $shown['applications'] = $receipts->map(fn ($row) => [
+            'application_uuid' => $row->application_uuid, 'operation' => $row->operation, 'status' => $row->status,
+            'approved_by' => $row->approved_by, 'allowed_actions' => $row->allowed_actions,
+        ])->all();
+
+        // A reviewer cannot judge an existing-Node mapping from two numbers. The Node's
+        // display text is disclosed exactly where the payload is (contract "Owner
+        // amendment — P3-B"): a hidden payload discloses no Node either.
+        $mapping = is_array($shown['payload'] ?? null) ? ($shown['payload']['mapping'] ?? null) : null;
+        if (is_array($mapping) && ($mapping['mode'] ?? null) === 'reuse_existing') {
+            $shown['mapping_node'] = $this->mappingNode($proposal, $mapping);
+        }
 
         return $shown;
+    }
+
+    /**
+     * Sets `allowed_actions` on the proposal and on each receipt of its accepted
+     * revision, through the one definition of them. Receipts of other revisions
+     * offer nothing.
+     *
+     * @param  array<string,mixed>  $shown
+     * @param  Collection<int,object>  $receipts
+     */
+    private function addAllowedActions(int $actor, object $proposal, array &$shown, Collection $receipts): void
+    {
+        foreach ($receipts as $receipt) {
+            $receipt->allowed_actions = [];
+        }
+        $shown['allowed_actions'] = [];
+        $visible = ($shown['payload'] ?? null) !== null && ($shown['content_denied'] ?? null) === null;
+        if (! $visible) {
+            // Hidden content offers no review action; a once-accepted stale proposal offers a successor.
+            if (($shown['status'] ?? null) === 'stale') {
+                $accepted = $this->records->acceptedRevision($proposal);
+                $shown['allowed_actions'] = AuthoringAllowedActions::stale('stale', $accepted !== null && $accepted->payload !== null && $accepted->erased_at === null);
+            }
+
+            return;
+        }
+        if ($shown['status'] !== 'accepted') {
+            $shown['allowed_actions'] = AuthoringAllowedActions::pending(true, (string) $shown['status']);
+
+            return;
+        }
+        try {
+            $course = $this->course->proposalContext($actor, (int) $proposal->activity_id);
+        } catch (CourseAuthoringContextException) {
+            return;
+        }
+        $accepted = $this->records->acceptedRevision($proposal);
+        if ($accepted === null || $accepted->payload === null) {
+            return;
+        }
+        $current = $receipts->filter(fn (object $receipt): bool => (int) $receipt->revision_id === (int) $accepted->id)->values()->all();
+        // The context counts as changed until a human reconfirmation covers what it is now.
+        $confirmed = DB::table('ai_authoring_proposal_reviews')->where('customer_id', $proposal->customer_id)
+            ->where('proposal_id', $proposal->id)->where('revision_id', $accepted->id)->where('action', 'reconfirm_context')
+            ->orderByDesc('id')->value('context_hash');
+        $unconfirmed = ! hash_equals((string) ($confirmed ?? $proposal->course_context_hash), $course['course_context_hash']);
+        // Said the same way to the page: a reconfirmed context is no longer "changed".
+        $shown['context_changed'] = $unconfirmed;
+        $mapping = json_decode((string) $accepted->payload, true)['mapping'] ?? null;
+        $proposalView = (object) ['status' => $shown['status'], 'kind' => $shown['kind'], 'framework_id' => $proposal->framework_id];
+
+        $shown['allowed_actions'] = AuthoringAllowedActions::forProposal($proposalView, true, $course['actor_role'], is_array($mapping) ? $mapping : null, $current, $unconfirmed);
+        foreach ($current as $receipt) {
+            $receipt->allowed_actions = AuthoringAllowedActions::forReceipt($receipt, $course['actor_role'], $unconfirmed);
+        }
+    }
+
+    /** @param array<string,mixed> $mapping @return array<string,mixed>|null */
+    private function mappingNode(object $proposal, array $mapping): ?array
+    {
+        if ($proposal->framework_id === null || $proposal->framework_version_id === null
+            || ! is_int($mapping['node_id'] ?? null) || ! is_int($mapping['definition_id'] ?? null)) {
+            return null;
+        }
+        try {
+            return $this->learning->nodeDisplay((int) $proposal->framework_id, (int) $proposal->framework_version_id, $mapping['node_id'], $mapping['definition_id']);
+        } catch (LearningAuthoringBasisException) {
+            return null;
+        }
     }
 
     public function commandVersions(int $actor, int $template, int $activity, array $out, ?string $uuid): array

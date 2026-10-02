@@ -44,6 +44,9 @@ tự thực thi business decision của consumer.
 | AI (Learning Intelligence & Decision Support) | [LF-AI](LF-AI.md) | Foundation Approved and Frozen |
 | AI Authoring Proposal | [Contract Bước 7](LF-AI-Authoring-Proposal-Contract.md) | v0.8 Frozen / Partial; schema, service và HTTP v1 đã triển khai, kiểm local với provider giả; Owner nghiệm thu backend + HTTP 2026-09-17 (miễn trừ review độc lập); UI chưa có |
 | AI Knowledge Sync | [LF-AI-Knowledge-Sync-Contract](LF-AI-Knowledge-Sync-Contract.md) | v1.2 Approved / Implemented — đồng bộ Media → Knowledge; review độc lập PASS WITH DOCUMENTED RISKS; Owner chốt đóng Source/Chunk 2026-09-26; schema có trên `learnforge_db` dev local (xác minh 2026-09-27, drift sạch) |
+| AI Authoring Review UI | [LF-AI-Authoring-Review-UI-Design](LF-AI-Authoring-Review-UI-Design.md) | v0.8 Approved / Partial — thiết kế UI duyệt đề xuất AI trên Hoạt động của Khoá học mẫu; P3-A, P3-B, P3-C đã làm (P3-A có review độc lập, P3-B/P3-C Owner quyết không gửi review); B5 hoãn. Xem §13.17. Lịch sử: review độc lập lượt 3 APPROVE, Owner duyệt D1–D9; P3-A được phép bắt đầu |
+* [LF-AI-Authoring-P3B-Amendment.md](LF-AI-Authoring-P3B-Amendment.md) — amendment đã duyệt và kế hoạch lát cắt P3-B (Owner duyệt D12–D17, 2026-09-30).
+* [LF-AI-Authoring-P3C-Amendment.md](LF-AI-Authoring-P3C-Amendment.md) — amendment đã duyệt và kế hoạch lát cắt P3-C (đề xuất kế thừa, bản nháp kế thừa, rebase; Owner duyệt D18–D27, 2026-10-01).
 
 Media foundation decision:
 [ADR-0004](../adr/ADR-0004-Media-Foundation.md).
