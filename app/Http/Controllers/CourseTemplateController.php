@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\CourseAuthoringContextService;
+use App\Services\AiAuthoringEntryService;
 use App\Services\CourseTemplateLearningMappingIntentService;
 use App\Services\CourseTemplatePublishingService;
 use App\Services\CourseTemplatePublishReadinessService;
@@ -185,6 +185,15 @@ class CourseTemplateController extends Controller
             ? $this->learningMappingIntents->state((int) $request->user()->id, $customerId, $id)
             : null;
 
+        // The one place for AI proposals: null unless the actor has AI authority over the Template.
+        $aiAuthoring = $request->user() === null ? null : app(AiAuthoringEntryService::class)->forTemplate(
+            (int) $request->user()->id,
+            $customerId,
+            $template,
+            $routePrefix,
+            ctype_digit((string) $request->query('ai_activity')) ? (int) $request->query('ai_activity') : null,
+        );
+
         $introImageMedia = $this->mediaFile($template->intro_image_media_file_id, $id, 'image', $routePrefix);
         $introVideoMedia = $this->mediaFile($template->intro_video_media_file_id, $id, 'video', $routePrefix);
         $introDocumentMedia = $this->mediaFile($template->intro_document_media_file_id, $id, 'document', $routePrefix);
@@ -196,20 +205,14 @@ class CourseTemplateController extends Controller
                 ? $this->trustedVideoUrls->embedUrl($template->intro_video_embed_url)
                 : null;
 
-        // Whether to offer the "AI proposals" entry on each Activity row: the same
-        // authority every proposal command rechecks, not the right to open this page.
-        $aiAuthoringAvailable = $request->user() !== null
-            && app(CourseAuthoringContextService::class)->authoringRole((int) $request->user()->id, $id) !== null;
-
         return view('course-templates.edit', [
-            'aiAuthoringAvailable' => $aiAuthoringAvailable,
-            'aiMediaActivityTypes' => CourseAuthoringContextService::MEDIA_ACTIVITY_TYPES,
             'template' => $template,
             'versions' => $versions,
             'latestVersion' => $latestVersion,
             'currentVersion' => $currentVersion,
             'publishReadiness' => $publishReadiness,
             'learningMappingState' => $learningMappingState,
+            'aiAuthoring' => $aiAuthoring,
             'categories' => $this->categories(),
             'sections' => $publishGraph->sections,
             'directLessons' => $publishGraph->lessons->whereNull('template_section_id'),

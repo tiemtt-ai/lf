@@ -45,6 +45,10 @@ Course hoặc Framework, Evidence/Mastery, mọi màn hình phía học viên.
 
 # 2. UI gắn vào đâu
 
+> **Đã thay đổi (2026-10-05):** [LF-AI-Authoring-Single-Entry-Amendment](LF-AI-Authoring-Single-Entry-Amendment.md) chuyển giao diện này
+> sang **tab "Đầu ra & năng lực"** của Template (bộ chọn Hoạt động), bỏ khỏi trang chi tiết Hoạt động và khỏi danh sách Hoạt động.
+> D1, D11 và phần liên kết ngược của D8 bị thay thế; các đoạn dưới và §13.5 giữ lại làm lịch sử.
+
 **Gắn vào Hoạt động (Activity) của Khoá học mẫu (Course Template), ở bản nháp làm
 việc.** Đây là ràng buộc của backend: mọi endpoint nằm dưới
 
@@ -475,7 +479,7 @@ vi §8.1; P3-B và P3-C vẫn cần amendment và review riêng.
 
 | # | Nội dung | Trạng thái |
 | --- | --- | --- |
-| D1 | Mục "Đề xuất AI" trên trang chi tiết Hoạt động, không thêm menu. Bổ sung: hiện theo **quyền AI**, không theo quyền vào trang (§2.1) | Đã duyệt; bổ sung Owner xác nhận 2026-09-29 |
+| D1 | **Bị thay thế bởi Single-Entry Amendment (D28–D31):** mục "Đề xuất AI" nay ở tab "Đầu ra & năng lực". Cũ: Mục "Đề xuất AI" trên trang chi tiết Hoạt động, không thêm menu. Bổ sung: hiện theo **quyền AI**, không theo quyền vào trang (§2.1) | Đã duyệt; bổ sung Owner xác nhận 2026-09-29 |
 | D2 | Chia P3-A/B/C, review từng giai đoạn. **Đã chỉnh:** P3-A chỉ gồm bốn loại chữ cộng `propose_new`; `reuse_existing`, sau accept, phục hồi, successor thuộc P3-B (§8) | Owner duyệt phần chỉnh 2026-09-29 |
 | D3 | Mở rộng `allowed_actions` ở backend trước P3-B. **Bổ sung:** cần amendment do Owner duyệt trước khi code (§7.1) | Đã duyệt; bổ sung Owner xác nhận 2026-09-29 |
 | D4 | Blade + JS trên endpoint JSON hiện có; dùng Alpine đã có | Đã duyệt; review APPROVE |
@@ -485,7 +489,7 @@ vi §8.1; P3-B và P3-C vẫn cần amendment và review riêng.
 | D8 | Trang Learning mapping không thêm thao tác duyệt; giữ nguyên nút thủ công. **Làm rõ:** chỉ liên kết về Hoạt động (§8.4) | Đã duyệt; làm rõ Owner xác nhận 2026-09-29 |
 | D9 | Dữ liệu tên/ứng viên Node là DTO mới qua cổng của Learning/Course, cần amendment do Owner duyệt, thuộc P3-B (§7.2). P3-A không làm duyệt `reuse_existing` và bộ chọn Node | Owner duyệt 2026-09-29; **phần hiển thị được D13 mở 2026-09-30** (B1); bộ chọn Node (A2.2) hoãn theo D14 |
 | D10 | Danh sách đề xuất giữ nút **Xem** hiển thị thay vì menu thao tác `⋯` của chuẩn List §25.4, vì mỗi dòng chỉ có một hành động và nó là hành động chính (mở chi tiết) | Owner duyệt lệch chuẩn 2026-09-29 (chỉ cho danh sách một hành động này) |
-| D11 | Lối vào từ danh sách Hoạt động: liên kết "Đề xuất AI" ở dòng Hoạt động có Media (`video`, `audio`, `document`) cho người có quyền AI; mục AI trên trang chi tiết của loại còn lại chỉ hiện ghi chú "không có nội dung Media". Nút Xem không đổi | Owner duyệt 2026-09-30 ("làm D11") |
+| D11 | **Bị thay thế (D31):** lối vào trên dòng Hoạt động đã gỡ. Cũ: Lối vào từ danh sách Hoạt động: liên kết "Đề xuất AI" ở dòng Hoạt động có Media (`video`, `audio`, `document`) cho người có quyền AI; mục AI trên trang chi tiết của loại còn lại chỉ hiện ghi chú "không có nội dung Media". Nút Xem không đổi | Owner duyệt 2026-09-30 ("làm D11") |
 | D12 | Từ vựng `allowed_actions` mở rộng (cấp đề xuất và cấp receipt); danh sách giữ nguyên | Owner duyệt 2026-09-30 |
 | D13 | Người có quyền AI (kể cả giáo viên) được **xem** `code`, `label`, `node_type`, mô tả cắt 500 ký tự của Node trong bộ chuẩn của chính tenant; không `criteria`. Mở phần "hiển thị" của D9 | Owner duyệt 2026-09-30 |
 | D14 | Endpoint danh sách ứng viên Node và lát B5 | Hoãn (Owner 2026-09-30) |

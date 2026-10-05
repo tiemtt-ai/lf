@@ -12,14 +12,11 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
- * D11 (AI Authoring Review UI design): the way in to the "AI proposals" section.
- *
- * The section lives on the Activity page, but the View button on an Activity row
- * opens the file or the outside link for any Activity that has Media or a link, so
- * that page could not be reached from the list. Each row of an Activity that
- * carries Media (video, audio, document) now has its own "AI proposals" link, for
- * people with AI authority only; the other kinds have nothing for AI to read and
- * the page says so instead of offering a form that can only fail.
+ * Single-entry amendment: AI proposals live in one place, the Course Template's
+ * "Outcomes & competencies" tab, never on the Activity list or the Activity page.
+ * The tab offers the Template's Media Activities (video, audio, document) in a
+ * selector, for people with AI authority only; choosing one reloads the page with
+ * the section built for exactly that Activity.
  */
 class AiAuthoringActivityEntryTest extends TestCase
 {
@@ -71,65 +68,21 @@ class AiAuthoringActivityEntryTest extends TestCase
     }
 
     #[DataProvider('kinds')]
-    public function test_the_row_link_is_offered_only_for_an_activity_that_carries_media(string $type, bool $offered): void
+    public function test_no_activity_row_offers_an_ai_proposals_link(string $type, bool $hasMedia): void
     {
-        $activityId = $this->activity($this->lessonId, $type);
+        $this->activity($this->lessonId, $type);
 
         $html = $this->actingAs($this->user('customer_admin'))->get($this->editUrl('admin'))->assertOk()->getContent();
 
-        if ($offered) {
-            $this->assertSame(1, substr_count($html, 'data-ai-authoring-entry'));
-            $this->assertStringContainsString(
-                self::HOST.'/admin/course-templates/'.$this->templateId.'/lessons/'.$this->lessonId.'/activities/'.$activityId.'#ai-authoring"',
-                $html,
-            );
-            $this->assertStringContainsString(__('lf.LF_ai_authoring_open'), $html);
-        } else {
-            $this->assertStringNotContainsString('data-ai-authoring-entry', $html);
-        }
+        $this->assertStringNotContainsString('data-ai-authoring-entry', $html);
+        $this->assertStringNotContainsString('#ai-authoring"', $html);
     }
 
-    public function test_the_link_goes_through_the_section_for_an_activity_inside_one(): void
-    {
-        $sectionId = DB::table('core_course_template_sections')->insertGetId([
-            'customer_id' => $this->customerId, 'template_id' => $this->templateId,
-            'title' => 'Phần 1', 'display_order' => 1, 'allows_lessons' => true, 'created_at' => now(), 'updated_at' => now(),
-        ]);
-        $lessonId = $this->lesson($sectionId, 'Bài trong phần');
-        $activityId = $this->activity($lessonId, 'document');
-
-        $html = $this->actingAs($this->user('customer_admin'))->get($this->editUrl('admin'))->assertOk()->getContent();
-
-        $this->assertStringContainsString(
-            '/admin/course-templates/'.$this->templateId.'/sections/'.$sectionId.'/lessons/'.$lessonId.'/activities/'.$activityId.'#ai-authoring"',
-            $html,
-        );
-    }
-
-    /** @return array<string,array{string}> */
-    public static function aiRoles(): array
-    {
-        return ['primary' => ['primary'], 'assistant' => ['assistant'], 'reviewer' => ['reviewer']];
-    }
-
-    #[DataProvider('aiRoles')]
-    public function test_a_teacher_with_an_ai_assignment_gets_the_link(string $assignmentRole): void
+    public function test_a_teacher_with_an_ai_assignment_gets_no_row_link_either(): void
     {
         $this->activity($this->lessonId, 'video');
         $teacher = $this->user('teacher');
-        $this->assign($teacher, $assignmentRole);
-
-        $html = $this->actingAs($teacher)->get($this->editUrl('teacher'))->assertOk()->getContent();
-
-        $this->assertStringContainsString('data-ai-authoring-entry', $html);
-        $this->assertStringContainsString(self::HOST.'/teacher/course-templates/'.$this->templateId.'/lessons/', $html);
-    }
-
-    public function test_someone_who_can_open_the_page_but_has_no_ai_authority_gets_no_link(): void
-    {
-        $this->activity($this->lessonId, 'video');
-        $teacher = $this->user('teacher');
-        $this->assign($teacher, 'teacher');
+        $this->assign($teacher, 'primary');
 
         $response = $this->actingAs($teacher)->get($this->editUrl('teacher'));
 
@@ -137,44 +90,105 @@ class AiAuthoringActivityEntryTest extends TestCase
         $this->assertStringNotContainsString('data-ai-authoring-entry', $response->getContent());
     }
 
-    public function test_an_ended_assignment_takes_the_link_away(): void
+    public function test_the_activity_page_no_longer_carries_any_ai_section(): void
     {
-        $this->activity($this->lessonId, 'video');
-        $creator = $this->user('teacher');
-        DB::table('core_course_templates')->where('id', $this->templateId)->update(['created_by' => $creator->id]);
-        $assignment = $this->assign($creator, 'primary');
-        $this->assertStringContainsString('data-ai-authoring-entry', $this->actingAs($creator)->get($this->editUrl('teacher'))->getContent());
+        foreach (['document', 'quiz'] as $type) {
+            $activityId = $this->activity($this->lessonId, $type);
 
-        DB::table('core_course_template_teachers')->where('id', $assignment)->update(['status' => 'inactive']);
+            $page = $this->actingAs($this->user('customer_admin'))->get($this->activityUrl($activityId));
 
-        $response = $this->actingAs($creator)->get($this->editUrl('teacher'));
-        $response->assertOk();
-        $this->assertStringNotContainsString('data-ai-authoring-entry', $response->getContent());
+            $page->assertOk();
+            $page->assertDontSee('id="ai-authoring"', false);
+            $page->assertDontSee('data-ai-authoring', false);
+        }
     }
 
-    public function test_the_activity_page_for_a_kind_without_media_says_so_and_offers_no_form(): void
+    public function test_the_tab_lists_only_activities_with_media_and_opens_nothing_until_one_is_chosen(): void
     {
-        $activityId = $this->activity($this->lessonId, 'quiz');
+        $document = $this->activity($this->lessonId, 'document');
+        $this->activity($this->lessonId, 'quiz');
+        $this->activity($this->lessonId, 'embedded_video');
 
-        $page = $this->actingAs($this->user('customer_admin'))->get($this->activityUrl($activityId));
+        $page = $this->actingAs($this->user('customer_admin'))->get($this->tabUrl('admin'));
 
         $page->assertOk();
-        $page->assertSee('data-ai-authoring-unsupported', false);
-        $page->assertSee(__('lf.LF_ai_authoring_no_media'));
-        // No script configuration, no list, no create form to fail.
-        $page->assertDontSee('data-ai-authoring="', false);
-        $page->assertDontSee('data-ai-authoring-list', false);
+        $page->assertSee('id="ai-authoring-entry"', false);
+        $this->assertSame(
+            [$document],
+            array_column($page->viewData('aiAuthoring')['activities'], 'id'),
+        );
+        $page->assertDontSee('id="ai-authoring"', false);
     }
 
-    public function test_the_activity_page_for_a_kind_with_media_keeps_its_section(): void
+    public function test_choosing_an_activity_builds_the_section_for_exactly_that_activity(): void
     {
-        $activityId = $this->activity($this->lessonId, 'document');
+        $first = $this->activity($this->lessonId, 'document');
+        $second = $this->activity($this->lessonId, 'video');
 
-        $page = $this->actingAs($this->user('customer_admin'))->get($this->activityUrl($activityId));
+        $page = $this->actingAs($this->user('customer_admin'))->get($this->tabUrl('admin', $second));
 
         $page->assertOk();
-        $page->assertSee('data-ai-authoring="', false);
-        $page->assertDontSee('data-ai-authoring-unsupported', false);
+        $page->assertSee('id="ai-authoring"', false);
+        $this->assertSame(1, preg_match('/data-ai-authoring="([^"]*)"/', $page->getContent(), $match));
+        $config = json_decode(html_entity_decode($match[1], ENT_QUOTES), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertStringContainsString('/activities/'.$second.'/ai-authoring/', $config['urls']['proposals']);
+        $this->assertStringNotContainsString('/activities/'.$first.'/', $config['urls']['proposals']);
+    }
+
+    public function test_a_choice_that_is_not_a_media_activity_of_this_template_opens_nothing(): void
+    {
+        $quiz = $this->activity($this->lessonId, 'quiz');
+        $this->activity($this->lessonId, 'document');
+        $otherTemplate = DB::table('core_course_templates')->insertGetId([
+            'customer_id' => $this->customerId, 'category_id' => null, 'title' => 'Khác',
+            'estimated_minutes_per_lesson' => 0, 'lesson_count' => 0, 'working_revision' => 1,
+            'status' => 'draft', 'created_by' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $otherLesson = DB::table('core_course_template_lessons')->insertGetId([
+            'customer_id' => $this->customerId, 'template_id' => $otherTemplate, 'template_section_id' => null,
+            'title' => 'Bài khác', 'sort_order' => 0, 'is_preview' => false, 'unlock_rule' => 'none',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $foreign = DB::table('core_course_template_activities')->insertGetId([
+            'customer_id' => $this->customerId, 'template_id' => $otherTemplate, 'template_lesson_id' => $otherLesson,
+            'title' => 'Tài liệu khác', 'activity_type' => 'document', 'sort_order' => 1,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $admin = $this->user('customer_admin');
+
+        foreach ([$quiz, $foreign, 999999] as $id) {
+            $page = $this->actingAs($admin)->get($this->tabUrl('admin', $id));
+            $page->assertOk();
+            $page->assertDontSee('id="ai-authoring"', false);
+        }
+        $this->actingAs($admin)->get($this->tabUrl('admin').'&ai_activity=abc')->assertOk()->assertDontSee('id="ai-authoring"', false);
+    }
+
+    public function test_a_template_without_media_activities_says_so(): void
+    {
+        $this->activity($this->lessonId, 'quiz');
+
+        $page = $this->actingAs($this->user('customer_admin'))->get($this->tabUrl('admin'));
+
+        $page->assertSee('data-ai-authoring-no-activities', false);
+        $page->assertDontSee('id="ai-authoring-activity"', false);
+    }
+
+    public function test_a_teacher_with_ai_authority_gets_the_tab_and_a_teacher_without_it_does_not(): void
+    {
+        $this->activity($this->lessonId, 'document');
+        $ai = $this->user('teacher');
+        $this->assign($ai, 'assistant');
+        $plain = $this->user('teacher');
+        $this->assign($plain, 'teacher');
+
+        $this->actingAs($ai)->get($this->tabUrl('teacher'))->assertOk()
+            ->assertSee('course-template-tab-learning', false)->assertSee('id="ai-authoring-entry"', false)
+            // The admin-only part of the tab is not rendered for a teacher.
+            ->assertDontSee('learning-framework-version', false);
+
+        $this->actingAs($plain)->get($this->tabUrl('teacher'))->assertOk()
+            ->assertDontSee('course-template-tab-learning', false)->assertDontSee('id="ai-authoring-entry"', false);
     }
 
     // ------------------------------------------------------------------ helpers
@@ -182,6 +196,12 @@ class AiAuthoringActivityEntryTest extends TestCase
     private function editUrl(string $role): string
     {
         return self::HOST.'/'.$role.'/course-templates/'.$this->templateId.'/edit?tab=structure';
+    }
+
+    private function tabUrl(string $role, ?int $activityId = null): string
+    {
+        return self::HOST.'/'.$role.'/course-templates/'.$this->templateId.'/edit?tab=learning'
+            .($activityId === null ? '' : '&ai_activity='.$activityId);
     }
 
     private function activityUrl(int $activityId): string

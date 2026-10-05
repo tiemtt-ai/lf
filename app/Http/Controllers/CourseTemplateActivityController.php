@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Services\CourseActivityMediaPresenter;
-use App\Services\CourseAuthoringContextService;
 use App\Services\DocumentProcessRunner;
 use App\Services\MediaProcessingOrchestrator;
 use App\Services\MediaService;
@@ -15,7 +14,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -534,89 +532,7 @@ class CourseTemplateActivityController extends Controller
             ),
             'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
-            'aiAuthoring' => $this->aiAuthoringEntry($request, $template, $activityId, (string) $activity->activity_type),
         ]);
-    }
-
-    /**
-     * Data for the "AI proposals" section of the Activity page, or null when the
-     * actor has no AI authority over this Template.
-     *
-     * Opening this page is a wider authority than using AI (the Template's
-     * creator and any active assignment can open it), so visibility follows the
-     * authority every proposal command rechecks, never the page access. Only
-     * routes and the Template's own Framework selection are handed to the view;
-     * no proposal content is read here.
-     *
-     * @return array<string,mixed>|null
-     */
-    private function aiAuthoringEntry(Request $request, object $template, int $activityId, string $activityType): ?array
-    {
-        $role = app(CourseAuthoringContextService::class)
-            ->authoringRole((int) $request->user()->id, (int) $template->id);
-        if ($role === null) {
-            return null;
-        }
-
-        // Learning Foundation has no SQLite schema, so the selection columns are
-        // absent there; absent means "no selection", as on the Template page.
-        $frameworkId = ($template->selected_learning_framework_id ?? null) !== null
-            ? (int) $template->selected_learning_framework_id : null;
-        $frameworkVersionId = ($template->selected_learning_framework_version_id ?? null) !== null
-            ? (int) $template->selected_learning_framework_version_id : null;
-        $prefix = $this->templateRoutePrefix($request);
-        $parameters = [(int) $template->id, $activityId];
-
-        return [
-            // Without Media there is nothing for AI to read: the page says so instead
-            // of offering a form that can only fail.
-            'media_supported' => app(CourseAuthoringContextService::class)->hasMediaSource($activityType),
-            'is_admin' => $role === 'admin',
-            // Generation must name exactly the Template's own selection; the
-            // server rejects anything else, so it is handed over, not chosen.
-            'framework' => [
-                'selected' => $frameworkId !== null && $frameworkVersionId !== null,
-                'framework_id' => $frameworkId,
-                'framework_version_id' => $frameworkVersionId,
-            ],
-            // Only an admin can select a Framework; a teacher has no such page.
-            'framework_url' => $role === 'admin'
-                ? route($prefix.'.edit', (int) $template->id).'?tab=learning'
-                : null,
-            // The draft versions of the selected Framework in which an admin can have a proposed Node
-            // created: never for a teacher, and never a published version.
-            'draft_versions' => $role === 'admin' ? $this->aiAuthoringVersions($frameworkId, 'draft_snapshot') : [],
-            // The published versions a draft can be copied from, for an admin only.
-            'published_versions' => $role === 'admin' ? $this->aiAuthoringVersions($frameworkId, 'published') : [],
-            'urls' => [
-                'proposals' => route($prefix.'.activities.ai-authoring.proposals.index', $parameters),
-                'generation_requests' => route($prefix.'.activities.ai-authoring.generation-requests.store', $parameters),
-                'bulk_decisions' => route($prefix.'.activities.ai-authoring.proposals.bulk-decide', $parameters),
-            ],
-        ];
-    }
-
-    /**
-     * @return list<array{id:int,label:string}>
-     */
-    private function aiAuthoringVersions(?int $frameworkId, string $status): array
-    {
-        if ($frameworkId === null || ! Schema::hasTable('core_learning_framework_versions')) {
-            return [];
-        }
-
-        return DB::table('core_learning_framework_versions')
-            ->where('customer_id', $this->customerId())
-            ->where('framework_id', $frameworkId)
-            ->where('status', $status)
-            ->orderByDesc('version_number')
-            ->limit(50)
-            ->get(['id', 'version_code', 'title_snapshot'])
-            ->map(fn ($version) => [
-                'id' => (int) $version->id,
-                'label' => $version->version_code.' — '.$version->title_snapshot,
-            ])
-            ->all();
     }
 
     private function safeExternalUrl(?string $url): ?string

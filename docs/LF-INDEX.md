@@ -260,6 +260,7 @@ docs/platform/
 | [platform/LF-AI-Authoring-Review-UI-Design.md](platform/LF-AI-Authoring-Review-UI-Design.md) | v0.8 Approved / Partial 2026-10-01: thiết kế UI Phần 3 duyệt đề xuất AI, gắn vào Hoạt động của Khoá học mẫu; P3-A, P3-B (trừ B5) và P3-C đã làm và kiểm cục bộ; P3-A có review độc lập (Owner đóng), P3-B/P3-C Owner quyết không gửi review; trạng thái cuối ở §13.17 |
 | [platform/LF-AI-Authoring-P3B-Amendment.md](platform/LF-AI-Authoring-P3B-Amendment.md) | Hai amendment đã được Owner duyệt cho P3-B — từ vựng `allowed_actions` và hiển thị Node/ứng viên — cùng kế hoạch lát cắt B1–B6 và các quyết định D12–D17 (đã duyệt) |
 | [platform/LF-AI-Authoring-P3C-Amendment.md](platform/LF-AI-Authoring-P3C-Amendment.md) | Amendment A4/A5 đã được Owner duyệt và kế hoạch lát cắt C1–C3 cho P3-C — đề xuất kế thừa khi nguồn đổi, bản nháp kế thừa của bộ chuẩn, rebase Template — kèm các quyết định D18–D27 (đã duyệt) |
+| [platform/LF-AI-Authoring-Single-Entry-Amendment.md](platform/LF-AI-Authoring-Single-Entry-Amendment.md) | v1.0 Approved / Implemented 2026-10-05 (Owner duyệt D28–D31): đề xuất AI chỉ ở tab "Đầu ra & năng lực" (bộ chọn Hoạt động, tải lại trang khi đổi), tab mở cho giáo viên có quyền AI, bỏ khỏi dòng và trang Hoạt động; thay thế D1/D11 của thiết kế Phần 3 |
 
 ---
 

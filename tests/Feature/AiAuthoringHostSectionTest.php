@@ -13,8 +13,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
- * P3-A slice 1 (AI Authoring Review UI design §2.1): the "AI proposals" entry on
- * the Activity page follows the authority every proposal command rechecks, not
+ * P3-A slice 1 (AI Authoring Review UI design §2.1): the "AI proposals" section on
+ * the Outcomes & competencies tab follows the authority every proposal command rechecks, not
  * the wider authority to open the page.
  *
  * Opening the page needs an admin, the Template's creator, or ANY active
@@ -127,8 +127,8 @@ class AiAuthoringHostSectionTest extends TestCase
         $page->assertSee(__('lf.LF_ai_authoring_framework_missing_teacher'));
         // A teacher has no page to select a Framework, so no link is offered, and
         // the view is not even handed one.
-        $page->assertDontSee('tab=learning', false);
-        $this->assertNull($page->viewData('aiAuthoring')['framework_url']);
+        $page->assertDontSee('data-ai-authoring-framework="missing"><a', false);
+        $this->assertNull($page->viewData('aiAuthoring')['entry']['framework_url']);
         $config = $this->config($page);
         $this->assertFalse($config['isAdmin']);
         $this->assertStringStartsWith(
@@ -210,9 +210,7 @@ class AiAuthoringHostSectionTest extends TestCase
         ]);
         DB::table('core_course_template_lessons')->where('id', $this->lessonId)->update(['template_section_id' => $sectionId]);
 
-        $page = $this->actingAs($this->user('customer_admin'))->get(
-            self::HOST.'/admin/course-templates/'.$this->templateId.'/sections/'.$sectionId.'/lessons/'.$this->lessonId.'/activities/'.$this->activityId,
-        );
+        $page = $this->actingAs($this->user('customer_admin'))->get($this->pageUrl('admin'));
 
         $page->assertOk();
         $page->assertSee('id="ai-authoring"', false);
@@ -285,7 +283,7 @@ class AiAuthoringHostSectionTest extends TestCase
 
     private function pageUrl(string $role): string
     {
-        return self::HOST.'/'.$role.'/course-templates/'.$this->templateId.'/lessons/'.$this->lessonId.'/activities/'.$this->activityId;
+        return self::HOST.'/'.$role.'/course-templates/'.$this->templateId.'/edit?tab=learning&ai_activity='.$this->activityId;
     }
 
     /** @return array<string,mixed> */

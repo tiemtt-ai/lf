@@ -1,5 +1,5 @@
 @php
-    // Handed over by CourseTemplateActivityController::aiAuthoringEntry(): routes
+    // Handed over by AiAuthoringEntryService: routes
     // and the Template's own Framework selection only. No proposal content is
     // rendered on the server; it is fetched after page load under the same
     // authority checks as every proposal command.

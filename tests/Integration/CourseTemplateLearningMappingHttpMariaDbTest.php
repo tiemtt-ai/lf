@@ -542,7 +542,7 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
     {
         $this->actingAs(User::findOrFail($f[$role.'_id']));
 
-        return $this->get($f['host']."/{$role}/course-templates/{$f['template_id']}/lessons/{$f['lesson_id']}/activities/{$f['activity_id']}")
+        return $this->get($f['host']."/{$role}/course-templates/{$f['template_id']}/edit?tab=learning&ai_activity={$f['activity_id']}")
             ->assertOk()->getContent();
     }
 

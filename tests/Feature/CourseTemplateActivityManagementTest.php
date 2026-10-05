@@ -89,13 +89,9 @@ class CourseTemplateActivityManagementTest extends TestCase
                 .'//div[contains(concat(" ", normalize-space(@class), " "), " admin-table-actions ")]/*',
                 $sectionLesson
             );
-            // D11: an admin, who has AI authority, also gets the entry to the AI proposals of an
-            // Activity that carries Media. The teacher here is only the Template's creator,
-            // who can open the page but has no AI authority, so the row is unchanged for them.
+            // AI proposals live only in the Outcomes & competencies tab: no row carries an entry.
             $this->assertSame(
-                $area === 'admin'
-                    ? ['Xem', __('lf.LF_ai_authoring_open'), 'Sửa', 'Xóa']
-                    : ['Xem', 'Sửa', 'Xóa'],
+                ['Xem', 'Sửa', 'Xóa'],
                 array_map(
                     static fn (\DOMNode $node): string => trim($node->textContent),
                     iterator_to_array($activityActions)
@@ -212,7 +208,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             $actionLabels[] = trim($action->textContent);
         }
         // The admin also has the D11 entry to the AI proposals of an Activity that carries Media.
-        $this->assertSame(['Xem', __('lf.LF_ai_authoring_open'), 'Sửa', 'Xóa'], $actionLabels);
+        $this->assertSame(['Xem', 'Sửa', 'Xóa'], $actionLabels);
         $this->assertSame(
             $this->directActivityCollectionUrl(
                 'admin',

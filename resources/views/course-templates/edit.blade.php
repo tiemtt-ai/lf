@@ -9,7 +9,7 @@
             'information' => __('lf.LF_course_template_tab_information'),
             'structure' => __('lf.LF_course_template_tab_structure'),
             'teachers' => __('lf.LF_course_template_tab_teachers'),
-            ...($learningMappingState ? ['learning' => __('lf.LF_learning_frameworks')] : []),
+            ...($learningMappingState || $aiAuthoring ? ['learning' => __('lf.LF_learning_frameworks')] : []),
             'publish' => __('lf.LF_course_template_tab_publish'),
             'history' => __('lf.LF_course_template_tab_history'),
         ];
@@ -169,9 +169,14 @@
             @include('course-template-teachers.partials.list')
         </section>
 
-        @if ($learningMappingState)
+        @if ($learningMappingState || $aiAuthoring)
             <section id="course-template-tab-learning" class="course-template-tab-panel" @if ($activeTab !== 'learning') hidden @endif>
-                @include('course-templates.partials.learning-mappings')
+                @if ($learningMappingState)
+                    @include('course-templates.partials.learning-mappings')
+                @endif
+                @if ($aiAuthoring)
+                    @include('course-templates.partials.ai-authoring-entry')
+                @endif
             </section>
         @endif
 

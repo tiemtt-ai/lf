@@ -47,6 +47,7 @@ tự thực thi business decision của consumer.
 | AI Authoring Review UI | [LF-AI-Authoring-Review-UI-Design](LF-AI-Authoring-Review-UI-Design.md) | v0.8 Approved / Partial — thiết kế UI duyệt đề xuất AI trên Hoạt động của Khoá học mẫu; P3-A, P3-B, P3-C đã làm (P3-A có review độc lập, P3-B/P3-C Owner quyết không gửi review); B5 hoãn. Xem §13.17. Lịch sử: review độc lập lượt 3 APPROVE, Owner duyệt D1–D9; P3-A được phép bắt đầu |
 * [LF-AI-Authoring-P3B-Amendment.md](LF-AI-Authoring-P3B-Amendment.md) — amendment đã duyệt và kế hoạch lát cắt P3-B (Owner duyệt D12–D17, 2026-09-30).
 * [LF-AI-Authoring-P3C-Amendment.md](LF-AI-Authoring-P3C-Amendment.md) — amendment đã duyệt và kế hoạch lát cắt P3-C (đề xuất kế thừa, bản nháp kế thừa, rebase; Owner duyệt D18–D27, 2026-10-01).
+* [LF-AI-Authoring-Single-Entry-Amendment.md](LF-AI-Authoring-Single-Entry-Amendment.md) — amendment đã duyệt và làm (Owner duyệt D28–D31, 2026-10-05): gom đề xuất AI về tab "Đầu ra & năng lực".
 
 Media foundation decision:
 [ADR-0004](../adr/ADR-0004-Media-Foundation.md).

@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 294,
+  "document_count": 295,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -8405,6 +8405,49 @@
         "platform/LF-AI-Authoring-Proposal-Contract.md",
         "platform/LF-AI.md",
         "tech/LF-Admin-Form-Design-Standard.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "platform/LF-AI-Authoring-Single-Entry-Amendment.md",
+      "title": "AI Authoring — Single Entry Amendment",
+      "area": "platform",
+      "document_type": "domain_policy",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "domain",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "authoring",
+        "ui",
+        "course template",
+        "learning"
+      ],
+      "keywords": {
+        "vi": [
+          "đề xuất AI một nơi",
+          "Đầu ra & năng lực",
+          "bộ chọn Hoạt động",
+          "lối vào"
+        ],
+        "en": [
+          "single entry",
+          "ai proposals tab",
+          "activity selector"
+        ]
+      },
+      "identifiers": [
+        "aiAuthoringEntry",
+        "data-ai-authoring-entry",
+        "learningMappingState"
+      ],
+      "related_documents": [
+        "platform/LF-AI-Authoring-Review-UI-Design.md",
+        "platform/LF-AI-Authoring-P3C-Amendment.md",
+        "platform/LF-AI-Authoring-Proposal-Contract.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

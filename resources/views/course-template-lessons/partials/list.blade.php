@@ -294,12 +294,6 @@
                                             {{ __('lf.LF_common_button_view') }}
                                         </a>
                                     @endif
-                                    @if (($aiAuthoringAvailable ?? false) && in_array($activity->activity_type, $aiMediaActivityTypes ?? [], true))
-                                        <a class="admin-text-action" data-ai-authoring-entry
-                                           href="{{ route($activityRoutePrefix.'.show', $activityParameters) }}#ai-authoring">
-                                            {{ __('lf.LF_ai_authoring_open') }}
-                                        </a>
-                                    @endif
                                     <a class="admin-text-action" href="{{ route(
                                         $activityRoutePrefix.'.edit',
                                         $activityParameters
