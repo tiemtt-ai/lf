@@ -1,6 +1,14 @@
 <?php
 
 return [
+    'LF_media_filter_search' => 'Search objects…',
+    'LF_media_filter_published' => 'Published',
+    'LF_media_filter_objects' => 'Objects',
+    'LF_media_filter_all_objects' => 'All objects',
+    'LF_media_filter_pick_type_first' => 'Choose an object type first',
+    'LF_media_filter_remove' => 'Remove',
+    'LF_media_filter_selected' => 'Selected',
+
     'LF_course_template_activity_video_stt_max_file' => 'Transcription size limit',
     'LF_course_template_activity_video_stt_max_duration' => 'Maximum duration',
     'LF_course_template_activity_video_stt_help' => 'Unchecked: upload for playback only. Checked: create a transcript, captions, and on-screen text OCR in the background; this may take several minutes. Refresh the page for status.',
@@ -410,6 +418,7 @@ return [
     'LF_media_file_delete_blocked_in_use' => 'Media in use cannot be deleted. Remove it from all related content before trying again.',
     'LF_media_storage_purge_title' => 'Clean orphaned storage files',
     'LF_media_storage_purge_note' => 'When a document extraction or a media deletion is interrupted, files can be left on storage with no record pointing to them. They are shown nowhere and nobody can reach them, but they still take space and still hold the content of the source document. Nothing is deleted automatically — click this button when you want to clean up.',
+    'LF_media_storage_purge_short' => 'Clean up orphan files',
     'LF_media_storage_purge_action' => 'Clean now',
     'LF_media_storage_purge_confirm' => 'Permanently delete orphaned files from storage? This cannot be undone.',
     'LF_media_storage_purge_nothing' => 'No orphaned files left on storage.',

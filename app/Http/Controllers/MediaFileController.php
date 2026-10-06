@@ -93,9 +93,19 @@ class MediaFileController extends Controller
             $request->query('usage_status'),
             self::USAGE_STATUSES
         );
+        $ownerObjects = $this->ownerObjects($customerId);
+        $request->validate(['owner_refs' => ['nullable', 'array', 'max:100'], 'owner_refs.*' => ['string', 'max:100']]);
+        $ownerRefs = array_values(array_intersect($request->query('owner_refs', []), array_column($ownerObjects[$ownerType] ?? [], 'value')));
         $fileType = $type ?? self::TAB_TYPES[$tab] ?? null;
 
-        $mediaFiles = $this->mediaQuery($customerId, $fileType, $keyword, $ownerType, $usageStatus)
+        $queryRefs = $ownerRefs;
+        if ($ownerType === 'course_template' && $ownerRefs !== []) {
+            $ids = array_map(fn ($ref) => (int) explode(':', $ref, 2)[1], $ownerRefs);
+            foreach (DB::table('core_course_template_versions')->where('customer_id', $customerId)->whereIn('template_id', $ids)->pluck('id') as $id) {
+                $queryRefs[] = 'course_template_version:'.$id;
+            }
+        }
+        $mediaFiles = $this->mediaQuery($customerId, $fileType, $keyword, $ownerType, $usageStatus, $queryRefs)
             ->orderByDesc('media_files.created_at')
             ->orderByDesc('media_files.id')
             ->paginate(10)
@@ -135,6 +145,8 @@ class MediaFileController extends Controller
             'ownerType' => $ownerType,
             'usageStatus' => $usageStatus,
             'ownerTypeOptions' => $ownerTypeOptions,
+            'ownerObjects' => $ownerObjects,
+            'ownerRefs' => $ownerRefs,
             'tabCounts' => $this->tabCounts($customerId),
             'listFilters' => $this->listFilters($request),
         ]);
@@ -165,7 +177,7 @@ class MediaFileController extends Controller
      */
     private function listFilters(Request $request): array
     {
-        return array_filter([
+        $filters = array_filter([
             'tab' => (string) $request->input('tab', ''),
             'type' => (string) $request->input('type', ''),
             'keyword' => (string) $request->input('keyword', ''),
@@ -173,6 +185,13 @@ class MediaFileController extends Controller
             'usage_status' => (string) $request->input('usage_status', ''),
             'page' => (string) $request->input('page', ''),
         ], static fn (string $value): bool => $value !== '');
+        foreach (array_slice((array) $request->input('owner_refs', []), 0, 100) as $index => $ref) {
+            if (is_string($ref) && preg_match('/^[a-z_]+:[0-9]+$/', $ref)) {
+                $filters['owner_refs['.$index.']'] = $ref;
+            }
+        }
+
+        return $filters;
     }
 
     public function bulkDestroy(Request $request): RedirectResponse
@@ -200,7 +219,8 @@ class MediaFileController extends Controller
         ?string $fileType,
         ?string $keyword,
         ?string $ownerType,
-        ?string $usageStatus
+        ?string $usageStatus,
+        array $ownerRefs = []
     ) {
         $usageCounts = DB::table('media_file_usages')
             ->where('customer_id', $customerId)
@@ -230,14 +250,22 @@ class MediaFileController extends Controller
             })
             ->when($usageStatus === 'in_use', fn ($query) => $query->whereRaw('COALESCE(usage_counts.usage_count, 0) > 0'))
             ->when($usageStatus === 'unused', fn ($query) => $query->whereRaw('COALESCE(usage_counts.usage_count, 0) = 0'))
-            ->when($ownerType, function ($query) use ($customerId, $ownerType): void {
-                $query->whereExists(function ($usageQuery) use ($customerId, $ownerType): void {
+            ->when($ownerType, function ($query) use ($customerId, $ownerType, $ownerRefs): void {
+                $query->whereExists(function ($usageQuery) use ($customerId, $ownerType, $ownerRefs): void {
                     $usageQuery->selectRaw('1')
                         ->from('media_file_usages')
                         ->whereColumn('media_file_usages.media_file_id', 'media_files.id')
                         ->where('media_file_usages.customer_id', $customerId)
                         ->whereIn('media_file_usages.owner_type', $this->physicalOwnerTypes($ownerType))
-                        ->where('media_file_usages.status', 'active');
+                        ->where('media_file_usages.status', 'active')
+                        ->when($ownerRefs, function ($q) use ($ownerRefs): void {
+                            $q->where(function ($refs) use ($ownerRefs): void {
+                                foreach ($ownerRefs as $ref) {
+                                    [$kind, $id] = explode(':', $ref, 2);
+                                    $refs->orWhere(fn ($pair) => $pair->where('media_file_usages.owner_type', $kind)->where('media_file_usages.owner_id', (int) $id));
+                                }
+                            });
+                        });
                 });
             })
             ->select([
@@ -383,6 +411,31 @@ class MediaFileController extends Controller
         }
 
         return $names;
+    }
+
+    private function ownerObjects(int $customerId): array
+    {
+        $sources = [
+            'course_category' => ['core_course_categories', 'name'],
+            'course_template' => ['core_course_templates', 'title'],
+            'course_product' => ['core_course_products', 'title'],
+            'course_activity' => ['core_course_template_activities', 'title'],
+            'course_version_activity' => ['core_course_template_version_activities', 'title_snapshot'],
+            'course_cohort' => ['core_course_cohorts', 'name'],
+        ];
+        $result = [];
+        foreach ($sources as $kind => [$table, $label]) {
+            $ids = DB::table('media_file_usages')->where('customer_id', $customerId)->where('status', 'active')->where('owner_type', $kind)->pluck('owner_id');
+            if ($kind === 'course_template') {
+                $versionIds = DB::table('media_file_usages')->where('customer_id', $customerId)->where('status', 'active')->where('owner_type', 'course_template_version')->pluck('owner_id');
+                $ids = $ids->merge(DB::table('core_course_template_versions')->where('customer_id', $customerId)->whereIn('id', $versionIds)->pluck('template_id'))->unique();
+            }
+            foreach (DB::table($table)->where('customer_id', $customerId)->whereIn('id', $ids)->orderBy($label)->get(['id', $label]) as $object) {
+                $result[$this->logicalOwnerType($kind)][] = ['value' => $kind.':'.$object->id, 'label' => $object->{$label}.(in_array($kind, ['course_template_version', 'course_version_activity'], true) ? ' · '.__('lf.LF_media_filter_published') : '').' #'.$object->id];
+            }
+        }
+
+        return $result;
     }
 
     private function ownerTypeOptions(int $customerId): Collection

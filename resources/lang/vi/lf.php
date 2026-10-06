@@ -1,6 +1,14 @@
 <?php
 
 return [
+    'LF_media_filter_search' => 'Tìm đối tượng…',
+    'LF_media_filter_published' => 'Đã xuất bản',
+    'LF_media_filter_objects' => 'Đối tượng',
+    'LF_media_filter_all_objects' => 'Tất cả đối tượng',
+    'LF_media_filter_pick_type_first' => 'Chọn loại đối tượng trước',
+    'LF_media_filter_remove' => 'Bỏ chọn',
+    'LF_media_filter_selected' => 'Đã chọn',
+
     'LF_course_template_activity_video_stt_max_file' => 'Tối đa để phiên âm',
     'LF_course_template_activity_video_stt_max_duration' => 'Thời lượng tối đa',
     'LF_course_template_activity_video_stt_help' => 'Không tick: chỉ tải video để xem. Có tick: tạo transcript, phụ đề và đọc chữ trên màn hình trong nền; có thể mất nhiều phút. Làm mới trang để xem trạng thái.',
@@ -410,6 +418,7 @@ return [
     'LF_media_file_delete_blocked_in_use' => 'Không thể xóa Media đang được sử dụng. Hãy gỡ Media khỏi tất cả nội dung liên quan trước khi thử lại.',
     'LF_media_storage_purge_title' => 'Dọn file mồ côi trên kho lưu trữ',
     'LF_media_storage_purge_note' => 'Khi một lần trích xuất tài liệu hoặc một lần xóa Media bị gián đoạn, có thể còn sót file trên kho lưu trữ mà không còn bản ghi nào trỏ tới. Những file đó không hiện ở đâu và không ai truy cập được, nhưng vẫn chiếm dung lượng và vẫn chứa nội dung của tài liệu gốc. Hệ thống KHÔNG tự động xóa bất kỳ file nào — bấm nút này khi bạn muốn dọn.',
+    'LF_media_storage_purge_short' => 'Dọn file mồ côi',
     'LF_media_storage_purge_action' => 'Dọn ngay',
     'LF_media_storage_purge_confirm' => 'Xóa vĩnh viễn các file mồ côi trên kho lưu trữ? Thao tác này không hoàn tác được.',
     'LF_media_storage_purge_nothing' => 'Không còn file mồ côi nào trên kho lưu trữ.',

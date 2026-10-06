@@ -237,9 +237,9 @@
 
 .media-library-filter-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(190px, 1fr)) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.7fr) minmax(0, 1fr);
     align-items: end;
-    gap: 14px;
+    gap: 12px;
 }
 
 .media-library-bulk-toolbar {
@@ -263,34 +263,56 @@
 }
 
 .media-library-storage-purge {
-    margin-bottom: 12px;
-    padding: 12px 14px;
-    display: flex;
+    margin-left: auto;
+}
+
+.media-library-storage-purge__info {
+    position: relative;
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
-    border: 1px solid var(--admin-border);
+    gap: 8px;
+}
+
+.media-library-storage-purge__info-button {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid #94a3b8;
+    border-radius: 50%;
+    background: #fff;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: help;
+}
+
+.media-library-storage-purge__tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 0;
+    z-index: 40;
+    width: min(460px, 80vw);
+    padding: 10px 12px;
     border-radius: 8px;
-    background: var(--admin-surface-muted, #fafafa);
-}
-
-.media-library-storage-purge__note {
-    flex: 1 1 420px;
-    min-width: 0;
-}
-
-.media-library-storage-purge__note strong {
-    display: block;
-    margin-bottom: 4px;
-    font-size: 14px;
-}
-
-.media-library-storage-purge__note p {
-    margin: 0;
+    background: #1e293b;
+    color: #fff;
     font-size: 13px;
+    font-weight: 400;
     line-height: 1.5;
-    color: var(--admin-text-muted, #666);
+    box-shadow: 0 6px 18px rgb(0 0 0 / 20%);
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s;
+}
+
+.media-library-storage-purge__info:hover .media-library-storage-purge__tooltip,
+.media-library-storage-purge__info:focus-within .media-library-storage-purge__tooltip,
+.media-library-storage-purge__info.is-open .media-library-storage-purge__tooltip {
+    visibility: visible;
+    opacity: 1;
 }
 
 .media-library-selection-checkbox {
@@ -330,6 +352,7 @@
 }
 
 .media-library-filter-actions {
+    grid-column: 1 / -1;
     min-height: 42px;
     margin: 0;
     align-items: center;
@@ -2724,7 +2747,7 @@
 
     .media-library-filter-actions {
         grid-column: 1 / -1;
-        justify-content: flex-end;
+        justify-content: flex-start;
     }
 }
 
@@ -2751,7 +2774,20 @@
     }
 
     .media-library-filter-actions {
+        flex-wrap: wrap;
         justify-content: space-between;
+    }
+
+    .media-library-storage-purge {
+        flex: 1 1 100%;
+    }
+
+    .media-library-storage-purge__info {
+        width: 100%;
+    }
+
+    .media-library-storage-purge .btn {
+        flex: 1;
     }
 
     .media-library-filter-actions .btn {

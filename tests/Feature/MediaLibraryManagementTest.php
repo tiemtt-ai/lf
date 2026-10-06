@@ -379,6 +379,28 @@ class MediaLibraryManagementTest extends TestCase
         $this->assertStringContainsString('.media-library-preview-button:focus-visible {', $css);
     }
 
+    public function test_media_library_filters_multiple_objects_within_tenant(): void
+    {
+        $tenant = $this->createTenant();
+        $admin = $this->createUser($tenant, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $tenant]);
+        $ids = [];
+        foreach (['First', 'Second', 'Third'] as $name) {
+            $id = $this->createCourseCategory($tenant, $name, strtolower($name));
+            $ids[] = $id;
+            $file = app(MediaService::class)->uploadMedia(UploadedFile::fake()->image(strtolower($name).'.png', 100 + count($ids), 100), ['file_type' => 'image', 'display_name' => $name.' Asset', 'module' => 'course', 'entity_type' => 'course-category', 'entity_id' => $id, 'purpose' => 'thumbnail'], $admin->id);
+            app(MediaService::class)->attachUsage($file->id, 'course_category', $id, 'thumbnail');
+        }
+        $response = $this->get('https://tenant-a.localhost/admin/media?'.http_build_query(['owner_type' => 'course_category', 'owner_refs' => ['course_category:'.$ids[0], 'course_category:'.$ids[1]]]))->assertOk();
+        $names = $response->viewData('mediaFiles')->pluck('display_name')->all();
+        $this->assertEqualsCanonicalizing(['First Asset', 'Second Asset'], $names);
+        $other = $this->createTenant('tenant-b');
+        $foreign = $this->createCourseCategory($other, 'Other Tenant Secret', 'secret');
+        $this->assertStringNotContainsString('Other Tenant Secret', json_encode($response->viewData('ownerObjects')));
+        $this->get('https://tenant-a.localhost/admin/media?'.http_build_query(['owner_type' => 'course_category', 'owner_refs' => ['course_category:'.$foreign]]))->assertOk();
+    }
+
     public function test_media_library_filters_by_owner_and_keyword(): void
     {
         $customerId = $this->createTenant();
@@ -711,7 +733,7 @@ class MediaLibraryManagementTest extends TestCase
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/media')
             ->assertOk()
-            ->assertSeeText(__('lf.LF_media_storage_purge_action'))
+            ->assertSeeText(__('lf.LF_media_storage_purge_short'))
             ->assertSeeText(__('lf.LF_media_storage_purge_note'));
     }
 

@@ -49,6 +49,7 @@
                 'tab' => $availableTab,
                 'keyword' => $keyword,
                 'owner_type' => $ownerType,
+                'owner_refs' => $ownerRefs,
                 'usage_status' => $usageStatus,
             ])) }}"
                class="admin-tab {{ $tab === $availableTab ? 'is-active' : '' }}"
@@ -60,7 +61,7 @@
     </div>
 
     <div class="admin-card admin-form-card media-library-filter-card">
-        <form class="media-library-filter-form" method="GET" action="{{ route('admin.media.index') }}">
+        <form x-data="{ ownerType: @js($ownerType ?? ''), objects: @js($ownerObjects), selected: @js($ownerRefs), search: '', open: false }" class="media-library-filter-form" method="GET" action="{{ route('admin.media.index') }}">
             <input type="hidden" name="tab" value="{{ $tab }}">
 
             <div class="media-library-filter-grid">
@@ -80,7 +81,7 @@
                     <label class="lf-form-label" for="owner_type">
                         {{ __('lf.LF_media_file_common_owner_type') }}
                     </label>
-                    <select id="owner_type" name="owner_type" class="lf-form-control">
+                    <select id="owner_type" name="owner_type" class="lf-form-control" x-model="ownerType" @change="selected = []; search = ''; open = false">
                         <option value="">{{ __('lf.LF_media_file_common_all_owner_types') }}</option>
                         @foreach ($ownerTypeOptions as $value => $label)
                             <option value="{{ $value }}" @selected($ownerType === $value)>
@@ -88,6 +89,29 @@
                             </option>
                         @endforeach
                     </select>
+                </div>
+
+                <div class="lf-form-group media-owner-combobox" @click.outside="open = false" @keydown.escape="open = false">
+                    <label class="lf-form-label" for="owner_objects">{{ __('lf.LF_media_filter_objects') }}</label>
+                    <div id="owner_objects" role="combobox" :tabindex="ownerType ? 0 : -1" :aria-disabled="! ownerType" :class="{ 'is-disabled': ! ownerType }" aria-haspopup="listbox" class="lf-form-control media-owner-combobox-trigger" @click="if (ownerType) { open = !open; if (open) $nextTick(() => $refs.ownerSearch.focus()) }" @keydown.enter.prevent="if (ownerType) { open = !open; if (open) $nextTick(() => $refs.ownerSearch.focus()) }" @keydown.space.prevent="if (ownerType) { open = !open; if (open) $nextTick(() => $refs.ownerSearch.focus()) }" :aria-expanded="open" aria-controls="owner_object_choices">
+                        <span class="media-owner-placeholder" x-show="! selected.length" x-text="ownerType ? @js(__('lf.LF_media_filter_all_objects')) : @js(__('lf.LF_media_filter_pick_type_first'))"></span>
+                        <template x-for="ref in selected.slice(0, 2)" :key="ref">
+                            <span class="media-owner-chip">
+                                <span class="media-owner-chip-label" x-text="(objects[ownerType] || []).find(item => item.value === ref)?.label ?? ref"></span>
+                                <button type="button" class="media-owner-chip-remove" aria-label="{{ __('lf.LF_media_filter_remove') }}" @click.stop="selected = selected.filter(value => value !== ref)">×</button>
+                            </span>
+                        </template>
+                        <span class="media-owner-chip media-owner-chip-more" x-show="selected.length > 2" x-text="'+' + (selected.length - 2)"></span>
+                    </div>
+                    <div id="owner_object_choices" class="media-owner-object-choices" x-show="open" x-cloak>
+                        <input type="search" class="lf-form-control" x-ref="ownerSearch" x-model="search" aria-label="{{ __('lf.LF_media_filter_search') }}" placeholder="{{ __('lf.LF_media_filter_search') }}">
+                        <div role="listbox" aria-multiselectable="true" aria-label="{{ __('lf.LF_media_filter_objects') }}">
+                        <template x-for="object in (objects[ownerType] || []).filter(item => item.label.toLocaleLowerCase().includes(search.toLocaleLowerCase()))" :key="object.value">
+                            <label role="option" :aria-selected="selected.includes(object.value)"><input type="checkbox" :value="object.value" x-model="selected"><span x-text="object.label"></span></label>
+                        </template>
+                        </div>
+                    </div>
+                    <template x-for="ref in selected" :key="ref"><input type="hidden" name="owner_refs[]" :value="ref"></template>
                 </div>
 
                 <div class="lf-form-group">
@@ -114,6 +138,30 @@
                             {{ __('lf.LF_media_file_common_clear_filters') }}
                         </a>
                     @endif
+                    <div class="media-library-storage-purge">
+                        <span class="media-library-storage-purge__info"
+                              x-data="{ tip: false }"
+                              :class="{ 'is-open': tip }"
+                              @click.outside="tip = false"
+                              @keydown.escape="tip = false">
+                            <button type="submit"
+                                    form="media-purge-orphan-form"
+                                    class="btn btn-outline-secondary"
+                                    aria-describedby="media-storage-purge-tooltip">
+                                {{ __('lf.LF_media_storage_purge_short') }}
+                            </button>
+                            <button type="button"
+                                    class="media-library-storage-purge__info-button"
+                                    aria-label="{{ __('lf.LF_media_storage_purge_title') }}"
+                                    aria-describedby="media-storage-purge-tooltip"
+                                    :aria-expanded="tip"
+                                    @click="tip = !tip">i</button>
+                            <span id="media-storage-purge-tooltip" role="tooltip" class="media-library-storage-purge__tooltip">
+                                <strong>{{ __('lf.LF_media_storage_purge_title') }}</strong><br>
+                                {{ __('lf.LF_media_storage_purge_note') }}
+                            </span>
+                        </span>
+                    </div>
                 </div>
             </div>
         </form>
@@ -267,24 +315,16 @@
         </button>
     </div>
 
-    {{-- Don rac storage: khong co lich tu dong, admin bam khi muon. --}}
-    <div class="media-library-storage-purge">
-        <div class="media-library-storage-purge__note">
-            <strong>{{ __('lf.LF_media_storage_purge_title') }}</strong>
-            <p>{{ __('lf.LF_media_storage_purge_note') }}</p>
-        </div>
-        <form method="POST"
-              action="{{ route('admin.media.purge-orphan-storage') }}"
-              onsubmit="return confirm(@js(__('lf.LF_media_storage_purge_confirm')));">
-            @csrf
-            @foreach ($listFilters as $filterKey => $filterValue)
-                <input type="hidden" name="{{ $filterKey }}" value="{{ $filterValue }}">
-            @endforeach
-            <button type="submit" class="btn btn-outline-secondary">
-                {{ __('lf.LF_media_storage_purge_action') }}
-            </button>
-        </form>
-    </div>
+    {{-- Don rac storage: khong co lich tu dong, admin bam khi muon. Nut nam o hang thao tac cua bo loc (thuoc tinh form). --}}
+    <form id="media-purge-orphan-form"
+          method="POST"
+          action="{{ route('admin.media.purge-orphan-storage') }}"
+          onsubmit="return confirm(@js(__('lf.LF_media_storage_purge_confirm')));">
+        @csrf
+        @foreach ($listFilters as $filterKey => $filterValue)
+            <input type="hidden" name="{{ $filterKey }}" value="{{ $filterValue }}">
+        @endforeach
+    </form>
 
     <div class="admin-table-wrap media-library-table-wrap media-library-index-table-wrap">
         <table class="table media-library-table media-library-index-table admin-table-has-actions">
