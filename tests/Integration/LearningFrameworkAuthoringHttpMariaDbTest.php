@@ -608,14 +608,16 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
 
         $history = $this->admin()->get($url.'?tab=history')->assertOk()->getContent();
         $this->assertStringContainsString('data-lf-framework-version="'.$v1->id.'"', $history);
-        $this->assertStringNotContainsString('data-lf-framework-version-view', $history, 'History lists Versions; none opens by itself.');
+        $this->assertStringContainsString('x-data="{ expanded: null }"', $history, 'History lists Versions; none opens by itself.');
 
-        $old = $this->versionView($this->admin()->get($url.'?version='.$v1->id)->assertOk()->getContent(), $v1->id);
+        $oldPage = $this->admin()->get($url.'?version='.$v1->id)->assertOk()->getContent();
+        $this->assertStringContainsString('x-data="{ expanded: '.$v1->id.' }"', $oldPage, '?version= opens that Version.');
+        $old = $this->versionView($oldPage, $v1->id);
         $this->assertStringContainsString('data-lf-framework-version-item="'.$definition->id.'"', $old);
         $this->assertStringNotContainsString('Added later', $old, 'An old Version shows only its own competencies.');
         $this->assertStringContainsString('≥ 80%', $old, 'An old Version shows the scale frozen with it.');
         $this->assertStringNotContainsString('≥ 85%', $old);
-        $this->assertStringNotContainsString('<form', $old, 'A published Version is read only.');
+        $this->assertDoesNotMatchRegularExpression('#<form[^>]*method="POST"#i', $old, 'A published Version is read only; only the client-side search form is there.');
 
         $new = $this->versionView($this->admin()->get($url.'?version='.$v2->id)->assertOk()->getContent(), $v2->id);
         $this->assertStringContainsString('Added later', $new);
@@ -729,9 +731,13 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
      */
     private function versionView(string $html, int $versionId): string
     {
-        $this->assertSame(1, preg_match('#<section[^>]*data-lf-framework-version-view="'.$versionId.'".*?</section>#s', $html, $match), 'The Version is open read-only.');
+        // The panel's x-data holds arrow functions, so cut from its marker instead of matching the opening tag.
+        $start = strpos($html, 'data-lf-framework-version-view="'.$versionId.'"');
+        $this->assertNotFalse($start, 'The Version panel is rendered.');
+        $end = strpos($html, '</section>', $start);
+        $this->assertNotFalse($end);
 
-        return $match[0];
+        return substr($html, $start, $end - $start);
     }
 
     private function frameworkPayload(string $code): array
