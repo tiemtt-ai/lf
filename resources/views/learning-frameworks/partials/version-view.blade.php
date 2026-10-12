@@ -8,7 +8,14 @@
     $viewedAdded = $previous ? $viewedNodes->reject(fn ($n) => $previousIds->contains((int) $n->node_definition_id)) : collect();
     $viewedRemoved = $previous ? $previousNodes->reject(fn ($n) => $viewedIds->contains((int) $n->node_definition_id)) : collect();
 @endphp
-<section id="framework-version-panel-{{ $version->id }}" x-show="expanded === {{ (int) $version->id }}" x-cloak x-transition.opacity.duration.150ms class="lf-framework__version-view" aria-labelledby="lf-framework-version-view-title-{{ $version->id }}" data-lf-framework-version-view="{{ $version->id }}">
+<section x-data="{
+                         keyword: '', nodeType: '',
+                         nodes: @js($viewedNodes->map(fn ($node) => ['name' => $node->name_snapshot, 'code' => $node->code_snapshot, 'type' => $definitionsById->get((int) $node->node_definition_id)->node_type ?? 'competency'])->values()),
+                         normalize(value) { return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLocaleLowerCase(); },
+                         matches(name, code, type) { const term = this.normalize(this.keyword.trim()); return (!this.nodeType || type === this.nodeType) && (this.normalize(name).includes(term) || this.normalize(code).includes(term)); },
+                         get resultCount() { return this.nodes.filter(node => this.matches(node.name, node.code, node.type)).length; }
+                     }"
+         id="framework-version-panel-{{ $version->id }}" x-show="expanded === {{ (int) $version->id }}" x-cloak x-transition.opacity.duration.150ms class="lf-framework__version-view" aria-labelledby="lf-framework-version-view-title-{{ $version->id }}" data-lf-framework-version-view="{{ $version->id }}">
     <header class="lf-framework__version-view-head">
         <h3 id="lf-framework-version-view-title-{{ $version->id }}" class="admin-form-subsection-title">{{ __('lf.LF_learning_simple_version_view_title', ['number' => $version->version_number]) }}</h3>
         <span class="lf-framework__meta">{{ __('lf.LF_learning_simple_version_readonly') }}</span>
@@ -28,11 +35,15 @@
             @endif
         @endif
     </p>
+    @if ($viewedNodes->isNotEmpty())
+        @include('learning-frameworks.partials.competency-search', ['searchId' => 'version-competency-keyword-'.$version->id])
+    @endif
     @forelse ($viewedNodes as $node)
         @php
             $definition = $definitionsById->get((int) $node->node_definition_id);
         @endphp
-        <article class="lf-framework__item" data-lf-framework-version-item="{{ $node->node_definition_id }}">
+        <article class="lf-framework__item" data-lf-framework-version-item="{{ $node->node_definition_id }}"
+                 x-show="matches(@js($node->name_snapshot), @js($node->code_snapshot), @js($definition->node_type ?? 'competency'))">
             <div class="lf-framework__item-main">
                 <div class="lf-framework__item-title">
                     <strong>{{ $node->name_snapshot }}</strong>
@@ -44,7 +55,7 @@
                 @if ($node->description_snapshot)
                     <p class="lf-framework__item-description">{{ $node->description_snapshot }}</p>
                 @endif
-                <span class="lf-framework__meta">{{ __('lf.LF_learning_simple_code', ['code' => $node->code_snapshot]) }}</span>
+                <span class="lf-framework__meta">{{ __('lf.LF_learning_simple_code', ['code' => $node->code_snapshot, 'type' => $definitionsById->get((int) $node->node_definition_id)->node_type ?? 'competency']) }}</span>
             </div>
         </article>
     @empty

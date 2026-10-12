@@ -4,7 +4,7 @@
 @section('page_title', __('lf.LF_learning_create_framework'))
 
 @php
-    // The default rating scale; most frameworks never change it, so it lives under "Advanced".
+    // Keep the existing scale payload while exposing its levels directly in the create flow.
     $defaultLevels = [
         ['key' => 'not_started', 'threshold' => 0],
         ['key' => 'developing', 'threshold' => 0.5],
@@ -15,7 +15,7 @@
     $levelLabel = fn (string $key) => \Illuminate\Support\Facades\Lang::has('lf.LF_learning_simple_level_'.$key)
         ? __('lf.LF_learning_simple_level_'.$key)
         : null;
-    $advancedHasErrors = $errors->hasAny(['code', 'mastery_scale_key', 'mastery_scale_version', 'mastery_scale', 'mastery_scale.*']);
+    $advancedHasErrors = $errors->hasAny(['code', 'mastery_scale_key', 'mastery_scale_version']);
 @endphp
 
 @section('content')
@@ -45,9 +45,35 @@
                     </div>
                 </section>
 
+                    <section class="admin-form-standard-section" aria-labelledby="framework-create-scale">
+                        <h2 id="framework-create-scale" class="admin-form-section-title">{{ __('lf.LF_learning_simple_scale_title') }}</h2>
+                        <p class="admin-form-section-help">{{ __('lf.LF_learning_create_scale_help') }}</p>
+                        <div class="lf-framework-create__levels">
+                            @foreach ($levels as $i => $level)
+                                <div class="lf-framework-create__level" x-data="{ threshold: @js(is_numeric($level['threshold']) ? (string) round((float) $level['threshold'] * 100, 10) : '') }">
+                                    <h3 class="admin-form-subsection-title">{{ $levelLabel((string) $level['key']) ?? __('lf.LF_learning_level_number', ['number' => $i + 1]) }}</h3>
+                                <div class="lf-form-group admin-form-field">
+                                    <x-form-label :for="'mastery-level-key-'.$i" :value="__('lf.LF_learning_simple_scale_level_code')" required />
+                                    <input id="mastery-level-key-{{ $i }}" class="lf-form-control" name="mastery_scale[levels][{{ $i }}][key]" required maxlength="100" value="{{ $level['key'] }}">
+                                    @error("mastery_scale.levels.$i.key")<p class="lf-form-error">{{ $message }}</p>@enderror
+                                </div>
+                                <div class="lf-form-group admin-form-field">
+                                    <x-form-label :for="'mastery-level-threshold-'.$i" :value="__('lf.LF_learning_threshold_percent')" required />
+                                    <input id="mastery-level-threshold-{{ $i }}" class="lf-form-control" type="number" min="0" max="100" step="any" required x-model="threshold" value="{{ is_numeric($level['threshold']) ? round((float) $level['threshold'] * 100, 10) : '' }}">
+                                    <input type="hidden" name="mastery_scale[levels][{{ $i }}][threshold]" value="{{ $level['threshold'] }}"
+                                           :value="threshold === '' ? '' : Number((Number(threshold) / 100).toFixed(12))">
+                                    @error("mastery_scale.levels.$i.threshold")<p class="lf-form-error">{{ $message }}</p>@enderror
+                                </div>
+                                    <span class="lf-framework__meta" x-text="threshold !== '' && Number.isFinite(Number(threshold)) ? Number(threshold) + '%' : ''"></span>
+                                </div>
+                            @endforeach
+                        </div>
+                        <p class="admin-form-inline-notice"><span class="admin-form-inline-notice-icon" aria-hidden="true">i</span><span>{{ __('lf.LF_learning_threshold_percent_help') }}</span></p>
+                    </section>
+
                 <details class="admin-form-standard-section lf-framework-create__advanced" @if ($advancedHasErrors) open @endif>
-                    <summary class="lf-framework-create__advanced-summary">{{ __('lf.LF_learning_simple_create_advanced') }}</summary>
-                    <p class="admin-form-section-help">{{ __('lf.LF_learning_simple_create_advanced_help') }}</p>
+                    <summary class="lf-framework-create__advanced-summary">{{ __('lf.LF_learning_create_codes') }}</summary>
+                    <p class="admin-form-section-help">{{ __('lf.LF_learning_create_codes_help') }}</p>
                     <div class="admin-form-field-grid">
                         <div class="lf-form-group admin-form-field">
                             <x-form-label for="code" :value="__('lf.LF_learning_simple_field_code')" />
@@ -61,27 +87,6 @@
                             <input type="hidden" name="mastery_scale_version" value="{{ old('mastery_scale_version', '1') }}">
                             @error('mastery_scale_key')<p class="lf-form-error">{{ $message }}</p>@enderror
                         </div>
-                    </div>
-                    <div class="admin-form-subsection">
-                        <h3 class="admin-form-subsection-title">{{ __('lf.LF_learning_simple_scale_title') }}</h3>
-                        <div class="admin-form-field-grid">
-                            @foreach ($levels as $i => $level)
-                                <div class="lf-form-group admin-form-field">
-                                    <x-form-label :for="'mastery-level-key-'.$i" :value="__('lf.LF_learning_level_number', ['number' => $i + 1])" required />
-                                    <input id="mastery-level-key-{{ $i }}" class="lf-form-control" name="mastery_scale[levels][{{ $i }}][key]" required maxlength="100" value="{{ $level['key'] }}">
-                                    @if ($levelLabel((string) $level['key']))
-                                        <p class="lf-form-help">{{ $levelLabel((string) $level['key']) }}</p>
-                                    @endif
-                                    @error("mastery_scale.levels.$i.key")<p class="lf-form-error">{{ $message }}</p>@enderror
-                                </div>
-                                <div class="lf-form-group admin-form-field">
-                                    <x-form-label :for="'mastery-level-threshold-'.$i" :value="__('lf.LF_learning_threshold')" required />
-                                    <input id="mastery-level-threshold-{{ $i }}" class="lf-form-control" type="number" min="0" max="1" step="0.01" name="mastery_scale[levels][{{ $i }}][threshold]" required value="{{ $level['threshold'] }}">
-                                    @error("mastery_scale.levels.$i.threshold")<p class="lf-form-error">{{ $message }}</p>@enderror
-                                </div>
-                            @endforeach
-                        </div>
-                        <p class="admin-form-inline-notice"><span class="admin-form-inline-notice-icon" aria-hidden="true">i</span><span>{{ __('lf.LF_learning_threshold_help') }}</span></p>
                     </div>
                 </details>
             </div>

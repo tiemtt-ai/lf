@@ -1166,6 +1166,57 @@
     gap: 10px;
 }
 
+.lf-framework-create__levels {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.lf-framework-create__level {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface-subtle);
+}
+
+.lf-framework-create__level .lf-form-group,
+.lf-framework-create__level .admin-form-subsection-title {
+    margin: 0;
+}
+
+.lf-framework-create__level .admin-form-subsection-title {
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--admin-border);
+    color: var(--admin-primary);
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.lf-framework-create__level .lf-form-label {
+    color: var(--admin-control-text);
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+
+.lf-framework-create__level .lf-framework__meta {
+    justify-self: start;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--admin-primary) 8%, var(--admin-surface));
+    color: var(--admin-primary);
+    font-weight: 600;
+}
+
+@media (max-width: 767px) {
+    .lf-framework-create__levels {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 .lf-framework-create__actions .btn {
     min-height: 40px;
     padding: 10px 16px;
@@ -1383,6 +1434,16 @@
     margin: 8px 0 16px;
 }
 
+.lf-framework__search--with-type {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+}
+
+@media (max-width: 767px) {
+    .lf-framework__search--with-type {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 .lf-framework__item {
     display: flex;
     flex-wrap: wrap;
@@ -1428,6 +1489,10 @@
 
 .lf-framework__item form {
     margin: 0;
+}
+
+.lf-framework__item .lf-framework__panel {
+    margin-top: 12px;
 }
 
 .lf-framework .badge-warning {
@@ -1497,6 +1562,15 @@
 
 .lf-framework__scale-edit {
     margin-top: 4px;
+}
+
+.lf-framework__scale-edit > .lf-framework__panel {
+    max-width: none;
+}
+
+.lf-framework-create__level > .lf-framework__panel-actions {
+    align-items: center;
+    justify-content: space-between;
 }
 
 .lf-framework__scale-row {

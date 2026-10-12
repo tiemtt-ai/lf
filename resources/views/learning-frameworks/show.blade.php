@@ -191,32 +191,16 @@
 
             <section class="admin-card lf-framework__list" aria-labelledby="lf-framework-list-title"
                      x-data="{
-                         keyword: '',
-                         nodes: @js($workingNodes->map(fn ($node) => ['name' => $node->name_snapshot, 'code' => $node->code_snapshot])->values()),
+                         keyword: '', nodeType: '',
+                         nodes: @js($workingNodes->map(fn ($node) => ['name' => $node->name_snapshot, 'code' => $node->code_snapshot, 'type' => $definitionsById->get((int) $node->node_definition_id)->node_type ?? 'competency'])->values()),
                          normalize(value) { return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLocaleLowerCase(); },
-                         matches(name, code) { const term = this.normalize(this.keyword.trim()); return this.normalize(name).includes(term) || this.normalize(code).includes(term); },
-                         get resultCount() { return this.nodes.filter(node => this.matches(node.name, node.code)).length; }
+                         matches(name, code, type) { const term = this.normalize(this.keyword.trim()); return (!this.nodeType || type === this.nodeType) && (this.normalize(name).includes(term) || this.normalize(code).includes(term)); },
+                         get resultCount() { return this.nodes.filter(node => this.matches(node.name, node.code, node.type)).length; }
                      }">
                 <h2 id="lf-framework-list-title" class="admin-form-section-title">{{ __('lf.LF_learning_simple_list_title') }}</h2>
 
                 @if ($workingNodes->isNotEmpty())
-                    <form class="lf-framework-index__filter-grid lf-framework__search" role="search" @submit.prevent>
-                        <div class="lf-form-group">
-                            <label class="lf-form-label" for="competency-keyword">{{ __('lf.LF_common_button_search') }}</label>
-                            <input id="competency-keyword" type="search" class="lf-form-control" x-model="keyword" maxlength="255"
-                                   placeholder="{{ __('lf.LF_learning_competency_search_placeholder') }}">
-                        </div>
-                        <div class="admin-form-actions lf-framework-index__filter-actions">
-                            <button type="button" class="admin-link-button admin-text-action" x-show="keyword !== ''" x-cloak
-                                    @click="keyword = ''; $nextTick(() => document.getElementById('competency-keyword').focus())">{{ __('lf.LF_learning_index_clear') }}</button>
-                            <span class="lf-framework__meta" role="status" aria-live="polite"
-                                  x-text="`${resultCount} / ${nodes.length}`"></span>
-                        </div>
-                    </form>
-                    <div class="admin-form-empty-state" role="status" x-show="resultCount === 0" x-cloak>
-                        <strong>{{ __('lf.LF_learning_competency_search_empty') }}</strong>
-                        <span>{{ __('lf.LF_learning_competency_search_help') }}</span>
-                    </div>
+                    @include('learning-frameworks.partials.competency-search', ['searchId' => 'competency-keyword'])
                 @endif
 
                 @forelse ($workingNodes as $node)
@@ -225,7 +209,7 @@
                         $isNew = $draft && ! $publishedDefinitionIds->contains((int) $node->node_definition_id);
                     @endphp
                     <article class="lf-framework__item" data-lf-framework-item="{{ $node->node_definition_id }}"
-                             x-show="matches(@js($node->name_snapshot), @js($node->code_snapshot))">
+                             x-show="matches(@js($node->name_snapshot), @js($node->code_snapshot), @js($definition->node_type ?? 'competency'))">
                         <div class="lf-framework__item-main">
                             <div class="lf-framework__item-title">
                                 <strong>{{ $node->name_snapshot }}</strong>
@@ -237,7 +221,7 @@
                             @if ($node->description_snapshot)
                                 <p class="lf-framework__item-description">{{ $node->description_snapshot }}</p>
                             @endif
-                            <span class="lf-framework__meta">{{ __('lf.LF_learning_simple_code', ['code' => $node->code_snapshot]) }}</span>
+                            <span class="lf-framework__meta">{{ __('lf.LF_learning_simple_code', ['code' => $node->code_snapshot, 'type' => $definitionsById->get((int) $node->node_definition_id)->node_type ?? 'competency']) }}</span>
                         </div>
                         @if ($definition && $isActive && $definition->status === 'active')
                             @include('learning-frameworks.partials.competency-edit', ['definition' => $definition])

@@ -134,6 +134,9 @@ class LearningFrameworkIndexTest extends TestCase
                 'lf-framework-create__actions', __('lf.LF_common_button_cancel'), __('lf.LF_learning_create_framework'),
             ]);
         $this->assertStringContainsString('type="submit"', $response->getContent());
+        $response->assertSee('id="framework-create-scale"', false)
+            ->assertSee('name="mastery_scale[levels][0][threshold]"', false)
+            ->assertSee('name="mastery_scale[levels][3][key]"', false);
         $this->get('https://framework-search.localhost/admin/learning-frameworks')->assertOk();
         $this->assertDatabaseCount('core_learning_frameworks', 3);
     }

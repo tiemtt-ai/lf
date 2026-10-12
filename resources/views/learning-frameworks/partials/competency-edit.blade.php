@@ -10,6 +10,10 @@
             <input type="hidden" name="code" value="{{ $definition->code }}">
             <input type="hidden" name="node_type" value="{{ $definition->node_type }}">
             <input type="hidden" name="canonical_name" value="{{ $definition->canonical_name }}">
+            <div class="lf-form-group">
+                <x-form-label :for="'competency-'.$definition->id.'-name-readonly'" :value="__('lf.LF_learning_simple_field_name')" />
+                <input id="competency-{{ $definition->id }}-name-readonly" class="lf-form-control admin-form-readonly" readonly value="{{ $definition->canonical_name }}">
+            </div>
             <p class="admin-form-inline-notice">
                 <span class="admin-form-inline-notice-icon" aria-hidden="true">i</span>
                 <span>{{ __('lf.LF_learning_simple_locked_hint') }}</span>
