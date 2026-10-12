@@ -987,12 +987,53 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px 8px;
+    align-items: flex-start;
+    flex-direction: column;
+}
+
+.lf-framework-index__filter {
+    max-width: none;
+    margin: 0;
+    padding: 14px 16px;
+}
+
+.lf-framework-index__filter-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 16px;
+}
+
+.lf-framework-index__filter-grid .lf-form-group,
+.lf-framework-index__filter-actions {
+    margin: 0;
+}
+
+.lf-framework-index__filter-grid .lf-form-label {
+    font-size: 13px;
+}
+
+.lf-framework-index__filter-grid .lf-form-control {
+    min-height: 42px;
+}
+
+.lf-framework-index__filter-actions {
     align-items: center;
+    gap: 12px;
 }
 
 .lf-framework-index__meta {
     color: var(--admin-text-muted);
     font-size: 12px;
+}
+
+.lf-admin-page .lf-framework-index__table th {
+    color: var(--admin-control-text);
+    font-size: 13px;
+}
+
+.lf-framework-index__versions .badge {
+    white-space: nowrap;
 }
 
 .lf-framework-index .lf-framework-index__draft {
@@ -1021,6 +1062,14 @@
 }
 
 @media (max-width: 767px) {
+    .lf-framework-index__filter-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .lf-framework-index__filter-actions .btn {
+        flex: 1;
+    }
+
     .lf-framework-index__toolbar {
         align-items: stretch;
         flex-direction: column;
@@ -1094,6 +1143,49 @@
 }
 
 /* Learning Framework create page: name first, code and rating scale under "Advanced". */
+.lf-framework-create .admin-form-section-title {
+    color: var(--admin-text);
+    font-size: 16px;
+}
+
+.lf-framework-create .admin-form-section-help {
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.lf-framework-create .lf-framework-create__advanced {
+    padding: 16px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface-subtle);
+}
+
+.lf-framework-create__actions {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 10px;
+}
+
+.lf-framework-create__actions .btn {
+    min-height: 40px;
+    padding: 10px 16px;
+    font-size: 14px;
+}
+
+@media (max-width: 767px) {
+    .lf-framework-create .lf-framework-create__actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+        width: 100%;
+    }
+
+    .lf-framework-create__actions .btn {
+        width: 100%;
+        min-width: 0;
+        justify-content: center;
+    }
+}
+
 .lf-framework-create__advanced-summary {
     display: flex;
     align-items: center;
@@ -1117,7 +1209,22 @@
 .lf-framework {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
+}
+
+.lf-framework__header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 20px;
+    border: 1px solid var(--admin-border);
+    border-radius: 12px;
+    background: var(--admin-surface-subtle);
+}
+
+.lf-framework__header > .admin-text-action {
+    font-size: 13px;
 }
 
 .lf-framework__intro {
@@ -1165,7 +1272,6 @@
     display: none;
 }
 
-.lf-framework__disclosure > summary:focus-visible,
 .lf-framework__actions > .lf-framework__disclosure[open] {
     flex: 1 1 100%;
 }
@@ -1196,7 +1302,17 @@
 
 .lf-framework__panel-actions {
     display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
     justify-content: flex-end;
+}
+
+.lf-framework__item-edit[open] > .lf-framework__panel {
+    max-width: none;
+}
+
+.lf-framework__panel-actions .btn {
+    flex: 0 1 auto;
 }
 
 .lf-framework__draft {
@@ -1251,6 +1367,8 @@
     display: flex;
     flex-direction: column;
     max-width: none;
+    padding: 20px;
+    margin: 0;
 }
 
 .lf-framework__list > .admin-form-section-title {
@@ -1259,6 +1377,10 @@
 
 .lf-framework__list > .admin-form-section-help {
     margin: 0 0 8px;
+}
+
+.lf-framework__search {
+    margin: 8px 0 16px;
 }
 
 .lf-framework__item {
@@ -1314,9 +1436,32 @@
 }
 
 .lf-framework__tabs {
-    flex-wrap: wrap;
-    justify-content: flex-start;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     margin: 0;
+    border-color: var(--admin-border);
+    background: var(--admin-surface-subtle);
+}
+
+.lf-framework__tabs .course-template-tab {
+    font-size: 14px;
+    white-space: normal;
+}
+
+.lf-framework__tabs .course-template-tab:focus-visible {
+    outline: 2px solid var(--admin-primary);
+    outline-offset: 2px;
+}
+
+.lf-framework__list > .admin-form-section-title {
+    color: var(--admin-text);
+    font-size: 16px;
+}
+
+.lf-framework__actions .btn,
+.lf-framework__list .btn {
+    min-height: 36px;
+    padding: 8px 12px;
+    font-size: 13px;
 }
 
 /* One card per level: name on the first line, minimum percentage on the second. */
@@ -1332,11 +1477,11 @@
 .lf-framework__levels li {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: 10px 12px;
+    gap: 8px;
+    padding: 16px;
     border: 1px solid var(--admin-control-border);
     border-radius: 10px;
-    background: var(--admin-surface);
+    background: var(--admin-surface-subtle);
     color: var(--admin-text);
     font-size: 14px;
 }
@@ -1380,7 +1525,7 @@
     list-style: none;
 }
 
-.lf-framework__history li {
+.lf-framework__history > li {
     display: flex;
     flex-wrap: wrap;
     gap: 8px 12px;
@@ -1391,9 +1536,9 @@
     border-radius: 10px;
 }
 
-.lf-framework__history li.is-viewed {
+.lf-framework__history > li.is-viewed {
     border-color: var(--admin-primary);
-    background: #eef1fc;
+    background: color-mix(in srgb, var(--admin-primary) 8%, var(--admin-surface));
 }
 
 .lf-framework__history-main {
@@ -1401,6 +1546,13 @@
     flex-wrap: wrap;
     gap: 6px 10px;
     align-items: center;
+    flex: 1 1 320px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.lf-framework__history-main > .lf-framework__meta {
+    flex-basis: 100%;
 }
 
 .lf-framework__history .btn.is-current {
@@ -1409,11 +1561,23 @@
 }
 
 .lf-framework__version-view {
+    width: 100%;
+    min-width: 0;
     margin-top: 16px;
     padding: 16px;
     border: 1px solid var(--admin-control-border);
     border-radius: 12px;
     background: var(--admin-surface-subtle);
+}
+
+.lf-framework__history .lf-framework__version-view {
+    margin-top: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lf-framework__version-view {
+        transition: none;
+    }
 }
 
 .lf-framework__version-view-head {
@@ -1442,6 +1606,16 @@
 }
 
 @media (max-width: 767px) {
+    .lf-framework__header,
+    .lf-framework__list {
+        padding: 16px;
+    }
+
+    .lf-framework__tabs .course-template-tab {
+        padding: 10px 6px;
+        font-size: 13px;
+    }
+
     .lf-framework__field-row {
         grid-template-columns: minmax(0, 1fr);
     }
@@ -1457,6 +1631,11 @@
 
     .lf-framework__disclosure > summary {
         justify-content: center;
+    }
+
+    .lf-framework__panel-actions .btn {
+        width: auto;
+        flex: 1 1 auto;
     }
 }
 

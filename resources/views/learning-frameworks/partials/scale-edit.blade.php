@@ -43,7 +43,11 @@
         <p class="lf-form-help">{{ __('lf.LF_learning_threshold_help') }}</p>
         <div class="lf-framework__panel-actions lf-framework__scale-actions">
             <button type="button" class="btn btn-secondary" x-on:click="levels.push({ key: '', threshold: '' })">+ {{ __('lf.LF_learning_simple_scale_add') }}</button>
-            <button type="submit" class="btn btn-primary">{{ __('lf.LF_common_button_save') }}</button>
+            <div class="lf-framework__panel-actions">
+                <button type="button" class="btn btn-secondary"
+                        @click="levels = @js($editLevels); $el.closest('details').open = false; $el.closest('details').querySelector('summary').focus()">{{ __('lf.LF_common_button_cancel') }}</button>
+                <button type="submit" class="btn btn-primary">{{ __('lf.LF_common_button_save') }}</button>
+            </div>
         </div>
     </form>
 </details>

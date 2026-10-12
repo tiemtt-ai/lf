@@ -25,11 +25,23 @@ final class LearningFrameworkController extends Controller
         private readonly LearningFrameworkReadService $reader,
     ) {}
 
-    public function index(): View
+    public function index(Request $request): View
     {
-        $frameworks = $this->reader->listFrameworks((int) request()->user()->id);
+        $validated = $request->validate(['keyword' => ['nullable', 'string', 'max:255']]);
+        $keyword = trim($validated['keyword'] ?? '');
+        $frameworks = $this->reader->listFrameworks((int) $request->user()->id);
+        $totalCount = $frameworks->count();
 
-        return view('learning-frameworks.index', compact('frameworks'));
+        if ($keyword !== '') {
+            $needle = Str::lower(Str::ascii($keyword));
+            $literal = Str::lower($keyword);
+            $frameworks = $frameworks->filter(fn (object $framework) => collect([
+                $framework->name, $framework->code, $framework->description,
+            ])->contains(fn ($value) => str_contains(Str::lower((string) $value), $literal)
+                || ($needle !== '' && str_contains(Str::lower(Str::ascii((string) $value)), $needle))))->values();
+        }
+
+        return view('learning-frameworks.index', compact('frameworks', 'keyword', 'totalCount'));
     }
 
     public function create(): View

@@ -21,7 +21,7 @@
 @section('content')
     @include('learning-frameworks.partials.errors')
 
-    <div class="admin-card admin-form-card admin-form-surface">
+    <div class="admin-card admin-form-card admin-form-surface lf-framework-create">
         <form class="admin-form-standard" method="POST" action="{{ route('admin.learning-frameworks.store') }}">
             @csrf
             <div class="admin-form-flow">
@@ -87,7 +87,7 @@
             </div>
 
             <footer class="admin-form-footer" data-actions-align="end">
-                <div class="admin-form-footer-primary">
+                <div class="admin-form-footer-primary lf-framework-create__actions">
                     <a href="{{ route('admin.learning-frameworks.index') }}" class="btn btn-secondary">{{ __('lf.LF_common_button_cancel') }}</a>
                     <button class="btn btn-primary" type="submit">{{ __('lf.LF_learning_create_framework') }}</button>
                 </div>

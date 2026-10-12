@@ -50,6 +50,7 @@
 
     <div class="lf-framework">
         <header class="lf-framework__header">
+            <a class="admin-text-action" href="{{ route('admin.learning-frameworks.index') }}">{{ __('lf.LF_learning_back') }}</a>
             <div class="lf-framework__intro">
                 @if ($framework->description)
                     <p class="lf-framework__description">{{ $framework->description }}</p>
@@ -68,9 +69,9 @@
             </div>
         </header>
 
-        <nav class="admin-form-actions lf-framework__tabs" aria-label="{{ __('lf.LF_learning_simple_tabs_label') }}">
+        <nav class="course-template-tabs lf-framework__tabs" aria-label="{{ __('lf.LF_learning_simple_tabs_label') }}">
             @foreach ($frameworkTabs as $key => $label)
-                <a @class(['btn', 'btn-primary' => $tab === $key, 'btn-secondary' => $tab !== $key])
+                <a @class(['course-template-tab', 'is-active' => $tab === $key])
                    href="{{ $showUrl($key === 'content' ? [] : ['tab' => $key]) }}"
                    @if ($tab === $key) aria-current="page" @endif data-lf-framework-tab="{{ $key }}">{{ $label }}</a>
             @endforeach
@@ -79,7 +80,7 @@
         @if ($tab === 'content')
             @if ($isActive)
                 <div class="lf-framework__actions">
-                    <details class="lf-framework__disclosure">
+                    <details x-data class="lf-framework__disclosure">
                         <summary class="btn btn-secondary">{{ __('lf.LF_learning_simple_edit_framework') }}</summary>
                         <form class="lf-framework__panel" method="POST" action="{{ route('admin.learning-frameworks.update', $framework->id) }}">
                             @csrf
@@ -101,13 +102,14 @@
                                 <textarea id="framework-description" name="description" class="lf-form-control" rows="3" maxlength="5000">{{ $framework->description }}</textarea>
                             </div>
                             <div class="lf-framework__panel-actions">
+                                @include('learning-frameworks.partials.cancel')
                                 <button class="btn btn-primary" type="submit">{{ __('lf.LF_common_button_save') }}</button>
                             </div>
                         </form>
                     </details>
 
-                    <details class="lf-framework__disclosure" @if ($workingNodes->isEmpty() && $unplaced->isEmpty()) open @endif>
-                        <summary class="btn btn-primary"><span aria-hidden="true">+</span> {{ __('lf.LF_learning_simple_add') }}</summary>
+                    <details x-data class="lf-framework__disclosure" @if ($workingNodes->isEmpty() && $unplaced->isEmpty()) open @endif>
+                        <summary class="btn admin-primary-outline-action"><span aria-hidden="true">+</span> {{ __('lf.LF_learning_simple_add') }}</summary>
                         <form class="lf-framework__panel" method="POST" action="{{ route('admin.learning-frameworks.competencies.store', $framework->id) }}" data-lf-framework-add>
                             @csrf
                             <p class="lf-form-help">{{ __('lf.LF_learning_simple_add_help') }}</p>
@@ -134,6 +136,7 @@
                                 <textarea id="competency-description" name="description" class="lf-form-control" rows="3" maxlength="5000">{{ old('description') }}</textarea>
                             </div>
                             <div class="lf-framework__panel-actions">
+                                @include('learning-frameworks.partials.cancel')
                                 <button class="btn btn-primary" type="submit">{{ __('lf.LF_learning_simple_add') }}</button>
                             </div>
                         </form>
@@ -186,15 +189,43 @@
                 </section>
             @endif
 
-            <section class="admin-card lf-framework__list" aria-labelledby="lf-framework-list-title">
+            <section class="admin-card lf-framework__list" aria-labelledby="lf-framework-list-title"
+                     x-data="{
+                         keyword: '',
+                         nodes: @js($workingNodes->map(fn ($node) => ['name' => $node->name_snapshot, 'code' => $node->code_snapshot])->values()),
+                         normalize(value) { return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLocaleLowerCase(); },
+                         matches(name, code) { const term = this.normalize(this.keyword.trim()); return this.normalize(name).includes(term) || this.normalize(code).includes(term); },
+                         get resultCount() { return this.nodes.filter(node => this.matches(node.name, node.code)).length; }
+                     }">
                 <h2 id="lf-framework-list-title" class="admin-form-section-title">{{ __('lf.LF_learning_simple_list_title') }}</h2>
+
+                @if ($workingNodes->isNotEmpty())
+                    <form class="lf-framework-index__filter-grid lf-framework__search" role="search" @submit.prevent>
+                        <div class="lf-form-group">
+                            <label class="lf-form-label" for="competency-keyword">{{ __('lf.LF_common_button_search') }}</label>
+                            <input id="competency-keyword" type="search" class="lf-form-control" x-model="keyword" maxlength="255"
+                                   placeholder="{{ __('lf.LF_learning_competency_search_placeholder') }}">
+                        </div>
+                        <div class="admin-form-actions lf-framework-index__filter-actions">
+                            <button type="button" class="admin-link-button admin-text-action" x-show="keyword !== ''" x-cloak
+                                    @click="keyword = ''; $nextTick(() => document.getElementById('competency-keyword').focus())">{{ __('lf.LF_learning_index_clear') }}</button>
+                            <span class="lf-framework__meta" role="status" aria-live="polite"
+                                  x-text="`${resultCount} / ${nodes.length}`"></span>
+                        </div>
+                    </form>
+                    <div class="admin-form-empty-state" role="status" x-show="resultCount === 0" x-cloak>
+                        <strong>{{ __('lf.LF_learning_competency_search_empty') }}</strong>
+                        <span>{{ __('lf.LF_learning_competency_search_help') }}</span>
+                    </div>
+                @endif
 
                 @forelse ($workingNodes as $node)
                     @php
                         $definition = $definitionsById->get((int) $node->node_definition_id);
                         $isNew = $draft && ! $publishedDefinitionIds->contains((int) $node->node_definition_id);
                     @endphp
-                    <article class="lf-framework__item" data-lf-framework-item="{{ $node->node_definition_id }}">
+                    <article class="lf-framework__item" data-lf-framework-item="{{ $node->node_definition_id }}"
+                             x-show="matches(@js($node->name_snapshot), @js($node->code_snapshot))">
                         <div class="lf-framework__item-main">
                             <div class="lf-framework__item-title">
                                 <strong>{{ $node->name_snapshot }}</strong>
@@ -267,7 +298,7 @@
                 @endif
             </section>
         @else
-            <section class="admin-card lf-framework__list" aria-labelledby="lf-framework-history-title" data-lf-framework-history>
+            <section class="admin-card lf-framework__list" aria-labelledby="lf-framework-history-title" data-lf-framework-history x-data="{ expanded: @js($viewedVersion && $viewedVersion->status !== 'draft_snapshot' ? (int) $viewedVersion->id : null) }">
                 <h2 id="lf-framework-history-title" class="admin-form-section-title">{{ __('lf.LF_learning_simple_history_title') }}</h2>
                 <p class="admin-form-section-help">{{ __('lf.LF_learning_simple_history_help') }}</p>
                 <ul class="lf-framework__history">
@@ -276,7 +307,7 @@
                             $isViewed = $viewedVersion && $viewedVersion->id === $version->id;
                             $versionCount = $activeNodes($version)->count();
                         @endphp
-                        <li @class(['is-viewed' => $isViewed]) data-lf-framework-version="{{ $version->id }}">
+                        <li @class(['is-viewed' => $isViewed]) :class="{ 'is-viewed': expanded === {{ (int) $version->id }} }" data-lf-framework-version="{{ $version->id }}">
                             <div class="lf-framework__history-main">
                                 <strong>{{ __('lf.LF_learning_simple_version', ['number' => $version->version_number]) }}</strong>
                                 @if ($published && $version->id === $published->id)
@@ -296,10 +327,12 @@
                             </div>
                             @if ($version->status === 'draft_snapshot')
                                 <a class="btn btn-secondary" href="{{ $showUrl() }}">{{ __('lf.LF_learning_simple_version_open_draft') }}</a>
-                            @elseif ($isViewed)
-                                <a class="btn btn-secondary is-current" href="{{ $showUrl(['tab' => 'history']) }}" aria-current="true">{{ __('lf.LF_learning_simple_version_viewing') }}</a>
                             @else
-                                <a class="btn btn-secondary" href="{{ $showUrl(['version' => $version->id]) }}">{{ __('lf.LF_learning_simple_version_view') }}</a>
+                                <a class="btn btn-secondary" href="{{ $showUrl(['version' => $version->id]) }}"
+                                   @click.prevent="expanded = expanded === {{ (int) $version->id }} ? null : {{ (int) $version->id }}"
+                                   :aria-expanded="expanded === {{ (int) $version->id }}" aria-controls="framework-version-panel-{{ $version->id }}"
+                                   x-text="expanded === {{ (int) $version->id }} ? @js(__('lf.LF_common_button_close')) : @js(__('lf.LF_learning_simple_version_view'))">{{ __('lf.LF_learning_simple_version_view') }}</a>
+                                @include('learning-frameworks.partials.version-view')
                             @endif
                         </li>
                     @empty
@@ -307,72 +340,6 @@
                     @endforelse
                 </ul>
 
-                @if ($viewedVersion && $viewedVersion->status !== 'draft_snapshot')
-                    @php
-                        $viewedNodes = $activeNodes($viewedVersion);
-                        $previous = $versions->filter(fn ($v) => (int) $v->version_number < (int) $viewedVersion->version_number && $v->status !== 'draft_snapshot')
-                            ->sortByDesc('version_number')->first();
-                        $previousNodes = $activeNodes($previous);
-                        $previousIds = $previousNodes->pluck('node_definition_id')->map(fn ($id) => (int) $id);
-                        $viewedIds = $viewedNodes->pluck('node_definition_id')->map(fn ($id) => (int) $id);
-                        $viewedAdded = $previous ? $viewedNodes->reject(fn ($n) => $previousIds->contains((int) $n->node_definition_id)) : collect();
-                        $viewedRemoved = $previous ? $previousNodes->reject(fn ($n) => $viewedIds->contains((int) $n->node_definition_id)) : collect();
-                    @endphp
-                    <section class="lf-framework__version-view" aria-labelledby="lf-framework-version-view-title" data-lf-framework-version-view="{{ $viewedVersion->id }}">
-                        <header class="lf-framework__version-view-head">
-                            <h3 id="lf-framework-version-view-title" class="admin-form-subsection-title">{{ __('lf.LF_learning_simple_version_view_title', ['number' => $viewedVersion->version_number]) }}</h3>
-                            <span class="lf-framework__meta">{{ __('lf.LF_learning_simple_version_readonly') }}</span>
-                        </header>
-                        <p class="lf-framework__version-diff">
-                            @if ($previous === null)
-                                {{ __('lf.LF_learning_simple_version_first') }}
-                            @else
-                                @if ($viewedAdded->isNotEmpty())
-                                    {{ __('lf.LF_learning_simple_version_diff_added', ['number' => $previous->version_number, 'names' => $viewedAdded->pluck('name_snapshot')->implode(', ')]) }}
-                                @endif
-                                @if ($viewedRemoved->isNotEmpty())
-                                    {{ __('lf.LF_learning_simple_version_diff_removed', ['number' => $previous->version_number, 'names' => $viewedRemoved->pluck('name_snapshot')->implode(', ')]) }}
-                                @endif
-                                @if ($viewedAdded->isEmpty() && $viewedRemoved->isEmpty())
-                                    {{ __('lf.LF_learning_simple_version_diff_same', ['number' => $previous->version_number]) }}
-                                @endif
-                            @endif
-                        </p>
-                        @forelse ($viewedNodes as $node)
-                            @php
-                                $definition = $definitionsById->get((int) $node->node_definition_id);
-                            @endphp
-                            <article class="lf-framework__item" data-lf-framework-version-item="{{ $node->node_definition_id }}">
-                                <div class="lf-framework__item-main">
-                                    <div class="lf-framework__item-title">
-                                        <strong>{{ $node->name_snapshot }}</strong>
-                                        <span class="badge badge-info">{{ $typeLabel($definition->node_type ?? 'competency') }}</span>
-                                        @if ($viewedAdded->contains('id', $node->id))
-                                            <span class="badge badge-warning">{{ __('lf.LF_learning_simple_new') }}</span>
-                                        @endif
-                                    </div>
-                                    @if ($node->description_snapshot)
-                                        <p class="lf-framework__item-description">{{ $node->description_snapshot }}</p>
-                                    @endif
-                                    <span class="lf-framework__meta">{{ __('lf.LF_learning_simple_code', ['code' => $node->code_snapshot]) }}</span>
-                                </div>
-                            </article>
-                        @empty
-                            <p class="lf-framework__meta">{{ __('lf.LF_learning_simple_empty') }}</p>
-                        @endforelse
-                        <div class="lf-framework__version-scale">
-                            <h4 class="lf-framework__version-scale-title">{{ __('lf.LF_learning_simple_version_scale') }}</h4>
-                            <ol class="lf-framework__levels">
-                                @foreach ($versionLevels($viewedVersion) as $level)
-                                    <li>
-                                        <span>{{ $levelLabel($level['key']) }}</span>
-                                        <span class="lf-framework__meta">{{ (float) $level['threshold'] > 0 ? '≥ '.round((float) $level['threshold'] * 100).'%' : '0%' }}</span>
-                                    </li>
-                                @endforeach
-                            </ol>
-                        </div>
-                    </section>
-                @endif
             </section>
         @endif
     </div>

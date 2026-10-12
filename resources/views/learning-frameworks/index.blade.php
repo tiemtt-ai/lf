@@ -10,23 +10,44 @@
         <div class="lf-framework-index__toolbar">
             <div class="lf-framework-index__intro">
                 <span class="lf-framework-index__count">
-                    {{ trans_choice('lf.LF_learning_index_count', $frameworks->count(), ['count' => $frameworks->count()]) }}
+                    {{ $keyword !== '' ? __('lf.LF_learning_index_results', ['count' => $frameworks->count(), 'total' => $totalCount]) : trans_choice('lf.LF_learning_index_count', $totalCount, ['count' => $totalCount]) }}
                 </span>
                 <p class="lf-framework-index__help">{{ __('lf.LF_learning_manual_help') }}</p>
             </div>
-            @if ($frameworks->isNotEmpty())
-                <a href="{{ route('admin.learning-frameworks.create') }}" class="btn btn-primary lf-framework-index__create">
+            @if ($totalCount > 0)
+                <a href="{{ route('admin.learning-frameworks.create') }}" class="btn admin-primary-outline-action lf-framework-index__create">
                     <span aria-hidden="true">+</span>
                     {{ __('lf.LF_learning_create_framework') }}
                 </a>
             @endif
         </div>
 
-        @if ($frameworks->isEmpty())
+        <div class="admin-card admin-form-card lf-framework-index__filter">
+            <form class="lf-framework-index__filter-grid" method="GET" action="{{ route('admin.learning-frameworks.index') }}" role="search">
+                <div class="lf-form-group">
+                    <label class="lf-form-label" for="framework-keyword">{{ __('lf.LF_common_button_search') }}</label>
+                    <input class="lf-form-control" id="framework-keyword" type="search" name="keyword" maxlength="255"
+                           value="{{ $keyword }}" placeholder="{{ __('lf.LF_learning_index_search_placeholder') }}">
+                </div>
+                <div class="admin-form-actions lf-framework-index__filter-actions">
+                    <button class="btn btn-primary" type="submit">{{ __('lf.LF_common_button_search') }}</button>
+                    @if ($keyword !== '')
+                        <a class="admin-text-action" href="{{ route('admin.learning-frameworks.index') }}">{{ __('lf.LF_learning_index_clear') }}</a>
+                    @endif
+                </div>
+            </form>
+        </div>
+
+        @if ($frameworks->isEmpty() && $keyword !== '')
+            <div class="admin-card lf-framework-index__empty" role="status">
+                <strong>{{ __('lf.LF_learning_index_no_results') }}</strong>
+                <span>{{ __('lf.LF_learning_index_no_results_help') }}</span>
+            </div>
+        @elseif ($frameworks->isEmpty())
             <div class="admin-card lf-framework-index__empty" role="status">
                 <strong>{{ __('lf.LF_learning_empty') }}</strong>
                 <span>{{ __('lf.LF_learning_empty_help') }}</span>
-                <a class="btn btn-primary lf-framework-index__create" href="{{ route('admin.learning-frameworks.create') }}">
+                <a class="btn admin-primary-outline-action lf-framework-index__create" href="{{ route('admin.learning-frameworks.create') }}">
                     <span aria-hidden="true">+</span>
                     {{ __('lf.LF_learning_create_framework') }}
                 </a>

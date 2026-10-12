@@ -1,5 +1,5 @@
 @php($locked = (bool) $definition->identity_locked)
-<details class="lf-framework__disclosure lf-framework__item-edit">
+<details x-data class="lf-framework__disclosure lf-framework__item-edit">
     <summary class="btn btn-secondary" aria-label="{{ __('lf.LF_learning_simple_edit_named', ['name' => $definition->canonical_name]) }}">{{ __('lf.action_edit') }}</summary>
     <form class="lf-framework__panel" method="POST" action="{{ route('admin.learning-frameworks.definitions.update', [$definition->framework_id, $definition->id]) }}">
         @csrf
@@ -39,6 +39,7 @@
             <textarea id="competency-{{ $definition->id }}-description" name="description" class="lf-form-control" rows="3" maxlength="5000">{{ $definition->description }}</textarea>
         </div>
         <div class="lf-framework__panel-actions">
+            @include('learning-frameworks.partials.cancel')
             <button class="btn btn-primary" type="submit">{{ __('lf.LF_common_button_save') }}</button>
         </div>
     </form>
