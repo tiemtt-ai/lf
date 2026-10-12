@@ -12,8 +12,13 @@ final class CourseTemplateLearningMappingIntentService
 {
     public function __construct(private readonly LearningFrameworkReadService $learningReads) {}
 
-    /** @return array{versions: Collection, nodes: Collection, intents: Collection, upgrade: array<string, mixed>|null} */
-    public function state(int $actorId, int $customerId, int $templateId): array
+    /**
+     * The tab state. $upgradeTargetId is the Version the admin chose to preview a move to; it is
+     * never guessed from version number or publish time (ADR-0016 amendment 1.2).
+     *
+     * @return array{versions: Collection, nodes: Collection, intents: Collection, upgrade_targets: Collection, upgrade: array<string, mixed>|null}
+     */
+    public function state(int $actorId, int $customerId, int $templateId, ?int $upgradeTargetId = null): array
     {
         $template = $this->template($customerId, $templateId);
         $versions = $this->learningReads->publishedVersionsWithNodes($actorId);
@@ -40,7 +45,8 @@ final class CourseTemplateLearningMappingIntentService
 
                 return $intent;
             }),
-            'upgrade' => $this->upgradePlan($actorId, $customerId, $templateId),
+            'upgrade_targets' => $this->upgradeTargets($actorId, $template),
+            'upgrade' => $upgradeTargetId ? $this->upgradePlan($actorId, $customerId, $templateId, $upgradeTargetId) : null,
         ];
     }
 
@@ -119,26 +125,36 @@ final class CourseTemplateLearningMappingIntentService
         });
     }
 
-    /**
-     * What moving to the newest published Version of the selected Framework
-     * would do, or null when the Template already uses it. Each Intent keeps
-     * its source and role and moves to the target Node of the same stable
-     * Definition; one without exactly one such Node would be removed.
-     *
-     * @return array{version: object, kept: Collection, removed: Collection, ai_blocked: bool}|null
-     */
-    public function upgradePlan(int $actorId, int $customerId, int $templateId): ?array
+    /** Every other published Version of the selected Framework the Template could move to, newest number first. */
+    private function upgradeTargets(int $actorId, object $template): Collection
     {
-        $template = $this->template($customerId, $templateId);
         $frameworkId = (int) ($template->selected_learning_framework_id ?? 0);
         $currentId = (int) ($template->selected_learning_framework_version_id ?? 0);
         if (! $frameworkId || ! $currentId) {
-            return null;
+            return collect();
         }
-        $versions = $this->learningReads->publishedVersionsWithNodes($actorId)->where('framework_id', $frameworkId);
-        $current = $versions->firstWhere('framework_version_id', $currentId);
-        $target = $versions->sortByDesc('version_number')->first();
-        if (! $target || ! $current || (int) $target->version_number <= (int) $current->version_number) {
+
+        return $this->learningReads->publishedVersionsWithNodes($actorId)
+            ->where('framework_id', $frameworkId)
+            ->reject(fn (object $version): bool => (int) $version->framework_version_id === $currentId)
+            ->sortByDesc('version_number')->values();
+    }
+
+    /**
+     * What moving to the Version the admin chose would do, or null when that
+     * Version is not another published Version of the selected Framework.
+     * Each Intent keeps its source and role and moves to the target Node of
+     * the same stable Definition; one without exactly one such Node would be
+     * removed.
+     *
+     * @return array{version: object, kept: Collection, removed: Collection, ai_blocked: bool}|null
+     */
+    public function upgradePlan(int $actorId, int $customerId, int $templateId, int $targetVersionId): ?array
+    {
+        $template = $this->template($customerId, $templateId);
+        $frameworkId = (int) ($template->selected_learning_framework_id ?? 0);
+        $target = $this->upgradeTargets($actorId, $template)->firstWhere('framework_version_id', $targetVersionId);
+        if ($target === null) {
             return null;
         }
 
@@ -186,9 +202,8 @@ final class CourseTemplateLearningMappingIntentService
             $template = $this->template($customerId, $templateId, true);
             DB::table('core_course_template_learning_mapping_intents')
                 ->where('customer_id', $customerId)->where('template_id', $templateId)->lockForUpdate()->get();
-            $plan = $this->upgradePlan($actorId, $customerId, $templateId);
-            if ($plan === null || (int) $plan['version']->framework_version_id !== $targetVersionId
-                || (int) $template->working_revision !== $expectedRevision) {
+            $plan = $this->upgradePlan($actorId, $customerId, $templateId, $targetVersionId);
+            if ($plan === null || (int) $template->working_revision !== $expectedRevision) {
                 throw ValidationException::withMessages(['framework_version_id' => __('lf.LF_course_template_learning_error_upgrade_stale')]);
             }
             if ($plan['ai_blocked']) {

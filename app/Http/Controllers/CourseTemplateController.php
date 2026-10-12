@@ -182,7 +182,7 @@ class CourseTemplateController extends Controller
         $learningMappingState = $request->user()?->role === 'customer_admin'
             && Schema::hasTable('core_learning_framework_versions')
             && Schema::hasTable('core_course_template_learning_mapping_intents')
-            ? $this->learningMappingIntents->state((int) $request->user()->id, $customerId, $id)
+            ? $this->learningMappingIntents->state((int) $request->user()->id, $customerId, $id, $request->integer('upgrade_version') ?: null)
             : null;
 
         // The one place for AI proposals: null unless the actor has AI authority over the Template.

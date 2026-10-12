@@ -60,6 +60,8 @@
     $orphanSkills = $intents->reject(fn ($intent) => in_array((int) $intent->id, $shownIntentIds, true))->values();
 
     $upgrade = $learningMappingState['upgrade'] ?? null;
+    $upgradeTargets = $learningMappingState['upgrade_targets'] ?? collect();
+    $upgradeRequested = request()->filled('upgrade_version');
     $roleLabels = [
         'practices' => __('lf.LF_course_template_learning_role_practices'),
         'assesses' => __('lf.LF_course_template_learning_role_assesses'),
@@ -94,34 +96,61 @@
         </div>
     </section>
 
-    @if ($selection && $upgrade)
-        <section class="course-learning__upgrade" aria-labelledby="course-learning-upgrade-title" data-course-learning-upgrade="{{ $upgrade['version']->framework_version_id }}">
+    @if ($selection && $intents->isNotEmpty() && $upgradeTargets->isNotEmpty())
+        {{-- The admin picks the target Version; nothing is guessed from number or date (ADR-0016 amendment 1.2). --}}
+        <section id="course-learning-upgrade" class="course-learning__upgrade" aria-labelledby="course-learning-upgrade-title" data-course-learning-upgrade-picker>
             <div class="course-learning__upgrade-text">
-                <h3 id="course-learning-upgrade-title" class="course-learning__upgrade-title">
-                    {{ __('lf.LF_course_template_learning_upgrade_title', ['number' => $upgrade['version']->version_number, 'version' => $upgrade['version']->title_snapshot ?: $upgrade['version']->version_code]) }}
-                </h3>
-                @if ($intents->isNotEmpty())
-                    <p>{{ trans_choice('lf.LF_course_template_learning_upgrade_kept', $upgrade['kept']->count(), ['count' => $upgrade['kept']->count()]) }}</p>
-                @endif
-                @if ($upgrade['removed']->isNotEmpty())
-                    <p data-course-learning-upgrade-removed>{{ __('lf.LF_course_template_learning_upgrade_removed', ['count' => $upgrade['removed']->count(), 'names' => $upgrade['removed']->map(fn ($intent) => $intent->name_snapshot)->filter()->unique()->implode(', ')]) }}</p>
-                @endif
-                @if ($upgrade['ai_blocked'])
-                    <p>{{ __('lf.LF_course_template_learning_error_upgrade_ai') }}</p>
+                <h3 id="course-learning-upgrade-title" class="course-learning__upgrade-title">{{ __('lf.LF_course_template_learning_upgrade_pick_title') }}</h3>
+                <p>{{ __('lf.LF_course_template_learning_upgrade_pick_help') }}</p>
+                <form method="GET" action="{{ route($routePrefix.'.edit', ['id' => $template->id]) }}#course-learning-upgrade" class="course-learning__upgrade-pick">
+                    <input type="hidden" name="tab" value="learning">
+                    <label class="lf-form-label" for="course-learning-upgrade-version">{{ __('lf.LF_course_template_learning_upgrade_pick_label') }}</label>
+                    <div class="course-learning__upgrade-pick-row">
+                        <select id="course-learning-upgrade-version" name="upgrade_version" class="lf-form-control" required>
+                            <option value="" @selected(! $upgrade) disabled>{{ __('lf.LF_course_template_learning_upgrade_pick_placeholder') }}</option>
+                            @foreach ($upgradeTargets as $target)
+                                <option value="{{ $target->framework_version_id }}" @selected($upgrade && (int) $upgrade['version']->framework_version_id === (int) $target->framework_version_id)>
+                                    {{ __('lf.LF_course_template_learning_upgrade_pick_option', ['number' => $target->version_number, 'version' => $target->title_snapshot ?: $target->version_code]) }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <button type="submit" class="btn btn-secondary">{{ __('lf.LF_course_template_learning_upgrade_pick_submit') }}</button>
+                    </div>
+                </form>
+                @if ($upgradeRequested && ! $upgrade)
+                    <p class="course-learning__upgrade-invalid" role="alert">{{ __('lf.LF_course_template_learning_upgrade_invalid') }}</p>
                 @endif
             </div>
-            @unless ($upgrade['ai_blocked'])
-                <form method="POST" action="{{ route($routePrefix.'.learning-framework.upgrade', $template->id) }}"
-                      @if ($upgrade['removed']->isNotEmpty())
-                          data-lf-confirm="{{ __('lf.LF_course_template_learning_upgrade_confirm', ['count' => $upgrade['removed']->count()]) }}"
-                          data-lf-confirm-label="{{ __('lf.LF_course_template_learning_upgrade_submit', ['number' => $upgrade['version']->version_number]) }}"
-                      @endif>
-                    @csrf
-                    <input type="hidden" name="framework_version_id" value="{{ $upgrade['version']->framework_version_id }}">
-                    <input type="hidden" name="working_revision" value="{{ $template->working_revision }}">
-                    <button type="submit" class="btn btn-primary">{{ __('lf.LF_course_template_learning_upgrade_submit', ['number' => $upgrade['version']->version_number]) }}</button>
-                </form>
-            @endunless
+
+            @if ($upgrade)
+                <div class="course-learning__upgrade-plan" data-course-learning-upgrade="{{ $upgrade['version']->framework_version_id }}">
+                    <h4 class="course-learning__upgrade-plan-title">
+                        {{ __('lf.LF_course_template_learning_upgrade_title', ['number' => $upgrade['version']->version_number, 'version' => $upgrade['version']->title_snapshot ?: $upgrade['version']->version_code]) }}
+                    </h4>
+                    <p>{{ trans_choice('lf.LF_course_template_learning_upgrade_kept', $upgrade['kept']->count(), ['count' => $upgrade['kept']->count()]) }}</p>
+                    @if ($upgrade['removed']->isNotEmpty())
+                        <p data-course-learning-upgrade-removed>{{ __('lf.LF_course_template_learning_upgrade_removed', ['count' => $upgrade['removed']->count(), 'names' => $upgrade['removed']->map(fn ($intent) => $intent->name_snapshot)->filter()->unique()->implode(', ')]) }}</p>
+                    @endif
+                    @if ($upgrade['ai_blocked'])
+                        <p>{{ __('lf.LF_course_template_learning_error_upgrade_ai') }}</p>
+                    @endif
+                    <div class="course-learning__upgrade-actions">
+                        <a class="btn btn-secondary" href="{{ route($routePrefix.'.edit', ['id' => $template->id, 'tab' => 'learning']) }}">{{ __('lf.LF_course_template_learning_upgrade_cancel') }}</a>
+                        @unless ($upgrade['ai_blocked'])
+                            <form method="POST" action="{{ route($routePrefix.'.learning-framework.upgrade', $template->id) }}"
+                                  @if ($upgrade['removed']->isNotEmpty())
+                                      data-lf-confirm="{{ __('lf.LF_course_template_learning_upgrade_confirm', ['count' => $upgrade['removed']->count(), 'number' => $upgrade['version']->version_number]) }}"
+                                      data-lf-confirm-label="{{ __('lf.LF_course_template_learning_upgrade_submit', ['number' => $upgrade['version']->version_number]) }}"
+                                  @endif>
+                                @csrf
+                                <input type="hidden" name="framework_version_id" value="{{ $upgrade['version']->framework_version_id }}">
+                                <input type="hidden" name="working_revision" value="{{ $template->working_revision }}">
+                                <button type="submit" class="btn btn-primary">{{ __('lf.LF_course_template_learning_upgrade_submit', ['number' => $upgrade['version']->version_number]) }}</button>
+                            </form>
+                        @endunless
+                    </div>
+                </div>
+            @endif
         </section>
     @endif
 
@@ -134,7 +163,7 @@
         @else
             @include('course-templates.partials.learning-framework-select')
         @endif
-    @elseif ($selection && ! $upgrade)
+    @elseif ($selection && $upgradeTargets->isEmpty())
         <p class="lf-form-help course-learning__change-locked">{{ __('lf.LF_course_template_learning_framework_change_locked') }}</p>
     @endif
 

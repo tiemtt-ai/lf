@@ -1507,10 +1507,9 @@
 
 .course-learning__upgrade {
     display: flex;
-    flex-wrap: wrap;
-    gap: 12px 16px;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
     padding: 16px 20px;
     border: 1px solid #c9d4f5;
     border-radius: 12px;
@@ -1519,7 +1518,6 @@
 
 .course-learning__upgrade-text {
     display: flex;
-    flex: 1 1 420px;
     flex-direction: column;
     gap: 4px;
     min-width: 0;
@@ -1542,6 +1540,56 @@
 
 .course-learning__upgrade form {
     margin: 0;
+}
+
+.course-learning__upgrade-text .lf-form-label {
+    margin-top: 6px;
+}
+
+.course-learning__upgrade-pick-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.course-learning__upgrade-pick-row .lf-form-control {
+    flex: 1 1 260px;
+    max-width: 420px;
+}
+
+.course-learning__upgrade-text p.course-learning__upgrade-invalid {
+    color: #b42318;
+}
+
+.course-learning__upgrade-plan {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 12px;
+    border-top: 1px solid #c9d4f5;
+}
+
+.course-learning__upgrade-plan p {
+    margin: 0;
+    color: var(--admin-control-text);
+    font-size: 14px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+
+.course-learning__upgrade-plan-title {
+    margin: 0;
+    color: #2f3f9e;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.course-learning__upgrade-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
 }
 
 .course-learning__change {
