@@ -650,11 +650,13 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
         $this->select($f);
         $this->storeLessonMapping($f)->assertSessionHasNoErrors();
         $other = $this->fixture('upgrade-foreign-other');
+        $this->assertStringContainsString('course-learning__change-locked', $this->editPage($f), 'With no other Version of this framework nothing is offered.');
 
+        [$v2] = $this->publishedVersionWith($f, [$this->fixtureDefinition($f)]);
         $html = $this->editPage($f, $other['version_id']);
-        $this->assertStringContainsString('course-learning__upgrade-invalid', $html);
+        $this->assertStringContainsString('course-learning__upgrade-invalid', $html, 'A Version of another tenant is refused.');
         $this->assertStringNotContainsString('data-course-learning-upgrade=', $html);
-        $this->assertStringContainsString('course-learning__change-locked', $html, 'With no other Version of this framework nothing is offered.');
+        $this->assertStringContainsString('data-course-learning-upgrade="'.$v2.'"', $this->editPage($f, $v2));
     }
 
     public function test_a_link_whose_competency_left_the_framework_is_listed_and_removed(): void
