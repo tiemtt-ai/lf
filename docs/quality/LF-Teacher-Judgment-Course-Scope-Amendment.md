@@ -1,12 +1,12 @@
 # Teacher Judgment Course Scope Amendment
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-10-11
+Last Updated: 2026-10-12
 
 Document Path: quality/LF-Teacher-Judgment-Course-Scope-Amendment.md
 
@@ -122,6 +122,28 @@ tooltips on every non-obvious field.
 * "Chấm lại" records a new judgment; corrections (`supersedes_judgment_id`) are
   not offered by this surface.
 * Shared `<x-info-tip>` help bubble (hover, keyboard focus or tap).
+
+## Form revision — 2026-10-12
+
+Owner request on 2026-10-12: once a score is typed, levels that cannot match it
+are locked.
+
+* The service accepts a score only with the level its thresholds give (the
+  highest level whose threshold the score reaches); any other level is refused
+  with `LF_TEACHER_JUDGMENT_RESULT_INVALID`. With a score there is therefore
+  exactly one valid level.
+* The judgment form selects that level as the score is typed and disables the
+  other level options (shown dimmed). Clearing the score unlocks every level, so
+  a level without a score stays possible.
+* Presentation only: the service rule is unchanged and still refuses a
+  mismatched level sent by any other means.
+* Each level option shows its minimum percentage on a second line under the
+  level name, so the options line up.
+
+Verification: checked in the browser (10 → Chưa bắt đầu, 50 → Đang phát triển,
+78 → Thành thạo, 95 → Làm chủ, others locked; empty score → all open). The
+MariaDB teacher judgment tests and the full SQLite suite stay green
+(1435 passed, 23 skipped).
 
 Verification: `TeacherJudgmentRuntimeMariaDbTest` (course-scope refusal writes
 nothing, unmapped Node of a mapped Version accepted, invalidated mapping out of
