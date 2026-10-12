@@ -47,9 +47,15 @@ final class LearningFrameworkController extends Controller
         });
     }
 
-    public function show(int $framework): View
+    public function show(Request $request, int $framework): View
     {
-        return view('learning-frameworks.show', $this->reader->detail((int) request()->user()->id, $framework));
+        $detail = $this->reader->detail((int) $request->user()->id, $framework);
+        // ?version= opens that Version read-only in the history tab; a foreign or unknown id opens nothing.
+        $viewed = $detail['versions']->firstWhere('id', (int) $request->query('version'));
+        $tab = $viewed !== null ? 'history' : (string) $request->query('tab', 'content');
+        $tab = in_array($tab, ['content', 'scale', 'history'], true) ? $tab : 'content';
+
+        return view('learning-frameworks.show', [...$detail, 'tab' => $tab, 'viewedVersion' => $viewed]);
     }
 
     public function update(LearningFrameworkRequest $request, int $framework): RedirectResponse

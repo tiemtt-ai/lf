@@ -60,9 +60,13 @@ final class LearningFrameworkReadService
             abort(404);
         }
 
-        $versions = DB::table('core_learning_framework_versions')
-            ->where('customer_id', $customerId)->where('framework_id', $frameworkId)
-            ->orderByDesc('version_number')->get();
+        $versions = DB::table('core_learning_framework_versions as versions')
+            ->leftJoin('users as publishers', function ($join): void {
+                $join->on('publishers.id', '=', 'versions.published_by')->on('publishers.customer_id', '=', 'versions.customer_id');
+            })
+            ->where('versions.customer_id', $customerId)->where('versions.framework_id', $frameworkId)
+            ->orderByDesc('versions.version_number')
+            ->get(['versions.*', 'publishers.name as published_by_name']);
         $definitions = DB::table('core_learning_node_definitions')
             ->where('customer_id', $customerId)->where('framework_id', $frameworkId)
             ->select('core_learning_node_definitions.*')

@@ -442,7 +442,7 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
         $this->assertStringContainsString('data-lf-framework-draft="'.$drafts[0]->id.'"', $html);
         $this->assertStringContainsString("/admin/learning-frameworks/{$framework->id}/versions/{$drafts[0]->id}/publish", $html);
         $this->assertStringContainsString('Xuất bản Phiên bản 2', $html);
-        $this->assertStringContainsString('Đang dùng · Phiên bản 1', $html);
+        $this->assertStringContainsString('Mới nhất · Phiên bản 1', $html);
         $this->assertStringNotContainsString('stage', $html, 'Criteria JSON is not shown.');
 
         // The list shows the version in use, its competency count and the open draft.
@@ -544,7 +544,7 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
         $v1 = DB::table('core_learning_framework_versions')->where('framework_id', $framework->id)->firstOrFail();
         $this->admin()->post($this->host."/admin/learning-frameworks/{$framework->id}/versions/{$v1->id}/publish")->assertSessionHasNoErrors();
 
-        $html = $this->admin()->get($this->host."/admin/learning-frameworks/{$framework->id}")->assertOk()->getContent();
+        $html = $this->admin()->get($this->host."/admin/learning-frameworks/{$framework->id}?tab=scale")->assertOk()->getContent();
         $this->assertStringContainsString('data-lf-framework-scale-form', $html);
         $this->assertStringContainsString('name="mastery_scale_version" value="2"', $html, 'Saving the scale form moves to the next scale version.');
 
@@ -577,6 +577,56 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
             ]],
         ])->assertSessionHasErrors('mastery_scale');
         $this->assertSame('2', (string) DB::table('core_learning_frameworks')->where('id', $framework->id)->value('default_mastery_scale_version'));
+    }
+
+    public function test_version_history_shows_each_version_with_its_own_competencies_and_scale(): void
+    {
+        $framework = $this->createFramework('history-view');
+        $definition = $this->createDefinition($framework->id, 'H-1');
+        $url = $this->host."/admin/learning-frameworks/{$framework->id}";
+        $this->admin()->post($url.'/competencies', ['node_definition_id' => (string) $definition->id])->assertSessionHasNoErrors();
+        $v1 = DB::table('core_learning_framework_versions')->where('framework_id', $framework->id)->firstOrFail();
+        $this->admin()->post($url."/versions/{$v1->id}/publish")->assertSessionHasNoErrors();
+        $this->admin()->put($url, [
+            'code' => 'history-view', 'name' => 'Framework history-view', 'description' => '',
+            'mastery_scale_key' => 'lf-default', 'mastery_scale_version' => '2',
+            'mastery_scale' => ['levels' => [
+                ['key' => 'not_started', 'threshold' => '0'],
+                ['key' => 'developing', 'threshold' => '0.4'],
+                ['key' => 'proficient', 'threshold' => '0.7'],
+                ['key' => 'mastered', 'threshold' => '0.85'],
+            ]],
+        ])->assertSessionHasNoErrors();
+        $this->admin()->post($url.'/competencies', ['canonical_name' => 'Added later', 'node_type' => 'competency'])->assertSessionHasNoErrors();
+        $v2 = DB::table('core_learning_framework_versions')->where('framework_id', $framework->id)->where('status', 'draft_snapshot')->firstOrFail();
+        $this->admin()->post($url."/versions/{$v2->id}/publish")->assertSessionHasNoErrors();
+
+        $content = $this->admin()->get($url)->assertOk()->getContent();
+        $this->assertMatchesRegularExpression('#aria-current="page"\s+data-lf-framework-tab="content"#', $content, 'Content is the default tab.');
+        $this->assertStringNotContainsString('data-lf-framework-scale-form', $content, 'The scale lives in its own tab.');
+        $this->assertStringNotContainsString('data-lf-framework-version-view', $content);
+
+        $history = $this->admin()->get($url.'?tab=history')->assertOk()->getContent();
+        $this->assertStringContainsString('data-lf-framework-version="'.$v1->id.'"', $history);
+        $this->assertStringNotContainsString('data-lf-framework-version-view', $history, 'History lists Versions; none opens by itself.');
+
+        $old = $this->versionView($this->admin()->get($url.'?version='.$v1->id)->assertOk()->getContent(), $v1->id);
+        $this->assertStringContainsString('data-lf-framework-version-item="'.$definition->id.'"', $old);
+        $this->assertStringNotContainsString('Added later', $old, 'An old Version shows only its own competencies.');
+        $this->assertStringContainsString('≥ 80%', $old, 'An old Version shows the scale frozen with it.');
+        $this->assertStringNotContainsString('≥ 85%', $old);
+        $this->assertStringNotContainsString('<form', $old, 'A published Version is read only.');
+
+        $new = $this->versionView($this->admin()->get($url.'?version='.$v2->id)->assertOk()->getContent(), $v2->id);
+        $this->assertStringContainsString('Added later', $new);
+        $this->assertStringContainsString('≥ 85%', $new);
+
+        $other = $this->createFramework('history-other');
+        $otherDefinition = $this->createDefinition($other->id, 'O-1');
+        $this->admin()->post($this->host."/admin/learning-frameworks/{$other->id}/competencies", ['node_definition_id' => (string) $otherDefinition->id])->assertSessionHasNoErrors();
+        $foreign = DB::table('core_learning_framework_versions')->where('framework_id', $other->id)->firstOrFail();
+        $this->assertStringNotContainsString('data-lf-framework-version-view', $this->admin()->get($url.'?version='.$foreign->id)->assertOk()->getContent(),
+            'A Version of another framework is never shown here.');
     }
 
     public function test_a_teacher_cannot_add_a_competency(): void
@@ -677,6 +727,13 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
      *
      * @return array<string, mixed>
      */
+    private function versionView(string $html, int $versionId): string
+    {
+        $this->assertSame(1, preg_match('#<section[^>]*data-lf-framework-version-view="'.$versionId.'".*?</section>#s', $html, $match), 'The Version is open read-only.');
+
+        return $match[0];
+    }
+
     private function frameworkPayload(string $code): array
     {
         return [
