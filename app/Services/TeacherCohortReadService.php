@@ -75,7 +75,7 @@ final class TeacherCohortReadService
             ->where('members.customer_id', $this->tenant())->where('members.cohort_id', $cohortId)
             ->where('members.status', 'active')->whereNull('members.left_at')
             ->orderBy('users.name')
-            ->get(['members.id', 'members.enrollment_id', 'members.student_id', 'users.name']);
+            ->get(['members.id', 'members.enrollment_id', 'members.student_id', 'members.joined_at', 'users.name']);
     }
 
     /**
@@ -118,14 +118,16 @@ final class TeacherCohortReadService
     /** Null when judging is possible today; otherwise a translation-key suffix explaining why not. */
     private function blockedReason(object $cohort, ?object $assignment, string $today): ?string
     {
+        // "No competencies" comes before the date reasons: otherwise an ended class without any
+        // would promise "earlier results stay visible" when there is nothing to see.
         return match (true) {
             $cohort->status !== 'active' => 'cohort_not_active',
+            $cohort->bases->isEmpty() => 'no_competencies',
             $cohort->start_date === null || $cohort->end_date === null || $today < $cohort->start_date => 'cohort_not_started',
             $today > $cohort->end_date => 'cohort_ended',
             $assignment === null
                 || ($assignment->assigned_from !== null && $assignment->assigned_from > $today)
                 || ($assignment->assigned_to !== null && $assignment->assigned_to < $today) => 'assignment_out_of_range',
-            $cohort->bases->isEmpty() => 'no_competencies',
             default => null,
         };
     }

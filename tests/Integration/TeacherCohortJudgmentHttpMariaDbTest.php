@@ -50,8 +50,8 @@ class TeacherCohortJudgmentHttpMariaDbTest extends TestCase
         $this->assertStringContainsString('href="'.$f['host'].'/teacher/cohorts/'.$f['cohort_id'].'/judgments"', $html);
         $this->assertStringContainsString('data-teacher-cohort="'.$unmapped.'"', $html);
         $this->assertStringContainsString('Khoá học của lớp chưa gắn năng lực khi xuất bản', $html);
-        $this->assertSame(2, substr_count($html, 'Quản lý lớp'), 'Every listed class has one "Quản lý lớp" entry.');
-        $this->assertStringContainsString('href="'.$f['host'].'/teacher/cohorts/'.$unmapped.'/judgments"', $html);
+        $this->assertStringContainsString('Chấm năng lực', $html);
+        $this->assertStringNotContainsString('href="'.$f['host'].'/teacher/cohorts/'.$unmapped.'/judgments"', $html, 'A class without competencies has nothing to open.');
         $this->assertStringNotContainsString('data-teacher-cohort="'.$foreign.'"', $html, 'Another teacher’s cohort is not listed.');
         $this->assertStringContainsString('role="tooltip"', $html);
     }
@@ -140,6 +140,25 @@ class TeacherCohortJudgmentHttpMariaDbTest extends TestCase
         ]))->assertSessionHasErrors('membership_id');
 
         $this->assertSame(0, DB::table('core_liveclass_teacher_judgments')->count());
+    }
+
+    public function test_counts_ignore_students_who_left_and_the_form_starts_at_joining(): void
+    {
+        $f = $this->fixture('counts');
+        DB::table('core_course_cohort_students')->where('id', $f['membership_id'])->update(['joined_at' => '2026-08-05 08:30:00']);
+        $this->as($f['teacher_id'])->post($f['host']."/teacher/cohorts/{$f['cohort_id']}/judgments", $this->payload($f, [
+            'level' => 'mastered', 'score_percent' => '90',
+        ]))->assertSessionHasNoErrors();
+
+        $html = $this->as($f['teacher_id'])->get($f['host']."/teacher/cohorts/{$f['cohort_id']}/judgments")->getContent();
+        $this->assertStringContainsString('1/1 học viên đã chấm', $html);
+        $this->assertStringContainsString('min="2026-08-05T08:30"', $html, 'The earliest observation is the student’s joining, not the class start.');
+
+        // The student leaves: the judgment stays in history but no longer counts for the class.
+        DB::table('core_course_cohort_students')->where('id', $f['membership_id'])->update(['left_at' => '2026-08-19 10:00:00', 'status' => 'removed']);
+        $html = $this->as($f['teacher_id'])->get($f['host']."/teacher/cohorts/{$f['cohort_id']}/judgments")->getContent();
+        $this->assertStringNotContainsString('học viên đã chấm', $html);
+        $this->assertSame(1, DB::table('core_liveclass_teacher_judgments')->where('customer_id', $f['customer_id'])->count());
     }
 
     // ------------------------------------------------------------------ Fixtures

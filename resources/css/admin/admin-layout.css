@@ -789,7 +789,8 @@
 
 .admin-floating {
     position: fixed;
-    top: 555px;
+    /* Anchored to the viewport bottom: a fixed top offset put the stack mid-screen on short windows. */
+    bottom: 24px;
     right: 38px;
     z-index: 20;
     display: flex;

@@ -1,5 +1,6 @@
 {{-- One judgment for one student on the current competency. Typing a score selects the level its
-     thresholds give, because the service refuses a score that contradicts the chosen level. --}}
+     thresholds give and locks the others, because the service refuses a score that contradicts the
+     chosen level. Clearing the score unlocks every level. --}}
 <form method="POST" action="{{ route('teacher.cohorts.judgments.store', $cohort->id) }}"
       class="teacher-judgment__form"
       aria-label="{{ __('lf.LF_teacher_judgment_form_label', ['name' => $student->name]) }}"
@@ -7,12 +8,15 @@
           levels: @js($thresholds),
           level: @js($isOld ? old('level') : null),
           score: @js($isOld ? old('score_percent') : ''),
-          fromScore() {
-              if (this.score === '' || this.score === null || isNaN(Number(this.score))) return;
+          get matched() {
+              if (this.score === '' || this.score === null || isNaN(Number(this.score))) return null;
               const value = Number(this.score) / 100;
               let picked = null;
               this.levels.forEach((l) => { if (value >= l.threshold) picked = l.key; });
-              if (picked) this.level = picked;
+              return picked;
+          },
+          fromScore() {
+              if (this.matched) this.level = this.matched;
           },
       }">
     @csrf
@@ -28,8 +32,10 @@
         </legend>
         <div class="teacher-judgment__level-options">
             @foreach ($levels as $level)
-                <label class="teacher-judgment__level-option" :class="{ 'is-selected': level === @js($level['key']) }">
-                    <input type="radio" name="level" value="{{ $level['key'] }}" x-model="level" required>
+                <label class="teacher-judgment__level-option"
+                       :class="{ 'is-selected': level === @js($level['key']), 'is-locked': matched && matched !== @js($level['key']) }">
+                    <input type="radio" name="level" value="{{ $level['key'] }}" x-model="level" required
+                           :disabled="matched && matched !== @js($level['key'])">
                     <span>{{ $levelLabel($level['key']) }}</span>
                     @if ((float) $level['threshold'] > 0)
                         <span class="teacher-judgment__threshold">≥ {{ round((float) $level['threshold'] * 100) }}%</span>
@@ -54,7 +60,7 @@
                 <x-info-tip :text="__('lf.LF_teacher_judgment_occurred_at_tip')" align="end" />
             </label>
             <input id="{{ $formId }}-occurred" name="occurred_at" type="datetime-local" class="lf-form-control" required
-                   value="{{ $isOld ? old('occurred_at') : $nowLocal }}" max="{{ $nowLocal }}" @if ($minLocal) min="{{ $minLocal }}" @endif>
+                   value="{{ $isOld ? old('occurred_at') : $nowLocal }}" max="{{ $nowLocal }}" min="{{ $studentMinLocal }}">
         </div>
     </div>
 

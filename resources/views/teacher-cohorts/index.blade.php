@@ -34,8 +34,12 @@
                         <span class="teacher-cohorts__blocked">{{ __('lf.LF_teacher_cohorts_blocked_'.$cohort->blocked_reason) }}</span>
                     @endif
                 </div>
-                {{-- The teacher runs the class: one entry for every state; the page itself says what can be done now. --}}
-                <a class="btn {{ $cohort->blocked_reason === null ? 'btn-primary' : 'btn-secondary' }}" href="{{ route('teacher.cohorts.show', $cohort->id) }}">{{ __('lf.LF_teacher_cohorts_manage') }}</a>
+                @if ($cohort->blocked_reason === null)
+                    <a class="btn btn-primary" href="{{ route('teacher.cohorts.show', $cohort->id) }}">{{ __('lf.LF_teacher_cohorts_judge') }}</a>
+                @elseif ($cohort->bases->isNotEmpty())
+                    {{-- Outside the judging window the page still shows earlier results, read-only. --}}
+                    <a class="btn btn-secondary" href="{{ route('teacher.cohorts.show', $cohort->id) }}">{{ __('lf.LF_teacher_cohorts_view') }}</a>
+                @endif
             </article>
         @empty
             <div class="admin-card admin-form-empty-state" role="status">

@@ -155,7 +155,7 @@
                                                         <button type="button" class="btn btn-secondary" aria-controls="{{ $formId }}"
                                                                 aria-expanded="{{ $isOld ? 'true' : 'false' }}"
                                                                 x-data
-                                                                x-on:click="document.querySelectorAll('.teacher-judgment__form-panel').forEach((p) => { if (p.id !== '{{ $formId }}') p.hidden = true; }); const panel = document.getElementById('{{ $formId }}'); panel.hidden = ! panel.hidden; $el.setAttribute('aria-expanded', (! panel.hidden).toString()); if (! panel.hidden) panel.scrollIntoView({ block: 'nearest' })">
+                                                                x-on:click="document.querySelectorAll('.teacher-judgment__form-panel').forEach((p) => { if (p.id !== '{{ $formId }}') p.hidden = true; }); const panel = document.getElementById('{{ $formId }}'); panel.hidden = ! panel.hidden; $el.setAttribute('aria-expanded', (! panel.hidden).toString()); if (! panel.hidden) panel.scrollIntoView({ block: 'start', behavior: 'smooth' })">
                                                             {{ $last ? __('lf.LF_teacher_judgment_rejudge') : __('lf.LF_teacher_judgment_judge') }}
                                                         </button>
                                                     @endif
@@ -172,6 +172,9 @@
                                     @php
                                         $formId = 'teacher-judgment-form-'.$student->id;
                                         $isOld = (int) old('membership_id') === (int) $student->id && (int) old('node_id') === (int) $node->id;
+                                        // The service accepts an observation from the later of class start and the student's joining.
+                                        $joinedLocal = $student->joined_at ? \Illuminate\Support\Carbon::parse($student->joined_at)->format('Y-m-d\TH:i') : null;
+                                        $studentMinLocal = collect([$minLocal, $joinedLocal])->filter()->max();
                                     @endphp
                                     <div id="{{ $formId }}" class="teacher-judgment__form-panel" @unless ($isOld) hidden @endunless>
                                         <h3 class="teacher-judgment__form-title">{{ __('lf.LF_teacher_judgment_form_label', ['name' => $student->name]) }}</h3>

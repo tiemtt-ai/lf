@@ -41,16 +41,20 @@ final class TeacherCohortJudgmentController extends Controller
         $basis = $cohortRow->bases->firstWhere('id', (int) $request->query('basis')) ?? $cohortRow->bases->first();
         $competencies = $basis ? $this->competencies->competencies($this->tenant(), (int) $cohortRow->version_id, (int) $basis->id) : collect();
         $node = $competencies->firstWhere('id', (int) $request->query('node')) ?? $competencies->first();
+        $students = $this->cohorts->students($cohort);
         $latest = $basis ? $this->cohorts->latestJudgments($cohort, (int) $basis->id) : collect();
+        // Count only students still in the class, so "x/y judged" never exceeds the class size.
+        $activeIds = $students->pluck('id')->map(fn ($id): int => (int) $id)->all();
 
         return view('teacher-cohorts.show', [
             'cohort' => $cohortRow,
             'basis' => $basis,
             'competencies' => $competencies,
             'node' => $node,
-            'students' => $this->cohorts->students($cohort),
+            'students' => $students,
             'latest' => $latest,
-            'judgedCounts' => $latest->groupBy('learning_node_id')->map->count(),
+            'judgedCounts' => $latest->filter(fn (object $row): bool => in_array((int) $row->cohort_student_membership_id, $activeIds, true))
+                ->groupBy('learning_node_id')->map->count(),
         ]);
     }
 
